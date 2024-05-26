@@ -10,7 +10,7 @@ use crate::{
 use clap::Subcommand;
 use futures::{select, FutureExt};
 use kdam::{tqdm, BarExt, RowManager};
-use sos_net::sdk::prelude::*;
+use sos_net::{client::InflightOperation, sdk::prelude::*};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, Mutex};
 

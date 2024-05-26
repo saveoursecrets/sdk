@@ -7,9 +7,7 @@ use sos_sdk::{
     decode, encode,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{
-        ChangeSet, Origin, SyncClient, SyncPacket, SyncStatus, UpdateSet,
-    },
+    sync::{ChangeSet, Origin, SyncPacket, SyncStatus, UpdateSet},
 };
 use tracing::instrument;
 
@@ -25,14 +23,14 @@ use super::websocket::WebSocketChangeListener;
 use crate::sdk::sync::DeviceDiff;
 
 #[cfg(feature = "files")]
-use crate::sdk::storage::files::{
-    ExternalFile, FileSet, FileTransfersSet, ProgressChannel,
-};
+use crate::sdk::storage::files::{ExternalFile, FileSet, FileTransfersSet};
 
+#[cfg(feature = "files")]
+use crate::client::ProgressChannel;
+
+use crate::client::{Error, Result, SyncClient};
 use std::{fmt, path::Path, sync::Arc, time::Duration};
 use url::Url;
-
-use crate::client::{Error, Result};
 
 #[cfg(feature = "listen")]
 use crate::client::{ListenOptions, WebSocketHandle};
@@ -187,8 +185,6 @@ impl HttpClient {
 
 #[async_trait]
 impl SyncClient for HttpClient {
-    type Error = Error;
-
     fn origin(&self) -> &Origin {
         &self.origin
     }
@@ -245,9 +241,7 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip(self))]
-    async fn fetch_account(
-        &self,
-    ) -> std::result::Result<ChangeSet, Self::Error> {
+    async fn fetch_account(&self) -> Result<ChangeSet> {
         let url = self.build_url("api/v1/sync/account")?;
 
         tracing::debug!(url = %url, "http::fetch_account");
@@ -306,10 +300,7 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip(self, packet))]
-    async fn sync(
-        &self,
-        packet: &SyncPacket,
-    ) -> std::result::Result<SyncPacket, Self::Error> {
+    async fn sync(&self, packet: &SyncPacket) -> Result<SyncPacket> {
         let body = encode(packet).await?;
         let url = self.build_url("api/v1/sync/account")?;
 
@@ -338,10 +329,7 @@ impl SyncClient for HttpClient {
 
     #[cfg(feature = "device")]
     #[instrument(skip(self, diff))]
-    async fn patch_devices(
-        &self,
-        diff: &DeviceDiff,
-    ) -> std::result::Result<(), Self::Error> {
+    async fn patch_devices(&self, diff: &DeviceDiff) -> Result<()> {
         let body = encode(diff).await?;
         let url = self.build_url("api/v1/sync/account/devices")?;
 
@@ -375,7 +363,7 @@ impl SyncClient for HttpClient {
         file_info: &ExternalFile,
         path: &Path,
         progress: Arc<ProgressChannel>,
-    ) -> std::result::Result<http::StatusCode, Self::Error> {
+    ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
         use reqwest::{
             header::{CONTENT_LENGTH, CONTENT_TYPE},
@@ -441,7 +429,7 @@ impl SyncClient for HttpClient {
         file_info: &ExternalFile,
         path: &Path,
         progress: Arc<ProgressChannel>,
-    ) -> std::result::Result<http::StatusCode, Self::Error> {
+    ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
         use tokio::io::AsyncWriteExt;
 
@@ -502,7 +490,7 @@ impl SyncClient for HttpClient {
     async fn delete_file(
         &self,
         file_info: &ExternalFile,
-    ) -> std::result::Result<http::StatusCode, Self::Error> {
+    ) -> Result<http::StatusCode> {
         let url_path = format!("api/v1/sync/file/{}", file_info);
         let url = self.build_url(&url_path)?;
 
@@ -539,7 +527,7 @@ impl SyncClient for HttpClient {
         &self,
         from: &ExternalFile,
         to: &ExternalFile,
-    ) -> std::result::Result<http::StatusCode, Self::Error> {
+    ) -> Result<http::StatusCode> {
         let url_path = format!("api/v1/sync/file/{}", from);
         let mut url = self.build_url(&url_path)?;
 
@@ -578,7 +566,7 @@ impl SyncClient for HttpClient {
     async fn compare_files(
         &self,
         local_files: &FileSet,
-    ) -> std::result::Result<FileTransfersSet, Self::Error> {
+    ) -> Result<FileTransfersSet> {
         let url_path = format!("api/v1/sync/files");
         let url = self.build_url(&url_path)?;
 

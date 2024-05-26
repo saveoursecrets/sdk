@@ -1,12 +1,10 @@
 //! Adds sync capability to network account.
-use crate::client::{NetworkAccount, RemoteSync, SyncError};
+use crate::client::{NetworkAccount, RemoteSync, SyncClient, SyncError};
 use async_trait::async_trait;
 use sos_sdk::{
     events::{AccountEventLog, FolderEventLog},
     storage::StorageEventLogs,
-    sync::{
-        Origin, SyncClient, SyncOptions, SyncStatus, SyncStorage, UpdateSet,
-    },
+    sync::{Origin, SyncOptions, SyncStatus, SyncStorage, UpdateSet},
     vault::VaultId,
     Result,
 };

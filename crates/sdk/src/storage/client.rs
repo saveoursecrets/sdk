@@ -40,11 +40,22 @@ use crate::{
 #[cfg(feature = "files")]
 use crate::events::{FileEvent, FileEventLog};
 
-#[cfg(all(feature = "files", feature = "sync"))]
-use crate::storage::files::{InflightTransfers, Transfers};
+#[cfg(feature = "files")]
+use crate::storage::files::FileMutationEvent;
 
 #[cfg(feature = "search")]
 use crate::storage::search::{AccountSearch, DocumentCount};
+
+/// Storage change event with an optional
+/// collection of file mutation events.
+#[doc(hidden)]
+pub struct StorageChangeEvent {
+    /// Write event.
+    pub event: WriteEvent,
+    /// Collection of file mutation events.
+    #[cfg(feature = "files")]
+    pub file_events: Vec<FileMutationEvent>,
+}
 
 /// Client storage for folders loaded into memory and mirrored to disc.
 pub struct ClientStorage {
@@ -88,12 +99,6 @@ pub struct ClientStorage {
     /// File event log.
     #[cfg(feature = "files")]
     pub(crate) file_log: Arc<RwLock<FileEventLog>>,
-
-    #[cfg(all(feature = "files", feature = "sync"))]
-    pub(crate) transfers: Arc<RwLock<Transfers>>,
-
-    #[cfg(all(feature = "files", feature = "sync"))]
-    pub(crate) inflight_transfers: Arc<InflightTransfers>,
 
     /// Password for file encryption.
     #[cfg(feature = "files")]
@@ -152,12 +157,6 @@ impl ClientStorage {
         #[cfg(feature = "files")]
         let file_log = Self::initialize_file_log(&paths).await?;
 
-        #[cfg(all(feature = "files", feature = "sync"))]
-        let transfers = Transfers::new(&paths).await?;
-
-        #[cfg(all(feature = "files", feature = "sync"))]
-        let inflight_transfers = InflightTransfers::new();
-
         Ok(Self {
             address,
             summaries: Vec::new(),
@@ -174,10 +173,6 @@ impl ClientStorage {
             devices,
             #[cfg(feature = "files")]
             file_log: Arc::new(RwLock::new(file_log)),
-            #[cfg(all(feature = "files", feature = "sync"))]
-            transfers: Arc::new(RwLock::new(transfers)),
-            #[cfg(all(feature = "files", feature = "sync"))]
-            inflight_transfers: Arc::new(inflight_transfers),
             #[cfg(feature = "files")]
             file_password: None,
         })
@@ -249,18 +244,6 @@ impl ClientStorage {
         }
 
         Ok(event_log)
-    }
-
-    /// File transfers queue.
-    #[cfg(all(feature = "files", feature = "sync"))]
-    pub fn transfers(&self) -> Arc<RwLock<Transfers>> {
-        Arc::clone(&self.transfers)
-    }
-
-    /// Inflight file transfers.
-    #[cfg(all(feature = "files", feature = "sync"))]
-    pub fn inflight_transfers(&self) -> Arc<InflightTransfers> {
-        Arc::clone(&self.inflight_transfers)
     }
 
     /// Search index reference.
@@ -1143,7 +1126,7 @@ impl ClientStorage {
         &mut self,
         secret_data: SecretRow,
         mut options: AccessOptions,
-    ) -> Result<WriteEvent> {
+    ) -> Result<StorageChangeEvent> {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
 
         #[cfg(feature = "search")]
@@ -1168,17 +1151,21 @@ impl ClientStorage {
             folder.create_secret(&secret_data).await?
         };
 
-        #[cfg(feature = "files")]
-        {
-            let events = self
+        let result = StorageChangeEvent {
+            event,
+            #[cfg(feature = "files")]
+            file_events: self
                 .create_files(
                     &summary,
                     secret_data,
                     &mut options.file_progress,
                 )
-                .await?;
-            self.append_file_mutation_events(&events).await?;
-        }
+                .await?,
+        };
+
+        #[cfg(feature = "files")]
+        self.append_file_mutation_events(&result.file_events)
+            .await?;
 
         #[cfg(feature = "search")]
         if let (Some(index), Some(index_doc)) = (&self.index, index_doc) {
@@ -1187,7 +1174,7 @@ impl ClientStorage {
             index.commit(index_doc)
         }
 
-        Ok(event)
+        Ok(result)
     }
 
     /// Read a secret in the currently open folder.
@@ -1214,7 +1201,7 @@ impl ClientStorage {
         meta: SecretMeta,
         secret: Option<Secret>,
         mut options: AccessOptions,
-    ) -> Result<WriteEvent> {
+    ) -> Result<StorageChangeEvent> {
         let (old_meta, old_secret, _) = self.read_secret(secret_id).await?;
         let old_secret_data =
             SecretRow::new(*secret_id, old_meta, old_secret);
@@ -1231,23 +1218,29 @@ impl ClientStorage {
             .write_secret(secret_id, secret_data.clone(), true)
             .await?;
 
-        // Must update the files before moving so checksums are correct
-        #[cfg(feature = "files")]
-        {
-            let folder = self.current_folder().ok_or(Error::NoOpenVault)?;
-            let events = self
-                .update_files(
+        let result = StorageChangeEvent {
+            event,
+            // Must update the files before moving so checksums are correct
+            #[cfg(feature = "files")]
+            file_events: {
+                let folder =
+                    self.current_folder().ok_or(Error::NoOpenVault)?;
+                self.update_files(
                     &folder,
                     &folder,
                     &old_secret_data,
                     secret_data,
                     &mut options.file_progress,
                 )
-                .await?;
-            self.append_file_mutation_events(&events).await?;
-        }
+                .await?
+            },
+        };
 
-        Ok(event)
+        #[cfg(feature = "files")]
+        self.append_file_mutation_events(&result.file_events)
+            .await?;
+
+        Ok(result)
     }
 
     /// Write a secret in the current open folder.
@@ -1316,27 +1309,34 @@ impl ClientStorage {
         &mut self,
         secret_id: &SecretId,
         mut options: AccessOptions,
-    ) -> Result<WriteEvent> {
+    ) -> Result<StorageChangeEvent> {
         let (meta, secret, _) = self.read_secret(secret_id).await?;
         let secret_data = SecretRow::new(*secret_id, meta, secret);
 
         let event = self.remove_secret(secret_id).await?;
 
-        #[cfg(feature = "files")]
-        {
-            let folder = self.current_folder().ok_or(Error::NoOpenVault)?;
-            let events = self
-                .delete_files(
+        let result = StorageChangeEvent {
+            event,
+            // Must update the files before moving so checksums are correct
+            #[cfg(feature = "files")]
+            file_events: {
+                let folder =
+                    self.current_folder().ok_or(Error::NoOpenVault)?;
+                self.delete_files(
                     &folder,
                     &secret_data,
                     None,
                     &mut options.file_progress,
                 )
-                .await?;
-            self.append_file_mutation_events(&events).await?;
-        }
+                .await?
+            },
+        };
 
-        Ok(event)
+        #[cfg(feature = "files")]
+        self.append_file_mutation_events(&result.file_events)
+            .await?;
+
+        Ok(result)
     }
 
     /// Remove a secret.

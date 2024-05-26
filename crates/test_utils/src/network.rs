@@ -4,7 +4,7 @@ use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
     client::{
-        ListenOptions, NetworkAccount, RemoteBridge, RemoteSync,
+        ListenOptions, NetworkAccount, RemoteBridge, RemoteSync, SyncClient,
         WebSocketHandle,
     },
     sdk::{
@@ -15,7 +15,7 @@ use sos_net::{
         passwd::diceware::generate_passphrase,
         sha2::{Digest, Sha256},
         storage::files::ExternalFile,
-        sync::{Origin, SyncClient, SyncStorage},
+        sync::{Origin, SyncStorage},
         url::Url,
         vault::{Summary, VaultId},
         vfs, Paths,

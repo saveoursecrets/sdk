@@ -18,6 +18,7 @@ use crate::{
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
+        files::FileMutationEvent,
         paths::FileLock,
         search::{DocumentCount, SearchIndex},
         AccessOptions, AccountPack, ClientStorage, StorageEventLogs,
@@ -53,9 +54,6 @@ use crate::storage::search::*;
 
 #[cfg(feature = "sync")]
 use crate::sync::SyncError;
-
-#[cfg(all(feature = "files", feature = "sync"))]
-use crate::storage::files::Transfers;
 
 #[cfg(feature = "security-report")]
 use crate::{account::security_report::*, zxcvbn::Entropy};
@@ -125,6 +123,9 @@ pub struct SecretChange<T: std::error::Error> {
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
     pub sync_error: Option<SyncError<T>>,
+    /// File mutation events.
+    #[cfg(feature = "files")]
+    pub file_events: Vec<FileMutationEvent>,
     #[doc(hidden)]
     pub marker: std::marker::PhantomData<T>,
 }
@@ -149,6 +150,9 @@ pub struct SecretMove<T: std::error::Error> {
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
     pub sync_error: Option<SyncError<T>>,
+    /// File mutation events.
+    #[cfg(feature = "files")]
+    pub file_events: Vec<FileMutationEvent>,
     #[doc(hidden)]
     pub marker: std::marker::PhantomData<T>,
 }
@@ -165,6 +169,9 @@ pub struct SecretDelete<T: std::error::Error> {
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
     pub sync_error: Option<SyncError<T>>,
+    /// File mutation events.
+    #[cfg(feature = "files")]
+    pub file_events: Vec<FileMutationEvent>,
     #[doc(hidden)]
     pub marker: std::marker::PhantomData<T>,
 }
@@ -501,12 +508,6 @@ pub trait Account {
         summary: &Summary,
         commit: CommitHash,
     ) -> std::result::Result<DetachedView, Self::Error>;
-
-    /// Transfers queue.
-    #[cfg(all(feature = "files", feature = "sync"))]
-    async fn transfers(
-        &self,
-    ) -> std::result::Result<Arc<RwLock<Transfers>>, Self::Error>;
 
     /// Initialize the search index.
     ///
@@ -1161,6 +1162,8 @@ impl LocalAccount {
         secret: Secret,
         mut options: AccessOptions,
         audit: bool,
+        #[cfg(feature = "files")]
+        file_events: &mut Vec<FileMutationEvent>,
     ) -> Result<(SecretId, Event, Summary)> {
         let folder = {
             let storage = self.storage().await?;
@@ -1182,13 +1185,15 @@ impl LocalAccount {
 
         let id = SecretId::new_v4();
         let secret_data = SecretRow::new(id, meta, secret);
-        let event = {
+        let mut result = {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.create_secret(secret_data, options).await?
         };
 
-        let event = Event::Write(*folder.id(), event);
+        file_events.append(&mut result.file_events);
+
+        let event = Event::Write(*folder.id(), result.event);
         if audit {
             let audit_event: AuditEvent = (self.address(), &event).into();
             self.paths.append_audit_events(vec![audit_event]).await?;
@@ -1245,6 +1250,9 @@ impl LocalAccount {
             self.get_secret(secret_id, None, false).await?;
         let move_secret_data = secret_data.clone();
 
+        #[cfg(feature = "files")]
+        let mut file_events = Vec::new();
+
         self.open_vault(to, false).await?;
         let (new_id, create_event, _) = self
             .add_secret(
@@ -1252,6 +1260,7 @@ impl LocalAccount {
                 secret_data.secret,
                 Default::default(),
                 false,
+                &mut file_events,
             )
             .await?;
         self.open_vault(from, false).await?;
@@ -1269,8 +1278,7 @@ impl LocalAccount {
         {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
-
-            let events = writer
+            let mut move_file_events = writer
                 .move_files(
                     &move_secret_data,
                     from.id(),
@@ -1281,7 +1289,8 @@ impl LocalAccount {
                     &mut options.file_progress,
                 )
                 .await?;
-            writer.append_file_mutation_events(&events).await?;
+            writer.append_file_mutation_events(&move_file_events).await?;
+            file_events.append(&mut move_file_events);
         }
 
         let (_, create_event) = create_event.try_into()?;
@@ -1306,6 +1315,8 @@ impl LocalAccount {
             event,
             #[cfg(feature = "sync")]
             sync_error: None,
+            #[cfg(feature = "files")]
+            file_events,
             marker: std::marker::PhantomData,
         })
     }
@@ -2028,13 +2039,6 @@ impl Account for LocalAccount {
         })
     }
 
-    #[cfg(all(feature = "files", feature = "sync"))]
-    async fn transfers(&self) -> Result<Arc<RwLock<Transfers>>> {
-        let storage = self.storage().await?;
-        let storage = storage.read().await;
-        Ok(storage.transfers())
-    }
-
     #[cfg(feature = "search")]
     async fn initialize_search_index(
         &mut self,
@@ -2160,8 +2164,18 @@ impl Account for LocalAccount {
         let (folder, commit_state) =
             self.compute_folder_state(&options).await?;
 
+        #[cfg(feature = "files")]
+        let mut file_events = Vec::new();
+
         let (id, event, _) =
-            self.add_secret(meta, secret, options, true).await?;
+            self.add_secret(
+              meta,
+              secret,
+              options,
+              true,
+              #[cfg(feature = "files")]
+              &mut file_events,
+            ).await?;
 
         Ok(SecretChange {
             id,
@@ -2170,6 +2184,8 @@ impl Account for LocalAccount {
             folder,
             #[cfg(feature = "sync")]
             sync_error: None,
+            #[cfg(feature = "files")]
+            file_events,
             marker: std::marker::PhantomData,
         })
     }
@@ -2211,7 +2227,7 @@ impl Account for LocalAccount {
             }
         }
 
-        let event = {
+        let result = {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer
@@ -2219,11 +2235,19 @@ impl Account for LocalAccount {
                 .await?
         };
 
-        let event = Event::Write(*folder.id(), event);
+        let event = Event::Write(*folder.id(), result.event);
+
+        #[cfg(feature = "files")]
+        let mut file_events = result.file_events;
 
         let id = if let Some(to) = destination.as_ref() {
-            let SecretMove { id, .. } =
+            let SecretMove {
+                id,
+                #[cfg(feature = "files")]
+                file_events: mut move_file_events,
+                .. } =
                 self.mv_secret(secret_id, &folder, to, options).await?;
+            file_events.append(&mut move_file_events);
             id
         } else {
             *secret_id
@@ -2239,6 +2263,8 @@ impl Account for LocalAccount {
             folder,
             #[cfg(feature = "sync")]
             sync_error: None,
+            #[cfg(feature = "files")]
+            file_events,
             marker: std::marker::PhantomData,
         })
     }
@@ -2271,13 +2297,13 @@ impl Account for LocalAccount {
 
         self.open_folder(&folder).await?;
 
-        let event = {
+        let result = {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.delete_secret(secret_id, options).await?
         };
 
-        let event = Event::Write(*folder.id(), event);
+        let event = Event::Write(*folder.id(), result.event);
 
         let audit_event: AuditEvent = (self.address(), &event).into();
         self.paths.append_audit_events(vec![audit_event]).await?;
@@ -2288,6 +2314,8 @@ impl Account for LocalAccount {
             folder,
             #[cfg(feature = "sync")]
             sync_error: None,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         })
     }
@@ -2649,6 +2677,8 @@ impl Account for LocalAccount {
                 secret,
                 vault.summary().clone().into(),
                 false,
+                #[cfg(feature = "files")]
+                &mut vec![],
             )
             .await?;
         }

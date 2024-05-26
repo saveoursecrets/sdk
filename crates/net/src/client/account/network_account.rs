@@ -15,7 +15,7 @@ use sos_sdk::{
     sha2::{Digest, Sha256},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
-        files::{FileTransfers, InflightTransfers},
+        files::{ExternalFile, FileMutationEvent, TransferOperation},
         search::{
             AccountStatistics, ArchiveFilter, Document, DocumentCount,
             DocumentView, QueryFilter, SearchIndex,
@@ -70,6 +70,11 @@ use crate::sdk::migrate::import::ImportTarget;
 use super::remote::Remotes;
 use crate::client::{Error, RemoteBridge, RemoteSync, Result};
 
+#[cfg(feature = "files")]
+use crate::client::account::file_transfers::{
+    FileTransfers, InflightTransfers, TransfersQueue,
+};
+
 /// Account with networking capability.
 pub struct NetworkAccount {
     /// Address of this account.
@@ -99,7 +104,14 @@ pub struct NetworkAccount {
     /// made by this client.
     connection_id: Option<String>,
 
+    #[cfg(feature = "files")]
+    transfers: Option<Arc<RwLock<TransfersQueue>>>,
+
+    #[cfg(feature = "files")]
+    inflight_transfers: Option<Arc<InflightTransfers>>,
+
     /// Shutdown handle for the file transfers background task.
+    #[cfg(feature = "files")]
     file_transfers: Option<(UnboundedSender<()>, oneshot::Receiver<()>)>,
 
     /// Disable networking.
@@ -119,6 +131,15 @@ impl NetworkAccount {
             self.address = account.address().clone();
             folders
         };
+
+        #[cfg(feature = "files")]
+        {
+            let transfers = TransfersQueue::new(&*self.paths).await?;
+            let inflight_transfers = InflightTransfers::new();
+
+            self.transfers = Some(Arc::new(RwLock::new(transfers)));
+            self.inflight_transfers = Some(Arc::new(inflight_transfers));
+        }
 
         // Without an explicit connection id use the inferred
         // connection identifier
@@ -261,6 +282,8 @@ impl NetworkAccount {
             signer,
             device.into(),
             conn_id,
+            #[cfg(feature = "files")]
+            Arc::clone(self.transfers.as_ref().unwrap()),
         )?;
         Ok(provider)
     }
@@ -283,13 +306,6 @@ impl NetworkAccount {
         } else {
             Ok(None)
         }
-    }
-
-    /// Inflight file transfers.
-    pub async fn inflight_transfers(&self) -> Result<Arc<InflightTransfers>> {
-        let storage = self.storage().await?;
-        let reader = storage.read().await;
-        Ok(reader.inflight_transfers())
     }
 
     /// Save remote definitions to disc.
@@ -338,28 +354,26 @@ impl NetworkAccount {
         };
 
         let (paths, transfers, inflight_transfers) = {
-            let storage = self.storage().await?;
-            let reader = storage.read().await;
             (
-                reader.paths(),
-                reader.transfers(),
-                reader.inflight_transfers(),
+                self.paths(),
+                self.transfers().await?,
+                self.inflight_transfers().await?,
             )
         };
 
         let (shutdown_send, shutdown_recv) = mpsc::unbounded_channel::<()>();
-        let (ack_send, ack_recv) = oneshot::channel::<()>();
+        let (shutdown_ack_send, shutdown_ack_recv) = oneshot::channel::<()>();
 
-        FileTransfers::start(
+        let file_transfers = FileTransfers::new(
             paths,
-            transfers,
-            inflight_transfers,
-            clients,
+            Default::default(),
             shutdown_recv,
-            ack_send,
+            shutdown_ack_send,
         );
+        file_transfers.run(transfers, inflight_transfers, clients);
 
-        self.file_transfers = Some((shutdown_send, ack_recv));
+        self.file_transfers = Some((shutdown_send, shutdown_ack_recv));
+
         Ok(())
     }
 
@@ -400,6 +414,7 @@ impl NetworkAccount {
     ) -> Result<Self> {
         let account =
             LocalAccount::new_unauthenticated(address, data_dir).await?;
+
         Ok(Self {
             address: Default::default(),
             paths: account.paths(),
@@ -409,6 +424,11 @@ impl NetworkAccount {
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
             connection_id: None,
+            #[cfg(feature = "files")]
+            transfers: None,
+            #[cfg(feature = "files")]
+            inflight_transfers: None,
+            #[cfg(feature = "files")]
             file_transfers: None,
             offline,
         })
@@ -470,11 +490,58 @@ impl NetworkAccount {
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
             connection_id: None,
+            #[cfg(feature = "files")]
+            transfers: None,
+            #[cfg(feature = "files")]
+            inflight_transfers: None,
+            #[cfg(feature = "files")]
             file_transfers: None,
             offline,
         };
 
         Ok(owner)
+    }
+
+    /// File transfers queue.
+    #[cfg(feature = "files")]
+    pub async fn transfers(
+        &self,
+    ) -> crate::Result<Arc<RwLock<TransfersQueue>>> {
+        Ok(Arc::clone(
+            self.transfers
+                .as_ref()
+                .ok_or_else(|| crate::sdk::Error::NotAuthenticated)?,
+        ))
+    }
+
+    /// Inflight file transfers.
+    #[cfg(feature = "files")]
+    pub async fn inflight_transfers(&self) -> Result<Arc<InflightTransfers>> {
+        Ok(Arc::clone(
+            self.inflight_transfers
+                .as_ref()
+                .ok_or_else(|| crate::sdk::Error::NotAuthenticated)?,
+        ))
+    }
+
+    /// Convert file mutation events into file transfer queue entries.
+    async fn queue_file_mutation_events(
+        &self,
+        events: &[FileMutationEvent],
+    ) -> Result<()> {
+        if let Some(transfers) = &self.transfers {
+            let mut ops = HashMap::new();
+            for event in events {
+                let (file, op): (ExternalFile, TransferOperation) =
+                    event.into();
+                let entries = ops.entry(file).or_insert(IndexSet::new());
+                entries.insert(op);
+            }
+
+            let mut writer = transfers.write().await;
+            writer.queue_transfers(ops).await?;
+        }
+        Ok(())
     }
 }
 
@@ -713,12 +780,18 @@ impl Account for NetworkAccount {
             self.shutdown_listeners().await;
         }
 
-        tracing::debug!("net_sign_out::stop_file_transfers");
-        self.stop_file_transfers().await;
+        #[cfg(feature = "files")]
         {
-            let transfers = self.transfers().await?;
-            let mut transfers = transfers.write().await;
-            transfers.clear();
+            tracing::debug!("net_sign_out::stop_file_transfers");
+            self.stop_file_transfers().await;
+            if let Some(transfers) = &mut self.transfers {
+                // let transfers = self.transfers().await?;
+                let mut transfers = transfers.write().await;
+                transfers.clear();
+            }
+
+            self.transfers = None;
+            self.inflight_transfers = None;
         }
 
         self.remotes = Default::default();
@@ -954,6 +1027,7 @@ impl Account for NetworkAccount {
         Ok(account.detached_view(summary, commit).await?)
     }
 
+    /*
     #[cfg(feature = "files")]
     async fn transfers(
         &self,
@@ -961,6 +1035,7 @@ impl Account for NetworkAccount {
         let account = self.account.lock().await;
         Ok(account.transfers().await?)
     }
+    */
 
     #[cfg(feature = "search")]
     async fn initialize_search_index(
@@ -1055,8 +1130,13 @@ impl Account for NetworkAccount {
             commit_state: result.commit_state,
             folder: result.folder,
             sync_error: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
 
         Ok(result)
     }
@@ -1073,22 +1153,33 @@ impl Account for NetworkAccount {
             account.insert_secrets(secrets).await?
         };
 
+        #[cfg(feature = "files")]
+        let mut file_events = Vec::new();
+
         let result = SecretInsert {
             results: result
                 .results
                 .into_iter()
-                .map(|result| SecretChange {
-                    id: result.id,
-                    event: result.event,
-                    commit_state: result.commit_state,
-                    folder: result.folder,
-                    sync_error: None,
-                    marker: std::marker::PhantomData,
+                .map(|mut result| {
+                    file_events.append(&mut result.file_events);
+                    SecretChange {
+                        id: result.id,
+                        event: result.event,
+                        commit_state: result.commit_state,
+                        folder: result.folder,
+                        sync_error: None,
+                        #[cfg(feature = "files")]
+                        file_events: result.file_events,
+                        marker: std::marker::PhantomData,
+                    }
                 })
                 .collect(),
             sync_error: self.sync().await,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&file_events).await?;
 
         Ok(result)
     }
@@ -1120,8 +1211,13 @@ impl Account for NetworkAccount {
             commit_state: result.commit_state,
             folder: result.folder,
             sync_error: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
 
         Ok(result)
     }
@@ -1144,8 +1240,13 @@ impl Account for NetworkAccount {
             id: result.id,
             event: result.event,
             sync_error: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
 
         Ok(result)
     }
@@ -1179,8 +1280,13 @@ impl Account for NetworkAccount {
             commit_state: result.commit_state,
             folder: result.folder,
             sync_error: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
 
         Ok(result)
     }
@@ -1201,8 +1307,13 @@ impl Account for NetworkAccount {
             id: result.id,
             event: result.event,
             sync_error: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
 
         Ok(result)
     }
@@ -1224,8 +1335,13 @@ impl Account for NetworkAccount {
             id: result.id,
             event: result.event,
             sync_error: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
 
         Ok((result, to))
     }
@@ -1255,8 +1371,13 @@ impl Account for NetworkAccount {
             commit_state: result.commit_state,
             folder: result.folder,
             sync_error: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
             marker: std::marker::PhantomData,
         };
+
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
 
         Ok(result)
     }
