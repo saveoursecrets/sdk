@@ -1,12 +1,15 @@
 //! Manage pending file transfer operations.
-use crate::sdk::{
-    storage::files::{
-        list_external_files, ExternalFile, FileTransfersSet, ProgressChannel,
-        TransferOperation,
+use crate::{
+    client::SyncClient,
+    sdk::{
+        storage::files::{
+            list_external_files, ExternalFile, FileTransfersSet,
+            ProgressChannel, TransferOperation,
+        },
+        vfs, Paths, Result,
     },
-    sync::SyncClient,
-    vfs, Paths, Result,
 };
+
 use futures::FutureExt;
 use http::StatusCode;
 use indexmap::IndexSet;

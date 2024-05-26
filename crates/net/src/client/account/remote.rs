@@ -1,7 +1,9 @@
 //! Bridge between local storage and a remote server.
 #[cfg(feature = "files")]
 use crate::client::account::file_transfers::Transfers;
-use crate::client::{net::HttpClient, Error, RemoteSync, Result, SyncError};
+use crate::client::{
+    net::HttpClient, Error, RemoteSync, Result, SyncClient, SyncError,
+};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_sdk::{
@@ -10,8 +12,8 @@ use sos_sdk::{
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::files::{list_external_files, FileSet, TransferOperation},
     sync::{
-        self, MaybeDiff, Merge, Origin, SyncClient, SyncOptions, SyncPacket,
-        SyncStatus, SyncStorage, UpdateSet,
+        self, MaybeDiff, Merge, Origin, SyncOptions, SyncPacket, SyncStatus,
+        SyncStorage, UpdateSet,
     },
     vfs,
 };

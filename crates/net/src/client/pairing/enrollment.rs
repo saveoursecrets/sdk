@@ -4,7 +4,7 @@ use sos_sdk::vault::VaultAccess;
 use crate::{
     client::{
         pairing::{Error, Result},
-        HttpClient, NetworkAccount,
+        HttpClient, NetworkAccount, SyncClient,
     },
     sdk::{
         account::Account,
@@ -20,7 +20,7 @@ use crate::{
             ecdsa::{Address, BoxedEcdsaSigner},
             ed25519::BoxedEd25519Signer,
         },
-        sync::{AccountPatch, FolderPatch, Origin, SyncClient},
+        sync::{AccountPatch, FolderPatch, Origin},
         vault::{VaultId, VaultWriter},
         vfs, Paths,
     },

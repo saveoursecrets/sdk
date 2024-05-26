@@ -7,9 +7,7 @@ use sos_sdk::{
     decode, encode,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{
-        ChangeSet, Origin, SyncClient, SyncPacket, SyncStatus, UpdateSet,
-    },
+    sync::{ChangeSet, Origin, SyncPacket, SyncStatus, UpdateSet},
 };
 use tracing::instrument;
 
@@ -29,10 +27,9 @@ use crate::sdk::storage::files::{
     ExternalFile, FileSet, FileTransfersSet, ProgressChannel,
 };
 
+use crate::client::{Error, Result, SyncClient};
 use std::{fmt, path::Path, sync::Arc, time::Duration};
 use url::Url;
-
-use crate::client::{Error, Result};
 
 #[cfg(feature = "listen")]
 use crate::client::{ListenOptions, WebSocketHandle};
