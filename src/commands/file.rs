@@ -10,7 +10,7 @@ use crate::{
 use clap::Subcommand;
 use futures::{select, FutureExt};
 use kdam::{tqdm, BarExt, RowManager};
-use sos_net::{client::InflightOperation, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, Mutex};
 
@@ -149,23 +149,36 @@ pub async fn run(cmd: Command) -> Result<()> {
             if inflight.is_empty() {
                 println!("No inflight transfers");
             } else {
-                let request_ids =
-                    inflight.keys().copied().collect::<Vec<_>>();
+                let request_ids = inflight
+                    .iter()
+                    .filter(|(_, v)| v.progress.is_some())
+                    .map(|(k, _)| k)
+                    .copied()
+                    .collect::<Vec<_>>();
 
-                let progress = transfers.progress();
-                let progress = progress.read().await;
+                let requests = transfers.inflight();
+                let requests = requests.read().await;
 
                 let mut channels = Vec::new();
                 for id in request_ids {
+                    if let Some(req) = requests.get(&id) {
+                        channels.push((
+                            req.file.clone(),
+                            req.progress.as_ref().unwrap().subscribe(),
+                        ));
+                    }
+
+                    /*
                     if let (Some(op), Some(tx)) =
                         (inflight.get(&id), progress.get(&id))
                     {
                         channels.push((op.clone(), tx.subscribe()));
                     }
+                    */
                 }
 
                 drop(inflight);
-                drop(progress);
+                // drop(progress);
 
                 let manager =
                     Arc::new(Mutex::new(RowManager::from_window_size()));
@@ -181,15 +194,11 @@ pub async fn run(cmd: Command) -> Result<()> {
                     *mon = Some(shutdown_tx.clone());
                 }
 
-                for (inflight_op, rx) in channels {
+                for (file, rx) in channels {
                     let mgr = Arc::clone(&manager);
                     let shutdown = shutdown_tx.subscribe();
-                    threads.push(spawn_file_progress(
-                        inflight_op,
-                        mgr,
-                        shutdown,
-                        rx,
-                    ));
+                    threads
+                        .push(spawn_file_progress(file, mgr, shutdown, rx));
                 }
 
                 for thread in threads {
@@ -208,7 +217,7 @@ pub async fn run(cmd: Command) -> Result<()> {
 }
 
 fn spawn_file_progress(
-    inflight_op: InflightOperation,
+    file: ExternalFile,
     mgr: Arc<Mutex<RowManager>>,
     mut shutdown: broadcast::Receiver<()>,
     mut rx: broadcast::Receiver<(u64, Option<u64>)>,
@@ -225,7 +234,7 @@ fn spawn_file_progress(
                     unit = "B"
                 );
                 let name =
-                    inflight_op.file.file_name().to_string();
+                    file.file_name().to_string();
                 pb.set_description((
                     name[0..8]
                 ).to_string());

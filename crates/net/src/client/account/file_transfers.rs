@@ -6,6 +6,7 @@ use crate::{
             list_external_files, ExternalFile, FileTransfersSet,
             TransferOperation,
         },
+        sync::Origin,
         vfs, Paths, Result,
     },
 };
@@ -32,25 +33,35 @@ use tokio::sync::{
     mpsc::{self, UnboundedReceiver},
     oneshot, Mutex, RwLock,
 };
+use tracing::instrument;
 
-/// Channel sender for upload and download progress notifications.
+/// Channel for upload and download progress notifications.
 pub type ProgressChannel = broadcast::Sender<(u64, Option<u64>)>;
+
+/// Channel used to cancel uploads and downloads.
+pub type CancelChannel = mpsc::Sender<()>;
 
 type PendingOperations = HashMap<ExternalFile, IndexSet<TransferOperation>>;
 
-type InflightTransfersQueue = Arc<RwLock<HashMap<u64, InflightOperation>>>;
-
-/*
-/// Channel sender for upload and download progress notifications.
-pub type ProgressChannel = broadcast::Sender<(u64, Option<u64>)>;
-*/
+/// Inflight file transfer.
+#[derive(Debug)]
+pub struct InflightRequest {
+    /// Server origin.
+    pub origin: Origin,
+    /// External file information.
+    pub file: ExternalFile,
+    /// Transfer operation.
+    pub operation: TransferOperation,
+    /// Progress channel for uploads and downloads.
+    pub progress: Option<ProgressChannel>,
+    /// Cancel channel for uploads and downloads.
+    pub cancel: Option<CancelChannel>,
+}
 
 /// Collection of pending transfers.
 pub struct InflightTransfers {
-    inflight: InflightTransfersQueue,
+    inflight: Arc<RwLock<HashMap<u64, InflightRequest>>>,
     request_id: Arc<Mutex<AtomicU64>>,
-    progress: Arc<RwLock<HashMap<u64, Arc<ProgressChannel>>>>,
-    cancel: Arc<RwLock<HashMap<u64, mpsc::Sender<()>>>>,
 }
 
 impl InflightTransfers {
@@ -59,8 +70,6 @@ impl InflightTransfers {
         Self {
             inflight: Arc::new(RwLock::new(Default::default())),
             request_id: Arc::new(Mutex::new(AtomicU64::new(0))),
-            progress: Arc::new(RwLock::new(Default::default())),
-            cancel: Arc::new(RwLock::new(Default::default())),
         }
     }
 
@@ -70,16 +79,9 @@ impl InflightTransfers {
         id.fetch_add(1, Ordering::SeqCst)
     }
 
-    /// In flight transfers queue.
-    pub fn inflight(&self) -> InflightTransfersQueue {
+    /// In flight requests.
+    pub fn inflight(&self) -> Arc<RwLock<HashMap<u64, InflightRequest>>> {
         Arc::clone(&self.inflight)
-    }
-
-    /// Progress channels.
-    pub fn progress(
-        &self,
-    ) -> Arc<RwLock<HashMap<u64, Arc<ProgressChannel>>>> {
-        Arc::clone(&self.progress)
     }
 
     /// Determine if the inflight transfers is empty.
@@ -87,15 +89,6 @@ impl InflightTransfers {
         let queue = self.inflight.read().await;
         queue.is_empty()
     }
-}
-
-/// In flight transfer operation.
-#[derive(Debug, Clone)]
-pub struct InflightOperation {
-    /// External file information.
-    pub file: ExternalFile,
-    /// Transfer operation.
-    pub operation: TransferOperation,
 }
 
 /// Queue of transfer operations.
@@ -541,20 +534,23 @@ impl FileTransfers {
             let mut downloads = Vec::new();
 
             for client in &clients {
+                let request_id = inflight_transfers.request_id().await;
                 if let TransferOperation::Download = &op {
                     downloads.push(Self::run_client_operation(
-                        Arc::clone(&paths),
-                        client.clone(),
+                        request_id,
                         file,
                         op,
+                        Arc::clone(&paths),
+                        client.clone(),
                         Arc::clone(&inflight_transfers),
                     ));
                 } else {
                     uploads.push(Self::run_client_operation(
-                        Arc::clone(&paths),
-                        client.clone(),
+                        request_id,
                         file,
                         op,
+                        Arc::clone(&paths),
+                        client.clone(),
                         Arc::clone(&inflight_transfers),
                     ));
                 }
@@ -642,41 +638,47 @@ impl FileTransfers {
         Ok(())
     }
 
+    #[instrument(skip(paths, client, inflight_transfers))]
     async fn run_client_operation<C>(
-        paths: Arc<Paths>,
-        client: C,
+        request_id: u64,
         file: ExternalFile,
         op: TransferOperation,
+        paths: Arc<Paths>,
+        client: C,
         inflight_transfers: Arc<InflightTransfers>,
     ) -> Result<(ExternalFile, TransferOperation, TransferResult)>
     where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
-        let (cancel_tx, cancel_rx) = mpsc::channel::<()>(1);
-
-        let (progress_tx, _) = broadcast::channel(32);
-        let progress_tx = Arc::new(progress_tx);
-        let request_id = inflight_transfers.request_id().await;
-        {
-            let mut cancel = inflight_transfers.cancel.write().await;
-            cancel.insert(request_id, cancel_tx);
-        }
-        {
-            let progress = inflight_transfers.progress();
-            let mut progress = progress.write().await;
-            progress.insert(request_id, Arc::clone(&progress_tx));
-        }
-        let inflight_request = InflightOperation {
-            file,
-            operation: op,
-        };
+        let (progress_tx, cancel_tx, cancel_rx) =
+            if let TransferOperation::Upload | TransferOperation::Download =
+                &op
+            {
+                let (cancel_tx, cancel_rx) = mpsc::channel::<()>(1);
+                let (progress_tx, _) = broadcast::channel(32);
+                (Some(progress_tx), Some(cancel_tx), Some(cancel_rx))
+            } else {
+                (None, None, None)
+            };
 
         {
+            let request = InflightRequest {
+                origin: client.origin().clone(),
+                file,
+                operation: op,
+                progress: progress_tx.as_ref().cloned(),
+                cancel: cancel_tx,
+            };
+
             let mut writer = inflight_transfers.inflight.write().await;
-            writer.insert(request_id, inflight_request);
+            writer.insert(request_id, request);
         }
 
-        // tracing::debug!(op = ?op, url = %client.origin().url());
+        tracing::trace!(
+          op = ?op,
+          url = %client.origin().url(),
+          "file_transfer"
+        );
 
         let result = match &op {
             TransferOperation::Upload => {
@@ -685,6 +687,9 @@ impl FileTransfers {
                     file.secret_id(),
                     file.file_name().to_string(),
                 );
+
+                let progress_tx = progress_tx.unwrap();
+                let cancel_rx = cancel_rx.unwrap();
 
                 match client
                     .upload_file(&file, &path, progress_tx, cancel_rx)
@@ -710,6 +715,10 @@ impl FileTransfers {
                     file.secret_id(),
                     file.file_name().to_string(),
                 );
+
+                let progress_tx = progress_tx.unwrap();
+                let cancel_rx = cancel_rx.unwrap();
+
                 match client
                     .download_file(&file, &path, progress_tx, cancel_rx)
                     .await
@@ -735,10 +744,6 @@ impl FileTransfers {
         {
             let mut writer = inflight_transfers.inflight.write().await;
             writer.remove(&request_id);
-
-            let progress = inflight_transfers.progress();
-            let mut progress = progress.write().await;
-            progress.remove(&request_id);
         }
 
         Ok((file, op, result))

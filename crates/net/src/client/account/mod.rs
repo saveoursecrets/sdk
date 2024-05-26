@@ -9,6 +9,6 @@ mod remote;
 mod sync;
 
 #[cfg(feature = "files")]
-pub use file_transfers::{InflightOperation, ProgressChannel};
+pub use file_transfers::{CancelChannel, InflightRequest, ProgressChannel};
 pub use network_account::NetworkAccount;
 pub use remote::RemoteBridge;

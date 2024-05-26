@@ -29,7 +29,7 @@ use crate::sdk::storage::files::{ExternalFile, FileSet, FileTransfersSet};
 use crate::client::ProgressChannel;
 
 use crate::client::{Error, Result, SyncClient};
-use std::{fmt, path::Path, sync::Arc, time::Duration};
+use std::{fmt, path::Path, time::Duration};
 use url::Url;
 
 #[cfg(feature = "listen")]
@@ -362,7 +362,7 @@ impl SyncClient for HttpClient {
         &self,
         file_info: &ExternalFile,
         path: &Path,
-        progress: Arc<ProgressChannel>,
+        progress: ProgressChannel,
         mut cancel: tokio::sync::mpsc::Receiver<()>,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
@@ -437,7 +437,7 @@ impl SyncClient for HttpClient {
         &self,
         file_info: &ExternalFile,
         path: &Path,
-        progress: Arc<ProgressChannel>,
+        progress: ProgressChannel,
         mut cancel: tokio::sync::mpsc::Receiver<()>,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;

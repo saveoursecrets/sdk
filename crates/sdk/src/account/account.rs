@@ -1162,8 +1162,7 @@ impl LocalAccount {
         secret: Secret,
         mut options: AccessOptions,
         audit: bool,
-        #[cfg(feature = "files")]
-        file_events: &mut Vec<FileMutationEvent>,
+        #[cfg(feature = "files")] file_events: &mut Vec<FileMutationEvent>,
     ) -> Result<(SecretId, Event, Summary)> {
         let folder = {
             let storage = self.storage().await?;
@@ -1289,7 +1288,9 @@ impl LocalAccount {
                     &mut options.file_progress,
                 )
                 .await?;
-            writer.append_file_mutation_events(&move_file_events).await?;
+            writer
+                .append_file_mutation_events(&move_file_events)
+                .await?;
             file_events.append(&mut move_file_events);
         }
 
@@ -2167,15 +2168,16 @@ impl Account for LocalAccount {
         #[cfg(feature = "files")]
         let mut file_events = Vec::new();
 
-        let (id, event, _) =
-            self.add_secret(
-              meta,
-              secret,
-              options,
-              true,
-              #[cfg(feature = "files")]
-              &mut file_events,
-            ).await?;
+        let (id, event, _) = self
+            .add_secret(
+                meta,
+                secret,
+                options,
+                true,
+                #[cfg(feature = "files")]
+                &mut file_events,
+            )
+            .await?;
 
         Ok(SecretChange {
             id,
@@ -2244,9 +2246,9 @@ impl Account for LocalAccount {
             let SecretMove {
                 id,
                 #[cfg(feature = "files")]
-                file_events: mut move_file_events,
-                .. } =
-                self.mv_secret(secret_id, &folder, to, options).await?;
+                    file_events: mut move_file_events,
+                ..
+            } = self.mv_secret(secret_id, &folder, to, options).await?;
             file_events.append(&mut move_file_events);
             id
         } else {

@@ -8,7 +8,7 @@ use sos_sdk::{
         UpdateSet,
     },
 };
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 
 /// Error type that can be returned from a sync operation.
 pub type SyncError = sos_sdk::sync::SyncError<Error>;
@@ -93,7 +93,7 @@ pub trait SyncClient {
         &self,
         file_info: &storage::files::ExternalFile,
         path: &Path,
-        progress: Arc<crate::client::ProgressChannel>,
+        progress: crate::client::ProgressChannel,
         cancel: tokio::sync::mpsc::Receiver<()>,
     ) -> Result<http::StatusCode>;
 
@@ -103,7 +103,7 @@ pub trait SyncClient {
         &self,
         file_info: &storage::files::ExternalFile,
         path: &Path,
-        progress: Arc<crate::client::ProgressChannel>,
+        progress: crate::client::ProgressChannel,
         cancel: tokio::sync::mpsc::Receiver<()>,
     ) -> Result<http::StatusCode>;
 
