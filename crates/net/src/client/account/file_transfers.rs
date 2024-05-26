@@ -33,7 +33,7 @@ use tokio::sync::{
 /// Channel sender for upload and download progress notifications.
 pub type ProgressChannel = broadcast::Sender<(u64, Option<u64>)>;
 
-type TransferQueue = HashMap<ExternalFile, IndexSet<TransferOperation>>;
+type PendingOperations = HashMap<ExternalFile, IndexSet<TransferOperation>>;
 
 type InflightTransfersQueue = Arc<RwLock<HashMap<u64, InflightOperation>>>;
 
@@ -101,7 +101,7 @@ pub struct Transfers {
     path: Mutex<PathBuf>,
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     #[serde(flatten)]
-    queue: TransferQueue,
+    queue: PendingOperations,
 }
 
 impl Transfers {
@@ -163,14 +163,14 @@ impl Transfers {
     }
 
     /// Queued transfer operations.
-    pub fn queue(&self) -> &TransferQueue {
+    pub fn queue(&self) -> &PendingOperations {
         &self.queue
     }
 
     /// Add file transfer operations to the queue.
     pub async fn queue_transfers(
         &mut self,
-        ops: TransferQueue,
+        ops: PendingOperations,
     ) -> Result<()> {
         for (file, mut operations) in ops {
             let entries = self.queue.entry(file).or_default();
@@ -423,7 +423,7 @@ impl FileTransfers {
         queue: Arc<RwLock<Transfers>>,
         inflight_transfers: Arc<InflightTransfers>,
         clients: &[C],
-        pending_transfers: TransferQueue,
+        pending_transfers: PendingOperations,
     ) -> Result<()>
     where
         C: SyncClient + Clone + Send + Sync + 'static,
