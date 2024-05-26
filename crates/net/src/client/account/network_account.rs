@@ -72,7 +72,7 @@ use crate::client::{Error, RemoteBridge, RemoteSync, Result};
 
 #[cfg(feature = "files")]
 use crate::client::account::file_transfers::{
-    FileTransfers, InflightTransfers, Transfers,
+    FileTransfers, InflightTransfers, TransfersQueue,
 };
 
 /// Account with networking capability.
@@ -105,7 +105,7 @@ pub struct NetworkAccount {
     connection_id: Option<String>,
 
     #[cfg(feature = "files")]
-    transfers: Option<Arc<RwLock<Transfers>>>,
+    transfers: Option<Arc<RwLock<TransfersQueue>>>,
 
     #[cfg(feature = "files")]
     inflight_transfers: Option<Arc<InflightTransfers>>,
@@ -134,7 +134,7 @@ impl NetworkAccount {
 
         #[cfg(feature = "files")]
         {
-            let transfers = Transfers::new(&*self.paths).await?;
+            let transfers = TransfersQueue::new(&*self.paths).await?;
             let inflight_transfers = InflightTransfers::new();
 
             self.transfers = Some(Arc::new(RwLock::new(transfers)));
@@ -500,7 +500,9 @@ impl NetworkAccount {
 
     /// File transfers queue.
     #[cfg(feature = "files")]
-    pub async fn transfers(&self) -> crate::Result<Arc<RwLock<Transfers>>> {
+    pub async fn transfers(
+        &self,
+    ) -> crate::Result<Arc<RwLock<TransfersQueue>>> {
         Ok(Arc::clone(
             self.transfers
                 .as_ref()

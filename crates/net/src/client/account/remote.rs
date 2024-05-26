@@ -1,6 +1,6 @@
 //! Bridge between local storage and a remote server.
 #[cfg(feature = "files")]
-use crate::client::account::file_transfers::Transfers;
+use crate::client::account::file_transfers::TransfersQueue;
 use crate::client::{
     net::HttpClient, Error, RemoteSync, Result, SyncClient, SyncError,
 };
@@ -35,7 +35,7 @@ pub struct RemoteBridge {
     pub(crate) client: HttpClient,
     /// File transfers.
     #[cfg(feature = "files")]
-    transfers: Arc<RwLock<Transfers>>,
+    transfers: Arc<RwLock<TransfersQueue>>,
 }
 
 impl RemoteBridge {
@@ -47,7 +47,7 @@ impl RemoteBridge {
         signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
         connection_id: String,
-        #[cfg(feature = "files")] transfers: Arc<RwLock<Transfers>>,
+        #[cfg(feature = "files")] transfers: Arc<RwLock<TransfersQueue>>,
     ) -> Result<Self> {
         let client =
             HttpClient::new(origin.clone(), signer, device, connection_id)?;

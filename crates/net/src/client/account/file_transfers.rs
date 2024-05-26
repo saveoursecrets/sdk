@@ -96,7 +96,7 @@ pub struct InflightOperation {
 /// Queue of transfer operations.
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Transfers {
+pub struct TransfersQueue {
     #[serde(skip)]
     path: Mutex<PathBuf>,
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
@@ -104,7 +104,7 @@ pub struct Transfers {
     queue: PendingOperations,
 }
 
-impl Transfers {
+impl TransfersQueue {
     /// Create the transfer list from the external files on disc
     /// if the transfers cache does not exist.
     ///
@@ -355,7 +355,7 @@ impl FileTransfers {
     /// Spawn a task to transfer file operations.
     pub fn run<C>(
         self,
-        queue: Arc<RwLock<Transfers>>,
+        queue: Arc<RwLock<TransfersQueue>>,
         inflight_transfers: Arc<InflightTransfers>,
         clients: Vec<C>,
     ) where
@@ -420,7 +420,7 @@ impl FileTransfers {
     /// Try to process the pending transfers list.
     async fn try_process_transfers<C>(
         paths: Arc<Paths>,
-        queue: Arc<RwLock<Transfers>>,
+        queue: Arc<RwLock<TransfersQueue>>,
         inflight_transfers: Arc<InflightTransfers>,
         clients: &[C],
         pending_transfers: PendingOperations,
@@ -450,7 +450,7 @@ impl FileTransfers {
         file: ExternalFile,
         operations: IndexSet<TransferOperation>,
         paths: Arc<Paths>,
-        queue: Arc<RwLock<Transfers>>,
+        queue: Arc<RwLock<TransfersQueue>>,
         inflight_transfers: Arc<InflightTransfers>,
         clients: Vec<C>,
     ) -> Result<()>
@@ -506,7 +506,7 @@ impl FileTransfers {
     }
 
     async fn process_uploads(
-        queue: Arc<RwLock<Transfers>>,
+        queue: Arc<RwLock<TransfersQueue>>,
         uploads: Vec<
             impl Future<
                     Output = Result<(ExternalFile, TransferOperation, bool)>,
@@ -540,7 +540,7 @@ impl FileTransfers {
     }
 
     async fn process_downloads(
-        queue: Arc<RwLock<Transfers>>,
+        queue: Arc<RwLock<TransfersQueue>>,
         downloads: Vec<
             impl Future<
                     Output = Result<(ExternalFile, TransferOperation, bool)>,
