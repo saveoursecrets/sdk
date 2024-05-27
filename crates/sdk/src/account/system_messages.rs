@@ -49,6 +49,8 @@ pub enum SysMessageLevel {
     Warn,
     /// Error message.
     Error,
+    /// Progress message such as an upload or download.
+    Progress,
 }
 
 /// System message notification.
