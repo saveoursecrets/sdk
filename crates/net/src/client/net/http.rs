@@ -357,7 +357,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg(feature = "files")]
-    #[instrument(skip(self, path, progress))]
+    #[instrument(skip(self, path, progress, cancel))]
     async fn upload_file(
         &self,
         file_info: &ExternalFile,
@@ -432,7 +432,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg(feature = "files")]
-    #[instrument(skip(self, path, progress))]
+    #[instrument(skip(self, path, progress, cancel))]
     async fn download_file(
         &self,
         file_info: &ExternalFile,

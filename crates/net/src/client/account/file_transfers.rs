@@ -33,7 +33,6 @@ use tokio::sync::{
     mpsc::{self, UnboundedReceiver},
     oneshot, Mutex, RwLock,
 };
-use tracing::instrument;
 
 /// Channel for upload and download progress notifications.
 pub type ProgressChannel = broadcast::Sender<(u64, Option<u64>)>;
@@ -638,7 +637,6 @@ impl FileTransfers {
         Ok(())
     }
 
-    #[instrument(skip(paths, client, inflight_transfers))]
     async fn run_client_operation<C>(
         request_id: u64,
         file: ExternalFile,
