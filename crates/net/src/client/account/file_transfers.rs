@@ -554,20 +554,28 @@ impl FileTransfers {
     where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
-        let list = pending_transfers.into_iter().collect::<Vec<_>>();
-        for files in list.chunks(settings.concurrent_transfers) {
-            let mut futures = Vec::new();
-            for (file, ops) in files {
-                futures.push(Self::process_operations(
-                    *file,
-                    ops.clone(),
-                    Arc::clone(&paths),
-                    Arc::clone(&queue),
-                    Arc::clone(&inflight_transfers),
-                    clients.to_vec(),
-                ));
+        if !clients.is_empty() {
+            let list = pending_transfers.into_iter().collect::<Vec<_>>();
+            let chunk_size = if clients.len() < settings.concurrent_transfers
+            {
+                settings.concurrent_transfers / clients.len()
+            } else {
+                settings.concurrent_transfers
+            };
+            for files in list.chunks(chunk_size) {
+                let mut futures = Vec::new();
+                for (file, ops) in files {
+                    futures.push(Self::process_operations(
+                        *file,
+                        ops.clone(),
+                        Arc::clone(&paths),
+                        Arc::clone(&queue),
+                        Arc::clone(&inflight_transfers),
+                        clients.to_vec(),
+                    ));
+                }
+                futures::future::try_join_all(futures).await?;
             }
-            futures::future::try_join_all(futures).await?;
         }
         Ok(())
     }
