@@ -557,12 +557,14 @@ impl FileTransfers {
     {
         if !clients.is_empty() {
             let list = pending_transfers.into_iter().collect::<Vec<_>>();
+
             let chunk_size = if clients.len() < settings.concurrent_transfers
             {
                 settings.concurrent_transfers / clients.len()
             } else {
                 settings.concurrent_transfers
             };
+
             for files in list.chunks(chunk_size) {
                 let mut futures = Vec::new();
                 for (file, ops) in files {
