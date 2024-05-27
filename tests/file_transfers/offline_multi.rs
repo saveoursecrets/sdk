@@ -13,7 +13,6 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 /// Tests uploading an external file to multiple servers
 /// when the first server is offline.
 #[tokio::test]
-#[ignore = "needs fixing"]
 async fn file_transfers_offline_multi_upload() -> Result<()> {
     const TEST_ID: &str = "file_transfers_offline_multi_upload";
 

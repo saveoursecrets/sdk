@@ -36,7 +36,7 @@ use tokio::sync::{
 };
 
 /// Channel for upload and download progress notifications.
-pub type ProgressChannel = broadcast::Sender<(u64, Option<u64>)>;
+pub type ProgressChannel = mpsc::Sender<(u64, Option<u64>)>;
 
 /// Channel used to cancel uploads and downloads.
 pub type CancelChannel = mpsc::Sender<()>;
@@ -517,20 +517,18 @@ impl FileTransfers {
         );
 
         if !pending_transfers.is_empty() {
+            // Try to process pending transfers
+            if let Err(e) = Self::try_process_transfers(
+                Arc::clone(&paths),
+                &settings,
+                Arc::clone(&queue),
+                Arc::clone(&inflight_transfers),
+                clients,
+                pending_transfers,
+            )
+            .await
             {
-                // Try to process pending transfers
-                if let Err(e) = Self::try_process_transfers(
-                    Arc::clone(&paths),
-                    &settings,
-                    Arc::clone(&queue),
-                    Arc::clone(&inflight_transfers),
-                    clients,
-                    pending_transfers,
-                )
-                .await
-                {
-                    tracing::warn!(error = ?e);
-                }
+                tracing::warn!(error = ?e);
             }
         }
 
@@ -725,19 +723,25 @@ impl FileTransfers {
                 &op
             {
                 let (cancel_tx, cancel_rx) = mpsc::channel::<()>(1);
-                let (progress_tx, _): (ProgressChannel, _) =
-                    broadcast::channel(32);
+                let (progress_tx, mut progress_rx): (ProgressChannel, _) =
+                    mpsc::channel(16);
 
-                let mut progress_rx = progress_tx.subscribe();
                 let progress_transfers = Arc::clone(&inflight_transfers);
                 tokio::task::spawn(async move {
-                    while let Ok(event) = progress_rx.recv().await {
+                    while let Some(event) = progress_rx.recv().await {
                         let notify = InflightNotification::TransferUpdate {
                             request_id,
                             bytes_transferred: event.0,
                             bytes_total: event.1,
                         };
-                        let _ = progress_transfers.notifications.send(notify);
+                        let mut result =
+                            progress_transfers.notifications.send(notify);
+                        while let Err(err) = result {
+                            tokio::time::sleep(Duration::from_millis(50))
+                                .await;
+                            result =
+                                progress_transfers.notifications.send(err.0);
+                        }
                     }
                 });
 
