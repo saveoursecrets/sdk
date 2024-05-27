@@ -18,7 +18,6 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::{
     collections::HashMap,
-    error::Error as StdError,
     future::Future,
     io::ErrorKind,
     path::PathBuf,
@@ -563,6 +562,8 @@ impl FileTransfers {
                 settings.concurrent_transfers
             };
 
+            println!("{}", chunk_size);
+
             for files in list.chunks(chunk_size) {
                 let mut futures = Vec::new();
                 for (file, ops) in files {
@@ -722,6 +723,8 @@ impl FileTransfers {
             if let TransferOperation::Upload | TransferOperation::Download =
                 &op
             {
+                println!("Spawning progress bridge...");
+
                 let (cancel_tx, cancel_rx) = mpsc::channel::<()>(1);
                 let (progress_tx, mut progress_rx): (ProgressChannel, _) =
                     mpsc::channel(16);
@@ -786,6 +789,8 @@ impl FileTransfers {
 
                 let progress_tx = progress_tx.unwrap();
                 let cancel_rx = cancel_rx.unwrap();
+
+                println!("Uploading...");
 
                 match client
                     .upload_file(&file, &path, progress_tx, cancel_rx)
@@ -852,6 +857,7 @@ impl FileTransfers {
         op: &TransferOperation,
         status: StatusCode,
     ) -> TransferResult {
+        println!("success");
         let ok = match op {
             TransferOperation::Upload => {
                 status == StatusCode::OK || status == StatusCode::NOT_MODIFIED
@@ -870,12 +876,14 @@ impl FileTransfers {
     }
 
     fn is_error(error: Error) -> TransferResult {
+        println!("error: {:#?}", error);
         tracing::warn!(error = ?error, "transfer_error");
         match error {
             Error::Io(io) => match io.kind() {
                 ErrorKind::NotFound => TransferResult::Fatal,
                 _ => TransferResult::Retry,
             },
+            /*
             Error::Http(err) => {
                 let mut source = None;
                 while let Some(e) = err.source() {
@@ -896,6 +904,7 @@ impl FileTransfers {
                     TransferResult::Retry
                 }
             }
+            */
             _ => TransferResult::Retry,
         }
     }

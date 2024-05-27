@@ -399,7 +399,6 @@ impl SyncClient for HttpClient {
         let progress_stream = async_stream::stream! {
             loop {
               tokio::select! {
-                biased;
                 _ = cancel.recv() => {
                   yield Err(Error::TransferCanceled);
                 }

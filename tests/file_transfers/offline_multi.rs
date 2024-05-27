@@ -72,7 +72,6 @@ async fn file_transfers_offline_multi_upload() -> Result<()> {
 /// Tests uploading an external file after updating
 /// the file content on multiple servers.
 #[tokio::test]
-#[ignore = "needs fixing"]
 async fn file_transfers_offline_multi_update() -> Result<()> {
     const TEST_ID: &str = "file_transfers_offline_multi_update";
 
@@ -146,7 +145,6 @@ async fn file_transfers_offline_multi_update() -> Result<()> {
 /// Tests uploading an external file after moving
 /// the secret to a different folder on multiple servers.
 #[tokio::test]
-#[ignore = "needs fixing"]
 async fn file_transfers_offline_multi_move() -> Result<()> {
     const TEST_ID: &str = "file_transfers_offline_multi_move";
 
@@ -228,7 +226,6 @@ async fn file_transfers_offline_multi_move() -> Result<()> {
 
 /// Tests uploading then deleting an external file on multiple servers.
 #[tokio::test]
-#[ignore = "needs fixing"]
 async fn file_transfers_offline_multi_delete() -> Result<()> {
     const TEST_ID: &str = "file_transfers_offline_multi_delete";
 
@@ -309,7 +306,6 @@ async fn file_transfers_offline_multi_delete() -> Result<()> {
 /// Tests uploading a file to multiple servers whilst one is
 /// offline then downloading on a different device.
 #[tokio::test]
-#[ignore = "needs fixing"]
 async fn file_transfers_offline_multi_download() -> Result<()> {
     const TEST_ID: &str = "file_transfers_offline_multi_download";
 
