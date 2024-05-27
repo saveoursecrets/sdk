@@ -59,6 +59,9 @@ pub enum SysMessageLevel {
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SysMessage {
+    /// Optional identifier for the message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<u64>,
     /// Date and time the message was created.
     pub created: OffsetDateTime,
     /// Message priority.
@@ -78,6 +81,7 @@ impl SysMessage {
     /// Create a new message.
     pub fn new(title: String, content: String) -> Self {
         Self {
+            id: None,
             created: OffsetDateTime::now_utc(),
             priority: 0,
             title,
@@ -96,6 +100,7 @@ impl SysMessage {
         level: SysMessageLevel,
     ) -> Self {
         Self {
+            id: None,
             created: OffsetDateTime::now_utc(),
             priority,
             title,
