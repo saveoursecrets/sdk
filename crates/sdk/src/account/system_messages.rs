@@ -71,7 +71,8 @@ pub struct SysMessage {
     /// Sub title byline for the message.
     pub sub_title: Option<String>,
     /// Content of the message.
-    pub content: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
     /// Indicates if the message has been read.
     pub is_read: bool,
     /// Level indicator.
@@ -86,7 +87,7 @@ impl SysMessage {
             priority: 0,
             title,
             sub_title: None,
-            content,
+            content: Some(content),
             is_read: false,
             level: Default::default(),
         }
@@ -105,7 +106,7 @@ impl SysMessage {
             priority,
             title,
             sub_title: None,
-            content,
+            content: Some(content),
             is_read: false,
             level,
         }
