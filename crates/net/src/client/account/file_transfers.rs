@@ -68,7 +68,7 @@ impl InflightTransfers {
     pub fn new() -> Self {
         Self {
             inflight: Arc::new(RwLock::new(Default::default())),
-            request_id: Arc::new(Mutex::new(AtomicU64::new(0))),
+            request_id: Arc::new(Mutex::new(AtomicU64::new(1))),
         }
     }
 
@@ -449,6 +449,7 @@ impl FileTransfers {
             writer.queue.clone()
         };
 
+        #[cfg(not(debug_assertions))]
         tracing::debug!(
             num_pending = pending_transfers.len(),
             "pending_transfers",
@@ -668,6 +669,11 @@ impl FileTransfers {
                 cancel: cancel_tx,
             };
 
+            tracing::debug!(
+                request_id = %request_id,
+                "inflight_transfer::insert",
+            );
+
             let mut writer = inflight_transfers.inflight.write().await;
             writer.insert(request_id, request);
         }
@@ -740,6 +746,11 @@ impl FileTransfers {
         };
 
         {
+            tracing::debug!(
+                request_id = %request_id,
+                "inflight_transfer::remove",
+            );
+
             let mut writer = inflight_transfers.inflight.write().await;
             writer.remove(&request_id);
         }
