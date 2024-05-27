@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::{
     collections::HashMap,
+    error::Error as StdError,
     future::Future,
     io::ErrorKind,
     path::PathBuf,
@@ -869,6 +870,26 @@ impl FileTransfers {
                 ErrorKind::NotFound => TransferResult::Fatal,
                 _ => TransferResult::Retry,
             },
+            Error::Http(err) => {
+                let mut source = None;
+                while let Some(e) = err.source() {
+                    source = Some(e);
+                }
+                if let Some(e) = source {
+                    if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+                        match io_err.kind() {
+                            ErrorKind::ConnectionRefused => {
+                                TransferResult::Fatal
+                            }
+                            _ => TransferResult::Retry,
+                        }
+                    } else {
+                        TransferResult::Retry
+                    }
+                } else {
+                    TransferResult::Retry
+                }
+            }
             _ => TransferResult::Retry,
         }
     }
