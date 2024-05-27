@@ -851,11 +851,9 @@ pub struct AccountData {
     pub identity: String,
     /// Account folders.
     pub folders: Vec<Summary>,
-    /*
     #[cfg(feature = "device")]
-    /// Address of the device public key.
-    pub device_address: String,
-    */
+    /// Identifier of the device public key.
+    pub device_id: String,
 }
 
 /// Account information when signed in.
@@ -1883,6 +1881,7 @@ impl Account for LocalAccount {
                 .recipient()
                 .to_string(),
             folders: reader.list_folders().to_vec(),
+            device_id: self.device_public_key().await?.to_string(),
         })
     }
 
