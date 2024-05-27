@@ -42,6 +42,24 @@ pub type CancelChannel = mpsc::Sender<()>;
 
 type PendingOperations = HashMap<ExternalFile, IndexSet<TransferOperation>>;
 
+#[derive(Clone)]
+pub enum InflightNotification {
+    TransferAdded {
+        request_id: u64,
+        origin: Origin,
+        file: ExternalFile,
+        operation: TransferOperation,
+    },
+    TransferProgress {
+        request_id: u64,
+        bytes_transferred: u64,
+        bytes_total: Option<u64>,
+    },
+    TransferRemoved {
+        request_id: u64,
+    },
+}
+
 /// Inflight file transfer.
 #[derive(Debug)]
 pub struct InflightRequest {
@@ -51,8 +69,6 @@ pub struct InflightRequest {
     pub file: ExternalFile,
     /// Transfer operation.
     pub operation: TransferOperation,
-    /// Progress channel for uploads and downloads.
-    pub progress: Option<ProgressChannel>,
     /// Cancel channel for uploads and downloads.
     pub cancel: Option<CancelChannel>,
 }
@@ -61,14 +77,17 @@ pub struct InflightRequest {
 pub struct InflightTransfers {
     inflight: Arc<RwLock<HashMap<u64, InflightRequest>>>,
     request_id: Arc<Mutex<AtomicU64>>,
+    notifications: broadcast::Sender<InflightNotification>,
 }
 
 impl InflightTransfers {
     /// Create new pending transfers.
     pub fn new() -> Self {
+        let (notifications, _) = broadcast::channel(32);
         Self {
             inflight: Arc::new(RwLock::new(Default::default())),
             request_id: Arc::new(Mutex::new(AtomicU64::new(1))),
+            notifications,
         }
     }
 
@@ -81,6 +100,35 @@ impl InflightTransfers {
     /// In flight requests.
     pub fn inflight(&self) -> Arc<RwLock<HashMap<u64, InflightRequest>>> {
         Arc::clone(&self.inflight)
+    }
+
+    pub async fn insert_transfer(
+        &self,
+        request_id: u64,
+        request: InflightRequest,
+    ) {
+        let notify = InflightNotification::TransferAdded {
+            request_id: request_id,
+            origin: request.origin.clone(),
+            file: request.file.clone(),
+            operation: request.operation.clone(),
+        };
+
+        let mut inflight = self.inflight.write().await;
+        inflight.insert(request_id, request);
+
+        self.notifications.send(notify);
+    }
+
+    pub async fn remove_transfer(&self, request_id: &u64) {
+        let notify = InflightNotification::TransferRemoved {
+            request_id: *request_id,
+        };
+
+        let mut inflight = self.inflight.write().await;
+        inflight.remove(request_id);
+
+        self.notifications.send(notify);
     }
 
     /// Determine if the inflight transfers is empty.
@@ -654,7 +702,22 @@ impl FileTransfers {
                 &op
             {
                 let (cancel_tx, cancel_rx) = mpsc::channel::<()>(1);
-                let (progress_tx, _) = broadcast::channel(32);
+                let (progress_tx, _): (ProgressChannel, _) =
+                    broadcast::channel(32);
+
+                let mut progress_rx = progress_tx.subscribe();
+                let progress_transfers = Arc::clone(&inflight_transfers);
+                tokio::task::spawn(async move {
+                    while let Ok(event) = progress_rx.recv().await {
+                        let notify = InflightNotification::TransferProgress {
+                            request_id,
+                            bytes_transferred: event.0,
+                            bytes_total: event.1,
+                        };
+                        let _ = progress_transfers.notifications.send(notify);
+                    }
+                });
+
                 (Some(progress_tx), Some(cancel_tx), Some(cancel_rx))
             } else {
                 (None, None, None)
@@ -665,7 +728,6 @@ impl FileTransfers {
                 origin: client.origin().clone(),
                 file,
                 operation: op,
-                progress: progress_tx.as_ref().cloned(),
                 cancel: cancel_tx,
             };
 
@@ -674,8 +736,11 @@ impl FileTransfers {
                 "inflight_transfer::insert",
             );
 
-            let mut writer = inflight_transfers.inflight.write().await;
-            writer.insert(request_id, request);
+            // let mut writer = inflight_transfers.inflight.write().await;
+            // writer.insert(request_id, request);
+            inflight_transfers
+                .insert_transfer(request_id, request)
+                .await;
         }
 
         tracing::trace!(
@@ -750,9 +815,7 @@ impl FileTransfers {
                 request_id = %request_id,
                 "inflight_transfer::remove",
             );
-
-            let mut writer = inflight_transfers.inflight.write().await;
-            writer.remove(&request_id);
+            inflight_transfers.remove_transfer(&request_id).await;
         }
 
         Ok((file, op, result))
