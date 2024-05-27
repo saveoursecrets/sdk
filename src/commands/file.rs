@@ -28,12 +28,14 @@ pub enum Command {
         #[clap(short, long)]
         account: Option<AccountRef>,
     },
+    /*
     /// Show inflight file transfers.
     Progress {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
     },
+    */
 }
 
 /// Handle sync commands.
@@ -138,76 +140,78 @@ pub async fn run(cmd: Command) -> Result<()> {
                     }
                 }
             }
-        }
-        Command::Progress { account } => {
-            let user = resolve_user(account.as_ref(), false).await?;
-            let owner = user.read().await;
-            let transfers = owner.inflight_transfers().await?;
-            let inflight = transfers.inflight();
-            let inflight = inflight.read().await;
+        } /*
+          Command::Progress { account } => {
+              let user = resolve_user(account.as_ref(), false).await?;
+              let owner = user.read().await;
+              let transfers = owner.inflight_transfers().await?;
+              let inflight = transfers.inflight();
+              let inflight = inflight.read().await;
 
-            if inflight.is_empty() {
-                println!("No inflight transfers");
-            } else {
-                let request_ids = inflight
-                    .iter()
-                    .filter(|(_, v)| v.progress.is_some())
-                    .map(|(k, _)| k)
-                    .copied()
-                    .collect::<Vec<_>>();
+              if inflight.is_empty() {
+                  println!("No inflight transfers");
+              } else {
+                  let request_ids = inflight
+                      .iter()
+                      .filter(|(_, v)| v.progress.is_some())
+                      .map(|(k, _)| k)
+                      .copied()
+                      .collect::<Vec<_>>();
 
-                let requests = transfers.inflight();
-                let requests = requests.read().await;
+                  let requests = transfers.inflight();
+                  let requests = requests.read().await;
 
-                let mut channels = Vec::new();
-                for id in request_ids {
-                    if let Some(req) = requests.get(&id) {
-                        channels.push((
-                            req.file.clone(),
-                            req.progress.as_ref().unwrap().subscribe(),
-                        ));
-                    }
-                }
+                  let mut channels = Vec::new();
+                  for id in request_ids {
+                      if let Some(req) = requests.get(&id) {
+                          channels.push((
+                              req.file.clone(),
+                              req.progress.as_ref().unwrap().subscribe(),
+                          ));
+                      }
+                  }
 
-                drop(inflight);
-                // drop(progress);
+                  drop(inflight);
+                  // drop(progress);
 
-                let manager =
-                    Arc::new(Mutex::new(RowManager::from_window_size()));
-                let mut threads = Vec::new();
+                  let manager =
+                      Arc::new(Mutex::new(RowManager::from_window_size()));
+                  let mut threads = Vec::new();
 
-                // Shutdown channel for ctrlc handling
-                let (shutdown_tx, _) = broadcast::channel::<()>(1);
+                  // Shutdown channel for ctrlc handling
+                  let (shutdown_tx, _) = broadcast::channel::<()>(1);
 
-                // Update the global so ctrlc handler will
-                // send an event on the shutdown channel
-                {
-                    let mut mon = PROGRESS_MONITOR.lock();
-                    *mon = Some(shutdown_tx.clone());
-                }
+                  // Update the global so ctrlc handler will
+                  // send an event on the shutdown channel
+                  {
+                      let mut mon = PROGRESS_MONITOR.lock();
+                      *mon = Some(shutdown_tx.clone());
+                  }
 
-                for (file, rx) in channels {
-                    let mgr = Arc::clone(&manager);
-                    let shutdown = shutdown_tx.subscribe();
-                    threads
-                        .push(spawn_file_progress(file, mgr, shutdown, rx));
-                }
+                  for (file, rx) in channels {
+                      let mgr = Arc::clone(&manager);
+                      let shutdown = shutdown_tx.subscribe();
+                      threads
+                          .push(spawn_file_progress(file, mgr, shutdown, rx));
+                  }
 
-                for thread in threads {
-                    let _ = thread.join();
-                }
+                  for thread in threads {
+                      let _ = thread.join();
+                  }
 
-                // Clear the shutdown channel as we are done
-                {
-                    let mut mon = PROGRESS_MONITOR.lock();
-                    *mon = None;
-                }
-            }
-        }
+                  // Clear the shutdown channel as we are done
+                  {
+                      let mut mon = PROGRESS_MONITOR.lock();
+                      *mon = None;
+                  }
+              }
+          }
+          */
     }
     Ok(())
 }
 
+/*
 fn spawn_file_progress(
     file: ExternalFile,
     mgr: Arc<Mutex<RowManager>>,
@@ -268,3 +272,4 @@ fn spawn_file_progress(
             .unwrap();
     })
 }
+*/

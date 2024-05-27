@@ -42,20 +42,32 @@ pub type CancelChannel = mpsc::Sender<()>;
 
 type PendingOperations = HashMap<ExternalFile, IndexSet<TransferOperation>>;
 
-#[derive(Clone)]
+/// Notification for inflight transfers.
+#[derive(Debug, Clone)]
 pub enum InflightNotification {
+    /// Notify a transfer was added.
     TransferAdded {
+        /// Request identifier.
         request_id: u64,
+        /// Server origin.
         origin: Origin,
+        /// File information.
         file: ExternalFile,
+        /// Transfer operation.
         operation: TransferOperation,
     },
-    TransferProgress {
+    /// Notify a transfer was updated.
+    TransferUpdate {
+        /// Request identifier.
         request_id: u64,
+        /// Bytes transferred.
         bytes_transferred: u64,
+        /// Bytes total.
         bytes_total: Option<u64>,
     },
+    /// Notify a transfer was removed.
     TransferRemoved {
+        /// Request identifier.
         request_id: u64,
     },
 }
@@ -82,8 +94,8 @@ pub struct InflightTransfers {
 
 impl InflightTransfers {
     /// Create new pending transfers.
-    pub fn new() -> Self {
-        let (notifications, _) = broadcast::channel(32);
+    pub(crate) fn new() -> Self {
+        let (notifications, _) = broadcast::channel(2048);
         Self {
             inflight: Arc::new(RwLock::new(Default::default())),
             request_id: Arc::new(Mutex::new(AtomicU64::new(1))),
@@ -91,24 +103,30 @@ impl InflightTransfers {
         }
     }
 
+    /// Notifications channel for inflight transfers.
+    pub fn notifications(&self) -> &broadcast::Sender<InflightNotification> {
+        &self.notifications
+    }
+
+    /// Determine if the inflight transfers is empty.
+    pub async fn is_empty(&self) -> bool {
+        let queue = self.inflight.read().await;
+        queue.is_empty()
+    }
+
     /// Next request id.
-    pub async fn request_id(&self) -> u64 {
+    async fn request_id(&self) -> u64 {
         let id = self.request_id.lock().await;
         id.fetch_add(1, Ordering::SeqCst)
     }
 
-    /// In flight requests.
-    pub fn inflight(&self) -> Arc<RwLock<HashMap<u64, InflightRequest>>> {
-        Arc::clone(&self.inflight)
-    }
-
-    pub async fn insert_transfer(
+    async fn insert_transfer(
         &self,
         request_id: u64,
         request: InflightRequest,
     ) {
         let notify = InflightNotification::TransferAdded {
-            request_id: request_id,
+            request_id,
             origin: request.origin.clone(),
             file: request.file.clone(),
             operation: request.operation.clone(),
@@ -117,10 +135,10 @@ impl InflightTransfers {
         let mut inflight = self.inflight.write().await;
         inflight.insert(request_id, request);
 
-        self.notifications.send(notify);
+        let _ = self.notifications.send(notify);
     }
 
-    pub async fn remove_transfer(&self, request_id: &u64) {
+    async fn remove_transfer(&self, request_id: &u64) {
         let notify = InflightNotification::TransferRemoved {
             request_id: *request_id,
         };
@@ -128,13 +146,7 @@ impl InflightTransfers {
         let mut inflight = self.inflight.write().await;
         inflight.remove(request_id);
 
-        self.notifications.send(notify);
-    }
-
-    /// Determine if the inflight transfers is empty.
-    pub async fn is_empty(&self) -> bool {
-        let queue = self.inflight.read().await;
-        queue.is_empty()
+        let _ = self.notifications.send(notify);
     }
 }
 
@@ -709,7 +721,7 @@ impl FileTransfers {
                 let progress_transfers = Arc::clone(&inflight_transfers);
                 tokio::task::spawn(async move {
                     while let Ok(event) = progress_rx.recv().await {
-                        let notify = InflightNotification::TransferProgress {
+                        let notify = InflightNotification::TransferUpdate {
                             request_id,
                             bytes_transferred: event.0,
                             bytes_total: event.1,
