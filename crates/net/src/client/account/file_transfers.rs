@@ -414,7 +414,7 @@ pub struct FileTransferSettings {
 impl Default for FileTransferSettings {
     fn default() -> Self {
         Self {
-            concurrent_transfers: 8,
+            concurrent_transfers: 4,
             delay_seconds: 15,
         }
     }
@@ -793,16 +793,12 @@ impl FileTransfers {
                 operation.run(file, progress_tx, cancel_rx).await?
             }
             TransferOperation::Delete => {
-                match client.delete_file(&file).await {
-                    Ok(status) => Self::is_success(&op, status),
-                    Err(e) => Self::is_error(e),
-                }
+                let operation = DeleteOperation::new(client, retry);
+                operation.run(file).await?
             }
             TransferOperation::Move(dest) => {
-                match client.move_file(&file, dest).await {
-                    Ok(status) => Self::is_success(&op, status),
-                    Err(e) => Self::is_error(e),
-                }
+                let operation = MoveOperation::new(client, retry);
+                operation.run(file, dest).await?
             }
         };
 
@@ -815,40 +811,6 @@ impl FileTransfers {
         }
 
         Ok((file, op, result))
-    }
-
-    #[deprecated]
-    fn is_success(
-        op: &TransferOperation,
-        status: StatusCode,
-    ) -> TransferResult {
-        let ok = match op {
-            TransferOperation::Upload => {
-                status == StatusCode::OK || status == StatusCode::NOT_MODIFIED
-            }
-            TransferOperation::Download => status == StatusCode::OK,
-            TransferOperation::Delete => {
-                status == StatusCode::OK || status == StatusCode::NOT_FOUND
-            }
-            TransferOperation::Move(_) => status == StatusCode::OK,
-        };
-        if ok {
-            TransferResult::Done
-        } else {
-            TransferResult::Retry
-        }
-    }
-
-    #[deprecated]
-    fn is_error(error: Error) -> TransferResult {
-        tracing::warn!(error = ?error, "transfer_error");
-        match error {
-            Error::Io(io) => match io.kind() {
-                ErrorKind::NotFound => TransferResult::Fatal,
-                _ => TransferResult::Retry,
-            },
-            _ => TransferResult::Retry,
-        }
     }
 }
 
@@ -897,11 +859,11 @@ where
 
         if let TransferResult::Retry = result {
             let retries = self.retry.increment().await;
-            tracing::debug!(retries = %retries, "upload::retry");
+            tracing::debug!(retries = %retries, "upload_file::retry");
             if self.retry.is_exhausted(retries) {
                 tracing::debug!(
                   maximum_retries = %self.retry.maximum_retries,
-                  "upload::retry_attempts_exhausted");
+                  "upload_file::retries_exhausted");
                 return Ok(TransferResult::Fatal);
             }
 
@@ -929,7 +891,7 @@ where
     }
 
     fn on_error(&self, error: Error) -> TransferResult {
-        tracing::warn!(error = ?error, "upload_error");
+        tracing::warn!(error = ?error, "upload_file::error");
         on_error(error)
     }
 }
@@ -995,11 +957,11 @@ where
 
         if let TransferResult::Retry = result {
             let retries = self.retry.increment().await;
-            tracing::debug!(retries = %retries, "download::retry");
+            tracing::debug!(retries = %retries, "download_file::retry");
             if self.retry.is_exhausted(retries) {
                 tracing::debug!(
                   maximum_retries = %self.retry.maximum_retries,
-                  "download::retry_attempts_exhausted");
+                  "download_file::retries_exhausted");
                 return Ok(TransferResult::Fatal);
             }
 
@@ -1027,7 +989,134 @@ where
     }
 
     fn on_error(&self, error: Error) -> TransferResult {
-        tracing::warn!(error = ?error, "download_error");
+        tracing::warn!(error = ?error, "download_file::error");
+        on_error(error)
+    }
+}
+
+struct DeleteOperation<C>
+where
+    C: SyncClient + Clone + Send + Sync + 'static,
+{
+    client: C,
+    retry: NetworkRetry,
+}
+
+impl<C> DeleteOperation<C>
+where
+    C: SyncClient + Clone + Send + Sync + 'static,
+{
+    fn new(client: C, retry: NetworkRetry) -> Self {
+        Self { client, retry }
+    }
+
+    #[async_recursion]
+    async fn run(&self, file: ExternalFile) -> Result<TransferResult> {
+        let result = match self.client.delete_file(&file).await {
+            Ok(status) => self.on_response(status),
+            Err(e) => self.on_error(e),
+        };
+
+        if let TransferResult::Retry = result {
+            let retries = self.retry.increment().await;
+            tracing::debug!(retries = %retries, "delete_file::retry");
+            if self.retry.is_exhausted(retries) {
+                tracing::debug!(
+                  maximum_retries = %self.retry.maximum_retries,
+                  "delete_file::retries_exhausted");
+                return Ok(TransferResult::Fatal);
+            }
+
+            self.retry
+                .wait_and_retry(retries, async move { self.run(file).await })
+                .await?
+        } else {
+            Ok(result)
+        }
+    }
+}
+
+impl<C> TransferTask for DeleteOperation<C>
+where
+    C: SyncClient + Clone + Send + Sync + 'static,
+{
+    fn on_response(&self, status: StatusCode) -> TransferResult {
+        if status == StatusCode::OK || status == StatusCode::NOT_FOUND {
+            TransferResult::Done
+        } else {
+            TransferResult::Retry
+        }
+    }
+
+    fn on_error(&self, error: Error) -> TransferResult {
+        tracing::warn!(error = ?error, "delete_file::error");
+        on_error(error)
+    }
+}
+
+struct MoveOperation<C>
+where
+    C: SyncClient + Clone + Send + Sync + 'static,
+{
+    client: C,
+    retry: NetworkRetry,
+}
+
+impl<C> MoveOperation<C>
+where
+    C: SyncClient + Clone + Send + Sync + 'static,
+{
+    fn new(client: C, retry: NetworkRetry) -> Self {
+        Self { client, retry }
+    }
+
+    #[async_recursion]
+    async fn run(
+        &self,
+        file: ExternalFile,
+        dest: &ExternalFile,
+    ) -> Result<TransferResult> {
+        let result = match self.client.move_file(&file, dest).await {
+            Ok(status) => self.on_response(status),
+            Err(e) => self.on_error(e),
+        };
+
+        if let TransferResult::Retry = result {
+            let retries = self.retry.increment().await;
+            tracing::debug!(retries = %retries, "move_file::retry");
+            if self.retry.is_exhausted(retries) {
+                tracing::debug!(
+                  maximum_retries = %self.retry.maximum_retries,
+                  "move_file::retries_exhausted");
+                return Ok(TransferResult::Fatal);
+            }
+
+            self.retry
+                .wait_and_retry(
+                    retries,
+                    async move { self.run(file, dest).await },
+                )
+                .await?
+        } else {
+            Ok(result)
+        }
+    }
+}
+
+impl<C> TransferTask for MoveOperation<C>
+where
+    C: SyncClient + Clone + Send + Sync + 'static,
+{
+    fn on_response(&self, status: StatusCode) -> TransferResult {
+        if status == StatusCode::OK {
+            TransferResult::Done
+        } else {
+            TransferResult::Retry
+        }
+    }
+
+    fn on_error(&self, error: Error) -> TransferResult {
+        tracing::warn!(error = ?error, "move_file::error");
         on_error(error)
     }
 }
