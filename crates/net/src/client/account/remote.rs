@@ -1,9 +1,6 @@
 //! Bridge between local storage and a remote server.
-#[cfg(feature = "files")]
-use crate::client::account::file_transfers::TransfersQueue;
 use crate::client::{
-    net::HttpClient, network_account::FileTransferQueueRequest, Error,
-    RemoteSync, Result, SyncClient, SyncError,
+    net::HttpClient, Error, RemoteSync, Result, SyncClient, SyncError,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -19,9 +16,12 @@ use sos_sdk::{
     vfs,
 };
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::Mutex;
 
-use super::network_account::FileTransferQueueChannel;
+#[cfg(feature = "files")]
+use super::network_account::{
+    FileTransferQueueChannel, FileTransferQueueRequest,
+};
 
 /// Collection of remote targets for synchronization.
 pub(crate) type Remotes = HashMap<Origin, RemoteBridge>;
@@ -38,7 +38,7 @@ pub struct RemoteBridge {
     pub(crate) client: HttpClient,
     /// File transfers.
     #[cfg(feature = "files")]
-    transfer_queue: FileTransferQueueChannel,
+    file_transfer_queue: FileTransferQueueChannel,
 }
 
 impl RemoteBridge {
@@ -50,7 +50,8 @@ impl RemoteBridge {
         signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
         connection_id: String,
-        #[cfg(feature = "files")] transfer_queue: FileTransferQueueChannel,
+        #[cfg(feature = "files")]
+        file_transfer_queue: FileTransferQueueChannel,
     ) -> Result<Self> {
         let client =
             HttpClient::new(origin.clone(), signer, device, connection_id)?;
@@ -59,7 +60,7 @@ impl RemoteBridge {
             origin,
             client,
             #[cfg(feature = "files")]
-            transfer_queue,
+            file_transfer_queue,
         })
     }
 
@@ -124,7 +125,7 @@ impl RemoteBridge {
                         set.insert(TransferOperation::Download);
                         map.insert(file, set);
 
-                        self.transfer_queue
+                        self.file_transfer_queue
                             .send(FileTransferQueueRequest::Pending(map))
                             .unwrap();
                     }
@@ -229,7 +230,7 @@ impl RemoteBridge {
 
         let file_transfers = self.client.compare_files(&file_set).await?;
 
-        self.transfer_queue
+        self.file_transfer_queue
             .send(FileTransferQueueRequest::MergeFileTransfers(
                 file_transfers,
             ))

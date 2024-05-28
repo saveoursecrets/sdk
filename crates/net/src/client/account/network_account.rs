@@ -135,7 +135,7 @@ pub struct NetworkAccount {
 
     /// Channel for adding file transfers to the queue.
     #[cfg(feature = "files")]
-    file_transfer_queue_tx: FileTransferQueueChannel,
+    file_transfer_queue: FileTransferQueueChannel,
 
     /// Disable networking.
     pub(crate) offline: bool,
@@ -307,7 +307,7 @@ impl NetworkAccount {
             device.into(),
             conn_id,
             #[cfg(feature = "files")]
-            self.file_transfer_queue_tx.clone(),
+            self.file_transfer_queue.clone(),
         )?;
         Ok(provider)
     }
@@ -378,8 +378,7 @@ impl NetworkAccount {
                 clients
             };
 
-            file_transfers
-                .run(clients, self.file_transfer_queue_tx.subscribe());
+            file_transfers.run(clients, self.file_transfer_queue.subscribe());
         }
 
         Ok(())
@@ -424,7 +423,7 @@ impl NetworkAccount {
             LocalAccount::new_unauthenticated(address, data_dir).await?;
 
         #[cfg(feature = "files")]
-        let (file_transfer_queue_tx, _) =
+        let (file_transfer_queue, _) =
             broadcast::channel::<FileTransferQueueRequest>(32);
 
         Ok(Self {
@@ -439,7 +438,7 @@ impl NetworkAccount {
             #[cfg(feature = "files")]
             file_transfers: None,
             #[cfg(feature = "files")]
-            file_transfer_queue_tx,
+            file_transfer_queue,
             offline: options.offline,
             options,
         })
@@ -493,7 +492,7 @@ impl NetworkAccount {
         .await?;
 
         #[cfg(feature = "files")]
-        let (file_transfer_queue_tx, _) =
+        let (file_transfer_queue, _) =
             broadcast::channel::<FileTransferQueueRequest>(32);
 
         let owner = Self {
@@ -508,7 +507,7 @@ impl NetworkAccount {
             #[cfg(feature = "files")]
             file_transfers: None,
             #[cfg(feature = "files")]
-            file_transfer_queue_tx,
+            file_transfer_queue,
             offline: options.offline,
             options,
         };
