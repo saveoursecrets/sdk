@@ -148,7 +148,7 @@ impl FileTransfers {
     pub fn run<C>(
         &mut self,
         clients: Vec<C>,
-        transfer_queue_rx: broadcast::Receiver<FileTransferQueueRequest>,
+        mut transfer_queue_rx: broadcast::Receiver<FileTransferQueueRequest>,
     ) where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
@@ -167,6 +167,9 @@ impl FileTransfers {
                             tracing::debug!("file_transfers_shut_down");
                             break;
                         }
+                    }
+                    event = transfer_queue_rx.recv() => {
+                        todo!("handle event to modify queue...");
                     }
                     _ = Self::maybe_process_transfers(
                       Arc::clone(&paths),

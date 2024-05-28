@@ -542,18 +542,20 @@ impl NetworkAccount {
         &self,
         events: &[FileMutationEvent],
     ) -> Result<()> {
-        if let Some(file_transfers) = &self.file_transfers {
-            let mut ops = HashMap::new();
-            for event in events {
-                let (file, op): (ExternalFile, TransferOperation) =
-                    event.into();
-                let entries = ops.entry(file).or_insert(IndexSet::new());
-                entries.insert(op);
-            }
-
-            let mut writer = file_transfers.queue.write().await;
-            writer.queue_transfers(ops).await?;
+        let mut ops = HashMap::new();
+        for event in events {
+            let (file, op): (ExternalFile, TransferOperation) = event.into();
+            let entries = ops.entry(file).or_insert(IndexSet::new());
+            entries.insert(op);
         }
+
+        self.file_transfer_queue
+            .send(FileTransferQueueRequest::Pending(ops))
+            .unwrap();
+
+        // let mut writer = file_transfers.queue.write().await;
+        // writer.queue_transfers(ops).await?;
+
         Ok(())
     }
 }
