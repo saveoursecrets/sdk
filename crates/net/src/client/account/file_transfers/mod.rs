@@ -168,8 +168,17 @@ impl FileTransfers {
                             break;
                         }
                     }
-                    event = transfer_queue_rx.recv() => {
-                        todo!("handle event to modify queue...");
+                    Ok(event) = transfer_queue_rx.recv() => {
+                        match event {
+                            FileTransferQueueRequest::Pending(map) => {
+                                let mut writer = queue.write().await;
+                                writer.queue_transfers(map).await?;
+                            }
+                            FileTransferQueueRequest::MergeFileTransfers(set) => {
+                                let mut writer = queue.write().await;
+                                writer.merge_file_transfers(set).await?;
+                            }
+                        }
                     }
                     _ = Self::maybe_process_transfers(
                       Arc::clone(&paths),
@@ -180,6 +189,8 @@ impl FileTransfers {
                     ).fuse() => {}
                 }
             }
+
+            Ok::<_, Error>(())
         });
     }
 

@@ -549,12 +549,11 @@ impl NetworkAccount {
             entries.insert(op);
         }
 
-        self.file_transfer_queue
-            .send(FileTransferQueueRequest::Pending(ops))
-            .unwrap();
-
-        // let mut writer = file_transfers.queue.write().await;
-        // writer.queue_transfers(ops).await?;
+        if self.file_transfer_queue.receiver_count() > 0 {
+            let _ = self
+                .file_transfer_queue
+                .send(FileTransferQueueRequest::Pending(ops));
+        }
 
         Ok(())
     }

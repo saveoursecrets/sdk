@@ -125,9 +125,11 @@ impl RemoteBridge {
                         set.insert(TransferOperation::Download);
                         map.insert(file, set);
 
-                        self.file_transfer_queue
-                            .send(FileTransferQueueRequest::Pending(map))
-                            .unwrap();
+                        if self.file_transfer_queue.receiver_count() > 0 {
+                            let _ = self
+                                .file_transfer_queue
+                                .send(FileTransferQueueRequest::Pending(map));
+                        }
                     }
                 }
             }
@@ -230,11 +232,11 @@ impl RemoteBridge {
 
         let file_transfers = self.client.compare_files(&file_set).await?;
 
-        self.file_transfer_queue
-            .send(FileTransferQueueRequest::MergeFileTransfers(
-                file_transfers,
-            ))
-            .unwrap();
+        if self.file_transfer_queue.receiver_count() > 0 {
+            let _ = self.file_transfer_queue.send(
+                FileTransferQueueRequest::MergeFileTransfers(file_transfers),
+            );
+        }
 
         /*
         {
