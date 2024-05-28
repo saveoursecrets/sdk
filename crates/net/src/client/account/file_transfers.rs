@@ -33,7 +33,7 @@ use tokio::{
     sync::{
         broadcast,
         mpsc::{self, UnboundedReceiver},
-        oneshot, watch, Mutex, RwLock,
+        oneshot, watch, Mutex, RwLock, Semaphore,
     },
     time::sleep,
 };
@@ -169,14 +169,16 @@ impl InflightTransfers {
     }
 
     async fn remove_transfer(&self, request_id: &u64) {
+        /*
         let notify = InflightNotification::TransferRemoved {
             request_id: *request_id,
         };
+        */
 
         let mut inflight = self.inflight.write().await;
         inflight.remove(request_id);
 
-        notify_listeners(notify, &self.notifications).await;
+        // notify_listeners(notify, &self.notifications).await;
     }
 }
 
@@ -415,6 +417,7 @@ impl TransfersQueue {
 }
 
 /// Result of a file transfer operation.
+#[derive(Debug)]
 enum TransferResult {
     /// Transfer completed across all clients.
     Done,
@@ -425,9 +428,14 @@ enum TransferResult {
 }
 
 /// Settings for file transfer operations.
+#[derive(Clone)]
 pub struct FileTransferSettings {
-    /// Number of concurrent transfers.
-    pub concurrent_transfers: usize,
+    /// Number of concurrent downloads.
+    pub concurrent_downloads: usize,
+    /// Number of concurrent uploads.
+    pub concurrent_uploads: usize,
+    /// Number of concurrent move and delete requests.
+    pub concurrent_requests: usize,
     /// Delay in seconds between processing the transfers queue.
     ///
     /// This value is ignored when `debug_assertions` are enabled
@@ -440,7 +448,9 @@ pub struct FileTransferSettings {
 impl Default for FileTransferSettings {
     fn default() -> Self {
         Self {
-            concurrent_transfers: 4,
+            concurrent_downloads: 4,
+            concurrent_uploads: 4,
+            concurrent_requests: 12,
             delay_seconds: 15,
         }
     }
@@ -495,13 +505,6 @@ impl FileTransfers {
                     signal = shutdown.recv().fuse() => {
                         if signal.is_some() {
                             tracing::debug!("file_transfers_shutting_down");
-
-                            /*
-                            // Wait for any pending writes to disc
-                            // for a graceful shutdown
-                            let transfers = queue.read().await;
-                            let _ = transfers.path.lock().await;
-                            */
 
                             tracing::debug!("file_transfers_shut_down");
                             let _ = shutdown_ack.send(());
@@ -584,32 +587,238 @@ impl FileTransfers {
     {
         if !clients.is_empty() {
             let list = pending_transfers.into_iter().collect::<Vec<_>>();
-
-            let chunk_size = if clients.len() < settings.concurrent_transfers
-            {
-                settings.concurrent_transfers / clients.len()
-            } else {
-                settings.concurrent_transfers
-            };
-
-            for files in list.chunks(chunk_size) {
-                let mut futures = Vec::new();
-                for (file, ops) in files {
-                    futures.push(Self::process_operations(
-                        *file,
-                        ops.clone(),
-                        Arc::clone(&paths),
-                        Arc::clone(&queue),
-                        Arc::clone(&inflight_transfers),
-                        clients.to_vec(),
-                    ));
+            let mut downloads = Vec::new();
+            let mut uploads = Vec::new();
+            let mut requests = Vec::new();
+            for (file, ops) in list {
+                for op in ops {
+                    match op {
+                        TransferOperation::Download => {
+                            downloads.push((file, clients.to_vec()));
+                        }
+                        TransferOperation::Upload => {
+                            uploads.push((file, clients.to_vec()));
+                        }
+                        _ => {
+                            requests.push((file, op, clients.to_vec()));
+                        }
+                    }
                 }
-                futures::future::try_join_all(futures).await?;
             }
+
+            let up: Pin<
+                Box<dyn Future<Output = Result<()>> + Send + 'static>,
+            > = Box::pin(Self::process_uploads(
+                Arc::clone(&paths),
+                uploads,
+                settings.clone(),
+                Arc::clone(&queue),
+                Arc::clone(&inflight_transfers),
+            ));
+
+            let down: Pin<
+                Box<dyn Future<Output = Result<()>> + Send + 'static>,
+            > = Box::pin(Self::process_downloads(
+                Arc::clone(&paths),
+                downloads,
+                settings.clone(),
+                Arc::clone(&queue),
+                Arc::clone(&inflight_transfers),
+            ));
+
+            let req: Pin<
+                Box<dyn Future<Output = Result<()>> + Send + 'static>,
+            > = Box::pin(Self::process_requests(
+                Arc::clone(&paths),
+                requests,
+                settings.clone(),
+                Arc::clone(&queue),
+                Arc::clone(&inflight_transfers),
+            ));
+
+            let transfers = vec![up, down, req];
+            futures::future::try_join_all(transfers).await?;
         }
         Ok(())
     }
 
+    async fn process_downloads<C>(
+        paths: Arc<Paths>,
+        downloads: Vec<(ExternalFile, Vec<C>)>,
+        settings: FileTransferSettings,
+        queue: Arc<RwLock<TransfersQueue>>,
+        inflight_transfers: Arc<InflightTransfers>,
+    ) -> Result<()>
+    where
+        C: SyncClient + Clone + Send + Sync + 'static,
+    {
+        let semaphore =
+            Arc::new(Semaphore::new(settings.concurrent_downloads));
+
+        for download in downloads {
+            let semaphore = semaphore.clone();
+            let inflight = Arc::clone(&inflight_transfers);
+            let paths = Arc::clone(&paths);
+            let queue = Arc::clone(&queue);
+            tokio::task::spawn(async move {
+                let (file, clients) = download;
+                let _permit = semaphore.acquire().await.unwrap();
+                for client in clients {
+                    let request_id = inflight.request_id().await;
+
+                    let (file, op, result) = Self::run_client_operation(
+                        request_id,
+                        file,
+                        TransferOperation::Download,
+                        Arc::clone(&paths),
+                        client,
+                        Arc::clone(&inflight),
+                    )
+                    .await?;
+
+                    if let TransferResult::Done = result {
+                        let mut writer = queue.write().await;
+                        writer.transfer_completed(&file, &op).await?;
+                        break;
+                    }
+                }
+                drop(_permit);
+
+                Ok::<(), Error>(())
+            });
+        }
+
+        Ok(())
+    }
+
+    async fn process_uploads<C>(
+        paths: Arc<Paths>,
+        uploads: Vec<(ExternalFile, Vec<C>)>,
+        settings: FileTransferSettings,
+        queue: Arc<RwLock<TransfersQueue>>,
+        inflight_transfers: Arc<InflightTransfers>,
+    ) -> Result<()>
+    where
+        C: SyncClient + Clone + Send + Sync + 'static,
+    {
+        let semaphore = Arc::new(Semaphore::new(settings.concurrent_uploads));
+
+        let mut jhs = Vec::new();
+        for upload in uploads {
+            let semaphore = semaphore.clone();
+            let inflight = Arc::clone(&inflight_transfers);
+            let paths = Arc::clone(&paths);
+            let jh = tokio::task::spawn(async move {
+                let (file, clients) = upload;
+                let mut results = Vec::new();
+                let _permit = semaphore.acquire().await.unwrap();
+                for client in clients {
+                    let request_id = inflight.request_id().await;
+                    let result = Self::run_client_operation(
+                        request_id,
+                        file,
+                        TransferOperation::Upload,
+                        Arc::clone(&paths),
+                        client,
+                        Arc::clone(&inflight),
+                    )
+                    .await?;
+                    results.push(result);
+                }
+                drop(_permit);
+
+                Ok::<_, Error>(results)
+            });
+            jhs.push(jh);
+        }
+
+        let mut responses = Vec::new();
+        for jh in jhs {
+            let response = jh.await.unwrap();
+            responses.push(response);
+        }
+
+        for response in responses {
+            let results = response?;
+            if results
+                .iter()
+                .all(|(_, _, r)| matches!(r, TransferResult::Done))
+            {
+                for (file, op, _) in results {
+                    let mut writer = queue.write().await;
+                    writer.transfer_completed(&file, &op).await?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn process_requests<C>(
+        paths: Arc<Paths>,
+        uploads: Vec<(ExternalFile, TransferOperation, Vec<C>)>,
+        settings: FileTransferSettings,
+        queue: Arc<RwLock<TransfersQueue>>,
+        inflight_transfers: Arc<InflightTransfers>,
+    ) -> Result<()>
+    where
+        C: SyncClient + Clone + Send + Sync + 'static,
+    {
+        let semaphore =
+            Arc::new(Semaphore::new(settings.concurrent_requests));
+
+        let mut jhs = Vec::new();
+        for upload in uploads {
+            let semaphore = semaphore.clone();
+            let inflight = Arc::clone(&inflight_transfers);
+            let paths = Arc::clone(&paths);
+            let jh = tokio::task::spawn(async move {
+                let (file, op, clients) = upload;
+                let mut results = Vec::new();
+                let _permit = semaphore.acquire().await.unwrap();
+                for client in clients {
+                    let request_id = inflight.request_id().await;
+                    let result = Self::run_client_operation(
+                        request_id,
+                        file,
+                        op,
+                        Arc::clone(&paths),
+                        client,
+                        Arc::clone(&inflight),
+                    )
+                    .await?;
+                    results.push(result);
+                }
+                drop(_permit);
+
+                Ok::<_, Error>(results)
+            });
+            jhs.push(jh);
+        }
+
+        let mut responses = Vec::new();
+        for jh in jhs {
+            let response = jh.await.unwrap();
+            responses.push(response);
+        }
+
+        for response in responses {
+            let results = response?;
+            if results
+                .iter()
+                .all(|(_, _, r)| matches!(r, TransferResult::Done))
+            {
+                for (file, op, _) in results {
+                    let mut writer = queue.write().await;
+                    writer.transfer_completed(&file, &op).await?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /*
     async fn process_operations<C>(
         file: ExternalFile,
         operations: IndexSet<TransferOperation>,
@@ -671,7 +880,9 @@ impl FileTransfers {
 
         Ok(())
     }
+    */
 
+    /*
     async fn process_uploads(
         queue: Arc<RwLock<TransfersQueue>>,
         uploads: Vec<
@@ -741,6 +952,7 @@ impl FileTransfers {
         // failed on all servers
         Ok(())
     }
+    */
 
     async fn run_client_operation<C>(
         request_id: u64,
@@ -810,7 +1022,12 @@ impl FileTransfers {
           "file_transfer"
         );
 
+        #[cfg(debug_assertions)]
+        let retry = NetworkRetry::new(4, 0);
+
+        #[cfg(not(debug_assertions))]
         let retry = NetworkRetry::default();
+
         let result = match &op {
             TransferOperation::Upload => {
                 let operation = UploadOperation::new(

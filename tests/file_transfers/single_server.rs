@@ -214,7 +214,7 @@ async fn file_transfers_single_delete() -> Result<()> {
 async fn file_transfers_single_download() -> Result<()> {
     const TEST_ID: &str = "file_transfers_single_download";
 
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -232,7 +232,13 @@ async fn file_transfers_single_download() -> Result<()> {
                 .await?;
         let file =
             ExternalFile::new(*default_folder.id(), secret_id, file_name);
+
+        println!("Waiting for upload...");
+
         wait_for_transfers(&uploader.owner).await?;
+
+        println!("Upload completed...");
+
         assert_local_remote_file_eq(
             uploader.owner.paths(),
             &uploader.server_path,
