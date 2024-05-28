@@ -741,6 +741,7 @@ impl FileTransfers {
                         // Handle backpressure on notifications
                         let mut result =
                             progress_transfers.notifications.send(notify);
+
                         while let Err(err) = result {
                             sleep(Duration::from_millis(50)).await;
                             result =

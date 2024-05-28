@@ -406,7 +406,7 @@ impl SyncClient for HttpClient {
                 Some(chunk) = reader_stream.next() => {
                   if let Ok(bytes) = &chunk {
                       bytes_sent += bytes.len() as u64;
-                      let _ = progress.send((bytes_sent, Some(file_size)));
+                      let _ = progress.send((bytes_sent, Some(file_size))).await;
                   }
                   yield chunk.map_err(Error::from);
                 }
@@ -486,7 +486,7 @@ impl SyncClient for HttpClient {
                     hasher.update(&chunk);
 
                     bytes_received += chunk.len() as u64;
-                    let _ = progress.send((bytes_received, file_size));
+                    let _ = progress.send((bytes_received, file_size)).await;
                   } else {
                     break;
                   }
