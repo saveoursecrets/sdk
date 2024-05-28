@@ -15,7 +15,7 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 async fn file_transfers_late_upload() -> Result<()> {
     const TEST_ID: &str = "file_transfers_late_upload";
 
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 1, None).await?;

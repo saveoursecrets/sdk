@@ -46,6 +46,16 @@ pub type CancelChannel = watch::Sender<()>;
 
 type PendingOperations = HashMap<ExternalFile, IndexSet<TransferOperation>>;
 
+/// Reason for a transfer error notification.
+#[derive(Debug, Clone)]
+pub enum TransferError {
+    /// Error when network retries are exhausted.
+    RetryExhausted,
+    /// Error when a file that is the target of
+    /// an upload or download is no longer on disc.
+    TransferFileMissing,
+}
+
 /// Notification for inflight transfers.
 #[derive(Debug, Clone)]
 pub enum InflightNotification {
@@ -73,6 +83,22 @@ pub enum InflightNotification {
     TransferRemoved {
         /// Request identifier.
         request_id: u64,
+    },
+    /// Notify a transfer is being retried.
+    TransferRetry {
+        /// Request identifier.
+        request_id: u64,
+        /// Retry number.
+        retry: u32,
+        /// Maximum number of retries.
+        maximum: u32,
+    },
+    /// Notify a transfer is stopped due to an error.
+    TransferError {
+        /// Request identifier.
+        request_id: u64,
+        /// Error reason.
+        reason: TransferError,
     },
 }
 
@@ -107,11 +133,6 @@ impl InflightTransfers {
         }
     }
 
-    /// Notifications channel for inflight transfers.
-    pub fn notifications(&self) -> &broadcast::Sender<InflightNotification> {
-        &self.notifications
-    }
-
     /// Determine if the inflight transfers is empty.
     pub async fn is_empty(&self) -> bool {
         let queue = self.inflight.read().await;
@@ -139,7 +160,7 @@ impl InflightTransfers {
         let mut inflight = self.inflight.write().await;
         inflight.insert(request_id, request);
 
-        let _ = self.notifications.send(notify);
+        notify_listeners(notify, &self.notifications).await;
     }
 
     async fn remove_transfer(&self, request_id: &u64) {
@@ -150,7 +171,7 @@ impl InflightTransfers {
         let mut inflight = self.inflight.write().await;
         inflight.remove(request_id);
 
-        let _ = self.notifications.send(notify);
+        notify_listeners(notify, &self.notifications).await;
     }
 }
 
@@ -395,7 +416,7 @@ enum TransferResult {
     /// Operation failed but can be retried.
     Retry,
     /// Fatal error prevents the operation from being retried.
-    Fatal,
+    Fatal(TransferError),
 }
 
 /// Settings for file transfer operations.
@@ -672,8 +693,11 @@ impl FileTransfers {
         // Mark transfers that were successful for all clients
         // as completed, removing them from the queue
         for ((file, op), results) in collated {
-            if results.into_iter().all(|result| {
-                matches!(result, TransferResult::Done | TransferResult::Fatal)
+            if results.iter().all(|result| {
+                matches!(
+                    result,
+                    TransferResult::Done | TransferResult::Fatal(_)
+                )
             }) {
                 let mut writer = queue.write().await;
                 writer.transfer_completed(&file, &op).await?;
@@ -697,10 +721,13 @@ impl FileTransfers {
     ) -> Result<()> {
         for fut in downloads {
             let (file, op, result) = fut.await?;
-            if let TransferResult::Done | TransferResult::Fatal = result {
-                let mut writer = queue.write().await;
-                writer.transfer_completed(&file, &op).await?;
-                return Ok(());
+            match result {
+                TransferResult::Done | TransferResult::Fatal(_) => {
+                    let mut writer = queue.write().await;
+                    writer.transfer_completed(&file, &op).await?;
+                    return Ok(());
+                }
+                _ => {}
             }
         }
 
@@ -730,6 +757,10 @@ impl FileTransfers {
                     mpsc::channel(16);
 
                 let progress_transfers = Arc::clone(&inflight_transfers);
+
+                // Proxt the progress information for an individual
+                // upload or download to the inflight transfers
+                // notification channel
                 tokio::task::spawn(async move {
                     while let Some(event) = progress_rx.recv().await {
                         let notify = InflightNotification::TransferUpdate {
@@ -737,16 +768,11 @@ impl FileTransfers {
                             bytes_transferred: event.0,
                             bytes_total: event.1,
                         };
-
-                        // Handle backpressure on notifications
-                        let mut result =
-                            progress_transfers.notifications.send(notify);
-
-                        while let Err(err) = result {
-                            sleep(Duration::from_millis(50)).await;
-                            result =
-                                progress_transfers.notifications.send(err.0);
-                        }
+                        notify_listeners(
+                            notify,
+                            &progress_transfers.notifications,
+                        )
+                        .await;
                     }
                 });
 
@@ -782,26 +808,58 @@ impl FileTransfers {
         let retry = NetworkRetry::default();
         let result = match &op {
             TransferOperation::Upload => {
-                let operation = UploadOperation::new(client, paths, retry);
+                let operation = UploadOperation::new(
+                    client,
+                    paths,
+                    request_id,
+                    Arc::clone(&inflight_transfers),
+                    retry,
+                );
                 let progress_tx = progress_tx.unwrap();
                 let cancel_rx = cancel_rx.unwrap();
                 operation.run(file, progress_tx, cancel_rx).await?
             }
             TransferOperation::Download => {
-                let operation = DownloadOperation::new(client, paths, retry);
+                let operation = DownloadOperation::new(
+                    client,
+                    paths,
+                    request_id,
+                    Arc::clone(&inflight_transfers),
+                    retry,
+                );
                 let progress_tx = progress_tx.unwrap();
                 let cancel_rx = cancel_rx.unwrap();
                 operation.run(file, progress_tx, cancel_rx).await?
             }
             TransferOperation::Delete => {
-                let operation = DeleteOperation::new(client, retry);
+                let operation = DeleteOperation::new(
+                    client,
+                    request_id,
+                    Arc::clone(&inflight_transfers),
+                    retry,
+                );
                 operation.run(file).await?
             }
             TransferOperation::Move(dest) => {
-                let operation = MoveOperation::new(client, retry);
+                let operation = MoveOperation::new(
+                    client,
+                    request_id,
+                    Arc::clone(&inflight_transfers),
+                    retry,
+                );
                 operation.run(file, dest).await?
             }
         };
+
+        if let TransferResult::Fatal(reason) = &result {
+            // Handle backpressure on notifications
+            let notify = InflightNotification::TransferError {
+                request_id,
+                reason: reason.clone(),
+            };
+
+            notify_listeners(notify, &inflight_transfers.notifications).await;
+        }
 
         {
             tracing::debug!(
@@ -821,6 +879,8 @@ where
 {
     client: C,
     paths: Arc<Paths>,
+    request_id: u64,
+    inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
 }
 
@@ -828,10 +888,18 @@ impl<C> UploadOperation<C>
 where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
-    fn new(client: C, paths: Arc<Paths>, retry: NetworkRetry) -> Self {
+    fn new(
+        client: C,
+        paths: Arc<Paths>,
+        request_id: u64,
+        inflight: Arc<InflightTransfers>,
+        retry: NetworkRetry,
+    ) -> Self {
         Self {
             client,
             paths,
+            request_id,
+            inflight,
             retry,
         }
     }
@@ -860,12 +928,18 @@ where
 
         if let TransferResult::Retry = result {
             let retries = self.retry.increment().await;
+
             tracing::debug!(retries = %retries, "upload_file::retry");
+            self.notify_retry(retries - 1, self.retry.maximum_retries)
+                .await;
+
             if self.retry.is_exhausted(retries) {
                 tracing::debug!(
                   maximum_retries = %self.retry.maximum_retries,
                   "upload_file::retries_exhausted");
-                return Ok(TransferResult::Fatal);
+                return Ok(TransferResult::Fatal(
+                    TransferError::RetryExhausted,
+                ));
             }
 
             self.retry
@@ -883,6 +957,14 @@ impl<C> TransferTask for UploadOperation<C>
 where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
+    fn request_id(&self) -> u64 {
+        self.request_id
+    }
+
+    fn inflight(&self) -> &InflightTransfers {
+        &*self.inflight
+    }
+
     fn on_response(&self, status: StatusCode) -> TransferResult {
         if status == StatusCode::OK || status == StatusCode::NOT_MODIFIED {
             TransferResult::Done
@@ -903,6 +985,8 @@ where
 {
     client: C,
     paths: Arc<Paths>,
+    request_id: u64,
+    inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
 }
 
@@ -910,10 +994,18 @@ impl<C> DownloadOperation<C>
 where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
-    fn new(client: C, paths: Arc<Paths>, retry: NetworkRetry) -> Self {
+    fn new(
+        client: C,
+        paths: Arc<Paths>,
+        request_id: u64,
+        inflight: Arc<InflightTransfers>,
+        retry: NetworkRetry,
+    ) -> Self {
         Self {
             client,
             paths,
+            request_id,
+            inflight,
             retry,
         }
     }
@@ -958,12 +1050,18 @@ where
 
         if let TransferResult::Retry = result {
             let retries = self.retry.increment().await;
+
             tracing::debug!(retries = %retries, "download_file::retry");
+            self.notify_retry(retries - 1, self.retry.maximum_retries)
+                .await;
+
             if self.retry.is_exhausted(retries) {
                 tracing::debug!(
                   maximum_retries = %self.retry.maximum_retries,
                   "download_file::retries_exhausted");
-                return Ok(TransferResult::Fatal);
+                return Ok(TransferResult::Fatal(
+                    TransferError::RetryExhausted,
+                ));
             }
 
             self.retry
@@ -981,6 +1079,14 @@ impl<C> TransferTask for DownloadOperation<C>
 where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
+    fn request_id(&self) -> u64 {
+        self.request_id
+    }
+
+    fn inflight(&self) -> &InflightTransfers {
+        &*self.inflight
+    }
+
     fn on_response(&self, status: StatusCode) -> TransferResult {
         if status == StatusCode::OK {
             TransferResult::Done
@@ -1000,6 +1106,8 @@ where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
     client: C,
+    request_id: u64,
+    inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
 }
 
@@ -1007,8 +1115,18 @@ impl<C> DeleteOperation<C>
 where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
-    fn new(client: C, retry: NetworkRetry) -> Self {
-        Self { client, retry }
+    fn new(
+        client: C,
+        request_id: u64,
+        inflight: Arc<InflightTransfers>,
+        retry: NetworkRetry,
+    ) -> Self {
+        Self {
+            client,
+            request_id,
+            inflight,
+            retry,
+        }
     }
 
     #[async_recursion]
@@ -1020,12 +1138,18 @@ where
 
         if let TransferResult::Retry = result {
             let retries = self.retry.increment().await;
+
             tracing::debug!(retries = %retries, "delete_file::retry");
+            self.notify_retry(retries - 1, self.retry.maximum_retries)
+                .await;
+
             if self.retry.is_exhausted(retries) {
                 tracing::debug!(
                   maximum_retries = %self.retry.maximum_retries,
                   "delete_file::retries_exhausted");
-                return Ok(TransferResult::Fatal);
+                return Ok(TransferResult::Fatal(
+                    TransferError::RetryExhausted,
+                ));
             }
 
             self.retry
@@ -1041,6 +1165,14 @@ impl<C> TransferTask for DeleteOperation<C>
 where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
+    fn request_id(&self) -> u64 {
+        self.request_id
+    }
+
+    fn inflight(&self) -> &InflightTransfers {
+        &*self.inflight
+    }
+
     fn on_response(&self, status: StatusCode) -> TransferResult {
         if status == StatusCode::OK || status == StatusCode::NOT_FOUND {
             TransferResult::Done
@@ -1060,6 +1192,8 @@ where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
     client: C,
+    request_id: u64,
+    inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
 }
 
@@ -1067,8 +1201,18 @@ impl<C> MoveOperation<C>
 where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
-    fn new(client: C, retry: NetworkRetry) -> Self {
-        Self { client, retry }
+    fn new(
+        client: C,
+        request_id: u64,
+        inflight: Arc<InflightTransfers>,
+        retry: NetworkRetry,
+    ) -> Self {
+        Self {
+            client,
+            request_id,
+            inflight,
+            retry,
+        }
     }
 
     #[async_recursion]
@@ -1084,12 +1228,18 @@ where
 
         if let TransferResult::Retry = result {
             let retries = self.retry.increment().await;
+
             tracing::debug!(retries = %retries, "move_file::retry");
+            self.notify_retry(retries - 1, self.retry.maximum_retries)
+                .await;
+
             if self.retry.is_exhausted(retries) {
                 tracing::debug!(
                   maximum_retries = %self.retry.maximum_retries,
                   "move_file::retries_exhausted");
-                return Ok(TransferResult::Fatal);
+                return Ok(TransferResult::Fatal(
+                    TransferError::RetryExhausted,
+                ));
             }
 
             self.retry
@@ -1108,6 +1258,14 @@ impl<C> TransferTask for MoveOperation<C>
 where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
+    fn request_id(&self) -> u64 {
+        self.request_id
+    }
+
+    fn inflight(&self) -> &InflightTransfers {
+        &*self.inflight
+    }
+
     fn on_response(&self, status: StatusCode) -> TransferResult {
         if status == StatusCode::OK {
             TransferResult::Done
@@ -1125,14 +1283,38 @@ where
 trait TransferTask {
     fn on_response(&self, status: StatusCode) -> TransferResult;
     fn on_error(&self, error: Error) -> TransferResult;
+    fn inflight(&self) -> &InflightTransfers;
+    fn request_id(&self) -> u64;
+
+    async fn notify_retry(&self, retry: u32, maximum: u32) {
+        let notify = InflightNotification::TransferRetry {
+            request_id: self.request_id(),
+            retry,
+            maximum,
+        };
+        notify_listeners(notify, &self.inflight().notifications).await;
+    }
 }
 
 fn on_error(error: Error) -> TransferResult {
     match error {
         Error::Io(io) => match io.kind() {
-            ErrorKind::NotFound => TransferResult::Fatal,
+            ErrorKind::NotFound => {
+                TransferResult::Fatal(TransferError::TransferFileMissing)
+            }
             _ => TransferResult::Retry,
         },
         _ => TransferResult::Retry,
+    }
+}
+
+async fn notify_listeners(
+    notify: InflightNotification,
+    notifier: &broadcast::Sender<InflightNotification>,
+) {
+    let mut result = notifier.send(notify);
+    while let Err(err) = result {
+        sleep(Duration::from_millis(32)).await;
+        result = notifier.send(err.0);
     }
 }

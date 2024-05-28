@@ -220,6 +220,7 @@ impl RemoteBridge {
 
         let external_files = list_external_files(&*paths).await?;
         let file_set = FileSet(external_files);
+
         let file_transfers = self.client.compare_files(&file_set).await?;
 
         {

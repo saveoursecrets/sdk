@@ -12,7 +12,7 @@ use super::{Error, Result};
 use std::{
     future::Future,
     sync::{
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicU32, Ordering},
         Arc,
     },
     time::Duration,
@@ -31,9 +31,9 @@ pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};
 /// Network retry state and logic for exponential backoff.
 #[derive(Debug, Clone)]
 pub struct NetworkRetry {
-    retries: Arc<Mutex<AtomicU64>>,
-    pub(crate) reconnect_interval: u64,
-    pub(crate) maximum_retries: u64,
+    retries: Arc<Mutex<AtomicU32>>,
+    pub(crate) reconnect_interval: u16,
+    pub(crate) maximum_retries: u32,
 }
 
 impl Default for NetworkRetry {
@@ -48,38 +48,36 @@ impl NetworkRetry {
     /// The reconnect interval is a *base interval* in milliseconds
     /// for the exponential backoff so use a small value such as
     /// `1000` or `2000`.
-    pub fn new(maximum_retries: u64, reconnect_interval: u64) -> Self {
+    pub fn new(maximum_retries: u32, reconnect_interval: u16) -> Self {
         Self {
-            retries: Arc::new(Mutex::new(AtomicU64::from(1))),
+            retries: Arc::new(Mutex::new(AtomicU32::from(1))),
             reconnect_interval,
             maximum_retries,
         }
     }
 
     /// Increment for next retry attempt.
-    pub async fn increment(&self) -> u64 {
+    pub async fn increment(&self) -> u32 {
         let retries = self.retries.lock().await;
         retries.fetch_add(1, Ordering::SeqCst)
     }
 
     /// Determine if retry attempts are exhausted.
-    pub fn is_exhausted(&self, retries: u64) -> bool {
+    pub fn is_exhausted(&self, retries: u32) -> bool {
         retries > self.maximum_retries
     }
 
     /// Wait and then retry.
     pub async fn wait_and_retry<T, F>(
         &self,
-        retries: u64,
+        retries: u32,
         callback: F,
     ) -> Result<T>
     where
         F: Future<Output = T>,
     {
-        let factor = 2u64
-            .checked_pow(retries as u32)
-            .ok_or(Error::RetryOverflow)?;
-        let delay = self.reconnect_interval * factor;
+        let factor = 2u64.checked_pow(retries).ok_or(Error::RetryOverflow)?;
+        let delay = self.reconnect_interval as u64 * factor;
         tracing::debug!(
             delay = %delay,
             retries = %retries,
