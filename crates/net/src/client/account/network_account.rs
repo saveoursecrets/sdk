@@ -67,13 +67,23 @@ use crate::sdk::account::security_report::{
 #[cfg(feature = "migrate")]
 use crate::sdk::migrate::import::ImportTarget;
 
-use super::remote::Remotes;
+use super::{file_transfers::FileTransferSettings, remote::Remotes};
 use crate::client::{Error, RemoteBridge, RemoteSync, Result};
 
 #[cfg(feature = "files")]
 use crate::client::account::file_transfers::{
     FileTransfers, InflightTransfers, TransfersQueue,
 };
+
+/// Options for network account creation.
+#[derive(Debug, Default)]
+pub struct NetworkAccountOptions {
+    /// Disable network traffic.
+    pub offline: bool,
+    /// File transfer settings.
+    #[cfg(feature = "files")]
+    pub file_transfer_settings: FileTransferSettings,
+}
 
 /// Account with networking capability.
 pub struct NetworkAccount {
@@ -116,6 +126,9 @@ pub struct NetworkAccount {
 
     /// Disable networking.
     pub(crate) offline: bool,
+
+    /// Options for the network account.
+    options: NetworkAccountOptions,
 }
 
 impl NetworkAccount {
@@ -366,7 +379,7 @@ impl NetworkAccount {
 
         let file_transfers = FileTransfers::new(
             paths,
-            Default::default(),
+            self.options.file_transfer_settings.clone(),
             shutdown_recv,
             shutdown_ack_send,
         );
@@ -410,7 +423,8 @@ impl NetworkAccount {
     pub async fn new_unauthenticated(
         address: Address,
         data_dir: Option<PathBuf>,
-        offline: bool,
+        options: NetworkAccountOptions,
+        // offline: bool,
     ) -> Result<Self> {
         let account =
             LocalAccount::new_unauthenticated(address, data_dir).await?;
@@ -430,7 +444,8 @@ impl NetworkAccount {
             inflight_transfers: None,
             #[cfg(feature = "files")]
             file_transfers: None,
-            offline,
+            offline: options.offline,
+            options,
         })
     }
 
@@ -444,13 +459,13 @@ impl NetworkAccount {
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-        offline: bool,
+        options: NetworkAccountOptions,
     ) -> Result<Self> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
             data_dir,
-            offline,
+            options,
             |builder| {
                 builder
                     .save_passphrase(false)
@@ -470,7 +485,7 @@ impl NetworkAccount {
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-        offline: bool,
+        options: NetworkAccountOptions,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
         let account = LocalAccount::new_account_with_builder(
@@ -496,7 +511,8 @@ impl NetworkAccount {
             inflight_transfers: None,
             #[cfg(feature = "files")]
             file_transfers: None,
-            offline,
+            offline: options.offline,
+            options,
         };
 
         Ok(owner)

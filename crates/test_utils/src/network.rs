@@ -59,7 +59,7 @@ impl SimulatedDevice {
         let mut owner = NetworkAccount::new_unauthenticated(
             self.owner.address().clone(),
             Some(data_dir.clone()),
-            false,
+            Default::default(),
         )
         .await?;
 
@@ -116,7 +116,7 @@ pub async fn simulate_device_with_builder(
         test_id.to_owned(),
         password.clone(),
         Some(data_dir.clone()),
-        false,
+        Default::default(),
         builder,
     )
     .await?;

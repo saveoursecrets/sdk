@@ -11,16 +11,13 @@ use crate::{
     },
 };
 
-use async_recursion::async_recursion;
 use futures::FutureExt;
-use http::StatusCode;
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::{
     collections::HashMap,
     future::Future,
-    io::ErrorKind,
     path::PathBuf,
     pin::Pin,
     sync::{
@@ -37,6 +34,8 @@ use tokio::{
     },
     time::sleep,
 };
+
+mod operations;
 
 /// Channel for upload and download progress notifications.
 pub type ProgressChannel = mpsc::Sender<(u64, Option<u64>)>;
@@ -428,7 +427,7 @@ enum TransferResult {
 }
 
 /// Settings for file transfer operations.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct FileTransferSettings {
     /// Number of concurrent downloads.
     pub concurrent_downloads: usize,
@@ -443,6 +442,9 @@ pub struct FileTransferSettings {
     ///
     /// When `debug_assertions` are enabled the delay is one second.
     pub delay_seconds: u64,
+
+    /// Settings for network retry.
+    pub retry: NetworkRetry,
 }
 
 impl Default for FileTransferSettings {
@@ -452,7 +454,24 @@ impl Default for FileTransferSettings {
             concurrent_uploads: 4,
             concurrent_requests: 12,
             delay_seconds: 15,
+            // Disable retry for test specs so they
+            // execute fast
+            #[cfg(debug_assertions)]
+            retry: NetworkRetry::new(4, 0),
+            // In production use default values
+            #[cfg(not(debug_assertions))]
+            retry: NetworkRetry::default(),
         }
+    }
+}
+
+impl FileTransferSettings {
+    /// Create file transfer settings with the given
+    /// network retry configuration.
+    pub fn new_retry(retry: NetworkRetry) -> Self {
+        let mut settings = Self::default();
+        settings.retry = retry;
+        settings
     }
 }
 
@@ -463,7 +482,7 @@ impl Default for FileTransferSettings {
 /// when each operation has been completed on every client.
 pub struct FileTransfers {
     paths: Arc<Paths>,
-    settings: FileTransferSettings,
+    settings: Arc<FileTransferSettings>,
     shutdown: UnboundedReceiver<()>,
     shutdown_ack: oneshot::Sender<()>,
 }
@@ -478,7 +497,7 @@ impl FileTransfers {
     ) -> Self {
         Self {
             paths,
-            settings,
+            settings: Arc::new(settings),
             shutdown,
             shutdown_ack,
         }
@@ -514,7 +533,8 @@ impl FileTransfers {
                     }
                     _ = Self::maybe_process_transfers(
                       Arc::clone(&paths),
-                      &settings, Arc::clone(&queue),
+                      Arc::clone(&settings),
+                      Arc::clone(&queue),
                       Arc::clone(&inflight_transfers),
                       clients.as_slice(),
                     ).fuse() => {}
@@ -526,7 +546,7 @@ impl FileTransfers {
     /// Try to process the pending transfers list.
     async fn maybe_process_transfers<C>(
         paths: Arc<Paths>,
-        settings: &FileTransferSettings,
+        settings: Arc<FileTransferSettings>,
         queue: Arc<RwLock<TransfersQueue>>,
         inflight_transfers: Arc<InflightTransfers>,
         clients: &[C],
@@ -552,7 +572,7 @@ impl FileTransfers {
             // Try to process pending transfers
             if let Err(e) = Self::try_process_transfers(
                 Arc::clone(&paths),
-                &settings,
+                Arc::clone(&settings),
                 Arc::clone(&queue),
                 Arc::clone(&inflight_transfers),
                 clients,
@@ -576,7 +596,7 @@ impl FileTransfers {
     /// Try to process the pending transfers list.
     async fn try_process_transfers<C>(
         paths: Arc<Paths>,
-        settings: &FileTransferSettings,
+        settings: Arc<FileTransferSettings>,
         queue: Arc<RwLock<TransfersQueue>>,
         inflight_transfers: Arc<InflightTransfers>,
         clients: &[C],
@@ -597,7 +617,7 @@ impl FileTransfers {
                             downloads.push((file, clients.to_vec()));
                         }
                         TransferOperation::Upload => {
-                            uploads.push((file, clients.to_vec()));
+                            uploads.push((file, op, clients.to_vec()));
                         }
                         _ => {
                             requests.push((file, op, clients.to_vec()));
@@ -606,22 +626,23 @@ impl FileTransfers {
                 }
             }
 
-            let up: Pin<
-                Box<dyn Future<Output = Result<()>> + Send + 'static>,
-            > = Box::pin(Self::process_uploads(
-                Arc::clone(&paths),
-                uploads,
-                settings.clone(),
-                Arc::clone(&queue),
-                Arc::clone(&inflight_transfers),
-            ));
-
             let down: Pin<
                 Box<dyn Future<Output = Result<()>> + Send + 'static>,
             > = Box::pin(Self::process_downloads(
                 Arc::clone(&paths),
                 downloads,
-                settings.clone(),
+                Arc::clone(&settings),
+                Arc::clone(&queue),
+                Arc::clone(&inflight_transfers),
+            ));
+
+            let up: Pin<
+                Box<dyn Future<Output = Result<()>> + Send + 'static>,
+            > = Box::pin(Self::process_requests(
+                Arc::clone(&paths),
+                settings.concurrent_uploads,
+                uploads,
+                Arc::clone(&settings),
                 Arc::clone(&queue),
                 Arc::clone(&inflight_transfers),
             ));
@@ -630,8 +651,9 @@ impl FileTransfers {
                 Box<dyn Future<Output = Result<()>> + Send + 'static>,
             > = Box::pin(Self::process_requests(
                 Arc::clone(&paths),
+                settings.concurrent_requests,
                 requests,
-                settings.clone(),
+                Arc::clone(&settings),
                 Arc::clone(&queue),
                 Arc::clone(&inflight_transfers),
             ));
@@ -645,7 +667,7 @@ impl FileTransfers {
     async fn process_downloads<C>(
         paths: Arc<Paths>,
         downloads: Vec<(ExternalFile, Vec<C>)>,
-        settings: FileTransferSettings,
+        settings: Arc<FileTransferSettings>,
         queue: Arc<RwLock<TransfersQueue>>,
         inflight_transfers: Arc<InflightTransfers>,
     ) -> Result<()>
@@ -655,19 +677,21 @@ impl FileTransfers {
         let semaphore =
             Arc::new(Semaphore::new(settings.concurrent_downloads));
 
+        let mut jhs = Vec::new();
         for download in downloads {
             let semaphore = semaphore.clone();
             let inflight = Arc::clone(&inflight_transfers);
             let paths = Arc::clone(&paths);
-            let queue = Arc::clone(&queue);
-            tokio::task::spawn(async move {
+            let settings = Arc::clone(&settings);
+            let jh = tokio::task::spawn(async move {
                 let (file, clients) = download;
                 let _permit = semaphore.acquire().await.unwrap();
+                let mut results = Vec::new();
                 for client in clients {
                     let request_id = inflight.request_id().await;
-
-                    let (file, op, result) = Self::run_client_operation(
+                    let result = Self::run_client_operation(
                         request_id,
+                        Arc::clone(&settings),
                         file,
                         TransferOperation::Download,
                         Arc::clone(&paths),
@@ -676,54 +700,11 @@ impl FileTransfers {
                     )
                     .await?;
 
-                    if let TransferResult::Done = result {
-                        let mut writer = queue.write().await;
-                        writer.transfer_completed(&file, &op).await?;
+                    let is_done = matches!(&result.2, TransferResult::Done);
+                    results.push(result);
+                    if is_done {
                         break;
                     }
-                }
-                drop(_permit);
-
-                Ok::<(), Error>(())
-            });
-        }
-
-        Ok(())
-    }
-
-    async fn process_uploads<C>(
-        paths: Arc<Paths>,
-        uploads: Vec<(ExternalFile, Vec<C>)>,
-        settings: FileTransferSettings,
-        queue: Arc<RwLock<TransfersQueue>>,
-        inflight_transfers: Arc<InflightTransfers>,
-    ) -> Result<()>
-    where
-        C: SyncClient + Clone + Send + Sync + 'static,
-    {
-        let semaphore = Arc::new(Semaphore::new(settings.concurrent_uploads));
-
-        let mut jhs = Vec::new();
-        for upload in uploads {
-            let semaphore = semaphore.clone();
-            let inflight = Arc::clone(&inflight_transfers);
-            let paths = Arc::clone(&paths);
-            let jh = tokio::task::spawn(async move {
-                let (file, clients) = upload;
-                let mut results = Vec::new();
-                let _permit = semaphore.acquire().await.unwrap();
-                for client in clients {
-                    let request_id = inflight.request_id().await;
-                    let result = Self::run_client_operation(
-                        request_id,
-                        file,
-                        TransferOperation::Upload,
-                        Arc::clone(&paths),
-                        client,
-                        Arc::clone(&inflight),
-                    )
-                    .await?;
-                    results.push(result);
                 }
                 drop(_permit);
 
@@ -740,13 +721,11 @@ impl FileTransfers {
 
         for response in responses {
             let results = response?;
-            if results
-                .iter()
-                .all(|(_, _, r)| matches!(r, TransferResult::Done))
-            {
-                for (file, op, _) in results {
+            for (file, op, result) in results {
+                if let TransferResult::Done = result {
                     let mut writer = queue.write().await;
                     writer.transfer_completed(&file, &op).await?;
+                    break;
                 }
             }
         }
@@ -756,22 +735,23 @@ impl FileTransfers {
 
     async fn process_requests<C>(
         paths: Arc<Paths>,
+        concurrency: usize,
         uploads: Vec<(ExternalFile, TransferOperation, Vec<C>)>,
-        settings: FileTransferSettings,
+        settings: Arc<FileTransferSettings>,
         queue: Arc<RwLock<TransfersQueue>>,
         inflight_transfers: Arc<InflightTransfers>,
     ) -> Result<()>
     where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
-        let semaphore =
-            Arc::new(Semaphore::new(settings.concurrent_requests));
+        let semaphore = Arc::new(Semaphore::new(concurrency));
 
         let mut jhs = Vec::new();
         for upload in uploads {
             let semaphore = semaphore.clone();
             let inflight = Arc::clone(&inflight_transfers);
             let paths = Arc::clone(&paths);
+            let settings = Arc::clone(&settings);
             let jh = tokio::task::spawn(async move {
                 let (file, op, clients) = upload;
                 let mut results = Vec::new();
@@ -780,6 +760,7 @@ impl FileTransfers {
                     let request_id = inflight.request_id().await;
                     let result = Self::run_client_operation(
                         request_id,
+                        Arc::clone(&settings),
                         file,
                         op,
                         Arc::clone(&paths),
@@ -787,7 +768,7 @@ impl FileTransfers {
                         Arc::clone(&inflight),
                     )
                     .await?;
-                    results.push(result);
+                    results.push((request_id, result));
                 }
                 drop(_permit);
 
@@ -806,156 +787,36 @@ impl FileTransfers {
             let results = response?;
             if results
                 .iter()
-                .all(|(_, _, r)| matches!(r, TransferResult::Done))
+                .all(|(_, (_, _, r))| matches!(r, TransferResult::Done))
             {
-                for (file, op, _) in results {
+                for (_, (file, op, _)) in results {
                     let mut writer = queue.write().await;
                     writer.transfer_completed(&file, &op).await?;
                 }
-            }
-        }
+            } else {
+                for (request_id, (_, _, result)) in results {
+                    if let TransferResult::Fatal(reason) = result {
+                        let notify = InflightNotification::TransferError {
+                            request_id,
+                            reason,
+                        };
 
-        Ok(())
-    }
-
-    /*
-    async fn process_operations<C>(
-        file: ExternalFile,
-        operations: IndexSet<TransferOperation>,
-        paths: Arc<Paths>,
-        queue: Arc<RwLock<TransfersQueue>>,
-        inflight_transfers: Arc<InflightTransfers>,
-        clients: Vec<C>,
-    ) -> Result<()>
-    where
-        C: SyncClient + Clone + Send + Sync + 'static,
-    {
-        for op in operations {
-            // Split uploads and downloads as they require different
-            // handling.
-            //
-            // Uploads must be successful for all remote servers whilst
-            // a download only needs to execute successfully against a
-            // single server.
-            let mut uploads = Vec::new();
-            let mut downloads = Vec::new();
-
-            for client in &clients {
-                let request_id = inflight_transfers.request_id().await;
-                if let TransferOperation::Download = &op {
-                    downloads.push(Self::run_client_operation(
-                        request_id,
-                        file,
-                        op,
-                        Arc::clone(&paths),
-                        client.clone(),
-                        Arc::clone(&inflight_transfers),
-                    ));
-                } else {
-                    uploads.push(Self::run_client_operation(
-                        request_id,
-                        file,
-                        op,
-                        Arc::clone(&paths),
-                        client.clone(),
-                        Arc::clone(&inflight_transfers),
-                    ));
+                        notify_listeners(
+                            notify,
+                            &inflight_transfers.notifications,
+                        )
+                        .await;
+                    }
                 }
             }
-
-            // Process uploads and downloads concurrently
-            let up: Pin<
-                Box<dyn Future<Output = Result<()>> + Send + 'static>,
-            > = Box::pin(Self::process_uploads(Arc::clone(&queue), uploads));
-            let down: Pin<
-                Box<dyn Future<Output = Result<()>> + Send + 'static>,
-            > = Box::pin(Self::process_downloads(
-                Arc::clone(&queue),
-                downloads,
-            ));
-
-            let transfers = vec![up, down];
-            futures::future::try_join_all(transfers).await?;
         }
 
         Ok(())
     }
-    */
-
-    /*
-    async fn process_uploads(
-        queue: Arc<RwLock<TransfersQueue>>,
-        uploads: Vec<
-            impl Future<
-                    Output = Result<(
-                        ExternalFile,
-                        TransferOperation,
-                        TransferResult,
-                    )>,
-                > + Send
-                + 'static,
-        >,
-    ) -> Result<()> {
-        // Execute the client requests
-        let results = futures::future::try_join_all(uploads).await?;
-
-        // Collate results that completed for all clients
-        let mut collated = HashMap::new();
-        for (file, op, result) in results {
-            let entry = collated.entry((file, op)).or_insert(vec![]);
-            entry.push(result);
-        }
-
-        // Mark transfers that were successful for all clients
-        // as completed, removing them from the queue
-        for ((file, op), results) in collated {
-            if results.iter().all(|result| {
-                matches!(
-                    result,
-                    TransferResult::Done | TransferResult::Fatal(_)
-                )
-            }) {
-                let mut writer = queue.write().await;
-                writer.transfer_completed(&file, &op).await?;
-            }
-        }
-        Ok(())
-    }
-
-    async fn process_downloads(
-        queue: Arc<RwLock<TransfersQueue>>,
-        downloads: Vec<
-            impl Future<
-                    Output = Result<(
-                        ExternalFile,
-                        TransferOperation,
-                        TransferResult,
-                    )>,
-                > + Send
-                + 'static,
-        >,
-    ) -> Result<()> {
-        for fut in downloads {
-            let (file, op, result) = fut.await?;
-            match result {
-                TransferResult::Done | TransferResult::Fatal(_) => {
-                    let mut writer = queue.write().await;
-                    writer.transfer_completed(&file, &op).await?;
-                    return Ok(());
-                }
-                _ => {}
-            }
-        }
-
-        // Retry the download on the next
-        // loop iteration if the download
-        // failed on all servers
-        Ok(())
-    }
-    */
 
     async fn run_client_operation<C>(
         request_id: u64,
+        settings: Arc<FileTransferSettings>,
         file: ExternalFile,
         op: TransferOperation,
         paths: Arc<Paths>,
@@ -1022,15 +883,11 @@ impl FileTransfers {
           "file_transfer"
         );
 
-        #[cfg(debug_assertions)]
-        let retry = NetworkRetry::new(4, 0);
-
-        #[cfg(not(debug_assertions))]
-        let retry = NetworkRetry::default();
+        let retry = settings.retry.clone();
 
         let result = match &op {
             TransferOperation::Upload => {
-                let operation = UploadOperation::new(
+                let operation = operations::UploadOperation::new(
                     client,
                     paths,
                     request_id,
@@ -1042,7 +899,7 @@ impl FileTransfers {
                 operation.run(file, progress_tx, cancel_rx).await?
             }
             TransferOperation::Download => {
-                let operation = DownloadOperation::new(
+                let operation = operations::DownloadOperation::new(
                     client,
                     paths,
                     request_id,
@@ -1054,7 +911,7 @@ impl FileTransfers {
                 operation.run(file, progress_tx, cancel_rx).await?
             }
             TransferOperation::Delete => {
-                let operation = DeleteOperation::new(
+                let operation = operations::DeleteOperation::new(
                     client,
                     request_id,
                     Arc::clone(&inflight_transfers),
@@ -1063,7 +920,7 @@ impl FileTransfers {
                 operation.run(file).await?
             }
             TransferOperation::Move(dest) => {
-                let operation = MoveOperation::new(
+                let operation = operations::MoveOperation::new(
                     client,
                     request_id,
                     Arc::clone(&inflight_transfers),
@@ -1092,441 +949,6 @@ impl FileTransfers {
         }
 
         Ok((file, op, result))
-    }
-}
-
-struct UploadOperation<C>
-where
-    C: SyncClient + Clone + Send + Sync + 'static,
-{
-    client: C,
-    paths: Arc<Paths>,
-    request_id: u64,
-    inflight: Arc<InflightTransfers>,
-    retry: NetworkRetry,
-}
-
-impl<C> UploadOperation<C>
-where
-    C: SyncClient + Clone + Send + Sync + 'static,
-{
-    fn new(
-        client: C,
-        paths: Arc<Paths>,
-        request_id: u64,
-        inflight: Arc<InflightTransfers>,
-        retry: NetworkRetry,
-    ) -> Self {
-        Self {
-            client,
-            paths,
-            request_id,
-            inflight,
-            retry,
-        }
-    }
-
-    #[async_recursion]
-    async fn run(
-        &self,
-        file: ExternalFile,
-        progress_tx: ProgressChannel,
-        cancel_rx: watch::Receiver<()>,
-    ) -> Result<TransferResult> {
-        let path = self.paths.file_location(
-            file.vault_id(),
-            file.secret_id(),
-            file.file_name().to_string(),
-        );
-
-        let result = match self
-            .client
-            .upload_file(&file, &path, progress_tx.clone(), cancel_rx.clone())
-            .await
-        {
-            Ok(status) => self.on_response(status),
-            Err(e) => self.on_error(e),
-        };
-
-        if let TransferResult::Retry = result {
-            let retries = self.retry.increment().await;
-
-            tracing::debug!(retries = %retries, "upload_file::retry");
-            self.notify_retry(retries - 1, self.retry.maximum_retries)
-                .await;
-
-            if self.retry.is_exhausted(retries) {
-                tracing::debug!(
-                  maximum_retries = %self.retry.maximum_retries,
-                  "upload_file::retries_exhausted");
-                return Ok(TransferResult::Fatal(
-                    TransferError::RetryExhausted,
-                ));
-            }
-
-            self.retry
-                .wait_and_retry(retries, async move {
-                    self.run(file, progress_tx, cancel_rx).await
-                })
-                .await?
-        } else {
-            Ok(result)
-        }
-    }
-}
-
-impl<C> TransferTask for UploadOperation<C>
-where
-    C: SyncClient + Clone + Send + Sync + 'static,
-{
-    fn request_id(&self) -> u64 {
-        self.request_id
-    }
-
-    fn inflight(&self) -> &InflightTransfers {
-        &*self.inflight
-    }
-
-    fn on_response(&self, status: StatusCode) -> TransferResult {
-        if status == StatusCode::OK || status == StatusCode::NOT_MODIFIED {
-            TransferResult::Done
-        } else {
-            TransferResult::Retry
-        }
-    }
-
-    fn on_error(&self, error: Error) -> TransferResult {
-        tracing::warn!(error = ?error, "upload_file::error");
-        on_error(error)
-    }
-}
-
-struct DownloadOperation<C>
-where
-    C: SyncClient + Clone + Send + Sync + 'static,
-{
-    client: C,
-    paths: Arc<Paths>,
-    request_id: u64,
-    inflight: Arc<InflightTransfers>,
-    retry: NetworkRetry,
-}
-
-impl<C> DownloadOperation<C>
-where
-    C: SyncClient + Clone + Send + Sync + 'static,
-{
-    fn new(
-        client: C,
-        paths: Arc<Paths>,
-        request_id: u64,
-        inflight: Arc<InflightTransfers>,
-        retry: NetworkRetry,
-    ) -> Self {
-        Self {
-            client,
-            paths,
-            request_id,
-            inflight,
-            retry,
-        }
-    }
-
-    #[async_recursion]
-    async fn run(
-        &self,
-        file: ExternalFile,
-        progress_tx: ProgressChannel,
-        cancel_rx: watch::Receiver<()>,
-    ) -> Result<TransferResult> {
-        // Ensure the parent directory for the download exists
-        let parent_path = self
-            .paths
-            .file_folder_location(file.vault_id())
-            .join(file.secret_id().to_string());
-
-        if !vfs::try_exists(&parent_path).await? {
-            vfs::create_dir_all(&parent_path).await?;
-        }
-
-        // Fetch the file
-        let path = self.paths.file_location(
-            file.vault_id(),
-            file.secret_id(),
-            file.file_name().to_string(),
-        );
-
-        let result = match self
-            .client
-            .download_file(
-                &file,
-                &path,
-                progress_tx.clone(),
-                cancel_rx.clone(),
-            )
-            .await
-        {
-            Ok(status) => self.on_response(status),
-            Err(e) => self.on_error(e),
-        };
-
-        if let TransferResult::Retry = result {
-            let retries = self.retry.increment().await;
-
-            tracing::debug!(retries = %retries, "download_file::retry");
-            self.notify_retry(retries - 1, self.retry.maximum_retries)
-                .await;
-
-            if self.retry.is_exhausted(retries) {
-                tracing::debug!(
-                  maximum_retries = %self.retry.maximum_retries,
-                  "download_file::retries_exhausted");
-                return Ok(TransferResult::Fatal(
-                    TransferError::RetryExhausted,
-                ));
-            }
-
-            self.retry
-                .wait_and_retry(retries, async move {
-                    self.run(file, progress_tx, cancel_rx).await
-                })
-                .await?
-        } else {
-            Ok(result)
-        }
-    }
-}
-
-impl<C> TransferTask for DownloadOperation<C>
-where
-    C: SyncClient + Clone + Send + Sync + 'static,
-{
-    fn request_id(&self) -> u64 {
-        self.request_id
-    }
-
-    fn inflight(&self) -> &InflightTransfers {
-        &*self.inflight
-    }
-
-    fn on_response(&self, status: StatusCode) -> TransferResult {
-        if status == StatusCode::OK {
-            TransferResult::Done
-        } else {
-            TransferResult::Retry
-        }
-    }
-
-    fn on_error(&self, error: Error) -> TransferResult {
-        tracing::warn!(error = ?error, "download_file::error");
-        on_error(error)
-    }
-}
-
-struct DeleteOperation<C>
-where
-    C: SyncClient + Clone + Send + Sync + 'static,
-{
-    client: C,
-    request_id: u64,
-    inflight: Arc<InflightTransfers>,
-    retry: NetworkRetry,
-}
-
-impl<C> DeleteOperation<C>
-where
-    C: SyncClient + Clone + Send + Sync + 'static,
-{
-    fn new(
-        client: C,
-        request_id: u64,
-        inflight: Arc<InflightTransfers>,
-        retry: NetworkRetry,
-    ) -> Self {
-        Self {
-            client,
-            request_id,
-            inflight,
-            retry,
-        }
-    }
-
-    #[async_recursion]
-    async fn run(&self, file: ExternalFile) -> Result<TransferResult> {
-        let result = match self.client.delete_file(&file).await {
-            Ok(status) => self.on_response(status),
-            Err(e) => self.on_error(e),
-        };
-
-        if let TransferResult::Retry = result {
-            let retries = self.retry.increment().await;
-
-            tracing::debug!(retries = %retries, "delete_file::retry");
-            self.notify_retry(retries - 1, self.retry.maximum_retries)
-                .await;
-
-            if self.retry.is_exhausted(retries) {
-                tracing::debug!(
-                  maximum_retries = %self.retry.maximum_retries,
-                  "delete_file::retries_exhausted");
-                return Ok(TransferResult::Fatal(
-                    TransferError::RetryExhausted,
-                ));
-            }
-
-            self.retry
-                .wait_and_retry(retries, async move { self.run(file).await })
-                .await?
-        } else {
-            Ok(result)
-        }
-    }
-}
-
-impl<C> TransferTask for DeleteOperation<C>
-where
-    C: SyncClient + Clone + Send + Sync + 'static,
-{
-    fn request_id(&self) -> u64 {
-        self.request_id
-    }
-
-    fn inflight(&self) -> &InflightTransfers {
-        &*self.inflight
-    }
-
-    fn on_response(&self, status: StatusCode) -> TransferResult {
-        if status == StatusCode::OK || status == StatusCode::NOT_FOUND {
-            TransferResult::Done
-        } else {
-            TransferResult::Retry
-        }
-    }
-
-    fn on_error(&self, error: Error) -> TransferResult {
-        tracing::warn!(error = ?error, "delete_file::error");
-        on_error(error)
-    }
-}
-
-struct MoveOperation<C>
-where
-    C: SyncClient + Clone + Send + Sync + 'static,
-{
-    client: C,
-    request_id: u64,
-    inflight: Arc<InflightTransfers>,
-    retry: NetworkRetry,
-}
-
-impl<C> MoveOperation<C>
-where
-    C: SyncClient + Clone + Send + Sync + 'static,
-{
-    fn new(
-        client: C,
-        request_id: u64,
-        inflight: Arc<InflightTransfers>,
-        retry: NetworkRetry,
-    ) -> Self {
-        Self {
-            client,
-            request_id,
-            inflight,
-            retry,
-        }
-    }
-
-    #[async_recursion]
-    async fn run(
-        &self,
-        file: ExternalFile,
-        dest: &ExternalFile,
-    ) -> Result<TransferResult> {
-        let result = match self.client.move_file(&file, dest).await {
-            Ok(status) => self.on_response(status),
-            Err(e) => self.on_error(e),
-        };
-
-        if let TransferResult::Retry = result {
-            let retries = self.retry.increment().await;
-
-            tracing::debug!(retries = %retries, "move_file::retry");
-            self.notify_retry(retries - 1, self.retry.maximum_retries)
-                .await;
-
-            if self.retry.is_exhausted(retries) {
-                tracing::debug!(
-                  maximum_retries = %self.retry.maximum_retries,
-                  "move_file::retries_exhausted");
-                return Ok(TransferResult::Fatal(
-                    TransferError::RetryExhausted,
-                ));
-            }
-
-            self.retry
-                .wait_and_retry(
-                    retries,
-                    async move { self.run(file, dest).await },
-                )
-                .await?
-        } else {
-            Ok(result)
-        }
-    }
-}
-
-impl<C> TransferTask for MoveOperation<C>
-where
-    C: SyncClient + Clone + Send + Sync + 'static,
-{
-    fn request_id(&self) -> u64 {
-        self.request_id
-    }
-
-    fn inflight(&self) -> &InflightTransfers {
-        &*self.inflight
-    }
-
-    fn on_response(&self, status: StatusCode) -> TransferResult {
-        if status == StatusCode::OK {
-            TransferResult::Done
-        } else {
-            TransferResult::Retry
-        }
-    }
-
-    fn on_error(&self, error: Error) -> TransferResult {
-        tracing::warn!(error = ?error, "move_file::error");
-        on_error(error)
-    }
-}
-
-trait TransferTask {
-    fn on_response(&self, status: StatusCode) -> TransferResult;
-    fn on_error(&self, error: Error) -> TransferResult;
-    fn inflight(&self) -> &InflightTransfers;
-    fn request_id(&self) -> u64;
-
-    async fn notify_retry(&self, retry: u32, maximum: u32) {
-        let notify = InflightNotification::TransferRetry {
-            request_id: self.request_id(),
-            retry,
-            maximum,
-        };
-        notify_listeners(notify, &self.inflight().notifications).await;
-    }
-}
-
-fn on_error(error: Error) -> TransferResult {
-    match error {
-        Error::Io(io) => match io.kind() {
-            ErrorKind::NotFound => {
-                TransferResult::Fatal(TransferError::TransferFileMissing)
-            }
-            _ => TransferResult::Retry,
-        },
-        _ => TransferResult::Retry,
     }
 }
 
