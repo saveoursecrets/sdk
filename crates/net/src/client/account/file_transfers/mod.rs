@@ -168,16 +168,8 @@ impl InflightTransfers {
     }
 
     async fn remove_transfer(&self, request_id: &u64) {
-        /*
-        let notify = InflightNotification::TransferRemoved {
-            request_id: *request_id,
-        };
-        */
-
         let mut inflight = self.inflight.write().await;
         inflight.remove(request_id);
-
-        // notify_listeners(notify, &self.notifications).await;
     }
 }
 
@@ -701,7 +693,7 @@ impl FileTransfers {
                     .await?;
 
                     let is_done = matches!(&result.2, TransferResult::Done);
-                    results.push(result);
+                    results.push((request_id, result));
                     if is_done {
                         break;
                     }
@@ -721,11 +713,28 @@ impl FileTransfers {
 
         for response in responses {
             let results = response?;
-            for (file, op, result) in results {
-                if let TransferResult::Done = result {
+            if results
+                .iter()
+                .any(|(_, (_, _, r))| matches!(r, TransferResult::Done))
+            {
+                for (_, (file, op, _)) in results {
                     let mut writer = queue.write().await;
                     writer.transfer_completed(&file, &op).await?;
-                    break;
+                }
+            } else {
+                for (request_id, (_, _, result)) in results {
+                    if let TransferResult::Fatal(reason) = result {
+                        let notify = InflightNotification::TransferError {
+                            request_id,
+                            reason,
+                        };
+
+                        notify_listeners(
+                            notify,
+                            &inflight_transfers.notifications,
+                        )
+                        .await;
+                    }
                 }
             }
         }
@@ -789,9 +798,18 @@ impl FileTransfers {
                 .iter()
                 .all(|(_, (_, _, r))| matches!(r, TransferResult::Done))
             {
-                for (_, (file, op, _)) in results {
+                for (request_id, (file, op, _)) in results {
                     let mut writer = queue.write().await;
                     writer.transfer_completed(&file, &op).await?;
+
+                    let notify =
+                        InflightNotification::TransferRemoved { request_id };
+
+                    notify_listeners(
+                        notify,
+                        &inflight_transfers.notifications,
+                    )
+                    .await;
                 }
             } else {
                 for (request_id, (_, _, result)) in results {
@@ -883,8 +901,7 @@ impl FileTransfers {
           "file_transfer"
         );
 
-        let retry = settings.retry.clone();
-
+        let retry = settings.retry.reset();
         let result = match &op {
             TransferOperation::Upload => {
                 let operation = operations::UploadOperation::new(

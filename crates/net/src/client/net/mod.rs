@@ -56,6 +56,15 @@ impl NetworkRetry {
         }
     }
 
+    /// Clone of this network retry with the retry counter reset.
+    pub fn reset(&self) -> Self {
+        Self {
+            retries: Arc::new(Mutex::new(AtomicU32::from(1))),
+            reconnect_interval: self.reconnect_interval,
+            maximum_retries: self.maximum_retries,
+        }
+    }
+
     /// Increment for next retry attempt.
     pub async fn increment(&self) -> u32 {
         let retries = self.retries.lock().await;
