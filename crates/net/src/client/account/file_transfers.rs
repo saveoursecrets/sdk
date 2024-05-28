@@ -778,44 +778,19 @@ impl FileTransfers {
           "file_transfer"
         );
 
+        let retry = NetworkRetry::default();
         let result = match &op {
             TransferOperation::Upload => {
-                let operation = UploadOperation::new(
-                    client,
-                    Arc::clone(&paths),
-                    NetworkRetry::default(),
-                );
+                let operation = UploadOperation::new(client, paths, retry);
                 let progress_tx = progress_tx.unwrap();
                 let cancel_rx = cancel_rx.unwrap();
                 operation.run(file, progress_tx, cancel_rx).await?
             }
             TransferOperation::Download => {
-                // Ensure the parent directory for the download exists
-                let parent_path = paths
-                    .file_folder_location(file.vault_id())
-                    .join(file.secret_id().to_string());
-
-                if !vfs::try_exists(&parent_path).await? {
-                    vfs::create_dir_all(&parent_path).await?;
-                }
-
-                // Fetch the file
-                let path = paths.file_location(
-                    file.vault_id(),
-                    file.secret_id(),
-                    file.file_name().to_string(),
-                );
-
+                let operation = DownloadOperation::new(client, paths, retry);
                 let progress_tx = progress_tx.unwrap();
                 let cancel_rx = cancel_rx.unwrap();
-
-                match client
-                    .download_file(&file, &path, progress_tx, cancel_rx)
-                    .await
-                {
-                    Ok(status) => Self::is_success(&op, status),
-                    Err(e) => Self::is_error(e),
-                }
+                operation.run(file, progress_tx, cancel_rx).await?
             }
             TransferOperation::Delete => {
                 match client.delete_file(&file).await {
@@ -842,6 +817,7 @@ impl FileTransfers {
         Ok((file, op, result))
     }
 
+    #[deprecated]
     fn is_success(
         op: &TransferOperation,
         status: StatusCode,
@@ -863,6 +839,7 @@ impl FileTransfers {
         }
     }
 
+    #[deprecated]
     fn is_error(error: Error) -> TransferResult {
         tracing::warn!(error = ?error, "transfer_error");
         match error {
@@ -914,7 +891,7 @@ where
             .upload_file(&file, &path, progress_tx.clone(), cancel_rx.clone())
             .await
         {
-            Ok(status) => self.on_success(status),
+            Ok(status) => self.on_response(status),
             Err(e) => self.on_error(e),
         };
 
@@ -943,7 +920,7 @@ impl<C> TransferTask for UploadOperation<C>
 where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
-    fn on_success(&self, status: StatusCode) -> TransferResult {
+    fn on_response(&self, status: StatusCode) -> TransferResult {
         if status == StatusCode::OK || status == StatusCode::NOT_MODIFIED {
             TransferResult::Done
         } else {
@@ -957,8 +934,106 @@ where
     }
 }
 
+struct DownloadOperation<C>
+where
+    C: SyncClient + Clone + Send + Sync + 'static,
+{
+    client: C,
+    paths: Arc<Paths>,
+    retry: NetworkRetry,
+}
+
+impl<C> DownloadOperation<C>
+where
+    C: SyncClient + Clone + Send + Sync + 'static,
+{
+    fn new(client: C, paths: Arc<Paths>, retry: NetworkRetry) -> Self {
+        Self {
+            client,
+            paths,
+            retry,
+        }
+    }
+
+    #[async_recursion]
+    async fn run(
+        &self,
+        file: ExternalFile,
+        progress_tx: ProgressChannel,
+        cancel_rx: watch::Receiver<()>,
+    ) -> Result<TransferResult> {
+        // Ensure the parent directory for the download exists
+        let parent_path = self
+            .paths
+            .file_folder_location(file.vault_id())
+            .join(file.secret_id().to_string());
+
+        if !vfs::try_exists(&parent_path).await? {
+            vfs::create_dir_all(&parent_path).await?;
+        }
+
+        // Fetch the file
+        let path = self.paths.file_location(
+            file.vault_id(),
+            file.secret_id(),
+            file.file_name().to_string(),
+        );
+
+        let result = match self
+            .client
+            .download_file(
+                &file,
+                &path,
+                progress_tx.clone(),
+                cancel_rx.clone(),
+            )
+            .await
+        {
+            Ok(status) => self.on_response(status),
+            Err(e) => self.on_error(e),
+        };
+
+        if let TransferResult::Retry = result {
+            let retries = self.retry.increment().await;
+            tracing::debug!(retries = %retries, "download::retry");
+            if self.retry.is_exhausted(retries) {
+                tracing::debug!(
+                  maximum_retries = %self.retry.maximum_retries,
+                  "download::retry_attempts_exhausted");
+                return Ok(TransferResult::Fatal);
+            }
+
+            self.retry
+                .wait_and_retry(retries, async move {
+                    self.run(file, progress_tx, cancel_rx).await
+                })
+                .await?
+        } else {
+            Ok(result)
+        }
+    }
+}
+
+impl<C> TransferTask for DownloadOperation<C>
+where
+    C: SyncClient + Clone + Send + Sync + 'static,
+{
+    fn on_response(&self, status: StatusCode) -> TransferResult {
+        if status == StatusCode::OK {
+            TransferResult::Done
+        } else {
+            TransferResult::Retry
+        }
+    }
+
+    fn on_error(&self, error: Error) -> TransferResult {
+        tracing::warn!(error = ?error, "download_error");
+        on_error(error)
+    }
+}
+
 trait TransferTask {
-    fn on_success(&self, status: StatusCode) -> TransferResult;
+    fn on_response(&self, status: StatusCode) -> TransferResult;
     fn on_error(&self, error: Error) -> TransferResult;
 }
 
