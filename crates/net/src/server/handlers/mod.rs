@@ -14,8 +14,6 @@ use axum_extra::headers::{authorization::Bearer, Authorization};
 use serde::Deserialize;
 use serde_json::json;
 use sos_sdk::signer::ecdsa::Address;
-use std::time::Duration;
-use tokio::time::sleep;
 
 pub mod account;
 pub mod files;
@@ -144,11 +142,8 @@ pub(crate) async fn send_notification(
                     connection_id: caller.connection_id().to_owned(),
                 };
 
-                // Handle backpressure on broadcast channel
-                let mut result = conn.tx.send(message);
-                while let Err(err) = result {
-                    sleep(Duration::from_millis(50)).await;
-                    result = conn.tx.send(err.0);
+                if conn.tx.receiver_count() > 0 {
+                    let _ = conn.tx.send(message);
                 }
             }
         }

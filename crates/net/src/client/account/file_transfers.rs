@@ -1312,9 +1312,7 @@ async fn notify_listeners(
     notify: InflightNotification,
     notifier: &broadcast::Sender<InflightNotification>,
 ) {
-    let mut result = notifier.send(notify);
-    while let Err(err) = result {
-        sleep(Duration::from_millis(32)).await;
-        result = notifier.send(err.0);
+    if notifier.receiver_count() > 0 {
+        let _ = notifier.send(notify);
     }
 }
