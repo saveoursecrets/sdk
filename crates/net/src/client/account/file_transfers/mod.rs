@@ -10,11 +10,7 @@ use crate::{
 use futures::FutureExt;
 use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 use tokio::{
-    sync::{
-        broadcast,
-        mpsc::{self, UnboundedReceiver},
-        oneshot, watch, RwLock, Semaphore,
-    },
+    sync::{broadcast, mpsc, watch, RwLock, Semaphore},
     time::sleep,
 };
 
@@ -26,8 +22,9 @@ pub use inflight::{
     InflightNotification, InflightRequest, InflightTransfers,
 };
 
-use queue::PendingOperations;
-pub use queue::TransfersQueue;
+pub use queue::{PendingOperations, TransfersQueue};
+
+use super::network_account::FileTransferQueueRequest;
 
 /// Channel for upload and download progress notifications.
 pub type ProgressChannel = mpsc::Sender<(u64, Option<u64>)>;
@@ -113,51 +110,61 @@ impl FileTransferSettings {
 pub struct FileTransfers {
     paths: Arc<Paths>,
     settings: Arc<FileTransferSettings>,
-    shutdown: UnboundedReceiver<()>,
-    shutdown_ack: oneshot::Sender<()>,
+    shutdown_tx: Option<mpsc::UnboundedSender<()>>,
+    shutdown_rx: Option<mpsc::UnboundedReceiver<()>>,
+    pub(crate) queue: Arc<RwLock<TransfersQueue>>,
+    pub(crate) inflight: Arc<InflightTransfers>,
 }
 
 impl FileTransfers {
     /// Create new file transfers manager.
-    pub fn new(
+    pub async fn new(
         paths: Arc<Paths>,
         settings: FileTransferSettings,
-        shutdown: UnboundedReceiver<()>,
-        shutdown_ack: oneshot::Sender<()>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel::<()>();
+
+        let queue = TransfersQueue::new(&*paths).await?;
+        let inflight = InflightTransfers::new();
+
+        Ok(Self {
             paths,
             settings: Arc::new(settings),
-            shutdown,
-            shutdown_ack,
+            shutdown_rx: Some(shutdown_rx),
+            shutdown_tx: Some(shutdown_tx),
+            queue: Arc::new(RwLock::new(queue)),
+            inflight: Arc::new(inflight),
+        })
+    }
+
+    /// Stop the file transfers running.
+    pub async fn stop(&mut self) {
+        if let Some(shutdown_tx) = self.shutdown_tx.take() {
+            let _ = shutdown_tx.send(());
         }
     }
 
     /// Spawn a task to transfer file operations.
     pub fn run<C>(
-        self,
-        queue: Arc<RwLock<TransfersQueue>>,
-        inflight_transfers: Arc<InflightTransfers>,
+        &mut self,
         clients: Vec<C>,
+        transfer_queue_rx: broadcast::Receiver<FileTransferQueueRequest>,
     ) where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
-        let paths = self.paths;
-        let settings = self.settings;
-        let mut shutdown = self.shutdown;
-        let shutdown_ack = self.shutdown_ack;
+        let queue = Arc::clone(&self.queue);
+        let inflight_transfers = Arc::clone(&self.inflight);
+        let paths = Arc::clone(&self.paths);
+        let settings = Arc::clone(&self.settings);
+        let mut shutdown_rx = self.shutdown_rx.take().unwrap();
 
         tokio::task::spawn(async move {
             loop {
                 tokio::select! {
                     biased;
-                    signal = shutdown.recv().fuse() => {
+                    signal = shutdown_rx.recv().fuse() => {
                         if signal.is_some() {
-                            tracing::debug!("file_transfers_shutting_down");
-
                             tracing::debug!("file_transfers_shut_down");
-                            let _ = shutdown_ack.send(());
-
                             break;
                         }
                     }

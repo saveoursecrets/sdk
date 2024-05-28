@@ -4,7 +4,7 @@
 mod file_transfers;
 #[cfg(feature = "listen")]
 mod listen;
-mod network_account;
+pub(crate) mod network_account;
 mod remote;
 mod sync;
 

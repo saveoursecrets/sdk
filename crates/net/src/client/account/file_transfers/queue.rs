@@ -178,10 +178,7 @@ impl TransfersQueue {
     /// Normalize queued operations and write the updated
     /// queue to disc.
     #[doc(hidden)]
-    pub(super) async fn normalize(
-        &mut self,
-        paths: Arc<Paths>,
-    ) -> Result<()> {
+    pub async fn normalize(&mut self, paths: Arc<Paths>) -> Result<()> {
         let (deletions, additions) = {
             let mut deletions = Vec::new();
             let mut additions = Vec::new();

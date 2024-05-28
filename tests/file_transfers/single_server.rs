@@ -233,8 +233,6 @@ async fn file_transfers_single_download() -> Result<()> {
         let file =
             ExternalFile::new(*default_folder.id(), secret_id, file_name);
 
-        println!("Waiting for upload...");
-
         wait_for_transfers(&uploader.owner).await?;
 
         println!("Upload completed...");
