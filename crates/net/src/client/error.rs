@@ -77,6 +77,10 @@ pub enum Error {
     #[error("file transfer canceled")]
     TransferCanceled,
 
+    /// Overflow error calculating the retry exponential factor.
+    #[error("retry overflow")]
+    RetryOverflow,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

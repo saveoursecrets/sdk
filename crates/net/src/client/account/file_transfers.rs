@@ -1,13 +1,13 @@
 //! Manage pending file transfer operations.
 use crate::{
-    client::{Error, SyncClient},
+    client::{net::NetworkRetry, Error, Result, SyncClient},
     sdk::{
         storage::files::{
             list_external_files, ExternalFile, FileTransfersSet,
             TransferOperation,
         },
         sync::Origin,
-        vfs, Paths, Result,
+        vfs, Paths,
     },
 };
 
@@ -737,6 +737,8 @@ impl FileTransfers {
                             bytes_transferred: event.0,
                             bytes_total: event.1,
                         };
+
+                        // Handle backpressure on notifications
                         let mut result =
                             progress_transfers.notifications.send(notify);
                         while let Err(err) = result {
@@ -778,11 +780,14 @@ impl FileTransfers {
 
         let result = match &op {
             TransferOperation::Upload => {
-                let operation =
-                    UploadOperation::new(client, Arc::clone(&paths));
+                let operation = UploadOperation::new(
+                    client,
+                    Arc::clone(&paths),
+                    NetworkRetry::default(),
+                );
                 let progress_tx = progress_tx.unwrap();
                 let cancel_rx = cancel_rx.unwrap();
-                operation.run(file, progress_tx, cancel_rx).await
+                operation.run(file, progress_tx, cancel_rx).await?
             }
             TransferOperation::Download => {
                 // Ensure the parent directory for the download exists
@@ -875,23 +880,19 @@ where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
     client: C,
-    retries: Arc<Mutex<AtomicU64>>,
     paths: Arc<Paths>,
-    reconnect_interval: u64,
-    maximum_retries: u64,
+    retry: NetworkRetry,
 }
 
 impl<C> UploadOperation<C>
 where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
-    fn new(client: C, paths: Arc<Paths>) -> Self {
+    fn new(client: C, paths: Arc<Paths>, retry: NetworkRetry) -> Self {
         Self {
             client,
             paths,
-            retries: Arc::new(Mutex::new(AtomicU64::from(1))),
-            reconnect_interval: 1000,
-            maximum_retries: 8,
+            retry,
         }
     }
 
@@ -901,7 +902,7 @@ where
         file: ExternalFile,
         progress_tx: ProgressChannel,
         cancel_rx: watch::Receiver<()>,
-    ) -> TransferResult {
+    ) -> Result<TransferResult> {
         let path = self.paths.file_location(
             file.vault_id(),
             file.secret_id(),
@@ -918,29 +919,22 @@ where
         };
 
         if let TransferResult::Retry = result {
-            let retries = {
-                let retries = self.retries.lock().await;
-                retries.fetch_add(1, Ordering::SeqCst)
-            };
-
-            if retries > self.maximum_retries {
+            let retries = self.retry.increment().await;
+            tracing::debug!(retries = %retries, "upload::retry");
+            if self.retry.is_exhausted(retries) {
                 tracing::debug!(
-                  maximum_retries = %self.maximum_retries,
+                  maximum_retries = %self.retry.maximum_retries,
                   "upload::retry_attempts_exhausted");
-                return TransferResult::Fatal;
+                return Ok(TransferResult::Fatal);
             }
 
-            if let Some(factor) = 2u64.checked_pow(retries as u32) {
-                let delay = self.reconnect_interval * factor;
-                tracing::debug!(delay = %delay, "upload::retry");
-                sleep(Duration::from_millis(delay)).await;
-                self.run(file, progress_tx, cancel_rx).await
-            } else {
-                tracing::error!("upload:retry_attempts_overflowed");
-                TransferResult::Fatal
-            }
+            self.retry
+                .wait_and_retry(retries, async move {
+                    self.run(file, progress_tx, cancel_rx).await
+                })
+                .await?
         } else {
-            result
+            Ok(result)
         }
     }
 }

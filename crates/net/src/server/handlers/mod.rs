@@ -14,6 +14,8 @@ use axum_extra::headers::{authorization::Bearer, Authorization};
 use serde::Deserialize;
 use serde_json::json;
 use sos_sdk::signer::ecdsa::Address;
+use std::time::Duration;
+use tokio::time::sleep;
 
 pub mod account;
 pub mod files;
@@ -128,7 +130,7 @@ async fn authenticate_endpoint(
 
 /// Send change notifications to connected clients.
 #[cfg(feature = "listen")]
-pub(crate) fn send_notification(
+pub(crate) async fn send_notification(
     writer: &mut State,
     caller: &Caller,
     notification: ChangeNotification,
@@ -141,8 +143,12 @@ pub(crate) fn send_notification(
                     buffer,
                     connection_id: caller.connection_id().to_owned(),
                 };
-                if conn.tx.send(message).is_err() {
-                    tracing::debug!("websocket events channel dropped");
+
+                // Handle backpressure on broadcast channel
+                let mut result = conn.tx.send(message);
+                while let Err(err) = result {
+                    sleep(Duration::from_millis(50)).await;
+                    result = conn.tx.send(err.0);
                 }
             }
         }

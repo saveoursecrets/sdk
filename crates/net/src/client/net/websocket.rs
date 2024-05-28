@@ -4,15 +4,7 @@ use futures::{
     stream::{Map, SplitStream},
     Future, FutureExt, StreamExt,
 };
-use std::{
-    borrow::Cow,
-    pin::Pin,
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
+use std::{borrow::Cow, pin::Pin, sync::Arc};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
@@ -23,11 +15,7 @@ use tokio_tungstenite::{
 };
 
 use async_recursion::async_recursion;
-use tokio::{
-    net::TcpStream,
-    sync::{Mutex, Notify},
-    time::sleep,
-};
+use tokio::{net::TcpStream, sync::Notify};
 
 use sos_sdk::{
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
@@ -35,7 +23,7 @@ use sos_sdk::{
 };
 
 use crate::{
-    client::{Error, Result, WebSocketRequest},
+    client::{net::NetworkRetry, Error, Result, WebSocketRequest},
     ChangeNotification,
 };
 
@@ -53,40 +41,30 @@ pub struct ListenOptions {
     /// to the caller.
     pub(crate) connection_id: String,
 
-    /// Base reconnection interval for exponential backoff reconnect
-    /// attempts.
-    pub(crate) reconnect_interval: u64,
-
-    /// Maximum number of retry attempts.
-    pub(crate) maximum_retries: u64,
+    /// Network retry state.
+    pub(crate) retry: NetworkRetry,
 }
 
 impl ListenOptions {
-    /// Create new listen options using the default reconnect
+    /// Create new listen options using the default retry
     /// configuration.
     pub fn new(connection_id: String) -> Result<Self> {
         Ok(Self {
             connection_id,
-            reconnect_interval: 1000,
-            maximum_retries: 16,
+            retry: NetworkRetry::new(16, 1000),
         })
     }
 
-    /// Create new listen options using a custom reconnect
+    /// Create new listen options using a custom retry
     /// configuration.
     ///
-    /// The reconnect interval is a *base interval* in milliseconds
-    /// for the exponential backoff so use a small value such as
-    /// `1000` or `2000`.
-    pub fn new_config(
+    pub fn new_retry(
         connection_id: String,
-        reconnect_interval: u64,
-        maximum_retries: u64,
+        retry: NetworkRetry,
     ) -> Result<Self> {
         Ok(Self {
             connection_id,
-            reconnect_interval,
-            maximum_retries,
+            retry,
         })
     }
 }
@@ -236,7 +214,6 @@ pub struct WebSocketChangeListener {
     signer: BoxedEcdsaSigner,
     device: BoxedEd25519Signer,
     options: ListenOptions,
-    retries: Arc<Mutex<AtomicU64>>,
     notify: Arc<Notify>,
 }
 
@@ -254,7 +231,6 @@ impl WebSocketChangeListener {
             signer,
             device,
             options,
-            retries: Arc::new(Mutex::new(AtomicU64::from(1))),
             notify,
         }
     }
@@ -351,29 +327,23 @@ impl WebSocketChangeListener {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        let retries = {
-            let retries = self.retries.lock().await;
-            retries.fetch_add(1, Ordering::SeqCst)
-        };
+        let retries = self.options.retry.increment().await;
 
-        if retries > self.options.maximum_retries {
+        if self.options.retry.is_exhausted(retries) {
             tracing::debug!(
-                maximum_retries = %self.options.maximum_retries,
+                maximum_retries = %self.options.retry.maximum_retries,
                 "wsclient::retry_attempts_exhausted");
             return Ok(());
         }
 
-        tracing::debug!(attempt = %retries, "ws_client::retry");
+        tracing::debug!(retries = %retries, "ws_client::retry");
 
-        if let Some(factor) = 2u64.checked_pow(retries as u32) {
-            let delay = self.options.reconnect_interval * factor;
-            tracing::debug!(delay = %delay, "ws_client::retry");
-            sleep(Duration::from_millis(delay)).await;
-            self.connect(handler).await?;
-            Ok(())
-        } else {
-            tracing::error!("ws_client:retry_attempts_overflowed");
-            Ok(())
-        }
+        self.options
+            .retry
+            .wait_and_retry(
+                retries,
+                async move { self.connect(handler).await },
+            )
+            .await?
     }
 }

@@ -475,6 +475,7 @@ impl SyncClient for HttpClient {
 
         loop {
             tokio::select! {
+                biased;
                 _ = cancel.changed() => {
                   vfs::remove_file(path).await?;
                   return Err(Error::TransferCanceled);

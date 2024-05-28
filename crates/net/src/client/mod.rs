@@ -11,9 +11,9 @@ mod sync;
 
 pub use account::*;
 pub use error::Error;
-pub use net::HttpClient;
 #[cfg(feature = "listen")]
 pub use net::{changes, connect, ListenOptions, WebSocketHandle};
+pub use net::{HttpClient, NetworkRetry};
 pub use sync::{RemoteSync, SyncClient, SyncError};
 
 /// Result type for the client module.
