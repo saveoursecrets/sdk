@@ -11,6 +11,7 @@ use crate::{
     },
 };
 
+use async_recursion::async_recursion;
 use futures::FutureExt;
 use http::StatusCode;
 use indexmap::IndexSet;
@@ -28,17 +29,20 @@ use std::{
     },
     time::Duration,
 };
-use tokio::sync::{
-    broadcast,
-    mpsc::{self, UnboundedReceiver},
-    oneshot, Mutex, RwLock,
+use tokio::{
+    sync::{
+        broadcast,
+        mpsc::{self, UnboundedReceiver},
+        oneshot, watch, Mutex, RwLock,
+    },
+    time::sleep,
 };
 
 /// Channel for upload and download progress notifications.
 pub type ProgressChannel = mpsc::Sender<(u64, Option<u64>)>;
 
 /// Channel used to cancel uploads and downloads.
-pub type CancelChannel = mpsc::Sender<()>;
+pub type CancelChannel = watch::Sender<()>;
 
 type PendingOperations = HashMap<ExternalFile, IndexSet<TransferOperation>>;
 
@@ -532,10 +536,10 @@ impl FileTransfers {
         }
 
         #[cfg(debug_assertions)]
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        sleep(Duration::from_secs(1)).await;
 
         #[cfg(not(debug_assertions))]
-        tokio::time::sleep(Duration::from_secs(settings.delay_seconds)).await;
+        sleep(Duration::from_secs(settings.delay_seconds)).await;
 
         Ok(())
     }
@@ -561,8 +565,6 @@ impl FileTransfers {
             } else {
                 settings.concurrent_transfers
             };
-
-            println!("{}", chunk_size);
 
             for files in list.chunks(chunk_size) {
                 let mut futures = Vec::new();
@@ -723,9 +725,7 @@ impl FileTransfers {
             if let TransferOperation::Upload | TransferOperation::Download =
                 &op
             {
-                println!("Spawning progress bridge...");
-
-                let (cancel_tx, cancel_rx) = mpsc::channel::<()>(1);
+                let (cancel_tx, cancel_rx) = watch::channel::<()>(());
                 let (progress_tx, mut progress_rx): (ProgressChannel, _) =
                     mpsc::channel(16);
 
@@ -740,8 +740,7 @@ impl FileTransfers {
                         let mut result =
                             progress_transfers.notifications.send(notify);
                         while let Err(err) = result {
-                            tokio::time::sleep(Duration::from_millis(50))
-                                .await;
+                            sleep(Duration::from_millis(50)).await;
                             result =
                                 progress_transfers.notifications.send(err.0);
                         }
@@ -766,8 +765,6 @@ impl FileTransfers {
                 "inflight_transfer::insert",
             );
 
-            // let mut writer = inflight_transfers.inflight.write().await;
-            // writer.insert(request_id, request);
             inflight_transfers
                 .insert_transfer(request_id, request)
                 .await;
@@ -781,24 +778,11 @@ impl FileTransfers {
 
         let result = match &op {
             TransferOperation::Upload => {
-                let path = paths.file_location(
-                    file.vault_id(),
-                    file.secret_id(),
-                    file.file_name().to_string(),
-                );
-
+                let operation =
+                    UploadOperation::new(client, Arc::clone(&paths));
                 let progress_tx = progress_tx.unwrap();
                 let cancel_rx = cancel_rx.unwrap();
-
-                println!("Uploading...");
-
-                match client
-                    .upload_file(&file, &path, progress_tx, cancel_rx)
-                    .await
-                {
-                    Ok(status) => Self::is_success(&op, status),
-                    Err(e) => Self::is_error(e),
-                }
+                operation.run(file, progress_tx, cancel_rx).await
             }
             TransferOperation::Download => {
                 // Ensure the parent directory for the download exists
@@ -857,7 +841,6 @@ impl FileTransfers {
         op: &TransferOperation,
         status: StatusCode,
     ) -> TransferResult {
-        println!("success");
         let ok = match op {
             TransferOperation::Upload => {
                 status == StatusCode::OK || status == StatusCode::NOT_MODIFIED
@@ -876,36 +859,121 @@ impl FileTransfers {
     }
 
     fn is_error(error: Error) -> TransferResult {
-        println!("error: {:#?}", error);
         tracing::warn!(error = ?error, "transfer_error");
         match error {
             Error::Io(io) => match io.kind() {
                 ErrorKind::NotFound => TransferResult::Fatal,
                 _ => TransferResult::Retry,
             },
-            /*
-            Error::Http(err) => {
-                let mut source = None;
-                while let Some(e) = err.source() {
-                    source = Some(e);
-                }
-                if let Some(e) = source {
-                    if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
-                        match io_err.kind() {
-                            ErrorKind::ConnectionRefused => {
-                                TransferResult::Fatal
-                            }
-                            _ => TransferResult::Retry,
-                        }
-                    } else {
-                        TransferResult::Retry
-                    }
-                } else {
-                    TransferResult::Retry
-                }
-            }
-            */
             _ => TransferResult::Retry,
         }
+    }
+}
+
+struct UploadOperation<C>
+where
+    C: SyncClient + Clone + Send + Sync + 'static,
+{
+    client: C,
+    retries: Arc<Mutex<AtomicU64>>,
+    paths: Arc<Paths>,
+    reconnect_interval: u64,
+    maximum_retries: u64,
+}
+
+impl<C> UploadOperation<C>
+where
+    C: SyncClient + Clone + Send + Sync + 'static,
+{
+    fn new(client: C, paths: Arc<Paths>) -> Self {
+        Self {
+            client,
+            paths,
+            retries: Arc::new(Mutex::new(AtomicU64::from(1))),
+            reconnect_interval: 1000,
+            maximum_retries: 8,
+        }
+    }
+
+    #[async_recursion]
+    async fn run(
+        &self,
+        file: ExternalFile,
+        progress_tx: ProgressChannel,
+        cancel_rx: watch::Receiver<()>,
+    ) -> TransferResult {
+        let path = self.paths.file_location(
+            file.vault_id(),
+            file.secret_id(),
+            file.file_name().to_string(),
+        );
+
+        let result = match self
+            .client
+            .upload_file(&file, &path, progress_tx.clone(), cancel_rx.clone())
+            .await
+        {
+            Ok(status) => self.on_success(status),
+            Err(e) => self.on_error(e),
+        };
+
+        if let TransferResult::Retry = result {
+            let retries = {
+                let retries = self.retries.lock().await;
+                retries.fetch_add(1, Ordering::SeqCst)
+            };
+
+            if retries > self.maximum_retries {
+                tracing::debug!(
+                  maximum_retries = %self.maximum_retries,
+                  "upload::retry_attempts_exhausted");
+                return TransferResult::Fatal;
+            }
+
+            if let Some(factor) = 2u64.checked_pow(retries as u32) {
+                let delay = self.reconnect_interval * factor;
+                tracing::debug!(delay = %delay, "upload::retry");
+                sleep(Duration::from_millis(delay)).await;
+                self.run(file, progress_tx, cancel_rx).await
+            } else {
+                tracing::error!("upload:retry_attempts_overflowed");
+                TransferResult::Fatal
+            }
+        } else {
+            result
+        }
+    }
+}
+
+impl<C> TransferTask for UploadOperation<C>
+where
+    C: SyncClient + Clone + Send + Sync + 'static,
+{
+    fn on_success(&self, status: StatusCode) -> TransferResult {
+        if status == StatusCode::OK || status == StatusCode::NOT_MODIFIED {
+            TransferResult::Done
+        } else {
+            TransferResult::Retry
+        }
+    }
+
+    fn on_error(&self, error: Error) -> TransferResult {
+        tracing::warn!(error = ?error, "upload_error");
+        on_error(error)
+    }
+}
+
+trait TransferTask {
+    fn on_success(&self, status: StatusCode) -> TransferResult;
+    fn on_error(&self, error: Error) -> TransferResult;
+}
+
+fn on_error(error: Error) -> TransferResult {
+    match error {
+        Error::Io(io) => match io.kind() {
+            ErrorKind::NotFound => TransferResult::Fatal,
+            _ => TransferResult::Retry,
+        },
+        _ => TransferResult::Retry,
     }
 }
