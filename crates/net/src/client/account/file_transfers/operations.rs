@@ -1,4 +1,7 @@
 //! File transfer operations.
+//!
+//! Tasks that handle retry until exhaustion for
+//! download, upload, move and delete operations.
 use crate::{
     client::{net::NetworkRetry, Error, Result, SyncClient},
     sdk::{storage::files::ExternalFile, vfs, Paths},
