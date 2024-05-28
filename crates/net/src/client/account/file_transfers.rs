@@ -133,6 +133,11 @@ impl InflightTransfers {
         }
     }
 
+    /// Inflight notifications channel.
+    pub fn notifications(&self) -> &broadcast::Sender<InflightNotification> {
+        &self.notifications
+    }
+
     /// Determine if the inflight transfers is empty.
     pub async fn is_empty(&self) -> bool {
         let queue = self.inflight.read().await;
