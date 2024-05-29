@@ -194,6 +194,13 @@ impl FileTransfers {
                     signal = shutdown_rx.recv().fuse() => {
                         if signal.is_some() {
                             tracing::debug!("file_transfers_shutting_down");
+
+                            // Clear the queue to break the main
+                            // task loop
+                            let mut writer = queue.write().await;
+                            *writer = Default::default();
+
+                            // Cancel any inflight transfers
                             cancel_inflight.cancel().await;
 
                             let _ = shutdown_tx.send(());
@@ -355,12 +362,6 @@ impl FileTransfers {
                                 let _permit = permit.acquire().await.unwrap();
                                 let request_id = inflight.request_id().await;
 
-                                tracing::debug!(
-                                  request_id = %request_id,
-                                  op = ?op,
-                                  "file_transfers::run",
-                                );
-
                                 let result = Self::run_client_operation(
                                     request_id,
                                     file,
@@ -393,12 +394,6 @@ impl FileTransfers {
                             let jh = tokio::task::spawn(async move {
                                 let _permit = permit.acquire().await.unwrap();
                                 let request_id = inflight.request_id().await;
-
-                                tracing::debug!(
-                                  request_id = %request_id,
-                                  op = ?op,
-                                  "file_transfers::run",
-                                );
 
                                 let result = Self::run_client_operation(
                                     request_id,
@@ -492,8 +487,6 @@ impl FileTransfers {
                     })
                     .map(|(_, (file, op, _))| (file, op))
                 {
-                    println!("Adding back to the queue....");
-
                     let item = (file, op);
                     let mut queue = request_queue.write().await;
                     if !queue.contains(&item) {
@@ -581,6 +574,12 @@ impl FileTransfers {
     where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
+        tracing::debug!(
+          request_id = %request_id,
+          op = ?op,
+          "file_transfers::run",
+        );
+
         let (progress_tx, cancel_tx, cancel_rx) =
             if let TransferOperation::Upload | TransferOperation::Download =
                 &op

@@ -446,8 +446,6 @@ trait TransferTask {
 }
 
 fn on_error(error: Error) -> TransferResult {
-    println!("is_canceled: {}", error.is_canceled());
-
     if error.is_canceled() {
         return TransferResult::Fatal(TransferError::Canceled);
     }
