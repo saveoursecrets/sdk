@@ -8,15 +8,11 @@ use crate::{
 };
 
 use futures::FutureExt;
-use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
-use tokio::{
-    sync::{broadcast, mpsc, oneshot, watch, RwLock, Semaphore},
-    time::sleep,
-};
+use std::sync::Arc;
+use tokio::sync::{broadcast, mpsc, oneshot, watch, RwLock, Semaphore};
 
 mod inflight;
 mod operations;
-// mod queue;
 
 pub use inflight::{
     InflightNotification, InflightRequest, InflightTransfers,
@@ -30,8 +26,6 @@ pub type ProgressChannel = mpsc::Sender<(u64, Option<u64>)>;
 
 /// Channel used to cancel uploads and downloads.
 pub type CancelChannel = watch::Sender<()>;
-
-type PendingOperations = Vec<(ExternalFile, TransferOperation)>;
 
 /// Reason for a transfer error notification.
 #[derive(Debug, Clone)]
@@ -272,6 +266,7 @@ impl FileTransfers {
             };
 
             if let Some((file, op)) = item {
+                // println!("process: {:#?}", op);
                 tracing::debug!(
                   file = ?file, op = ?op, "file_transfers::queue");
 
@@ -362,6 +357,7 @@ impl FileTransfers {
                                     Arc::clone(&inflight),
                                 )
                                 .await?;
+
                                 Ok::<_, Error>((request_id, result.2))
                             });
                             jhs.push(jh);
