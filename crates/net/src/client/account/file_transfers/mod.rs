@@ -199,7 +199,7 @@ impl FileTransfers {
                             }
                         }
 
-                        Self::try_spawn_tasks(
+                        let mut remaining = Self::try_spawn_tasks(
                             Arc::clone(&paths),
                             Arc::clone(&semaphore),
                             Arc::clone(&queue),
@@ -207,6 +207,18 @@ impl FileTransfers {
                             Arc::clone(&settings),
                             clients.as_slice(),
                         ).await?;
+
+
+                        while let Some(_) = remaining {
+                          remaining = Self::try_spawn_tasks(
+                              Arc::clone(&paths),
+                              Arc::clone(&semaphore),
+                              Arc::clone(&queue),
+                              Arc::clone(&inflight),
+                              Arc::clone(&settings),
+                              clients.as_slice(),
+                          ).await?;
+                        }
                     }
                 }
             }
@@ -224,7 +236,7 @@ impl FileTransfers {
         inflight: Arc<InflightTransfers>,
         settings: Arc<FileTransferSettings>,
         clients: &[C],
-    ) -> Result<()>
+    ) -> Result<Option<()>>
     where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
@@ -331,104 +343,111 @@ impl FileTransfers {
             }
         }
 
+        let request_queue = Arc::clone(&queue);
         let download_inflight = Arc::clone(&inflight);
         let download_queue = Arc::clone(&queue);
 
-        let results = tokio::join!(
-            async move {
-                let mut results = Vec::new();
-                for jh in requests {
-                    let result = jh.await.unwrap()?;
-                    results.push(result);
+        let requests_task = async move {
+            let mut results = Vec::new();
+            for jh in requests {
+                let result = jh.await.unwrap()?;
+                results.push(result);
+            }
+
+            let done = results
+                .iter()
+                .all(|(_, (_, _, r))| matches!(r, TransferResult::Done));
+
+            if done {
+                for (request_id, _) in results {
+                    let notify =
+                        InflightNotification::TransferDone { request_id };
+                    notify_listeners(notify, &inflight.notifications).await;
                 }
+            } else {
+                println!("result: {:#?}", results);
 
-                let done = results
-                    .iter()
-                    .all(|(_, (_, _, r))| matches!(r, TransferResult::Done));
-
-                if done {
-                    for (request_id, _) in results {
-                        let notify =
-                            InflightNotification::TransferDone { request_id };
-                        notify_listeners(notify, &inflight.notifications)
-                            .await;
-                    }
-                } else {
-                    for (file, op) in results
-                        .into_iter()
-                        .filter(|(_, (_, _, r))| {
-                            matches!(
-                                r,
-                                TransferResult::Fatal(
-                                    TransferError::RetryExhausted
-                                )
+                for (file, op) in results
+                    .into_iter()
+                    .filter(|(_, (_, _, r))| {
+                        matches!(
+                            r,
+                            TransferResult::Fatal(
+                                TransferError::RetryExhausted
                             )
-                        })
-                        .map(|(_, (file, op, _))| (file, op))
-                    {
-                        let mut queue = queue.write().await;
-                        queue.push_back((file, op));
-                    }
-                }
-
-                Ok::<_, Error>(())
-            },
-            async move {
-                let mut results = Vec::new();
-                for jh in downloads {
-                    let result = jh.await.unwrap()?;
-                    results.push(result);
-                }
-
-                let results =
-                    results.into_iter().flatten().collect::<Vec<_>>();
-
-                let done_requests = results
-                    .iter()
-                    .filter_map(|(id, (_, _, r))| {
-                        if matches!(r, TransferResult::Done) {
-                            Some(id)
-                        } else {
-                            None
-                        }
+                        )
                     })
-                    .collect::<Vec<_>>();
+                    .map(|(_, (file, op, _))| (file, op))
+                {
+                    println!("Add back to queue...");
 
-                if let Some(request_id) = done_requests.first() {
-                    let notify = InflightNotification::TransferDone {
-                        request_id: **request_id,
-                    };
-                    notify_listeners(
-                        notify,
-                        &download_inflight.notifications,
-                    )
-                    .await;
-                } else {
-                    for (file, op) in results
-                        .into_iter()
-                        .filter(|(_, (_, _, r))| {
-                            matches!(
-                                r,
-                                TransferResult::Fatal(
-                                    TransferError::RetryExhausted
-                                )
-                            )
-                        })
-                        .map(|(_, (file, op, _))| (file, op))
-                    {
-                        let mut queue = download_queue.write().await;
-                        queue.push_back((file, op));
-                    }
+                    let mut queue = request_queue.write().await;
+                    queue.push_back((file, op));
                 }
+            }
 
-                Ok::<_, Error>(())
-            },
-        );
+            Ok::<_, Error>(())
+        };
 
+        let downloads_task = async move {
+            let mut results = Vec::new();
+            for jh in downloads {
+                let result = jh.await.unwrap()?;
+                results.push(result);
+            }
+
+            let results = results.into_iter().flatten().collect::<Vec<_>>();
+
+            let done_requests = results
+                .iter()
+                .filter_map(|(id, (_, _, r))| {
+                    if matches!(r, TransferResult::Done) {
+                        Some(id)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            if let Some(request_id) = done_requests.first() {
+                let notify = InflightNotification::TransferDone {
+                    request_id: **request_id,
+                };
+                notify_listeners(notify, &download_inflight.notifications)
+                    .await;
+            } else {
+                for (file, op) in results
+                    .into_iter()
+                    .filter(|(_, (_, _, r))| {
+                        matches!(
+                            r,
+                            TransferResult::Fatal(
+                                TransferError::RetryExhausted
+                            )
+                        )
+                    })
+                    .map(|(_, (file, op, _))| (file, op))
+                {
+                    let mut queue = download_queue.write().await;
+                    queue.push_back((file, op));
+                }
+            }
+
+            Ok::<_, Error>(())
+        };
+
+        let results = tokio::join!(requests_task, downloads_task);
         results.0?;
         results.1?;
 
-        Ok(())
+        Ok({
+            let queue = queue.read().await;
+            if queue.is_empty() {
+                None
+            } else {
+                Some(())
+            }
+        })
     }
 
     async fn run_client_operation<C>(
