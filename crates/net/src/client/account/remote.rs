@@ -3,7 +3,6 @@ use crate::client::{
     net::HttpClient, Error, RemoteSync, Result, SyncClient, SyncError,
 };
 use async_trait::async_trait;
-use indexmap::IndexSet;
 use sos_sdk::{
     account::{Account, LocalAccount},
     commit::Comparison,

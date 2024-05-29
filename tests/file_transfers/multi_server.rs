@@ -5,7 +5,7 @@ use anyhow::Result;
 use crate::test_utils::{
     assert_local_remote_file_eq, assert_local_remote_file_not_exist,
     mock::files::{create_file_secret, update_file_secret},
-    simulate_device, spawn, teardown, wait_for_transfers,
+    simulate_device, spawn, teardown, wait_for_num_transfers,
 };
 use sos_net::{client::RemoteSync, sdk::prelude::*};
 
@@ -30,10 +30,8 @@ async fn file_transfers_multi_upload() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
+    wait_for_num_transfers(&device.owner, 2).await?;
     let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
-
-    // Wait until the transfers are completed
-    wait_for_transfers(&device.owner).await?;
 
     let server1_path = device.server_path;
     let server2_path =
@@ -76,9 +74,7 @@ async fn file_transfers_multi_update() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, _) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
-
-    // Wait for the upload event
-    wait_for_transfers(&device.owner).await?;
+    wait_for_num_transfers(&device.owner, 2).await?;
 
     let (data, _) = device.owner.read_secret(&secret_id, None).await?;
 
@@ -91,10 +87,8 @@ async fn file_transfers_multi_update() -> Result<()> {
         None,
     )
     .await?;
+    wait_for_num_transfers(&device.owner, 2).await?;
     let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
-
-    // Wait until the transfers are completed
-    wait_for_transfers(&device.owner).await?;
 
     let server1_path = device.server_path;
     let server2_path =
@@ -137,9 +131,7 @@ async fn file_transfers_multi_move() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
-
-    // Wait until the upload is completed
-    wait_for_transfers(&device.owner).await?;
+    wait_for_num_transfers(&device.owner, 2).await?;
 
     // Create a folder
     let FolderCreate {
@@ -157,10 +149,8 @@ async fn file_transfers_multi_move() -> Result<()> {
             Default::default(),
         )
         .await?;
+    wait_for_num_transfers(&device.owner, 2).await?;
     let file = ExternalFile::new(*destination.id(), secret_id, file_name);
-
-    // Wait until the move is completed
-    wait_for_transfers(&device.owner).await?;
 
     let server1_path = device.server_path;
     let server2_path =
@@ -202,10 +192,8 @@ async fn file_transfers_multi_delete() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
+    wait_for_num_transfers(&device.owner, 2).await?;
     let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
-
-    // Wait until the transfers are completed
-    wait_for_transfers(&device.owner).await?;
 
     // Assert the files on disc are equal
     assert_local_remote_file_eq(
@@ -219,9 +207,7 @@ async fn file_transfers_multi_delete() -> Result<()> {
         .owner
         .delete_secret(&secret_id, Default::default())
         .await?;
-
-    // Wait until the transfers are completed
-    wait_for_transfers(&device.owner).await?;
+    wait_for_num_transfers(&device.owner, 2).await?;
 
     let server1_path = device.server_path;
     let server2_path =
@@ -278,7 +264,7 @@ async fn file_transfers_multi_download() -> Result<()> {
                 .await?;
         let file =
             ExternalFile::new(*default_folder.id(), secret_id, file_name);
-        wait_for_transfers(&uploader.owner).await?;
+        wait_for_num_transfers(&uploader.owner, 2).await?;
         assert_local_remote_file_eq(
             uploader.owner.paths(),
             &uploader.server_path,
@@ -294,7 +280,7 @@ async fn file_transfers_multi_download() -> Result<()> {
         // creates the pending download transfer operation
         assert!(downloader.owner.sync().await.is_none());
 
-        wait_for_transfers(&downloader.owner).await?;
+        wait_for_num_transfers(&downloader.owner, 2).await?;
 
         let server1_path = downloader.server_path;
         let server2_path =

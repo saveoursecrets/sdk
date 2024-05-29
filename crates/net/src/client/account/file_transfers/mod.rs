@@ -248,7 +248,7 @@ impl FileTransfers {
             };
 
             if let Some((file, op)) = item {
-                // println!("process: {:#?}", op);
+                println!("process: {:#?}", op);
                 tracing::debug!(
                   file = ?file, op = ?op, "file_transfers::queue");
 
