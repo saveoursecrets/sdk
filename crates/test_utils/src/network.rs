@@ -22,14 +22,7 @@ use sos_net::{
         vfs, Paths,
     },
 };
-use std::{
-    path::PathBuf,
-    sync::{
-        atomic::{AtomicU16, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
 /// Simulated device information.

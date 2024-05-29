@@ -16,18 +16,21 @@ use tokio::sync::{broadcast, Mutex};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
+    // TODO: move this to the tools command
     /// Verify the integrity of external files.
     Integrity {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
     },
+    /*
     /// Print the file transfers queue.
     Transfers {
         /// Account name or address.
         #[clap(short, long)]
         account: Option<AccountRef>,
     },
+    */
     /*
     /// Show inflight file transfers.
     Progress {
@@ -103,109 +106,110 @@ pub async fn run(cmd: Command) -> Result<()> {
                     }
                 }
             }
-        }
-        Command::Transfers { account } => {
-            let user = resolve_user(account.as_ref(), false).await?;
-            let owner = user.read().await;
-            let transfers = owner.transfers()?;
-            let queue = transfers.read().await;
-            if queue.is_empty() {
-                println!("No queued file transfers");
-            } else {
-                // Group by folder
-                let mut grouped = HashMap::new();
-                for (file, op) in &*queue {
-                    if let Some(summary) =
-                        owner.find(|s| s.id() == file.vault_id()).await
-                    {
-                        let secrets =
-                            grouped.entry(summary).or_insert(HashMap::new());
-                        let files =
-                            secrets.entry(file.secret_id()).or_insert(vec![]);
-                        files.push((file.file_name(), op));
-                    } else {
-                        warn(format!("folder missing {}", file.vault_id(),));
-                    }
-                }
-
-                for (folder, secrets) in grouped {
-                    println!("[{}]", folder.name());
-                    for (secret_id, files) in secrets {
-                        println!("> {}", secret_id);
-                        for (name, ops) in files {
-                            println!("  {}", name);
-                            println!("  {}", serde_json::to_string(&ops)?);
-                        }
-                    }
-                }
-            }
         } /*
-          Command::Progress { account } => {
+          Command::Transfers { account } => {
               let user = resolve_user(account.as_ref(), false).await?;
               let owner = user.read().await;
-              let transfers = owner.inflight_transfers().await?;
-              let inflight = transfers.inflight();
-              let inflight = inflight.read().await;
-
-              if inflight.is_empty() {
-                  println!("No inflight transfers");
+              let transfers = owner.transfers()?;
+              let queue = transfers.read().await;
+              if queue.is_empty() {
+                  println!("No queued file transfers");
               } else {
-                  let request_ids = inflight
-                      .iter()
-                      .filter(|(_, v)| v.progress.is_some())
-                      .map(|(k, _)| k)
-                      .copied()
-                      .collect::<Vec<_>>();
-
-                  let requests = transfers.inflight();
-                  let requests = requests.read().await;
-
-                  let mut channels = Vec::new();
-                  for id in request_ids {
-                      if let Some(req) = requests.get(&id) {
-                          channels.push((
-                              req.file.clone(),
-                              req.progress.as_ref().unwrap().subscribe(),
-                          ));
+                  // Group by folder
+                  let mut grouped = HashMap::new();
+                  for (file, op) in &*queue {
+                      if let Some(summary) =
+                          owner.find(|s| s.id() == file.vault_id()).await
+                      {
+                          let secrets =
+                              grouped.entry(summary).or_insert(HashMap::new());
+                          let files =
+                              secrets.entry(file.secret_id()).or_insert(vec![]);
+                          files.push((file.file_name(), op));
+                      } else {
+                          warn(format!("folder missing {}", file.vault_id(),));
                       }
                   }
 
-                  drop(inflight);
-                  // drop(progress);
-
-                  let manager =
-                      Arc::new(Mutex::new(RowManager::from_window_size()));
-                  let mut threads = Vec::new();
-
-                  // Shutdown channel for ctrlc handling
-                  let (shutdown_tx, _) = broadcast::channel::<()>(1);
-
-                  // Update the global so ctrlc handler will
-                  // send an event on the shutdown channel
-                  {
-                      let mut mon = PROGRESS_MONITOR.lock();
-                      *mon = Some(shutdown_tx.clone());
-                  }
-
-                  for (file, rx) in channels {
-                      let mgr = Arc::clone(&manager);
-                      let shutdown = shutdown_tx.subscribe();
-                      threads
-                          .push(spawn_file_progress(file, mgr, shutdown, rx));
-                  }
-
-                  for thread in threads {
-                      let _ = thread.join();
-                  }
-
-                  // Clear the shutdown channel as we are done
-                  {
-                      let mut mon = PROGRESS_MONITOR.lock();
-                      *mon = None;
+                  for (folder, secrets) in grouped {
+                      println!("[{}]", folder.name());
+                      for (secret_id, files) in secrets {
+                          println!("> {}", secret_id);
+                          for (name, ops) in files {
+                              println!("  {}", name);
+                              println!("  {}", serde_json::to_string(&ops)?);
+                          }
+                      }
                   }
               }
-          }
-          */
+          }*/
+          /*
+            Command::Progress { account } => {
+                let user = resolve_user(account.as_ref(), false).await?;
+                let owner = user.read().await;
+                let transfers = owner.inflight_transfers().await?;
+                let inflight = transfers.inflight();
+                let inflight = inflight.read().await;
+
+                if inflight.is_empty() {
+                    println!("No inflight transfers");
+                } else {
+                    let request_ids = inflight
+                        .iter()
+                        .filter(|(_, v)| v.progress.is_some())
+                        .map(|(k, _)| k)
+                        .copied()
+                        .collect::<Vec<_>>();
+
+                    let requests = transfers.inflight();
+                    let requests = requests.read().await;
+
+                    let mut channels = Vec::new();
+                    for id in request_ids {
+                        if let Some(req) = requests.get(&id) {
+                            channels.push((
+                                req.file.clone(),
+                                req.progress.as_ref().unwrap().subscribe(),
+                            ));
+                        }
+                    }
+
+                    drop(inflight);
+                    // drop(progress);
+
+                    let manager =
+                        Arc::new(Mutex::new(RowManager::from_window_size()));
+                    let mut threads = Vec::new();
+
+                    // Shutdown channel for ctrlc handling
+                    let (shutdown_tx, _) = broadcast::channel::<()>(1);
+
+                    // Update the global so ctrlc handler will
+                    // send an event on the shutdown channel
+                    {
+                        let mut mon = PROGRESS_MONITOR.lock();
+                        *mon = Some(shutdown_tx.clone());
+                    }
+
+                    for (file, rx) in channels {
+                        let mgr = Arc::clone(&manager);
+                        let shutdown = shutdown_tx.subscribe();
+                        threads
+                            .push(spawn_file_progress(file, mgr, shutdown, rx));
+                    }
+
+                    for thread in threads {
+                        let _ = thread.join();
+                    }
+
+                    // Clear the shutdown channel as we are done
+                    {
+                        let mut mon = PROGRESS_MONITOR.lock();
+                        *mon = None;
+                    }
+                }
+            }
+            */
     }
     Ok(())
 }

@@ -160,13 +160,6 @@ impl FileTransfers {
         }
     }
 
-    /// Queue of transfer operations.
-    pub fn queue(
-        &self,
-    ) -> Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>> {
-        Arc::clone(&self.queue)
-    }
-
     /// Spawn a task to transfer file operations.
     pub fn run<C>(
         &mut self,

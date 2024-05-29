@@ -30,13 +30,13 @@ use sos_sdk::{
     vfs, Paths,
 };
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::Arc,
 };
 use tokio::{
     io::{AsyncRead, AsyncSeek},
-    sync::{mpsc, Mutex, RwLock},
+    sync::{Mutex, RwLock},
 };
 
 #[cfg(feature = "archive")]
@@ -78,10 +78,6 @@ use crate::client::account::file_transfers::{
 /// Request to queue a file transfer.
 #[cfg(feature = "files")]
 pub type FileTransferQueueRequest = Vec<(ExternalFile, TransferOperation)>;
-
-/// Channel to add file transfers to the queue.
-#[cfg(feature = "files")]
-pub type FileTransferQueueChannel = mpsc::Sender<FileTransferQueueRequest>;
 
 /// Options for network account creation.
 #[derive(Debug, Default)]
@@ -514,6 +510,7 @@ impl NetworkAccount {
         Ok(owner)
     }
 
+    /*
     /// File transfers queue.
     #[cfg(feature = "files")]
     pub fn transfers(
@@ -526,6 +523,7 @@ impl NetworkAccount {
             .map(|t| Arc::clone(&t.queue))
             .ok_or_else(|| crate::sdk::Error::NotAuthenticated)?)
     }
+    */
 
     /// Inflight file transfers.
     #[cfg(feature = "files")]
