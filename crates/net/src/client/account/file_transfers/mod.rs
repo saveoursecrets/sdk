@@ -38,9 +38,10 @@ pub enum TransferError {
     /// Error when a file that is the target of
     /// an upload or download is no longer on disc.
     TransferFileMissing,
-
     /// Error when the target file for a move operation is missing.
     MovedMissing,
+    /// Transfer was canceled.
+    Canceled,
 }
 
 /// Result of a file transfer operation.
@@ -491,6 +492,8 @@ impl FileTransfers {
                     })
                     .map(|(_, (file, op, _))| (file, op))
                 {
+                    println!("Adding back to the queue....");
+
                     let item = (file, op);
                     let mut queue = request_queue.write().await;
                     if !queue.contains(&item) {
