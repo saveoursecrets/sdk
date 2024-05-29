@@ -126,10 +126,6 @@ pub struct NetworkAccount {
     #[cfg(feature = "files")]
     file_transfers: Option<FileTransfers>,
 
-    /// Channel for adding file transfers to the queue.
-    #[cfg(feature = "files")]
-    file_transfer_queue: Option<FileTransferQueueChannel>,
-
     /// Handle to a file transfers event loop.
     #[cfg(feature = "files")]
     file_transfer_handle: Option<FileTransfersHandle>,
@@ -371,12 +367,7 @@ impl NetworkAccount {
                 clients
             };
 
-            let (file_transfer_tx, file_transfer_rx) =
-                mpsc::channel::<FileTransferQueueRequest>(32);
-
-            let handle = file_transfers.run(paths, clients, file_transfer_rx);
-
-            self.file_transfer_queue = Some(file_transfer_tx);
+            let handle = file_transfers.run(paths, clients);
             self.file_transfer_handle = Some(handle);
         }
 
@@ -432,8 +423,6 @@ impl NetworkAccount {
             connection_id: None,
             #[cfg(feature = "files")]
             file_transfers: None,
-            #[cfg(feature = "files")]
-            file_transfer_queue: None,
             #[cfg(feature = "files")]
             file_transfer_handle: None,
             offline: options.offline,
@@ -500,8 +489,6 @@ impl NetworkAccount {
             #[cfg(feature = "files")]
             file_transfers: None,
             #[cfg(feature = "files")]
-            file_transfer_queue: None,
-            #[cfg(feature = "files")]
             file_transfer_handle: None,
             offline: options.offline,
             options,
@@ -538,19 +525,14 @@ impl NetworkAccount {
         &self,
         events: &[FileMutationEvent],
     ) -> Result<()> {
-        println!("mutation: {}", events.len());
-
-        if let Some(tx) = &self.file_transfer_queue {
+        if let Some(handle) = &self.file_transfer_handle {
             let mut items = Vec::with_capacity(events.len());
             for event in events {
                 let item: (ExternalFile, TransferOperation) = event.into();
                 items.push(item);
             }
 
-            let res = tx.send(items).await;
-            if let Err(error) = res {
-                tracing::warn!(error = ?error);
-            }
+            handle.send(items).await;
         }
 
         Ok(())

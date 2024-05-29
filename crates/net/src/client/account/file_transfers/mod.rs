@@ -100,21 +100,40 @@ impl FileTransferSettings {
 pub(crate) struct FileTransfersHandle {
     shutdown_tx: mpsc::Sender<()>,
     shutdown_rx: oneshot::Receiver<()>,
+    queue_tx: mpsc::Sender<FileTransferQueueRequest>,
 }
 
 impl FileTransfersHandle {
     /// Create a new handle.
-    fn new() -> (Self, mpsc::Receiver<()>, oneshot::Sender<()>) {
+    fn new() -> (
+        Self,
+        mpsc::Receiver<()>,
+        oneshot::Sender<()>,
+        mpsc::Receiver<FileTransferQueueRequest>,
+    ) {
         let (shutdown_tx, shutdown_rx) = mpsc::channel::<()>(1);
         let (ack_tx, ack_rx) = oneshot::channel::<()>();
+        let (queue_tx, queue_rx) =
+            mpsc::channel::<FileTransferQueueRequest>(32);
+
         (
             Self {
                 shutdown_tx,
                 shutdown_rx: ack_rx,
+                queue_tx,
             },
             shutdown_rx,
             ack_tx,
+            queue_rx,
         )
+    }
+
+    /// Send a collection of items to be added to the queue.
+    pub async fn send(&self, items: FileTransferQueueRequest) {
+        let res = self.queue_tx.send(items).await;
+        if let Err(error) = res {
+            tracing::warn!(error = ?error);
+        }
     }
 
     /// Shutdown the file transfers loop.
@@ -167,19 +186,16 @@ impl FileTransfers {
         &mut self,
         paths: Arc<Paths>,
         clients: Vec<C>,
-        mut transfer_queue_rx: mpsc::Receiver<FileTransferQueueRequest>,
     ) -> FileTransfersHandle
     where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
-        let (handle, mut shutdown_rx, shutdown_tx) =
+        let (handle, mut shutdown_rx, shutdown_tx, mut queue_rx) =
             FileTransfersHandle::new();
 
         let queue = Arc::clone(&self.queue);
         let inflight = Arc::clone(&self.inflight);
-        // let paths = Arc::clone(&paths);
         let settings = Arc::clone(&self.settings);
-
         let semaphore =
             Arc::new(Semaphore::new(self.settings.concurrent_requests));
 
@@ -194,7 +210,7 @@ impl FileTransfers {
                             break;
                         }
                     }
-                    Some(events) = transfer_queue_rx.recv() => {
+                    Some(events) = queue_rx.recv() => {
                         {
                             let mut writer = queue.write().await;
                             for event in events {
@@ -209,20 +225,7 @@ impl FileTransfers {
                             Arc::clone(&inflight),
                             Arc::clone(&settings),
                             clients.as_slice(),
-                        ).await;
-
-                        /*
-                        match event {
-                            FileTransferQueueRequest::Pending(map) => {
-                                let mut writer = queue.write().await;
-                                writer.queue_transfers(map).await?;
-                            }
-                            FileTransferQueueRequest::MergeFileTransfers(set) => {
-                                let mut writer = queue.write().await;
-                                writer.merge_file_transfers(set).await?;
-                            }
-                        }
-                        */
+                        ).await?;
                     }
                     /*
                     _ = Self::maybe_process_transfers(
@@ -249,7 +252,8 @@ impl FileTransfers {
         inflight: Arc<InflightTransfers>,
         settings: Arc<FileTransferSettings>,
         clients: &[C],
-    ) where
+    ) -> Result<()>
+    where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
         loop {
@@ -257,14 +261,49 @@ impl FileTransfers {
                 break;
             }
 
-            let mut queue = queue.write().await;
-            if let Some((file, op)) = queue.pop_back() {
-                println!("process {:#?}", op);
+            let item = {
+                let mut queue = queue.write().await;
+                queue.pop_back()
+            };
+
+            if let Some((file, op)) = item {
+                // println!("process {:#?}", op);
 
                 match op {
-                    // Downloads can complete on any client
+                    // Downloads are a special case that can complete
+                    // on the first successful operation
                     TransferOperation::Download => {
-                        todo!("process download");
+                        let mut results = Vec::new();
+                        for client in clients.to_vec() {
+                            let _permit = semaphore.acquire().await.unwrap();
+                            let request_id = inflight.request_id().await;
+                            let result = Self::run_client_operation(
+                                request_id,
+                                Arc::clone(&settings),
+                                file,
+                                op,
+                                Arc::clone(&paths),
+                                client.clone(),
+                                Arc::clone(&inflight),
+                            )
+                            .await?;
+
+                            let is_done =
+                                matches!(&result.2, TransferResult::Done);
+                            results.push(result);
+                            if is_done {
+                                break;
+                            }
+                        }
+
+                        let was_done = results.iter().any(|(_, _, r)| {
+                            matches!(r, TransferResult::Done)
+                        });
+
+                        if !was_done {
+                            let mut queue = queue.write().await;
+                            queue.push_back((file, op));
+                        }
                     }
                     // Other operations must complete on all clients
                     _ => {
@@ -287,7 +326,6 @@ impl FileTransfers {
                                     Arc::clone(&inflight),
                                 )
                                 .await?;
-                                drop(_permit);
                                 Ok::<_, Error>(result)
                             });
                             jhs.push(jh);
@@ -306,6 +344,8 @@ impl FileTransfers {
                 }
             }
         }
+
+        Ok(())
     }
 
     /// Try to process the pending transfers list.

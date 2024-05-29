@@ -229,8 +229,6 @@ async fn file_transfers_single_download() -> Result<()> {
     let default_folder = uploader.owner.default_folder().await.unwrap();
     let mut downloader = uploader.connect(1, None).await?;
 
-    let inflight = uploader.owner.inflight_transfers()?;
-
     // Create file secret then wait and assert on the upload
     let file = {
         // Create an external file secret
@@ -240,6 +238,7 @@ async fn file_transfers_single_download() -> Result<()> {
         let file =
             ExternalFile::new(*default_folder.id(), secret_id, file_name);
 
+        let inflight = uploader.owner.inflight_transfers()?;
         wait_for_inflight(
             Arc::clone(&inflight),
             |event| {
@@ -270,7 +269,19 @@ async fn file_transfers_single_download() -> Result<()> {
         // creates the pending download transfer operation
         assert!(downloader.owner.sync().await.is_none());
 
-        wait_for_transfers(&downloader.owner).await?;
+        let inflight = downloader.owner.inflight_transfers()?;
+        wait_for_inflight(
+            Arc::clone(&inflight),
+            |event| {
+                matches!(
+                    event,
+                    InflightNotification::TransferAdded { .. }
+                        | InflightNotification::TransferRemoved { .. }
+                )
+            },
+            |num| num == 2,
+        )
+        .await;
 
         assert_local_remote_file_eq(
             downloader.owner.paths(),
