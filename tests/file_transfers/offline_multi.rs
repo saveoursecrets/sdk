@@ -146,7 +146,6 @@ async fn file_transfers_offline_multi_update() -> Result<()> {
 /// Tests uploading an external file after moving
 /// the secret to a different folder on multiple servers.
 #[tokio::test]
-#[ignore]
 async fn file_transfers_offline_multi_move() -> Result<()> {
     const TEST_ID: &str = "file_transfers_offline_multi_move";
 
@@ -209,8 +208,6 @@ async fn file_transfers_offline_multi_move() -> Result<()> {
 
     // Bring the server back online
     let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
-
-    println!("waiting for final file...");
 
     // Wait for the file to exist
     wait_for_file(&server1_paths, &file).await?;

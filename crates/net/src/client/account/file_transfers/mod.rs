@@ -4,7 +4,7 @@ use crate::{
     client::{net::NetworkRetry, Error, Result, SyncClient},
     sdk::{
         storage::files::{ExternalFile, TransferOperation},
-        Paths,
+        vfs, Paths,
     },
 };
 
@@ -18,7 +18,7 @@ mod operations;
 pub use inflight::{
     InflightNotification, InflightRequest, InflightTransfers,
 };
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 
 use super::network_account::FileTransferQueueRequest;
 
@@ -29,7 +29,7 @@ pub type ProgressChannel = mpsc::Sender<(u64, Option<u64>)>;
 pub type CancelChannel = watch::Sender<()>;
 
 /// Reason for a transfer error notification.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum TransferError {
     /// Error when network retries are exhausted.
     RetryExhausted,
@@ -42,7 +42,7 @@ pub enum TransferError {
 }
 
 /// Result of a file transfer operation.
-#[derive(Debug)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 enum TransferResult {
     /// Transfer completed across all clients.
     Done,
@@ -198,7 +198,9 @@ impl FileTransfers {
                         {
                             let mut writer = queue.write().await;
                             for event in events {
-                                writer.push_front(event);
+                                if !writer.contains(&event) {
+                                  writer.push_front(event);
+                                }
                             }
                         }
 
@@ -346,6 +348,7 @@ impl FileTransfers {
             }
         }
 
+        let request_paths = Arc::clone(&paths);
         let request_queue = Arc::clone(&queue);
         let download_inflight = Arc::clone(&inflight);
         let download_queue = Arc::clone(&queue);
@@ -368,7 +371,42 @@ impl FileTransfers {
                     notify_listeners(notify, &inflight.notifications).await;
                 }
             } else {
-                println!("result: {:#?}", results);
+                // println!("result: {:#?}", results);
+
+                // If we attempt a move but the source file
+                // of the move is missing on the target server
+                // and we have the destination locally
+                // on disc then we mutate it into an update operation
+                let moved_missing = results
+                    .iter()
+                    .filter(|(_, (_, _, r))| {
+                        matches!(
+                            r,
+                            TransferResult::Fatal(
+                                TransferError::MovedMissing
+                            )
+                        )
+                    })
+                    .cloned()
+                    .collect::<HashSet<_>>();
+                for (_, (_, op, _)) in moved_missing {
+                    if let TransferOperation::Move(dest) = &op {
+                        let path = request_paths.file_location(
+                            dest.vault_id(),
+                            dest.secret_id(),
+                            dest.file_name().to_string(),
+                        );
+
+                        if vfs::try_exists(path).await? {
+                            let item =
+                                (dest.clone(), TransferOperation::Upload);
+                            let mut queue = request_queue.write().await;
+                            if !queue.contains(&item) {
+                                queue.push_back(item);
+                            }
+                        }
+                    }
+                }
 
                 for (file, op) in results
                     .into_iter()
