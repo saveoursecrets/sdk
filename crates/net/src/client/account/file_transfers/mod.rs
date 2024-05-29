@@ -177,6 +177,7 @@ impl FileTransfers {
 
         let queue = Arc::clone(&self.queue);
         let inflight = Arc::clone(&self.inflight);
+        let cancel_inflight = Arc::clone(&self.inflight);
         let settings = Arc::clone(&self.settings);
         let semaphore =
             Arc::new(Semaphore::new(self.settings.concurrent_requests));
@@ -187,42 +188,53 @@ impl FileTransfers {
                     biased;
                     signal = shutdown_rx.recv().fuse() => {
                         if signal.is_some() {
-                            tracing::debug!("file_transfers_shut_down");
+                            tracing::debug!("file_transfers_shutting_down");
+                            cancel_inflight.cancel().await;
+
                             let _ = shutdown_tx.send(());
+                            tracing::debug!("file_transfers_shut_down");
+
                             break;
                         }
                     }
                     Some(events) = queue_rx.recv() => {
                         // println!("queue events: {}", events.len());
 
-                        {
+                        let num_queued = {
                             let mut writer = queue.write().await;
                             for event in events {
                                 if !writer.contains(&event) {
                                   writer.push_front(event);
                                 }
                             }
-                        }
+                            writer.len()
+                        };
 
-                        let mut remaining = Self::try_spawn_tasks(
-                            Arc::clone(&paths),
-                            Arc::clone(&semaphore),
-                            Arc::clone(&queue),
-                            Arc::clone(&inflight),
-                            Arc::clone(&settings),
-                            clients.as_slice(),
-                        ).await?;
+                        if num_queued > 0 {
+                          let semaphore = Arc::clone(&semaphore);
+                          let queue = Arc::clone(&queue);
+                          let inflight = Arc::clone(&inflight);
+                          let settings = Arc::clone(&settings);
+                          let clients = clients.clone();
+                          let paths = paths.clone();
 
-                        while let Some(_) = remaining {
-                          tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-                          remaining = Self::try_spawn_tasks(
-                              Arc::clone(&paths),
-                              Arc::clone(&semaphore),
-                              Arc::clone(&queue),
-                              Arc::clone(&inflight),
-                              Arc::clone(&settings),
-                              clients.as_slice(),
-                          ).await?;
+                          // We must not block here otherwise we can't cancel
+                          // whilst there are inflight requests as this branch
+                          // of the select would block the cancel branch
+                          tokio::task::spawn(async move {
+                            let res = Self::spawn_tasks(
+                                Arc::clone(&paths),
+                                Arc::clone(&semaphore),
+                                Arc::clone(&queue),
+                                Arc::clone(&inflight),
+                                Arc::clone(&settings),
+                                clients.clone(),
+                            )
+                            .await;
+                            if let Err(error) = res {
+                              tracing::error!(error = ?error);
+                            }
+                          });
                         }
                     }
                 }
@@ -234,7 +246,43 @@ impl FileTransfers {
         handle
     }
 
-    async fn try_spawn_tasks<C>(
+    async fn spawn_tasks<C>(
+        paths: Arc<Paths>,
+        semaphore: Arc<Semaphore>,
+        queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
+        inflight: Arc<InflightTransfers>,
+        settings: Arc<FileTransferSettings>,
+        clients: Vec<C>,
+    ) -> Result<()>
+    where
+        C: SyncClient + Clone + Send + Sync + 'static,
+    {
+        let mut remaining = Self::consume_queue(
+            Arc::clone(&paths),
+            Arc::clone(&semaphore),
+            Arc::clone(&queue),
+            Arc::clone(&inflight),
+            Arc::clone(&settings),
+            clients.as_slice(),
+        )
+        .await?;
+
+        while let Some(_) = remaining {
+            remaining = Self::consume_queue(
+                Arc::clone(&paths),
+                Arc::clone(&semaphore),
+                Arc::clone(&queue),
+                Arc::clone(&inflight),
+                Arc::clone(&settings),
+                clients.as_slice(),
+            )
+            .await?;
+        }
+
+        Ok(())
+    }
+
+    async fn consume_queue<C>(
         paths: Arc<Paths>,
         semaphore: Arc<Semaphore>,
         queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,

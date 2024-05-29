@@ -83,6 +83,17 @@ pub struct InflightRequest {
     pub cancel: Option<CancelChannel>,
 }
 
+impl InflightRequest {
+    /// Cancel the inflight request.
+    pub async fn cancel(mut self) -> bool {
+        if let Some(cancel) = self.cancel.take() {
+            cancel.send(()).is_ok()
+        } else {
+            false
+        }
+    }
+}
+
 /// Collection of pending transfers.
 pub struct InflightTransfers {
     inflight: Arc<RwLock<HashMap<u64, InflightRequest>>>,
@@ -98,6 +109,19 @@ impl InflightTransfers {
             inflight: Arc::new(RwLock::new(Default::default())),
             request_id: Arc::new(Mutex::new(AtomicU64::new(1))),
             notifications,
+        }
+    }
+
+    /// Cancel all inflight transfers.
+    pub async fn cancel(&self) {
+        let mut writer = self.inflight.write().await;
+        for (id, request) in writer.drain() {
+            tracing::info!(
+                request_id = %id,
+                op = ?request.operation,
+                "inflight::cancel",
+            );
+            request.cancel().await;
         }
     }
 
