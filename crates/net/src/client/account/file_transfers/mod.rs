@@ -53,14 +53,6 @@ enum TransferResult {
 pub struct FileTransferSettings {
     /// Number of concurrent requests.
     pub concurrent_requests: usize,
-    /// Delay in seconds between processing the transfers queue.
-    ///
-    /// This value is ignored when `debug_assertions` are enabled
-    /// so that the tests complete as fast as possible.
-    ///
-    /// When `debug_assertions` are enabled the delay is one second.
-    pub delay_seconds: u64,
-
     /// Settings for network retry.
     pub retry: NetworkRetry,
 }
@@ -69,7 +61,6 @@ impl Default for FileTransferSettings {
     fn default() -> Self {
         Self {
             concurrent_requests: 8,
-            delay_seconds: 15,
             // Disable retry for test specs so they
             // execute fast
             #[cfg(debug_assertions)]
@@ -221,15 +212,6 @@ impl FileTransfers {
                             clients.as_slice(),
                         ).await?;
                     }
-                    /*
-                    _ = Self::maybe_process_transfers(
-                      Arc::clone(&paths),
-                      Arc::clone(&settings),
-                      Arc::clone(&queue),
-                      Arc::clone(&inflight_transfers),
-                      clients.as_slice(),
-                    ).fuse() => {}
-                    */
                 }
             }
 

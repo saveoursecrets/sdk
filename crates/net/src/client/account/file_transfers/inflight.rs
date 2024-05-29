@@ -1,4 +1,6 @@
-//! Inflight file transfer requests.
+//! Tracks inflight file transfer requests and sends
+//! notifications so that applications can monitor the
+//! progress of file transfers.
 use crate::sdk::{
     storage::files::{ExternalFile, TransferOperation},
     sync::Origin,
@@ -29,7 +31,9 @@ pub enum InflightNotification {
         /// Transfer operation.
         operation: TransferOperation,
     },
-    /// Notify a transfer was updated.
+    /// Notify a transfer was updated with progress information.
+    ///
+    /// This notification is only sent for uploads and downloads.
     TransferUpdate {
         /// Request identifier.
         request_id: u64,
@@ -38,7 +42,7 @@ pub enum InflightNotification {
         /// Bytes total.
         bytes_total: Option<u64>,
     },
-    /// Notify a transfer was removed from inlight collection.
+    /// Notify a transfer was removed from inflight collection.
     TransferRemoved {
         /// Request identifier.
         request_id: u64,
@@ -52,17 +56,17 @@ pub enum InflightNotification {
         /// Maximum number of retries.
         maximum: u32,
     },
-    /// Notify a transfer was completed.
-    TransferDone {
-        /// Request identifier.
-        request_id: u64,
-    },
     /// Notify a transfer is stopped due to an error.
     TransferError {
         /// Request identifier.
         request_id: u64,
         /// Error reason.
         reason: TransferError,
+    },
+    /// Notify a transfer was completed.
+    TransferDone {
+        /// Request identifier.
+        request_id: u64,
     },
 }
 
