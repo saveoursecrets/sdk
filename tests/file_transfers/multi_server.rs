@@ -279,8 +279,7 @@ async fn file_transfers_multi_download() -> Result<()> {
         // Sync pulls down the file event logs and
         // creates the pending download transfer operation
         assert!(downloader.owner.sync().await.is_none());
-
-        wait_for_num_transfers(&downloader.owner, 2).await?;
+        wait_for_num_transfers(&downloader.owner, 1).await?;
 
         let server1_path = downloader.server_path;
         let server2_path =

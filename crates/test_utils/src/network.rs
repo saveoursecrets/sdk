@@ -365,23 +365,6 @@ pub async fn wait_for_inflight(
     }
 }
 
-/// Wait for file transfers to complete.
-#[deprecated]
-pub async fn wait_for_transfers(account: &NetworkAccount) -> Result<()> {
-    loop {
-        /*
-        let transfers = account.transfers()?;
-        let transfers = transfers.read().await;
-        let inflight = account.inflight_transfers()?;
-        if transfers.is_empty() && inflight.is_empty().await {
-            break;
-        }
-        */
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
-    Ok(())
-}
-
 /// Wait for a file to exist whose content matches
 /// the file name checksum.
 pub async fn wait_for_file(

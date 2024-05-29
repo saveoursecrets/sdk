@@ -1,4 +1,5 @@
-//! Manage pending file transfer operations.
+//! Queue file transfer operations and spawn tasks to
+//! perform the file transfer operations..
 use crate::{
     client::{net::NetworkRetry, Error, Result, SyncClient},
     sdk::{
@@ -196,6 +197,7 @@ impl FileTransfers {
                         }
                     }
                     Some(events) = queue_rx.recv() => {
+                        println!("queue: {:#?}", events);
                         {
                             let mut writer = queue.write().await;
                             for event in events {
@@ -248,7 +250,7 @@ impl FileTransfers {
             };
 
             if let Some((file, op)) = item {
-                println!("process: {:#?}", op);
+                // println!("process: {:#?}", op);
                 tracing::debug!(
                   file = ?file, op = ?op, "file_transfers::queue");
 
@@ -279,8 +281,8 @@ impl FileTransfers {
                             .await?;
 
                             let is_done =
-                                matches!(&result.2, TransferResult::Done);
-                            results.push((request_id, result.2));
+                                matches!(&result, TransferResult::Done);
+                            results.push((request_id, result));
                             if is_done {
                                 break;
                             }
@@ -304,11 +306,23 @@ impl FileTransfers {
                             notify_listeners(notify, &inflight.notifications)
                                 .await;
                         } else {
-                            println!("Add to back of queue (download)");
-                            /*
-                            let mut queue = queue.write().await;
-                            queue.push_back((file, op));
-                            */
+                            let resume = results
+                                .iter()
+                                .filter(|(_, r)| {
+                                    !matches!(r, TransferResult::Done)
+                                })
+                                .all(|(_, r)| {
+                                    matches!(
+                                        r,
+                                        TransferResult::Fatal(
+                                            TransferError::RetryExhausted
+                                        )
+                                    )
+                                });
+                            if resume {
+                                let mut queue = queue.write().await;
+                                queue.push_back((file, op));
+                            }
                         }
                     }
                     // Other operations must complete on all clients
@@ -340,7 +354,7 @@ impl FileTransfers {
                                 )
                                 .await?;
 
-                                Ok::<_, Error>((request_id, result.2))
+                                Ok::<_, Error>((request_id, result))
                             });
                             jhs.push(jh);
                         }
@@ -350,6 +364,8 @@ impl FileTransfers {
                             let result = jh.await.unwrap()?;
                             results.push(result);
                         }
+
+                        println!("results: {:#?}", results);
 
                         let done = results
                             .iter()
@@ -368,12 +384,24 @@ impl FileTransfers {
                                 .await;
                             }
                         } else {
-                            println!("Add to back of queue (operation)");
+                            let resume = results
+                                .iter()
+                                .filter(|(_, r)| {
+                                    !matches!(r, TransferResult::Done)
+                                })
+                                .all(|(_, r)| {
+                                    matches!(
+                                        r,
+                                        TransferResult::Fatal(
+                                            TransferError::RetryExhausted
+                                        )
+                                    )
+                                });
 
-                            /*
-                            let mut queue = queue.write().await;
-                            queue.push_back((file, op));
-                            */
+                            if resume {
+                                let mut queue = queue.write().await;
+                                queue.push_back((file, op));
+                            }
                         }
                     }
                 }
@@ -383,310 +411,6 @@ impl FileTransfers {
         Ok(())
     }
 
-    /*
-    /// Try to process the pending transfers list.
-    async fn maybe_process_transfers<C>(
-        paths: Arc<Paths>,
-        settings: Arc<FileTransferSettings>,
-        queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
-        inflight_transfers: Arc<InflightTransfers>,
-        clients: &[C],
-    ) -> Result<()>
-    where
-        C: SyncClient + Clone + Send + Sync + 'static,
-    {
-        let pending_transfers = {
-            let mut writer = queue.write().await;
-            if let Err(e) = writer.normalize(Arc::clone(&paths)).await {
-                tracing::error!(error = ?e);
-            }
-            writer.queue.clone()
-        };
-
-        #[cfg(not(debug_assertions))]
-        tracing::debug!(
-            num_pending = pending_transfers.len(),
-            "pending_transfers",
-        );
-
-        if !pending_transfers.is_empty() {
-            // Try to process pending transfers
-            if let Err(e) = Self::try_process_transfers(
-                Arc::clone(&paths),
-                Arc::clone(&settings),
-                Arc::clone(&queue),
-                Arc::clone(&inflight_transfers),
-                clients,
-                pending_transfers,
-            )
-            .await
-            {
-                tracing::warn!(error = ?e);
-            }
-        }
-
-        #[cfg(debug_assertions)]
-        sleep(Duration::from_secs(1)).await;
-
-        #[cfg(not(debug_assertions))]
-        sleep(Duration::from_secs(settings.delay_seconds)).await;
-
-        Ok(())
-    }
-    */
-
-    /*
-    /// Try to process the pending transfers list.
-    async fn try_process_transfers<C>(
-        paths: Arc<Paths>,
-        settings: Arc<FileTransferSettings>,
-        queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
-        inflight_transfers: Arc<InflightTransfers>,
-        clients: &[C],
-        pending_transfers: PendingOperations,
-    ) -> Result<()>
-    where
-        C: SyncClient + Clone + Send + Sync + 'static,
-    {
-        if !clients.is_empty() {
-            let list = pending_transfers.into_iter().collect::<Vec<_>>();
-            let mut downloads = Vec::new();
-            let mut uploads = Vec::new();
-            let mut requests = Vec::new();
-            for (file, op) in list {
-                match op {
-                    TransferOperation::Download => {
-                        downloads.push((file, clients.to_vec()));
-                    }
-                    TransferOperation::Upload => {
-                        uploads.push((file, op, clients.to_vec()));
-                    }
-                    _ => {
-                        requests.push((file, op, clients.to_vec()));
-                    }
-                }
-            }
-
-            let down: Pin<
-                Box<dyn Future<Output = Result<()>> + Send + 'static>,
-            > = Box::pin(Self::process_downloads(
-                Arc::clone(&paths),
-                downloads,
-                Arc::clone(&settings),
-                Arc::clone(&queue),
-                Arc::clone(&inflight_transfers),
-            ));
-
-            let up: Pin<
-                Box<dyn Future<Output = Result<()>> + Send + 'static>,
-            > = Box::pin(Self::process_requests(
-                Arc::clone(&paths),
-                settings.concurrent_uploads,
-                uploads,
-                Arc::clone(&settings),
-                Arc::clone(&queue),
-                Arc::clone(&inflight_transfers),
-            ));
-
-            let req: Pin<
-                Box<dyn Future<Output = Result<()>> + Send + 'static>,
-            > = Box::pin(Self::process_requests(
-                Arc::clone(&paths),
-                settings.concurrent_requests,
-                requests,
-                Arc::clone(&settings),
-                Arc::clone(&queue),
-                Arc::clone(&inflight_transfers),
-            ));
-
-            let transfers = vec![up, down, req];
-            futures::future::try_join_all(transfers).await?;
-        }
-        Ok(())
-    }
-
-    async fn process_downloads<C>(
-        paths: Arc<Paths>,
-        downloads: Vec<(ExternalFile, Vec<C>)>,
-        settings: Arc<FileTransferSettings>,
-        queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
-        inflight_transfers: Arc<InflightTransfers>,
-    ) -> Result<()>
-    where
-        C: SyncClient + Clone + Send + Sync + 'static,
-    {
-        let semaphore =
-            Arc::new(Semaphore::new(settings.concurrent_downloads));
-
-        let mut jhs = Vec::new();
-        for download in downloads {
-            let semaphore = semaphore.clone();
-            let inflight = Arc::clone(&inflight_transfers);
-            let paths = Arc::clone(&paths);
-            let settings = Arc::clone(&settings);
-            let jh = tokio::task::spawn(async move {
-                let (file, clients) = download;
-                let _permit = semaphore.acquire().await.unwrap();
-                let mut results = Vec::new();
-                for client in clients {
-                    let request_id = inflight.request_id().await;
-                    let result = Self::run_client_operation(
-                        request_id,
-                        Arc::clone(&settings),
-                        file,
-                        TransferOperation::Download,
-                        Arc::clone(&paths),
-                        client,
-                        Arc::clone(&inflight),
-                    )
-                    .await?;
-
-                    let is_done = matches!(&result.2, TransferResult::Done);
-                    results.push((request_id, result));
-                    if is_done {
-                        break;
-                    }
-                }
-                drop(_permit);
-
-                Ok::<_, Error>(results)
-            });
-            jhs.push(jh);
-        }
-
-        let mut responses = Vec::new();
-        for jh in jhs {
-            let response = jh.await.unwrap();
-            responses.push(response);
-        }
-
-        for response in responses {
-            let results = response?;
-            if results
-                .iter()
-                .any(|(_, (_, _, r))| matches!(r, TransferResult::Done))
-            {
-
-                /*
-                for (_, (file, op, _)) in results {
-                    let mut writer = queue.write().await;
-                    writer.transfer_completed(&file, &op).await?;
-                }
-                */
-            } else {
-                for (request_id, (_, _, result)) in results {
-                    if let TransferResult::Fatal(reason) = result {
-                        let notify = InflightNotification::TransferError {
-                            request_id,
-                            reason,
-                        };
-
-                        notify_listeners(
-                            notify,
-                            &inflight_transfers.notifications,
-                        )
-                        .await;
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    async fn process_requests<C>(
-        paths: Arc<Paths>,
-        concurrency: usize,
-        uploads: Vec<(ExternalFile, TransferOperation, Vec<C>)>,
-        settings: Arc<FileTransferSettings>,
-        queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
-        inflight_transfers: Arc<InflightTransfers>,
-    ) -> Result<()>
-    where
-        C: SyncClient + Clone + Send + Sync + 'static,
-    {
-        let semaphore = Arc::new(Semaphore::new(concurrency));
-
-        let mut jhs = Vec::new();
-        for upload in uploads {
-            let semaphore = semaphore.clone();
-            let inflight = Arc::clone(&inflight_transfers);
-            let paths = Arc::clone(&paths);
-            let settings = Arc::clone(&settings);
-            let jh = tokio::task::spawn(async move {
-                let (file, op, clients) = upload;
-                let mut results = Vec::new();
-                let _permit = semaphore.acquire().await.unwrap();
-                for client in clients {
-                    let request_id = inflight.request_id().await;
-                    let result = Self::run_client_operation(
-                        request_id,
-                        Arc::clone(&settings),
-                        file,
-                        op,
-                        Arc::clone(&paths),
-                        client,
-                        Arc::clone(&inflight),
-                    )
-                    .await?;
-                    results.push((request_id, result));
-                }
-                drop(_permit);
-
-                Ok::<_, Error>(results)
-            });
-            jhs.push(jh);
-        }
-
-        let mut responses = Vec::new();
-        for jh in jhs {
-            let response = jh.await.unwrap();
-            responses.push(response);
-        }
-
-        for response in responses {
-            let results = response?;
-            if results
-                .iter()
-                .all(|(_, (_, _, r))| matches!(r, TransferResult::Done))
-            {
-                for (request_id, (file, op, _)) in results {
-                    /*
-                    let mut writer = queue.write().await;
-                    writer.transfer_completed(&file, &op).await?;
-                    */
-
-                    let notify =
-                        InflightNotification::TransferRemoved { request_id };
-
-                    notify_listeners(
-                        notify,
-                        &inflight_transfers.notifications,
-                    )
-                    .await;
-                }
-            } else {
-                for (request_id, (_, _, result)) in results {
-                    if let TransferResult::Fatal(reason) = result {
-                        let notify = InflightNotification::TransferError {
-                            request_id,
-                            reason,
-                        };
-
-                        notify_listeners(
-                            notify,
-                            &inflight_transfers.notifications,
-                        )
-                        .await;
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-    */
-
     async fn run_client_operation<C>(
         request_id: u64,
         file: ExternalFile,
@@ -695,7 +419,7 @@ impl FileTransfers {
         settings: Arc<FileTransferSettings>,
         paths: Arc<Paths>,
         inflight_transfers: Arc<InflightTransfers>,
-    ) -> Result<(ExternalFile, TransferOperation, TransferResult)>
+    ) -> Result<TransferResult>
     where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
@@ -821,7 +545,7 @@ impl FileTransfers {
             notify_listeners(notify, &inflight_transfers.notifications).await;
         }
 
-        Ok((file, op, result))
+        Ok(result)
     }
 }
 
