@@ -10,7 +10,9 @@ use crate::{
 
 use futures::FutureExt;
 use std::sync::Arc;
-use tokio::sync::{broadcast, mpsc, oneshot, watch, RwLock, Semaphore};
+use tokio::sync::{
+    broadcast, mpsc, oneshot, watch, Mutex, RwLock, Semaphore,
+};
 
 mod inflight;
 mod operations;
@@ -175,10 +177,12 @@ impl FileTransfers {
         let (handle, mut shutdown_rx, shutdown_tx, mut queue_rx) =
             FileTransfersHandle::new();
 
-        let queue = Arc::clone(&self.queue);
-        let inflight = Arc::clone(&self.inflight);
-        let cancel_inflight = Arc::clone(&self.inflight);
-        let settings = Arc::clone(&self.settings);
+        let queue_drained = Arc::new(Mutex::new(false));
+
+        let queue = self.queue.clone();
+        let inflight = self.inflight.clone();
+        let cancel_inflight = self.inflight.clone();
+        let settings = self.settings.clone();
         let semaphore =
             Arc::new(Semaphore::new(self.settings.concurrent_requests));
 
@@ -210,30 +214,49 @@ impl FileTransfers {
                             writer.len()
                         };
 
-                        if num_queued > 0 {
-                          let semaphore = Arc::clone(&semaphore);
-                          let queue = Arc::clone(&queue);
-                          let inflight = Arc::clone(&inflight);
-                          let settings = Arc::clone(&settings);
+                        let is_running = {
+                          let reader = queue_drained.lock().await;
+                          *reader
+                        };
+
+                        if num_queued > 0 && !is_running {
+                          {
+                            let mut writer = queue_drained.lock().await;
+                            *writer = true;
+                          }
+
+                          let semaphore = semaphore.clone();
+                          let queue = queue.clone();
+                          let inflight = inflight.clone();
+                          let settings = settings.clone();
                           let clients = clients.clone();
                           let paths = paths.clone();
+                          let drained = queue_drained.clone();
 
                           // We must not block here otherwise we can't cancel
                           // whilst there are inflight requests as this branch
                           // of the select would block the cancel branch
                           tokio::task::spawn(async move {
+
+                            // This will complete when the queue
+                            // is empty
                             let res = Self::spawn_tasks(
-                                Arc::clone(&paths),
-                                Arc::clone(&semaphore),
-                                Arc::clone(&queue),
-                                Arc::clone(&inflight),
-                                Arc::clone(&settings),
+                                paths.clone(),
+                                semaphore.clone(),
+                                queue.clone(),
+                                inflight.clone(),
+                                settings.clone(),
                                 clients.clone(),
                             )
                             .await;
                             if let Err(error) = res {
                               tracing::error!(error = ?error);
                             }
+
+                            // Reset so we can spawn another task
+                            let mut writer = drained.lock().await;
+                            *writer = false;
+
                           });
                         }
                     }
@@ -258,22 +281,22 @@ impl FileTransfers {
         C: SyncClient + Clone + Send + Sync + 'static,
     {
         let mut remaining = Self::consume_queue(
-            Arc::clone(&paths),
-            Arc::clone(&semaphore),
-            Arc::clone(&queue),
-            Arc::clone(&inflight),
-            Arc::clone(&settings),
+            paths.clone(),
+            semaphore.clone(),
+            queue.clone(),
+            inflight.clone(),
+            settings.clone(),
             clients.as_slice(),
         )
         .await?;
 
         while let Some(_) = remaining {
             remaining = Self::consume_queue(
-                Arc::clone(&paths),
-                Arc::clone(&semaphore),
-                Arc::clone(&queue),
-                Arc::clone(&inflight),
-                Arc::clone(&settings),
+                paths.clone(),
+                semaphore.clone(),
+                queue.clone(),
+                inflight.clone(),
+                settings.clone(),
                 clients.as_slice(),
             )
             .await?;
@@ -320,11 +343,11 @@ impl FileTransfers {
                     // Downloads are a special case that can complete
                     // on the first successful operation
                     TransferOperation::Download => {
-                        let inflight = Arc::clone(&inflight);
-                        let settings = Arc::clone(&settings);
-                        let paths = Arc::clone(&paths);
+                        let inflight = inflight.clone();
+                        let settings = settings.clone();
+                        let paths = paths.clone();
                         let clients = clients.to_vec().clone();
-                        let permit = Arc::clone(&semaphore);
+                        let permit = semaphore.clone();
                         let jh = tokio::task::spawn(async move {
                             let mut results = Vec::new();
                             for client in clients {
@@ -342,9 +365,9 @@ impl FileTransfers {
                                     file,
                                     op,
                                     client.clone(),
-                                    Arc::clone(&settings),
-                                    Arc::clone(&paths),
-                                    Arc::clone(&inflight),
+                                    settings.clone(),
+                                    paths.clone(),
+                                    inflight.clone(),
                                 )
                                 .await?;
 
@@ -362,10 +385,10 @@ impl FileTransfers {
                     // Other operations must complete on all clients
                     _ => {
                         for client in clients.to_vec() {
-                            let inflight = Arc::clone(&inflight);
-                            let settings = Arc::clone(&settings);
-                            let paths = Arc::clone(&paths);
-                            let permit = Arc::clone(&semaphore);
+                            let inflight = inflight.clone();
+                            let settings = settings.clone();
+                            let paths = paths.clone();
+                            let permit = semaphore.clone();
                             let jh = tokio::task::spawn(async move {
                                 let _permit = permit.acquire().await.unwrap();
                                 let request_id = inflight.request_id().await;
@@ -381,9 +404,9 @@ impl FileTransfers {
                                     file,
                                     op,
                                     client.clone(),
-                                    Arc::clone(&settings),
-                                    Arc::clone(&paths),
-                                    Arc::clone(&inflight),
+                                    settings.clone(),
+                                    paths.clone(),
+                                    inflight.clone(),
                                 )
                                 .await?;
 
@@ -396,10 +419,10 @@ impl FileTransfers {
             }
         }
 
-        let request_paths = Arc::clone(&paths);
-        let request_queue = Arc::clone(&queue);
-        let download_inflight = Arc::clone(&inflight);
-        let download_queue = Arc::clone(&queue);
+        let request_paths = paths.clone();
+        let request_queue = queue.clone();
+        let download_inflight = inflight.clone();
+        let download_queue = queue.clone();
 
         let requests_task = async move {
             let mut results = Vec::new();
@@ -563,7 +586,7 @@ impl FileTransfers {
                 let (progress_tx, mut progress_rx): (ProgressChannel, _) =
                     mpsc::channel(16);
 
-                let progress_transfers = Arc::clone(&inflight_transfers);
+                let progress_transfers = inflight_transfers.clone();
 
                 // Proxt the progress information for an individual
                 // upload or download to the inflight transfers
@@ -619,7 +642,7 @@ impl FileTransfers {
                     client,
                     paths,
                     request_id,
-                    Arc::clone(&inflight_transfers),
+                    inflight_transfers.clone(),
                     retry,
                 );
                 let progress_tx = progress_tx.unwrap();
@@ -631,7 +654,7 @@ impl FileTransfers {
                     client,
                     paths,
                     request_id,
-                    Arc::clone(&inflight_transfers),
+                    inflight_transfers.clone(),
                     retry,
                 );
                 let progress_tx = progress_tx.unwrap();
@@ -642,7 +665,7 @@ impl FileTransfers {
                 let operation = operations::DeleteOperation::new(
                     client,
                     request_id,
-                    Arc::clone(&inflight_transfers),
+                    inflight_transfers.clone(),
                     retry,
                 );
                 operation.run(file).await?
@@ -651,7 +674,7 @@ impl FileTransfers {
                 let operation = operations::MoveOperation::new(
                     client,
                     request_id,
-                    Arc::clone(&inflight_transfers),
+                    inflight_transfers.clone(),
                     retry,
                 );
                 operation.run(file, dest).await?
