@@ -36,9 +36,9 @@ pub struct RemoteBridge {
     account: Arc<Mutex<LocalAccount>>,
     /// Client to use for remote communication.
     pub(crate) client: HttpClient,
-    /// File transfers.
-    #[cfg(feature = "files")]
-    file_transfer_queue: FileTransferQueueChannel,
+    // File transfers.
+    // #[cfg(feature = "files")]
+    // file_transfer_queue: FileTransferQueueChannel,
 }
 
 impl RemoteBridge {
@@ -50,8 +50,8 @@ impl RemoteBridge {
         signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
         connection_id: String,
-        #[cfg(feature = "files")]
-        file_transfer_queue: FileTransferQueueChannel,
+        // #[cfg(feature = "files")]
+        // file_transfer_queue: FileTransferQueueChannel,
     ) -> Result<Self> {
         let client =
             HttpClient::new(origin.clone(), signer, device, connection_id)?;
@@ -59,8 +59,8 @@ impl RemoteBridge {
             account,
             origin,
             client,
-            #[cfg(feature = "files")]
-            file_transfer_queue,
+            // #[cfg(feature = "files")]
+            // file_transfer_queue,
         })
     }
 
@@ -103,6 +103,7 @@ impl RemoteBridge {
             let (mut outcome, _) =
                 account.merge(&remote_changes.diff).await?;
 
+            /*
             // Compute which external files need to be downloaded
             // and add to the transfers queue
             if !outcome.external_files.is_empty() {
@@ -125,14 +126,14 @@ impl RemoteBridge {
                         set.insert(TransferOperation::Download);
                         map.insert(file, set);
 
-                        if self.file_transfer_queue.receiver_count() > 0 {
-                            let _ = self
-                                .file_transfer_queue
-                                .send(FileTransferQueueRequest::Pending(map));
-                        }
+                        let _ = self
+                            .file_transfer_queue
+                            .send(FileTransferQueueRequest::Pending(map))
+                            .await;
                     }
                 }
             }
+            */
 
             self.compare(&mut *account, remote_changes).await?;
         }
@@ -232,11 +233,14 @@ impl RemoteBridge {
 
         let file_transfers = self.client.compare_files(&file_set).await?;
 
-        if self.file_transfer_queue.receiver_count() > 0 {
-            let _ = self.file_transfer_queue.send(
-                FileTransferQueueRequest::MergeFileTransfers(file_transfers),
-            );
-        }
+        /*
+        let _ = self
+            .file_transfer_queue
+            .send(FileTransferQueueRequest::MergeFileTransfers(
+                file_transfers,
+            ))
+            .await;
+        */
 
         /*
         {

@@ -108,14 +108,13 @@ pub async fn run(cmd: Command) -> Result<()> {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
             let transfers = owner.transfers()?;
-            let transfers = transfers.read().await;
-            let queue = transfers.queue();
+            let queue = transfers.read().await;
             if queue.is_empty() {
                 println!("No queued file transfers");
             } else {
                 // Group by folder
                 let mut grouped = HashMap::new();
-                for (file, ops) in queue {
+                for (file, op) in &*queue {
                     if let Some(summary) =
                         owner.find(|s| s.id() == file.vault_id()).await
                     {
@@ -123,7 +122,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                             grouped.entry(summary).or_insert(HashMap::new());
                         let files =
                             secrets.entry(file.secret_id()).or_insert(vec![]);
-                        files.push((file.file_name(), ops));
+                        files.push((file.file_name(), op));
                     } else {
                         warn(format!("folder missing {}", file.vault_id(),));
                     }

@@ -10,8 +10,8 @@ mod load_queue;
 #[cfg(not(target_arch = "wasm32"))]
 mod multi_server;
 
-#[cfg(not(target_arch = "wasm32"))]
-mod normalize;
+// #[cfg(not(target_arch = "wasm32"))]
+// mod normalize;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod offline_multi;

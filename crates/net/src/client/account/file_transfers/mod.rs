@@ -10,19 +10,18 @@ use crate::{
 use futures::FutureExt;
 use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 use tokio::{
-    sync::{broadcast, mpsc, watch, RwLock, Semaphore},
+    sync::{broadcast, mpsc, oneshot, watch, RwLock, Semaphore},
     time::sleep,
 };
 
 mod inflight;
 mod operations;
-mod queue;
+// mod queue;
 
 pub use inflight::{
     InflightNotification, InflightRequest, InflightTransfers,
 };
-
-pub use queue::{PendingOperations, TransfersQueue};
+use std::collections::VecDeque;
 
 use super::network_account::FileTransferQueueRequest;
 
@@ -31,6 +30,8 @@ pub type ProgressChannel = mpsc::Sender<(u64, Option<u64>)>;
 
 /// Channel used to cancel uploads and downloads.
 pub type CancelChannel = watch::Sender<()>;
+
+type PendingOperations = Vec<(ExternalFile, TransferOperation)>;
 
 /// Reason for a transfer error notification.
 #[derive(Debug, Clone)]
@@ -56,11 +57,7 @@ enum TransferResult {
 /// Settings for file transfer operations.
 #[derive(Debug, Clone)]
 pub struct FileTransferSettings {
-    /// Number of concurrent downloads.
-    pub concurrent_downloads: usize,
-    /// Number of concurrent uploads.
-    pub concurrent_uploads: usize,
-    /// Number of concurrent move and delete requests.
+    /// Number of concurrent requests.
     pub concurrent_requests: usize,
     /// Delay in seconds between processing the transfers queue.
     ///
@@ -77,9 +74,7 @@ pub struct FileTransferSettings {
 impl Default for FileTransferSettings {
     fn default() -> Self {
         Self {
-            concurrent_downloads: 4,
-            concurrent_uploads: 4,
-            concurrent_requests: 12,
+            concurrent_requests: 8,
             delay_seconds: 15,
             // Disable retry for test specs so they
             // execute fast
@@ -102,61 +97,91 @@ impl FileTransferSettings {
     }
 }
 
+pub(crate) struct FileTransfersHandle {
+    shutdown_tx: mpsc::Sender<()>,
+    shutdown_rx: oneshot::Receiver<()>,
+}
+
+impl FileTransfersHandle {
+    /// Create a new handle.
+    fn new() -> (Self, mpsc::Receiver<()>, oneshot::Sender<()>) {
+        let (shutdown_tx, shutdown_rx) = mpsc::channel::<()>(1);
+        let (ack_tx, ack_rx) = oneshot::channel::<()>();
+        (
+            Self {
+                shutdown_tx,
+                shutdown_rx: ack_rx,
+            },
+            shutdown_rx,
+            ack_tx,
+        )
+    }
+
+    /// Shutdown the file transfers loop.
+    pub async fn shutdown(self) {
+        let res = self.shutdown_tx.send(()).await;
+        if let Err(error) = res {
+            tracing::warn!(error = ?error);
+        }
+        let res = self.shutdown_rx.await;
+        if let Err(error) = res {
+            tracing::warn!(error = ?error);
+        }
+    }
+}
+
 /// Transfers files to multiple clients.
 ///
 /// Reads operations from the queue, executes them on
 /// the list of clients and removes from the queue only
 /// when each operation has been completed on every client.
 pub struct FileTransfers {
-    paths: Arc<Paths>,
     settings: Arc<FileTransferSettings>,
-    shutdown_tx: Option<mpsc::UnboundedSender<()>>,
-    shutdown_rx: Option<mpsc::UnboundedReceiver<()>>,
-    pub(crate) queue: Arc<RwLock<TransfersQueue>>,
+    pub(crate) queue:
+        Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
     pub(crate) inflight: Arc<InflightTransfers>,
 }
 
 impl FileTransfers {
     /// Create new file transfers manager.
-    pub async fn new(
-        paths: Arc<Paths>,
-        settings: FileTransferSettings,
-    ) -> Result<Self> {
-        let (shutdown_tx, shutdown_rx) = mpsc::unbounded_channel::<()>();
-
-        let queue = TransfersQueue::new(&*paths).await?;
+    pub fn new(settings: FileTransferSettings) -> Self {
+        let queue = VecDeque::new();
         let inflight = InflightTransfers::new();
 
-        Ok(Self {
-            paths,
+        Self {
             settings: Arc::new(settings),
-            shutdown_rx: Some(shutdown_rx),
-            shutdown_tx: Some(shutdown_tx),
             queue: Arc::new(RwLock::new(queue)),
             inflight: Arc::new(inflight),
-        })
+        }
     }
 
-    /// Stop the file transfers running.
-    pub async fn stop(&mut self) {
-        if let Some(shutdown_tx) = self.shutdown_tx.take() {
-            let _ = shutdown_tx.send(());
-        }
+    /// Queue of transfer operations.
+    pub fn queue(
+        &self,
+    ) -> Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>> {
+        Arc::clone(&self.queue)
     }
 
     /// Spawn a task to transfer file operations.
     pub fn run<C>(
         &mut self,
+        paths: Arc<Paths>,
         clients: Vec<C>,
-        mut transfer_queue_rx: broadcast::Receiver<FileTransferQueueRequest>,
-    ) where
+        mut transfer_queue_rx: mpsc::Receiver<FileTransferQueueRequest>,
+    ) -> FileTransfersHandle
+    where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
+        let (handle, mut shutdown_rx, shutdown_tx) =
+            FileTransfersHandle::new();
+
         let queue = Arc::clone(&self.queue);
-        let inflight_transfers = Arc::clone(&self.inflight);
-        let paths = Arc::clone(&self.paths);
+        let inflight = Arc::clone(&self.inflight);
+        // let paths = Arc::clone(&paths);
         let settings = Arc::clone(&self.settings);
-        let mut shutdown_rx = self.shutdown_rx.take().unwrap();
+
+        let semaphore =
+            Arc::new(Semaphore::new(self.settings.concurrent_requests));
 
         tokio::task::spawn(async move {
             loop {
@@ -165,11 +190,28 @@ impl FileTransfers {
                     signal = shutdown_rx.recv().fuse() => {
                         if signal.is_some() {
                             tracing::debug!("file_transfers_shut_down");
+                            let _ = shutdown_tx.send(());
                             break;
                         }
                     }
-                    Ok(event) = transfer_queue_rx.recv() => {
-                        println!("Got queue modification event: {:#?}", event);
+                    Some(events) = transfer_queue_rx.recv() => {
+                        {
+                            let mut writer = queue.write().await;
+                            for event in events {
+                                writer.push_front(event);
+                            }
+                        }
+
+                        Self::try_spawn_tasks(
+                            Arc::clone(&paths),
+                            Arc::clone(&semaphore),
+                            Arc::clone(&queue),
+                            Arc::clone(&inflight),
+                            Arc::clone(&settings),
+                            clients.as_slice(),
+                        ).await;
+
+                        /*
                         match event {
                             FileTransferQueueRequest::Pending(map) => {
                                 let mut writer = queue.write().await;
@@ -180,7 +222,9 @@ impl FileTransfers {
                                 writer.merge_file_transfers(set).await?;
                             }
                         }
+                        */
                     }
+                    /*
                     _ = Self::maybe_process_transfers(
                       Arc::clone(&paths),
                       Arc::clone(&settings),
@@ -188,24 +232,94 @@ impl FileTransfers {
                       Arc::clone(&inflight_transfers),
                       clients.as_slice(),
                     ).fuse() => {}
+                    */
                 }
             }
 
             Ok::<_, Error>(())
         });
+
+        handle
+    }
+
+    async fn try_spawn_tasks<C>(
+        paths: Arc<Paths>,
+        semaphore: Arc<Semaphore>,
+        queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
+        inflight: Arc<InflightTransfers>,
+        settings: Arc<FileTransferSettings>,
+        clients: &[C],
+    ) where
+        C: SyncClient + Clone + Send + Sync + 'static,
+    {
+        loop {
+            if semaphore.available_permits() == 0 {
+                break;
+            }
+
+            let mut queue = queue.write().await;
+            if let Some((file, op)) = queue.pop_back() {
+                println!("process {:#?}", op);
+
+                match op {
+                    // Downloads can complete on any client
+                    TransferOperation::Download => {
+                        todo!("process download");
+                    }
+                    // Other operations must complete on all clients
+                    _ => {
+                        let mut jhs = Vec::new();
+                        for client in clients.to_vec() {
+                            let inflight = Arc::clone(&inflight);
+                            let settings = Arc::clone(&settings);
+                            let paths = Arc::clone(&paths);
+                            let permit = Arc::clone(&semaphore);
+                            let jh = tokio::task::spawn(async move {
+                                let _permit = permit.acquire().await.unwrap();
+                                let request_id = inflight.request_id().await;
+                                let result = Self::run_client_operation(
+                                    request_id,
+                                    Arc::clone(&settings),
+                                    file,
+                                    op,
+                                    Arc::clone(&paths),
+                                    client.clone(),
+                                    Arc::clone(&inflight),
+                                )
+                                .await?;
+                                drop(_permit);
+                                Ok::<_, Error>(result)
+                            });
+                            jhs.push(jh);
+                        }
+
+                        let mut responses = Vec::new();
+                        for jh in jhs {
+                            let response = jh.await.unwrap();
+                            responses.push(response);
+                        }
+
+                        for response in responses {
+                            println!("{:#?}", response);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Try to process the pending transfers list.
     async fn maybe_process_transfers<C>(
         paths: Arc<Paths>,
         settings: Arc<FileTransferSettings>,
-        queue: Arc<RwLock<TransfersQueue>>,
+        queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
         inflight_transfers: Arc<InflightTransfers>,
         clients: &[C],
     ) -> Result<()>
     where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
+        /*
         let pending_transfers = {
             let mut writer = queue.write().await;
             if let Err(e) = writer.normalize(Arc::clone(&paths)).await {
@@ -241,15 +355,17 @@ impl FileTransfers {
 
         #[cfg(not(debug_assertions))]
         sleep(Duration::from_secs(settings.delay_seconds)).await;
+        */
 
         Ok(())
     }
 
+    /*
     /// Try to process the pending transfers list.
     async fn try_process_transfers<C>(
         paths: Arc<Paths>,
         settings: Arc<FileTransferSettings>,
-        queue: Arc<RwLock<TransfersQueue>>,
+        queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
         inflight_transfers: Arc<InflightTransfers>,
         clients: &[C],
         pending_transfers: PendingOperations,
@@ -262,18 +378,16 @@ impl FileTransfers {
             let mut downloads = Vec::new();
             let mut uploads = Vec::new();
             let mut requests = Vec::new();
-            for (file, ops) in list {
-                for op in ops {
-                    match op {
-                        TransferOperation::Download => {
-                            downloads.push((file, clients.to_vec()));
-                        }
-                        TransferOperation::Upload => {
-                            uploads.push((file, op, clients.to_vec()));
-                        }
-                        _ => {
-                            requests.push((file, op, clients.to_vec()));
-                        }
+            for (file, op) in list {
+                match op {
+                    TransferOperation::Download => {
+                        downloads.push((file, clients.to_vec()));
+                    }
+                    TransferOperation::Upload => {
+                        uploads.push((file, op, clients.to_vec()));
+                    }
+                    _ => {
+                        requests.push((file, op, clients.to_vec()));
                     }
                 }
             }
@@ -320,7 +434,7 @@ impl FileTransfers {
         paths: Arc<Paths>,
         downloads: Vec<(ExternalFile, Vec<C>)>,
         settings: Arc<FileTransferSettings>,
-        queue: Arc<RwLock<TransfersQueue>>,
+        queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
         inflight_transfers: Arc<InflightTransfers>,
     ) -> Result<()>
     where
@@ -377,10 +491,13 @@ impl FileTransfers {
                 .iter()
                 .any(|(_, (_, _, r))| matches!(r, TransferResult::Done))
             {
+
+                /*
                 for (_, (file, op, _)) in results {
                     let mut writer = queue.write().await;
                     writer.transfer_completed(&file, &op).await?;
                 }
+                */
             } else {
                 for (request_id, (_, _, result)) in results {
                     if let TransferResult::Fatal(reason) = result {
@@ -407,7 +524,7 @@ impl FileTransfers {
         concurrency: usize,
         uploads: Vec<(ExternalFile, TransferOperation, Vec<C>)>,
         settings: Arc<FileTransferSettings>,
-        queue: Arc<RwLock<TransfersQueue>>,
+        queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
         inflight_transfers: Arc<InflightTransfers>,
     ) -> Result<()>
     where
@@ -459,8 +576,10 @@ impl FileTransfers {
                 .all(|(_, (_, _, r))| matches!(r, TransferResult::Done))
             {
                 for (request_id, (file, op, _)) in results {
+                    /*
                     let mut writer = queue.write().await;
                     writer.transfer_completed(&file, &op).await?;
+                    */
 
                     let notify =
                         InflightNotification::TransferRemoved { request_id };
@@ -491,6 +610,7 @@ impl FileTransfers {
 
         Ok(())
     }
+    */
 
     async fn run_client_operation<C>(
         request_id: u64,
@@ -607,6 +727,15 @@ impl FileTransfers {
             }
         };
 
+        {
+            tracing::debug!(
+                request_id = %request_id,
+                "inflight_transfer::remove",
+            );
+
+            inflight_transfers.remove_transfer(&request_id).await;
+        }
+
         if let TransferResult::Fatal(reason) = &result {
             // Handle backpressure on notifications
             let notify = InflightNotification::TransferError {
@@ -615,14 +744,6 @@ impl FileTransfers {
             };
 
             notify_listeners(notify, &inflight_transfers.notifications).await;
-        }
-
-        {
-            tracing::debug!(
-                request_id = %request_id,
-                "inflight_transfer::remove",
-            );
-            inflight_transfers.remove_transfer(&request_id).await;
         }
 
         Ok((file, op, result))

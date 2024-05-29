@@ -5,9 +5,13 @@ use anyhow::Result;
 use crate::test_utils::{
     assert_local_remote_file_eq, assert_local_remote_file_not_exist,
     mock::files::{create_file_secret, update_file_secret},
-    simulate_device, spawn, teardown, wait_for_transfers,
+    simulate_device, spawn, teardown, wait_for_inflight, wait_for_transfers,
 };
-use sos_net::{client::RemoteSync, sdk::prelude::*};
+use sos_net::{
+    client::{InflightNotification, RemoteSync},
+    sdk::prelude::*,
+};
+use std::sync::Arc;
 
 /// Tests uploading an external file.
 #[tokio::test]
@@ -225,6 +229,8 @@ async fn file_transfers_single_download() -> Result<()> {
     let default_folder = uploader.owner.default_folder().await.unwrap();
     let mut downloader = uploader.connect(1, None).await?;
 
+    let inflight = uploader.owner.inflight_transfers()?;
+
     // Create file secret then wait and assert on the upload
     let file = {
         // Create an external file secret
@@ -234,9 +240,18 @@ async fn file_transfers_single_download() -> Result<()> {
         let file =
             ExternalFile::new(*default_folder.id(), secret_id, file_name);
 
-        wait_for_transfers(&uploader.owner).await?;
-
-        println!("Assert on upload...");
+        wait_for_inflight(
+            Arc::clone(&inflight),
+            |event| {
+                matches!(
+                    event,
+                    InflightNotification::TransferAdded { .. }
+                        | InflightNotification::TransferRemoved { .. }
+                )
+            },
+            |num| num == 2,
+        )
+        .await;
 
         assert_local_remote_file_eq(
             uploader.owner.paths(),

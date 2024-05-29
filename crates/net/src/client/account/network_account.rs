@@ -30,13 +30,13 @@ use sos_sdk::{
     vfs, Paths,
 };
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     path::{Path, PathBuf},
     sync::Arc,
 };
 use tokio::{
     io::{AsyncRead, AsyncSeek},
-    sync::{broadcast, Mutex, RwLock},
+    sync::{mpsc, Mutex, RwLock},
 };
 
 #[cfg(feature = "archive")]
@@ -64,31 +64,24 @@ use crate::sdk::account::security_report::{
 #[cfg(feature = "migrate")]
 use crate::sdk::migrate::import::ImportTarget;
 
-use super::{file_transfers::FileTransferSettings, remote::Remotes};
+use super::{
+    file_transfers::{FileTransferSettings, FileTransfersHandle},
+    remote::Remotes,
+};
 use crate::client::{Error, RemoteBridge, RemoteSync, Result};
 
 #[cfg(feature = "files")]
-use crate::{
-    client::account::file_transfers::{
-        FileTransfers, InflightTransfers, PendingOperations, TransfersQueue,
-    },
-    sdk::storage::files::FileTransfersSet,
+use crate::client::account::file_transfers::{
+    FileTransfers, InflightTransfers,
 };
 
 /// Request to queue a file transfer.
 #[cfg(feature = "files")]
-#[derive(Debug, Clone)]
-pub enum FileTransferQueueRequest {
-    /// Add pending operations.
-    Pending(PendingOperations),
-    /// Merge file transfer set.
-    MergeFileTransfers(FileTransfersSet),
-}
+pub type FileTransferQueueRequest = Vec<(ExternalFile, TransferOperation)>;
 
 /// Channel to add file transfers to the queue.
 #[cfg(feature = "files")]
-pub type FileTransferQueueChannel =
-    broadcast::Sender<FileTransferQueueRequest>;
+pub type FileTransferQueueChannel = mpsc::Sender<FileTransferQueueRequest>;
 
 /// Options for network account creation.
 #[derive(Debug, Default)]
@@ -135,7 +128,11 @@ pub struct NetworkAccount {
 
     /// Channel for adding file transfers to the queue.
     #[cfg(feature = "files")]
-    file_transfer_queue: FileTransferQueueChannel,
+    file_transfer_queue: Option<FileTransferQueueChannel>,
+
+    /// Handle to a file transfers event loop.
+    #[cfg(feature = "files")]
+    file_transfer_handle: Option<FileTransfersHandle>,
 
     /// Disable networking.
     pub(crate) offline: bool,
@@ -164,11 +161,8 @@ impl NetworkAccount {
             self.connection_id = self.client_connection_id().await.ok();
         }
 
-        let file_transfers = FileTransfers::new(
-            self.paths(),
-            self.options.file_transfer_settings.clone(),
-        )
-        .await?;
+        let file_transfers =
+            FileTransfers::new(self.options.file_transfer_settings.clone());
         self.file_transfers = Some(file_transfers);
 
         // Load origins from disc and create remote definitions
@@ -304,8 +298,8 @@ impl NetworkAccount {
             signer,
             device.into(),
             conn_id,
-            #[cfg(feature = "files")]
-            self.file_transfer_queue.clone(),
+            // #[cfg(feature = "files")]
+            // self.file_transfer_queue.clone(),
         )?;
         Ok(provider)
     }
@@ -366,6 +360,7 @@ impl NetworkAccount {
         // Stop any existing transfers task
         self.stop_file_transfers().await;
 
+        let paths = self.paths();
         if let Some(file_transfers) = &mut self.file_transfers {
             let clients = {
                 let remotes = self.remotes.read().await;
@@ -376,12 +371,13 @@ impl NetworkAccount {
                 clients
             };
 
-            file_transfers.run(clients, self.file_transfer_queue.subscribe());
+            let (file_transfer_tx, file_transfer_rx) =
+                mpsc::channel::<FileTransferQueueRequest>(32);
 
-            println!(
-                "SUBSCRIBING TO QUEUE {}",
-                self.file_transfer_queue.receiver_count()
-            );
+            let handle = file_transfers.run(paths, clients, file_transfer_rx);
+
+            self.file_transfer_queue = Some(file_transfer_tx);
+            self.file_transfer_handle = Some(handle);
         }
 
         Ok(())
@@ -389,8 +385,8 @@ impl NetworkAccount {
 
     /// Stop a file transfers task.
     async fn stop_file_transfers(&mut self) {
-        if let Some(file_transfers) = self.file_transfers.as_mut() {
-            file_transfers.stop().await;
+        if let Some(handle) = self.file_transfer_handle.take() {
+            handle.shutdown().await;
         }
     }
 
@@ -425,10 +421,6 @@ impl NetworkAccount {
         let account =
             LocalAccount::new_unauthenticated(address, data_dir).await?;
 
-        #[cfg(feature = "files")]
-        let (file_transfer_queue, _) =
-            broadcast::channel::<FileTransferQueueRequest>(2048);
-
         Ok(Self {
             address: Default::default(),
             paths: account.paths(),
@@ -441,7 +433,9 @@ impl NetworkAccount {
             #[cfg(feature = "files")]
             file_transfers: None,
             #[cfg(feature = "files")]
-            file_transfer_queue,
+            file_transfer_queue: None,
+            #[cfg(feature = "files")]
+            file_transfer_handle: None,
             offline: options.offline,
             options,
         })
@@ -494,10 +488,6 @@ impl NetworkAccount {
         )
         .await?;
 
-        #[cfg(feature = "files")]
-        let (file_transfer_queue, _) =
-            broadcast::channel::<FileTransferQueueRequest>(32);
-
         let owner = Self {
             address: account.address().clone(),
             paths: account.paths(),
@@ -510,7 +500,9 @@ impl NetworkAccount {
             #[cfg(feature = "files")]
             file_transfers: None,
             #[cfg(feature = "files")]
-            file_transfer_queue,
+            file_transfer_queue: None,
+            #[cfg(feature = "files")]
+            file_transfer_handle: None,
             offline: options.offline,
             options,
         };
@@ -520,7 +512,10 @@ impl NetworkAccount {
 
     /// File transfers queue.
     #[cfg(feature = "files")]
-    pub fn transfers(&self) -> crate::Result<Arc<RwLock<TransfersQueue>>> {
+    pub fn transfers(
+        &self,
+    ) -> crate::Result<Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>>
+    {
         Ok(self
             .file_transfers
             .as_ref()
@@ -543,22 +538,19 @@ impl NetworkAccount {
         &self,
         events: &[FileMutationEvent],
     ) -> Result<()> {
-        let mut ops = HashMap::new();
-        for event in events {
-            let (file, op): (ExternalFile, TransferOperation) = event.into();
-            let entries = ops.entry(file).or_insert(IndexSet::new());
-            entries.insert(op);
-        }
+        println!("mutation: {}", events.len());
 
-        println!(
-            "queue_file_mutation_events: {}",
-            self.file_transfer_queue.receiver_count()
-        );
+        if let Some(tx) = &self.file_transfer_queue {
+            let mut items = Vec::with_capacity(events.len());
+            for event in events {
+                let item: (ExternalFile, TransferOperation) = event.into();
+                items.push(item);
+            }
 
-        if self.file_transfer_queue.receiver_count() > 0 {
-            let _ = self
-                .file_transfer_queue
-                .send(FileTransferQueueRequest::Pending(ops));
+            let res = tx.send(items).await;
+            if let Err(error) = res {
+                tracing::warn!(error = ?error);
+            }
         }
 
         Ok(())

@@ -4,7 +4,8 @@ use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
     client::{
-        ListenOptions, NetworkAccount, RemoteBridge, RemoteSync, SyncClient,
+        InflightNotification, InflightTransfers, ListenOptions,
+        NetworkAccount, RemoteBridge, RemoteSync, SyncClient,
         WebSocketHandle,
     },
     sdk::{
@@ -21,7 +22,14 @@ use sos_net::{
         vfs, Paths,
     },
 };
-use std::{path::PathBuf, time::Duration};
+use std::{
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicU16, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 /// Simulated device information.
 pub struct SimulatedDevice {
@@ -312,13 +320,46 @@ pub async fn assert_local_remote_file_not_exist(
     Ok(())
 }
 
+/// Wait for inflight notifications.
+pub async fn wait_for_inflight(
+    inflight: Arc<InflightTransfers>,
+    increment: impl Fn(InflightNotification) -> bool + Send + Sync + 'static,
+    is_complete: impl Fn(u16) -> bool + Send + Sync + 'static,
+) {
+    let mut inflight_rx = inflight.notifications().subscribe();
+    let num_events = Arc::new(AtomicU16::new(1));
+
+    loop {
+        tokio::select! {
+          event = inflight_rx.recv() => {
+            if let Ok(event) = event {
+                // println!("event: {:#?}", event);
+                if increment(event) {
+                    num_events.fetch_add(1, Ordering::SeqCst);
+                }
+                let amount = num_events.fetch_add(0, Ordering::SeqCst);
+                if is_complete(amount) {
+                  println!("wait_for_inflight::finished");
+                  break;
+                }
+            }
+          }
+        }
+    }
+}
+
 /// Wait for file transfers to complete.
 pub async fn wait_for_transfers(account: &NetworkAccount) -> Result<()> {
     loop {
-        let transfers = account.inflight_transfers()?;
-        if transfers.is_empty().await {
+        /*
+        let transfers = account.transfers()?;
+        let transfers = transfers.read().await;
+        let inflight = account.inflight_transfers()?;
+        if transfers.is_empty() && inflight.is_empty().await {
             break;
         }
+        */
+        tokio::time::sleep(Duration::from_millis(25)).await;
     }
     Ok(())
 }

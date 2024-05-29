@@ -11,7 +11,7 @@ mod sync;
 #[cfg(feature = "files")]
 pub use file_transfers::{
     CancelChannel, FileTransferSettings, InflightNotification,
-    InflightRequest, ProgressChannel,
+    InflightRequest, InflightTransfers, ProgressChannel,
 };
 pub use network_account::{NetworkAccount, NetworkAccountOptions};
 pub use remote::RemoteBridge;
