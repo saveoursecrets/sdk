@@ -221,6 +221,7 @@ async fn file_transfers_single_download() -> Result<()> {
 
     // Prepare mock devices
     let mut uploader = simulate_device(TEST_ID, 2, Some(&server)).await?;
+
     let default_folder = uploader.owner.default_folder().await.unwrap();
     let mut downloader = uploader.connect(1, None).await?;
 
@@ -235,7 +236,7 @@ async fn file_transfers_single_download() -> Result<()> {
 
         wait_for_transfers(&uploader.owner).await?;
 
-        println!("Upload completed...");
+        println!("Assert on upload...");
 
         assert_local_remote_file_eq(
             uploader.owner.paths(),
@@ -246,6 +247,8 @@ async fn file_transfers_single_download() -> Result<()> {
 
         file
     };
+
+    println!("Starting download...");
 
     {
         // Sync pulls down the file event logs and

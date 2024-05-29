@@ -57,7 +57,7 @@ async fn file_transfers_sync_file_transfers() -> Result<()> {
     // Wipe out any existing file transfers queue
     // so we can mock this scenario
     {
-        let transfers = device.owner.transfers().await?;
+        let transfers = device.owner.transfers()?;
         let mut transfers = transfers.write().await;
         transfers.clear();
     }
@@ -77,7 +77,7 @@ async fn file_transfers_sync_file_transfers() -> Result<()> {
     // Should have transfer operations for each file in
     // the transfers queue after syncing for the first time
     {
-        let transfers = device.owner.transfers().await?;
+        let transfers = device.owner.transfers()?;
         let transfers = transfers.read().await;
         for file in &files {
             assert!(transfers.queue().get(file).is_some());

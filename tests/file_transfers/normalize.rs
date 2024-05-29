@@ -35,7 +35,7 @@ async fn file_transfers_normalize_upload_delete() -> Result<()> {
     {
         // Before the transfer list is normalized we have
         // upload and delete operations
-        let transfers = device.owner.transfers().await?;
+        let transfers = device.owner.transfers()?;
         let mut transfers = transfers.write().await;
         let ops = transfers.queue().get(&file).unwrap().clone();
         let ops = ops.into_iter().collect::<Vec<_>>();
@@ -121,7 +121,7 @@ async fn file_transfers_normalize_move() -> Result<()> {
     {
         // Before the transfer list is normalized we have
         // upload and delete operations
-        let transfers = device.owner.transfers().await?;
+        let transfers = device.owner.transfers()?;
         let mut transfers = transfers.write().await;
 
         let ops = transfers.queue().get(&old_file).unwrap().clone();

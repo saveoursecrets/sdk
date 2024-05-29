@@ -206,8 +206,6 @@ impl NetworkAccount {
             storage.revoke_device(device_key).await?;
         }
 
-        println!("Sending patch devices request...");
-
         // Send the device event logs to the remote servers
         if let Some(e) = self.patch_devices(&Default::default()).await {
             tracing::error!(error = ?e);
@@ -379,6 +377,11 @@ impl NetworkAccount {
             };
 
             file_transfers.run(clients, self.file_transfer_queue.subscribe());
+
+            println!(
+                "SUBSCRIBING TO QUEUE {}",
+                self.file_transfer_queue.receiver_count()
+            );
         }
 
         Ok(())
@@ -386,7 +389,7 @@ impl NetworkAccount {
 
     /// Stop a file transfers task.
     async fn stop_file_transfers(&mut self) {
-        if let Some(mut file_transfers) = self.file_transfers.take() {
+        if let Some(file_transfers) = self.file_transfers.as_mut() {
             file_transfers.stop().await;
         }
     }
@@ -424,7 +427,7 @@ impl NetworkAccount {
 
         #[cfg(feature = "files")]
         let (file_transfer_queue, _) =
-            broadcast::channel::<FileTransferQueueRequest>(32);
+            broadcast::channel::<FileTransferQueueRequest>(2048);
 
         Ok(Self {
             address: Default::default(),
@@ -517,9 +520,7 @@ impl NetworkAccount {
 
     /// File transfers queue.
     #[cfg(feature = "files")]
-    pub async fn transfers(
-        &self,
-    ) -> crate::Result<Arc<RwLock<TransfersQueue>>> {
+    pub fn transfers(&self) -> crate::Result<Arc<RwLock<TransfersQueue>>> {
         Ok(self
             .file_transfers
             .as_ref()
@@ -529,7 +530,7 @@ impl NetworkAccount {
 
     /// Inflight file transfers.
     #[cfg(feature = "files")]
-    pub async fn inflight_transfers(&self) -> Result<Arc<InflightTransfers>> {
+    pub fn inflight_transfers(&self) -> Result<Arc<InflightTransfers>> {
         Ok(self
             .file_transfers
             .as_ref()
@@ -548,6 +549,11 @@ impl NetworkAccount {
             let entries = ops.entry(file).or_insert(IndexSet::new());
             entries.insert(op);
         }
+
+        println!(
+            "queue_file_mutation_events: {}",
+            self.file_transfer_queue.receiver_count()
+        );
 
         if self.file_transfer_queue.receiver_count() > 0 {
             let _ = self
@@ -798,6 +804,7 @@ impl Account for NetworkAccount {
         {
             tracing::debug!("net_sign_out::stop_file_transfers");
             self.stop_file_transfers().await;
+            self.file_transfers.take();
         }
 
         self.remotes = Default::default();
@@ -1032,16 +1039,6 @@ impl Account for NetworkAccount {
         let account = self.account.lock().await;
         Ok(account.detached_view(summary, commit).await?)
     }
-
-    /*
-    #[cfg(feature = "files")]
-    async fn transfers(
-        &self,
-    ) -> Result<Arc<RwLock<crate::sdk::storage::files::Transfers>>> {
-        let account = self.account.lock().await;
-        Ok(account.transfers().await?)
-    }
-    */
 
     #[cfg(feature = "search")]
     async fn initialize_search_index(

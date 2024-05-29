@@ -315,9 +315,8 @@ pub async fn assert_local_remote_file_not_exist(
 /// Wait for file transfers to complete.
 pub async fn wait_for_transfers(account: &NetworkAccount) -> Result<()> {
     loop {
-        let transfers = account.transfers().await?;
-        let transfers = transfers.read().await;
-        if transfers.is_empty() {
+        let transfers = account.inflight_transfers()?;
+        if transfers.is_empty().await {
             break;
         }
     }

@@ -30,7 +30,7 @@ async fn file_transfers_load_queue() -> Result<()> {
     let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
 
     {
-        let transfers = device.owner.transfers().await?;
+        let transfers = device.owner.transfers()?;
         let transfers = transfers.read().await;
         let ops = transfers.queue().get(&file).unwrap().clone();
         let ops = ops.into_iter().collect::<Vec<_>>();
@@ -45,7 +45,7 @@ async fn file_transfers_load_queue() -> Result<()> {
     device.owner.sign_in(&key).await?;
 
     {
-        let transfers = device.owner.transfers().await?;
+        let transfers = device.owner.transfers()?;
         let transfers = transfers.read().await;
         let ops = transfers.queue().get(&file).unwrap().clone();
         let ops = ops.into_iter().collect::<Vec<_>>();

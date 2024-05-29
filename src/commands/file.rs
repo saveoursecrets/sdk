@@ -107,7 +107,7 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Transfers { account } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
-            let transfers = owner.transfers().await?;
+            let transfers = owner.transfers()?;
             let transfers = transfers.read().await;
             let queue = transfers.queue();
             if queue.is_empty() {

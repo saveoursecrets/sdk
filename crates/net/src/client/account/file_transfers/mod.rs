@@ -169,6 +169,7 @@ impl FileTransfers {
                         }
                     }
                     Ok(event) = transfer_queue_rx.recv() => {
+                        println!("Got queue modification event: {:#?}", event);
                         match event {
                             FileTransferQueueRequest::Pending(map) => {
                                 let mut writer = queue.write().await;

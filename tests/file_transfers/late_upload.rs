@@ -70,7 +70,7 @@ async fn file_transfers_late_upload() -> Result<()> {
     // Should have transfer operations for each file in
     // the transfers queue
     {
-        let transfers = device.owner.transfers().await?;
+        let transfers = device.owner.transfers()?;
         let mut transfers = transfers.write().await;
 
         // Must normalize before asserting
