@@ -38,7 +38,7 @@ pub enum InflightNotification {
         /// Bytes total.
         bytes_total: Option<u64>,
     },
-    /// Notify a transfer was removed.
+    /// Notify a transfer was removed from inlight collection.
     TransferRemoved {
         /// Request identifier.
         request_id: u64,
@@ -51,6 +51,11 @@ pub enum InflightNotification {
         retry: u32,
         /// Maximum number of retries.
         maximum: u32,
+    },
+    /// Notify a transfer was completed.
+    TransferDone {
+        /// Request identifier.
+        request_id: u64,
     },
     /// Notify a transfer is stopped due to an error.
     TransferError {

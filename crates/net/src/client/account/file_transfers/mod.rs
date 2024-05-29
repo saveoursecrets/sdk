@@ -100,7 +100,7 @@ impl FileTransferSettings {
 pub(crate) struct FileTransfersHandle {
     shutdown_tx: mpsc::Sender<()>,
     shutdown_rx: oneshot::Receiver<()>,
-    queue_tx: mpsc::Sender<FileTransferQueueRequest>,
+    pub(crate) queue_tx: mpsc::Sender<FileTransferQueueRequest>,
 }
 
 impl FileTransfersHandle {
@@ -257,17 +257,23 @@ impl FileTransfers {
         C: SyncClient + Clone + Send + Sync + 'static,
     {
         loop {
-            if semaphore.available_permits() == 0 {
+            let len = {
+                let queue = queue.read().await;
+                queue.len()
+            };
+
+            if semaphore.available_permits() == 0 || len == 0 {
                 break;
             }
 
             let item = {
                 let mut queue = queue.write().await;
-                queue.pop_back()
+                queue.pop_front()
             };
 
             if let Some((file, op)) = item {
-                // println!("process {:#?}", op);
+                tracing::debug!(
+                  file = ?file, op = ?op, "file_transfers::queue");
 
                 match op {
                     // Downloads are a special case that can complete
@@ -277,32 +283,55 @@ impl FileTransfers {
                         for client in clients.to_vec() {
                             let _permit = semaphore.acquire().await.unwrap();
                             let request_id = inflight.request_id().await;
+
+                            tracing::debug!(
+                              request_id = %request_id,
+                              op = ?op,
+                              "file_transfers::run",
+                            );
+
                             let result = Self::run_client_operation(
                                 request_id,
-                                Arc::clone(&settings),
                                 file,
                                 op,
-                                Arc::clone(&paths),
                                 client.clone(),
+                                Arc::clone(&settings),
+                                Arc::clone(&paths),
                                 Arc::clone(&inflight),
                             )
                             .await?;
 
                             let is_done =
                                 matches!(&result.2, TransferResult::Done);
-                            results.push(result);
+                            results.push((request_id, result.2));
                             if is_done {
                                 break;
                             }
                         }
 
-                        let was_done = results.iter().any(|(_, _, r)| {
-                            matches!(r, TransferResult::Done)
-                        });
+                        let done_requests = results
+                            .iter()
+                            .filter_map(|(id, r)| {
+                                if matches!(r, TransferResult::Done) {
+                                    Some(id)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<_>>();
 
-                        if !was_done {
+                        if let Some(request_id) = done_requests.first() {
+                            let notify = InflightNotification::TransferDone {
+                                request_id: **request_id,
+                            };
+                            notify_listeners(notify, &inflight.notifications)
+                                .await;
+                        } else {
+                            println!("Add to back of queue (download)");
+                            /*
                             let mut queue = queue.write().await;
                             queue.push_back((file, op));
+                            */
                         }
                     }
                     // Other operations must complete on all clients
@@ -316,29 +345,57 @@ impl FileTransfers {
                             let jh = tokio::task::spawn(async move {
                                 let _permit = permit.acquire().await.unwrap();
                                 let request_id = inflight.request_id().await;
+
+                                tracing::debug!(
+                                  request_id = %request_id,
+                                  op = ?op,
+                                  "file_transfers::run",
+                                );
+
                                 let result = Self::run_client_operation(
                                     request_id,
-                                    Arc::clone(&settings),
                                     file,
                                     op,
-                                    Arc::clone(&paths),
                                     client.clone(),
+                                    Arc::clone(&settings),
+                                    Arc::clone(&paths),
                                     Arc::clone(&inflight),
                                 )
                                 .await?;
-                                Ok::<_, Error>(result)
+                                Ok::<_, Error>((request_id, result.2))
                             });
                             jhs.push(jh);
                         }
 
-                        let mut responses = Vec::new();
+                        let mut results = Vec::new();
                         for jh in jhs {
-                            let response = jh.await.unwrap();
-                            responses.push(response);
+                            let result = jh.await.unwrap()?;
+                            results.push(result);
                         }
 
-                        for response in responses {
-                            println!("{:#?}", response);
+                        let done = results
+                            .iter()
+                            .all(|(_, r)| matches!(r, TransferResult::Done));
+
+                        if done {
+                            for (request_id, _) in results {
+                                let notify =
+                                    InflightNotification::TransferDone {
+                                        request_id,
+                                    };
+                                notify_listeners(
+                                    notify,
+                                    &inflight.notifications,
+                                )
+                                .await;
+                            }
+                        } else {
+                            println!("Add to back of queue (operation)");
+
+                            /*
+                            let mut queue = queue.write().await;
+                            queue.push_back((file, op));
+                            */
                         }
                     }
                 }
@@ -348,6 +405,7 @@ impl FileTransfers {
         Ok(())
     }
 
+    /*
     /// Try to process the pending transfers list.
     async fn maybe_process_transfers<C>(
         paths: Arc<Paths>,
@@ -359,7 +417,6 @@ impl FileTransfers {
     where
         C: SyncClient + Clone + Send + Sync + 'static,
     {
-        /*
         let pending_transfers = {
             let mut writer = queue.write().await;
             if let Err(e) = writer.normalize(Arc::clone(&paths)).await {
@@ -395,10 +452,10 @@ impl FileTransfers {
 
         #[cfg(not(debug_assertions))]
         sleep(Duration::from_secs(settings.delay_seconds)).await;
-        */
 
         Ok(())
     }
+    */
 
     /*
     /// Try to process the pending transfers list.
@@ -654,11 +711,11 @@ impl FileTransfers {
 
     async fn run_client_operation<C>(
         request_id: u64,
-        settings: Arc<FileTransferSettings>,
         file: ExternalFile,
         op: TransferOperation,
-        paths: Arc<Paths>,
         client: C,
+        settings: Arc<FileTransferSettings>,
+        paths: Arc<Paths>,
         inflight_transfers: Arc<InflightTransfers>,
     ) -> Result<(ExternalFile, TransferOperation, TransferResult)>
     where

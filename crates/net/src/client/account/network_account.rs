@@ -288,14 +288,13 @@ impl NetworkAccount {
         } else {
             self.client_connection_id().await?
         };
+
         let provider = RemoteBridge::new(
             Arc::clone(&self.account),
             origin.clone(),
             signer,
             device.into(),
             conn_id,
-            // #[cfg(feature = "files")]
-            // self.file_transfer_queue.clone(),
         )?;
         Ok(provider)
     }
@@ -368,6 +367,24 @@ impl NetworkAccount {
             };
 
             let handle = file_transfers.run(paths, clients);
+
+            {
+                let remotes = self.remotes.read().await;
+                for (_, remote) in &*remotes {
+                    let mut rx = remote.file_transfer_queue.subscribe();
+                    let tx = handle.queue_tx.clone();
+                    tokio::task::spawn(async move {
+                        while let Ok(event) = rx.recv().await {
+                            let res = tx.send(event).await;
+                            if let Err(error) = res {
+                                tracing::error!(error = ?error);
+                            }
+                        }
+                        Ok::<_, Error>(())
+                    });
+                }
+            }
+
             self.file_transfer_handle = Some(handle);
         }
 

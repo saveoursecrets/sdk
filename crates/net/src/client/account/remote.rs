@@ -16,12 +16,10 @@ use sos_sdk::{
     vfs,
 };
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::Mutex;
+use tokio::sync::{broadcast, Mutex};
 
 #[cfg(feature = "files")]
-use super::network_account::{
-    FileTransferQueueChannel, FileTransferQueueRequest,
-};
+use super::network_account::FileTransferQueueRequest;
 
 /// Collection of remote targets for synchronization.
 pub(crate) type Remotes = HashMap<Origin, RemoteBridge>;
@@ -37,8 +35,9 @@ pub struct RemoteBridge {
     /// Client to use for remote communication.
     pub(crate) client: HttpClient,
     // File transfers.
-    // #[cfg(feature = "files")]
-    // file_transfer_queue: FileTransferQueueChannel,
+    #[cfg(feature = "files")]
+    pub(crate) file_transfer_queue:
+        broadcast::Sender<FileTransferQueueRequest>,
 }
 
 impl RemoteBridge {
@@ -50,17 +49,19 @@ impl RemoteBridge {
         signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
         connection_id: String,
-        // #[cfg(feature = "files")]
-        // file_transfer_queue: FileTransferQueueChannel,
     ) -> Result<Self> {
         let client =
             HttpClient::new(origin.clone(), signer, device, connection_id)?;
+
+        let (file_transfer_queue, _) =
+            broadcast::channel::<FileTransferQueueRequest>(32);
+
         Ok(Self {
             account,
             origin,
             client,
-            // #[cfg(feature = "files")]
-            // file_transfer_queue,
+            #[cfg(feature = "files")]
+            file_transfer_queue,
         })
     }
 
@@ -103,7 +104,6 @@ impl RemoteBridge {
             let (mut outcome, _) =
                 account.merge(&remote_changes.diff).await?;
 
-            /*
             // Compute which external files need to be downloaded
             // and add to the transfers queue
             if !outcome.external_files.is_empty() {
@@ -121,19 +121,15 @@ impl RemoteBridge {
                             file = ?file,
                             "add file download to transfers",
                         );
-                        let mut map = HashMap::new();
-                        let mut set = IndexSet::new();
-                        set.insert(TransferOperation::Download);
-                        map.insert(file, set);
-
-                        let _ = self
-                            .file_transfer_queue
-                            .send(FileTransferQueueRequest::Pending(map))
-                            .await;
+                        if self.file_transfer_queue.receiver_count() > 0 {
+                            let _ = self.file_transfer_queue.send(vec![(
+                                file,
+                                TransferOperation::Download,
+                            )]);
+                        }
                     }
                 }
             }
-            */
 
             self.compare(&mut *account, remote_changes).await?;
         }
@@ -233,21 +229,18 @@ impl RemoteBridge {
 
         let file_transfers = self.client.compare_files(&file_set).await?;
 
-        /*
-        let _ = self
-            .file_transfer_queue
-            .send(FileTransferQueueRequest::MergeFileTransfers(
-                file_transfers,
-            ))
-            .await;
-        */
-
-        /*
-        {
-            let mut transfers = self.transfers.write().await;
-            transfers.merge_file_transfers(file_transfers).await?;
+        let mut ops = Vec::new();
+        for file in file_transfers.uploads.0 {
+            ops.push((file, TransferOperation::Upload));
         }
-        */
+
+        for file in file_transfers.downloads.0 {
+            ops.push((file, TransferOperation::Download));
+        }
+
+        if !ops.is_empty() && self.file_transfer_queue.receiver_count() > 0 {
+            let _ = self.file_transfer_queue.send(ops);
+        }
 
         Ok(())
     }

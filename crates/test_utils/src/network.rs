@@ -30,6 +30,7 @@ use std::{
     },
     time::Duration,
 };
+use tokio::sync::Mutex;
 
 /// Simulated device information.
 pub struct SimulatedDevice {
@@ -320,6 +321,21 @@ pub async fn assert_local_remote_file_not_exist(
     Ok(())
 }
 
+/// Wait for the number of transfers to complete.
+pub async fn wait_for_num_transfers(
+    account: &NetworkAccount,
+    amount: u16,
+) -> Result<()> {
+    let inflight = account.inflight_transfers()?;
+    wait_for_inflight(
+        Arc::clone(&inflight),
+        |event| matches!(event, InflightNotification::TransferDone { .. }),
+        move |num| num == amount,
+    )
+    .await;
+    Ok(())
+}
+
 /// Wait for inflight notifications.
 pub async fn wait_for_inflight(
     inflight: Arc<InflightTransfers>,
@@ -327,7 +343,7 @@ pub async fn wait_for_inflight(
     is_complete: impl Fn(u16) -> bool + Send + Sync + 'static,
 ) {
     let mut inflight_rx = inflight.notifications().subscribe();
-    let num_events = Arc::new(AtomicU16::new(1));
+    let num_events = Mutex::new(0u16);
 
     loop {
         tokio::select! {
@@ -335,10 +351,11 @@ pub async fn wait_for_inflight(
             if let Ok(event) = event {
                 // println!("event: {:#?}", event);
                 if increment(event) {
-                    num_events.fetch_add(1, Ordering::SeqCst);
+                    let mut num = num_events.lock().await;
+                    *num += 1;
                 }
-                let amount = num_events.fetch_add(0, Ordering::SeqCst);
-                if is_complete(amount) {
+                let num = num_events.lock().await;
+                if is_complete(*num) {
                   println!("wait_for_inflight::finished");
                   break;
                 }
@@ -349,6 +366,7 @@ pub async fn wait_for_inflight(
 }
 
 /// Wait for file transfers to complete.
+#[deprecated]
 pub async fn wait_for_transfers(account: &NetworkAccount) -> Result<()> {
     loop {
         /*
