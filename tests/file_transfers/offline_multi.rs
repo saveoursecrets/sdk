@@ -307,7 +307,6 @@ async fn file_transfers_offline_multi_delete() -> Result<()> {
 /// Tests uploading a file to multiple servers whilst one is
 /// offline then downloading on a different device.
 #[tokio::test]
-#[ignore]
 async fn file_transfers_offline_multi_download() -> Result<()> {
     const TEST_ID: &str = "file_transfers_offline_multi_download";
 
@@ -315,6 +314,7 @@ async fn file_transfers_offline_multi_download() -> Result<()> {
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;
+    let addr = server1.addr.clone();
     let server2 = spawn(TEST_ID, None, Some("server2")).await?;
     let origin = server2.origin.clone();
 
@@ -364,6 +364,10 @@ async fn file_transfers_offline_multi_download() -> Result<()> {
         // to connect for the sync.
         let sync_error = downloader.owner.sync().await;
         assert!(sync_error.is_some());
+
+        // Must bring the server back online otherwise the pending
+        // upload will prevent the test from completing
+        let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
 
         // Wait for the file to exist
         let paths = downloader.owner.paths();

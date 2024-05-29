@@ -208,7 +208,6 @@ impl FileTransfers {
                             clients.as_slice(),
                         ).await?;
 
-
                         while let Some(_) = remaining {
                           remaining = Self::try_spawn_tasks(
                               Arc::clone(&paths),
@@ -365,7 +364,7 @@ impl FileTransfers {
                     notify_listeners(notify, &inflight.notifications).await;
                 }
             } else {
-                println!("result: {:#?}", results);
+                // println!("result: {:#?}", results);
 
                 for (file, op) in results
                     .into_iter()
@@ -379,8 +378,6 @@ impl FileTransfers {
                     })
                     .map(|(_, (file, op, _))| (file, op))
                 {
-                    println!("Add back to queue...");
-
                     let mut queue = request_queue.write().await;
                     queue.push_back((file, op));
                 }
