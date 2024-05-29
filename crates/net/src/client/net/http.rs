@@ -470,14 +470,17 @@ impl SyncClient for HttpClient {
         let mut bytes_received = 0;
         let _ = progress.send((bytes_received, file_size));
 
+        let mut download_path = path.to_path_buf();
+        download_path.set_extension("download");
+
         let mut hasher = Sha256::new();
-        let mut file = vfs::File::create(path).await?;
+        let mut file = vfs::File::create(&download_path).await?;
 
         loop {
             tokio::select! {
                 biased;
                 _ = cancel.changed() => {
-                  vfs::remove_file(path).await?;
+                  vfs::remove_file(download_path).await?;
                   return Err(Error::TransferCanceled);
                 }
                 chunk = response.chunk() => {
@@ -496,16 +499,25 @@ impl SyncClient for HttpClient {
 
         file.flush().await?;
         let digest = hasher.finalize();
-
-        if digest.as_slice() != file_info.file_name().as_ref() {
-            tokio::fs::remove_file(path).await?;
+        let digest_valid =
+            digest.as_slice() == file_info.file_name().as_ref();
+        if !digest_valid {
+            tokio::fs::remove_file(download_path).await?;
             return Err(Error::FileChecksumMismatch(
                 file_info.file_name().to_string(),
                 hex::encode(digest.as_slice()),
             ));
         }
+
         let status = response.status();
         tracing::debug!(status = %status, "http::download_file");
+
+        if status == http::StatusCode::OK
+            && vfs::try_exists(&download_path).await?
+        {
+            vfs::rename(download_path, path).await?;
+        }
+
         self.error_json(response).await?;
         Ok(status)
     }

@@ -2,7 +2,6 @@
 //! the first server is offline and the second server
 //! is online.
 use anyhow::Result;
-use sos_test_utils::wait_for_num_transfers;
 
 use crate::test_utils::{
     assert_local_remote_file_eq, assert_local_remote_file_not_exist,
@@ -357,17 +356,17 @@ async fn file_transfers_offline_multi_download() -> Result<()> {
     };
 
     {
+        // Must bring the server back online otherwise the pending
+        // upload will prevent the test from completing
+        let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+
         // Sync pulls down the file event logs and
         // creates the pending download transfer operation
         //
         // We have an error here as the first server will fail
         // to connect for the sync.
         let sync_error = downloader.owner.sync().await;
-        assert!(sync_error.is_some());
-
-        // Must bring the server back online otherwise the pending
-        // upload will prevent the test from completing
-        let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+        assert!(sync_error.is_none());
 
         // Wait for the file to exist
         let paths = downloader.owner.paths();
