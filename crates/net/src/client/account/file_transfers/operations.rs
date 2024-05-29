@@ -420,7 +420,12 @@ where
 
     fn on_error(&self, error: Error) -> TransferResult {
         tracing::warn!(error = ?error, "move_file::error");
-        on_error(error)
+        match error {
+            Error::ResponseJson(StatusCode::NOT_FOUND, _) => {
+                return TransferResult::Fatal(TransferError::MovedMissing);
+            }
+            _ => on_error(error),
+        }
     }
 }
 

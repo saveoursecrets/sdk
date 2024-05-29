@@ -36,6 +36,9 @@ pub enum TransferError {
     /// Error when a file that is the target of
     /// an upload or download is no longer on disc.
     TransferFileMissing,
+
+    /// Error when the target file for a move operation is missing.
+    MovedMissing,
 }
 
 /// Result of a file transfer operation.
@@ -209,6 +212,7 @@ impl FileTransfers {
                         ).await?;
 
                         while let Some(_) = remaining {
+                          tokio::time::sleep(std::time::Duration::from_millis(50)).await;
                           remaining = Self::try_spawn_tasks(
                               Arc::clone(&paths),
                               Arc::clone(&semaphore),
@@ -364,7 +368,7 @@ impl FileTransfers {
                     notify_listeners(notify, &inflight.notifications).await;
                 }
             } else {
-                // println!("result: {:#?}", results);
+                println!("result: {:#?}", results);
 
                 for (file, op) in results
                     .into_iter()
@@ -378,8 +382,11 @@ impl FileTransfers {
                     })
                     .map(|(_, (file, op, _))| (file, op))
                 {
+                    let item = (file, op);
                     let mut queue = request_queue.write().await;
-                    queue.push_back((file, op));
+                    if !queue.contains(&item) {
+                        queue.push_back(item);
+                    }
                 }
             }
 
@@ -425,8 +432,11 @@ impl FileTransfers {
                     })
                     .map(|(_, (file, op, _))| (file, op))
                 {
+                    let item = (file, op);
                     let mut queue = download_queue.write().await;
-                    queue.push_back((file, op));
+                    if !queue.contains(&item) {
+                        queue.push_back(item);
+                    }
                 }
             }
 

@@ -2,6 +2,7 @@
 //! the first server is offline and the second server
 //! is online.
 use anyhow::Result;
+use sos_test_utils::wait_for_num_transfers;
 
 use crate::test_utils::{
     assert_local_remote_file_eq, assert_local_remote_file_not_exist,
@@ -208,6 +209,8 @@ async fn file_transfers_offline_multi_move() -> Result<()> {
 
     // Bring the server back online
     let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+
+    println!("waiting for final file...");
 
     // Wait for the file to exist
     wait_for_file(&server1_paths, &file).await?;
