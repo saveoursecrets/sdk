@@ -9,6 +9,7 @@ use sos_sdk::{
 
 use super::{Error, Result};
 
+use futures::FutureExt;
 use std::{
     future::Future,
     sync::{
@@ -17,7 +18,10 @@ use std::{
     },
     time::Duration,
 };
-use tokio::{sync::Mutex, time::sleep};
+use tokio::{
+    sync::{Mutex, Notify},
+    time::sleep,
+};
 
 mod http;
 #[cfg(feature = "listen")]
@@ -81,6 +85,7 @@ impl NetworkRetry {
         &self,
         retries: u32,
         callback: F,
+        cancel: Arc<Notify>,
     ) -> Result<T>
     where
         F: Future<Output = T>,
@@ -93,8 +98,17 @@ impl NetworkRetry {
             maximum_retries = %self.maximum_retries,
             "retry",
         );
-        sleep(Duration::from_millis(delay)).await;
-        Ok(callback.await)
+        loop {
+            tokio::select! {
+                _ = cancel.notified().fuse() => {
+                    println!("Canceling retry operation...");
+                    return Err(Error::RetryCanceled);
+                }
+                _ = sleep(Duration::from_millis(delay)) => {
+                    return Ok(callback.await)
+                }
+            };
+        }
     }
 }
 

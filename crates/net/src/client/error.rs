@@ -82,6 +82,10 @@ pub enum Error {
     #[error("retry overflow")]
     RetryOverflow,
 
+    /// Network retry was canceled.
+    #[error("network retry was canceled")]
+    RetryCanceled,
+
     /*
     /// Generic boxed error.
     #[error(transparent)]

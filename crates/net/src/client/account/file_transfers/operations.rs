@@ -10,7 +10,7 @@ use crate::{
 use async_recursion::async_recursion;
 use http::StatusCode;
 use std::{io::ErrorKind, sync::Arc};
-use tokio::sync::watch;
+use tokio::sync::{watch, Notify};
 
 use super::{
     notify_listeners, InflightNotification, InflightTransfers,
@@ -26,6 +26,7 @@ where
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
+    cancel_retry: Arc<Notify>,
 }
 
 impl<C> UploadOperation<C>
@@ -45,6 +46,7 @@ where
             request_id,
             inflight,
             retry,
+            cancel_retry: Arc::new(Notify::new()),
         }
     }
 
@@ -86,11 +88,21 @@ where
                 ));
             }
 
-            self.retry
+            match self.retry
                 .wait_and_retry(retries, async move {
                     self.run(file, progress_tx, cancel_rx).await
-                })
-                .await?
+                }, self.cancel_retry.clone())
+                .await {
+                Ok(res) => res,
+                Err(e) => {
+                    match e {
+                        Error::RetryCanceled => {
+                            Ok(TransferResult::Fatal(TransferError::Canceled))
+                        }
+                        _ => Err(e),
+                    }
+                }
+            }
         } else {
             Ok(result)
         }
@@ -132,6 +144,7 @@ where
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
+    cancel_retry: Arc<Notify>,
 }
 
 impl<C> DownloadOperation<C>
@@ -151,6 +164,7 @@ where
             request_id,
             inflight,
             retry,
+            cancel_retry: Arc::new(Notify::new()),
         }
     }
 
@@ -208,11 +222,21 @@ where
                 ));
             }
 
-            self.retry
+            match self.retry
                 .wait_and_retry(retries, async move {
                     self.run(file, progress_tx, cancel_rx).await
-                })
-                .await?
+                }, self.cancel_retry.clone())
+                .await {
+                Ok(res) => res,
+                Err(e) => {
+                    match e {
+                        Error::RetryCanceled => {
+                            Ok(TransferResult::Fatal(TransferError::Canceled))
+                        }
+                        _ => Err(e),
+                    }
+                }
+            }
         } else {
             Ok(result)
         }
@@ -253,6 +277,7 @@ where
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
+    cancel_retry: Arc<Notify>,
 }
 
 impl<C> DeleteOperation<C>
@@ -270,6 +295,7 @@ where
             request_id,
             inflight,
             retry,
+            cancel_retry: Arc::new(Notify::new()),
         }
     }
 
@@ -296,9 +322,23 @@ where
                 ));
             }
 
-            self.retry
-                .wait_and_retry(retries, async move { self.run(file).await })
-                .await?
+            match self
+                .retry
+                .wait_and_retry(
+                    retries,
+                    async move { self.run(file).await },
+                    self.cancel_retry.clone(),
+                )
+                .await
+            {
+                Ok(res) => res,
+                Err(e) => match e {
+                    Error::RetryCanceled => {
+                        Ok(TransferResult::Fatal(TransferError::Canceled))
+                    }
+                    _ => Err(e),
+                },
+            }
         } else {
             Ok(result)
         }
@@ -339,6 +379,7 @@ where
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
+    cancel_retry: Arc<Notify>,
 }
 
 impl<C> MoveOperation<C>
@@ -356,6 +397,7 @@ where
             request_id,
             inflight,
             retry,
+            cancel_retry: Arc::new(Notify::new()),
         }
     }
 
@@ -386,12 +428,23 @@ where
                 ));
             }
 
-            self.retry
+            match self
+                .retry
                 .wait_and_retry(
                     retries,
                     async move { self.run(file, dest).await },
+                    self.cancel_retry.clone(),
                 )
-                .await?
+                .await
+            {
+                Ok(res) => res,
+                Err(e) => match e {
+                    Error::RetryCanceled => {
+                        Ok(TransferResult::Fatal(TransferError::Canceled))
+                    }
+                    _ => Err(e),
+                },
+            }
         } else {
             Ok(result)
         }

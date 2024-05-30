@@ -439,16 +439,6 @@ impl NetworkAccount {
             handle.shutdown().await;
         }
     }
-
-    /// Close all the websocket connections
-    #[cfg(feature = "listen")]
-    async fn shutdown_listeners(&self) {
-        let mut listeners = self.listeners.lock().await;
-        for (_, handle) in listeners.drain() {
-            tracing::debug!("close websocket");
-            handle.close();
-        }
-    }
 }
 
 impl From<&NetworkAccount> for AccountRef {
@@ -832,8 +822,8 @@ impl Account for NetworkAccount {
     async fn sign_out(&mut self) -> Result<()> {
         #[cfg(feature = "listen")]
         {
-            tracing::debug!("net_sign_out::shutdown_listeners");
-            self.shutdown_listeners().await;
+            tracing::debug!("net_sign_out::shutdown_websockets");
+            self.shutdown_websockets().await;
         }
 
         #[cfg(feature = "files")]
@@ -872,7 +862,7 @@ impl Account for NetworkAccount {
     async fn delete_account(&mut self) -> Result<()> {
         // Shutdown any change listeners
         #[cfg(feature = "listen")]
-        self.shutdown_listeners().await;
+        self.shutdown_websockets().await;
 
         // Stop any pending file transfers
         #[cfg(feature = "files")]

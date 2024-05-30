@@ -3,7 +3,6 @@
 use crate::{
     client::{
         sync::RemoteSync, Error, ListenOptions, NetworkAccount, Result,
-        WebSocketHandle,
     },
     sdk::sync::{Origin, SyncError},
     ChangeNotification,
@@ -13,15 +12,29 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 impl NetworkAccount {
+    /// Close all the websocket connections.
+    #[cfg(feature = "listen")]
+    pub(super) async fn shutdown_websockets(&self) {
+        tracing::debug!("listen::close_all_websockets");
+
+        let mut listeners = self.listeners.lock().await;
+        for (_, handle) in listeners.drain() {
+            handle.close().await;
+        }
+    }
+
     /// Stop listening to a server websocket.
     pub async fn stop_listening(&self, origin: &Origin) {
         let mut listeners = self.listeners.lock().await;
         if let Some(handle) = listeners.get(origin) {
-            handle.close();
+            tracing::debug!(
+                url = %origin.url(),
+                "listen::close_websocket");
+
+            handle.close().await;
             listeners.remove(origin);
         }
     }
-
     /// Listen for changes on a server websocket.
     pub async fn listen(
         &self,
@@ -30,7 +43,7 @@ impl NetworkAccount {
         listener: Option<
             mpsc::Sender<(ChangeNotification, Option<SyncError<Error>>)>,
         >,
-    ) -> Result<WebSocketHandle> {
+    ) -> Result<()> {
         let remotes = self.remotes.read().await;
         if let Some(remote) = remotes.get(origin) {
             self.stop_listening(&origin).await;
@@ -101,10 +114,10 @@ impl NetworkAccount {
             // close the connections on sign out
             {
                 let mut listeners = self.listeners.lock().await;
-                listeners.insert(origin.clone(), handle.clone());
+                listeners.insert(origin.clone(), handle);
             }
 
-            Ok(handle)
+            Ok(())
         } else {
             Err(Error::OriginNotFound(origin.clone()))
         }
