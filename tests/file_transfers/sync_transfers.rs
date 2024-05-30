@@ -7,7 +7,7 @@ use crate::test_utils::{
     simulate_device, spawn, teardown, wait_for_num_transfers,
 };
 use anyhow::Result;
-use sos_net::{client::RemoteSync, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 
 /// Tests creating external files then adding a remote
 /// server, syncing and uploading the files.
@@ -58,13 +58,8 @@ async fn file_transfers_sync_file_transfers() -> Result<()> {
     let server = spawn(TEST_ID, None, None).await?;
     let server_paths = server.account_path(&address);
 
-    // Connect to the server
+    // Connect to the server which will perform an initial sync
     device.owner.add_server(server.origin.clone()).await?;
-
-    // Initial sync will update the file transfers queue
-    // as `sync_file_transfers()` is called when creating
-    // an account for the first time on a remote server.
-    assert!(device.owner.sync().await.is_none());
 
     // Wait until the transfers are completed
     wait_for_num_transfers(&device.owner, 2).await?;

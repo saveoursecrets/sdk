@@ -3,11 +3,10 @@
 use anyhow::Result;
 
 use crate::test_utils::{
-    assert_local_remote_file_eq, assert_local_remote_file_not_exist,
-    mock::files::{create_file_secret, update_file_secret},
+    assert_local_remote_file_eq, mock::files::create_file_secret,
     simulate_device, spawn, teardown, wait_for_num_transfers,
 };
-use sos_net::{client::RemoteSync, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 
 /// Tests uploading an external file to a server that was
 /// added.
@@ -45,7 +44,8 @@ async fn file_transfers_servers_changed_upload() -> Result<()> {
     let server2 = spawn(TEST_ID, None, Some("server2")).await?;
     let new_origin = server2.origin.clone();
 
-    // Add the new server
+    // Add the new server which triggers an initial sync
+    // which in turn will queue the file transfers for upload
     device.owner.add_server(new_origin).await?;
 
     // Wait until the transfers are completed

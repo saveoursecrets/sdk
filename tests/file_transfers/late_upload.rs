@@ -7,7 +7,7 @@ use crate::test_utils::{
     simulate_device, spawn, teardown, wait_for_num_transfers,
 };
 use anyhow::Result;
-use sos_net::{client::RemoteSync, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 
 /// Tests creating external files then adding a remote
 /// server, syncing and uploading the files.
@@ -72,9 +72,6 @@ async fn file_transfers_late_upload() -> Result<()> {
 
     // Connect to the server
     device.owner.add_server(server.origin.clone()).await?;
-
-    // Sync so the upload will succeed (otherwise 404)
-    assert!(device.owner.sync().await.is_none());
 
     // Wait until the transfers are completed
     wait_for_num_transfers(&device.owner, 3).await?;

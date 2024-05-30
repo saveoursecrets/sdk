@@ -52,6 +52,10 @@ pub enum Error {
     #[error("not binary message type on websocket")]
     NotBinaryWebsocketMessageType,
 
+    /// Error generated failing to sync after adding a server.
+    #[error("failed to sync after adding server, {0}")]
+    AddServerSync(SyncError<Error>),
+
     /// Error generated attempting to revoke the current device.
     #[error("cannot revoke access to this device")]
     RevokeDeviceSelf,

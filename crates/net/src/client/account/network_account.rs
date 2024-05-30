@@ -22,7 +22,7 @@ use sos_sdk::{
         },
         AccessOptions, ClientStorage, StorageEventLogs,
     },
-    sync::{Origin, SyncOptions, UpdateSet},
+    sync::{Origin, SyncError, SyncOptions, UpdateSet},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Summary, Vault, VaultId,
@@ -162,7 +162,6 @@ impl NetworkAccount {
             }
 
             self.remotes = Arc::new(RwLock::new(remotes));
-            self.start_file_transfers().await?;
         }
 
         let file_transfers = FileTransfers::new(
@@ -170,6 +169,8 @@ impl NetworkAccount {
             self.options.file_transfer_settings.clone(),
         );
         self.file_transfers = Some(file_transfers);
+
+        self.start_file_transfers().await?;
 
         Ok(folders)
     }
@@ -247,19 +248,40 @@ impl NetworkAccount {
 
     /// Add a server.
     ///
+    /// An initial sync is performed with the server and the result
+    /// includes a possible error encountered during the initial sync.
+    ///
     /// If a server with the given origin already exists it is
     /// overwritten.
-    pub async fn add_server(&mut self, origin: Origin) -> Result<()> {
+    pub async fn add_server(
+        &mut self,
+        origin: Origin,
+    ) -> Result<Option<SyncError<Error>>> {
         let remote = self.remote_bridge(&origin).await?;
         if let Some(file_transfers) = self.file_transfers.as_mut() {
             file_transfers.add_client(remote.client().clone()).await;
-        }
+        };
         {
             let mut remotes = self.remotes.write().await;
-            remotes.insert(origin, remote);
+            remotes.insert(origin.clone(), remote);
             self.save_remotes(&*remotes).await?;
         }
-        self.start_file_transfers().await
+
+        self.start_file_transfers().await?;
+
+        let mut sync_error = None;
+        {
+            let remotes = self.remotes.read().await;
+            if let Some(remote) = remotes.get(&origin) {
+                let options = SyncOptions {
+                    origins: vec![origin.clone()],
+                };
+                sync_error = remote.sync_with_options(&options).await;
+            }
+        }
+
+        tracing::debug!(url = %origin.url(), "server::added");
+        Ok(sync_error)
     }
 
     /// Remove a server.
@@ -278,7 +300,8 @@ impl NetworkAccount {
             }
             remote
         };
-        self.start_file_transfers().await?;
+
+        tracing::debug!(url = %origin.url(), "server::removed");
         Ok(remote)
     }
 
