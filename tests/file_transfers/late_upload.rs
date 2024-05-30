@@ -12,7 +12,6 @@ use sos_net::sdk::prelude::*;
 /// Tests creating external files then adding a remote
 /// server, syncing and uploading the files.
 #[tokio::test]
-#[ignore = "needs fixing"]
 async fn file_transfers_late_upload() -> Result<()> {
     const TEST_ID: &str = "file_transfers_late_upload";
 
@@ -73,8 +72,6 @@ async fn file_transfers_late_upload() -> Result<()> {
 
     // Connect to the server
     device.owner.add_server(server.origin.clone()).await?;
-
-    println!("Waiting for events...");
 
     // Wait until the transfers are completed
     wait_for_num_transfers(&device.owner, 3).await?;

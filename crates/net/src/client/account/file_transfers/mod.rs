@@ -229,6 +229,17 @@ where
                     Some(events) = queue_rx.recv() => {
                         // println!("queue events: {}", events.len());
 
+                        let num_clients = {
+                            let reader = clients.lock().await;
+                            reader.len()
+                        };
+
+                        // If we don't have any clients no point
+                        // queuing anything
+                        if num_clients == 0 {
+                            continue;
+                        }
+
                         let num_queued = {
                             let mut writer = queue.write().await;
                             for event in events {
@@ -245,10 +256,13 @@ where
                         };
 
                         tracing::debug!(
+                            num_clients = %num_clients,
                             num_queued = %num_queued,
                             is_running = %is_running,
                             "file_transfers::event");
 
+                        // Guard to ensure there is only one spawned
+                        // task consuming the queue at a time
                         if num_queued > 0 && !is_running {
                           // Clone of the current client list which
                           // will remain fixed until the current queue
