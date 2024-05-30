@@ -22,7 +22,8 @@ pub use inflight::{
 };
 use std::collections::{HashSet, VecDeque};
 
-use super::network_account::FileTransferQueueRequest;
+/// Request to queue a file transfer.
+pub type FileTransferQueueRequest = Vec<(ExternalFile, TransferOperation)>;
 
 /// Channel for upload and download progress notifications.
 pub type ProgressChannel = mpsc::Sender<(u64, Option<u64>)>;
@@ -146,40 +147,57 @@ impl FileTransfersHandle {
 /// Reads operations from the queue, executes them on
 /// the list of clients and removes from the queue only
 /// when each operation has been completed on every client.
-pub struct FileTransfers {
+pub struct FileTransfers<C>
+where
+    C: SyncClient + Clone + Send + Sync + PartialEq + 'static,
+{
+    clients: Arc<Mutex<Vec<C>>>,
     settings: Arc<FileTransferSettings>,
     pub(crate) queue:
         Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
     pub(crate) inflight: Arc<InflightTransfers>,
 }
 
-impl FileTransfers {
+impl<C> FileTransfers<C>
+where
+    C: SyncClient + Clone + Send + Sync + PartialEq + 'static,
+{
     /// Create new file transfers manager.
-    pub fn new(settings: FileTransferSettings) -> Self {
+    pub fn new(clients: Vec<C>, settings: FileTransferSettings) -> Self {
         let queue = VecDeque::new();
         let inflight = InflightTransfers::new();
 
         Self {
+            clients: Arc::new(Mutex::new(clients)),
             settings: Arc::new(settings),
             queue: Arc::new(RwLock::new(queue)),
             inflight: Arc::new(inflight),
         }
     }
 
+    /// Add a client for file transfer operations.
+    pub async fn add_client(&self, client: C) {
+        let mut writer = self.clients.lock().await;
+        writer.push(client);
+        println!("Added a new client...");
+    }
+
+    /// Add a client for file transfer operations.
+    pub async fn remove_client(&self, client: &C) {
+        let mut writer = self.clients.lock().await;
+        if let Some(pos) = writer.iter().position(|c| c == client) {
+            writer.remove(pos);
+        }
+    }
+
     /// Spawn a task to transfer file operations.
-    pub fn run<C>(
-        &mut self,
-        paths: Arc<Paths>,
-        clients: Vec<C>,
-    ) -> FileTransfersHandle
-    where
-        C: SyncClient + Clone + Send + Sync + 'static,
-    {
+    pub fn run(&mut self, paths: Arc<Paths>) -> FileTransfersHandle {
         let (handle, mut shutdown_rx, shutdown_tx, mut queue_rx) =
             FileTransfersHandle::new();
 
         let queue_drained = Arc::new(Mutex::new(false));
 
+        let clients = self.clients.clone();
         let queue = self.queue.clone();
         let inflight = self.inflight.clone();
         let cancel_inflight = self.inflight.clone();
@@ -237,35 +255,45 @@ impl FileTransfers {
                           let queue = queue.clone();
                           let inflight = inflight.clone();
                           let settings = settings.clone();
-                          let clients = clients.clone();
                           let paths = paths.clone();
                           let drained = queue_drained.clone();
 
-                          // We must not block here otherwise we can't cancel
-                          // whilst there are inflight requests as this branch
-                          // of the select would block the cancel branch
-                          tokio::task::spawn(async move {
+                          // Clone of the current client list which
+                          // will remain fixed until the current queue
+                          // is completely drained
+                          let clients = {
+                            let reader = clients.lock().await;
+                            reader.iter().cloned().collect::<Vec<_>>()
+                          };
 
-                            // This will complete when the queue
-                            // is empty
-                            let res = Self::spawn_tasks(
-                                paths.clone(),
-                                semaphore.clone(),
-                                queue.clone(),
-                                inflight.clone(),
-                                settings.clone(),
-                                clients.clone(),
-                            )
-                            .await;
-                            if let Err(error) = res {
-                              tracing::error!(error = ?error);
-                            }
+                          if !clients.is_empty() {
+                              // We must not block here otherwise we can't cancel
+                              // whilst there are inflight requests as this branch
+                              // of the select would block the cancel branch
+                              tokio::task::spawn(async move {
 
-                            // Reset so we can spawn another task
-                            let mut writer = drained.lock().await;
-                            *writer = false;
+                                // This will complete when the queue
+                                // is empty
+                                let res = Self::spawn_tasks(
+                                    paths.clone(),
+                                    semaphore.clone(),
+                                    queue.clone(),
+                                    inflight.clone(),
+                                    settings.clone(),
+                                    clients.clone(),
+                                )
+                                .await;
+                                if let Err(error) = res {
+                                  tracing::error!(error = ?error);
+                                }
 
-                          });
+                                // Reset so we can spawn another task
+                                let mut writer = drained.lock().await;
+                                *writer = false;
+
+                              });
+                          }
+
                         }
                     }
                 }
@@ -277,17 +305,14 @@ impl FileTransfers {
         handle
     }
 
-    async fn spawn_tasks<C>(
+    async fn spawn_tasks(
         paths: Arc<Paths>,
         semaphore: Arc<Semaphore>,
         queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
         inflight: Arc<InflightTransfers>,
         settings: Arc<FileTransferSettings>,
         clients: Vec<C>,
-    ) -> Result<()>
-    where
-        C: SyncClient + Clone + Send + Sync + 'static,
-    {
+    ) -> Result<()> {
         let mut remaining = Self::consume_queue(
             paths.clone(),
             semaphore.clone(),
@@ -313,17 +338,14 @@ impl FileTransfers {
         Ok(())
     }
 
-    async fn consume_queue<C>(
+    async fn consume_queue(
         paths: Arc<Paths>,
         semaphore: Arc<Semaphore>,
         queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
         inflight: Arc<InflightTransfers>,
         settings: Arc<FileTransferSettings>,
         clients: &[C],
-    ) -> Result<Option<()>>
-    where
-        C: SyncClient + Clone + Send + Sync + 'static,
-    {
+    ) -> Result<Option<()>> {
         let mut requests = Vec::new();
         let mut downloads = Vec::new();
 
@@ -562,7 +584,7 @@ impl FileTransfers {
         })
     }
 
-    async fn run_client_operation<C>(
+    async fn run_client_operation(
         request_id: u64,
         file: ExternalFile,
         op: TransferOperation,
@@ -570,10 +592,7 @@ impl FileTransfers {
         settings: Arc<FileTransferSettings>,
         paths: Arc<Paths>,
         inflight_transfers: Arc<InflightTransfers>,
-    ) -> Result<(ExternalFile, TransferOperation, TransferResult)>
-    where
-        C: SyncClient + Clone + Send + Sync + 'static,
-    {
+    ) -> Result<(ExternalFile, TransferOperation, TransferResult)> {
         tracing::debug!(
           request_id = %request_id,
           op = ?op,

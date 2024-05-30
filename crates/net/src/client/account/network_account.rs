@@ -71,13 +71,10 @@ use super::{
 use crate::client::{Error, RemoteBridge, RemoteSync, Result};
 
 #[cfg(feature = "files")]
-use crate::client::account::file_transfers::{
-    FileTransfers, InflightTransfers,
+use crate::client::{
+    account::file_transfers::{FileTransfers, InflightTransfers},
+    HttpClient,
 };
-
-/// Request to queue a file transfer.
-#[cfg(feature = "files")]
-pub type FileTransferQueueRequest = Vec<(ExternalFile, TransferOperation)>;
 
 /// Options for network account creation.
 #[derive(Debug, Default)]
@@ -120,7 +117,7 @@ pub struct NetworkAccount {
 
     /// File transfer event loop.
     #[cfg(feature = "files")]
-    file_transfers: Option<FileTransfers>,
+    file_transfers: Option<FileTransfers<HttpClient>>,
 
     /// Handle to a file transfers event loop.
     #[cfg(feature = "files")]
@@ -153,22 +150,26 @@ impl NetworkAccount {
             self.connection_id = self.client_connection_id().await.ok();
         }
 
-        let file_transfers =
-            FileTransfers::new(self.options.file_transfer_settings.clone());
-        self.file_transfers = Some(file_transfers);
-
         // Load origins from disc and create remote definitions
+        let mut clients = Vec::new();
         if let Some(origins) = self.load_servers().await? {
             let mut remotes: Remotes = Default::default();
 
             for origin in origins {
                 let remote = self.remote_bridge(&origin).await?;
+                clients.push(remote.client().clone());
                 remotes.insert(origin, remote);
             }
 
             self.remotes = Arc::new(RwLock::new(remotes));
             self.start_file_transfers().await?;
         }
+
+        let file_transfers = FileTransfers::new(
+            clients,
+            self.options.file_transfer_settings.clone(),
+        );
+        self.file_transfers = Some(file_transfers);
 
         Ok(folders)
     }
@@ -250,6 +251,9 @@ impl NetworkAccount {
     /// overwritten.
     pub async fn add_server(&mut self, origin: Origin) -> Result<()> {
         let remote = self.remote_bridge(&origin).await?;
+        if let Some(file_transfers) = self.file_transfers.as_mut() {
+            file_transfers.add_client(remote.client().clone()).await;
+        }
         {
             let mut remotes = self.remotes.write().await;
             remotes.insert(origin, remote);
@@ -266,7 +270,10 @@ impl NetworkAccount {
         let remote = {
             let mut remotes = self.remotes.write().await;
             let remote = remotes.remove(origin);
-            if remote.is_some() {
+            if let Some(remote) = &remote {
+                if let Some(file_transfers) = self.file_transfers.as_mut() {
+                    file_transfers.remove_client(remote.client()).await;
+                }
                 self.save_remotes(&*remotes).await?;
             }
             remote
@@ -354,18 +361,12 @@ impl NetworkAccount {
         let paths = self.paths();
         if let Some(file_transfers) = &mut self.file_transfers {
             tracing::debug!("file_transfers::start");
-            let clients = {
-                let remotes = self.remotes.read().await;
-                let mut clients = Vec::new();
-                for (_, remote) in &*remotes {
-                    clients.push(remote.client().clone());
-                }
-                clients
-            };
 
-            let handle = file_transfers.run(paths, clients);
+            let handle = file_transfers.run(paths);
 
             {
+                // Proxy file transfer queue events from the
+                // remote bridges to the file transfer event loop
                 let remotes = self.remotes.read().await;
                 for (_, remote) in &*remotes {
                     let mut rx = remote.file_transfer_queue.subscribe();

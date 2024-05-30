@@ -49,6 +49,15 @@ pub struct HttpClient {
     connection_id: String,
 }
 
+impl PartialEq for HttpClient {
+    fn eq(&self, other: &Self) -> bool {
+        self.origin == other.origin
+            && self.connection_id == other.connection_id
+    }
+}
+
+impl Eq for HttpClient {}
+
 impl fmt::Debug for HttpClient {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("HttpClient")

@@ -11,6 +11,9 @@ mod multi_server;
 mod offline_multi;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod servers_changed;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod single_server;
 
 #[cfg(not(target_arch = "wasm32"))]

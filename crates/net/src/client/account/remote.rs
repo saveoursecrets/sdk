@@ -18,7 +18,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, Mutex};
 
 #[cfg(feature = "files")]
-use super::network_account::FileTransferQueueRequest;
+use super::file_transfers::FileTransferQueueRequest;
 
 /// Collection of remote targets for synchronization.
 pub(crate) type Remotes = HashMap<Origin, RemoteBridge>;
