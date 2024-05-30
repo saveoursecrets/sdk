@@ -179,7 +179,6 @@ where
     pub async fn add_client(&self, client: C) {
         let mut writer = self.clients.lock().await;
         writer.push(client);
-        println!("Added a new client...");
     }
 
     /// Add a client for file transfer operations.
@@ -245,19 +244,12 @@ where
                           *reader
                         };
 
+                        tracing::debug!(
+                            num_queued = %num_queued,
+                            is_running = %is_running,
+                            "file_transfers::event");
+
                         if num_queued > 0 && !is_running {
-                          {
-                            let mut writer = queue_drained.lock().await;
-                            *writer = true;
-                          }
-
-                          let semaphore = semaphore.clone();
-                          let queue = queue.clone();
-                          let inflight = inflight.clone();
-                          let settings = settings.clone();
-                          let paths = paths.clone();
-                          let drained = queue_drained.clone();
-
                           // Clone of the current client list which
                           // will remain fixed until the current queue
                           // is completely drained
@@ -267,6 +259,18 @@ where
                           };
 
                           if !clients.is_empty() {
+                              {
+                                let mut writer = queue_drained.lock().await;
+                                *writer = true;
+                              }
+
+                              let semaphore = semaphore.clone();
+                              let queue = queue.clone();
+                              let inflight = inflight.clone();
+                              let settings = settings.clone();
+                              let paths = paths.clone();
+                              let drained = queue_drained.clone();
+
                               // We must not block here otherwise we can't cancel
                               // whilst there are inflight requests as this branch
                               // of the select would block the cancel branch

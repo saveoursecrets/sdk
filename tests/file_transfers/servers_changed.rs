@@ -11,7 +11,6 @@ use sos_net::sdk::prelude::*;
 /// Tests uploading an external file to a server that was
 /// added.
 #[tokio::test]
-#[ignore]
 async fn file_transfers_servers_changed_upload() -> Result<()> {
     const TEST_ID: &str = "file_transfers_servers_changed_upload";
 

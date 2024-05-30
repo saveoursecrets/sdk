@@ -164,13 +164,15 @@ impl NetworkAccount {
             self.remotes = Arc::new(RwLock::new(remotes));
         }
 
-        let file_transfers = FileTransfers::new(
-            clients,
-            self.options.file_transfer_settings.clone(),
-        );
-        self.file_transfers = Some(file_transfers);
-
-        self.start_file_transfers().await?;
+        #[cfg(feature = "files")]
+        {
+            let file_transfers = FileTransfers::new(
+                clients,
+                self.options.file_transfer_settings.clone(),
+            );
+            self.file_transfers = Some(file_transfers);
+            self.start_file_transfers().await?;
+        }
 
         Ok(folders)
     }
@@ -258,16 +260,18 @@ impl NetworkAccount {
         origin: Origin,
     ) -> Result<Option<SyncError<Error>>> {
         let remote = self.remote_bridge(&origin).await?;
+
         if let Some(file_transfers) = self.file_transfers.as_mut() {
             file_transfers.add_client(remote.client().clone()).await;
         };
         {
             let mut remotes = self.remotes.write().await;
+            if let Some(handle) = &self.file_transfer_handle {
+                self.proxy_remote_file_queue(handle, &remote).await;
+            }
             remotes.insert(origin.clone(), remote);
             self.save_remotes(&*remotes).await?;
         }
-
-        self.start_file_transfers().await?;
 
         let mut sync_error = None;
         {
@@ -281,6 +285,12 @@ impl NetworkAccount {
         }
 
         tracing::debug!(url = %origin.url(), "server::added");
+        if let Some(sync_error) = &sync_error {
+            tracing::warn!(
+                sync_error = ?sync_error,
+                "server::initial_sync_failed");
+        }
+
         Ok(sync_error)
     }
 
@@ -368,6 +378,7 @@ impl NetworkAccount {
     }
 
     /// Spawn a task to handle file transfers.
+    #[cfg(feature = "files")]
     async fn start_file_transfers(&mut self) -> Result<()> {
         if !self.is_authenticated().await {
             return Err(crate::sdk::Error::NotAuthenticated.into());
@@ -392,17 +403,7 @@ impl NetworkAccount {
                 // remote bridges to the file transfer event loop
                 let remotes = self.remotes.read().await;
                 for (_, remote) in &*remotes {
-                    let mut rx = remote.file_transfer_queue.subscribe();
-                    let tx = handle.queue_tx.clone();
-                    tokio::task::spawn(async move {
-                        while let Ok(event) = rx.recv().await {
-                            let res = tx.send(event).await;
-                            if let Err(error) = res {
-                                tracing::error!(error = ?error);
-                            }
-                        }
-                        Ok::<_, Error>(())
-                    });
+                    self.proxy_remote_file_queue(&handle, remote).await;
                 }
             }
 
@@ -412,7 +413,27 @@ impl NetworkAccount {
         Ok(())
     }
 
+    #[cfg(feature = "files")]
+    async fn proxy_remote_file_queue(
+        &self,
+        handle: &FileTransfersHandle,
+        remote: &RemoteBridge,
+    ) {
+        let mut rx = remote.file_transfer_queue.subscribe();
+        let tx = handle.queue_tx.clone();
+        tokio::task::spawn(async move {
+            while let Ok(event) = rx.recv().await {
+                let res = tx.send(event).await;
+                if let Err(error) = res {
+                    tracing::error!(error = ?error);
+                }
+            }
+            Ok::<_, Error>(())
+        });
+    }
+
     /// Stop a file transfers task.
+    #[cfg(feature = "files")]
     async fn stop_file_transfers(&mut self) {
         if let Some(handle) = self.file_transfer_handle.take() {
             handle.shutdown().await;
@@ -854,6 +875,7 @@ impl Account for NetworkAccount {
         self.shutdown_listeners().await;
 
         // Stop any pending file transfers
+        #[cfg(feature = "files")]
         self.stop_file_transfers().await;
 
         {
