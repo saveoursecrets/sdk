@@ -200,6 +200,7 @@ async fn decode_notification(message: Message) -> Result<ChangeNotification> {
 #[derive(Clone)]
 pub struct WebSocketHandle {
     notify: watch::Sender<()>,
+    cancel_retry: Arc<Notify>,
 }
 
 impl WebSocketHandle {
@@ -211,6 +212,8 @@ impl WebSocketHandle {
         if let Err(error) = self.notify.send(()) {
             tracing::error!(error = ?error);
         }
+
+        self.cancel_retry.notify_one();
     }
 }
 
@@ -254,10 +257,14 @@ impl WebSocketChangeListener {
         F: Future<Output = ()> + Send + 'static,
     {
         let notify = self.shutdown.clone();
+        let cancel_retry = self.cancel_retry.clone();
         tokio::task::spawn(async move {
             let _ = self.connect(&handler).await;
         });
-        WebSocketHandle { notify }
+        WebSocketHandle {
+            notify,
+            cancel_retry,
+        }
     }
 
     #[async_recursion]
@@ -275,8 +282,6 @@ impl WebSocketChangeListener {
         loop {
             futures::select! {
                 _ = shutdown_rx.changed().fuse() => {
-                    self.cancel_retry.notify_one();
-
                     tracing::debug!("ws_client::shutting_down");
                     // Perform close handshake
                     if let Err(error) = stream.close(Some(CloseFrame {
@@ -362,6 +367,7 @@ impl WebSocketChangeListener {
             .options
             .retry
             .wait_and_retry(
+                "ws_client",
                 retries,
                 async move { self.connect(handler).await },
                 self.cancel_retry.clone(),

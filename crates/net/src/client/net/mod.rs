@@ -81,18 +81,21 @@ impl NetworkRetry {
     }
 
     /// Wait and then retry.
-    pub async fn wait_and_retry<T, F>(
+    pub async fn wait_and_retry<D, T, F>(
         &self,
+        id: D,
         retries: u32,
         callback: F,
         cancel: Arc<Notify>,
     ) -> Result<T>
     where
+        D: std::fmt::Display,
         F: Future<Output = T>,
     {
         let factor = 2u64.checked_pow(retries).ok_or(Error::RetryOverflow)?;
         let delay = self.reconnect_interval as u64 * factor;
         tracing::debug!(
+            id = %id,
             delay = %delay,
             retries = %retries,
             maximum_retries = %self.maximum_retries,
@@ -101,7 +104,7 @@ impl NetworkRetry {
         loop {
             tokio::select! {
                 _ = cancel.notified().fuse() => {
-                    println!("Canceling retry operation...");
+                    tracing::debug!(id = %id, "retry::canceled");
                     return Err(Error::RetryCanceled);
                 }
                 _ = sleep(Duration::from_millis(delay)) => {

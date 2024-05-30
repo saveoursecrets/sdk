@@ -6,7 +6,6 @@ use sos_net::{
     client::{
         InflightNotification, InflightTransfers, ListenOptions,
         NetworkAccount, RemoteBridge, RemoteSync, SyncClient,
-        WebSocketHandle,
     },
     sdk::{
         account::{Account, AccountBuilder},

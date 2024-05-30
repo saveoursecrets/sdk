@@ -89,7 +89,7 @@ where
             }
 
             match self.retry
-                .wait_and_retry(retries, async move {
+                .wait_and_retry(self.request_id, retries, async move {
                     self.run(file, progress_tx, cancel_rx).await
                 }, self.cancel_retry.clone())
                 .await {
@@ -223,7 +223,7 @@ where
             }
 
             match self.retry
-                .wait_and_retry(retries, async move {
+                .wait_and_retry(self.request_id, retries, async move {
                     self.run(file, progress_tx, cancel_rx).await
                 }, self.cancel_retry.clone())
                 .await {
@@ -325,6 +325,7 @@ where
             match self
                 .retry
                 .wait_and_retry(
+                    self.request_id,
                     retries,
                     async move { self.run(file).await },
                     self.cancel_retry.clone(),
@@ -431,6 +432,7 @@ where
             match self
                 .retry
                 .wait_and_retry(
+                    self.request_id,
                     retries,
                     async move { self.run(file, dest).await },
                     self.cancel_retry.clone(),
