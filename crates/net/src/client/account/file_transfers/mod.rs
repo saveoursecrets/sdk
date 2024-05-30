@@ -193,7 +193,7 @@ impl FileTransfers {
                     biased;
                     signal = shutdown_rx.recv().fuse() => {
                         if signal.is_some() {
-                            tracing::debug!("file_transfers_shutting_down");
+                            tracing::debug!("file_transfers::shutting_down");
 
                             // Clear the queue to break the main
                             // task loop
@@ -204,7 +204,7 @@ impl FileTransfers {
                             cancel_inflight.cancel().await;
 
                             let _ = shutdown_tx.send(());
-                            tracing::debug!("file_transfers_shut_down");
+                            tracing::debug!("file_transfers::shut_down");
 
                             break;
                         }

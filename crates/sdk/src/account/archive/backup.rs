@@ -321,6 +321,8 @@ impl AccountBackup {
             writer = writer.add_vault(*summary.id(), &buffer).await?;
         }
 
+        // TODO: use list_external_files() rather than
+        // TODO: walking the directory
         let files = paths.files_dir();
         for entry in WalkDir::new(files) {
             let entry = entry?;

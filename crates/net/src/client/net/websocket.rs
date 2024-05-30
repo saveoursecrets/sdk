@@ -283,15 +283,21 @@ impl WebSocketChangeListener {
                     }
                 }
                 _ = shutdown.notified().fuse() => {
+                    tracing::debug!("ws_client::shutting_down");
                     // Perform close handshake
-                    let _ = stream.close(Some(CloseFrame {
+                    if let Err(error) = stream.close(Some(CloseFrame {
                         code: CloseCode::Normal,
                         reason: Cow::Borrowed("closed"),
-                    })).await;
+                    })).await {
+                        tracing::warn!(error = ?error);
+                    }
+                    tracing::debug!("ws_client::shutdown");
                     return Ok(());
                 }
             }
         }
+
+        tracing::debug!("ws_client::disconnected");
 
         self.delay_connect(handler).await
     }

@@ -13,7 +13,16 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 impl NetworkAccount {
-    /// Listen for changes on a remote server.
+    /// Stop listening to a server websocket.
+    pub async fn stop_listening(&self, origin: &Origin) {
+        let mut listeners = self.listeners.lock().await;
+        if let Some(handle) = listeners.get(origin) {
+            handle.close();
+            listeners.remove(origin);
+        }
+    }
+
+    /// Listen for changes on a server websocket.
     pub async fn listen(
         &self,
         origin: &Origin,
@@ -24,11 +33,7 @@ impl NetworkAccount {
     ) -> Result<WebSocketHandle> {
         let remotes = self.remotes.read().await;
         if let Some(remote) = remotes.get(origin) {
-            let mut listeners = self.listeners.lock().await;
-            if let Some(handle) = listeners.get(origin) {
-                handle.close();
-                listeners.remove(origin);
-            }
+            self.stop_listening(&origin).await;
 
             let remote = Arc::new(remote.clone());
             let (tx, mut rx) = mpsc::channel::<ChangeNotification>(32);
@@ -94,7 +99,10 @@ impl NetworkAccount {
 
             // Store the listeners so we can
             // close the connections on sign out
-            listeners.insert(origin.clone(), handle.clone());
+            {
+                let mut listeners = self.listeners.lock().await;
+                listeners.insert(origin.clone(), handle.clone());
+            }
 
             Ok(handle)
         } else {

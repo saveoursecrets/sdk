@@ -353,6 +353,7 @@ impl NetworkAccount {
 
         let paths = self.paths();
         if let Some(file_transfers) = &mut self.file_transfers {
+            tracing::debug!("file_transfers::start");
             let clients = {
                 let remotes = self.remotes.read().await;
                 let mut clients = Vec::new();
