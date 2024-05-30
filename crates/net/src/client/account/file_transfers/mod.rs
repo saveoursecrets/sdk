@@ -108,7 +108,7 @@ impl Default for FileTransferSettings {
             #[cfg(debug_assertions)]
             failure_expiry: Duration::from_millis(0),
             #[cfg(not(debug_assertions))]
-            failure_interval: Duration::from_secs(60),
+            failure_expiry: Duration::from_secs(60),
 
             // Disable retry for test specs so they
             // execute fast.
@@ -122,10 +122,20 @@ impl Default for FileTransferSettings {
 }
 
 impl FileTransferSettings {
-    /// Create file transfer settings with the given
-    /// network retry configuration.
+    /// Create production file transfer settings.
+    pub fn new() -> Self {
+        Self {
+            concurrent_requests: 4,
+            failure_interval: Duration::from_millis(15000),
+            failure_expiry: Duration::from_secs(60),
+            retry: NetworkRetry::default(),
+        }
+    }
+
+    /// Create production file transfer settings
+    /// with the given network retry configuration.
     pub fn new_retry(retry: NetworkRetry) -> Self {
-        let mut settings = Self::default();
+        let mut settings = Self::new();
         settings.retry = retry;
         settings
     }
