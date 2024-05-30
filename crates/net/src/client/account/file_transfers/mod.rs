@@ -9,9 +9,13 @@ use crate::{
 };
 
 use futures::FutureExt;
-use std::sync::Arc;
-use tokio::sync::{
-    broadcast, mpsc, oneshot, watch, Mutex, RwLock, Semaphore,
+use std::{
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
+use tokio::{
+    sync::{broadcast, mpsc, oneshot, watch, Mutex, RwLock, Semaphore},
+    time,
 };
 
 mod inflight;
@@ -56,12 +60,38 @@ enum TransferResult {
     Fatal(TransferError),
 }
 
+/// Logs a failed transfer attempt.
+#[derive(Debug)]
+struct TransferFailure {
+    time: SystemTime,
+    file: ExternalFile,
+    operation: TransferOperation,
+}
+
+impl From<TransferFailure> for (ExternalFile, TransferOperation) {
+    fn from(value: TransferFailure) -> Self {
+        (value.file, value.operation)
+    }
+}
+
 /// Settings for file transfer operations.
 #[derive(Debug, Clone)]
 pub struct FileTransferSettings {
     /// Number of concurrent requests.
     pub concurrent_requests: usize,
+
+    /// Duration to poll the failure queue
+    /// for expired failures.
+    pub failure_interval: Duration,
+
+    /// Duration after which failed transfers are
+    /// re-inserted back into the transfers queue.
+    pub failure_expiry: Duration,
+
     /// Settings for network retry.
+    ///
+    /// Network retry here applies to each individual
+    /// file transfer operation.
     pub retry: NetworkRetry,
 }
 
@@ -69,8 +99,19 @@ impl Default for FileTransferSettings {
     fn default() -> Self {
         Self {
             concurrent_requests: 4,
+
+            #[cfg(debug_assertions)]
+            failure_interval: Duration::from_millis(250),
+            #[cfg(not(debug_assertions))]
+            failure_interval: Duration::from_millis(15000),
+
+            #[cfg(debug_assertions)]
+            failure_expiry: Duration::from_millis(0),
+            #[cfg(not(debug_assertions))]
+            failure_interval: Duration::from_secs(60),
+
             // Disable retry for test specs so they
-            // execute fast
+            // execute fast.
             #[cfg(debug_assertions)]
             retry: NetworkRetry::new(4, 0),
             // In production use default values
@@ -90,6 +131,8 @@ impl FileTransferSettings {
     }
 }
 
+/// Handle that can be used to shutdown the file transfers event
+/// loop and send events to the queue.
 pub(crate) struct FileTransfersHandle {
     shutdown_tx: mpsc::Sender<()>,
     shutdown_rx: oneshot::Receiver<()>,
@@ -153,9 +196,9 @@ where
 {
     clients: Arc<Mutex<Vec<C>>>,
     settings: Arc<FileTransferSettings>,
-    pub(crate) queue:
-        Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
-    pub(crate) inflight: Arc<InflightTransfers>,
+    queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
+    failures: Arc<Mutex<VecDeque<TransferFailure>>>,
+    pub(super) inflight: Arc<InflightTransfers>,
 }
 
 impl<C> FileTransfers<C>
@@ -171,18 +214,19 @@ where
             clients: Arc::new(Mutex::new(clients)),
             settings: Arc::new(settings),
             queue: Arc::new(RwLock::new(queue)),
+            failures: Arc::new(Mutex::new(Default::default())),
             inflight: Arc::new(inflight),
         }
     }
 
-    /// Add a client for file transfer operations.
-    pub async fn add_client(&self, client: C) {
+    /// Add a client target for file transfer operations.
+    pub(super) async fn add_client(&self, client: C) {
         let mut writer = self.clients.lock().await;
         writer.push(client);
     }
 
-    /// Add a client for file transfer operations.
-    pub async fn remove_client(&self, client: &C) {
+    /// Remove a client target for file transfer operations.
+    pub(super) async fn remove_client(&self, client: &C) {
         let mut writer = self.clients.lock().await;
         if let Some(pos) = writer.iter().position(|c| c == client) {
             writer.remove(pos);
@@ -190,9 +234,11 @@ where
     }
 
     /// Spawn a task to transfer file operations.
-    pub fn run(&mut self, paths: Arc<Paths>) -> FileTransfersHandle {
+    pub(super) fn run(&mut self, paths: Arc<Paths>) -> FileTransfersHandle {
         let (handle, mut shutdown_rx, shutdown_tx, mut queue_rx) =
             FileTransfersHandle::new();
+
+        let queue_tx = handle.queue_tx.clone();
 
         let queue_drained = Arc::new(Mutex::new(false));
 
@@ -201,8 +247,12 @@ where
         let inflight = self.inflight.clone();
         let cancel_inflight = self.inflight.clone();
         let settings = self.settings.clone();
+        let failures = self.failures.clone();
         let semaphore =
             Arc::new(Semaphore::new(self.settings.concurrent_requests));
+
+        let failure_expiry = settings.failure_expiry;
+        let mut interval = time::interval(settings.failure_interval);
 
         tokio::task::spawn(async move {
             loop {
@@ -224,6 +274,23 @@ where
                             tracing::debug!("file_transfers::shut_down");
 
                             break;
+                        }
+                    }
+                    _ = interval.tick() => {
+                        let mut failures = failures.lock().await;
+                        let mut items = Vec::new();
+                        while let Some(failure) = failures.pop_front() {
+                            if let Ok(elapsed) = failure.time.elapsed() {
+                                if elapsed >= failure_expiry {
+                                    items.push(failure.into());
+                                } else {
+                                    failures.push_back(failure);
+                                }
+                            }
+                        }
+
+                        if let Err(error) = queue_tx.send(items).await {
+                            tracing::error!(error = ?error, "file_transfers::reinsert");
                         }
                     }
                     Some(events) = queue_rx.recv() => {
@@ -280,6 +347,7 @@ where
 
                               let semaphore = semaphore.clone();
                               let queue = queue.clone();
+                              let failures = failures.clone();
                               let inflight = inflight.clone();
                               let settings = settings.clone();
                               let paths = paths.clone();
@@ -296,6 +364,7 @@ where
                                     paths.clone(),
                                     semaphore.clone(),
                                     queue.clone(),
+                                    failures.clone(),
                                     inflight.clone(),
                                     settings.clone(),
                                     clients.clone(),
@@ -327,6 +396,7 @@ where
         paths: Arc<Paths>,
         semaphore: Arc<Semaphore>,
         queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
+        failures: Arc<Mutex<VecDeque<TransferFailure>>>,
         inflight: Arc<InflightTransfers>,
         settings: Arc<FileTransferSettings>,
         clients: Vec<C>,
@@ -335,6 +405,7 @@ where
             paths.clone(),
             semaphore.clone(),
             queue.clone(),
+            failures.clone(),
             inflight.clone(),
             settings.clone(),
             clients.as_slice(),
@@ -346,6 +417,7 @@ where
                 paths.clone(),
                 semaphore.clone(),
                 queue.clone(),
+                failures.clone(),
                 inflight.clone(),
                 settings.clone(),
                 clients.as_slice(),
@@ -360,6 +432,7 @@ where
         paths: Arc<Paths>,
         semaphore: Arc<Semaphore>,
         queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
+        failures: Arc<Mutex<VecDeque<TransferFailure>>>,
         inflight: Arc<InflightTransfers>,
         settings: Arc<FileTransferSettings>,
         clients: &[C],
@@ -458,7 +531,7 @@ where
         let request_paths = paths.clone();
         let request_queue = queue.clone();
         let download_inflight = inflight.clone();
-        let download_queue = queue.clone();
+        let download_failures = failures.clone();
 
         let requests_task = async move {
             let mut results = Vec::new();
@@ -527,11 +600,13 @@ where
                     })
                     .map(|(_, (file, op, _))| (file, op))
                 {
-                    let item = (file, op);
-                    let mut queue = request_queue.write().await;
-                    if !queue.contains(&item) {
-                        queue.push_back(item);
-                    }
+                    let item = TransferFailure {
+                        time: SystemTime::now(),
+                        file,
+                        operation: op,
+                    };
+                    let mut failures = failures.lock().await;
+                    failures.push_front(item);
                 }
             }
 
@@ -577,11 +652,13 @@ where
                     })
                     .map(|(_, (file, op, _))| (file, op))
                 {
-                    let item = (file, op);
-                    let mut queue = download_queue.write().await;
-                    if !queue.contains(&item) {
-                        queue.push_back(item);
-                    }
+                    let item = TransferFailure {
+                        time: SystemTime::now(),
+                        file,
+                        operation: op,
+                    };
+                    let mut failures = download_failures.lock().await;
+                    failures.push_front(item);
                 }
             }
 
