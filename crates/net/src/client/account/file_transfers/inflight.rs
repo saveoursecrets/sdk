@@ -161,13 +161,15 @@ impl InflightTransfers {
     }
 
     pub(super) async fn remove_transfer(&self, request_id: &u64) {
+        /*
         let notify = InflightNotification::TransferRemoved {
             request_id: *request_id,
         };
+        */
 
         let mut inflight = self.inflight.write().await;
         inflight.remove(request_id);
 
-        notify_listeners(notify, &self.notifications).await;
+        // notify_listeners(notify, &self.notifications).await;
     }
 }

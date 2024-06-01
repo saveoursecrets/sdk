@@ -51,6 +51,8 @@ pub enum SysMessageLevel {
     Error,
     /// Progress message such as an upload or download.
     Progress,
+    /// Completed operation (eg: upload or download).
+    Done,
 }
 
 /// System message notification.

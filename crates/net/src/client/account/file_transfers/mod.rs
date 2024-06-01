@@ -539,6 +539,15 @@ where
             let mut results = Vec::new();
             for jh in requests {
                 let result = jh.await.unwrap()?;
+
+                if let (request_id, TransferResult::Done) =
+                    (result.0, &result.1 .2)
+                {
+                    let notify =
+                        InflightNotification::TransferDone { request_id };
+                    notify_listeners(notify, &inflight.notifications).await;
+                }
+
                 results.push(result);
             }
 
@@ -546,13 +555,7 @@ where
                 .iter()
                 .all(|(_, (_, _, r))| matches!(r, TransferResult::Done));
 
-            if done {
-                for (request_id, _) in results {
-                    let notify =
-                        InflightNotification::TransferDone { request_id };
-                    notify_listeners(notify, &inflight.notifications).await;
-                }
-            } else {
+            if !done {
                 // println!("result: {:#?}", results);
 
                 // If we attempt a move but the source file
@@ -809,6 +812,8 @@ where
         }
 
         if let TransferResult::Fatal(reason) = &result {
+            println!("SENDING INFLIGHT FATAL ERROR NOTIFICATION");
+
             let notify = InflightNotification::TransferError {
                 request_id,
                 reason: reason.clone(),
