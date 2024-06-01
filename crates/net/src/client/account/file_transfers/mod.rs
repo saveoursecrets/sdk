@@ -303,8 +303,10 @@ where
                             }
                         }
 
-                        if let Err(error) = queue_tx.send(items).await {
-                            tracing::error!(error = ?error, "file_transfers::reinsert");
+                        if !items.is_empty() {
+                            if let Err(error) = queue_tx.send(items).await {
+                                tracing::error!(error = ?error, "file_transfers::reinsert");
+                            }
                         }
                     }
                     Some(events) = queue_rx.recv() => {
