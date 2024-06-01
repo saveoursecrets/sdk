@@ -796,7 +796,7 @@ where
                 );
                 let progress_tx = progress_tx.unwrap();
                 let cancel_rx = cancel_rx.unwrap();
-                operation.run(file, progress_tx, cancel_rx).await?
+                operation.run(&file, progress_tx, cancel_rx).await?
             }
             TransferOperation::Download => {
                 let operation = operations::DownloadOperation::new(
@@ -809,7 +809,7 @@ where
                 );
                 let progress_tx = progress_tx.unwrap();
                 let cancel_rx = cancel_rx.unwrap();
-                operation.run(file, progress_tx, cancel_rx).await?
+                operation.run(&file, progress_tx, cancel_rx).await?
             }
             TransferOperation::Delete => {
                 let operation = operations::DeleteOperation::new(
@@ -819,7 +819,7 @@ where
                     inflight_transfers.clone(),
                     retry,
                 );
-                operation.run(file).await?
+                operation.run(&file).await?
             }
             TransferOperation::Move(dest) => {
                 let operation = operations::MoveOperation::new(
@@ -829,7 +829,7 @@ where
                     inflight_transfers.clone(),
                     retry,
                 );
-                operation.run(file, dest).await?
+                operation.run(&file, dest).await?
             }
         };
 

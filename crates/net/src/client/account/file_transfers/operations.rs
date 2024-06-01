@@ -56,7 +56,7 @@ where
     #[async_recursion]
     pub async fn run(
         &self,
-        file: ExternalFile,
+        file: &ExternalFile,
         progress_tx: ProgressChannel,
         cancel_rx: watch::Receiver<()>,
     ) -> Result<TransferResult> {
@@ -68,7 +68,7 @@ where
 
         let result = match self
             .client
-            .upload_file(&file, &path, progress_tx.clone(), cancel_rx.clone())
+            .upload_file(file, &path, progress_tx.clone(), cancel_rx.clone())
             .await
         {
             Ok(status) => self.on_response(status),
@@ -181,7 +181,7 @@ where
     #[async_recursion]
     pub async fn run(
         &self,
-        file: ExternalFile,
+        file: &ExternalFile,
         progress_tx: ProgressChannel,
         cancel_rx: watch::Receiver<()>,
     ) -> Result<TransferResult> {
@@ -205,7 +205,7 @@ where
         let result = match self
             .client
             .download_file(
-                &file,
+                file,
                 &path,
                 progress_tx.clone(),
                 cancel_rx.clone(),
@@ -317,8 +317,8 @@ where
     }
 
     #[async_recursion]
-    pub async fn run(&self, file: ExternalFile) -> Result<TransferResult> {
-        let result = match self.client.delete_file(&file).await {
+    pub async fn run(&self, file: &ExternalFile) -> Result<TransferResult> {
+        let result = match self.client.delete_file(file).await {
             Ok(status) => self.on_response(status),
             Err(e) => self.on_error(e),
         };
@@ -429,10 +429,10 @@ where
     #[async_recursion]
     pub async fn run(
         &self,
-        file: ExternalFile,
+        file: &ExternalFile,
         dest: &ExternalFile,
     ) -> Result<TransferResult> {
-        let result = match self.client.move_file(&file, dest).await {
+        let result = match self.client.move_file(file, dest).await {
             Ok(status) => self.on_response(status),
             Err(e) => self.on_error(e),
         };
