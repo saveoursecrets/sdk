@@ -103,12 +103,12 @@ impl Default for FileTransferSettings {
             #[cfg(debug_assertions)]
             failure_interval: Duration::from_millis(250),
             #[cfg(not(debug_assertions))]
-            failure_interval: Duration::from_millis(15000),
+            failure_interval: Duration::from_millis(30000),
 
             #[cfg(debug_assertions)]
             failure_expiry: Duration::from_millis(0),
             #[cfg(not(debug_assertions))]
-            failure_expiry: Duration::from_secs(60),
+            failure_expiry: Duration::from_secs(180),
 
             // Disable retry for test specs so they
             // execute fast.
@@ -126,18 +126,10 @@ impl FileTransferSettings {
     pub fn new() -> Self {
         Self {
             concurrent_requests: 4,
-            failure_interval: Duration::from_millis(15000),
-            failure_expiry: Duration::from_secs(60),
+            failure_interval: Duration::from_millis(30000),
+            failure_expiry: Duration::from_secs(180),
             retry: NetworkRetry::default(),
         }
-    }
-
-    /// Create production file transfer settings
-    /// with the given network retry configuration.
-    pub fn new_retry(retry: NetworkRetry) -> Self {
-        let mut settings = Self::new();
-        settings.retry = retry;
-        settings
     }
 }
 
@@ -817,12 +809,10 @@ where
         }
 
         if let TransferResult::Fatal(reason) = &result {
-            // Handle backpressure on notifications
             let notify = InflightNotification::TransferError {
                 request_id,
                 reason: reason.clone(),
             };
-
             notify_listeners(notify, &inflight_transfers.notifications).await;
         }
 
