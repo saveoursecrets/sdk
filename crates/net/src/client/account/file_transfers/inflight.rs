@@ -15,13 +15,15 @@ use std::{
 };
 use tokio::sync::{broadcast, Mutex, RwLock};
 
-use super::{notify_listeners, CancelChannel, TransferError};
+use super::{CancelChannel, TransferError};
 
 /// Notification for inflight transfers.
 #[derive(Debug, Clone)]
 pub enum InflightNotification {
     /// Notify a transfer was added.
     TransferAdded {
+        /// Transfer identifier.
+        transfer_id: u64,
         /// Request identifier.
         request_id: u64,
         /// Server origin.
@@ -35,6 +37,8 @@ pub enum InflightNotification {
     ///
     /// This notification is only sent for uploads and downloads.
     TransferUpdate {
+        /// Transfer identifier.
+        transfer_id: u64,
         /// Request identifier.
         request_id: u64,
         /// Bytes transferred.
@@ -42,13 +46,10 @@ pub enum InflightNotification {
         /// Bytes total.
         bytes_total: Option<u64>,
     },
-    /// Notify a transfer was removed from inflight collection.
-    TransferRemoved {
-        /// Request identifier.
-        request_id: u64,
-    },
     /// Notify a transfer is being retried.
     TransferRetry {
+        /// Transfer identifier.
+        transfer_id: u64,
         /// Request identifier.
         request_id: u64,
         /// Retry number.
@@ -58,6 +59,8 @@ pub enum InflightNotification {
     },
     /// Notify a transfer is stopped due to an error.
     TransferError {
+        /// Transfer identifier.
+        transfer_id: u64,
         /// Request identifier.
         request_id: u64,
         /// Error reason.
@@ -65,6 +68,8 @@ pub enum InflightNotification {
     },
     /// Notify a transfer was completed.
     TransferDone {
+        /// Transfer identifier.
+        transfer_id: u64,
         /// Request identifier.
         request_id: u64,
     },
@@ -147,29 +152,12 @@ impl InflightTransfers {
         request_id: u64,
         request: InflightRequest,
     ) {
-        let notify = InflightNotification::TransferAdded {
-            request_id,
-            origin: request.origin.clone(),
-            file: request.file.clone(),
-            operation: request.operation.clone(),
-        };
-
         let mut inflight = self.inflight.write().await;
         inflight.insert(request_id, request);
-
-        notify_listeners(notify, &self.notifications).await;
     }
 
     pub(super) async fn remove_transfer(&self, request_id: &u64) {
-        /*
-        let notify = InflightNotification::TransferRemoved {
-            request_id: *request_id,
-        };
-        */
-
         let mut inflight = self.inflight.write().await;
         inflight.remove(request_id);
-
-        // notify_listeners(notify, &self.notifications).await;
     }
 }

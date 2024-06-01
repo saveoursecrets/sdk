@@ -23,6 +23,7 @@ where
 {
     client: C,
     paths: Arc<Paths>,
+    transfer_id: u64,
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
@@ -36,6 +37,7 @@ where
     pub fn new(
         client: C,
         paths: Arc<Paths>,
+        transfer_id: u64,
         request_id: u64,
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
@@ -43,6 +45,7 @@ where
         Self {
             client,
             paths,
+            transfer_id,
             request_id,
             inflight,
             retry,
@@ -76,8 +79,12 @@ where
             let retries = self.retry.increment().await;
 
             tracing::debug!(retries = %retries, "upload_file::retry");
-            self.notify_retry(retries - 1, self.retry.maximum_retries)
-                .await;
+            self.notify_retry(
+                self.transfer_id,
+                retries - 1,
+                self.retry.maximum_retries,
+            )
+            .await;
 
             if self.retry.is_exhausted(retries) {
                 tracing::debug!(
@@ -141,6 +148,7 @@ where
 {
     client: C,
     paths: Arc<Paths>,
+    transfer_id: u64,
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
@@ -154,6 +162,7 @@ where
     pub fn new(
         client: C,
         paths: Arc<Paths>,
+        transfer_id: u64,
         request_id: u64,
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
@@ -161,6 +170,7 @@ where
         Self {
             client,
             paths,
+            transfer_id,
             request_id,
             inflight,
             retry,
@@ -210,8 +220,12 @@ where
             let retries = self.retry.increment().await;
 
             tracing::debug!(retries = %retries, "download_file::retry");
-            self.notify_retry(retries - 1, self.retry.maximum_retries)
-                .await;
+            self.notify_retry(
+                self.transfer_id,
+                retries - 1,
+                self.retry.maximum_retries,
+            )
+            .await;
 
             if self.retry.is_exhausted(retries) {
                 tracing::debug!(
@@ -274,6 +288,7 @@ where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
     client: C,
+    transfer_id: u64,
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
@@ -286,12 +301,14 @@ where
 {
     pub fn new(
         client: C,
+        transfer_id: u64,
         request_id: u64,
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
     ) -> Self {
         Self {
             client,
+            transfer_id,
             request_id,
             inflight,
             retry,
@@ -310,8 +327,12 @@ where
             let retries = self.retry.increment().await;
 
             tracing::debug!(retries = %retries, "delete_file::retry");
-            self.notify_retry(retries - 1, self.retry.maximum_retries)
-                .await;
+            self.notify_retry(
+                self.transfer_id,
+                retries - 1,
+                self.retry.maximum_retries,
+            )
+            .await;
 
             if self.retry.is_exhausted(retries) {
                 tracing::debug!(
@@ -377,6 +398,7 @@ where
     C: SyncClient + Clone + Send + Sync + 'static,
 {
     client: C,
+    transfer_id: u64,
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
@@ -389,12 +411,14 @@ where
 {
     pub fn new(
         client: C,
+        transfer_id: u64,
         request_id: u64,
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
     ) -> Self {
         Self {
             client,
+            transfer_id,
             request_id,
             inflight,
             retry,
@@ -417,8 +441,12 @@ where
             let retries = self.retry.increment().await;
 
             tracing::debug!(retries = %retries, "move_file::retry");
-            self.notify_retry(retries - 1, self.retry.maximum_retries)
-                .await;
+            self.notify_retry(
+                self.transfer_id,
+                retries - 1,
+                self.retry.maximum_retries,
+            )
+            .await;
 
             if self.retry.is_exhausted(retries) {
                 tracing::debug!(
@@ -490,8 +518,9 @@ trait TransferTask {
     fn inflight(&self) -> &InflightTransfers;
     fn request_id(&self) -> u64;
 
-    async fn notify_retry(&self, retry: u32, maximum: u32) {
+    async fn notify_retry(&self, transfer_id: u64, retry: u32, maximum: u32) {
         let notify = InflightNotification::TransferRetry {
+            transfer_id,
             request_id: self.request_id(),
             retry,
             maximum,

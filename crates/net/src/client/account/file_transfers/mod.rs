@@ -10,6 +10,8 @@ use crate::{
 
 use futures::FutureExt;
 use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
     sync::Arc,
     time::{Duration, SystemTime},
 };
@@ -58,6 +60,16 @@ enum TransferResult {
     Retry,
     /// Fatal error prevents the operation from being retried.
     Fatal(TransferError),
+}
+
+/// Outcome of an attempted transfer operation.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+struct TransferOutcome {
+    transfer_id: u64,
+    request_id: u64,
+    file: ExternalFile,
+    operation: TransferOperation,
+    result: TransferResult,
 }
 
 /// Logs a failed transfer attempt.
@@ -477,7 +489,7 @@ where
                                 let _permit = permit.acquire().await.unwrap();
                                 let request_id = inflight.request_id().await;
 
-                                let result = Self::run_client_operation(
+                                let outcome = Self::run_client_operation(
                                     request_id,
                                     file,
                                     op,
@@ -488,9 +500,11 @@ where
                                 )
                                 .await?;
 
-                                let is_done =
-                                    matches!(&result.2, TransferResult::Done);
-                                results.push((request_id, result));
+                                let is_done = matches!(
+                                    &outcome.result,
+                                    TransferResult::Done
+                                );
+                                results.push(outcome);
                                 if is_done {
                                     break;
                                 }
@@ -510,7 +524,7 @@ where
                                 let _permit = permit.acquire().await.unwrap();
                                 let request_id = inflight.request_id().await;
 
-                                let result = Self::run_client_operation(
+                                let outcome = Self::run_client_operation(
                                     request_id,
                                     file,
                                     op,
@@ -521,7 +535,7 @@ where
                                 )
                                 .await?;
 
-                                Ok::<_, Error>((request_id, result))
+                                Ok::<_, Error>(outcome)
                             });
                             requests.push(jh);
                         }
@@ -538,22 +552,21 @@ where
         let requests_task = async move {
             let mut results = Vec::new();
             for jh in requests {
-                let result = jh.await.unwrap()?;
-
-                if let (request_id, TransferResult::Done) =
-                    (result.0, &result.1 .2)
-                {
-                    let notify =
-                        InflightNotification::TransferDone { request_id };
+                let outcome = jh.await.unwrap()?;
+                if let TransferResult::Done = &outcome.result {
+                    let notify = InflightNotification::TransferDone {
+                        transfer_id: outcome.transfer_id,
+                        request_id: outcome.request_id,
+                    };
                     notify_listeners(notify, &inflight.notifications).await;
                 }
 
-                results.push(result);
+                results.push(outcome);
             }
 
             let done = results
                 .iter()
-                .all(|(_, (_, _, r))| matches!(r, TransferResult::Done));
+                .all(|o| matches!(o.result, TransferResult::Done));
 
             if !done {
                 // println!("result: {:#?}", results);
@@ -564,9 +577,9 @@ where
                 // on disc then we mutate it into an update operation
                 let moved_missing = results
                     .iter()
-                    .filter(|(_, (_, _, r))| {
+                    .filter(|o| {
                         matches!(
-                            r,
+                            o.result,
                             TransferResult::Fatal(
                                 TransferError::MovedMissing
                             )
@@ -574,8 +587,9 @@ where
                     })
                     .cloned()
                     .collect::<HashSet<_>>();
-                for (_, (_, op, _)) in moved_missing {
-                    if let TransferOperation::Move(dest) = &op {
+                for outcome in moved_missing {
+                    if let TransferOperation::Move(dest) = &outcome.operation
+                    {
                         let path = request_paths.file_location(
                             dest.vault_id(),
                             dest.secret_id(),
@@ -595,15 +609,15 @@ where
 
                 for (file, op) in results
                     .into_iter()
-                    .filter(|(_, (_, _, r))| {
+                    .filter(|o| {
                         matches!(
-                            r,
+                            o.result,
                             TransferResult::Fatal(
                                 TransferError::RetryExhausted
                             )
                         )
                     })
-                    .map(|(_, (file, op, _))| (file, op))
+                    .map(|o| (o.file, o.operation))
                 {
                     let item = TransferFailure {
                         time: SystemTime::now(),
@@ -629,38 +643,33 @@ where
 
             let done_requests = results
                 .iter()
-                .filter_map(|(id, (_, _, r))| {
-                    if matches!(r, TransferResult::Done) {
-                        Some(id)
-                    } else {
-                        None
-                    }
-                })
+                .filter(|o| matches!(o.result, TransferResult::Done))
                 .collect::<Vec<_>>();
 
-            if let Some(request_id) = done_requests.first() {
+            if let Some(outcome) = done_requests.first() {
                 let notify = InflightNotification::TransferDone {
-                    request_id: **request_id,
+                    transfer_id: outcome.transfer_id,
+                    request_id: outcome.request_id,
                 };
                 notify_listeners(notify, &download_inflight.notifications)
                     .await;
             } else {
-                for (file, op) in results
+                for (file, operation) in results
                     .into_iter()
-                    .filter(|(_, (_, _, r))| {
+                    .filter(|o| {
                         matches!(
-                            r,
+                            o.result,
                             TransferResult::Fatal(
                                 TransferError::RetryExhausted
                             )
                         )
                     })
-                    .map(|(_, (file, op, _))| (file, op))
+                    .map(|o| (o.file, o.operation))
                 {
                     let item = TransferFailure {
                         time: SystemTime::now(),
                         file,
-                        operation: op,
+                        operation,
                     };
                     let mut failures = download_failures.lock().await;
                     failures.push_front(item);
@@ -692,12 +701,19 @@ where
         settings: Arc<FileTransferSettings>,
         paths: Arc<Paths>,
         inflight_transfers: Arc<InflightTransfers>,
-    ) -> Result<(ExternalFile, TransferOperation, TransferResult)> {
+    ) -> Result<TransferOutcome> {
         tracing::debug!(
           request_id = %request_id,
           op = ?op,
           "file_transfers::run",
         );
+
+        // Compute an id for the transfer
+        let mut hasher = DefaultHasher::new();
+        file.hash(&mut hasher);
+        op.hash(&mut hasher);
+        client.origin().hash(&mut hasher);
+        let transfer_id = hasher.finish();
 
         let (progress_tx, cancel_tx, cancel_rx) =
             if let TransferOperation::Upload | TransferOperation::Download =
@@ -716,6 +732,7 @@ where
                     while let Some(event) = progress_rx.recv().await {
                         let notify = InflightNotification::TransferUpdate {
                             request_id,
+                            transfer_id,
                             bytes_transferred: event.0,
                             bytes_total: event.1,
                         };
@@ -745,10 +762,20 @@ where
                 "inflight_transfer::insert",
             );
 
+            let notify = InflightNotification::TransferAdded {
+                transfer_id,
+                request_id,
+                origin: request.origin.clone(),
+                file: request.file.clone(),
+                operation: request.operation.clone(),
+            };
+
             inflight_transfers
                 .insert_transfer(request_id, request)
                 .await;
-        }
+
+            notify_listeners(notify, &inflight_transfers.notifications).await;
+        };
 
         tracing::trace!(
           op = ?op,
@@ -762,6 +789,7 @@ where
                 let operation = operations::UploadOperation::new(
                     client,
                     paths,
+                    transfer_id,
                     request_id,
                     inflight_transfers.clone(),
                     retry,
@@ -774,6 +802,7 @@ where
                 let operation = operations::DownloadOperation::new(
                     client,
                     paths,
+                    transfer_id,
                     request_id,
                     inflight_transfers.clone(),
                     retry,
@@ -785,6 +814,7 @@ where
             TransferOperation::Delete => {
                 let operation = operations::DeleteOperation::new(
                     client,
+                    transfer_id,
                     request_id,
                     inflight_transfers.clone(),
                     retry,
@@ -794,6 +824,7 @@ where
             TransferOperation::Move(dest) => {
                 let operation = operations::MoveOperation::new(
                     client,
+                    transfer_id,
                     request_id,
                     inflight_transfers.clone(),
                     retry,
@@ -812,16 +843,21 @@ where
         }
 
         if let TransferResult::Fatal(reason) = &result {
-            println!("SENDING INFLIGHT FATAL ERROR NOTIFICATION");
-
             let notify = InflightNotification::TransferError {
+                transfer_id,
                 request_id,
                 reason: reason.clone(),
             };
             notify_listeners(notify, &inflight_transfers.notifications).await;
         }
 
-        Ok((file, op, result))
+        Ok(TransferOutcome {
+            transfer_id,
+            request_id,
+            file,
+            operation: op,
+            result,
+        })
     }
 }
 
