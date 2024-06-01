@@ -81,7 +81,7 @@ where
             tracing::debug!(retries = %retries, "upload_file::retry");
             self.notify_retry(
                 self.transfer_id,
-                retries - 1,
+                retries,
                 self.retry.maximum_retries,
             )
             .await;
@@ -222,7 +222,7 @@ where
             tracing::debug!(retries = %retries, "download_file::retry");
             self.notify_retry(
                 self.transfer_id,
-                retries - 1,
+                retries,
                 self.retry.maximum_retries,
             )
             .await;
@@ -329,7 +329,7 @@ where
             tracing::debug!(retries = %retries, "delete_file::retry");
             self.notify_retry(
                 self.transfer_id,
-                retries - 1,
+                retries,
                 self.retry.maximum_retries,
             )
             .await;
@@ -443,7 +443,7 @@ where
             tracing::debug!(retries = %retries, "move_file::retry");
             self.notify_retry(
                 self.transfer_id,
-                retries - 1,
+                retries,
                 self.retry.maximum_retries,
             )
             .await;
