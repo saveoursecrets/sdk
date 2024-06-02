@@ -15,7 +15,7 @@
 //! Requests are limited to the `concurrent_requests` setting guarded
 //! by a semaphore and notifications are sent via [InflightTransfers].
 use crate::{
-    client::{net::NetworkRetry, Error, Result, SyncClient},
+    client::{net::NetworkRetry, CancelReason, Error, Result, SyncClient},
     sdk::{
         storage::files::{ExternalFile, TransferOperation},
         sync::Origin,
@@ -53,7 +53,7 @@ pub type ProgressChannel = mpsc::Sender<(u64, Option<u64>)>;
 ///
 /// The boolean flag indicates whether the cancellation was
 /// requested by the user or not.
-pub type CancelChannel = watch::Sender<bool>;
+pub type CancelChannel = watch::Sender<CancelReason>;
 
 /// Reason for a transfer error notification.
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -66,7 +66,7 @@ pub enum TransferError {
     /// Error when the target file for a move operation is missing.
     MovedMissing,
     /// Transfer was canceled.
-    Canceled(bool),
+    Canceled(CancelReason),
 }
 
 /// Result of a file transfer operation.
@@ -81,7 +81,7 @@ enum TransferResult {
 }
 
 /// Outcome of an attempted transfer operation.
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 struct TransferOutcome {
     transfer_id: u64,
     request_id: u64,
@@ -300,7 +300,7 @@ where
                             *writer = Default::default();
 
                             // Cancel any inflight transfers
-                            cancel_inflight.cancel_all(false).await;
+                            cancel_inflight.cancel_all(CancelReason::Shutdown).await;
 
                             let _ = shutdown_tx.send(());
                             tracing::debug!("file_transfers::shut_down");
@@ -342,6 +342,20 @@ where
                         }
 
                         let num_queued = {
+
+                            // Normalize for delete and move events
+                            // that should cancel any existing upload
+                            // or download operations
+                            for event in &events {
+                                normalize(
+                                    &event.0,
+                                    &event.1,
+                                    queue.clone(),
+                                    failures.clone(),
+                                    inflight.clone(),
+                                ).await;
+                            }
+
                             let mut writer = queue.write().await;
                             for event in events {
                                 if !writer.contains(&event) {
@@ -735,7 +749,8 @@ where
 
         let transfer_id = compute_transfer_id(&file, &op, client.origin());
 
-        let (cancel_tx, cancel_rx) = watch::channel::<bool>(false);
+        let (cancel_tx, cancel_rx) =
+            watch::channel::<CancelReason>(Default::default());
         let progress_tx = match &op {
             TransferOperation::Upload | TransferOperation::Download => {
                 let (progress_tx, mut progress_rx): (ProgressChannel, _) =
@@ -907,4 +922,49 @@ fn compute_transfer_id(
     operation.hash(&mut hasher);
     origin.hash(&mut hasher);
     hasher.finish()
+}
+
+async fn normalize(
+    file: &ExternalFile,
+    operation: &TransferOperation,
+    queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
+    failures: Arc<Mutex<VecDeque<TransferFailure>>>,
+    inflight: Arc<InflightTransfers>,
+) {
+    match operation {
+        TransferOperation::Delete | TransferOperation::Move(_) => {
+            // Remove from the pending queue
+            let mut queue = queue.write().await;
+            queue.retain(|item| {
+                let is_transfer_op = matches!(
+                    item.1,
+                    TransferOperation::Upload | TransferOperation::Download
+                );
+                if &item.0 == file && is_transfer_op {
+                    false
+                } else {
+                    true
+                }
+            });
+
+            // Remove from the failures queue
+            let mut failures = failures.lock().await;
+            failures.retain(|failure| {
+                let is_transfer_op = matches!(
+                    failure.operation,
+                    TransferOperation::Upload | TransferOperation::Download
+                );
+                if &failure.file == file && is_transfer_op {
+                    false
+                } else {
+                    true
+                }
+            });
+
+            // Notmalize inflight transfers which will cancel
+            // any existing uploads/downloads
+            inflight.cancel_active_transfers(file).await;
+        }
+        _ => {}
+    }
 }

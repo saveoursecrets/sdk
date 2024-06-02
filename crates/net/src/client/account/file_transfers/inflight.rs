@@ -1,7 +1,10 @@
 //! Tracks inflight file transfer requests.
-use crate::sdk::{
-    storage::files::{ExternalFile, TransferOperation},
-    sync::Origin,
+use crate::{
+    client::CancelReason,
+    sdk::{
+        storage::files::{ExternalFile, TransferOperation},
+        sync::Origin,
+    },
 };
 
 use std::{
@@ -88,8 +91,8 @@ pub struct InflightRequest {
 
 impl InflightRequest {
     /// Cancel the inflight request.
-    pub async fn cancel(self, user_canceled: bool) -> bool {
-        self.cancel.send(user_canceled).is_ok()
+    pub async fn cancel(self, reason: CancelReason) -> bool {
+        self.cancel.send(reason).is_ok()
     }
 }
 
@@ -112,7 +115,7 @@ impl InflightTransfers {
     }
 
     /// Cancel all inflight transfers.
-    pub async fn cancel_all(&self, user_canceled: bool) {
+    pub async fn cancel_all(&self, reason: CancelReason) {
         let mut writer = self.inflight.write().await;
         for (id, request) in writer.drain() {
             tracing::info!(
@@ -120,7 +123,7 @@ impl InflightTransfers {
                 op = ?request.operation,
                 "inflight::cancel",
             );
-            request.cancel(user_canceled).await;
+            request.cancel(reason.clone()).await;
         }
     }
 
@@ -128,11 +131,11 @@ impl InflightTransfers {
     pub async fn cancel_one(
         &self,
         request_id: &u64,
-        user_canceled: bool,
+        reason: CancelReason,
     ) -> bool {
         let mut writer = self.inflight.write().await;
         if let Some(req) = writer.remove(request_id) {
-            req.cancel(user_canceled).await
+            req.cancel(reason).await
         } else {
             false
         }
@@ -147,6 +150,28 @@ impl InflightTransfers {
     pub async fn is_empty(&self) -> bool {
         let queue = self.inflight.read().await;
         queue.is_empty()
+    }
+
+    /// Cancel inflight upload or download transfers for the
+    /// given file.
+    pub(super) async fn cancel_active_transfers(&self, file: &ExternalFile) {
+        // TODO: use a cancellation reason that prevents
+        // TODO: adding to the failures queue
+
+        let mut cancelations = Vec::new();
+        let inflight = self.inflight.read().await;
+        for (request_id, transfer) in &*inflight {
+            let is_transfer_op = matches!(
+                transfer.operation,
+                TransferOperation::Upload | TransferOperation::Download
+            );
+            if &transfer.file == file && is_transfer_op {
+                cancelations.push(request_id);
+            }
+        }
+        for request_id in cancelations {
+            self.cancel_one(request_id, CancelReason::Aborted).await;
+        }
     }
 
     /// Next request id.

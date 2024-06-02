@@ -28,7 +28,7 @@ use crate::sdk::storage::files::{ExternalFile, FileSet, FileTransfersSet};
 #[cfg(feature = "files")]
 use crate::client::ProgressChannel;
 
-use crate::client::{Error, Result, SyncClient};
+use crate::client::{CancelReason, Error, Result, SyncClient};
 use std::{fmt, path::Path, time::Duration};
 use url::Url;
 
@@ -372,7 +372,7 @@ impl SyncClient for HttpClient {
         file_info: &ExternalFile,
         path: &Path,
         progress: ProgressChannel,
-        mut cancel: tokio::sync::watch::Receiver<bool>,
+        mut cancel: tokio::sync::watch::Receiver<CancelReason>,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
         use reqwest::{
@@ -413,8 +413,8 @@ impl SyncClient for HttpClient {
               tokio::select! {
                 biased;
                 _ = cancel.changed() => {
-                  let user_canceled = *cancel.borrow();
-                  yield Err(Error::TransferCanceled(user_canceled));
+                  let reason = cancel.borrow().clone();
+                  yield Err(Error::TransferCanceled(reason));
                 }
                 Some(chunk) = reader_stream.next() => {
                   if let Ok(bytes) = &chunk {
@@ -457,7 +457,7 @@ impl SyncClient for HttpClient {
         file_info: &ExternalFile,
         path: &Path,
         progress: ProgressChannel,
-        mut cancel: tokio::sync::watch::Receiver<bool>,
+        mut cancel: tokio::sync::watch::Receiver<CancelReason>,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
         use tokio::io::AsyncWriteExt;
@@ -501,9 +501,9 @@ impl SyncClient for HttpClient {
             tokio::select! {
                 biased;
                 _ = cancel.changed() => {
-                  let user_canceled = *cancel.borrow();
+                  let reason = cancel.borrow().clone();
                   vfs::remove_file(download_path).await?;
-                  return Err(Error::TransferCanceled(user_canceled));
+                  return Err(Error::TransferCanceled(reason));
                 }
                 chunk = response.chunk() => {
                   if let Some(chunk) = chunk? {

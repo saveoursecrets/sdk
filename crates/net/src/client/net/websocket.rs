@@ -22,7 +22,9 @@ use sos_sdk::{
 };
 
 use crate::{
-    client::{net::NetworkRetry, Error, Result, WebSocketRequest},
+    client::{
+        net::NetworkRetry, CancelReason, Error, Result, WebSocketRequest,
+    },
     ChangeNotification,
 };
 
@@ -197,7 +199,7 @@ async fn decode_notification(message: Message) -> Result<ChangeNotification> {
 #[derive(Clone)]
 pub struct WebSocketHandle {
     notify: watch::Sender<()>,
-    cancel_retry: watch::Sender<bool>,
+    cancel_retry: watch::Sender<CancelReason>,
 }
 
 impl WebSocketHandle {
@@ -210,7 +212,7 @@ impl WebSocketHandle {
             tracing::error!(error = ?error);
         }
 
-        if let Err(error) = self.cancel_retry.send(false) {
+        if let Err(error) = self.cancel_retry.send(CancelReason::Closed) {
             tracing::error!(error = ?error);
         }
     }
@@ -224,7 +226,7 @@ pub struct WebSocketChangeListener {
     device: BoxedEd25519Signer,
     options: ListenOptions,
     shutdown: watch::Sender<()>,
-    cancel_retry: watch::Sender<bool>,
+    cancel_retry: watch::Sender<CancelReason>,
 }
 
 impl WebSocketChangeListener {
@@ -236,7 +238,7 @@ impl WebSocketChangeListener {
         options: ListenOptions,
     ) -> Self {
         let (shutdown, _) = watch::channel(());
-        let (cancel_retry, _) = watch::channel(false);
+        let (cancel_retry, _) = watch::channel(Default::default());
         Self {
             origin,
             signer,

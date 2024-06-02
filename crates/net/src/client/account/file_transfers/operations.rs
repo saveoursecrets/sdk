@@ -3,7 +3,7 @@
 //! Tasks that handle retry until exhaustion for
 //! download, upload, move and delete operations.
 use crate::{
-    client::{net::NetworkRetry, Error, Result, SyncClient},
+    client::{net::NetworkRetry, CancelReason, Error, Result, SyncClient},
     sdk::{storage::files::ExternalFile, vfs, Paths},
 };
 
@@ -27,7 +27,7 @@ where
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
-    cancel_retry: watch::Sender<bool>,
+    cancel_retry: watch::Sender<CancelReason>,
 }
 
 impl<C> UploadOperation<C>
@@ -41,7 +41,7 @@ where
         request_id: u64,
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
-        cancel_retry: watch::Sender<bool>,
+        cancel_retry: watch::Sender<CancelReason>,
     ) -> Self {
         Self {
             client,
@@ -59,7 +59,7 @@ where
         &self,
         file: &ExternalFile,
         progress_tx: ProgressChannel,
-        cancel_rx: watch::Receiver<bool>,
+        cancel_rx: watch::Receiver<CancelReason>,
     ) -> Result<TransferResult> {
         let path = self.paths.file_location(
             file.vault_id(),
@@ -153,7 +153,7 @@ where
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
-    cancel_retry: watch::Sender<bool>,
+    cancel_retry: watch::Sender<CancelReason>,
 }
 
 impl<C> DownloadOperation<C>
@@ -167,7 +167,7 @@ where
         request_id: u64,
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
-        cancel_retry: watch::Sender<bool>,
+        cancel_retry: watch::Sender<CancelReason>,
     ) -> Self {
         Self {
             client,
@@ -185,7 +185,7 @@ where
         &self,
         file: &ExternalFile,
         progress_tx: ProgressChannel,
-        cancel_rx: watch::Receiver<bool>,
+        cancel_rx: watch::Receiver<CancelReason>,
     ) -> Result<TransferResult> {
         // Ensure the parent directory for the download exists
         let parent_path = self
@@ -294,7 +294,7 @@ where
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
-    cancel_retry: watch::Sender<bool>,
+    cancel_retry: watch::Sender<CancelReason>,
 }
 
 impl<C> DeleteOperation<C>
@@ -307,7 +307,7 @@ where
         request_id: u64,
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
-        cancel_retry: watch::Sender<bool>,
+        cancel_retry: watch::Sender<CancelReason>,
     ) -> Self {
         Self {
             client,
@@ -407,7 +407,7 @@ where
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
-    cancel_retry: watch::Sender<bool>,
+    cancel_retry: watch::Sender<CancelReason>,
 }
 
 impl<C> MoveOperation<C>
@@ -420,7 +420,7 @@ where
         request_id: u64,
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
-        cancel_retry: watch::Sender<bool>,
+        cancel_retry: watch::Sender<CancelReason>,
     ) -> Self {
         Self {
             client,
@@ -513,7 +513,7 @@ where
         tracing::warn!(error = ?error, "move_file::error");
         match error {
             Error::ResponseJson(StatusCode::NOT_FOUND, _) => {
-                return TransferResult::Fatal(TransferError::MovedMissing);
+                TransferResult::Fatal(TransferError::MovedMissing)
             }
             _ => on_error(error),
         }
@@ -538,9 +538,10 @@ trait TransferTask {
 }
 
 fn on_error(error: Error) -> TransferResult {
-    let (is_canceled, user_canceled) = error.is_canceled();
-    if is_canceled {
-        return TransferResult::Fatal(TransferError::Canceled(user_canceled));
+    if let Some(reason) = error.cancellation_reason() {
+        return TransferResult::Fatal(TransferError::Canceled(
+            reason.clone(),
+        ));
     }
 
     match error {

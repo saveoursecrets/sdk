@@ -1,4 +1,6 @@
 //! HTTP transport trait and implementations.
+use super::{Error, Result};
+use crate::client::CancelReason;
 use sos_sdk::{
     encode,
     signer::{
@@ -6,8 +8,6 @@ use sos_sdk::{
         ed25519::{BinaryEd25519Signature, Signature as Ed25519Signature},
     },
 };
-
-use super::{Error, Result};
 
 use std::{
     future::Future,
@@ -81,7 +81,7 @@ impl NetworkRetry {
         id: D,
         retries: u32,
         callback: F,
-        mut cancel: watch::Receiver<bool>,
+        mut cancel: watch::Receiver<CancelReason>,
     ) -> Result<T>
     where
         D: std::fmt::Display,
@@ -99,9 +99,9 @@ impl NetworkRetry {
         loop {
             tokio::select! {
                 _ = cancel.changed() => {
-                    let user_canceled = *cancel.borrow();
+                    let reason = cancel.borrow();
                     tracing::debug!(id = %id, "retry::canceled");
-                    return Err(Error::RetryCanceled(user_canceled));
+                    return Err(Error::RetryCanceled(reason.clone()));
                 }
                 _ = sleep(Duration::from_millis(delay)) => {
                     return Ok(callback.await)

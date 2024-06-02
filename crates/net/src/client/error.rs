@@ -1,4 +1,5 @@
 //! Error type for the client module.
+use crate::client::CancelReason;
 use http::StatusCode;
 use serde_json::Value;
 #[cfg(feature = "client")]
@@ -79,7 +80,7 @@ pub enum Error {
     /// The boolean flag indicates whether the cancellation was
     /// triggered by the user.
     #[error("file transfer canceled")]
-    TransferCanceled(bool),
+    TransferCanceled(CancelReason),
 
     /// Overflow error calculating the retry exponential factor.
     #[error("retry overflow")]
@@ -87,7 +88,7 @@ pub enum Error {
 
     /// Network retry was canceled possibly by the user.
     #[error("network retry was canceled")]
-    RetryCanceled(bool),
+    RetryCanceled(CancelReason),
 
     /*
     /// Generic boxed error.
@@ -164,16 +165,16 @@ pub enum Error {
 impl Error {
     /// Determine if this is a canceled error and
     /// whether the cancellation was triggered by the user.
-    pub fn is_canceled(&self) -> (bool, bool) {
+    pub fn cancellation_reason(&self) -> Option<&CancelReason> {
         let source = source_error(self);
         if let Some(err) = source.downcast_ref::<Error>() {
-            if let Error::TransferCanceled(user_canceled) = err {
-                (true, *user_canceled)
+            if let Error::TransferCanceled(reason) = err {
+                Some(reason)
             } else {
-                (false, false)
+                None
             }
         } else {
-            (false, false)
+            None
         }
     }
 }

@@ -1,5 +1,5 @@
 use super::Error;
-use crate::client::Result;
+use crate::client::{CancelReason, Result};
 use async_trait::async_trait;
 use sos_sdk::{
     storage,
@@ -94,7 +94,7 @@ pub trait SyncClient {
         file_info: &storage::files::ExternalFile,
         path: &Path,
         progress: crate::client::ProgressChannel,
-        cancel: tokio::sync::watch::Receiver<bool>,
+        cancel: tokio::sync::watch::Receiver<CancelReason>,
     ) -> Result<http::StatusCode>;
 
     /// Receive a file.
@@ -104,7 +104,7 @@ pub trait SyncClient {
         file_info: &storage::files::ExternalFile,
         path: &Path,
         progress: crate::client::ProgressChannel,
-        cancel: tokio::sync::watch::Receiver<bool>,
+        cancel: tokio::sync::watch::Receiver<CancelReason>,
     ) -> Result<http::StatusCode>;
 
     /// Delete a file on the remote server.
