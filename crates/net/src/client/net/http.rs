@@ -424,8 +424,12 @@ impl SyncClient for HttpClient {
             }
         };
 
-        let response = self
-            .client
+        // Use a client without the read timeout
+        let client = reqwest::ClientBuilder::new()
+            .connect_timeout(Duration::from_millis(5000))
+            .build()?;
+
+        let response = client
             .put(url)
             .header(AUTHORIZATION, auth)
             .header(CONTENT_LENGTH, file_size)
