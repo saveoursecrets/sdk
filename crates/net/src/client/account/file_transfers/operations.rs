@@ -10,7 +10,7 @@ use crate::{
 use async_recursion::async_recursion;
 use http::StatusCode;
 use std::{io::ErrorKind, sync::Arc};
-use tokio::sync::{watch, Notify};
+use tokio::sync::watch;
 
 use super::{
     notify_listeners, InflightNotification, InflightTransfers,
@@ -27,7 +27,7 @@ where
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
-    cancel_retry: Arc<Notify>,
+    cancel_retry: watch::Sender<bool>,
 }
 
 impl<C> UploadOperation<C>
@@ -42,6 +42,7 @@ where
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
     ) -> Self {
+        let (cancel_retry, _) = watch::channel(false);
         Self {
             client,
             paths,
@@ -49,7 +50,7 @@ where
             request_id,
             inflight,
             retry,
-            cancel_retry: Arc::new(Notify::new()),
+            cancel_retry,
         }
     }
 
@@ -98,7 +99,7 @@ where
             match self.retry
                 .wait_and_retry(self.request_id, retries, async move {
                     self.run(file, progress_tx, cancel_rx).await
-                }, self.cancel_retry.clone())
+                }, self.cancel_retry.subscribe())
                 .await {
                 Ok(res) => res,
                 Err(e) => {
@@ -152,7 +153,7 @@ where
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
-    cancel_retry: Arc<Notify>,
+    cancel_retry: watch::Sender<bool>,
 }
 
 impl<C> DownloadOperation<C>
@@ -167,6 +168,7 @@ where
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
     ) -> Self {
+        let (cancel_retry, _) = watch::channel(false);
         Self {
             client,
             paths,
@@ -174,7 +176,7 @@ where
             request_id,
             inflight,
             retry,
-            cancel_retry: Arc::new(Notify::new()),
+            cancel_retry,
         }
     }
 
@@ -239,7 +241,7 @@ where
             match self.retry
                 .wait_and_retry(self.request_id, retries, async move {
                     self.run(file, progress_tx, cancel_rx).await
-                }, self.cancel_retry.clone())
+                }, self.cancel_retry.subscribe())
                 .await {
                 Ok(res) => res,
                 Err(e) => {
@@ -292,7 +294,7 @@ where
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
-    cancel_retry: Arc<Notify>,
+    cancel_retry: watch::Sender<bool>,
 }
 
 impl<C> DeleteOperation<C>
@@ -306,13 +308,14 @@ where
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
     ) -> Self {
+        let (cancel_retry, _) = watch::channel(false);
         Self {
             client,
             transfer_id,
             request_id,
             inflight,
             retry,
-            cancel_retry: Arc::new(Notify::new()),
+            cancel_retry,
         }
     }
 
@@ -349,7 +352,7 @@ where
                     self.request_id,
                     retries,
                     async move { self.run(file).await },
-                    self.cancel_retry.clone(),
+                    self.cancel_retry.subscribe(),
                 )
                 .await
             {
@@ -404,7 +407,7 @@ where
     request_id: u64,
     inflight: Arc<InflightTransfers>,
     retry: NetworkRetry,
-    cancel_retry: Arc<Notify>,
+    cancel_retry: watch::Sender<bool>,
 }
 
 impl<C> MoveOperation<C>
@@ -418,13 +421,14 @@ where
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
     ) -> Self {
+        let (cancel_retry, _) = watch::channel(false);
         Self {
             client,
             transfer_id,
             request_id,
             inflight,
             retry,
-            cancel_retry: Arc::new(Notify::new()),
+            cancel_retry,
         }
     }
 
@@ -465,7 +469,7 @@ where
                     self.request_id,
                     retries,
                     async move { self.run(file, dest).await },
-                    self.cancel_retry.clone(),
+                    self.cancel_retry.subscribe(),
                 )
                 .await
             {

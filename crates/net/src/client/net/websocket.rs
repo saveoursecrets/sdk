@@ -200,7 +200,7 @@ async fn decode_notification(message: Message) -> Result<ChangeNotification> {
 #[derive(Clone)]
 pub struct WebSocketHandle {
     notify: watch::Sender<()>,
-    cancel_retry: Arc<Notify>,
+    cancel_retry: watch::Sender<bool>,
 }
 
 impl WebSocketHandle {
@@ -213,7 +213,9 @@ impl WebSocketHandle {
             tracing::error!(error = ?error);
         }
 
-        self.cancel_retry.notify_one();
+        if let Err(error) = self.cancel_retry.send(false) {
+            tracing::error!(error = ?error);
+        }
     }
 }
 
@@ -225,7 +227,7 @@ pub struct WebSocketChangeListener {
     device: BoxedEd25519Signer,
     options: ListenOptions,
     shutdown: watch::Sender<()>,
-    cancel_retry: Arc<Notify>,
+    cancel_retry: watch::Sender<bool>,
 }
 
 impl WebSocketChangeListener {
@@ -237,13 +239,14 @@ impl WebSocketChangeListener {
         options: ListenOptions,
     ) -> Self {
         let (shutdown, _) = watch::channel(());
+        let (cancel_retry, _) = watch::channel(false);
         Self {
             origin,
             signer,
             device,
             options,
             shutdown,
-            cancel_retry: Arc::new(Notify::new()),
+            cancel_retry,
         }
     }
 
@@ -369,7 +372,7 @@ impl WebSocketChangeListener {
                 "ws_client",
                 retries,
                 async move { self.connect(handler).await },
-                self.cancel_retry.clone(),
+                self.cancel_retry.subscribe(),
             )
             .await
         {
