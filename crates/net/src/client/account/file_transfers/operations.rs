@@ -542,7 +542,7 @@ fn on_error(error: Error) -> TransferResult {
     match error {
         Error::Io(io) => match io.kind() {
             ErrorKind::NotFound => {
-                TransferResult::Fatal(TransferError::TransferFileMissing)
+                TransferResult::Fatal(TransferError::FileMissing)
             }
             _ => TransferResult::Retry,
         },

@@ -47,7 +47,7 @@ pub enum TransferError {
     RetryExhausted,
     /// Error when a file that is the target of
     /// an upload or download is no longer on disc.
-    TransferFileMissing,
+    FileMissing,
     /// Error when the target file for a move operation is missing.
     MovedMissing,
     /// Transfer was canceled.
