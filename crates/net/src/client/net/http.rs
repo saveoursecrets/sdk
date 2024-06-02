@@ -402,7 +402,10 @@ impl SyncClient for HttpClient {
         let file = vfs::File::open(path).await?;
 
         let mut bytes_sent = 0;
-        let _ = progress.send((bytes_sent, Some(file_size)));
+        if let Err(error) = progress.send((bytes_sent, Some(file_size))).await
+        {
+            tracing::warn!(error = ?error);
+        }
 
         let mut reader_stream = ReaderStream::new(file);
         let progress_stream = async_stream::stream! {
@@ -416,7 +419,9 @@ impl SyncClient for HttpClient {
                 Some(chunk) = reader_stream.next() => {
                   if let Ok(bytes) = &chunk {
                       bytes_sent += bytes.len() as u64;
-                      let _ = progress.send((bytes_sent, Some(file_size))).await;
+                      if let Err(error) = progress.send((bytes_sent, Some(file_size))).await {
+                        tracing::warn!(error = ?error);
+                      }
                   }
                   yield chunk.map_err(Error::from);
                 }
@@ -482,7 +487,9 @@ impl SyncClient for HttpClient {
 
         let file_size = response.content_length();
         let mut bytes_received = 0;
-        let _ = progress.send((bytes_received, file_size));
+        if let Err(error) = progress.send((bytes_received, file_size)).await {
+            tracing::warn!(error = ?error);
+        }
 
         let mut download_path = path.to_path_buf();
         download_path.set_extension("download");
@@ -504,7 +511,9 @@ impl SyncClient for HttpClient {
                     hasher.update(&chunk);
 
                     bytes_received += chunk.len() as u64;
-                    let _ = progress.send((bytes_received, file_size)).await;
+                    if let Err(error) = progress.send((bytes_received, file_size)).await {
+                        tracing::warn!(error = ?error);
+                    }
                   } else {
                     break;
                   }
@@ -513,7 +522,9 @@ impl SyncClient for HttpClient {
         }
 
         file.flush().await?;
+
         let digest = hasher.finalize();
+
         let digest_valid =
             digest.as_slice() == file_info.file_name().as_ref();
         if !digest_valid {

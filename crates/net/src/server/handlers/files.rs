@@ -536,11 +536,13 @@ mod handlers {
             return Err(Error::Status(StatusCode::NOT_FOUND));
         }
 
+        let metadata = tokio::fs::metadata(&file_path).await?;
         let file = File::open(&file_path).await?;
         let stream = ReaderStream::new(file);
 
         let body = axum::body::Body::from_stream(stream);
         Ok(Response::builder()
+            .header(header::CONTENT_LENGTH, metadata.len())
             .header(header::CONTENT_TYPE, "application/octet-stream")
             .body(body)?)
     }

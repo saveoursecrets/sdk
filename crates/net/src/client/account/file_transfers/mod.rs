@@ -654,45 +654,48 @@ where
         let downloads_task = async move {
             let mut results = Vec::new();
             for jh in downloads {
-                let result = jh.await.unwrap()?;
-                results.push(result);
+                let download_outcomes = jh.await.unwrap()?;
+                let done_requests = download_outcomes
+                    .iter()
+                    .filter(|o| matches!(o.result, TransferResult::Done))
+                    .collect::<Vec<_>>();
+
+                for outcome in done_requests {
+                    if let TransferResult::Done = &outcome.result {
+                        let notify = InflightNotification::TransferDone {
+                            transfer_id: outcome.transfer_id,
+                            request_id: outcome.request_id,
+                        };
+                        notify_listeners(
+                            notify,
+                            &download_inflight.notifications,
+                        )
+                        .await;
+                    }
+                }
+
+                results.push(download_outcomes);
             }
 
             let results = results.into_iter().flatten().collect::<Vec<_>>();
 
-            let done_requests = results
-                .iter()
-                .filter(|o| matches!(o.result, TransferResult::Done))
-                .collect::<Vec<_>>();
-
-            if let Some(outcome) = done_requests.first() {
-                let notify = InflightNotification::TransferDone {
-                    transfer_id: outcome.transfer_id,
-                    request_id: outcome.request_id,
+            for (file, operation) in results
+                .into_iter()
+                .filter(|o| {
+                    matches!(
+                        o.result,
+                        TransferResult::Fatal(TransferError::RetryExhausted)
+                    )
+                })
+                .map(|o| (o.file, o.operation))
+            {
+                let item = TransferFailure {
+                    time: SystemTime::now(),
+                    file,
+                    operation,
                 };
-                notify_listeners(notify, &download_inflight.notifications)
-                    .await;
-            } else {
-                for (file, operation) in results
-                    .into_iter()
-                    .filter(|o| {
-                        matches!(
-                            o.result,
-                            TransferResult::Fatal(
-                                TransferError::RetryExhausted
-                            )
-                        )
-                    })
-                    .map(|o| (o.file, o.operation))
-                {
-                    let item = TransferFailure {
-                        time: SystemTime::now(),
-                        file,
-                        operation,
-                    };
-                    let mut failures = download_failures.lock().await;
-                    failures.push_front(item);
-                }
+                let mut failures = download_failures.lock().await;
+                failures.push_front(item);
             }
 
             Ok::<_, Error>(())
