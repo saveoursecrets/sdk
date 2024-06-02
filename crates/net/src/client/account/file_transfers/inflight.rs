@@ -11,7 +11,7 @@ use std::{
         Arc,
     },
 };
-use tokio::sync::{broadcast, Mutex, RwLock};
+use tokio::sync::{broadcast, RwLock};
 
 use super::{CancelChannel, TransferError};
 
@@ -100,7 +100,7 @@ impl InflightRequest {
 /// Collection of pending transfers.
 pub struct InflightTransfers {
     inflight: Arc<RwLock<HashMap<u64, InflightRequest>>>,
-    request_id: Arc<Mutex<AtomicU64>>,
+    request_id: AtomicU64,
     pub(super) notifications: broadcast::Sender<InflightNotification>,
 }
 
@@ -110,7 +110,7 @@ impl InflightTransfers {
         let (notifications, _) = broadcast::channel(2048);
         Self {
             inflight: Arc::new(RwLock::new(Default::default())),
-            request_id: Arc::new(Mutex::new(AtomicU64::new(1))),
+            request_id: AtomicU64::new(1),
             notifications,
         }
     }
@@ -154,9 +154,8 @@ impl InflightTransfers {
     }
 
     /// Next request id.
-    pub(super) async fn request_id(&self) -> u64 {
-        let id = self.request_id.lock().await;
-        id.fetch_add(1, Ordering::SeqCst)
+    pub(super) fn request_id(&self) -> u64 {
+        self.request_id.fetch_add(1, Ordering::SeqCst)
     }
 
     pub(super) async fn insert_transfer(

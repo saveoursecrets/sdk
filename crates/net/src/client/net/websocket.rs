@@ -352,8 +352,7 @@ impl WebSocketChangeListener {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        let retries = self.options.retry.increment().await;
-
+        let retries = self.options.retry.increment();
         if self.options.retry.is_exhausted(retries) {
             tracing::debug!(
                 maximum_retries = %self.options.retry.maximum_retries,

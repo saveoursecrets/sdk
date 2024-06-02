@@ -492,7 +492,7 @@ where
                             let mut results = Vec::new();
                             for client in clients {
                                 let _permit = permit.acquire().await.unwrap();
-                                let request_id = inflight.request_id().await;
+                                let request_id = inflight.request_id();
 
                                 let outcome = Self::run_client_operation(
                                     request_id,
@@ -527,8 +527,7 @@ where
                             let permit = semaphore.clone();
                             let jh = tokio::task::spawn(async move {
                                 let _permit = permit.acquire().await.unwrap();
-                                let request_id = inflight.request_id().await;
-
+                                let request_id = inflight.request_id();
                                 let outcome = Self::run_client_operation(
                                     request_id,
                                     file,

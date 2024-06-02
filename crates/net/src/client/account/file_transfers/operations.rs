@@ -76,7 +76,7 @@ where
         };
 
         if let TransferResult::Retry = result {
-            let retries = self.retry.increment().await;
+            let retries = self.retry.increment();
 
             tracing::debug!(retries = %retries, "upload_file::retry");
             self.notify_retry(
@@ -217,7 +217,7 @@ where
         };
 
         if let TransferResult::Retry = result {
-            let retries = self.retry.increment().await;
+            let retries = self.retry.increment();
 
             tracing::debug!(retries = %retries, "download_file::retry");
             self.notify_retry(
@@ -324,7 +324,7 @@ where
         };
 
         if let TransferResult::Retry = result {
-            let retries = self.retry.increment().await;
+            let retries = self.retry.increment();
 
             tracing::debug!(retries = %retries, "delete_file::retry");
             self.notify_retry(
@@ -440,7 +440,7 @@ where
         };
 
         if let TransferResult::Retry = result {
-            let retries = self.retry.increment().await;
+            let retries = self.retry.increment();
 
             tracing::debug!(retries = %retries, "move_file::retry");
             self.notify_retry(

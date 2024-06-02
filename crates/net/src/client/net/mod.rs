@@ -18,10 +18,7 @@ use std::{
     },
     time::Duration,
 };
-use tokio::{
-    sync::{Mutex, Notify},
-    time::sleep,
-};
+use tokio::{sync::Notify, time::sleep};
 
 mod http;
 #[cfg(feature = "listen")]
@@ -35,7 +32,7 @@ pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};
 /// Network retry state and logic for exponential backoff.
 #[derive(Debug, Clone)]
 pub struct NetworkRetry {
-    retries: Arc<Mutex<AtomicU32>>,
+    retries: Arc<AtomicU32>,
     pub(crate) reconnect_interval: u16,
     pub(crate) maximum_retries: u32,
 }
@@ -54,7 +51,7 @@ impl NetworkRetry {
     /// `1000` or `2000`.
     pub fn new(maximum_retries: u32, reconnect_interval: u16) -> Self {
         Self {
-            retries: Arc::new(Mutex::new(AtomicU32::from(1))),
+            retries: Arc::new(AtomicU32::from(1)),
             reconnect_interval,
             maximum_retries,
         }
@@ -63,16 +60,15 @@ impl NetworkRetry {
     /// Clone of this network retry with the retry counter reset.
     pub fn reset(&self) -> Self {
         Self {
-            retries: Arc::new(Mutex::new(AtomicU32::from(1))),
+            retries: Arc::new(AtomicU32::from(1)),
             reconnect_interval: self.reconnect_interval,
             maximum_retries: self.maximum_retries,
         }
     }
 
     /// Increment for next retry attempt.
-    pub async fn increment(&self) -> u32 {
-        let retries = self.retries.lock().await;
-        retries.fetch_add(1, Ordering::SeqCst)
+    pub fn increment(&self) -> u32 {
+        self.retries.fetch_add(1, Ordering::SeqCst)
     }
 
     /// Determine if retry attempts are exhausted.
