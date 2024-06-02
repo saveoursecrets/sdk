@@ -110,7 +110,8 @@ async fn file_transfers_attach_update() -> Result<()> {
         None,
     )
     .await?;
-    wait_for_num_transfers(&device.owner, 1).await?;
+
+    wait_for_num_transfers(&device.owner, 2).await?;
     files.push(ExternalFile::new(
         *default_folder.id(),
         secret_id,

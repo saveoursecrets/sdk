@@ -311,12 +311,12 @@ where
                     _ = interval.tick() => {
                         let mut failures = failures.lock().await;
                         let mut items = Vec::new();
-                        while let Some(failure) = failures.pop_front() {
+                        while let Some(failure) = failures.pop_back() {
                             if let Ok(elapsed) = failure.time.elapsed() {
                                 if elapsed >= failure_expiry {
                                     items.push(failure.into());
                                 } else {
-                                    failures.push_back(failure);
+                                    failures.push_front(failure);
                                 }
                             }
                         }
@@ -486,13 +486,16 @@ where
 
             let item = {
                 let mut queue = queue.write().await;
-                queue.pop_front()
+                queue.pop_back()
             };
 
             if let Some((file, op)) = item {
                 // println!("process: {:#?}", op);
                 tracing::debug!(
-                  file = ?file, op = ?op, "file_transfers::queue");
+                  file = ?file,
+                  op = ?op,
+                  "file_transfers::queue",
+                );
 
                 match op {
                     // Downloads are a special case that can complete

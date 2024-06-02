@@ -80,7 +80,7 @@ async fn file_transfers_single_update() -> Result<()> {
     let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
 
     // Wait until the transfers are completed
-    wait_for_num_transfers(&device.owner, 1).await?;
+    wait_for_num_transfers(&device.owner, 2).await?;
 
     // Assert the files on disc are equal
     assert_local_remote_file_eq(
