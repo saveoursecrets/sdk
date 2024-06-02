@@ -3,7 +3,7 @@ use futures::{
     stream::{Map, SplitStream},
     Future, FutureExt, StreamExt,
 };
-use std::{borrow::Cow, pin::Pin, sync::Arc};
+use std::{borrow::Cow, pin::Pin};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
@@ -14,10 +14,7 @@ use tokio_tungstenite::{
 };
 
 use async_recursion::async_recursion;
-use tokio::{
-    net::TcpStream,
-    sync::{watch, Notify},
-};
+use tokio::{net::TcpStream, sync::watch};
 
 use sos_sdk::{
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
