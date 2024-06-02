@@ -1,9 +1,24 @@
 //! Queue file transfer operations and spawn tasks to
-//! perform the file transfer operations..
+//! perform the file transfer operations.
+//!
+//! Transfer events are received on a channel
+//! and added to a queue of pending operations which are
+//! monitored and consumed into inflight transfers.
+//!
+//! When an error occurs that may be recoverable
+//! the queued operation is moved to a failures queue
+//! which is polled periodically to see if there are
+//! failed transfers that may be retried. If a failed transfer
+//! has expired and may be retried it is moved back into the
+//! pending transfers queue.
+//!
+//! Requests are limited to the `concurrent_requests` setting guarded
+//! by a semaphore and notifications are sent via [InflightTransfers].
 use crate::{
     client::{net::NetworkRetry, Error, Result, SyncClient},
     sdk::{
         storage::files::{ExternalFile, TransferOperation},
+        sync::Origin,
         vfs, Paths,
     },
 };
@@ -712,18 +727,11 @@ where
           "file_transfers::run",
         );
 
-        // Compute an id for the transfer
-        let mut hasher = DefaultHasher::new();
-        file.hash(&mut hasher);
-        op.hash(&mut hasher);
-        client.origin().hash(&mut hasher);
-        let transfer_id = hasher.finish();
+        let transfer_id = compute_transfer_id(&file, &op, client.origin());
 
-        let (progress_tx, cancel_tx, cancel_rx) =
-            if let TransferOperation::Upload | TransferOperation::Download =
-                &op
-            {
-                let (cancel_tx, cancel_rx) = watch::channel::<bool>(false);
+        let (cancel_tx, cancel_rx) = watch::channel::<bool>(false);
+        let progress_tx = match &op {
+            TransferOperation::Upload | TransferOperation::Download => {
                 let (progress_tx, mut progress_rx): (ProgressChannel, _) =
                     mpsc::channel(16);
 
@@ -748,17 +756,17 @@ where
                     }
                 });
 
-                (Some(progress_tx), Some(cancel_tx), Some(cancel_rx))
-            } else {
-                (None, None, None)
-            };
+                Some(progress_tx)
+            }
+            _ => None,
+        };
 
         {
             let request = InflightRequest {
                 origin: client.origin().clone(),
                 file,
                 operation: op,
-                cancel: cancel_tx,
+                cancel: cancel_tx.clone(),
             };
 
             tracing::debug!(
@@ -797,10 +805,11 @@ where
                     request_id,
                     inflight_transfers.clone(),
                     retry,
+                    cancel_tx,
                 );
-                let progress_tx = progress_tx.unwrap();
-                let cancel_rx = cancel_rx.unwrap();
-                operation.run(&file, progress_tx, cancel_rx).await?
+                operation
+                    .run(&file, progress_tx.unwrap(), cancel_rx)
+                    .await?
             }
             TransferOperation::Download => {
                 let operation = operations::DownloadOperation::new(
@@ -810,10 +819,11 @@ where
                     request_id,
                     inflight_transfers.clone(),
                     retry,
+                    cancel_tx,
                 );
-                let progress_tx = progress_tx.unwrap();
-                let cancel_rx = cancel_rx.unwrap();
-                operation.run(&file, progress_tx, cancel_rx).await?
+                operation
+                    .run(&file, progress_tx.unwrap(), cancel_rx)
+                    .await?
             }
             TransferOperation::Delete => {
                 let operation = operations::DeleteOperation::new(
@@ -822,6 +832,7 @@ where
                     request_id,
                     inflight_transfers.clone(),
                     retry,
+                    cancel_tx,
                 );
                 operation.run(&file).await?
             }
@@ -832,6 +843,7 @@ where
                     request_id,
                     inflight_transfers.clone(),
                     retry,
+                    cancel_tx,
                 );
                 operation.run(&file, dest).await?
             }
@@ -872,4 +884,21 @@ async fn notify_listeners(
     if notifier.receiver_count() > 0 {
         let _ = notifier.send(notify);
     }
+}
+
+/// Compute an id for the transfer.
+///
+/// Transfer identifiers are stable across requests
+/// so callers can use this to identify transfers that
+/// may already have requests running.
+fn compute_transfer_id(
+    file: &ExternalFile,
+    operation: &TransferOperation,
+    origin: &Origin,
+) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    file.hash(&mut hasher);
+    operation.hash(&mut hasher);
+    origin.hash(&mut hasher);
+    hasher.finish()
 }

@@ -41,8 +41,8 @@ where
         request_id: u64,
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
+        cancel_retry: watch::Sender<bool>,
     ) -> Self {
-        let (cancel_retry, _) = watch::channel(false);
         Self {
             client,
             paths,
@@ -167,8 +167,8 @@ where
         request_id: u64,
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
+        cancel_retry: watch::Sender<bool>,
     ) -> Self {
-        let (cancel_retry, _) = watch::channel(false);
         Self {
             client,
             paths,
@@ -307,8 +307,8 @@ where
         request_id: u64,
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
+        cancel_retry: watch::Sender<bool>,
     ) -> Self {
-        let (cancel_retry, _) = watch::channel(false);
         Self {
             client,
             transfer_id,
@@ -420,8 +420,8 @@ where
         request_id: u64,
         inflight: Arc<InflightTransfers>,
         retry: NetworkRetry,
+        cancel_retry: watch::Sender<bool>,
     ) -> Self {
-        let (cancel_retry, _) = watch::channel(false);
         Self {
             client,
             transfer_id,

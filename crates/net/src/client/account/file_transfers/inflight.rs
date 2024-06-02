@@ -83,17 +83,13 @@ pub struct InflightRequest {
     /// Transfer operation.
     pub operation: TransferOperation,
     /// Cancel channel for uploads and downloads.
-    pub cancel: Option<CancelChannel>,
+    pub cancel: CancelChannel,
 }
 
 impl InflightRequest {
     /// Cancel the inflight request.
-    pub async fn cancel(mut self, user_canceled: bool) -> bool {
-        if let Some(cancel) = self.cancel.take() {
-            cancel.send(user_canceled).is_ok()
-        } else {
-            false
-        }
+    pub async fn cancel(self, user_canceled: bool) -> bool {
+        self.cancel.send(user_canceled).is_ok()
     }
 }
 
