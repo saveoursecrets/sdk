@@ -35,7 +35,10 @@ pub type FileTransferQueueRequest = Vec<(ExternalFile, TransferOperation)>;
 pub type ProgressChannel = mpsc::Sender<(u64, Option<u64>)>;
 
 /// Channel used to cancel uploads and downloads.
-pub type CancelChannel = watch::Sender<()>;
+///
+/// The boolean flag indicates whether the cancellation was
+/// requested by the user or not.
+pub type CancelChannel = watch::Sender<bool>;
 
 /// Reason for a transfer error notification.
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -48,7 +51,7 @@ pub enum TransferError {
     /// Error when the target file for a move operation is missing.
     MovedMissing,
     /// Transfer was canceled.
-    Canceled,
+    Canceled(bool),
 }
 
 /// Result of a file transfer operation.
@@ -282,7 +285,7 @@ where
                             *writer = Default::default();
 
                             // Cancel any inflight transfers
-                            cancel_inflight.cancel_all().await;
+                            cancel_inflight.cancel_all(false).await;
 
                             let _ = shutdown_tx.send(());
                             tracing::debug!("file_transfers::shut_down");
@@ -721,7 +724,7 @@ where
             if let TransferOperation::Upload | TransferOperation::Download =
                 &op
             {
-                let (cancel_tx, cancel_rx) = watch::channel::<()>(());
+                let (cancel_tx, cancel_rx) = watch::channel::<bool>(false);
                 let (progress_tx, mut progress_rx): (ProgressChannel, _) =
                     mpsc::channel(16);
 

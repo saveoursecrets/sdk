@@ -372,7 +372,7 @@ impl SyncClient for HttpClient {
         file_info: &ExternalFile,
         path: &Path,
         progress: ProgressChannel,
-        mut cancel: tokio::sync::watch::Receiver<()>,
+        mut cancel: tokio::sync::watch::Receiver<bool>,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
         use reqwest::{
@@ -410,7 +410,8 @@ impl SyncClient for HttpClient {
               tokio::select! {
                 biased;
                 _ = cancel.changed() => {
-                  yield Err(Error::TransferCanceled);
+                  let user_canceled = *cancel.borrow();
+                  yield Err(Error::TransferCanceled(user_canceled));
                 }
                 Some(chunk) = reader_stream.next() => {
                   if let Ok(bytes) = &chunk {
@@ -447,7 +448,7 @@ impl SyncClient for HttpClient {
         file_info: &ExternalFile,
         path: &Path,
         progress: ProgressChannel,
-        mut cancel: tokio::sync::watch::Receiver<()>,
+        mut cancel: tokio::sync::watch::Receiver<bool>,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
         use tokio::io::AsyncWriteExt;
@@ -489,8 +490,9 @@ impl SyncClient for HttpClient {
             tokio::select! {
                 biased;
                 _ = cancel.changed() => {
+                  let user_canceled = *cancel.borrow();
                   vfs::remove_file(download_path).await?;
-                  return Err(Error::TransferCanceled);
+                  return Err(Error::TransferCanceled(user_canceled));
                 }
                 chunk = response.chunk() => {
                   if let Some(chunk) = chunk? {

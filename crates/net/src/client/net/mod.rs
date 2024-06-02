@@ -105,7 +105,7 @@ impl NetworkRetry {
             tokio::select! {
                 _ = cancel.notified().fuse() => {
                     tracing::debug!(id = %id, "retry::canceled");
-                    return Err(Error::RetryCanceled);
+                    return Err(Error::RetryCanceled(false));
                 }
                 _ = sleep(Duration::from_millis(delay)) => {
                     return Ok(callback.await)

@@ -88,9 +88,9 @@ pub struct InflightRequest {
 
 impl InflightRequest {
     /// Cancel the inflight request.
-    pub async fn cancel(mut self) -> bool {
+    pub async fn cancel(mut self, user_canceled: bool) -> bool {
         if let Some(cancel) = self.cancel.take() {
-            cancel.send(()).is_ok()
+            cancel.send(user_canceled).is_ok()
         } else {
             false
         }
@@ -116,7 +116,7 @@ impl InflightTransfers {
     }
 
     /// Cancel all inflight transfers.
-    pub async fn cancel_all(&self) {
+    pub async fn cancel_all(&self, user_canceled: bool) {
         let mut writer = self.inflight.write().await;
         for (id, request) in writer.drain() {
             tracing::info!(
@@ -124,15 +124,19 @@ impl InflightTransfers {
                 op = ?request.operation,
                 "inflight::cancel",
             );
-            request.cancel().await;
+            request.cancel(user_canceled).await;
         }
     }
 
     /// Cancel a single inflight transfer.
-    pub async fn cancel_one(&self, request_id: &u64) -> bool {
+    pub async fn cancel_one(
+        &self,
+        request_id: &u64,
+        user_canceled: bool,
+    ) -> bool {
         let mut writer = self.inflight.write().await;
         if let Some(req) = writer.remove(request_id) {
-            req.cancel().await
+            req.cancel(user_canceled).await
         } else {
             false
         }

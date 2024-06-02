@@ -58,7 +58,7 @@ where
         &self,
         file: &ExternalFile,
         progress_tx: ProgressChannel,
-        cancel_rx: watch::Receiver<()>,
+        cancel_rx: watch::Receiver<bool>,
     ) -> Result<TransferResult> {
         let path = self.paths.file_location(
             file.vault_id(),
@@ -103,8 +103,8 @@ where
                 Ok(res) => res,
                 Err(e) => {
                     match e {
-                        Error::RetryCanceled => {
-                            Ok(TransferResult::Fatal(TransferError::Canceled))
+                        Error::RetryCanceled(user_canceled) => {
+                            Ok(TransferResult::Fatal(TransferError::Canceled(user_canceled)))
                         }
                         _ => Err(e),
                     }
@@ -183,7 +183,7 @@ where
         &self,
         file: &ExternalFile,
         progress_tx: ProgressChannel,
-        cancel_rx: watch::Receiver<()>,
+        cancel_rx: watch::Receiver<bool>,
     ) -> Result<TransferResult> {
         // Ensure the parent directory for the download exists
         let parent_path = self
@@ -244,8 +244,8 @@ where
                 Ok(res) => res,
                 Err(e) => {
                     match e {
-                        Error::RetryCanceled => {
-                            Ok(TransferResult::Fatal(TransferError::Canceled))
+                        Error::RetryCanceled(user_canceled) => {
+                            Ok(TransferResult::Fatal(TransferError::Canceled(user_canceled)))
                         }
                         _ => Err(e),
                     }
@@ -355,8 +355,10 @@ where
             {
                 Ok(res) => res,
                 Err(e) => match e {
-                    Error::RetryCanceled => {
-                        Ok(TransferResult::Fatal(TransferError::Canceled))
+                    Error::RetryCanceled(user_canceled) => {
+                        Ok(TransferResult::Fatal(TransferError::Canceled(
+                            user_canceled,
+                        )))
                     }
                     _ => Err(e),
                 },
@@ -469,8 +471,10 @@ where
             {
                 Ok(res) => res,
                 Err(e) => match e {
-                    Error::RetryCanceled => {
-                        Ok(TransferResult::Fatal(TransferError::Canceled))
+                    Error::RetryCanceled(user_canceled) => {
+                        Ok(TransferResult::Fatal(TransferError::Canceled(
+                            user_canceled,
+                        )))
                     }
                     _ => Err(e),
                 },
@@ -530,8 +534,9 @@ trait TransferTask {
 }
 
 fn on_error(error: Error) -> TransferResult {
-    if error.is_canceled() {
-        return TransferResult::Fatal(TransferError::Canceled);
+    let (is_canceled, user_canceled) = error.is_canceled();
+    if is_canceled {
+        return TransferResult::Fatal(TransferError::Canceled(user_canceled));
     }
 
     match error {

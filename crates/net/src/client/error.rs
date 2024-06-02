@@ -75,16 +75,19 @@ pub enum Error {
     FileChecksumMismatch(String, String),
 
     /// Error generated when a file transfer is canceled.
+    ///
+    /// The boolean flag indicates whether the cancellation was
+    /// triggered by the user.
     #[error("file transfer canceled")]
-    TransferCanceled,
+    TransferCanceled(bool),
 
     /// Overflow error calculating the retry exponential factor.
     #[error("retry overflow")]
     RetryOverflow,
 
-    /// Network retry was canceled.
+    /// Network retry was canceled possibly by the user.
     #[error("network retry was canceled")]
-    RetryCanceled,
+    RetryCanceled(bool),
 
     /*
     /// Generic boxed error.
@@ -159,17 +162,18 @@ pub enum Error {
 }
 
 impl Error {
-    /// Determine if this is a canceled error.
-    pub fn is_canceled(&self) -> bool {
+    /// Determine if this is a canceled error and
+    /// whether the cancellation was triggered by the user.
+    pub fn is_canceled(&self) -> (bool, bool) {
         let source = source_error(self);
         if let Some(err) = source.downcast_ref::<Error>() {
-            if let Error::TransferCanceled = err {
-                true
+            if let Error::TransferCanceled(user_canceled) = err {
+                (true, *user_canceled)
             } else {
-                false
+                (false, false)
             }
         } else {
-            false
+            (false, false)
         }
     }
 }

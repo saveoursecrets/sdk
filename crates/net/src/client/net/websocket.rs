@@ -376,7 +376,7 @@ impl WebSocketChangeListener {
         {
             Ok(_) => Ok(()),
             Err(e) => match e {
-                Error::RetryCanceled => Ok(()),
+                Error::RetryCanceled(_) => Ok(()),
                 _ => Err(e),
             },
         }
