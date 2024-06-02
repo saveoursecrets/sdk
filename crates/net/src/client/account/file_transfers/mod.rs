@@ -282,7 +282,7 @@ where
                             *writer = Default::default();
 
                             // Cancel any inflight transfers
-                            cancel_inflight.cancel().await;
+                            cancel_inflight.cancel_all().await;
 
                             let _ = shutdown_tx.send(());
                             tracing::debug!("file_transfers::shut_down");

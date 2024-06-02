@@ -1,6 +1,4 @@
-//! Tracks inflight file transfer requests and sends
-//! notifications so that applications can monitor the
-//! progress of file transfers.
+//! Tracks inflight file transfer requests.
 use crate::sdk::{
     storage::files::{ExternalFile, TransferOperation},
     sync::Origin,
@@ -118,7 +116,7 @@ impl InflightTransfers {
     }
 
     /// Cancel all inflight transfers.
-    pub async fn cancel(&self) {
+    pub async fn cancel_all(&self) {
         let mut writer = self.inflight.write().await;
         for (id, request) in writer.drain() {
             tracing::info!(
@@ -127,6 +125,16 @@ impl InflightTransfers {
                 "inflight::cancel",
             );
             request.cancel().await;
+        }
+    }
+
+    /// Cancel a single inflight transfer.
+    pub async fn cancel_one(&self, request_id: &u64) -> bool {
+        let mut writer = self.inflight.write().await;
+        if let Some(req) = writer.remove(request_id) {
+            req.cancel().await
+        } else {
+            false
         }
     }
 
