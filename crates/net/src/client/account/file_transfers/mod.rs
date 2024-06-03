@@ -489,12 +489,8 @@ where
         let mut downloads = Vec::new();
 
         loop {
-            let len = {
-                let queue = queue.read().await;
-                queue.len()
-            };
-
-            if semaphore.available_permits() == 0 || len == 0 {
+            // Concurrency limit reached
+            if semaphore.available_permits() == 0 {
                 break;
             }
 
@@ -503,78 +499,83 @@ where
                 queue.pop_back()
             };
 
-            if let Some((file, op)) = item {
-                // println!("process: {:#?}", op);
-                tracing::debug!(
-                  file = ?file,
-                  op = ?op,
-                  "file_transfers::queue",
-                );
+            // No more items in the queue
+            if item.is_none() {
+                break;
+            }
 
-                match op {
-                    // Downloads are a special case that can complete
-                    // on the first successful operation
-                    TransferOperation::Download => {
+            let (file, op) = item.unwrap();
+
+            // println!("process: {:#?}", op);
+            tracing::debug!(
+              file = ?file,
+              op = ?op,
+              "file_transfers::queue",
+            );
+
+            match op {
+                // Downloads are a special case that can complete
+                // on the first successful operation
+                TransferOperation::Download => {
+                    let inflight = inflight.clone();
+                    let settings = settings.clone();
+                    let paths = paths.clone();
+                    let clients = clients.to_vec().clone();
+                    let permit = semaphore.clone();
+                    let jh = tokio::task::spawn(async move {
+                        let mut results = Vec::new();
+                        for client in clients {
+                            let _permit = permit.acquire().await.unwrap();
+                            let request_id = inflight.request_id();
+
+                            let outcome = Self::run_client_operation(
+                                request_id,
+                                file,
+                                op,
+                                client.clone(),
+                                settings.clone(),
+                                paths.clone(),
+                                inflight.clone(),
+                            )
+                            .await?;
+
+                            let is_done = matches!(
+                                &outcome.result,
+                                TransferResult::Done
+                            );
+                            results.push(outcome);
+                            if is_done {
+                                break;
+                            }
+                        }
+                        Ok::<_, Error>(results)
+                    });
+                    downloads.push(jh);
+                }
+                // Other operations must complete on all clients
+                _ => {
+                    for client in clients.to_vec() {
                         let inflight = inflight.clone();
                         let settings = settings.clone();
                         let paths = paths.clone();
-                        let clients = clients.to_vec().clone();
                         let permit = semaphore.clone();
                         let jh = tokio::task::spawn(async move {
-                            let mut results = Vec::new();
-                            for client in clients {
-                                let _permit = permit.acquire().await.unwrap();
-                                let request_id = inflight.request_id();
+                            let _permit = permit.acquire().await.unwrap();
+                            let request_id = inflight.request_id();
+                            let outcome = Self::run_client_operation(
+                                request_id,
+                                file,
+                                op,
+                                client.clone(),
+                                settings.clone(),
+                                paths.clone(),
+                                inflight.clone(),
+                            )
+                            .await?;
 
-                                let outcome = Self::run_client_operation(
-                                    request_id,
-                                    file,
-                                    op,
-                                    client.clone(),
-                                    settings.clone(),
-                                    paths.clone(),
-                                    inflight.clone(),
-                                )
-                                .await?;
-
-                                let is_done = matches!(
-                                    &outcome.result,
-                                    TransferResult::Done
-                                );
-                                results.push(outcome);
-                                if is_done {
-                                    break;
-                                }
-                            }
-                            Ok::<_, Error>(results)
+                            Ok::<_, Error>(outcome)
                         });
-                        downloads.push(jh);
-                    }
-                    // Other operations must complete on all clients
-                    _ => {
-                        for client in clients.to_vec() {
-                            let inflight = inflight.clone();
-                            let settings = settings.clone();
-                            let paths = paths.clone();
-                            let permit = semaphore.clone();
-                            let jh = tokio::task::spawn(async move {
-                                let _permit = permit.acquire().await.unwrap();
-                                let request_id = inflight.request_id();
-                                let outcome = Self::run_client_operation(
-                                    request_id,
-                                    file,
-                                    op,
-                                    client.clone(),
-                                    settings.clone(),
-                                    paths.clone(),
-                                    inflight.clone(),
-                                )
-                                .await?;
-
-                                Ok::<_, Error>(outcome)
-                            });
-                            requests.push(jh);
-                        }
+                        requests.push(jh);
                     }
                 }
             }
@@ -933,6 +934,11 @@ async fn normalize(
 ) {
     match operation {
         TransferOperation::Delete | TransferOperation::Move(_) => {
+            tracing::debug!(
+              op = ?operation,
+              "file_transfers::normalize_operation",
+            );
+
             // Remove from the pending queue
             let mut queue = queue.write().await;
             queue.retain(|item| {

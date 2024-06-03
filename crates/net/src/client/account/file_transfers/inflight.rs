@@ -155,21 +155,22 @@ impl InflightTransfers {
     /// Cancel inflight upload or download transfers for the
     /// given file.
     pub(super) async fn cancel_active_transfers(&self, file: &ExternalFile) {
-        // TODO: use a cancellation reason that prevents
-        // TODO: adding to the failures queue
-
-        let mut cancelations = Vec::new();
-        let inflight = self.inflight.read().await;
-        for (request_id, transfer) in &*inflight {
-            let is_transfer_op = matches!(
-                transfer.operation,
-                TransferOperation::Upload | TransferOperation::Download
-            );
-            if &transfer.file == file && is_transfer_op {
-                cancelations.push(request_id);
+        let cancelations = {
+            let mut cancelations = Vec::new();
+            let inflight = self.inflight.read().await;
+            for (request_id, transfer) in &*inflight {
+                let is_transfer_op = matches!(
+                    transfer.operation,
+                    TransferOperation::Upload | TransferOperation::Download
+                );
+                if &transfer.file == file && is_transfer_op {
+                    cancelations.push(*request_id);
+                }
             }
-        }
-        for request_id in cancelations {
+            cancelations
+        };
+
+        for request_id in &cancelations {
             self.cancel_one(request_id, CancelReason::Aborted).await;
         }
     }

@@ -414,6 +414,7 @@ impl SyncClient for HttpClient {
                 biased;
                 _ = cancel.changed() => {
                   let reason = cancel.borrow().clone();
+                  tracing::debug!(reason = ?reason, "upload::canceled");
                   yield Err(Error::TransferCanceled(reason));
                 }
                 Some(chunk) = reader_stream.next() => {
@@ -503,6 +504,7 @@ impl SyncClient for HttpClient {
                 _ = cancel.changed() => {
                   let reason = cancel.borrow().clone();
                   vfs::remove_file(download_path).await?;
+                  tracing::debug!(reason = ?reason, "download::canceled");
                   return Err(Error::TransferCanceled(reason));
                 }
                 chunk = response.chunk() => {
