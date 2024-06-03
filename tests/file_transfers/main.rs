@@ -1,4 +1,10 @@
 #[cfg(not(target_arch = "wasm32"))]
+mod abort_delete;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod abort_move;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod attachments;
 
 #[cfg(not(target_arch = "wasm32"))]
