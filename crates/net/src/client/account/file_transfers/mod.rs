@@ -611,7 +611,7 @@ where
                 // If we attempt a move but the source file
                 // of the move is missing on the target server
                 // and we have the destination locally
-                // on disc then we mutate it into an update operation
+                // on disc then we mutate it into an upload operation
                 let moved_missing = results
                     .iter()
                     .filter(|o| {
