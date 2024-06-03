@@ -4,10 +4,13 @@ use super::{
         account, api, connections,
         files::{self, file_operation_lock},
         home,
+        websocket::WebSocketAccount,
     },
     Backend, Result, ServerConfig,
 };
-use crate::sdk::{storage::files::ExternalFile, UtcDateTime};
+use crate::sdk::{
+    signer::ecdsa::Address, storage::files::ExternalFile, UtcDateTime,
+};
 use axum::{
     extract::Extension,
     http::{
@@ -21,7 +24,7 @@ use axum::{
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use colored::Colorize;
-use sos_sdk::{signer::ecdsa::Address, storage::FileLock};
+use sos_sdk::storage::FileLock;
 use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
@@ -32,7 +35,7 @@ use tokio::sync::{Mutex, RwLock, RwLockReadGuard};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
 #[cfg(feature = "listen")]
-use super::handlers::websocket::{upgrade, WebSocketConnection};
+use super::handlers::websocket::upgrade;
 
 #[cfg(feature = "pairing")]
 use super::handlers::relay::{upgrade as relay_upgrade, RelayState};
@@ -41,9 +44,8 @@ use super::handlers::relay::{upgrade as relay_upgrade, RelayState};
 pub struct State {
     /// The server configuration.
     pub config: ServerConfig,
-    /// Map of websocket  channels by authenticated
-    /// client address.
-    pub sockets: HashMap<Address, WebSocketConnection>,
+    /// Map of websocket  channels by connection identifier.
+    pub sockets: HashMap<Address, WebSocketAccount>,
 }
 
 /// State for the server.
