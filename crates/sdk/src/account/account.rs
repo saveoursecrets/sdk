@@ -1881,6 +1881,7 @@ impl Account for LocalAccount {
                 .recipient()
                 .to_string(),
             folders: reader.list_folders().to_vec(),
+            #[cfg(feature = "device")]
             device_id: self.device_public_key().await?.to_string(),
         })
     }
