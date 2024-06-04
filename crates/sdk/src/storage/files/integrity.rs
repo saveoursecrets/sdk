@@ -7,7 +7,10 @@ use crate::{
 use futures::StreamExt;
 use indexmap::IndexSet;
 use std::{path::PathBuf, sync::Arc};
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::{
+    mpsc::{self, Receiver, Sender},
+    watch, Semaphore,
+};
 use tokio_util::io::ReaderStream;
 
 /// Reasons why an external file integrity check can fail.
@@ -39,6 +42,8 @@ pub enum IntegrityReportEvent {
     ReadFile(ExternalFile, usize),
     /// File was closed.
     CloseFile(ExternalFile),
+    /// File integrity check completed.
+    Complete,
 }
 
 /// Generate an integrity report.
@@ -46,86 +51,98 @@ pub async fn integrity_report(
     paths: Arc<Paths>,
     external_files: IndexSet<ExternalFile>,
     concurrency: usize,
-) -> Result<Receiver<Result<IntegrityReportEvent>>> {
-    let (tx, rx) = mpsc::channel::<Result<IntegrityReportEvent>>(512);
+) -> Result<(Receiver<IntegrityReportEvent>, watch::Sender<()>)> {
+    let (mut tx, rx) = mpsc::channel::<IntegrityReportEvent>(64);
+    let (cancel_tx, mut cancel_rx) = watch::channel(());
 
-    let _ = tx
-        .send(Ok(IntegrityReportEvent::Begin(external_files.len())))
-        .await;
+    notify_listeners(
+        &mut tx,
+        IntegrityReportEvent::Begin(external_files.len()),
+    )
+    .await;
 
-    tokio::task::spawn(run_integrity_report(
-        paths,
-        external_files,
-        concurrency,
-        tx,
-    ));
-    Ok(rx)
-}
-
-async fn run_integrity_report(
-    paths: Arc<Paths>,
-    external_files: IndexSet<ExternalFile>,
-    concurrency: usize,
-    tx: Sender<Result<IntegrityReportEvent>>,
-) {
-    let chunk_size = concurrency;
-    let list: Vec<_> = external_files.into_iter().collect();
-
-    for chunk in list.chunks(chunk_size) {
-        let files: Vec<_> = chunk
-            .iter()
-            .map(|file| {
-                let path = paths.file_location(
+    let paths: Vec<_> = external_files
+        .into_iter()
+        .map(|file| {
+            (
+                file,
+                paths.file_location(
                     file.vault_id(),
                     file.secret_id(),
                     file.file_name().to_string(),
-                );
-                check_file(*file, path, tx.clone())
-            })
-            .collect();
+                ),
+            )
+        })
+        .collect();
 
-        if let Err(e) = futures::future::try_join_all(files).await {
-            let _ = tx.send(Err(e)).await;
+    let semaphore = Arc::new(Semaphore::new(concurrency));
+    tokio::task::spawn(async move {
+        let mut stream = futures::stream::iter(paths);
+        loop {
+            tokio::select! {
+              biased;
+              _ = cancel_rx.changed() => {
+                break;
+              }
+              Some((file, path)) = stream.next() => {
+                let semaphore = semaphore.clone();
+                let mut ctx = cancel_rx.clone();
+                let mut tx = tx.clone();
+                tokio::task::spawn(async move {
+                  let _permit = semaphore.acquire().await;
+                  check_file(file, path, &mut tx, &mut ctx).await?;
+                  Ok::<_, crate::Error>(())
+                });
+              }
+            }
         }
-    }
+
+        notify_listeners(&mut tx, IntegrityReportEvent::Complete).await;
+
+        Ok::<_, crate::Error>(())
+    });
+
+    Ok((rx, cancel_tx))
 }
 
 async fn check_file(
     file: ExternalFile,
     path: PathBuf,
-    tx: Sender<Result<IntegrityReportEvent>>,
+    tx: &mut Sender<IntegrityReportEvent>,
+    cancel_rx: &mut watch::Receiver<()>,
 ) -> Result<()> {
     if vfs::try_exists(&path).await? {
         let metadata = vfs::metadata(&path).await?;
-        let _ = tx
-            .send(Ok(IntegrityReportEvent::OpenFile(file, metadata.len())))
-            .await;
+        notify_listeners(
+            tx,
+            IntegrityReportEvent::OpenFile(file, metadata.len()),
+        )
+        .await;
 
-        match compare_file(&file, path, tx.clone()).await {
+        match compare_file(&file, path, tx, cancel_rx).await {
             Ok(result) => {
                 if let Some(failure) = result {
-                    let _ = tx
-                        .send(Ok(IntegrityReportEvent::Failure(
-                            file, failure,
-                        )))
-                        .await;
+                    notify_listeners(
+                        tx,
+                        IntegrityReportEvent::Failure(file, failure),
+                    )
+                    .await;
                 }
-                let _ =
-                    tx.send(Ok(IntegrityReportEvent::CloseFile(file))).await;
+                notify_listeners(tx, IntegrityReportEvent::CloseFile(file))
+                    .await;
             }
             Err(e) => {
-                let _ =
-                    tx.send(Ok(IntegrityReportEvent::CloseFile(file))).await;
+                notify_listeners(tx, IntegrityReportEvent::CloseFile(file))
+                    .await;
                 return Err(e);
             }
         }
     } else {
-        let _ = tx
-            .send(Ok(IntegrityReportEvent::Failure(
-                file,
-                FailureReason::Missing(path),
-            )))
-            .await;
+        notify_listeners(
+            tx,
+            IntegrityReportEvent::Failure(file, FailureReason::Missing(path)),
+        )
+        .await;
     }
     Ok(())
 }
@@ -133,22 +150,29 @@ async fn check_file(
 async fn compare_file(
     external_file: &ExternalFile,
     path: PathBuf,
-    tx: Sender<Result<IntegrityReportEvent>>,
+    tx: &mut Sender<IntegrityReportEvent>,
+    cancel_rx: &mut watch::Receiver<()>,
 ) -> Result<Option<FailureReason>> {
     let mut hasher = Sha256::new();
     let file = vfs::File::open(&path).await?;
     let mut reader_stream = ReaderStream::new(file);
-    while let Some(chunk) = reader_stream.next().await {
-        let chunk = chunk?;
-        hasher.update(&chunk);
-        let _ = tx
-            .send(Ok(IntegrityReportEvent::ReadFile(
-                *external_file,
-                chunk.len(),
-            )))
+    loop {
+        tokio::select! {
+          biased;
+          _ = cancel_rx.changed() => {
+            break;
+          }
+          Some(chunk) = reader_stream.next() => {
+            let chunk = chunk?;
+            hasher.update(&chunk);
+            notify_listeners(
+                tx,
+                IntegrityReportEvent::ReadFile(*external_file, chunk.len()),
+            )
             .await;
+          }
+        }
     }
-
     let digest = hasher.finalize();
     if digest.as_slice() != external_file.file_name().as_ref() {
         let slice: [u8; 32] = digest.as_slice().try_into()?;
@@ -159,5 +183,14 @@ async fn compare_file(
         }))
     } else {
         Ok(None)
+    }
+}
+
+async fn notify_listeners(
+    tx: &mut Sender<IntegrityReportEvent>,
+    event: IntegrityReportEvent,
+) {
+    if let Err(error) = tx.send(event).await {
+        tracing::warn!(error = ?error);
     }
 }

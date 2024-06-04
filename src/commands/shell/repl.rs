@@ -8,8 +8,8 @@ use sos_net::sdk::{
 
 use crate::{
     commands::{
-        AccountCommand, EnvironmentCommand, FileCommand, FolderCommand,
-        PreferenceCommand, SecretCommand, ServerCommand, SyncCommand,
+        AccountCommand, EnvironmentCommand, FolderCommand, PreferenceCommand,
+        SecretCommand, ServerCommand, SyncCommand,
     },
     helpers::account::{cd_folder, switch, Owner},
 };
@@ -53,11 +53,6 @@ enum ShellCommand {
     Sync {
         #[clap(subcommand)]
         cmd: SyncCommand,
-    },
-    /// Inspect external files and file transfers.
-    File {
-        #[clap(subcommand)]
-        cmd: FileCommand,
     },
     /// View and edit account preferences.
     #[clap(alias = "prefs")]
@@ -193,7 +188,6 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
             crate::commands::server::run(cmd).await
         }
         ShellCommand::Sync { cmd } => crate::commands::sync::run(cmd).await,
-        ShellCommand::File { cmd } => crate::commands::file::run(cmd).await,
         ShellCommand::Preferences { cmd } => {
             crate::commands::preferences::run(cmd).await
         }
