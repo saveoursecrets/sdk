@@ -22,7 +22,7 @@ use sos_sdk::{
         },
         AccessOptions, ClientStorage, StorageEventLogs,
     },
-    sync::{Origin, SyncOptions, UpdateSet},
+    sync::{Origin, SyncError, SyncOptions, UpdateSet},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Summary, Vault, VaultId,
@@ -36,10 +36,7 @@ use std::{
 };
 use tokio::{
     io::{AsyncRead, AsyncSeek},
-    sync::{
-        mpsc::{self, UnboundedSender},
-        oneshot, Mutex, RwLock,
-    },
+    sync::{Mutex, RwLock},
 };
 
 #[cfg(feature = "archive")]
@@ -67,13 +64,27 @@ use crate::sdk::account::security_report::{
 #[cfg(feature = "migrate")]
 use crate::sdk::migrate::import::ImportTarget;
 
-use super::remote::Remotes;
+use super::{
+    file_transfers::{FileTransferSettings, FileTransfersHandle},
+    remote::Remotes,
+};
 use crate::client::{Error, RemoteBridge, RemoteSync, Result};
 
 #[cfg(feature = "files")]
-use crate::client::account::file_transfers::{
-    FileTransfers, InflightTransfers, TransfersQueue,
+use crate::client::{
+    account::file_transfers::{FileTransfers, InflightTransfers},
+    HttpClient,
 };
+
+/// Options for network account creation.
+#[derive(Debug, Default)]
+pub struct NetworkAccountOptions {
+    /// Disable network traffic.
+    pub offline: bool,
+    /// File transfer settings.
+    #[cfg(feature = "files")]
+    pub file_transfer_settings: FileTransferSettings,
+}
 
 /// Account with networking capability.
 pub struct NetworkAccount {
@@ -104,18 +115,19 @@ pub struct NetworkAccount {
     /// made by this client.
     connection_id: Option<String>,
 
+    /// File transfer event loop.
     #[cfg(feature = "files")]
-    transfers: Option<Arc<RwLock<TransfersQueue>>>,
+    file_transfers: Option<FileTransfers<HttpClient>>,
 
+    /// Handle to a file transfers event loop.
     #[cfg(feature = "files")]
-    inflight_transfers: Option<Arc<InflightTransfers>>,
-
-    /// Shutdown handle for the file transfers background task.
-    #[cfg(feature = "files")]
-    file_transfers: Option<(UnboundedSender<()>, oneshot::Receiver<()>)>,
+    file_transfer_handle: Option<FileTransfersHandle>,
 
     /// Disable networking.
     pub(crate) offline: bool,
+
+    /// Options for the network account.
+    options: NetworkAccountOptions,
 }
 
 impl NetworkAccount {
@@ -132,15 +144,6 @@ impl NetworkAccount {
             folders
         };
 
-        #[cfg(feature = "files")]
-        {
-            let transfers = TransfersQueue::new(&*self.paths).await?;
-            let inflight_transfers = InflightTransfers::new();
-
-            self.transfers = Some(Arc::new(RwLock::new(transfers)));
-            self.inflight_transfers = Some(Arc::new(inflight_transfers));
-        }
-
         // Without an explicit connection id use the inferred
         // connection identifier
         if self.connection_id.is_none() {
@@ -148,15 +151,26 @@ impl NetworkAccount {
         }
 
         // Load origins from disc and create remote definitions
+        let mut clients = Vec::new();
         if let Some(origins) = self.load_servers().await? {
             let mut remotes: Remotes = Default::default();
 
             for origin in origins {
                 let remote = self.remote_bridge(&origin).await?;
+                clients.push(remote.client().clone());
                 remotes.insert(origin, remote);
             }
 
             self.remotes = Arc::new(RwLock::new(remotes));
+        }
+
+        #[cfg(feature = "files")]
+        {
+            let file_transfers = FileTransfers::new(
+                clients,
+                self.options.file_transfer_settings.clone(),
+            );
+            self.file_transfers = Some(file_transfers);
             self.start_file_transfers().await?;
         }
 
@@ -181,8 +195,6 @@ impl NetworkAccount {
             let mut storage = storage.write().await;
             storage.revoke_device(device_key).await?;
         }
-
-        println!("Sending patch devices request...");
 
         // Send the device event logs to the remote servers
         if let Some(e) = self.patch_devices(&Default::default()).await {
@@ -238,16 +250,48 @@ impl NetworkAccount {
 
     /// Add a server.
     ///
+    /// An initial sync is performed with the server and the result
+    /// includes a possible error encountered during the initial sync.
+    ///
     /// If a server with the given origin already exists it is
     /// overwritten.
-    pub async fn add_server(&mut self, origin: Origin) -> Result<()> {
+    pub async fn add_server(
+        &mut self,
+        origin: Origin,
+    ) -> Result<Option<SyncError<Error>>> {
         let remote = self.remote_bridge(&origin).await?;
+
+        if let Some(file_transfers) = self.file_transfers.as_mut() {
+            file_transfers.add_client(remote.client().clone()).await;
+        };
         {
             let mut remotes = self.remotes.write().await;
-            remotes.insert(origin, remote);
+            if let Some(handle) = &self.file_transfer_handle {
+                self.proxy_remote_file_queue(handle, &remote).await;
+            }
+            remotes.insert(origin.clone(), remote);
             self.save_remotes(&*remotes).await?;
         }
-        self.start_file_transfers().await
+
+        let mut sync_error = None;
+        {
+            let remotes = self.remotes.read().await;
+            if let Some(remote) = remotes.get(&origin) {
+                let options = SyncOptions {
+                    origins: vec![origin.clone()],
+                };
+                sync_error = remote.sync_with_options(&options).await;
+            }
+        }
+
+        tracing::debug!(url = %origin.url(), "server::added");
+        if let Some(sync_error) = &sync_error {
+            tracing::warn!(
+                sync_error = ?sync_error,
+                "server::initial_sync_failed");
+        }
+
+        Ok(sync_error)
     }
 
     /// Remove a server.
@@ -258,12 +302,16 @@ impl NetworkAccount {
         let remote = {
             let mut remotes = self.remotes.write().await;
             let remote = remotes.remove(origin);
-            if remote.is_some() {
+            if let Some(remote) = &remote {
+                if let Some(file_transfers) = self.file_transfers.as_mut() {
+                    file_transfers.remove_client(remote.client()).await;
+                }
                 self.save_remotes(&*remotes).await?;
             }
             remote
         };
-        self.start_file_transfers().await?;
+
+        tracing::debug!(url = %origin.url(), "server::removed");
         Ok(remote)
     }
 
@@ -276,14 +324,13 @@ impl NetworkAccount {
         } else {
             self.client_connection_id().await?
         };
+
         let provider = RemoteBridge::new(
             Arc::clone(&self.account),
             origin.clone(),
             signer,
             device.into(),
             conn_id,
-            #[cfg(feature = "files")]
-            Arc::clone(self.transfers.as_ref().unwrap()),
         )?;
         Ok(provider)
     }
@@ -331,6 +378,7 @@ impl NetworkAccount {
     }
 
     /// Spawn a task to handle file transfers.
+    #[cfg(feature = "files")]
     async fn start_file_transfers(&mut self) -> Result<()> {
         if !self.is_authenticated().await {
             return Err(crate::sdk::Error::NotAuthenticated.into());
@@ -344,54 +392,51 @@ impl NetworkAccount {
         // Stop any existing transfers task
         self.stop_file_transfers().await;
 
-        let clients = {
-            let remotes = self.remotes.read().await;
-            let mut clients = Vec::new();
-            for (_, remote) in &*remotes {
-                clients.push(remote.client().clone());
+        let paths = self.paths();
+        if let Some(file_transfers) = &mut self.file_transfers {
+            tracing::debug!("file_transfers::start");
+
+            let handle = file_transfers.run(paths);
+
+            {
+                // Proxy file transfer queue events from the
+                // remote bridges to the file transfer event loop
+                let remotes = self.remotes.read().await;
+                for (_, remote) in &*remotes {
+                    self.proxy_remote_file_queue(&handle, remote).await;
+                }
             }
-            clients
-        };
 
-        let (paths, transfers, inflight_transfers) = {
-            (
-                self.paths(),
-                self.transfers().await?,
-                self.inflight_transfers().await?,
-            )
-        };
-
-        let (shutdown_send, shutdown_recv) = mpsc::unbounded_channel::<()>();
-        let (shutdown_ack_send, shutdown_ack_recv) = oneshot::channel::<()>();
-
-        let file_transfers = FileTransfers::new(
-            paths,
-            Default::default(),
-            shutdown_recv,
-            shutdown_ack_send,
-        );
-        file_transfers.run(transfers, inflight_transfers, clients);
-
-        self.file_transfers = Some((shutdown_send, shutdown_ack_recv));
+            self.file_transfer_handle = Some(handle);
+        }
 
         Ok(())
     }
 
-    /// Stop a file transfers task.
-    async fn stop_file_transfers(&mut self) {
-        if let Some((shutdown, ack)) = self.file_transfers.take() {
-            let _ = shutdown.send(());
-            let _ = ack.await;
-        }
+    #[cfg(feature = "files")]
+    async fn proxy_remote_file_queue(
+        &self,
+        handle: &FileTransfersHandle,
+        remote: &RemoteBridge,
+    ) {
+        let mut rx = remote.file_transfer_queue.subscribe();
+        let tx = handle.queue_tx.clone();
+        tokio::task::spawn(async move {
+            while let Ok(event) = rx.recv().await {
+                let res = tx.send(event).await;
+                if let Err(error) = res {
+                    tracing::error!(error = ?error);
+                }
+            }
+            Ok::<_, Error>(())
+        });
     }
 
-    /// Close all the websocket connections
-    #[cfg(feature = "listen")]
-    async fn shutdown_listeners(&self) {
-        let mut listeners = self.listeners.lock().await;
-        for (_, handle) in listeners.drain() {
-            tracing::debug!("close websocket");
-            handle.close();
+    /// Stop a file transfers task.
+    #[cfg(feature = "files")]
+    async fn stop_file_transfers(&mut self) {
+        if let Some(handle) = self.file_transfer_handle.take() {
+            handle.shutdown().await;
         }
     }
 }
@@ -410,7 +455,8 @@ impl NetworkAccount {
     pub async fn new_unauthenticated(
         address: Address,
         data_dir: Option<PathBuf>,
-        offline: bool,
+        options: NetworkAccountOptions,
+        // offline: bool,
     ) -> Result<Self> {
         let account =
             LocalAccount::new_unauthenticated(address, data_dir).await?;
@@ -425,12 +471,11 @@ impl NetworkAccount {
             listeners: Mutex::new(Default::default()),
             connection_id: None,
             #[cfg(feature = "files")]
-            transfers: None,
-            #[cfg(feature = "files")]
-            inflight_transfers: None,
-            #[cfg(feature = "files")]
             file_transfers: None,
-            offline,
+            #[cfg(feature = "files")]
+            file_transfer_handle: None,
+            offline: options.offline,
+            options,
         })
     }
 
@@ -444,13 +489,13 @@ impl NetworkAccount {
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-        offline: bool,
+        options: NetworkAccountOptions,
     ) -> Result<Self> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
             data_dir,
-            offline,
+            options,
             |builder| {
                 builder
                     .save_passphrase(false)
@@ -470,7 +515,7 @@ impl NetworkAccount {
         account_name: String,
         passphrase: SecretString,
         data_dir: Option<PathBuf>,
-        offline: bool,
+        options: NetworkAccountOptions,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
         let account = LocalAccount::new_account_with_builder(
@@ -491,37 +536,39 @@ impl NetworkAccount {
             listeners: Mutex::new(Default::default()),
             connection_id: None,
             #[cfg(feature = "files")]
-            transfers: None,
-            #[cfg(feature = "files")]
-            inflight_transfers: None,
-            #[cfg(feature = "files")]
             file_transfers: None,
-            offline,
+            #[cfg(feature = "files")]
+            file_transfer_handle: None,
+            offline: options.offline,
+            options,
         };
 
         Ok(owner)
     }
 
+    /*
     /// File transfers queue.
     #[cfg(feature = "files")]
-    pub async fn transfers(
+    pub fn transfers(
         &self,
-    ) -> crate::Result<Arc<RwLock<TransfersQueue>>> {
-        Ok(Arc::clone(
-            self.transfers
-                .as_ref()
-                .ok_or_else(|| crate::sdk::Error::NotAuthenticated)?,
-        ))
+    ) -> crate::Result<Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>>
+    {
+        Ok(self
+            .file_transfers
+            .as_ref()
+            .map(|t| Arc::clone(&t.queue))
+            .ok_or_else(|| crate::sdk::Error::NotAuthenticated)?)
     }
+    */
 
     /// Inflight file transfers.
     #[cfg(feature = "files")]
-    pub async fn inflight_transfers(&self) -> Result<Arc<InflightTransfers>> {
-        Ok(Arc::clone(
-            self.inflight_transfers
-                .as_ref()
-                .ok_or_else(|| crate::sdk::Error::NotAuthenticated)?,
-        ))
+    pub fn inflight_transfers(&self) -> Result<Arc<InflightTransfers>> {
+        Ok(self
+            .file_transfers
+            .as_ref()
+            .map(|t| Arc::clone(&t.inflight))
+            .ok_or_else(|| crate::sdk::Error::NotAuthenticated)?)
     }
 
     /// Convert file mutation events into file transfer queue entries.
@@ -529,18 +576,17 @@ impl NetworkAccount {
         &self,
         events: &[FileMutationEvent],
     ) -> Result<()> {
-        if let Some(transfers) = &self.transfers {
-            let mut ops = HashMap::new();
+        // println!("events: {:#?}", events);
+        if let Some(handle) = &self.file_transfer_handle {
+            let mut items = Vec::with_capacity(events.len());
             for event in events {
-                let (file, op): (ExternalFile, TransferOperation) =
-                    event.into();
-                let entries = ops.entry(file).or_insert(IndexSet::new());
-                entries.insert(op);
+                let item: (ExternalFile, TransferOperation) = event.into();
+                items.push(item);
             }
 
-            let mut writer = transfers.write().await;
-            writer.queue_transfers(ops).await?;
+            handle.send(items).await;
         }
+
         Ok(())
     }
 }
@@ -776,22 +822,15 @@ impl Account for NetworkAccount {
     async fn sign_out(&mut self) -> Result<()> {
         #[cfg(feature = "listen")]
         {
-            tracing::debug!("net_sign_out::shutdown_listeners");
-            self.shutdown_listeners().await;
+            tracing::debug!("net_sign_out::shutdown_websockets");
+            self.shutdown_websockets().await;
         }
 
         #[cfg(feature = "files")]
         {
             tracing::debug!("net_sign_out::stop_file_transfers");
             self.stop_file_transfers().await;
-            if let Some(transfers) = &mut self.transfers {
-                // let transfers = self.transfers().await?;
-                let mut transfers = transfers.write().await;
-                transfers.clear();
-            }
-
-            self.transfers = None;
-            self.inflight_transfers = None;
+            self.file_transfers.take();
         }
 
         self.remotes = Default::default();
@@ -823,9 +862,10 @@ impl Account for NetworkAccount {
     async fn delete_account(&mut self) -> Result<()> {
         // Shutdown any change listeners
         #[cfg(feature = "listen")]
-        self.shutdown_listeners().await;
+        self.shutdown_websockets().await;
 
         // Stop any pending file transfers
+        #[cfg(feature = "files")]
         self.stop_file_transfers().await;
 
         {
@@ -1026,16 +1066,6 @@ impl Account for NetworkAccount {
         let account = self.account.lock().await;
         Ok(account.detached_view(summary, commit).await?)
     }
-
-    /*
-    #[cfg(feature = "files")]
-    async fn transfers(
-        &self,
-    ) -> Result<Arc<RwLock<crate::sdk::storage::files::Transfers>>> {
-        let account = self.account.lock().await;
-        Ok(account.transfers().await?)
-    }
-    */
 
     #[cfg(feature = "search")]
     async fn initialize_search_index(

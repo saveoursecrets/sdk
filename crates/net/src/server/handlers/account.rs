@@ -525,7 +525,7 @@ mod handlers {
                 outcome,
             );
             let mut writer = state.write().await;
-            send_notification(&mut *writer, &caller, notification);
+            send_notification(&mut *writer, &caller, notification).await;
         }
 
         let packet = SyncPacket {

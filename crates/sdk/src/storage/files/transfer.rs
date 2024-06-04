@@ -8,12 +8,12 @@ use serde_with::serde_as;
 use std::collections::HashSet;
 
 /// Set of files built from the state on disc.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct FileSet(pub HashSet<ExternalFile>);
 
 /// Sets of files that should be uploaded and
 /// downloaded from a remote server.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct FileTransfersSet {
     /// Files that exist on local but not on remote.
     pub uploads: FileSet,

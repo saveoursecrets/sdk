@@ -5,7 +5,7 @@ use anyhow::Result;
 use crate::test_utils::{
     assert_local_remote_file_eq, assert_local_remote_file_not_exist,
     mock::files::{create_file_secret, update_file_secret},
-    simulate_device, spawn, teardown, wait_for_transfers,
+    simulate_device, spawn, teardown, wait_for_num_transfers,
 };
 use sos_net::{client::RemoteSync, sdk::prelude::*};
 
@@ -29,7 +29,7 @@ async fn file_transfers_single_upload() -> Result<()> {
     let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
 
     // Wait until the transfers are completed
-    wait_for_transfers(&device.owner).await?;
+    wait_for_num_transfers(&device.owner, 1).await?;
 
     // Assert the files on disc are equal
     assert_local_remote_file_eq(
@@ -66,7 +66,7 @@ async fn file_transfers_single_update() -> Result<()> {
         create_file_secret(&mut device.owner, &default_folder, None).await?;
 
     // Wait for the upload event
-    wait_for_transfers(&device.owner).await?;
+    wait_for_num_transfers(&device.owner, 1).await?;
 
     // Update the file secret with new file content
     let (_, file_name) = update_file_secret(
@@ -80,7 +80,7 @@ async fn file_transfers_single_update() -> Result<()> {
     let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
 
     // Wait until the transfers are completed
-    wait_for_transfers(&device.owner).await?;
+    wait_for_num_transfers(&device.owner, 2).await?;
 
     // Assert the files on disc are equal
     assert_local_remote_file_eq(
@@ -117,7 +117,7 @@ async fn file_transfers_single_move() -> Result<()> {
         create_file_secret(&mut device.owner, &default_folder, None).await?;
 
     // Wait until the upload is completed
-    wait_for_transfers(&device.owner).await?;
+    wait_for_num_transfers(&device.owner, 1).await?;
 
     // Create a folder
     let FolderCreate {
@@ -138,7 +138,7 @@ async fn file_transfers_single_move() -> Result<()> {
     let file = ExternalFile::new(*destination.id(), secret_id, file_name);
 
     // Wait until the move is completed
-    wait_for_transfers(&device.owner).await?;
+    wait_for_num_transfers(&device.owner, 1).await?;
 
     // Assert the files on disc are equal
     assert_local_remote_file_eq(
@@ -175,7 +175,7 @@ async fn file_transfers_single_delete() -> Result<()> {
     let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
 
     // Wait until the transfers are completed
-    wait_for_transfers(&device.owner).await?;
+    wait_for_num_transfers(&device.owner, 1).await?;
 
     // Assert the files on disc are equal
     assert_local_remote_file_eq(
@@ -191,7 +191,7 @@ async fn file_transfers_single_delete() -> Result<()> {
         .await?;
 
     // Wait until the transfers are completed
-    wait_for_transfers(&device.owner).await?;
+    wait_for_num_transfers(&device.owner, 1).await?;
 
     let local_paths = device.owner.paths();
 
@@ -214,13 +214,14 @@ async fn file_transfers_single_delete() -> Result<()> {
 async fn file_transfers_single_download() -> Result<()> {
     const TEST_ID: &str = "file_transfers_single_download";
 
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare mock devices
     let mut uploader = simulate_device(TEST_ID, 2, Some(&server)).await?;
+
     let default_folder = uploader.owner.default_folder().await.unwrap();
     let mut downloader = uploader.connect(1, None).await?;
 
@@ -232,7 +233,9 @@ async fn file_transfers_single_download() -> Result<()> {
                 .await?;
         let file =
             ExternalFile::new(*default_folder.id(), secret_id, file_name);
-        wait_for_transfers(&uploader.owner).await?;
+
+        wait_for_num_transfers(&uploader.owner, 1).await?;
+
         assert_local_remote_file_eq(
             uploader.owner.paths(),
             &uploader.server_path,
@@ -248,7 +251,7 @@ async fn file_transfers_single_download() -> Result<()> {
         // creates the pending download transfer operation
         assert!(downloader.owner.sync().await.is_none());
 
-        wait_for_transfers(&downloader.owner).await?;
+        wait_for_num_transfers(&downloader.owner, 1).await?;
 
         assert_local_remote_file_eq(
             downloader.owner.paths(),

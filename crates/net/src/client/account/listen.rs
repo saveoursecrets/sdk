@@ -3,7 +3,6 @@
 use crate::{
     client::{
         sync::RemoteSync, Error, ListenOptions, NetworkAccount, Result,
-        WebSocketHandle,
     },
     sdk::sync::{Origin, SyncError},
     ChangeNotification,
@@ -13,7 +12,30 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 impl NetworkAccount {
-    /// Listen for changes on a remote server.
+    /// Close all the websocket connections.
+    #[cfg(feature = "listen")]
+    pub(super) async fn shutdown_websockets(&self) {
+        tracing::debug!("listen::close_all_websockets");
+
+        let mut listeners = self.listeners.lock().await;
+        for (_, handle) in listeners.drain() {
+            handle.close().await;
+        }
+    }
+
+    /// Stop listening to a server websocket.
+    pub async fn stop_listening(&self, origin: &Origin) {
+        let mut listeners = self.listeners.lock().await;
+        if let Some(handle) = listeners.get(origin) {
+            tracing::debug!(
+                url = %origin.url(),
+                "listen::close_websocket");
+
+            handle.close().await;
+            listeners.remove(origin);
+        }
+    }
+    /// Listen for changes on a server websocket.
     pub async fn listen(
         &self,
         origin: &Origin,
@@ -21,14 +43,10 @@ impl NetworkAccount {
         listener: Option<
             mpsc::Sender<(ChangeNotification, Option<SyncError<Error>>)>,
         >,
-    ) -> Result<WebSocketHandle> {
+    ) -> Result<()> {
         let remotes = self.remotes.read().await;
         if let Some(remote) = remotes.get(origin) {
-            let mut listeners = self.listeners.lock().await;
-            if let Some(handle) = listeners.get(origin) {
-                handle.close();
-                listeners.remove(origin);
-            }
+            self.stop_listening(&origin).await;
 
             let remote = Arc::new(remote.clone());
             let (tx, mut rx) = mpsc::channel::<ChangeNotification>(32);
@@ -94,9 +112,12 @@ impl NetworkAccount {
 
             // Store the listeners so we can
             // close the connections on sign out
-            listeners.insert(origin.clone(), handle.clone());
+            {
+                let mut listeners = self.listeners.lock().await;
+                listeners.insert(origin.clone(), handle);
+            }
 
-            Ok(handle)
+            Ok(())
         } else {
             Err(Error::OriginNotFound(origin.clone()))
         }

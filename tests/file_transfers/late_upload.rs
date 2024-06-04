@@ -4,10 +4,10 @@
 use crate::test_utils::{
     assert_local_remote_file_eq,
     mock::files::{create_attachment, create_file_secret},
-    simulate_device, spawn, teardown, wait_for_transfers,
+    simulate_device, spawn, teardown, wait_for_num_transfers,
 };
 use anyhow::Result;
-use sos_net::{client::RemoteSync, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 
 /// Tests creating external files then adding a remote
 /// server, syncing and uploading the files.
@@ -15,7 +15,7 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 async fn file_transfers_late_upload() -> Result<()> {
     const TEST_ID: &str = "file_transfers_late_upload";
 
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 1, None).await?;
@@ -23,7 +23,6 @@ async fn file_transfers_late_upload() -> Result<()> {
     let default_folder = device.owner.default_folder().await.unwrap();
 
     // Create an external file secret then delete it,
-    // this will be normalized to a single delete operation
     let (secret_id, _, _, _) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
     device
@@ -67,20 +66,6 @@ async fn file_transfers_late_upload() -> Result<()> {
             .await?;
     files.push(ExternalFile::new(*destination.id(), secret_id, file_name));
 
-    // Should have transfer operations for each file in
-    // the transfers queue
-    {
-        let transfers = device.owner.transfers().await?;
-        let mut transfers = transfers.write().await;
-
-        // Must normalize before asserting
-        transfers.normalize(device.owner.paths()).await?;
-
-        for file in &files {
-            assert!(transfers.queue().get(file).is_some());
-        }
-    }
-
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
     let server_paths = server.account_path(&address);
@@ -88,11 +73,8 @@ async fn file_transfers_late_upload() -> Result<()> {
     // Connect to the server
     device.owner.add_server(server.origin.clone()).await?;
 
-    // Sync so the upload will succeed (otherwise 404)
-    assert!(device.owner.sync().await.is_none());
-
     // Wait until the transfers are completed
-    wait_for_transfers(&device.owner).await?;
+    wait_for_num_transfers(&device.owner, 3).await?;
 
     // Assert the files on disc are equal
     for file in files {

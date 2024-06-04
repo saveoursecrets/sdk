@@ -2,7 +2,7 @@
 use crate::test_utils::{
     assert_local_remote_file_eq, assert_local_remote_file_not_exist,
     mock::files::{create_attachment, create_file_secret, update_attachment},
-    simulate_device, spawn, teardown, wait_for_transfers,
+    simulate_device, spawn, teardown, wait_for_num_transfers,
 };
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
@@ -26,6 +26,7 @@ async fn file_transfers_attach_create() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
+    wait_for_num_transfers(&device.owner, 1).await?;
     files.push(ExternalFile::new(
         *default_folder.id(),
         secret_id,
@@ -40,14 +41,12 @@ async fn file_transfers_attach_create() -> Result<()> {
         None,
     )
     .await?;
+    wait_for_num_transfers(&device.owner, 1).await?;
     files.push(ExternalFile::new(
         *default_folder.id(),
         secret_id,
         file_name,
     ));
-
-    // Wait until the transfers are completed
-    wait_for_transfers(&device.owner).await?;
 
     // Assert the files on disc are equal
     for file in &files {
@@ -85,6 +84,7 @@ async fn file_transfers_attach_update() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
+    wait_for_num_transfers(&device.owner, 1).await?;
     files.push(ExternalFile::new(
         *default_folder.id(),
         secret_id,
@@ -99,6 +99,7 @@ async fn file_transfers_attach_update() -> Result<()> {
         None,
     )
     .await?;
+    wait_for_num_transfers(&device.owner, 1).await?;
 
     // Update the attachment
     let (_, _, file_name) = update_attachment(
@@ -109,14 +110,13 @@ async fn file_transfers_attach_update() -> Result<()> {
         None,
     )
     .await?;
+
+    wait_for_num_transfers(&device.owner, 2).await?;
     files.push(ExternalFile::new(
         *default_folder.id(),
         secret_id,
         file_name,
     ));
-
-    // Wait until the transfers are completed
-    wait_for_transfers(&device.owner).await?;
 
     // Assert the files on disc are equal
     for file in &files {
@@ -154,6 +154,7 @@ async fn file_transfers_attach_move() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
+    wait_for_num_transfers(&device.owner, 1).await?;
 
     // Create an attachment
     let (_, _, attachment_file_name) = create_attachment(
@@ -163,6 +164,7 @@ async fn file_transfers_attach_move() -> Result<()> {
         None,
     )
     .await?;
+    wait_for_num_transfers(&device.owner, 1).await?;
 
     // Create a folder
     let FolderCreate {
@@ -190,7 +192,7 @@ async fn file_transfers_attach_move() -> Result<()> {
     ));
 
     // Wait until the transfers are completed
-    wait_for_transfers(&device.owner).await?;
+    wait_for_num_transfers(&device.owner, 2).await?;
 
     // Assert the files on disc are equal
     for file in &files {
@@ -228,6 +230,7 @@ async fn file_transfers_attach_delete() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
+    wait_for_num_transfers(&device.owner, 1).await?;
     files.push(ExternalFile::new(
         *default_folder.id(),
         secret_id,
@@ -242,6 +245,7 @@ async fn file_transfers_attach_delete() -> Result<()> {
         None,
     )
     .await?;
+    wait_for_num_transfers(&device.owner, 1).await?;
     files.push(ExternalFile::new(
         *default_folder.id(),
         secret_id,
@@ -253,9 +257,7 @@ async fn file_transfers_attach_delete() -> Result<()> {
         .owner
         .delete_secret(&secret_id, Default::default())
         .await?;
-
-    // Wait until the transfers are completed
-    wait_for_transfers(&device.owner).await?;
+    wait_for_num_transfers(&device.owner, 2).await?;
 
     // Assert the files on disc do not exist
     for file in &files {

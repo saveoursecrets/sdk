@@ -1,18 +1,9 @@
 //! Listen for change notifications on a websocket connection.
 use futures::{
-    select,
     stream::{Map, SplitStream},
     Future, FutureExt, StreamExt,
 };
-use std::{
-    borrow::Cow,
-    pin::Pin,
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
+use std::{borrow::Cow, pin::Pin};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
@@ -23,11 +14,7 @@ use tokio_tungstenite::{
 };
 
 use async_recursion::async_recursion;
-use tokio::{
-    net::TcpStream,
-    sync::{Mutex, Notify},
-    time::sleep,
-};
+use tokio::{net::TcpStream, sync::watch};
 
 use sos_sdk::{
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
@@ -35,7 +22,9 @@ use sos_sdk::{
 };
 
 use crate::{
-    client::{Error, Result, WebSocketRequest},
+    client::{
+        net::NetworkRetry, CancelReason, Error, Result, WebSocketRequest,
+    },
     ChangeNotification,
 };
 
@@ -53,40 +42,30 @@ pub struct ListenOptions {
     /// to the caller.
     pub(crate) connection_id: String,
 
-    /// Base reconnection interval for exponential backoff reconnect
-    /// attempts.
-    pub(crate) reconnect_interval: u64,
-
-    /// Maximum number of retry attempts.
-    pub(crate) maximum_retries: u64,
+    /// Network retry state.
+    pub(crate) retry: NetworkRetry,
 }
 
 impl ListenOptions {
-    /// Create new listen options using the default reconnect
+    /// Create new listen options using the default retry
     /// configuration.
     pub fn new(connection_id: String) -> Result<Self> {
         Ok(Self {
             connection_id,
-            reconnect_interval: 1000,
-            maximum_retries: 16,
+            retry: NetworkRetry::new(16, 1000),
         })
     }
 
-    /// Create new listen options using a custom reconnect
+    /// Create new listen options using a custom retry
     /// configuration.
     ///
-    /// The reconnect interval is a *base interval* in milliseconds
-    /// for the exponential backoff so use a small value such as
-    /// `1000` or `2000`.
-    pub fn new_config(
+    pub fn new_retry(
         connection_id: String,
-        reconnect_interval: u64,
-        maximum_retries: u64,
+        retry: NetworkRetry,
     ) -> Result<Self> {
         Ok(Self {
             connection_id,
-            reconnect_interval,
-            maximum_retries,
+            retry,
         })
     }
 }
@@ -219,13 +198,23 @@ async fn decode_notification(message: Message) -> Result<ChangeNotification> {
 /// Handle to a websocket listener.
 #[derive(Clone)]
 pub struct WebSocketHandle {
-    notify: Arc<Notify>,
+    notify: watch::Sender<()>,
+    cancel_retry: watch::Sender<CancelReason>,
 }
 
 impl WebSocketHandle {
     /// Close the websocket.
-    pub fn close(&self) {
-        self.notify.notify_one();
+    pub async fn close(&self) {
+        tracing::debug!(
+            receivers = %self.notify.receiver_count(),
+            "ws_client::close");
+        if let Err(error) = self.notify.send(()) {
+            tracing::error!(error = ?error);
+        }
+
+        if let Err(error) = self.cancel_retry.send(CancelReason::Closed) {
+            tracing::error!(error = ?error);
+        }
     }
 }
 
@@ -236,8 +225,8 @@ pub struct WebSocketChangeListener {
     signer: BoxedEcdsaSigner,
     device: BoxedEd25519Signer,
     options: ListenOptions,
-    retries: Arc<Mutex<AtomicU64>>,
-    notify: Arc<Notify>,
+    shutdown: watch::Sender<()>,
+    cancel_retry: watch::Sender<CancelReason>,
 }
 
 impl WebSocketChangeListener {
@@ -248,14 +237,15 @@ impl WebSocketChangeListener {
         device: BoxedEd25519Signer,
         options: ListenOptions,
     ) -> Self {
-        let notify = Arc::new(Notify::new());
+        let (shutdown, _) = watch::channel(());
+        let (cancel_retry, _) = watch::channel(Default::default());
         Self {
             origin,
             signer,
             device,
             options,
-            retries: Arc::new(Mutex::new(AtomicU64::from(1))),
-            notify,
+            shutdown,
+            cancel_retry,
         }
     }
 
@@ -268,11 +258,15 @@ impl WebSocketChangeListener {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        let notify = Arc::clone(&self.notify);
+        let notify = self.shutdown.clone();
+        let cancel_retry = self.cancel_retry.clone();
         tokio::task::spawn(async move {
             let _ = self.connect(&handler).await;
         });
-        WebSocketHandle { notify }
+        WebSocketHandle {
+            notify,
+            cancel_retry,
+        }
     }
 
     #[async_recursion]
@@ -286,9 +280,21 @@ impl WebSocketChangeListener {
     {
         tracing::debug!("ws_client::connected");
 
-        let shutdown = Arc::clone(&self.notify);
+        let mut shutdown_rx = self.shutdown.subscribe();
         loop {
-            select! {
+            futures::select! {
+                _ = shutdown_rx.changed().fuse() => {
+                    tracing::debug!("ws_client::shutting_down");
+                    // Perform close handshake
+                    if let Err(error) = stream.close(Some(CloseFrame {
+                        code: CloseCode::Normal,
+                        reason: Cow::Borrowed("closed"),
+                    })).await {
+                        tracing::warn!(error = ?error);
+                    }
+                    tracing::debug!("ws_client::shutdown");
+                    return Ok(());
+                }
                 message = stream.next().fuse() => {
                     if let Some(message) = message {
                         match message {
@@ -306,16 +312,13 @@ impl WebSocketChangeListener {
                         }
                     }
                 }
-                _ = shutdown.notified().fuse() => {
-                    // Perform close handshake
-                    let _ = stream.close(Some(CloseFrame {
-                        code: CloseCode::Normal,
-                        reason: Cow::Borrowed("closed"),
-                    })).await;
-                    return Ok(());
-                }
             }
         }
+
+        // reconnection is recursive so explicitly drop the receiver
+        drop(shutdown_rx);
+
+        tracing::debug!("ws_client::disconnected");
 
         self.delay_connect(handler).await
     }
@@ -351,29 +354,32 @@ impl WebSocketChangeListener {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        let retries = {
-            let retries = self.retries.lock().await;
-            retries.fetch_add(1, Ordering::SeqCst)
-        };
-
-        if retries > self.options.maximum_retries {
+        let retries = self.options.retry.increment();
+        if self.options.retry.is_exhausted(retries) {
             tracing::debug!(
-                maximum_retries = %self.options.maximum_retries,
+                maximum_retries = %self.options.retry.maximum_retries,
                 "wsclient::retry_attempts_exhausted");
             return Ok(());
         }
 
-        tracing::debug!(attempt = %retries, "ws_client::retry");
+        tracing::debug!(retries = %retries, "ws_client::retry");
 
-        if let Some(factor) = 2u64.checked_pow(retries as u32) {
-            let delay = self.options.reconnect_interval * factor;
-            tracing::debug!(delay = %delay, "ws_client::retry");
-            sleep(Duration::from_millis(delay)).await;
-            self.connect(handler).await?;
-            Ok(())
-        } else {
-            tracing::error!("ws_client:retry_attempts_overflowed");
-            Ok(())
+        match self
+            .options
+            .retry
+            .wait_and_retry(
+                "ws_client",
+                retries,
+                async move { self.connect(handler).await },
+                self.cancel_retry.subscribe(),
+            )
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(e) => match e {
+                Error::RetryCanceled(_) => Ok(()),
+                _ => Err(e),
+            },
         }
     }
 }

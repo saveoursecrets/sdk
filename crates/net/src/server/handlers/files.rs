@@ -383,22 +383,14 @@ mod handlers {
     };
     use tokio_util::io::ReaderStream;
 
-    // Receive guard deletes files that did not complete
-    // uploading or whose digest does not match the expected
-    // checksum
+    // Receive guard deletes files that did not complete uploading.
     struct ReceiveGuard {
-        file_name: ExternalFileName,
         file_path: PathBuf,
-        digest: Option<Vec<u8>>,
     }
 
     impl Drop for ReceiveGuard {
         fn drop(&mut self) {
-            if let Some(digest) = &self.digest {
-                if digest.as_slice() != self.file_name.as_ref() {
-                    let _ = std::fs::remove_file(&self.file_path);
-                }
-            } else {
+            if self.file_path.exists() {
                 let _ = std::fs::remove_file(&self.file_path);
             }
         }
@@ -440,17 +432,18 @@ mod handlers {
             return Err(Error::Status(StatusCode::NOT_MODIFIED));
         }
 
-        let mut guard = ReceiveGuard {
-            file_name,
-            file_path: file_path.clone(),
-            digest: None,
+        let mut upload_path = file_path.clone();
+        upload_path.set_extension("upload");
+
+        let mut _guard = ReceiveGuard {
+            file_path: upload_path.clone(),
         };
 
         if !tokio::fs::try_exists(&parent_path).await? {
             tokio::fs::create_dir_all(&parent_path).await?;
         }
 
-        let file = File::create(&file_path).await?;
+        let file = File::create(&upload_path).await?;
         let mut buf_writer = BufWriter::new(file);
         let mut stream = body.into_data_stream();
         let mut hasher = Sha256::new();
@@ -461,7 +454,6 @@ mod handlers {
 
         buf_writer.flush().await?;
         let digest = hasher.finalize();
-        guard.digest = Some(digest.to_vec());
 
         if digest.as_slice() != file_name.as_ref() {
             return Err(Error::FileChecksumMismatch(
@@ -469,6 +461,9 @@ mod handlers {
                 hex::encode(digest.as_slice()),
             ));
         }
+
+        // Move the upload into place
+        tokio::fs::rename(upload_path, file_path).await?;
 
         Ok(())
     }
@@ -536,11 +531,13 @@ mod handlers {
             return Err(Error::Status(StatusCode::NOT_FOUND));
         }
 
+        let metadata = tokio::fs::metadata(&file_path).await?;
         let file = File::open(&file_path).await?;
         let stream = ReaderStream::new(file);
 
         let body = axum::body::Body::from_stream(stream);
         Ok(Response::builder()
+            .header(header::CONTENT_LENGTH, metadata.len())
             .header(header::CONTENT_TYPE, "application/octet-stream")
             .body(body)?)
     }

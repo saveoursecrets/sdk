@@ -28,8 +28,8 @@ use crate::sdk::storage::files::{ExternalFile, FileSet, FileTransfersSet};
 #[cfg(feature = "files")]
 use crate::client::ProgressChannel;
 
-use crate::client::{Error, Result, SyncClient};
-use std::{fmt, path::Path, sync::Arc, time::Duration};
+use crate::client::{CancelReason, Error, Result, SyncClient};
+use std::{fmt, path::Path, time::Duration};
 use url::Url;
 
 #[cfg(feature = "listen")]
@@ -48,6 +48,15 @@ pub struct HttpClient {
     client: reqwest::Client,
     connection_id: String,
 }
+
+impl PartialEq for HttpClient {
+    fn eq(&self, other: &Self) -> bool {
+        self.origin == other.origin
+            && self.connection_id == other.connection_id
+    }
+}
+
+impl Eq for HttpClient {}
 
 impl fmt::Debug for HttpClient {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -357,12 +366,13 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg(feature = "files")]
-    #[instrument(skip(self, path, progress))]
+    #[instrument(skip(self, path, progress, cancel))]
     async fn upload_file(
         &self,
         file_info: &ExternalFile,
         path: &Path,
-        progress: Arc<ProgressChannel>,
+        progress: ProgressChannel,
+        mut cancel: tokio::sync::watch::Receiver<CancelReason>,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
         use reqwest::{
@@ -392,21 +402,40 @@ impl SyncClient for HttpClient {
         let file = vfs::File::open(path).await?;
 
         let mut bytes_sent = 0;
-        let _ = progress.send((bytes_sent, Some(file_size)));
+        if let Err(error) = progress.send((bytes_sent, Some(file_size))).await
+        {
+            tracing::warn!(error = ?error);
+        }
 
         let mut reader_stream = ReaderStream::new(file);
         let progress_stream = async_stream::stream! {
-            while let Some(chunk) = reader_stream.next().await {
-                if let Ok(bytes) = &chunk {
-                    bytes_sent += bytes.len() as u64;
-                    let _ = progress.send((bytes_sent, Some(file_size)));
+            loop {
+              tokio::select! {
+                biased;
+                _ = cancel.changed() => {
+                  let reason = cancel.borrow().clone();
+                  tracing::debug!(reason = ?reason, "upload::canceled");
+                  yield Err(Error::TransferCanceled(reason));
                 }
-                yield chunk;
+                Some(chunk) = reader_stream.next() => {
+                  if let Ok(bytes) = &chunk {
+                      bytes_sent += bytes.len() as u64;
+                      if let Err(error) = progress.send((bytes_sent, Some(file_size))).await {
+                        tracing::warn!(error = ?error);
+                      }
+                  }
+                  yield chunk.map_err(Error::from);
+                }
+              }
             }
         };
 
-        let response = self
-            .client
+        // Use a client without the read timeout
+        let client = reqwest::ClientBuilder::new()
+            .connect_timeout(Duration::from_millis(5000))
+            .build()?;
+
+        let response = client
             .put(url)
             .header(AUTHORIZATION, auth)
             .header(CONTENT_LENGTH, file_size)
@@ -423,12 +452,13 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg(feature = "files")]
-    #[instrument(skip(self, path, progress))]
+    #[instrument(skip(self, path, progress, cancel))]
     async fn download_file(
         &self,
         file_info: &ExternalFile,
         path: &Path,
-        progress: Arc<ProgressChannel>,
+        progress: ProgressChannel,
+        mut cancel: tokio::sync::watch::Receiver<CancelReason>,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
         use tokio::io::AsyncWriteExt;
@@ -458,29 +488,64 @@ impl SyncClient for HttpClient {
 
         let file_size = response.content_length();
         let mut bytes_received = 0;
-        let _ = progress.send((bytes_received, file_size));
+        if let Err(error) = progress.send((bytes_received, file_size)).await {
+            tracing::warn!(error = ?error);
+        }
+
+        let mut download_path = path.to_path_buf();
+        download_path.set_extension("download");
 
         let mut hasher = Sha256::new();
-        let mut file = vfs::File::create(path).await?;
-        while let Some(chunk) = response.chunk().await? {
-            file.write_all(&chunk).await?;
-            hasher.update(&chunk);
+        let mut file = vfs::File::create(&download_path).await?;
 
-            bytes_received += chunk.len() as u64;
-            let _ = progress.send((bytes_received, file_size));
+        loop {
+            tokio::select! {
+                biased;
+                _ = cancel.changed() => {
+                  let reason = cancel.borrow().clone();
+                  vfs::remove_file(download_path).await?;
+                  tracing::debug!(reason = ?reason, "download::canceled");
+                  return Err(Error::TransferCanceled(reason));
+                }
+                chunk = response.chunk() => {
+                  if let Some(chunk) = chunk? {
+                    file.write_all(&chunk).await?;
+                    hasher.update(&chunk);
+
+                    bytes_received += chunk.len() as u64;
+                    if let Err(error) = progress.send((bytes_received, file_size)).await {
+                        tracing::warn!(error = ?error);
+                    }
+                  } else {
+                    break;
+                  }
+                }
+            }
         }
+
         file.flush().await?;
+
         let digest = hasher.finalize();
 
-        if digest.as_slice() != file_info.file_name().as_ref() {
-            tokio::fs::remove_file(path).await?;
+        let digest_valid =
+            digest.as_slice() == file_info.file_name().as_ref();
+        if !digest_valid {
+            tokio::fs::remove_file(download_path).await?;
             return Err(Error::FileChecksumMismatch(
                 file_info.file_name().to_string(),
                 hex::encode(digest.as_slice()),
             ));
         }
+
         let status = response.status();
         tracing::debug!(status = %status, "http::download_file");
+
+        if status == http::StatusCode::OK
+            && vfs::try_exists(&download_path).await?
+        {
+            vfs::rename(download_path, path).await?;
+        }
+
         self.error_json(response).await?;
         Ok(status)
     }

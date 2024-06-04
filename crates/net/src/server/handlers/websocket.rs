@@ -11,44 +11,68 @@ use axum_extra::{
     typed_header::TypedHeader,
 };
 use futures::{
-    select,
     stream::{SplitSink, SplitStream},
-    FutureExt, SinkExt, StreamExt,
+    SinkExt, StreamExt,
 };
 
 use sos_sdk::signer::ecdsa::Address;
-use std::sync::Arc;
-use tokio::sync::{
-    broadcast::{self, Receiver, Sender},
-    mpsc,
-};
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::{broadcast, watch};
 
-use super::{authenticate_endpoint, ConnectionQuery};
+use super::{authenticate_endpoint, Caller, ConnectionQuery};
 use crate::server::{Result, ServerBackend, ServerState};
 
-const MAX_SOCKET_CONNECTIONS_PER_CLIENT: u8 = 6;
-
-/// Message broadcast to connected sockets.
-#[derive(Clone)]
-pub struct BroadcastMessage {
-    /// Buffer of the message to broadcast.
-    pub buffer: Vec<u8>,
-    /// Connection identifier of the caller.
-    pub connection_id: String,
-}
-
-/// State for the websocket  connection for a single
+/// State for the websocket connection for a single
 /// authenticated client.
+#[derive(Clone)]
 pub struct WebSocketConnection {
     /// Broadcast sender for websocket message.
     ///
     /// Handlers can send messages via this sender to broadcast
     /// to all the connected sockets for the client.
-    pub(crate) tx: Sender<BroadcastMessage>,
+    send_tx: broadcast::Sender<Vec<u8>>,
 
-    /// Number of connected clients, used to know when
-    /// the connection state can be disposed of.
-    pub(crate) clients: u8,
+    /// Channel to close the write side task.
+    close_tx: watch::Sender<Message>,
+}
+
+/// Stores the websocket connections for an account and
+/// supports broadcasting to all other connections.
+#[derive(Default)]
+pub struct WebSocketAccount {
+    connections: HashMap<String, WebSocketConnection>,
+}
+
+impl WebSocketAccount {
+    /// Broadcast to all other connections.
+    pub async fn broadcast(
+        &self,
+        caller: &Caller,
+        message: Vec<u8>,
+    ) -> Result<()> {
+        for (conn_id, conn) in &self.connections {
+            if conn_id.is_empty()
+                || caller.connection_id().is_empty()
+                || conn_id == caller.connection_id()
+            {
+                continue;
+            }
+            if conn.send_tx.receiver_count() > 0 {
+                let _ = conn.send_tx.send(message.clone());
+            }
+        }
+        Ok(())
+    }
+
+    /// Number of connections for the account.
+    pub fn len(&self) -> usize {
+        self.connections.len()
+    }
+
+    /// Whether the account connections are empty.
+    pub fn is_empty(&self) -> bool {
+        self.connections.is_empty()
+    }
 }
 
 /// Upgrade to a websocket connection.
@@ -74,99 +98,99 @@ pub async fn upgrade(
     .await
     .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let mut writer = state.write().await;
     let address = caller.address().clone();
     let connection_id = caller.connection_id().to_string();
 
-    let (close_tx, close_rx) = mpsc::channel::<Message>(32);
+    let (close_tx, _) = watch::channel(Message::Close(None));
+    let (send_tx, _) = broadcast::channel(64);
+    let conn = WebSocketConnection { send_tx, close_tx };
 
-    let conn = if let Some(conn) = writer.sockets.get_mut(caller.address()) {
-        conn
-    } else {
-        let (tx, _) = broadcast::channel::<BroadcastMessage>(32);
-        writer
+    {
+        let mut writer = state.write().await;
+        let account = writer
             .sockets
             .entry(address.clone())
-            .or_insert(WebSocketConnection { tx, clients: 0 })
-    };
+            .or_insert(Default::default());
 
-    // Update the connected client count
-    if let Some(result) = conn.clients.checked_add(1) {
-        if result > MAX_SOCKET_CONNECTIONS_PER_CLIENT {
-            return Err(StatusCode::TOO_MANY_REQUESTS);
+        if account.connections.get(&connection_id).is_some() {
+            return Err(StatusCode::CONFLICT);
         }
-        conn.clients = result;
-    } else {
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+
+        account
+            .connections
+            .insert(connection_id.clone(), conn.clone());
     }
 
-    let rx = conn.tx.subscribe();
-
-    drop(writer);
-
     Ok(ws.on_upgrade(move |socket| {
-        handle_socket(
-            socket,
-            state,
-            rx,
-            address,
-            connection_id,
-            close_tx,
-            close_rx,
-        )
+        handle_socket(socket, state, address, connection_id, conn)
     }))
 }
 
-async fn disconnect(state: ServerState, address: Address) {
+async fn disconnect(
+    state: ServerState,
+    address: &Address,
+    connection_id: &str,
+) {
     let mut writer = state.write().await;
-
     tracing::debug!(address = %address, "ws_server::disconnect");
-    let clients = if let Some(conn) = writer.sockets.get_mut(&address) {
-        conn.clients -= 1;
-        Some(conn.clients)
-    } else {
-        None
-    };
+    if let Some(account) = writer.sockets.get_mut(address) {
+        tracing::debug!(
+            address = %address,
+            "ws_server::disconnect::remove_socket",
+        );
 
-    if let Some(clients) = clients {
-        if clients == 0 {
-            tracing::debug!(
+        if let Some(conn) = account.connections.remove(connection_id) {
+            tracing::info!(
                 address = %address,
-                "ws_server::disconnect::remove_socket",
+                connection_id = %connection_id,
+                "ws_server::disconnect",
             );
-            writer.sockets.remove(&address);
+
+            if let Err(error) = conn.close_tx.send(Message::Close(None)) {
+                tracing::warn!(error = ?error);
+            }
         }
-    }
+    };
 }
 
 async fn handle_socket(
     socket: WebSocket,
     state: ServerState,
-    outgoing: Receiver<BroadcastMessage>,
     address: Address,
     connection_id: String,
-    close_tx: mpsc::Sender<Message>,
-    close_rx: mpsc::Receiver<Message>,
+    conn: WebSocketConnection,
 ) {
+    tracing::info!(
+        address = %address,
+        connection_id = %connection_id,
+        "ws_server::connect",
+    );
+
     let (writer, reader) = socket.split();
     tokio::spawn(write(
         Arc::clone(&state),
         address,
-        connection_id,
+        connection_id.clone(),
         writer,
-        outgoing,
-        close_rx,
+        conn.clone(),
     ));
-    tokio::spawn(read(Arc::clone(&state), address, reader, close_tx));
+    tokio::spawn(read(
+        Arc::clone(&state),
+        address,
+        connection_id,
+        reader,
+        conn,
+    ));
 }
 
 async fn read(
     state: ServerState,
     address: Address,
-    mut receiver: SplitStream<WebSocket>,
-    close_tx: mpsc::Sender<Message>,
+    connection_id: String,
+    mut stream: SplitStream<WebSocket>,
+    conn: WebSocketConnection,
 ) -> Result<()> {
-    while let Some(msg) = receiver.next().await {
+    while let Some(msg) = stream.next().await {
         match msg {
             Ok(msg) => match msg {
                 Message::Text(_) => {}
@@ -174,12 +198,16 @@ async fn read(
                 Message::Ping(_) => {}
                 Message::Pong(_) => {}
                 Message::Close(frame) => {
-                    let _ = close_tx.send(Message::Close(frame)).await;
+                    if let Err(error) =
+                        conn.close_tx.send(Message::Close(frame))
+                    {
+                        tracing::warn!(error = ?error);
+                    }
                     tracing::trace!(
                         address = %address,
                         "ws_server::disconnect::close_message",
                     );
-                    disconnect(state, address).await;
+                    disconnect(state, &address, &connection_id).await;
                     return Ok(());
                 }
             },
@@ -188,7 +216,7 @@ async fn read(
                     address = %address,
                     "ws_server::disconnect::read_error",
                 );
-                disconnect(state, address).await;
+                disconnect(state, &address, &connection_id).await;
                 return Err(e.into());
             }
         }
@@ -200,44 +228,33 @@ async fn write(
     state: ServerState,
     address: Address,
     connection_id: String,
-    mut sender: SplitSink<WebSocket, Message>,
-    mut outgoing: Receiver<BroadcastMessage>,
-    mut close_rx: mpsc::Receiver<Message>,
+    mut sink: SplitSink<WebSocket, Message>,
+    conn: WebSocketConnection,
 ) -> Result<()> {
+    let mut close_rx = conn.close_tx.subscribe();
+    let mut outgoing = conn.send_tx.subscribe();
+
     loop {
-        select! {
-            event = close_rx.recv().fuse() => {
-                match event {
-                    Some(msg) => {
-                        let _ = sender.send(msg).await;
-                        return Ok(())
-                    }
-                    _ => {}
-                }
+        tokio::select! {
+            _ = close_rx.changed() => {
+                let msg = close_rx.borrow().clone();
+                let _ = sink.send(msg).await;
+                break;
             }
-            event = outgoing.recv().fuse() => {
+            event = outgoing.recv() => {
                 match event {
                     Ok(msg) => {
-
-                        let other_connection =
-                            !msg.connection_id.is_empty()
-                                && !connection_id.is_empty()
-                                && &msg.connection_id != &connection_id;
-
-                        // Only broadcast change notifications to listeners
-                        // other than the caller
-                        if other_connection {
-                            if sender.send(Message::Binary(msg.buffer)).await.is_err() {
-                                tracing::trace!(
-                                    address = %address,
-                                    "ws_server::disconnect::send_error",
-                                );
-                                disconnect(
-                                    state,
-                                    address,
-                                ).await;
-                                return Ok(());
-                            }
+                        if sink.send(Message::Binary(msg)).await.is_err() {
+                            tracing::trace!(
+                                address = %address,
+                                "ws_server::disconnect::send_error",
+                            );
+                            disconnect(
+                                state,
+                                &address,
+                                &connection_id,
+                            ).await;
+                            break;
                         }
                     }
                     _ => {}
@@ -245,4 +262,6 @@ async fn write(
             },
         }
     }
+
+    Ok(())
 }

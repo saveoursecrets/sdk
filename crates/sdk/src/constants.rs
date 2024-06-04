@@ -135,9 +135,6 @@ mod folders {
     /// signing key.
     pub const DEVICE_FILE: &str = "device";
 
-    /// File that tracks external file transfers.
-    pub const TRANSFERS_FILE: &str = "transfers";
-
     /// File thats stores account-level preferences.
     #[cfg(feature = "preferences")]
     pub const PREFERENCES_FILE: &str = "preferences";

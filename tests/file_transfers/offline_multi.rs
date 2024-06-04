@@ -313,6 +313,7 @@ async fn file_transfers_offline_multi_download() -> Result<()> {
 
     // Spawn some backend servers
     let server1 = spawn(TEST_ID, None, Some("server1")).await?;
+    let addr = server1.addr.clone();
     let server2 = spawn(TEST_ID, None, Some("server2")).await?;
     let origin = server2.origin.clone();
 
@@ -355,13 +356,17 @@ async fn file_transfers_offline_multi_download() -> Result<()> {
     };
 
     {
+        // Must bring the server back online otherwise the pending
+        // upload will prevent the test from completing
+        let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+
         // Sync pulls down the file event logs and
         // creates the pending download transfer operation
         //
         // We have an error here as the first server will fail
         // to connect for the sync.
         let sync_error = downloader.owner.sync().await;
-        assert!(sync_error.is_some());
+        assert!(sync_error.is_none());
 
         // Wait for the file to exist
         let paths = downloader.owner.paths();

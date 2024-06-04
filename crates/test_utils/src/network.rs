@@ -4,8 +4,8 @@ use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
     client::{
-        ListenOptions, NetworkAccount, RemoteBridge, RemoteSync, SyncClient,
-        WebSocketHandle,
+        InflightNotification, InflightTransfers, ListenOptions,
+        NetworkAccount, RemoteBridge, RemoteSync, SyncClient,
     },
     sdk::{
         account::{Account, AccountBuilder},
@@ -21,7 +21,8 @@ use sos_net::{
         vfs, Paths,
     },
 };
-use std::{path::PathBuf, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
+use tokio::sync::Mutex;
 
 /// Simulated device information.
 pub struct SimulatedDevice {
@@ -59,7 +60,7 @@ impl SimulatedDevice {
         let mut owner = NetworkAccount::new_unauthenticated(
             self.owner.address().clone(),
             Some(data_dir.clone()),
-            false,
+            Default::default(),
         )
         .await?;
 
@@ -93,7 +94,7 @@ impl SimulatedDevice {
     }
 
     /// Start listening for changes.
-    pub async fn listen(&self) -> Result<WebSocketHandle> {
+    pub async fn listen(&self) -> Result<()> {
         Ok(self
             .owner
             .listen(&self.origin, ListenOptions::new(self.id.clone())?, None)
@@ -116,7 +117,7 @@ pub async fn simulate_device_with_builder(
         test_id.to_owned(),
         password.clone(),
         Some(data_dir.clone()),
-        false,
+        Default::default(),
         builder,
     )
     .await?;
@@ -312,16 +313,48 @@ pub async fn assert_local_remote_file_not_exist(
     Ok(())
 }
 
-/// Wait for file transfers to complete.
-pub async fn wait_for_transfers(account: &NetworkAccount) -> Result<()> {
+/// Wait for the number of transfers to complete.
+pub async fn wait_for_num_transfers(
+    account: &NetworkAccount,
+    amount: u16,
+) -> Result<()> {
+    let inflight = account.inflight_transfers()?;
+    wait_for_inflight(
+        Arc::clone(&inflight),
+        |event| matches!(event, InflightNotification::TransferDone { .. }),
+        move |num| num == amount,
+    )
+    .await;
+    Ok(())
+}
+
+/// Wait for inflight notifications.
+pub async fn wait_for_inflight(
+    inflight: Arc<InflightTransfers>,
+    increment: impl Fn(InflightNotification) -> bool + Send + Sync + 'static,
+    is_complete: impl Fn(u16) -> bool + Send + Sync + 'static,
+) {
+    let mut inflight_rx = inflight.notifications().subscribe();
+    let num_events = Mutex::new(0u16);
+
     loop {
-        let transfers = account.transfers().await?;
-        let transfers = transfers.read().await;
-        if transfers.is_empty() {
-            break;
+        tokio::select! {
+          event = inflight_rx.recv() => {
+            if let Ok(event) = event {
+                // println!("event: {:#?}", event);
+                if increment(event) {
+                    let mut num = num_events.lock().await;
+                    *num += 1;
+                }
+                let num = num_events.lock().await;
+                if is_complete(*num) {
+                  println!("wait_for_inflight::finished");
+                  break;
+                }
+            }
+          }
         }
     }
-    Ok(())
 }
 
 /// Wait for a file to exist whose content matches

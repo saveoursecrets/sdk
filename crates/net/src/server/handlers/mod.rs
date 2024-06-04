@@ -29,7 +29,7 @@ const BODY_LIMIT: usize = 33554432;
 
 #[cfg(feature = "listen")]
 use crate::{
-    server::{handlers::websocket::BroadcastMessage, ServerState, State},
+    server::{ServerState, State},
     ChangeNotification,
 };
 
@@ -59,7 +59,7 @@ pub(crate) async fn connections(
     let num_connections = reader
         .sockets
         .values()
-        .fold(0, |acc, conn| acc + conn.clients);
+        .fold(0, |acc, conn| acc + conn.len());
     Json(json!(num_connections))
 }
 
@@ -128,7 +128,7 @@ async fn authenticate_endpoint(
 
 /// Send change notifications to connected clients.
 #[cfg(feature = "listen")]
-pub(crate) fn send_notification(
+pub(crate) async fn send_notification(
     writer: &mut State,
     caller: &Caller,
     notification: ChangeNotification,
@@ -136,13 +136,9 @@ pub(crate) fn send_notification(
     // Send notification on the websockets channel
     match serde_json::to_vec(&notification) {
         Ok(buffer) => {
-            if let Some(conn) = writer.sockets.get(caller.address()) {
-                let message = BroadcastMessage {
-                    buffer,
-                    connection_id: caller.connection_id().to_owned(),
-                };
-                if conn.tx.send(message).is_err() {
-                    tracing::debug!("websocket events channel dropped");
+            if let Some(account) = writer.sockets.get(caller.address()) {
+                if let Err(error) = account.broadcast(caller, buffer).await {
+                    tracing::warn!(error = ?error);
                 }
             }
         }

@@ -4,10 +4,10 @@
 use crate::test_utils::{
     assert_local_remote_file_eq,
     mock::files::{create_attachment, create_file_secret},
-    simulate_device, spawn, teardown, wait_for_transfers,
+    simulate_device, spawn, teardown, wait_for_num_transfers,
 };
 use anyhow::Result;
-use sos_net::{client::RemoteSync, sdk::prelude::*};
+use sos_net::sdk::prelude::*;
 
 /// Tests creating external files then adding a remote
 /// server, syncing and uploading the files.
@@ -54,38 +54,15 @@ async fn file_transfers_sync_file_transfers() -> Result<()> {
         file_name,
     ));
 
-    // Wipe out any existing file transfers queue
-    // so we can mock this scenario
-    {
-        let transfers = device.owner.transfers().await?;
-        let mut transfers = transfers.write().await;
-        transfers.clear();
-    }
-
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
     let server_paths = server.account_path(&address);
 
-    // Connect to the server
+    // Connect to the server which will perform an initial sync
     device.owner.add_server(server.origin.clone()).await?;
 
-    // Initial sync will update the file transfers queue
-    // as `sync_file_transfers()` is called when creating
-    // an account for the first time on a remote server.
-    assert!(device.owner.sync().await.is_none());
-
-    // Should have transfer operations for each file in
-    // the transfers queue after syncing for the first time
-    {
-        let transfers = device.owner.transfers().await?;
-        let transfers = transfers.read().await;
-        for file in &files {
-            assert!(transfers.queue().get(file).is_some());
-        }
-    }
-
     // Wait until the transfers are completed
-    wait_for_transfers(&device.owner).await?;
+    wait_for_num_transfers(&device.owner, 2).await?;
 
     // Assert the files on disc are equal
     for file in files {

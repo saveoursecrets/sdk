@@ -1,7 +1,7 @@
 use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_net::{
-    client::{HttpClient, ListenOptions},
+    client::{HttpClient, ListenOptions, NetworkRetry},
     sdk::prelude::*,
 };
 use std::{sync::Arc, time::Duration};
@@ -33,8 +33,11 @@ async fn network_websocket_reconnect() -> Result<()> {
             .owner
             .listen(
                 &origin,
-                ListenOptions::new_config("device_1".to_string(), 500, 4)
-                    .unwrap(),
+                ListenOptions::new_retry(
+                    "device_1".to_string(),
+                    NetworkRetry::new(4, 500),
+                )
+                .unwrap(),
                 None,
             )
             .await

@@ -20,7 +20,7 @@ use crate::{
         ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICE_EVENTS,
         DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS, IDENTITY_DIR,
         JSON_EXT, LOCAL_DIR, LOCK_FILE, LOGS_DIR, REMOTES_FILE, REMOTE_DIR,
-        TRANSFERS_FILE, VAULTS_DIR, VAULT_EXT,
+        VAULTS_DIR, VAULT_EXT,
     },
     vault::{secret::SecretId, VaultId},
     vfs,
@@ -372,20 +372,6 @@ impl Paths {
             panic!("remote origins are not accessible for global paths");
         }
         let mut vault_path = self.user_dir.join(REMOTES_FILE);
-        vault_path.set_extension(JSON_EXT);
-        vault_path
-    }
-
-    /// Path to the file used to cache file transfer operations.
-    ///
-    /// # Panics
-    ///
-    /// If this set of paths are global (no user identifier).
-    pub fn file_transfers(&self) -> PathBuf {
-        if self.is_global() {
-            panic!("file transfers are not accessible for global paths");
-        }
-        let mut vault_path = self.user_dir.join(TRANSFERS_FILE);
         vault_path.set_extension(JSON_EXT);
         vault_path
     }

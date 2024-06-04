@@ -272,7 +272,7 @@ pub async fn sign_in(
     let mut owner = NetworkAccount::new_unauthenticated(
         *account.address(),
         None,
-        is_offline(),
+        Default::default(),
     )
     .await?;
 
@@ -422,7 +422,7 @@ pub async fn new_account(
             account_name.clone(),
             passphrase.clone(),
             None,
-            false,
+            Default::default(),
             |builder| {
                 builder
                     .create_contacts(true)

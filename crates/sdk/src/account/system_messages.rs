@@ -49,6 +49,10 @@ pub enum SysMessageLevel {
     Warn,
     /// Error message.
     Error,
+    /// Progress message such as an upload or download.
+    Progress,
+    /// Completed operation (eg: upload or download).
+    Done,
 }
 
 /// System message notification.
@@ -59,6 +63,9 @@ pub enum SysMessageLevel {
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SysMessage {
+    /// Optional identifier for the message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<u64>,
     /// Date and time the message was created.
     pub created: OffsetDateTime,
     /// Message priority.
@@ -68,7 +75,8 @@ pub struct SysMessage {
     /// Sub title byline for the message.
     pub sub_title: Option<String>,
     /// Content of the message.
-    pub content: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
     /// Indicates if the message has been read.
     pub is_read: bool,
     /// Level indicator.
@@ -78,11 +86,12 @@ impl SysMessage {
     /// Create a new message.
     pub fn new(title: String, content: String) -> Self {
         Self {
+            id: None,
             created: OffsetDateTime::now_utc(),
             priority: 0,
             title,
             sub_title: None,
-            content,
+            content: Some(content),
             is_read: false,
             level: Default::default(),
         }
@@ -96,11 +105,12 @@ impl SysMessage {
         level: SysMessageLevel,
     ) -> Self {
         Self {
+            id: None,
             created: OffsetDateTime::now_utc(),
             priority,
             title,
             sub_title: None,
-            content,
+            content: Some(content),
             is_read: false,
             level,
         }

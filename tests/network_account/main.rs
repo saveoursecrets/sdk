@@ -30,7 +30,7 @@ mod rename_account;
 mod server_definitions;
 
 mod websocket_reconnect;
-mod websocket_shutdown;
+mod websocket_shutdown_explicit;
 mod websocket_shutdown_signout;
 
 mod change_account_password;
