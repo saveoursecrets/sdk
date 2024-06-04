@@ -1,6 +1,5 @@
 //! Check integrity of external files.
 use crate::{
-    events::{FileEventLog, FileReducer},
     sha2::{Digest, Sha256},
     storage::files::{ExternalFile, ExternalFileName},
     vfs, Paths, Result,
@@ -45,18 +44,10 @@ pub enum IntegrityReportEvent {
 /// Generate an integrity report.
 pub async fn integrity_report(
     paths: Arc<Paths>,
-    event_log: &FileEventLog,
+    external_files: IndexSet<ExternalFile>,
     concurrency: usize,
 ) -> Result<Receiver<Result<IntegrityReportEvent>>> {
     let (tx, rx) = mpsc::channel::<Result<IntegrityReportEvent>>(512);
-
-    // Canonical list of external files.
-    let reducer = FileReducer::new(event_log);
-
-    #[cfg(feature = "sync")]
-    let external_files = reducer.reduce(None).await?;
-    #[cfg(not(feature = "sync"))]
-    let external_files = reducer.reduce().await?;
 
     let _ = tx
         .send(Ok(IntegrityReportEvent::Begin(external_files.len())))

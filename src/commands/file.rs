@@ -49,9 +49,15 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = user.read().await;
             let paths = owner.paths();
             let files = owner.file_log().await?;
-            let files = files.read().await;
+            let event_log = files.read().await;
+
+            // Canonical list of external files.
+            let reducer = FileReducer::new(&event_log);
+            let external_files = reducer.reduce(None).await?;
+
             let mut rx =
-                integrity_report(paths, &files, num_cpus::get()).await?;
+                integrity_report(paths, external_files, num_cpus::get())
+                    .await?;
 
             let mut progress = HashMap::new();
             let mut failures = HashMap::new();

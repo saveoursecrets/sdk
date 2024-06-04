@@ -376,7 +376,8 @@ mod handlers {
     use axum::{body::Body, http::StatusCode, response::Response};
     use futures::TryStreamExt;
     use http::header::{self, HeaderMap, HeaderValue};
-    use std::{collections::HashSet, path::PathBuf, sync::Arc};
+    use indexmap::IndexSet;
+    use std::{path::PathBuf, sync::Arc};
     use tokio::{
         fs::File,
         io::{AsyncWriteExt, BufWriter},
@@ -623,11 +624,11 @@ mod handlers {
         let uploads = local_set
             .difference(&remote_set)
             .cloned()
-            .collect::<HashSet<_>>();
+            .collect::<IndexSet<_>>();
         let downloads = remote_set
             .difference(&local_set)
             .cloned()
-            .collect::<HashSet<_>>();
+            .collect::<IndexSet<_>>();
         let transfers = FileTransfersSet {
             uploads: FileSet(uploads),
             downloads: FileSet(downloads),
