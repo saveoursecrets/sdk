@@ -9,7 +9,7 @@ use indexmap::IndexSet;
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::{
     mpsc::{self, Receiver, Sender},
-    watch, Semaphore,
+    watch, Mutex, Semaphore,
 };
 use tokio_util::io::ReaderStream;
 
@@ -74,10 +74,12 @@ pub async fn integrity_report(
             )
         })
         .collect();
-
+    let num_files = paths.len();
     let semaphore = Arc::new(Semaphore::new(concurrency));
+    let cancel = cancel_tx.clone();
     tokio::task::spawn(async move {
         let mut stream = futures::stream::iter(paths);
+        let completed = Arc::new(Mutex::new(0));
         loop {
             tokio::select! {
               biased;
@@ -86,11 +88,21 @@ pub async fn integrity_report(
               }
               Some((file, path)) = stream.next() => {
                 let semaphore = semaphore.clone();
-                let mut ctx = cancel_rx.clone();
+                let ctx = cancel.clone();
+                let mut crx = cancel_rx.clone();
                 let mut tx = tx.clone();
+                let completed = completed.clone();
                 tokio::task::spawn(async move {
                   let _permit = semaphore.acquire().await;
-                  check_file(file, path, &mut tx, &mut ctx).await?;
+                  check_file(file, path, &mut tx, &mut crx).await?;
+                  let mut writer = completed.lock().await;
+                  *writer += 1;
+                  if *writer == num_files {
+                    // Signal the shutdown event on the cancel channel
+                    if let Err(error) = ctx.send(()) {
+                      tracing::error!(error = ?error);
+                    }
+                  }
                   Ok::<_, crate::Error>(())
                 });
               }
@@ -102,7 +114,7 @@ pub async fn integrity_report(
         Ok::<_, crate::Error>(())
     });
 
-    Ok((rx, cancel_tx))
+    Ok((rx, cancel_tx.clone()))
 }
 
 async fn check_file(
@@ -162,17 +174,22 @@ async fn compare_file(
           _ = cancel_rx.changed() => {
             break;
           }
-          Some(chunk) = reader_stream.next() => {
-            let chunk = chunk?;
-            hasher.update(&chunk);
-            notify_listeners(
-                tx,
-                IntegrityReportEvent::ReadFile(*external_file, chunk.len()),
-            )
-            .await;
+          chunk = reader_stream.next() => {
+            if let Some(chunk) = chunk {
+              let chunk = chunk?;
+              hasher.update(&chunk);
+              notify_listeners(
+                  tx,
+                  IntegrityReportEvent::ReadFile(*external_file, chunk.len()),
+              )
+              .await;
+            } else {
+              break;
+            }
           }
         }
     }
+
     let digest = hasher.finalize();
     if digest.as_slice() != external_file.file_name().as_ref() {
         let slice: [u8; 32] = digest.as_slice().try_into()?;
