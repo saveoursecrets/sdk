@@ -37,11 +37,11 @@ pub async fn file_integrity_report(
     external_files: IndexSet<ExternalFile>,
     concurrency: usize,
 ) -> Result<(Receiver<FileIntegrityEvent>, watch::Sender<()>)> {
-    let (mut tx, rx) = mpsc::channel::<FileIntegrityEvent>(64);
+    let (mut event_tx, event_rx) = mpsc::channel::<FileIntegrityEvent>(64);
     let (cancel_tx, mut cancel_rx) = watch::channel(());
 
     notify_listeners(
-        &mut tx,
+        &mut event_tx,
         FileIntegrityEvent::Begin(external_files.len()),
     )
     .await;
@@ -73,18 +73,20 @@ pub async fn file_integrity_report(
               }
               Some((file, path)) = stream.next() => {
                 let semaphore = semaphore.clone();
-                let ctx = cancel.clone();
-                let mut crx = cancel_rx.clone();
-                let mut tx = tx.clone();
+                let cancel_tx = cancel.clone();
+                let mut cancel_rx = cancel_rx.clone();
+                let mut event_tx = event_tx.clone();
                 let completed = completed.clone();
                 tokio::task::spawn(async move {
                   let _permit = semaphore.acquire().await;
-                  check_file(file, path, &mut tx, &mut crx).await?;
+                  check_file(file, path, &mut event_tx, &mut cancel_rx).await?;
                   let mut writer = completed.lock().await;
                   *writer += 1;
                   if *writer == num_files {
                     // Signal the shutdown event on the cancel channel
-                    if let Err(error) = ctx.send(()) {
+                    // to break out of this loop and cancel any existing
+                    // file reader streams
+                    if let Err(error) = cancel_tx.send(()) {
                       tracing::error!(error = ?error);
                     }
                   }
@@ -94,12 +96,12 @@ pub async fn file_integrity_report(
             }
         }
 
-        notify_listeners(&mut tx, FileIntegrityEvent::Complete).await;
+        notify_listeners(&mut event_tx, FileIntegrityEvent::Complete).await;
 
         Ok::<_, crate::Error>(())
     });
 
-    Ok((rx, cancel_tx.clone()))
+    Ok((event_rx, cancel_tx))
 }
 
 async fn check_file(
@@ -137,7 +139,10 @@ async fn check_file(
     } else {
         notify_listeners(
             tx,
-            FileIntegrityEvent::Failure(file, IntegrityFailure::Missing(path)),
+            FileIntegrityEvent::Failure(
+                file,
+                IntegrityFailure::Missing(path),
+            ),
         )
         .await;
     }
