@@ -1,7 +1,8 @@
 //! Check integrity of external files.
 use crate::{
+    integrity::IntegrityFailure,
     sha2::{Digest, Sha256},
-    storage::files::{ExternalFile, ExternalFileName},
+    storage::files::ExternalFile,
     vfs, Paths, Result,
 };
 use futures::StreamExt;
@@ -13,29 +14,13 @@ use tokio::sync::{
 };
 use tokio_util::io::ReaderStream;
 
-/// Reasons why an external file integrity check can fail.
-#[derive(Debug)]
-pub enum FailureReason {
-    /// File is missing.
-    Missing(PathBuf),
-    /// Checksum mismatch, file is corrupted.
-    Corrupted {
-        /// File path.
-        path: PathBuf,
-        /// Expected file name checksum.
-        expected: ExternalFileName,
-        /// Actual file name checksum.
-        actual: ExternalFileName,
-    },
-}
-
 /// Event dispatched whilst generating an integrity report.
 #[derive(Debug)]
 pub enum FileIntegrityEvent {
     /// Begin processing the given number of files.
     Begin(usize),
     /// Integrity check failed.
-    Failure(ExternalFile, FailureReason),
+    Failure(ExternalFile, IntegrityFailure),
     /// File was opened.
     OpenFile(ExternalFile, u64),
     /// Read file buffer.
@@ -152,7 +137,7 @@ async fn check_file(
     } else {
         notify_listeners(
             tx,
-            FileIntegrityEvent::Failure(file, FailureReason::Missing(path)),
+            FileIntegrityEvent::Failure(file, IntegrityFailure::Missing(path)),
         )
         .await;
     }
@@ -164,7 +149,7 @@ async fn compare_file(
     path: PathBuf,
     tx: &mut Sender<FileIntegrityEvent>,
     cancel_rx: &mut watch::Receiver<()>,
-) -> Result<Option<FailureReason>> {
+) -> Result<Option<IntegrityFailure>> {
     let mut hasher = Sha256::new();
     let file = vfs::File::open(&path).await?;
     let mut reader_stream = ReaderStream::new(file);
@@ -193,10 +178,10 @@ async fn compare_file(
     let digest = hasher.finalize();
     if digest.as_slice() != external_file.file_name().as_ref() {
         let slice: [u8; 32] = digest.as_slice().try_into()?;
-        Ok(Some(FailureReason::Corrupted {
+        Ok(Some(IntegrityFailure::Corrupted {
             path,
-            expected: *external_file.file_name(),
-            actual: slice.into(),
+            expected: external_file.file_name().to_string(),
+            actual: hex::encode(&slice),
         }))
     } else {
         Ok(None)
