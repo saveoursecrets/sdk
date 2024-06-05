@@ -47,7 +47,7 @@ pub enum IntegrityReportEvent {
 }
 
 /// Generate an integrity report.
-pub async fn integrity_report(
+pub async fn file_integrity_report(
     paths: Arc<Paths>,
     external_files: IndexSet<ExternalFile>,
     concurrency: usize,
