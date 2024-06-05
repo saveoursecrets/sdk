@@ -20,6 +20,7 @@ use crate::{
     vfs, Error, Paths, Result, UtcDateTime,
 };
 
+use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use secrecy::SecretString;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
@@ -1065,9 +1066,13 @@ impl ClientStorage {
 
     /// Verify an event log.
     pub async fn verify(&self, summary: &Summary) -> Result<()> {
-        use crate::integrity::event_log_commit_tree_file;
-        let event_log_path = self.paths.event_log_path(summary.id());
-        event_log_commit_tree_file(&event_log_path, true, |_| {}).await?;
+        use crate::integrity::event_integrity;
+        let path = self.paths.event_log_path(summary.id());
+        let stream = event_integrity(&path);
+        pin_mut!(stream);
+        while let Some(event) = stream.next().await {
+            event??;
+        }
         Ok(())
     }
 

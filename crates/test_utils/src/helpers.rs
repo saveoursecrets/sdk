@@ -1,26 +1,24 @@
 //! Test utility functions.
-use crate::{
+use sos_net::sdk::{
+    argon2::password_hash::SaltString,
     commit::CommitHash,
     crypto::{KeyDerivation, PrivateKey},
     encode,
-    events::{EventLogExt, WriteEvent},
+    events::{EventLogExt, FolderEventLog, WriteEvent},
     passwd::diceware::generate_passphrase,
+    sha2::{Digest, Sha256},
+    uuid::Uuid,
     vault::{
         secret::{FileContent, Secret, SecretId, SecretMeta},
         BuilderCredentials, Vault, VaultAccess, VaultBuilder, VaultEntry,
     },
 };
-use sha2::{Digest, Sha256};
 use std::io::Write;
-use uuid::Uuid;
 
-use crate::events::FolderEventLog;
 use tempfile::NamedTempFile;
 
 use anyhow::Result;
 use secrecy::SecretString;
-
-use argon2::password_hash::SaltString;
 
 /// Generate a mock encyption key.
 pub fn mock_encryption_key() -> Result<(PrivateKey, SaltString, SecretString)>

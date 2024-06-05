@@ -19,9 +19,12 @@ use sos_net::{
     server::{Server, ServerConfig, State},
 };
 
+mod helpers;
 pub mod mock;
 mod network;
 mod pairing;
+
+pub use helpers::*;
 pub use network::*;
 pub use pairing::*;
 

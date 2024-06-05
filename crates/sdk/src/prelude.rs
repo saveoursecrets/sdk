@@ -26,6 +26,7 @@ pub use crate::migrate::export::*;
 pub use crate::migrate::import::*;
 #[cfg(feature = "migrate")]
 pub use crate::migrate::*;
+pub use crate::passwd::*;
 pub use crate::signer::ecdsa::Address;
 #[cfg(feature = "files")]
 pub use crate::storage::files::*;

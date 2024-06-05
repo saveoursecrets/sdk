@@ -14,4 +14,7 @@ pub use vault::{
     VaultCommit, VaultEntry, VaultFlags, VaultId, VaultMeta,
 };
 
-pub(crate) use vault::{Auth, Contents};
+pub(crate) use vault::Auth;
+
+#[cfg(debug_assertions)]
+pub use vault::Contents;

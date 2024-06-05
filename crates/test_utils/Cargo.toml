@@ -11,6 +11,7 @@ tracing-subscriber.workspace = true
 secrecy.workspace = true
 serde_json.workspace = true
 futures.workspace = true
+tempfile.workspace = true
 anyhow = "1"
 sos-net = { path = "../net", features = ["full"] }
 tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }

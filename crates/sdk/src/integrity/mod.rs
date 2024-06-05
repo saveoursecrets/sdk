@@ -4,8 +4,8 @@ mod event_integrity;
 mod file_integrity;
 mod vault_integrity;
 
-pub use event_integrity::event_log_commit_tree_file;
-pub use vault_integrity::vault_commit_tree_file;
+pub use event_integrity::event_integrity;
+pub use vault_integrity::vault_integrity;
 
 #[cfg(feature = "files")]
 pub use file_integrity::{
