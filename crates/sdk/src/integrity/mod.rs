@@ -1,11 +1,11 @@
 //! Integrity checks for vaults, event logs and external files.
+mod event_integrity;
 #[cfg(feature = "files")]
 mod file_integrity;
-mod folder_integrity;
+mod vault_integrity;
 
-pub use folder_integrity::{
-    event_log_commit_tree_file, vault_commit_tree_file,
-};
+pub use event_integrity::event_log_commit_tree_file;
+pub use vault_integrity::vault_commit_tree_file;
 
 #[cfg(feature = "files")]
 pub use file_integrity::{
