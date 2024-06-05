@@ -78,6 +78,7 @@ mod error;
 pub mod events;
 pub mod formats;
 pub mod identity;
+pub mod integrity;
 
 #[cfg(feature = "logs")]
 pub mod logs;

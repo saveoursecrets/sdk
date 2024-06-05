@@ -1065,7 +1065,7 @@ impl ClientStorage {
 
     /// Verify an event log.
     pub async fn verify(&self, summary: &Summary) -> Result<()> {
-        use crate::commit::event_log_commit_tree_file;
+        use crate::integrity::event_log_commit_tree_file;
         let event_log_path = self.paths.event_log_path(summary.id());
         event_log_commit_tree_file(&event_log_path, true, |_| {}).await?;
         Ok(())

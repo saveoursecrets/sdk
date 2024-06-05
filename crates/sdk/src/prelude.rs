@@ -19,6 +19,7 @@ pub use crate::device::*;
 pub use crate::events::*;
 pub use crate::formats::*;
 pub use crate::identity::*;
+pub use crate::integrity::*;
 #[cfg(feature = "migrate")]
 pub use crate::migrate::export::*;
 #[cfg(feature = "migrate")]
