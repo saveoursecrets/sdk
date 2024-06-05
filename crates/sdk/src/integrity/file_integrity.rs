@@ -31,7 +31,7 @@ pub enum FailureReason {
 
 /// Event dispatched whilst generating an integrity report.
 #[derive(Debug)]
-pub enum IntegrityReportEvent {
+pub enum FileIntegrityEvent {
     /// Begin processing the given number of files.
     Begin(usize),
     /// Integrity check failed.
@@ -51,13 +51,13 @@ pub async fn file_integrity_report(
     paths: Arc<Paths>,
     external_files: IndexSet<ExternalFile>,
     concurrency: usize,
-) -> Result<(Receiver<IntegrityReportEvent>, watch::Sender<()>)> {
-    let (mut tx, rx) = mpsc::channel::<IntegrityReportEvent>(64);
+) -> Result<(Receiver<FileIntegrityEvent>, watch::Sender<()>)> {
+    let (mut tx, rx) = mpsc::channel::<FileIntegrityEvent>(64);
     let (cancel_tx, mut cancel_rx) = watch::channel(());
 
     notify_listeners(
         &mut tx,
-        IntegrityReportEvent::Begin(external_files.len()),
+        FileIntegrityEvent::Begin(external_files.len()),
     )
     .await;
 
@@ -109,7 +109,7 @@ pub async fn file_integrity_report(
             }
         }
 
-        notify_listeners(&mut tx, IntegrityReportEvent::Complete).await;
+        notify_listeners(&mut tx, FileIntegrityEvent::Complete).await;
 
         Ok::<_, crate::Error>(())
     });
@@ -120,14 +120,14 @@ pub async fn file_integrity_report(
 async fn check_file(
     file: ExternalFile,
     path: PathBuf,
-    tx: &mut Sender<IntegrityReportEvent>,
+    tx: &mut Sender<FileIntegrityEvent>,
     cancel_rx: &mut watch::Receiver<()>,
 ) -> Result<()> {
     if vfs::try_exists(&path).await? {
         let metadata = vfs::metadata(&path).await?;
         notify_listeners(
             tx,
-            IntegrityReportEvent::OpenFile(file, metadata.len()),
+            FileIntegrityEvent::OpenFile(file, metadata.len()),
         )
         .await;
 
@@ -136,15 +136,15 @@ async fn check_file(
                 if let Some(failure) = result {
                     notify_listeners(
                         tx,
-                        IntegrityReportEvent::Failure(file, failure),
+                        FileIntegrityEvent::Failure(file, failure),
                     )
                     .await;
                 }
-                notify_listeners(tx, IntegrityReportEvent::CloseFile(file))
+                notify_listeners(tx, FileIntegrityEvent::CloseFile(file))
                     .await;
             }
             Err(e) => {
-                notify_listeners(tx, IntegrityReportEvent::CloseFile(file))
+                notify_listeners(tx, FileIntegrityEvent::CloseFile(file))
                     .await;
                 return Err(e);
             }
@@ -152,7 +152,7 @@ async fn check_file(
     } else {
         notify_listeners(
             tx,
-            IntegrityReportEvent::Failure(file, FailureReason::Missing(path)),
+            FileIntegrityEvent::Failure(file, FailureReason::Missing(path)),
         )
         .await;
     }
@@ -162,7 +162,7 @@ async fn check_file(
 async fn compare_file(
     external_file: &ExternalFile,
     path: PathBuf,
-    tx: &mut Sender<IntegrityReportEvent>,
+    tx: &mut Sender<FileIntegrityEvent>,
     cancel_rx: &mut watch::Receiver<()>,
 ) -> Result<Option<FailureReason>> {
     let mut hasher = Sha256::new();
@@ -180,7 +180,7 @@ async fn compare_file(
               hasher.update(&chunk);
               notify_listeners(
                   tx,
-                  IntegrityReportEvent::ReadFile(*external_file, chunk.len()),
+                  FileIntegrityEvent::ReadFile(*external_file, chunk.len()),
               )
               .await;
             } else {
@@ -204,8 +204,8 @@ async fn compare_file(
 }
 
 async fn notify_listeners(
-    tx: &mut Sender<IntegrityReportEvent>,
-    event: IntegrityReportEvent,
+    tx: &mut Sender<FileIntegrityEvent>,
+    event: FileIntegrityEvent,
 ) {
     if let Err(error) = tx.send(event).await {
         tracing::warn!(error = ?error);

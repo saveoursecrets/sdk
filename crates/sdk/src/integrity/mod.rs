@@ -9,5 +9,5 @@ pub use vault_integrity::vault_integrity;
 
 #[cfg(feature = "files")]
 pub use file_integrity::{
-    file_integrity_report, FailureReason, IntegrityReportEvent,
+    file_integrity_report, FailureReason, FileIntegrityEvent,
 };
