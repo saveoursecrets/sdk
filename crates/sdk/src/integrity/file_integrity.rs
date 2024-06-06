@@ -169,6 +169,9 @@ async fn compare_file(
 ) -> Result<Option<IntegrityFailure>> {
     let mut hasher = Sha256::new();
     let file = vfs::File::open(&path).await?;
+    let metadata = vfs::metadata(&path).await?;
+    let bytes_total = metadata.len();
+    let mut bytes_read = 0;
     let mut reader_stream = ReaderStream::new(file);
     loop {
         tokio::select! {
@@ -180,6 +183,7 @@ async fn compare_file(
             if let Some(chunk) = chunk {
               let chunk = chunk?;
               hasher.update(&chunk);
+              bytes_read += chunk.len();
               notify_listeners(
                   tx,
                   FileIntegrityEvent::ReadFile(*external_file, chunk.len()),
@@ -193,7 +197,12 @@ async fn compare_file(
     }
 
     let digest = hasher.finalize();
-    if digest.as_slice() != external_file.file_name().as_ref() {
+    let is_completed = bytes_read as u64 == bytes_total;
+    // Only check for checksum mismatch if we actually
+    // read all the bytes; if we receive a cancellation
+    // then we don't want to send an integrity failure.
+    if is_completed && digest.as_slice() != external_file.file_name().as_ref()
+    {
         let slice: [u8; 32] = digest.as_slice().try_into()?;
         Ok(Some(IntegrityFailure::Corrupted {
             path,
@@ -210,6 +219,6 @@ async fn notify_listeners(
     event: FileIntegrityEvent,
 ) {
     if let Err(error) = tx.send(event).await {
-        tracing::warn!(error = ?error);
+        tracing::warn!(error = ?error.0, "file_integrity::send");
     }
 }

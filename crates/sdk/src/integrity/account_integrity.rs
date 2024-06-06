@@ -302,6 +302,6 @@ async fn notify_listeners(
     event: FolderIntegrityEvent,
 ) {
     if let Err(error) = tx.send(event).await {
-        tracing::warn!(error = ?error);
+        tracing::warn!(error = ?error.0, "account_integrity::send");
     }
 }
