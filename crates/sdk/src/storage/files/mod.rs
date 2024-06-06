@@ -5,18 +5,17 @@ use crate::{
     vault::{secret::SecretId, VaultId},
     vfs, Error, Paths, Result,
 };
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, fmt, path::Path, str::FromStr};
+use std::{fmt, path::Path, str::FromStr};
 
 mod external_files;
 mod file_manager;
-mod integrity;
 #[cfg(feature = "sync")]
 mod transfer;
 
 pub use external_files::FileStorage;
 pub use file_manager::{FileMutationEvent, FileProgress, FileSource};
-pub use integrity::{integrity_report, FailureReason, IntegrityReportEvent};
 #[cfg(feature = "sync")]
 pub use transfer::{FileSet, FileTransfersSet, TransferOperation};
 
@@ -151,8 +150,8 @@ impl FromStr for ExternalFile {
 #[doc(hidden)]
 pub async fn list_external_files(
     paths: &Paths,
-) -> Result<HashSet<ExternalFile>> {
-    let mut files = HashSet::new();
+) -> Result<IndexSet<ExternalFile>> {
+    let mut files = IndexSet::new();
     let mut dir = vfs::read_dir(paths.files_dir()).await?;
     while let Some(entry) = dir.next_entry().await? {
         let path = entry.path();
@@ -166,7 +165,7 @@ pub async fn list_external_files(
                     for (secret_id, mut external_files) in
                         folder_files.drain(..)
                     {
-                        for file_name in external_files.drain() {
+                        for file_name in external_files.drain(..) {
                             files.insert(ExternalFile(
                                 folder_id, secret_id, file_name,
                             ));
@@ -187,7 +186,7 @@ pub async fn list_external_files(
 pub(crate) async fn list_folder_files(
     paths: &Paths,
     folder_id: &VaultId,
-) -> Result<Vec<(SecretId, HashSet<ExternalFileName>)>> {
+) -> Result<Vec<(SecretId, IndexSet<ExternalFileName>)>> {
     let mut files = Vec::new();
     let path = paths.files_dir().join(folder_id.to_string());
 
@@ -217,8 +216,8 @@ pub(crate) async fn list_folder_files(
 
 async fn list_secret_files(
     path: impl AsRef<Path>,
-) -> Result<HashSet<ExternalFileName>> {
-    let mut files = HashSet::new();
+) -> Result<IndexSet<ExternalFileName>> {
+    let mut files = IndexSet::new();
     let mut dir = vfs::read_dir(path.as_ref()).await?;
     while let Some(entry) = dir.next_entry().await? {
         let path = entry.path();

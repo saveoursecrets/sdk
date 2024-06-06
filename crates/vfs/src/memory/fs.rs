@@ -59,7 +59,10 @@ pub(super) fn debug_root() {
 */
 
 pub(super) fn root_fs_mut() -> &'static mut MemoryDir {
-    unsafe { &mut ROOT_DIR }
+    #[allow(static_mut_refs)]
+    unsafe {
+        &mut ROOT_DIR
+    }
 }
 
 /// Result of a path lookup.

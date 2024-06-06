@@ -64,6 +64,7 @@ toml = "0.8"
 bitflags = { version = "2", features = ["serde"] }
 enum-iterator = "2"
 file-guard = "0.2"
+tempfile = "3.5"
 
 [workspace.dependencies.binary-stream]
 version = "8.3.0"
@@ -109,6 +110,9 @@ rustyline-derive = "0.10"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tokio = { version = "1", features = ["rt", "time", "sync"] }
+
+[dev-dependencies]
+indexmap.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 anyhow = "1"

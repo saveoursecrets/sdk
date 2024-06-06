@@ -4,13 +4,13 @@ use std::path::PathBuf;
 
 use crate::{
     commands::{
-        account, audit, check, convert, device, environment, events, file,
-        folder, preferences, secret,
+        account, audit, check, convert, device, environment, events, folder,
+        preferences, secret,
         security_report::{self, SecurityReportFormat},
         server, shell, sync, tools, AccountCommand, AuditCommand,
         CheckCommand, ConvertCommand, DeviceCommand, EnvironmentCommand,
-        EventsCommand, FileCommand, FolderCommand, PreferenceCommand,
-        SecretCommand, ServerCommand, SyncCommand, ToolsCommand,
+        EventsCommand, FolderCommand, PreferenceCommand, SecretCommand,
+        ServerCommand, SyncCommand, ToolsCommand,
     },
     helpers::{PROGRESS_MONITOR, USER},
     CommandTree, Result,
@@ -77,11 +77,13 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: SyncCommand,
     },
+    /*
     /// Inspect external files and file transfers.
     File {
         #[clap(subcommand)]
         cmd: FileCommand,
     },
+    */
     /// Generate a security report.
     ///
     /// Inspect all passwords in an account and report
@@ -203,7 +205,7 @@ pub async fn run() -> Result<()> {
         Command::Secret { cmd } => secret::run(cmd).await?,
         Command::Server { cmd } => server::run(cmd).await?,
         Command::Sync { cmd } => sync::run(cmd).await?,
-        Command::File { cmd } => file::run(cmd).await?,
+        // Command::File { cmd } => file::run(cmd).await?,
         Command::SecurityReport {
             account,
             force,

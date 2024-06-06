@@ -78,6 +78,7 @@ mod error;
 pub mod events;
 pub mod formats;
 pub mod identity;
+pub mod integrity;
 
 #[cfg(feature = "logs")]
 pub mod logs;
@@ -97,9 +98,6 @@ pub mod storage;
 pub mod sync;
 pub mod vault;
 
-#[cfg(all(not(doc), any(test, feature = "test-utils")))]
-pub mod test_utils;
-
 pub use date_time::UtcDateTime;
 pub use encoding::{decode, encode};
 pub use error::Error;
@@ -107,6 +105,7 @@ pub use storage::paths::Paths;
 
 // Re-exports
 pub use age;
+pub use argon2;
 pub use hex;
 pub use k256;
 pub use pem;

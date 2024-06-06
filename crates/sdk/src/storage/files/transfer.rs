@@ -3,13 +3,13 @@ use crate::{
     events::FileEvent,
     storage::files::{ExternalFile, FileMutationEvent},
 };
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use std::collections::HashSet;
 
 /// Set of files built from the state on disc.
 #[derive(Debug, Default, Clone)]
-pub struct FileSet(pub HashSet<ExternalFile>);
+pub struct FileSet(pub IndexSet<ExternalFile>);
 
 /// Sets of files that should be uploaded and
 /// downloaded from a remote server.

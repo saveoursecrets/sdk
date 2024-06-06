@@ -62,6 +62,7 @@ indexmap.workspace = true
 bitflags.workspace = true
 enum-iterator.workspace = true
 file-guard.workspace = true
+tempfile.workspace = true
 subtle = { version = "2.5" }
 ethereum-types = "0.14"
 async_zip = { version = "0.0.17", default-features = false, features = ["deflate", "tokio"], optional = true }
@@ -74,7 +75,6 @@ argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
 app_dirs2 = "2"
 pem = { version = "3", features = ["serde"] }
-tempfile = "3.5"
 zxcvbn = { version = "3.0.1", features = ["ser"] }
 totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
 vcard4 = { version = "0.5", features = ["serde"] }
@@ -126,7 +126,7 @@ rustc_version = "0.4.0"
 [dev-dependencies]
 anyhow = "1"
 tokio = { version = "1", features = ["full"] }
-serial_test = "2"
+sos_test_utils = { path = "../test_utils" }
 
 [package.metadata.docs.rs]
 all-features = true

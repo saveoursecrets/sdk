@@ -172,7 +172,7 @@ impl ClientStorage {
         let mut folder_files =
             list_folder_files(&self.paths, summary.id()).await?;
         for (secret_id, mut external_files) in folder_files.drain(..) {
-            for file_name in external_files.drain() {
+            for file_name in external_files.drain(..) {
                 events.push(FileEvent::DeleteFile(
                     *summary.id(),
                     secret_id,

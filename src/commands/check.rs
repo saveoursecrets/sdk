@@ -1,9 +1,10 @@
 use clap::Subcommand;
+use futures::{pin_mut, StreamExt};
 use std::path::PathBuf;
 
 use sos_net::sdk::{
-    commit::{event_log_commit_tree_file, vault_commit_tree_file},
     decode, hex,
+    integrity::{event_integrity, vault_integrity},
     vault::{Header, Vault},
     vfs,
 };
@@ -62,12 +63,17 @@ async fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
     if !vfs::metadata(&file).await?.is_file() {
         return Err(Error::NotFile(file));
     }
-    vault_commit_tree_file(&file, true, |row_info| {
+
+    let stream = vault_integrity(&file);
+    pin_mut!(stream);
+
+    while let Some(event) = stream.next().await {
+        let record = event?;
         if verbose {
-            println!("{}", hex::encode(row_info.commit()));
+            println!("{}", hex::encode(record?.commit()));
         }
-    })
-    .await?;
+    }
+
     success("Verified");
     Ok(())
 }
@@ -80,18 +86,20 @@ pub(crate) async fn verify_events(
     if !vfs::metadata(&file).await?.is_file() {
         return Err(Error::NotFile(file));
     }
-    let tree = event_log_commit_tree_file(&file, true, |row_info| {
+
+    let mut commits = 0;
+    let stream = event_integrity(&file);
+    pin_mut!(stream);
+
+    while let Some(event) = stream.next().await {
+        let record = event?;
         if verbose {
-            println!("hash: {}", hex::encode(row_info.commit()));
+            println!("hash: {}", hex::encode(record?.commit()));
         }
-    })
-    .await?;
-    if verbose {
-        if let Some(root) = tree.root() {
-            println!("root: {}", root);
-        }
+        commits += 1;
     }
-    success(format!("Verified {} commit(s)", tree.len()));
+
+    success(format!("Verified {} commit(s)", commits));
     Ok(())
 }
 

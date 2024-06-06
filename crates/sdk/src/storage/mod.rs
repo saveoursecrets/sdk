@@ -29,7 +29,10 @@ pub use server::ServerStorage;
 use crate::events::DeviceEventLog;
 
 #[cfg(feature = "files")]
-use crate::events::FileEventLog;
+use crate::{events::FileEventLog, storage::files::ExternalFile};
+
+#[cfg(feature = "files")]
+use indexmap::IndexSet;
 
 /// Collection of vaults for an account.
 #[derive(Default)]
@@ -119,6 +122,24 @@ pub trait StorageEventLogs {
     /// Clone of the file log.
     #[cfg(feature = "files")]
     async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>>;
+
+    /// Canonical collection of files reduced from the file event log.
+    #[cfg(feature = "files")]
+    async fn canonical_files(&self) -> Result<IndexSet<ExternalFile>> {
+        use crate::events::FileReducer;
+        let files = self.file_log().await?;
+        let event_log = files.read().await;
+
+        // Canonical list of external files.
+        let reducer = FileReducer::new(&event_log);
+
+        #[cfg(feature = "sync")]
+        let result = reducer.reduce(None).await?;
+        #[cfg(not(feature = "sync"))]
+        let result = reducer.reduce().await?;
+
+        Ok(result)
+    }
 
     /// Folder identifiers managed by this storage.
     async fn folder_identifiers(&self) -> Result<Vec<VaultId>>;
