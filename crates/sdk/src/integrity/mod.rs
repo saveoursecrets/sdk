@@ -1,11 +1,14 @@
 //! Integrity checks for vaults, event logs and external files.
+use crate::error::Error;
 use std::path::PathBuf;
 
+mod account_integrity;
 mod event_integrity;
 #[cfg(feature = "files")]
 mod file_integrity;
 mod vault_integrity;
 
+pub use account_integrity::account_integrity_report;
 pub use event_integrity::event_integrity;
 pub use vault_integrity::vault_integrity;
 
@@ -26,4 +29,6 @@ pub enum IntegrityFailure {
         /// Actual file name checksum.
         actual: String,
     },
+    /// Other error encountered.
+    Error(Error),
 }

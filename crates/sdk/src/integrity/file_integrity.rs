@@ -26,6 +26,11 @@ pub enum FileIntegrityEvent {
     /// Read file buffer.
     ReadFile(ExternalFile, usize),
     /// File was closed.
+    ///
+    /// This event is only sent when a file integrity
+    /// check completes successfully.
+    ///
+    /// Errors are reported as a failure event.
     CloseFile(ExternalFile),
     /// File integrity check completed.
     Complete,
@@ -131,9 +136,14 @@ async fn check_file(
                     .await;
             }
             Err(e) => {
-                notify_listeners(tx, FileIntegrityEvent::CloseFile(file))
-                    .await;
-                return Err(e);
+                notify_listeners(
+                    tx,
+                    FileIntegrityEvent::Failure(
+                        file,
+                        IntegrityFailure::Error(e),
+                    ),
+                )
+                .await;
             }
         }
     } else {
