@@ -8,12 +8,12 @@ mod event_integrity;
 mod file_integrity;
 mod vault_integrity;
 
-pub use account_integrity::account_integrity_report;
+pub use account_integrity::{account_integrity, FolderIntegrityEvent};
 pub use event_integrity::event_integrity;
 pub use vault_integrity::vault_integrity;
 
 #[cfg(feature = "files")]
-pub use file_integrity::{file_integrity_report, FileIntegrityEvent};
+pub use file_integrity::{file_integrity, FileIntegrityEvent};
 
 /// Reasons why an integrity check can fail.
 #[derive(Debug)]

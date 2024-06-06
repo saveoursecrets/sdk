@@ -36,8 +36,10 @@ pub enum FileIntegrityEvent {
     Complete,
 }
 
-/// Generate an integrity report.
-pub async fn file_integrity_report(
+/// Iterate a collection of external files and verify the integrity
+/// by checking the files exist on disc and the checksum of the disc
+/// contents matches the expected checksum.
+pub async fn file_integrity(
     paths: Arc<Paths>,
     external_files: IndexSet<ExternalFile>,
     concurrency: usize,

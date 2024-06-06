@@ -33,7 +33,7 @@ async fn file_integrity_ok() -> Result<()> {
     let paths = account.paths();
     let files = account.canonical_files().await?;
     let total_files = files.len();
-    let (mut receiver, _) = file_integrity_report(paths, files, 1).await?;
+    let (mut receiver, _) = file_integrity(paths, files, 1).await?;
     let mut seen_files = 0;
 
     while let Some(event) = receiver.recv().await {
@@ -98,7 +98,7 @@ async fn file_integrity_missing_file() -> Result<()> {
     std::fs::remove_file(&file_location)?;
 
     let files = account.canonical_files().await?;
-    let (mut receiver, _) = file_integrity_report(paths, files, 1).await?;
+    let (mut receiver, _) = file_integrity(paths, files, 1).await?;
     let mut failures = Vec::new();
 
     while let Some(event) = receiver.recv().await {
@@ -156,7 +156,7 @@ async fn file_integrity_corrupted() -> Result<()> {
     std::fs::write(&file_location, "corrupted-file-contents".as_bytes())?;
 
     let files = account.canonical_files().await?;
-    let (mut receiver, _) = file_integrity_report(paths, files, 1).await?;
+    let (mut receiver, _) = file_integrity(paths, files, 1).await?;
     let mut failures = Vec::new();
 
     while let Some(event) = receiver.recv().await {
@@ -207,8 +207,7 @@ async fn file_integrity_cancel() -> Result<()> {
 
     let paths = account.paths();
     let files = account.canonical_files().await?;
-    let (mut receiver, cancel_tx) =
-        file_integrity_report(paths, files, 1).await?;
+    let (mut receiver, cancel_tx) = file_integrity(paths, files, 1).await?;
     let mut canceled = false;
 
     while let Some(event) = receiver.recv().await {

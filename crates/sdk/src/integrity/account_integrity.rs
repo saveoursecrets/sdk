@@ -40,7 +40,7 @@ pub enum FolderIntegrityEvent {
 }
 
 /// Generate an integrity report for the folders in an account.
-pub async fn account_integrity_report(
+pub async fn account_integrity(
     paths: Arc<Paths>,
     folders: IndexSet<Summary>,
     concurrency: usize,
@@ -54,6 +54,7 @@ pub async fn account_integrity_report(
     )
     .await;
 
+    let num_folders = folders.len();
     let paths: Vec<_> = folders
         .into_iter()
         .map(|folder| {
@@ -65,7 +66,6 @@ pub async fn account_integrity_report(
         })
         .collect();
 
-    let num_files = paths.len();
     let semaphore = Arc::new(Semaphore::new(concurrency));
     let cancel = cancel_tx.clone();
     tokio::task::spawn(async move {
@@ -95,7 +95,7 @@ pub async fn account_integrity_report(
 
                   let mut writer = completed.lock().await;
                   *writer += 1;
-                  if *writer == num_files {
+                  if *writer == num_folders {
                     // Signal the shutdown event on the cancel channel
                     // to break out of this loop and cancel any existing
                     // file reader streams
@@ -138,7 +138,7 @@ async fn check_folder(
 
     let v_jh = tokio::task::spawn(async move {
         if vfs::try_exists(&vault_path).await? {
-            let vault_stream = vault_integrity(vault_path);
+            let vault_stream = vault_integrity(&vault_path);
             pin_mut!(vault_stream);
             loop {
                 tokio::select! {
@@ -146,14 +146,46 @@ async fn check_folder(
                   _ = vault_cancel_rx.changed() => {
                     break;
                   }
-                  Some(event) = vault_stream.next() => {
-                    let record = event??;
-                    notify_listeners(
-                        &mut vault_tx,
-                        FolderIntegrityEvent::VaultRecord(
-                          vault_id, record),
-                    )
-                    .await;
+                  event = vault_stream.next() => {
+                    if let Some(event) = event {
+                      let record = event?;
+                      match record {
+                        Ok(record) => {
+                          notify_listeners(
+                              &mut vault_tx,
+                              FolderIntegrityEvent::VaultRecord(
+                                vault_id, record),
+                          )
+                          .await;
+                        }
+                        Err(e) => {
+                          match e {
+                            Error::VaultHashMismatch { commit, value, .. } => {
+                              notify_listeners(
+                                  &mut vault_tx,
+                                  FolderIntegrityEvent::Failure(
+                                    vault_id, IntegrityFailure::Corrupted {
+                                      path: vault_path.clone(),
+                                      expected: commit,
+                                      actual: value,
+                                    }),
+                              )
+                              .await;
+                            }
+                            _ => {
+                              notify_listeners(
+                                  &mut vault_tx,
+                                  FolderIntegrityEvent::Failure(
+                                    vault_id, IntegrityFailure::Error(e)),
+                              )
+                              .await;
+                            }
+                          }
+                        }
+                      }
+                    } else {
+                      break;
+                    }
                   }
                 }
             }
@@ -173,7 +205,7 @@ async fn check_folder(
 
     let e_jh = tokio::task::spawn(async move {
         if vfs::try_exists(&event_path).await? {
-            let event_stream = event_integrity(event_path);
+            let event_stream = event_integrity(&event_path);
             pin_mut!(event_stream);
 
             loop {
@@ -182,13 +214,46 @@ async fn check_folder(
                   _ = cancel_rx.changed() => {
                     break;
                   }
-                  Some(event) = event_stream.next() => {
-                    let record = event??;
-                    notify_listeners(
-                        &mut event_tx,
-                        FolderIntegrityEvent::EventRecord(event_id, record),
-                    )
-                    .await;
+                  event = event_stream.next() => {
+                    if let Some(event) = event {
+                      let record = event?;
+
+                      match record {
+                        Ok(record) => {
+                          notify_listeners(
+                              &mut event_tx,
+                              FolderIntegrityEvent::EventRecord(event_id, record),
+                          )
+                          .await;
+                        }
+                        Err(e) => {
+                          match e {
+                            Error::HashMismatch { commit, value, .. } => {
+                              notify_listeners(
+                                  &mut event_tx,
+                                  FolderIntegrityEvent::Failure(
+                                    vault_id, IntegrityFailure::Corrupted {
+                                      path: event_path.clone(),
+                                      expected: commit,
+                                      actual: value,
+                                    }),
+                              )
+                              .await;
+                            }
+                            _ => {
+                              notify_listeners(
+                                  &mut event_tx,
+                                  FolderIntegrityEvent::Failure(
+                                    vault_id, IntegrityFailure::Error(e)),
+                              )
+                              .await;
+                            }
+                          }
+                        }
+                      }
+                    } else {
+                      break;
+                    }
                   }
                 }
             }
