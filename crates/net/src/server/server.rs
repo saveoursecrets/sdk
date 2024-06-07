@@ -19,7 +19,7 @@ use axum::{
     },
     middleware,
     response::{IntoResponse, Json},
-    routing::{get, patch, post, put},
+    routing::{get, head, patch, post, put},
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
@@ -227,6 +227,10 @@ impl Server {
                         .post(account::update_account)
                         .patch(account::sync_account)
                         .get(account::fetch_account),
+                )
+                .route(
+                    "/sync/account/:account_id",
+                    head(account::account_exists),
                 )
                 .route("/sync/account/status", get(account::sync_status))
                 .route("/sync/files", post(files::compare_files))

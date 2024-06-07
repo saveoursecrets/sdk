@@ -179,8 +179,10 @@ impl RemoteBridge {
     }
 
     async fn execute_sync(&self) -> Result<()> {
-        let sync_status = self.client.sync_status().await?;
-        if let Some(sync_status) = sync_status {
+        let exists =
+            self.client.account_exists(self.client.address()).await?;
+        if exists {
+            let sync_status = self.client.sync_status().await?;
             self.sync_account(sync_status).await
         } else {
             self.create_remote_account().await
@@ -212,8 +214,10 @@ impl RemoteBridge {
     }
 
     async fn execute_sync_devices(&self) -> Result<()> {
-        let sync_status = self.client.sync_status().await?;
-        if let Some(sync_status) = sync_status {
+        let exists =
+            self.client.account_exists(self.client.address()).await?;
+        if exists {
+            let sync_status = self.client.sync_status().await?;
             self.send_devices_patch(sync_status).await
         } else {
             Err(Error::NoAccountPatchDevices)

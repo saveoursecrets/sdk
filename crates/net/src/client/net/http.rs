@@ -1,10 +1,12 @@
 //! HTTP client implementation.
 use async_trait::async_trait;
 use futures::{Future, StreamExt};
+use http::StatusCode;
 use reqwest::header::AUTHORIZATION;
 use sos_sdk::{
     constants::MIME_TYPE_SOS,
     decode, encode,
+    prelude::Address,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     sync::{ChangeSet, Origin, SyncPacket, SyncStatus, UpdateSet},
@@ -43,6 +45,7 @@ use super::{
 #[derive(Clone)]
 pub struct HttpClient {
     origin: Origin,
+    address: Address,
     account_signer: BoxedEcdsaSigner,
     device_signer: BoxedEd25519Signer,
     client: reqwest::Client,
@@ -79,13 +82,21 @@ impl HttpClient {
             .read_timeout(Duration::from_millis(15000))
             .connect_timeout(Duration::from_millis(5000))
             .build()?;
+
+        let address = account_signer.address()?;
         Ok(Self {
             origin,
+            address,
             account_signer,
             device_signer,
             client,
             connection_id,
         })
+    }
+
+    /// Account identifier.
+    pub fn address(&self) -> &Address {
+        &self.address
     }
 
     /// Account signing key.
@@ -198,6 +209,26 @@ impl SyncClient for HttpClient {
         &self.origin
     }
 
+    #[instrument(skip(self))]
+    async fn account_exists(&self, account_id: &Address) -> Result<bool> {
+        let url = self.build_url(&format!(
+            "api/v1/sync/account/{}",
+            account_id.to_string()
+        ))?;
+        tracing::debug!(url = %url, "http::account_exists");
+        let response = self.client.head(url).send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::account_exists");
+        let exists = match status {
+            StatusCode::OK => true,
+            StatusCode::NOT_FOUND => false,
+            _ => {
+                return Err(Error::ResponseCode(status));
+            }
+        };
+        Ok(exists)
+    }
+
     #[instrument(skip(self, account))]
     async fn create_account(&self, account: &ChangeSet) -> Result<()> {
         let body = encode(account).await?;
@@ -279,7 +310,7 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip(self))]
-    async fn sync_status(&self) -> Result<Option<SyncStatus>> {
+    async fn sync_status(&self) -> Result<SyncStatus> {
         let url = self.build_url("api/v1/sync/account/status")?;
 
         tracing::debug!(url = %url, "http::sync_status");
@@ -304,7 +335,7 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::sync_status");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        let sync_status: Option<SyncStatus> = decode(&buffer).await?;
+        let sync_status: SyncStatus = decode(&buffer).await?;
         Ok(sync_status)
     }
 
