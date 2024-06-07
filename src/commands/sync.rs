@@ -122,12 +122,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 println!("[{} = {}]", origin.name(), origin.url());
                 match maybe_status {
                     Ok(status) => {
-                        if let Some(status) = status {
-                            print_status(&owner, &local_status, &status)
-                                .await?;
-                        } else {
-                            println!("account does not exist, sync required");
-                        }
+                        print_status(&owner, &local_status, &status).await?;
                     }
                     Err(e) => {
                         println!("error: {}", e);

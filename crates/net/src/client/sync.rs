@@ -82,7 +82,7 @@ pub trait SyncClient {
 
     /// Sync status on remote, the result is `None` when the
     /// account does not exist.
-    async fn sync_status(&self) -> Result<Option<SyncStatus>>;
+    async fn sync_status(&self) -> Result<SyncStatus>;
 
     /// Sync with a remote.
     async fn sync(&self, packet: &SyncPacket) -> Result<SyncPacket>;

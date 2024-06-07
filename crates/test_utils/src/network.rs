@@ -243,7 +243,7 @@ pub async fn assert_local_remote_events_eq(
 
     // Compare event log status (commit proofs)
     let local_status = owner.sync_status().await?;
-    let remote_status = provider.client().sync_status().await?.unwrap();
+    let remote_status = provider.client().sync_status().await?;
 
     //println!(" local {:#?}", local_status);
     //println!("remote {:#?}", remote_status);

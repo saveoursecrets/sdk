@@ -44,11 +44,6 @@ pub enum Error {
     #[error("origin '{0}' not found")]
     OriginNotFound(Origin),
 
-    /// Error generated when an account is expected on a remote server
-    /// but the account does not exist.
-    #[error("account not found on server '{0}'")]
-    NoServerAccount(Origin),
-
     /// Error generated attempting to patch devices but the account does
     /// not exist on the remote.
     #[error("cannot patch devices, account does not exist on remote")]

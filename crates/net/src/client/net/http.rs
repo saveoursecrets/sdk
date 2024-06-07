@@ -310,7 +310,7 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip(self))]
-    async fn sync_status(&self) -> Result<Option<SyncStatus>> {
+    async fn sync_status(&self) -> Result<SyncStatus> {
         let url = self.build_url("api/v1/sync/account/status")?;
 
         tracing::debug!(url = %url, "http::sync_status");
@@ -336,7 +336,7 @@ impl SyncClient for HttpClient {
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         let sync_status: SyncStatus = decode(&buffer).await?;
-        Ok(Some(sync_status))
+        Ok(sync_status)
     }
 
     #[instrument(skip(self, packet))]

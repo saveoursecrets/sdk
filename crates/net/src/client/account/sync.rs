@@ -21,8 +21,7 @@ use sos_sdk::{
 };
 
 /// Server status for all remote origins.
-pub type ServerStatus =
-    HashMap<Origin, crate::client::Result<Option<SyncStatus>>>;
+pub type ServerStatus = HashMap<Origin, crate::client::Result<SyncStatus>>;
 
 /// Transfer status for all remote origins.
 pub type TransferStatus =
