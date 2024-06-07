@@ -1,7 +1,7 @@
 use super::{authenticate_endpoint, Caller};
 use axum::{
     body::{to_bytes, Body},
-    extract::{Extension, OriginalUri, Query},
+    extract::{Extension, OriginalUri, Path, Query},
     http::StatusCode,
     response::IntoResponse,
 };
@@ -13,8 +13,43 @@ use axum_extra::{
 //use axum_macros::debug_handler;
 
 use super::BODY_LIMIT;
-use crate::server::{handlers::ConnectionQuery, ServerBackend, ServerState};
+use crate::{
+    sdk::prelude::Address,
+    server::{handlers::ConnectionQuery, ServerBackend, ServerState},
+};
 use std::sync::Arc;
+
+/// Determine if an account exists.
+#[utoipa::path(
+    head,
+    path = "/sync/account/:account_id",
+    responses(
+        (
+            status = StatusCode::OK,
+            description = "Account exists.",
+        ),
+        (
+            status = StatusCode::NOT_FOUND,
+            description = "Account does not exist.",
+        ),
+    ),
+)]
+pub(crate) async fn account_exists(
+    Extension(state): Extension<ServerState>,
+    Extension(backend): Extension<ServerBackend>,
+    Path(account_id): Path<Address>,
+) -> impl IntoResponse {
+    match handlers::account_exists(state, backend, account_id).await {
+        Ok(exists) => {
+            if exists {
+                StatusCode::OK.into_response()
+            } else {
+                StatusCode::NOT_FOUND.into_response()
+            }
+        }
+        Err(error) => error.into_response(),
+    }
+}
 
 /// Create an account.
 #[utoipa::path(
@@ -374,12 +409,22 @@ mod handlers {
     use sos_sdk::{
         constants::MIME_TYPE_SOS,
         decode, encode,
+        prelude::Address,
         sync::{ChangeSet, UpdateSet},
     };
     use std::sync::Arc;
 
     #[cfg(feature = "listen")]
     use crate::{server::handlers::send_notification, ChangeNotification};
+
+    pub(super) async fn account_exists(
+        _state: ServerState,
+        backend: ServerBackend,
+        address: Address,
+    ) -> Result<bool> {
+        let reader = backend.read().await;
+        reader.account_exists(&address).await
+    }
 
     pub(super) async fn create_account(
         _state: ServerState,
