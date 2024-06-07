@@ -1,10 +1,12 @@
 //! HTTP client implementation.
 use async_trait::async_trait;
 use futures::{Future, StreamExt};
+use http::StatusCode;
 use reqwest::header::AUTHORIZATION;
 use sos_sdk::{
     constants::MIME_TYPE_SOS,
     decode, encode,
+    prelude::Address,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     sync::{ChangeSet, Origin, SyncPacket, SyncStatus, UpdateSet},
@@ -196,6 +198,26 @@ impl HttpClient {
 impl SyncClient for HttpClient {
     fn origin(&self) -> &Origin {
         &self.origin
+    }
+
+    #[instrument(skip(self))]
+    async fn account_exists(&self, account_id: &Address) -> Result<bool> {
+        let url = self.build_url(&format!(
+            "api/v1/sync/account/{}",
+            account_id.to_string()
+        ))?;
+        tracing::debug!(url = %url, "http::account_exists");
+        let response = self.client.head(url).send().await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::account_exists");
+        let exists = match status {
+            StatusCode::OK => true,
+            StatusCode::NOT_FOUND => false,
+            _ => {
+                return Err(Error::ResponseCode(status));
+            }
+        };
+        Ok(exists)
     }
 
     #[instrument(skip(self, account))]
