@@ -179,8 +179,12 @@ impl RemoteBridge {
     }
 
     async fn execute_sync(&self) -> Result<()> {
-        let sync_status = self.client.sync_status().await?;
-        if let Some(sync_status) = sync_status {
+        let exists =
+            self.client.account_exists(self.client.address()).await?;
+        if exists {
+            let sync_status = self.client.sync_status().await?.ok_or(
+                Error::NoServerAccount(self.client().origin().clone()),
+            )?;
             self.sync_account(sync_status).await
         } else {
             self.create_remote_account().await

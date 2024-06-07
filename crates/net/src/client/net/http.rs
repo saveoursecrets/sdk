@@ -45,6 +45,7 @@ use super::{
 #[derive(Clone)]
 pub struct HttpClient {
     origin: Origin,
+    address: Address,
     account_signer: BoxedEcdsaSigner,
     device_signer: BoxedEd25519Signer,
     client: reqwest::Client,
@@ -81,13 +82,21 @@ impl HttpClient {
             .read_timeout(Duration::from_millis(15000))
             .connect_timeout(Duration::from_millis(5000))
             .build()?;
+
+        let address = account_signer.address()?;
         Ok(Self {
             origin,
+            address,
             account_signer,
             device_signer,
             client,
             connection_id,
         })
+    }
+
+    /// Account identifier.
+    pub fn address(&self) -> &Address {
+        &self.address
     }
 
     /// Account signing key.
