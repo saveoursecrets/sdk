@@ -34,7 +34,7 @@ use crate::{
 };
 
 /// Query string for connections.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ConnectionQuery {
     pub connection_id: String,
 }
@@ -66,7 +66,7 @@ pub(crate) async fn connections(
 /// Type to represent the caller of a service request.
 pub struct Caller {
     token: BearerToken,
-    connection_id: String,
+    connection_id: Option<String>,
 }
 
 impl Caller {
@@ -76,8 +76,8 @@ impl Caller {
     }
 
     /// Connection identifier.
-    pub fn connection_id(&self) -> &str {
-        &self.connection_id
+    pub fn connection_id(&self) -> Option<&str> {
+        self.connection_id.as_ref().map(|s| &s[..])
     }
 }
 
@@ -85,7 +85,7 @@ impl Caller {
 async fn authenticate_endpoint(
     bearer: Authorization<Bearer>,
     signed_data: &[u8],
-    query: ConnectionQuery,
+    query: Option<ConnectionQuery>,
     state: ServerState,
     backend: ServerBackend,
     restricted: bool,
@@ -120,7 +120,7 @@ async fn authenticate_endpoint(
 
     let owner = Caller {
         token,
-        connection_id: query.connection_id,
+        connection_id: query.map(|q| q.connection_id),
     };
 
     Ok(owner)

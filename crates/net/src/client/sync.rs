@@ -69,7 +69,7 @@ pub trait SyncClient {
     fn origin(&self) -> &Origin;
 
     /// Check if an account already exists.
-    async fn account_exists(&self, account_id: &Address) -> Result<bool>;
+    async fn account_exists(&self) -> Result<bool>;
 
     /// Create a new account.
     async fn create_account(&self, account: &ChangeSet) -> Result<()>;

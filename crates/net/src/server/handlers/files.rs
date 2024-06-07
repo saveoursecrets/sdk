@@ -83,7 +83,7 @@ pub(crate) async fn receive_file(
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
-        query,
+        Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
         true,
@@ -147,7 +147,7 @@ pub(crate) async fn delete_file(
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
-        query,
+        Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
         true,
@@ -212,7 +212,7 @@ pub(crate) async fn send_file(
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
-        query,
+        Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
         true,
@@ -277,7 +277,7 @@ pub(crate) async fn move_file(
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
-        query,
+        Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
         true,
@@ -335,7 +335,7 @@ pub(crate) async fn compare_files(
         Ok(bytes) => match authenticate_endpoint(
             bearer,
             uri.as_bytes(),
-            query,
+            Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
             true,

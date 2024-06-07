@@ -1,7 +1,7 @@
 use super::{authenticate_endpoint, Caller};
 use axum::{
     body::{to_bytes, Body},
-    extract::{Extension, OriginalUri, Path, Query},
+    extract::{Extension, OriginalUri, Query},
     http::StatusCode,
     response::IntoResponse,
 };
@@ -13,16 +13,13 @@ use axum_extra::{
 //use axum_macros::debug_handler;
 
 use super::BODY_LIMIT;
-use crate::{
-    sdk::prelude::Address,
-    server::{handlers::ConnectionQuery, ServerBackend, ServerState},
-};
+use crate::server::{handlers::ConnectionQuery, ServerBackend, ServerState};
 use std::sync::Arc;
 
 /// Determine if an account exists.
 #[utoipa::path(
     head,
-    path = "/sync/account/:account_id",
+    path = "/sync/account",
     responses(
         (
             status = StatusCode::OK,
@@ -37,14 +34,30 @@ use std::sync::Arc;
 pub(crate) async fn account_exists(
     Extension(state): Extension<ServerState>,
     Extension(backend): Extension<ServerBackend>,
-    Path(account_id): Path<Address>,
+    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+    OriginalUri(uri): OriginalUri,
 ) -> impl IntoResponse {
-    match handlers::account_exists(state, backend, account_id).await {
-        Ok(exists) => {
-            if exists {
-                StatusCode::OK.into_response()
-            } else {
-                StatusCode::NOT_FOUND.into_response()
+    let uri = uri.path().to_string();
+    match authenticate_endpoint(
+        bearer,
+        uri.as_bytes(),
+        None,
+        Arc::clone(&state),
+        Arc::clone(&backend),
+        false,
+    )
+    .await
+    {
+        Ok(caller) => {
+            match handlers::account_exists(state, backend, caller).await {
+                Ok(exists) => {
+                    if exists {
+                        StatusCode::OK.into_response()
+                    } else {
+                        StatusCode::NOT_FOUND.into_response()
+                    }
+                }
+                Err(error) => error.into_response(),
             }
         }
         Err(error) => error.into_response(),
@@ -92,7 +105,7 @@ pub(crate) async fn create_account(
         Ok(bytes) => match authenticate_endpoint(
             bearer,
             &bytes,
-            query,
+            Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
             false,
@@ -154,7 +167,7 @@ pub(crate) async fn update_account(
         Ok(bytes) => match authenticate_endpoint(
             bearer,
             &bytes,
-            query,
+            Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
             true,
@@ -210,7 +223,7 @@ pub(crate) async fn fetch_account(
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
-        query,
+        Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
         true,
@@ -262,7 +275,7 @@ pub(crate) async fn patch_devices(
         Ok(bytes) => match authenticate_endpoint(
             bearer,
             &bytes,
-            query,
+            Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
             true,
@@ -318,7 +331,7 @@ pub(crate) async fn sync_status(
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
-        query,
+        Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
         true,
@@ -374,7 +387,7 @@ pub(crate) async fn sync_account(
         Ok(bytes) => match authenticate_endpoint(
             bearer,
             &bytes,
-            query,
+            Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
             true,
@@ -408,7 +421,6 @@ mod handlers {
     use sos_sdk::{
         constants::MIME_TYPE_SOS,
         decode, encode,
-        prelude::Address,
         sync::{ChangeSet, UpdateSet},
     };
     use std::sync::Arc;
@@ -419,10 +431,10 @@ mod handlers {
     pub(super) async fn account_exists(
         _state: ServerState,
         backend: ServerBackend,
-        address: Address,
+        caller: Caller,
     ) -> Result<bool> {
         let reader = backend.read().await;
-        reader.account_exists(&address).await
+        reader.account_exists(caller.address()).await
     }
 
     pub(super) async fn create_account(
@@ -557,14 +569,16 @@ mod handlers {
 
         #[cfg(feature = "listen")]
         if outcome.changes > 0 {
-            let notification = ChangeNotification::new(
-                caller.address(),
-                caller.connection_id().to_string(),
-                local_status.root,
-                outcome,
-            );
-            let mut writer = state.write().await;
-            send_notification(&mut *writer, &caller, notification).await;
+            if let Some(conn_id) = caller.connection_id() {
+                let notification = ChangeNotification::new(
+                    caller.address(),
+                    conn_id.to_string(),
+                    local_status.root,
+                    outcome,
+                );
+                let mut writer = state.write().await;
+                send_notification(&mut *writer, &caller, notification).await;
+            }
         }
 
         let packet = SyncPacket {
