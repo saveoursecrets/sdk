@@ -8,7 +8,7 @@ use sos_sdk::{
     commit::Comparison,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::{
-        files::{list_external_files, FileSet, TransferOperation},
+        files::{FileSet, TransferOperation},
         StorageEventLogs,
     },
     sync::{
