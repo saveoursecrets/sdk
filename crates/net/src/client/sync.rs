@@ -2,7 +2,6 @@ use super::Error;
 use crate::client::{CancelReason, Result};
 use async_trait::async_trait;
 use sos_sdk::{
-    prelude::Address,
     storage,
     sync::{
         ChangeSet, DeviceDiff, Origin, SyncOptions, SyncPacket, SyncStatus,
@@ -69,7 +68,7 @@ pub trait SyncClient {
     fn origin(&self) -> &Origin;
 
     /// Check if an account already exists.
-    async fn account_exists(&self, account_id: &Address) -> Result<bool>;
+    async fn account_exists(&self) -> Result<bool>;
 
     /// Create a new account.
     async fn create_account(&self, account: &ChangeSet) -> Result<()>;
@@ -80,8 +79,10 @@ pub trait SyncClient {
     /// Fetch an account from a remote server.
     async fn fetch_account(&self) -> Result<ChangeSet>;
 
-    /// Sync status on remote, the result is `None` when the
-    /// account does not exist.
+    /// Delete the account on the server.
+    async fn delete_account(&self) -> Result<()>;
+
+    /// Sync status on the server.
     async fn sync_status(&self) -> Result<SyncStatus>;
 
     /// Sync with a remote.

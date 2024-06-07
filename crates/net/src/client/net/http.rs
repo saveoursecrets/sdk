@@ -6,7 +6,6 @@ use reqwest::header::AUTHORIZATION;
 use sos_sdk::{
     constants::MIME_TYPE_SOS,
     decode, encode,
-    prelude::Address,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     sync::{ChangeSet, Origin, SyncPacket, SyncStatus, UpdateSet},
@@ -45,7 +44,6 @@ use super::{
 #[derive(Clone)]
 pub struct HttpClient {
     origin: Origin,
-    address: Address,
     account_signer: BoxedEcdsaSigner,
     device_signer: BoxedEd25519Signer,
     client: reqwest::Client,
@@ -83,20 +81,13 @@ impl HttpClient {
             .connect_timeout(Duration::from_millis(5000))
             .build()?;
 
-        let address = account_signer.address()?;
         Ok(Self {
             origin,
-            address,
             account_signer,
             device_signer,
             client,
             connection_id,
         })
-    }
-
-    /// Account identifier.
-    pub fn address(&self) -> &Address {
-        &self.address
     }
 
     /// Account signing key.
@@ -210,13 +201,23 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip(self))]
-    async fn account_exists(&self, account_id: &Address) -> Result<bool> {
-        let url = self.build_url(&format!(
-            "api/v1/sync/account/{}",
-            account_id.to_string()
-        ))?;
+    async fn account_exists(&self) -> Result<bool> {
+        let url = self.build_url("api/v1/sync/account")?;
+
+        let sign_url = url.path();
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, None);
+
         tracing::debug!(url = %url, "http::account_exists");
-        let response = self.client.head(url).send().await?;
+        let response = self
+            .client
+            .head(url)
+            .header(AUTHORIZATION, auth)
+            .send()
+            .await?;
         let status = response.status();
         tracing::debug!(status = %status, "http::account_exists");
         let exists = match status {
@@ -227,6 +228,30 @@ impl SyncClient for HttpClient {
             }
         };
         Ok(exists)
+    }
+
+    #[instrument(skip(self))]
+    async fn delete_account(&self) -> Result<()> {
+        let url = self.build_url("api/v1/sync/account")?;
+
+        let sign_url = url.path();
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, None);
+
+        tracing::debug!(url = %url, "http::delete_account");
+        let response = self
+            .client
+            .delete(url)
+            .header(AUTHORIZATION, auth)
+            .send()
+            .await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::delete_account");
+        self.error_json(response).await?;
+        Ok(())
     }
 
     #[instrument(skip(self, account))]

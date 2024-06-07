@@ -155,6 +155,20 @@ impl Backend {
         Ok(())
     }
 
+    /// Delete an account.
+    pub async fn delete_account(&mut self, owner: &Address) -> Result<()> {
+        tracing::debug!(address = %owner, "backend::delete_account");
+
+        let mut accounts = self.accounts.write().await;
+        let account =
+            accounts.get_mut(owner).ok_or(Error::NoAccount(*owner))?;
+
+        let mut account = account.write().await;
+        account.storage.delete_account().await?;
+
+        Ok(())
+    }
+
     /// Update an account.
     pub async fn update_account(
         &mut self,

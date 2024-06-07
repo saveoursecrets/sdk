@@ -166,21 +166,19 @@ impl ClientStorage {
     /// Remove the directory containing all the files for a folder.
     pub(crate) async fn delete_folder_files(
         &self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> Result<Vec<FileEvent>> {
         let mut events = Vec::new();
         let mut folder_files =
-            list_folder_files(&self.paths, summary.id()).await?;
+            list_folder_files(&self.paths, folder_id).await?;
         for (secret_id, mut external_files) in folder_files.drain(..) {
             for file_name in external_files.drain(..) {
                 events.push(FileEvent::DeleteFile(
-                    *summary.id(),
-                    secret_id,
-                    file_name,
+                    *folder_id, secret_id, file_name,
                 ));
             }
         }
-        let folder_files = self.paths.file_folder_location(summary.id());
+        let folder_files = self.paths.file_folder_location(folder_id);
         if vfs::try_exists(&folder_files).await? {
             vfs::remove_dir_all(&folder_files).await?;
         }

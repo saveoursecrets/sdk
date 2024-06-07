@@ -226,11 +226,9 @@ impl Server {
                     put(account::create_account)
                         .post(account::update_account)
                         .patch(account::sync_account)
-                        .get(account::fetch_account),
-                )
-                .route(
-                    "/sync/account/:account_id",
-                    head(account::account_exists),
+                        .get(account::fetch_account)
+                        .head(account::account_exists)
+                        .delete(account::delete_account),
                 )
                 .route("/sync/account/status", get(account::sync_status))
                 .route("/sync/files", post(files::compare_files))

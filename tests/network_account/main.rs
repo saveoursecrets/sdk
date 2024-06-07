@@ -1,5 +1,6 @@
 mod archive_unarchive;
-mod create_remote_data;
+mod create_account;
+mod delete_account;
 mod folder_description;
 
 mod send_secret_create;

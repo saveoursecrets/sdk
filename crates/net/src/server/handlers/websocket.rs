@@ -52,8 +52,8 @@ impl WebSocketAccount {
     ) -> Result<()> {
         for (conn_id, conn) in &self.connections {
             if conn_id.is_empty()
-                || caller.connection_id().is_empty()
-                || conn_id == caller.connection_id()
+                || caller.connection_id().is_none()
+                || conn_id == caller.connection_id().as_ref().unwrap()
             {
                 continue;
             }
@@ -90,7 +90,7 @@ pub async fn upgrade(
     let caller = authenticate_endpoint(
         bearer,
         uri.as_bytes(),
-        query,
+        Some(query.clone()),
         Arc::clone(&state),
         Arc::clone(&backend),
         true,
@@ -99,7 +99,7 @@ pub async fn upgrade(
     .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let address = caller.address().clone();
-    let connection_id = caller.connection_id().to_string();
+    let connection_id = query.connection_id;
 
     let (close_tx, _) = watch::channel(Message::Close(None));
     let (send_tx, _) = broadcast::channel(64);

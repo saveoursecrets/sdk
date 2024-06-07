@@ -298,6 +298,19 @@ impl ServerStorage {
         Ok(())
     }
 
+    /// Delete all the files for this account.
+    pub async fn delete_account(&mut self) -> Result<()> {
+        let user_dir = self.paths.user_dir();
+        let identity_vault = self.paths.identity_vault();
+        let identity_event = self.paths.identity_events();
+
+        vfs::remove_dir_all(&user_dir).await?;
+        vfs::remove_file(&identity_vault).await?;
+        vfs::remove_file(&identity_event).await?;
+
+        Ok(())
+    }
+
     /// Delete a folder.
     pub async fn delete_folder(&mut self, id: &VaultId) -> Result<()> {
         // Remove the files
@@ -306,16 +319,11 @@ impl ServerStorage {
         // Remove local state
         self.cache.remove(id);
 
-        /*
         #[cfg(feature = "files")]
         {
-            let mut file_events = self.delete_folder_files(&summary).await?;
-            self.file_log.apply(file_events.iter().collect()).await?;
-            for event in file_events.drain(..) {
-                events.push(Event::File(event));
-            }
+            let files_folder = self.paths.files_dir().join(id.to_string());
+            vfs::remove_dir_all(&files_folder).await?;
         }
-        */
 
         #[cfg(feature = "audit")]
         {
