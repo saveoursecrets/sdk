@@ -7,7 +7,10 @@ use sos_sdk::{
     account::{Account, LocalAccount},
     commit::Comparison,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    storage::files::{list_external_files, FileSet, TransferOperation},
+    storage::{
+        files::{FileSet, TransferOperation},
+        StorageEventLogs,
+    },
     sync::{
         self, MaybeDiff, Merge, Origin, SyncOptions, SyncPacket, SyncStatus,
         SyncStorage, UpdateSet,
@@ -218,14 +221,12 @@ impl RemoteBridge {
     }
 
     async fn execute_sync_file_transfers(&self) -> Result<()> {
-        let paths = {
+        let external_files = {
             let account = self.account.lock().await;
-            account.paths()
+            account.canonical_files().await?
         };
 
-        let external_files = list_external_files(&*paths).await?;
         let file_set = FileSet(external_files);
-
         let file_transfers = self.client.compare_files(&file_set).await?;
 
         let mut ops = Vec::new();

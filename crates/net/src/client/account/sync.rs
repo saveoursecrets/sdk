@@ -15,14 +15,22 @@ use tokio::sync::RwLock;
 use sos_sdk::events::DeviceEventLog;
 
 #[cfg(feature = "files")]
-use sos_sdk::events::FileEventLog;
+use sos_sdk::{
+    events::FileEventLog,
+    storage::files::{FileSet, FileTransfersSet},
+};
+
+/// Server status for all remote origins.
+pub type ServerStatus =
+    HashMap<Origin, crate::client::Result<Option<SyncStatus>>>;
+
+/// Transfer status for all remote origins.
+pub type TransferStatus =
+    HashMap<Origin, crate::client::Result<FileTransfersSet>>;
 
 impl NetworkAccount {
     /// Sync status for remote servers.
-    pub async fn server_status(
-        &self,
-        options: &SyncOptions,
-    ) -> HashMap<Origin, crate::client::Result<Option<SyncStatus>>> {
+    pub async fn server_status(&self, options: &SyncOptions) -> ServerStatus {
         if self.offline {
             tracing::warn!("offline mode active, ignoring server status");
             return Default::default();
@@ -46,6 +54,35 @@ impl NetworkAccount {
             }
         }
         server_status
+    }
+
+    /// Transfer status for remote servers.
+    #[cfg(feature = "files")]
+    pub async fn transfer_status(
+        &self,
+        options: &SyncOptions,
+    ) -> Result<TransferStatus> {
+        let external_files = self.canonical_files().await?;
+        let local_files = FileSet(external_files);
+
+        let remotes = self.remotes.read().await;
+        let mut transfer_status = HashMap::new();
+        for (origin, remote) in &*remotes {
+            let sync_remote = options.origins.is_empty()
+                || options.origins.contains(origin);
+
+            if sync_remote {
+                match remote.client.compare_files(&local_files).await {
+                    Ok(status) => {
+                        transfer_status.insert(origin.clone(), Ok(status));
+                    }
+                    Err(e) => {
+                        transfer_status.insert(origin.clone(), Err(e));
+                    }
+                }
+            }
+        }
+        Ok(transfer_status)
     }
 }
 
