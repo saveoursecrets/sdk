@@ -486,29 +486,24 @@ mod handlers {
         backend: ServerBackend,
         caller: Caller,
     ) -> Result<(HeaderMap, Vec<u8>)> {
-        let account_exists = {
-            let reader = backend.read().await;
-            reader.account_exists(caller.address()).await?
-        };
-        let result = if account_exists {
-            let reader = backend.read().await;
-            let accounts = reader.accounts();
-            let reader = accounts.read().await;
-            let account = reader.get(caller.address()).unwrap();
-            let account = account.read().await;
-            let status = account.storage.sync_status().await?;
-            Some(status)
-        } else {
-            None
-        };
+        let reader = backend.read().await;
+        if !reader.account_exists(caller.address()).await? {
+            return Err(Error::Status(StatusCode::NOT_FOUND));
+        }
 
+        let accounts = reader.accounts();
+        let reader = accounts.read().await;
+        let account = reader.get(caller.address()).unwrap();
+        let account = account.read().await;
+        let status = account.storage.sync_status().await?;
+        let encoded = encode(&status).await?;
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
             HeaderValue::from_static(MIME_TYPE_SOS),
         );
 
-        Ok((headers, encode(&result).await?))
+        Ok((headers, encoded))
     }
 
     #[cfg(feature = "device")]
