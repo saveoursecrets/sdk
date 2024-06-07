@@ -315,14 +315,13 @@ pub(crate) async fn sync_status(
     OriginalUri(uri): OriginalUri,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
-    // FIXME: this endpoint should be restricted!
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
         query,
         Arc::clone(&state),
         Arc::clone(&backend),
-        false,
+        true,
     )
     .await
     {
