@@ -126,6 +126,56 @@ pub(crate) async fn create_account(
     }
 }
 
+/// Delete an existing account.
+#[utoipa::path(
+    delete,
+    path = "/sync/account",
+    responses(
+        (
+            status = StatusCode::UNAUTHORIZED,
+            description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::NOT_FOUND,
+            description = "Account does not exist.",
+        ),
+        (
+            status = StatusCode::OK,
+            description = "Account deleted.",
+        ),
+    ),
+)]
+pub(crate) async fn delete_account(
+    Extension(state): Extension<ServerState>,
+    Extension(backend): Extension<ServerBackend>,
+    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+    OriginalUri(uri): OriginalUri,
+) -> impl IntoResponse {
+    let uri = uri.path().to_string();
+    match authenticate_endpoint(
+        bearer,
+        uri.as_bytes(),
+        None,
+        Arc::clone(&state),
+        Arc::clone(&backend),
+        false,
+    )
+    .await
+    {
+        Ok(caller) => {
+            match handlers::delete_account(state, backend, caller).await {
+                Ok(result) => result.into_response(),
+                Err(error) => error.into_response(),
+            }
+        }
+        Err(error) => error.into_response(),
+    }
+}
+
 /// Update an account.
 #[utoipa::path(
     post,
@@ -456,19 +506,22 @@ mod handlers {
         Ok(())
     }
 
+    pub(super) async fn delete_account(
+        _state: ServerState,
+        backend: ServerBackend,
+        caller: Caller,
+    ) -> Result<()> {
+        let mut writer = backend.write().await;
+        writer.delete_account(caller.address()).await?;
+        Ok(())
+    }
+
     pub(super) async fn update_account(
         _state: ServerState,
         backend: ServerBackend,
         caller: Caller,
         bytes: &[u8],
     ) -> Result<()> {
-        {
-            let reader = backend.read().await;
-            if !reader.account_exists(caller.address()).await? {
-                return Err(Error::Status(StatusCode::NOT_FOUND));
-            }
-        }
-
         let account: UpdateSet = decode(bytes).await?;
         let mut writer = backend.write().await;
         writer.update_account(caller.address(), account).await?;

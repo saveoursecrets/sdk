@@ -8,8 +8,8 @@ use sos_net::sdk::prelude::*;
 /// Tests creating all the account data on a remote
 /// when the server does not have the account data yet.
 #[tokio::test]
-async fn network_sync_create_remote_data() -> Result<()> {
-    const TEST_ID: &str = "sync_create_remote_data";
+async fn network_sync_create_account() -> Result<()> {
+    const TEST_ID: &str = "sync_create_account";
 
     //crate::test_utils::init_tracing();
 
