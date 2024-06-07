@@ -319,16 +319,11 @@ impl ServerStorage {
         // Remove local state
         self.cache.remove(id);
 
-        /*
         #[cfg(feature = "files")]
         {
-            let mut file_events = self.delete_folder_files(&summary).await?;
-            self.file_log.apply(file_events.iter().collect()).await?;
-            for event in file_events.drain(..) {
-                events.push(Event::File(event));
-            }
+            let files_folder = self.paths.files_dir().join(id.to_string());
+            vfs::remove_dir_all(&files_folder).await?;
         }
-        */
 
         #[cfg(feature = "audit")]
         {

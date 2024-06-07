@@ -1,4 +1,7 @@
-use crate::test_utils::{num_events, simulate_device, spawn, teardown};
+use crate::test_utils::{
+    assert_local_remote_events_eq, mock::files::create_file_secret,
+    num_events, simulate_device, spawn, teardown,
+};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
@@ -13,13 +16,14 @@ async fn network_sync_folder_delete() -> Result<()> {
 
     // Prepare a mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
+    let origin = device.origin.clone();
     let folders = device.folders.clone();
 
     let _original_summaries_len = folders.len();
 
     // Path that we expect the remote server to write to
     let server_path = server.account_path(device.owner.address());
-    let address = device.owner.address().to_string();
+    let address = device.owner.address().clone();
 
     let FolderCreate {
         folder: new_folder,
@@ -31,8 +35,11 @@ async fn network_sync_folder_delete() -> Result<()> {
         .await?;
     assert!(sync_error.is_none());
 
-    // Our new local folder should have the single create vault event
-    assert_eq!(1, num_events(&mut device.owner, new_folder.id()).await);
+    let (secret_id, _, _, file_name) =
+        create_file_secret(&mut device.owner, &new_folder, None).await?;
+    let file = ExternalFile::new(*new_folder.id(), secret_id, file_name);
+
+    assert_eq!(3, num_events(&mut device.owner, new_folder.id()).await);
 
     let FolderDelete { sync_error, .. } =
         device.owner.delete_folder(&new_folder).await?;
@@ -46,23 +53,37 @@ async fn network_sync_folder_delete() -> Result<()> {
 
     assert_eq!(folders.len(), updated_summaries.len());
 
-    let expected_vault_file = server_path.join(&address).join(format!(
-        "{}.{}",
-        new_folder.id(),
-        VAULT_EXT
-    ));
+    let expected_vault_file = server_path
+        .join(address.to_string())
+        .join(format!("{}.{}", new_folder.id(), VAULT_EXT));
 
-    let expected_event_file = server_path.join(&address).join(format!(
-        "{}.{}",
-        new_folder.id(),
-        EVENT_LOG_EXT
-    ));
+    let expected_event_file = server_path
+        .join(address.to_string())
+        .join(format!("{}.{}", new_folder.id(), EVENT_LOG_EXT));
 
     assert!(!vfs::try_exists(expected_vault_file).await?);
     assert!(!vfs::try_exists(expected_event_file).await?);
 
-    device.owner.sign_out().await?;
+    // Check the file secret was deleted from the server
+    let server_paths = server.paths(&address);
+    let server_file_path = server_paths.file_location(
+        file.vault_id(),
+        file.secret_id(),
+        file.file_name().to_string(),
+    );
+    assert!(!vfs::try_exists(server_file_path).await?);
 
+    // Get the remote out of the owner so we can
+    // assert on equality between local and remote
+    let mut bridge = device.owner.remove_server(&origin).await?.unwrap();
+    assert_local_remote_events_eq(
+        folders.clone(),
+        &mut device.owner,
+        &mut bridge,
+    )
+    .await?;
+
+    device.owner.sign_out().await?;
     teardown(TEST_ID).await;
 
     Ok(())

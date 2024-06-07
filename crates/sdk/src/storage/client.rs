@@ -923,7 +923,8 @@ impl ClientStorage {
 
         #[cfg(feature = "files")]
         {
-            let mut file_events = self.delete_folder_files(summary).await?;
+            let mut file_events =
+                self.delete_folder_files(summary.id()).await?;
             let mut writer = self.file_log.write().await;
             writer.apply(file_events.iter().collect()).await?;
             for event in file_events.drain(..) {
