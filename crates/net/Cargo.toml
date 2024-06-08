@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.12.0"
+version = "0.12.1"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
