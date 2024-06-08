@@ -18,3 +18,6 @@ pub(crate) use vault::Auth;
 
 #[cfg(debug_assertions)]
 pub use vault::Contents;
+
+#[cfg(not(debug_assertions))]
+pub(crate) use vault::Contents;
