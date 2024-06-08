@@ -294,6 +294,20 @@ impl NetworkAccount {
         Ok(sync_error)
     }
 
+    /// Update server origin information.
+    pub async fn update_server(&mut self, origin: Origin) -> Result<bool> {
+        // Note that this works because Origin only includes
+        // the url for it's Hash implementation
+        let mut remotes = self.remotes.write().await;
+        if let Some(remote) = remotes.remove(&origin) {
+            remotes.insert(origin, remote);
+            self.save_remotes(&*remotes).await?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     /// Remove a server.
     pub async fn remove_server(
         &mut self,
