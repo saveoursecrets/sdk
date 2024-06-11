@@ -230,7 +230,7 @@ impl AccountBuilder {
                 account: account_name,
                 password: passphrase.clone(),
                 url: None,
-                user_data: UserData::new_comment(address.to_string()),
+                user_data: Default::default(),
             };
             let mut meta = SecretMeta::new(
                 "Account Password".to_string(),
