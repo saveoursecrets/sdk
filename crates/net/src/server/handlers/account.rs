@@ -656,6 +656,11 @@ mod handlers {
 
         let req: CommitScanRequest = decode(bytes).await?;
 
+        // Maximum of 16384 bytes for scan lists
+        if req.limit > 512 {
+            return Err(Error::BadRequest);
+        }
+
         let response = match &req.log_type {
             EventLogType::Noop => {
                 return Err(Error::Status(StatusCode::BAD_REQUEST));
@@ -710,11 +715,25 @@ mod handlers {
     where
         T: Default + Encodable + Decodable + Send + Sync + 'static,
     {
-        let reverse = !req.ascending;
         let mut res = CommitScanResponse::default();
+        let reverse = !req.ascending;
+        let offset = req.offset.unwrap_or(0);
+
+        // Short circuit if the offset is clearly out of bounds
+        let num_commits = event_log.tree().len() as u64;
+        if offset >= num_commits {
+            res.offset = num_commits;
+            return Ok(res);
+        }
+
         let mut it = event_log.iter(reverse).await?;
+        let mut skip = 0;
         loop {
             let event = it.next().await?;
+            if offset > 0 && skip < offset {
+                skip += 1;
+                continue;
+            }
             if let Some(record) = event {
                 // TODO: handle offsets
                 if reverse {
@@ -722,6 +741,7 @@ mod handlers {
                 } else {
                     res.list.push(CommitHash(record.commit()));
                 }
+                res.offset = offset + res.list.len() as u64;
                 if res.list.len() == req.limit as usize {
                     break;
                 }

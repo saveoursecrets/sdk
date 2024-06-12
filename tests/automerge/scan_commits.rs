@@ -119,6 +119,43 @@ async fn automerge_scan_commits() -> Result<()> {
     let folder_asc = client.scan(&req).await?;
     assert_eq!(commits, folder_asc.list);
 
+    // Scan in chunks of 2 from the beginning
+    let mut req = CommitScanRequest::default();
+    req.log_type = EventLogType::Folder(*default_folder.id());
+    req.limit = 2;
+    req.ascending = true;
+    let mut folder_chunk_1 = client.scan(&req).await?;
+    assert_eq!(2, folder_chunk_1.offset);
+    assert_eq!(&commits[0..2], folder_chunk_1.list.as_slice());
+    // Scan next chunk
+    let mut req = req.clone();
+    req.offset = Some(folder_chunk_1.offset);
+    let folder_chunk_2 = client.scan(&req).await?;
+    assert_eq!(4, folder_chunk_2.offset);
+    assert_eq!(&commits[2..], folder_chunk_2.list.as_slice());
+
+    folder_chunk_1.list.extend(folder_chunk_2.list.into_iter());
+    assert_eq!(commits, folder_chunk_1.list);
+
+    // Scan past the length ascending (bad offset)
+    // yields empty list
+    let mut req = CommitScanRequest::default();
+    req.log_type = EventLogType::Folder(*default_folder.id());
+    req.limit = 256;
+    req.offset = Some(64);
+    req.ascending = true;
+    let res = client.scan(&req).await?;
+    assert!(res.list.is_empty());
+
+    // Scan past the length descending (bad offset)
+    // yields empty list
+    let mut req = CommitScanRequest::default();
+    req.log_type = EventLogType::Folder(*default_folder.id());
+    req.limit = 256;
+    req.offset = Some(64);
+    let res = client.scan(&req).await?;
+    assert!(res.list.is_empty());
+
     device.owner.sign_out().await?;
     teardown(TEST_ID).await;
 

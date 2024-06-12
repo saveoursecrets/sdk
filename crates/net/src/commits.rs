@@ -8,14 +8,24 @@ use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::Result;
 
 /// Request commits from an event log.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct CommitScanRequest {
-    /// Type of event log to load commits from.
+    /// Type of event log to load commit hashes from.
     pub log_type: EventLogType,
     /// Number of commits to fetch.
+    ///
+    /// Server implementations should restrict this to
+    /// a sensible amount.
+    ///
+    /// The default server implementation imposes a limit of
+    /// 512 hashes (16384 bytes).
     pub limit: u16,
     /// Offset from a previous scan used as a hint to
     /// continue scanning.
+    ///
+    /// The zero offset is always the start of the scan
+    /// regardless of whether the scan is ascending (from
+    /// the first commit) or descending (from the last commit).
     pub offset: Option<u64>,
     /// Scan in ascending order from the first commit.
     ///
@@ -28,9 +38,13 @@ pub struct CommitScanRequest {
 #[derive(Debug, Default)]
 pub struct CommitScanResponse {
     /// List of commit hashes.
+    ///
+    /// Commits are always listed in the order they
+    /// appear in the event log regardless of the scan
+    /// direction.
     pub list: Vec<CommitHash>,
-    /// Offset of the commit hash range.
-    pub offset: u32,
+    /// Offset that can be used to continue scanning.
+    pub offset: u64,
 }
 
 #[async_trait]
