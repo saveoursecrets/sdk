@@ -14,6 +14,7 @@ use axum_extra::{
 
 use super::BODY_LIMIT;
 use crate::server::{handlers::ConnectionQuery, ServerBackend, ServerState};
+
 use std::sync::Arc;
 
 /// Determine if an account exists.
@@ -432,30 +433,31 @@ pub(crate) async fn event_commits(
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    body: Body,
 ) -> impl IntoResponse {
-    todo!();
-
-    /*
-    let uri = uri.path().to_string();
-    match authenticate_endpoint(
-        bearer,
-        uri.as_bytes(),
-        Some(query),
-        Arc::clone(&state),
-        Arc::clone(&backend),
-        true,
-    )
-    .await
-    {
-        Ok(caller) => {
-            match handlers::sync_status(state, backend, caller).await {
-                Ok(result) => result.into_response(),
-                Err(error) => error.into_response(),
+    match to_bytes(body, BODY_LIMIT).await {
+        Ok(bytes) => match authenticate_endpoint(
+            bearer,
+            &bytes,
+            Some(query),
+            Arc::clone(&state),
+            Arc::clone(&backend),
+            true,
+        )
+        .await
+        {
+            Ok(caller) => {
+                match handlers::event_commits(state, backend, caller, &bytes)
+                    .await
+                {
+                    Ok(result) => result.into_response(),
+                    Err(error) => error.into_response(),
+                }
             }
-        }
-        Err(e) => e.into_response(),
+            Err(error) => error.into_response(),
+        },
+        Err(_) => StatusCode::BAD_REQUEST.into_response(),
     }
-    */
 }
 
 /// Sync account event logs.
@@ -521,18 +523,24 @@ pub(crate) async fn sync_account(
 mod handlers {
     use super::Caller;
     use crate::{
-        sdk::sync::{self, Merge, SyncPacket, SyncStorage},
+        commits::{CommitScanRequest, CommitScanResponse},
         server::{Error, Result, ServerBackend, ServerState},
     };
+    use binary_stream::futures::{Decodable, Encodable};
+    use futures::{pin_mut, StreamExt};
     use http::{
         header::{self, HeaderMap, HeaderValue},
         StatusCode,
     };
     use sos_sdk::{
+        commit::CommitHash,
         constants::MIME_TYPE_SOS,
         decode, encode,
-        sync::{ChangeSet, UpdateSet},
+        events::{DiscEventLog, EventLogExt, EventLogType},
+        storage::StorageEventLogs,
+        sync::{self, ChangeSet, Merge, SyncPacket, SyncStorage, UpdateSet},
     };
+
     use std::sync::Arc;
 
     #[cfg(feature = "listen")]
@@ -629,6 +637,95 @@ mod handlers {
         );
 
         Ok((headers, encoded))
+    }
+
+    pub(super) async fn event_commits(
+        _state: ServerState,
+        backend: ServerBackend,
+        caller: Caller,
+        bytes: &[u8],
+    ) -> Result<(HeaderMap, Vec<u8>)> {
+        let account = {
+            let reader = backend.read().await;
+            let accounts = reader.accounts();
+            let reader = accounts.read().await;
+            let account = reader
+                .get(caller.address())
+                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+            Arc::clone(account)
+        };
+
+        let req: CommitScanRequest = decode(bytes).await?;
+
+        let response = match &req.log_type {
+            EventLogType::Noop => {
+                return Err(Error::Status(StatusCode::BAD_REQUEST));
+            }
+            EventLogType::Identity => {
+                let reader = account.read().await;
+                let log = reader.storage.identity_log();
+                let event_log = log.read().await;
+                scan_log(&req, &*event_log).await?
+            }
+            EventLogType::Account => {
+                let reader = account.read().await;
+                let log = reader.storage.account_log();
+                let event_log = log.read().await;
+                scan_log(&req, &*event_log).await?
+            }
+            #[cfg(feature = "device")]
+            EventLogType::Device => {
+                let reader = account.read().await;
+                let log = reader.storage.device_log().await?;
+                let event_log = log.read().await;
+                scan_log(&req, &*event_log).await?
+            }
+            #[cfg(feature = "files")]
+            EventLogType::Files => {
+                let reader = account.read().await;
+                let log = reader.storage.file_log().await?;
+                let event_log = log.read().await;
+                scan_log(&req, &*event_log).await?
+            }
+            EventLogType::Folder(id) => {
+                let reader = account.read().await;
+                let log = reader.storage.folder_log(id).await?;
+                let event_log = log.read().await;
+                scan_log(&req, &*event_log).await?
+            }
+        };
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(MIME_TYPE_SOS),
+        );
+
+        Ok((headers, encode(&response).await?))
+    }
+
+    async fn scan_log<T>(
+        req: &CommitScanRequest,
+        event_log: &DiscEventLog<T>,
+    ) -> Result<CommitScanResponse>
+    where
+        T: Default + Encodable + Decodable + Send + Sync + 'static,
+    {
+        let mut res = CommitScanResponse::default();
+        let mut it = event_log.iter(!req.ascending).await?;
+        loop {
+            let event = it.next().await?;
+            if let Some(record) = event {
+                // TODO: handle offsets
+                res.list.push(CommitHash(record.commit()));
+                if res.list.len() == req.limit as usize {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        Ok(res)
     }
 
     #[cfg(feature = "device")]

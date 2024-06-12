@@ -8,6 +8,7 @@ use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::Result;
 
 /// Request commits from an event log.
+#[derive(Debug, Default)]
 pub struct CommitScanRequest {
     /// Type of event log to load commits from.
     pub log_type: EventLogType,
@@ -24,6 +25,7 @@ pub struct CommitScanRequest {
 }
 
 /// Commit hashes from an event log.
+#[derive(Debug, Default)]
 pub struct CommitScanResponse {
     /// List of commit hashes.
     pub list: Vec<CommitHash>,
