@@ -377,8 +377,6 @@ impl Merge for ServerStorage {
             "folder",
         );
 
-        // println!("Merge: {:#?}", diff.before);
-
         let log = self
             .cache
             .get_mut(folder_id)

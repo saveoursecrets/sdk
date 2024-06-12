@@ -590,7 +590,6 @@ impl NetworkAccount {
         &self,
         events: &[FileMutationEvent],
     ) -> Result<()> {
-        // println!("events: {:#?}", events);
         if let Some(handle) = &self.file_transfer_handle {
             let mut items = Vec::with_capacity(events.len());
             for event in events {

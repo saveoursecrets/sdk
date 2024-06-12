@@ -964,7 +964,6 @@ mod test {
             ngram_slice(s, 3);
             ngram_slice(s, 4);
             ngram_slice(s, 5);
-            // println!("{}", s);
         }
     }
 

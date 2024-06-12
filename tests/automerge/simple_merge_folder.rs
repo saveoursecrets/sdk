@@ -65,7 +65,8 @@ async fn automerge_simple_merge_folder() -> Result<()> {
     println!("Sync second device...");
 
     // Sync the second device
-    assert!(device2.owner.sync().await.is_none());
+    let sync_error = device2.owner.sync().await;
+    assert!(sync_error.is_none());
 
     /*
     // Perform all the basic CRUD operations to make sure

@@ -71,10 +71,7 @@ impl RemoteBridge {
     pub fn client(&self) -> &HttpClient {
         &self.client
     }
-}
 
-/// Sync helper functions.
-impl RemoteBridge {
     /// Create an account on the remote.
     async fn create_remote_account(&self) -> Result<()> {
         {
@@ -111,11 +108,6 @@ impl RemoteBridge {
                 .unwrap_or_default();
             let has_conflicts = maybe_conflict.has_conflicts();
 
-            println!(
-                "remote_changes::has_conflicts {:#?}",
-                maybe_conflict.has_conflicts()
-            );
-
             if !has_conflicts {
                 let (mut outcome, _) =
                     account.merge(&remote_changes.diff).await?;
@@ -150,7 +142,11 @@ impl RemoteBridge {
 
                 self.compare(&mut *account, remote_changes).await?;
             } else {
-                panic!("has_conflicts");
+                return Err(Error::SoftConflict {
+                    conflict: maybe_conflict,
+                    local: packet,
+                    remote: remote_changes,
+                });
             }
         }
 
@@ -166,8 +162,6 @@ impl RemoteBridge {
         remote_changes: SyncPacket,
     ) -> Result<()> {
         if let Some(remote_compare) = &remote_changes.compare {
-            // println!("{:#?}", remote_changes);
-
             let local_compare =
                 account.compare(&remote_changes.status).await?;
 
@@ -200,7 +194,17 @@ impl RemoteBridge {
         let exists = self.client.account_exists().await?;
         if exists {
             let sync_status = self.client.sync_status().await?;
-            self.sync_account(sync_status).await
+            match self.sync_account(sync_status).await {
+                Ok(_) => Ok(()),
+                Err(e) => match e {
+                    Error::SoftConflict {
+                        conflict,
+                        local,
+                        remote,
+                    } => self.auto_merge(conflict, local, remote).await,
+                    _ => Err(e),
+                },
+            }
         } else {
             self.create_remote_account().await
         }
