@@ -611,6 +611,10 @@ mod handlers {
             writer.storage.merge(&diff).await?
         };
 
+        println!("outcome: {:#?}", outcome);
+        println!("compare: {:#?}", compare);
+        // println!("diff: {:#?}", diff);
+
         // Generate a new diff so the client can apply changes
         // that exist in remote but not in the local
         let (local_status, diff) = {

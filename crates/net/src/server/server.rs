@@ -19,7 +19,7 @@ use axum::{
     },
     middleware,
     response::{IntoResponse, Json},
-    routing::{get, head, patch, post, put},
+    routing::{get, patch, post, put},
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};

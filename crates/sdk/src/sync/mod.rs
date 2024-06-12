@@ -238,6 +238,84 @@ pub struct SyncCompare {
     pub folders: IndexMap<VaultId, Comparison>,
 }
 
+impl SyncCompare {
+    /// Determine if this comparison might conflict.
+    pub fn maybe_conflict(&self) -> MaybeConflict {
+        MaybeConflict {
+            identity: self
+                .identity
+                .as_ref()
+                .map(|c| matches!(c, Comparison::Unknown))
+                .unwrap_or(false),
+            account: self
+                .account
+                .as_ref()
+                .map(|c| matches!(c, Comparison::Unknown))
+                .unwrap_or(false),
+            #[cfg(feature = "device")]
+            device: self
+                .device
+                .as_ref()
+                .map(|c| matches!(c, Comparison::Unknown))
+                .unwrap_or(false),
+            #[cfg(feature = "files")]
+            files: self
+                .files
+                .as_ref()
+                .map(|c| matches!(c, Comparison::Unknown))
+                .unwrap_or(false),
+            folders: self
+                .folders
+                .iter()
+                .map(|(k, v)| (*k, matches!(v, Comparison::Unknown)))
+                .collect(),
+        }
+    }
+}
+
+/// Information about possible conflicts.
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
+pub struct MaybeConflict {
+    /// Whether the identity folder might be conflicted.
+    pub identity: bool,
+    /// Whether the account log might be conflicted.
+    pub account: bool,
+    /// Whether the device log might be conflicted.
+    #[cfg(feature = "device")]
+    pub device: bool,
+    /// Whether the files log might be conflicted.
+    #[cfg(feature = "files")]
+    pub files: bool,
+    /// Account folders that might be conflicted.
+    pub folders: IndexMap<VaultId, bool>,
+}
+
+impl MaybeConflict {
+    /// Check for any conflicts.
+    pub fn has_conflicts(&self) -> bool {
+        let mut has_conflicts = self.identity || self.account;
+
+        #[cfg(feature = "device")]
+        {
+            has_conflicts = has_conflicts || self.device;
+        }
+
+        #[cfg(feature = "files")]
+        {
+            has_conflicts = has_conflicts || self.files;
+        }
+
+        for (_, value) in &self.folders {
+            has_conflicts = has_conflicts || *value;
+            if has_conflicts {
+                break;
+            }
+        }
+
+        has_conflicts
+    }
+}
+
 /// Diff of events or conflict information.
 #[derive(Default, Debug)]
 pub enum MaybeDiff<T> {

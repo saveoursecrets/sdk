@@ -103,37 +103,55 @@ impl RemoteBridge {
                 compare: None,
             };
             let remote_changes = self.client.sync(&packet).await?;
-            let (mut outcome, _) =
-                account.merge(&remote_changes.diff).await?;
 
-            // Compute which external files need to be downloaded
-            // and add to the transfers queue
-            if !outcome.external_files.is_empty() {
-                let paths = account.paths();
-                // let mut writer = self.transfers.write().await;
+            let maybe_conflict = remote_changes
+                .compare
+                .as_ref()
+                .map(|c| c.maybe_conflict())
+                .unwrap_or_default();
+            let has_conflicts = maybe_conflict.has_conflicts();
 
-                for file in outcome.external_files.drain(..) {
-                    let file_path = paths.file_location(
-                        file.vault_id(),
-                        file.secret_id(),
-                        file.file_name().to_string(),
-                    );
-                    if !vfs::try_exists(file_path).await? {
-                        tracing::debug!(
-                            file = ?file,
-                            "add file download to transfers",
+            println!(
+                "remote_changes::has_conflicts {:#?}",
+                maybe_conflict.has_conflicts()
+            );
+
+            if !has_conflicts {
+                let (mut outcome, _) =
+                    account.merge(&remote_changes.diff).await?;
+
+                // Compute which external files need to be downloaded
+                // and add to the transfers queue
+                if !outcome.external_files.is_empty() {
+                    let paths = account.paths();
+                    // let mut writer = self.transfers.write().await;
+
+                    for file in outcome.external_files.drain(..) {
+                        let file_path = paths.file_location(
+                            file.vault_id(),
+                            file.secret_id(),
+                            file.file_name().to_string(),
                         );
-                        if self.file_transfer_queue.receiver_count() > 0 {
-                            let _ = self.file_transfer_queue.send(vec![(
-                                file,
-                                TransferOperation::Download,
-                            )]);
+                        if !vfs::try_exists(file_path).await? {
+                            tracing::debug!(
+                                file = ?file,
+                                "add file download to transfers",
+                            );
+                            if self.file_transfer_queue.receiver_count() > 0 {
+                                let _ =
+                                    self.file_transfer_queue.send(vec![(
+                                        file,
+                                        TransferOperation::Download,
+                                    )]);
+                            }
                         }
                     }
                 }
-            }
 
-            self.compare(&mut *account, remote_changes).await?;
+                self.compare(&mut *account, remote_changes).await?;
+            } else {
+                panic!("has_conflicts");
+            }
         }
 
         Ok(())
