@@ -527,7 +527,6 @@ mod handlers {
         server::{Error, Result, ServerBackend, ServerState},
     };
     use binary_stream::futures::{Decodable, Encodable};
-    use futures::{pin_mut, StreamExt};
     use http::{
         header::{self, HeaderMap, HeaderValue},
         StatusCode,
@@ -711,13 +710,18 @@ mod handlers {
     where
         T: Default + Encodable + Decodable + Send + Sync + 'static,
     {
+        let reverse = !req.ascending;
         let mut res = CommitScanResponse::default();
-        let mut it = event_log.iter(!req.ascending).await?;
+        let mut it = event_log.iter(reverse).await?;
         loop {
             let event = it.next().await?;
             if let Some(record) = event {
                 // TODO: handle offsets
-                res.list.push(CommitHash(record.commit()));
+                if reverse {
+                    res.list.insert(0, CommitHash(record.commit()));
+                } else {
+                    res.list.push(CommitHash(record.commit()));
+                }
                 if res.list.len() == req.limit as usize {
                     break;
                 }

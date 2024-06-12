@@ -32,6 +32,10 @@ use sos_sdk::{
     commit::CommitHash, signer::ecdsa::Address, sync::MergeOutcome,
 };
 
+// Expose for test specs.
+#[cfg(debug_assertions)]
+pub use commits::*;
+
 /// Notification sent by the server when changes were made.
 #[cfg(feature = "listen")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

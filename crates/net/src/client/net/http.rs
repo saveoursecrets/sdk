@@ -414,7 +414,7 @@ impl SyncClient for HttpClient {
         let auth = bearer_prefix(&account_signature, Some(&device_signature));
         let response = self
             .client
-            .patch(url)
+            .get(url)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()

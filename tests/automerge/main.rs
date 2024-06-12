@@ -1,4 +1,7 @@
 #[cfg(not(target_arch = "wasm32"))]
+mod scan_commits;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod simple_merge_folder;
 
 #[cfg(not(target_arch = "wasm32"))]
