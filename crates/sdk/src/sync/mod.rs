@@ -1,5 +1,4 @@
 //! Synchronization primitives.
-
 use crate::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     events::{AccountEvent, EventLogExt, WriteEvent},

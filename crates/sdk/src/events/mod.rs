@@ -52,8 +52,11 @@ pub trait LogEvent {
 }
 
 /// Types of event logs.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub enum EventLogType {
+    #[default]
+    #[doc(hidden)]
+    Noop,
     /// Identity folder event log.
     Identity,
     /// Account event log.
@@ -68,28 +71,7 @@ pub enum EventLogType {
     Folder(VaultId),
 }
 
-impl From<&EventLogType> for u8 {
-    fn from(value: &EventLogType) -> Self {
-        match value {
-            EventLogType::Identity => event_log_kind::IDENTITY_LOG,
-            EventLogType::Account => event_log_kind::ACCOUNT_LOG,
-            #[cfg(feature = "device")]
-            EventLogType::Device => event_log_kind::DEVICE_LOG,
-            #[cfg(feature = "files")]
-            EventLogType::Files => event_log_kind::FILES_LOG,
-            EventLogType::Folder(_) => event_log_kind::FOLDER_LOG,
-        }
-    }
-}
-
-impl From<EventLogType> for u8 {
-    fn from(value: EventLogType) -> Self {
-        (&value).into()
-    }
-}
-
-/// Constants for the kinds of event logs.
-pub(crate) mod event_log_kind {
+impl EventLogType {
     /// Kind identifier of the identity log.
     pub const IDENTITY_LOG: u8 = 1;
     /// Kind identifier of the account log.
@@ -102,4 +84,25 @@ pub(crate) mod event_log_kind {
     pub const FILES_LOG: u8 = 4;
     /// Kind identifier of a folder log.
     pub const FOLDER_LOG: u8 = 5;
+}
+
+impl From<&EventLogType> for u8 {
+    fn from(value: &EventLogType) -> Self {
+        match value {
+            EventLogType::Noop => panic!("attempt to convert a noop"),
+            EventLogType::Identity => EventLogType::IDENTITY_LOG,
+            EventLogType::Account => EventLogType::ACCOUNT_LOG,
+            #[cfg(feature = "device")]
+            EventLogType::Device => EventLogType::DEVICE_LOG,
+            #[cfg(feature = "files")]
+            EventLogType::Files => EventLogType::FILES_LOG,
+            EventLogType::Folder(_) => EventLogType::FOLDER_LOG,
+        }
+    }
+}
+
+impl From<EventLogType> for u8 {
+    fn from(value: EventLogType) -> Self {
+        (&value).into()
+    }
 }

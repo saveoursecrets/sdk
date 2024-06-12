@@ -2,7 +2,7 @@
 use crate::client::{NetworkAccount, RemoteSync, SyncClient, SyncError};
 use async_trait::async_trait;
 use sos_sdk::{
-    events::{AccountEventLog, FolderEventLog},
+    events::{AccountEventLog, EventLogType, FolderEventLog},
     storage::StorageEventLogs,
     sync::{Origin, SyncOptions, SyncStatus, SyncStorage, UpdateSet},
     vault::VaultId,

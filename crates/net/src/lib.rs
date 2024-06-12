@@ -11,6 +11,7 @@
 
 #[cfg(feature = "client")]
 pub mod client;
+pub(crate) mod commits;
 mod error;
 #[cfg(feature = "pairing")]
 pub mod relay;

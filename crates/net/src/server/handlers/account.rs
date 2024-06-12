@@ -398,6 +398,66 @@ pub(crate) async fn sync_status(
     }
 }
 
+/// Scan account event logs for commit hashes.
+#[utoipa::path(
+    get,
+    path = "/sync/account/events",
+    security(
+        ("bearer_token" = [])
+    ),
+    request_body(
+        content_type = "application/octet-stream",
+        content = CommitScanRequest,
+    ),
+    responses(
+        (
+            status = StatusCode::UNAUTHORIZED,
+            description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            content_type = "application/octet-stream",
+            description = "Commit hashes sent.",
+            body = CommitScanResponse,
+        ),
+    ),
+)]
+pub(crate) async fn event_commits(
+    Extension(state): Extension<ServerState>,
+    Extension(backend): Extension<ServerBackend>,
+    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+    Query(query): Query<ConnectionQuery>,
+    OriginalUri(uri): OriginalUri,
+) -> impl IntoResponse {
+    todo!();
+
+    /*
+    let uri = uri.path().to_string();
+    match authenticate_endpoint(
+        bearer,
+        uri.as_bytes(),
+        Some(query),
+        Arc::clone(&state),
+        Arc::clone(&backend),
+        true,
+    )
+    .await
+    {
+        Ok(caller) => {
+            match handlers::sync_status(state, backend, caller).await {
+                Ok(result) => result.into_response(),
+                Err(error) => error.into_response(),
+            }
+        }
+        Err(e) => e.into_response(),
+    }
+    */
+}
+
 /// Sync account event logs.
 #[utoipa::path(
     patch,

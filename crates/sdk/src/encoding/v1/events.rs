@@ -2,13 +2,14 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     encoding::{decode_uuid, encoding_error},
-    events::{EventKind, EventLogType, EventRecord, LogEvent, WriteEvent},
+    events::{
+        AccountEvent, EventKind, EventLogType, EventRecord, LogEvent,
+        WriteEvent,
+    },
     formats::{EventLogRecord, FileRecord, VaultRecord},
     vault::VaultCommit,
     UtcDateTime,
 };
-
-use crate::events::{event_log_kind, AccountEvent};
 
 #[cfg(feature = "device")]
 use crate::events::DeviceEvent;
@@ -47,21 +48,21 @@ impl Decodable for EventLogType {
     ) -> Result<()> {
         let op = reader.read_u8().await?;
         match op {
-            event_log_kind::IDENTITY_LOG => {
+            EventLogType::IDENTITY_LOG => {
                 *self = EventLogType::Identity;
             }
-            event_log_kind::ACCOUNT_LOG => {
+            EventLogType::ACCOUNT_LOG => {
                 *self = EventLogType::Account;
             }
             #[cfg(feature = "device")]
-            event_log_kind::DEVICE_LOG => {
+            EventLogType::DEVICE_LOG => {
                 *self = EventLogType::Device;
             }
             #[cfg(feature = "files")]
-            event_log_kind::FILES_LOG => {
+            EventLogType::FILES_LOG => {
                 *self = EventLogType::Files;
             }
-            event_log_kind::FOLDER_LOG => {
+            EventLogType::FOLDER_LOG => {
                 let id = decode_uuid(reader).await?;
                 *self = EventLogType::Folder(id);
             }

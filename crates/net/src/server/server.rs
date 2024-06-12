@@ -231,6 +231,7 @@ impl Server {
                         .delete(account::delete_account),
                 )
                 .route("/sync/account/status", get(account::sync_status))
+                .route("/sync/account/events", get(account::event_commits))
                 .route("/sync/files", post(files::compare_files))
                 .route(
                     "/sync/file/:vault_id/:secret_id/:file_name",
