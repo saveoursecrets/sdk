@@ -209,6 +209,11 @@ impl CommitTree {
         self.tree.root().map(CommitHash)
     }
 
+    /// Root hash of the underlying merkle tree as hexadecimal.
+    pub fn root_hex(&self) -> Option<String> {
+        self.tree.root().map(hex::encode)
+    }
+
     /*
     /// Commit relationship between the proof in another tree and
     /// a match proof which indicates whether the current head proof

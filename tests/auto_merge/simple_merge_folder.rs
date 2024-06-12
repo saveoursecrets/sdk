@@ -7,8 +7,8 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 /// a simple auto merge.
 #[tokio::test]
 #[ignore = "work in progress"]
-async fn automerge_simple_merge_folder() -> Result<()> {
-    const TEST_ID: &str = "automerge_simple_merge_folder";
+async fn auto_merge_simple_merge_folder() -> Result<()> {
+    const TEST_ID: &str = "auto_merge_simple_merge_folder";
     // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening

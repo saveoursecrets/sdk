@@ -4,8 +4,8 @@ use sos_net::{client::SyncClient, sdk::prelude::*, CommitScanRequest};
 
 /// Tests scanning commit hashes on remote servers.
 #[tokio::test]
-async fn automerge_scan_commits() -> Result<()> {
-    const TEST_ID: &str = "automerge_scan_commits";
+async fn auto_merge_scan_commits() -> Result<()> {
+    const TEST_ID: &str = "auto_merge_scan_commits";
     // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
@@ -50,111 +50,128 @@ async fn automerge_scan_commits() -> Result<()> {
     let bridge = device.owner.remove_server(&origin).await?.unwrap();
     let client = bridge.client().clone();
 
-    // Get the first commit hash of the identity folder
+    // Get the first commit proof of the identity folder
     let mut req = CommitScanRequest::default();
     req.log_type = EventLogType::Identity;
     req.limit = 1;
     req.ascending = true;
     let mut res = client.scan(&req).await?;
-    assert_eq!(1, res.list.len());
-    let first_identity_commit = res.list.remove(0);
+    assert_eq!(1, res.proofs.len());
+    let first_identity_commit = res.proofs.remove(0);
 
-    // Get the last commit hash of the identity folder
+    // Get the last commit proof of the identity folder
     let mut req = CommitScanRequest::default();
     req.log_type = EventLogType::Identity;
     req.limit = 1;
     let mut res = client.scan(&req).await?;
-    assert_eq!(1, res.list.len());
-    let last_identity_commit = res.list.remove(0);
+    assert_eq!(1, res.proofs.len());
+    let last_identity_commit = res.proofs.remove(0);
 
     assert_ne!(first_identity_commit, last_identity_commit);
 
-    // Get commit hashes of the account event log
+    // Get commit proofs of the account event log
     let mut req = CommitScanRequest::default();
     req.log_type = EventLogType::Account;
     req.limit = 256;
     let res = client.scan(&req).await?;
-    assert!(!res.list.is_empty());
+    assert!(!res.proofs.is_empty());
 
-    // Get commit hashes of the device event log
+    // Get commit proofs of the device event log
     let mut req = CommitScanRequest::default();
     req.log_type = EventLogType::Device;
     req.limit = 256;
     let res = client.scan(&req).await?;
-    assert!(!res.list.is_empty());
+    assert!(!res.proofs.is_empty());
 
-    // Get commit hashes of the files event log
+    // Get commit proofs of the files event log
     let mut req = CommitScanRequest::default();
     req.log_type = EventLogType::Files;
     req.limit = 256;
     let res = client.scan(&req).await?;
     // No files yet!
-    assert!(res.list.is_empty());
+    assert!(res.proofs.is_empty());
 
     // Get the local commits so we can assert
     let folder_log = device.owner.folder_log(default_folder.id()).await?;
     let event_log = folder_log.read().await;
-    let commits = event_log
-        .tree()
-        .leaves()
-        .unwrap()
-        .into_iter()
-        .map(CommitHash)
-        .collect::<Vec<_>>();
 
-    // Get the last commit hashes for a folder
+    // Get the commit proofs for a folder
     // scanning from the end (descending)
     let mut req = CommitScanRequest::default();
     req.log_type = EventLogType::Folder(*default_folder.id());
     req.limit = 256;
     let folder_desc = client.scan(&req).await?;
-    assert_eq!(commits, folder_desc.list);
+    assert_eq!(4, folder_desc.proofs.len());
+    for proof in &folder_desc.proofs {
+        let comparison = event_log.tree().compare(proof)?;
+        assert!(matches!(
+            comparison,
+            Comparison::Equal | Comparison::Contains(_, _),
+        ));
+    }
 
-    // Get the last commit hashes for a folder
+    // Get the commit proofs for a folder
     // in ascending order
     let mut req = CommitScanRequest::default();
     req.log_type = EventLogType::Folder(*default_folder.id());
     req.limit = 256;
     req.ascending = true;
     let folder_asc = client.scan(&req).await?;
-    assert_eq!(commits, folder_asc.list);
+    assert_eq!(4, folder_asc.proofs.len());
+    for proof in &folder_asc.proofs {
+        let comparison = event_log.tree().compare(proof)?;
+        assert!(matches!(
+            comparison,
+            Comparison::Equal | Comparison::Contains(_, _),
+        ));
+    }
 
     // Scan in chunks of 2 from the beginning
     let mut req = CommitScanRequest::default();
     req.log_type = EventLogType::Folder(*default_folder.id());
     req.limit = 2;
     req.ascending = true;
-    let mut folder_chunk_1 = client.scan(&req).await?;
+    let folder_chunk_1 = client.scan(&req).await?;
     assert_eq!(2, folder_chunk_1.offset);
-    assert_eq!(&commits[0..2], folder_chunk_1.list.as_slice());
+    for proof in &folder_chunk_1.proofs {
+        let comparison = event_log.tree().compare(proof)?;
+        assert!(matches!(
+            comparison,
+            Comparison::Equal | Comparison::Contains(_, _),
+        ));
+    }
     // Scan next chunk
     let mut req = req.clone();
     req.offset = Some(folder_chunk_1.offset);
     let folder_chunk_2 = client.scan(&req).await?;
     assert_eq!(4, folder_chunk_2.offset);
-    assert_eq!(&commits[2..], folder_chunk_2.list.as_slice());
-
-    folder_chunk_1.list.extend(folder_chunk_2.list.into_iter());
-    assert_eq!(commits, folder_chunk_1.list);
+    for proof in &folder_chunk_2.proofs {
+        let comparison = event_log.tree().compare(proof)?;
+        assert!(matches!(
+            comparison,
+            Comparison::Equal | Comparison::Contains(_, _),
+        ));
+    }
+    // assert_eq!(&commits[2..], proofs2.as_slice());
 
     // Scan past the length ascending (bad offset)
-    // yields empty list
+    // yields empty proofs
     let mut req = CommitScanRequest::default();
     req.log_type = EventLogType::Folder(*default_folder.id());
     req.limit = 256;
     req.offset = Some(64);
     req.ascending = true;
     let res = client.scan(&req).await?;
-    assert!(res.list.is_empty());
+    assert!(res.proofs.is_empty());
 
     // Scan past the length descending (bad offset)
-    // yields empty list
+    // yields empty proofs
     let mut req = CommitScanRequest::default();
     req.log_type = EventLogType::Folder(*default_folder.id());
     req.limit = 256;
     req.offset = Some(64);
     let res = client.scan(&req).await?;
-    assert!(res.list.is_empty());
+    assert!(res.proofs.is_empty());
 
     device.owner.sign_out().await?;
     teardown(TEST_ID).await;

@@ -656,8 +656,8 @@ mod handlers {
 
         let req: CommitScanRequest = decode(bytes).await?;
 
-        // Maximum of 16384 bytes for scan lists
-        if req.limit > 512 {
+        // Maximum number of proofs to return in a single request
+        if req.limit > 256 {
             return Err(Error::BadRequest);
         }
 
@@ -718,9 +718,19 @@ mod handlers {
         let mut res = CommitScanResponse::default();
         let reverse = !req.ascending;
         let offset = req.offset.unwrap_or(0);
+        let num_commits = event_log.tree().len() as u64;
+
+        let mut index = if reverse {
+            if event_log.tree().len() > 0 {
+                event_log.tree().len() - 1
+            } else {
+                0
+            }
+        } else {
+            0
+        };
 
         // Short circuit if the offset is clearly out of bounds
-        let num_commits = event_log.tree().len() as u64;
         if offset >= num_commits {
             res.offset = num_commits;
             return Ok(res);
@@ -734,15 +744,26 @@ mod handlers {
                 skip += 1;
                 continue;
             }
-            if let Some(record) = event {
-                // TODO: handle offsets
+            // println!("rev {}, index {}", reverse, index);
+            if let Some(_) = event {
+                let proof = event_log.tree().proof(&[index])?;
+
+                // println!("proof: {:#?}", proof.proof.proof_hashes_hex());
+
                 if reverse {
-                    res.list.insert(0, CommitHash(record.commit()));
+                    res.proofs.insert(0, proof);
                 } else {
-                    res.list.push(CommitHash(record.commit()));
+                    res.proofs.push(proof);
                 }
-                res.offset = offset + res.list.len() as u64;
-                if res.list.len() == req.limit as usize {
+                res.offset = offset + res.proofs.len() as u64;
+
+                if reverse && index > 0 {
+                    index -= 1;
+                } else {
+                    index += 1;
+                }
+
+                if res.proofs.len() == req.limit as usize {
                     break;
                 }
             } else {

@@ -1,5 +1,8 @@
 //! Types for scanning commit history in event logs.
-use crate::sdk::{commit::CommitHash, events::EventLogType};
+use crate::sdk::{
+    commit::{CommitHash, CommitProof},
+    events::EventLogType,
+};
 use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
@@ -7,18 +10,16 @@ use binary_stream::futures::{
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::Result;
 
-/// Request commits from an event log.
+/// Request commit proofs from an event log.
 #[derive(Debug, Default, Clone)]
 pub struct CommitScanRequest {
     /// Type of event log to load commit hashes from.
     pub log_type: EventLogType,
-    /// Number of commits to fetch.
+    /// Number of proofs to fetch.
     ///
     /// Server implementations should restrict this to
-    /// a sensible amount.
-    ///
-    /// The default server implementation imposes a limit of
-    /// 512 hashes (16384 bytes).
+    /// a sensible amount; the default server implementation
+    /// imposes a limit of 256 proofs.
     pub limit: u16,
     /// Offset from a previous scan used as a hint to
     /// continue scanning.
@@ -34,15 +35,15 @@ pub struct CommitScanRequest {
     pub ascending: bool,
 }
 
-/// Commit hashes from an event log.
+/// Commit proofs from an event log.
 #[derive(Debug, Default)]
 pub struct CommitScanResponse {
-    /// List of commit hashes.
+    /// List of commit proofs.
     ///
-    /// Commits are always listed in the order they
+    /// Proofs are always listed in the order they
     /// appear in the event log regardless of the scan
     /// direction.
-    pub list: Vec<CommitHash>,
+    pub proofs: Vec<CommitProof>,
     /// Offset that can be used to continue scanning.
     pub offset: u64,
 }
@@ -82,7 +83,7 @@ impl Encodable for CommitScanResponse {
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
         self.offset.encode(&mut *writer).await?;
-        self.list.encode(&mut *writer).await?;
+        self.proofs.encode(&mut *writer).await?;
         Ok(())
     }
 }
@@ -94,7 +95,7 @@ impl Decodable for CommitScanResponse {
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
         self.offset.decode(&mut *reader).await?;
-        self.list.decode(&mut *reader).await?;
+        self.proofs.decode(&mut *reader).await?;
         Ok(())
     }
 }
