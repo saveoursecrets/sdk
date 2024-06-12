@@ -29,7 +29,10 @@ use crate::sdk::storage::files::{ExternalFile, FileSet, FileTransfersSet};
 #[cfg(feature = "files")]
 use crate::client::ProgressChannel;
 
-use crate::client::{CancelReason, Error, Result, SyncClient};
+use crate::{
+    client::{CancelReason, Error, Result, SyncClient},
+    commits::{CommitScanRequest, CommitScanResponse},
+};
 use std::{fmt, path::Path, time::Duration};
 use url::Url;
 
@@ -200,7 +203,7 @@ impl SyncClient for HttpClient {
         &self.origin
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     async fn account_exists(&self) -> Result<bool> {
         let url = self.build_url("api/v1/sync/account")?;
 
@@ -230,7 +233,7 @@ impl SyncClient for HttpClient {
         Ok(exists)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     async fn delete_account(&self) -> Result<()> {
         let url = self.build_url("api/v1/sync/account")?;
 
@@ -254,7 +257,7 @@ impl SyncClient for HttpClient {
         Ok(())
     }
 
-    #[instrument(skip(self, account))]
+    #[instrument(skip_all)]
     async fn create_account(&self, account: &ChangeSet) -> Result<()> {
         let body = encode(account).await?;
         let url = self.build_url("api/v1/sync/account")?;
@@ -278,7 +281,7 @@ impl SyncClient for HttpClient {
         Ok(())
     }
 
-    #[instrument(skip(self, account))]
+    #[instrument(skip_all)]
     async fn update_account(&self, account: &UpdateSet) -> Result<()> {
         let body = encode(account).await?;
         let url = self.build_url("api/v1/sync/account")?;
@@ -305,7 +308,7 @@ impl SyncClient for HttpClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     async fn fetch_account(&self) -> Result<ChangeSet> {
         let url = self.build_url("api/v1/sync/account")?;
 
@@ -334,7 +337,7 @@ impl SyncClient for HttpClient {
         Ok(decode(&buffer).await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     async fn sync_status(&self) -> Result<SyncStatus> {
         let url = self.build_url("api/v1/sync/account/status")?;
 
@@ -364,7 +367,7 @@ impl SyncClient for HttpClient {
         Ok(sync_status)
     }
 
-    #[instrument(skip(self, packet))]
+    #[instrument(skip_all)]
     async fn sync(&self, packet: &SyncPacket) -> Result<SyncPacket> {
         let body = encode(packet).await?;
         let url = self.build_url("api/v1/sync/account")?;
@@ -392,8 +395,39 @@ impl SyncClient for HttpClient {
         Ok(decode(&buffer).await?)
     }
 
+    #[instrument(skip_all)]
+    async fn scan(
+        &self,
+        request: &CommitScanRequest,
+    ) -> Result<CommitScanResponse> {
+        let body = encode(request).await?;
+        let url = self.build_url("api/v1/sync/account/events")?;
+
+        tracing::debug!(url = %url, "http::scan");
+
+        let account_signature =
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
+        let device_signature =
+            encode_device_signature(self.device_signer.sign(&body).await?)
+                .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let response = self
+            .client
+            .patch(url)
+            .header(AUTHORIZATION, auth)
+            .body(body)
+            .send()
+            .await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::scan");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(decode(&buffer).await?)
+    }
+
     #[cfg(feature = "device")]
-    #[instrument(skip(self, diff))]
+    #[instrument(skip_all)]
     async fn patch_devices(&self, diff: &DeviceDiff) -> Result<()> {
         let body = encode(diff).await?;
         let url = self.build_url("api/v1/sync/account/devices")?;
@@ -683,7 +717,7 @@ impl SyncClient for HttpClient {
         Ok(status)
     }
 
-    #[instrument(skip(self, local_files))]
+    #[instrument(skip_all)]
     async fn compare_files(
         &self,
         local_files: &FileSet,

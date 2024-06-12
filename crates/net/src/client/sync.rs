@@ -1,5 +1,8 @@
 use super::Error;
-use crate::client::{CancelReason, Result};
+use crate::{
+    client::{CancelReason, Result},
+    commits::{CommitScanRequest, CommitScanResponse},
+};
 use async_trait::async_trait;
 use sos_sdk::{
     storage,
@@ -87,6 +90,12 @@ pub trait SyncClient {
 
     /// Sync with a remote.
     async fn sync(&self, packet: &SyncPacket) -> Result<SyncPacket>;
+
+    /// Scan commits in an event log.
+    async fn scan(
+        &self,
+        request: &CommitScanRequest,
+    ) -> Result<CommitScanResponse>;
 
     /// Patch the device event log.
     #[cfg(feature = "device")]
