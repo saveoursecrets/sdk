@@ -1,9 +1,8 @@
 use anyhow::Result;
 use sos_sdk::prelude::*;
-use std::path::PathBuf;
 use uuid::Uuid;
 
-const MOCK_LOG: &str = "target/mock-event-log-standalone.events";
+const PATH: &str = "target/event_log_standalone.events";
 
 async fn mock_secret<'a>() -> Result<(SecretId, VaultCommit)> {
     let id = Uuid::new_v4();
@@ -15,9 +14,8 @@ async fn mock_secret<'a>() -> Result<(SecretId, VaultCommit)> {
 }
 
 async fn mock_event_log_standalone() -> Result<(FolderEventLog, SecretId)> {
-    let path = PathBuf::from(MOCK_LOG);
-    if vfs::try_exists(&path).await? {
-        vfs::remove_file(&path).await?;
+    if vfs::try_exists(PATH).await? {
+        vfs::remove_file(PATH).await?;
     }
 
     let mut vault: Vault = Default::default();
@@ -27,15 +25,15 @@ async fn mock_event_log_standalone() -> Result<(FolderEventLog, SecretId)> {
     let (id, data) = mock_secret().await?;
 
     // Create a simple event log
-    let mut server = FolderEventLog::new(path).await?;
-    server
+    let mut event_log = FolderEventLog::new(PATH).await?;
+    event_log
         .apply(vec![
             &WriteEvent::CreateVault(vault_buffer),
             &WriteEvent::CreateSecret(id, data),
         ])
         .await?;
 
-    Ok((server, id))
+    Ok((event_log, id))
 }
 
 async fn mock_event_log_server_client(
@@ -45,13 +43,13 @@ async fn mock_event_log_server_client(
     // than using the top-level working directory
     vfs::create_dir_all("target/mock-event-log").await?;
 
-    let server_file = PathBuf::from("target/mock-event-log/server.events");
-    let client_file = PathBuf::from("target/mock-event-log/client.events");
-    if vfs::try_exists(&server_file).await? {
-        let _ = vfs::remove_file(&server_file).await;
+    let server_file = "target/mock-event-log/server.events";
+    let client_file = "target/mock-event-log/client.events";
+    if vfs::try_exists(server_file).await? {
+        let _ = vfs::remove_file(server_file).await;
     }
     if vfs::try_exists(&client_file).await? {
-        let _ = vfs::remove_file(&client_file).await;
+        let _ = vfs::remove_file(client_file).await;
     }
 
     let vault: Vault = Default::default();
@@ -60,7 +58,7 @@ async fn mock_event_log_server_client(
     let (id, data) = mock_secret().await?;
 
     // Create a simple event log
-    let mut server = FolderEventLog::new(&server_file).await?;
+    let mut server = FolderEventLog::new(server_file).await?;
     server
         .apply(vec![
             &WriteEvent::CreateVault(vault_buffer),
@@ -69,7 +67,7 @@ async fn mock_event_log_server_client(
         .await?;
 
     // Duplicate the server events on the client
-    let mut client = FolderEventLog::new(&client_file).await?;
+    let mut client = FolderEventLog::new(client_file).await?;
     let mut it = server.iter(false).await?;
     while let Some(record) = it.next().await? {
         let event = server.decode_event(&record).await?;
@@ -122,11 +120,63 @@ async fn event_log_compare() -> Result<()> {
 #[tokio::test]
 async fn event_log_file_load() -> Result<()> {
     mock_event_log_standalone().await?;
-    let path = PathBuf::from(MOCK_LOG);
-    let event_log = FolderEventLog::new(path).await?;
+
+    let event_log = FolderEventLog::new(PATH).await?;
     let mut it = event_log.iter(false).await?;
     while let Some(record) = it.next().await? {
         let _event = event_log.decode_event(&record).await?;
+    }
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn event_log_rewind_to() -> Result<()> {
+    let path = "target/event_log_rewind_to.events";
+
+    if vfs::try_exists(path).await? {
+        vfs::remove_file(path).await?;
+    }
+
+    let mut event_log = FolderEventLog::new(path).await?;
+
+    let vault: Vault = Default::default();
+    let vault_buffer = encode(&vault).await?;
+    event_log
+        .apply(vec![&WriteEvent::CreateVault(vault_buffer)])
+        .await?;
+
+    assert_eq!(1, event_log.tree().len());
+
+    // Checkpoint we will rewind to
+    let rewind_root = event_log.tree().root().unwrap();
+    let rewind_commit = event_log.tree().last_commit().unwrap();
+
+    // Append some more events
+    let (id, data) = mock_secret().await?;
+    event_log
+        .apply(vec![&WriteEvent::CreateSecret(id, data)])
+        .await?;
+
+    assert_eq!(2, event_log.tree().len());
+    let new_root = event_log.tree().root().unwrap();
+
+    assert_ne!(rewind_root, new_root);
+
+    // Try to rewind discarding the create secret event
+    event_log.rewind_to(&rewind_commit).await?;
+
+    assert_eq!(1, event_log.tree().len());
+    let updated_root = event_log.tree().root().unwrap();
+    assert_eq!(rewind_root, updated_root);
+
+    // Make sure the file truncation is correct
+    {
+        let mut new_event_log = FolderEventLog::new(path).await?;
+        new_event_log.load_tree().await?;
+
+        let reloaded_root = new_event_log.tree().root().unwrap();
+        assert_eq!(rewind_root, reloaded_root);
     }
 
     Ok(())

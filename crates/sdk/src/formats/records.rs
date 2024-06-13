@@ -119,6 +119,15 @@ impl EventLogRecord {
     pub fn time(&self) -> &UtcDateTime {
         &self.time
     }
+
+    /// Byte length of this record.
+    pub fn byte_length(&self) -> u64 {
+        if self.offset.end >= self.offset.start {
+            self.offset.end - self.offset.start
+        } else {
+            0
+        }
+    }
 }
 
 impl PartialEq for EventLogRecord {

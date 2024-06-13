@@ -2,7 +2,6 @@
 use crate::sdk::{
     commit::{CommitHash, CommitProof},
     events::{EventLogType, EventRecord},
-    sync::Patch,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{

@@ -260,6 +260,10 @@ where
         Ok(events)
     }
 
+    /// Rewind this event log discarding commits after
+    /// the specific commit.
+    async fn rewind_to(&mut self, commit: &CommitHash) -> Result<()>;
+
     /// Delete all events from the log file on disc
     /// and in-memory.
     async fn clear(&mut self) -> Result<()> {
@@ -491,6 +495,57 @@ where
         file.flush().await?;
         Ok(())
     }
+
+    async fn rewind_to(&mut self, commit: &CommitHash) -> Result<()> {
+        let mut length = vfs::metadata(&self.data).await?.len();
+        // Iterate backwards and track how many commits are pruned
+        let mut it = self.iter(true).await?;
+        let mut num_pruned = 0;
+
+        tracing::trace!(length = %length, "event_log::rewind");
+
+        while let Some(record) = it.next().await? {
+            // Found the target commit
+            if &record.commit() == commit.as_ref() {
+                // Rewrite the in-memory tree
+                let mut leaves = self.tree().leaves().unwrap_or_default();
+                if leaves.len() > num_pruned {
+                    let new_len = leaves.len() - num_pruned;
+                    leaves.truncate(new_len);
+                    let mut tree = CommitTree::new();
+                    tree.append(&mut leaves);
+                    tree.commit();
+                    *self.tree_mut() = tree;
+                } else {
+                    return Err(Error::RewindLeavesLength);
+                }
+
+                // Truncate the file to the new length
+                let file =
+                    OpenOptions::new().write(true).open(&self.data).await?;
+                file.set_len(length).await?;
+
+                return Ok(());
+            }
+
+            // Compute new length and number of pruned commits
+            let byte_length = record.byte_length();
+
+            if byte_length < length {
+                length -= byte_length;
+            }
+            num_pruned += 1;
+
+            tracing::trace!(
+                length = %length,
+                byte_length = %byte_length,
+                num_pruned = %num_pruned,
+                "event_log::rewind",
+            );
+        }
+
+        Err(Error::CommitNotFound(*commit))
+    }
 }
 
 impl<E> EventLog<E, DiscLog, DiscLog, PathBuf>
@@ -605,6 +660,10 @@ impl EventLogExt<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
 
     async fn truncate(&mut self) -> Result<()> {
         unimplemented!("truncate on memory event log");
+    }
+
+    async fn rewind_to(&mut self, _commit: &CommitHash) -> Result<()> {
+        unimplemented!("rewind_to on memory event log");
     }
 }
 

@@ -285,6 +285,10 @@ pub enum Error {
     #[error("commit '{0}' could not be found")]
     CommitNotFound(CommitHash),
 
+    /// Error generated trying to rewind an event log.
+    #[error("rewind failed as pruned commits is greater than the length of the in-memory tree")]
+    RewindLeavesLength,
+
     /// Error generated when an RPC method kind is invalid.
     #[error("method kind {0} is invalid")]
     InvalidMethod(u16),
