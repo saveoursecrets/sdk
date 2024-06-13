@@ -1,6 +1,5 @@
 //! HTTP client implementation.
 use async_trait::async_trait;
-use binary_stream::futures::{Decodable, Encodable};
 use futures::{Future, StreamExt};
 use http::StatusCode;
 use reqwest::header::AUTHORIZATION;
@@ -430,13 +429,10 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn diff<T>(
+    async fn diff(
         &self,
         request: &CommitDiffRequest,
-    ) -> Result<CommitDiffResponse<T>>
-    where
-        T: Default + Encodable + Decodable + Send + Sync,
-    {
+    ) -> Result<CommitDiffResponse> {
         let body = encode(request).await?;
         let url = self.build_url("api/v1/sync/account/events")?;
 

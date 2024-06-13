@@ -7,7 +7,6 @@ use crate::{
     },
 };
 use async_trait::async_trait;
-use binary_stream::futures::{Decodable, Encodable};
 use sos_sdk::{
     storage,
     sync::{
@@ -101,13 +100,11 @@ pub trait SyncClient {
         request: &CommitScanRequest,
     ) -> Result<CommitScanResponse>;
 
-    /// Fetch a patch of events since a given commit hash.
-    async fn diff<T>(
+    /// Fetch a collection of event records since a given commit hash.
+    async fn diff(
         &self,
         request: &CommitDiffRequest,
-    ) -> Result<CommitDiffResponse<T>>
-    where
-        T: Default + Encodable + Decodable + Send + Sync;
+    ) -> Result<CommitDiffResponse>;
 
     /// Patch the device event log.
     #[cfg(feature = "device")]

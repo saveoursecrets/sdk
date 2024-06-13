@@ -1,8 +1,7 @@
 //! Types for scanning commit history in event logs.
 use crate::sdk::{
     commit::{CommitHash, CommitProof},
-    events::EventLogType,
-    sync::Patch,
+    events::{EventLogType, EventRecord},
 };
 use async_trait::async_trait;
 use binary_stream::futures::{
@@ -60,12 +59,9 @@ pub struct CommitDiffRequest {
 
 /// Response with an event log commit diff.
 #[derive(Debug, Default)]
-pub struct CommitDiffResponse<T>
-where
-    T: Default + Encodable + Decodable + Send + Sync,
-{
-    /// Patch of events from the commit hash.
-    pub patch: Option<Patch<T>>,
+pub struct CommitDiffResponse {
+    /// Collection of event records from the commit hash.
+    pub patch: Vec<EventRecord>,
 }
 
 #[async_trait]
@@ -145,10 +141,7 @@ impl Decodable for CommitDiffRequest {
 }
 
 #[async_trait]
-impl<T> Encodable for CommitDiffResponse<T>
-where
-    T: Default + Encodable + Decodable + Send + Sync,
-{
+impl Encodable for CommitDiffResponse {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,
         writer: &mut BinaryWriter<W>,
@@ -159,10 +152,7 @@ where
 }
 
 #[async_trait]
-impl<T> Decodable for CommitDiffResponse<T>
-where
-    T: Default + Encodable + Decodable + Send + Sync,
-{
+impl Decodable for CommitDiffResponse {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
         &mut self,
         reader: &mut BinaryReader<R>,

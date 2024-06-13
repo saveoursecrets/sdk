@@ -903,11 +903,8 @@ mod handlers {
     where
         T: Default + Encodable + Decodable + Send + Sync + 'static,
     {
-        let mut response = CommitDiffResponse::<T>::default();
-        let patch = event_log.diff(Some(&req.from_hash)).await?;
-        if !patch.is_empty() {
-            response.patch = Some(patch);
-        }
+        let mut response = CommitDiffResponse::default();
+        response.patch = event_log.diff_records(Some(&req.from_hash)).await?;
         Ok(encode(&response).await?)
     }
 
