@@ -89,6 +89,7 @@ pub mod migrate;
 pub mod passwd;
 pub mod prelude;
 
+#[doc(hidden)]
 #[cfg(feature = "recovery")]
 pub mod recovery;
 
