@@ -107,7 +107,7 @@ features = ["sync"]
 path = "../sdk"
 
 [dependencies.binary-stream]
-version = "8.0.0"
+version = "9.1.0"
 features = ["async"]
 #path = "../../../../binary-stream"
 

@@ -67,7 +67,7 @@ file-guard = "0.2"
 tempfile = "3.5"
 
 [workspace.dependencies.binary-stream]
-version = "8.3.0"
+version = "9.1.0"
 features = ["async"]
 #path = "../../../../binary-stream"
 
