@@ -88,35 +88,6 @@ impl CommitTree {
         self.proof_range(range)
     }
 
-    /// Get a proof up to a particular commit.
-    pub fn proof_at(&self, commit: &CommitHash) -> Result<CommitProof> {
-        let mut leaves = self.tree.leaves().unwrap_or_default();
-        let position = leaves.iter().position(|leaf| leaf == commit.as_ref());
-        if let Some(position) = position {
-            if position < leaves.len() - 1 {
-                leaves.truncate(position + 1);
-                let partial = MerkleTree::from_leaves(&leaves);
-                let indices = 0..leaves.len();
-                let leaf_indices = indices.clone().collect::<Vec<_>>();
-                let proof = partial.proof(&leaf_indices);
-                let root = partial
-                    .root()
-                    .map(CommitHash)
-                    .ok_or(Error::NoRootCommit)?;
-                Ok(CommitProof {
-                    root,
-                    proof,
-                    length: leaves.len(),
-                    indices,
-                })
-            } else {
-                self.head()
-            }
-        } else {
-            Err(Error::NoRootCommit)
-        }
-    }
-
     /// Proof for the given range.
     pub fn proof_range(&self, indices: Range<usize>) -> Result<CommitProof> {
         let leaf_indices = indices.collect::<Vec<_>>();
@@ -185,9 +156,21 @@ impl CommitTree {
     /// Must have at least one commit.
     pub fn first_commit(&self) -> Result<CommitState> {
         let leaves = self.tree.leaves().ok_or(Error::NoRootCommit)?;
-        let first_commit =
-            CommitHash(*leaves.first().ok_or(Error::NoRootCommit)?);
-        let first_proof = self.proof_at(&first_commit)?;
+
+        // Compute a proof for the first commit
+        let leaf = *leaves.first().ok_or(Error::NoRootCommit)?;
+        let leaves = vec![leaf];
+        let tree = MerkleTree::<Sha256>::from_leaves(&leaves);
+        let proof = tree.proof(&[0]);
+        let root = tree.root().map(CommitHash).ok_or(Error::NoRootCommit)?;
+        let first_proof = CommitProof {
+            root,
+            proof,
+            length: leaves.len(),
+            indices: 0..1,
+        };
+
+        let first_commit = CommitHash(leaf);
         Ok(CommitState(first_commit, first_proof))
     }
 
