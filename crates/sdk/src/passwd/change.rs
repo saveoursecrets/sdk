@@ -82,7 +82,7 @@ impl<'a> ChangePassword<'a> {
     ///
     /// Yields the encrpytion passphrase for the new vault, the
     /// new computed vault and a collection of events that can
-    /// be used to generate a fresh write-ahead log file.
+    /// be used to generate a fresh event log file.
     pub async fn build(self) -> Result<(AccessKey, Vault, Vec<WriteEvent>)> {
         // Decrypt current vault meta data blob
         let current_private_key = self.current_private_key()?;

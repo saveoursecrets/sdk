@@ -1,4 +1,4 @@
-//! Vault secret storage.
+//! Vault encrypted storage and access.
 
 mod builder;
 mod file_writer;
@@ -17,6 +17,7 @@ pub use vault::{
 pub(crate) use vault::Auth;
 
 #[cfg(debug_assertions)]
+#[doc(hidden)]
 pub use vault::Contents;
 
 #[cfg(not(debug_assertions))]
