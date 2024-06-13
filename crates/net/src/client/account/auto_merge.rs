@@ -12,13 +12,22 @@ use sos_sdk::{
         AccountEvent, EventLogExt, EventLogType, EventRecord, WriteEvent,
     },
     storage::StorageEventLogs,
-    sync::{MaybeConflict, Patch, SyncPacket},
+    sync::{
+        AccountDiff, FolderDiff, MaybeConflict, Merge, MergeOutcome, Patch,
+        SyncPacket,
+    },
     vault::VaultId,
 };
 use std::collections::HashSet;
 use tracing::instrument;
 
 const PROOF_SCAN_LIMIT: u16 = 32;
+
+#[cfg(feature = "device")]
+use sos_sdk::{events::DeviceEvent, sync::DeviceDiff};
+
+#[cfg(feature = "files")]
+use sos_sdk::{events::FileEvent, sync::FileDiff};
 
 /// Whether to apply an auto merge to local or remote.
 enum AutoMerge {
@@ -78,10 +87,11 @@ impl RemoteBridge {
             limit: PROOF_SCAN_LIMIT,
             ascending: false,
         };
-        if let Some(ancestor_commit) = self.scan_proofs(req).await? {
+        if let Some((ancestor_commit, proof)) = self.scan_proofs(req).await? {
             self.try_merge_from_ancestor::<WriteEvent>(
                 EventLogType::Identity,
                 ancestor_commit,
+                proof,
             )
             .await?;
         }
@@ -98,10 +108,11 @@ impl RemoteBridge {
             limit: PROOF_SCAN_LIMIT,
             ascending: false,
         };
-        if let Some(ancestor_commit) = self.scan_proofs(req).await? {
+        if let Some((ancestor_commit, proof)) = self.scan_proofs(req).await? {
             self.try_merge_from_ancestor::<AccountEvent>(
                 EventLogType::Account,
                 ancestor_commit,
+                proof,
             )
             .await?;
         }
@@ -121,10 +132,11 @@ impl RemoteBridge {
             limit: PROOF_SCAN_LIMIT,
             ascending: false,
         };
-        if let Some(ancestor_commit) = self.scan_proofs(req).await? {
+        if let Some((ancestor_commit, proof)) = self.scan_proofs(req).await? {
             self.try_merge_from_ancestor::<DeviceEvent>(
                 EventLogType::Device,
                 ancestor_commit,
+                proof,
             )
             .await?;
         }
@@ -144,10 +156,11 @@ impl RemoteBridge {
             limit: PROOF_SCAN_LIMIT,
             ascending: false,
         };
-        if let Some(ancestor_commit) = self.scan_proofs(req).await? {
+        if let Some((ancestor_commit, proof)) = self.scan_proofs(req).await? {
             self.try_merge_from_ancestor::<FileEvent>(
                 EventLogType::Files,
                 ancestor_commit,
+                proof,
             )
             .await?;
         }
@@ -169,10 +182,13 @@ impl RemoteBridge {
                 limit: PROOF_SCAN_LIMIT,
                 ascending: false,
             };
-            if let Some(ancestor_commit) = self.scan_proofs(req).await? {
+            if let Some((ancestor_commit, proof)) =
+                self.scan_proofs(req).await?
+            {
                 self.try_merge_from_ancestor::<WriteEvent>(
                     EventLogType::Folder(*folder_id),
                     ancestor_commit,
+                    proof,
                 )
                 .await?;
             }
@@ -187,6 +203,7 @@ impl RemoteBridge {
         &self,
         log_type: EventLogType,
         commit: CommitHash,
+        proof: CommitProof,
     ) -> Result<()>
     where
         T: Default + Encodable + Decodable + Send + Sync,
@@ -239,10 +256,11 @@ impl RemoteBridge {
 
         match result {
             AutoMerge::RewindLocal(events) => {
-                self.rewind_local::<T>(&log_type, &commit, events).await?;
+                self.rewind_local(&log_type, commit, proof, events).await?;
             }
             AutoMerge::PushRemote(events) => {
-                self.push_remote::<T>(&log_type, &commit, events).await?;
+                self.push_remote::<T>(&log_type, commit, proof, events)
+                    .await?;
             }
         }
 
@@ -285,15 +303,13 @@ impl RemoteBridge {
     }
 
     /// Rewind a local event log and apply the events.
-    async fn rewind_local<T>(
+    async fn rewind_local(
         &self,
         log_type: &EventLogType,
-        commit: &CommitHash,
+        commit: CommitHash,
+        proof: CommitProof,
         events: Vec<EventRecord>,
-    ) -> Result<()>
-    where
-        T: Default + Encodable + Decodable + Send + Sync,
-    {
+    ) -> Result<()> {
         tracing::debug!(
           log_type = ?log_type,
           commit = %commit,
@@ -301,17 +317,80 @@ impl RemoteBridge {
           "auto_merge::rewind_local",
         );
 
-        // Convert the event records in to a patch
-        let patch = Patch::<T>::new(events).await?;
+        // Rewind the event log to the target commit
+        self.rewind_event_log(log_type, &commit).await?;
 
-        todo!("rewind local");
+        let mut outcome = MergeOutcome::default();
+
+        // Merge the events after rewinding
+        {
+            let mut account = self.account.lock().await;
+            match &log_type {
+                EventLogType::Identity => {
+                    let patch = Patch::<WriteEvent>::new(events).await?;
+                    let diff = FolderDiff {
+                        last_commit: Some(commit),
+                        before: proof,
+                        patch,
+                        after: None,
+                    };
+                    account.merge_identity(&diff, &mut outcome).await?;
+                }
+                EventLogType::Account => {
+                    let patch = Patch::<AccountEvent>::new(events).await?;
+                    let diff = AccountDiff {
+                        last_commit: Some(commit),
+                        before: proof,
+                        patch,
+                        after: None,
+                    };
+                    account.merge_account(&diff, &mut outcome).await?;
+                }
+                #[cfg(feature = "device")]
+                EventLogType::Device => {
+                    let patch = Patch::<DeviceEvent>::new(events).await?;
+                    let diff = DeviceDiff {
+                        last_commit: Some(commit),
+                        before: proof,
+                        patch,
+                        after: None,
+                    };
+                    account.merge_device(&diff, &mut outcome).await?;
+                }
+                #[cfg(feature = "files")]
+                EventLogType::Files => {
+                    let patch = Patch::<FileEvent>::new(events).await?;
+                    let diff = FileDiff {
+                        last_commit: Some(commit),
+                        before: proof,
+                        patch,
+                        after: None,
+                    };
+                    account.merge_files(&diff, &mut outcome).await?;
+                }
+                EventLogType::Folder(id) => {
+                    let patch = Patch::<WriteEvent>::new(events).await?;
+                    let diff = FolderDiff {
+                        last_commit: Some(commit),
+                        before: proof,
+                        patch,
+                        after: None,
+                    };
+                    account.merge_folder(id, &diff, &mut outcome).await?;
+                }
+                EventLogType::Noop => unreachable!(),
+            }
+        }
+
+        Ok(())
     }
 
     /// Push the events to a remote and rewind local.
     async fn push_remote<T>(
         &self,
         log_type: &EventLogType,
-        commit: &CommitHash,
+        commit: CommitHash,
+        proof: CommitProof,
         events: Vec<EventRecord>,
     ) -> Result<()>
     where
@@ -326,7 +405,7 @@ impl RemoteBridge {
 
         let req = EventPatchRequest {
             log_type: *log_type,
-            from_hash: Some(*commit),
+            from_hash: Some(commit),
             patch: events,
         };
 
@@ -335,12 +414,58 @@ impl RemoteBridge {
         todo!("push remote");
     }
 
+    /// Rewind an event log to a specific commit.
+    async fn rewind_event_log(
+        &self,
+        log_type: &EventLogType,
+        commit: &CommitHash,
+    ) -> Result<()> {
+        tracing::debug!(
+          log_type = ?log_type,
+          commit = %commit,
+          "automerge::rewind_event_log",
+        );
+        // Rewind the event log
+        let account = self.account.lock().await;
+        match &log_type {
+            EventLogType::Identity => {
+                let log = account.identity_log().await?;
+                let mut event_log = log.write().await;
+                event_log.rewind(commit).await?;
+            }
+            EventLogType::Account => {
+                let log = account.account_log().await?;
+                let mut event_log = log.write().await;
+                event_log.rewind(commit).await?;
+            }
+            #[cfg(feature = "device")]
+            EventLogType::Device => {
+                let log = account.device_log().await?;
+                let mut event_log = log.write().await;
+                event_log.rewind(commit).await?;
+            }
+            #[cfg(feature = "files")]
+            EventLogType::Files => {
+                let log = account.file_log().await?;
+                let mut event_log = log.write().await;
+                event_log.rewind(commit).await?;
+            }
+            EventLogType::Folder(id) => {
+                let log = account.folder_log(id).await?;
+                let mut event_log = log.write().await;
+                event_log.rewind(commit).await?;
+            }
+            EventLogType::Noop => unreachable!(),
+        }
+        Ok(())
+    }
+
     /// Scan the remote for proofs that match this client.
     #[async_recursion]
     async fn scan_proofs(
         &self,
         request: CommitScanRequest,
-    ) -> Result<Option<CommitHash>> {
+    ) -> Result<Option<(CommitHash, CommitProof)>> {
         tracing::debug!(request = ?request, "auto_merge::scan_proofs");
 
         let response = self.client.scan(&request).await?;
@@ -355,7 +480,7 @@ impl RemoteBridge {
                 // Find the last matching commit from the indices
                 // to prove
                 if let Some(commit_hash) = commit_hashes.last() {
-                    return Ok(Some(*commit_hash));
+                    return Ok(Some((*commit_hash, proof.clone())));
                 }
             }
 
