@@ -1005,7 +1005,7 @@ mod handlers {
                 let log = reader.storage.identity_log();
                 let mut event_log = log.write().await;
                 if let Some(commit) = &req.from_hash {
-                    event_log.rewind_to(commit).await?;
+                    event_log.rewind(commit).await?;
                 }
                 event_log.apply(patch.iter().collect()).await?;
             }
@@ -1015,7 +1015,7 @@ mod handlers {
                 let log = reader.storage.account_log();
                 let mut event_log = log.write().await;
                 if let Some(commit) = &req.from_hash {
-                    event_log.rewind_to(commit).await?;
+                    event_log.rewind(commit).await?;
                 }
                 event_log.apply(patch.iter().collect()).await?;
             }
@@ -1026,7 +1026,7 @@ mod handlers {
                 let log = reader.storage.device_log().await?;
                 let mut event_log = log.write().await;
                 if let Some(commit) = &req.from_hash {
-                    event_log.rewind_to(commit).await?;
+                    event_log.rewind(commit).await?;
                 }
                 event_log.apply(patch.iter().collect()).await?;
             }
@@ -1037,7 +1037,7 @@ mod handlers {
                 let log = reader.storage.file_log().await?;
                 let mut event_log = log.write().await;
                 if let Some(commit) = &req.from_hash {
-                    event_log.rewind_to(commit).await?;
+                    event_log.rewind(commit).await?;
                 }
                 event_log.apply(patch.iter().collect()).await?;
             }
@@ -1047,7 +1047,7 @@ mod handlers {
                 let log = reader.storage.folder_log(id).await?;
                 let mut event_log = log.write().await;
                 if let Some(commit) = &req.from_hash {
-                    event_log.rewind_to(commit).await?;
+                    event_log.rewind(commit).await?;
                 }
                 event_log.apply(patch.iter().collect()).await?;
             }

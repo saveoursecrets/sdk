@@ -262,7 +262,7 @@ where
 
     /// Rewind this event log discarding commits after
     /// the specific commit.
-    async fn rewind_to(&mut self, commit: &CommitHash) -> Result<()>;
+    async fn rewind(&mut self, commit: &CommitHash) -> Result<()>;
 
     /// Delete all events from the log file on disc
     /// and in-memory.
@@ -496,7 +496,7 @@ where
         Ok(())
     }
 
-    async fn rewind_to(&mut self, commit: &CommitHash) -> Result<()> {
+    async fn rewind(&mut self, commit: &CommitHash) -> Result<()> {
         let mut length = vfs::metadata(&self.data).await?.len();
         // Iterate backwards and track how many commits are pruned
         let mut it = self.iter(true).await?;
@@ -662,8 +662,8 @@ impl EventLogExt<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
         unimplemented!("truncate on memory event log");
     }
 
-    async fn rewind_to(&mut self, _commit: &CommitHash) -> Result<()> {
-        unimplemented!("rewind_to on memory event log");
+    async fn rewind(&mut self, _commit: &CommitHash) -> Result<()> {
+        unimplemented!("rewind on memory event log");
     }
 }
 

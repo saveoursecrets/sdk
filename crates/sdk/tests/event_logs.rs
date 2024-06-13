@@ -131,8 +131,8 @@ async fn event_log_file_load() -> Result<()> {
 }
 
 #[tokio::test]
-async fn event_log_rewind_to() -> Result<()> {
-    let path = "target/event_log_rewind_to.events";
+async fn event_log_rewind() -> Result<()> {
+    let path = "target/event_log_rewind.events";
 
     if vfs::try_exists(path).await? {
         vfs::remove_file(path).await?;
@@ -164,7 +164,7 @@ async fn event_log_rewind_to() -> Result<()> {
     assert_ne!(rewind_root, new_root);
 
     // Try to rewind discarding the create secret event
-    event_log.rewind_to(&rewind_commit).await?;
+    event_log.rewind(&rewind_commit).await?;
 
     assert_eq!(1, event_log.tree().len());
     let updated_root = event_log.tree().root().unwrap();
