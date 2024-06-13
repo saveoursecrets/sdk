@@ -6,7 +6,7 @@ use crate::{
 };
 use async_recursion::async_recursion;
 use sos_sdk::{
-    commit::{CommitHash, CommitProof},
+    commit::{CommitHash, CommitProof, Comparison},
     events::{EventLogExt, EventLogType},
     storage::StorageEventLogs,
     sync::{MaybeConflict, SyncPacket},
@@ -89,7 +89,9 @@ impl RemoteBridge {
                 limit: 32,
                 ascending: false,
             };
-            self.scan_proofs(local, req).await?;
+            if let Some(ancestor_commit) = self.scan_proofs(req).await? {
+                println!("Got matching commit hash: {:#?}", ancestor_commit,);
+            }
         }
         Ok(())
     }
@@ -98,20 +100,31 @@ impl RemoteBridge {
     #[async_recursion]
     async fn scan_proofs(
         &self,
-        local: &SyncPacket,
         request: CommitScanRequest,
-    ) -> Result<Option<CommitProof>> {
+    ) -> Result<Option<CommitHash>> {
         let response = self.client.scan(&request).await?;
         if !response.proofs.is_empty() {
-            println!("Got some proofs to compare {}", response.proofs.len(),);
-
+            // Proofs are returned in the event log order
+            // but we always want to scan from the end of
+            // the event log so reverse the iteration
             for proof in response.proofs.iter().rev() {
-                let commit_hash =
+                let commit_hashes =
                     self.compare_proof(&request.log_type, proof).await?;
-                println!("Got commit hash: {:#?}", commit_hash);
+
+                // Find the last matching commit from the indices
+                // to prove
+                if let Some(commit_hash) = commit_hashes.last() {
+                    return Ok(Some(*commit_hash));
+                }
             }
+
+            // Try to scan more proofs
+            let mut req = request.clone();
+            req.offset = Some(response.offset);
+            self.scan_proofs(req).await
+        } else {
+            Ok(None)
         }
-        todo!();
     }
 
     /// Determine if a local event log contains a proof
@@ -120,43 +133,48 @@ impl RemoteBridge {
         &self,
         log_type: &EventLogType,
         proof: &CommitProof,
-    ) -> Result<()> {
+    ) -> Result<Vec<CommitHash>> {
         let account = self.account.lock().await;
 
-        let response = match &log_type {
-            EventLogType::Noop => {}
+        let comparison = match &log_type {
             EventLogType::Identity => {
                 let log = account.identity_log().await?;
                 let event_log = log.read().await;
+                event_log.tree().compare(proof)?
             }
             EventLogType::Account => {
-                // let reader = account.read().await;
                 let log = account.account_log().await?;
                 let event_log = log.read().await;
+                event_log.tree().compare(proof)?
             }
             #[cfg(feature = "device")]
             EventLogType::Device => {
-                // let reader = account.read().await;
                 let log = account.device_log().await?;
                 let event_log = log.read().await;
+                event_log.tree().compare(proof)?
             }
             #[cfg(feature = "files")]
             EventLogType::Files => {
-                // let reader = account.read().await;
                 let log = account.file_log().await?;
                 let event_log = log.read().await;
+                event_log.tree().compare(proof)?
             }
             EventLogType::Folder(id) => {
-                // let reader = account.read().await;
                 let log = account.folder_log(id).await?;
                 let event_log = log.read().await;
-                let comparison = event_log.tree().compare(proof)?;
-                println!("comparison: {:#?}", comparison);
+                event_log.tree().compare(proof)?
+            }
+            EventLogType::Noop => {
+                panic!("attempt to compare a noop event log type");
             }
         };
 
-        // todo!();
-
-        Ok(())
+        if let Comparison::Contains(_, leaves) = comparison {
+            let commits =
+                leaves.into_iter().map(CommitHash).collect::<Vec<_>>();
+            Ok(commits)
+        } else {
+            Ok(vec![])
+        }
     }
 }
