@@ -9,7 +9,7 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 #[ignore = "work in progress"]
 async fn auto_merge_simple_merge_folder() -> Result<()> {
     const TEST_ID: &str = "auto_merge_simple_merge_folder";
-    // crate::test_utils::init_tracing();
+    crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -66,6 +66,9 @@ async fn auto_merge_simple_merge_folder() -> Result<()> {
 
     // Sync the second device
     let sync_error = device2.owner.sync().await;
+
+    println!("sync_error {:#?}", sync_error);
+
     assert!(sync_error.is_none());
 
     /*

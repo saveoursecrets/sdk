@@ -8,7 +8,6 @@ use serde::{
 use std::{
     fmt,
     hash::{Hash, Hasher as StdHasher},
-    ops::Range,
 };
 
 use rs_merkle::{algorithms::Sha256, MerkleProof};

@@ -10,7 +10,7 @@ use sos_sdk::{
     commit::{CommitHash, CommitProof, Comparison},
     events::{AccountEvent, EventLogExt, EventLogType, WriteEvent},
     storage::StorageEventLogs,
-    sync::{MaybeConflict, SyncPacket},
+    sync::{MaybeConflict, Patch, SyncPacket},
     vault::VaultId,
 };
 use tracing::instrument;
@@ -182,12 +182,140 @@ impl RemoteBridge {
     {
         tracing::debug!(commit = %commit, "auto_merge::try_merge_from_ancestor");
 
+        // Fetch the patch of remote events
         let request = CommitDiffRequest {
             log_type,
             from_hash: commit,
         };
-        let remote_patch = self.client.diff::<T>(&request).await?;
 
+        // Get the patches from local and remote
+        let account = self.account.lock().await;
+        match &log_type {
+            EventLogType::Identity => {
+                let log = account.identity_log().await?;
+                let event_log = log.read().await;
+                let local_patch = event_log.diff(Some(&commit)).await?;
+                if let Some(remote_patch) =
+                    self.client.diff::<WriteEvent>(&request).await?.patch
+                {
+                    tracing::info!(
+                        local_len = local_patch.len(),
+                        remote_len = remote_patch.len(),
+                        "auto_merge::identity",
+                    );
+
+                    let new_patch = self
+                        .auto_merge_patches(local_patch, remote_patch)
+                        .await?;
+                } else {
+                    tracing::warn!(
+                        "auto_merge::identity::remote_patch_empty"
+                    );
+                }
+            }
+            EventLogType::Account => {
+                let log = account.account_log().await?;
+                let event_log = log.read().await;
+                let local_patch = event_log.diff(Some(&commit)).await?;
+                if let Some(remote_patch) =
+                    self.client.diff::<AccountEvent>(&request).await?.patch
+                {
+                    tracing::info!(
+                        local_len = local_patch.len(),
+                        remote_len = remote_patch.len(),
+                        "auto_merge::account",
+                    );
+
+                    let new_patch = self
+                        .auto_merge_patches(local_patch, remote_patch)
+                        .await?;
+                } else {
+                    tracing::warn!("auto_merge::account::remote_patch_empty");
+                }
+            }
+            #[cfg(feature = "device")]
+            EventLogType::Device => {
+                use sos_sdk::events::DeviceEvent;
+
+                let log = account.device_log().await?;
+                let event_log = log.read().await;
+                let local_patch = event_log.diff(Some(&commit)).await?;
+                if let Some(remote_patch) =
+                    self.client.diff::<DeviceEvent>(&request).await?.patch
+                {
+                    tracing::info!(
+                        local_len = local_patch.len(),
+                        remote_len = remote_patch.len(),
+                        "auto_merge::device",
+                    );
+
+                    let new_patch = self
+                        .auto_merge_patches(local_patch, remote_patch)
+                        .await?;
+                } else {
+                    tracing::warn!("auto_merge::device::remote_patch_empty");
+                }
+            }
+            #[cfg(feature = "files")]
+            EventLogType::Files => {
+                use sos_sdk::events::FileEvent;
+
+                let log = account.file_log().await?;
+                let event_log = log.read().await;
+                let local_patch = event_log.diff(Some(&commit)).await?;
+                if let Some(remote_patch) =
+                    self.client.diff::<FileEvent>(&request).await?.patch
+                {
+                    tracing::info!(
+                        local_len = local_patch.len(),
+                        remote_len = remote_patch.len(),
+                        "auto_merge::files",
+                    );
+
+                    let new_patch = self
+                        .auto_merge_patches(local_patch, remote_patch)
+                        .await?;
+                } else {
+                    tracing::warn!("auto_merge::files::remote_patch_empty");
+                }
+            }
+            EventLogType::Folder(id) => {
+                let log = account.folder_log(id).await?;
+                let event_log = log.read().await;
+                let local_patch = event_log.diff(Some(&commit)).await?;
+                if let Some(remote_patch) =
+                    self.client.diff::<WriteEvent>(&request).await?.patch
+                {
+                    tracing::info!(
+                        local_len = local_patch.len(),
+                        remote_len = remote_patch.len(),
+                        "auto_merge::identity",
+                    );
+
+                    let new_patch = self
+                        .auto_merge_patches(local_patch, remote_patch)
+                        .await?;
+                } else {
+                    tracing::warn!(
+                      folder_id = %id,
+                      "auto_merge::folder::remote_patch_empty",
+                    );
+                }
+            }
+            EventLogType::Noop => unreachable!(),
+        }
+
+        Ok(())
+    }
+
+    async fn auto_merge_patches<T>(
+        &self,
+        local: Patch<T>,
+        remote: Patch<T>,
+    ) -> Result<Patch<T>>
+    where
+        T: Default + Encodable + Decodable + Send + Sync,
+    {
         todo!();
     }
 

@@ -31,7 +31,7 @@ where
         writer.write_bytes(PATCH_IDENTITY).await?;
         writer.write_u32(self.len() as u32).await?;
         for event in self.iter() {
-            event.encode(writer).await?;
+            event.encode(&mut *writer).await?;
         }
         Ok(())
     }

@@ -893,7 +893,7 @@ mod handlers {
             HeaderValue::from_static(MIME_TYPE_SOS),
         );
 
-        Ok((headers, encode(&response).await?))
+        Ok((headers, response))
     }
 
     async fn diff_log<T>(
