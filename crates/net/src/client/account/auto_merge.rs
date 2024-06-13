@@ -15,9 +15,18 @@ use sos_sdk::{
     sync::{MaybeConflict, Patch, SyncPacket},
     vault::VaultId,
 };
+use std::collections::HashSet;
 use tracing::instrument;
 
 const PROOF_SCAN_LIMIT: u16 = 32;
+
+/// Whether to apply an auto merge to local or remote.
+enum AutoMerge {
+    /// Apply the events to the local event log.
+    RewindLocal(Vec<EventRecord>),
+    /// Push events to the remote.
+    PushRemote(Vec<EventRecord>),
+}
 
 impl RemoteBridge {
     /// Try to auto merge on conflict.
@@ -226,13 +235,16 @@ impl RemoteBridge {
         };
         let remote_patch = self.client.diff(&request).await?.patch;
 
-        let records = self.merge_patches(local_patch, remote_patch).await?;
+        let result = self.merge_patches(local_patch, remote_patch).await?;
 
-        // Convert the merge records in to a patch
-        // we can apply to the server
-        let patch = Patch::<T>::new(records);
-
-        todo!("apply merged patch to remote server {}", commit);
+        match result {
+            AutoMerge::RewindLocal(events) => {
+                self.rewind_local::<T>(&log_type, &commit, events).await?;
+            }
+            AutoMerge::PushRemote(events) => {
+                self.push_remote::<T>(&log_type, &commit, events).await?;
+            }
+        }
 
         Ok(())
     }
@@ -241,12 +253,27 @@ impl RemoteBridge {
         &self,
         mut local: Vec<EventRecord>,
         remote: Vec<EventRecord>,
-    ) -> Result<Vec<EventRecord>> {
+    ) -> Result<AutoMerge> {
         tracing::info!(
             local_len = local.len(),
             remote_len = remote.len(),
             "auto_merge::merge_patches",
         );
+
+        let local_commits =
+            local.iter().map(|r| r.commit()).collect::<HashSet<_>>();
+        let remote_commits =
+            remote.iter().map(|r| r.commit()).collect::<HashSet<_>>();
+
+        // If all the local commits exist in the remote
+        // then apply the remote events to the local event
+        // log.
+        //
+        // If we didn't do this then automerge could go on
+        // ad infinitum.
+        if local_commits.is_subset(&remote_commits) {
+            return Ok(AutoMerge::RewindLocal(remote));
+        }
 
         // Combine the event records
         local.extend(remote.into_iter());
@@ -254,7 +281,51 @@ impl RemoteBridge {
         // Sort by time so the more recent changes will win (LWW)
         local.sort_by(|a, b| a.time().cmp(b.time()));
 
-        Ok(local)
+        Ok(AutoMerge::PushRemote(local))
+    }
+
+    /// Rewind a local event log and apply the events.
+    async fn rewind_local<T>(
+        &self,
+        log_type: &EventLogType,
+        commit: &CommitHash,
+        events: Vec<EventRecord>,
+    ) -> Result<()>
+    where
+        T: Default + Encodable + Decodable + Send + Sync,
+    {
+        tracing::debug!(
+          log_type = ?log_type,
+          commit = %commit,
+          "auto_merge::rewind_local",
+        );
+
+        // Convert the event records in to a patch
+        let patch = Patch::<T>::new(events);
+
+        todo!("rewind local");
+    }
+
+    /// Push the events to a remote and rewind local.
+    async fn push_remote<T>(
+        &self,
+        log_type: &EventLogType,
+        commit: &CommitHash,
+        events: Vec<EventRecord>,
+    ) -> Result<()>
+    where
+        T: Default + Encodable + Decodable + Send + Sync,
+    {
+        tracing::debug!(
+          log_type = ?log_type,
+          commit = %commit,
+          "auto_merge::push_remote",
+        );
+
+        // Convert the event records in to a patch
+        let patch = Patch::<T>::new(events);
+
+        todo!("push remote");
     }
 
     /// Scan the remote for proofs that match this client.
