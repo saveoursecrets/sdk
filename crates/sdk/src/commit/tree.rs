@@ -1,6 +1,5 @@
 use crate::{Error, Result};
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
-use std::ops::Range;
 
 use super::{CommitHash, CommitProof, CommitState, Comparison};
 
@@ -84,37 +83,18 @@ impl CommitTree {
         if self.is_empty() {
             return Err(Error::NoRootCommit);
         }
-        let range = self.tree.leaves_len() - 1..self.tree.leaves_len();
-        self.proof_range(range)
-    }
-
-    /// Proof for the given range.
-    pub fn proof_range(&self, indices: Range<usize>) -> Result<CommitProof> {
-        let leaf_indices = indices.collect::<Vec<_>>();
-        self.proof(&leaf_indices)
+        self.proof(&[self.tree.leaves_len() - 1])
     }
 
     /// Proof for the given indices.
     pub fn proof(&self, leaf_indices: &[usize]) -> Result<CommitProof> {
         let root = self.root().ok_or(Error::NoRootCommit)?;
         let proof = self.tree.proof(leaf_indices);
-        // Map the usize array to a Range, implies all the elements
-        // are continuous, sparse indices are not supported
-        //
-        // Internally we use a range to represent the indices as these
-        // proofs are sent over the network.
-        let indices = if leaf_indices.is_empty() {
-            0..0
-        } else if leaf_indices.len() > 1 {
-            leaf_indices[0]..leaf_indices[leaf_indices.len() - 1] + 1
-        } else {
-            leaf_indices[0]..leaf_indices[0] + 1
-        };
         Ok(CommitProof {
             root,
             proof,
             length: self.len(),
-            indices,
+            indices: leaf_indices.to_vec(),
         })
     }
 
@@ -124,30 +104,34 @@ impl CommitTree {
             root: other_root,
             proof,
             length,
-            indices,
+            indices: indices_to_prove,
         } = proof;
         let root = self.root().ok_or(Error::NoRootCommit)?;
         if &root == other_root {
             Ok(Comparison::Equal)
-        } else if indices.start < self.len() && indices.end <= self.len() {
+        } else {
             let leaves = self.tree.leaves().unwrap_or_default();
-            let indices_to_prove = indices.clone().collect::<Vec<_>>();
-            let leaves_to_prove = indices
-                .clone()
-                .map(|i| *leaves.get(i).unwrap())
+            let leaves_to_prove = indices_to_prove
+                .into_iter()
+                .filter_map(|i| leaves.get(*i).cloned())
                 .collect::<Vec<_>>();
-            if proof.verify(
-                other_root.into(),
-                indices_to_prove.as_slice(),
-                leaves_to_prove.as_slice(),
-                *length,
-            ) {
-                Ok(Comparison::Contains(indices_to_prove, leaves_to_prove))
+            if leaves_to_prove.len() == indices_to_prove.len() {
+                if proof.verify(
+                    other_root.into(),
+                    indices_to_prove.as_slice(),
+                    leaves_to_prove.as_slice(),
+                    *length,
+                ) {
+                    Ok(Comparison::Contains(
+                        indices_to_prove.to_vec(),
+                        leaves_to_prove,
+                    ))
+                } else {
+                    Ok(Comparison::Unknown)
+                }
             } else {
                 Ok(Comparison::Unknown)
             }
-        } else {
-            Ok(Comparison::Unknown)
         }
     }
 
@@ -167,7 +151,7 @@ impl CommitTree {
             root,
             proof,
             length: leaves.len(),
-            indices: 0..1,
+            indices: vec![0],
         };
 
         let first_commit = CommitHash(leaf);

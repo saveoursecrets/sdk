@@ -33,7 +33,7 @@ pub struct RemoteBridge {
     origin: Origin,
     /// Account so we can replay events
     /// when a remote diff is merged.
-    account: Arc<Mutex<LocalAccount>>,
+    pub(super) account: Arc<Mutex<LocalAccount>>,
     /// Client to use for remote communication.
     pub(crate) client: HttpClient,
     // File transfers.

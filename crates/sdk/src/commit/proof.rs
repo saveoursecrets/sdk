@@ -67,8 +67,8 @@ pub struct CommitProof {
     pub proof: MerkleProof<Sha256>,
     /// The length of the tree.
     pub length: usize,
-    /// Range of indices.
-    pub indices: Range<usize>,
+    /// Indices to prove.
+    pub indices: Vec<usize>,
 }
 
 impl Hash for CommitProof {
@@ -138,7 +138,7 @@ impl Default for CommitProof {
             root: Default::default(),
             proof: MerkleProof::<Sha256>::new(vec![]),
             length: 0,
-            indices: 0..0,
+            indices: vec![],
         }
     }
 }
@@ -203,9 +203,10 @@ impl<'de> Visitor<'de> for CommitProofVisitor {
         let length: usize = seq.next_element()?.ok_or_else(|| {
             de::Error::custom("expecting tree length usize")
         })?;
-        let indices: Range<usize> = seq
+
+        let indices: Vec<usize> = seq
             .next_element()?
-            .ok_or_else(|| de::Error::custom("expecting leaf node range"))?;
+            .ok_or_else(|| de::Error::custom("expecting indices to prove"))?;
         Ok(CommitProof {
             root: root_hash,
             proof: MerkleProof::new(hashes),

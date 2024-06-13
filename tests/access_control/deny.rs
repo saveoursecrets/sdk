@@ -51,6 +51,8 @@ async fn access_control_deny() -> Result<()> {
     allowed.owner.add_server(origin.clone()).await?;
     denied.add_server(origin.clone()).await?;
 
+    println!("{:#?}", allowed.owner.sync().await);
+
     assert!(allowed.owner.sync().await.is_none());
     let sync_error = denied.sync().await;
     if let Some(SyncError { mut errors }) = sync_error {
