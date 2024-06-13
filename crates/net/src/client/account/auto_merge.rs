@@ -2,7 +2,7 @@
 
 use crate::{
     client::{RemoteBridge, Result, SyncClient},
-    CommitDiffRequest, CommitScanRequest,
+    CommitDiffRequest, CommitScanRequest, EventPatchRequest,
 };
 use async_recursion::async_recursion;
 use binary_stream::futures::{Decodable, Encodable};
@@ -297,11 +297,12 @@ impl RemoteBridge {
         tracing::debug!(
           log_type = ?log_type,
           commit = %commit,
+          length = %events.len(),
           "auto_merge::rewind_local",
         );
 
         // Convert the event records in to a patch
-        let patch = Patch::<T>::new(events);
+        let patch = Patch::<T>::new(events).await?;
 
         todo!("rewind local");
     }
@@ -319,11 +320,17 @@ impl RemoteBridge {
         tracing::debug!(
           log_type = ?log_type,
           commit = %commit,
+          length = %events.len(),
           "auto_merge::push_remote",
         );
 
-        // Convert the event records in to a patch
-        let patch = Patch::<T>::new(events);
+        let req = EventPatchRequest {
+            log_type: *log_type,
+            from_hash: Some(*commit),
+            patch: events,
+        };
+
+        println!("patch_len {}", req.patch.len());
 
         todo!("push remote");
     }

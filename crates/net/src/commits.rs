@@ -2,6 +2,7 @@
 use crate::sdk::{
     commit::{CommitHash, CommitProof},
     events::{EventLogType, EventRecord},
+    sync::Patch,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{
@@ -61,6 +62,21 @@ pub struct CommitDiffRequest {
 #[derive(Debug, Default)]
 pub struct CommitDiffResponse {
     /// Collection of event records from the commit hash.
+    pub patch: Vec<EventRecord>,
+}
+
+/// Request to patch an event log from a specific commit.
+///
+/// Used during auto merge to force push a combined collection
+/// of events.
+#[derive(Debug, Default)]
+pub struct EventPatchRequest {
+    /// Type of event log to patch.
+    pub log_type: EventLogType,
+    /// Hash of the commit to rewind to before
+    /// applying the patch.
+    pub from_hash: Option<CommitHash>,
+    /// Patch of events to apply.
     pub patch: Vec<EventRecord>,
 }
 
@@ -157,6 +173,32 @@ impl Decodable for CommitDiffResponse {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
+        self.patch.decode(&mut *reader).await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Encodable for EventPatchRequest {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        self.log_type.encode(&mut *writer).await?;
+        self.from_hash.encode(&mut *writer).await?;
+        self.patch.encode(&mut *writer).await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for EventPatchRequest {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        self.log_type.decode(&mut *reader).await?;
+        self.from_hash.decode(&mut *reader).await?;
         self.patch.decode(&mut *reader).await?;
         Ok(())
     }

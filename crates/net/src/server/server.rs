@@ -233,7 +233,9 @@ impl Server {
                 .route("/sync/account/status", get(account::sync_status))
                 .route(
                     "/sync/account/events",
-                    get(account::event_proofs).post(account::event_diff),
+                    get(account::event_proofs)
+                        .post(account::event_diff)
+                        .patch(account::event_patch),
                 )
                 .route("/sync/files", post(files::compare_files))
                 .route(

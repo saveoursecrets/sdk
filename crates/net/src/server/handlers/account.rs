@@ -519,6 +519,65 @@ pub(crate) async fn event_diff(
     }
 }
 
+/// Patch an event log.
+#[utoipa::path(
+    patch,
+    path = "/sync/account/events",
+    security(
+        ("bearer_token" = [])
+    ),
+    request_body(
+        content_type = "application/octet-stream",
+        content = EventPatchRequest,
+    ),
+    responses(
+        (
+            status = StatusCode::UNAUTHORIZED,
+            description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            content_type = "application/octet-stream",
+            description = "Patch was applied to the event log.",
+        ),
+    ),
+)]
+pub(crate) async fn event_patch(
+    Extension(state): Extension<ServerState>,
+    Extension(backend): Extension<ServerBackend>,
+    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+    Query(query): Query<ConnectionQuery>,
+    body: Body,
+) -> impl IntoResponse {
+    match to_bytes(body, BODY_LIMIT).await {
+        Ok(bytes) => match authenticate_endpoint(
+            bearer,
+            &bytes,
+            Some(query),
+            Arc::clone(&state),
+            Arc::clone(&backend),
+            true,
+        )
+        .await
+        {
+            Ok(caller) => {
+                match handlers::event_patch(state, backend, caller, &bytes)
+                    .await
+                {
+                    Ok(result) => result.into_response(),
+                    Err(error) => error.into_response(),
+                }
+            }
+            Err(error) => error.into_response(),
+        },
+        Err(_) => StatusCode::BAD_REQUEST.into_response(),
+    }
+}
+
 /// Sync account event logs.
 #[utoipa::path(
     patch,
@@ -584,7 +643,7 @@ mod handlers {
     use crate::{
         commits::{
             CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
-            CommitScanResponse,
+            CommitScanResponse, EventPatchRequest,
         },
         server::{Error, Result, ServerBackend, ServerState},
     };
@@ -596,12 +655,22 @@ mod handlers {
     use sos_sdk::{
         constants::MIME_TYPE_SOS,
         decode, encode,
-        events::{DiscEventLog, EventLogExt, EventLogType},
+        events::{
+            AccountEvent, DiscEventLog, EventLogExt, EventLogType, WriteEvent,
+        },
         storage::StorageEventLogs,
-        sync::{self, ChangeSet, Merge, SyncPacket, SyncStorage, UpdateSet},
+        sync::{
+            self, ChangeSet, Merge, Patch, SyncPacket, SyncStorage, UpdateSet,
+        },
     };
 
     use std::sync::Arc;
+
+    #[cfg(feature = "files")]
+    use sos_sdk::events::FileEvent;
+
+    #[cfg(feature = "device")]
+    use sos_sdk::events::DeviceEvent;
 
     #[cfg(feature = "listen")]
     use crate::{server::handlers::send_notification, ChangeNotification};
@@ -906,6 +975,85 @@ mod handlers {
         let mut response = CommitDiffResponse::default();
         response.patch = event_log.diff_records(Some(&req.from_hash)).await?;
         Ok(encode(&response).await?)
+    }
+
+    pub(super) async fn event_patch(
+        _state: ServerState,
+        backend: ServerBackend,
+        caller: Caller,
+        bytes: &[u8],
+    ) -> Result<StatusCode> {
+        let account = {
+            let reader = backend.read().await;
+            let accounts = reader.accounts();
+            let reader = accounts.read().await;
+            let account = reader
+                .get(caller.address())
+                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+            Arc::clone(account)
+        };
+
+        let req: EventPatchRequest = decode(bytes).await?;
+
+        match &req.log_type {
+            EventLogType::Noop => {
+                return Err(Error::Status(StatusCode::BAD_REQUEST));
+            }
+            EventLogType::Identity => {
+                let patch = Patch::<WriteEvent>::new(req.patch).await?;
+                let reader = account.read().await;
+                let log = reader.storage.identity_log();
+                let mut event_log = log.write().await;
+                if let Some(commit) = &req.from_hash {
+                    // event_log.rewind_to(commit).await?;
+                }
+                event_log.apply(patch.iter().collect()).await?;
+            }
+            EventLogType::Account => {
+                let patch = Patch::<AccountEvent>::new(req.patch).await?;
+                let reader = account.read().await;
+                let log = reader.storage.account_log();
+                let mut event_log = log.write().await;
+                if let Some(commit) = &req.from_hash {
+                    // event_log.rewind_to(commit).await?;
+                }
+                event_log.apply(patch.iter().collect()).await?;
+            }
+            #[cfg(feature = "device")]
+            EventLogType::Device => {
+                let patch = Patch::<DeviceEvent>::new(req.patch).await?;
+                let reader = account.read().await;
+                let log = reader.storage.device_log().await?;
+                let mut event_log = log.write().await;
+                if let Some(commit) = &req.from_hash {
+                    // event_log.rewind_to(commit).await?;
+                }
+                event_log.apply(patch.iter().collect()).await?;
+            }
+            #[cfg(feature = "files")]
+            EventLogType::Files => {
+                let patch = Patch::<FileEvent>::new(req.patch).await?;
+                let reader = account.read().await;
+                let log = reader.storage.file_log().await?;
+                let mut event_log = log.write().await;
+                if let Some(commit) = &req.from_hash {
+                    // event_log.rewind_to(commit).await?;
+                }
+                event_log.apply(patch.iter().collect()).await?;
+            }
+            EventLogType::Folder(id) => {
+                let patch = Patch::<WriteEvent>::new(req.patch).await?;
+                let reader = account.read().await;
+                let log = reader.storage.folder_log(id).await?;
+                let mut event_log = log.write().await;
+                if let Some(commit) = &req.from_hash {
+                    // event_log.rewind_to(commit).await?;
+                }
+                event_log.apply(patch.iter().collect()).await?;
+            }
+        };
+
+        Ok(StatusCode::OK)
     }
 
     #[cfg(feature = "device")]
