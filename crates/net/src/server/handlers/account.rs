@@ -399,7 +399,7 @@ pub(crate) async fn sync_status(
     }
 }
 
-/// Scan account event logs for commit hashes.
+/// Scan account event logs for commit proofs.
 #[utoipa::path(
     get,
     path = "/sync/account/events",
@@ -427,12 +427,11 @@ pub(crate) async fn sync_status(
         ),
     ),
 )]
-pub(crate) async fn event_commits(
+pub(crate) async fn event_proofs(
     Extension(state): Extension<ServerState>,
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
-    OriginalUri(uri): OriginalUri,
     body: Body,
 ) -> impl IntoResponse {
     match to_bytes(body, BODY_LIMIT).await {
@@ -447,7 +446,67 @@ pub(crate) async fn event_commits(
         .await
         {
             Ok(caller) => {
-                match handlers::event_commits(state, backend, caller, &bytes)
+                match handlers::event_proofs(state, backend, caller, &bytes)
+                    .await
+                {
+                    Ok(result) => result.into_response(),
+                    Err(error) => error.into_response(),
+                }
+            }
+            Err(error) => error.into_response(),
+        },
+        Err(_) => StatusCode::BAD_REQUEST.into_response(),
+    }
+}
+
+/// Fetch a diff from an event log.
+#[utoipa::path(
+    post,
+    path = "/sync/account/events",
+    security(
+        ("bearer_token" = [])
+    ),
+    request_body(
+        content_type = "application/octet-stream",
+        content = CommitDiffRequest,
+    ),
+    responses(
+        (
+            status = StatusCode::UNAUTHORIZED,
+            description = "Authorization failed.",
+        ),
+        (
+            status = StatusCode::FORBIDDEN,
+            description = "Account address is not allowed on this server.",
+        ),
+        (
+            status = StatusCode::OK,
+            content_type = "application/octet-stream",
+            description = "Commit diff sent.",
+            body = CommitDiffResponse,
+        ),
+    ),
+)]
+pub(crate) async fn event_diff(
+    Extension(state): Extension<ServerState>,
+    Extension(backend): Extension<ServerBackend>,
+    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+    Query(query): Query<ConnectionQuery>,
+    body: Body,
+) -> impl IntoResponse {
+    match to_bytes(body, BODY_LIMIT).await {
+        Ok(bytes) => match authenticate_endpoint(
+            bearer,
+            &bytes,
+            Some(query),
+            Arc::clone(&state),
+            Arc::clone(&backend),
+            true,
+        )
+        .await
+        {
+            Ok(caller) => {
+                match handlers::event_diff(state, backend, caller, &bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -523,7 +582,10 @@ pub(crate) async fn sync_account(
 mod handlers {
     use super::Caller;
     use crate::{
-        commits::{CommitScanRequest, CommitScanResponse},
+        commits::{
+            CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
+            CommitScanResponse,
+        },
         server::{Error, Result, ServerBackend, ServerState},
     };
     use binary_stream::futures::{Decodable, Encodable};
@@ -638,7 +700,7 @@ mod handlers {
         Ok((headers, encoded))
     }
 
-    pub(super) async fn event_commits(
+    pub(super) async fn event_proofs(
         _state: ServerState,
         backend: ServerBackend,
         caller: Caller,
@@ -744,11 +806,8 @@ mod handlers {
                 skip += 1;
                 continue;
             }
-            // println!("rev {}, index {}", reverse, index);
             if let Some(_) = event {
                 let proof = event_log.tree().proof(&[index])?;
-
-                // println!("proof: {:#?}", proof.proof.proof_hashes_hex());
 
                 if reverse {
                     res.proofs.insert(0, proof);
@@ -771,6 +830,86 @@ mod handlers {
             }
         }
         Ok(res)
+    }
+
+    pub(super) async fn event_diff(
+        _state: ServerState,
+        backend: ServerBackend,
+        caller: Caller,
+        bytes: &[u8],
+    ) -> Result<(HeaderMap, Vec<u8>)> {
+        let account = {
+            let reader = backend.read().await;
+            let accounts = reader.accounts();
+            let reader = accounts.read().await;
+            let account = reader
+                .get(caller.address())
+                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+            Arc::clone(account)
+        };
+
+        let req: CommitDiffRequest = decode(bytes).await?;
+
+        let response = match &req.log_type {
+            EventLogType::Noop => {
+                return Err(Error::Status(StatusCode::BAD_REQUEST));
+            }
+            EventLogType::Identity => {
+                let reader = account.read().await;
+                let log = reader.storage.identity_log();
+                let event_log = log.read().await;
+                diff_log(&req, &*event_log).await?
+            }
+            EventLogType::Account => {
+                let reader = account.read().await;
+                let log = reader.storage.account_log();
+                let event_log = log.read().await;
+                diff_log(&req, &*event_log).await?
+            }
+            #[cfg(feature = "device")]
+            EventLogType::Device => {
+                let reader = account.read().await;
+                let log = reader.storage.device_log().await?;
+                let event_log = log.read().await;
+                diff_log(&req, &*event_log).await?
+            }
+            #[cfg(feature = "files")]
+            EventLogType::Files => {
+                let reader = account.read().await;
+                let log = reader.storage.file_log().await?;
+                let event_log = log.read().await;
+                diff_log(&req, &*event_log).await?
+            }
+            EventLogType::Folder(id) => {
+                let reader = account.read().await;
+                let log = reader.storage.folder_log(id).await?;
+                let event_log = log.read().await;
+                diff_log(&req, &*event_log).await?
+            }
+        };
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(MIME_TYPE_SOS),
+        );
+
+        Ok((headers, encode(&response).await?))
+    }
+
+    async fn diff_log<T>(
+        req: &CommitDiffRequest,
+        event_log: &DiscEventLog<T>,
+    ) -> Result<Vec<u8>>
+    where
+        T: Default + Encodable + Decodable + Send + Sync + 'static,
+    {
+        let mut response = CommitDiffResponse::<T>::default();
+        let patch = event_log.diff(Some(&req.from_hash)).await?;
+        if !patch.is_empty() {
+            response.patch = Some(patch);
+        }
+        Ok(encode(&response).await?)
     }
 
     #[cfg(feature = "device")]

@@ -164,9 +164,7 @@ impl RemoteBridge {
                 let event_log = log.read().await;
                 event_log.tree().compare(proof)?
             }
-            EventLogType::Noop => {
-                panic!("attempt to compare a noop event log type");
-            }
+            EventLogType::Noop => unreachable!(),
         };
 
         if let Comparison::Contains(_, leaves) = comparison {

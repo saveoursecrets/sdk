@@ -2,6 +2,7 @@
 use crate::sdk::{
     commit::{CommitHash, CommitProof},
     events::EventLogType,
+    sync::Patch,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{
@@ -46,6 +47,25 @@ pub struct CommitScanResponse {
     pub proofs: Vec<CommitProof>,
     /// Offset that can be used to continue scanning.
     pub offset: u64,
+}
+
+/// Request commit diff from an event log.
+#[derive(Debug, Default)]
+pub struct CommitDiffRequest {
+    /// Type of event log to load the diff from.
+    pub log_type: EventLogType,
+    /// Hash of the commit to diff from.
+    pub from_hash: CommitHash,
+}
+
+/// Response with an event log commit diff.
+#[derive(Debug, Default)]
+pub struct CommitDiffResponse<T>
+where
+    T: Default + Encodable + Decodable + Send + Sync,
+{
+    /// Patch of events from the commit hash.
+    pub patch: Option<Patch<T>>,
 }
 
 #[async_trait]
@@ -96,6 +116,58 @@ impl Decodable for CommitScanResponse {
     ) -> Result<()> {
         self.offset.decode(&mut *reader).await?;
         self.proofs.decode(&mut *reader).await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Encodable for CommitDiffRequest {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        self.log_type.encode(&mut *writer).await?;
+        self.from_hash.encode(&mut *writer).await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for CommitDiffRequest {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        self.log_type.decode(&mut *reader).await?;
+        self.from_hash.decode(&mut *reader).await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<T> Encodable for CommitDiffResponse<T>
+where
+    T: Default + Encodable + Decodable + Send + Sync,
+{
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        self.patch.encode(&mut *writer).await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<T> Decodable for CommitDiffResponse<T>
+where
+    T: Default + Encodable + Decodable + Send + Sync,
+{
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        self.patch.decode(&mut *reader).await?;
         Ok(())
     }
 }
