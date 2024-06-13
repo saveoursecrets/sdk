@@ -507,6 +507,10 @@ where
         while let Some(record) = it.next().await? {
             // Found the target commit
             if &record.commit() == commit.as_ref() {
+                // Acquire file lock as we will truncate
+                let file = self.file();
+                let _guard = file.lock().await;
+
                 // Rewrite the in-memory tree
                 let mut leaves = self.tree().leaves().unwrap_or_default();
                 if leaves.len() > num_pruned {
