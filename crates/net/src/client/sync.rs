@@ -1,9 +1,13 @@
 use super::Error;
 use crate::{
     client::{CancelReason, Result},
-    commits::{CommitScanRequest, CommitScanResponse},
+    commits::{
+        CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
+        CommitScanResponse,
+    },
 };
 use async_trait::async_trait;
+use binary_stream::futures::{Decodable, Encodable};
 use sos_sdk::{
     storage,
     sync::{
@@ -96,6 +100,14 @@ pub trait SyncClient {
         &self,
         request: &CommitScanRequest,
     ) -> Result<CommitScanResponse>;
+
+    /// Fetch a patch of events since a given commit hash.
+    async fn diff<T>(
+        &self,
+        request: &CommitDiffRequest,
+    ) -> Result<CommitDiffResponse<T>>
+    where
+        T: Default + Encodable + Decodable + Send + Sync;
 
     /// Patch the device event log.
     #[cfg(feature = "device")]

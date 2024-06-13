@@ -594,7 +594,6 @@ mod handlers {
         StatusCode,
     };
     use sos_sdk::{
-        commit::CommitHash,
         constants::MIME_TYPE_SOS,
         decode, encode,
         events::{DiscEventLog, EventLogExt, EventLogType},

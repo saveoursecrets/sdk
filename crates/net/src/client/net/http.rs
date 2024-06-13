@@ -1,8 +1,10 @@
 //! HTTP client implementation.
 use async_trait::async_trait;
+use binary_stream::futures::{Decodable, Encodable};
 use futures::{Future, StreamExt};
 use http::StatusCode;
 use reqwest::header::AUTHORIZATION;
+use serde_json::Value;
 use sos_sdk::{
     constants::MIME_TYPE_SOS,
     decode, encode,
@@ -12,7 +14,19 @@ use sos_sdk::{
 };
 use tracing::instrument;
 
-use serde_json::Value;
+use crate::{
+    client::{CancelReason, Error, Result, SyncClient},
+    commits::{
+        CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
+        CommitScanResponse,
+    },
+};
+use std::{fmt, path::Path, time::Duration};
+use url::Url;
+
+use super::{
+    bearer_prefix, encode_account_signature, encode_device_signature,
+};
 
 #[cfg(feature = "listen")]
 use crate::ChangeNotification;
@@ -29,19 +43,8 @@ use crate::sdk::storage::files::{ExternalFile, FileSet, FileTransfersSet};
 #[cfg(feature = "files")]
 use crate::client::ProgressChannel;
 
-use crate::{
-    client::{CancelReason, Error, Result, SyncClient},
-    commits::{CommitScanRequest, CommitScanResponse},
-};
-use std::{fmt, path::Path, time::Duration};
-use url::Url;
-
 #[cfg(feature = "listen")]
 use crate::client::{ListenOptions, WebSocketHandle};
-
-use super::{
-    bearer_prefix, encode_account_signature, encode_device_signature,
-};
 
 /// Client that can synchronize with a server over HTTP(S).
 #[derive(Clone)]
@@ -421,6 +424,40 @@ impl SyncClient for HttpClient {
             .await?;
         let status = response.status();
         tracing::debug!(status = %status, "http::scan");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(decode(&buffer).await?)
+    }
+
+    #[instrument(skip_all)]
+    async fn diff<T>(
+        &self,
+        request: &CommitDiffRequest,
+    ) -> Result<CommitDiffResponse<T>>
+    where
+        T: Default + Encodable + Decodable + Send + Sync,
+    {
+        let body = encode(request).await?;
+        let url = self.build_url("api/v1/sync/account/events")?;
+
+        tracing::debug!(url = %url, "http::diff");
+
+        let account_signature =
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
+        let device_signature =
+            encode_device_signature(self.device_signer.sign(&body).await?)
+                .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let response = self
+            .client
+            .post(url)
+            .header(AUTHORIZATION, auth)
+            .body(body)
+            .send()
+            .await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::diff");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         Ok(decode(&buffer).await?)
