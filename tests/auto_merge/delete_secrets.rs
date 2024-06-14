@@ -5,12 +5,12 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_net::{client::RemoteSync, sdk::prelude::*};
 
-/// Tests making conflicting edits to a folder whilst
+/// Tests making deletes to a folder whilst
 /// a server is offline and resolving the conflicts with
 /// an auto merge.
 #[tokio::test]
-async fn auto_merge_edit_secrets() -> Result<()> {
-    const TEST_ID: &str = "auto_merge_edit_secrets";
+async fn auto_merge_delete_secrets() -> Result<()> {
+    const TEST_ID: &str = "auto_merge_delete_secrets";
     // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
@@ -24,49 +24,40 @@ async fn auto_merge_edit_secrets() -> Result<()> {
     let default_folder = device1.default_folder.clone();
     let mut device2 = device1.connect(1, None).await?;
 
-    // Create a secret and sync so all devices have it
+    // Create a secret (device1)
     let (meta, secret) = mock::note("note_1", TEST_ID);
-    let result = device1
+    let result1 = device1
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(result.sync_error.is_none());
+    assert!(result1.sync_error.is_none());
 
-    // Sync to fetch the new secret on the second device
-    assert!(device2.owner.sync().await.is_none());
+    // Create a secret (device2)
+    let (meta, secret) = mock::note("note_2", TEST_ID);
+    let result2 = device2
+        .owner
+        .create_secret(meta, secret, Default::default())
+        .await?;
+    assert!(result2.sync_error.is_none());
 
     // Oh no, the server has gone offline!
     drop(server);
     // Wait a while to make sure the server has gone
     sync_pause(None).await;
 
-    // Update the secret whilst offline on first device
-    let (meta, secret) = mock::note("edit_1", TEST_ID);
-    let SecretChange { sync_error, .. } = device1
+    // First device deletes it's secret
+    let result = device1
         .owner
-        .update_secret(
-            &result.id,
-            meta,
-            Some(secret),
-            Default::default(),
-            None,
-        )
+        .delete_secret(&result1.id, Default::default())
         .await?;
-    assert!(sync_error.is_some());
+    assert!(result.sync_error.is_some());
 
-    // Update the secret whilst offline on second device
-    let (meta, secret) = mock::note("edit_2", TEST_ID);
-    let SecretChange { sync_error, .. } = device2
+    // Second device deletes it's secret
+    let result = device2
         .owner
-        .update_secret(
-            &result.id,
-            meta,
-            Some(secret),
-            Default::default(),
-            None,
-        )
+        .delete_secret(&result2.id, Default::default())
         .await?;
-    assert!(sync_error.is_some());
+    assert!(result.sync_error.is_some());
 
     let device1_folder_state =
         device1.owner.commit_state(&default_folder).await?;
@@ -84,8 +75,12 @@ async fn auto_merge_edit_secrets() -> Result<()> {
     // Sync first device to push changes
     assert!(device1.owner.sync().await.is_none());
 
+    println!("START AUTO MERGE SYNC");
+
     // Sync second device to auto merge
     assert!(device2.owner.sync().await.is_none());
+
+    println!("START FETCH AUTO MERGE SYNC");
 
     // Sync first device again to fetch auto merged changes
     assert!(device1.owner.sync().await.is_none());
@@ -95,8 +90,15 @@ async fn auto_merge_edit_secrets() -> Result<()> {
     let device2_folder_state =
         device2.owner.commit_state(&default_folder).await?;
 
+    // println!("device1 {:#?}", device1_folder_state);
+    // println!("device2 {:#?}", device2_folder_state);
+
+    /*
     // Folder commits are back in sync
     assert_eq!(device1_folder_state, device2_folder_state);
+    */
+
+    /*
 
     // Make sure both devices see the last edit
     let (row, _) = device1.owner.read_secret(&result.id, None).await?;
@@ -129,11 +131,11 @@ async fn auto_merge_edit_secrets() -> Result<()> {
     let mut bridge = device2.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_events_eq(folders, &mut device2.owner, &mut bridge)
         .await?;
-
+    */
     device1.owner.sign_out().await?;
     device2.owner.sign_out().await?;
 
-    teardown(TEST_ID).await;
+    // teardown(TEST_ID).await;
 
     Ok(())
 }

@@ -51,8 +51,11 @@ impl RemoteBridge {
         &self,
         conflict: MaybeConflict,
         local: SyncPacket,
-        _remote: SyncPacket,
+        remote: SyncPacket,
     ) -> Result<()> {
+        println!("local: {:#?}", local.compare);
+        println!("remote: {:#?}", remote.compare);
+
         if conflict.identity {
             self.auto_merge_identity().await?;
         }
@@ -193,7 +196,9 @@ impl RemoteBridge {
                 .await?;
             }
         } else {
-            tracing::warn!("local folder not found for auto_merge");
+            tracing::warn!(
+                folder_id = %folder_id,
+                "auto_merge::folder_not_found");
         }
         Ok(())
     }
@@ -318,7 +323,7 @@ impl RemoteBridge {
         local.extend(remote.into_iter());
 
         // Sort by time so the more recent changes will win (LWW)
-        local.sort_by(|a, b| b.time().cmp(a.time()));
+        local.sort_by(|a, b| a.time().cmp(b.time()));
 
         Ok(AutoMerge::PushRemote(local))
     }
@@ -424,6 +429,9 @@ impl RemoteBridge {
           "auto_merge::push_remote",
         );
 
+        println!("sending: {}", events.len());
+        println!("sending: {}", commit);
+
         let req = EventPatchRequest {
             log_type: *log_type,
             commit: Some(commit),
@@ -446,6 +454,9 @@ impl RemoteBridge {
                   contains = ?contains,
                   "auto_merge::patch::conflict",
                 );
+
+                println!("GOT CONFLICT ON PATCH");
+
                 None
             }
         };

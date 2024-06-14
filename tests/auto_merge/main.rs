@@ -5,6 +5,9 @@ mod scan_commits;
 mod create_secrets;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod delete_secrets;
+
+#[cfg(not(target_arch = "wasm32"))]
 mod edit_secrets;
 
 #[cfg(not(target_arch = "wasm32"))]

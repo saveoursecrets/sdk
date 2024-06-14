@@ -1,7 +1,9 @@
 use anyhow::Result;
 use binary_stream::futures::{Decodable, Encodable};
 use sos_net::sdk::{
-    commit::CommitHash, events::DiscEventLog, events::EventLogExt,
+    commit::CommitHash,
+    events::DiscEventLog,
+    events::{EventLogExt, LogEvent},
 };
 
 mod account_events;
@@ -19,7 +21,7 @@ pub use sos_test_utils as test_utils;
 
 /// Get the last event from an event log.
 async fn last_log_event<
-    T: Encodable + Decodable + Default + Send + Sync + 'static,
+    T: LogEvent + Encodable + Decodable + Default + Send + Sync + 'static,
 >(
     event_log: &mut DiscEventLog<T>,
     commit: Option<&CommitHash>,
@@ -31,7 +33,7 @@ async fn last_log_event<
 
 /// Get all events from an event log.
 async fn all_events<
-    T: Encodable + Decodable + Default + Send + Sync + 'static,
+    T: LogEvent + Encodable + Decodable + Default + Send + Sync + 'static,
 >(
     event_log: &mut DiscEventLog<T>,
 ) -> Result<Vec<T>> {
