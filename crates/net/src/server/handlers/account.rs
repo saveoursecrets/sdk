@@ -660,17 +660,18 @@ mod handlers {
         },
         storage::StorageEventLogs,
         sync::{
-            self, ChangeSet, Merge, Patch, SyncPacket, SyncStorage, UpdateSet,
+            self, AccountDiff, ChangeSet, FolderDiff, Merge, MergeOutcome,
+            Patch, SyncPacket, SyncStorage, UpdateSet,
         },
     };
 
     use std::sync::Arc;
 
     #[cfg(feature = "files")]
-    use sos_sdk::events::FileEvent;
+    use sos_sdk::{events::FileEvent, sync::FileDiff};
 
     #[cfg(feature = "device")]
-    use sos_sdk::events::DeviceEvent;
+    use sos_sdk::{events::DeviceEvent, sync::DeviceDiff};
 
     #[cfg(feature = "listen")]
     use crate::{server::handlers::send_notification, ChangeNotification};
@@ -1001,55 +1002,115 @@ mod handlers {
             }
             EventLogType::Identity => {
                 let patch = Patch::<WriteEvent>::new(req.patch).await?;
-                let reader = account.read().await;
-                let log = reader.storage.identity_log();
-                let mut event_log = log.write().await;
-                if let Some(commit) = &req.from_hash {
+                let mut writer = account.write().await;
+                let last_commit = if let Some(commit) = &req.commit {
+                    let log = writer.storage.identity_log();
+                    let mut event_log = log.write().await;
                     event_log.rewind(commit).await?;
-                }
-                event_log.apply(patch.iter().collect()).await?;
+                    Some(*commit)
+                } else {
+                    None
+                };
+
+                let diff = FolderDiff {
+                    last_commit,
+                    before: req.proof,
+                    patch,
+                    after: None,
+                };
+
+                let mut outcome = MergeOutcome::default();
+                writer.storage.merge_identity(&diff, &mut outcome).await?;
             }
             EventLogType::Account => {
                 let patch = Patch::<AccountEvent>::new(req.patch).await?;
-                let reader = account.read().await;
-                let log = reader.storage.account_log();
-                let mut event_log = log.write().await;
-                if let Some(commit) = &req.from_hash {
+                let mut writer = account.write().await;
+                let last_commit = if let Some(commit) = &req.commit {
+                    let log = writer.storage.account_log();
+                    let mut event_log = log.write().await;
                     event_log.rewind(commit).await?;
-                }
-                event_log.apply(patch.iter().collect()).await?;
+                    Some(*commit)
+                } else {
+                    None
+                };
+
+                let diff = AccountDiff {
+                    last_commit,
+                    before: req.proof,
+                    patch,
+                    after: None,
+                };
+
+                let mut outcome = MergeOutcome::default();
+                writer.storage.merge_account(&diff, &mut outcome).await?;
             }
             #[cfg(feature = "device")]
             EventLogType::Device => {
                 let patch = Patch::<DeviceEvent>::new(req.patch).await?;
-                let reader = account.read().await;
-                let log = reader.storage.device_log().await?;
-                let mut event_log = log.write().await;
-                if let Some(commit) = &req.from_hash {
+                let mut writer = account.write().await;
+                let last_commit = if let Some(commit) = &req.commit {
+                    let log = writer.storage.device_log().await?;
+                    let mut event_log = log.write().await;
                     event_log.rewind(commit).await?;
-                }
-                event_log.apply(patch.iter().collect()).await?;
+                    Some(*commit)
+                } else {
+                    None
+                };
+
+                let diff = DeviceDiff {
+                    last_commit,
+                    before: req.proof,
+                    patch,
+                    after: None,
+                };
+
+                let mut outcome = MergeOutcome::default();
+                writer.storage.merge_device(&diff, &mut outcome).await?;
             }
             #[cfg(feature = "files")]
             EventLogType::Files => {
                 let patch = Patch::<FileEvent>::new(req.patch).await?;
-                let reader = account.read().await;
-                let log = reader.storage.file_log().await?;
-                let mut event_log = log.write().await;
-                if let Some(commit) = &req.from_hash {
+                let mut writer = account.write().await;
+                let last_commit = if let Some(commit) = &req.commit {
+                    let log = writer.storage.file_log().await?;
+                    let mut event_log = log.write().await;
                     event_log.rewind(commit).await?;
-                }
-                event_log.apply(patch.iter().collect()).await?;
+                    Some(*commit)
+                } else {
+                    None
+                };
+
+                let diff = FileDiff {
+                    last_commit,
+                    before: req.proof,
+                    patch,
+                    after: None,
+                };
+
+                let mut outcome = MergeOutcome::default();
+                writer.storage.merge_files(&diff, &mut outcome).await?;
             }
             EventLogType::Folder(id) => {
                 let patch = Patch::<WriteEvent>::new(req.patch).await?;
-                let reader = account.read().await;
-                let log = reader.storage.folder_log(id).await?;
-                let mut event_log = log.write().await;
-                if let Some(commit) = &req.from_hash {
+                let mut writer = account.write().await;
+                let last_commit = if let Some(commit) = &req.commit {
+                    let log = writer.storage.folder_log(id).await?;
+                    let mut event_log = log.write().await;
                     event_log.rewind(commit).await?;
-                }
-                event_log.apply(patch.iter().collect()).await?;
+                    Some(*commit)
+                } else {
+                    None
+                };
+
+                let diff = FolderDiff {
+                    last_commit,
+                    before: req.proof,
+                    patch,
+                    after: None,
+                };
+
+                let mut outcome = MergeOutcome::default();
+                writer.storage.merge_folder(id, &diff, &mut outcome).await?;
             }
         };
 

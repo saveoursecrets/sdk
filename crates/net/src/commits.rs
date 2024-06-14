@@ -74,7 +74,10 @@ pub struct EventPatchRequest {
     pub log_type: EventLogType,
     /// Hash of the commit to rewind to before
     /// applying the patch.
-    pub from_hash: Option<CommitHash>,
+    pub commit: Option<CommitHash>,
+    /// Proof for head of the event log before the
+    /// events are applied.
+    pub proof: CommitProof,
     /// Patch of events to apply.
     pub patch: Vec<EventRecord>,
 }
@@ -184,7 +187,8 @@ impl Encodable for EventPatchRequest {
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
         self.log_type.encode(&mut *writer).await?;
-        self.from_hash.encode(&mut *writer).await?;
+        self.commit.encode(&mut *writer).await?;
+        self.proof.encode(&mut *writer).await?;
         self.patch.encode(&mut *writer).await?;
         Ok(())
     }
@@ -197,7 +201,7 @@ impl Decodable for EventPatchRequest {
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
         self.log_type.decode(&mut *reader).await?;
-        self.from_hash.decode(&mut *reader).await?;
+        self.proof.decode(&mut *reader).await?;
         self.patch.decode(&mut *reader).await?;
         Ok(())
     }

@@ -405,7 +405,8 @@ impl RemoteBridge {
 
         let req = EventPatchRequest {
             log_type: *log_type,
-            from_hash: Some(commit),
+            commit: Some(commit),
+            proof,
             patch: events,
         };
 
