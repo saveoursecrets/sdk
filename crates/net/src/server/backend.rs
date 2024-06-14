@@ -201,6 +201,7 @@ impl Backend {
 
     /// Patch the devices event log.
     #[cfg(feature = "device")]
+    #[deprecated]
     pub async fn patch_devices(
         &self,
         owner: &Address,

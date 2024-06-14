@@ -117,6 +117,7 @@ pub trait SyncClient {
 
     /// Patch the device event log.
     #[cfg(feature = "device")]
+    #[deprecated]
     async fn patch_devices(&self, diff: &DeviceDiff) -> Result<()>;
 
     /// Send a file.

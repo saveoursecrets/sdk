@@ -390,6 +390,7 @@ impl ServerStorage {
     }
 
     /// Patch the devices event log.
+    #[deprecated]
     pub async fn patch_devices(&mut self, diff: &DeviceDiff) -> Result<()> {
         let mut event_log = self.device_log.write().await;
         event_log.patch_checked(&diff.before, &diff.patch).await?;
