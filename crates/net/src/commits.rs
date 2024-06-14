@@ -201,6 +201,7 @@ impl Decodable for EventPatchRequest {
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
         self.log_type.decode(&mut *reader).await?;
+        self.commit.decode(&mut *reader).await?;
         self.proof.decode(&mut *reader).await?;
         self.patch.decode(&mut *reader).await?;
         Ok(())

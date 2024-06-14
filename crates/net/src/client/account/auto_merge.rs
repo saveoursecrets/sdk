@@ -13,8 +13,8 @@ use sos_sdk::{
     },
     storage::StorageEventLogs,
     sync::{
-        AccountDiff, FolderDiff, MaybeConflict, Merge, MergeOutcome, Patch,
-        SyncPacket,
+        AccountDiff, CheckedPatch, FolderDiff, MaybeConflict, Merge,
+        MergeOutcome, Patch, SyncPacket,
     },
     vault::VaultId,
 };
@@ -256,11 +256,32 @@ impl RemoteBridge {
 
         match result {
             AutoMerge::RewindLocal(events) => {
-                self.rewind_local(&log_type, commit, proof, events).await?;
+                let local_patch = self
+                    .rewind_local(&log_type, commit, proof, events)
+                    .await?;
+
+                let success =
+                    matches!(local_patch, CheckedPatch::Success(_, _));
+
+                if success {
+                    tracing::info!("auto_merge::rewind_local::success");
+                }
             }
             AutoMerge::PushRemote(events) => {
-                self.push_remote::<T>(&log_type, commit, proof, events)
+                let (remote_patch, local_patch) = self
+                    .push_remote::<T>(&log_type, commit, proof, events)
                     .await?;
+
+                let success =
+                    matches!(remote_patch, CheckedPatch::Success(_, _))
+                        && matches!(
+                            local_patch,
+                            Some(CheckedPatch::Success(_, _))
+                        );
+
+                if success {
+                    tracing::info!("auto_merge::push_remote::success");
+                }
             }
         }
 
@@ -309,7 +330,7 @@ impl RemoteBridge {
         commit: CommitHash,
         proof: CommitProof,
         events: Vec<EventRecord>,
-    ) -> Result<()> {
+    ) -> Result<CheckedPatch> {
         tracing::debug!(
           log_type = ?log_type,
           commit = %commit,
@@ -323,7 +344,7 @@ impl RemoteBridge {
         let mut outcome = MergeOutcome::default();
 
         // Merge the events after rewinding
-        {
+        let checked_patch = {
             let mut account = self.account.lock().await;
             match &log_type {
                 EventLogType::Identity => {
@@ -334,7 +355,7 @@ impl RemoteBridge {
                         patch,
                         after: None,
                     };
-                    account.merge_identity(&diff, &mut outcome).await?;
+                    account.merge_identity(&diff, &mut outcome).await?
                 }
                 EventLogType::Account => {
                     let patch = Patch::<AccountEvent>::new(events).await?;
@@ -344,7 +365,7 @@ impl RemoteBridge {
                         patch,
                         after: None,
                     };
-                    account.merge_account(&diff, &mut outcome).await?;
+                    account.merge_account(&diff, &mut outcome).await?
                 }
                 #[cfg(feature = "device")]
                 EventLogType::Device => {
@@ -355,7 +376,7 @@ impl RemoteBridge {
                         patch,
                         after: None,
                     };
-                    account.merge_device(&diff, &mut outcome).await?;
+                    account.merge_device(&diff, &mut outcome).await?
                 }
                 #[cfg(feature = "files")]
                 EventLogType::Files => {
@@ -366,7 +387,7 @@ impl RemoteBridge {
                         patch,
                         after: None,
                     };
-                    account.merge_files(&diff, &mut outcome).await?;
+                    account.merge_files(&diff, &mut outcome).await?
                 }
                 EventLogType::Folder(id) => {
                     let patch = Patch::<WriteEvent>::new(events).await?;
@@ -376,13 +397,13 @@ impl RemoteBridge {
                         patch,
                         after: None,
                     };
-                    account.merge_folder(id, &diff, &mut outcome).await?;
+                    account.merge_folder(id, &diff, &mut outcome).await?
                 }
                 EventLogType::Noop => unreachable!(),
             }
-        }
+        };
 
-        Ok(())
+        Ok(checked_patch)
     }
 
     /// Push the events to a remote and rewind local.
@@ -392,7 +413,7 @@ impl RemoteBridge {
         commit: CommitHash,
         proof: CommitProof,
         events: Vec<EventRecord>,
-    ) -> Result<()>
+    ) -> Result<(CheckedPatch, Option<CheckedPatch>)>
     where
         T: Default + Encodable + Decodable + Send + Sync,
     {
@@ -406,13 +427,30 @@ impl RemoteBridge {
         let req = EventPatchRequest {
             log_type: *log_type,
             commit: Some(commit),
-            proof,
-            patch: events,
+            proof: proof.clone(),
+            patch: events.clone(),
         };
 
-        println!("patch_len {}", req.patch.len());
+        let remote_patch = self.client.patch(&req).await?;
+        let local_patch = match &remote_patch {
+            CheckedPatch::Noop => unreachable!(),
+            CheckedPatch::Success(_, _) => {
+                let local_patch = self
+                    .rewind_local(log_type, commit, proof, events)
+                    .await?;
+                Some(local_patch)
+            }
+            CheckedPatch::Conflict { head, contains } => {
+                tracing::error!(
+                  head = ?head,
+                  contains = ?contains,
+                  "auto_merge::patch::conflict",
+                );
+                None
+            }
+        };
 
-        todo!("push remote");
+        Ok((remote_patch, local_patch))
     }
 
     /// Rewind an event log to a specific commit.

@@ -10,8 +10,8 @@ use async_trait::async_trait;
 use sos_sdk::{
     storage,
     sync::{
-        ChangeSet, DeviceDiff, Origin, SyncOptions, SyncPacket, SyncStatus,
-        UpdateSet,
+        ChangeSet, CheckedPatch, DeviceDiff, Origin, SyncOptions, SyncPacket,
+        SyncStatus, UpdateSet,
     },
 };
 use std::path::Path;
@@ -110,7 +110,10 @@ pub trait SyncClient {
     ///
     /// If the request contains a commit hash then the remote will
     /// attempt to rewind to the commit before applying the patch.
-    async fn patch(&self, request: &EventPatchRequest) -> Result<()>;
+    async fn patch(
+        &self,
+        request: &EventPatchRequest,
+    ) -> Result<CheckedPatch>;
 
     /// Patch the device event log.
     #[cfg(feature = "device")]

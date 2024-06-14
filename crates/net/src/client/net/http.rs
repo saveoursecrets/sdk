@@ -9,7 +9,9 @@ use sos_sdk::{
     decode, encode,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{ChangeSet, Origin, SyncPacket, SyncStatus, UpdateSet},
+    sync::{
+        ChangeSet, CheckedPatch, Origin, SyncPacket, SyncStatus, UpdateSet,
+    },
 };
 use tracing::instrument;
 
@@ -460,8 +462,34 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn patch(&self, request: &EventPatchRequest) -> Result<()> {
-        todo!();
+    async fn patch(
+        &self,
+        request: &EventPatchRequest,
+    ) -> Result<CheckedPatch> {
+        let body = encode(request).await?;
+        let url = self.build_url("api/v1/sync/account/events")?;
+
+        tracing::debug!(url = %url, "http::patch");
+
+        let account_signature =
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
+        let device_signature =
+            encode_device_signature(self.device_signer.sign(&body).await?)
+                .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let response = self
+            .client
+            .patch(url)
+            .header(AUTHORIZATION, auth)
+            .body(body)
+            .send()
+            .await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::patch");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(decode(&buffer).await?)
     }
 
     #[cfg(feature = "device")]

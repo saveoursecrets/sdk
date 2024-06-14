@@ -542,7 +542,8 @@ pub(crate) async fn event_diff(
         (
             status = StatusCode::OK,
             content_type = "application/octet-stream",
-            description = "Patch was applied to the event log.",
+            description = "Result of the attempt to apply the checked patch.",
+            body = CheckedPatch,
         ),
     ),
 )]
@@ -983,7 +984,7 @@ mod handlers {
         backend: ServerBackend,
         caller: Caller,
         bytes: &[u8],
-    ) -> Result<StatusCode> {
+    ) -> Result<(HeaderMap, Vec<u8>)> {
         let account = {
             let reader = backend.read().await;
             let accounts = reader.accounts();
@@ -996,7 +997,9 @@ mod handlers {
 
         let req: EventPatchRequest = decode(bytes).await?;
 
-        match &req.log_type {
+        // println!("req: {:#?}", req);
+
+        let (checked_patch, outcome) = match &req.log_type {
             EventLogType::Noop => {
                 return Err(Error::Status(StatusCode::BAD_REQUEST));
             }
@@ -1020,7 +1023,13 @@ mod handlers {
                 };
 
                 let mut outcome = MergeOutcome::default();
-                writer.storage.merge_identity(&diff, &mut outcome).await?;
+                (
+                    writer
+                        .storage
+                        .merge_identity(&diff, &mut outcome)
+                        .await?,
+                    outcome,
+                )
             }
             EventLogType::Account => {
                 let patch = Patch::<AccountEvent>::new(req.patch).await?;
@@ -1042,7 +1051,10 @@ mod handlers {
                 };
 
                 let mut outcome = MergeOutcome::default();
-                writer.storage.merge_account(&diff, &mut outcome).await?;
+                (
+                    writer.storage.merge_account(&diff, &mut outcome).await?,
+                    outcome,
+                )
             }
             #[cfg(feature = "device")]
             EventLogType::Device => {
@@ -1065,7 +1077,10 @@ mod handlers {
                 };
 
                 let mut outcome = MergeOutcome::default();
-                writer.storage.merge_device(&diff, &mut outcome).await?;
+                (
+                    writer.storage.merge_device(&diff, &mut outcome).await?,
+                    outcome,
+                )
             }
             #[cfg(feature = "files")]
             EventLogType::Files => {
@@ -1088,7 +1103,10 @@ mod handlers {
                 };
 
                 let mut outcome = MergeOutcome::default();
-                writer.storage.merge_files(&diff, &mut outcome).await?;
+                (
+                    writer.storage.merge_files(&diff, &mut outcome).await?,
+                    outcome,
+                )
             }
             EventLogType::Folder(id) => {
                 let patch = Patch::<WriteEvent>::new(req.patch).await?;
@@ -1097,6 +1115,12 @@ mod handlers {
                     let log = writer.storage.folder_log(id).await?;
                     let mut event_log = log.write().await;
                     event_log.rewind(commit).await?;
+
+                    println!(
+                        "head after rewind: {:#?}",
+                        event_log.tree().head()?
+                    );
+
                     Some(*commit)
                 } else {
                     None
@@ -1109,12 +1133,28 @@ mod handlers {
                     after: None,
                 };
 
+                println!("diff::before: {:#?}", diff.before);
+
                 let mut outcome = MergeOutcome::default();
-                writer.storage.merge_folder(id, &diff, &mut outcome).await?;
+                (
+                    writer
+                        .storage
+                        .merge_folder(id, &diff, &mut outcome)
+                        .await?,
+                    outcome,
+                )
             }
         };
 
-        Ok(StatusCode::OK)
+        // TODO: send websocket notifications with outcome
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(MIME_TYPE_SOS),
+        );
+
+        Ok((headers, encode(&checked_patch).await?))
     }
 
     #[cfg(feature = "device")]
