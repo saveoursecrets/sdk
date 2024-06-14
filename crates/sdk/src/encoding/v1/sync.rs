@@ -1,8 +1,9 @@
 use crate::{
-    commit::{CommitState, Comparison},
+    commit::{CommitHash, CommitProof, CommitState, Comparison},
     decode, encode,
     encoding::{decode_uuid, encoding_error},
     prelude::{FileIdentity, PATCH_IDENTITY},
+    sync::CheckedPatch,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{
@@ -192,12 +193,6 @@ impl Decodable for SyncPacket {
     }
 }
 
-/*
-/// Identity vault comparison.
-/// Comparisons for the account folders.
-pub folders: IndexMap<VaultId, Comparison>,
-*/
-
 #[async_trait]
 impl Encodable for SyncCompare {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
@@ -334,6 +329,62 @@ impl Decodable for SyncDiff {
             let mut folder: MaybeDiff<FolderDiff> = Default::default();
             folder.decode(&mut *reader).await?;
             self.folders.insert(id, folder);
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Encodable for CheckedPatch {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        match self {
+            CheckedPatch::Noop => panic!("attempt to encode a noop"),
+            CheckedPatch::Success(proof, commits) => {
+                writer.write_u8(1).await?;
+                proof.encode(&mut *writer).await?;
+                commits.encode(&mut *writer).await?;
+            }
+            CheckedPatch::Conflict { head, contains } => {
+                writer.write_u8(2).await?;
+                head.encode(&mut *writer).await?;
+                contains.encode(&mut *writer).await?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for CheckedPatch {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        let kind = reader.read_u8().await?;
+        match kind {
+            1 => {
+                let mut proof = CommitProof::default();
+                proof.decode(&mut *reader).await?;
+                let mut commits: Vec<CommitHash> = Vec::new();
+                commits.decode(&mut *reader).await?;
+                *self = CheckedPatch::Success(proof, commits);
+            }
+            2 => {
+                let mut head = CommitProof::default();
+                head.decode(&mut *reader).await?;
+                let mut contains: Option<CommitProof> = None;
+                contains.decode(&mut *reader).await?;
+                *self = CheckedPatch::Conflict { head, contains };
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown checked patch variant kind {}", kind),
+                ));
+            }
         }
         Ok(())
     }
