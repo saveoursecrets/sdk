@@ -318,7 +318,7 @@ impl RemoteBridge {
         local.extend(remote.into_iter());
 
         // Sort by time so the more recent changes will win (LWW)
-        local.sort_by(|a, b| a.time().cmp(b.time()));
+        local.sort_by(|a, b| b.time().cmp(a.time()));
 
         Ok(AutoMerge::PushRemote(local))
     }
