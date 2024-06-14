@@ -45,6 +45,11 @@ impl EventRecord {
         &self.1
     }
 
+    /// Set last commit hash for the record.
+    pub fn set_last_commit(&mut self, commit: Option<CommitHash>) {
+        self.1 = commit.unwrap_or_default();
+    }
+
     /// Commit hash for the record.
     pub fn commit(&self) -> &CommitHash {
         &self.2

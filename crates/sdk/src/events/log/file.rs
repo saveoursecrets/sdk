@@ -18,7 +18,7 @@ use crate::{
     commit::{CommitHash, CommitProof, CommitTree, Comparison},
     encode,
     encoding::{encoding_options, VERSION1},
-    events::WriteEvent,
+    events::{AccountEvent, IntoRecord, WriteEvent},
     formats::{
         stream::{MemoryBuffer, MemoryInner},
         EventLogRecord, FileIdentity, FileItem, FormatStream,
@@ -28,7 +28,6 @@ use crate::{
     Error, Result, UtcDateTime,
 };
 
-use crate::events::AccountEvent;
 use async_stream::try_stream;
 use futures::stream::BoxStream;
 
@@ -341,16 +340,31 @@ where
     /// Append a collection of events and commit the tree hashes
     /// only if all the events were successfully written.
     async fn apply(&mut self, events: Vec<&E>) -> Result<Vec<CommitHash>> {
+        let mut records = Vec::with_capacity(events.len());
+        for event in events {
+            records.push(event.into_record(None, None).await?);
+        }
+        self.apply_records(records).await
+    }
+
+    /// Append raw event records to the event log.
+    ///
+    /// Use this to preserve the time information in
+    /// existing event records.
+    async fn apply_records(
+        &mut self,
+        records: Vec<EventRecord>,
+    ) -> Result<Vec<CommitHash>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
         let mut last_commit_hash = self.tree().last_commit();
-        for event in events {
-            let (commit, record) =
-                self.encode_event(event, last_commit_hash).await?;
-            commits.push(commit);
+
+        for mut record in records {
+            record.set_last_commit(last_commit_hash);
             let mut buf = encode(&record).await?;
-            last_commit_hash = Some(*record.commit());
             buffer.append(&mut buf);
+            last_commit_hash = Some(*record.commit());
+            commits.push(*record.commit());
         }
 
         let rw = self.file();
@@ -367,26 +381,6 @@ where
             }
             Err(e) => Err(e.into()),
         }
-    }
-
-    /// Encode an event into a record.
-    #[doc(hidden)]
-    async fn encode_event(
-        &self,
-        event: &E,
-        last_commit: Option<CommitHash>,
-    ) -> Result<(CommitHash, EventRecord)> {
-        let time: UtcDateTime = Default::default();
-        let bytes = encode(event).await?;
-        let commit = CommitHash(CommitTree::hash(&bytes));
-
-        let last_commit = if let Some(last_commit) = last_commit {
-            last_commit
-        } else {
-            self.tree().last_commit().unwrap_or_default()
-        };
-
-        Ok((commit, EventRecord(time, last_commit, commit, bytes)))
     }
 
     /// Read the event data from an item.

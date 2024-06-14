@@ -8,6 +8,12 @@
 //! They are also used for some read events to maintain
 //! an audit trail of actions.
 
+use crate::{
+    commit::{CommitHash, CommitTree},
+    encode, Result, UtcDateTime,
+};
+use binary_stream::futures::{Decodable, Encodable};
+
 mod account;
 #[cfg(feature = "device")]
 mod device;
@@ -104,5 +110,35 @@ impl From<&EventLogType> for u8 {
 impl From<EventLogType> for u8 {
     fn from(value: EventLogType) -> Self {
         (&value).into()
+    }
+}
+
+/// Encode an event into a record.
+trait IntoRecord {
+    /// Encode an event into a record.
+    async fn into_record(
+        &self,
+        time: Option<UtcDateTime>,
+        last_commit: Option<CommitHash>,
+    ) -> Result<EventRecord>;
+}
+
+impl<'a, T> IntoRecord for &'a T
+where
+    T: Default + Encodable + Decodable + Send + Sync,
+{
+    async fn into_record(
+        &self,
+        time: Option<UtcDateTime>,
+        last_commit: Option<CommitHash>,
+    ) -> Result<EventRecord> {
+        let bytes = encode(*self).await?;
+        let commit = CommitHash(CommitTree::hash(&bytes));
+        Ok(EventRecord(
+            time.unwrap_or_default(),
+            last_commit.unwrap_or_default(),
+            commit,
+            bytes,
+        ))
     }
 }

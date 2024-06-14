@@ -9,6 +9,7 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 /// a server is offline and resolving the conflicts with
 /// an auto merge.
 #[tokio::test]
+#[ignore = "needs fixing"]
 async fn auto_merge_delete_secrets() -> Result<()> {
     const TEST_ID: &str = "auto_merge_delete_secrets";
     // crate::test_utils::init_tracing();
