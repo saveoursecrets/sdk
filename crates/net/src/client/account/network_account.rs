@@ -378,19 +378,6 @@ impl NetworkAccount {
         Ok(())
     }
 
-    async fn before_change(&self) {
-        if self.offline {
-            tracing::warn!("offline mode active, ignoring before change");
-        } else {
-            let remotes = self.remotes.read().await;
-            for remote in remotes.values() {
-                if let Some(e) = remote.sync().await {
-                    tracing::error!(error = ?e, "failed to sync before change");
-                }
-            }
-        }
-    }
-
     /// Spawn a task to handle file transfers.
     #[cfg(feature = "files")]
     async fn start_file_transfers(&mut self) -> Result<()> {
@@ -1158,9 +1145,6 @@ impl Account for NetworkAccount {
     ) -> Result<SecretChange<Self::Error>> {
         let _ = self.sync_lock.lock().await;
 
-        // Try to sync before we make the change
-        self.before_change().await;
-
         let result = {
             let mut account = self.account.lock().await;
             let result = account.create_secret(meta, secret, options).await?;
@@ -1188,8 +1172,7 @@ impl Account for NetworkAccount {
         &mut self,
         secrets: Vec<(SecretMeta, Secret)>,
     ) -> Result<SecretInsert<Self::Error>> {
-        // Try to sync before we make the change
-        self.before_change().await;
+        let _ = self.sync_lock.lock().await;
 
         let result = {
             let mut account = self.account.lock().await;
@@ -1236,9 +1219,6 @@ impl Account for NetworkAccount {
         destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::Error>> {
         let _ = self.sync_lock.lock().await;
-
-        // Try to sync before we make the change
-        self.before_change().await;
 
         let result = {
             let mut account = self.account.lock().await;
@@ -1309,9 +1289,6 @@ impl Account for NetworkAccount {
         options: AccessOptions,
     ) -> Result<SecretDelete<Self::Error>> {
         let _ = self.sync_lock.lock().await;
-
-        // Try to sync before we make the change
-        self.before_change().await;
 
         let result = {
             let mut account = self.account.lock().await;
