@@ -953,7 +953,7 @@ mod handlers {
                 return Err(Error::Status(StatusCode::BAD_REQUEST));
             }
             EventLogType::Identity => {
-                let patch = Patch::<WriteEvent>::new(req.patch).await?;
+                let patch = Patch::<WriteEvent>::new(req.patch);
                 let mut writer = account.write().await;
                 let last_commit = if let Some(commit) = &req.commit {
                     let log = writer.storage.identity_log();
@@ -981,7 +981,7 @@ mod handlers {
                 )
             }
             EventLogType::Account => {
-                let patch = Patch::<AccountEvent>::new(req.patch).await?;
+                let patch = Patch::<AccountEvent>::new(req.patch);
                 let mut writer = account.write().await;
                 let last_commit = if let Some(commit) = &req.commit {
                     let log = writer.storage.account_log();
@@ -1007,7 +1007,7 @@ mod handlers {
             }
             #[cfg(feature = "device")]
             EventLogType::Device => {
-                let patch = Patch::<DeviceEvent>::new(req.patch).await?;
+                let patch = Patch::<DeviceEvent>::new(req.patch);
                 let mut writer = account.write().await;
                 let last_commit = if let Some(commit) = &req.commit {
                     let log = writer.storage.device_log().await?;
@@ -1033,7 +1033,7 @@ mod handlers {
             }
             #[cfg(feature = "files")]
             EventLogType::Files => {
-                let patch = Patch::<FileEvent>::new(req.patch).await?;
+                let patch = Patch::<FileEvent>::new(req.patch);
                 let mut writer = account.write().await;
                 let last_commit = if let Some(commit) = &req.commit {
                     let log = writer.storage.file_log().await?;
@@ -1058,7 +1058,7 @@ mod handlers {
                 )
             }
             EventLogType::Folder(id) => {
-                let patch = Patch::<WriteEvent>::new(req.patch).await?;
+                let patch = Patch::<WriteEvent>::new(req.patch);
                 let mut writer = account.write().await;
                 let last_commit = if let Some(commit) = &req.commit {
                     let log = writer.storage.folder_log(id).await?;

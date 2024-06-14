@@ -353,7 +353,7 @@ impl RemoteBridge {
             let mut account = self.account.lock().await;
             match &log_type {
                 EventLogType::Identity => {
-                    let patch = Patch::<WriteEvent>::new(events).await?;
+                    let patch = Patch::<WriteEvent>::new(events);
                     let diff = FolderDiff {
                         last_commit: Some(commit),
                         before: proof,
@@ -363,7 +363,7 @@ impl RemoteBridge {
                     account.merge_identity(&diff, &mut outcome).await?
                 }
                 EventLogType::Account => {
-                    let patch = Patch::<AccountEvent>::new(events).await?;
+                    let patch = Patch::<AccountEvent>::new(events);
                     let diff = AccountDiff {
                         last_commit: Some(commit),
                         before: proof,
@@ -374,7 +374,7 @@ impl RemoteBridge {
                 }
                 #[cfg(feature = "device")]
                 EventLogType::Device => {
-                    let patch = Patch::<DeviceEvent>::new(events).await?;
+                    let patch = Patch::<DeviceEvent>::new(events);
                     let diff = DeviceDiff {
                         last_commit: Some(commit),
                         before: proof,
@@ -385,7 +385,7 @@ impl RemoteBridge {
                 }
                 #[cfg(feature = "files")]
                 EventLogType::Files => {
-                    let patch = Patch::<FileEvent>::new(events).await?;
+                    let patch = Patch::<FileEvent>::new(events);
                     let diff = FileDiff {
                         last_commit: Some(commit),
                         before: proof,
@@ -395,7 +395,7 @@ impl RemoteBridge {
                     account.merge_files(&diff, &mut outcome).await?
                 }
                 EventLogType::Folder(id) => {
-                    let patch = Patch::<WriteEvent>::new(events).await?;
+                    let patch = Patch::<WriteEvent>::new(events);
                     let diff = FolderDiff {
                         last_commit: Some(commit),
                         before: proof,

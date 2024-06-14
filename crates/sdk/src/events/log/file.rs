@@ -217,7 +217,7 @@ where
     #[cfg(feature = "sync")]
     async fn diff(&self, commit: Option<&CommitHash>) -> Result<Patch<E>> {
         let records = self.diff_records(commit).await?;
-        Ok(Patch::new(records).await?)
+        Ok(Patch::new(records))
     }
 
     /// Diff of event records until a specific commit.
@@ -342,7 +342,7 @@ where
     async fn apply(&mut self, events: Vec<&E>) -> Result<Vec<CommitHash>> {
         let mut records = Vec::with_capacity(events.len());
         for event in events {
-            records.push(event.into_record(None, None).await?);
+            records.push(event.default_record().await?);
         }
         self.apply_records(records).await
     }

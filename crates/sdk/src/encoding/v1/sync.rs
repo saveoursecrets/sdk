@@ -3,7 +3,6 @@ use crate::{
     decode, encode,
     encoding::{decode_uuid, encoding_error},
     events::EventRecord,
-    prelude::{FileIdentity, PATCH_IDENTITY},
     sync::CheckedPatch,
 };
 use async_trait::async_trait;
@@ -481,7 +480,7 @@ where
 mod test {
     use crate::{
         decode, encode,
-        events::AccountEvent,
+        events::{AccountEvent, IntoRecord},
         sync::{AccountPatch, ChangeSet, FolderPatch},
         vault::Vault,
     };
@@ -506,18 +505,19 @@ mod test {
     async fn encode_decode_change_set() -> Result<()> {
         let vault: Vault = Default::default();
         let event = vault.into_event().await?;
-        let identity: FolderPatch = vec![event].into();
+        let identity =
+            FolderPatch::new(vec![(&event).default_record().await?]);
 
         let folder_vault: Vault = Default::default();
         let folder_id = *folder_vault.id();
 
-        let account: AccountPatch =
-            vec![AccountEvent::CreateFolder(*folder_vault.id(), vec![])]
-                .into();
+        let event = AccountEvent::CreateFolder(*folder_vault.id(), vec![]);
+        let account =
+            AccountPatch::new(vec![(&event).default_record().await?]);
 
         let mut folders = HashMap::new();
         let event = folder_vault.into_event().await?;
-        let folder: FolderPatch = vec![event].into();
+        let folder = FolderPatch::new(vec![(&event).default_record().await?]);
         folders.insert(folder_id, folder);
 
         #[cfg(feature = "device")]
@@ -525,20 +525,22 @@ mod test {
             let device_signer = DeviceSigner::new_random();
             let mock_device =
                 TrustedDevice::new(device_signer.public_key(), None, None);
-            let device: DevicePatch =
-                vec![DeviceEvent::Trust(mock_device)].into();
+            let event = DeviceEvent::Trust(mock_device);
+            let device =
+                DevicePatch::new(vec![(&event).default_record().await?]);
             device
         };
 
         #[cfg(feature = "files")]
         let files = {
             let checksum: [u8; 32] = [0; 32];
-            let files: FilePatch = vec![FileEvent::CreateFile(
+            let event = FileEvent::CreateFile(
                 VaultId::new_v4(),
                 SecretId::new_v4(),
                 checksum.into(),
-            )]
-            .into();
+            );
+            let files =
+                FilePatch::new(vec![(&event).default_record().await?]);
             files
         };
 

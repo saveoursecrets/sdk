@@ -34,8 +34,8 @@ pub struct Patch<T: Default + Encodable + Decodable>(
 
 impl<T: Default + Encodable + Decodable> Patch<T> {
     /// Create a new patch from event records.
-    pub async fn new(records: Vec<EventRecord>) -> Result<Self> {
-        Ok(Self(records, PhantomData))
+    pub fn new(records: Vec<EventRecord>) -> Self {
+        Self(records, PhantomData)
     }
 
     /// Number of events in this patch.
@@ -56,6 +56,15 @@ impl<T: Default + Encodable + Decodable> Patch<T> {
     /// Mutable event records.
     pub fn records(&self) -> &[EventRecord] {
         self.0.as_slice()
+    }
+
+    /// Decode this patch into the events.
+    pub async fn into_events(&self) -> Result<Vec<T>> {
+        let mut events = Vec::with_capacity(self.0.len());
+        for record in &self.0 {
+            events.push(record.decode_event::<T>().await?);
+        }
+        Ok(events)
     }
 
     /// Append an event record to this patch.

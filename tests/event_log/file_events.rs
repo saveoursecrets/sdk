@@ -83,7 +83,7 @@ async fn event_log_file() -> Result<()> {
 
     let event_log = FileEventLog::new_file(&file_events).await?;
     let patch = event_log.diff(None).await?;
-    let events: Vec<FileEvent> = patch.into();
+    let events: Vec<FileEvent> = patch.into_events().await?;
     assert_eq!(5, events.len());
 
     // Initial file secret creation

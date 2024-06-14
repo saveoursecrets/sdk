@@ -12,6 +12,7 @@ use crate::{
     commit::{CommitHash, CommitTree},
     encode, Result, UtcDateTime,
 };
+use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 
 mod account;
@@ -114,19 +115,29 @@ impl From<EventLogType> for u8 {
 }
 
 /// Encode an event into a record.
-trait IntoRecord {
+#[async_trait]
+pub trait IntoRecord {
     /// Encode an event into a record.
     async fn into_record(
         &self,
         time: Option<UtcDateTime>,
         last_commit: Option<CommitHash>,
     ) -> Result<EventRecord>;
+
+    /// Encode an event into a record using a zero last commit
+    /// and a date time from now.
+    async fn default_record(&self) -> Result<EventRecord>;
 }
 
+#[async_trait]
 impl<'a, T> IntoRecord for &'a T
 where
     T: Default + Encodable + Decodable + Send + Sync,
 {
+    async fn default_record(&self) -> Result<EventRecord> {
+        self.into_record(None, None).await
+    }
+
     async fn into_record(
         &self,
         time: Option<UtcDateTime>,
