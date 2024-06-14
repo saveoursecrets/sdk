@@ -166,6 +166,8 @@ async fn event_log_rewind() -> Result<()> {
     // Try to rewind discarding the create secret event
     event_log.rewind(&rewind_commit).await?;
 
+    assert_eq!(rewind_commit, event_log.tree().last_commit().unwrap());
+
     assert_eq!(1, event_log.tree().len());
     let updated_root = event_log.tree().root().unwrap();
     assert_eq!(rewind_root, updated_root);

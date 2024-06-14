@@ -98,6 +98,23 @@ impl CommitTree {
         })
     }
 
+    /// Proof for the given index as if the index was
+    /// the head of the tree.
+    pub fn proof_at(
+        &self,
+        index: usize,
+        leaf: [u8; 32],
+    ) -> Result<CommitProof> {
+        let proof = self.tree.proof(&[index]);
+        let root = proof.root(&[index], &[leaf], index + 1)?;
+        Ok(CommitProof {
+            root: CommitHash(root),
+            proof,
+            length: index + 1,
+            indices: vec![index],
+        })
+    }
+
     /// Compare this tree against another root hash and merkle proof.
     pub fn compare(&self, proof: &CommitProof) -> Result<Comparison> {
         let CommitProof {

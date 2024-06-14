@@ -870,14 +870,16 @@ mod handlers {
 
         let mut it = event_log.iter(reverse).await?;
         let mut skip = 0;
+
         loop {
             let event = it.next().await?;
             if offset > 0 && skip < offset {
                 skip += 1;
                 continue;
             }
-            if let Some(_) = event {
-                let proof = event_log.tree().proof(&[index])?;
+            if let Some(event) = event {
+                let leaf = event.commit();
+                let proof = event_log.tree().proof_at(index, leaf)?;
 
                 if reverse {
                     res.proofs.insert(0, proof);
@@ -997,8 +999,6 @@ mod handlers {
 
         let req: EventPatchRequest = decode(bytes).await?;
 
-        // println!("req: {:#?}", req);
-
         let (checked_patch, outcome) = match &req.log_type {
             EventLogType::Noop => {
                 return Err(Error::Status(StatusCode::BAD_REQUEST));
@@ -1115,12 +1115,6 @@ mod handlers {
                     let log = writer.storage.folder_log(id).await?;
                     let mut event_log = log.write().await;
                     event_log.rewind(commit).await?;
-
-                    println!(
-                        "head after rewind: {:#?}",
-                        event_log.tree().head()?
-                    );
-
                     Some(*commit)
                 } else {
                     None
@@ -1132,8 +1126,6 @@ mod handlers {
                     patch,
                     after: None,
                 };
-
-                println!("diff::before: {:#?}", diff.before);
 
                 let mut outcome = MergeOutcome::default();
                 (
