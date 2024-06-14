@@ -78,6 +78,11 @@ async fn auto_merge_create_secrets() -> Result<()> {
     assert_eq!("note_1", s1.meta().label());
     assert_eq!("note_2", s2.meta().label());
 
+    // Check the search index
+    let documents =
+        device2.owner.query_map("note", Default::default()).await?;
+    assert_eq!(2, documents.len());
+
     // First device doesn't have the second secret yet!
     let err = device1
         .owner
@@ -102,6 +107,11 @@ async fn auto_merge_create_secrets() -> Result<()> {
         .await?;
     assert_eq!("note_1", s1.meta().label());
     assert_eq!("note_2", s2.meta().label());
+
+    // Check the search index
+    let documents =
+        device1.owner.query_map("note", Default::default()).await?;
+    assert_eq!(2, documents.len());
 
     // Ensure all events are in sync
     let mut bridge = device1.owner.remove_server(&origin).await?.unwrap();
