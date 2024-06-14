@@ -1,7 +1,7 @@
 //! Implements auto merge logic for a remote.
 
 use crate::{
-    client::{RemoteBridge, Result, SyncClient},
+    client::{Error, RemoteBridge, Result, SyncClient},
     CommitDiffRequest, CommitScanRequest, EventPatchRequest,
 };
 use async_recursion::async_recursion;
@@ -528,7 +528,7 @@ impl RemoteBridge {
             req.offset = Some(response.offset);
             self.scan_proofs(req).await
         } else {
-            Ok(None)
+            Err(Error::HardConflict)
         }
     }
 
