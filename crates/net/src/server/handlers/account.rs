@@ -291,62 +291,6 @@ pub(crate) async fn fetch_account(
     }
 }
 
-/// Patch device event log.
-#[utoipa::path(
-    patch,
-    path = "/sync/account/devices",
-    security(
-        ("bearer_token" = [])
-    ),
-
-    responses(
-        (
-            status = StatusCode::UNAUTHORIZED,
-            description = "Authorization failed.",
-        ),
-        (
-            status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
-        ),
-        (
-            status = StatusCode::OK,
-            description = "Patch was applied to device event log.",
-        ),
-    ),
-)]
-#[cfg(feature = "device")]
-pub(crate) async fn patch_devices(
-    Extension(state): Extension<ServerState>,
-    Extension(backend): Extension<ServerBackend>,
-    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
-    Query(query): Query<ConnectionQuery>,
-    body: Body,
-) -> impl IntoResponse {
-    match to_bytes(body, BODY_LIMIT).await {
-        Ok(bytes) => match authenticate_endpoint(
-            bearer,
-            &bytes,
-            Some(query),
-            Arc::clone(&state),
-            Arc::clone(&backend),
-            true,
-        )
-        .await
-        {
-            Ok(caller) => {
-                match handlers::patch_devices(state, backend, caller, &bytes)
-                    .await
-                {
-                    Ok(result) => result.into_response(),
-                    Err(error) => error.into_response(),
-                }
-            }
-            Err(error) => error.into_response(),
-        },
-        Err(_) => StatusCode::BAD_REQUEST.into_response(),
-    }
-}
-
 /// Get account sync status.
 #[utoipa::path(
     get,
@@ -1166,20 +1110,6 @@ mod handlers {
         );
 
         Ok((headers, encode(&checked_patch).await?))
-    }
-
-    #[cfg(feature = "device")]
-    pub(super) async fn patch_devices(
-        _state: ServerState,
-        backend: ServerBackend,
-        caller: Caller,
-        bytes: &[u8],
-    ) -> Result<()> {
-        use crate::sdk::sync::DeviceDiff;
-        let diff: DeviceDiff = decode(bytes).await?;
-        let reader = backend.read().await;
-        reader.patch_devices(caller.address(), &diff).await?;
-        Ok(())
     }
 
     pub(super) async fn sync_account(

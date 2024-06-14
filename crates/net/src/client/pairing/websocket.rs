@@ -431,7 +431,9 @@ impl<'a> OfferPairing<'a> {
         // devices the next time they are synced.
         let origins = vec![self.share_url.server().clone().into()];
         let options = SyncOptions { origins };
-        if let Some(sync_error) = self.account.patch_devices(&options).await {
+        if let Some(sync_error) =
+            self.account.sync_with_options(&options).await
+        {
             return Err(Error::DevicePatchSync(sync_error));
         }
 

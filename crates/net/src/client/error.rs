@@ -44,11 +44,6 @@ pub enum Error {
     #[error("origin '{0}' not found")]
     OriginNotFound(Origin),
 
-    /// Error generated attempting to patch devices but the account does
-    /// not exist on the remote.
-    #[error("cannot patch devices, account does not exist on remote")]
-    NoAccountPatchDevices,
-
     /// Error generated when a websocket message is not binary.
     #[error("not binary message type on websocket")]
     NotBinaryWebsocketMessageType,

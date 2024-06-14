@@ -10,8 +10,8 @@ use async_trait::async_trait;
 use sos_sdk::{
     storage,
     sync::{
-        ChangeSet, CheckedPatch, DeviceDiff, Origin, SyncOptions, SyncPacket,
-        SyncStatus, UpdateSet,
+        ChangeSet, CheckedPatch, Origin, SyncOptions, SyncPacket, SyncStatus,
+        UpdateSet,
     },
 };
 use std::path::Path;
@@ -49,10 +49,6 @@ pub trait RemoteSync {
         &self,
         options: &SyncOptions,
     ) -> Option<SyncError>;
-
-    /// Patch the device log on the remote.
-    async fn patch_devices(&self, options: &SyncOptions)
-        -> Option<SyncError>;
 
     /// Force update an account on remote servers.
     ///
@@ -114,11 +110,6 @@ pub trait SyncClient {
         &self,
         request: &EventPatchRequest,
     ) -> Result<CheckedPatch>;
-
-    /// Patch the device event log.
-    #[cfg(feature = "device")]
-    #[deprecated]
-    async fn patch_devices(&self, diff: &DeviceDiff) -> Result<()>;
 
     /// Send a file.
     #[cfg(feature = "files")]

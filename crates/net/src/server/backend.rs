@@ -15,9 +15,6 @@ use std::{
 };
 use tokio::sync::RwLock;
 
-#[cfg(feature = "device")]
-use crate::sdk::sync::DeviceDiff;
-
 /// Account storage.
 pub struct AccountStorage {
     pub(crate) storage: ServerStorage,
@@ -197,25 +194,6 @@ impl Backend {
         let change_set = reader.storage.change_set().await?;
 
         Ok(change_set)
-    }
-
-    /// Patch the devices event log.
-    #[cfg(feature = "device")]
-    #[deprecated]
-    pub async fn patch_devices(
-        &self,
-        owner: &Address,
-        diff: &DeviceDiff,
-    ) -> Result<()> {
-        tracing::debug!(address = %owner, "backend::patch_devices");
-
-        let accounts = self.accounts.read().await;
-        let account = accounts.get(owner).ok_or(Error::NoAccount(*owner))?;
-
-        let mut writer = account.write().await;
-        writer.storage.patch_devices(diff).await?;
-
-        Ok(())
     }
 
     /// Verify a device is allowed to access an account.

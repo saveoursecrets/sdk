@@ -12,7 +12,7 @@ use sos_sdk::{
         StorageEventLogs,
     },
     sync::{
-        self, MaybeDiff, Merge, Origin, SyncOptions, SyncPacket, SyncStatus,
+        self, Merge, Origin, SyncOptions, SyncPacket, SyncStatus,
         SyncStorage, UpdateSet,
     },
     vfs,
@@ -210,40 +210,6 @@ impl RemoteBridge {
         }
     }
 
-    async fn send_devices_patch(
-        &self,
-        remote_status: SyncStatus,
-    ) -> Result<()> {
-        let (needs_sync, _local_status, local_changes) = {
-            let account = self.account.lock().await;
-            sync::diff(&*account, remote_status).await?
-        };
-
-        // If we need a sync but no local device changes
-        // try to pull from remote
-        if let (true, None) = (needs_sync, &local_changes.device) {
-            self.execute_sync().await?;
-        }
-
-        #[cfg(feature = "device")]
-        if let (true, Some(MaybeDiff::Diff(device))) =
-            (needs_sync, local_changes.device)
-        {
-            self.client.patch_devices(&device).await?;
-        }
-        Ok(())
-    }
-
-    async fn execute_sync_devices(&self) -> Result<()> {
-        let exists = self.client.account_exists().await?;
-        if exists {
-            let sync_status = self.client.sync_status().await?;
-            self.send_devices_patch(sync_status).await
-        } else {
-            Err(Error::NoAccountPatchDevices)
-        }
-    }
-
     async fn execute_sync_file_transfers(&self) -> Result<()> {
         let external_files = {
             let account = self.account.lock().await;
@@ -328,17 +294,19 @@ impl RemoteSync for RemoteBridge {
         }
     }
 
+    /*
     async fn patch_devices(
         &self,
         _options: &SyncOptions,
     ) -> Option<SyncError> {
-        match self.execute_sync_devices().await {
+        match self.execute_sync().await {
             Ok(_) => None,
             Err(e) => Some(SyncError {
                 errors: vec![(self.origin.clone(), e)],
             }),
         }
     }
+    */
 
     async fn force_update(
         &self,

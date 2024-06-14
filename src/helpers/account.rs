@@ -2,7 +2,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use sos_net::{
-    client::{is_offline, NetworkAccount},
+    client::NetworkAccount,
     sdk::{
         account::{Account, AccountLocked, SigninOptions},
         constants::DEFAULT_VAULT_NAME,

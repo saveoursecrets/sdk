@@ -19,7 +19,7 @@ use axum::{
     },
     middleware,
     response::{IntoResponse, Json},
-    routing::{get, patch, post, put},
+    routing::{get, post, put},
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
@@ -248,14 +248,6 @@ impl Server {
                             file_operation_lock,
                         )),
                 );
-
-            #[cfg(feature = "device")]
-            {
-                router = router.route(
-                    "/sync/account/devices",
-                    patch(account::patch_devices),
-                );
-            }
 
             #[cfg(feature = "listen")]
             {

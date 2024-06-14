@@ -2,12 +2,15 @@ use crate::server::handlers::{account, files};
 use utoipa::{openapi::security::*, Modify, OpenApi, ToSchema};
 
 #[derive(ToSchema)]
+#[allow(dead_code)]
 struct ChangeSet(crate::sdk::sync::ChangeSet);
 
 #[derive(ToSchema)]
+#[allow(dead_code)]
 struct SyncStatus(crate::sdk::sync::SyncStatus);
 
 #[derive(ToSchema)]
+#[allow(dead_code)]
 struct SyncPacket(crate::sdk::sync::SyncPacket);
 
 #[derive(OpenApi)]
@@ -30,7 +33,6 @@ struct SyncPacket(crate::sdk::sync::SyncPacket);
     paths(
         account::create_account,
         account::fetch_account,
-        account::patch_devices,
         account::sync_status,
         account::sync_account,
         files::receive_file,

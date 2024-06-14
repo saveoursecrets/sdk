@@ -35,9 +35,6 @@ use crate::ChangeNotification;
 #[cfg(feature = "listen")]
 use super::websocket::WebSocketChangeListener;
 
-#[cfg(feature = "device")]
-use crate::sdk::sync::DeviceDiff;
-
 #[cfg(feature = "files")]
 use crate::sdk::storage::files::{ExternalFile, FileSet, FileTransfersSet};
 
@@ -490,35 +487,6 @@ impl SyncClient for HttpClient {
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         Ok(decode(&buffer).await?)
-    }
-
-    #[cfg(feature = "device")]
-    #[instrument(skip_all)]
-    async fn patch_devices(&self, diff: &DeviceDiff) -> Result<()> {
-        let body = encode(diff).await?;
-        let url = self.build_url("api/v1/sync/account/devices")?;
-
-        tracing::debug!(url = %url, "http::patch_devices");
-
-        let account_signature =
-            encode_account_signature(self.account_signer.sign(&body).await?)
-                .await?;
-
-        let device_signature =
-            encode_device_signature(self.device_signer.sign(&body).await?)
-                .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
-        let response = self
-            .client
-            .patch(url)
-            .header(AUTHORIZATION, auth)
-            .body(body)
-            .send()
-            .await?;
-        let status = response.status();
-        tracing::debug!(status = %status, "http::patch_devices");
-        self.error_json(response).await?;
-        Ok(())
     }
 
     #[cfg(feature = "files")]
