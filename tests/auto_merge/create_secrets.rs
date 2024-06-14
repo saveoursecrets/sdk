@@ -67,16 +67,16 @@ async fn auto_merge_create_secrets() -> Result<()> {
     assert!(sync_error.is_none());
 
     // Second device now has both secrets
-    assert!(device2
+    let (s1, _) = device2
         .owner
         .read_secret(&result1.id, Default::default())
-        .await
-        .is_ok());
-    assert!(device2
+        .await?;
+    let (s2, _) = device2
         .owner
         .read_secret(&result2.id, Default::default())
-        .await
-        .is_ok());
+        .await?;
+    assert_eq!("note_1", s1.meta().label());
+    assert_eq!("note_2", s2.meta().label());
 
     // First device doesn't have the second secret yet!
     let err = device1
@@ -92,16 +92,16 @@ async fn auto_merge_create_secrets() -> Result<()> {
     assert!(device1.owner.sync().await.is_none());
 
     // First device now has both secrets
-    assert!(device1
+    let (s1, _) = device1
         .owner
         .read_secret(&result1.id, Default::default())
-        .await
-        .is_ok());
-    assert!(device1
+        .await?;
+    let (s2, _) = device1
         .owner
         .read_secret(&result2.id, Default::default())
-        .await
-        .is_ok());
+        .await?;
+    assert_eq!("note_1", s1.meta().label());
+    assert_eq!("note_2", s2.meta().label());
 
     // Ensure all events are in sync
     let mut bridge = device1.owner.remove_server(&origin).await?.unwrap();
