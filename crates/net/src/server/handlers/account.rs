@@ -987,7 +987,7 @@ mod handlers {
     }
 
     pub(super) async fn event_patch(
-        _state: ServerState,
+        state: ServerState,
         backend: ServerBackend,
         caller: Caller,
         bytes: &[u8],
@@ -1143,7 +1143,21 @@ mod handlers {
             }
         };
 
-        // TODO: send websocket notifications with outcome
+        #[cfg(feature = "listen")]
+        if outcome.changes > 0 {
+            if let Some(conn_id) = caller.connection_id() {
+                let reader = account.read().await;
+                let local_status = reader.storage.sync_status().await?;
+                let notification = ChangeNotification::new(
+                    caller.address(),
+                    conn_id.to_string(),
+                    local_status.root,
+                    outcome,
+                );
+                let reader = state.read().await;
+                send_notification(&*reader, &caller, notification).await;
+            }
+        }
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -1212,8 +1226,8 @@ mod handlers {
                     local_status.root,
                     outcome,
                 );
-                let mut writer = state.write().await;
-                send_notification(&mut *writer, &caller, notification).await;
+                let reader = state.read().await;
+                send_notification(&*reader, &caller, notification).await;
             }
         }
 

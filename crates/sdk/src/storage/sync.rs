@@ -297,6 +297,7 @@ impl Merge for ServerStorage {
         };
 
         if let CheckedPatch::Success(_, _) = &checked_patch {
+            // Update in-memory cache of trusted devices
             let event_log = self.device_log.read().await;
             let reducer = DeviceReducer::new(&*event_log);
             self.devices = reducer.reduce().await?;
