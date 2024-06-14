@@ -830,7 +830,7 @@ pub trait Merge {
         &mut self,
         diff: &FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()>;
+    ) -> Result<CheckedPatch>;
 
     /// Compare the identity folder.
     async fn compare_identity(
@@ -843,7 +843,7 @@ pub trait Merge {
         &mut self,
         diff: &AccountDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()>;
+    ) -> Result<CheckedPatch>;
 
     /// Compare the account events.
     async fn compare_account(
@@ -857,7 +857,7 @@ pub trait Merge {
         &mut self,
         diff: &DeviceDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()>;
+    ) -> Result<CheckedPatch>;
 
     /// Compare the device events.
     #[cfg(feature = "device")]
@@ -870,7 +870,7 @@ pub trait Merge {
         &mut self,
         diff: &FileDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()>;
+    ) -> Result<CheckedPatch>;
 
     /// Compare the file events.
     #[cfg(feature = "files")]
@@ -882,7 +882,7 @@ pub trait Merge {
         folder_id: &VaultId,
         diff: &FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()>;
+    ) -> Result<CheckedPatch>;
 
     /// Compare folder events.
     async fn compare_folder(

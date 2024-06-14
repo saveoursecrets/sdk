@@ -3,7 +3,7 @@ use crate::{
     client::{CancelReason, Result},
     commits::{
         CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
-        CommitScanResponse,
+        CommitScanResponse, EventPatchRequest,
     },
 };
 use async_trait::async_trait;
@@ -105,6 +105,12 @@ pub trait SyncClient {
         &self,
         request: &CommitDiffRequest,
     ) -> Result<CommitDiffResponse>;
+
+    /// Patch an event log.
+    ///
+    /// If the request contains a commit hash then the remote will
+    /// attempt to rewind to the commit before applying the patch.
+    async fn patch(&self, request: &EventPatchRequest) -> Result<()>;
 
     /// Patch the device event log.
     #[cfg(feature = "device")]

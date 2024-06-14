@@ -176,19 +176,23 @@ impl Merge for ServerStorage {
         &mut self,
         diff: &FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
-        let mut writer = self.identity_log.write().await;
+    ) -> Result<CheckedPatch> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
             "identity",
         );
-        writer.patch_checked(&diff.before, &diff.patch).await?;
 
-        outcome.identity = diff.patch.len();
-        outcome.changes += diff.patch.len();
+        let mut writer = self.identity_log.write().await;
+        let checked_patch =
+            writer.patch_checked(&diff.before, &diff.patch).await?;
 
-        Ok(())
+        if let CheckedPatch::Success(_, _) = &checked_patch {
+            outcome.identity = diff.patch.len();
+            outcome.changes += diff.patch.len();
+        }
+
+        Ok(checked_patch)
     }
 
     async fn compare_identity(
@@ -203,7 +207,7 @@ impl Merge for ServerStorage {
         &mut self,
         diff: &AccountDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
+    ) -> Result<CheckedPatch> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -256,15 +260,15 @@ impl Merge for ServerStorage {
                     }
                 }
             }
+
+            outcome.account = diff.patch.len();
+            outcome.changes += diff.patch.len();
         } else {
             // FIXME: handle conflict situation
             println!("todo! account patch could not be merged");
         }
 
-        outcome.account = diff.patch.len();
-        outcome.changes += diff.patch.len();
-
-        Ok(())
+        Ok(checked_patch)
     }
 
     async fn compare_account(
@@ -280,7 +284,7 @@ impl Merge for ServerStorage {
         &mut self,
         diff: &DeviceDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
+    ) -> Result<CheckedPatch> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -296,15 +300,15 @@ impl Merge for ServerStorage {
             let event_log = self.device_log.read().await;
             let reducer = DeviceReducer::new(&*event_log);
             self.devices = reducer.reduce().await?;
+
+            outcome.device = diff.patch.len();
+            outcome.changes += diff.patch.len();
         } else {
             // FIXME: handle conflict situation
             println!("todo! device patch could not be merged");
         }
 
-        outcome.device = diff.patch.len();
-        outcome.changes += diff.patch.len();
-
-        Ok(())
+        Ok(checked_patch)
     }
 
     #[cfg(feature = "device")]
@@ -321,14 +325,13 @@ impl Merge for ServerStorage {
         &mut self,
         diff: &FileDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
+    ) -> Result<CheckedPatch> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
             "files",
         );
 
-        let num_events = diff.patch.len();
         let mut event_log = self.file_log.write().await;
 
         // File events may not have a root commit if there are
@@ -336,26 +339,19 @@ impl Merge for ServerStorage {
         // commit state being the default.
         let is_init_diff = diff.before == Default::default();
         let checked_patch = if is_init_diff && event_log.tree().is_empty() {
-            event_log.apply((&diff.patch).into()).await?;
-            None
+            let commits = event_log.apply((&diff.patch).into()).await?;
+            let proof = event_log.tree().head()?;
+            CheckedPatch::Success(proof, commits)
         } else {
-            Some(event_log.patch_checked(&diff.before, &diff.patch).await?)
+            event_log.patch_checked(&diff.before, &diff.patch).await?
         };
 
-        let num_changes = if let Some(checked_patch) = checked_patch {
-            if let CheckedPatch::Success(_, _) = &checked_patch {
-                num_events
-            } else {
-                0
-            }
-        } else {
-            num_events
-        };
+        if let CheckedPatch::Success(_, _) = &checked_patch {
+            outcome.file = diff.patch.len();
+            outcome.changes += diff.patch.len();
+        }
 
-        outcome.file = num_changes;
-        outcome.changes += num_changes;
-
-        Ok(())
+        Ok(checked_patch)
     }
 
     #[cfg(feature = "files")]
@@ -369,7 +365,7 @@ impl Merge for ServerStorage {
         folder_id: &VaultId,
         diff: &FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
+    ) -> Result<CheckedPatch> {
         tracing::debug!(
             folder_id = %folder_id,
             before = ?diff.before,
@@ -383,14 +379,15 @@ impl Merge for ServerStorage {
             .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
         let mut log = log.write().await;
 
-        log.patch_checked(&diff.before, &diff.patch).await?;
+        let checked_patch =
+            log.patch_checked(&diff.before, &diff.patch).await?;
 
-        if diff.patch.len() > 0 {
+        if let CheckedPatch::Success(_, _) = &checked_patch {
             outcome.folders.insert(*folder_id, diff.patch.len());
             outcome.changes += diff.patch.len();
         }
 
-        Ok(())
+        Ok(checked_patch)
     }
 
     async fn compare_folder(

@@ -17,7 +17,7 @@ use crate::{
     client::{CancelReason, Error, Result, SyncClient},
     commits::{
         CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
-        CommitScanResponse,
+        CommitScanResponse, EventPatchRequest,
     },
 };
 use std::{fmt, path::Path, time::Duration};
@@ -457,6 +457,11 @@ impl SyncClient for HttpClient {
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         Ok(decode(&buffer).await?)
+    }
+
+    #[instrument(skip_all)]
+    async fn patch(&self, request: &EventPatchRequest) -> Result<()> {
+        todo!();
     }
 
     #[cfg(feature = "device")]

@@ -26,18 +26,21 @@ impl Merge for LocalAccount {
         &mut self,
         diff: &FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
+    ) -> Result<CheckedPatch> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
             "identity",
         );
-        self.user_mut()?.identity_mut()?.merge(diff).await?;
+        let checked_patch =
+            self.user_mut()?.identity_mut()?.merge(diff).await?;
 
-        outcome.identity = diff.patch.len();
-        outcome.changes += diff.patch.len();
+        if let CheckedPatch::Success(_, _) = &checked_patch {
+            outcome.identity = diff.patch.len();
+            outcome.changes += diff.patch.len();
+        }
 
-        Ok(())
+        Ok(checked_patch)
     }
 
     async fn compare_identity(
@@ -53,7 +56,7 @@ impl Merge for LocalAccount {
         &mut self,
         diff: &AccountDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
+    ) -> Result<CheckedPatch> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -130,12 +133,12 @@ impl Merge for LocalAccount {
                     }
                 }
             }
+
+            outcome.account = diff.patch.len();
+            outcome.changes += diff.patch.len();
         }
 
-        outcome.account = diff.patch.len();
-        outcome.changes += diff.patch.len();
-
-        Ok(())
+        Ok(checked_patch)
     }
 
     async fn compare_account(
@@ -152,7 +155,7 @@ impl Merge for LocalAccount {
         &mut self,
         diff: &DeviceDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
+    ) -> Result<CheckedPatch> {
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
@@ -178,15 +181,15 @@ impl Merge for LocalAccount {
             let storage = self.storage().await?;
             let mut storage = storage.write().await;
             storage.devices = devices;
+
+            outcome.device = diff.patch.len();
+            outcome.changes += diff.patch.len();
         } else {
             // FIXME: handle conflict situation
             println!("todo! device patch could not be merged");
         }
 
-        outcome.device = diff.patch.len();
-        outcome.changes += diff.patch.len();
-
-        Ok(())
+        Ok(checked_patch)
     }
 
     #[cfg(feature = "device")]
@@ -204,15 +207,13 @@ impl Merge for LocalAccount {
         &mut self,
         diff: &FileDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
+    ) -> Result<CheckedPatch> {
         use crate::events::FileReducer;
         tracing::debug!(
             before = ?diff.before,
             num_events = diff.patch.len(),
             "files",
         );
-
-        let num_events = diff.patch.len();
 
         let storage = self.storage().await?;
         let storage = storage.read().await;
@@ -223,35 +224,29 @@ impl Merge for LocalAccount {
         let (checked_patch, external_files) = if is_init_diff
             && event_log.tree().is_empty()
         {
-            event_log.apply((&diff.patch).into()).await?;
+            let commits = event_log.apply((&diff.patch).into()).await?;
             let reducer = FileReducer::new(&event_log);
             let external_files = reducer.reduce(None).await?;
-            (None, external_files)
+
+            let proof = event_log.tree().head()?;
+            (CheckedPatch::Success(proof, commits), external_files)
         } else {
             let checked_patch =
                 event_log.patch_checked(&diff.before, &diff.patch).await?;
             let reducer = FileReducer::new(&event_log);
             let external_files =
                 reducer.reduce(diff.last_commit.as_ref()).await?;
-            (Some(checked_patch), external_files)
+            (checked_patch, external_files)
         };
 
         outcome.external_files = external_files;
 
-        let num_changes = if let Some(checked_patch) = checked_patch {
-            if let CheckedPatch::Success(_, _) = &checked_patch {
-                num_events
-            } else {
-                0
-            }
-        } else {
-            num_events
-        };
+        if let CheckedPatch::Success(_, _) = &checked_patch {
+            outcome.file = diff.patch.len();
+            outcome.changes += diff.patch.len();
+        }
 
-        outcome.file = num_changes;
-        outcome.changes += num_changes;
-
-        Ok(())
+        Ok(checked_patch)
     }
 
     #[cfg(feature = "files")]
@@ -266,9 +261,7 @@ impl Merge for LocalAccount {
         folder_id: &VaultId,
         diff: &FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
-        let mut num_changes = 0;
-
+    ) -> Result<CheckedPatch> {
         let storage = self.storage().await?;
         let mut storage = storage.write().await;
 
@@ -285,7 +278,12 @@ impl Merge for LocalAccount {
             "folder",
         );
 
-        if let Some(folder) = storage.cache_mut().get_mut(folder_id) {
+        let folder = storage
+            .cache_mut()
+            .get_mut(folder_id)
+            .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+
+        let checked_patch = {
             #[cfg(feature = "search")]
             {
                 let mut search = search.write().await;
@@ -294,21 +292,19 @@ impl Merge for LocalAccount {
                         diff,
                         FolderMergeOptions::Search(*folder_id, &mut search),
                     )
-                    .await?;
+                    .await?
             }
 
             #[cfg(not(feature = "search"))]
-            folder.merge(diff, Default::default()).await?;
+            folder.merge(diff, Default::default()).await?
+        };
 
-            num_changes = diff.patch.len();
+        if let CheckedPatch::Success(_, _) = &checked_patch {
+            outcome.folders.insert(*folder_id, diff.patch.len());
+            outcome.changes += diff.patch.len();
         }
 
-        if num_changes > 0 {
-            outcome.folders.insert(*folder_id, num_changes);
-            outcome.changes += num_changes;
-        }
-
-        Ok(())
+        Ok(checked_patch)
     }
 
     async fn compare_folder(
