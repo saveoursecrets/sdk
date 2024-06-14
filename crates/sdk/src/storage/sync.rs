@@ -41,12 +41,12 @@ impl ServerStorage {
         paths: &Paths,
         identity_patch: &FolderPatch,
     ) -> Result<FolderEventLog> {
-        let events: Vec<&WriteEvent> = identity_patch.into();
+        // let events: Vec<&WriteEvent> = identity_patch.into();
 
         let mut event_log =
             FolderEventLog::new(paths.identity_events()).await?;
         event_log.clear().await?;
-        event_log.apply(events).await?;
+        event_log.patch_unchecked(identity_patch).await?;
 
         let vault = FolderReducer::new()
             .reduce(&event_log)
@@ -131,7 +131,7 @@ impl ServerStorage {
         if let Some(identity) = account_data.identity.take() {
             let mut writer = self.identity_log.write().await;
             writer.clear().await?;
-            writer.apply(identity.iter().collect()).await?;
+            writer.patch_unchecked(&identity).await?;
 
             // Rebuild the head-only identity vault
             let vault = FolderReducer::new()
@@ -151,7 +151,7 @@ impl ServerStorage {
 
             let mut event_log = FolderEventLog::new(events_path).await?;
             event_log.clear().await?;
-            event_log.apply(folder.iter().collect()).await?;
+            event_log.patch_unchecked(folder).await?;
 
             let vault = FolderReducer::new()
                 .reduce(&event_log)
@@ -220,10 +220,11 @@ impl Merge for ServerStorage {
         };
 
         if let CheckedPatch::Success(_, _) = &checked_patch {
-            for event in diff.patch.iter() {
+            for record in diff.patch.iter() {
+                let event = record.decode_event::<AccountEvent>().await?;
                 tracing::debug!(event_kind = %event.event_kind());
 
-                match event {
+                match &event {
                     AccountEvent::Noop => {
                         tracing::warn!("merge got noop event (server)");
                     }
@@ -340,7 +341,7 @@ impl Merge for ServerStorage {
         // commit state being the default.
         let is_init_diff = diff.before == Default::default();
         let checked_patch = if is_init_diff && event_log.tree().is_empty() {
-            let commits = event_log.apply((&diff.patch).into()).await?;
+            let commits = event_log.patch_unchecked(&diff.patch).await?;
             let proof = event_log.tree().head()?;
             CheckedPatch::Success(proof, commits)
         } else {

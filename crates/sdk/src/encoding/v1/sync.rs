@@ -2,6 +2,7 @@ use crate::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     decode, encode,
     encoding::{decode_uuid, encoding_error},
+    events::EventRecord,
     prelude::{FileIdentity, PATCH_IDENTITY},
     sync::CheckedPatch,
 };
@@ -29,7 +30,6 @@ where
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        writer.write_bytes(PATCH_IDENTITY).await?;
         writer.write_u32(self.len() as u32).await?;
         for event in self.iter() {
             event.encode(&mut *writer).await?;
@@ -47,12 +47,9 @@ where
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        FileIdentity::read_identity(reader, &PATCH_IDENTITY)
-            .await
-            .map_err(encoding_error)?;
         let num_events = reader.read_u32().await?;
         for _ in 0..num_events {
-            let mut event: T = Default::default();
+            let mut event = EventRecord::default();
             event.decode(reader).await?;
             self.append(event);
         }

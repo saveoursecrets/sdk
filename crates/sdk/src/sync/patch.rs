@@ -3,6 +3,7 @@ use crate::{
     Result,
 };
 use binary_stream::futures::{Decodable, Encodable};
+use std::marker::PhantomData;
 
 #[cfg(feature = "device")]
 use crate::events::DeviceEvent;
@@ -26,17 +27,15 @@ pub type FilePatch = Patch<FileEvent>;
 
 /// Patch wraps a changeset of events to be sent across the network.
 #[derive(Clone, Debug, Default)]
-pub struct Patch<T: Default + Encodable + Decodable>(Vec<T>);
+pub struct Patch<T: Default + Encodable + Decodable>(
+    Vec<EventRecord>,
+    PhantomData<T>,
+);
 
 impl<T: Default + Encodable + Decodable> Patch<T> {
     /// Create a new patch from event records.
     pub async fn new(records: Vec<EventRecord>) -> Result<Self> {
-        let mut events = Vec::new();
-        for record in &records {
-            let event = record.decode_event::<T>().await?;
-            events.push(event);
-        }
-        Ok(events.into())
+        Ok(Self(records, PhantomData))
     }
 
     /// Number of events in this patch.
@@ -49,22 +48,23 @@ impl<T: Default + Encodable + Decodable> Patch<T> {
         self.0.is_empty()
     }
 
-    /// Iterator of the events.
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
+    /// Iterator of the event records.
+    pub fn iter(&self) -> impl Iterator<Item = &EventRecord> {
         self.0.iter()
     }
 
-    /// Iterator of the owned events.
-    pub fn into_iter(self) -> impl Iterator<Item = T> {
-        self.0.into_iter()
+    /// Mutable event records.
+    pub fn records(&self) -> &[EventRecord] {
+        self.0.as_slice()
     }
 
     /// Append an event record to this patch.
-    pub(crate) fn append(&mut self, record: T) {
+    pub(crate) fn append(&mut self, record: EventRecord) {
         self.0.push(record);
     }
 }
 
+/*
 impl<T: Default + Encodable + Decodable> From<Vec<T>> for Patch<T> {
     fn from(value: Vec<T>) -> Self {
         Self(value)
@@ -84,3 +84,4 @@ impl<'a, T: Default + Encodable + Decodable> From<&'a Patch<T>>
         value.0.iter().collect()
     }
 }
+*/

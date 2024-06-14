@@ -70,7 +70,8 @@ impl Merge for LocalAccount {
         };
 
         if let CheckedPatch::Success(_, _) = &checked_patch {
-            for event in diff.patch.iter() {
+            for record in diff.patch.iter() {
+                let event = record.decode_event::<AccountEvent>().await?;
                 tracing::debug!(event_kind = %event.event_kind());
 
                 match &event {
@@ -224,7 +225,7 @@ impl Merge for LocalAccount {
         let (checked_patch, external_files) = if is_init_diff
             && event_log.tree().is_empty()
         {
-            let commits = event_log.apply((&diff.patch).into()).await?;
+            let commits = event_log.patch_unchecked(&diff.patch).await?;
             let reducer = FileReducer::new(&event_log);
             let external_files = reducer.reduce(None).await?;
 

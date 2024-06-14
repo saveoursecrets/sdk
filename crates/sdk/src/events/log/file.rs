@@ -25,7 +25,7 @@ use crate::{
         FormatStreamIterator,
     },
     vfs::{self, File, OpenOptions},
-    Error, Result, UtcDateTime,
+    Error, Result,
 };
 
 use async_stream::try_stream;
@@ -334,7 +334,7 @@ where
         &mut self,
         patch: &Patch<E>,
     ) -> Result<Vec<CommitHash>> {
-        self.apply(patch.into()).await
+        self.apply_records(patch.records().to_vec()).await
     }
 
     /// Append a collection of events and commit the tree hashes

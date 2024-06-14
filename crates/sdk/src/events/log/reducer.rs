@@ -307,8 +307,9 @@ mod files {
                 #[cfg(feature = "sync")]
                 {
                     let patch = self.log.diff(Some(from)).await?;
-                    let events: Vec<FileEvent> = patch.into();
-                    for event in events {
+                    for record in patch.iter() {
+                        let event =
+                            record.decode_event::<FileEvent>().await?;
                         self.add_file_event(event, &mut files);
                     }
                 }

@@ -218,9 +218,10 @@ where
         };
 
         if let CheckedPatch::Success(_, _) = &checked_patch {
-            for event in diff.patch.iter() {
+            for record in diff.patch.iter() {
+                let event = record.decode_event::<WriteEvent>().await?;
                 tracing::debug!(event_kind = %event.event_kind());
-                match event {
+                match &event {
                     WriteEvent::Noop => {
                         tracing::error!("merge got noop event");
                     }
