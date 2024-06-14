@@ -874,6 +874,11 @@ mod handlers {
         loop {
             let event = it.next().await?;
             if offset > 0 && skip < offset {
+                if reverse && index > 0 {
+                    index -= 1;
+                } else {
+                    index += 1;
+                }
                 skip += 1;
                 continue;
             }

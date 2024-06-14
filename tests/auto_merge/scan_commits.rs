@@ -118,41 +118,45 @@ async fn auto_merge_scan_commits() -> Result<()> {
     req.ascending = true;
     let folder_asc = client.scan(&req).await?;
     assert_eq!(4, folder_asc.proofs.len());
-    for proof in &folder_asc.proofs {
-        let comparison = event_log.tree().compare(proof)?;
-        assert!(matches!(
-            comparison,
-            Comparison::Equal | Comparison::Contains(_, _),
-        ));
-    }
 
-    // Scan in chunks of 2 from the beginning
+    // Scan in chunks of 2 from the end
     let mut req = CommitScanRequest::default();
     req.log_type = EventLogType::Folder(*default_folder.id());
     req.limit = 2;
-    req.ascending = true;
     let folder_chunk_1 = client.scan(&req).await?;
     assert_eq!(2, folder_chunk_1.offset);
-    for proof in &folder_chunk_1.proofs {
-        let comparison = event_log.tree().compare(proof)?;
-        assert!(matches!(
-            comparison,
-            Comparison::Equal | Comparison::Contains(_, _),
-        ));
-    }
     // Scan next chunk
     let mut req = req.clone();
     req.offset = Some(folder_chunk_1.offset);
     let folder_chunk_2 = client.scan(&req).await?;
     assert_eq!(4, folder_chunk_2.offset);
-    for proof in &folder_chunk_2.proofs {
-        let comparison = event_log.tree().compare(proof)?;
-        assert!(matches!(
-            comparison,
-            Comparison::Equal | Comparison::Contains(_, _),
-        ));
-    }
-    // assert_eq!(&commits[2..], proofs2.as_slice());
+
+    // Collect all the server proofs scanned
+    let mut all_proofs = Vec::new();
+    all_proofs.extend(folder_chunk_1.proofs.into_iter().rev());
+    all_proofs.extend(folder_chunk_2.proofs.into_iter().rev());
+
+    // Compare to the tree
+    let mut comparisons = all_proofs
+        .into_iter()
+        .map(|proof| event_log.tree().compare(&proof))
+        .collect::<Vec<_>>();
+
+    // HEAD is now the first entry
+    assert!(matches!(comparisons.remove(0), Ok(Comparison::Equal)));
+    // Tree contains all the other proofs
+    assert!(matches!(
+        comparisons.remove(0),
+        Ok(Comparison::Contains(_, _))
+    ));
+    assert!(matches!(
+        comparisons.remove(0),
+        Ok(Comparison::Contains(_, _))
+    ));
+    assert!(matches!(
+        comparisons.remove(0),
+        Ok(Comparison::Contains(_, _))
+    ));
 
     // Scan past the length ascending (bad offset)
     // yields empty proofs
