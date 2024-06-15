@@ -610,7 +610,8 @@ mod handlers {
         storage::StorageEventLogs,
         sync::{
             self, AccountDiff, ChangeSet, CheckedPatch, FolderDiff, Merge,
-            MergeOutcome, Patch, SyncPacket, SyncStorage, UpdateSet,
+            MergeOutcome, MergeSource, Patch, SyncPacket, SyncStorage,
+            UpdateSet,
         },
     };
     use tokio::sync::RwLock;
@@ -985,7 +986,10 @@ mod handlers {
                 (
                     writer
                         .storage
-                        .merge_identity(&diff, &mut outcome)
+                        .merge_identity(
+                            MergeSource::Checked(diff),
+                            &mut outcome,
+                        )
                         .await?,
                     outcome,
                     records,
@@ -1098,7 +1102,11 @@ mod handlers {
                 (
                     writer
                         .storage
-                        .merge_folder(id, &diff, &mut outcome)
+                        .merge_folder(
+                            id,
+                            MergeSource::Checked(diff),
+                            &mut outcome,
+                        )
                         .await?,
                     outcome,
                     records,
@@ -1205,7 +1213,7 @@ mod handlers {
         let (outcome, compare) = {
             tracing::debug!("merge_server");
             let mut writer = account.write().await;
-            writer.storage.merge(&diff).await?
+            writer.storage.merge(diff).await?
         };
 
         // Generate a new diff so the client can apply changes

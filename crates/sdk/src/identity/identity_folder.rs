@@ -14,8 +14,8 @@ use crate::{
     crypto::{AccessKey, KeyDerivation},
     decode, encode,
     events::{
-        DiscData, DiscLog, EventLogExt, FolderEventLog, MemoryData,
-        MemoryFolderLog, MemoryLog, WriteEvent,
+        DiscData, DiscLog, EventLogExt, FolderEventLog, FolderReducer,
+        MemoryData, MemoryFolderLog, MemoryLog, WriteEvent,
     },
     identity::{PrivateIdentity, UrnLookup},
     passwd::diceware::generate_passphrase_words,
@@ -47,7 +47,9 @@ use urn::Urn;
 use crate::device::{DeviceManager, DeviceSigner};
 
 #[cfg(feature = "sync")]
-use crate::sync::{CheckedPatch, FolderDiff, FolderMergeOptions};
+use crate::sync::{
+    CheckedPatch, FolderDiff, FolderMergeOptions, MergeSource,
+};
 
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
@@ -533,13 +535,15 @@ where
     #[cfg(feature = "sync")]
     pub(crate) async fn merge(
         &mut self,
-        diff: &FolderDiff,
+        source: MergeSource<WriteEvent>,
     ) -> Result<CheckedPatch> {
         let id = *self.folder.id();
         let index = &mut self.index;
-        self.folder
-            .merge(diff, FolderMergeOptions::Urn(id, index))
-            .await
+        let checked_patch = self
+            .folder
+            .merge(source, FolderMergeOptions::Urn(id, index))
+            .await?;
+        Ok(checked_patch)
     }
 }
 

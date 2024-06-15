@@ -487,7 +487,7 @@ impl ClientStorage {
         if let Some(folder) = self.cache.get_mut(summary.id()) {
             let keeper = folder.keeper_mut();
             keeper.lock();
-            keeper.replace_vault(vault.clone()).await?;
+            keeper.replace_vault(vault.clone(), false).await?;
             keeper.unlock(key).await?;
         }
 
@@ -876,7 +876,7 @@ impl ClientStorage {
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
         FolderReducer::new()
-            .reduce(&log_file)
+            .reduce(&*log_file)
             .await?
             .build(true)
             .await

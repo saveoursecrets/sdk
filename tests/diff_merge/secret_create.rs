@@ -49,7 +49,7 @@ async fn diff_merge_secret_create() -> Result<()> {
     assert!(needs_sync);
 
     // Merge the changes
-    remote.merge(&diff).await?;
+    remote.merge(diff).await?;
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
 
     // Check we can read the secret

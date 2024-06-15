@@ -50,7 +50,7 @@ async fn diff_merge_folder_rename() -> Result<()> {
     assert!(needs_sync);
 
     // Merge the changes
-    remote.merge(&diff).await?;
+    remote.merge(diff).await?;
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
 
     let default_folder = remote.default_folder().await.unwrap();

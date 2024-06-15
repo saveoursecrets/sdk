@@ -4,12 +4,12 @@ use crate::{
     encode,
     events::{
         AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
-        FolderReducer, LogEvent,
+        FolderReducer, LogEvent, WriteEvent,
     },
     storage::{ServerStorage, StorageEventLogs},
     sync::{
         AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch, Merge,
-        MergeOutcome, SyncStatus, SyncStorage, UpdateSet,
+        MergeOutcome, MergeSource, SyncStatus, SyncStorage, UpdateSet,
     },
     vault::{VaultAccess, VaultId, VaultWriter},
     vfs, Error, Paths, Result,
@@ -135,7 +135,7 @@ impl ServerStorage {
 
             // Rebuild the head-only identity vault
             let vault = FolderReducer::new()
-                .reduce(&writer)
+                .reduce(&*writer)
                 .await?
                 .build(false)
                 .await?;
@@ -174,25 +174,30 @@ impl ServerStorage {
 impl Merge for ServerStorage {
     async fn merge_identity(
         &mut self,
-        diff: &FolderDiff,
+        source: MergeSource<WriteEvent>,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        tracing::debug!(
-            before = ?diff.before,
-            num_events = diff.patch.len(),
-            "identity",
-        );
+        match source {
+            MergeSource::Checked(diff) => {
+                tracing::debug!(
+                    before = ?diff.before,
+                    num_events = diff.patch.len(),
+                    "identity",
+                );
 
-        let mut writer = self.identity_log.write().await;
-        let checked_patch =
-            writer.patch_checked(&diff.before, &diff.patch).await?;
+                let mut writer = self.identity_log.write().await;
+                let checked_patch =
+                    writer.patch_checked(&diff.before, &diff.patch).await?;
 
-        if let CheckedPatch::Success(_, _) = &checked_patch {
-            outcome.identity = diff.patch.len();
-            outcome.changes += diff.patch.len();
+                if let CheckedPatch::Success(_, _) = &checked_patch {
+                    outcome.identity = diff.patch.len();
+                    outcome.changes += diff.patch.len();
+                }
+
+                Ok(checked_patch)
+            }
+            _ => todo!("merge on patch"),
         }
-
-        Ok(checked_patch)
     }
 
     async fn compare_identity(
@@ -365,13 +370,20 @@ impl Merge for ServerStorage {
     async fn merge_folder(
         &mut self,
         folder_id: &VaultId,
-        diff: &FolderDiff,
+        source: MergeSource<WriteEvent>,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
+        let (len, before, patch) = match source {
+            MergeSource::Checked(diff) => {
+                (diff.patch.len(), Some(diff.before), diff.patch)
+            }
+            MergeSource::Forced(patch) => (patch.len(), None, patch),
+        };
+
         tracing::debug!(
             folder_id = %folder_id,
-            before = ?diff.before,
-            num_events = diff.patch.len(),
+            before = ?before,
+            num_events = len,
             "folder",
         );
 
@@ -381,12 +393,17 @@ impl Merge for ServerStorage {
             .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
         let mut log = log.write().await;
 
-        let checked_patch =
-            log.patch_checked(&diff.before, &diff.patch).await?;
+        let checked_patch = if let Some(before) = &before {
+            log.patch_checked(before, &patch).await?
+        } else {
+            let commits = log.patch_unchecked(&patch).await?;
+            let head = log.tree().head()?;
+            CheckedPatch::Success(head, commits)
+        };
 
         if let CheckedPatch::Success(_, _) = &checked_patch {
-            outcome.folders.insert(*folder_id, diff.patch.len());
-            outcome.changes += diff.patch.len();
+            outcome.folders.insert(*folder_id, len);
+            outcome.changes += len;
         }
 
         Ok(checked_patch)

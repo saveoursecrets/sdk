@@ -7,6 +7,8 @@ use crate::{
     Error, Result,
 };
 
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+
 use indexmap::IndexMap;
 
 /// Reduce log events to a vault.
@@ -57,10 +59,16 @@ impl FolderReducer {
     }
 
     /// Reduce the events in the given event log.
-    pub async fn reduce(
+    pub async fn reduce<T, R, W, D>(
         mut self,
-        event_log: &FolderEventLog,
-    ) -> Result<FolderReducer> {
+        event_log: &T,
+    ) -> Result<FolderReducer>
+    where
+        T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
+        R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
+        W: AsyncWrite + Unpin + Send + Sync + 'static,
+        D: Clone + Send + Sync,
+    {
         // TODO: use event_log.stream() !
 
         let mut it = event_log.iter(false).await?;

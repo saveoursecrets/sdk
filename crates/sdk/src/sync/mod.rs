@@ -162,6 +162,19 @@ pub enum CheckedPatch {
     },
 }
 
+/// Source data for a merge operation.
+pub enum MergeSource<T>
+where
+    T: Default + Encodable + Decodable,
+{
+    /// Checked merge verifies against the last commit
+    /// before applying the patch.
+    Checked(Diff<T>),
+    /// Forced merge deletes all existing data and
+    /// writes the new patch.
+    Forced(Patch<T>),
+}
+
 /// Diff between local and remote.
 #[derive(Default, Debug)]
 pub struct Diff<T>
@@ -841,7 +854,7 @@ pub trait Merge {
     /// Merge changes to the identity folder.
     async fn merge_identity(
         &mut self,
-        diff: &FolderDiff,
+        source: MergeSource<WriteEvent>,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch>;
 
@@ -893,7 +906,7 @@ pub trait Merge {
     async fn merge_folder(
         &mut self,
         folder_id: &VaultId,
-        diff: &FolderDiff,
+        source: MergeSource<WriteEvent>,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch>;
 
@@ -940,20 +953,21 @@ pub trait Merge {
     /// Merge a diff into this storage.
     async fn merge(
         &mut self,
-        diff: &SyncDiff,
+        diff: SyncDiff,
     ) -> Result<(MergeOutcome, SyncCompare)> {
         let mut outcome = MergeOutcome::default();
         let mut compare = SyncCompare::default();
 
-        match &diff.identity {
+        match diff.identity {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
-                self.merge_identity(diff, &mut outcome).await?;
+                self.merge_identity(MergeSource::Checked(diff), &mut outcome)
+                    .await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
                     compare.identity =
-                        Some(self.compare_identity(state).await?);
+                        Some(self.compare_identity(&state).await?);
                 }
             }
             None => {}
@@ -1001,17 +1015,22 @@ pub trait Merge {
             None => {}
         }
 
-        for (id, maybe_diff) in &diff.folders {
+        for (id, maybe_diff) in diff.folders {
             match maybe_diff {
                 MaybeDiff::Noop => unreachable!(),
                 MaybeDiff::Diff(diff) => {
-                    self.merge_folder(id, diff, &mut outcome).await?;
+                    self.merge_folder(
+                        &id,
+                        MergeSource::Checked(diff),
+                        &mut outcome,
+                    )
+                    .await?;
                 }
                 MaybeDiff::Compare(state) => {
                     if let Some(state) = state {
                         compare.folders.insert(
-                            *id,
-                            self.compare_folder(id, state).await?,
+                            id,
+                            self.compare_folder(&id, &state).await?,
                         );
                     }
                 }

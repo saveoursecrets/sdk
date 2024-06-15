@@ -2,11 +2,11 @@ use crate::{
     account::{Account, LocalAccount},
     commit::{CommitState, CommitTree, Comparison},
     decode,
-    events::{AccountEvent, EventLogExt, LogEvent},
+    events::{AccountEvent, EventLogExt, LogEvent, WriteEvent},
     storage::StorageEventLogs,
     sync::{
         AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, Merge,
-        MergeOutcome, SyncStatus, SyncStorage,
+        MergeOutcome, MergeSource, SyncStatus, SyncStorage,
     },
     vault::{Vault, VaultId},
     Error, Result,
@@ -24,20 +24,28 @@ use crate::sync::FileDiff;
 impl Merge for LocalAccount {
     async fn merge_identity(
         &mut self,
-        diff: &FolderDiff,
+        source: MergeSource<WriteEvent>,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
+        let (len, before) = match &source {
+            MergeSource::Checked(diff) => {
+                (diff.patch.len(), Some(&diff.before))
+            }
+            MergeSource::Forced(patch) => (patch.len(), None),
+        };
+
         tracing::debug!(
-            before = ?diff.before,
-            num_events = diff.patch.len(),
-            "identity",
+            before = ?before,
+            num_events = len,
+            "merge_identity::checked",
         );
+
         let checked_patch =
-            self.user_mut()?.identity_mut()?.merge(diff).await?;
+            self.user_mut()?.identity_mut()?.merge(source).await?;
 
         if let CheckedPatch::Success(_, _) = &checked_patch {
-            outcome.identity = diff.patch.len();
-            outcome.changes += diff.patch.len();
+            outcome.identity = len;
+            outcome.changes += len;
         }
 
         Ok(checked_patch)
@@ -260,9 +268,16 @@ impl Merge for LocalAccount {
     async fn merge_folder(
         &mut self,
         folder_id: &VaultId,
-        diff: &FolderDiff,
+        source: MergeSource<WriteEvent>,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
+        let (len, before) = match &source {
+            MergeSource::Checked(diff) => {
+                (diff.patch.len(), Some(&diff.before))
+            }
+            MergeSource::Forced(patch) => (patch.len(), None),
+        };
+
         let storage = self.storage().await?;
         let mut storage = storage.write().await;
 
@@ -274,8 +289,8 @@ impl Merge for LocalAccount {
 
         tracing::debug!(
             folder_id = %folder_id,
-            before = ?diff.before,
-            num_events = diff.patch.len(),
+            before = ?before,
+            num_events = len,
             "folder",
         );
 
@@ -290,19 +305,19 @@ impl Merge for LocalAccount {
                 let mut search = search.write().await;
                 folder
                     .merge(
-                        diff,
+                        source,
                         FolderMergeOptions::Search(*folder_id, &mut search),
                     )
                     .await?
             }
 
             #[cfg(not(feature = "search"))]
-            folder.merge(diff, Default::default()).await?
+            folder.merge(source, Default::default()).await?
         };
 
         if let CheckedPatch::Success(_, _) = &checked_patch {
-            outcome.folders.insert(*folder_id, diff.patch.len());
-            outcome.changes += diff.patch.len();
+            outcome.folders.insert(*folder_id, len);
+            outcome.changes += len;
         }
 
         Ok(checked_patch)

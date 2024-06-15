@@ -51,7 +51,7 @@ async fn diff_merge_folder_delete() -> Result<()> {
     assert!(needs_sync);
 
     // Merge the changes
-    remote.merge(&diff).await?;
+    remote.merge(diff).await?;
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
 
     // Should have the same number of folders

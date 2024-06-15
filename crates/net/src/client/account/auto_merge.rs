@@ -14,7 +14,7 @@ use sos_sdk::{
     storage::StorageEventLogs,
     sync::{
         AccountDiff, CheckedPatch, FolderDiff, MaybeConflict, Merge,
-        MergeOutcome, Patch, SyncPacket,
+        MergeOutcome, MergeSource, Patch, SyncPacket,
     },
     vault::VaultId,
 };
@@ -357,7 +357,12 @@ impl RemoteBridge {
                         patch,
                         after: None,
                     };
-                    account.merge_identity(&diff, &mut outcome).await?
+                    account
+                        .merge_identity(
+                            MergeSource::Checked(diff),
+                            &mut outcome,
+                        )
+                        .await?
                 }
                 EventLogType::Account => {
                     let patch = Patch::<AccountEvent>::new(events);
@@ -399,7 +404,13 @@ impl RemoteBridge {
                         patch,
                         after: None,
                     };
-                    account.merge_folder(id, &diff, &mut outcome).await?
+                    account
+                        .merge_folder(
+                            id,
+                            MergeSource::Checked(diff),
+                            &mut outcome,
+                        )
+                        .await?
                 }
                 EventLogType::Noop => unreachable!(),
             }

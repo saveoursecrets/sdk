@@ -2021,7 +2021,7 @@ impl Account for LocalAccount {
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
         let vault = FolderReducer::new_until_commit(commit)
-            .reduce(&log_file)
+            .reduce(&*log_file)
             .await?
             .build(true)
             .await?;

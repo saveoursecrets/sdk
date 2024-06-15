@@ -42,7 +42,7 @@ pub struct VaultWriter<F>
 where
     F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send,
 {
-    file_path: PathBuf,
+    pub(crate) file_path: PathBuf,
     stream: Mutex<Compat<F>>,
 }
 

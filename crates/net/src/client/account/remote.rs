@@ -5,15 +5,14 @@ use crate::client::{
 use async_trait::async_trait;
 use sos_sdk::{
     account::{Account, LocalAccount},
-    commit::Comparison,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::{
         files::{FileSet, TransferOperation},
         StorageEventLogs,
     },
     sync::{
-        self, HardConflictResolver, Merge, Origin, SyncOptions, SyncPacket,
-        SyncStatus, SyncStorage, UpdateSet,
+        self, HardConflictResolver, Merge, MergeOutcome, MergeSource, Origin,
+        SyncOptions, SyncPacket, SyncStatus, SyncStorage, UpdateSet,
     },
     vfs,
 };
@@ -110,7 +109,7 @@ impl RemoteBridge {
 
             if !has_conflicts {
                 let (mut outcome, _) =
-                    account.merge(&remote_changes.diff).await?;
+                    account.merge(remote_changes.diff).await?;
 
                 // Compute which external files need to be downloaded
                 // and add to the transfers queue
@@ -140,7 +139,7 @@ impl RemoteBridge {
                     }
                 }
 
-                self.compare(&mut *account, remote_changes).await?;
+                // self.compare(&mut *account, remote_changes).await?;
             } else {
                 return Err(Error::SoftConflict {
                     conflict: maybe_conflict,
@@ -148,43 +147,6 @@ impl RemoteBridge {
                     remote: remote_changes,
                 });
             }
-        }
-
-        Ok(())
-    }
-
-    /// Compare the remote comparison with the local
-    /// comparison and determine if a force pull or automerge
-    /// is required.
-    async fn compare(
-        &self,
-        account: &mut LocalAccount,
-        remote_changes: SyncPacket,
-    ) -> Result<()> {
-        if let Some(remote_compare) = &remote_changes.compare {
-            let local_compare =
-                account.compare(&remote_changes.status).await?;
-
-            // NOTE: we don't currently handle account, device and
-            // NOTE: files here as they are currently append-only.
-            // NOTE: if later we support compacting these event logs
-            // NOTE: we need to handle force pull here.
-
-            match (&local_compare.identity, &remote_compare.identity) {
-                (Some(Comparison::Unknown), Some(Comparison::Unknown)) => {
-                    println!(
-                        "todo!: handle completely diverged identity folder"
-                    );
-                }
-                _ => {}
-            }
-
-            // NOTE: we don't need to handle folders here as
-            // NOTE: destructive changes should call
-            // NOTE: import_folder_buffer() which generates
-            // NOTE: an AccountEvent::UpdateVault event which
-            // NOTE: will be handled and automatically rewrite
-            // NOTE: the content of the folder
         }
 
         Ok(())
@@ -225,10 +187,28 @@ impl RemoteBridge {
     }
 
     async fn force_pull(&self) -> Result<()> {
+        let mut outcome = MergeOutcome::default();
         let account_data = self.client.fetch_account().await?;
-        // account_data.identity.foo();
-        let account = self.account.lock().await;
-        // account.rewrite_account_data(&account_data).await?;
+        let mut account = self.account.lock().await;
+        account
+            .merge_identity(
+                MergeSource::Forced(account_data.identity),
+                &mut outcome,
+            )
+            .await?;
+
+        todo!("force merge account events");
+        // todo!("force merge device events");
+        // todo!("force merge files events");
+
+        for (id, patch) in account_data.folders {
+            account
+                .merge_folder(&id, MergeSource::Forced(patch), &mut outcome)
+                .await?;
+        }
+
+        account.sign_out().await?;
+
         Ok(())
     }
 
