@@ -344,7 +344,7 @@ impl RemoteBridge {
         );
 
         // Rewind the event log to the target commit
-        self.rewind_event_log(log_type, &commit).await?;
+        let records = self.rewind_event_log(log_type, &commit).await?;
 
         let mut outcome = MergeOutcome::default();
 
@@ -408,7 +408,56 @@ impl RemoteBridge {
             }
         };
 
+        if let CheckedPatch::Conflict { head, .. } = &checked_patch {
+            tracing::warn!(
+                head = ?head,
+                num_records = ?records.len(),
+                "auto_merge::rollback_rewind");
+
+            self.rollback_rewind(log_type, records).await?;
+        }
+
         Ok(checked_patch)
+    }
+
+    async fn rollback_rewind(
+        &self,
+        log_type: &EventLogType,
+        records: Vec<EventRecord>,
+    ) -> Result<()> {
+        let account = self.account.lock().await;
+        match log_type {
+            EventLogType::Identity => {
+                let log = account.identity_log().await?;
+                let mut event_log = log.write().await;
+                event_log.apply_records(records).await?;
+            }
+            EventLogType::Account => {
+                let log = account.account_log().await?;
+                let mut event_log = log.write().await;
+                event_log.apply_records(records).await?;
+            }
+            #[cfg(feature = "device")]
+            EventLogType::Device => {
+                let log = account.device_log().await?;
+                let mut event_log = log.write().await;
+                event_log.apply_records(records).await?;
+            }
+            #[cfg(feature = "files")]
+            EventLogType::Files => {
+                let log = account.file_log().await?;
+                let mut event_log = log.write().await;
+                event_log.apply_records(records).await?;
+            }
+            EventLogType::Folder(id) => {
+                let log = account.folder_log(id).await?;
+                let mut event_log = log.write().await;
+                event_log.apply_records(records).await?;
+            }
+            EventLogType::Noop => unreachable!(),
+        }
+
+        Ok(())
     }
 
     /// Push the events to a remote and rewind local.
@@ -469,7 +518,7 @@ impl RemoteBridge {
         &self,
         log_type: &EventLogType,
         commit: &CommitHash,
-    ) -> Result<()> {
+    ) -> Result<Vec<EventRecord>> {
         tracing::debug!(
           log_type = ?log_type,
           commit = %commit,
@@ -477,37 +526,36 @@ impl RemoteBridge {
         );
         // Rewind the event log
         let account = self.account.lock().await;
-        match &log_type {
+        Ok(match &log_type {
             EventLogType::Identity => {
                 let log = account.identity_log().await?;
                 let mut event_log = log.write().await;
-                event_log.rewind(commit).await?;
+                event_log.rewind(commit).await?
             }
             EventLogType::Account => {
                 let log = account.account_log().await?;
                 let mut event_log = log.write().await;
-                event_log.rewind(commit).await?;
+                event_log.rewind(commit).await?
             }
             #[cfg(feature = "device")]
             EventLogType::Device => {
                 let log = account.device_log().await?;
                 let mut event_log = log.write().await;
-                event_log.rewind(commit).await?;
+                event_log.rewind(commit).await?
             }
             #[cfg(feature = "files")]
             EventLogType::Files => {
                 let log = account.file_log().await?;
                 let mut event_log = log.write().await;
-                event_log.rewind(commit).await?;
+                event_log.rewind(commit).await?
             }
             EventLogType::Folder(id) => {
                 let log = account.folder_log(id).await?;
                 let mut event_log = log.write().await;
-                event_log.rewind(commit).await?;
+                event_log.rewind(commit).await?
             }
             EventLogType::Noop => unreachable!(),
-        }
-        Ok(())
+        })
     }
 
     /// Scan the remote for proofs that match this client.

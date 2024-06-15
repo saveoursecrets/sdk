@@ -1121,11 +1121,10 @@ mod handlers {
 
         // Rollback the rewind if the merge failed
         if let CheckedPatch::Conflict { head, .. } = &checked_patch {
-            println!("PATCH FAILED, NEEDS ROLLBACK...");
             tracing::warn!(
                 head = ?head,
                 num_records = ?records.len(),
-                "patch::rollback_rewind");
+                "events_patch::rollback_rewind");
             rollback_rewind(&req.log_type, account, records).await?;
         }
 
