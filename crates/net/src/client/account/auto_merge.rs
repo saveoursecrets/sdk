@@ -520,7 +520,7 @@ impl RemoteBridge {
                         patch,
                         after: None,
                     };
-                    account.merge_device(&diff, &mut outcome).await?
+                    account.merge_device(diff, &mut outcome).await?
                 }
                 #[cfg(feature = "files")]
                 EventLogType::Files => {
@@ -531,7 +531,7 @@ impl RemoteBridge {
                         patch,
                         after: None,
                     };
-                    account.merge_files(&diff, &mut outcome).await?
+                    account.merge_files(diff, &mut outcome).await?
                 }
                 EventLogType::Folder(id) => {
                     let patch = Patch::<WriteEvent>::new(events);

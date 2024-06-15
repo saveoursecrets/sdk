@@ -928,7 +928,7 @@ pub trait Merge {
     #[cfg(feature = "device")]
     async fn merge_device(
         &mut self,
-        diff: &DeviceDiff,
+        diff: DeviceDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch>;
 
@@ -941,7 +941,7 @@ pub trait Merge {
     #[cfg(feature = "files")]
     async fn merge_files(
         &mut self,
-        diff: &FileDiff,
+        diff: FileDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch>;
 
@@ -1034,28 +1034,28 @@ pub trait Merge {
         }
 
         #[cfg(feature = "device")]
-        match &diff.device {
+        match diff.device {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
                 self.merge_device(diff, outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
-                    compare.device = Some(self.compare_device(state).await?);
+                    compare.device = Some(self.compare_device(&state).await?);
                 }
             }
             None => {}
         }
 
         #[cfg(feature = "files")]
-        match &diff.files {
+        match diff.files {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
                 self.merge_files(diff, outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
-                    compare.files = Some(self.compare_files(state).await?);
+                    compare.files = Some(self.compare_files(&state).await?);
                 }
             }
             None => {}

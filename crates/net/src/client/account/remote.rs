@@ -143,8 +143,7 @@ impl RemoteBridge {
                 // self.compare(&mut *account, remote_changes).await?;
             } else {
                 // Some parts of the remote patch may not
-                // be in conflict and must still be merged!
-
+                // be in conflict and must still be merged
                 if !maybe_conflict.identity {
                     if let Some(MaybeDiff::Diff(diff)) =
                         remote_changes.diff.identity
@@ -152,7 +151,6 @@ impl RemoteBridge {
                         account.merge_identity(diff, &mut outcome).await?;
                     }
                 }
-
                 if !maybe_conflict.account {
                     if let Some(MaybeDiff::Diff(diff)) =
                         remote_changes.diff.account
@@ -160,9 +158,34 @@ impl RemoteBridge {
                         account.merge_account(diff, &mut outcome).await?;
                     }
                 }
+                #[cfg(feature = "device")]
+                if !maybe_conflict.device {
+                    if let Some(MaybeDiff::Diff(diff)) =
+                        remote_changes.diff.device
+                    {
+                        account.merge_device(diff, &mut outcome).await?;
+                    }
+                }
+                #[cfg(feature = "files")]
+                if !maybe_conflict.files {
+                    if let Some(MaybeDiff::Diff(diff)) =
+                        remote_changes.diff.files
+                    {
+                        account.merge_files(diff, &mut outcome).await?;
+                    }
+                }
 
-                // TODO: merge device here
-                // TODO: merge files here
+                let merge_folders = remote_changes
+                    .diff
+                    .folders
+                    .into_iter()
+                    .filter(|(k, _)| maybe_conflict.folders.get(k).is_none())
+                    .collect::<HashMap<_, _>>();
+                for (id, maybe_diff) in merge_folders {
+                    if let MaybeDiff::Diff(diff) = maybe_diff {
+                        account.merge_folder(&id, diff, &mut outcome).await?;
+                    }
+                }
 
                 return Err(Error::SoftConflict {
                     conflict: maybe_conflict,

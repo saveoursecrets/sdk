@@ -1039,7 +1039,7 @@ mod handlers {
 
                 let mut outcome = MergeOutcome::default();
                 (
-                    writer.storage.merge_device(&diff, &mut outcome).await?,
+                    writer.storage.merge_device(diff, &mut outcome).await?,
                     outcome,
                     records,
                 )
@@ -1067,7 +1067,7 @@ mod handlers {
 
                 let mut outcome = MergeOutcome::default();
                 (
-                    writer.storage.merge_files(&diff, &mut outcome).await?,
+                    writer.storage.merge_files(diff, &mut outcome).await?,
                     outcome,
                     records,
                 )

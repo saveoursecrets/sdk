@@ -234,7 +234,7 @@ impl Merge for LocalAccount {
     #[cfg(feature = "device")]
     async fn merge_device(
         &mut self,
-        diff: &DeviceDiff,
+        diff: DeviceDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
         tracing::debug!(
@@ -286,7 +286,7 @@ impl Merge for LocalAccount {
     #[cfg(feature = "files")]
     async fn merge_files(
         &mut self,
-        diff: &FileDiff,
+        diff: FileDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
         use crate::events::FileReducer;

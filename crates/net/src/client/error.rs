@@ -4,7 +4,7 @@ use http::StatusCode;
 use serde_json::Value;
 use sos_sdk::sync::SyncStatus;
 #[cfg(feature = "client")]
-use sos_sdk::sync::{MaybeConflict, Origin, SyncError, SyncPacket};
+use sos_sdk::sync::{MaybeConflict, Origin, SyncError};
 use std::error::Error as StdError;
 use std::path::PathBuf;
 use thiserror::Error;
