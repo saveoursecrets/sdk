@@ -236,7 +236,9 @@ where
     ) -> Result<CheckedPatch> {
         let checked_patch = {
             let mut event_log = self.events.write().await;
-            event_log.patch_checked(&diff.before, &diff.patch).await?
+            event_log
+                .patch_checked(&diff.checkpoint, &diff.patch)
+                .await?
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {

@@ -172,8 +172,14 @@ where
     pub last_commit: Option<CommitHash>,
     /// Contents of the patch.
     pub patch: Patch<T>,
-    /// Head of the event log before applying the patch.
-    pub before: CommitProof,
+    /// Checkpoint for the diff patch.
+    ///
+    /// For checked patches this must match the proof
+    /// of HEAD at the point the the patch was created from.
+    ///
+    /// When force merging this checkpoint references the
+    /// commit proof of HEAD after applying the patch.
+    pub checkpoint: CommitProof,
 }
 
 /// Diff between account events logs.
@@ -478,7 +484,7 @@ impl SyncComparison {
                         patch: reader
                             .diff(Some(&self.remote_status.identity.0))
                             .await?,
-                        before: self.remote_status.identity.1.clone(),
+                        checkpoint: self.remote_status.identity.1.clone(),
                     };
                     diff.identity = Some(MaybeDiff::Diff(identity));
                 }
@@ -513,7 +519,7 @@ impl SyncComparison {
                         patch: reader
                             .diff(Some(&self.remote_status.account.0))
                             .await?,
-                        before: self.remote_status.account.1.clone(),
+                        checkpoint: self.remote_status.account.1.clone(),
                     };
                     diff.account = Some(MaybeDiff::Diff(account));
                 }
@@ -549,7 +555,7 @@ impl SyncComparison {
                         patch: reader
                             .diff(Some(&self.remote_status.device.0))
                             .await?,
-                        before: self.remote_status.device.1.clone(),
+                        checkpoint: self.remote_status.device.1.clone(),
                     };
                     diff.device = Some(MaybeDiff::Diff(device));
                 }
@@ -590,7 +596,7 @@ impl SyncComparison {
                                 patch: reader
                                     .diff(Some(&remote_files.0))
                                     .await?,
-                                before: remote_files.1.clone(),
+                                checkpoint: remote_files.1.clone(),
                             };
                             diff.files = Some(MaybeDiff::Diff(files));
                         }
@@ -618,7 +624,7 @@ impl SyncComparison {
                     let files = FileDiff {
                         last_commit: None,
                         patch: reader.diff(None).await?,
-                        before: Default::default(),
+                        checkpoint: Default::default(),
                     };
                     diff.files = Some(MaybeDiff::Diff(files));
                 }
@@ -643,7 +649,7 @@ impl SyncComparison {
                     let folder = FolderDiff {
                         last_commit: Some(commit_state.0),
                         patch: log.diff(Some(&commit_state.0)).await?,
-                        before: commit_state.1.clone(),
+                        checkpoint: commit_state.1.clone(),
                     };
 
                     if !folder.patch.is_empty() {
@@ -679,7 +685,7 @@ impl SyncComparison {
                 let folder = FolderDiff {
                     last_commit: Some(first_commit.0),
                     patch: log.diff(Some(&first_commit.0)).await?,
-                    before: first_commit.1,
+                    checkpoint: first_commit.1,
                 };
 
                 if !folder.patch.is_empty() {

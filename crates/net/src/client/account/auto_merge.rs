@@ -159,7 +159,7 @@ impl RemoteBridge {
                 let patch = Patch::<WriteEvent>::new(response.patch);
                 let diff = FolderDiff {
                     patch,
-                    before: response.checkpoint,
+                    checkpoint: response.checkpoint,
                     last_commit: None,
                 };
                 let mut account = self.account.lock().await;
@@ -218,7 +218,7 @@ impl RemoteBridge {
                 let patch = Patch::<AccountEvent>::new(response.patch);
                 let diff = AccountDiff {
                     patch,
-                    before: response.checkpoint,
+                    checkpoint: response.checkpoint,
                     last_commit: None,
                 };
                 let mut account = self.account.lock().await;
@@ -328,7 +328,7 @@ impl RemoteBridge {
                 let patch = Patch::<WriteEvent>::new(response.patch);
                 let diff = FolderDiff {
                     patch,
-                    before: response.checkpoint,
+                    checkpoint: response.checkpoint,
                     last_commit: None,
                 };
                 let mut account = self.account.lock().await;
@@ -491,7 +491,7 @@ impl RemoteBridge {
                     let patch = Patch::<WriteEvent>::new(events);
                     let diff = FolderDiff {
                         last_commit: Some(commit),
-                        before: proof,
+                        checkpoint: proof,
                         patch,
                     };
                     account.merge_identity(diff, &mut outcome).await?
@@ -500,7 +500,7 @@ impl RemoteBridge {
                     let patch = Patch::<AccountEvent>::new(events);
                     let diff = AccountDiff {
                         last_commit: Some(commit),
-                        before: proof,
+                        checkpoint: proof,
                         patch,
                     };
                     account.merge_account(diff, &mut outcome).await?
@@ -510,7 +510,7 @@ impl RemoteBridge {
                     let patch = Patch::<DeviceEvent>::new(events);
                     let diff = DeviceDiff {
                         last_commit: Some(commit),
-                        before: proof,
+                        checkpoint: proof,
                         patch,
                     };
                     account.merge_device(diff, &mut outcome).await?
@@ -520,7 +520,7 @@ impl RemoteBridge {
                     let patch = Patch::<FileEvent>::new(events);
                     let diff = FileDiff {
                         last_commit: Some(commit),
-                        before: proof,
+                        checkpoint: proof,
                         patch,
                     };
                     account.merge_files(diff, &mut outcome).await?
@@ -529,7 +529,7 @@ impl RemoteBridge {
                     let patch = Patch::<WriteEvent>::new(events);
                     let diff = FolderDiff {
                         last_commit: Some(commit),
-                        before: proof,
+                        checkpoint: proof,
                         patch,
                     };
                     account.merge_folder(id, diff, &mut outcome).await?

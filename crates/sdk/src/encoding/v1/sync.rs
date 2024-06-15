@@ -449,7 +449,7 @@ where
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
         self.last_commit.encode(&mut *writer).await?;
-        self.before.encode(&mut *writer).await?;
+        self.checkpoint.encode(&mut *writer).await?;
         self.patch.encode(&mut *writer).await?;
         Ok(())
     }
@@ -465,7 +465,7 @@ where
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
         self.last_commit.decode(&mut *reader).await?;
-        self.before.decode(&mut *reader).await?;
+        self.checkpoint.decode(&mut *reader).await?;
         self.patch.decode(&mut *reader).await?;
         Ok(())
     }

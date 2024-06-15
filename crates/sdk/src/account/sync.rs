@@ -30,7 +30,7 @@ impl ForceMerge for LocalAccount {
         let len = diff.patch.len();
 
         tracing::debug!(
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = len,
             "force_merge::identity",
         );
@@ -51,7 +51,7 @@ impl ForceMerge for LocalAccount {
 
         tracing::debug!(
             folder_id = %folder_id,
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = len,
             "force_merge::folder",
         );
@@ -79,7 +79,7 @@ impl ForceMerge for LocalAccount {
         let len = diff.patch.len();
 
         tracing::debug!(
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = len,
             "force_merge::account",
         );
@@ -107,7 +107,7 @@ impl Merge for LocalAccount {
     ) -> Result<CheckedPatch> {
         let len = diff.patch.len();
         tracing::debug!(
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = len,
             "identity",
         );
@@ -138,7 +138,7 @@ impl Merge for LocalAccount {
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
         tracing::debug!(
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
             "account",
         );
@@ -146,7 +146,9 @@ impl Merge for LocalAccount {
         let checked_patch = {
             let account_log = self.account_log().await?;
             let mut event_log = account_log.write().await;
-            event_log.patch_checked(&diff.before, &diff.patch).await?
+            event_log
+                .patch_checked(&diff.checkpoint, &diff.patch)
+                .await?
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {
@@ -238,7 +240,7 @@ impl Merge for LocalAccount {
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
         tracing::debug!(
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
             "device",
         );
@@ -247,7 +249,9 @@ impl Merge for LocalAccount {
             let storage = self.storage().await?;
             let storage = storage.read().await;
             let mut event_log = storage.device_log.write().await;
-            event_log.patch_checked(&diff.before, &diff.patch).await?
+            event_log
+                .patch_checked(&diff.checkpoint, &diff.patch)
+                .await?
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {
@@ -291,7 +295,7 @@ impl Merge for LocalAccount {
     ) -> Result<CheckedPatch> {
         use crate::events::FileReducer;
         tracing::debug!(
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
             "files",
         );
@@ -302,23 +306,23 @@ impl Merge for LocalAccount {
 
         // File events may not have a root commit
         let is_init_diff = diff.last_commit.is_none();
-        let (checked_patch, external_files) = if is_init_diff
-            && event_log.tree().is_empty()
-        {
-            event_log.patch_unchecked(&diff.patch).await?;
-            let reducer = FileReducer::new(&event_log);
-            let external_files = reducer.reduce(None).await?;
+        let (checked_patch, external_files) =
+            if is_init_diff && event_log.tree().is_empty() {
+                event_log.patch_unchecked(&diff.patch).await?;
+                let reducer = FileReducer::new(&event_log);
+                let external_files = reducer.reduce(None).await?;
 
-            let proof = event_log.tree().head()?;
-            (CheckedPatch::Success(proof), external_files)
-        } else {
-            let checked_patch =
-                event_log.patch_checked(&diff.before, &diff.patch).await?;
-            let reducer = FileReducer::new(&event_log);
-            let external_files =
-                reducer.reduce(diff.last_commit.as_ref()).await?;
-            (checked_patch, external_files)
-        };
+                let proof = event_log.tree().head()?;
+                (CheckedPatch::Success(proof), external_files)
+            } else {
+                let checked_patch = event_log
+                    .patch_checked(&diff.checkpoint, &diff.patch)
+                    .await?;
+                let reducer = FileReducer::new(&event_log);
+                let external_files =
+                    reducer.reduce(diff.last_commit.as_ref()).await?;
+                (checked_patch, external_files)
+            };
 
         outcome.external_files = external_files;
 
@@ -356,7 +360,7 @@ impl Merge for LocalAccount {
 
         tracing::debug!(
             folder_id = %folder_id,
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = len,
             "folder",
         );

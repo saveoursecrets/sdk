@@ -178,14 +178,14 @@ impl Merge for ServerStorage {
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
         tracing::debug!(
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
             "identity",
         );
 
         let mut writer = self.identity_log.write().await;
         let checked_patch =
-            writer.patch_checked(&diff.before, &diff.patch).await?;
+            writer.patch_checked(&diff.checkpoint, &diff.patch).await?;
 
         if let CheckedPatch::Success(_) = &checked_patch {
             outcome.identity = diff.patch.len();
@@ -209,14 +209,16 @@ impl Merge for ServerStorage {
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
         tracing::debug!(
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
             "account",
         );
 
         let checked_patch = {
             let mut event_log = self.account_log.write().await;
-            event_log.patch_checked(&diff.before, &diff.patch).await?
+            event_log
+                .patch_checked(&diff.checkpoint, &diff.patch)
+                .await?
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {
@@ -287,14 +289,16 @@ impl Merge for ServerStorage {
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
         tracing::debug!(
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
             "device",
         );
 
         let checked_patch = {
             let mut event_log = self.device_log.write().await;
-            event_log.patch_checked(&diff.before, &diff.patch).await?
+            event_log
+                .patch_checked(&diff.checkpoint, &diff.patch)
+                .await?
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {
@@ -329,7 +333,7 @@ impl Merge for ServerStorage {
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
         tracing::debug!(
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
             "files",
         );
@@ -339,13 +343,15 @@ impl Merge for ServerStorage {
         // File events may not have a root commit if there are
         // no files yet and we distinguish this by the before
         // commit state being the default.
-        let is_init_diff = diff.before == Default::default();
+        let is_init_diff = diff.checkpoint == Default::default();
         let checked_patch = if is_init_diff && event_log.tree().is_empty() {
             event_log.patch_unchecked(&diff.patch).await?;
             let proof = event_log.tree().head()?;
             CheckedPatch::Success(proof)
         } else {
-            event_log.patch_checked(&diff.before, &diff.patch).await?
+            event_log
+                .patch_checked(&diff.checkpoint, &diff.patch)
+                .await?
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {
@@ -372,7 +378,7 @@ impl Merge for ServerStorage {
 
         tracing::debug!(
             folder_id = %folder_id,
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = len,
             "folder",
         );
@@ -384,7 +390,7 @@ impl Merge for ServerStorage {
         let mut log = log.write().await;
 
         let checked_patch =
-            log.patch_checked(&diff.before, &diff.patch).await?;
+            log.patch_checked(&diff.checkpoint, &diff.patch).await?;
 
         if let CheckedPatch::Success(_) = &checked_patch {
             outcome.folders.insert(*folder_id, len);

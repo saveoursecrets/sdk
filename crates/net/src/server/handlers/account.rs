@@ -977,7 +977,7 @@ mod handlers {
 
                 let diff = FolderDiff {
                     last_commit,
-                    before: req.proof,
+                    checkpoint: req.proof,
                     patch,
                 };
 
@@ -1003,7 +1003,7 @@ mod handlers {
 
                 let diff = AccountDiff {
                     last_commit,
-                    before: req.proof,
+                    checkpoint: req.proof,
                     patch,
                 };
 
@@ -1030,7 +1030,7 @@ mod handlers {
 
                 let diff = DeviceDiff {
                     last_commit,
-                    before: req.proof,
+                    checkpoint: req.proof,
                     patch,
                 };
 
@@ -1057,7 +1057,7 @@ mod handlers {
 
                 let diff = FileDiff {
                     last_commit,
-                    before: req.proof,
+                    checkpoint: req.proof,
                     patch,
                 };
 
@@ -1083,7 +1083,7 @@ mod handlers {
 
                 let diff = FolderDiff {
                     last_commit,
-                    before: req.proof,
+                    checkpoint: req.proof,
                     patch,
                 };
 
