@@ -2,11 +2,11 @@ use crate::{
     account::{Account, LocalAccount},
     commit::{CommitState, CommitTree, Comparison},
     decode,
-    events::{AccountEvent, EventLogExt, LogEvent, WriteEvent},
+    events::{AccountEvent, EventLogExt, LogEvent},
     storage::StorageEventLogs,
     sync::{
-        AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, Merge,
-        MergeOutcome, MergeSource, SyncStatus, SyncStorage,
+        AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions,
+        ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
     },
     vault::{Vault, VaultId},
     Error, Result,
@@ -21,27 +21,66 @@ use crate::{events::DeviceReducer, sync::DeviceDiff};
 use crate::sync::FileDiff;
 
 #[async_trait]
+impl ForceMerge for LocalAccount {
+    async fn force_merge_identity(
+        &mut self,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            before = ?diff.before,
+            num_events = len,
+            "force_merge::identity",
+        );
+
+        self.user_mut()?.identity_mut()?.force_merge(diff).await?;
+        outcome.identity = len;
+        outcome.changes += len;
+        Ok(())
+    }
+
+    async fn force_merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let len = diff.patch.len();
+
+        let storage = self.storage().await?;
+        let mut storage = storage.write().await;
+
+        let folder = storage
+            .cache_mut()
+            .get_mut(folder_id)
+            .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+        folder.force_merge(diff).await?;
+
+        outcome.folders.insert(*folder_id, len);
+        outcome.changes += len;
+
+        Ok(())
+    }
+}
+
+#[async_trait]
 impl Merge for LocalAccount {
     async fn merge_identity(
         &mut self,
-        source: MergeSource<WriteEvent>,
+        diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        let (len, before) = match &source {
-            MergeSource::Checked(diff) => {
-                (diff.patch.len(), Some(&diff.before))
-            }
-            MergeSource::Forced(patch) => (patch.len(), None),
-        };
-
+        let len = diff.patch.len();
         tracing::debug!(
-            before = ?before,
+            before = ?diff.before,
             num_events = len,
-            "merge_identity::checked",
+            "identity",
         );
 
         let checked_patch =
-            self.user_mut()?.identity_mut()?.merge(source).await?;
+            self.user_mut()?.identity_mut()?.merge(diff).await?;
 
         if let CheckedPatch::Success(_, _) = &checked_patch {
             outcome.identity = len;
@@ -268,15 +307,10 @@ impl Merge for LocalAccount {
     async fn merge_folder(
         &mut self,
         folder_id: &VaultId,
-        source: MergeSource<WriteEvent>,
+        diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        let (len, before) = match &source {
-            MergeSource::Checked(diff) => {
-                (diff.patch.len(), Some(&diff.before))
-            }
-            MergeSource::Forced(patch) => (patch.len(), None),
-        };
+        let len = diff.patch.len();
 
         let storage = self.storage().await?;
         let mut storage = storage.write().await;
@@ -289,7 +323,7 @@ impl Merge for LocalAccount {
 
         tracing::debug!(
             folder_id = %folder_id,
-            before = ?before,
+            before = ?diff.before,
             num_events = len,
             "folder",
         );
@@ -305,7 +339,7 @@ impl Merge for LocalAccount {
                 let mut search = search.write().await;
                 folder
                     .merge(
-                        source,
+                        diff,
                         FolderMergeOptions::Search(*folder_id, &mut search),
                     )
                     .await?

@@ -14,9 +14,9 @@ use sos_sdk::{
     },
     storage::StorageEventLogs,
     sync::{
-        AccountDiff, CheckedPatch, FolderDiff, HardConflictResolver,
-        MaybeConflict, Merge, MergeOutcome, MergeSource, Patch, SyncOptions,
-        SyncStatus,
+        AccountDiff, CheckedPatch, FolderDiff, ForceMerge,
+        HardConflictResolver, MaybeConflict, Merge, MergeOutcome, Patch,
+        SyncOptions, SyncStatus,
     },
     vault::VaultId,
 };
@@ -55,52 +55,14 @@ impl RemoteBridge {
         conflict: MaybeConflict,
         local: SyncStatus,
     ) -> Result<()> {
-        match self.auto_merge_on_soft_conflict(conflict, local).await {
-            Ok(_) => Ok(()),
-            Err(e) => match e {
-                Error::HardConflict => match options.hard_conflict_resolver {
-                    HardConflictResolver::AutomaticFetch => {
-                        self.force_pull().await
-                    }
-                },
-                _ => Err(e),
-            },
-        }
-    }
+        let mut force_merge_outcome = MergeOutcome::default();
+        let mut has_hard_conflict = false;
 
-    async fn force_pull(&self) -> Result<()> {
-        let mut outcome = MergeOutcome::default();
-        let account_data = self.client.fetch_account().await?;
-        let mut account = self.account.lock().await;
-        account
-            .merge_identity(
-                MergeSource::Forced(account_data.identity),
-                &mut outcome,
-            )
-            .await?;
-
-        // todo!("force merge account events");
-        // todo!("force merge device events");
-        // todo!("force merge files events");
-
-        for (id, patch) in account_data.folders {
-            account
-                .merge_folder(&id, MergeSource::Forced(patch), &mut outcome)
-                .await?;
-        }
-
-        account.sign_out().await?;
-
-        Ok(())
-    }
-
-    async fn auto_merge_on_soft_conflict(
-        &self,
-        conflict: MaybeConflict,
-        local: SyncStatus,
-    ) -> Result<()> {
         if conflict.identity {
-            self.auto_merge_identity().await?;
+            let hard_conflict = self
+                .auto_merge_identity(options, &mut force_merge_outcome)
+                .await?;
+            has_hard_conflict = has_hard_conflict || hard_conflict;
         }
 
         if conflict.account {
@@ -118,13 +80,33 @@ impl RemoteBridge {
         }
 
         for (folder_id, _) in &conflict.folders {
-            self.auto_merge_folder(&local, folder_id).await?;
+            let hard_conflict = self
+                .auto_merge_folder(
+                    options,
+                    &local,
+                    folder_id,
+                    &mut force_merge_outcome,
+                )
+                .await?;
+            has_hard_conflict = has_hard_conflict || hard_conflict;
+        }
+
+        if has_hard_conflict {
+            tracing::debug!(
+                outcome = ?force_merge_outcome,
+                "auto_merge::hard_conflict");
+            let mut account = self.account.lock().await;
+            account.sign_out().await?;
         }
 
         Ok(())
     }
 
-    async fn auto_merge_identity(&self) -> Result<()> {
+    async fn auto_merge_identity(
+        &self,
+        options: &SyncOptions,
+        outcome: &mut MergeOutcome,
+    ) -> Result<bool> {
         tracing::debug!("auto_merge::identity");
 
         let req = CommitScanRequest {
@@ -133,16 +115,50 @@ impl RemoteBridge {
             limit: PROOF_SCAN_LIMIT,
             ascending: false,
         };
-        if let Some((ancestor_commit, proof)) = self.scan_proofs(req).await? {
-            self.try_merge_from_ancestor::<WriteEvent>(
-                EventLogType::Identity,
-                ancestor_commit,
-                proof,
-            )
-            .await?;
+        match self.scan_proofs(req).await {
+            Ok(Some((ancestor_commit, proof))) => {
+                self.try_merge_from_ancestor::<WriteEvent>(
+                    EventLogType::Identity,
+                    ancestor_commit,
+                    proof,
+                )
+                .await?;
+                Ok(false)
+            }
+            Err(e) => match e {
+                Error::HardConflict => {
+                    self.identity_hard_conflict(options, outcome).await?;
+                    Ok(true)
+                }
+                _ => Err(e),
+            },
+            _ => Err(Error::HardConflict),
         }
+    }
 
-        Ok(())
+    async fn identity_hard_conflict(
+        &self,
+        options: &SyncOptions,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        match &options.hard_conflict_resolver {
+            HardConflictResolver::AutomaticFetch => {
+                let request = CommitDiffRequest {
+                    log_type: EventLogType::Identity,
+                    from_hash: None,
+                };
+                let response = self.client.diff(&request).await?;
+                let patch = Patch::<WriteEvent>::new(response.patch);
+                let diff = FolderDiff {
+                    patch,
+                    before: response.checkpoint,
+                    last_commit: None,
+                    after: None,
+                };
+                let mut account = self.account.lock().await;
+                Ok(account.force_merge_identity(diff, outcome).await?)
+            }
+        }
     }
 
     async fn auto_merge_account(&self) -> Result<()> {
@@ -216,34 +232,67 @@ impl RemoteBridge {
 
     async fn auto_merge_folder(
         &self,
-        local_status: &SyncStatus,
+        options: &SyncOptions,
+        _local_status: &SyncStatus,
         folder_id: &VaultId,
-    ) -> Result<()> {
+        outcome: &mut MergeOutcome,
+    ) -> Result<bool> {
         tracing::debug!(folder_id = %folder_id, "auto_merge::folder");
 
-        if local_status.folders.get(folder_id).is_some() {
-            let req = CommitScanRequest {
-                log_type: EventLogType::Folder(*folder_id),
-                offset: None,
-                limit: PROOF_SCAN_LIMIT,
-                ascending: false,
-            };
-            if let Some((ancestor_commit, proof)) =
-                self.scan_proofs(req).await?
-            {
+        let req = CommitScanRequest {
+            log_type: EventLogType::Folder(*folder_id),
+            offset: None,
+            limit: PROOF_SCAN_LIMIT,
+            ascending: false,
+        };
+        match self.scan_proofs(req).await {
+            Ok(Some((ancestor_commit, proof))) => {
                 self.try_merge_from_ancestor::<WriteEvent>(
                     EventLogType::Folder(*folder_id),
                     ancestor_commit,
                     proof,
                 )
                 .await?;
+                Ok(false)
             }
-        } else {
-            tracing::warn!(
-                folder_id = %folder_id,
-                "auto_merge::folder_not_found");
+            Err(e) => match e {
+                Error::HardConflict => {
+                    self.folder_hard_conflict(folder_id, options, outcome)
+                        .await?;
+                    Ok(true)
+                }
+                _ => Err(e),
+            },
+            _ => Err(Error::HardConflict),
         }
-        Ok(())
+    }
+
+    async fn folder_hard_conflict(
+        &self,
+        folder_id: &VaultId,
+        options: &SyncOptions,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        match &options.hard_conflict_resolver {
+            HardConflictResolver::AutomaticFetch => {
+                let request = CommitDiffRequest {
+                    log_type: EventLogType::Folder(*folder_id),
+                    from_hash: None,
+                };
+                let response = self.client.diff(&request).await?;
+                let patch = Patch::<WriteEvent>::new(response.patch);
+                let diff = FolderDiff {
+                    patch,
+                    before: response.checkpoint,
+                    last_commit: None,
+                    after: None,
+                };
+                let mut account = self.account.lock().await;
+                Ok(account
+                    .force_merge_folder(folder_id, diff, outcome)
+                    .await?)
+            }
+        }
     }
 
     /// Try to merge from a shared ancestor commit.
@@ -296,7 +345,7 @@ impl RemoteBridge {
         // Fetch the patch of remote events
         let request = CommitDiffRequest {
             log_type,
-            from_hash: commit,
+            from_hash: Some(commit),
         };
         let remote_patch = self.client.diff(&request).await?.patch;
 
@@ -403,12 +452,7 @@ impl RemoteBridge {
                         patch,
                         after: None,
                     };
-                    account
-                        .merge_identity(
-                            MergeSource::Checked(diff),
-                            &mut outcome,
-                        )
-                        .await?
+                    account.merge_identity(diff, &mut outcome).await?
                 }
                 EventLogType::Account => {
                     let patch = Patch::<AccountEvent>::new(events);
@@ -450,13 +494,7 @@ impl RemoteBridge {
                         patch,
                         after: None,
                     };
-                    account
-                        .merge_folder(
-                            id,
-                            MergeSource::Checked(diff),
-                            &mut outcome,
-                        )
-                        .await?
+                    account.merge_folder(id, diff, &mut outcome).await?
                 }
                 EventLogType::Noop => unreachable!(),
             }
@@ -648,37 +686,6 @@ impl RemoteBridge {
         };
 
         self.iterate_scan_proofs(request, &leaves).await
-
-        /*
-        let response = self.client.scan(&request).await?;
-        if !response.proofs.is_empty() {
-            // Proofs are returned in the event log order
-            // but we always want to scan from the end of
-            // the event log so reverse the iteration
-            for proof in response.proofs.iter().rev() {
-                let commit_hashes =
-                    self.compare_proof(&request.log_type, proof).await?;
-
-                // Find the last matching commit from the indices
-                // to prove
-                if let Some(commit_hash) = commit_hashes.last() {
-                    println!(
-                        "matched on {:#?}",
-                        response.proofs.iter().rev().collect::<Vec<_>>()
-                    );
-
-                    return Ok(Some((*commit_hash, proof.clone())));
-                }
-            }
-
-            // Try to scan more proofs
-            let mut req = request.clone();
-            req.offset = Some(response.offset);
-            self.scan_proofs(req).await
-        } else {
-            Err(Error::HardConflict)
-        }
-        */
     }
 
     /// Scan the remote for proofs that match this client.

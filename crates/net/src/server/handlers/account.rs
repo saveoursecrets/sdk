@@ -610,8 +610,7 @@ mod handlers {
         storage::StorageEventLogs,
         sync::{
             self, AccountDiff, ChangeSet, CheckedPatch, FolderDiff, Merge,
-            MergeOutcome, MergeSource, Patch, SyncPacket, SyncStorage,
-            UpdateSet,
+            MergeOutcome, Patch, SyncPacket, SyncStorage, UpdateSet,
         },
     };
     use tokio::sync::RwLock;
@@ -936,7 +935,8 @@ mod handlers {
         T: Default + Encodable + Decodable + Send + Sync + 'static,
     {
         let mut response = CommitDiffResponse::default();
-        response.patch = event_log.diff_records(Some(&req.from_hash)).await?;
+        response.patch =
+            event_log.diff_records(req.from_hash.as_ref()).await?;
         Ok(encode(&response).await?)
     }
 
@@ -984,13 +984,7 @@ mod handlers {
 
                 let mut outcome = MergeOutcome::default();
                 (
-                    writer
-                        .storage
-                        .merge_identity(
-                            MergeSource::Checked(diff),
-                            &mut outcome,
-                        )
-                        .await?,
+                    writer.storage.merge_identity(diff, &mut outcome).await?,
                     outcome,
                     records,
                 )
@@ -1102,11 +1096,7 @@ mod handlers {
                 (
                     writer
                         .storage
-                        .merge_folder(
-                            id,
-                            MergeSource::Checked(diff),
-                            &mut outcome,
-                        )
+                        .merge_folder(id, diff, &mut outcome)
                         .await?,
                     outcome,
                     records,

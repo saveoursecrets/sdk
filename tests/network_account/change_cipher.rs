@@ -80,13 +80,12 @@ async fn network_sync_change_cipher() -> Result<()> {
     // account data
     assert!(device2.owner.sync().await.is_none());
 
+    // Check we can sign in again
+    device2.owner.sign_in(&key).await?;
+
     let device1_commit = device1.owner.root_commit(&default_folder).await?;
     let device2_commit = device2.owner.root_commit(&default_folder).await?;
     assert_eq!(device1_commit, device2_commit);
-
-    // Check we can sign out and sign in again
-    device2.owner.sign_out().await?;
-    device2.owner.sign_in(&key).await?;
 
     // Create a secret on the synced device
     let (meta, secret) = mock::note(TEST_ID, TEST_ID);

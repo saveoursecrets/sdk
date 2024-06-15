@@ -1,6 +1,6 @@
 //! Storage backed by the filesystem.
 use crate::{
-    commit::{CommitHash, CommitState},
+    commit::{CommitHash, CommitProof, CommitState},
     constants::EVENT_LOG_EXT,
     crypto::AccessKey,
     decode,
@@ -22,9 +22,7 @@ use tokio::sync::RwLock;
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 #[cfg(feature = "sync")]
-use crate::sync::{
-    CheckedPatch, FolderDiff, FolderMergeOptions, MergeSource,
-};
+use crate::sync::{CheckedPatch, FolderDiff, FolderMergeOptions};
 
 /// Folder that writes events to disc.
 pub type DiscFolder = Folder<FolderEventLog, DiscLog, DiscLog, DiscData>;
@@ -209,195 +207,185 @@ where
     }
 
     #[cfg(feature = "sync")]
+    pub(crate) async fn force_merge(
+        &mut self,
+        diff: FolderDiff,
+    ) -> Result<CommitProof> {
+        let mut event_log = self.events.write().await;
+        event_log.truncate().await?;
+
+        event_log.patch_unchecked(&diff.patch).await?;
+        let head = event_log.tree().head()?;
+
+        // Build a new vault
+        let vault = FolderReducer::new()
+            .reduce(&*event_log)
+            .await?
+            .build(true)
+            .await?;
+        self.keeper.replace_vault(vault, true).await?;
+
+        Ok(head)
+    }
+
+    #[cfg(feature = "sync")]
     pub(crate) async fn merge(
         &mut self,
-        source: MergeSource<WriteEvent>,
+        diff: FolderDiff,
         mut options: FolderMergeOptions<'_>,
     ) -> Result<CheckedPatch> {
-        match source {
-            MergeSource::Checked(diff) => {
-                let checked_patch = {
-                    let mut event_log = self.events.write().await;
-                    event_log.patch_checked(&diff.before, &diff.patch).await?
-                };
+        let checked_patch = {
+            let mut event_log = self.events.write().await;
+            event_log.patch_checked(&diff.before, &diff.patch).await?
+        };
 
-                if let CheckedPatch::Success(_, _) = &checked_patch {
-                    for record in diff.patch.iter() {
-                        let event =
-                            record.decode_event::<WriteEvent>().await?;
-                        tracing::debug!(event_kind = %event.event_kind());
-                        match &event {
-                            WriteEvent::Noop => {
-                                tracing::error!("merge got noop event");
-                            }
-                            WriteEvent::CreateVault(_) => {
-                                tracing::warn!(
-                                    "merge got create vault event"
-                                );
-                            }
-                            WriteEvent::SetVaultName(name) => {
-                                self.keeper
-                                    .set_vault_name(name.to_owned())
-                                    .await?;
-                            }
-                            WriteEvent::SetVaultMeta(aead) => {
-                                let meta =
-                                    self.keeper.decrypt_meta(aead).await?;
-                                self.keeper.set_vault_meta(&meta).await?;
-                            }
-                            WriteEvent::CreateSecret(id, vault_commit) => {
-                                let (meta, secret) = self
-                                    .keeper
-                                    .decrypt_secret(vault_commit, None)
-                                    .await?;
+        if let CheckedPatch::Success(_, _) = &checked_patch {
+            for record in diff.patch.iter() {
+                let event = record.decode_event::<WriteEvent>().await?;
+                tracing::debug!(event_kind = %event.event_kind());
+                match &event {
+                    WriteEvent::Noop => {
+                        tracing::error!("merge got noop event");
+                    }
+                    WriteEvent::CreateVault(_) => {
+                        tracing::warn!("merge got create vault event");
+                    }
+                    WriteEvent::SetVaultName(name) => {
+                        self.keeper.set_vault_name(name.to_owned()).await?;
+                    }
+                    WriteEvent::SetVaultMeta(aead) => {
+                        let meta = self.keeper.decrypt_meta(aead).await?;
+                        self.keeper.set_vault_meta(&meta).await?;
+                    }
+                    WriteEvent::CreateSecret(id, vault_commit) => {
+                        let (meta, secret) = self
+                            .keeper
+                            .decrypt_secret(vault_commit, None)
+                            .await?;
 
-                                let mut urn =
-                                    if let FolderMergeOptions::Urn(_, _) =
-                                        &options
-                                    {
-                                        meta.urn.clone()
-                                    } else {
-                                        None
-                                    };
+                        let mut urn =
+                            if let FolderMergeOptions::Urn(_, _) = &options {
+                                meta.urn.clone()
+                            } else {
+                                None
+                            };
 
-                                #[cfg(feature = "search")]
-                                let mut index_doc =
-                                    if let FolderMergeOptions::Search(
-                                        folder_id,
-                                        index,
-                                    ) = &options
-                                    {
-                                        Some(index.prepare(
-                                            folder_id, id, &meta, &secret,
-                                        ))
-                                    } else {
-                                        None
-                                    };
+                        #[cfg(feature = "search")]
+                        let mut index_doc =
+                            if let FolderMergeOptions::Search(
+                                folder_id,
+                                index,
+                            ) = &options
+                            {
+                                Some(
+                                    index.prepare(
+                                        folder_id, id, &meta, &secret,
+                                    ),
+                                )
+                            } else {
+                                None
+                            };
 
-                                let row = SecretRow::new(*id, meta, secret);
-                                self.keeper.create_secret(&row).await?;
+                        let row = SecretRow::new(*id, meta, secret);
+                        self.keeper.create_secret(&row).await?;
 
-                                // Add to the URN lookup index
-                                if let (
-                                    Some(urn),
-                                    FolderMergeOptions::Urn(folder_id, index),
-                                ) = (urn.take(), &mut options)
-                                {
-                                    index.insert((*folder_id, urn), *id);
-                                }
+                        // Add to the URN lookup index
+                        if let (
+                            Some(urn),
+                            FolderMergeOptions::Urn(folder_id, index),
+                        ) = (urn.take(), &mut options)
+                        {
+                            index.insert((*folder_id, urn), *id);
+                        }
 
-                                #[cfg(feature = "search")]
-                                if let (
-                                    Some(index_doc),
-                                    FolderMergeOptions::Search(_, index),
-                                ) = (index_doc.take(), &mut options)
-                                {
-                                    index.commit(index_doc);
-                                }
-                            }
-                            WriteEvent::UpdateSecret(id, vault_commit) => {
-                                let (meta, secret) = self
-                                    .keeper
-                                    .decrypt_secret(vault_commit, None)
-                                    .await?;
-
-                                #[cfg(feature = "search")]
-                                let mut index_doc =
-                                    if let FolderMergeOptions::Search(
-                                        folder_id,
-                                        index,
-                                    ) = &mut options
-                                    {
-                                        // Must remove from the index before we
-                                        // prepare a new document otherwise the
-                                        // document would be stale as `prepare()`
-                                        // and `commit()` are for new documents
-                                        index.remove(folder_id, id);
-
-                                        Some(index.prepare(
-                                            folder_id, id, &meta, &secret,
-                                        ))
-                                    } else {
-                                        None
-                                    };
-
-                                self.keeper
-                                    .update_secret(id, meta, secret)
-                                    .await?;
-
-                                #[cfg(feature = "search")]
-                                if let (
-                                    Some(index_doc),
-                                    FolderMergeOptions::Search(_, index),
-                                ) = (index_doc.take(), &mut options)
-                                {
-                                    index.commit(index_doc);
-                                }
-                            }
-                            WriteEvent::DeleteSecret(id) => {
-                                let mut urn =
-                                    if let FolderMergeOptions::Urn(_, _) =
-                                        &options
-                                    {
-                                        if let Some((meta, _, _)) = self
-                                            .keeper
-                                            .read_secret(id)
-                                            .await?
-                                        {
-                                            meta.urn().cloned()
-                                        } else {
-                                            None
-                                        }
-                                    } else {
-                                        None
-                                    };
-
-                                self.keeper.delete_secret(id).await?;
-
-                                // Remove from the URN lookup index
-                                if let (
-                                    Some(urn),
-                                    FolderMergeOptions::Urn(folder_id, index),
-                                ) = (urn.take(), &mut options)
-                                {
-                                    index.remove(&(*folder_id, urn));
-                                }
-
-                                #[cfg(feature = "search")]
-                                if let FolderMergeOptions::Search(
-                                    folder_id,
-                                    index,
-                                ) = &mut options
-                                {
-                                    index.remove(folder_id, id);
-                                }
-                            }
+                        #[cfg(feature = "search")]
+                        if let (
+                            Some(index_doc),
+                            FolderMergeOptions::Search(_, index),
+                        ) = (index_doc.take(), &mut options)
+                        {
+                            index.commit(index_doc);
                         }
                     }
-                } else {
-                    // FIXME: handle conflict situation
-                    println!("todo! folder patch could not be merged");
+                    WriteEvent::UpdateSecret(id, vault_commit) => {
+                        let (meta, secret) = self
+                            .keeper
+                            .decrypt_secret(vault_commit, None)
+                            .await?;
+
+                        #[cfg(feature = "search")]
+                        let mut index_doc =
+                            if let FolderMergeOptions::Search(
+                                folder_id,
+                                index,
+                            ) = &mut options
+                            {
+                                // Must remove from the index before we
+                                // prepare a new document otherwise the
+                                // document would be stale as `prepare()`
+                                // and `commit()` are for new documents
+                                index.remove(folder_id, id);
+
+                                Some(
+                                    index.prepare(
+                                        folder_id, id, &meta, &secret,
+                                    ),
+                                )
+                            } else {
+                                None
+                            };
+
+                        self.keeper.update_secret(id, meta, secret).await?;
+
+                        #[cfg(feature = "search")]
+                        if let (
+                            Some(index_doc),
+                            FolderMergeOptions::Search(_, index),
+                        ) = (index_doc.take(), &mut options)
+                        {
+                            index.commit(index_doc);
+                        }
+                    }
+                    WriteEvent::DeleteSecret(id) => {
+                        let mut urn =
+                            if let FolderMergeOptions::Urn(_, _) = &options {
+                                if let Some((meta, _, _)) =
+                                    self.keeper.read_secret(id).await?
+                                {
+                                    meta.urn().cloned()
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            };
+
+                        self.keeper.delete_secret(id).await?;
+
+                        // Remove from the URN lookup index
+                        if let (
+                            Some(urn),
+                            FolderMergeOptions::Urn(folder_id, index),
+                        ) = (urn.take(), &mut options)
+                        {
+                            index.remove(&(*folder_id, urn));
+                        }
+
+                        #[cfg(feature = "search")]
+                        if let FolderMergeOptions::Search(folder_id, index) =
+                            &mut options
+                        {
+                            index.remove(folder_id, id);
+                        }
+                    }
                 }
-
-                Ok(checked_patch)
             }
-            MergeSource::Forced(patch) => {
-                let mut event_log = self.events.write().await;
-                event_log.truncate().await?;
-                let commits = event_log.patch_unchecked(&patch).await?;
-                let head = event_log.tree().head()?;
-
-                // Build a new vault
-                let vault = FolderReducer::new()
-                    .reduce(&*event_log)
-                    .await?
-                    .build(true)
-                    .await?;
-                self.keeper.replace_vault(vault, true).await?;
-
-                Ok(CheckedPatch::Success(head, commits))
-            }
+        } else {
+            // FIXME: handle conflict situation
+            println!("todo! folder patch could not be merged");
         }
+
+        Ok(checked_patch)
     }
 }
 

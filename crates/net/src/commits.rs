@@ -56,7 +56,7 @@ pub struct CommitDiffRequest {
     /// Type of event log to load the diff from.
     pub log_type: EventLogType,
     /// Hash of the commit to diff from.
-    pub from_hash: CommitHash,
+    pub from_hash: Option<CommitHash>,
 }
 
 /// Response with an event log commit diff.
@@ -64,6 +64,8 @@ pub struct CommitDiffRequest {
 pub struct CommitDiffResponse {
     /// Collection of event records from the commit hash.
     pub patch: Vec<EventRecord>,
+    /// Checkpoint of remote HEAD.
+    pub checkpoint: CommitProof,
 }
 
 /// Request to patch an event log from a specific commit.

@@ -7,6 +7,7 @@
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single primary password.
 use crate::{
+    commit::CommitProof,
     constants::{
         FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
         VAULT_NSS,
@@ -47,9 +48,7 @@ use urn::Urn;
 use crate::device::{DeviceManager, DeviceSigner};
 
 #[cfg(feature = "sync")]
-use crate::sync::{
-    CheckedPatch, FolderDiff, FolderMergeOptions, MergeSource,
-};
+use crate::sync::{CheckedPatch, FolderDiff, FolderMergeOptions};
 
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
@@ -535,15 +534,47 @@ where
     #[cfg(feature = "sync")]
     pub(crate) async fn merge(
         &mut self,
-        source: MergeSource<WriteEvent>,
+        diff: FolderDiff,
     ) -> Result<CheckedPatch> {
         let id = *self.folder.id();
         let index = &mut self.index;
-        let checked_patch = self
-            .folder
-            .merge(source, FolderMergeOptions::Urn(id, index))
+        self.folder
+            .merge(diff, FolderMergeOptions::Urn(id, index))
+            .await
+    }
+
+    #[cfg(feature = "sync")]
+    pub(crate) async fn force_merge(
+        &mut self,
+        diff: FolderDiff,
+    ) -> Result<CommitProof> {
+        let event_log = self.folder.event_log();
+        let mut event_log = event_log.write().await;
+        event_log.truncate().await?;
+
+        event_log.patch_unchecked(&diff.patch).await?;
+        let head = event_log.tree().head()?;
+
+        // Build a new vault
+        let vault = FolderReducer::new()
+            .reduce(&*event_log)
+            .await?
+            .build(true)
             .await?;
-        Ok(checked_patch)
+        self.folder.keeper_mut().replace_vault(vault, true).await?;
+
+        Ok(head)
+
+        /*
+        match source {
+            MergeSource::Checked(diff) => {
+            }
+            MergeSource::Forced(patch) => {
+
+                Ok(CheckedPatch::Success(head, commits))
+            }
+        }
+        */
     }
 }
 

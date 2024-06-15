@@ -162,19 +162,6 @@ pub enum CheckedPatch {
     },
 }
 
-/// Source data for a merge operation.
-pub enum MergeSource<T>
-where
-    T: Default + Encodable + Decodable,
-{
-    /// Checked merge verifies against the last commit
-    /// before applying the patch.
-    Checked(Diff<T>),
-    /// Forced merge deletes all existing data and
-    /// writes the new patch.
-    Forced(Patch<T>),
-}
-
 /// Diff between local and remote.
 #[derive(Default, Debug)]
 pub struct Diff<T>
@@ -848,13 +835,72 @@ pub struct MergeOutcome {
     pub external_files: IndexSet<ExternalFile>,
 }
 
+/// Types that can force merge a diff.
+///
+/// Force merge deletes all events from the log and
+/// applies the diff patch as a new set of events.
+///
+/// Use this when event logs have completely diverged
+/// and need to be rewritten.
+#[async_trait]
+pub trait ForceMerge {
+    /// Force merge changes to the identity folder.
+    async fn force_merge_identity(
+        &mut self,
+        source: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
+
+    /// Force merge changes to a folder.
+    async fn force_merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        source: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
+
+    /*
+
+    /// Merge changes to the account event log.
+    async fn force_merge_account(
+        &mut self,
+        diff: &AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
+
+    /// Merge changes to the devices event log.
+    #[cfg(feature = "device")]
+    async fn force_merge_device(
+        &mut self,
+        diff: &DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
+
+    /// Merge changes to the files event log.
+    #[cfg(feature = "files")]
+    async fn force_merge_files(
+        &mut self,
+        diff: &FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
+
+    /// Merge changes to a folder.
+    async fn force_merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        source: MergeSource<WriteEvent>,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
+    */
+}
+
 /// Types that can merge diffs.
 #[async_trait]
 pub trait Merge {
     /// Merge changes to the identity folder.
     async fn merge_identity(
         &mut self,
-        source: MergeSource<WriteEvent>,
+        diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch>;
 
@@ -906,7 +952,7 @@ pub trait Merge {
     async fn merge_folder(
         &mut self,
         folder_id: &VaultId,
-        source: MergeSource<WriteEvent>,
+        diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch>;
 
@@ -961,8 +1007,7 @@ pub trait Merge {
         match diff.identity {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
-                self.merge_identity(MergeSource::Checked(diff), &mut outcome)
-                    .await?;
+                self.merge_identity(diff, &mut outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
@@ -1019,12 +1064,7 @@ pub trait Merge {
             match maybe_diff {
                 MaybeDiff::Noop => unreachable!(),
                 MaybeDiff::Diff(diff) => {
-                    self.merge_folder(
-                        &id,
-                        MergeSource::Checked(diff),
-                        &mut outcome,
-                    )
-                    .await?;
+                    self.merge_folder(&id, diff, &mut outcome).await?;
                 }
                 MaybeDiff::Compare(state) => {
                     if let Some(state) = state {

@@ -11,8 +11,8 @@ use sos_sdk::{
         StorageEventLogs,
     },
     sync::{
-        self, HardConflictResolver, Merge, MergeOutcome, MergeSource, Origin,
-        SyncOptions, SyncPacket, SyncStatus, SyncStorage, UpdateSet,
+        self, Merge, Origin, SyncOptions, SyncPacket, SyncStatus,
+        SyncStorage, UpdateSet,
     },
     vfs,
 };
