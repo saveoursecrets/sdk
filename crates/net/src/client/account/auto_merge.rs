@@ -634,6 +634,17 @@ impl RemoteBridge {
         tracing::debug!(request = ?request, "auto_merge::iterate_scan_proofs");
 
         let response = self.client.scan(&request).await?;
+
+        // If the server gave us a first proof and we don't
+        // have it in our event log then there is no point scanning
+        // as we know the trees have diverged
+        if let Some(first_proof) = &response.first_proof {
+            let (verified, _) = first_proof.verify_leaves(leaves);
+            if !verified {
+                return Err(Error::HardConflict);
+            }
+        }
+
         if !response.proofs.is_empty() {
             // Proofs are returned in the event log order
             // but we always want to scan from the end of

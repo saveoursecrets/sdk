@@ -181,6 +181,11 @@ impl Error {
         matches!(self, Error::Sdk(crate::sdk::Error::SecretNotFound(_)))
     }
 
+    /// Determine if this error is a hard conflict.
+    pub fn is_hard_conflict(&self) -> bool {
+        matches!(self, Error::HardConflict)
+    }
+
     /// Determine if this is a canceled error and
     /// whether the cancellation was triggered by the user.
     pub fn cancellation_reason(&self) -> Option<&CancelReason> {

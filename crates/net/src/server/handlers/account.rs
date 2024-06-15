@@ -811,6 +811,10 @@ mod handlers {
             0
         };
 
+        if event_log.tree().len() > 0 {
+            res.first_proof = Some(event_log.tree().proof(&[0])?);
+        }
+
         // Short circuit if the offset is clearly out of bounds
         if offset >= num_commits {
             res.offset = num_commits;

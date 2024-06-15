@@ -38,6 +38,8 @@ pub struct CommitScanRequest {
 /// Commit proofs from an event log.
 #[derive(Debug, Default)]
 pub struct CommitScanResponse {
+    /// Proof for the first item in the event log.
+    pub first_proof: Option<CommitProof>,
     /// List of commit proofs.
     ///
     /// Proofs are always listed in the order they
@@ -116,6 +118,7 @@ impl Encodable for CommitScanResponse {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
+        self.first_proof.encode(&mut *writer).await?;
         self.offset.encode(&mut *writer).await?;
         self.proofs.encode(&mut *writer).await?;
         Ok(())
@@ -128,6 +131,7 @@ impl Decodable for CommitScanResponse {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
+        self.first_proof.decode(&mut *reader).await?;
         self.offset.decode(&mut *reader).await?;
         self.proofs.decode(&mut *reader).await?;
         Ok(())

@@ -13,7 +13,7 @@ use crate::{
         encode,
         events::{
             AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
-            FolderReducer, WriteEvent,
+            FolderReducer,
         },
         identity::PublicIdentity,
         signer::{
@@ -31,10 +31,7 @@ use std::{
 };
 
 #[cfg(feature = "device")]
-use crate::sdk::{
-    events::{DeviceEvent, DeviceEventLog},
-    sync::DevicePatch,
-};
+use crate::sdk::{events::DeviceEventLog, sync::DevicePatch};
 
 /// Enroll a device.
 ///

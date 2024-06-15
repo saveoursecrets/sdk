@@ -4,7 +4,7 @@ use crate::{
     encode,
     events::{
         AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
-        FolderReducer, LogEvent, WriteEvent,
+        FolderReducer, LogEvent,
     },
     storage::{ServerStorage, StorageEventLogs},
     sync::{
