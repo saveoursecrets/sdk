@@ -73,8 +73,16 @@ async fn auto_merge_delete_secrets() -> Result<()> {
     // update the remote origin
     let _server = spawn(TEST_ID, Some(addr), None).await?;
 
-    // Sync first device to push changes
+    // Sync first device to start auto merge
     assert!(device1.owner.sync().await.is_none());
+
+    // Folders now have both create secrets but different
+    // delete events at HEAD
+    let device1_folder_state =
+        device1.owner.commit_state(&default_folder).await?;
+    let device2_folder_state =
+        device2.owner.commit_state(&default_folder).await?;
+    assert_ne!(device1_folder_state, device2_folder_state);
 
     println!("START AUTO MERGE SYNC");
 
@@ -86,6 +94,7 @@ async fn auto_merge_delete_secrets() -> Result<()> {
     // Sync first device again to fetch auto merged changes
     assert!(device1.owner.sync().await.is_none());
 
+    /*
     let device1_folder_state =
         device1.owner.commit_state(&default_folder).await?;
     let device2_folder_state =
@@ -93,6 +102,8 @@ async fn auto_merge_delete_secrets() -> Result<()> {
 
     // println!("device1 {:#?}", device1_folder_state);
     // println!("device2 {:#?}", device2_folder_state);
+
+    */
 
     /*
     // Folder commits are back in sync

@@ -590,7 +590,10 @@ mod handlers {
             CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
             CommitScanResponse, EventPatchRequest,
         },
-        server::{Error, Result, ServerBackend, ServerState},
+        server::{
+            backend::AccountStorage, Error, Result, ServerBackend,
+            ServerState,
+        },
     };
     use binary_stream::futures::{Decodable, Encodable};
     use http::{
@@ -601,14 +604,16 @@ mod handlers {
         constants::MIME_TYPE_SOS,
         decode, encode,
         events::{
-            AccountEvent, DiscEventLog, EventLogExt, EventLogType, WriteEvent,
+            AccountEvent, DiscEventLog, EventLogExt, EventLogType,
+            EventRecord, WriteEvent,
         },
         storage::StorageEventLogs,
         sync::{
-            self, AccountDiff, ChangeSet, FolderDiff, Merge, MergeOutcome,
-            Patch, SyncPacket, SyncStorage, UpdateSet,
+            self, AccountDiff, ChangeSet, CheckedPatch, FolderDiff, Merge,
+            MergeOutcome, Patch, SyncPacket, SyncStorage, UpdateSet,
         },
     };
+    use tokio::sync::RwLock;
 
     use std::sync::Arc;
 
@@ -948,20 +953,21 @@ mod handlers {
 
         let req: EventPatchRequest = decode(bytes).await?;
 
-        let (checked_patch, outcome) = match &req.log_type {
+        let (checked_patch, outcome, records) = match &req.log_type {
             EventLogType::Noop => {
                 return Err(Error::Status(StatusCode::BAD_REQUEST));
             }
             EventLogType::Identity => {
                 let patch = Patch::<WriteEvent>::new(req.patch);
                 let mut writer = account.write().await;
-                let last_commit = if let Some(commit) = &req.commit {
+                let (last_commit, records) = if let Some(commit) = &req.commit
+                {
                     let log = writer.storage.identity_log();
                     let mut event_log = log.write().await;
-                    event_log.rewind(commit).await?;
-                    Some(*commit)
+                    let records = event_log.rewind(commit).await?;
+                    (Some(*commit), records)
                 } else {
-                    None
+                    (None, vec![])
                 };
 
                 let diff = FolderDiff {
@@ -978,18 +984,20 @@ mod handlers {
                         .merge_identity(&diff, &mut outcome)
                         .await?,
                     outcome,
+                    records,
                 )
             }
             EventLogType::Account => {
                 let patch = Patch::<AccountEvent>::new(req.patch);
                 let mut writer = account.write().await;
-                let last_commit = if let Some(commit) = &req.commit {
+                let (last_commit, records) = if let Some(commit) = &req.commit
+                {
                     let log = writer.storage.account_log();
                     let mut event_log = log.write().await;
-                    event_log.rewind(commit).await?;
-                    Some(*commit)
+                    let records = event_log.rewind(commit).await?;
+                    (Some(*commit), records)
                 } else {
-                    None
+                    (None, vec![])
                 };
 
                 let diff = AccountDiff {
@@ -1003,19 +1011,21 @@ mod handlers {
                 (
                     writer.storage.merge_account(&diff, &mut outcome).await?,
                     outcome,
+                    records,
                 )
             }
             #[cfg(feature = "device")]
             EventLogType::Device => {
                 let patch = Patch::<DeviceEvent>::new(req.patch);
                 let mut writer = account.write().await;
-                let last_commit = if let Some(commit) = &req.commit {
+                let (last_commit, records) = if let Some(commit) = &req.commit
+                {
                     let log = writer.storage.device_log().await?;
                     let mut event_log = log.write().await;
-                    event_log.rewind(commit).await?;
-                    Some(*commit)
+                    let records = event_log.rewind(commit).await?;
+                    (Some(*commit), records)
                 } else {
-                    None
+                    (None, vec![])
                 };
 
                 let diff = DeviceDiff {
@@ -1029,19 +1039,21 @@ mod handlers {
                 (
                     writer.storage.merge_device(&diff, &mut outcome).await?,
                     outcome,
+                    records,
                 )
             }
             #[cfg(feature = "files")]
             EventLogType::Files => {
                 let patch = Patch::<FileEvent>::new(req.patch);
                 let mut writer = account.write().await;
-                let last_commit = if let Some(commit) = &req.commit {
+                let (last_commit, records) = if let Some(commit) = &req.commit
+                {
                     let log = writer.storage.file_log().await?;
                     let mut event_log = log.write().await;
-                    event_log.rewind(commit).await?;
-                    Some(*commit)
+                    let records = event_log.rewind(commit).await?;
+                    (Some(*commit), records)
                 } else {
-                    None
+                    (None, vec![])
                 };
 
                 let diff = FileDiff {
@@ -1055,18 +1067,21 @@ mod handlers {
                 (
                     writer.storage.merge_files(&diff, &mut outcome).await?,
                     outcome,
+                    records,
                 )
             }
             EventLogType::Folder(id) => {
                 let patch = Patch::<WriteEvent>::new(req.patch);
                 let mut writer = account.write().await;
-                let last_commit = if let Some(commit) = &req.commit {
+                let (last_commit, records) = if let Some(commit) = &req.commit
+                {
                     let log = writer.storage.folder_log(id).await?;
                     let mut event_log = log.write().await;
-                    event_log.rewind(commit).await?;
-                    Some(*commit)
+                    let records = event_log.rewind(commit).await?;
+                    println!("SERVER REWIND...");
+                    (Some(*commit), records)
                 } else {
-                    None
+                    (None, vec![])
                 };
 
                 let diff = FolderDiff {
@@ -1083,6 +1098,7 @@ mod handlers {
                         .merge_folder(id, &diff, &mut outcome)
                         .await?,
                     outcome,
+                    records,
                 )
             }
         };
@@ -1103,6 +1119,16 @@ mod handlers {
             }
         }
 
+        // Rollback the rewind if the merge failed
+        if let CheckedPatch::Conflict { head, .. } = &checked_patch {
+            println!("PATCH FAILED, NEEDS ROLLBACK...");
+            tracing::warn!(
+                head = ?head,
+                num_records = ?records.len(),
+                "patch::rollback_rewind");
+            rollback_rewind(&req.log_type, account, records).await?;
+        }
+
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
@@ -1110,6 +1136,48 @@ mod handlers {
         );
 
         Ok((headers, encode(&checked_patch).await?))
+    }
+
+    async fn rollback_rewind(
+        log_type: &EventLogType,
+        account: Arc<RwLock<AccountStorage>>,
+        records: Vec<EventRecord>,
+    ) -> Result<()> {
+        let reader = account.read().await;
+        match log_type {
+            EventLogType::Noop => {
+                return Err(Error::Status(StatusCode::BAD_REQUEST));
+            }
+            EventLogType::Identity => {
+                let log = reader.storage.identity_log();
+                let mut event_log = log.write().await;
+                event_log.apply_records(records).await?;
+            }
+            EventLogType::Account => {
+                let log = reader.storage.account_log();
+                let mut event_log = log.write().await;
+                event_log.apply_records(records).await?;
+            }
+            #[cfg(feature = "device")]
+            EventLogType::Device => {
+                let log = reader.storage.device_log().await?;
+                let mut event_log = log.write().await;
+                event_log.apply_records(records).await?;
+            }
+            #[cfg(feature = "files")]
+            EventLogType::Files => {
+                let log = reader.storage.file_log().await?;
+                let mut event_log = log.write().await;
+                event_log.apply_records(records).await?;
+            }
+            EventLogType::Folder(id) => {
+                let log = reader.storage.folder_log(id).await?;
+                let mut event_log = log.write().await;
+                event_log.apply_records(records).await?;
+            }
+        }
+
+        Ok(())
     }
 
     pub(super) async fn sync_account(

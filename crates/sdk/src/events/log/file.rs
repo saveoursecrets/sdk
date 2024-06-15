@@ -203,7 +203,7 @@ where
         Box::pin(try_stream! {
             while let Some(record) = it.next().await? {
                 let event_buffer = read_event_buffer(
-                    Arc::clone(&handle), &record).await?;
+                    handle.clone(), &record).await?;
 
                 let event_record: EventRecord = (record, event_buffer).into();
 
@@ -261,7 +261,13 @@ where
 
     /// Rewind this event log discarding commits after
     /// the specific commit.
-    async fn rewind(&mut self, commit: &CommitHash) -> Result<()>;
+    ///
+    /// Returns the collection of log records that can
+    /// be used to revert if a subsequent merge fails.
+    async fn rewind(
+        &mut self,
+        commit: &CommitHash,
+    ) -> Result<Vec<EventRecord>>;
 
     /// Delete all events from the log file on disc
     /// and in-memory.
@@ -490,13 +496,18 @@ where
         Ok(())
     }
 
-    async fn rewind(&mut self, commit: &CommitHash) -> Result<()> {
+    async fn rewind(
+        &mut self,
+        commit: &CommitHash,
+    ) -> Result<Vec<EventRecord>> {
         let mut length = vfs::metadata(&self.data).await?.len();
         // Iterate backwards and track how many commits are pruned
         let mut it = self.iter(true).await?;
-        let mut num_pruned = 0;
 
         tracing::trace!(length = %length, "event_log::rewind");
+
+        let handle = self.file();
+        let mut records = Vec::new();
 
         while let Some(record) = it.next().await? {
             // Found the target commit
@@ -507,8 +518,8 @@ where
 
                 // Rewrite the in-memory tree
                 let mut leaves = self.tree().leaves().unwrap_or_default();
-                if leaves.len() > num_pruned {
-                    let new_len = leaves.len() - num_pruned;
+                if leaves.len() > records.len() {
+                    let new_len = leaves.len() - records.len();
                     leaves.truncate(new_len);
                     let mut tree = CommitTree::new();
                     tree.append(&mut leaves);
@@ -523,7 +534,7 @@ where
                     OpenOptions::new().write(true).open(&self.data).await?;
                 file.set_len(length).await?;
 
-                return Ok(());
+                return Ok(records);
             }
 
             // Compute new length and number of pruned commits
@@ -532,12 +543,16 @@ where
             if byte_length < length {
                 length -= byte_length;
             }
-            num_pruned += 1;
+
+            let event_buffer =
+                read_event_buffer(handle.clone(), &record).await?;
+            let event_record: EventRecord = (record, event_buffer).into();
+            records.push(event_record);
 
             tracing::trace!(
                 length = %length,
                 byte_length = %byte_length,
-                num_pruned = %num_pruned,
+                num_pruned = %records.len(),
                 "event_log::rewind",
             );
         }
@@ -660,7 +675,10 @@ impl EventLogExt<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
         unimplemented!("truncate on memory event log");
     }
 
-    async fn rewind(&mut self, _commit: &CommitHash) -> Result<()> {
+    async fn rewind(
+        &mut self,
+        _commit: &CommitHash,
+    ) -> Result<Vec<EventRecord>> {
         unimplemented!("rewind on memory event log");
     }
 }
