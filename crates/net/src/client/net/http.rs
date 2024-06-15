@@ -284,8 +284,6 @@ impl SyncClient for HttpClient {
 
     #[instrument(skip_all)]
     async fn update_account(&self, account: &UpdateSet) -> Result<()> {
-        println!("update_account: {:#?}", account);
-
         let body = encode(account).await?;
         let url = self.build_url("api/v1/sync/account")?;
 

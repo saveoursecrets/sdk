@@ -2500,7 +2500,6 @@ impl Account for LocalAccount {
           "import_folder");
 
         // Check for existing identifier
-        //let vaults = Self::list_local_folders(&self.paths, false).await?;
         let existing_id = self.find(|s| s.id() == vault.summary().id()).await;
 
         let default_vault = self.default_folder().await;

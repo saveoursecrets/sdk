@@ -564,17 +564,6 @@ where
         self.folder.keeper_mut().replace_vault(vault, true).await?;
 
         Ok(head)
-
-        /*
-        match source {
-            MergeSource::Checked(diff) => {
-            }
-            MergeSource::Forced(patch) => {
-
-                Ok(CheckedPatch::Success(head, commits))
-            }
-        }
-        */
     }
 }
 

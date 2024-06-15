@@ -1011,7 +1011,7 @@ mod handlers {
 
                 let mut outcome = MergeOutcome::default();
                 (
-                    writer.storage.merge_account(&diff, &mut outcome).await?,
+                    writer.storage.merge_account(diff, &mut outcome).await?,
                     outcome,
                     records,
                 )
@@ -1200,10 +1200,11 @@ mod handlers {
         let (remote_status, diff) = (packet.status, packet.diff);
 
         // Apply the diff to the storage
-        let (outcome, compare) = {
+        let mut outcome = MergeOutcome::default();
+        let compare = {
             tracing::debug!("merge_server");
             let mut writer = account.write().await;
-            writer.storage.merge(diff).await?
+            writer.storage.merge(diff, &mut outcome).await?
         };
 
         // Generate a new diff so the client can apply changes

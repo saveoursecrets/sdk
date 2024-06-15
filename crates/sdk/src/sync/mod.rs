@@ -859,14 +859,15 @@ pub trait ForceMerge {
         outcome: &mut MergeOutcome,
     ) -> Result<()>;
 
-    /*
-
-    /// Merge changes to the account event log.
+    /// Force merge changes to the account event log.
     async fn force_merge_account(
         &mut self,
-        diff: &AccountDiff,
+        diff: AccountDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()>;
+
+    /*
+
 
     /// Merge changes to the devices event log.
     #[cfg(feature = "device")]
@@ -913,7 +914,7 @@ pub trait Merge {
     /// Merge changes to the account event log.
     async fn merge_account(
         &mut self,
-        diff: &AccountDiff,
+        diff: AccountDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch>;
 
@@ -1000,14 +1001,14 @@ pub trait Merge {
     async fn merge(
         &mut self,
         diff: SyncDiff,
-    ) -> Result<(MergeOutcome, SyncCompare)> {
-        let mut outcome = MergeOutcome::default();
+        outcome: &mut MergeOutcome,
+    ) -> Result<SyncCompare> {
         let mut compare = SyncCompare::default();
 
         match diff.identity {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
-                self.merge_identity(diff, &mut outcome).await?;
+                self.merge_identity(diff, outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
@@ -1018,15 +1019,15 @@ pub trait Merge {
             None => {}
         }
 
-        match &diff.account {
+        match diff.account {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
-                self.merge_account(diff, &mut outcome).await?;
+                self.merge_account(diff, outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
                     compare.account =
-                        Some(self.compare_account(state).await?);
+                        Some(self.compare_account(&state).await?);
                 }
             }
             None => {}
@@ -1036,7 +1037,7 @@ pub trait Merge {
         match &diff.device {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
-                self.merge_device(diff, &mut outcome).await?;
+                self.merge_device(diff, outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
@@ -1050,7 +1051,7 @@ pub trait Merge {
         match &diff.files {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
-                self.merge_files(diff, &mut outcome).await?;
+                self.merge_files(diff, outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
@@ -1064,7 +1065,7 @@ pub trait Merge {
             match maybe_diff {
                 MaybeDiff::Noop => unreachable!(),
                 MaybeDiff::Diff(diff) => {
-                    self.merge_folder(&id, diff, &mut outcome).await?;
+                    self.merge_folder(&id, diff, outcome).await?;
                 }
                 MaybeDiff::Compare(state) => {
                     if let Some(state) = state {
@@ -1079,7 +1080,7 @@ pub trait Merge {
 
         tracing::debug!(num_changes = %outcome.changes, "merge complete");
 
-        Ok((outcome, compare))
+        Ok(compare)
     }
 }
 

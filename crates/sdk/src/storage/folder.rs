@@ -212,7 +212,7 @@ where
         diff: FolderDiff,
     ) -> Result<CommitProof> {
         let mut event_log = self.events.write().await;
-        event_log.truncate().await?;
+        event_log.clear().await?;
 
         event_log.patch_unchecked(&diff.patch).await?;
         let head = event_log.tree().head()?;

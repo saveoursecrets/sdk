@@ -49,6 +49,13 @@ impl ForceMerge for LocalAccount {
     ) -> Result<()> {
         let len = diff.patch.len();
 
+        tracing::debug!(
+            folder_id = %folder_id,
+            before = ?diff.before,
+            num_events = len,
+            "force_merge::folder",
+        );
+
         let storage = self.storage().await?;
         let mut storage = storage.write().await;
 
@@ -59,6 +66,32 @@ impl ForceMerge for LocalAccount {
         folder.force_merge(diff).await?;
 
         outcome.folders.insert(*folder_id, len);
+        outcome.changes += len;
+
+        Ok(())
+    }
+
+    async fn force_merge_account(
+        &mut self,
+        diff: AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            before = ?diff.before,
+            num_events = len,
+            "force_merge::account",
+        );
+
+        let event_log = self.account_log().await?;
+        let mut event_log = event_log.write().await;
+        event_log.clear().await?;
+
+        event_log.patch_unchecked(&diff.patch).await?;
+        // let head = event_log.tree().head()?;
+
+        outcome.identity = len;
         outcome.changes += len;
 
         Ok(())
@@ -101,7 +134,7 @@ impl Merge for LocalAccount {
 
     async fn merge_account(
         &mut self,
-        diff: &AccountDiff,
+        diff: AccountDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
         tracing::debug!(

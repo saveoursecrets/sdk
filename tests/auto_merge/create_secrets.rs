@@ -64,7 +64,6 @@ async fn auto_merge_create_secrets() -> Result<()> {
     // Sync the second device which will auto merge local
     // changes with the remote so it has both secrets
     let sync_error = device2.owner.sync().await;
-    println!("{:#?}", sync_error);
     assert!(sync_error.is_none());
 
     // Second device now has both secrets

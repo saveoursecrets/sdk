@@ -205,7 +205,7 @@ impl Merge for ServerStorage {
 
     async fn merge_account(
         &mut self,
-        diff: &AccountDiff,
+        diff: AccountDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
         tracing::debug!(

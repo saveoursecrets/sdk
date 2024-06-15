@@ -11,8 +11,8 @@ use sos_sdk::{
         StorageEventLogs,
     },
     sync::{
-        self, Merge, Origin, SyncOptions, SyncPacket, SyncStatus,
-        SyncStorage, UpdateSet,
+        self, MaybeDiff, Merge, MergeOutcome, Origin, SyncOptions,
+        SyncPacket, SyncStatus, SyncStorage, UpdateSet,
     },
     vfs,
 };
@@ -107,9 +107,10 @@ impl RemoteBridge {
                 .unwrap_or_default();
             let has_conflicts = maybe_conflict.has_conflicts();
 
+            let mut outcome = MergeOutcome::default();
+
             if !has_conflicts {
-                let (mut outcome, _) =
-                    account.merge(remote_changes.diff).await?;
+                account.merge(remote_changes.diff, &mut outcome).await?;
 
                 // Compute which external files need to be downloaded
                 // and add to the transfers queue
@@ -141,10 +142,32 @@ impl RemoteBridge {
 
                 // self.compare(&mut *account, remote_changes).await?;
             } else {
+                // Some parts of the remote patch may not
+                // be in conflict and must still be merged!
+
+                if !maybe_conflict.identity {
+                    if let Some(MaybeDiff::Diff(diff)) =
+                        remote_changes.diff.identity
+                    {
+                        account.merge_identity(diff, &mut outcome).await?;
+                    }
+                }
+
+                if !maybe_conflict.account {
+                    if let Some(MaybeDiff::Diff(diff)) =
+                        remote_changes.diff.account
+                    {
+                        account.merge_account(diff, &mut outcome).await?;
+                    }
+                }
+
+                // TODO: merge device here
+                // TODO: merge files here
+
                 return Err(Error::SoftConflict {
                     conflict: maybe_conflict,
-                    local: packet,
-                    remote: remote_changes,
+                    local: packet.status,
+                    remote: remote_changes.status,
                 });
             }
         }
@@ -160,9 +183,12 @@ impl RemoteBridge {
                 Ok(_) => Ok(()),
                 Err(e) => match e {
                     Error::SoftConflict {
-                        conflict, local, ..
+                        conflict,
+                        local,
+                        remote,
                     } => {
-                        self.auto_merge(options, conflict, local.status).await
+                        self.auto_merge(options, conflict, local, remote)
+                            .await
                     }
                     _ => Err(e),
                 },

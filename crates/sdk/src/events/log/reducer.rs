@@ -2,7 +2,7 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     decode,
-    events::{EventLogExt, FolderEventLog, WriteEvent},
+    events::{EventLogExt, WriteEvent},
     vault::{secret::SecretId, Vault, VaultCommit},
     Error, Result,
 };

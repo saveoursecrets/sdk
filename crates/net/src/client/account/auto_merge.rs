@@ -54,9 +54,14 @@ impl RemoteBridge {
         options: &SyncOptions,
         conflict: MaybeConflict,
         local: SyncStatus,
+        _remote: SyncStatus,
     ) -> Result<()> {
         let mut force_merge_outcome = MergeOutcome::default();
         let mut has_hard_conflict = false;
+
+        // println!("running auto_merge: {:#?}", conflict);
+        // println!("local: {:#?}", local);
+        // println!("remote: {:#?}", remote);
 
         if conflict.identity {
             let hard_conflict = self
@@ -66,7 +71,10 @@ impl RemoteBridge {
         }
 
         if conflict.account {
-            self.auto_merge_account().await?;
+            let hard_conflict = self
+                .auto_merge_account(options, &mut force_merge_outcome)
+                .await?;
+            has_hard_conflict = has_hard_conflict || hard_conflict;
         }
 
         #[cfg(feature = "device")]
@@ -161,7 +169,11 @@ impl RemoteBridge {
         }
     }
 
-    async fn auto_merge_account(&self) -> Result<()> {
+    async fn auto_merge_account(
+        &self,
+        options: &SyncOptions,
+        outcome: &mut MergeOutcome,
+    ) -> Result<bool> {
         tracing::debug!("auto_merge::account");
 
         let req = CommitScanRequest {
@@ -170,16 +182,51 @@ impl RemoteBridge {
             limit: PROOF_SCAN_LIMIT,
             ascending: false,
         };
-        if let Some((ancestor_commit, proof)) = self.scan_proofs(req).await? {
-            self.try_merge_from_ancestor::<AccountEvent>(
-                EventLogType::Account,
-                ancestor_commit,
-                proof,
-            )
-            .await?;
-        }
 
-        Ok(())
+        match self.scan_proofs(req).await {
+            Ok(Some((ancestor_commit, proof))) => {
+                self.try_merge_from_ancestor::<WriteEvent>(
+                    EventLogType::Account,
+                    ancestor_commit,
+                    proof,
+                )
+                .await?;
+                Ok(false)
+            }
+            Err(e) => match e {
+                Error::HardConflict => {
+                    self.account_hard_conflict(options, outcome).await?;
+                    Ok(true)
+                }
+                _ => Err(e),
+            },
+            _ => Err(Error::HardConflict),
+        }
+    }
+
+    async fn account_hard_conflict(
+        &self,
+        options: &SyncOptions,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        match &options.hard_conflict_resolver {
+            HardConflictResolver::AutomaticFetch => {
+                let request = CommitDiffRequest {
+                    log_type: EventLogType::Account,
+                    from_hash: None,
+                };
+                let response = self.client.diff(&request).await?;
+                let patch = Patch::<AccountEvent>::new(response.patch);
+                let diff = AccountDiff {
+                    patch,
+                    before: response.checkpoint,
+                    last_commit: None,
+                    after: None,
+                };
+                let mut account = self.account.lock().await;
+                Ok(account.force_merge_account(diff, outcome).await?)
+            }
+        }
     }
 
     #[cfg(feature = "device")]
@@ -462,7 +509,7 @@ impl RemoteBridge {
                         patch,
                         after: None,
                     };
-                    account.merge_account(&diff, &mut outcome).await?
+                    account.merge_account(diff, &mut outcome).await?
                 }
                 #[cfg(feature = "device")]
                 EventLogType::Device => {

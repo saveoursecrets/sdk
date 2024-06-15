@@ -2,6 +2,7 @@
 use crate::client::CancelReason;
 use http::StatusCode;
 use serde_json::Value;
+use sos_sdk::sync::SyncStatus;
 #[cfg(feature = "client")]
 use sos_sdk::sync::{MaybeConflict, Origin, SyncError, SyncPacket};
 use std::error::Error as StdError;
@@ -95,9 +96,9 @@ pub enum Error {
         /// Conflict information.
         conflict: MaybeConflict,
         /// Local information sent to the remote.
-        local: SyncPacket,
+        local: SyncStatus,
         /// Remote information in the server reply.
-        remote: SyncPacket,
+        remote: SyncStatus,
     },
 
     /// Error generated when a hard conflict was detected.
