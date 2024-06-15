@@ -3,13 +3,12 @@
 use super::AccountEvent;
 use super::{EventKind, LogEvent, ReadEvent, WriteEvent};
 use crate::{signer::ecdsa::Address, vault::VaultId, Error, Result};
-use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "files")]
 use super::FileEvent;
 
 /// Events generated when reading or writing.
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Event {
     /// Create account event.
     CreateAccount(Address),

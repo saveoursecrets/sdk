@@ -202,11 +202,11 @@ impl From<VaultId> for FolderRef {
 
 /// Type to represent a secret as an encrypted pair of meta data
 /// and secret data.
-#[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct VaultEntry(pub AeadPack, pub AeadPack);
 
 /// Type to represent an encrypted secret with an associated commit hash.
-#[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct VaultCommit(pub CommitHash, pub VaultEntry);
 
 /// Trait that defines the operations on an encrypted vault.
