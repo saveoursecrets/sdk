@@ -41,25 +41,6 @@ async fn commit_tree_from_vault() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
-async fn commit_proof_serde() -> Result<()> {
-    let commit_tree = mock_commit_tree().await?;
-    let proof = commit_tree.head()?;
-
-    let json = serde_json::to_string_pretty(&proof)?;
-    let commit_proof: CommitProof = serde_json::from_str(&json)?;
-
-    assert_eq!(proof.root, commit_proof.root);
-    assert_eq!(
-        proof.proof.proof_hashes(),
-        commit_proof.proof.proof_hashes()
-    );
-    assert_eq!(proof.length, commit_proof.length);
-    assert_eq!(proof.indices, commit_proof.indices);
-
-    Ok(())
-}
-
 #[test]
 fn commit_proof_compare() -> Result<()> {
     let hash1 = CommitTree::hash(b"hello");

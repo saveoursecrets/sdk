@@ -1,10 +1,5 @@
 //! Types that encapsulate commit proofs and comparisons.
-
-use serde::{
-    de::{self, SeqAccess, Visitor},
-    ser::SerializeTuple,
-    Deserialize, Serialize,
-};
+use serde::{Deserialize, Serialize};
 use std::{
     fmt,
     hash::{Hash, Hasher as StdHasher},
@@ -179,78 +174,5 @@ impl fmt::Debug for CommitProof {
             .field("length", &self.length)
             .field("indices", &self.indices)
             .finish()
-    }
-}
-
-impl serde::Serialize for CommitProof {
-    fn serialize<S>(
-        &self,
-        serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        // 4-element tuple
-        let mut tup = serializer.serialize_tuple(4)?;
-        let root_hash = self.root.to_string();
-        tup.serialize_element(&root_hash)?;
-        let hashes = self.proof.proof_hashes();
-        tup.serialize_element(hashes)?;
-        tup.serialize_element(&self.length)?;
-        tup.serialize_element(&self.indices)?;
-        tup.end()
-    }
-}
-
-struct CommitProofVisitor;
-
-impl<'de> Visitor<'de> for CommitProofVisitor {
-    type Value = CommitProof;
-
-    fn expecting(&self, _formatter: &mut fmt::Formatter) -> fmt::Result {
-        Ok(())
-    }
-
-    fn visit_seq<A>(
-        self,
-        mut seq: A,
-    ) -> std::result::Result<Self::Value, A::Error>
-    where
-        A: SeqAccess<'de>,
-    {
-        let root_hash: String = seq.next_element()?.ok_or_else(|| {
-            de::Error::custom("expecting a root hash for commit proof")
-        })?;
-        let root_hash = hex::decode(root_hash).map_err(de::Error::custom)?;
-        let root_hash: [u8; 32] =
-            root_hash.as_slice().try_into().map_err(de::Error::custom)?;
-        let root_hash = CommitHash(root_hash);
-        let hashes: Vec<[u8; 32]> = seq.next_element()?.ok_or_else(|| {
-            de::Error::custom("expecting sequence of proof hashes")
-        })?;
-        let length: usize = seq.next_element()?.ok_or_else(|| {
-            de::Error::custom("expecting tree length usize")
-        })?;
-
-        let indices: Vec<usize> = seq
-            .next_element()?
-            .ok_or_else(|| de::Error::custom("expecting indices to prove"))?;
-        Ok(CommitProof {
-            root: root_hash,
-            proof: MerkleProof::new(hashes),
-            length,
-            indices,
-        })
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for CommitProof {
-    fn deserialize<D>(
-        deserializer: D,
-    ) -> std::result::Result<CommitProof, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_tuple(4, CommitProofVisitor)
     }
 }
