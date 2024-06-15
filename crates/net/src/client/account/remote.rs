@@ -160,23 +160,9 @@ impl RemoteBridge {
                 Ok(_) => Ok(()),
                 Err(e) => match e {
                     Error::SoftConflict {
-                        conflict,
-                        local,
-                        remote,
+                        conflict, local, ..
                     } => {
-                        match self.auto_merge(conflict, local, remote).await {
-                            Ok(_) => Ok(()),
-                            Err(e) => match e {
-                                Error::HardConflict => {
-                                    match options.hard_conflict_resolver {
-                                        HardConflictResolver::AutomaticFetch => {
-                                            self.force_pull().await
-                                        }
-                                    }
-                                }
-                                _ => Err(e),
-                            },
-                        }
+                        self.auto_merge(options, conflict, local.status).await
                     }
                     _ => Err(e),
                 },
@@ -184,32 +170,6 @@ impl RemoteBridge {
         } else {
             self.create_remote_account().await
         }
-    }
-
-    async fn force_pull(&self) -> Result<()> {
-        let mut outcome = MergeOutcome::default();
-        let account_data = self.client.fetch_account().await?;
-        let mut account = self.account.lock().await;
-        account
-            .merge_identity(
-                MergeSource::Forced(account_data.identity),
-                &mut outcome,
-            )
-            .await?;
-
-        todo!("force merge account events");
-        // todo!("force merge device events");
-        // todo!("force merge files events");
-
-        for (id, patch) in account_data.folders {
-            account
-                .merge_folder(&id, MergeSource::Forced(patch), &mut outcome)
-                .await?;
-        }
-
-        account.sign_out().await?;
-
-        Ok(())
     }
 
     async fn execute_sync_file_transfers(&self) -> Result<()> {

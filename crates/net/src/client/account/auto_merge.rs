@@ -7,14 +7,16 @@ use crate::{
 use async_recursion::async_recursion;
 use binary_stream::futures::{Decodable, Encodable};
 use sos_sdk::{
+    account::Account,
     commit::{CommitHash, CommitProof, CommitTree},
     events::{
         AccountEvent, EventLogExt, EventLogType, EventRecord, WriteEvent,
     },
     storage::StorageEventLogs,
     sync::{
-        AccountDiff, CheckedPatch, FolderDiff, MaybeConflict, Merge,
-        MergeOutcome, MergeSource, Patch, SyncPacket,
+        AccountDiff, CheckedPatch, FolderDiff, HardConflictResolver,
+        MaybeConflict, Merge, MergeOutcome, MergeSource, Patch, SyncOptions,
+        SyncStatus,
     },
     vault::VaultId,
 };
@@ -49,9 +51,53 @@ impl RemoteBridge {
     #[instrument(skip_all)]
     pub(crate) async fn auto_merge(
         &self,
+        options: &SyncOptions,
         conflict: MaybeConflict,
-        local: SyncPacket,
-        _remote: SyncPacket,
+        local: SyncStatus,
+    ) -> Result<()> {
+        match self.auto_merge_on_soft_conflict(conflict, local).await {
+            Ok(_) => Ok(()),
+            Err(e) => match e {
+                Error::HardConflict => match options.hard_conflict_resolver {
+                    HardConflictResolver::AutomaticFetch => {
+                        self.force_pull().await
+                    }
+                },
+                _ => Err(e),
+            },
+        }
+    }
+
+    async fn force_pull(&self) -> Result<()> {
+        let mut outcome = MergeOutcome::default();
+        let account_data = self.client.fetch_account().await?;
+        let mut account = self.account.lock().await;
+        account
+            .merge_identity(
+                MergeSource::Forced(account_data.identity),
+                &mut outcome,
+            )
+            .await?;
+
+        // todo!("force merge account events");
+        // todo!("force merge device events");
+        // todo!("force merge files events");
+
+        for (id, patch) in account_data.folders {
+            account
+                .merge_folder(&id, MergeSource::Forced(patch), &mut outcome)
+                .await?;
+        }
+
+        account.sign_out().await?;
+
+        Ok(())
+    }
+
+    async fn auto_merge_on_soft_conflict(
+        &self,
+        conflict: MaybeConflict,
+        local: SyncStatus,
     ) -> Result<()> {
         if conflict.identity {
             self.auto_merge_identity().await?;
@@ -170,12 +216,12 @@ impl RemoteBridge {
 
     async fn auto_merge_folder(
         &self,
-        local: &SyncPacket,
+        local_status: &SyncStatus,
         folder_id: &VaultId,
     ) -> Result<()> {
         tracing::debug!(folder_id = %folder_id, "auto_merge::folder");
 
-        if local.status.folders.get(folder_id).is_some() {
+        if local_status.folders.get(folder_id).is_some() {
             let req = CommitScanRequest {
                 log_type: EventLogType::Folder(*folder_id),
                 offset: None,
