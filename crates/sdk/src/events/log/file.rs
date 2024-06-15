@@ -337,13 +337,12 @@ where
     /// Append a patch to this event log.
     #[cfg(feature = "sync")]
     async fn patch_unchecked(&mut self, patch: &Patch<E>) -> Result<()> {
-        self.apply_records(patch.records().to_vec()).await?;
-        Ok(())
+        self.apply_records(patch.records().to_vec()).await
     }
 
     /// Append a collection of events and commit the tree hashes
     /// only if all the events were successfully written.
-    async fn apply(&mut self, events: Vec<&E>) -> Result<Vec<CommitHash>> {
+    async fn apply(&mut self, events: Vec<&E>) -> Result<()> {
         let mut records = Vec::with_capacity(events.len());
         for event in events {
             records.push(event.default_record().await?);
@@ -358,7 +357,7 @@ where
     async fn apply_records(
         &mut self,
         records: Vec<EventRecord>,
-    ) -> Result<Vec<CommitHash>> {
+    ) -> Result<()> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
         let mut last_commit_hash = self.tree().last_commit();
@@ -381,7 +380,7 @@ where
                 let tree = self.tree_mut();
                 tree.append(&mut hashes);
                 tree.commit();
-                Ok(commits)
+                Ok(())
             }
             Err(e) => Err(e.into()),
         }

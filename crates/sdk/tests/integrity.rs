@@ -8,7 +8,7 @@ use tempfile::NamedTempFile;
 // TODO: test for corrupt event log
 #[tokio::test]
 async fn integrity_events() -> Result<()> {
-    let (temp, _, _, _) = mock_event_log_file().await?;
+    let (temp, _, _) = mock_event_log_file().await?;
     let stream = event_integrity(temp.path());
     pin_mut!(stream);
 
