@@ -1,15 +1,15 @@
 use crate::{Error, Result};
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleTree};
 
-use super::{CommitHash, CommitProof, CommitState, Comparison};
+use super::{CommitHash, CommitProof, CommitState, Comparison, TreeHash};
 
 /// Encapsulates a Merkle tree and provides functions
 /// for generating and comparing proofs.
 #[derive(Default)]
 pub struct CommitTree {
     tree: MerkleTree<Sha256>,
-    maybe_last_commit: Option<<Sha256 as Hasher>::Hash>,
-    last_commit: Option<<Sha256 as Hasher>::Hash>,
+    maybe_last_commit: Option<TreeHash>,
+    last_commit: Option<TreeHash>,
 }
 
 impl CommitTree {
@@ -23,7 +23,7 @@ impl CommitTree {
     }
 
     /// Compute the Sha256 hash of some data.
-    pub fn hash(data: &[u8]) -> [u8; 32] {
+    pub fn hash(data: &[u8]) -> TreeHash {
         Sha256::hash(data)
     }
 
@@ -38,17 +38,14 @@ impl CommitTree {
     }
 
     /// Insert a commit hash into the tree,
-    pub fn insert(&mut self, hash: <Sha256 as Hasher>::Hash) -> &mut Self {
+    pub fn insert(&mut self, hash: TreeHash) -> &mut Self {
         self.maybe_last_commit = Some(hash);
         self.tree.insert(hash);
         self
     }
 
     /// Append a collections of commit hashes to the tree.
-    pub fn append(
-        &mut self,
-        hashes: &mut Vec<<Sha256 as Hasher>::Hash>,
-    ) -> &mut Self {
+    pub fn append(&mut self, hashes: &mut Vec<TreeHash>) -> &mut Self {
         self.maybe_last_commit = hashes.last().cloned();
         self.tree.append(hashes);
         self
@@ -74,7 +71,7 @@ impl CommitTree {
     }
 
     /// Leaves of the tree.
-    pub fn leaves(&self) -> Option<Vec<<Sha256 as Hasher>::Hash>> {
+    pub fn leaves(&self) -> Option<Vec<TreeHash>> {
         self.tree.leaves()
     }
 

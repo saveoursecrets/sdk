@@ -11,26 +11,18 @@ use std::{
     str::FromStr,
 };
 
+use super::TreeHash;
 use rs_merkle::{algorithms::Sha256, MerkleProof};
-
-/// Type for a commit tree hash.
-pub type TreeHash = [u8; 32];
 
 /// Hash representation that provides a hexadecimal display.
 #[derive(
     Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize, Hash,
 )]
-pub struct CommitHash(#[serde(with = "hex::serde")] pub [u8; 32]);
+pub struct CommitHash(#[serde(with = "hex::serde")] pub TreeHash);
 
-impl AsRef<[u8; 32]> for CommitHash {
-    fn as_ref(&self) -> &[u8; 32] {
+impl AsRef<TreeHash> for CommitHash {
+    fn as_ref(&self) -> &TreeHash {
         &self.0
-    }
-}
-
-impl From<CommitHash> for [u8; 32] {
-    fn from(value: CommitHash) -> Self {
-        value.0
     }
 }
 
@@ -51,7 +43,7 @@ impl FromStr for CommitHash {
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         let value = hex::decode(value)?;
-        let value: [u8; 32] = value.as_slice().try_into()?;
+        let value: TreeHash = value.as_slice().try_into()?;
         Ok(Self(value))
     }
 }
@@ -66,7 +58,7 @@ pub enum Comparison {
     /// Trees are equal as their root commits match.
     Equal,
     /// Tree contains the other proof.
-    Contains(Vec<usize>, Vec<[u8; 32]>),
+    Contains(Vec<usize>, Vec<TreeHash>),
     /// Unable to find a match against the proof.
     #[default]
     Unknown,
@@ -146,7 +138,7 @@ impl CommitProof {
             .collect::<Vec<_>>();
         (
             self.proof.verify(
-                self.root.into(),
+                self.root().into(),
                 &self.indices,
                 leaves_to_prove.as_slice(),
                 leaves.len(),

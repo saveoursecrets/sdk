@@ -1,6 +1,4 @@
 use anyhow::Result;
-use rs_merkle::Hasher;
-use sha2::Sha256;
 use sos_sdk::prelude::*;
 use sos_test_utils::{mock_encryption_key, mock_secret_note};
 
