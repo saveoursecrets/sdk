@@ -8,6 +8,7 @@ use serde::{
 use std::{
     fmt,
     hash::{Hash, Hasher as StdHasher},
+    str::FromStr,
 };
 
 use rs_merkle::{algorithms::Sha256, MerkleProof};
@@ -39,6 +40,16 @@ impl From<&CommitHash> for [u8; 32] {
 impl fmt::Display for CommitHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", hex::encode(self.0))
+    }
+}
+
+impl FromStr for CommitHash {
+    type Err = crate::Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let value = hex::decode(value)?;
+        let value: [u8; 32] = value.as_slice().try_into()?;
+        Ok(Self(value))
     }
 }
 
@@ -147,8 +158,8 @@ impl fmt::Debug for CommitProof {
         f.debug_struct("CommitProof")
             .field("root", &self.root.to_string())
             //.field("proofs", self.1.proof_hashes())
-            .field("size", &self.length)
-            .field("leaves", &self.indices)
+            .field("length", &self.length)
+            .field("indices", &self.indices)
             .finish()
     }
 }

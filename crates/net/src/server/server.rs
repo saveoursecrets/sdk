@@ -32,7 +32,11 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::{Mutex, RwLock, RwLockReadGuard};
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tower_http::{
+    cors::CorsLayer,
+    trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer},
+};
+use tracing::Level;
 
 #[cfg(feature = "listen")]
 use super::handlers::websocket::upgrade;
@@ -270,7 +274,11 @@ impl Server {
         let file_operations: ServerTransfer =
             Arc::new(RwLock::new(HashSet::new()));
 
-        let mut v1 = v1.layer(cors).layer(TraceLayer::new_for_http());
+        let mut v1 = v1.layer(cors).layer(
+            TraceLayer::new_for_http()
+                .on_request(DefaultOnRequest::new().level(Level::TRACE))
+                .on_response(DefaultOnResponse::new().level(Level::TRACE)),
+        );
 
         #[cfg(feature = "pairing")]
         {

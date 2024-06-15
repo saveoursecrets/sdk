@@ -7,7 +7,7 @@ use crate::{
 use async_recursion::async_recursion;
 use binary_stream::futures::{Decodable, Encodable};
 use sos_sdk::{
-    commit::{CommitHash, CommitProof, Comparison},
+    commit::{CommitHash, CommitProof, CommitTree},
     events::{
         AccountEvent, EventLogExt, EventLogType, EventRecord, WriteEvent,
     },
@@ -51,11 +51,8 @@ impl RemoteBridge {
         &self,
         conflict: MaybeConflict,
         local: SyncPacket,
-        remote: SyncPacket,
+        _remote: SyncPacket,
     ) -> Result<()> {
-        println!("local: {:#?}", local.compare);
-        println!("remote: {:#?}", remote.compare);
-
         if conflict.identity {
             self.auto_merge_identity().await?;
         }
@@ -478,9 +475,6 @@ impl RemoteBridge {
           "auto_merge::push_remote",
         );
 
-        println!("sending: {}", events.len());
-        println!("sending: {}", commit);
-
         let req = EventPatchRequest {
             log_type: *log_type,
             commit: Some(commit),
@@ -503,9 +497,6 @@ impl RemoteBridge {
                   contains = ?contains,
                   "auto_merge::patch::conflict",
                 );
-
-                println!("GOT CONFLICT ON PATCH");
-
                 None
             }
         };
@@ -559,13 +550,49 @@ impl RemoteBridge {
     }
 
     /// Scan the remote for proofs that match this client.
-    #[async_recursion]
     async fn scan_proofs(
         &self,
         request: CommitScanRequest,
     ) -> Result<Option<(CommitHash, CommitProof)>> {
         tracing::debug!(request = ?request, "auto_merge::scan_proofs");
 
+        let leaves = {
+            let account = self.account.lock().await;
+            match &request.log_type {
+                EventLogType::Identity => {
+                    let log = account.identity_log().await?;
+                    let event_log = log.read().await;
+                    event_log.tree().leaves().unwrap_or_default()
+                }
+                EventLogType::Account => {
+                    let log = account.account_log().await?;
+                    let event_log = log.read().await;
+                    event_log.tree().leaves().unwrap_or_default()
+                }
+                #[cfg(feature = "device")]
+                EventLogType::Device => {
+                    let log = account.device_log().await?;
+                    let event_log = log.read().await;
+                    event_log.tree().leaves().unwrap_or_default()
+                }
+                #[cfg(feature = "files")]
+                EventLogType::Files => {
+                    let log = account.file_log().await?;
+                    let event_log = log.read().await;
+                    event_log.tree().leaves().unwrap_or_default()
+                }
+                EventLogType::Folder(id) => {
+                    let log = account.folder_log(id).await?;
+                    let event_log = log.read().await;
+                    event_log.tree().leaves().unwrap_or_default()
+                }
+                EventLogType::Noop => unreachable!(),
+            }
+        };
+
+        self.iterate_scan_proofs(request, &leaves).await
+
+        /*
         let response = self.client.scan(&request).await?;
         if !response.proofs.is_empty() {
             // Proofs are returned in the event log order
@@ -578,6 +605,11 @@ impl RemoteBridge {
                 // Find the last matching commit from the indices
                 // to prove
                 if let Some(commit_hash) = commit_hashes.last() {
+                    println!(
+                        "matched on {:#?}",
+                        response.proofs.iter().rev().collect::<Vec<_>>()
+                    );
+
                     return Ok(Some((*commit_hash, proof.clone())));
                 }
             }
@@ -589,6 +621,52 @@ impl RemoteBridge {
         } else {
             Err(Error::HardConflict)
         }
+        */
+    }
+
+    /// Scan the remote for proofs that match this client.
+    #[async_recursion]
+    async fn iterate_scan_proofs(
+        &self,
+        request: CommitScanRequest,
+        leaves: &[[u8; 32]],
+    ) -> Result<Option<(CommitHash, CommitProof)>> {
+        tracing::debug!(request = ?request, "auto_merge::iterate_scan_proofs");
+
+        let response = self.client.scan(&request).await?;
+        if !response.proofs.is_empty() {
+            // Proofs are returned in the event log order
+            // but we always want to scan from the end of
+            // the event log so reverse the iteration
+            for proof in response.proofs.iter().rev() {
+                let commit_hashes = self
+                    .compare_proof(&request.log_type, proof, leaves)
+                    .await?;
+
+                // Find the last matching commit from the indices
+                // to prove
+                if let Some(commit_hash) = commit_hashes.last() {
+                    // Compute the root hash and proof for the
+                    // matched index
+                    let index = proof.indices.last().copied().unwrap();
+                    let new_leaves = &leaves[0..=index];
+                    let mut new_leaves = new_leaves.to_vec();
+                    let mut new_tree = CommitTree::new();
+                    new_tree.append(&mut new_leaves);
+                    new_tree.commit();
+
+                    let checkpoint_proof = new_tree.head()?;
+                    return Ok(Some((*commit_hash, checkpoint_proof)));
+                }
+            }
+
+            // Try to scan more proofs
+            let mut req = request.clone();
+            req.offset = Some(response.offset);
+            self.iterate_scan_proofs(req, leaves).await
+        } else {
+            Err(Error::HardConflict)
+        }
     }
 
     /// Determine if a local event log contains a proof
@@ -597,50 +675,108 @@ impl RemoteBridge {
         &self,
         log_type: &EventLogType,
         proof: &CommitProof,
+        leaves: &[[u8; 32]],
     ) -> Result<Vec<CommitHash>> {
-        tracing::debug!(proof = ?proof, "auto_merge::compare_proof");
+        tracing::trace!(proof = ?proof, "auto_merge::compare_proof");
 
-        let account = self.account.lock().await;
-        let comparison = match &log_type {
+        let (verified, leaves) = match &log_type {
             EventLogType::Identity => {
-                let log = account.identity_log().await?;
-                let event_log = log.read().await;
-                event_log.tree().compare(proof)?
+                let leaves_to_prove = proof
+                    .indices
+                    .iter()
+                    .filter_map(|i| leaves.get(*i))
+                    .copied()
+                    .collect::<Vec<_>>();
+                (
+                    proof.proof.verify(
+                        proof.root.into(),
+                        &proof.indices,
+                        leaves_to_prove.as_slice(),
+                        leaves.len(),
+                    ),
+                    leaves_to_prove,
+                )
             }
             EventLogType::Account => {
-                let log = account.account_log().await?;
-                let event_log = log.read().await;
-                event_log.tree().compare(proof)?
+                let leaves_to_prove = proof
+                    .indices
+                    .iter()
+                    .filter_map(|i| leaves.get(*i))
+                    .copied()
+                    .collect::<Vec<_>>();
+                (
+                    proof.proof.verify(
+                        proof.root.into(),
+                        &proof.indices,
+                        leaves_to_prove.as_slice(),
+                        leaves.len(),
+                    ),
+                    leaves_to_prove,
+                )
             }
             #[cfg(feature = "device")]
             EventLogType::Device => {
-                let log = account.device_log().await?;
-                let event_log = log.read().await;
-                event_log.tree().compare(proof)?
+                let leaves_to_prove = proof
+                    .indices
+                    .iter()
+                    .filter_map(|i| leaves.get(*i))
+                    .copied()
+                    .collect::<Vec<_>>();
+                (
+                    proof.proof.verify(
+                        proof.root.into(),
+                        &proof.indices,
+                        leaves_to_prove.as_slice(),
+                        leaves.len(),
+                    ),
+                    leaves_to_prove,
+                )
             }
             #[cfg(feature = "files")]
             EventLogType::Files => {
-                let log = account.file_log().await?;
-                let event_log = log.read().await;
-                event_log.tree().compare(proof)?
+                let leaves_to_prove = proof
+                    .indices
+                    .iter()
+                    .filter_map(|i| leaves.get(*i))
+                    .copied()
+                    .collect::<Vec<_>>();
+                (
+                    proof.proof.verify(
+                        proof.root.into(),
+                        &proof.indices,
+                        leaves_to_prove.as_slice(),
+                        leaves.len(),
+                    ),
+                    leaves_to_prove,
+                )
             }
-            EventLogType::Folder(id) => {
-                let log = account.folder_log(id).await?;
-                let event_log = log.read().await;
-                event_log.tree().compare(proof)?
+            EventLogType::Folder(_) => {
+                let leaves_to_prove = proof
+                    .indices
+                    .iter()
+                    .filter_map(|i| leaves.get(*i))
+                    .copied()
+                    .collect::<Vec<_>>();
+                (
+                    proof.proof.verify(
+                        proof.root.into(),
+                        &proof.indices,
+                        leaves_to_prove.as_slice(),
+                        leaves.len(),
+                    ),
+                    leaves_to_prove,
+                )
             }
             EventLogType::Noop => unreachable!(),
         };
 
         tracing::debug!(
-            comparison = ?comparison,
+            verified= ?verified,
             "auto_merge::compare_proof",
         );
 
-        if let Comparison::Contains(_, leaves) = comparison {
-            let commits =
-                leaves.into_iter().map(CommitHash).collect::<Vec<_>>();
-            Ok(commits)
+        if verified {
+            Ok(leaves.into_iter().map(CommitHash).collect())
         } else {
             Ok(vec![])
         }

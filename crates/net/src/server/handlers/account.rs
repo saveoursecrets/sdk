@@ -831,9 +831,9 @@ mod handlers {
                 skip += 1;
                 continue;
             }
-            if let Some(event) = event {
-                let leaf = event.commit();
-                let proof = event_log.tree().proof_at(index, leaf)?;
+            if let Some(_event) = event {
+                // let leaf = event.commit();
+                let proof = event_log.tree().proof(&[index])?;
 
                 if reverse {
                     res.proofs.insert(0, proof);
@@ -1078,7 +1078,6 @@ mod handlers {
                     let log = writer.storage.folder_log(id).await?;
                     let mut event_log = log.write().await;
                     let records = event_log.rewind(commit).await?;
-                    println!("SERVER REWIND...");
                     (Some(*commit), records)
                 } else {
                     (None, vec![])
