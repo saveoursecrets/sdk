@@ -639,13 +639,9 @@ impl RemoteBridge {
             // but we always want to scan from the end of
             // the event log so reverse the iteration
             for proof in response.proofs.iter().rev() {
-                let commit_hashes = self
-                    .compare_proof(&request.log_type, proof, leaves)
-                    .await?;
-
                 // Find the last matching commit from the indices
                 // to prove
-                if let Some(commit_hash) = commit_hashes.last() {
+                if let Some(commit_hash) = self.compare_proof(proof, leaves) {
                     // Compute the root hash and proof for the
                     // matched index
                     let index = proof.indices.last().copied().unwrap();
@@ -656,7 +652,7 @@ impl RemoteBridge {
                     new_tree.commit();
 
                     let checkpoint_proof = new_tree.head()?;
-                    return Ok(Some((*commit_hash, checkpoint_proof)));
+                    return Ok(Some((commit_hash, checkpoint_proof)));
                 }
             }
 
@@ -671,114 +667,23 @@ impl RemoteBridge {
 
     /// Determine if a local event log contains a proof
     /// received from the server.
-    async fn compare_proof(
+    fn compare_proof(
         &self,
-        log_type: &EventLogType,
         proof: &CommitProof,
         leaves: &[[u8; 32]],
-    ) -> Result<Vec<CommitHash>> {
-        tracing::trace!(proof = ?proof, "auto_merge::compare_proof");
+    ) -> Option<CommitHash> {
+        let (verified, leaves) = proof.verify_leaves(leaves);
 
-        let (verified, leaves) = match &log_type {
-            EventLogType::Identity => {
-                let leaves_to_prove = proof
-                    .indices
-                    .iter()
-                    .filter_map(|i| leaves.get(*i))
-                    .copied()
-                    .collect::<Vec<_>>();
-                (
-                    proof.proof.verify(
-                        proof.root.into(),
-                        &proof.indices,
-                        leaves_to_prove.as_slice(),
-                        leaves.len(),
-                    ),
-                    leaves_to_prove,
-                )
-            }
-            EventLogType::Account => {
-                let leaves_to_prove = proof
-                    .indices
-                    .iter()
-                    .filter_map(|i| leaves.get(*i))
-                    .copied()
-                    .collect::<Vec<_>>();
-                (
-                    proof.proof.verify(
-                        proof.root.into(),
-                        &proof.indices,
-                        leaves_to_prove.as_slice(),
-                        leaves.len(),
-                    ),
-                    leaves_to_prove,
-                )
-            }
-            #[cfg(feature = "device")]
-            EventLogType::Device => {
-                let leaves_to_prove = proof
-                    .indices
-                    .iter()
-                    .filter_map(|i| leaves.get(*i))
-                    .copied()
-                    .collect::<Vec<_>>();
-                (
-                    proof.proof.verify(
-                        proof.root.into(),
-                        &proof.indices,
-                        leaves_to_prove.as_slice(),
-                        leaves.len(),
-                    ),
-                    leaves_to_prove,
-                )
-            }
-            #[cfg(feature = "files")]
-            EventLogType::Files => {
-                let leaves_to_prove = proof
-                    .indices
-                    .iter()
-                    .filter_map(|i| leaves.get(*i))
-                    .copied()
-                    .collect::<Vec<_>>();
-                (
-                    proof.proof.verify(
-                        proof.root.into(),
-                        &proof.indices,
-                        leaves_to_prove.as_slice(),
-                        leaves.len(),
-                    ),
-                    leaves_to_prove,
-                )
-            }
-            EventLogType::Folder(_) => {
-                let leaves_to_prove = proof
-                    .indices
-                    .iter()
-                    .filter_map(|i| leaves.get(*i))
-                    .copied()
-                    .collect::<Vec<_>>();
-                (
-                    proof.proof.verify(
-                        proof.root.into(),
-                        &proof.indices,
-                        leaves_to_prove.as_slice(),
-                        leaves.len(),
-                    ),
-                    leaves_to_prove,
-                )
-            }
-            EventLogType::Noop => unreachable!(),
-        };
-
-        tracing::debug!(
-            verified= ?verified,
+        tracing::trace!(
+            proof = ?proof,
+            verified = ?verified,
             "auto_merge::compare_proof",
         );
 
         if verified {
-            Ok(leaves.into_iter().map(CommitHash).collect())
+            leaves.last().copied().map(CommitHash)
         } else {
-            Ok(vec![])
+            None
         }
     }
 }

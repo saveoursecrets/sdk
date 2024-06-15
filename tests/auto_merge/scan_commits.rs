@@ -137,31 +137,13 @@ async fn auto_merge_scan_commits() -> Result<()> {
     all_proofs.extend(folder_chunk_2.proofs.into_iter().rev());
 
     // Compare to the tree
-    let mut comparisons = all_proofs
+    let comparisons = all_proofs
         .into_iter()
         .map(|proof| event_log.tree().compare(&proof))
         .collect::<Vec<_>>();
-
-    println!("{:#?}", comparisons);
-
-    // HEAD is now the first entry
-    assert!(matches!(comparisons.remove(0), Ok(Comparison::Equal)));
-
-    /*
-    // Tree contains all the other proofs
-    assert!(matches!(
-        comparisons.remove(0),
-        Ok(Comparison::Contains(_, _))
-    ));
-    assert!(matches!(
-        comparisons.remove(0),
-        Ok(Comparison::Contains(_, _))
-    ));
-    assert!(matches!(
-        comparisons.remove(0),
-        Ok(Comparison::Contains(_, _))
-    ));
-    */
+    assert!(comparisons
+        .into_iter()
+        .all(|c| matches!(c.unwrap(), Comparison::Equal)));
 
     // Scan past the length ascending (bad offset)
     // yields empty proofs

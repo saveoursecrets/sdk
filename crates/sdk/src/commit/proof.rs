@@ -13,6 +13,9 @@ use std::{
 
 use rs_merkle::{algorithms::Sha256, MerkleProof};
 
+/// Type for a commit tree hash.
+pub type TreeHash = [u8; 32];
+
 /// Hash representation that provides a hexadecimal display.
 #[derive(
     Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize, Hash,
@@ -127,6 +130,29 @@ impl CommitProof {
     /// Determine if this proof is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Verify the indices of this proof using
+    /// a slice of leaves.
+    pub fn verify_leaves(
+        &self,
+        leaves: &[TreeHash],
+    ) -> (bool, Vec<TreeHash>) {
+        let leaves_to_prove = self
+            .indices
+            .iter()
+            .filter_map(|i| leaves.get(*i))
+            .copied()
+            .collect::<Vec<_>>();
+        (
+            self.proof.verify(
+                self.root.into(),
+                &self.indices,
+                leaves_to_prove.as_slice(),
+                leaves.len(),
+            ),
+            leaves_to_prove,
+        )
     }
 }
 

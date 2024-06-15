@@ -1,4 +1,6 @@
 use anyhow::Result;
+use rs_merkle::Hasher;
+use sha2::Sha256;
 use sos_sdk::prelude::*;
 use sos_test_utils::{mock_encryption_key, mock_secret_note};
 
@@ -56,51 +58,6 @@ async fn commit_proof_serde() -> Result<()> {
     );
     assert_eq!(proof.length, commit_proof.length);
     assert_eq!(proof.indices, commit_proof.indices);
-
-    Ok(())
-}
-
-#[test]
-fn commit_proof_at() -> Result<()> {
-    let n = 10;
-    let mut trees = Vec::with_capacity(n);
-    let hashes = (0..n)
-        .into_iter()
-        .map(|n| {
-            trees.push(CommitTree::new());
-            CommitTree::hash(n.to_string().as_bytes())
-        })
-        .collect::<Vec<_>>();
-
-    let mut merkle_trees = Vec::new();
-
-    for (index, mut tree) in trees.into_iter().enumerate() {
-        for i in 0..index + 1 {
-            tree.append(&mut vec![hashes.get(i).cloned().unwrap()]);
-        }
-        tree.commit();
-        merkle_trees.push(tree);
-    }
-
-    let roots = merkle_trees
-        .iter()
-        .map(|t| t.root().unwrap())
-        .enumerate()
-        .collect::<Vec<_>>();
-
-    for (index, root) in roots {
-        println!("{} {}", index, root);
-    }
-
-    println!("---");
-
-    let all_nodes = merkle_trees.last().unwrap();
-    let leaves = all_nodes.leaves().unwrap_or_default();
-    for (index, leaf) in leaves.into_iter().enumerate() {
-        // println!("{} {}", index, CommitHash(leaf));
-        let proof = all_nodes.proof_at(index, leaf)?;
-        println!("{} {}", index, proof.root);
-    }
 
     Ok(())
 }
