@@ -31,10 +31,16 @@ struct SyncPacket(crate::sdk::sync::SyncPacket);
         )
     ),
     paths(
+        account::account_exists,
         account::create_account,
         account::fetch_account,
         account::sync_status,
         account::sync_account,
+        account::update_account,
+        account::event_proofs,
+        account::event_diff,
+        account::event_patch,
+        account::delete_account,
         files::receive_file,
         files::send_file,
         files::move_file,
