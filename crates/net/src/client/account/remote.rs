@@ -12,8 +12,8 @@ use sos_sdk::{
         StorageEventLogs,
     },
     sync::{
-        self, Merge, Origin, SyncOptions, SyncPacket, SyncStatus,
-        SyncStorage, UpdateSet,
+        self, HardConflictResolver, Merge, Origin, SyncOptions, SyncPacket,
+        SyncStatus, SyncStorage, UpdateSet,
     },
     vfs,
 };
@@ -190,7 +190,7 @@ impl RemoteBridge {
         Ok(())
     }
 
-    async fn execute_sync(&self) -> Result<()> {
+    async fn execute_sync(&self, options: &SyncOptions) -> Result<()> {
         let exists = self.client.account_exists().await?;
         if exists {
             let sync_status = self.client.sync_status().await?;
@@ -201,13 +201,35 @@ impl RemoteBridge {
                         conflict,
                         local,
                         remote,
-                    } => self.auto_merge(conflict, local, remote).await,
+                    } => {
+                        match self.auto_merge(conflict, local, remote).await {
+                            Ok(_) => Ok(()),
+                            Err(e) => match e {
+                                Error::HardConflict => {
+                                    match options.hard_conflict_resolver {
+                                        HardConflictResolver::AutomaticFetch => {
+                                            self.force_pull().await
+                                        }
+                                    }
+                                }
+                                _ => Err(e),
+                            },
+                        }
+                    }
                     _ => Err(e),
                 },
             }
         } else {
             self.create_remote_account().await
         }
+    }
+
+    async fn force_pull(&self) -> Result<()> {
+        let account_data = self.client.fetch_account().await?;
+        // account_data.identity.foo();
+        let account = self.account.lock().await;
+        // account.rewrite_account_data(&account_data).await?;
+        Ok(())
     }
 
     async fn execute_sync_file_transfers(&self) -> Result<()> {
@@ -260,7 +282,7 @@ impl RemoteSync for RemoteBridge {
 
         tracing::debug!(origin = %self.origin.url());
 
-        match self.execute_sync().await {
+        match self.execute_sync(options).await {
             Ok(_) => None,
             Err(e) => Some(SyncError {
                 errors: vec![(self.origin.clone(), e)],
@@ -293,20 +315,6 @@ impl RemoteSync for RemoteBridge {
             }),
         }
     }
-
-    /*
-    async fn patch_devices(
-        &self,
-        _options: &SyncOptions,
-    ) -> Option<SyncError> {
-        match self.execute_sync().await {
-            Ok(_) => None,
-            Err(e) => Some(SyncError {
-                errors: vec![(self.origin.clone(), e)],
-            }),
-        }
-    }
-    */
 
     async fn force_update(
         &self,

@@ -74,7 +74,10 @@ pub async fn run(cmd: Command) -> Result<()> {
                     return Err(Error::NoMatchServers);
                 }
 
-                let options = SyncOptions { origins };
+                let options = SyncOptions {
+                    origins,
+                    ..Default::default()
+                };
                 let sync_error = owner.sync_with_options(&options).await;
                 if sync_error.is_some() {
                     return Err(Error::SyncFail);
@@ -114,7 +117,10 @@ pub async fn run(cmd: Command) -> Result<()> {
                 origins
             };
 
-            let options = SyncOptions { origins };
+            let options = SyncOptions {
+                origins,
+                ..Default::default()
+            };
             let local_status = owner.sync_status().await?;
             let server_status = owner.server_status(&options).await;
 

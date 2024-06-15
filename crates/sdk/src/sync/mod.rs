@@ -81,11 +81,21 @@ impl From<Url> for Origin {
     }
 }
 
+/// How to resolve hard conflicts.
+#[derive(Default, Debug)]
+pub enum HardConflictResolver {
+    /// Automatically fetch and overwrite account data.
+    #[default]
+    AutomaticFetch,
+}
+
 /// Options for sync operation.
 #[derive(Default, Debug)]
 pub struct SyncOptions {
     /// Only sync these origins.
     pub origins: Vec<Origin>,
+    /// Resolver for hard conflicts.
+    pub hard_conflict_resolver: HardConflictResolver,
 }
 
 /// Error type that can be returned from a sync operation.

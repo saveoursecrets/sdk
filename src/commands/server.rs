@@ -53,6 +53,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             owner.add_server(origin.clone()).await?;
             let options = SyncOptions {
                 origins: vec![origin.clone()],
+                ..Default::default()
             };
 
             let sync_error = owner.sync_with_options(&options).await;

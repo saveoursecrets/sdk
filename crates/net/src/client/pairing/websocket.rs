@@ -430,7 +430,10 @@ impl<'a> OfferPairing<'a> {
         // Other servers will need to eventually get the updated
         // devices the next time they are synced.
         let origins = vec![self.share_url.server().clone().into()];
-        let options = SyncOptions { origins };
+        let options = SyncOptions {
+            origins,
+            ..Default::default()
+        };
         if let Some(sync_error) =
             self.account.sync_with_options(&options).await
         {

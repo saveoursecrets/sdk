@@ -279,6 +279,7 @@ impl NetworkAccount {
             if let Some(remote) = remotes.get(&origin) {
                 let options = SyncOptions {
                     origins: vec![origin.clone()],
+                    ..Default::default()
                 };
                 sync_error = remote.sync_with_options(&options).await;
             }
