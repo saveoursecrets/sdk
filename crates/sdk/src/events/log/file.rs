@@ -336,11 +336,9 @@ where
 
     /// Append a patch to this event log.
     #[cfg(feature = "sync")]
-    async fn patch_unchecked(
-        &mut self,
-        patch: &Patch<E>,
-    ) -> Result<Vec<CommitHash>> {
-        self.apply_records(patch.records().to_vec()).await
+    async fn patch_unchecked(&mut self, patch: &Patch<E>) -> Result<()> {
+        self.apply_records(patch.records().to_vec()).await?;
+        Ok(())
     }
 
     /// Append a collection of events and commit the tree hashes
