@@ -979,7 +979,6 @@ mod handlers {
                     last_commit,
                     before: req.proof,
                     patch,
-                    after: None,
                 };
 
                 let mut outcome = MergeOutcome::default();
@@ -1006,7 +1005,6 @@ mod handlers {
                     last_commit,
                     before: req.proof,
                     patch,
-                    after: None,
                 };
 
                 let mut outcome = MergeOutcome::default();
@@ -1034,7 +1032,6 @@ mod handlers {
                     last_commit,
                     before: req.proof,
                     patch,
-                    after: None,
                 };
 
                 let mut outcome = MergeOutcome::default();
@@ -1062,7 +1059,6 @@ mod handlers {
                     last_commit,
                     before: req.proof,
                     patch,
-                    after: None,
                 };
 
                 let mut outcome = MergeOutcome::default();
@@ -1089,7 +1085,6 @@ mod handlers {
                     last_commit,
                     before: req.proof,
                     patch,
-                    after: None,
                 };
 
                 let mut outcome = MergeOutcome::default();

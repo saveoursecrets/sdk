@@ -453,7 +453,6 @@ where
     ) -> Result<()> {
         self.last_commit.encode(&mut *writer).await?;
         self.before.encode(&mut *writer).await?;
-        self.after.encode(&mut *writer).await?;
         self.patch.encode(&mut *writer).await?;
         Ok(())
     }
@@ -470,7 +469,6 @@ where
     ) -> Result<()> {
         self.last_commit.decode(&mut *reader).await?;
         self.before.decode(&mut *reader).await?;
-        self.after.decode(&mut *reader).await?;
         self.patch.decode(&mut *reader).await?;
         Ok(())
     }

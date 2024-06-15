@@ -174,8 +174,6 @@ where
     pub patch: Patch<T>,
     /// Head of the event log before applying the patch.
     pub before: CommitProof,
-    /// Head of the event log after applying the patch.
-    pub after: Option<CommitProof>,
 }
 
 /// Diff between account events logs.
@@ -475,13 +473,11 @@ impl SyncComparison {
 
                 // Avoid empty patches when commit is already the last
                 if !is_last_commit {
-                    let after = reader.tree().head()?;
                     let identity = FolderDiff {
                         last_commit: Some(self.remote_status.identity.0),
                         patch: reader
                             .diff(Some(&self.remote_status.identity.0))
                             .await?,
-                        after: Some(after),
                         before: self.remote_status.identity.1.clone(),
                     };
                     diff.identity = Some(MaybeDiff::Diff(identity));
@@ -512,13 +508,11 @@ impl SyncComparison {
 
                 // Avoid empty patches when commit is already the last
                 if !is_last_commit {
-                    let after = reader.tree().head()?;
                     let account = AccountDiff {
                         last_commit: Some(self.remote_status.account.0),
                         patch: reader
                             .diff(Some(&self.remote_status.account.0))
                             .await?,
-                        after: Some(after),
                         before: self.remote_status.account.1.clone(),
                     };
                     diff.account = Some(MaybeDiff::Diff(account));
@@ -550,13 +544,11 @@ impl SyncComparison {
 
                 // Avoid empty patches when commit is already the last
                 if !is_last_commit {
-                    let after = reader.tree().head()?;
                     let device = DeviceDiff {
                         last_commit: Some(self.remote_status.device.0),
                         patch: reader
                             .diff(Some(&self.remote_status.device.0))
                             .await?,
-                        after: Some(after),
                         before: self.remote_status.device.1.clone(),
                     };
                     diff.device = Some(MaybeDiff::Diff(device));
@@ -593,13 +585,11 @@ impl SyncComparison {
 
                         // Avoid empty patches when commit is already the last
                         if !is_last_commit {
-                            let after = reader.tree().head()?;
                             let files = FileDiff {
                                 last_commit: Some(remote_files.0),
                                 patch: reader
                                     .diff(Some(&remote_files.0))
                                     .await?,
-                                after: Some(after),
                                 before: remote_files.1.clone(),
                             };
                             diff.files = Some(MaybeDiff::Diff(files));
@@ -625,11 +615,9 @@ impl SyncComparison {
                 let log = storage.file_log().await?;
                 let reader = log.read().await;
                 if !reader.tree().is_empty() {
-                    let after = reader.tree().head()?;
                     let files = FileDiff {
                         last_commit: None,
                         patch: reader.diff(None).await?,
-                        after: Some(after),
                         before: Default::default(),
                     };
                     diff.files = Some(MaybeDiff::Diff(files));
@@ -652,11 +640,9 @@ impl SyncComparison {
                     let log = storage.folder_log(id).await?;
                     let log = log.read().await;
 
-                    let after = log.tree().head()?;
                     let folder = FolderDiff {
                         last_commit: Some(commit_state.0),
                         patch: log.diff(Some(&commit_state.0)).await?,
-                        after: Some(after),
                         before: commit_state.1.clone(),
                     };
 
@@ -689,12 +675,10 @@ impl SyncComparison {
                 let log = storage.folder_log(id).await?;
                 let log = log.read().await;
                 let first_commit = log.tree().first_commit()?;
-                let after = log.tree().commit_state()?.1;
 
                 let folder = FolderDiff {
                     last_commit: Some(first_commit.0),
                     patch: log.diff(Some(&first_commit.0)).await?,
-                    after: Some(after),
                     before: first_commit.1,
                 };
 

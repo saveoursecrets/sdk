@@ -161,7 +161,6 @@ impl RemoteBridge {
                     patch,
                     before: response.checkpoint,
                     last_commit: None,
-                    after: None,
                 };
                 let mut account = self.account.lock().await;
                 Ok(account.force_merge_identity(diff, outcome).await?)
@@ -221,7 +220,6 @@ impl RemoteBridge {
                     patch,
                     before: response.checkpoint,
                     last_commit: None,
-                    after: None,
                 };
                 let mut account = self.account.lock().await;
                 Ok(account.force_merge_account(diff, outcome).await?)
@@ -332,7 +330,6 @@ impl RemoteBridge {
                     patch,
                     before: response.checkpoint,
                     last_commit: None,
-                    after: None,
                 };
                 let mut account = self.account.lock().await;
                 Ok(account
@@ -497,7 +494,6 @@ impl RemoteBridge {
                         last_commit: Some(commit),
                         before: proof,
                         patch,
-                        after: None,
                     };
                     account.merge_identity(diff, &mut outcome).await?
                 }
@@ -507,7 +503,6 @@ impl RemoteBridge {
                         last_commit: Some(commit),
                         before: proof,
                         patch,
-                        after: None,
                     };
                     account.merge_account(diff, &mut outcome).await?
                 }
@@ -518,7 +513,6 @@ impl RemoteBridge {
                         last_commit: Some(commit),
                         before: proof,
                         patch,
-                        after: None,
                     };
                     account.merge_device(diff, &mut outcome).await?
                 }
@@ -529,7 +523,6 @@ impl RemoteBridge {
                         last_commit: Some(commit),
                         before: proof,
                         patch,
-                        after: None,
                     };
                     account.merge_files(diff, &mut outcome).await?
                 }
@@ -539,7 +532,6 @@ impl RemoteBridge {
                         last_commit: Some(commit),
                         before: proof,
                         patch,
-                        after: None,
                     };
                     account.merge_folder(id, diff, &mut outcome).await?
                 }
