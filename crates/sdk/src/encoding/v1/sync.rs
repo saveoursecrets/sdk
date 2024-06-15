@@ -1,5 +1,5 @@
 use crate::{
-    commit::{CommitHash, CommitProof, CommitState, Comparison},
+    commit::{CommitProof, CommitState, Comparison},
     decode, encode,
     encoding::{decode_uuid, encoding_error},
     events::EventRecord,
@@ -338,10 +338,9 @@ impl Encodable for CheckedPatch {
     ) -> Result<()> {
         match self {
             CheckedPatch::Noop => panic!("attempt to encode a noop"),
-            CheckedPatch::Success(proof, commits) => {
+            CheckedPatch::Success(proof) => {
                 writer.write_u8(1).await?;
                 proof.encode(&mut *writer).await?;
-                commits.encode(&mut *writer).await?;
             }
             CheckedPatch::Conflict { head, contains } => {
                 writer.write_u8(2).await?;
@@ -364,9 +363,7 @@ impl Decodable for CheckedPatch {
             1 => {
                 let mut proof = CommitProof::default();
                 proof.decode(&mut *reader).await?;
-                let mut commits: Vec<CommitHash> = Vec::new();
-                commits.decode(&mut *reader).await?;
-                *self = CheckedPatch::Success(proof, commits);
+                *self = CheckedPatch::Success(proof);
             }
             2 => {
                 let mut head = CommitProof::default();

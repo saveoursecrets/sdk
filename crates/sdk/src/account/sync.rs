@@ -115,7 +115,7 @@ impl Merge for LocalAccount {
         let checked_patch =
             self.user_mut()?.identity_mut()?.merge(diff).await?;
 
-        if let CheckedPatch::Success(_, _) = &checked_patch {
+        if let CheckedPatch::Success(_) = &checked_patch {
             outcome.identity = len;
             outcome.changes += len;
         }
@@ -149,7 +149,7 @@ impl Merge for LocalAccount {
             event_log.patch_checked(&diff.before, &diff.patch).await?
         };
 
-        if let CheckedPatch::Success(_, _) = &checked_patch {
+        if let CheckedPatch::Success(_) = &checked_patch {
             for record in diff.patch.iter() {
                 let event = record.decode_event::<AccountEvent>().await?;
                 tracing::debug!(event_kind = %event.event_kind());
@@ -250,7 +250,7 @@ impl Merge for LocalAccount {
             event_log.patch_checked(&diff.before, &diff.patch).await?
         };
 
-        if let CheckedPatch::Success(_, _) = &checked_patch {
+        if let CheckedPatch::Success(_) = &checked_patch {
             let devices = {
                 let storage = self.storage().await?;
                 let storage = storage.read().await;
@@ -305,12 +305,12 @@ impl Merge for LocalAccount {
         let (checked_patch, external_files) = if is_init_diff
             && event_log.tree().is_empty()
         {
-            let commits = event_log.patch_unchecked(&diff.patch).await?;
+            event_log.patch_unchecked(&diff.patch).await?;
             let reducer = FileReducer::new(&event_log);
             let external_files = reducer.reduce(None).await?;
 
             let proof = event_log.tree().head()?;
-            (CheckedPatch::Success(proof, commits), external_files)
+            (CheckedPatch::Success(proof), external_files)
         } else {
             let checked_patch =
                 event_log.patch_checked(&diff.before, &diff.patch).await?;
@@ -322,7 +322,7 @@ impl Merge for LocalAccount {
 
         outcome.external_files = external_files;
 
-        if let CheckedPatch::Success(_, _) = &checked_patch {
+        if let CheckedPatch::Success(_) = &checked_patch {
             outcome.file = diff.patch.len();
             outcome.changes += diff.patch.len();
         }
@@ -382,7 +382,7 @@ impl Merge for LocalAccount {
             folder.merge(source, Default::default()).await?
         };
 
-        if let CheckedPatch::Success(_, _) = &checked_patch {
+        if let CheckedPatch::Success(_) = &checked_patch {
             outcome.folders.insert(*folder_id, len);
             outcome.changes += len;
         }

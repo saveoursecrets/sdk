@@ -312,9 +312,9 @@ where
         let comparison = self.tree().compare(commit_proof)?;
         match comparison {
             Comparison::Equal => {
-                let commits = self.patch_unchecked(patch).await?;
+                self.patch_unchecked(patch).await?;
                 let proof = self.tree().head()?;
-                Ok(CheckedPatch::Success(proof, commits))
+                Ok(CheckedPatch::Success(proof))
             }
             Comparison::Contains(indices, _leaves) => {
                 let head = self.tree().head()?;

@@ -151,7 +151,7 @@ pub enum CheckedPatch {
     #[default]
     Noop,
     /// Patch was applied.
-    Success(CommitProof, Vec<CommitHash>),
+    Success(CommitProof),
     /// Patch conflict.
     Conflict {
         /// Head of the event log.

@@ -239,7 +239,7 @@ where
             event_log.patch_checked(&diff.before, &diff.patch).await?
         };
 
-        if let CheckedPatch::Success(_, _) = &checked_patch {
+        if let CheckedPatch::Success(_) = &checked_patch {
             for record in diff.patch.iter() {
                 let event = record.decode_event::<WriteEvent>().await?;
                 tracing::debug!(event_kind = %event.event_kind());

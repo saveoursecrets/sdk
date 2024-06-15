@@ -401,8 +401,7 @@ impl RemoteBridge {
                     .rewind_local(&log_type, commit, proof, events)
                     .await?;
 
-                let success =
-                    matches!(local_patch, CheckedPatch::Success(_, _));
+                let success = matches!(local_patch, CheckedPatch::Success(_));
 
                 if success {
                     tracing::info!("auto_merge::rewind_local::success");
@@ -414,10 +413,10 @@ impl RemoteBridge {
                     .await?;
 
                 let success =
-                    matches!(remote_patch, CheckedPatch::Success(_, _))
+                    matches!(remote_patch, CheckedPatch::Success(_))
                         && matches!(
                             local_patch,
-                            Some(CheckedPatch::Success(_, _))
+                            Some(CheckedPatch::Success(_))
                         );
 
                 if success {
@@ -619,7 +618,7 @@ impl RemoteBridge {
         let remote_patch = self.client.patch(&req).await?;
         let local_patch = match &remote_patch {
             CheckedPatch::Noop => unreachable!(),
-            CheckedPatch::Success(_, _) => {
+            CheckedPatch::Success(_) => {
                 let local_patch = self
                     .rewind_local(log_type, commit, proof, events)
                     .await?;
