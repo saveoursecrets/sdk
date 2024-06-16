@@ -10,24 +10,6 @@ use binary_stream::futures::{
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::Result;
 
-/// Request commit diff from an event log.
-#[derive(Debug, Default)]
-pub struct CommitDiffRequest {
-    /// Type of event log to load the diff from.
-    pub log_type: EventLogType,
-    /// Hash of the commit to diff from.
-    pub from_hash: Option<CommitHash>,
-}
-
-/// Response with an event log commit diff.
-#[derive(Debug, Default)]
-pub struct CommitDiffResponse {
-    /// Collection of event records from the commit hash.
-    pub patch: Vec<EventRecord>,
-    /// Checkpoint of remote HEAD.
-    pub checkpoint: CommitProof,
-}
-
 /// Request to patch an event log from a specific commit.
 ///
 /// Used during auto merge to force push a combined collection
@@ -44,52 +26,6 @@ pub struct EventPatchRequest {
     pub proof: CommitProof,
     /// Patch of events to apply.
     pub patch: Vec<EventRecord>,
-}
-
-#[async_trait]
-impl Encodable for CommitDiffRequest {
-    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
-        &self,
-        writer: &mut BinaryWriter<W>,
-    ) -> Result<()> {
-        self.log_type.encode(&mut *writer).await?;
-        self.from_hash.encode(&mut *writer).await?;
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl Decodable for CommitDiffRequest {
-    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
-        &mut self,
-        reader: &mut BinaryReader<R>,
-    ) -> Result<()> {
-        self.log_type.decode(&mut *reader).await?;
-        self.from_hash.decode(&mut *reader).await?;
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl Encodable for CommitDiffResponse {
-    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
-        &self,
-        writer: &mut BinaryWriter<W>,
-    ) -> Result<()> {
-        self.patch.encode(&mut *writer).await?;
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl Decodable for CommitDiffResponse {
-    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
-        &mut self,
-        reader: &mut BinaryReader<R>,
-    ) -> Result<()> {
-        self.patch.decode(&mut *reader).await?;
-        Ok(())
-    }
 }
 
 #[async_trait]

@@ -1,8 +1,8 @@
 use super::Error;
 use crate::{
     client::{CancelReason, Result},
-    commits::{CommitDiffRequest, CommitDiffResponse, EventPatchRequest},
-    protocol::{ScanRequest, ScanResponse},
+    commits::EventPatchRequest,
+    protocol::{DiffRequest, DiffResponse, ScanRequest, ScanResponse},
 };
 use async_trait::async_trait;
 use sos_sdk::{
@@ -92,10 +92,7 @@ pub trait SyncClient {
     async fn scan(&self, request: ScanRequest) -> Result<ScanResponse>;
 
     /// Fetch a collection of event records since a given commit hash.
-    async fn diff(
-        &self,
-        request: &CommitDiffRequest,
-    ) -> Result<CommitDiffResponse>;
+    async fn diff(&self, request: DiffRequest) -> Result<DiffResponse>;
 
     /// Patch an event log.
     ///

@@ -412,7 +412,7 @@ pub(crate) async fn event_proofs(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = CommitDiffRequest,
+        content = DiffRequest,
     ),
     responses(
         (
@@ -427,7 +427,7 @@ pub(crate) async fn event_proofs(
             status = StatusCode::OK,
             content_type = "application/octet-stream",
             description = "Commit diff sent.",
-            body = CommitDiffResponse,
+            body = DiffResponse,
         ),
     ),
 )]
@@ -586,8 +586,8 @@ pub(crate) async fn sync_account(
 mod handlers {
     use super::Caller;
     use crate::{
-        commits::{CommitDiffRequest, CommitDiffResponse, EventPatchRequest},
-        protocol::{ScanRequest, ScanResponse},
+        commits::EventPatchRequest,
+        protocol::{DiffRequest, DiffResponse, ScanRequest, ScanResponse},
         server::{
             backend::AccountStorage, Error, Result, ServerBackend,
             ServerState,
@@ -861,7 +861,7 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let req: CommitDiffRequest = decode(bytes).await?;
+        let req = DiffRequest::decode(bytes)?;
 
         let response = match &req.log_type {
             EventLogType::Noop => {
@@ -911,16 +911,16 @@ mod handlers {
     }
 
     async fn diff_log<T>(
-        req: &CommitDiffRequest,
+        req: &DiffRequest,
         event_log: &DiscEventLog<T>,
     ) -> Result<Vec<u8>>
     where
         T: Default + Encodable + Decodable + Send + Sync + 'static,
     {
-        let mut response = CommitDiffResponse::default();
+        let mut response = DiffResponse::default();
         response.patch =
             event_log.diff_records(req.from_hash.as_ref()).await?;
-        Ok(encode(&response).await?)
+        Ok(response.encode()?)
     }
 
     pub(super) async fn event_patch(

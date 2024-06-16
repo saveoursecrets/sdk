@@ -1,8 +1,8 @@
 //! Implements auto merge logic for a remote.
 use crate::{
     client::{Error, RemoteBridge, Result, SyncClient},
-    protocol::ScanRequest,
-    CommitDiffRequest, EventPatchRequest,
+    protocol::{DiffRequest, ScanRequest},
+    EventPatchRequest,
 };
 use async_recursion::async_recursion;
 use binary_stream::futures::{Decodable, Encodable};
@@ -81,11 +81,11 @@ macro_rules! auto_merge_conflict_impl {
                 HardConflictResolver::AutomaticFetch => {
                     tracing::debug!($log_id);
 
-                    let request = CommitDiffRequest {
+                    let request = DiffRequest {
                         log_type: $log_type,
                         from_hash: None,
                     };
-                    let response = self.client.diff(&request).await?;
+                    let response = self.client.diff(request).await?;
                     let patch = Patch::<$event_type>::new(response.patch);
                     let diff = $diff_type {
                         patch,
@@ -297,11 +297,11 @@ impl RemoteBridge {
     ) -> Result<()> {
         match &options.hard_conflict_resolver {
             HardConflictResolver::AutomaticFetch => {
-                let request = CommitDiffRequest {
+                let request = DiffRequest {
                     log_type: EventLogType::Folder(*folder_id),
                     from_hash: None,
                 };
-                let response = self.client.diff(&request).await?;
+                let response = self.client.diff(request).await?;
                 let patch = Patch::<WriteEvent>::new(response.patch);
                 let diff = FolderDiff {
                     patch,
@@ -364,11 +364,11 @@ impl RemoteBridge {
         };
 
         // Fetch the patch of remote events
-        let request = CommitDiffRequest {
+        let request = DiffRequest {
             log_type,
             from_hash: Some(commit),
         };
-        let remote_patch = self.client.diff(&request).await?.patch;
+        let remote_patch = self.client.diff(request).await?.patch;
 
         let result = self.merge_patches(local_patch, remote_patch).await?;
 

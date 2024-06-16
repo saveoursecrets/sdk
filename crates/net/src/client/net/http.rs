@@ -17,8 +17,8 @@ use tracing::instrument;
 
 use crate::{
     client::{CancelReason, Error, Result, SyncClient},
-    commits::{CommitDiffRequest, CommitDiffResponse, EventPatchRequest},
-    protocol::{ScanRequest, ScanResponse},
+    commits::EventPatchRequest,
+    protocol::{DiffRequest, DiffResponse, ScanRequest, ScanResponse},
 };
 use std::{fmt, path::Path, time::Duration};
 use url::Url;
@@ -426,11 +426,8 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn diff(
-        &self,
-        request: &CommitDiffRequest,
-    ) -> Result<CommitDiffResponse> {
-        let body = encode(request).await?;
+    async fn diff(&self, request: DiffRequest) -> Result<DiffResponse> {
+        let body = request.encode()?;
         let url = self.build_url("api/v1/sync/account/events")?;
 
         tracing::debug!(url = %url, "http::diff");
@@ -445,6 +442,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .post(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()
@@ -453,7 +451,7 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::diff");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(decode(&buffer).await?)
+        Ok(DiffResponse::decode(buffer)?)
     }
 
     #[instrument(skip_all)]

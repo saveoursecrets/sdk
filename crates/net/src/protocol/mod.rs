@@ -3,6 +3,7 @@ mod common;
 mod diff;
 mod scan;
 
+pub use diff::{DiffRequest, DiffResponse};
 pub use scan::{ScanRequest, ScanResponse};
 
 use crate::sdk::{events::EventLogType, vault::VaultId, Result};
