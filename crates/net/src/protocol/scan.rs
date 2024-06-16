@@ -1,6 +1,7 @@
 include!(concat!(env!("OUT_DIR"), "/scan.rs"));
 
 use crate::sdk::{commit, events, Result};
+use prost::bytes::Buf;
 
 /// Request commit proofs from an event log.
 #[derive(Debug, Default, Clone)]
@@ -16,6 +17,20 @@ pub struct ScanRequest {
     /// Offset from a previous scan used as a hint to
     /// continue scanning.
     pub offset: Option<u64>,
+}
+
+impl ScanRequest {
+    /// Encode this request.
+    pub fn encode(self) -> crate::Result<Vec<u8>> {
+        let value: WireScanRequest = self.into();
+        Ok(super::encode(&value)?)
+    }
+
+    /// Decode this resquest.
+    pub fn decode(buffer: impl Buf) -> crate::Result<Self> {
+        let result = super::decode::<WireScanRequest>(buffer)?;
+        Ok(result.try_into()?)
+    }
 }
 
 impl TryFrom<WireScanRequest> for ScanRequest {
@@ -58,6 +73,20 @@ pub struct ScanResponse {
     pub proofs: Vec<commit::CommitProof>,
     /// Offset that can be used to continue scanning.
     pub offset: u64,
+}
+
+impl ScanResponse {
+    /// Encode this response.
+    pub fn encode(self) -> crate::Result<Vec<u8>> {
+        let value: WireScanResponse = self.into();
+        Ok(super::encode(&value)?)
+    }
+
+    /// Decode this response.
+    pub fn decode(buffer: impl Buf) -> crate::Result<Self> {
+        let result = super::decode::<WireScanResponse>(buffer)?;
+        Ok(result.try_into()?)
+    }
 }
 
 impl TryFrom<WireScanResponse> for ScanResponse {

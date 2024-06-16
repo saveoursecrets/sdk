@@ -2,10 +2,10 @@
 use async_trait::async_trait;
 use futures::{Future, StreamExt};
 use http::StatusCode;
-use reqwest::header::AUTHORIZATION;
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde_json::Value;
 use sos_sdk::{
-    constants::MIME_TYPE_SOS,
+    constants::{MIME_TYPE_PROTOBUF, MIME_TYPE_SOS},
     decode, encode,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
@@ -17,10 +17,8 @@ use tracing::instrument;
 
 use crate::{
     client::{CancelReason, Error, Result, SyncClient},
-    commits::{
-        CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
-        CommitScanResponse, EventPatchRequest,
-    },
+    commits::{CommitDiffRequest, CommitDiffResponse, EventPatchRequest},
+    protocol::{ScanRequest, ScanResponse},
 };
 use std::{fmt, path::Path, time::Duration};
 use url::Url;
@@ -151,12 +149,14 @@ impl HttpClient {
     ) -> Result<reqwest::Response> {
         use reqwest::header::{self, HeaderValue};
         let sos_type = HeaderValue::from_static(MIME_TYPE_SOS);
+        let protobuf_type = HeaderValue::from_static(MIME_TYPE_PROTOBUF);
         let status = response.status();
         let content_type = response.headers().get(&header::CONTENT_TYPE);
         match (status, content_type) {
             // OK with the correct MIME type can be handled
             (http::StatusCode::OK, Some(content_type)) => {
-                if content_type == &sos_type {
+                if content_type == &sos_type || content_type == &protobuf_type
+                {
                     Ok(response)
                 } else {
                     Err(Error::ContentType(
@@ -397,11 +397,8 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn scan(
-        &self,
-        request: &CommitScanRequest,
-    ) -> Result<CommitScanResponse> {
-        let body = encode(request).await?;
+    async fn scan(&self, request: ScanRequest) -> Result<ScanResponse> {
+        let body = request.encode()?;
         let url = self.build_url("api/v1/sync/account/events")?;
 
         tracing::debug!(url = %url, "http::scan");
@@ -416,6 +413,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .get(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()
@@ -424,7 +422,7 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::scan");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(decode(&buffer).await?)
+        Ok(ScanResponse::decode(buffer)?)
     }
 
     #[instrument(skip_all)]

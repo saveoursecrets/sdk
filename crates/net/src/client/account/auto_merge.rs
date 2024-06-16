@@ -1,6 +1,7 @@
 //! Implements auto merge logic for a remote.
 use crate::{
     client::{Error, RemoteBridge, Result, SyncClient},
+    protocol::ScanRequest,
     CommitDiffRequest, CommitScanRequest, EventPatchRequest,
 };
 use async_recursion::async_recursion;
@@ -40,7 +41,7 @@ macro_rules! auto_merge_impl {
         ) -> Result<bool> {
             tracing::debug!($log_id);
 
-            let req = CommitScanRequest {
+            let req = ScanRequest {
                 log_type: $log_type,
                 offset: None,
                 limit: PROOF_SCAN_LIMIT,
@@ -261,7 +262,7 @@ impl RemoteBridge {
     ) -> Result<bool> {
         tracing::debug!(folder_id = %folder_id, "auto_merge::folder");
 
-        let req = CommitScanRequest {
+        let req = ScanRequest {
             log_type: EventLogType::Folder(*folder_id),
             offset: None,
             limit: PROOF_SCAN_LIMIT,
@@ -661,7 +662,7 @@ impl RemoteBridge {
     /// Scan the remote for proofs that match this client.
     async fn scan_proofs(
         &self,
-        request: CommitScanRequest,
+        request: ScanRequest,
     ) -> Result<Option<(CommitHash, CommitProof)>> {
         tracing::debug!(request = ?request, "auto_merge::scan_proofs");
 
@@ -706,12 +707,12 @@ impl RemoteBridge {
     #[async_recursion]
     async fn iterate_scan_proofs(
         &self,
-        request: CommitScanRequest,
+        request: ScanRequest,
         leaves: &[[u8; 32]],
     ) -> Result<Option<(CommitHash, CommitProof)>> {
         tracing::debug!(request = ?request, "auto_merge::iterate_scan_proofs");
 
-        let response = self.client.scan(&request).await?;
+        let response = self.client.scan(request.clone()).await?;
 
         // If the server gave us a first proof and we don't
         // have it in our event log then there is no point scanning
@@ -746,7 +747,7 @@ impl RemoteBridge {
             }
 
             // Try to scan more proofs
-            let mut req = request.clone();
+            let mut req = request;
             req.offset = Some(response.offset);
             self.iterate_scan_proofs(req, leaves).await
         } else {

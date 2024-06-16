@@ -1,8 +1,25 @@
+//! Wire protocol types.
 mod common;
 mod scan;
 
+pub use scan::{ScanRequest, ScanResponse};
+
 use crate::sdk::{events::EventLogType, vault::VaultId, Result};
+use prost::{bytes::Buf, Message};
 use std::io::{Error, ErrorKind};
+
+/// Encode a protobuf message.
+fn encode(message: &impl Message) -> crate::Result<Vec<u8>> {
+    let mut buf = Vec::new();
+    buf.reserve(message.encoded_len());
+    message.encode(&mut buf)?;
+    Ok(buf)
+}
+
+/// Decode a protobuf message.
+pub fn decode<T: Default + Message>(buffer: impl Buf) -> crate::Result<T> {
+    Ok(T::decode(buffer)?)
+}
 
 fn into_event_log_type(
     wire_type: i32,

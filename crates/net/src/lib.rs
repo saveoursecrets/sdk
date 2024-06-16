@@ -13,7 +13,7 @@
 pub mod client;
 pub(crate) mod commits;
 mod error;
-mod protocol;
+pub mod protocol;
 #[cfg(feature = "pairing")]
 pub mod relay;
 #[cfg(feature = "server")]

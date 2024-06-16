@@ -352,7 +352,7 @@ pub(crate) async fn sync_status(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = CommitScanRequest,
+        content = ScanRequest,
     ),
     responses(
         (
@@ -367,7 +367,7 @@ pub(crate) async fn sync_status(
             status = StatusCode::OK,
             content_type = "application/octet-stream",
             description = "Commit hashes sent.",
-            body = CommitScanResponse,
+            body = ScanResponse,
         ),
     ),
 )]
@@ -590,6 +590,7 @@ mod handlers {
             CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
             CommitScanResponse, EventPatchRequest,
         },
+        protocol::{ScanRequest, ScanResponse},
         server::{
             backend::AccountStorage, Error, Result, ServerBackend,
             ServerState,
@@ -601,7 +602,7 @@ mod handlers {
         StatusCode,
     };
     use sos_sdk::{
-        constants::MIME_TYPE_SOS,
+        constants::{MIME_TYPE_PROTOBUF, MIME_TYPE_SOS},
         decode, encode,
         events::{
             AccountEvent, DiscEventLog, EventLogExt, EventLogType,
@@ -735,7 +736,7 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let req: CommitScanRequest = decode(bytes).await?;
+        let req = ScanRequest::decode(bytes)?;
 
         // Maximum number of proofs to return in a single request
         if req.limit > 256 {
@@ -783,20 +784,20 @@ mod handlers {
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
-            HeaderValue::from_static(MIME_TYPE_SOS),
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, encode(&response).await?))
+        Ok((headers, response.encode()?))
     }
 
     async fn scan_log<T>(
-        req: &CommitScanRequest,
+        req: &ScanRequest,
         event_log: &DiscEventLog<T>,
-    ) -> Result<CommitScanResponse>
+    ) -> Result<ScanResponse>
     where
         T: Default + Encodable + Decodable + Send + Sync + 'static,
     {
-        let mut res = CommitScanResponse::default();
+        let mut res = ScanResponse::default();
         let offset = req.offset.unwrap_or(0);
         let num_commits = event_log.tree().len() as u64;
 

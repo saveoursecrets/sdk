@@ -5,6 +5,7 @@ use crate::{
         CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
         CommitScanResponse, EventPatchRequest,
     },
+    protocol::{ScanRequest, ScanResponse},
 };
 use async_trait::async_trait;
 use sos_sdk::{
@@ -91,10 +92,7 @@ pub trait SyncClient {
     async fn sync(&self, packet: &SyncPacket) -> Result<SyncPacket>;
 
     /// Scan commits in an event log.
-    async fn scan(
-        &self,
-        request: &CommitScanRequest,
-    ) -> Result<CommitScanResponse>;
+    async fn scan(&self, request: ScanRequest) -> Result<ScanResponse>;
 
     /// Fetch a collection of event records since a given commit hash.
     async fn diff(
