@@ -30,3 +30,52 @@ message WirePatch {
   // Collection of event records for the patch.
   repeated common.WireEventRecord records = 1;
 }
+
+message WireSyncFolderPatch {
+  // Folder identifier.
+  bytes folder_id = 1;
+  // Patch for the folder.
+  WirePatch patch = 2;
+}
+
+message WireChangeSet {
+  // Patch for the identity folder.
+  WirePatch identity = 1;
+  // Patch for the account events.
+  WirePatch account = 2;
+  // Patch for the device events.
+  WirePatch device = 3;
+  // Patch for the file events.
+  WirePatch files = 4;
+  // Patches for user folders.
+  repeated WireSyncFolderPatch folders = 5;
+}
+
+message WireDiff {
+  // Last commit before the start of the patch.
+  optional common.WireCommitHash last_commit = 1;
+  // Contents of the patch.
+  WirePatch patch = 2;
+  // Checkpoint for the diff.
+  common.WireCommitProof checkpoint = 3;
+}
+
+message WireSyncFolderDiff {
+  // Folder identifier.
+  bytes folder_id = 1;
+  // Diff for the folder.
+  WireDiff diff = 2;
+}
+
+message WireUpdateSet {
+  // Diff for the identity folder.
+  WireDiff identity = 1;
+  // Diff for the account events.
+  WireDiff account = 2;
+  // Diff for the device events.
+  WireDiff device = 3;
+  // Diff for the file events.
+  WireDiff files = 4;
+  // Diffs for user folders.
+  repeated WireSyncFolderDiff folders = 5;
+}
