@@ -1,5 +1,4 @@
 //! Implements auto merge logic for a remote.
-
 use crate::{
     client::{Error, RemoteBridge, Result, SyncClient},
     CommitDiffRequest, CommitScanRequest, EventPatchRequest,
@@ -30,6 +29,74 @@ use sos_sdk::{events::DeviceEvent, sync::DeviceDiff};
 
 #[cfg(feature = "files")]
 use sos_sdk::{events::FileEvent, sync::FileDiff};
+
+/// Implements the auto merge logic for an event log type.
+macro_rules! auto_merge_impl {
+    ($fn_name:ident, $log_type:expr, $event_type:ident, $conflict_fn:ident) => {
+        async fn $fn_name(
+            &self,
+            options: &SyncOptions,
+            outcome: &mut MergeOutcome,
+        ) -> Result<bool> {
+            tracing::debug!("auto_merge::identity");
+
+            let req = CommitScanRequest {
+                log_type: $log_type,
+                offset: None,
+                limit: PROOF_SCAN_LIMIT,
+                ascending: false,
+            };
+            match self.scan_proofs(req).await {
+                Ok(Some((ancestor_commit, proof))) => {
+                    self.try_merge_from_ancestor::<$event_type>(
+                        EventLogType::Identity,
+                        ancestor_commit,
+                        proof,
+                    )
+                    .await?;
+                    Ok(false)
+                }
+                Err(e) => match e {
+                    Error::HardConflict => {
+                        self.$conflict_fn(options, outcome).await?;
+                        Ok(true)
+                    }
+                    _ => Err(e),
+                },
+                _ => Err(Error::HardConflict),
+            }
+        }
+    };
+}
+
+/// Implements the hard conflict resolution logic for an event log type.
+macro_rules! auto_merge_conflict_impl {
+    ($fn_name:ident, $log_type:expr, $event_type:ident, $diff_type:ident, $merge_fn:ident) => {
+        async fn $fn_name(
+            &self,
+            options: &SyncOptions,
+            outcome: &mut MergeOutcome,
+        ) -> Result<()> {
+            match &options.hard_conflict_resolver {
+                HardConflictResolver::AutomaticFetch => {
+                    let request = CommitDiffRequest {
+                        log_type: $log_type,
+                        from_hash: None,
+                    };
+                    let response = self.client.diff(&request).await?;
+                    let patch = Patch::<$event_type>::new(response.patch);
+                    let diff = $diff_type {
+                        patch,
+                        checkpoint: response.checkpoint,
+                        last_commit: None,
+                    };
+                    let mut account = self.account.lock().await;
+                    Ok(account.$merge_fn(diff, outcome).await?)
+                }
+            }
+        }
+    };
+}
 
 /// Whether to apply an auto merge to local or remote.
 enum AutoMerge {
@@ -110,122 +177,35 @@ impl RemoteBridge {
         Ok(())
     }
 
-    async fn auto_merge_identity(
-        &self,
-        options: &SyncOptions,
-        outcome: &mut MergeOutcome,
-    ) -> Result<bool> {
-        tracing::debug!("auto_merge::identity");
+    auto_merge_impl!(
+        auto_merge_identity,
+        EventLogType::Identity,
+        WriteEvent,
+        identity_hard_conflict
+    );
 
-        let req = CommitScanRequest {
-            log_type: EventLogType::Identity,
-            offset: None,
-            limit: PROOF_SCAN_LIMIT,
-            ascending: false,
-        };
-        match self.scan_proofs(req).await {
-            Ok(Some((ancestor_commit, proof))) => {
-                self.try_merge_from_ancestor::<WriteEvent>(
-                    EventLogType::Identity,
-                    ancestor_commit,
-                    proof,
-                )
-                .await?;
-                Ok(false)
-            }
-            Err(e) => match e {
-                Error::HardConflict => {
-                    self.identity_hard_conflict(options, outcome).await?;
-                    Ok(true)
-                }
-                _ => Err(e),
-            },
-            _ => Err(Error::HardConflict),
-        }
-    }
+    auto_merge_conflict_impl!(
+        identity_hard_conflict,
+        EventLogType::Identity,
+        WriteEvent,
+        FolderDiff,
+        force_merge_identity
+    );
 
-    async fn identity_hard_conflict(
-        &self,
-        options: &SyncOptions,
-        outcome: &mut MergeOutcome,
-    ) -> Result<()> {
-        match &options.hard_conflict_resolver {
-            HardConflictResolver::AutomaticFetch => {
-                let request = CommitDiffRequest {
-                    log_type: EventLogType::Identity,
-                    from_hash: None,
-                };
-                let response = self.client.diff(&request).await?;
-                let patch = Patch::<WriteEvent>::new(response.patch);
-                let diff = FolderDiff {
-                    patch,
-                    checkpoint: response.checkpoint,
-                    last_commit: None,
-                };
-                let mut account = self.account.lock().await;
-                Ok(account.force_merge_identity(diff, outcome).await?)
-            }
-        }
-    }
+    auto_merge_impl!(
+        auto_merge_account,
+        EventLogType::Account,
+        AccountEvent,
+        account_hard_conflict
+    );
 
-    async fn auto_merge_account(
-        &self,
-        options: &SyncOptions,
-        outcome: &mut MergeOutcome,
-    ) -> Result<bool> {
-        tracing::debug!("auto_merge::account");
-
-        let req = CommitScanRequest {
-            log_type: EventLogType::Account,
-            offset: None,
-            limit: PROOF_SCAN_LIMIT,
-            ascending: false,
-        };
-
-        match self.scan_proofs(req).await {
-            Ok(Some((ancestor_commit, proof))) => {
-                self.try_merge_from_ancestor::<WriteEvent>(
-                    EventLogType::Account,
-                    ancestor_commit,
-                    proof,
-                )
-                .await?;
-                Ok(false)
-            }
-            Err(e) => match e {
-                Error::HardConflict => {
-                    self.account_hard_conflict(options, outcome).await?;
-                    Ok(true)
-                }
-                _ => Err(e),
-            },
-            _ => Err(Error::HardConflict),
-        }
-    }
-
-    async fn account_hard_conflict(
-        &self,
-        options: &SyncOptions,
-        outcome: &mut MergeOutcome,
-    ) -> Result<()> {
-        match &options.hard_conflict_resolver {
-            HardConflictResolver::AutomaticFetch => {
-                let request = CommitDiffRequest {
-                    log_type: EventLogType::Account,
-                    from_hash: None,
-                };
-                let response = self.client.diff(&request).await?;
-                let patch = Patch::<AccountEvent>::new(response.patch);
-                let diff = AccountDiff {
-                    patch,
-                    checkpoint: response.checkpoint,
-                    last_commit: None,
-                };
-                let mut account = self.account.lock().await;
-                Ok(account.force_merge_account(diff, outcome).await?)
-            }
-        }
-    }
+    auto_merge_conflict_impl!(
+        account_hard_conflict,
+        EventLogType::Account,
+        AccountEvent,
+        AccountDiff,
+        force_merge_account
+    );
 
     #[cfg(feature = "device")]
     async fn auto_merge_device(&self) -> Result<()> {

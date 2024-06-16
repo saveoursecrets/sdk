@@ -38,9 +38,7 @@ async fn network_sync_listen_folder_delete() -> Result<()> {
 
     let FolderDelete { sync_error, .. } =
         device1.owner.delete_folder(&new_folder).await?;
-    if sync_error.is_some() {
-        println!("{:#?}", sync_error);
-    }
+    println!("{:#?}", sync_error);
     assert!(sync_error.is_none());
 
     // Pause a while to give the listener some time to process
