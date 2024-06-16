@@ -3,6 +3,7 @@ include!(concat!(env!("OUT_DIR"), "/common.rs"));
 use crate::sdk::{
     commit::{CommitHash, CommitProof},
     events::EventRecord,
+    sync::CheckedPatch,
     time::{Duration, OffsetDateTime},
     Result, UtcDateTime,
 };
@@ -95,6 +96,49 @@ impl From<EventRecord> for WireEventRecord {
             last_commit: Some(last_commit.into()),
             commit: Some(commit.into()),
             event,
+        }
+    }
+}
+
+impl TryFrom<WireCheckedPatch> for CheckedPatch {
+    type Error = crate::sdk::Error;
+
+    fn try_from(value: WireCheckedPatch) -> Result<Self> {
+        if let Some(conflict) = value.conflict {
+            let contains = if let Some(contains) = conflict.contains {
+                Some(contains.try_into()?)
+            } else {
+                None
+            };
+            Ok(Self::Conflict {
+                head: conflict.head.unwrap().try_into()?,
+                contains,
+            })
+        } else if let Some(success) = value.success {
+            Ok(Self::Success(success.proof.unwrap().try_into()?))
+        } else {
+            unreachable!();
+        }
+    }
+}
+
+impl From<CheckedPatch> for WireCheckedPatch {
+    fn from(value: CheckedPatch) -> Self {
+        match value {
+            CheckedPatch::Noop => unreachable!(),
+            CheckedPatch::Success(proof) => WireCheckedPatch {
+                success: Some(WireCheckedPatchSuccess {
+                    proof: Some(proof.into()),
+                }),
+                conflict: None,
+            },
+            CheckedPatch::Conflict { head, contains } => WireCheckedPatch {
+                success: None,
+                conflict: Some(WireCheckedPatchConflict {
+                    head: Some(head.into()),
+                    contains: contains.map(|c| c.into()),
+                }),
+            },
         }
     }
 }

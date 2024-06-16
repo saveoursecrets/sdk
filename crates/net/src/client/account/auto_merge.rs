@@ -1,8 +1,7 @@
 //! Implements auto merge logic for a remote.
 use crate::{
     client::{Error, RemoteBridge, Result, SyncClient},
-    protocol::{DiffRequest, ScanRequest},
-    EventPatchRequest,
+    protocol::{DiffRequest, PatchRequest, ScanRequest},
 };
 use async_recursion::async_recursion;
 use binary_stream::futures::{Decodable, Encodable};
@@ -585,14 +584,14 @@ impl RemoteBridge {
           "auto_merge::push_remote",
         );
 
-        let req = EventPatchRequest {
+        let req = PatchRequest {
             log_type: *log_type,
             commit: Some(commit),
             proof: proof.clone(),
             patch: events.clone(),
         };
 
-        let remote_patch = self.client.patch(&req).await?;
+        let remote_patch = self.client.patch(req).await?.checked_patch;
         let local_patch = match &remote_patch {
             CheckedPatch::Noop => unreachable!(),
             CheckedPatch::Success(_) => {

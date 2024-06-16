@@ -1,6 +1,7 @@
 include!(concat!(env!("OUT_DIR"), "/patch.rs"));
 
 use prost::bytes::Buf;
+use sos_sdk::sync::CheckedPatch;
 
 use crate::sdk::{
     commit::{CommitHash, CommitProof},
@@ -83,4 +84,43 @@ impl From<PatchRequest> for WirePatchRequest {
 
 /// Response from a patch request.
 #[derive(Debug, Default)]
-pub struct PatchResponse {}
+pub struct PatchResponse {
+    /// Checked patch status.
+    pub checked_patch: CheckedPatch,
+}
+
+impl PatchResponse {
+    /// Encode this request.
+    pub fn encode(self) -> crate::Result<Vec<u8>> {
+        let value: WirePatchResponse = self.into();
+        Ok(super::encode(&value)?)
+    }
+
+    /// Decode this request.
+    pub fn decode(buffer: impl Buf) -> crate::Result<Self> {
+        let result = super::decode::<WirePatchResponse>(buffer)?;
+        Ok(result.try_into()?)
+    }
+}
+
+impl TryFrom<WirePatchResponse> for PatchResponse {
+    type Error = crate::sdk::Error;
+
+    fn try_from(value: WirePatchResponse) -> Result<Self> {
+        /*
+        Ok(Self {
+        })
+        */
+        todo!();
+    }
+}
+
+impl From<PatchResponse> for WirePatchResponse {
+    fn from(value: PatchResponse) -> WirePatchResponse {
+        /*
+        Self {
+        }
+        */
+        todo!();
+    }
+}

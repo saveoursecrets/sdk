@@ -9,16 +9,16 @@ use sos_sdk::{
     decode, encode,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{
-        ChangeSet, CheckedPatch, Origin, SyncPacket, SyncStatus, UpdateSet,
-    },
+    sync::{ChangeSet, Origin, SyncPacket, SyncStatus, UpdateSet},
 };
 use tracing::instrument;
 
 use crate::{
     client::{CancelReason, Error, Result, SyncClient},
-    commits::EventPatchRequest,
-    protocol::{DiffRequest, DiffResponse, ScanRequest, ScanResponse},
+    protocol::{
+        DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
+        ScanResponse,
+    },
 };
 use std::{fmt, path::Path, time::Duration};
 use url::Url;
@@ -455,11 +455,8 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn patch(
-        &self,
-        request: &EventPatchRequest,
-    ) -> Result<CheckedPatch> {
-        let body = encode(request).await?;
+    async fn patch(&self, request: PatchRequest) -> Result<PatchResponse> {
+        let body = request.encode()?;
         let url = self.build_url("api/v1/sync/account/events")?;
 
         tracing::debug!(url = %url, "http::patch");
@@ -474,6 +471,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .patch(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()
@@ -482,7 +480,7 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::patch");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(decode(&buffer).await?)
+        Ok(PatchResponse::decode(buffer)?)
     }
 
     #[cfg(feature = "files")]

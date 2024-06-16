@@ -1,8 +1,10 @@
 use super::Error;
 use crate::{
     client::{CancelReason, Result},
-    commits::EventPatchRequest,
-    protocol::{DiffRequest, DiffResponse, ScanRequest, ScanResponse},
+    protocol::{
+        DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
+        ScanResponse,
+    },
 };
 use async_trait::async_trait;
 use sos_sdk::{
@@ -98,10 +100,7 @@ pub trait SyncClient {
     ///
     /// If the request contains a commit hash then the remote will
     /// attempt to rewind to the commit before applying the patch.
-    async fn patch(
-        &self,
-        request: &EventPatchRequest,
-    ) -> Result<CheckedPatch>;
+    async fn patch(&self, request: PatchRequest) -> Result<PatchResponse>;
 
     /// Send a file.
     #[cfg(feature = "files")]

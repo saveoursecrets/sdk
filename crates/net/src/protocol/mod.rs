@@ -5,6 +5,7 @@ mod patch;
 mod scan;
 
 pub use diff::{DiffRequest, DiffResponse};
+pub use patch::{PatchRequest, PatchResponse};
 pub use scan::{ScanRequest, ScanResponse};
 
 use crate::sdk::{events::EventLogType, vault::VaultId, Result};
