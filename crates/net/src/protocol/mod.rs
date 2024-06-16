@@ -53,7 +53,6 @@ fn into_event_log_type(
 
 fn into_wire_event_log_type(log_type: EventLogType) -> (i32, Option<String>) {
     match log_type {
-        EventLogType::Noop => panic!("attempt to encode a noop"),
         EventLogType::Identity => (0, None),
         EventLogType::Account => (1, None),
         #[cfg(feature = "device")]

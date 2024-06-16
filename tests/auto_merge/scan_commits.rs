@@ -51,30 +51,38 @@ async fn auto_merge_scan_commits() -> Result<()> {
     let client = bridge.client().clone();
 
     // Get the last commit proof of the identity folder
-    let mut req = ScanRequest::default();
-    req.log_type = EventLogType::Identity;
-    req.limit = 1;
+    let req = ScanRequest {
+        log_type: EventLogType::Identity,
+        limit: 1,
+        offset: None,
+    };
     let res = client.scan(req).await?;
     assert_eq!(1, res.proofs.len());
 
     // Get commit proofs of the account event log
-    let mut req = ScanRequest::default();
-    req.log_type = EventLogType::Account;
-    req.limit = 256;
+    let req = ScanRequest {
+        log_type: EventLogType::Account,
+        limit: 256,
+        offset: None,
+    };
     let res = client.scan(req).await?;
     assert!(!res.proofs.is_empty());
 
     // Get commit proofs of the device event log
-    let mut req = ScanRequest::default();
-    req.log_type = EventLogType::Device;
-    req.limit = 256;
+    let req = ScanRequest {
+        log_type: EventLogType::Device,
+        limit: 256,
+        offset: None,
+    };
     let res = client.scan(req).await?;
     assert!(!res.proofs.is_empty());
 
     // Get commit proofs of the files event log
-    let mut req = ScanRequest::default();
-    req.log_type = EventLogType::Files;
-    req.limit = 256;
+    let req = ScanRequest {
+        log_type: EventLogType::Files,
+        limit: 256,
+        offset: None,
+    };
     let res = client.scan(req).await?;
     // No files yet!
     assert!(res.proofs.is_empty());
@@ -85,9 +93,11 @@ async fn auto_merge_scan_commits() -> Result<()> {
 
     // Get the commit proofs for a folder
     // scanning from the end (descending)
-    let mut req = ScanRequest::default();
-    req.log_type = EventLogType::Folder(*default_folder.id());
-    req.limit = 256;
+    let req = ScanRequest {
+        log_type: EventLogType::Folder(*default_folder.id()),
+        limit: 256,
+        offset: None,
+    };
     let folder_desc = client.scan(req).await?;
     assert_eq!(4, folder_desc.proofs.len());
     for proof in &folder_desc.proofs {
@@ -100,16 +110,20 @@ async fn auto_merge_scan_commits() -> Result<()> {
 
     // Get the commit proofs for a folder
     // in ascending order
-    let mut req = ScanRequest::default();
-    req.log_type = EventLogType::Folder(*default_folder.id());
-    req.limit = 256;
+    let req = ScanRequest {
+        log_type: EventLogType::Folder(*default_folder.id()),
+        limit: 256,
+        offset: None,
+    };
     let folder_asc = client.scan(req).await?;
     assert_eq!(4, folder_asc.proofs.len());
 
     // Scan in chunks of 2 from the end
-    let mut req = ScanRequest::default();
-    req.log_type = EventLogType::Folder(*default_folder.id());
-    req.limit = 2;
+    let mut req = ScanRequest {
+        log_type: EventLogType::Folder(*default_folder.id()),
+        limit: 2,
+        offset: None,
+    };
     let folder_chunk_1 = client.scan(req.clone()).await?;
     assert_eq!(2, folder_chunk_1.offset);
     // Scan next chunk
@@ -131,21 +145,13 @@ async fn auto_merge_scan_commits() -> Result<()> {
         .into_iter()
         .all(|c| matches!(c.unwrap(), Comparison::Equal)));
 
-    // Scan past the length ascending (bad offset)
+    // Scan past the length (bad offset)
     // yields empty proofs
-    let mut req = ScanRequest::default();
-    req.log_type = EventLogType::Folder(*default_folder.id());
-    req.limit = 256;
-    req.offset = Some(64);
-    let res = client.scan(req).await?;
-    assert!(res.proofs.is_empty());
-
-    // Scan past the length descending (bad offset)
-    // yields empty proofs
-    let mut req = ScanRequest::default();
-    req.log_type = EventLogType::Folder(*default_folder.id());
-    req.limit = 256;
-    req.offset = Some(64);
+    let mut req = ScanRequest {
+        log_type: EventLogType::Folder(*default_folder.id()),
+        limit: 256,
+        offset: Some(64),
+    };
     let res = client.scan(req).await?;
     assert!(res.proofs.is_empty());
 

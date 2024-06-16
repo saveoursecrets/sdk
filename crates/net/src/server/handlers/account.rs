@@ -743,9 +743,6 @@ mod handlers {
         }
 
         let response = match &req.log_type {
-            EventLogType::Noop => {
-                return Err(Error::Status(StatusCode::BAD_REQUEST));
-            }
             EventLogType::Identity => {
                 let reader = account.read().await;
                 let log = reader.storage.identity_log();
@@ -796,7 +793,11 @@ mod handlers {
     where
         T: Default + Encodable + Decodable + Send + Sync + 'static,
     {
-        let mut res = ScanResponse::default();
+        let mut res = ScanResponse {
+            first_proof: None,
+            proofs: vec![],
+            offset: 0,
+        };
         let offset = req.offset.unwrap_or(0);
         let num_commits = event_log.tree().len() as u64;
 
@@ -866,9 +867,6 @@ mod handlers {
         let req = DiffRequest::decode(bytes)?;
 
         let response = match &req.log_type {
-            EventLogType::Noop => {
-                return Err(Error::Status(StatusCode::BAD_REQUEST));
-            }
             EventLogType::Identity => {
                 let reader = account.read().await;
                 let log = reader.storage.identity_log();
@@ -919,9 +917,10 @@ mod handlers {
     where
         T: Default + Encodable + Decodable + Send + Sync + 'static,
     {
-        let mut response = DiffResponse::default();
-        response.patch =
-            event_log.diff_records(req.from_hash.as_ref()).await?;
+        let response = DiffResponse {
+            patch: event_log.diff_records(req.from_hash.as_ref()).await?,
+            checkpoint: event_log.tree().head()?,
+        };
         Ok(response.encode()?)
     }
 
@@ -944,9 +943,6 @@ mod handlers {
         let req = PatchRequest::decode(bytes)?;
 
         let (checked_patch, outcome, records) = match &req.log_type {
-            EventLogType::Noop => {
-                return Err(Error::Status(StatusCode::BAD_REQUEST));
-            }
             EventLogType::Identity => {
                 let patch = Patch::<WriteEvent>::new(req.patch);
                 let mut writer = account.write().await;
@@ -1126,9 +1122,6 @@ mod handlers {
     ) -> Result<()> {
         let reader = account.read().await;
         match log_type {
-            EventLogType::Noop => {
-                return Err(Error::Status(StatusCode::BAD_REQUEST));
-            }
             EventLogType::Identity => {
                 let log = reader.storage.identity_log();
                 let mut event_log = log.write().await;

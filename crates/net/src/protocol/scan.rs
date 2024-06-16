@@ -4,7 +4,7 @@ use crate::sdk::{commit::CommitProof, events::EventLogType, Result};
 use prost::bytes::Buf;
 
 /// Request commit proofs from an event log.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct ScanRequest {
     /// Type of event log to load commit hashes from.
     pub log_type: EventLogType,
@@ -61,7 +61,7 @@ impl From<ScanRequest> for WireScanRequest {
 }
 
 /// Commit proofs from an event log.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ScanResponse {
     /// Proof for the first item in the event log.
     pub first_proof: Option<CommitProof>,

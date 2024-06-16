@@ -8,7 +8,7 @@ use crate::sdk::{
 use prost::bytes::Buf;
 
 /// Request commit diff from an event log.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct DiffRequest {
     /// Type of event log to load the diff from.
     pub log_type: EventLogType,
@@ -61,7 +61,7 @@ impl From<DiffRequest> for WireDiffRequest {
 }
 
 /// Response with an event log commit diff.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct DiffResponse {
     /// Collection of event records from the commit hash.
     pub patch: Vec<EventRecord>,

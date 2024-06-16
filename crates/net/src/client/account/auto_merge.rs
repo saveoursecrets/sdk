@@ -358,7 +358,6 @@ impl RemoteBridge {
                     let event_log = log.read().await;
                     event_log.diff_records(Some(&commit)).await?
                 }
-                EventLogType::Noop => unreachable!(),
             }
         };
 
@@ -510,7 +509,6 @@ impl RemoteBridge {
                     };
                     account.merge_folder(id, diff, &mut outcome).await?
                 }
-                EventLogType::Noop => unreachable!(),
             }
         };
 
@@ -560,7 +558,6 @@ impl RemoteBridge {
                 let mut event_log = log.write().await;
                 event_log.apply_records(records).await?;
             }
-            EventLogType::Noop => unreachable!(),
         }
 
         Ok(())
@@ -654,7 +651,6 @@ impl RemoteBridge {
                 let mut event_log = log.write().await;
                 event_log.rewind(commit).await?
             }
-            EventLogType::Noop => unreachable!(),
         })
     }
 
@@ -695,7 +691,6 @@ impl RemoteBridge {
                     let event_log = log.read().await;
                     event_log.tree().leaves().unwrap_or_default()
                 }
-                EventLogType::Noop => unreachable!(),
             }
         };
 

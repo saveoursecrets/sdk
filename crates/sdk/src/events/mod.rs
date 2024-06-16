@@ -59,11 +59,8 @@ pub trait LogEvent {
 }
 
 /// Types of event logs.
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum EventLogType {
-    #[default]
-    #[doc(hidden)]
-    Noop,
     /// Identity folder event log.
     Identity,
     /// Account event log.
@@ -96,7 +93,6 @@ impl EventLogType {
 impl From<&EventLogType> for u8 {
     fn from(value: &EventLogType) -> Self {
         match value {
-            EventLogType::Noop => panic!("attempt to convert a noop"),
             EventLogType::Identity => EventLogType::IDENTITY_LOG,
             EventLogType::Account => EventLogType::ACCOUNT_LOG,
             #[cfg(feature = "device")]
