@@ -32,13 +32,13 @@ use sos_sdk::{events::FileEvent, sync::FileDiff};
 
 /// Implements the auto merge logic for an event log type.
 macro_rules! auto_merge_impl {
-    ($fn_name:ident, $log_type:expr, $event_type:ident, $conflict_fn:ident) => {
+    ($log_id:expr, $fn_name:ident, $log_type:expr, $event_type:ident, $conflict_fn:ident) => {
         async fn $fn_name(
             &self,
             options: &SyncOptions,
             outcome: &mut MergeOutcome,
         ) -> Result<bool> {
-            tracing::debug!("auto_merge::identity");
+            tracing::debug!($log_id);
 
             let req = CommitScanRequest {
                 log_type: $log_type,
@@ -71,7 +71,7 @@ macro_rules! auto_merge_impl {
 
 /// Implements the hard conflict resolution logic for an event log type.
 macro_rules! auto_merge_conflict_impl {
-    ($fn_name:ident, $log_type:expr, $event_type:ident, $diff_type:ident, $merge_fn:ident) => {
+    ($log_id:expr, $fn_name:ident, $log_type:expr, $event_type:ident, $diff_type:ident, $merge_fn:ident) => {
         async fn $fn_name(
             &self,
             options: &SyncOptions,
@@ -79,6 +79,8 @@ macro_rules! auto_merge_conflict_impl {
         ) -> Result<()> {
             match &options.hard_conflict_resolver {
                 HardConflictResolver::AutomaticFetch => {
+                    tracing::debug!($log_id);
+
                     let request = CommitDiffRequest {
                         log_type: $log_type,
                         from_hash: None,
@@ -126,10 +128,6 @@ impl RemoteBridge {
         let mut force_merge_outcome = MergeOutcome::default();
         let mut has_hard_conflict = false;
 
-        // println!("running auto_merge: {:#?}", conflict);
-        // println!("local: {:#?}", local);
-        // println!("remote: {:#?}", remote);
-
         if conflict.identity {
             let hard_conflict = self
                 .auto_merge_identity(options, &mut force_merge_outcome)
@@ -146,12 +144,18 @@ impl RemoteBridge {
 
         #[cfg(feature = "device")]
         if conflict.device {
-            self.auto_merge_device().await?;
+            let hard_conflict = self
+                .auto_merge_device(options, &mut force_merge_outcome)
+                .await?;
+            has_hard_conflict = has_hard_conflict || hard_conflict;
         }
 
         #[cfg(feature = "files")]
         if conflict.files {
-            self.auto_merge_files().await?;
+            let hard_conflict = self
+                .auto_merge_files(options, &mut force_merge_outcome)
+                .await?;
+            has_hard_conflict = has_hard_conflict || hard_conflict;
         }
 
         for (folder_id, _) in &conflict.folders {
@@ -169,7 +173,7 @@ impl RemoteBridge {
         if has_hard_conflict {
             tracing::debug!(
                 outcome = ?force_merge_outcome,
-                "auto_merge::hard_conflict");
+                "hard_conflict::sign_out");
             let mut account = self.account.lock().await;
             account.sign_out().await?;
         }
@@ -178,6 +182,7 @@ impl RemoteBridge {
     }
 
     auto_merge_impl!(
+        "auto_merge::identity",
         auto_merge_identity,
         EventLogType::Identity,
         WriteEvent,
@@ -185,6 +190,7 @@ impl RemoteBridge {
     );
 
     auto_merge_conflict_impl!(
+        "hard_conflict::force_merge::identity",
         identity_hard_conflict,
         EventLogType::Identity,
         WriteEvent,
@@ -193,6 +199,7 @@ impl RemoteBridge {
     );
 
     auto_merge_impl!(
+        "auto_merge::account",
         auto_merge_account,
         EventLogType::Account,
         AccountEvent,
@@ -200,6 +207,7 @@ impl RemoteBridge {
     );
 
     auto_merge_conflict_impl!(
+        "hard_conflict::force_merge::account",
         account_hard_conflict,
         EventLogType::Account,
         AccountEvent,
@@ -208,52 +216,42 @@ impl RemoteBridge {
     );
 
     #[cfg(feature = "device")]
-    async fn auto_merge_device(&self) -> Result<()> {
-        use sos_sdk::events::DeviceEvent;
+    auto_merge_impl!(
+        "auto_merge::device",
+        auto_merge_device,
+        EventLogType::Device,
+        DeviceEvent,
+        device_hard_conflict
+    );
 
-        tracing::debug!("auto_merge::device");
-
-        let req = CommitScanRequest {
-            log_type: EventLogType::Device,
-            offset: None,
-            limit: PROOF_SCAN_LIMIT,
-            ascending: false,
-        };
-        if let Some((ancestor_commit, proof)) = self.scan_proofs(req).await? {
-            self.try_merge_from_ancestor::<DeviceEvent>(
-                EventLogType::Device,
-                ancestor_commit,
-                proof,
-            )
-            .await?;
-        }
-
-        Ok(())
-    }
+    #[cfg(feature = "device")]
+    auto_merge_conflict_impl!(
+        "hard_conflict::force_merge::device",
+        device_hard_conflict,
+        EventLogType::Device,
+        DeviceEvent,
+        DeviceDiff,
+        force_merge_device
+    );
 
     #[cfg(feature = "files")]
-    async fn auto_merge_files(&self) -> Result<()> {
-        use sos_sdk::events::FileEvent;
+    auto_merge_impl!(
+        "auto_merge::files",
+        auto_merge_files,
+        EventLogType::Files,
+        FileEvent,
+        files_hard_conflict
+    );
 
-        tracing::debug!("auto_merge::files");
-
-        let req = CommitScanRequest {
-            log_type: EventLogType::Files,
-            offset: None,
-            limit: PROOF_SCAN_LIMIT,
-            ascending: false,
-        };
-        if let Some((ancestor_commit, proof)) = self.scan_proofs(req).await? {
-            self.try_merge_from_ancestor::<FileEvent>(
-                EventLogType::Files,
-                ancestor_commit,
-                proof,
-            )
-            .await?;
-        }
-
-        Ok(())
-    }
+    #[cfg(feature = "files")]
+    auto_merge_conflict_impl!(
+        "hard_conflict::force_merge::files",
+        files_hard_conflict,
+        EventLogType::Files,
+        FileEvent,
+        FileDiff,
+        force_merge_files
+    );
 
     async fn auto_merge_folder(
         &self,

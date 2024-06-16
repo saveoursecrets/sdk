@@ -841,14 +841,6 @@ pub trait ForceMerge {
         outcome: &mut MergeOutcome,
     ) -> Result<()>;
 
-    /// Force merge changes to a folder.
-    async fn force_merge_folder(
-        &mut self,
-        folder_id: &VaultId,
-        source: FolderDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<()>;
-
     /// Force merge changes to the account event log.
     async fn force_merge_account(
         &mut self,
@@ -856,33 +848,29 @@ pub trait ForceMerge {
         outcome: &mut MergeOutcome,
     ) -> Result<()>;
 
-    /*
-
-
-    /// Merge changes to the devices event log.
+    /// Force merge changes to the devices event log.
     #[cfg(feature = "device")]
     async fn force_merge_device(
         &mut self,
-        diff: &DeviceDiff,
+        diff: DeviceDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()>;
 
-    /// Merge changes to the files event log.
+    /// Force merge changes to the files event log.
     #[cfg(feature = "files")]
     async fn force_merge_files(
         &mut self,
-        diff: &FileDiff,
+        diff: FileDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()>;
 
-    /// Merge changes to a folder.
+    /// Force merge changes to a folder.
     async fn force_merge_folder(
         &mut self,
         folder_id: &VaultId,
-        source: MergeSource<WriteEvent>,
+        source: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()>;
-    */
 }
 
 /// Types that can merge diffs.

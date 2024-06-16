@@ -41,6 +41,81 @@ impl ForceMerge for LocalAccount {
         Ok(())
     }
 
+    async fn force_merge_account(
+        &mut self,
+        diff: AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
+            "force_merge::account",
+        );
+
+        let event_log = self.account_log().await?;
+        let mut event_log = event_log.write().await;
+        event_log.clear().await?;
+        event_log.patch_unchecked(&diff.patch).await?;
+
+        outcome.identity = len;
+        outcome.changes += len;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "device")]
+    async fn force_merge_device(
+        &mut self,
+        diff: DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
+            "force_merge::device",
+        );
+
+        let event_log = self.device_log().await?;
+        let mut event_log = event_log.write().await;
+        event_log.clear().await?;
+        event_log.patch_unchecked(&diff.patch).await?;
+
+        outcome.identity = len;
+        outcome.changes += len;
+
+        Ok(())
+    }
+
+    /// Force merge changes to the files event log.
+    #[cfg(feature = "files")]
+    async fn force_merge_files(
+        &mut self,
+        diff: FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
+            "force_merge::files",
+        );
+
+        let event_log = self.file_log().await?;
+        let mut event_log = event_log.write().await;
+        event_log.clear().await?;
+        event_log.patch_unchecked(&diff.patch).await?;
+
+        outcome.identity = len;
+        outcome.changes += len;
+
+        Ok(())
+    }
+
     async fn force_merge_folder(
         &mut self,
         folder_id: &VaultId,
@@ -66,32 +141,6 @@ impl ForceMerge for LocalAccount {
         folder.force_merge(diff).await?;
 
         outcome.folders.insert(*folder_id, len);
-        outcome.changes += len;
-
-        Ok(())
-    }
-
-    async fn force_merge_account(
-        &mut self,
-        diff: AccountDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<()> {
-        let len = diff.patch.len();
-
-        tracing::debug!(
-            checkpoint = ?diff.checkpoint,
-            num_events = len,
-            "force_merge::account",
-        );
-
-        let event_log = self.account_log().await?;
-        let mut event_log = event_log.write().await;
-        event_log.clear().await?;
-
-        event_log.patch_unchecked(&diff.patch).await?;
-        // let head = event_log.tree().head()?;
-
-        outcome.identity = len;
         outcome.changes += len;
 
         Ok(())
