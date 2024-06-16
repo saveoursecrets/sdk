@@ -22,7 +22,7 @@ use sos_sdk::{
         },
         AccessOptions, ClientStorage, StorageEventLogs,
     },
-    sync::{Origin, SyncError, SyncOptions, UpdateSet},
+    sync::{FolderDiff, Origin, SyncError, SyncOptions, UpdateSet},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Summary, Vault, VaultId,
@@ -724,7 +724,12 @@ impl Account for NetworkAccount {
         let identity = if conversion.identity.is_some() {
             let log = self.identity_log().await?;
             let reader = log.read().await;
-            Some(reader.diff(None).await?)
+            let diff = FolderDiff {
+                last_commit: None,
+                patch: reader.diff(None).await?,
+                checkpoint: reader.tree().head()?,
+            };
+            Some(diff)
         } else {
             None
         };
@@ -741,7 +746,12 @@ impl Account for NetworkAccount {
         for id in &identifiers {
             let event_log = self.folder_log(id).await?;
             let log_file = event_log.read().await;
-            folders.insert(*id, log_file.diff(None).await?);
+            let diff = FolderDiff {
+                last_commit: None,
+                patch: log_file.diff(None).await?,
+                checkpoint: log_file.tree().head()?,
+            };
+            folders.insert(*id, diff);
         }
 
         // Force update the folders on remote servers
@@ -774,12 +784,16 @@ impl Account for NetworkAccount {
 
         let log = self.identity_log().await?;
         let reader = log.read().await;
-        let identity = Some(reader.diff(None).await?);
+        let identity = FolderDiff {
+            last_commit: None,
+            patch: reader.diff(None).await?,
+            checkpoint: reader.tree().head()?,
+        };
 
         // Force update the folders on remote servers
         let sync_options: SyncOptions = Default::default();
         let updates = UpdateSet {
-            identity,
+            identity: Some(identity),
             folders: Default::default(),
         };
 
@@ -937,7 +951,11 @@ impl Account for NetworkAccount {
         let identity = {
             let log = self.identity_log().await?;
             let reader = log.read().await;
-            Some(reader.diff(None).await?)
+            FolderDiff {
+                last_commit: None,
+                patch: reader.diff(None).await?,
+                checkpoint: reader.tree().head()?,
+            }
         };
 
         // Prepare event logs for the folders that
@@ -953,12 +971,20 @@ impl Account for NetworkAccount {
         for id in &identifiers {
             let event_log = self.folder_log(id).await?;
             let log_file = event_log.read().await;
-            folders.insert(*id, log_file.diff(None).await?);
+            let diff = FolderDiff {
+                last_commit: None,
+                patch: log_file.diff(None).await?,
+                checkpoint: log_file.tree().head()?,
+            };
+            folders.insert(*id, diff);
         }
 
         // Force update the folders on remote servers
         let sync_options: SyncOptions = Default::default();
-        let updates = UpdateSet { identity, folders };
+        let updates = UpdateSet {
+            identity: Some(identity),
+            folders,
+        };
 
         let sync_error = self.force_update(&updates, &sync_options).await;
         if let Some(sync_error) = sync_error {
@@ -990,7 +1016,12 @@ impl Account for NetworkAccount {
         {
             let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
-            folders.insert(*folder.id(), log_file.diff(None).await?);
+            let diff = FolderDiff {
+                last_commit: None,
+                patch: log_file.diff(None).await?,
+                checkpoint: log_file.tree().head()?,
+            };
+            folders.insert(*folder.id(), diff);
         }
 
         // Force update the folders on remote servers
@@ -1028,7 +1059,11 @@ impl Account for NetworkAccount {
         let identity = {
             let log = self.identity_log().await?;
             let reader = log.read().await;
-            Some(reader.diff(None).await?)
+            FolderDiff {
+                last_commit: None,
+                patch: reader.diff(None).await?,
+                checkpoint: reader.tree().head()?,
+            }
         };
 
         // Prepare event logs for the folders that
@@ -1037,12 +1072,20 @@ impl Account for NetworkAccount {
         {
             let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
-            folders.insert(*folder.id(), log_file.diff(None).await?);
+            let diff = FolderDiff {
+                last_commit: None,
+                patch: log_file.diff(None).await?,
+                checkpoint: log_file.tree().head()?,
+            };
+            folders.insert(*folder.id(), diff);
         }
 
         // Force update the folders on remote servers
         let sync_options: SyncOptions = Default::default();
-        let updates = UpdateSet { identity, folders };
+        let updates = UpdateSet {
+            identity: Some(identity),
+            folders,
+        };
 
         let sync_error = self.force_update(&updates, &sync_options).await;
         if let Some(sync_error) = sync_error {

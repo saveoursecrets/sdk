@@ -126,44 +126,18 @@ impl ServerStorage {
     pub async fn update_account(
         &mut self,
         mut account_data: UpdateSet,
+        outcome: &mut MergeOutcome,
     ) -> Result<()> {
         // Force overwrite all identity data
         if let Some(identity) = account_data.identity.take() {
-            let mut writer = self.identity_log.write().await;
-            writer.clear().await?;
-            writer.patch_unchecked(&identity).await?;
-
-            // Rebuild the head-only identity vault
-            let vault = FolderReducer::new()
-                .reduce(&*writer)
-                .await?
-                .build(false)
-                .await?;
-
-            let buffer = encode(&vault).await?;
-            vfs::write(self.paths.identity_vault(), buffer).await?;
+            self.force_merge_identity(identity, outcome).await?;
         }
 
+        // TODO: account, device, files!
+
         // Force overwrite account folders
-        for (id, folder) in &account_data.folders {
-            let vault_path = self.paths.vault_path(id);
-            let events_path = self.paths.event_log_path(id);
-
-            let mut event_log = FolderEventLog::new(events_path).await?;
-            event_log.clear().await?;
-            event_log.patch_unchecked(folder).await?;
-
-            let vault = FolderReducer::new()
-                .reduce(&event_log)
-                .await?
-                .build(false)
-                .await?;
-
-            let buffer = encode(&vault).await?;
-            vfs::write(vault_path, buffer).await?;
-
-            self.cache_mut()
-                .insert(*id, Arc::new(RwLock::new(event_log)));
+        for (id, folder) in account_data.folders {
+            self.force_merge_folder(&id, folder, outcome).await?;
         }
 
         Ok(())
@@ -209,7 +183,6 @@ impl ForceMerge for ServerStorage {
         diff: AccountDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        /*
         let len = diff.patch.len();
 
         tracing::debug!(
@@ -218,15 +191,13 @@ impl ForceMerge for ServerStorage {
             "force_merge::account",
         );
 
-        let event_log = self.account_log().await?;
+        let event_log = self.account_log();
         let mut event_log = event_log.write().await;
         event_log.clear().await?;
         event_log.patch_unchecked(&diff.patch).await?;
 
         outcome.identity = len;
         outcome.changes += len;
-
-        */
 
         Ok(())
     }
@@ -237,7 +208,6 @@ impl ForceMerge for ServerStorage {
         diff: DeviceDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        /*
         let len = diff.patch.len();
 
         tracing::debug!(
@@ -251,9 +221,13 @@ impl ForceMerge for ServerStorage {
         event_log.clear().await?;
         event_log.patch_unchecked(&diff.patch).await?;
 
+        // Update in-memory cache of trusted devices
+        let reducer = DeviceReducer::new(&event_log);
+        let devices = reducer.reduce().await?;
+        self.devices = devices;
+
         outcome.identity = len;
         outcome.changes += len;
-        */
 
         Ok(())
     }
@@ -265,7 +239,6 @@ impl ForceMerge for ServerStorage {
         diff: FileDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        /*
         let len = diff.patch.len();
 
         tracing::debug!(
@@ -281,7 +254,6 @@ impl ForceMerge for ServerStorage {
 
         outcome.identity = len;
         outcome.changes += len;
-        */
 
         Ok(())
     }

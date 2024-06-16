@@ -117,10 +117,7 @@ impl Encodable for UpdateSet {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        writer.write_bool(self.identity.is_some()).await?;
-        if let Some(identity) = &self.identity {
-            identity.encode(&mut *writer).await?;
-        }
+        self.identity.encode(&mut *writer).await?;
 
         // Folder patches
         writer.write_u16(self.folders.len() as u16).await?;
@@ -142,19 +139,15 @@ impl Decodable for UpdateSet {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        let has_identity = reader.read_bool().await?;
-        if has_identity {
-            let mut identity: FolderPatch = Default::default();
-            identity.decode(&mut *reader).await?;
-            self.identity = Some(identity);
-        }
+        self.identity.decode(&mut *reader).await?;
+
         // Folder patches
         let num_folders = reader.read_u16().await?;
         for _ in 0..(num_folders as usize) {
             let id = decode_uuid(&mut *reader).await?;
             let length = reader.read_u32().await?;
             let buffer = reader.read_bytes(length as usize).await?;
-            let folder: FolderPatch =
+            let folder: FolderDiff =
                 decode(&buffer).await.map_err(encoding_error)?;
             self.folders.insert(id, folder);
         }

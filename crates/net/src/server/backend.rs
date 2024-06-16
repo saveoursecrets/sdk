@@ -8,6 +8,7 @@ use crate::sdk::{
     sync::{ChangeSet, SyncStorage, UpdateSet},
     vfs, Paths,
 };
+use sos_sdk::sync::MergeOutcome;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -171,16 +172,21 @@ impl Backend {
         &mut self,
         owner: &Address,
         account_data: UpdateSet,
-    ) -> Result<()> {
+    ) -> Result<MergeOutcome> {
         tracing::debug!(address = %owner, "backend::update_account");
+
+        let mut outcome = MergeOutcome::default();
 
         let mut accounts = self.accounts.write().await;
         let account =
             accounts.get_mut(owner).ok_or(Error::NoAccount(*owner))?;
 
         let mut account = account.write().await;
-        account.storage.update_account(account_data).await?;
-        Ok(())
+        account
+            .storage
+            .update_account(account_data, &mut outcome)
+            .await?;
+        Ok(outcome)
     }
 
     /// Fetch an existing account.

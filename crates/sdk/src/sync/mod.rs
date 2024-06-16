@@ -724,10 +724,14 @@ pub struct ChangeSet {
 /// folder password or compacing the events in a folder.
 #[derive(Debug, Default)]
 pub struct UpdateSet {
-    /// Identity vault event logs.
-    pub identity: Option<FolderPatch>,
-    /// Folders to be imported into the new account.
-    pub folders: HashMap<VaultId, FolderPatch>,
+    /// Identity folder event logs.
+    pub identity: Option<FolderDiff>,
+    /*
+    /// Account event log.
+    pub account: Option<AccountDiff>,
+    */
+    /// Folders to be updated.
+    pub folders: HashMap<VaultId, FolderDiff>,
 }
 
 /// Storage implementations that can synchronize.
