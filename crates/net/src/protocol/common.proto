@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package common;
+
+enum LogEventType {
+  IDENTITY = 0;
+  ACCOUNT = 1;
+  DEVICE = 2;
+  FILES = 3;
+  FOLDER = 4;
+}
+

@@ -86,6 +86,8 @@ async-stream = "0.3"
 colored = "2"
 binary-stream.workspace = true
 
+prost = "0.12.6"
+
 # server
 toml = { workspace = true, optional = true }
 axum = { version = "0.7", features = ["ws", "original-uri"], optional = true }
@@ -134,6 +136,7 @@ anyhow = "1"
 
 [build-dependencies]
 rustc_version = "0.4.0"
+prost-build = "0.12.6"
 
 [package.metadata.docs.rs]
 all-features = true
