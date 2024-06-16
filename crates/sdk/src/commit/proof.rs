@@ -1,33 +1,23 @@
 //! Types that encapsulate commit proofs and comparisons.
-
-use serde::{
-    de::{self, SeqAccess, Visitor},
-    ser::SerializeTuple,
-    Deserialize, Serialize,
-};
+use serde::{Deserialize, Serialize};
 use std::{
     fmt,
     hash::{Hash, Hasher as StdHasher},
-    ops::Range,
+    str::FromStr,
 };
 
+use super::TreeHash;
 use rs_merkle::{algorithms::Sha256, MerkleProof};
 
 /// Hash representation that provides a hexadecimal display.
 #[derive(
     Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize, Hash,
 )]
-pub struct CommitHash(#[serde(with = "hex::serde")] pub [u8; 32]);
+pub struct CommitHash(#[serde(with = "hex::serde")] pub TreeHash);
 
-impl AsRef<[u8; 32]> for CommitHash {
-    fn as_ref(&self) -> &[u8; 32] {
+impl AsRef<TreeHash> for CommitHash {
+    fn as_ref(&self) -> &TreeHash {
         &self.0
-    }
-}
-
-impl From<CommitHash> for [u8; 32] {
-    fn from(value: CommitHash) -> Self {
-        value.0
     }
 }
 
@@ -43,6 +33,16 @@ impl fmt::Display for CommitHash {
     }
 }
 
+impl FromStr for CommitHash {
+    type Err = crate::Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let value = hex::decode(value)?;
+        let value: TreeHash = value.as_slice().try_into()?;
+        Ok(Self(value))
+    }
+}
+
 /// The result of comparing two commit trees.
 ///
 /// Either the trees are equal, the other tree
@@ -53,7 +53,7 @@ pub enum Comparison {
     /// Trees are equal as their root commits match.
     Equal,
     /// Tree contains the other proof.
-    Contains(Vec<usize>, Vec<[u8; 32]>),
+    Contains(Vec<usize>, Vec<TreeHash>),
     /// Unable to find a match against the proof.
     #[default]
     Unknown,
@@ -67,8 +67,8 @@ pub struct CommitProof {
     pub proof: MerkleProof<Sha256>,
     /// The length of the tree.
     pub length: usize,
-    /// Range of indices.
-    pub indices: Range<usize>,
+    /// Indices to prove.
+    pub indices: Vec<usize>,
 }
 
 impl Hash for CommitProof {
@@ -118,6 +118,29 @@ impl CommitProof {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    /// Verify the indices of this proof using
+    /// a slice of leaves.
+    pub fn verify_leaves(
+        &self,
+        leaves: &[TreeHash],
+    ) -> (bool, Vec<TreeHash>) {
+        let leaves_to_prove = self
+            .indices
+            .iter()
+            .filter_map(|i| leaves.get(*i))
+            .copied()
+            .collect::<Vec<_>>();
+        (
+            self.proof.verify(
+                self.root().into(),
+                &self.indices,
+                leaves_to_prove.as_slice(),
+                leaves.len(),
+            ),
+            leaves_to_prove,
+        )
+    }
 }
 
 impl From<CommitProof> for (CommitHash, usize) {
@@ -138,7 +161,7 @@ impl Default for CommitProof {
             root: Default::default(),
             proof: MerkleProof::<Sha256>::new(vec![]),
             length: 0,
-            indices: 0..0,
+            indices: vec![],
         }
     }
 }
@@ -148,144 +171,8 @@ impl fmt::Debug for CommitProof {
         f.debug_struct("CommitProof")
             .field("root", &self.root.to_string())
             //.field("proofs", self.1.proof_hashes())
-            .field("size", &self.length)
-            .field("leaves", &self.indices)
+            .field("length", &self.length)
+            .field("indices", &self.indices)
             .finish()
     }
 }
-
-impl serde::Serialize for CommitProof {
-    fn serialize<S>(
-        &self,
-        serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        // 4-element tuple
-        let mut tup = serializer.serialize_tuple(4)?;
-        let root_hash = self.root.to_string();
-        tup.serialize_element(&root_hash)?;
-        let hashes = self.proof.proof_hashes();
-        tup.serialize_element(hashes)?;
-        tup.serialize_element(&self.length)?;
-        tup.serialize_element(&self.indices)?;
-        tup.end()
-    }
-}
-
-struct CommitProofVisitor;
-
-impl<'de> Visitor<'de> for CommitProofVisitor {
-    type Value = CommitProof;
-
-    fn expecting(&self, _formatter: &mut fmt::Formatter) -> fmt::Result {
-        Ok(())
-    }
-
-    fn visit_seq<A>(
-        self,
-        mut seq: A,
-    ) -> std::result::Result<Self::Value, A::Error>
-    where
-        A: SeqAccess<'de>,
-    {
-        let root_hash: String = seq.next_element()?.ok_or_else(|| {
-            de::Error::custom("expecting a root hash for commit proof")
-        })?;
-        let root_hash = hex::decode(root_hash).map_err(de::Error::custom)?;
-        let root_hash: [u8; 32] =
-            root_hash.as_slice().try_into().map_err(de::Error::custom)?;
-        let root_hash = CommitHash(root_hash);
-        let hashes: Vec<[u8; 32]> = seq.next_element()?.ok_or_else(|| {
-            de::Error::custom("expecting sequence of proof hashes")
-        })?;
-        let length: usize = seq.next_element()?.ok_or_else(|| {
-            de::Error::custom("expecting tree length usize")
-        })?;
-        let indices: Range<usize> = seq
-            .next_element()?
-            .ok_or_else(|| de::Error::custom("expecting leaf node range"))?;
-        Ok(CommitProof {
-            root: root_hash,
-            proof: MerkleProof::new(hashes),
-            length,
-            indices,
-        })
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for CommitProof {
-    fn deserialize<D>(
-        deserializer: D,
-    ) -> std::result::Result<CommitProof, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_tuple(4, CommitProofVisitor)
-    }
-}
-
-/*
-/// Pair of commit proofs.
-#[derive(Debug, Hash, Eq, PartialEq)]
-pub struct CommitPair {
-    /// Commit proof for a local commit tree.
-    pub local: CommitProof,
-    /// Commit proof for a remote commit tree.
-    pub remote: CommitProof,
-}
-*/
-
-/*
-/// Relationship between two trees.
-#[derive(Debug)]
-pub enum CommitRelationship {
-    /// Local and remote are equal.
-    Equal(CommitPair),
-    /// Local tree is ahead of the remote.
-    ///
-    /// A push operation should be successful.
-    ///
-    /// Includes the number of commits ahead.
-    Ahead(CommitPair, usize),
-    /// Local tree is behind the remote.
-    ///
-    /// A pull operation should be successful.
-    ///
-    /// Includes the number of commits behind.
-    Behind(CommitPair, usize),
-    /// Commit trees have diverged and either a force
-    /// push or force pull is required to synchronize.
-    Diverged(CommitPair),
-}
-
-impl fmt::Display for CommitRelationship {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Equal(_) => {
-                write!(f, "up to date")
-            }
-            Self::Behind(_, diff) => {
-                write!(f, "{} change(s) behind remote: pull changes", diff)
-            }
-            Self::Ahead(_, diff) => {
-                write!(f, "{} change(s) ahead of remote: push changes", diff)
-            }
-            Self::Diverged(_) => {
-                write!(f, "local and remote have diverged: force push or force pull to synchronize trees")
-            }
-        }
-    }
-}
-
-impl CommitRelationship {
-    /// Get the pair of local and remote commit proofs.
-    pub fn pair(&self) -> &CommitPair {
-        match self {
-            Self::Equal(pair) | Self::Diverged(pair) => pair,
-            Self::Behind(pair, _) | Self::Ahead(pair, _) => pair,
-        }
-    }
-}
-*/

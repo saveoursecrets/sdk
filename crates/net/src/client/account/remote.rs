@@ -5,15 +5,14 @@ use crate::client::{
 use async_trait::async_trait;
 use sos_sdk::{
     account::{Account, LocalAccount},
-    commit::Comparison,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     storage::{
         files::{FileSet, TransferOperation},
         StorageEventLogs,
     },
     sync::{
-        self, MaybeDiff, Merge, Origin, SyncOptions, SyncPacket, SyncStatus,
-        SyncStorage, UpdateSet,
+        self, MaybeDiff, Merge, MergeOutcome, Origin, SyncOptions,
+        SyncPacket, SyncStatus, SyncStorage, UpdateSet,
     },
     vfs,
 };
@@ -33,7 +32,7 @@ pub struct RemoteBridge {
     origin: Origin,
     /// Account so we can replay events
     /// when a remote diff is merged.
-    account: Arc<Mutex<LocalAccount>>,
+    pub(super) account: Arc<Mutex<LocalAccount>>,
     /// Client to use for remote communication.
     pub(crate) client: HttpClient,
     // File transfers.
@@ -71,10 +70,7 @@ impl RemoteBridge {
     pub fn client(&self) -> &HttpClient {
         &self.client
     }
-}
 
-/// Sync helper functions.
-impl RemoteBridge {
     /// Create an account on the remote.
     async fn create_remote_account(&self) -> Result<()> {
         {
@@ -103,122 +99,125 @@ impl RemoteBridge {
                 compare: None,
             };
             let remote_changes = self.client.sync(&packet).await?;
-            let (mut outcome, _) =
-                account.merge(&remote_changes.diff).await?;
 
-            // Compute which external files need to be downloaded
-            // and add to the transfers queue
-            if !outcome.external_files.is_empty() {
-                let paths = account.paths();
-                // let mut writer = self.transfers.write().await;
+            let maybe_conflict = remote_changes
+                .compare
+                .as_ref()
+                .map(|c| c.maybe_conflict())
+                .unwrap_or_default();
+            let has_conflicts = maybe_conflict.has_conflicts();
 
-                for file in outcome.external_files.drain(..) {
-                    let file_path = paths.file_location(
-                        file.vault_id(),
-                        file.secret_id(),
-                        file.file_name().to_string(),
-                    );
-                    if !vfs::try_exists(file_path).await? {
-                        tracing::debug!(
-                            file = ?file,
-                            "add file download to transfers",
+            let mut outcome = MergeOutcome::default();
+
+            if !has_conflicts {
+                account.merge(remote_changes.diff, &mut outcome).await?;
+
+                // Compute which external files need to be downloaded
+                // and add to the transfers queue
+                if !outcome.external_files.is_empty() {
+                    let paths = account.paths();
+                    // let mut writer = self.transfers.write().await;
+
+                    for file in outcome.external_files.drain(..) {
+                        let file_path = paths.file_location(
+                            file.vault_id(),
+                            file.secret_id(),
+                            file.file_name().to_string(),
                         );
-                        if self.file_transfer_queue.receiver_count() > 0 {
-                            let _ = self.file_transfer_queue.send(vec![(
-                                file,
-                                TransferOperation::Download,
-                            )]);
+                        if !vfs::try_exists(file_path).await? {
+                            tracing::debug!(
+                                file = ?file,
+                                "add file download to transfers",
+                            );
+                            if self.file_transfer_queue.receiver_count() > 0 {
+                                let _ =
+                                    self.file_transfer_queue.send(vec![(
+                                        file,
+                                        TransferOperation::Download,
+                                    )]);
+                            }
                         }
                     }
                 }
-            }
 
-            self.compare(&mut *account, remote_changes).await?;
-        }
-
-        Ok(())
-    }
-
-    /// Compare the remote comparison with the local
-    /// comparison and determine if a force pull or automerge
-    /// is required.
-    async fn compare(
-        &self,
-        account: &mut LocalAccount,
-        remote_changes: SyncPacket,
-    ) -> Result<()> {
-        if let Some(remote_compare) = &remote_changes.compare {
-            // println!("{:#?}", remote_changes);
-
-            let local_compare =
-                account.compare(&remote_changes.status).await?;
-
-            // NOTE: we don't currently handle account, device and
-            // NOTE: files here as they are currently append-only.
-            // NOTE: if later we support compacting these event logs
-            // NOTE: we need to handle force pull here.
-
-            match (&local_compare.identity, &remote_compare.identity) {
-                (Some(Comparison::Unknown), Some(Comparison::Unknown)) => {
-                    println!(
-                        "todo!: handle completely diverged identity folder"
-                    );
+                // self.compare(&mut *account, remote_changes).await?;
+            } else {
+                // Some parts of the remote patch may not
+                // be in conflict and must still be merged
+                if !maybe_conflict.identity {
+                    if let Some(MaybeDiff::Diff(diff)) =
+                        remote_changes.diff.identity
+                    {
+                        account.merge_identity(diff, &mut outcome).await?;
+                    }
                 }
-                _ => {}
-            }
+                if !maybe_conflict.account {
+                    if let Some(MaybeDiff::Diff(diff)) =
+                        remote_changes.diff.account
+                    {
+                        account.merge_account(diff, &mut outcome).await?;
+                    }
+                }
+                #[cfg(feature = "device")]
+                if !maybe_conflict.device {
+                    if let Some(MaybeDiff::Diff(diff)) =
+                        remote_changes.diff.device
+                    {
+                        account.merge_device(diff, &mut outcome).await?;
+                    }
+                }
+                #[cfg(feature = "files")]
+                if !maybe_conflict.files {
+                    if let Some(MaybeDiff::Diff(diff)) =
+                        remote_changes.diff.files
+                    {
+                        account.merge_files(diff, &mut outcome).await?;
+                    }
+                }
 
-            // NOTE: we don't need to handle folders here as
-            // NOTE: destructive changes should call
-            // NOTE: import_folder_buffer() which generates
-            // NOTE: an AccountEvent::UpdateVault event which
-            // NOTE: will be handled and automatically rewrite
-            // NOTE: the content of the folder
+                let merge_folders = remote_changes
+                    .diff
+                    .folders
+                    .into_iter()
+                    .filter(|(k, _)| maybe_conflict.folders.get(k).is_none())
+                    .collect::<HashMap<_, _>>();
+                for (id, maybe_diff) in merge_folders {
+                    if let MaybeDiff::Diff(diff) = maybe_diff {
+                        account.merge_folder(&id, diff, &mut outcome).await?;
+                    }
+                }
+
+                return Err(Error::SoftConflict {
+                    conflict: maybe_conflict,
+                    local: packet.status,
+                    remote: remote_changes.status,
+                });
+            }
         }
 
         Ok(())
     }
 
-    async fn execute_sync(&self) -> Result<()> {
+    async fn execute_sync(&self, options: &SyncOptions) -> Result<()> {
         let exists = self.client.account_exists().await?;
         if exists {
             let sync_status = self.client.sync_status().await?;
-            self.sync_account(sync_status).await
+            match self.sync_account(sync_status).await {
+                Ok(_) => Ok(()),
+                Err(e) => match e {
+                    Error::SoftConflict {
+                        conflict,
+                        local,
+                        remote,
+                    } => {
+                        self.auto_merge(options, conflict, local, remote)
+                            .await
+                    }
+                    _ => Err(e),
+                },
+            }
         } else {
             self.create_remote_account().await
-        }
-    }
-
-    async fn send_devices_patch(
-        &self,
-        remote_status: SyncStatus,
-    ) -> Result<()> {
-        let (needs_sync, _local_status, local_changes) = {
-            let account = self.account.lock().await;
-            sync::diff(&*account, remote_status).await?
-        };
-
-        // If we need a sync but no local device changes
-        // try to pull from remote
-        if let (true, None) = (needs_sync, &local_changes.device) {
-            self.execute_sync().await?;
-        }
-
-        #[cfg(feature = "device")]
-        if let (true, Some(MaybeDiff::Diff(device))) =
-            (needs_sync, local_changes.device)
-        {
-            self.client.patch_devices(&device).await?;
-        }
-        Ok(())
-    }
-
-    async fn execute_sync_devices(&self) -> Result<()> {
-        let exists = self.client.account_exists().await?;
-        if exists {
-            let sync_status = self.client.sync_status().await?;
-            self.send_devices_patch(sync_status).await
-        } else {
-            Err(Error::NoAccountPatchDevices)
         }
     }
 
@@ -272,7 +271,7 @@ impl RemoteSync for RemoteBridge {
 
         tracing::debug!(origin = %self.origin.url());
 
-        match self.execute_sync().await {
+        match self.execute_sync(options).await {
             Ok(_) => None,
             Err(e) => Some(SyncError {
                 errors: vec![(self.origin.clone(), e)],
@@ -299,18 +298,6 @@ impl RemoteSync for RemoteBridge {
         tracing::debug!(origin = %self.origin.url());
 
         match self.execute_sync_file_transfers().await {
-            Ok(_) => None,
-            Err(e) => Some(SyncError {
-                errors: vec![(self.origin.clone(), e)],
-            }),
-        }
-    }
-
-    async fn patch_devices(
-        &self,
-        _options: &SyncOptions,
-    ) -> Option<SyncError> {
-        match self.execute_sync_devices().await {
             Ok(_) => None,
             Err(e) => Some(SyncError {
                 errors: vec![(self.origin.clone(), e)],

@@ -73,10 +73,21 @@ impl Gatekeeper {
 
     /// Replace this vault with a new updated vault.
     ///
+    /// Setting `write_disc` will write a new buffer to disc
+    /// only when a mirror is enabled.
+    ///
     /// Callers should take care to lock beforehand and
     /// unlock again afterwards if the vault access key
     /// has been changed.
-    pub async fn replace_vault(&mut self, vault: Vault) -> Result<()> {
+    pub async fn replace_vault(
+        &mut self,
+        vault: Vault,
+        write_disc: bool,
+    ) -> Result<()> {
+        if let (true, Some(mirror)) = (write_disc, &self.mirror) {
+            let buffer = encode(&vault).await?;
+            vfs::write(&mirror.file_path, &buffer).await?;
+        }
         self.vault = vault;
         Ok(())
     }

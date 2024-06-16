@@ -13,7 +13,7 @@ use crate::{
         encode,
         events::{
             AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
-            FolderReducer, WriteEvent,
+            FolderReducer,
         },
         identity::PublicIdentity,
         signer::{
@@ -31,10 +31,7 @@ use std::{
 };
 
 #[cfg(feature = "device")]
-use crate::sdk::{
-    events::{DeviceEvent, DeviceEventLog},
-    sync::DevicePatch,
-};
+use crate::sdk::{events::DeviceEventLog, sync::DevicePatch};
 
 /// Enroll a device.
 ///
@@ -198,13 +195,14 @@ impl DeviceEnrollment {
         let mut event_log = AccountEventLog::new_account(file).await?;
         event_log.clear().await?;
 
-        let events: Vec<AccountEvent> = patch.into();
-        for event in &events {
+        // let events: Vec<AccountEvent> = patch.into();
+        for record in patch.iter() {
+            let event = record.decode_event::<AccountEvent>().await?;
             if let AccountEvent::RenameAccount(account_name) = event {
                 self.account_name = Some(account_name.to_string());
             }
         }
-        event_log.apply(events.iter().collect()).await?;
+        event_log.patch_unchecked(&patch).await?;
         Ok(())
     }
 
@@ -214,8 +212,8 @@ impl DeviceEnrollment {
         let mut event_log = DeviceEventLog::new_device(file).await?;
         event_log.clear().await?;
 
-        let events: Vec<DeviceEvent> = patch.into();
-        event_log.apply(events.iter().collect()).await?;
+        // let events: Vec<DeviceEvent> = patch.into();
+        event_log.patch_unchecked(&patch).await?;
 
         Ok(())
     }
@@ -238,8 +236,8 @@ impl DeviceEnrollment {
         let mut event_log = FolderEventLog::new(events_path.as_ref()).await?;
         event_log.clear().await?;
 
-        let events: Vec<WriteEvent> = patch.into();
-        event_log.apply(events.iter().collect()).await?;
+        // let events: Vec<WriteEvent> = patch.into();
+        event_log.patch_unchecked(&patch).await?;
 
         let vault = FolderReducer::new()
             .reduce(&event_log)

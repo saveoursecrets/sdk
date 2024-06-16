@@ -207,20 +207,42 @@ where
     }
 
     #[cfg(feature = "sync")]
+    pub(crate) async fn force_merge(
+        &mut self,
+        diff: FolderDiff,
+    ) -> Result<()> {
+        let mut event_log = self.events.write().await;
+        event_log.patch_replace(diff).await?;
+
+        // Build a new vault
+        let vault = FolderReducer::new()
+            .reduce(&*event_log)
+            .await?
+            .build(true)
+            .await?;
+        self.keeper.replace_vault(vault, true).await?;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "sync")]
     pub(crate) async fn merge(
         &mut self,
-        diff: &FolderDiff,
+        diff: FolderDiff,
         mut options: FolderMergeOptions<'_>,
     ) -> Result<CheckedPatch> {
         let checked_patch = {
             let mut event_log = self.events.write().await;
-            event_log.patch_checked(&diff.before, &diff.patch).await?
+            event_log
+                .patch_checked(&diff.checkpoint, &diff.patch)
+                .await?
         };
 
-        if let CheckedPatch::Success(_, _) = &checked_patch {
-            for event in diff.patch.iter() {
+        if let CheckedPatch::Success(_) = &checked_patch {
+            for record in diff.patch.iter() {
+                let event = record.decode_event::<WriteEvent>().await?;
                 tracing::debug!(event_kind = %event.event_kind());
-                match event {
+                match &event {
                     WriteEvent::Noop => {
                         tracing::error!("merge got noop event");
                     }

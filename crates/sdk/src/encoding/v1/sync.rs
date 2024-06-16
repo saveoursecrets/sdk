@@ -1,8 +1,9 @@
 use crate::{
-    commit::{CommitState, Comparison},
+    commit::{CommitProof, CommitState, Comparison},
     decode, encode,
     encoding::{decode_uuid, encoding_error},
-    prelude::{FileIdentity, PATCH_IDENTITY},
+    events::EventRecord,
+    sync::CheckedPatch,
 };
 use async_trait::async_trait;
 use binary_stream::futures::{
@@ -28,10 +29,9 @@ where
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        writer.write_bytes(PATCH_IDENTITY).await?;
         writer.write_u32(self.len() as u32).await?;
         for event in self.iter() {
-            event.encode(writer).await?;
+            event.encode(&mut *writer).await?;
         }
         Ok(())
     }
@@ -46,12 +46,9 @@ where
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        FileIdentity::read_identity(reader, &PATCH_IDENTITY)
-            .await
-            .map_err(encoding_error)?;
         let num_events = reader.read_u32().await?;
         for _ in 0..num_events {
-            let mut event: T = Default::default();
+            let mut event = EventRecord::default();
             event.decode(reader).await?;
             self.append(event);
         }
@@ -120,10 +117,14 @@ impl Encodable for UpdateSet {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        writer.write_bool(self.identity.is_some()).await?;
-        if let Some(identity) = &self.identity {
-            identity.encode(&mut *writer).await?;
-        }
+        self.identity.encode(&mut *writer).await?;
+        self.account.encode(&mut *writer).await?;
+
+        #[cfg(feature = "device")]
+        self.device.encode(&mut *writer).await?;
+
+        #[cfg(feature = "files")]
+        self.files.encode(&mut *writer).await?;
 
         // Folder patches
         writer.write_u16(self.folders.len() as u16).await?;
@@ -145,19 +146,22 @@ impl Decodable for UpdateSet {
         &mut self,
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
-        let has_identity = reader.read_bool().await?;
-        if has_identity {
-            let mut identity: FolderPatch = Default::default();
-            identity.decode(&mut *reader).await?;
-            self.identity = Some(identity);
-        }
+        self.identity.decode(&mut *reader).await?;
+        self.account.decode(&mut *reader).await?;
+
+        #[cfg(feature = "device")]
+        self.device.decode(&mut *reader).await?;
+
+        #[cfg(feature = "files")]
+        self.files.decode(&mut *reader).await?;
+
         // Folder patches
         let num_folders = reader.read_u16().await?;
         for _ in 0..(num_folders as usize) {
             let id = decode_uuid(&mut *reader).await?;
             let length = reader.read_u32().await?;
             let buffer = reader.read_bytes(length as usize).await?;
-            let folder: FolderPatch =
+            let folder: FolderDiff =
                 decode(&buffer).await.map_err(encoding_error)?;
             self.folders.insert(id, folder);
         }
@@ -191,12 +195,6 @@ impl Decodable for SyncPacket {
         Ok(())
     }
 }
-
-/*
-/// Identity vault comparison.
-/// Comparisons for the account folders.
-pub folders: IndexMap<VaultId, Comparison>,
-*/
 
 #[async_trait]
 impl Encodable for SyncCompare {
@@ -340,6 +338,59 @@ impl Decodable for SyncDiff {
 }
 
 #[async_trait]
+impl Encodable for CheckedPatch {
+    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        &self,
+        writer: &mut BinaryWriter<W>,
+    ) -> Result<()> {
+        match self {
+            CheckedPatch::Noop => panic!("attempt to encode a noop"),
+            CheckedPatch::Success(proof) => {
+                writer.write_u8(1).await?;
+                proof.encode(&mut *writer).await?;
+            }
+            CheckedPatch::Conflict { head, contains } => {
+                writer.write_u8(2).await?;
+                head.encode(&mut *writer).await?;
+                contains.encode(&mut *writer).await?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Decodable for CheckedPatch {
+    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        &mut self,
+        reader: &mut BinaryReader<R>,
+    ) -> Result<()> {
+        let kind = reader.read_u8().await?;
+        match kind {
+            1 => {
+                let mut proof = CommitProof::default();
+                proof.decode(&mut *reader).await?;
+                *self = CheckedPatch::Success(proof);
+            }
+            2 => {
+                let mut head = CommitProof::default();
+                head.decode(&mut *reader).await?;
+                let mut contains: Option<CommitProof> = None;
+                contains.decode(&mut *reader).await?;
+                *self = CheckedPatch::Conflict { head, contains };
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("unknown checked patch variant kind {}", kind),
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
 impl<T> Encodable for MaybeDiff<T>
 where
     T: Default + Encodable + Decodable + Send + Sync,
@@ -405,8 +456,7 @@ where
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
         self.last_commit.encode(&mut *writer).await?;
-        self.before.encode(&mut *writer).await?;
-        self.after.encode(&mut *writer).await?;
+        self.checkpoint.encode(&mut *writer).await?;
         self.patch.encode(&mut *writer).await?;
         Ok(())
     }
@@ -422,8 +472,7 @@ where
         reader: &mut BinaryReader<R>,
     ) -> Result<()> {
         self.last_commit.decode(&mut *reader).await?;
-        self.before.decode(&mut *reader).await?;
-        self.after.decode(&mut *reader).await?;
+        self.checkpoint.decode(&mut *reader).await?;
         self.patch.decode(&mut *reader).await?;
         Ok(())
     }
@@ -433,7 +482,7 @@ where
 mod test {
     use crate::{
         decode, encode,
-        events::AccountEvent,
+        events::{AccountEvent, IntoRecord},
         sync::{AccountPatch, ChangeSet, FolderPatch},
         vault::Vault,
     };
@@ -458,18 +507,19 @@ mod test {
     async fn encode_decode_change_set() -> Result<()> {
         let vault: Vault = Default::default();
         let event = vault.into_event().await?;
-        let identity: FolderPatch = vec![event].into();
+        let identity =
+            FolderPatch::new(vec![(&event).default_record().await?]);
 
         let folder_vault: Vault = Default::default();
         let folder_id = *folder_vault.id();
 
-        let account: AccountPatch =
-            vec![AccountEvent::CreateFolder(*folder_vault.id(), vec![])]
-                .into();
+        let event = AccountEvent::CreateFolder(*folder_vault.id(), vec![]);
+        let account =
+            AccountPatch::new(vec![(&event).default_record().await?]);
 
         let mut folders = HashMap::new();
         let event = folder_vault.into_event().await?;
-        let folder: FolderPatch = vec![event].into();
+        let folder = FolderPatch::new(vec![(&event).default_record().await?]);
         folders.insert(folder_id, folder);
 
         #[cfg(feature = "device")]
@@ -477,20 +527,22 @@ mod test {
             let device_signer = DeviceSigner::new_random();
             let mock_device =
                 TrustedDevice::new(device_signer.public_key(), None, None);
-            let device: DevicePatch =
-                vec![DeviceEvent::Trust(mock_device)].into();
+            let event = DeviceEvent::Trust(mock_device);
+            let device =
+                DevicePatch::new(vec![(&event).default_record().await?]);
             device
         };
 
         #[cfg(feature = "files")]
         let files = {
             let checksum: [u8; 32] = [0; 32];
-            let files: FilePatch = vec![FileEvent::CreateFile(
+            let event = FileEvent::CreateFile(
                 VaultId::new_v4(),
                 SecretId::new_v4(),
                 checksum.into(),
-            )]
-            .into();
+            );
+            let files =
+                FilePatch::new(vec![(&event).default_record().await?]);
             files
         };
 

@@ -533,13 +533,21 @@ where
     #[cfg(feature = "sync")]
     pub(crate) async fn merge(
         &mut self,
-        diff: &FolderDiff,
+        diff: FolderDiff,
     ) -> Result<CheckedPatch> {
         let id = *self.folder.id();
         let index = &mut self.index;
         self.folder
             .merge(diff, FolderMergeOptions::Urn(id, index))
             .await
+    }
+
+    #[cfg(feature = "sync")]
+    pub(crate) async fn force_merge(
+        &mut self,
+        diff: FolderDiff,
+    ) -> Result<()> {
+        self.folder.force_merge(diff).await
     }
 }
 

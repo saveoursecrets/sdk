@@ -44,11 +44,10 @@ async fn event_log_compact() -> Result<()> {
 
     let folder_events = account.paths().event_log_path(default_folder.id());
     let event_log = FolderEventLog::new(&folder_events).await?;
-    let patch = event_log.diff(None).await?;
-    let events: Vec<WriteEvent> = patch.into();
+    let patch = event_log.diff_events(None).await?;
     // One create vault event, three create secret events
     // and two delete events
-    assert_eq!(6, events.len());
+    assert_eq!(6, patch.len());
 
     let old_root = account.root_commit(&default_folder).await?;
 
@@ -73,9 +72,8 @@ async fn event_log_compact() -> Result<()> {
     assert_ne!(&old_root, &new_root);
 
     // Load a new patch from disc
-    let patch = event_log.diff(None).await?;
-    let events: Vec<WriteEvent> = patch.into();
-    assert_eq!(2, events.len());
+    let patch = event_log.diff_events(None).await?;
+    assert_eq!(2, patch.len());
 
     // Check the account event log registered the compact event
     let account_events = account.paths().account_events();

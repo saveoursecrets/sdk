@@ -3,16 +3,31 @@ use async_trait::async_trait;
 use futures::{Future, StreamExt};
 use http::StatusCode;
 use reqwest::header::AUTHORIZATION;
+use serde_json::Value;
 use sos_sdk::{
     constants::MIME_TYPE_SOS,
     decode, encode,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{ChangeSet, Origin, SyncPacket, SyncStatus, UpdateSet},
+    sync::{
+        ChangeSet, CheckedPatch, Origin, SyncPacket, SyncStatus, UpdateSet,
+    },
 };
 use tracing::instrument;
 
-use serde_json::Value;
+use crate::{
+    client::{CancelReason, Error, Result, SyncClient},
+    commits::{
+        CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
+        CommitScanResponse, EventPatchRequest,
+    },
+};
+use std::{fmt, path::Path, time::Duration};
+use url::Url;
+
+use super::{
+    bearer_prefix, encode_account_signature, encode_device_signature,
+};
 
 #[cfg(feature = "listen")]
 use crate::ChangeNotification;
@@ -20,25 +35,14 @@ use crate::ChangeNotification;
 #[cfg(feature = "listen")]
 use super::websocket::WebSocketChangeListener;
 
-#[cfg(feature = "device")]
-use crate::sdk::sync::DeviceDiff;
-
 #[cfg(feature = "files")]
 use crate::sdk::storage::files::{ExternalFile, FileSet, FileTransfersSet};
 
 #[cfg(feature = "files")]
 use crate::client::ProgressChannel;
 
-use crate::client::{CancelReason, Error, Result, SyncClient};
-use std::{fmt, path::Path, time::Duration};
-use url::Url;
-
 #[cfg(feature = "listen")]
 use crate::client::{ListenOptions, WebSocketHandle};
-
-use super::{
-    bearer_prefix, encode_account_signature, encode_device_signature,
-};
 
 /// Client that can synchronize with a server over HTTP(S).
 #[derive(Clone)]
@@ -200,7 +204,7 @@ impl SyncClient for HttpClient {
         &self.origin
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     async fn account_exists(&self) -> Result<bool> {
         let url = self.build_url("api/v1/sync/account")?;
 
@@ -230,7 +234,7 @@ impl SyncClient for HttpClient {
         Ok(exists)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     async fn delete_account(&self) -> Result<()> {
         let url = self.build_url("api/v1/sync/account")?;
 
@@ -254,7 +258,7 @@ impl SyncClient for HttpClient {
         Ok(())
     }
 
-    #[instrument(skip(self, account))]
+    #[instrument(skip_all)]
     async fn create_account(&self, account: &ChangeSet) -> Result<()> {
         let body = encode(account).await?;
         let url = self.build_url("api/v1/sync/account")?;
@@ -278,7 +282,7 @@ impl SyncClient for HttpClient {
         Ok(())
     }
 
-    #[instrument(skip(self, account))]
+    #[instrument(skip_all)]
     async fn update_account(&self, account: &UpdateSet) -> Result<()> {
         let body = encode(account).await?;
         let url = self.build_url("api/v1/sync/account")?;
@@ -305,7 +309,7 @@ impl SyncClient for HttpClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     async fn fetch_account(&self) -> Result<ChangeSet> {
         let url = self.build_url("api/v1/sync/account")?;
 
@@ -334,7 +338,7 @@ impl SyncClient for HttpClient {
         Ok(decode(&buffer).await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     async fn sync_status(&self) -> Result<SyncStatus> {
         let url = self.build_url("api/v1/sync/account/status")?;
 
@@ -364,7 +368,7 @@ impl SyncClient for HttpClient {
         Ok(sync_status)
     }
 
-    #[instrument(skip(self, packet))]
+    #[instrument(skip_all)]
     async fn sync(&self, packet: &SyncPacket) -> Result<SyncPacket> {
         let body = encode(packet).await?;
         let url = self.build_url("api/v1/sync/account")?;
@@ -392,18 +396,81 @@ impl SyncClient for HttpClient {
         Ok(decode(&buffer).await?)
     }
 
-    #[cfg(feature = "device")]
-    #[instrument(skip(self, diff))]
-    async fn patch_devices(&self, diff: &DeviceDiff) -> Result<()> {
-        let body = encode(diff).await?;
-        let url = self.build_url("api/v1/sync/account/devices")?;
+    #[instrument(skip_all)]
+    async fn scan(
+        &self,
+        request: &CommitScanRequest,
+    ) -> Result<CommitScanResponse> {
+        let body = encode(request).await?;
+        let url = self.build_url("api/v1/sync/account/events")?;
 
-        tracing::debug!(url = %url, "http::patch_devices");
+        tracing::debug!(url = %url, "http::scan");
 
         let account_signature =
             encode_account_signature(self.account_signer.sign(&body).await?)
                 .await?;
+        let device_signature =
+            encode_device_signature(self.device_signer.sign(&body).await?)
+                .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let response = self
+            .client
+            .get(url)
+            .header(AUTHORIZATION, auth)
+            .body(body)
+            .send()
+            .await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::scan");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(decode(&buffer).await?)
+    }
 
+    #[instrument(skip_all)]
+    async fn diff(
+        &self,
+        request: &CommitDiffRequest,
+    ) -> Result<CommitDiffResponse> {
+        let body = encode(request).await?;
+        let url = self.build_url("api/v1/sync/account/events")?;
+
+        tracing::debug!(url = %url, "http::diff");
+
+        let account_signature =
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
+        let device_signature =
+            encode_device_signature(self.device_signer.sign(&body).await?)
+                .await?;
+        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let response = self
+            .client
+            .post(url)
+            .header(AUTHORIZATION, auth)
+            .body(body)
+            .send()
+            .await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::diff");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(decode(&buffer).await?)
+    }
+
+    #[instrument(skip_all)]
+    async fn patch(
+        &self,
+        request: &EventPatchRequest,
+    ) -> Result<CheckedPatch> {
+        let body = encode(request).await?;
+        let url = self.build_url("api/v1/sync/account/events")?;
+
+        tracing::debug!(url = %url, "http::patch");
+
+        let account_signature =
+            encode_account_signature(self.account_signer.sign(&body).await?)
+                .await?;
         let device_signature =
             encode_device_signature(self.device_signer.sign(&body).await?)
                 .await?;
@@ -416,9 +483,10 @@ impl SyncClient for HttpClient {
             .send()
             .await?;
         let status = response.status();
-        tracing::debug!(status = %status, "http::patch_devices");
-        self.error_json(response).await?;
-        Ok(())
+        tracing::debug!(status = %status, "http::patch");
+        let response = self.check_response(response).await?;
+        let buffer = response.bytes().await?;
+        Ok(decode(&buffer).await?)
     }
 
     #[cfg(feature = "files")]
@@ -683,7 +751,7 @@ impl SyncClient for HttpClient {
         Ok(status)
     }
 
-    #[instrument(skip(self, local_files))]
+    #[instrument(skip_all)]
     async fn compare_files(
         &self,
         local_files: &FileSet,

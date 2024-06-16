@@ -285,6 +285,10 @@ pub enum Error {
     #[error("commit '{0}' could not be found")]
     CommitNotFound(CommitHash),
 
+    /// Error generated trying to rewind an event log.
+    #[error("rewind failed as pruned commits is greater than the length of the in-memory tree")]
+    RewindLeavesLength,
+
     /// Error generated when an RPC method kind is invalid.
     #[error("method kind {0} is invalid")]
     InvalidMethod(u16),
@@ -488,6 +492,21 @@ pub enum Error {
     /// Account is already locked.
     #[error("account locked")]
     AccountLocked,
+
+    /// Error generated when replacing events in an event log
+    /// does not compute the same root hash as the expected
+    /// checkpoint.
+    #[error("checkpoint verification failed, expected root hash '{checkpoint}' but computed '{computed}', snapshot rollback completed: '{rollback_completed}' (snapshot: '{snapshot:?}')")]
+    CheckpointVerification {
+        /// Checkpoint root hash.
+        checkpoint: CommitHash,
+        /// Computed root hash.
+        computed: CommitHash,
+        /// Snapshot path.
+        snapshot: Option<PathBuf>,
+        /// Whether a rollback completed.
+        rollback_completed: bool,
+    },
 
     /// Generic boxed error.
     #[error(transparent)]

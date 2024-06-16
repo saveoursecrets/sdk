@@ -19,7 +19,7 @@ use axum::{
     },
     middleware,
     response::{IntoResponse, Json},
-    routing::{get, head, patch, post, put},
+    routing::{get, post, put},
     Router,
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
@@ -32,7 +32,11 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::{Mutex, RwLock, RwLockReadGuard};
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tower_http::{
+    cors::CorsLayer,
+    trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer},
+};
+use tracing::Level;
 
 #[cfg(feature = "listen")]
 use super::handlers::websocket::upgrade;
@@ -231,6 +235,12 @@ impl Server {
                         .delete(account::delete_account),
                 )
                 .route("/sync/account/status", get(account::sync_status))
+                .route(
+                    "/sync/account/events",
+                    get(account::event_proofs)
+                        .post(account::event_diff)
+                        .patch(account::event_patch),
+                )
                 .route("/sync/files", post(files::compare_files))
                 .route(
                     "/sync/file/:vault_id/:secret_id/:file_name",
@@ -242,14 +252,6 @@ impl Server {
                             file_operation_lock,
                         )),
                 );
-
-            #[cfg(feature = "device")]
-            {
-                router = router.route(
-                    "/sync/account/devices",
-                    patch(account::patch_devices),
-                );
-            }
 
             #[cfg(feature = "listen")]
             {
@@ -272,7 +274,11 @@ impl Server {
         let file_operations: ServerTransfer =
             Arc::new(RwLock::new(HashSet::new()));
 
-        let mut v1 = v1.layer(cors).layer(TraceLayer::new_for_http());
+        let mut v1 = v1.layer(cors).layer(
+            TraceLayer::new_for_http()
+                .on_request(DefaultOnRequest::new().level(Level::TRACE))
+                .on_response(DefaultOnResponse::new().level(Level::TRACE)),
+        );
 
         #[cfg(feature = "pairing")]
         {

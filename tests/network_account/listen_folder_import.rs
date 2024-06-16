@@ -63,7 +63,7 @@ async fn network_sync_listen_folder_import() -> Result<()> {
 
     // Pause a while to give the listener some time to process
     // the change notification
-    sync_pause(None).await;
+    sync_pause(Some(1500)).await;
 
     // Ensure we can open and write to the synced folder
     device2.owner.open_folder(&new_folder).await?;

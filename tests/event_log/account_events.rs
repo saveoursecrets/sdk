@@ -27,9 +27,8 @@ async fn event_log_account() -> Result<()> {
 
     let account_events = account.paths().account_events();
     let mut event_log = AccountEventLog::new_account(&account_events).await?;
-    let patch = event_log.diff(None).await?;
-    let events: Vec<AccountEvent> = patch.into();
-    assert_eq!(1, events.len());
+    let patch = event_log.diff_events(None).await?;
+    assert_eq!(1, patch.len());
 
     // Create a folder
     let commit = event_log.tree().last_commit();

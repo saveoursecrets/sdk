@@ -568,7 +568,7 @@ impl PartialEq for SecretSigner {
 }
 
 /// Secret with it's associated meta data and identifier.
-#[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct SecretRow {
     /// Identifier for the secret.
     pub(crate) id: SecretId,

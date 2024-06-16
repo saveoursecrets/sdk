@@ -1,10 +1,9 @@
 //! Event log file.
 //!
-//! Event logs consist of a 4 identity bytes followed by one or more
-//! rows of log records.
-//!
-//! Each row contains the row length prepended and appended so that
-//! rows can be efficiently iterated in both directions.
+//! Event logs consist of 4 identity bytes followed by one or more
+//! rows of log records; each row contains the row length prepended
+//! and appended so that rows can be efficiently iterated in
+//! both directions.
 //!
 //! Row components with byte sizes:
 //!
@@ -12,23 +11,22 @@
 //! | 4 row length | 12 timestamp | 32 last commit hash | 32 commit hash | 4 data length | data | 4 row length |
 //! ```
 //!
-//! The first row will contain a last commit hash that is all zero.
+//! The first row must always contain a last commit hash that is all zero.
 //!
 use crate::{
     commit::{CommitHash, CommitProof, CommitTree, Comparison},
     encode,
     encoding::{encoding_options, VERSION1},
-    events::WriteEvent,
+    events::{AccountEvent, IntoRecord, WriteEvent},
     formats::{
         stream::{MemoryBuffer, MemoryInner},
         EventLogRecord, FileIdentity, FileItem, FormatStream,
         FormatStreamIterator,
     },
     vfs::{self, File, OpenOptions},
-    Error, Result, UtcDateTime,
+    Error, Result,
 };
 
-use crate::events::AccountEvent;
 use async_stream::try_stream;
 use futures::stream::BoxStream;
 
@@ -44,7 +42,7 @@ use crate::events::DeviceEvent;
 use crate::events::FileEvent;
 
 #[cfg(feature = "sync")]
-use crate::sync::{CheckedPatch, Patch};
+use crate::sync::{CheckedPatch, Diff, Patch};
 
 use async_trait::async_trait;
 use std::{
@@ -133,7 +131,7 @@ where
     W: AsyncWrite + Unpin + Send + Sync + 'static,
     D: Clone,
 {
-    /// Commit tree contains the merkle tree.
+    /// Commit tree contains the in-memory merkle tree.
     fn tree(&self) -> &CommitTree;
 
     /// Mutable commit tree.
@@ -155,6 +153,9 @@ where
     /// Associated data.
     #[doc(hidden)]
     fn data(&self) -> D;
+
+    #[doc(hidden)]
+    fn data_any(&self) -> &dyn std::any::Any;
 
     /// Length of the file magic bytes and optional
     /// encoding version.
@@ -204,7 +205,7 @@ where
         Box::pin(try_stream! {
             while let Some(record) = it.next().await? {
                 let event_buffer = read_event_buffer(
-                    Arc::clone(&handle), &record).await?;
+                    handle.clone(), &record).await?;
 
                 let event_record: EventRecord = (record, event_buffer).into();
 
@@ -214,17 +215,61 @@ where
         })
     }
 
-    /// Diff of events until a specific commit.
+    /// Create a checked diff from a commit.
+    ///
+    /// Used when merging to verify that the HEAD of the
+    /// event log matches the checkpoint before applying
+    /// the patch.
     #[cfg(feature = "sync")]
-    async fn diff(&self, commit: Option<&CommitHash>) -> Result<Patch<E>> {
+    async fn diff_checked(
+        &self,
+        commit: Option<CommitHash>,
+        checkpoint: CommitProof,
+    ) -> Result<Diff<E>> {
+        let patch = self.diff_events(commit.as_ref()).await?;
+        Ok(Diff::<E> {
+            last_commit: commit,
+            patch,
+            checkpoint,
+        })
+    }
+
+    /// Create an unchecked diff of all events.
+    ///
+    /// Used during a force merge to overwrite an event log
+    /// with new events.
+    ///
+    /// For example, when destructive changes are made (change
+    /// cipher or password) then other devices need to rewrite
+    /// the event logs.
+    #[cfg(feature = "sync")]
+    async fn diff_unchecked(&self) -> Result<Diff<E>> {
+        let patch = self.diff_events(None).await?;
+        Ok(Diff::<E> {
+            last_commit: None,
+            patch,
+            checkpoint: self.tree().head()?,
+        })
+    }
+
+    /// Diff of events until a specific commit; does
+    /// not include the target commit.
+    ///
+    /// If no commit hash is given then all events are included.
+    #[cfg(feature = "sync")]
+    async fn diff_events(
+        &self,
+        commit: Option<&CommitHash>,
+    ) -> Result<Patch<E>> {
         let records = self.diff_records(commit).await?;
-        Ok(Patch::new(records).await?)
+        Ok(Patch::new(records))
     }
 
     /// Diff of event records until a specific commit.
     ///
-    /// Searches backwards until it finds the specified commit if given; if
-    /// no commit is given the diff will include all event records.
+    /// Searches backwards until it finds the specified commit
+    /// if given; if no commit is given the diff will include
+    /// all event records.
     ///
     /// Does not include the target commit.
     #[doc(hidden)]
@@ -259,6 +304,16 @@ where
 
         Ok(events)
     }
+
+    /// Rewind this event log discarding commits after
+    /// the specific commit.
+    ///
+    /// Returns the collection of log records that can
+    /// be used to revert if a subsequent merge fails.
+    async fn rewind(
+        &mut self,
+        commit: &CommitHash,
+    ) -> Result<Vec<EventRecord>>;
 
     /// Delete all events from the log file on disc
     /// and in-memory.
@@ -303,9 +358,9 @@ where
         let comparison = self.tree().compare(commit_proof)?;
         match comparison {
             Comparison::Equal => {
-                let commits = self.patch_unchecked(patch).await?;
+                self.patch_unchecked(patch).await?;
                 let proof = self.tree().head()?;
-                Ok(CheckedPatch::Success(proof, commits))
+                Ok(CheckedPatch::Success(proof))
             }
             Comparison::Contains(indices, _leaves) => {
                 let head = self.tree().head()?;
@@ -325,28 +380,152 @@ where
         }
     }
 
+    /// Replace all events in this event log with the events in the diff.
+    ///
+    /// For disc based implementations a snapshot is created
+    /// of the event log file beforehand by copying the event
+    /// log to a new file with a `snapshot-{root_hash}` file extension.
+    ///
+    /// The events on disc and the in-memory merkle tree are then
+    /// removed before applying the patch in the diff.
+    ///
+    /// After applying the events if the HEAD of the event log
+    /// does not match the `checkpoint` in the diff verification
+    /// fails and an attempt is made to rollback to the snapshot.
+    ///
+    /// When verification fails an [Error::CheckpointVerification]
+    /// error will always be returned.
+    #[cfg(feature = "sync")]
+    async fn patch_replace(&mut self, diff: Diff<E>) -> Result<()> {
+        // Create a snapshot for disc-based implementations
+        let snapshot = self.try_create_snapshot().await?;
+
+        // Erase the file content and in-memory merkle tree
+        self.clear().await?;
+
+        // Apply the new events
+        self.patch_unchecked(&diff.patch).await?;
+
+        // Verify against the checkpoint
+        let computed = self.tree().head()?;
+        let verified = computed == diff.checkpoint;
+
+        let mut rollback_completed = false;
+        match (verified, &snapshot) {
+            // Try to rollback if verification failed
+            (false, Some(snapshot_path)) => {
+                rollback_completed =
+                    self.try_rollback_snapshot(snapshot_path).await.is_ok();
+            }
+            // Delete the snapshot if verified
+            (true, Some(snapshot_path)) => {
+                vfs::remove_file(snapshot_path).await?;
+            }
+            _ => {}
+        }
+
+        if verified {
+            Ok(())
+        } else {
+            Err(Error::CheckpointVerification {
+                checkpoint: diff.checkpoint.root,
+                computed: computed.root,
+                snapshot,
+                rollback_completed,
+            })
+        }
+    }
+
+    #[doc(hidden)]
+    async fn try_create_snapshot(&self) -> Result<Option<PathBuf>> {
+        if let Some(source_path) = self.data_any().downcast_ref::<PathBuf>() {
+            let file = self.file();
+            let _guard = file.lock().await;
+
+            if let Some(root) = self.tree().root() {
+                let mut snapshot_path = source_path.clone();
+                snapshot_path.set_extension(&format!("snapshot-{}", root));
+
+                let metadata = vfs::metadata(&source_path).await?;
+                tracing::debug!(
+                    num_events = %self.tree().len(),
+                    file_size = %metadata.len(),
+                    source = %source_path.display(),
+                    snapshot = %snapshot_path.display(),
+                    "event_log::snapshot::create"
+                );
+
+                vfs::copy(&source_path, &snapshot_path).await?;
+                Ok(Some(snapshot_path))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    #[doc(hidden)]
+    async fn try_rollback_snapshot(
+        &mut self,
+        snapshot_path: &PathBuf,
+    ) -> Result<()> {
+        if let Some(source_path) = self.data_any().downcast_ref::<PathBuf>() {
+            let file = self.file();
+            let _guard = file.lock().await;
+
+            let metadata = vfs::metadata(snapshot_path).await?;
+            tracing::debug!(
+                file_size = %metadata.len(),
+                source = %source_path.display(),
+                snapshot = %snapshot_path.display(),
+                "event_log::snapshot::rollback"
+            );
+
+            vfs::remove_file(&source_path).await?;
+            vfs::rename(snapshot_path, &source_path).await?;
+            self.load_tree().await?;
+
+            Ok(())
+        } else {
+            Ok(())
+        }
+    }
+
     /// Append a patch to this event log.
     #[cfg(feature = "sync")]
-    async fn patch_unchecked(
-        &mut self,
-        patch: &Patch<E>,
-    ) -> Result<Vec<CommitHash>> {
-        self.apply(patch.into()).await
+    async fn patch_unchecked(&mut self, patch: &Patch<E>) -> Result<()> {
+        self.apply_records(patch.records().to_vec()).await
     }
 
     /// Append a collection of events and commit the tree hashes
     /// only if all the events were successfully written.
-    async fn apply(&mut self, events: Vec<&E>) -> Result<Vec<CommitHash>> {
+    async fn apply(&mut self, events: Vec<&E>) -> Result<()> {
+        let mut records = Vec::with_capacity(events.len());
+        for event in events {
+            records.push(event.default_record().await?);
+        }
+        self.apply_records(records).await
+    }
+
+    /// Append raw event records to the event log.
+    ///
+    /// Use this to preserve the time information in
+    /// existing event records.
+    async fn apply_records(
+        &mut self,
+        records: Vec<EventRecord>,
+    ) -> Result<()> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
         let mut last_commit_hash = self.tree().last_commit();
-        for event in events {
-            let (commit, record) =
-                self.encode_event(event, last_commit_hash).await?;
-            commits.push(commit);
+
+        for mut record in records {
+            record.set_last_commit(last_commit_hash);
             let mut buf = encode(&record).await?;
-            last_commit_hash = Some(*record.commit());
             buffer.append(&mut buf);
+            last_commit_hash = Some(*record.commit());
+            commits.push(*record.commit());
         }
 
         let rw = self.file();
@@ -359,30 +538,10 @@ where
                 let tree = self.tree_mut();
                 tree.append(&mut hashes);
                 tree.commit();
-                Ok(commits)
+                Ok(())
             }
             Err(e) => Err(e.into()),
         }
-    }
-
-    /// Encode an event into a record.
-    #[doc(hidden)]
-    async fn encode_event(
-        &self,
-        event: &E,
-        last_commit: Option<CommitHash>,
-    ) -> Result<(CommitHash, EventRecord)> {
-        let time: UtcDateTime = Default::default();
-        let bytes = encode(event).await?;
-        let commit = CommitHash(CommitTree::hash(&bytes));
-
-        let last_commit = if let Some(last_commit) = last_commit {
-            last_commit
-        } else {
-            self.tree().last_commit().unwrap_or_default()
-        };
-
-        Ok((commit, EventRecord(time, last_commit, commit, bytes)))
     }
 
     /// Read the event data from an item.
@@ -471,6 +630,10 @@ where
         self.data.clone()
     }
 
+    fn data_any(&self) -> &dyn std::any::Any {
+        &self.data
+    }
+
     async fn truncate(&mut self) -> Result<()> {
         let _ = self.file.lock().await;
 
@@ -490,6 +653,70 @@ where
         }
         file.flush().await?;
         Ok(())
+    }
+
+    async fn rewind(
+        &mut self,
+        commit: &CommitHash,
+    ) -> Result<Vec<EventRecord>> {
+        let mut length = vfs::metadata(&self.data).await?.len();
+        // Iterate backwards and track how many commits are pruned
+        let mut it = self.iter(true).await?;
+
+        tracing::trace!(length = %length, "event_log::rewind");
+
+        let handle = self.file();
+        let mut records = Vec::new();
+
+        while let Some(record) = it.next().await? {
+            // Found the target commit
+            if &record.commit() == commit.as_ref() {
+                // Acquire file lock as we will truncate
+                let file = self.file();
+                let _guard = file.lock().await;
+
+                // Rewrite the in-memory tree
+                let mut leaves = self.tree().leaves().unwrap_or_default();
+                if leaves.len() > records.len() {
+                    let new_len = leaves.len() - records.len();
+                    leaves.truncate(new_len);
+                    let mut tree = CommitTree::new();
+                    tree.append(&mut leaves);
+                    tree.commit();
+                    *self.tree_mut() = tree;
+                } else {
+                    return Err(Error::RewindLeavesLength);
+                }
+
+                // Truncate the file to the new length
+                let file =
+                    OpenOptions::new().write(true).open(&self.data).await?;
+                file.set_len(length).await?;
+
+                return Ok(records);
+            }
+
+            // Compute new length and number of pruned commits
+            let byte_length = record.byte_length();
+
+            if byte_length < length {
+                length -= byte_length;
+            }
+
+            let event_buffer =
+                read_event_buffer(handle.clone(), &record).await?;
+            let event_record: EventRecord = (record, event_buffer).into();
+            records.push(event_record);
+
+            tracing::trace!(
+                length = %length,
+                byte_length = %byte_length,
+                num_pruned = %records.len(),
+                "event_log::rewind",
+            );
+        }
+
+        Err(Error::CommitNotFound(*commit))
     }
 }
 
@@ -603,8 +830,19 @@ impl EventLogExt<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
         self.data.clone()
     }
 
+    fn data_any(&self) -> &dyn std::any::Any {
+        &self.data
+    }
+
     async fn truncate(&mut self) -> Result<()> {
         unimplemented!("truncate on memory event log");
+    }
+
+    async fn rewind(
+        &mut self,
+        _commit: &CommitHash,
+    ) -> Result<Vec<EventRecord>> {
+        unimplemented!("rewind on memory event log");
     }
 }
 

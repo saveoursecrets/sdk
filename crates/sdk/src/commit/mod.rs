@@ -2,8 +2,13 @@
 mod proof;
 mod tree;
 
+use rs_merkle::{algorithms::Sha256, Hasher};
+
+/// Type for an Sha256 commit tree hash.
+pub type TreeHash = <Sha256 as Hasher>::Hash;
+
 /// Commit hash of zeroes.
-pub const ZERO: [u8; 32] = [0u8; 32];
+pub const ZERO: TreeHash = [0u8; 32];
 
 pub use proof::{CommitHash, CommitProof, Comparison};
 pub use tree::CommitTree;

@@ -73,9 +73,9 @@ impl Encodable for CommitProof {
         writer.write_u32(proof_bytes.len() as u32).await?;
         writer.write_bytes(&proof_bytes).await?;
 
-        writer.write_u32(self.length as u32).await?;
-        writer.write_u32(self.indices.start as u32).await?;
-        writer.write_u32(self.indices.end as u32).await?;
+        self.length.encode(&mut *writer).await?;
+        self.indices.encode(&mut *writer).await?;
+
         Ok(())
     }
 }
@@ -93,19 +93,15 @@ impl Decodable for CommitProof {
             .try_into()
             .map_err(encoding_error)?;
         self.root = CommitHash(root_hash);
+
         let length = reader.read_u32().await?;
         let proof_bytes = reader.read_bytes(length as usize).await?;
         let proof = MerkleProof::<Sha256>::from_bytes(&proof_bytes)
             .map_err(encoding_error)?;
-
         self.proof = proof;
-        self.length = reader.read_u32().await? as usize;
-        let start = reader.read_u32().await?;
-        let end = reader.read_u32().await?;
 
-        // TODO: validate range start is <= range end
-
-        self.indices = start as usize..end as usize;
+        self.length.decode(&mut *reader).await?;
+        self.indices.decode(&mut *reader).await?;
         Ok(())
     }
 }

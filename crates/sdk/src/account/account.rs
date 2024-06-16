@@ -2021,7 +2021,7 @@ impl Account for LocalAccount {
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
         let vault = FolderReducer::new_until_commit(commit)
-            .reduce(&log_file)
+            .reduce(&*log_file)
             .await?
             .build(true)
             .await?;
@@ -2500,7 +2500,6 @@ impl Account for LocalAccount {
           "import_folder");
 
         // Check for existing identifier
-        //let vaults = Self::list_local_folders(&self.paths, false).await?;
         let existing_id = self.find(|s| s.id() == vault.summary().id()).await;
 
         let default_vault = self.default_folder().await;

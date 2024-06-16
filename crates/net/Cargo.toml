@@ -84,6 +84,7 @@ parking_lot.workspace = true
 indexmap.workspace = true
 async-stream = "0.3"
 colored = "2"
+binary-stream.workspace = true
 
 # server
 toml = { workspace = true, optional = true }
@@ -105,11 +106,6 @@ snow = { version = "0.9", optional = true }
 version = "0.12.0"
 features = ["sync"]
 path = "../sdk"
-
-[dependencies.binary-stream]
-version = "8.0.0"
-features = ["async"]
-#path = "../../../../binary-stream"
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }

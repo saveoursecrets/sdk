@@ -8,15 +8,13 @@ use crate::sdk::{
     sync::{ChangeSet, SyncStorage, UpdateSet},
     vfs, Paths,
 };
+use sos_sdk::sync::MergeOutcome;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
 use tokio::sync::RwLock;
-
-#[cfg(feature = "device")]
-use crate::sdk::sync::DeviceDiff;
 
 /// Account storage.
 pub struct AccountStorage {
@@ -174,16 +172,21 @@ impl Backend {
         &mut self,
         owner: &Address,
         account_data: UpdateSet,
-    ) -> Result<()> {
+    ) -> Result<MergeOutcome> {
         tracing::debug!(address = %owner, "backend::update_account");
+
+        let mut outcome = MergeOutcome::default();
 
         let mut accounts = self.accounts.write().await;
         let account =
             accounts.get_mut(owner).ok_or(Error::NoAccount(*owner))?;
 
         let mut account = account.write().await;
-        account.storage.update_account(account_data).await?;
-        Ok(())
+        account
+            .storage
+            .update_account(account_data, &mut outcome)
+            .await?;
+        Ok(outcome)
     }
 
     /// Fetch an existing account.
@@ -197,24 +200,6 @@ impl Backend {
         let change_set = reader.storage.change_set().await?;
 
         Ok(change_set)
-    }
-
-    /// Patch the devices event log.
-    #[cfg(feature = "device")]
-    pub async fn patch_devices(
-        &self,
-        owner: &Address,
-        diff: &DeviceDiff,
-    ) -> Result<()> {
-        tracing::debug!(address = %owner, "backend::patch_devices");
-
-        let accounts = self.accounts.read().await;
-        let account = accounts.get(owner).ok_or(Error::NoAccount(*owner))?;
-
-        let mut writer = account.write().await;
-        writer.storage.patch_devices(diff).await?;
-
-        Ok(())
     }
 
     /// Verify a device is allowed to access an account.

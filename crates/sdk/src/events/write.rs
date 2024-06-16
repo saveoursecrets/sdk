@@ -1,7 +1,4 @@
 //! Folder write operations.
-
-use serde::{Deserialize, Serialize};
-
 use crate::{
     crypto::AeadPack,
     vault::{secret::SecretId, VaultCommit},
@@ -10,7 +7,7 @@ use crate::{
 use super::{EventKind, LogEvent};
 
 /// Write operations.
-#[derive(Default, Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub enum WriteEvent {
     /// Default variant, should never be used.
     ///

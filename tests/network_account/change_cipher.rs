@@ -71,6 +71,7 @@ async fn network_sync_change_cipher() -> Result<()> {
     device1.owner.sign_out().await?;
     device1.owner.sign_in(&key).await?;
 
+    // Folder is out of sync
     let device1_commit = device1.owner.root_commit(&default_folder).await?;
     let device2_commit = device2.owner.root_commit(&default_folder).await?;
     assert_ne!(device1_commit, device2_commit);
@@ -80,23 +81,29 @@ async fn network_sync_change_cipher() -> Result<()> {
     // account data
     assert!(device2.owner.sync().await.is_none());
 
+    // Check we can sign in again
+    device2.owner.sign_in(&key).await?;
+
+    // Folder is back in sync
     let device1_commit = device1.owner.root_commit(&default_folder).await?;
     let device2_commit = device2.owner.root_commit(&default_folder).await?;
     assert_eq!(device1_commit, device2_commit);
 
-    // Check we can sign out and sign in again
-    device2.owner.sign_out().await?;
-    device2.owner.sign_in(&key).await?;
-
     // Create a secret on the synced device
     let (meta, secret) = mock::note(TEST_ID, TEST_ID);
-    let SecretChange { id, .. } = device2
+    let SecretChange { id, sync_error, .. } = device2
         .owner
         .create_secret(meta.clone(), secret.clone(), Default::default())
         .await?;
+    assert!(sync_error.is_none());
 
     // Sync on the original device and check it can read the secret
     assert!(device1.owner.sync().await.is_none());
+
+    let device1_commit = device1.owner.root_commit(&default_folder).await?;
+    let device2_commit = device2.owner.root_commit(&default_folder).await?;
+    assert_eq!(device1_commit, device2_commit);
+
     let (secret_data, _) = device1
         .owner
         .read_secret(&id, Some(default_folder.clone()))

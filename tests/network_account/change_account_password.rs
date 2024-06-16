@@ -54,13 +54,15 @@ async fn network_sync_change_account_password() -> Result<()> {
 
     // Try to sync on other device after force update
     // which should perform a force pull to update the
-    // account data
-    assert!(device2.owner.sync().await.is_none());
+    // account data.
+    //
+    // Account will be signed out due to the forced pull.
+    let sync_error = device2.owner.sync().await;
+    assert!(sync_error.is_none());
 
-    // Check we can sign out and sign in again
+    // Check we can sign in again
     // on the device that just synced using the
     // new access key
-    device2.owner.sign_out().await?;
     device2.owner.sign_in(&key).await?;
 
     // Create a secret on the synced device

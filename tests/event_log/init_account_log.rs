@@ -28,8 +28,8 @@ async fn event_log_init_account_log() -> Result<()> {
 
     let account_events = account.paths().account_events();
     let event_log = AccountEventLog::new_account(&account_events).await?;
-    let patch = event_log.diff(None).await?;
-    let events: Vec<AccountEvent> = patch.into();
+    let patch = event_log.diff_events(None).await?;
+    let events = patch.into_events().await?;
     assert_eq!(1, events.len());
 
     assert!(matches!(

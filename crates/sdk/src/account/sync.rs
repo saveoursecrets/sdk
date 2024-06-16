@@ -5,8 +5,8 @@ use crate::{
     events::{AccountEvent, EventLogExt, LogEvent},
     storage::StorageEventLogs,
     sync::{
-        AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions, Merge,
-        MergeOutcome, SyncStatus, SyncStorage,
+        AccountDiff, CheckedPatch, FolderDiff, FolderMergeOptions,
+        ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
     },
     vault::{Vault, VaultId},
     Error, Result,
@@ -21,23 +21,152 @@ use crate::{events::DeviceReducer, sync::DeviceDiff};
 use crate::sync::FileDiff;
 
 #[async_trait]
+impl ForceMerge for LocalAccount {
+    async fn force_merge_identity(
+        &mut self,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
+            "force_merge::identity",
+        );
+
+        self.user_mut()?.identity_mut()?.force_merge(diff).await?;
+        outcome.identity = len;
+        outcome.changes += len;
+        Ok(())
+    }
+
+    async fn force_merge_account(
+        &mut self,
+        diff: AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
+            "force_merge::account",
+        );
+
+        let event_log = self.account_log().await?;
+        let mut event_log = event_log.write().await;
+        event_log.patch_replace(diff).await?;
+
+        outcome.identity = len;
+        outcome.changes += len;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "device")]
+    async fn force_merge_device(
+        &mut self,
+        diff: DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
+            "force_merge::device",
+        );
+
+        let event_log = self.device_log().await?;
+        let mut event_log = event_log.write().await;
+        event_log.patch_replace(diff).await?;
+
+        outcome.identity = len;
+        outcome.changes += len;
+
+        Ok(())
+    }
+
+    /// Force merge changes to the files event log.
+    #[cfg(feature = "files")]
+    async fn force_merge_files(
+        &mut self,
+        diff: FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
+            "force_merge::files",
+        );
+
+        let event_log = self.file_log().await?;
+        let mut event_log = event_log.write().await;
+        event_log.patch_replace(diff).await?;
+
+        outcome.identity = len;
+        outcome.changes += len;
+
+        Ok(())
+    }
+
+    async fn force_merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            folder_id = %folder_id,
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
+            "force_merge::folder",
+        );
+
+        let storage = self.storage().await?;
+        let mut storage = storage.write().await;
+
+        let folder = storage
+            .cache_mut()
+            .get_mut(folder_id)
+            .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+        folder.force_merge(diff).await?;
+
+        outcome.folders.insert(*folder_id, len);
+        outcome.changes += len;
+
+        Ok(())
+    }
+}
+
+#[async_trait]
 impl Merge for LocalAccount {
     async fn merge_identity(
         &mut self,
-        diff: &FolderDiff,
+        diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
+    ) -> Result<CheckedPatch> {
+        let len = diff.patch.len();
         tracing::debug!(
-            before = ?diff.before,
-            num_events = diff.patch.len(),
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
             "identity",
         );
-        self.user_mut()?.identity_mut()?.merge(diff).await?;
 
-        outcome.identity = diff.patch.len();
-        outcome.changes += diff.patch.len();
+        let checked_patch =
+            self.user_mut()?.identity_mut()?.merge(diff).await?;
 
-        Ok(())
+        if let CheckedPatch::Success(_) = &checked_patch {
+            outcome.identity = len;
+            outcome.changes += len;
+        }
+
+        Ok(checked_patch)
     }
 
     async fn compare_identity(
@@ -51,11 +180,11 @@ impl Merge for LocalAccount {
 
     async fn merge_account(
         &mut self,
-        diff: &AccountDiff,
+        diff: AccountDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
+    ) -> Result<CheckedPatch> {
         tracing::debug!(
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
             "account",
         );
@@ -63,11 +192,14 @@ impl Merge for LocalAccount {
         let checked_patch = {
             let account_log = self.account_log().await?;
             let mut event_log = account_log.write().await;
-            event_log.patch_checked(&diff.before, &diff.patch).await?
+            event_log
+                .patch_checked(&diff.checkpoint, &diff.patch)
+                .await?
         };
 
-        if let CheckedPatch::Success(_, _) = &checked_patch {
-            for event in diff.patch.iter() {
+        if let CheckedPatch::Success(_) = &checked_patch {
+            for record in diff.patch.iter() {
+                let event = record.decode_event::<AccountEvent>().await?;
                 tracing::debug!(event_kind = %event.event_kind());
 
                 match &event {
@@ -130,12 +262,12 @@ impl Merge for LocalAccount {
                     }
                 }
             }
+
+            outcome.account = diff.patch.len();
+            outcome.changes += diff.patch.len();
         }
 
-        outcome.account = diff.patch.len();
-        outcome.changes += diff.patch.len();
-
-        Ok(())
+        Ok(checked_patch)
     }
 
     async fn compare_account(
@@ -150,11 +282,11 @@ impl Merge for LocalAccount {
     #[cfg(feature = "device")]
     async fn merge_device(
         &mut self,
-        diff: &DeviceDiff,
+        diff: DeviceDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
+    ) -> Result<CheckedPatch> {
         tracing::debug!(
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
             "device",
         );
@@ -163,10 +295,12 @@ impl Merge for LocalAccount {
             let storage = self.storage().await?;
             let storage = storage.read().await;
             let mut event_log = storage.device_log.write().await;
-            event_log.patch_checked(&diff.before, &diff.patch).await?
+            event_log
+                .patch_checked(&diff.checkpoint, &diff.patch)
+                .await?
         };
 
-        if let CheckedPatch::Success(_, _) = &checked_patch {
+        if let CheckedPatch::Success(_) = &checked_patch {
             let devices = {
                 let storage = self.storage().await?;
                 let storage = storage.read().await;
@@ -178,15 +312,15 @@ impl Merge for LocalAccount {
             let storage = self.storage().await?;
             let mut storage = storage.write().await;
             storage.devices = devices;
+
+            outcome.device = diff.patch.len();
+            outcome.changes += diff.patch.len();
         } else {
             // FIXME: handle conflict situation
             println!("todo! device patch could not be merged");
         }
 
-        outcome.device = diff.patch.len();
-        outcome.changes += diff.patch.len();
-
-        Ok(())
+        Ok(checked_patch)
     }
 
     #[cfg(feature = "device")]
@@ -202,17 +336,15 @@ impl Merge for LocalAccount {
     #[cfg(feature = "files")]
     async fn merge_files(
         &mut self,
-        diff: &FileDiff,
+        diff: FileDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
+    ) -> Result<CheckedPatch> {
         use crate::events::FileReducer;
         tracing::debug!(
-            before = ?diff.before,
+            checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
             "files",
         );
-
-        let num_events = diff.patch.len();
 
         let storage = self.storage().await?;
         let storage = storage.read().await;
@@ -220,38 +352,32 @@ impl Merge for LocalAccount {
 
         // File events may not have a root commit
         let is_init_diff = diff.last_commit.is_none();
-        let (checked_patch, external_files) = if is_init_diff
-            && event_log.tree().is_empty()
-        {
-            event_log.apply((&diff.patch).into()).await?;
-            let reducer = FileReducer::new(&event_log);
-            let external_files = reducer.reduce(None).await?;
-            (None, external_files)
-        } else {
-            let checked_patch =
-                event_log.patch_checked(&diff.before, &diff.patch).await?;
-            let reducer = FileReducer::new(&event_log);
-            let external_files =
-                reducer.reduce(diff.last_commit.as_ref()).await?;
-            (Some(checked_patch), external_files)
-        };
+        let (checked_patch, external_files) =
+            if is_init_diff && event_log.tree().is_empty() {
+                event_log.patch_unchecked(&diff.patch).await?;
+                let reducer = FileReducer::new(&event_log);
+                let external_files = reducer.reduce(None).await?;
+
+                let proof = event_log.tree().head()?;
+                (CheckedPatch::Success(proof), external_files)
+            } else {
+                let checked_patch = event_log
+                    .patch_checked(&diff.checkpoint, &diff.patch)
+                    .await?;
+                let reducer = FileReducer::new(&event_log);
+                let external_files =
+                    reducer.reduce(diff.last_commit.as_ref()).await?;
+                (checked_patch, external_files)
+            };
 
         outcome.external_files = external_files;
 
-        let num_changes = if let Some(checked_patch) = checked_patch {
-            if let CheckedPatch::Success(_, _) = &checked_patch {
-                num_events
-            } else {
-                0
-            }
-        } else {
-            num_events
-        };
+        if let CheckedPatch::Success(_) = &checked_patch {
+            outcome.file = diff.patch.len();
+            outcome.changes += diff.patch.len();
+        }
 
-        outcome.file = num_changes;
-        outcome.changes += num_changes;
-
-        Ok(())
+        Ok(checked_patch)
     }
 
     #[cfg(feature = "files")]
@@ -264,10 +390,10 @@ impl Merge for LocalAccount {
     async fn merge_folder(
         &mut self,
         folder_id: &VaultId,
-        diff: &FolderDiff,
+        diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()> {
-        let mut num_changes = 0;
+    ) -> Result<CheckedPatch> {
+        let len = diff.patch.len();
 
         let storage = self.storage().await?;
         let mut storage = storage.write().await;
@@ -280,12 +406,17 @@ impl Merge for LocalAccount {
 
         tracing::debug!(
             folder_id = %folder_id,
-            before = ?diff.before,
-            num_events = diff.patch.len(),
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
             "folder",
         );
 
-        if let Some(folder) = storage.cache_mut().get_mut(folder_id) {
+        let folder = storage
+            .cache_mut()
+            .get_mut(folder_id)
+            .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+
+        let checked_patch = {
             #[cfg(feature = "search")]
             {
                 let mut search = search.write().await;
@@ -294,21 +425,19 @@ impl Merge for LocalAccount {
                         diff,
                         FolderMergeOptions::Search(*folder_id, &mut search),
                     )
-                    .await?;
+                    .await?
             }
 
             #[cfg(not(feature = "search"))]
-            folder.merge(diff, Default::default()).await?;
+            folder.merge(source, Default::default()).await?
+        };
 
-            num_changes = diff.patch.len();
+        if let CheckedPatch::Success(_) = &checked_patch {
+            outcome.folders.insert(*folder_id, len);
+            outcome.changes += len;
         }
 
-        if num_changes > 0 {
-            outcome.folders.insert(*folder_id, num_changes);
-            outcome.changes += num_changes;
-        }
-
-        Ok(())
+        Ok(checked_patch)
     }
 
     async fn compare_folder(

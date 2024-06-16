@@ -1,10 +1,16 @@
 use super::Error;
-use crate::client::{CancelReason, Result};
+use crate::{
+    client::{CancelReason, Result},
+    commits::{
+        CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
+        CommitScanResponse, EventPatchRequest,
+    },
+};
 use async_trait::async_trait;
 use sos_sdk::{
     storage,
     sync::{
-        ChangeSet, DeviceDiff, Origin, SyncOptions, SyncPacket, SyncStatus,
+        ChangeSet, CheckedPatch, Origin, SyncOptions, SyncPacket, SyncStatus,
         UpdateSet,
     },
 };
@@ -43,10 +49,6 @@ pub trait RemoteSync {
         &self,
         options: &SyncOptions,
     ) -> Option<SyncError>;
-
-    /// Patch the device log on the remote.
-    async fn patch_devices(&self, options: &SyncOptions)
-        -> Option<SyncError>;
 
     /// Force update an account on remote servers.
     ///
@@ -88,9 +90,26 @@ pub trait SyncClient {
     /// Sync with a remote.
     async fn sync(&self, packet: &SyncPacket) -> Result<SyncPacket>;
 
-    /// Patch the device event log.
-    #[cfg(feature = "device")]
-    async fn patch_devices(&self, diff: &DeviceDiff) -> Result<()>;
+    /// Scan commits in an event log.
+    async fn scan(
+        &self,
+        request: &CommitScanRequest,
+    ) -> Result<CommitScanResponse>;
+
+    /// Fetch a collection of event records since a given commit hash.
+    async fn diff(
+        &self,
+        request: &CommitDiffRequest,
+    ) -> Result<CommitDiffResponse>;
+
+    /// Patch an event log.
+    ///
+    /// If the request contains a commit hash then the remote will
+    /// attempt to rewind to the commit before applying the patch.
+    async fn patch(
+        &self,
+        request: &EventPatchRequest,
+    ) -> Result<CheckedPatch>;
 
     /// Send a file.
     #[cfg(feature = "files")]

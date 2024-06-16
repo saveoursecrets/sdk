@@ -1,5 +1,6 @@
 //! Network aware account storage.
 
+mod auto_merge;
 #[cfg(feature = "files")]
 mod file_transfers;
 #[cfg(feature = "listen")]

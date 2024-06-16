@@ -129,21 +129,21 @@ async fn authenticate_endpoint(
 /// Send change notifications to connected clients.
 #[cfg(feature = "listen")]
 pub(crate) async fn send_notification(
-    writer: &mut State,
+    reader: &State,
     caller: &Caller,
     notification: ChangeNotification,
 ) {
     // Send notification on the websockets channel
     match serde_json::to_vec(&notification) {
         Ok(buffer) => {
-            if let Some(account) = writer.sockets.get(caller.address()) {
+            if let Some(account) = reader.sockets.get(caller.address()) {
                 if let Err(error) = account.broadcast(caller, buffer).await {
                     tracing::warn!(error = ?error);
                 }
             }
         }
         Err(e) => {
-            tracing::error!("{}", e);
+            tracing::error!(error = %e, "send_notification");
         }
     }
 }

@@ -9,7 +9,7 @@ use crate::{
     signer::ecdsa::Address,
     storage::AccountPack,
     vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow, UserData},
+        secret::{Secret, SecretId, SecretMeta, SecretRow},
         BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
     },
     Paths, Result,

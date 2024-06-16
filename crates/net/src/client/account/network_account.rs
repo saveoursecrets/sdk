@@ -197,7 +197,7 @@ impl NetworkAccount {
         }
 
         // Send the device event logs to the remote servers
-        if let Some(e) = self.patch_devices(&Default::default()).await {
+        if let Some(e) = self.sync().await {
             tracing::error!(error = ?e);
             return Err(Error::RevokeDeviceSync(e));
         }
@@ -279,6 +279,7 @@ impl NetworkAccount {
             if let Some(remote) = remotes.get(&origin) {
                 let options = SyncOptions {
                     origins: vec![origin.clone()],
+                    ..Default::default()
                 };
                 sync_error = remote.sync_with_options(&options).await;
             }
@@ -376,19 +377,6 @@ impl NetworkAccount {
         let file = self.paths().remote_origins();
         vfs::write(file, data).await?;
         Ok(())
-    }
-
-    async fn before_change(&self) {
-        if self.offline {
-            tracing::warn!("offline mode active, ignoring before change");
-        } else {
-            let remotes = self.remotes.read().await;
-            for remote in remotes.values() {
-                if let Some(e) = remote.sync().await {
-                    tracing::error!(error = ?e, "failed to sync before change");
-                }
-            }
-        }
     }
 
     /// Spawn a task to handle file transfers.
@@ -590,7 +578,6 @@ impl NetworkAccount {
         &self,
         events: &[FileMutationEvent],
     ) -> Result<()> {
-        // println!("events: {:#?}", events);
         if let Some(handle) = &self.file_transfer_handle {
             let mut items = Vec::with_capacity(events.len());
             for event in events {
@@ -737,7 +724,8 @@ impl Account for NetworkAccount {
         let identity = if conversion.identity.is_some() {
             let log = self.identity_log().await?;
             let reader = log.read().await;
-            Some(reader.diff(None).await?)
+            let diff = reader.diff_unchecked().await?;
+            Some(diff)
         } else {
             None
         };
@@ -754,12 +742,17 @@ impl Account for NetworkAccount {
         for id in &identifiers {
             let event_log = self.folder_log(id).await?;
             let log_file = event_log.read().await;
-            folders.insert(*id, log_file.diff(None).await?);
+            let diff = log_file.diff_unchecked().await?;
+            folders.insert(*id, diff);
         }
 
         // Force update the folders on remote servers
         let sync_options: SyncOptions = Default::default();
-        let updates = UpdateSet { identity, folders };
+        let updates = UpdateSet {
+            identity,
+            folders,
+            ..Default::default()
+        };
 
         let sync_error = self.force_update(&updates, &sync_options).await;
         if let Some(sync_error) = sync_error {
@@ -787,13 +780,13 @@ impl Account for NetworkAccount {
 
         let log = self.identity_log().await?;
         let reader = log.read().await;
-        let identity = Some(reader.diff(None).await?);
+        let identity = reader.diff_unchecked().await?;
 
         // Force update the folders on remote servers
         let sync_options: SyncOptions = Default::default();
         let updates = UpdateSet {
-            identity,
-            folders: Default::default(),
+            identity: Some(identity),
+            ..Default::default()
         };
 
         let sync_error = self.force_update(&updates, &sync_options).await;
@@ -950,7 +943,7 @@ impl Account for NetworkAccount {
         let identity = {
             let log = self.identity_log().await?;
             let reader = log.read().await;
-            Some(reader.diff(None).await?)
+            reader.diff_unchecked().await?
         };
 
         // Prepare event logs for the folders that
@@ -966,12 +959,17 @@ impl Account for NetworkAccount {
         for id in &identifiers {
             let event_log = self.folder_log(id).await?;
             let log_file = event_log.read().await;
-            folders.insert(*id, log_file.diff(None).await?);
+            let diff = log_file.diff_unchecked().await?;
+            folders.insert(*id, diff);
         }
 
         // Force update the folders on remote servers
         let sync_options: SyncOptions = Default::default();
-        let updates = UpdateSet { identity, folders };
+        let updates = UpdateSet {
+            identity: Some(identity),
+            folders,
+            ..Default::default()
+        };
 
         let sync_error = self.force_update(&updates, &sync_options).await;
         if let Some(sync_error) = sync_error {
@@ -1003,7 +1001,8 @@ impl Account for NetworkAccount {
         {
             let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
-            folders.insert(*folder.id(), log_file.diff(None).await?);
+            let diff = log_file.diff_unchecked().await?;
+            folders.insert(*folder.id(), diff);
         }
 
         // Force update the folders on remote servers
@@ -1011,6 +1010,7 @@ impl Account for NetworkAccount {
         let updates = UpdateSet {
             identity: None,
             folders,
+            ..Default::default()
         };
 
         let sync_error = self.force_update(&updates, &sync_options).await;
@@ -1041,7 +1041,7 @@ impl Account for NetworkAccount {
         let identity = {
             let log = self.identity_log().await?;
             let reader = log.read().await;
-            Some(reader.diff(None).await?)
+            reader.diff_unchecked().await?
         };
 
         // Prepare event logs for the folders that
@@ -1050,12 +1050,17 @@ impl Account for NetworkAccount {
         {
             let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
-            folders.insert(*folder.id(), log_file.diff(None).await?);
+            let diff = log_file.diff_unchecked().await?;
+            folders.insert(*folder.id(), diff);
         }
 
         // Force update the folders on remote servers
         let sync_options: SyncOptions = Default::default();
-        let updates = UpdateSet { identity, folders };
+        let updates = UpdateSet {
+            identity: Some(identity),
+            folders,
+            ..Default::default()
+        };
 
         let sync_error = self.force_update(&updates, &sync_options).await;
         if let Some(sync_error) = sync_error {
@@ -1159,9 +1164,6 @@ impl Account for NetworkAccount {
     ) -> Result<SecretChange<Self::Error>> {
         let _ = self.sync_lock.lock().await;
 
-        // Try to sync before we make the change
-        self.before_change().await;
-
         let result = {
             let mut account = self.account.lock().await;
             let result = account.create_secret(meta, secret, options).await?;
@@ -1189,8 +1191,7 @@ impl Account for NetworkAccount {
         &mut self,
         secrets: Vec<(SecretMeta, Secret)>,
     ) -> Result<SecretInsert<Self::Error>> {
-        // Try to sync before we make the change
-        self.before_change().await;
+        let _ = self.sync_lock.lock().await;
 
         let result = {
             let mut account = self.account.lock().await;
@@ -1237,9 +1238,6 @@ impl Account for NetworkAccount {
         destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::Error>> {
         let _ = self.sync_lock.lock().await;
-
-        // Try to sync before we make the change
-        self.before_change().await;
 
         let result = {
             let mut account = self.account.lock().await;
@@ -1310,9 +1308,6 @@ impl Account for NetworkAccount {
         options: AccessOptions,
     ) -> Result<SecretDelete<Self::Error>> {
         let _ = self.sync_lock.lock().await;
-
-        // Try to sync before we make the change
-        self.before_change().await;
 
         let result = {
             let mut account = self.account.lock().await;

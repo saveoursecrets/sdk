@@ -1,5 +1,4 @@
 //! Synchronization primitives.
-
 use crate::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     events::{AccountEvent, EventLogExt, WriteEvent},
@@ -82,11 +81,21 @@ impl From<Url> for Origin {
     }
 }
 
+/// How to resolve hard conflicts.
+#[derive(Default, Debug)]
+pub enum HardConflictResolver {
+    /// Automatically fetch and overwrite account data.
+    #[default]
+    AutomaticFetch,
+}
+
 /// Options for sync operation.
 #[derive(Default, Debug)]
 pub struct SyncOptions {
     /// Only sync these origins.
     pub origins: Vec<Origin>,
+    /// Resolver for hard conflicts.
+    pub hard_conflict_resolver: HardConflictResolver,
 }
 
 /// Error type that can be returned from a sync operation.
@@ -136,10 +145,13 @@ pub(crate) enum FolderMergeOptions<'a> {
 }
 
 /// Result of a checked patch on an event log.
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub enum CheckedPatch {
+    #[doc(hidden)]
+    #[default]
+    Noop,
     /// Patch was applied.
-    Success(CommitProof, Vec<CommitHash>),
+    Success(CommitProof),
     /// Patch conflict.
     Conflict {
         /// Head of the event log.
@@ -156,14 +168,27 @@ pub struct Diff<T>
 where
     T: Default + Encodable + Decodable,
 {
-    /// Last commit hash before the patch.
+    /// Last commit hash before the patch was created.
+    ///
+    /// This can be used to determine if the patch is to
+    /// be used to initialize a new set of events when
+    /// no last commit is available.
+    ///
+    /// For example, for file event logs which are
+    /// lazily instantiated once external files are created.
     pub last_commit: Option<CommitHash>,
+
     /// Contents of the patch.
     pub patch: Patch<T>,
-    /// Head of the event log before applying the patch.
-    pub before: CommitProof,
-    /// Head of the event log after applying the patch.
-    pub after: CommitProof,
+    /// Checkpoint for the diff patch.
+    ///
+    /// For checked patches this must match the proof
+    /// of HEAD before the patch was created.
+    ///
+    /// For unchecked force merges this checkpoint
+    /// references the commit proof of HEAD after
+    /// applying the patch.
+    pub checkpoint: CommitProof,
 }
 
 /// Diff between account events logs.
@@ -236,6 +261,84 @@ pub struct SyncCompare {
     pub files: Option<Comparison>,
     /// Comparisons for the account folders.
     pub folders: IndexMap<VaultId, Comparison>,
+}
+
+impl SyncCompare {
+    /// Determine if this comparison might conflict.
+    pub fn maybe_conflict(&self) -> MaybeConflict {
+        MaybeConflict {
+            identity: self
+                .identity
+                .as_ref()
+                .map(|c| matches!(c, Comparison::Unknown))
+                .unwrap_or(false),
+            account: self
+                .account
+                .as_ref()
+                .map(|c| matches!(c, Comparison::Unknown))
+                .unwrap_or(false),
+            #[cfg(feature = "device")]
+            device: self
+                .device
+                .as_ref()
+                .map(|c| matches!(c, Comparison::Unknown))
+                .unwrap_or(false),
+            #[cfg(feature = "files")]
+            files: self
+                .files
+                .as_ref()
+                .map(|c| matches!(c, Comparison::Unknown))
+                .unwrap_or(false),
+            folders: self
+                .folders
+                .iter()
+                .map(|(k, v)| (*k, matches!(v, Comparison::Unknown)))
+                .collect(),
+        }
+    }
+}
+
+/// Information about possible conflicts.
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
+pub struct MaybeConflict {
+    /// Whether the identity folder might be conflicted.
+    pub identity: bool,
+    /// Whether the account log might be conflicted.
+    pub account: bool,
+    /// Whether the device log might be conflicted.
+    #[cfg(feature = "device")]
+    pub device: bool,
+    /// Whether the files log might be conflicted.
+    #[cfg(feature = "files")]
+    pub files: bool,
+    /// Account folders that might be conflicted.
+    pub folders: IndexMap<VaultId, bool>,
+}
+
+impl MaybeConflict {
+    /// Check for any conflicts.
+    pub fn has_conflicts(&self) -> bool {
+        let mut has_conflicts = self.identity || self.account;
+
+        #[cfg(feature = "device")]
+        {
+            has_conflicts = has_conflicts || self.device;
+        }
+
+        #[cfg(feature = "files")]
+        {
+            has_conflicts = has_conflicts || self.files;
+        }
+
+        for (_, value) in &self.folders {
+            has_conflicts = has_conflicts || *value;
+            if has_conflicts {
+                break;
+            }
+        }
+
+        has_conflicts
+    }
 }
 
 /// Diff of events or conflict information.
@@ -385,15 +488,22 @@ impl SyncComparison {
 
                 // Avoid empty patches when commit is already the last
                 if !is_last_commit {
-                    let after = reader.tree().head()?;
+                    /*
                     let identity = FolderDiff {
                         last_commit: Some(self.remote_status.identity.0),
                         patch: reader
                             .diff(Some(&self.remote_status.identity.0))
                             .await?,
-                        after,
-                        before: self.remote_status.identity.1.clone(),
+                        checkpoint: self.remote_status.identity.1.clone(),
                     };
+                    */
+
+                    let identity = reader
+                        .diff_checked(
+                            Some(self.remote_status.identity.0),
+                            self.remote_status.identity.1.clone(),
+                        )
+                        .await?;
                     diff.identity = Some(MaybeDiff::Diff(identity));
                 }
             }
@@ -422,15 +532,22 @@ impl SyncComparison {
 
                 // Avoid empty patches when commit is already the last
                 if !is_last_commit {
-                    let after = reader.tree().head()?;
+                    /*
                     let account = AccountDiff {
                         last_commit: Some(self.remote_status.account.0),
                         patch: reader
                             .diff(Some(&self.remote_status.account.0))
                             .await?,
-                        after,
-                        before: self.remote_status.account.1.clone(),
+                        checkpoint: self.remote_status.account.1.clone(),
                     };
+                    */
+
+                    let account = reader
+                        .diff_checked(
+                            Some(self.remote_status.account.0),
+                            self.remote_status.account.1.clone(),
+                        )
+                        .await?;
                     diff.account = Some(MaybeDiff::Diff(account));
                 }
             }
@@ -460,15 +577,22 @@ impl SyncComparison {
 
                 // Avoid empty patches when commit is already the last
                 if !is_last_commit {
-                    let after = reader.tree().head()?;
+                    /*
                     let device = DeviceDiff {
                         last_commit: Some(self.remote_status.device.0),
                         patch: reader
                             .diff(Some(&self.remote_status.device.0))
                             .await?,
-                        after,
-                        before: self.remote_status.device.1.clone(),
+                        checkpoint: self.remote_status.device.1.clone(),
                     };
+                    */
+
+                    let device = reader
+                        .diff_checked(
+                            Some(self.remote_status.device.0),
+                            self.remote_status.device.1.clone(),
+                        )
+                        .await?;
                     diff.device = Some(MaybeDiff::Diff(device));
                 }
             }
@@ -503,15 +627,23 @@ impl SyncComparison {
 
                         // Avoid empty patches when commit is already the last
                         if !is_last_commit {
-                            let after = reader.tree().head()?;
+                            /*
                             let files = FileDiff {
                                 last_commit: Some(remote_files.0),
                                 patch: reader
                                     .diff(Some(&remote_files.0))
                                     .await?,
-                                after,
-                                before: remote_files.1.clone(),
+                                checkpoint: remote_files.1.clone(),
                             };
+                            */
+
+                            let files = reader
+                                .diff_checked(
+                                    Some(remote_files.0),
+                                    remote_files.1.clone(),
+                                )
+                                .await?;
+
                             diff.files = Some(MaybeDiff::Diff(files));
                         }
                     }
@@ -535,12 +667,10 @@ impl SyncComparison {
                 let log = storage.file_log().await?;
                 let reader = log.read().await;
                 if !reader.tree().is_empty() {
-                    let after = reader.tree().head()?;
                     let files = FileDiff {
                         last_commit: None,
-                        patch: reader.diff(None).await?,
-                        after,
-                        before: Default::default(),
+                        patch: reader.diff_events(None).await?,
+                        checkpoint: Default::default(),
                     };
                     diff.files = Some(MaybeDiff::Diff(files));
                 }
@@ -562,13 +692,20 @@ impl SyncComparison {
                     let log = storage.folder_log(id).await?;
                     let log = log.read().await;
 
-                    let after = log.tree().head()?;
+                    /*
                     let folder = FolderDiff {
                         last_commit: Some(commit_state.0),
                         patch: log.diff(Some(&commit_state.0)).await?,
-                        after,
-                        before: commit_state.1.clone(),
+                        checkpoint: commit_state.1.clone(),
                     };
+                    */
+
+                    let folder = log
+                        .diff_checked(
+                            Some(commit_state.0),
+                            commit_state.1.clone(),
+                        )
+                        .await?;
 
                     if !folder.patch.is_empty() {
                         diff.folders.insert(*id, MaybeDiff::Diff(folder));
@@ -599,13 +736,11 @@ impl SyncComparison {
                 let log = storage.folder_log(id).await?;
                 let log = log.read().await;
                 let first_commit = log.tree().first_commit()?;
-                let after = log.tree().commit_state()?.1;
 
                 let folder = FolderDiff {
                     last_commit: Some(first_commit.0),
-                    patch: log.diff(Some(&first_commit.0)).await?,
-                    after,
-                    before: first_commit.1,
+                    patch: log.diff_events(Some(&first_commit.0)).await?,
+                    checkpoint: first_commit.1,
                 };
 
                 if !folder.patch.is_empty() {
@@ -644,10 +779,18 @@ pub struct ChangeSet {
 /// folder password or compacing the events in a folder.
 #[derive(Debug, Default)]
 pub struct UpdateSet {
-    /// Identity vault event logs.
-    pub identity: Option<FolderPatch>,
-    /// Folders to be imported into the new account.
-    pub folders: HashMap<VaultId, FolderPatch>,
+    /// Identity folder event logs.
+    pub identity: Option<FolderDiff>,
+    /// Account event log.
+    pub account: Option<AccountDiff>,
+    /// Device event log.
+    #[cfg(feature = "device")]
+    pub device: Option<DeviceDiff>,
+    /// Files event log.
+    #[cfg(feature = "files")]
+    pub files: Option<FileDiff>,
+    /// Folders to be updated.
+    pub folders: HashMap<VaultId, FolderDiff>,
 }
 
 /// Storage implementations that can synchronize.
@@ -664,27 +807,27 @@ pub trait SyncStorage: StorageEventLogs {
         let identity = {
             let log = self.identity_log().await?;
             let reader = log.read().await;
-            reader.diff(None).await?
+            reader.diff_events(None).await?
         };
 
         let account = {
             let log = self.account_log().await?;
             let reader = log.read().await;
-            reader.diff(None).await?
+            reader.diff_events(None).await?
         };
 
         #[cfg(feature = "device")]
         let device = {
             let log = self.device_log().await?;
             let reader = log.read().await;
-            reader.diff(None).await?
+            reader.diff_events(None).await?
         };
 
         #[cfg(feature = "files")]
         let files = {
             let log = self.file_log().await?;
             let reader = log.read().await;
-            reader.diff(None).await?
+            reader.diff_events(None).await?
         };
 
         let mut folders = HashMap::new();
@@ -693,7 +836,7 @@ pub trait SyncStorage: StorageEventLogs {
         for id in &identifiers {
             let event_log = self.folder_log(id).await?;
             let log_file = event_log.read().await;
-            folders.insert(*id, log_file.diff(None).await?);
+            folders.insert(*id, log_file.diff_events(None).await?);
         }
 
         Ok(ChangeSet {
@@ -734,6 +877,7 @@ pub struct MergeOutcome {
     #[serde(skip_serializing_if = "is_zero")]
     pub file: usize,
     /// Number of changes to the folder event logs.
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub folders: HashMap<VaultId, usize>,
 
     /// Collection of external files detected when merging
@@ -745,15 +889,63 @@ pub struct MergeOutcome {
     pub external_files: IndexSet<ExternalFile>,
 }
 
+/// Types that can force merge a diff.
+///
+/// Force merge deletes all events from the log and
+/// applies the diff patch as a new set of events.
+///
+/// Use this when event logs have completely diverged
+/// and need to be rewritten.
+#[async_trait]
+pub trait ForceMerge {
+    /// Force merge changes to the identity folder.
+    async fn force_merge_identity(
+        &mut self,
+        source: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
+
+    /// Force merge changes to the account event log.
+    async fn force_merge_account(
+        &mut self,
+        diff: AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
+
+    /// Force merge changes to the devices event log.
+    #[cfg(feature = "device")]
+    async fn force_merge_device(
+        &mut self,
+        diff: DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
+
+    /// Force merge changes to the files event log.
+    #[cfg(feature = "files")]
+    async fn force_merge_files(
+        &mut self,
+        diff: FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
+
+    /// Force merge changes to a folder.
+    async fn force_merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        source: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()>;
+}
+
 /// Types that can merge diffs.
 #[async_trait]
 pub trait Merge {
     /// Merge changes to the identity folder.
     async fn merge_identity(
         &mut self,
-        diff: &FolderDiff,
+        diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()>;
+    ) -> Result<CheckedPatch>;
 
     /// Compare the identity folder.
     async fn compare_identity(
@@ -764,9 +956,9 @@ pub trait Merge {
     /// Merge changes to the account event log.
     async fn merge_account(
         &mut self,
-        diff: &AccountDiff,
+        diff: AccountDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()>;
+    ) -> Result<CheckedPatch>;
 
     /// Compare the account events.
     async fn compare_account(
@@ -778,9 +970,9 @@ pub trait Merge {
     #[cfg(feature = "device")]
     async fn merge_device(
         &mut self,
-        diff: &DeviceDiff,
+        diff: DeviceDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()>;
+    ) -> Result<CheckedPatch>;
 
     /// Compare the device events.
     #[cfg(feature = "device")]
@@ -791,9 +983,9 @@ pub trait Merge {
     #[cfg(feature = "files")]
     async fn merge_files(
         &mut self,
-        diff: &FileDiff,
+        diff: FileDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()>;
+    ) -> Result<CheckedPatch>;
 
     /// Compare the file events.
     #[cfg(feature = "files")]
@@ -803,9 +995,9 @@ pub trait Merge {
     async fn merge_folder(
         &mut self,
         folder_id: &VaultId,
-        diff: &FolderDiff,
+        diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<()>;
+    ) -> Result<CheckedPatch>;
 
     /// Compare folder events.
     async fn compare_folder(
@@ -850,78 +1042,78 @@ pub trait Merge {
     /// Merge a diff into this storage.
     async fn merge(
         &mut self,
-        diff: &SyncDiff,
-    ) -> Result<(MergeOutcome, SyncCompare)> {
-        let mut outcome = MergeOutcome::default();
+        diff: SyncDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<SyncCompare> {
         let mut compare = SyncCompare::default();
 
-        match &diff.identity {
+        match diff.identity {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
-                self.merge_identity(diff, &mut outcome).await?;
+                self.merge_identity(diff, outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
                     compare.identity =
-                        Some(self.compare_identity(state).await?);
+                        Some(self.compare_identity(&state).await?);
                 }
             }
             None => {}
         }
 
-        match &diff.account {
+        match diff.account {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
-                self.merge_account(diff, &mut outcome).await?;
+                self.merge_account(diff, outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
                     compare.account =
-                        Some(self.compare_account(state).await?);
+                        Some(self.compare_account(&state).await?);
                 }
             }
             None => {}
         }
 
         #[cfg(feature = "device")]
-        match &diff.device {
+        match diff.device {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
-                self.merge_device(diff, &mut outcome).await?;
+                self.merge_device(diff, outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
-                    compare.device = Some(self.compare_device(state).await?);
+                    compare.device = Some(self.compare_device(&state).await?);
                 }
             }
             None => {}
         }
 
         #[cfg(feature = "files")]
-        match &diff.files {
+        match diff.files {
             Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
-                self.merge_files(diff, &mut outcome).await?;
+                self.merge_files(diff, outcome).await?;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
-                    compare.files = Some(self.compare_files(state).await?);
+                    compare.files = Some(self.compare_files(&state).await?);
                 }
             }
             None => {}
         }
 
-        for (id, maybe_diff) in &diff.folders {
+        for (id, maybe_diff) in diff.folders {
             match maybe_diff {
                 MaybeDiff::Noop => unreachable!(),
                 MaybeDiff::Diff(diff) => {
-                    self.merge_folder(id, diff, &mut outcome).await?;
+                    self.merge_folder(&id, diff, outcome).await?;
                 }
                 MaybeDiff::Compare(state) => {
                     if let Some(state) = state {
                         compare.folders.insert(
-                            *id,
-                            self.compare_folder(id, state).await?,
+                            id,
+                            self.compare_folder(&id, &state).await?,
                         );
                     }
                 }
@@ -930,7 +1122,7 @@ pub trait Merge {
 
         tracing::debug!(num_changes = %outcome.changes, "merge complete");
 
-        Ok((outcome, compare))
+        Ok(compare)
     }
 }
 

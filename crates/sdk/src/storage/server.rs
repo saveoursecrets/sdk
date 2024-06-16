@@ -322,7 +322,9 @@ impl ServerStorage {
         #[cfg(feature = "files")]
         {
             let files_folder = self.paths.files_dir().join(id.to_string());
-            vfs::remove_dir_all(&files_folder).await?;
+            if vfs::try_exists(&files_folder).await? {
+                vfs::remove_dir_all(&files_folder).await?;
+            }
         }
 
         #[cfg(feature = "audit")]
@@ -390,9 +392,12 @@ impl ServerStorage {
     }
 
     /// Patch the devices event log.
+    #[deprecated]
     pub async fn patch_devices(&mut self, diff: &DeviceDiff) -> Result<()> {
         let mut event_log = self.device_log.write().await;
-        event_log.patch_checked(&diff.before, &diff.patch).await?;
+        event_log
+            .patch_checked(&diff.checkpoint, &diff.patch)
+            .await?;
 
         // Update in-memory cache of trusted devices
         let reducer = DeviceReducer::new(&event_log);

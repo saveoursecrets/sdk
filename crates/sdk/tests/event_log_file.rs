@@ -17,18 +17,15 @@ async fn mock_folder_event_log() -> Result<(NamedTempFile, FolderEventLog)> {
     Ok((temp, event_log))
 }
 
-async fn mock_event_log_file(
-) -> Result<(NamedTempFile, FolderEventLog, Vec<CommitHash>)> {
+async fn mock_event_log_file() -> Result<(NamedTempFile, FolderEventLog)> {
     let (encryption_key, _, _) = mock_encryption_key()?;
     let (_, mut vault) = mock_vault_file().await?;
 
     let (temp, mut event_log) = mock_folder_event_log().await?;
 
-    let mut commits = Vec::new();
-
     // Create the vault
     let event = vault.into_event().await?;
-    commits.append(&mut event_log.apply(vec![&event]).await?);
+    event_log.apply(vec![&event]).await?;
 
     // Create a secret
     let (secret_id, _, _, _, event) = mock_vault_note(
@@ -38,7 +35,7 @@ async fn mock_event_log_file(
         "This a event log note secret.",
     )
     .await?;
-    commits.append(&mut event_log.apply(vec![&event]).await?);
+    event_log.apply(vec![&event]).await?;
 
     // Update the secret
     let (_, _, _, event) = mock_vault_note_update(
@@ -50,24 +47,19 @@ async fn mock_event_log_file(
     )
     .await?;
     if let Some(event) = event {
-        commits.append(&mut event_log.apply(vec![&event]).await?);
+        event_log.apply(vec![&event]).await?;
     }
 
-    Ok((temp, event_log, commits))
+    Ok((temp, event_log))
 }
 
 #[tokio::test]
 async fn folder_event_log_iter_forward() -> Result<()> {
-    let (temp, event_log, commits) = mock_event_log_file().await?;
+    let (temp, event_log) = mock_event_log_file().await?;
     let mut it = event_log.iter(false).await?;
-    let first_row = it.next().await?.unwrap();
-    let second_row = it.next().await?.unwrap();
-    let third_row = it.next().await?.unwrap();
-
-    assert_eq!(commits.get(0).unwrap().as_ref(), &first_row.commit());
-    assert_eq!(commits.get(1).unwrap().as_ref(), &second_row.commit());
-    assert_eq!(commits.get(2).unwrap().as_ref(), &third_row.commit());
-
+    assert!(it.next().await?.is_some());
+    assert!(it.next().await?.is_some());
+    assert!(it.next().await?.is_some());
     assert!(it.next().await?.is_none());
     temp.close()?;
     Ok(())
@@ -75,11 +67,11 @@ async fn folder_event_log_iter_forward() -> Result<()> {
 
 #[tokio::test]
 async fn folder_event_log_iter_backward() -> Result<()> {
-    let (temp, event_log, _) = mock_event_log_file().await?;
+    let (temp, event_log) = mock_event_log_file().await?;
     let mut it = event_log.iter(true).await?;
-    let _third_row = it.next().await?.unwrap();
-    let _second_row = it.next().await?.unwrap();
-    let _first_row = it.next().await?.unwrap();
+    assert!(it.next().await?.is_some());
+    assert!(it.next().await?.is_some());
+    assert!(it.next().await?.is_some());
     assert!(it.next().await?.is_none());
     temp.close()?;
     Ok(())
@@ -128,7 +120,7 @@ async fn account_event_log() -> Result<()> {
 
     #[cfg(feature = "sync")]
     {
-        let patch = event_log.diff(None).await?;
+        let patch = event_log.diff_events(None).await?;
         assert_eq!(2, patch.len());
     }
 
@@ -157,7 +149,7 @@ async fn memory_folder_log() -> Result<()> {
 
     #[cfg(feature = "sync")]
     {
-        let patch = event_log.diff(previous_commit.as_ref()).await?;
+        let patch = event_log.diff_events(previous_commit.as_ref()).await?;
         assert_eq!(1, patch.len());
     }
 

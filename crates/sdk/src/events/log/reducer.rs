@@ -2,10 +2,12 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     decode,
-    events::{EventLogExt, FolderEventLog, WriteEvent},
+    events::{EventLogExt, WriteEvent},
     vault::{secret::SecretId, Vault, VaultCommit},
     Error, Result,
 };
+
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 use indexmap::IndexMap;
 
@@ -57,10 +59,16 @@ impl FolderReducer {
     }
 
     /// Reduce the events in the given event log.
-    pub async fn reduce(
+    pub async fn reduce<T, R, W, D>(
         mut self,
-        event_log: &FolderEventLog,
-    ) -> Result<FolderReducer> {
+        event_log: &T,
+    ) -> Result<FolderReducer>
+    where
+        T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
+        R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
+        W: AsyncWrite + Unpin + Send + Sync + 'static,
+        D: Clone + Send + Sync,
+    {
         // TODO: use event_log.stream() !
 
         let mut it = event_log.iter(false).await?;
@@ -306,9 +314,10 @@ mod files {
             if let Some(from) = from {
                 #[cfg(feature = "sync")]
                 {
-                    let patch = self.log.diff(Some(from)).await?;
-                    let events: Vec<FileEvent> = patch.into();
-                    for event in events {
+                    let patch = self.log.diff_events(Some(from)).await?;
+                    for record in patch.iter() {
+                        let event =
+                            record.decode_event::<FileEvent>().await?;
                         self.add_file_event(event, &mut files);
                     }
                 }

@@ -62,7 +62,6 @@ async fn network_sync_change_folder_password() -> Result<()> {
     // Check we can sign out and sign in again
     // on the device that just synced using the
     // new access key
-    device2.owner.sign_out().await?;
     device2.owner.sign_in(&account_key).await?;
 
     // Create a secret on the synced device

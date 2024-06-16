@@ -4,13 +4,13 @@ use std::path::PathBuf;
 
 use crate::{
     commands::{
-        account, audit, check, convert, device, environment, events, folder,
+        account, audit, check, device, environment, events, folder,
         preferences, secret,
         security_report::{self, SecurityReportFormat},
         server, shell, sync, tools, AccountCommand, AuditCommand,
-        CheckCommand, ConvertCommand, DeviceCommand, EnvironmentCommand,
-        EventsCommand, FolderCommand, PreferenceCommand, SecretCommand,
-        ServerCommand, SyncCommand, ToolsCommand,
+        CheckCommand, DeviceCommand, EnvironmentCommand, EventsCommand,
+        FolderCommand, PreferenceCommand, SecretCommand, ServerCommand,
+        SyncCommand, ToolsCommand,
     },
     helpers::{PROGRESS_MONITOR, USER},
     CommandTree, Result,
@@ -150,11 +150,6 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: EnvironmentCommand,
     },
-    /// Convert files on disc.
-    Convert {
-        #[clap(subcommand)]
-        cmd: ConvertCommand,
-    },
     /// Utility tools.
     #[clap(alias = "tool")]
     Tools {
@@ -218,7 +213,6 @@ pub async fn run() -> Result<()> {
         }
         Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Check { cmd } => check::run(cmd).await?,
-        Command::Convert { cmd } => convert::run(cmd).await?,
         Command::Events { cmd } => events::run(cmd).await?,
         Command::Shell { account, folder } => {
             shell::run(account, folder).await?
