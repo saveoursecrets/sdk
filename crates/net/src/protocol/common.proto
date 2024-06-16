@@ -26,6 +26,13 @@ message WireCommitProof {
   repeated uint64 indices = 4;
 }
 
+message WireCommitState {
+  // Commit hash.
+  WireCommitHash hash = 1;
+  // Commit proof.
+  WireCommitProof proof = 2;
+}
+
 message WireUtcDateTime {
   int64 seconds = 1;
   uint32 nanos = 2;

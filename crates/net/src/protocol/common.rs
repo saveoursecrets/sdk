@@ -1,7 +1,7 @@
 include!(concat!(env!("OUT_DIR"), "/common.rs"));
 
 use crate::sdk::{
-    commit::{CommitHash, CommitProof},
+    commit::{CommitHash, CommitProof, CommitState},
     events::EventRecord,
     sync::CheckedPatch,
     time::{Duration, OffsetDateTime},
@@ -66,6 +66,26 @@ impl From<CommitProof> for WireCommitProof {
             proof: value.proof.to_bytes(),
             length: value.length as u64,
             indices: value.indices.into_iter().map(|i| i as u64).collect(),
+        }
+    }
+}
+
+impl TryFrom<WireCommitState> for CommitState {
+    type Error = crate::sdk::Error;
+
+    fn try_from(value: WireCommitState) -> Result<Self> {
+        Ok(CommitState(
+            value.hash.unwrap().try_into()?,
+            value.proof.unwrap().try_into()?,
+        ))
+    }
+}
+
+impl From<CommitState> for WireCommitState {
+    fn from(value: CommitState) -> Self {
+        Self {
+            hash: Some(value.0.into()),
+            proof: Some(value.1.into()),
         }
     }
 }

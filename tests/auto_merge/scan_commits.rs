@@ -147,7 +147,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
 
     // Scan past the length (bad offset)
     // yields empty proofs
-    let mut req = ScanRequest {
+    let req = ScanRequest {
         log_type: EventLogType::Folder(*default_folder.id()),
         limit: 256,
         offset: Some(64),
