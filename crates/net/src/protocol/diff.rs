@@ -1,11 +1,10 @@
 include!(concat!(env!("OUT_DIR"), "/diff.rs"));
 
+use super::{Error, Result, WireConvert};
 use crate::sdk::{
     commit::{CommitHash, CommitProof},
     events::{EventLogType, EventRecord},
-    Result,
 };
-use prost::bytes::Buf;
 
 /// Request commit diff from an event log.
 #[derive(Debug)]
@@ -16,22 +15,12 @@ pub struct DiffRequest {
     pub from_hash: Option<CommitHash>,
 }
 
-impl DiffRequest {
-    /// Encode this request.
-    pub fn encode(self) -> crate::Result<Vec<u8>> {
-        let value: WireDiffRequest = self.into();
-        Ok(super::encode(&value)?)
-    }
-
-    /// Decode this request.
-    pub fn decode(buffer: impl Buf) -> crate::Result<Self> {
-        let result = super::decode::<WireDiffRequest>(buffer)?;
-        Ok(result.try_into()?)
-    }
+impl WireConvert for DiffRequest {
+    type Inner = WireDiffRequest;
 }
 
 impl TryFrom<WireDiffRequest> for DiffRequest {
-    type Error = crate::sdk::Error;
+    type Error = Error;
 
     fn try_from(value: WireDiffRequest) -> Result<Self> {
         let log_type =
@@ -69,22 +58,12 @@ pub struct DiffResponse {
     pub checkpoint: CommitProof,
 }
 
-impl DiffResponse {
-    /// Encode this response.
-    pub fn encode(self) -> crate::Result<Vec<u8>> {
-        let value: WireDiffResponse = self.into();
-        Ok(super::encode(&value)?)
-    }
-
-    /// Decode this response.
-    pub fn decode(buffer: impl Buf) -> crate::Result<Self> {
-        let result = super::decode::<WireDiffResponse>(buffer)?;
-        Ok(result.try_into()?)
-    }
+impl WireConvert for DiffResponse {
+    type Inner = WireDiffResponse;
 }
 
 impl TryFrom<WireDiffResponse> for DiffResponse {
-    type Error = crate::sdk::Error;
+    type Error = Error;
 
     fn try_from(value: WireDiffResponse) -> Result<Self> {
         let mut events = Vec::with_capacity(value.patch.len());

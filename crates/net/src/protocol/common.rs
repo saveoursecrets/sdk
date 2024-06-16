@@ -1,16 +1,17 @@
 include!(concat!(env!("OUT_DIR"), "/common.rs"));
 
+use super::{Error, Result};
 use crate::sdk::{
     commit::{CommitHash, CommitProof, CommitState},
     events::EventRecord,
     sync::CheckedPatch,
     time::{Duration, OffsetDateTime},
-    Result, UtcDateTime,
+    UtcDateTime,
 };
 use rs_merkle::{algorithms::Sha256, MerkleProof};
 
 impl TryFrom<WireUtcDateTime> for UtcDateTime {
-    type Error = crate::sdk::Error;
+    type Error = Error;
 
     fn try_from(value: WireUtcDateTime) -> Result<Self> {
         let time = OffsetDateTime::from_unix_timestamp(value.seconds)?
@@ -30,7 +31,7 @@ impl From<UtcDateTime> for WireUtcDateTime {
 }
 
 impl TryFrom<WireCommitHash> for CommitHash {
-    type Error = crate::sdk::Error;
+    type Error = Error;
 
     fn try_from(value: WireCommitHash) -> Result<Self> {
         let hash: [u8; 32] = value.hash.as_slice().try_into()?;
@@ -47,7 +48,7 @@ impl From<CommitHash> for WireCommitHash {
 }
 
 impl TryFrom<WireCommitProof> for CommitProof {
-    type Error = crate::sdk::Error;
+    type Error = Error;
 
     fn try_from(value: WireCommitProof) -> Result<Self> {
         Ok(CommitProof {
@@ -71,7 +72,7 @@ impl From<CommitProof> for WireCommitProof {
 }
 
 impl TryFrom<WireCommitState> for CommitState {
-    type Error = crate::sdk::Error;
+    type Error = Error;
 
     fn try_from(value: WireCommitState) -> Result<Self> {
         Ok(CommitState(
@@ -91,7 +92,7 @@ impl From<CommitState> for WireCommitState {
 }
 
 impl TryFrom<WireEventRecord> for EventRecord {
-    type Error = crate::sdk::Error;
+    type Error = Error;
 
     fn try_from(value: WireEventRecord) -> Result<Self> {
         Ok(EventRecord::new(
@@ -121,7 +122,7 @@ impl From<EventRecord> for WireEventRecord {
 }
 
 impl TryFrom<WireCheckedPatch> for CheckedPatch {
-    type Error = crate::sdk::Error;
+    type Error = Error;
 
     fn try_from(value: WireCheckedPatch) -> Result<Self> {
         if let Some(conflict) = value.conflict {

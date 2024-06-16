@@ -1,12 +1,11 @@
 include!(concat!(env!("OUT_DIR"), "/patch.rs"));
 
-use prost::bytes::Buf;
 use sos_sdk::sync::CheckedPatch;
 
+use super::{Error, Result, WireConvert};
 use crate::sdk::{
     commit::{CommitHash, CommitProof},
     events::{EventLogType, EventRecord},
-    Result,
 };
 
 /// Request to patch an event log from a specific commit.
@@ -27,22 +26,12 @@ pub struct PatchRequest {
     pub patch: Vec<EventRecord>,
 }
 
-impl PatchRequest {
-    /// Encode this request.
-    pub fn encode(self) -> crate::Result<Vec<u8>> {
-        let value: WirePatchRequest = self.into();
-        Ok(super::encode(&value)?)
-    }
-
-    /// Decode this request.
-    pub fn decode(buffer: impl Buf) -> crate::Result<Self> {
-        let result = super::decode::<WirePatchRequest>(buffer)?;
-        Ok(result.try_into()?)
-    }
+impl WireConvert for PatchRequest {
+    type Inner = WirePatchRequest;
 }
 
 impl TryFrom<WirePatchRequest> for PatchRequest {
-    type Error = crate::sdk::Error;
+    type Error = Error;
 
     fn try_from(value: WirePatchRequest) -> Result<Self> {
         let log_type =
@@ -89,22 +78,12 @@ pub struct PatchResponse {
     pub checked_patch: CheckedPatch,
 }
 
-impl PatchResponse {
-    /// Encode this request.
-    pub fn encode(self) -> crate::Result<Vec<u8>> {
-        let value: WirePatchResponse = self.into();
-        Ok(super::encode(&value)?)
-    }
-
-    /// Decode this request.
-    pub fn decode(buffer: impl Buf) -> crate::Result<Self> {
-        let result = super::decode::<WirePatchResponse>(buffer)?;
-        Ok(result.try_into()?)
-    }
+impl WireConvert for PatchResponse {
+    type Inner = WirePatchResponse;
 }
 
 impl TryFrom<WirePatchResponse> for PatchResponse {
-    type Error = crate::sdk::Error;
+    type Error = Error;
 
     fn try_from(value: WirePatchResponse) -> Result<Self> {
         Ok(Self {

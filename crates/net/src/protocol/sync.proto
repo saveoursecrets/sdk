@@ -5,7 +5,9 @@ package sync;
 import "common.proto";
 
 message WireSyncFolderState {
-  // TODO folder_id UUID
+  // Folder identifier.
+  bytes folder_id = 1;
+  // Commit state for the folder.
   common.WireCommitState state = 2;
 }
 

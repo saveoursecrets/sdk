@@ -1,7 +1,7 @@
 include!(concat!(env!("OUT_DIR"), "/scan.rs"));
 
-use crate::sdk::{commit::CommitProof, events::EventLogType, Result};
-use prost::bytes::Buf;
+use super::{Error, Result, WireConvert};
+use crate::sdk::{commit::CommitProof, events::EventLogType};
 
 /// Request commit proofs from an event log.
 #[derive(Debug, Clone)]
@@ -19,22 +19,12 @@ pub struct ScanRequest {
     pub offset: Option<u64>,
 }
 
-impl ScanRequest {
-    /// Encode this request.
-    pub fn encode(self) -> crate::Result<Vec<u8>> {
-        let value: WireScanRequest = self.into();
-        Ok(super::encode(&value)?)
-    }
-
-    /// Decode this request.
-    pub fn decode(buffer: impl Buf) -> crate::Result<Self> {
-        let result = super::decode::<WireScanRequest>(buffer)?;
-        Ok(result.try_into()?)
-    }
+impl WireConvert for ScanRequest {
+    type Inner = WireScanRequest;
 }
 
 impl TryFrom<WireScanRequest> for ScanRequest {
-    type Error = crate::sdk::Error;
+    type Error = Error;
 
     fn try_from(value: WireScanRequest) -> Result<Self> {
         let log_type =
@@ -75,22 +65,12 @@ pub struct ScanResponse {
     pub offset: u64,
 }
 
-impl ScanResponse {
-    /// Encode this response.
-    pub fn encode(self) -> crate::Result<Vec<u8>> {
-        let value: WireScanResponse = self.into();
-        Ok(super::encode(&value)?)
-    }
-
-    /// Decode this response.
-    pub fn decode(buffer: impl Buf) -> crate::Result<Self> {
-        let result = super::decode::<WireScanResponse>(buffer)?;
-        Ok(result.try_into()?)
-    }
+impl WireConvert for ScanResponse {
+    type Inner = WireScanResponse;
 }
 
 impl TryFrom<WireScanResponse> for ScanResponse {
-    type Error = crate::sdk::Error;
+    type Error = Error;
 
     fn try_from(value: WireScanResponse) -> Result<Self> {
         let first_proof = if let Some(first_proof) = value.first_proof {

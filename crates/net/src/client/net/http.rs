@@ -17,7 +17,7 @@ use crate::{
     client::{CancelReason, Error, Result, SyncClient},
     protocol::{
         DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
-        ScanResponse,
+        ScanResponse, WireEncodeDecode,
     },
 };
 use std::{fmt, path::Path, time::Duration};

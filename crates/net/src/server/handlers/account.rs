@@ -588,7 +588,7 @@ mod handlers {
     use crate::{
         protocol::{
             DiffRequest, DiffResponse, PatchRequest, PatchResponse,
-            ScanRequest, ScanResponse,
+            ScanRequest, ScanResponse, WireEncodeDecode,
         },
         server::{
             backend::AccountStorage, Error, Result, ServerBackend,
@@ -735,7 +735,7 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let req = ScanRequest::decode(bytes)?;
+        let req = <ScanRequest as WireEncodeDecode>::decode(bytes)?;
 
         // Maximum number of proofs to return in a single request
         if req.limit > 256 {
@@ -771,7 +771,7 @@ mod handlers {
             }
             EventLogType::Folder(id) => {
                 let reader = account.read().await;
-                let log = reader.storage.folder_log(id).await?;
+                let log = reader.storage.folder_log(&id).await?;
                 let event_log = log.read().await;
                 scan_log(&req, &*event_log).await?
             }
