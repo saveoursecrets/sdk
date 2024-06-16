@@ -18,6 +18,7 @@ fn main() {
             "src/protocol/diff.proto",
             "src/protocol/patch.proto",
             "src/protocol/scan.proto",
+            "src/protocol/sync.proto",
         ],
         &["src/protocol"],
     )

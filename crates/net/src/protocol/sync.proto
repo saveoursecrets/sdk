@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package sync;
+
+import "common.proto";
+
+message WireSyncFolderState {
+  // TODO folder_id UUID
+  common.WireCommitState state = 2;
+}
+
+message WireSyncStatus {
+    // Computed root of all event log roots.
+    common.WireCommitHash root = 1;
+    // Identity vault commit state.
+    common.WireCommitState identity = 2;
+    // Account log commit state.
+    common.WireCommitState account = 3;
+    // Device log commit state.
+    common.WireCommitState device = 4;
+    // Files log commit state.
+    common.WireCommitState files = 5;
+    // Commit proofs for the account folders.
+    repeated WireSyncFolderState folders = 6;
+}
+

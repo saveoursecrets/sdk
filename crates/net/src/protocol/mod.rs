@@ -3,6 +3,7 @@ mod common;
 mod diff;
 mod patch;
 mod scan;
+mod sync;
 
 pub use diff::{DiffRequest, DiffResponse};
 pub use patch::{PatchRequest, PatchResponse};
