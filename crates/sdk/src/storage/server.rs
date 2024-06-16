@@ -322,7 +322,9 @@ impl ServerStorage {
         #[cfg(feature = "files")]
         {
             let files_folder = self.paths.files_dir().join(id.to_string());
-            vfs::remove_dir_all(&files_folder).await?;
+            if vfs::try_exists(&files_folder).await? {
+                vfs::remove_dir_all(&files_folder).await?;
+            }
         }
 
         #[cfg(feature = "audit")]

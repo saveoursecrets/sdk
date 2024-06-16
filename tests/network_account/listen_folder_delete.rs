@@ -5,7 +5,6 @@ use sos_net::sdk::prelude::*;
 /// Tests syncing delete folder events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
-#[ignore = "flaky, needs debugging"]
 #[tokio::test]
 async fn network_sync_listen_folder_delete() -> Result<()> {
     const TEST_ID: &str = "sync_listen_folder_delete";
@@ -38,12 +37,11 @@ async fn network_sync_listen_folder_delete() -> Result<()> {
 
     let FolderDelete { sync_error, .. } =
         device1.owner.delete_folder(&new_folder).await?;
-    println!("{:#?}", sync_error);
     assert!(sync_error.is_none());
 
     // Pause a while to give the listener some time to process
     // the change notification
-    sync_pause(Some(750)).await;
+    sync_pause(Some(1500)).await;
 
     let updated_summaries: Vec<Summary> = {
         let storage = device1.owner.storage().await?;

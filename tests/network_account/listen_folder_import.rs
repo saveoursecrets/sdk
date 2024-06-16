@@ -8,7 +8,6 @@ use sos_net::sdk::prelude::*;
 /// Tests syncing update folder events between two clients
 /// where the second client listens for changes emitted
 /// by the first client via the remote.
-#[ignore = "flaky, needs debugging"]
 #[tokio::test]
 async fn network_sync_listen_folder_import() -> Result<()> {
     const TEST_ID: &str = "sync_listen_folder_import";
@@ -64,7 +63,7 @@ async fn network_sync_listen_folder_import() -> Result<()> {
 
     // Pause a while to give the listener some time to process
     // the change notification
-    sync_pause(None).await;
+    sync_pause(Some(1500)).await;
 
     // Ensure we can open and write to the synced folder
     device2.owner.open_folder(&new_folder).await?;
