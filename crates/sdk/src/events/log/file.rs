@@ -217,12 +217,12 @@ where
     #[cfg(feature = "sync")]
     async fn diff_checked(
         &self,
-        commit: Option<&CommitHash>,
+        commit: Option<CommitHash>,
         checkpoint: CommitProof,
     ) -> Result<Diff<E>> {
-        let patch = self.diff(commit).await?;
+        let patch = self.diff(commit.as_ref()).await?;
         Ok(Diff::<E> {
-            last_commit: self.tree().last_commit(),
+            last_commit: commit,
             patch,
             checkpoint,
         })
@@ -252,7 +252,7 @@ where
         Ok(Patch::new(records))
     }
 
-    /// Diff of event records until a specific commit.
+    /// Patch of event records until a specific commit.
     ///
     /// Searches backwards until it finds the specified commit if given; if
     /// no commit is given the diff will include all event records.

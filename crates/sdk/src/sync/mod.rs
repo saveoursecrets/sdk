@@ -488,6 +488,7 @@ impl SyncComparison {
 
                 // Avoid empty patches when commit is already the last
                 if !is_last_commit {
+                    /*
                     let identity = FolderDiff {
                         last_commit: Some(self.remote_status.identity.0),
                         patch: reader
@@ -495,6 +496,14 @@ impl SyncComparison {
                             .await?,
                         checkpoint: self.remote_status.identity.1.clone(),
                     };
+                    */
+
+                    let identity = reader
+                        .diff_checked(
+                            Some(self.remote_status.identity.0),
+                            self.remote_status.identity.1.clone(),
+                        )
+                        .await?;
                     diff.identity = Some(MaybeDiff::Diff(identity));
                 }
             }
@@ -523,6 +532,7 @@ impl SyncComparison {
 
                 // Avoid empty patches when commit is already the last
                 if !is_last_commit {
+                    /*
                     let account = AccountDiff {
                         last_commit: Some(self.remote_status.account.0),
                         patch: reader
@@ -530,6 +540,14 @@ impl SyncComparison {
                             .await?,
                         checkpoint: self.remote_status.account.1.clone(),
                     };
+                    */
+
+                    let account = reader
+                        .diff_checked(
+                            Some(self.remote_status.account.0),
+                            self.remote_status.account.1.clone(),
+                        )
+                        .await?;
                     diff.account = Some(MaybeDiff::Diff(account));
                 }
             }
@@ -559,6 +577,7 @@ impl SyncComparison {
 
                 // Avoid empty patches when commit is already the last
                 if !is_last_commit {
+                    /*
                     let device = DeviceDiff {
                         last_commit: Some(self.remote_status.device.0),
                         patch: reader
@@ -566,6 +585,14 @@ impl SyncComparison {
                             .await?,
                         checkpoint: self.remote_status.device.1.clone(),
                     };
+                    */
+
+                    let device = reader
+                        .diff_checked(
+                            Some(self.remote_status.device.0),
+                            self.remote_status.device.1.clone(),
+                        )
+                        .await?;
                     diff.device = Some(MaybeDiff::Diff(device));
                 }
             }
@@ -600,6 +627,7 @@ impl SyncComparison {
 
                         // Avoid empty patches when commit is already the last
                         if !is_last_commit {
+                            /*
                             let files = FileDiff {
                                 last_commit: Some(remote_files.0),
                                 patch: reader
@@ -607,6 +635,15 @@ impl SyncComparison {
                                     .await?,
                                 checkpoint: remote_files.1.clone(),
                             };
+                            */
+
+                            let files = reader
+                                .diff_checked(
+                                    Some(remote_files.0),
+                                    remote_files.1.clone(),
+                                )
+                                .await?;
+
                             diff.files = Some(MaybeDiff::Diff(files));
                         }
                     }
@@ -655,11 +692,20 @@ impl SyncComparison {
                     let log = storage.folder_log(id).await?;
                     let log = log.read().await;
 
+                    /*
                     let folder = FolderDiff {
                         last_commit: Some(commit_state.0),
                         patch: log.diff(Some(&commit_state.0)).await?,
                         checkpoint: commit_state.1.clone(),
                     };
+                    */
+
+                    let folder = log
+                        .diff_checked(
+                            Some(commit_state.0),
+                            commit_state.1.clone(),
+                        )
+                        .await?;
 
                     if !folder.patch.is_empty() {
                         diff.folders.insert(*id, MaybeDiff::Diff(folder));
