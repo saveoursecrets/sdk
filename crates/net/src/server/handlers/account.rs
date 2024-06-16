@@ -797,16 +797,11 @@ mod handlers {
         T: Default + Encodable + Decodable + Send + Sync + 'static,
     {
         let mut res = CommitScanResponse::default();
-        let reverse = !req.ascending;
         let offset = req.offset.unwrap_or(0);
         let num_commits = event_log.tree().len() as u64;
 
-        let mut index = if reverse {
-            if event_log.tree().len() > 0 {
-                event_log.tree().len() - 1
-            } else {
-                0
-            }
+        let mut index = if event_log.tree().len() > 0 {
+            event_log.tree().len() - 1
         } else {
             0
         };
@@ -821,35 +816,25 @@ mod handlers {
             return Ok(res);
         }
 
-        let mut it = event_log.iter(reverse).await?;
+        let mut it = event_log.iter(true).await?;
         let mut skip = 0;
 
         loop {
             let event = it.next().await?;
             if offset > 0 && skip < offset {
-                if reverse && index > 0 {
+                if index > 0 {
                     index -= 1;
-                } else {
-                    index += 1;
                 }
                 skip += 1;
                 continue;
             }
             if let Some(_event) = event {
-                // let leaf = event.commit();
                 let proof = event_log.tree().proof(&[index])?;
-
-                if reverse {
-                    res.proofs.insert(0, proof);
-                } else {
-                    res.proofs.push(proof);
-                }
+                res.proofs.insert(0, proof);
                 res.offset = offset + res.proofs.len() as u64;
 
-                if reverse && index > 0 {
+                if index > 0 {
                     index -= 1;
-                } else {
-                    index += 1;
                 }
 
                 if res.proofs.len() == req.limit as usize {

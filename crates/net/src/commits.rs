@@ -23,16 +23,7 @@ pub struct CommitScanRequest {
     pub limit: u16,
     /// Offset from a previous scan used as a hint to
     /// continue scanning.
-    ///
-    /// The zero offset is always the start of the scan
-    /// regardless of whether the scan is ascending (from
-    /// the first commit) or descending (from the last commit).
     pub offset: Option<u64>,
-    /// Scan in ascending order from the first commit.
-    ///
-    /// Default behavior is to scan from the end
-    /// of the event log.
-    pub ascending: bool,
 }
 
 /// Commit proofs from an event log.
@@ -95,7 +86,6 @@ impl Encodable for CommitScanRequest {
         self.log_type.encode(&mut *writer).await?;
         self.limit.encode(&mut *writer).await?;
         self.offset.encode(&mut *writer).await?;
-        self.ascending.encode(&mut *writer).await?;
         Ok(())
     }
 }
@@ -109,7 +99,6 @@ impl Decodable for CommitScanRequest {
         self.log_type.decode(&mut *reader).await?;
         self.limit.decode(&mut *reader).await?;
         self.offset.decode(&mut *reader).await?;
-        self.ascending.decode(&mut *reader).await?;
         Ok(())
     }
 }

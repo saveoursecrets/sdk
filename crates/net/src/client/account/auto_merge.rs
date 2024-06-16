@@ -44,7 +44,6 @@ macro_rules! auto_merge_impl {
                 log_type: $log_type,
                 offset: None,
                 limit: PROOF_SCAN_LIMIT,
-                ascending: false,
             };
             match self.scan_proofs(req).await {
                 Ok(Some((ancestor_commit, proof))) => {
@@ -266,7 +265,6 @@ impl RemoteBridge {
             log_type: EventLogType::Folder(*folder_id),
             offset: None,
             limit: PROOF_SCAN_LIMIT,
-            ascending: false,
         };
         match self.scan_proofs(req).await {
             Ok(Some((ancestor_commit, proof))) => {

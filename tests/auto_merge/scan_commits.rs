@@ -50,24 +50,12 @@ async fn auto_merge_scan_commits() -> Result<()> {
     let bridge = device.owner.remove_server(&origin).await?.unwrap();
     let client = bridge.client().clone();
 
-    // Get the first commit proof of the identity folder
-    let mut req = CommitScanRequest::default();
-    req.log_type = EventLogType::Identity;
-    req.limit = 1;
-    req.ascending = true;
-    let mut res = client.scan(&req).await?;
-    assert_eq!(1, res.proofs.len());
-    let first_identity_commit = res.proofs.remove(0);
-
     // Get the last commit proof of the identity folder
     let mut req = CommitScanRequest::default();
     req.log_type = EventLogType::Identity;
     req.limit = 1;
     let mut res = client.scan(&req).await?;
     assert_eq!(1, res.proofs.len());
-    let last_identity_commit = res.proofs.remove(0);
-
-    assert_ne!(first_identity_commit, last_identity_commit);
 
     // Get commit proofs of the account event log
     let mut req = CommitScanRequest::default();
@@ -115,7 +103,6 @@ async fn auto_merge_scan_commits() -> Result<()> {
     let mut req = CommitScanRequest::default();
     req.log_type = EventLogType::Folder(*default_folder.id());
     req.limit = 256;
-    req.ascending = true;
     let folder_asc = client.scan(&req).await?;
     assert_eq!(4, folder_asc.proofs.len());
 
@@ -151,7 +138,6 @@ async fn auto_merge_scan_commits() -> Result<()> {
     req.log_type = EventLogType::Folder(*default_folder.id());
     req.limit = 256;
     req.offset = Some(64);
-    req.ascending = true;
     let res = client.scan(&req).await?;
     assert!(res.proofs.is_empty());
 
