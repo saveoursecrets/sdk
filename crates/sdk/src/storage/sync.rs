@@ -8,8 +8,8 @@ use crate::{
     },
     storage::{ServerStorage, StorageEventLogs},
     sync::{
-        AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch, Merge,
-        MergeOutcome, SyncStatus, SyncStorage, UpdateSet,
+        AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch,
+        ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage, UpdateSet,
     },
     vault::{VaultAccess, VaultId, VaultWriter},
     vfs, Error, Paths, Result,
@@ -165,6 +165,163 @@ impl ServerStorage {
             self.cache_mut()
                 .insert(*id, Arc::new(RwLock::new(event_log)));
         }
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl ForceMerge for ServerStorage {
+    async fn force_merge_identity(
+        &mut self,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
+            "force_merge::identity",
+        );
+
+        let mut writer = self.identity_log.write().await;
+        writer.clear().await?;
+        writer.patch_unchecked(&diff.patch).await?;
+
+        // Rebuild the head-only identity vault
+        let vault = FolderReducer::new()
+            .reduce(&*writer)
+            .await?
+            .build(false)
+            .await?;
+
+        let buffer = encode(&vault).await?;
+        vfs::write(self.paths.identity_vault(), buffer).await?;
+
+        outcome.identity = len;
+        outcome.changes += len;
+        Ok(())
+    }
+
+    async fn force_merge_account(
+        &mut self,
+        diff: AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        /*
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
+            "force_merge::account",
+        );
+
+        let event_log = self.account_log().await?;
+        let mut event_log = event_log.write().await;
+        event_log.clear().await?;
+        event_log.patch_unchecked(&diff.patch).await?;
+
+        outcome.identity = len;
+        outcome.changes += len;
+
+        */
+
+        Ok(())
+    }
+
+    #[cfg(feature = "device")]
+    async fn force_merge_device(
+        &mut self,
+        diff: DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        /*
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
+            "force_merge::device",
+        );
+
+        let event_log = self.device_log().await?;
+        let mut event_log = event_log.write().await;
+        event_log.clear().await?;
+        event_log.patch_unchecked(&diff.patch).await?;
+
+        outcome.identity = len;
+        outcome.changes += len;
+        */
+
+        Ok(())
+    }
+
+    /// Force merge changes to the files event log.
+    #[cfg(feature = "files")]
+    async fn force_merge_files(
+        &mut self,
+        diff: FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        /*
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
+            "force_merge::files",
+        );
+
+        let event_log = self.file_log().await?;
+        let mut event_log = event_log.write().await;
+        event_log.clear().await?;
+        event_log.patch_unchecked(&diff.patch).await?;
+
+        outcome.identity = len;
+        outcome.changes += len;
+        */
+
+        Ok(())
+    }
+
+    async fn force_merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let len = diff.patch.len();
+
+        tracing::debug!(
+            folder_id = %folder_id,
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
+            "force_merge::folder",
+        );
+
+        let vault_path = self.paths.vault_path(folder_id);
+        let events_path = self.paths.event_log_path(folder_id);
+
+        let mut event_log = FolderEventLog::new(events_path).await?;
+        event_log.clear().await?;
+        event_log.patch_unchecked(&diff.patch).await?;
+
+        let vault = FolderReducer::new()
+            .reduce(&event_log)
+            .await?
+            .build(false)
+            .await?;
+
+        let buffer = encode(&vault).await?;
+        vfs::write(vault_path, buffer).await?;
+
+        self.cache_mut()
+            .insert(*folder_id, Arc::new(RwLock::new(event_log)));
+
+        outcome.folders.insert(*folder_id, len);
+        outcome.changes += len;
 
         Ok(())
     }
