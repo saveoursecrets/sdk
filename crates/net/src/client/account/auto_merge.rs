@@ -334,29 +334,29 @@ impl RemoteBridge {
                 EventLogType::Identity => {
                     let log = account.identity_log().await?;
                     let event_log = log.read().await;
-                    event_log.patch_records(Some(&commit)).await?
+                    event_log.diff_records(Some(&commit)).await?
                 }
                 EventLogType::Account => {
                     let log = account.account_log().await?;
                     let event_log = log.read().await;
-                    event_log.patch_records(Some(&commit)).await?
+                    event_log.diff_records(Some(&commit)).await?
                 }
                 #[cfg(feature = "device")]
                 EventLogType::Device => {
                     let log = account.device_log().await?;
                     let event_log = log.read().await;
-                    event_log.patch_records(Some(&commit)).await?
+                    event_log.diff_records(Some(&commit)).await?
                 }
                 #[cfg(feature = "files")]
                 EventLogType::Files => {
                     let log = account.file_log().await?;
                     let event_log = log.read().await;
-                    event_log.patch_records(Some(&commit)).await?
+                    event_log.diff_records(Some(&commit)).await?
                 }
                 EventLogType::Folder(id) => {
                     let log = account.folder_log(id).await?;
                     let event_log = log.read().await;
-                    event_log.patch_records(Some(&commit)).await?
+                    event_log.diff_records(Some(&commit)).await?
                 }
                 EventLogType::Noop => unreachable!(),
             }

@@ -91,12 +91,12 @@ async fn event_log_last_commit() -> Result<()> {
     assert!(event_log.tree().last_commit().is_some());
 
     // Patch with all events
-    let patch = event_log.patch_records(None).await?;
+    let patch = event_log.diff_records(None).await?;
     assert_eq!(1, patch.len());
 
     // Patch is empty as the target commit is the empty commit
     let last_commit = event_log.tree().last_commit();
-    let patch = event_log.patch_records(last_commit.as_ref()).await?;
+    let patch = event_log.diff_records(last_commit.as_ref()).await?;
     assert_eq!(0, patch.len());
 
     temp.close()?;

@@ -921,7 +921,7 @@ mod handlers {
     {
         let mut response = CommitDiffResponse::default();
         response.patch =
-            event_log.patch_records(req.from_hash.as_ref()).await?;
+            event_log.diff_records(req.from_hash.as_ref()).await?;
         Ok(encode(&response).await?)
     }
 

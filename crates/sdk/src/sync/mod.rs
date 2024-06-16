@@ -1,6 +1,6 @@
 //! Synchronization primitives.
 use crate::{
-    commit::{CommitHash, CommitProof, CommitState, Comparison, ZERO},
+    commit::{CommitHash, CommitProof, CommitState, Comparison},
     events::{AccountEvent, EventLogExt, WriteEvent},
     storage::{files::ExternalFile, StorageEventLogs},
     vault::VaultId,

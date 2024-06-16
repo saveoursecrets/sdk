@@ -242,24 +242,24 @@ where
         })
     }
 
-    /// Patch of events until a specific commit; does
+    /// Diff of events until a specific commit; does
     /// not include the target commit.
     ///
     /// If no commit hash is given then all events are included.
     #[cfg(feature = "sync")]
     async fn diff(&self, commit: Option<&CommitHash>) -> Result<Patch<E>> {
-        let records = self.patch_records(commit).await?;
+        let records = self.diff_records(commit).await?;
         Ok(Patch::new(records))
     }
 
-    /// Patch of event records until a specific commit.
+    /// Diff of event records until a specific commit.
     ///
     /// Searches backwards until it finds the specified commit if given; if
     /// no commit is given the diff will include all event records.
     ///
     /// Does not include the target commit.
     #[doc(hidden)]
-    async fn patch_records(
+    async fn diff_records(
         &self,
         commit: Option<&CommitHash>,
     ) -> Result<Vec<EventRecord>> {
