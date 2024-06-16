@@ -724,7 +724,7 @@ impl Account for NetworkAccount {
         let identity = if conversion.identity.is_some() {
             let log = self.identity_log().await?;
             let reader = log.read().await;
-            let diff = reader.diff_unchecked(None).await?;
+            let diff = reader.diff_unchecked().await?;
             Some(diff)
         } else {
             None
@@ -742,7 +742,7 @@ impl Account for NetworkAccount {
         for id in &identifiers {
             let event_log = self.folder_log(id).await?;
             let log_file = event_log.read().await;
-            let diff = log_file.diff_unchecked(None).await?;
+            let diff = log_file.diff_unchecked().await?;
             folders.insert(*id, diff);
         }
 
@@ -780,7 +780,7 @@ impl Account for NetworkAccount {
 
         let log = self.identity_log().await?;
         let reader = log.read().await;
-        let identity = reader.diff_unchecked(None).await?;
+        let identity = reader.diff_unchecked().await?;
 
         // Force update the folders on remote servers
         let sync_options: SyncOptions = Default::default();
@@ -943,7 +943,7 @@ impl Account for NetworkAccount {
         let identity = {
             let log = self.identity_log().await?;
             let reader = log.read().await;
-            reader.diff_unchecked(None).await?
+            reader.diff_unchecked().await?
         };
 
         // Prepare event logs for the folders that
@@ -959,7 +959,7 @@ impl Account for NetworkAccount {
         for id in &identifiers {
             let event_log = self.folder_log(id).await?;
             let log_file = event_log.read().await;
-            let diff = log_file.diff_unchecked(None).await?;
+            let diff = log_file.diff_unchecked().await?;
             folders.insert(*id, diff);
         }
 
@@ -1001,7 +1001,7 @@ impl Account for NetworkAccount {
         {
             let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
-            let diff = log_file.diff_unchecked(None).await?;
+            let diff = log_file.diff_unchecked().await?;
             folders.insert(*folder.id(), diff);
         }
 
@@ -1041,7 +1041,7 @@ impl Account for NetworkAccount {
         let identity = {
             let log = self.identity_log().await?;
             let reader = log.read().await;
-            reader.diff_unchecked(None).await?
+            reader.diff_unchecked().await?
         };
 
         // Prepare event logs for the folders that
@@ -1050,7 +1050,7 @@ impl Account for NetworkAccount {
         {
             let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
-            let diff = log_file.diff_unchecked(None).await?;
+            let diff = log_file.diff_unchecked().await?;
             folders.insert(*folder.id(), diff);
         }
 

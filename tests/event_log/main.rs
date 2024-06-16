@@ -26,7 +26,7 @@ async fn last_log_event<
     event_log: &mut DiscEventLog<T>,
     commit: Option<&CommitHash>,
 ) -> Result<Option<T>> {
-    let patch = event_log.diff(commit).await?;
+    let patch = event_log.diff_events(commit).await?;
     let mut events: Vec<T> = patch.into_events().await?;
     Ok(events.pop())
 }
@@ -37,6 +37,6 @@ async fn all_events<
 >(
     event_log: &mut DiscEventLog<T>,
 ) -> Result<Vec<T>> {
-    let patch = event_log.diff(None).await?;
+    let patch = event_log.diff_events(None).await?;
     Ok(patch.into_events().await?)
 }

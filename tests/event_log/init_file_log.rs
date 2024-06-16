@@ -35,7 +35,7 @@ async fn event_log_init_file_log() -> Result<()> {
     let file_events = account.paths().file_events();
 
     let event_log = FileEventLog::new_file(&file_events).await?;
-    let patch = event_log.diff(None).await?;
+    let patch = event_log.diff_events(None).await?;
     assert_eq!(1, patch.len());
     let events = patch.into_events().await?;
     assert!(matches!(

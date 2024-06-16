@@ -314,7 +314,7 @@ mod files {
             if let Some(from) = from {
                 #[cfg(feature = "sync")]
                 {
-                    let patch = self.log.diff(Some(from)).await?;
+                    let patch = self.log.diff_events(Some(from)).await?;
                     for record in patch.iter() {
                         let event =
                             record.decode_event::<FileEvent>().await?;

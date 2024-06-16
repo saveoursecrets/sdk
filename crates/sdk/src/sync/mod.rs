@@ -669,7 +669,7 @@ impl SyncComparison {
                 if !reader.tree().is_empty() {
                     let files = FileDiff {
                         last_commit: None,
-                        patch: reader.diff(None).await?,
+                        patch: reader.diff_events(None).await?,
                         checkpoint: Default::default(),
                     };
                     diff.files = Some(MaybeDiff::Diff(files));
@@ -739,7 +739,7 @@ impl SyncComparison {
 
                 let folder = FolderDiff {
                     last_commit: Some(first_commit.0),
-                    patch: log.diff(Some(&first_commit.0)).await?,
+                    patch: log.diff_events(Some(&first_commit.0)).await?,
                     checkpoint: first_commit.1,
                 };
 
@@ -807,27 +807,27 @@ pub trait SyncStorage: StorageEventLogs {
         let identity = {
             let log = self.identity_log().await?;
             let reader = log.read().await;
-            reader.diff(None).await?
+            reader.diff_events(None).await?
         };
 
         let account = {
             let log = self.account_log().await?;
             let reader = log.read().await;
-            reader.diff(None).await?
+            reader.diff_events(None).await?
         };
 
         #[cfg(feature = "device")]
         let device = {
             let log = self.device_log().await?;
             let reader = log.read().await;
-            reader.diff(None).await?
+            reader.diff_events(None).await?
         };
 
         #[cfg(feature = "files")]
         let files = {
             let log = self.file_log().await?;
             let reader = log.read().await;
-            reader.diff(None).await?
+            reader.diff_events(None).await?
         };
 
         let mut folders = HashMap::new();
@@ -836,7 +836,7 @@ pub trait SyncStorage: StorageEventLogs {
         for id in &identifiers {
             let event_log = self.folder_log(id).await?;
             let log_file = event_log.read().await;
-            folders.insert(*id, log_file.diff(None).await?);
+            folders.insert(*id, log_file.diff_events(None).await?);
         }
 
         Ok(ChangeSet {
@@ -877,6 +877,7 @@ pub struct MergeOutcome {
     #[serde(skip_serializing_if = "is_zero")]
     pub file: usize,
     /// Number of changes to the folder event logs.
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub folders: HashMap<VaultId, usize>,
 
     /// Collection of external files detected when merging

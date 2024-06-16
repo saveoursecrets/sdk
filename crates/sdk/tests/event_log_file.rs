@@ -17,8 +17,7 @@ async fn mock_folder_event_log() -> Result<(NamedTempFile, FolderEventLog)> {
     Ok((temp, event_log))
 }
 
-async fn mock_event_log_file(
-) -> Result<(NamedTempFile, FolderEventLog)> {
+async fn mock_event_log_file() -> Result<(NamedTempFile, FolderEventLog)> {
     let (encryption_key, _, _) = mock_encryption_key()?;
     let (_, mut vault) = mock_vault_file().await?;
 
@@ -121,7 +120,7 @@ async fn account_event_log() -> Result<()> {
 
     #[cfg(feature = "sync")]
     {
-        let patch = event_log.diff(None).await?;
+        let patch = event_log.diff_events(None).await?;
         assert_eq!(2, patch.len());
     }
 
@@ -150,7 +149,7 @@ async fn memory_folder_log() -> Result<()> {
 
     #[cfg(feature = "sync")]
     {
-        let patch = event_log.diff(previous_commit.as_ref()).await?;
+        let patch = event_log.diff_events(previous_commit.as_ref()).await?;
         assert_eq!(1, patch.len());
     }
 

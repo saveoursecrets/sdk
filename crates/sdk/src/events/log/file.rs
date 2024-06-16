@@ -213,14 +213,18 @@ where
         })
     }
 
-    /// Create a checked diff.
+    /// Create a checked diff from a commit.
+    ///
+    /// Used when merging to verify that the HEAD of the
+    /// event log matches the checkpoint before applying
+    /// the patch.
     #[cfg(feature = "sync")]
     async fn diff_checked(
         &self,
         commit: Option<CommitHash>,
         checkpoint: CommitProof,
     ) -> Result<Diff<E>> {
-        let patch = self.diff(commit.as_ref()).await?;
+        let patch = self.diff_events(commit.as_ref()).await?;
         Ok(Diff::<E> {
             last_commit: commit,
             patch,
@@ -228,15 +232,19 @@ where
         })
     }
 
-    /// Create an unchecked diff.
+    /// Create an unchecked diff of all events.
+    ///
+    /// Used during a force merge to overwrite an event log
+    /// with new events.
+    ///
+    /// For example, when destructive changes are made (change
+    /// cipher or password) then other devices need to rewrite
+    /// the event logs.
     #[cfg(feature = "sync")]
-    async fn diff_unchecked(
-        &self,
-        commit: Option<&CommitHash>,
-    ) -> Result<Diff<E>> {
-        let patch = self.diff(commit).await?;
+    async fn diff_unchecked(&self) -> Result<Diff<E>> {
+        let patch = self.diff_events(None).await?;
         Ok(Diff::<E> {
-            last_commit: self.tree().last_commit(),
+            last_commit: None,
             patch,
             checkpoint: self.tree().head()?,
         })
@@ -247,15 +255,19 @@ where
     ///
     /// If no commit hash is given then all events are included.
     #[cfg(feature = "sync")]
-    async fn diff(&self, commit: Option<&CommitHash>) -> Result<Patch<E>> {
+    async fn diff_events(
+        &self,
+        commit: Option<&CommitHash>,
+    ) -> Result<Patch<E>> {
         let records = self.diff_records(commit).await?;
         Ok(Patch::new(records))
     }
 
     /// Diff of event records until a specific commit.
     ///
-    /// Searches backwards until it finds the specified commit if given; if
-    /// no commit is given the diff will include all event records.
+    /// Searches backwards until it finds the specified commit
+    /// if given; if no commit is given the diff will include
+    /// all event records.
     ///
     /// Does not include the target commit.
     #[doc(hidden)]
