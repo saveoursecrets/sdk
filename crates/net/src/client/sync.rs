@@ -10,8 +10,7 @@ use async_trait::async_trait;
 use sos_sdk::{
     storage,
     sync::{
-        ChangeSet, CheckedPatch, Origin, SyncOptions, SyncPacket, SyncStatus,
-        UpdateSet,
+        ChangeSet, Origin, SyncOptions, SyncPacket, SyncStatus, UpdateSet,
     },
 };
 use std::path::Path;

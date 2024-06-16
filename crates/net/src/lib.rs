@@ -11,7 +11,6 @@
 
 #[cfg(feature = "client")]
 pub mod client;
-pub(crate) mod commits;
 mod error;
 pub mod protocol;
 #[cfg(feature = "pairing")]
@@ -32,10 +31,6 @@ pub use sos_sdk as sdk;
 use sos_sdk::{
     commit::CommitHash, signer::ecdsa::Address, sync::MergeOutcome,
 };
-
-// Expose for test specs.
-#[cfg(debug_assertions)]
-pub use commits::*;
 
 /// Notification sent by the server when changes were made.
 #[cfg(feature = "listen")]

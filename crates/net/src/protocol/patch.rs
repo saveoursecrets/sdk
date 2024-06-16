@@ -107,20 +107,16 @@ impl TryFrom<WirePatchResponse> for PatchResponse {
     type Error = crate::sdk::Error;
 
     fn try_from(value: WirePatchResponse) -> Result<Self> {
-        /*
         Ok(Self {
+            checked_patch: value.checked_patch.unwrap().try_into()?,
         })
-        */
-        todo!();
     }
 }
 
 impl From<PatchResponse> for WirePatchResponse {
     fn from(value: PatchResponse) -> WirePatchResponse {
-        /*
         Self {
+            checked_patch: Some(value.checked_patch.into()),
         }
-        */
-        todo!();
     }
 }

@@ -20,4 +20,7 @@ message WirePatchRequest {
   repeated common.WireEventRecord patch = 5;
 }
 
-message WirePatchResponse {}
+message WirePatchResponse {
+  // Result of the checked patch operation.
+  common.WireCheckedPatch checked_patch = 1;
+}

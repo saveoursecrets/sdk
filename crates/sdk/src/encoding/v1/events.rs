@@ -2,10 +2,7 @@ use crate::{
     commit::CommitHash,
     crypto::AeadPack,
     encoding::{decode_uuid, encoding_error},
-    events::{
-        AccountEvent, EventKind, EventLogType, EventRecord, LogEvent,
-        WriteEvent,
-    },
+    events::{AccountEvent, EventKind, EventRecord, LogEvent, WriteEvent},
     formats::{EventLogRecord, FileRecord, VaultRecord},
     vault::VaultCommit,
     UtcDateTime,
@@ -24,58 +21,6 @@ use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
-
-#[async_trait]
-impl Encodable for EventLogType {
-    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
-        &self,
-        writer: &mut BinaryWriter<W>,
-    ) -> Result<()> {
-        let value: u8 = self.into();
-        writer.write_u8(value).await?;
-        if let EventLogType::Folder(id) = self {
-            writer.write_bytes(id.as_bytes()).await?;
-        }
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl Decodable for EventLogType {
-    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
-        &mut self,
-        reader: &mut BinaryReader<R>,
-    ) -> Result<()> {
-        let op = reader.read_u8().await?;
-        match op {
-            EventLogType::IDENTITY_LOG => {
-                *self = EventLogType::Identity;
-            }
-            EventLogType::ACCOUNT_LOG => {
-                *self = EventLogType::Account;
-            }
-            #[cfg(feature = "device")]
-            EventLogType::DEVICE_LOG => {
-                *self = EventLogType::Device;
-            }
-            #[cfg(feature = "files")]
-            EventLogType::FILES_LOG => {
-                *self = EventLogType::Files;
-            }
-            EventLogType::FOLDER_LOG => {
-                let id = decode_uuid(reader).await?;
-                *self = EventLogType::Folder(id);
-            }
-            _ => {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    format!("unknown event log kind {}", op),
-                ))
-            }
-        }
-        Ok(())
-    }
-}
 
 #[async_trait]
 impl Encodable for EventKind {

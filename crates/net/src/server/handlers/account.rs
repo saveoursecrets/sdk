@@ -472,7 +472,7 @@ pub(crate) async fn event_diff(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = EventPatchRequest,
+        content = PatchRequest,
     ),
     responses(
         (
@@ -487,7 +487,7 @@ pub(crate) async fn event_diff(
             status = StatusCode::OK,
             content_type = "application/octet-stream",
             description = "Result of the attempt to apply the checked patch.",
-            body = CheckedPatch,
+            body = PatchResponse,
         ),
     ),
 )]
@@ -586,8 +586,10 @@ pub(crate) async fn sync_account(
 mod handlers {
     use super::Caller;
     use crate::{
-        commits::EventPatchRequest,
-        protocol::{DiffRequest, DiffResponse, ScanRequest, ScanResponse},
+        protocol::{
+            DiffRequest, DiffResponse, PatchRequest, PatchResponse,
+            ScanRequest, ScanResponse,
+        },
         server::{
             backend::AccountStorage, Error, Result, ServerBackend,
             ServerState,
@@ -939,7 +941,7 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let req: EventPatchRequest = decode(bytes).await?;
+        let req = PatchRequest::decode(bytes)?;
 
         let (checked_patch, outcome, records) = match &req.log_type {
             EventLogType::Noop => {
@@ -1056,7 +1058,7 @@ mod handlers {
                 let mut writer = account.write().await;
                 let (last_commit, records) = if let Some(commit) = &req.commit
                 {
-                    let log = writer.storage.folder_log(id).await?;
+                    let log = writer.storage.folder_log(&id).await?;
                     let mut event_log = log.write().await;
                     let records = event_log.rewind(commit).await?;
                     (Some(*commit), records)
@@ -1074,7 +1076,7 @@ mod handlers {
                 (
                     writer
                         .storage
-                        .merge_folder(id, diff, &mut outcome)
+                        .merge_folder(&id, diff, &mut outcome)
                         .await?,
                     outcome,
                     records,
@@ -1110,10 +1112,11 @@ mod handlers {
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
-            HeaderValue::from_static(MIME_TYPE_SOS),
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, encode(&checked_patch).await?))
+        let response = PatchResponse { checked_patch };
+        Ok((headers, response.encode()?))
     }
 
     async fn rollback_rewind(
