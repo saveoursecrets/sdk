@@ -10,7 +10,13 @@ message WireDiffRequest {
   // Folder identifier, must be present
   // when the log event type is a folder.
   optional string folder_id = 2;
+  // Commit to generate the diff from.
+  common.WireCommitHash from_hash = 3;
 }
 
 message WireDiffResponse {
+  // Patch of event records.
+  repeated common.WireEventRecord patch = 1;
+  // Checkpoint for the diff.
+  common.WireCommitProof checkpoint = 2;
 }

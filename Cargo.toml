@@ -65,6 +65,7 @@ bitflags = { version = "2", features = ["serde"] }
 enum-iterator = "2"
 file-guard = "0.2"
 tempfile = "3.5"
+prost = "0.12.6"
 
 [workspace.dependencies.rs_merkle]
 version = "1.4.2"

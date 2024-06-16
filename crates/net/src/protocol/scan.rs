@@ -1,13 +1,13 @@
 include!(concat!(env!("OUT_DIR"), "/scan.rs"));
 
-use crate::sdk::{commit, events, Result};
+use crate::sdk::{commit::CommitProof, events::EventLogType, Result};
 use prost::bytes::Buf;
 
 /// Request commit proofs from an event log.
 #[derive(Debug, Default, Clone)]
 pub struct ScanRequest {
     /// Type of event log to load commit hashes from.
-    pub log_type: events::EventLogType,
+    pub log_type: EventLogType,
     /// Number of proofs to fetch.
     ///
     /// Server implementations should restrict this to
@@ -26,7 +26,7 @@ impl ScanRequest {
         Ok(super::encode(&value)?)
     }
 
-    /// Decode this resquest.
+    /// Decode this request.
     pub fn decode(buffer: impl Buf) -> crate::Result<Self> {
         let result = super::decode::<WireScanRequest>(buffer)?;
         Ok(result.try_into()?)
@@ -64,13 +64,13 @@ impl From<ScanRequest> for WireScanRequest {
 #[derive(Debug, Default)]
 pub struct ScanResponse {
     /// Proof for the first item in the event log.
-    pub first_proof: Option<commit::CommitProof>,
+    pub first_proof: Option<CommitProof>,
     /// List of commit proofs.
     ///
     /// Proofs are always listed in the order they
     /// appear in the event log regardless of the scan
     /// direction.
-    pub proofs: Vec<commit::CommitProof>,
+    pub proofs: Vec<CommitProof>,
     /// Offset that can be used to continue scanning.
     pub offset: u64,
 }

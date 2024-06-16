@@ -25,3 +25,19 @@ message WireCommitProof {
   // Proof indices.
   repeated uint64 indices = 4;
 }
+
+message WireUtcDateTime {
+  int64 seconds = 1;
+  uint32 nanos = 2;
+}
+
+message WireEventRecord {
+  // Date and time of the event record.
+  WireUtcDateTime time = 1;
+  // Commit hash of the previous event.
+  WireCommitHash last_commit = 2;
+  // Commit hash of this event.
+  WireCommitHash commit = 3;
+  /// Encoded event buffer.
+  bytes event = 4;
+}
