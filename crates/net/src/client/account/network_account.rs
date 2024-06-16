@@ -22,7 +22,7 @@ use sos_sdk::{
         },
         AccessOptions, ClientStorage, StorageEventLogs,
     },
-    sync::{FolderDiff, Origin, SyncError, SyncOptions, UpdateSet},
+    sync::{Origin, SyncError, SyncOptions, UpdateSet},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Summary, Vault, VaultId,
@@ -724,11 +724,7 @@ impl Account for NetworkAccount {
         let identity = if conversion.identity.is_some() {
             let log = self.identity_log().await?;
             let reader = log.read().await;
-            let diff = FolderDiff {
-                last_commit: None,
-                patch: reader.diff(None).await?,
-                checkpoint: reader.tree().head()?,
-            };
+            let diff = reader.diff_unchecked(None).await?;
             Some(diff)
         } else {
             None
@@ -746,11 +742,7 @@ impl Account for NetworkAccount {
         for id in &identifiers {
             let event_log = self.folder_log(id).await?;
             let log_file = event_log.read().await;
-            let diff = FolderDiff {
-                last_commit: None,
-                patch: log_file.diff(None).await?,
-                checkpoint: log_file.tree().head()?,
-            };
+            let diff = log_file.diff_unchecked(None).await?;
             folders.insert(*id, diff);
         }
 
@@ -788,11 +780,7 @@ impl Account for NetworkAccount {
 
         let log = self.identity_log().await?;
         let reader = log.read().await;
-        let identity = FolderDiff {
-            last_commit: None,
-            patch: reader.diff(None).await?,
-            checkpoint: reader.tree().head()?,
-        };
+        let identity = reader.diff_unchecked(None).await?;
 
         // Force update the folders on remote servers
         let sync_options: SyncOptions = Default::default();
@@ -955,11 +943,7 @@ impl Account for NetworkAccount {
         let identity = {
             let log = self.identity_log().await?;
             let reader = log.read().await;
-            FolderDiff {
-                last_commit: None,
-                patch: reader.diff(None).await?,
-                checkpoint: reader.tree().head()?,
-            }
+            reader.diff_unchecked(None).await?
         };
 
         // Prepare event logs for the folders that
@@ -975,11 +959,7 @@ impl Account for NetworkAccount {
         for id in &identifiers {
             let event_log = self.folder_log(id).await?;
             let log_file = event_log.read().await;
-            let diff = FolderDiff {
-                last_commit: None,
-                patch: log_file.diff(None).await?,
-                checkpoint: log_file.tree().head()?,
-            };
+            let diff = log_file.diff_unchecked(None).await?;
             folders.insert(*id, diff);
         }
 
@@ -1021,11 +1001,7 @@ impl Account for NetworkAccount {
         {
             let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
-            let diff = FolderDiff {
-                last_commit: None,
-                patch: log_file.diff(None).await?,
-                checkpoint: log_file.tree().head()?,
-            };
+            let diff = log_file.diff_unchecked(None).await?;
             folders.insert(*folder.id(), diff);
         }
 
@@ -1065,11 +1041,7 @@ impl Account for NetworkAccount {
         let identity = {
             let log = self.identity_log().await?;
             let reader = log.read().await;
-            FolderDiff {
-                last_commit: None,
-                patch: reader.diff(None).await?,
-                checkpoint: reader.tree().head()?,
-            }
+            reader.diff_unchecked(None).await?
         };
 
         // Prepare event logs for the folders that
@@ -1078,11 +1050,7 @@ impl Account for NetworkAccount {
         {
             let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
-            let diff = FolderDiff {
-                last_commit: None,
-                patch: log_file.diff(None).await?,
-                checkpoint: log_file.tree().head()?,
-            };
+            let diff = log_file.diff_unchecked(None).await?;
             folders.insert(*folder.id(), diff);
         }
 

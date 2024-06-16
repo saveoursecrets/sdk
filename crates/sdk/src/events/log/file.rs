@@ -43,7 +43,7 @@ use crate::events::DeviceEvent;
 use crate::events::FileEvent;
 
 #[cfg(feature = "sync")]
-use crate::sync::{CheckedPatch, Patch};
+use crate::sync::{CheckedPatch, Diff, Patch};
 
 use async_trait::async_trait;
 use std::{
@@ -213,7 +213,39 @@ where
         })
     }
 
-    /// Diff of events until a specific commit.
+    /// Create a checked diff.
+    #[cfg(feature = "sync")]
+    async fn diff_checked(
+        &self,
+        commit: Option<&CommitHash>,
+        checkpoint: CommitProof,
+    ) -> Result<Diff<E>> {
+        let patch = self.diff(commit).await?;
+        Ok(Diff::<E> {
+            last_commit: self.tree().last_commit(),
+            patch,
+            checkpoint,
+        })
+    }
+
+    /// Create an unchecked diff.
+    #[cfg(feature = "sync")]
+    async fn diff_unchecked(
+        &self,
+        commit: Option<&CommitHash>,
+    ) -> Result<Diff<E>> {
+        let patch = self.diff(commit).await?;
+        Ok(Diff::<E> {
+            last_commit: self.tree().last_commit(),
+            patch,
+            checkpoint: self.tree().head()?,
+        })
+    }
+
+    /// Patch of events until a specific commit; does
+    /// not include the target commit.
+    ///
+    /// If no commit hash is given then all events are included.
     #[cfg(feature = "sync")]
     async fn diff(&self, commit: Option<&CommitHash>) -> Result<Patch<E>> {
         let records = self.diff_records(commit).await?;

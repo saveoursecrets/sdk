@@ -1,6 +1,6 @@
 //! Synchronization primitives.
 use crate::{
-    commit::{CommitHash, CommitProof, CommitState, Comparison},
+    commit::{CommitHash, CommitProof, CommitState, Comparison, ZERO},
     events::{AccountEvent, EventLogExt, WriteEvent},
     storage::{files::ExternalFile, StorageEventLogs},
     vault::VaultId,
@@ -177,6 +177,7 @@ where
     /// For example, for file event logs which are
     /// lazily instantiated once external files are created.
     pub last_commit: Option<CommitHash>,
+
     /// Contents of the patch.
     pub patch: Patch<T>,
     /// Checkpoint for the diff patch.
