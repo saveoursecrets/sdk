@@ -54,7 +54,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
     let mut req = CommitScanRequest::default();
     req.log_type = EventLogType::Identity;
     req.limit = 1;
-    let mut res = client.scan(&req).await?;
+    let res = client.scan(&req).await?;
     assert_eq!(1, res.proofs.len());
 
     // Get commit proofs of the account event log

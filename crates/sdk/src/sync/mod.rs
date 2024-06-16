@@ -726,10 +726,14 @@ pub struct ChangeSet {
 pub struct UpdateSet {
     /// Identity folder event logs.
     pub identity: Option<FolderDiff>,
-    /*
     /// Account event log.
     pub account: Option<AccountDiff>,
-    */
+    /// Device event log.
+    #[cfg(feature = "device")]
+    pub device: Option<DeviceDiff>,
+    /// Files event log.
+    #[cfg(feature = "files")]
+    pub files: Option<FileDiff>,
     /// Folders to be updated.
     pub folders: HashMap<VaultId, FolderDiff>,
 }

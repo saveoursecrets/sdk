@@ -756,7 +756,11 @@ impl Account for NetworkAccount {
 
         // Force update the folders on remote servers
         let sync_options: SyncOptions = Default::default();
-        let updates = UpdateSet { identity, folders };
+        let updates = UpdateSet {
+            identity,
+            folders,
+            ..Default::default()
+        };
 
         let sync_error = self.force_update(&updates, &sync_options).await;
         if let Some(sync_error) = sync_error {
@@ -794,7 +798,7 @@ impl Account for NetworkAccount {
         let sync_options: SyncOptions = Default::default();
         let updates = UpdateSet {
             identity: Some(identity),
-            folders: Default::default(),
+            ..Default::default()
         };
 
         let sync_error = self.force_update(&updates, &sync_options).await;
@@ -984,6 +988,7 @@ impl Account for NetworkAccount {
         let updates = UpdateSet {
             identity: Some(identity),
             folders,
+            ..Default::default()
         };
 
         let sync_error = self.force_update(&updates, &sync_options).await;
@@ -1029,6 +1034,7 @@ impl Account for NetworkAccount {
         let updates = UpdateSet {
             identity: None,
             folders,
+            ..Default::default()
         };
 
         let sync_error = self.force_update(&updates, &sync_options).await;
@@ -1085,6 +1091,7 @@ impl Account for NetworkAccount {
         let updates = UpdateSet {
             identity: Some(identity),
             folders,
+            ..Default::default()
         };
 
         let sync_error = self.force_update(&updates, &sync_options).await;
