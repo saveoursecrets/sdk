@@ -168,17 +168,25 @@ pub struct Diff<T>
 where
     T: Default + Encodable + Decodable,
 {
-    /// Last commit hash before the patch.
+    /// Last commit hash before the patch was created.
+    ///
+    /// This can be used to determine if the patch is to
+    /// be used to initialize a new set of events when
+    /// no last commit is available.
+    ///
+    /// For example, for file event logs which are
+    /// lazily instantiated once external files are created.
     pub last_commit: Option<CommitHash>,
     /// Contents of the patch.
     pub patch: Patch<T>,
     /// Checkpoint for the diff patch.
     ///
     /// For checked patches this must match the proof
-    /// of HEAD at the point the the patch was created from.
+    /// of HEAD before the patch was created.
     ///
-    /// When force merging this checkpoint references the
-    /// commit proof of HEAD after applying the patch.
+    /// For unchecked force merges this checkpoint
+    /// references the commit proof of HEAD after
+    /// applying the patch.
     pub checkpoint: CommitProof,
 }
 
