@@ -2,7 +2,7 @@
 use crate::{
     client::{Error, RemoteBridge, Result, SyncClient},
     protocol::ScanRequest,
-    CommitDiffRequest, CommitScanRequest, EventPatchRequest,
+    CommitDiffRequest, EventPatchRequest,
 };
 use async_recursion::async_recursion;
 use binary_stream::futures::{Decodable, Encodable};

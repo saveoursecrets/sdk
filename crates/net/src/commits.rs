@@ -10,37 +10,6 @@ use binary_stream::futures::{
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::Result;
 
-/// Request commit proofs from an event log.
-#[derive(Debug, Default, Clone)]
-pub struct CommitScanRequest {
-    /// Type of event log to load commit hashes from.
-    pub log_type: EventLogType,
-    /// Number of proofs to fetch.
-    ///
-    /// Server implementations should restrict this to
-    /// a sensible amount; the default server implementation
-    /// imposes a limit of 256 proofs.
-    pub limit: u16,
-    /// Offset from a previous scan used as a hint to
-    /// continue scanning.
-    pub offset: Option<u64>,
-}
-
-/// Commit proofs from an event log.
-#[derive(Debug, Default)]
-pub struct CommitScanResponse {
-    /// Proof for the first item in the event log.
-    pub first_proof: Option<CommitProof>,
-    /// List of commit proofs.
-    ///
-    /// Proofs are always listed in the order they
-    /// appear in the event log regardless of the scan
-    /// direction.
-    pub proofs: Vec<CommitProof>,
-    /// Offset that can be used to continue scanning.
-    pub offset: u64,
-}
-
 /// Request commit diff from an event log.
 #[derive(Debug, Default)]
 pub struct CommitDiffRequest {
@@ -75,58 +44,6 @@ pub struct EventPatchRequest {
     pub proof: CommitProof,
     /// Patch of events to apply.
     pub patch: Vec<EventRecord>,
-}
-
-#[async_trait]
-impl Encodable for CommitScanRequest {
-    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
-        &self,
-        writer: &mut BinaryWriter<W>,
-    ) -> Result<()> {
-        self.log_type.encode(&mut *writer).await?;
-        self.limit.encode(&mut *writer).await?;
-        self.offset.encode(&mut *writer).await?;
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl Decodable for CommitScanRequest {
-    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
-        &mut self,
-        reader: &mut BinaryReader<R>,
-    ) -> Result<()> {
-        self.log_type.decode(&mut *reader).await?;
-        self.limit.decode(&mut *reader).await?;
-        self.offset.decode(&mut *reader).await?;
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl Encodable for CommitScanResponse {
-    async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
-        &self,
-        writer: &mut BinaryWriter<W>,
-    ) -> Result<()> {
-        self.first_proof.encode(&mut *writer).await?;
-        self.offset.encode(&mut *writer).await?;
-        self.proofs.encode(&mut *writer).await?;
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl Decodable for CommitScanResponse {
-    async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(
-        &mut self,
-        reader: &mut BinaryReader<R>,
-    ) -> Result<()> {
-        self.first_proof.decode(&mut *reader).await?;
-        self.offset.decode(&mut *reader).await?;
-        self.proofs.decode(&mut *reader).await?;
-        Ok(())
-    }
 }
 
 #[async_trait]

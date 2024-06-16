@@ -1,10 +1,7 @@
 use super::Error;
 use crate::{
     client::{CancelReason, Result},
-    commits::{
-        CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
-        CommitScanResponse, EventPatchRequest,
-    },
+    commits::{CommitDiffRequest, CommitDiffResponse, EventPatchRequest},
     protocol::{ScanRequest, ScanResponse},
 };
 use async_trait::async_trait;

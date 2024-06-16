@@ -586,10 +586,7 @@ pub(crate) async fn sync_account(
 mod handlers {
     use super::Caller;
     use crate::{
-        commits::{
-            CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
-            CommitScanResponse, EventPatchRequest,
-        },
+        commits::{CommitDiffRequest, CommitDiffResponse, EventPatchRequest},
         protocol::{ScanRequest, ScanResponse},
         server::{
             backend::AccountStorage, Error, Result, ServerBackend,
