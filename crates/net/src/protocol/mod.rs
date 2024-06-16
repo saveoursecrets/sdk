@@ -1,6 +1,7 @@
 //! Types for the wire protocol.
 mod common;
 mod diff;
+mod patch;
 mod scan;
 
 pub use diff::{DiffRequest, DiffResponse};

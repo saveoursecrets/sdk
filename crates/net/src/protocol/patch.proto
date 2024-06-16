@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package patch;
+
+import "common.proto";
+
+message WirePatchRequest {
+  // Type of event log.
+  common.WireEventLogType log_type = 1;
+  // Folder identifier, must be present
+  // when the log event type is a folder.
+  optional string folder_id = 2;
+  // Hash of a commit to rewind to before
+  // applying the patch.
+  optional common.WireCommitHash commit = 3;
+  /// Proof for head of the event log before the
+  /// events are applied.
+  optional common.WireCommitProof proof = 4;
+  // Patch of event records to apply.
+  repeated common.WireEventRecord patch = 5;
+}
+
+message WirePatchResponse {}
