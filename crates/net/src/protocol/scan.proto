@@ -4,8 +4,27 @@ package scan;
 
 import "common.proto";
 
-message ScanRequest {
-  common.LogEventType log_type = 1;
-  optional uint32 limit = 2;
-  optional uint64 offset = 3;
+message WireScanRequest {
+  // Type of event log to scan proofs.
+  common.WireEventLogType log_type = 1;
+  // Folder identifier, must be present
+  // when the log event type is a folder.
+  optional string folder_id = 2;
+  // Limit on the number of proofs the server
+  // should return.
+  optional uint32 limit = 3;
+  // Offset to resume a scan from.
+  optional uint64 offset = 4;
+}
+
+message WireScanResponse {
+  // Proof of the first event so that callers
+  // can quickly determine if the trees have 
+  // completely diverged.
+  optional common.WireCommitProof first_proof = 1;
+  // Collection of proofs.
+  repeated common.WireCommitProof proofs = 2;
+  // Offset to resume a scan from if the client
+  // does not contain any of the proofs.
+  uint64 offset = 3;
 }

@@ -2,11 +2,26 @@ syntax = "proto3";
 
 package common;
 
-enum LogEventType {
-  IDENTITY = 0;
-  ACCOUNT = 1;
-  DEVICE = 2;
-  FILES = 3;
-  FOLDER = 4;
+enum WireEventLogType {
+  Identity = 0;
+  Account = 1;
+  Device = 2;
+  Files = 3;
+  Folder = 4;
 }
 
+message WireCommitHash {
+  // Bytes for the commit hash.
+  bytes hash = 1;
+}
+
+message WireCommitProof {
+  // Root hash for the proof.
+  WireCommitHash root = 1;
+  // Merkle proof serialized to bytes.
+  bytes proof = 2;
+  // Length of the tree.
+  uint64 length = 3;
+  // Proof indices.
+  repeated uint64 indices = 4;
+}

@@ -4287,6 +4287,7 @@ dependencies = [
  "prost-build",
  "rand",
  "reqwest",
+ "rs_merkle",
  "rustc_version",
  "secrecy",
  "serde",

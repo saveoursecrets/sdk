@@ -63,6 +63,7 @@ bitflags.workspace = true
 enum-iterator.workspace = true
 file-guard.workspace = true
 tempfile.workspace = true
+rs_merkle.workspace = true
 subtle = { version = "2.5" }
 ethereum-types = "0.14"
 async_zip = { version = "0.0.17", default-features = false, features = ["deflate", "tokio"], optional = true }
@@ -111,8 +112,6 @@ getrandom = {version = "0.2", features = ["js"]}
 uuid = { version = "1", features = ["serde", "v4", "js"] }
 tokio = { version = "1", default-features = false, features = ["rt", "sync", "macros", "io-util"] }
 
-[dependencies.rs_merkle]
-version = "1.4.2"
 #git = "https://github.com/tmpfs/rs-merkle"
 #branch = "sha2-update"
 #path = "../../../../forks/rs-merkle"

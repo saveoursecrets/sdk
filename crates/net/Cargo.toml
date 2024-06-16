@@ -85,6 +85,7 @@ indexmap.workspace = true
 async-stream = "0.3"
 colored = "2"
 binary-stream.workspace = true
+rs_merkle.workspace = true
 
 prost = "0.12.6"
 

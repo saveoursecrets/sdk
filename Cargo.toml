@@ -66,6 +66,9 @@ enum-iterator = "2"
 file-guard = "0.2"
 tempfile = "3.5"
 
+[workspace.dependencies.rs_merkle]
+version = "1.4.2"
+
 [workspace.dependencies.binary-stream]
 version = "9.1.0"
 features = ["async"]
