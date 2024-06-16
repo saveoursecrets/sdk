@@ -7,7 +7,6 @@
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single primary password.
 use crate::{
-    commit::CommitProof,
     constants::{
         FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
         VAULT_NSS,
@@ -15,8 +14,8 @@ use crate::{
     crypto::{AccessKey, KeyDerivation},
     decode, encode,
     events::{
-        DiscData, DiscLog, EventLogExt, FolderEventLog, FolderReducer,
-        MemoryData, MemoryFolderLog, MemoryLog, WriteEvent,
+        DiscData, DiscLog, EventLogExt, FolderEventLog, MemoryData,
+        MemoryFolderLog, MemoryLog, WriteEvent,
     },
     identity::{PrivateIdentity, UrnLookup},
     passwd::diceware::generate_passphrase_words,
@@ -547,23 +546,8 @@ where
     pub(crate) async fn force_merge(
         &mut self,
         diff: FolderDiff,
-    ) -> Result<CommitProof> {
-        let event_log = self.folder.event_log();
-        let mut event_log = event_log.write().await;
-        event_log.truncate().await?;
-
-        event_log.patch_unchecked(&diff.patch).await?;
-        let head = event_log.tree().head()?;
-
-        // Build a new vault
-        let vault = FolderReducer::new()
-            .reduce(&*event_log)
-            .await?
-            .build(true)
-            .await?;
-        self.folder.keeper_mut().replace_vault(vault, true).await?;
-
-        Ok(head)
+    ) -> Result<()> {
+        self.folder.force_merge(diff).await
     }
 }
 

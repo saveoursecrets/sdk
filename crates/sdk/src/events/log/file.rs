@@ -1,10 +1,9 @@
 //! Event log file.
 //!
-//! Event logs consist of a 4 identity bytes followed by one or more
-//! rows of log records.
-//!
-//! Each row contains the row length prepended and appended so that
-//! rows can be efficiently iterated in both directions.
+//! Event logs consist of 4 identity bytes followed by one or more
+//! rows of log records; each row contains the row length prepended
+//! and appended so that rows can be efficiently iterated in
+//! both directions.
 //!
 //! Row components with byte sizes:
 //!
@@ -12,7 +11,7 @@
 //! | 4 row length | 12 timestamp | 32 last commit hash | 32 commit hash | 4 data length | data | 4 row length |
 //! ```
 //!
-//! The first row will contain a last commit hash that is all zero.
+//! The first row must always contain a last commit hash that is all zero.
 //!
 use crate::{
     commit::{CommitHash, CommitProof, CommitTree, Comparison},
@@ -132,7 +131,7 @@ where
     W: AsyncWrite + Unpin + Send + Sync + 'static,
     D: Clone,
 {
-    /// Commit tree contains the merkle tree.
+    /// Commit tree contains the in-memory merkle tree.
     fn tree(&self) -> &CommitTree;
 
     /// Mutable commit tree.
@@ -154,6 +153,9 @@ where
     /// Associated data.
     #[doc(hidden)]
     fn data(&self) -> D;
+
+    #[doc(hidden)]
+    fn data_any(&self) -> &dyn std::any::Any;
 
     /// Length of the file magic bytes and optional
     /// encoding version.
@@ -378,6 +380,118 @@ where
         }
     }
 
+    /// Replace all events in this event log with the events in the diff.
+    ///
+    /// For disc based implementations a snapshot is created
+    /// of the event log file beforehand by copying the event
+    /// log to a new file with a `snapshot-{root_hash}` file extension.
+    ///
+    /// The events on disc and the in-memory merkle tree are then
+    /// removed before applying the patch in the diff.
+    ///
+    /// After applying the events if the HEAD of the event log
+    /// does not match the `checkpoint` in the diff verification
+    /// fails and an attempt is made to rollback to the snapshot.
+    ///
+    /// When verification fails an [Error::CheckpointVerification]
+    /// error will always be returned.
+    #[cfg(feature = "sync")]
+    async fn patch_replace(&mut self, diff: Diff<E>) -> Result<()> {
+        // Create a snapshot for disc-based implementations
+        let snapshot = self.try_create_snapshot().await?;
+
+        // Erase the file content and in-memory merkle tree
+        self.clear().await?;
+
+        // Apply the new events
+        self.patch_unchecked(&diff.patch).await?;
+
+        // Verify against the checkpoint
+        let computed = self.tree().head()?;
+        let verified = computed == diff.checkpoint;
+
+        let mut rollback_completed = false;
+        match (verified, &snapshot) {
+            // Try to rollback if verification failed
+            (false, Some(snapshot_path)) => {
+                rollback_completed =
+                    self.try_rollback_snapshot(snapshot_path).await.is_ok();
+            }
+            // Delete the snapshot if verified
+            (true, Some(snapshot_path)) => {
+                vfs::remove_file(snapshot_path).await?;
+            }
+            _ => {}
+        }
+
+        if verified {
+            Ok(())
+        } else {
+            Err(Error::CheckpointVerification {
+                checkpoint: diff.checkpoint.root,
+                computed: computed.root,
+                snapshot,
+                rollback_completed,
+            })
+        }
+    }
+
+    #[doc(hidden)]
+    async fn try_create_snapshot(&self) -> Result<Option<PathBuf>> {
+        if let Some(source_path) = self.data_any().downcast_ref::<PathBuf>() {
+            let file = self.file();
+            let _guard = file.lock().await;
+
+            if let Some(root) = self.tree().root() {
+                let mut snapshot_path = source_path.clone();
+                snapshot_path.set_extension(&format!("snapshot-{}", root));
+
+                let metadata = vfs::metadata(&source_path).await?;
+                tracing::debug!(
+                    num_events = %self.tree().len(),
+                    file_size = %metadata.len(),
+                    source = %source_path.display(),
+                    snapshot = %snapshot_path.display(),
+                    "event_log::snapshot::create"
+                );
+
+                vfs::copy(&source_path, &snapshot_path).await?;
+                Ok(Some(snapshot_path))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    #[doc(hidden)]
+    async fn try_rollback_snapshot(
+        &mut self,
+        snapshot_path: &PathBuf,
+    ) -> Result<()> {
+        if let Some(source_path) = self.data_any().downcast_ref::<PathBuf>() {
+            let file = self.file();
+            let _guard = file.lock().await;
+
+            let metadata = vfs::metadata(snapshot_path).await?;
+            tracing::debug!(
+                file_size = %metadata.len(),
+                source = %source_path.display(),
+                snapshot = %snapshot_path.display(),
+                "event_log::snapshot::rollback"
+            );
+
+            vfs::remove_file(&source_path).await?;
+            vfs::rename(snapshot_path, &source_path).await?;
+            self.load_tree().await?;
+
+            Ok(())
+        } else {
+            Ok(())
+        }
+    }
+
     /// Append a patch to this event log.
     #[cfg(feature = "sync")]
     async fn patch_unchecked(&mut self, patch: &Patch<E>) -> Result<()> {
@@ -514,6 +628,10 @@ where
 
     fn data(&self) -> PathBuf {
         self.data.clone()
+    }
+
+    fn data_any(&self) -> &dyn std::any::Any {
+        &self.data
     }
 
     async fn truncate(&mut self) -> Result<()> {
@@ -710,6 +828,10 @@ impl EventLogExt<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
 
     fn data(&self) -> MemoryInner {
         self.data.clone()
+    }
+
+    fn data_any(&self) -> &dyn std::any::Any {
+        &self.data
     }
 
     async fn truncate(&mut self) -> Result<()> {

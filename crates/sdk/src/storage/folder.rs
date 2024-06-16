@@ -1,6 +1,6 @@
 //! Storage backed by the filesystem.
 use crate::{
-    commit::{CommitHash, CommitProof, CommitState},
+    commit::{CommitHash, CommitState},
     constants::EVENT_LOG_EXT,
     crypto::AccessKey,
     decode,
@@ -210,12 +210,9 @@ where
     pub(crate) async fn force_merge(
         &mut self,
         diff: FolderDiff,
-    ) -> Result<CommitProof> {
+    ) -> Result<()> {
         let mut event_log = self.events.write().await;
-        event_log.clear().await?;
-
-        event_log.patch_unchecked(&diff.patch).await?;
-        let head = event_log.tree().head()?;
+        event_log.patch_replace(diff).await?;
 
         // Build a new vault
         let vault = FolderReducer::new()
@@ -225,7 +222,7 @@ where
             .await?;
         self.keeper.replace_vault(vault, true).await?;
 
-        Ok(head)
+        Ok(())
     }
 
     #[cfg(feature = "sync")]

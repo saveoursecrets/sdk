@@ -493,6 +493,21 @@ pub enum Error {
     #[error("account locked")]
     AccountLocked,
 
+    /// Error generated when replacing events in an event log
+    /// does not compute the same root hash as the expected
+    /// checkpoint.
+    #[error("checkpoint verification failed, expected root hash '{checkpoint}' but computed '{computed}', snapshot rollback completed: '{rollback_completed}' (snapshot: '{snapshot:?}')")]
+    CheckpointVerification {
+        /// Checkpoint root hash.
+        checkpoint: CommitHash,
+        /// Computed root hash.
+        computed: CommitHash,
+        /// Snapshot path.
+        snapshot: Option<PathBuf>,
+        /// Whether a rollback completed.
+        rollback_completed: bool,
+    },
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

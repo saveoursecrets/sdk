@@ -169,13 +169,12 @@ impl ForceMerge for ServerStorage {
             "force_merge::identity",
         );
 
-        let mut writer = self.identity_log.write().await;
-        writer.clear().await?;
-        writer.patch_unchecked(&diff.patch).await?;
+        let mut event_log = self.identity_log.write().await;
+        event_log.patch_replace(diff).await?;
 
         // Rebuild the head-only identity vault
         let vault = FolderReducer::new()
-            .reduce(&*writer)
+            .reduce(&*event_log)
             .await?
             .build(false)
             .await?;
@@ -203,8 +202,7 @@ impl ForceMerge for ServerStorage {
 
         let event_log = self.account_log();
         let mut event_log = event_log.write().await;
-        event_log.clear().await?;
-        event_log.patch_unchecked(&diff.patch).await?;
+        event_log.patch_replace(diff).await?;
 
         outcome.identity = len;
         outcome.changes += len;
@@ -228,8 +226,7 @@ impl ForceMerge for ServerStorage {
 
         let event_log = self.device_log().await?;
         let mut event_log = event_log.write().await;
-        event_log.clear().await?;
-        event_log.patch_unchecked(&diff.patch).await?;
+        event_log.patch_replace(diff).await?;
 
         // Update in-memory cache of trusted devices
         let reducer = DeviceReducer::new(&event_log);
@@ -259,8 +256,7 @@ impl ForceMerge for ServerStorage {
 
         let event_log = self.file_log().await?;
         let mut event_log = event_log.write().await;
-        event_log.clear().await?;
-        event_log.patch_unchecked(&diff.patch).await?;
+        event_log.patch_replace(diff).await?;
 
         outcome.identity = len;
         outcome.changes += len;
@@ -287,8 +283,7 @@ impl ForceMerge for ServerStorage {
         let events_path = self.paths.event_log_path(folder_id);
 
         let mut event_log = FolderEventLog::new(events_path).await?;
-        event_log.clear().await?;
-        event_log.patch_unchecked(&diff.patch).await?;
+        event_log.patch_replace(diff).await?;
 
         let vault = FolderReducer::new()
             .reduce(&event_log)
