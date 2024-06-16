@@ -21,7 +21,7 @@ message WireScanResponse {
   // Proof of the first event so that callers
   // can quickly determine if the trees have 
   // completely diverged.
-  optional common.WireCommitProof first_proof = 1;
+  common.WireCommitProof first_proof = 1;
   // Collection of proofs.
   repeated common.WireCommitProof proofs = 2;
   // Offset to resume a scan from if the client

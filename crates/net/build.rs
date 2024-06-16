@@ -13,7 +13,11 @@ fn main() {
     println!("cargo:rustc-cfg={}", channel);
 
     prost_build::compile_protos(
-        &["src/protocol/common.proto", "src/protocol/scan.proto"],
+        &[
+            "src/protocol/common.proto",
+            "src/protocol/diff.proto",
+            "src/protocol/scan.proto",
+        ],
         &["src/protocol"],
     )
     .unwrap();

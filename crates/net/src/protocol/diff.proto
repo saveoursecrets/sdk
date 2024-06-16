@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package diff;
+
+import "common.proto";
+
+message WireDiffRequest {
+  // Type of event log.
+  common.WireEventLogType log_type = 1;
+  // Folder identifier, must be present
+  // when the log event type is a folder.
+  optional string folder_id = 2;
+}
+
+message WireDiffResponse {
+}

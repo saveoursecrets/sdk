@@ -1,5 +1,6 @@
-//! Wire protocol types.
+//! Types for the wire protocol.
 mod common;
+mod diff;
 mod scan;
 
 pub use scan::{ScanRequest, ScanResponse};
