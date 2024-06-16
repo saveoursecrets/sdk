@@ -26,3 +26,7 @@ message WireSyncStatus {
     repeated WireSyncFolderState folders = 6;
 }
 
+message WirePatch {
+  // Collection of event records for the patch.
+  repeated common.WireEventRecord records = 1;
+}

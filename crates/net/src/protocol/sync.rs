@@ -1,8 +1,14 @@
 include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 
-use super::{Error, Result};
-use crate::sdk::sync::SyncStatus;
+use super::{Error, Result, WireConvert};
+use crate::sdk::sync::{Patch, SyncStatus};
+use binary_stream::futures::{Decodable, Encodable};
 use indexmap::IndexMap;
+use sos_sdk::events::EventRecord;
+
+impl WireConvert for SyncStatus {
+    type Inner = WireSyncStatus;
+}
 
 impl TryFrom<WireSyncStatus> for SyncStatus {
     type Error = Error;
@@ -54,6 +60,40 @@ impl From<SyncStatus> for WireSyncStatus {
                     state: Some(v.into()),
                 })
                 .collect(),
+        }
+    }
+}
+
+impl<T> WireConvert for Patch<T>
+where
+    T: Default + Encodable + Decodable,
+{
+    type Inner = WirePatch;
+}
+
+impl<T> TryFrom<WirePatch> for Patch<T>
+where
+    T: Default + Encodable + Decodable,
+{
+    type Error = Error;
+
+    fn try_from(value: WirePatch) -> Result<Self> {
+        let mut records = Vec::with_capacity(value.records.len());
+        for record in value.records {
+            records.push(record.try_into()?);
+        }
+        Ok(Self::new(records))
+    }
+}
+
+impl<T> From<Patch<T>> for WirePatch
+where
+    T: Default + Encodable + Decodable,
+{
+    fn from(value: Patch<T>) -> Self {
+        let records: Vec<EventRecord> = value.into();
+        Self {
+            records: records.into_iter().map(|r| r.into()).collect(),
         }
     }
 }

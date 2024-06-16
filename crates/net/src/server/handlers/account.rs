@@ -709,14 +709,12 @@ mod handlers {
         let account = reader.get(caller.address()).unwrap();
         let account = account.read().await;
         let status = account.storage.sync_status().await?;
-        let encoded = encode(&status).await?;
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
-            HeaderValue::from_static(MIME_TYPE_SOS),
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
-
-        Ok((headers, encoded))
+        Ok((headers, status.encode()?))
     }
 
     pub(super) async fn event_proofs(

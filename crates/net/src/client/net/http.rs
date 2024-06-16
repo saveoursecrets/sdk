@@ -364,8 +364,7 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::sync_status");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        let sync_status: SyncStatus = decode(&buffer).await?;
-        Ok(sync_status)
+        Ok(SyncStatus::decode(buffer)?)
     }
 
     #[instrument(skip_all)]
