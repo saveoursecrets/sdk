@@ -9,7 +9,7 @@ message WireDiffRequest {
   common.WireEventLogType log_type = 1;
   // Folder identifier, must be present
   // when the log event type is a folder.
-  optional string folder_id = 2;
+  optional bytes folder_id = 2;
   // Commit to generate the diff from.
   common.WireCommitHash from_hash = 3;
 }

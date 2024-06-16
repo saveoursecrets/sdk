@@ -9,7 +9,7 @@ pub use diff::{DiffRequest, DiffResponse};
 pub use patch::{PatchRequest, PatchResponse};
 pub use scan::{ScanRequest, ScanResponse};
 
-use crate::sdk::{events::EventLogType, vault::VaultId, Result};
+use crate::sdk::{events::EventLogType, Result};
 use prost::{bytes::Buf, Message};
 use std::io::{Error, ErrorKind};
 
@@ -28,7 +28,7 @@ pub fn decode<T: Default + Message>(buffer: impl Buf) -> crate::Result<T> {
 
 fn into_event_log_type(
     wire_type: i32,
-    folder_id: Option<String>,
+    folder_id: Option<Vec<u8>>,
 ) -> Result<EventLogType> {
     Ok(match wire_type {
         0 => EventLogType::Identity,
@@ -38,9 +38,9 @@ fn into_event_log_type(
         #[cfg(feature = "files")]
         3 => EventLogType::Files,
         4 => {
-            let folder_id = folder_id.unwrap();
-            let folder_id: VaultId = folder_id.parse()?;
-            EventLogType::Folder(folder_id)
+            let folder_id: [u8; 16] =
+                folder_id.unwrap().as_slice().try_into()?;
+            EventLogType::Folder(uuid::Uuid::from_bytes(folder_id))
         }
         _ => {
             return Err(Error::new(
@@ -52,7 +52,9 @@ fn into_event_log_type(
     })
 }
 
-fn into_wire_event_log_type(log_type: EventLogType) -> (i32, Option<String>) {
+fn into_wire_event_log_type(
+    log_type: EventLogType,
+) -> (i32, Option<Vec<u8>>) {
     match log_type {
         EventLogType::Identity => (0, None),
         EventLogType::Account => (1, None),
@@ -60,6 +62,6 @@ fn into_wire_event_log_type(log_type: EventLogType) -> (i32, Option<String>) {
         EventLogType::Device => (2, None),
         #[cfg(feature = "files")]
         EventLogType::Files => (3, None),
-        EventLogType::Folder(id) => (4, Some(id.to_string())),
+        EventLogType::Folder(id) => (4, Some(id.as_bytes().to_vec())),
     }
 }

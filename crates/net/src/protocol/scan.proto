@@ -5,11 +5,11 @@ package scan;
 import "common.proto";
 
 message WireScanRequest {
-  // Type of event log to scan proofs.
+  // Type of event log.
   common.WireEventLogType log_type = 1;
   // Folder identifier, must be present
   // when the log event type is a folder.
-  optional string folder_id = 2;
+  optional bytes folder_id = 2;
   // Limit on the number of proofs the server
   // should return.
   optional uint32 limit = 3;
