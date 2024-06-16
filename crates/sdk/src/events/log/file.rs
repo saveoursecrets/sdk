@@ -248,7 +248,7 @@ where
     /// If no commit hash is given then all events are included.
     #[cfg(feature = "sync")]
     async fn diff(&self, commit: Option<&CommitHash>) -> Result<Patch<E>> {
-        let records = self.diff_records(commit).await?;
+        let records = self.patch_records(commit).await?;
         Ok(Patch::new(records))
     }
 
@@ -259,7 +259,7 @@ where
     ///
     /// Does not include the target commit.
     #[doc(hidden)]
-    async fn diff_records(
+    async fn patch_records(
         &self,
         commit: Option<&CommitHash>,
     ) -> Result<Vec<EventRecord>> {

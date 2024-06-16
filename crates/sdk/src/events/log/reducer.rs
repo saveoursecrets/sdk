@@ -375,7 +375,7 @@ impl<'a> AccountReducer<'a> {
     /// of folders.
     pub async fn reduce(self) -> Result<HashSet<VaultId>> {
         let mut folders = HashSet::new();
-        let events = self.log.diff_records(None).await?;
+        let events = self.log.patch_records(None).await?;
         for record in events {
             let event = record.decode_event::<AccountEvent>().await?;
             match event {
