@@ -23,7 +23,7 @@
 //!
 //! # Features
 //!
-//! Default features enable account management, audit trail, external files,
+//! Default features enable account management, audit trail,
 //! search and backup archives. If you want to just use encrypted
 //! vaults without the account management support disable `default-features`.
 //!

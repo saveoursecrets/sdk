@@ -18,7 +18,6 @@ use crate::{
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
-        files::FileMutationEvent,
         paths::FileLock,
         search::{DocumentCount, SearchIndex},
         AccessOptions, AccountPack, ClientStorage, StorageEventLogs,
@@ -47,7 +46,7 @@ use crate::{
 use indexmap::IndexSet;
 
 #[cfg(feature = "files")]
-use crate::events::FileEventLog;
+use crate::{events::FileEventLog, storage::files::FileMutationEvent};
 
 #[cfg(feature = "search")]
 use crate::storage::search::*;
@@ -944,8 +943,11 @@ impl LocalAccount {
                 .await?,
         );
 
-        let file_password = user.find_file_encryption_password().await?;
-        storage.set_file_password(Some(file_password));
+        #[cfg(feature = "files")]
+        {
+            let file_password = user.find_file_encryption_password().await?;
+            storage.set_file_password(Some(file_password));
+        }
 
         Self::initialize_account_log(
             &self.paths,
@@ -1188,6 +1190,7 @@ impl LocalAccount {
             writer.create_secret(secret_data, options).await?
         };
 
+        #[cfg(feature = "files")]
         file_events.append(&mut result.file_events);
 
         let event = Event::Write(*folder.id(), result.event);
@@ -1257,6 +1260,7 @@ impl LocalAccount {
                 secret_data.secret,
                 Default::default(),
                 false,
+                #[cfg(feature = "files")]
                 &mut file_events,
             )
             .await?;
@@ -2249,6 +2253,8 @@ impl Account for LocalAccount {
                     file_events: mut move_file_events,
                 ..
             } = self.mv_secret(secret_id, &folder, to, options).await?;
+
+            #[cfg(feature = "files")]
             file_events.append(&mut move_file_events);
             id
         } else {

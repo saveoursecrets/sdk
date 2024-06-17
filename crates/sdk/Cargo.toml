@@ -12,7 +12,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["account", "archive", "audit", "files", "logs", "search"]
+default = ["account", "archive", "audit", "logs", "search"]
 account = []
 archive = ["dep:async_zip"]
 audit = []

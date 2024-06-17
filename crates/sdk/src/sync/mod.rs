@@ -2,7 +2,7 @@
 use crate::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
     events::{AccountEvent, EventLogExt, WriteEvent},
-    storage::{files::ExternalFile, StorageEventLogs},
+    storage::StorageEventLogs,
     vault::VaultId,
     Error, Result,
 };
@@ -26,7 +26,7 @@ use crate::events::DeviceEvent;
 pub use patch::DevicePatch;
 
 #[cfg(feature = "files")]
-use crate::events::FileEvent;
+use crate::{events::FileEvent, storage::files::ExternalFile};
 
 #[cfg(feature = "files")]
 pub use patch::FilePatch;

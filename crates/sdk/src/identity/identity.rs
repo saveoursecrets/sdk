@@ -182,6 +182,7 @@ impl Identity {
     }
 
     /// Create the file encryption password.
+    #[cfg(feature = "files")]
     pub(crate) async fn create_file_encryption_password(
         &mut self,
     ) -> Result<()> {
@@ -189,6 +190,7 @@ impl Identity {
     }
 
     /// Find the password used for symmetric file encryption (AGE).
+    #[cfg(feature = "files")]
     pub(crate) async fn find_file_encryption_password(
         &self,
     ) -> Result<SecretString> {

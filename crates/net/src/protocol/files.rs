@@ -92,6 +92,3 @@ mod files {
         }
     }
 }
-
-#[cfg(feature = "files")]
-use files::*;
