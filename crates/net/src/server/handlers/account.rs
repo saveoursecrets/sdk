@@ -648,7 +648,7 @@ mod handlers {
             }
         }
 
-        let account = <ChangeSet as WireEncodeDecode>::decode(bytes)?;
+        let account = ChangeSet::decode(bytes)?;
         let mut writer = backend.write().await;
         writer.create_account(caller.address(), account).await?;
         Ok(())
@@ -670,7 +670,7 @@ mod handlers {
         caller: Caller,
         bytes: &[u8],
     ) -> Result<()> {
-        let account: UpdateSet = decode(bytes).await?;
+        let account = UpdateSet::decode(bytes)?;
         let mut writer = backend.write().await;
         writer.update_account(caller.address(), account).await?;
         Ok(())
@@ -733,7 +733,7 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let req = <ScanRequest as WireEncodeDecode>::decode(bytes)?;
+        let req = ScanRequest::decode(bytes)?;
 
         // Maximum number of proofs to return in a single request
         if req.limit > 256 {
