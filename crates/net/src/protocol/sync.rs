@@ -1,11 +1,12 @@
 include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 
-use super::{Error, Result, WireConvert};
+use super::{decode_uuid, encode_uuid, Error, Result, WireConvert};
 use crate::sdk::{
     commit::Comparison,
     events::EventRecord,
     sync::{
-        ChangeSet, Diff, MaybeDiff, Patch, SyncDiff, SyncStatus, UpdateSet,
+        ChangeSet, Diff, MaybeDiff, Patch, SyncCompare, SyncDiff, SyncPacket,
+        SyncStatus, UpdateSet,
     },
 };
 use binary_stream::futures::{Decodable, Encodable};
@@ -30,7 +31,7 @@ impl TryFrom<WireSyncStatus> for SyncStatus {
         let mut folders = IndexMap::with_capacity(value.folders.len());
         for folder in value.folders {
             folders.insert(
-                super::decode_uuid(&folder.folder_id)?,
+                decode_uuid(&folder.folder_id)?,
                 folder.state.unwrap().try_into()?,
             );
         }
@@ -62,7 +63,7 @@ impl From<SyncStatus> for WireSyncStatus {
                 .folders
                 .into_iter()
                 .map(|(k, v)| WireSyncFolderState {
-                    folder_id: super::encode_uuid(k),
+                    folder_id: encode_uuid(k),
                     state: Some(v.into()),
                 })
                 .collect(),
@@ -253,7 +254,7 @@ impl TryFrom<WireChangeSet> for ChangeSet {
         let mut folders = HashMap::with_capacity(value.folders.len());
         for folder in value.folders {
             folders.insert(
-                super::decode_uuid(&folder.folder_id)?,
+                decode_uuid(&folder.folder_id)?,
                 folder.patch.unwrap().try_into()?,
             );
         }
@@ -282,7 +283,7 @@ impl From<ChangeSet> for WireChangeSet {
                 .folders
                 .into_iter()
                 .map(|(k, v)| WireSyncFolderPatch {
-                    folder_id: super::encode_uuid(k),
+                    folder_id: encode_uuid(k),
                     patch: Some(v.into()),
                 })
                 .collect(),
@@ -327,7 +328,7 @@ impl TryFrom<WireUpdateSet> for UpdateSet {
         let mut folders = HashMap::with_capacity(value.folders.len());
         for folder in value.folders {
             folders.insert(
-                super::decode_uuid(&folder.folder_id)?,
+                decode_uuid(&folder.folder_id)?,
                 folder.diff.unwrap().try_into()?,
             );
         }
@@ -356,7 +357,7 @@ impl From<UpdateSet> for WireUpdateSet {
                 .folders
                 .into_iter()
                 .map(|(k, v)| WireSyncFolderDiff {
-                    folder_id: super::encode_uuid(k),
+                    folder_id: encode_uuid(k),
                     diff: Some(v.into()),
                 })
                 .collect(),
@@ -401,7 +402,7 @@ impl TryFrom<WireSyncDiff> for SyncDiff {
         let mut folders = IndexMap::with_capacity(value.folders.len());
         for folder in value.folders {
             folders.insert(
-                super::decode_uuid(&folder.folder_id)?,
+                decode_uuid(&folder.folder_id)?,
                 folder.maybe_diff.unwrap().try_into()?,
             );
         }
@@ -430,7 +431,7 @@ impl From<SyncDiff> for WireSyncDiff {
                 .folders
                 .into_iter()
                 .map(|(k, v)| WireSyncFolderMaybeDiff {
-                    folder_id: super::encode_uuid(k),
+                    folder_id: encode_uuid(k),
                     maybe_diff: Some(v.into()),
                 })
                 .collect(),
@@ -438,8 +439,110 @@ impl From<SyncDiff> for WireSyncDiff {
     }
 }
 
-// TODO: SyncCompare
-// TODO: SyncPacket
+impl WireConvert for SyncCompare {
+    type Inner = WireSyncCompare;
+}
+
+impl TryFrom<WireSyncCompare> for SyncCompare {
+    type Error = Error;
+
+    fn try_from(value: WireSyncCompare) -> Result<Self> {
+        let identity = if let Some(identity) = value.identity {
+            Some(identity.try_into()?)
+        } else {
+            None
+        };
+
+        let account = if let Some(account) = value.account {
+            Some(account.try_into()?)
+        } else {
+            None
+        };
+
+        #[cfg(feature = "device")]
+        let device = if let Some(device) = value.device {
+            Some(device.try_into()?)
+        } else {
+            None
+        };
+
+        #[cfg(feature = "files")]
+        let files = if let Some(files) = value.files {
+            Some(files.try_into()?)
+        } else {
+            None
+        };
+
+        let mut folders = IndexMap::with_capacity(value.folders.len());
+        for folder in value.folders {
+            folders.insert(
+                decode_uuid(&folder.folder_id)?,
+                folder.compare.unwrap().try_into()?,
+            );
+        }
+        Ok(Self {
+            identity,
+            account,
+            #[cfg(feature = "device")]
+            device,
+            #[cfg(feature = "files")]
+            files,
+            folders,
+        })
+    }
+}
+
+impl From<SyncCompare> for WireSyncCompare {
+    fn from(value: SyncCompare) -> Self {
+        Self {
+            identity: value.identity.map(|d| d.into()),
+            account: value.account.map(|d| d.into()),
+            #[cfg(feature = "device")]
+            device: value.device.map(|d| d.into()),
+            #[cfg(feature = "files")]
+            files: value.files.map(|d| d.into()),
+            folders: value
+                .folders
+                .into_iter()
+                .map(|(k, v)| WireSyncFolderComparison {
+                    folder_id: super::encode_uuid(k),
+                    compare: Some(v.into()),
+                })
+                .collect(),
+        }
+    }
+}
+
+impl WireConvert for SyncPacket {
+    type Inner = WireSyncPacket;
+}
+
+impl TryFrom<WireSyncPacket> for SyncPacket {
+    type Error = Error;
+
+    fn try_from(value: WireSyncPacket) -> Result<Self> {
+        let compare = if let Some(compare) = value.compare {
+            Some(compare.try_into()?)
+        } else {
+            None
+        };
+        Ok(Self {
+            status: value.status.unwrap().try_into()?,
+            diff: value.diff.unwrap().try_into()?,
+            compare,
+        })
+    }
+}
+
+impl From<SyncPacket> for WireSyncPacket {
+    fn from(value: SyncPacket) -> Self {
+        Self {
+            status: Some(value.status.into()),
+            diff: Some(value.diff.into()),
+            compare: value.compare.map(|c| c.into()),
+        }
+    }
+}
 
 #[cfg(feature = "files")]
 mod files {
