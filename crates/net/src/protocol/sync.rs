@@ -9,7 +9,6 @@ use crate::sdk::{
         SyncStatus, UpdateSet,
     },
 };
-use binary_stream::futures::{Decodable, Encodable};
 use indexmap::IndexMap;
 use std::collections::HashMap;
 
@@ -115,17 +114,11 @@ impl From<Comparison> for WireComparison {
     }
 }
 
-impl<T> WireConvert for Patch<T>
-where
-    T: Default + Encodable + Decodable,
-{
+impl<T> WireConvert for Patch<T> {
     type Inner = WirePatch;
 }
 
-impl<T> TryFrom<WirePatch> for Patch<T>
-where
-    T: Default + Encodable + Decodable,
-{
+impl<T> TryFrom<WirePatch> for Patch<T> {
     type Error = Error;
 
     fn try_from(value: WirePatch) -> Result<Self> {
@@ -137,10 +130,7 @@ where
     }
 }
 
-impl<T> From<Patch<T>> for WirePatch
-where
-    T: Default + Encodable + Decodable,
-{
+impl<T> From<Patch<T>> for WirePatch {
     fn from(value: Patch<T>) -> Self {
         let records: Vec<EventRecord> = value.into();
         Self {
@@ -149,17 +139,11 @@ where
     }
 }
 
-impl<T> WireConvert for Diff<T>
-where
-    T: Default + Encodable + Decodable,
-{
+impl<T> WireConvert for Diff<T> {
     type Inner = WireDiff;
 }
 
-impl<T> TryFrom<WireDiff> for Diff<T>
-where
-    T: Default + Encodable + Decodable,
-{
+impl<T> TryFrom<WireDiff> for Diff<T> {
     type Error = Error;
 
     fn try_from(value: WireDiff) -> Result<Self> {
@@ -176,10 +160,7 @@ where
     }
 }
 
-impl<T> From<Diff<T>> for WireDiff
-where
-    T: Default + Encodable + Decodable,
-{
+impl<T> From<Diff<T>> for WireDiff {
     fn from(value: Diff<T>) -> Self {
         Self {
             last_commit: value.last_commit.map(|c| c.into()),
@@ -189,16 +170,12 @@ where
     }
 }
 
-impl<T> WireConvert for MaybeDiff<T>
-where
-    T: Default + Encodable + Decodable,
-{
+impl<T> WireConvert for MaybeDiff<T> {
     type Inner = WireMaybeDiff;
 }
 
 impl<T> TryFrom<WireMaybeDiff> for MaybeDiff<T>
 where
-    T: Default + Encodable + Decodable,
     T: TryFrom<WireDiff, Error = Error>,
 {
     type Error = Error;
@@ -221,7 +198,6 @@ where
 
 impl<T> From<MaybeDiff<T>> for WireMaybeDiff
 where
-    T: Default + Encodable + Decodable,
     T: Into<WireDiff>,
 {
     fn from(value: MaybeDiff<T>) -> Self {

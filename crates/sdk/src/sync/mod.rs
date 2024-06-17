@@ -164,10 +164,7 @@ pub enum CheckedPatch {
 
 /// Diff between local and remote.
 #[derive(Default, Debug, Clone)]
-pub struct Diff<T>
-where
-    T: Default + Encodable + Decodable,
-{
+pub struct Diff<T> {
     /// Last commit hash before the patch was created.
     ///
     /// This can be used to determine if the patch is to

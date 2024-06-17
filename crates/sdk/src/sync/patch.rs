@@ -72,7 +72,7 @@ impl<T> Patch<T> {
     }
 }
 
-impl<T: Default + Encodable + Decodable> From<Patch<T>> for Vec<EventRecord> {
+impl<T> From<Patch<T>> for Vec<EventRecord> {
     fn from(value: Patch<T>) -> Self {
         value.0
     }
