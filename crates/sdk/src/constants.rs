@@ -89,18 +89,6 @@ mod urn {
 
 /// Constants for MIME types.
 mod mime {
-    /// Mime type for event logs.
-    #[deprecated]
-    pub const MIME_TYPE_EVENT: &str = "application/sos+event";
-
-    /// Mime type for patches.
-    #[deprecated]
-    pub const MIME_TYPE_PATCH: &str = "application/sos+patch";
-
-    /// Mime type for binary packets.
-    #[deprecated]
-    pub const MIME_TYPE_SOS: &str = "application/sos+octet-stream";
-
     /// Mime type for protocol buffers.
     pub const MIME_TYPE_PROTOBUF: &str = "application/x-protobuf";
 }
