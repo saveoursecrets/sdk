@@ -838,7 +838,7 @@ pub trait SyncStorage: StorageEventLogs {
 }
 
 /// Outcome of a merge operation.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct MergeOutcome {
     /// Total number of changes made during the merge.
     pub changes: u64,

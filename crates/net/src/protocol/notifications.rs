@@ -6,7 +6,7 @@ use sos_sdk::{
 };
 
 /// Notification sent by the server when changes were made.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChangeNotification {
     /// Account owner address.
     address: Address,

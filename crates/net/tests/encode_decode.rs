@@ -12,7 +12,9 @@ use sos_net::{
         UtcDateTime,
     },
 };
-use sos_sdk::events::EventLogType;
+use sos_sdk::{
+    events::EventLogType, signer::ecdsa::Address, sync::MergeOutcome,
+};
 
 const HASH: &str =
     "54c4de4a0db65b62302964a52b0ea346e69b11d54b430d4615672a37ff0d4e58";
@@ -198,6 +200,41 @@ fn encode_decode_patch_response() -> Result<()> {
     let value = PatchResponse { checked_patch };
     let buffer = value.clone().encode()?;
     let decoded = PatchResponse::decode(buffer.as_slice())?;
+    assert_eq!(value, decoded);
+
+    Ok(())
+}
+
+#[test]
+fn encode_decode_merge_outcom() -> Result<()> {
+    let value = MergeOutcome {
+        changes: 13,
+        ..Default::default()
+    };
+    let buffer = value.clone().encode()?;
+    let decoded = MergeOutcome::decode(buffer.as_slice())?;
+    assert_eq!(value, decoded);
+
+    Ok(())
+}
+
+#[cfg(feature = "listen")]
+#[test]
+fn encode_decode_change_notification() -> Result<()> {
+    use sos_net::protocol::ChangeNotification;
+    let outcome = MergeOutcome {
+        changes: 7,
+        ..Default::default()
+    };
+    let address: Address = [1u8; 20].into();
+    let value = ChangeNotification::new(
+        &address,
+        "mock-connection".to_string(),
+        Default::default(),
+        outcome,
+    );
+    let buffer = value.clone().encode()?;
+    let decoded = ChangeNotification::decode(buffer.as_slice())?;
     assert_eq!(value, decoded);
 
     Ok(())
