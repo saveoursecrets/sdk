@@ -31,9 +31,6 @@ mod identity {
 
     /// Vault file identity magic bytes (SOSV).
     pub const VAULT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x56];
-
-    /// Remote procedure call identity magic bytes (SOSR).
-    pub const RPC_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x52];
 }
 
 /// Constants for file extensions.
