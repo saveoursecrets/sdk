@@ -323,7 +323,7 @@ impl RemoteSync for RemoteBridge {
 mod listen {
     use crate::{
         client::{ListenOptions, RemoteBridge, WebSocketHandle},
-        ChangeNotification,
+        protocol::ChangeNotification,
     };
     use tokio::sync::mpsc;
 

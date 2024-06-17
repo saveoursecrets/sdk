@@ -29,8 +29,8 @@ const BODY_LIMIT: usize = 33554432;
 
 #[cfg(feature = "listen")]
 use crate::{
+    protocol::{ChangeNotification, WireEncodeDecode},
     server::{ServerState, State},
-    ChangeNotification,
 };
 
 /// Query string for connections.
@@ -134,7 +134,7 @@ pub(crate) async fn send_notification(
     notification: ChangeNotification,
 ) {
     // Send notification on the websockets channel
-    match serde_json::to_vec(&notification) {
+    match notification.encode() {
         Ok(buffer) => {
             if let Some(account) = reader.sockets.get(caller.address()) {
                 if let Err(error) = account.broadcast(caller, buffer).await {

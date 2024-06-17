@@ -44,6 +44,11 @@ impl ChangeNotification {
         &self.connection_id
     }
 
+    /// Account root commit hash.
+    pub fn root(&self) -> &CommitHash {
+        &self.root
+    }
+
     /// Merge outcome.
     pub fn outcome(&self) -> &MergeOutcome {
         &self.outcome

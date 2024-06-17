@@ -25,7 +25,7 @@ use crate::{
     client::{
         net::NetworkRetry, CancelReason, Error, Result, WebSocketRequest,
     },
-    ChangeNotification,
+    protocol::{ChangeNotification, WireEncodeDecode},
 };
 
 use super::{
@@ -187,8 +187,7 @@ pub fn changes(
 async fn decode_notification(message: Message) -> Result<ChangeNotification> {
     match message {
         Message::Binary(buffer) => {
-            let notification: ChangeNotification =
-                serde_json::from_slice(&buffer)?;
+            let notification = ChangeNotification::decode(buffer.as_slice())?;
             Ok(notification)
         }
         _ => Err(Error::NotBinaryWebsocketMessageType),

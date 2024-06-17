@@ -623,7 +623,9 @@ mod handlers {
     use sos_sdk::{events::DeviceEvent, sync::DeviceDiff};
 
     #[cfg(feature = "listen")]
-    use crate::{server::handlers::send_notification, ChangeNotification};
+    use crate::{
+        protocol::ChangeNotification, server::handlers::send_notification,
+    };
 
     pub(super) async fn account_exists(
         _state: ServerState,

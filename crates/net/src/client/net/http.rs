@@ -27,7 +27,7 @@ use super::{
 };
 
 #[cfg(feature = "listen")]
-use crate::ChangeNotification;
+use crate::protocol::ChangeNotification;
 
 #[cfg(feature = "listen")]
 use super::websocket::WebSocketChangeListener;

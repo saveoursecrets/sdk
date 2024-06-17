@@ -29,6 +29,8 @@ mod sync;
 
 pub use diff::{DiffRequest, DiffResponse};
 pub use error::Error;
+#[cfg(feature = "listen")]
+pub use notifications::ChangeNotification;
 pub use patch::{PatchRequest, PatchResponse};
 pub use scan::{ScanRequest, ScanResponse};
 
