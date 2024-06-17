@@ -1,9 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 
-use super::{
-    decode_uuid, encode_uuid, files::WireExternalFile, Error, Result,
-    WireConvert,
-};
+use super::{decode_uuid, encode_uuid, Error, Result, WireConvert};
 use crate::sdk::{
     commit::Comparison,
     events::EventRecord,
@@ -556,16 +553,6 @@ impl TryFrom<WireMergeOutcome> for MergeOutcome {
             folders.insert(decode_uuid(&folder.folder_id)?, folder.changes);
         }
 
-        #[cfg(feature = "files")]
-        let external_files = {
-            let mut external_files =
-                IndexSet::with_capacity(value.external_files.len());
-            for file in value.external_files {
-                external_files.insert(file.try_into()?);
-            }
-            external_files
-        };
-
         Ok(Self {
             changes: value.changes,
             identity: value.identity,
@@ -576,20 +563,13 @@ impl TryFrom<WireMergeOutcome> for MergeOutcome {
             files: value.files,
             folders,
             #[cfg(feature = "files")]
-            external_files,
+            external_files: IndexSet::new(),
         })
     }
 }
 
 impl From<MergeOutcome> for WireMergeOutcome {
     fn from(value: MergeOutcome) -> Self {
-        #[cfg(feature = "files")]
-        let external_files: Vec<WireExternalFile> =
-            value.external_files.into_iter().map(|f| f.into()).collect();
-
-        #[cfg(not(feature = "files"))]
-        let external_files = vec![];
-
         Self {
             changes: value.changes,
             identity: value.identity,
@@ -610,7 +590,6 @@ impl From<MergeOutcome> for WireMergeOutcome {
                     changes: v,
                 })
                 .collect(),
-            external_files,
         }
     }
 }

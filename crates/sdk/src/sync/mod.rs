@@ -837,41 +837,31 @@ pub trait SyncStorage: StorageEventLogs {
     }
 }
 
-fn is_zero(value: &u64) -> bool {
-    value == &u64::MIN
-}
-
 /// Outcome of a merge operation.
-#[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(default)]
+#[derive(Debug, Default)]
 pub struct MergeOutcome {
     /// Total number of changes made during the merge.
-    #[serde(skip_serializing_if = "is_zero")]
     pub changes: u64,
     /// Number of changes to the identity folder.
-    #[serde(skip_serializing_if = "is_zero")]
     pub identity: u64,
     /// Number of changes to the account event log.
-    #[serde(skip_serializing_if = "is_zero")]
     pub account: u64,
     /// Number of changes to the device event log.
     #[cfg(feature = "device")]
-    #[serde(skip_serializing_if = "is_zero")]
     pub device: u64,
     /// Number of changes to the file event log.
     #[cfg(feature = "files")]
-    #[serde(skip_serializing_if = "is_zero")]
     pub files: u64,
     /// Number of changes to the folder event logs.
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub folders: HashMap<VaultId, u64>,
 
     /// Collection of external files detected when merging
-    /// file events logs.
+    /// file events logs, must never be serialized over
+    /// the wire.
     ///
-    /// Used after mege to update the file transfer queue.
+    /// Used after merge to update the file transfer queue.
+    #[doc(hidden)]
     #[cfg(feature = "files")]
-    #[serde(skip)]
     pub external_files: IndexSet<ExternalFile>,
 }
 

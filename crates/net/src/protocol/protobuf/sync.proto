@@ -172,9 +172,4 @@ message WireMergeOutcome {
   uint64 files = 5;
   // Number of changes to the folder event logs.
   repeated WireFolderMergeOutcome folders = 6;
-  // Collection of external files detected when merging
-  // file events logs.
-  //
-  // Used after mege to update the file transfer queue.
-  repeated files.WireExternalFile external_files = 7;
 }
