@@ -27,12 +27,9 @@ pub type FilePatch = Patch<FileEvent>;
 
 /// Patch wraps a changeset of events to be sent across the network.
 #[derive(Clone, Debug, Default)]
-pub struct Patch<T: Default + Encodable + Decodable>(
-    Vec<EventRecord>,
-    PhantomData<T>,
-);
+pub struct Patch<T>(Vec<EventRecord>, PhantomData<T>);
 
-impl<T: Default + Encodable + Decodable> Patch<T> {
+impl<T> Patch<T> {
     /// Create a new patch from event records.
     pub fn new(records: Vec<EventRecord>) -> Self {
         Self(records, PhantomData)
