@@ -4,10 +4,11 @@ use super::{Error, Result, WireConvert};
 use crate::sdk::{
     commit::Comparison,
     events::EventRecord,
-    sync::{Diff, MaybeDiff, Patch, SyncStatus},
+    sync::{ChangeSet, Diff, MaybeDiff, Patch, SyncStatus, UpdateSet},
 };
 use binary_stream::futures::{Decodable, Encodable};
 use indexmap::IndexMap;
+use std::collections::HashMap;
 
 impl WireConvert for SyncStatus {
     type Inner = WireSyncStatus;
@@ -239,7 +240,54 @@ where
     }
 }
 
-// TODO: ChangeSet
+impl WireConvert for ChangeSet {
+    type Inner = WireChangeSet;
+}
+
+impl TryFrom<WireChangeSet> for ChangeSet {
+    type Error = Error;
+
+    fn try_from(value: WireChangeSet) -> Result<Self> {
+        let mut folders = HashMap::with_capacity(value.folders.len());
+        for folder in value.folders {
+            folders.insert(
+                super::decode_uuid(&folder.folder_id)?,
+                folder.patch.unwrap().try_into()?,
+            );
+        }
+        Ok(Self {
+            identity: value.identity.unwrap().try_into()?,
+            account: value.account.unwrap().try_into()?,
+            #[cfg(feature = "device")]
+            device: value.device.unwrap().try_into()?,
+            #[cfg(feature = "files")]
+            files: value.files.unwrap().try_into()?,
+            folders,
+        })
+    }
+}
+
+impl From<ChangeSet> for WireChangeSet {
+    fn from(value: ChangeSet) -> Self {
+        Self {
+            identity: Some(value.identity.into()),
+            account: Some(value.account.into()),
+            #[cfg(feature = "device")]
+            device: Some(value.device.into()),
+            #[cfg(feature = "files")]
+            files: Some(value.files.into()),
+            folders: value
+                .folders
+                .into_iter()
+                .map(|(k, v)| WireSyncFolderPatch {
+                    folder_id: super::encode_uuid(k),
+                    patch: Some(v.into()),
+                })
+                .collect(),
+        }
+    }
+}
+
 // TODO: UpdateSet
 // TODO: SyncDiff
 // TODO: SyncCompare
