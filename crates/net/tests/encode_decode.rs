@@ -1,7 +1,10 @@
 use anyhow::Result;
 
 use sos_net::{
-    protocol::{DiffRequest, DiffResponse, WireEncodeDecode},
+    protocol::{
+        DiffRequest, DiffResponse, ScanRequest, ScanResponse,
+        WireEncodeDecode,
+    },
     sdk::{
         commit::{CommitHash, CommitProof, CommitState},
         events::EventRecord,
@@ -128,6 +131,36 @@ fn encode_decode_diff_response() -> Result<()> {
 
     let buffer = value.clone().encode()?;
     let decoded = DiffResponse::decode(buffer.as_slice())?;
+    assert_eq!(value, decoded);
+
+    Ok(())
+}
+
+#[test]
+fn encode_decode_scan_request() -> Result<()> {
+    let value = ScanRequest {
+        log_type: EventLogType::Identity,
+        limit: 32,
+        offset: 16,
+    };
+
+    let buffer = value.clone().encode()?;
+    let decoded = ScanRequest::decode(buffer.as_slice())?;
+    assert_eq!(value, decoded);
+
+    Ok(())
+}
+
+#[test]
+fn encode_decode_scan_response() -> Result<()> {
+    let value = ScanResponse {
+        first_proof: Default::default(),
+        offset: 32,
+        proofs: vec![Default::default()],
+    };
+
+    let buffer = value.clone().encode()?;
+    let decoded = ScanResponse::decode(buffer.as_slice())?;
     assert_eq!(value, decoded);
 
     Ok(())

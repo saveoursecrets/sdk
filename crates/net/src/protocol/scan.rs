@@ -4,7 +4,7 @@ use super::{Error, Result, WireConvert};
 use crate::sdk::{commit::CommitProof, events::EventLogType};
 
 /// Request commit proofs from an event log.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScanRequest {
     /// Type of event log to load commit hashes from.
     pub log_type: EventLogType,
@@ -51,7 +51,7 @@ impl From<ScanRequest> for WireScanRequest {
 }
 
 /// Commit proofs from an event log.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScanResponse {
     /// Proof for the first item in the event log.
     pub first_proof: Option<CommitProof>,
