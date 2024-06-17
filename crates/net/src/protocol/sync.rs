@@ -195,15 +195,13 @@ where
 impl<T> TryFrom<WireMaybeDiff> for MaybeDiff<T>
 where
     T: Default + Encodable + Decodable,
-    T: TryFrom<WireDiff>,
-    <T as TryFrom<WireDiff>>::Error: std::fmt::Debug,
+    T: TryFrom<WireDiff, Error = Error>,
 {
     type Error = Error;
 
     fn try_from(value: WireMaybeDiff) -> Result<Self> {
         if let Some(diff) = value.diff {
-            // FIXME: error conversion, do not do the outer unwrap
-            Ok(Self::Diff(diff.inner.unwrap().try_into().unwrap()))
+            Ok(Self::Diff(diff.inner.unwrap().try_into()?))
         } else if let Some(compare) = value.compare {
             let compare = if let Some(compare) = compare.inner {
                 Some(compare.try_into()?)
@@ -241,8 +239,6 @@ where
     }
 }
 
-// TODO: MaybeDiff
-//
 // TODO: ChangeSet
 // TODO: UpdateSet
 // TODO: SyncDiff

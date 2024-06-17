@@ -55,8 +55,7 @@ impl<T> WireEncodeDecode for T
 where
     T: WireConvert,
     <T as WireConvert>::Inner: From<T>,
-    T: TryFrom<<T as WireConvert>::Inner>,
-    <T as TryFrom<<T as WireConvert>::Inner>>::Error: std::fmt::Debug,
+    T: TryFrom<<T as WireConvert>::Inner, Error = Error>,
 {
     fn encode(self) -> Result<Vec<u8>> {
         let value: <Self as WireConvert>::Inner = self.into();
@@ -69,7 +68,7 @@ where
     {
         let result = decode::<<Self as WireConvert>::Inner>(buffer)?;
         // FIXME: do error conversion rather than unwrap
-        Ok(result.try_into().unwrap())
+        Ok(result.try_into()?)
     }
 }
 
