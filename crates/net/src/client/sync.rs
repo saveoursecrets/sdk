@@ -57,7 +57,7 @@ pub trait RemoteSync {
     /// password was changed or folder(s) were compacted.
     async fn force_update(
         &self,
-        account_data: &UpdateSet,
+        account_data: UpdateSet,
         options: &SyncOptions,
     ) -> Option<SyncError>;
 }
@@ -75,7 +75,7 @@ pub trait SyncClient {
     async fn create_account(&self, account: ChangeSet) -> Result<()>;
 
     /// Update an account.
-    async fn update_account(&self, account: &UpdateSet) -> Result<()>;
+    async fn update_account(&self, account: UpdateSet) -> Result<()>;
 
     /// Fetch an account from a remote server.
     async fn fetch_account(&self) -> Result<ChangeSet>;

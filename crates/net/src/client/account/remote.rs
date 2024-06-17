@@ -307,7 +307,7 @@ impl RemoteSync for RemoteBridge {
 
     async fn force_update(
         &self,
-        account_data: &UpdateSet,
+        account_data: UpdateSet,
         _options: &SyncOptions,
     ) -> Option<SyncError> {
         match self.client.update_account(account_data).await {

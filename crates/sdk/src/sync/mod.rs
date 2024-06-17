@@ -163,7 +163,7 @@ pub enum CheckedPatch {
 }
 
 /// Diff between local and remote.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Diff<T>
 where
     T: Default + Encodable + Decodable,
@@ -777,7 +777,7 @@ pub struct ChangeSet {
 /// logs so that the account state can be overwritten in the
 /// case of events such as changing encryption cipher, changing
 /// folder password or compacing the events in a folder.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct UpdateSet {
     /// Identity folder event logs.
     pub identity: Option<FolderDiff>,

@@ -145,10 +145,10 @@ impl RemoteSync for NetworkAccount {
         }
         maybe_error.into_option()
     }
-  
+
     async fn force_update(
         &self,
-        account_data: &UpdateSet,
+        account_data: UpdateSet,
         options: &SyncOptions,
     ) -> Option<SyncError> {
         if self.offline {
@@ -166,7 +166,7 @@ impl RemoteSync for NetworkAccount {
 
             if sync_remote {
                 if let Some(mut e) =
-                    remote.force_update(account_data, options).await
+                    remote.force_update(account_data.clone(), options).await
                 {
                     maybe_error.errors.append(&mut e.errors);
                 }

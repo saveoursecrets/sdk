@@ -288,7 +288,80 @@ impl From<ChangeSet> for WireChangeSet {
     }
 }
 
-// TODO: UpdateSet
+impl WireConvert for UpdateSet {
+    type Inner = WireUpdateSet;
+}
+
+impl TryFrom<WireUpdateSet> for UpdateSet {
+    type Error = Error;
+
+    fn try_from(value: WireUpdateSet) -> Result<Self> {
+        let identity = if let Some(identity) = value.identity {
+            Some(identity.try_into()?)
+        } else {
+            None
+        };
+
+        let account = if let Some(account) = value.account {
+            Some(account.try_into()?)
+        } else {
+            None
+        };
+
+        #[cfg(feature = "device")]
+        let device = if let Some(device) = value.device {
+            Some(device.try_into()?)
+        } else {
+            None
+        };
+
+        #[cfg(feature = "files")]
+        let files = if let Some(files) = value.files {
+            Some(files.try_into()?)
+        } else {
+            None
+        };
+
+        let mut folders = HashMap::with_capacity(value.folders.len());
+        for folder in value.folders {
+            folders.insert(
+                super::decode_uuid(&folder.folder_id)?,
+                folder.diff.unwrap().try_into()?,
+            );
+        }
+        Ok(Self {
+            identity,
+            account,
+            #[cfg(feature = "device")]
+            device,
+            #[cfg(feature = "files")]
+            files,
+            folders,
+        })
+    }
+}
+
+impl From<UpdateSet> for WireUpdateSet {
+    fn from(value: UpdateSet) -> Self {
+        Self {
+            identity: value.identity.map(|d| d.into()),
+            account: value.account.map(|d| d.into()),
+            #[cfg(feature = "device")]
+            device: value.device.map(|d| d.into()),
+            #[cfg(feature = "files")]
+            files: value.files.map(|d| d.into()),
+            folders: value
+                .folders
+                .into_iter()
+                .map(|(k, v)| WireSyncFolderDiff {
+                    folder_id: super::encode_uuid(k),
+                    diff: Some(v.into()),
+                })
+                .collect(),
+        }
+    }
+}
+
 // TODO: SyncDiff
 // TODO: SyncCompare
 // TODO: SyncPacket
