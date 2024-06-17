@@ -17,6 +17,7 @@ fn main() {
             "src/protocol/protobuf/common.proto",
             "src/protocol/protobuf/diff.proto",
             "src/protocol/protobuf/files.proto",
+            "src/protocol/protobuf/notifications.proto",
             "src/protocol/protobuf/patch.proto",
             "src/protocol/protobuf/scan.proto",
             "src/protocol/protobuf/sync.proto",

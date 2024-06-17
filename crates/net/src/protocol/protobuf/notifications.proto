@@ -2,7 +2,16 @@ syntax = "proto3";
 
 package notifications;
 
-message WireChangeNotification {
+import "protobuf/common.proto";
+import "protobuf/sync.proto";
 
+message WireChangeNotification {
+  // Account identifier.
+  bytes address = 1;
+  // Connection identifier.
+  string connection_id = 2;
+  // Root commit of the account status.
+  common.WireCommitHash root = 3;
+  // Merge outcome information.
+  sync.WireMergeOutcome outcome = 4;
 }
-  
