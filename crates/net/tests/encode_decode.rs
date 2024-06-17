@@ -1,3 +1,4 @@
+//! Basic smoke tests for encoding and decoding.
 use anyhow::Result;
 
 use sos_net::{
@@ -235,6 +236,41 @@ fn encode_decode_change_notification() -> Result<()> {
     );
     let buffer = value.clone().encode()?;
     let decoded = ChangeNotification::decode(buffer.as_slice())?;
+    assert_eq!(value, decoded);
+
+    Ok(())
+}
+
+#[cfg(feature = "files")]
+#[test]
+fn encode_decode_change_files() -> Result<()> {
+    use indexmap::IndexSet;
+    use sos_net::sdk::{
+        storage::files::{ExternalFile, FileSet, FileTransfersSet},
+        vault::{secret::SecretId, VaultId},
+    };
+
+    let file_name = [1u8; 32];
+
+    let mut up = IndexSet::new();
+    up.insert(ExternalFile::new(
+        VaultId::new_v4(),
+        SecretId::new_v4(),
+        file_name.into(),
+    ));
+    let mut down = IndexSet::new();
+    down.insert(ExternalFile::new(
+        VaultId::new_v4(),
+        SecretId::new_v4(),
+        file_name.into(),
+    ));
+
+    let uploads = FileSet(up);
+    let downloads = FileSet(down);
+
+    let value = FileTransfersSet { uploads, downloads };
+    let buffer = value.clone().encode()?;
+    let decoded = FileTransfersSet::decode(buffer.as_slice())?;
     assert_eq!(value, decoded);
 
     Ok(())

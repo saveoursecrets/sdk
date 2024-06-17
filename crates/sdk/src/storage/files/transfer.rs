@@ -4,16 +4,14 @@ use crate::{
     storage::files::{ExternalFile, FileMutationEvent},
 };
 use indexmap::IndexSet;
-use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
 
 /// Set of files built from the state on disc.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct FileSet(pub IndexSet<ExternalFile>);
 
 /// Sets of files that should be uploaded and
 /// downloaded from a remote server.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct FileTransfersSet {
     /// Files that exist on local but not on remote.
     pub uploads: FileSet,
@@ -22,9 +20,7 @@ pub struct FileTransfersSet {
 }
 
 /// Operations for file transfers.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-#[serde_as]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum TransferOperation {
     /// Upload a file.
     Upload,
@@ -33,7 +29,7 @@ pub enum TransferOperation {
     /// Delete a file.
     Delete,
     /// Move a file.
-    Move(#[serde_as(as = "DisplayFromStr")] ExternalFile),
+    Move(ExternalFile),
 }
 
 impl From<&FileMutationEvent> for (ExternalFile, TransferOperation) {
