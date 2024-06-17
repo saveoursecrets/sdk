@@ -2,8 +2,8 @@ use anyhow::Result;
 
 use sos_net::{
     protocol::{
-        DiffRequest, DiffResponse, ScanRequest, ScanResponse,
-        WireEncodeDecode,
+        DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
+        ScanResponse, WireEncodeDecode,
     },
     sdk::{
         commit::{CommitHash, CommitProof, CommitState},
@@ -161,6 +161,43 @@ fn encode_decode_scan_response() -> Result<()> {
 
     let buffer = value.clone().encode()?;
     let decoded = ScanResponse::decode(buffer.as_slice())?;
+    assert_eq!(value, decoded);
+
+    Ok(())
+}
+
+#[test]
+fn encode_decode_patch_request() -> Result<()> {
+    let mock = "event-record-data";
+    let last_commit: CommitHash = HASH.parse()?;
+    let commit: CommitHash = HASH.parse()?;
+    let record = EventRecord::new(
+        UtcDateTime::default(),
+        last_commit,
+        commit,
+        mock.as_bytes().to_vec(),
+    );
+
+    let value = PatchRequest {
+        log_type: EventLogType::Identity,
+        patch: vec![record],
+        commit: Some(Default::default()),
+        proof: Default::default(),
+    };
+
+    let buffer = value.clone().encode()?;
+    let decoded = PatchRequest::decode(buffer.as_slice())?;
+    assert_eq!(value, decoded);
+
+    Ok(())
+}
+
+#[test]
+fn encode_decode_patch_response() -> Result<()> {
+    let checked_patch = CheckedPatch::Success(Default::default());
+    let value = PatchResponse { checked_patch };
+    let buffer = value.clone().encode()?;
+    let decoded = PatchResponse::decode(buffer.as_slice())?;
     assert_eq!(value, decoded);
 
     Ok(())

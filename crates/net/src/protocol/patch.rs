@@ -12,7 +12,7 @@ use crate::sdk::{
 ///
 /// Used during auto merge to force push a combined collection
 /// of events.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PatchRequest {
     /// Type of event log to patch.
     pub log_type: EventLogType,
@@ -72,7 +72,7 @@ impl From<PatchRequest> for WirePatchRequest {
 }
 
 /// Response from a patch request.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PatchResponse {
     /// Checked patch status.
     pub checked_patch: CheckedPatch,
