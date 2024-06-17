@@ -1,7 +1,7 @@
 //! Types for the wire protocol.
 
 // There are two layers to the types in this module; the wire
-// types which are defined in the proto files are prefixed
+// types which are defined in the protobuf files are prefixed
 // with `Wire` and then there are the binding types.
 //
 // Each binding type wraps an inner wire type and converts
@@ -97,7 +97,6 @@ fn into_event_log_type(
     wire_type: i32,
     folder_id: Option<Vec<u8>>,
 ) -> Result<EventLogType> {
-    use std::io::{Error, ErrorKind};
     Ok(match wire_type {
         0 => EventLogType::Identity,
         1 => EventLogType::Account,
@@ -106,14 +105,7 @@ fn into_event_log_type(
         #[cfg(feature = "files")]
         3 => EventLogType::Files,
         4 => EventLogType::Folder(decode_uuid(folder_id.as_ref().unwrap())?),
-        _ => {
-            // TODO: remove IO error here use protocol::Error
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!("unsupported wire event log type {}", wire_type),
-            )
-            .into());
-        }
+        _ => return Err(Error::UnknownEventLogType(wire_type)),
     })
 }
 
