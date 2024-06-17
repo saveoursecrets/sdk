@@ -202,7 +202,6 @@ where
 {
     fn from(value: MaybeDiff<T>) -> Self {
         match value {
-            MaybeDiff::<T>::Noop => unreachable!(),
             MaybeDiff::<T>::Diff(diff) => WireMaybeDiff {
                 diff: Some(WireMaybeDiffHasDiff {
                     inner: Some(diff.into()),

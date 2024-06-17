@@ -7,7 +7,6 @@ use crate::{
     Error, Result,
 };
 use async_trait::async_trait;
-use binary_stream::futures::{Decodable, Encodable};
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -339,11 +338,8 @@ impl MaybeConflict {
 }
 
 /// Diff of events or conflict information.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum MaybeDiff<T> {
-    #[doc(hidden)]
-    #[default]
-    Noop,
     /// Diff of local changes to send to the remote.
     Diff(T),
     /// Local needs to compare it's state with remote.
@@ -1045,7 +1041,6 @@ pub trait Merge {
         let mut compare = SyncCompare::default();
 
         match diff.identity {
-            Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
                 self.merge_identity(diff, outcome).await?;
             }
@@ -1059,7 +1054,6 @@ pub trait Merge {
         }
 
         match diff.account {
-            Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
                 self.merge_account(diff, outcome).await?;
             }
@@ -1074,7 +1068,6 @@ pub trait Merge {
 
         #[cfg(feature = "device")]
         match diff.device {
-            Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
                 self.merge_device(diff, outcome).await?;
             }
@@ -1088,7 +1081,6 @@ pub trait Merge {
 
         #[cfg(feature = "files")]
         match diff.files {
-            Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
                 self.merge_files(diff, outcome).await?;
             }
@@ -1102,7 +1094,6 @@ pub trait Merge {
 
         for (id, maybe_diff) in diff.folders {
             match maybe_diff {
-                MaybeDiff::Noop => unreachable!(),
                 MaybeDiff::Diff(diff) => {
                     self.merge_folder(&id, diff, outcome).await?;
                 }
