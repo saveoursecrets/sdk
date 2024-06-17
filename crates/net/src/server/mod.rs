@@ -6,6 +6,7 @@ mod config;
 mod error;
 mod handlers;
 mod server;
+mod storage;
 
 pub use error::Error;
 /// Result type for the server module.

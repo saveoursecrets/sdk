@@ -1,12 +1,13 @@
 //! Synchronization helpers.
-use crate::{
+use super::ServerStorage;
+use crate::sdk::{
     commit::{CommitState, CommitTree, Comparison},
     encode,
     events::{
         AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
         FolderReducer, LogEvent,
     },
-    storage::{ServerStorage, StorageEventLogs},
+    storage::StorageEventLogs,
     sync::{
         AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch,
         ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage, UpdateSet,
@@ -20,13 +21,13 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[cfg(feature = "device")]
-use crate::{
+use crate::sdk::{
     events::{DeviceEventLog, DeviceReducer},
     sync::DeviceDiff,
 };
 
 #[cfg(feature = "files")]
-use crate::{events::FileEventLog, sync::FileDiff};
+use crate::sdk::{events::FileEventLog, sync::FileDiff};
 
 impl ServerStorage {
     /// Create a new vault file on disc and the associated

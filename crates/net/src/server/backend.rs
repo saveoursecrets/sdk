@@ -4,7 +4,7 @@ use crate::sdk::{
         ecdsa::Address,
         ed25519::{self, Verifier, VerifyingKey},
     },
-    storage::{DiscFolder, ServerStorage},
+    storage::DiscFolder,
     sync::{ChangeSet, SyncStorage, UpdateSet},
     vfs, Paths,
 };
@@ -15,6 +15,8 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::RwLock;
+
+use crate::server::storage::filesystem::ServerStorage;
 
 /// Account storage.
 pub struct AccountStorage {

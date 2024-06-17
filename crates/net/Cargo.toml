@@ -10,6 +10,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 [features]
 default = []
 full = [
+  "audit",
   "archive",
   "client",
   "contacts",
@@ -44,6 +45,7 @@ server = [
   "device",
 ]
 hashcheck = []
+audit = ["sos-sdk/audit"]
 archive = ["sos-sdk/archive"]
 files = ["sos-sdk/files"]
 contacts = ["sos-sdk/contacts"]

@@ -1,5 +1,5 @@
 //! Server storage backed by the filesystem.
-use crate::{
+use crate::sdk::{
     commit::CommitState,
     constants::VAULT_EXT,
     decode, encode,
@@ -16,10 +16,10 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "audit")]
-use crate::audit::AuditEvent;
+use crate::sdk::audit::AuditEvent;
 
 #[cfg(feature = "device")]
-use crate::{
+use crate::sdk::{
     device::{DevicePublicKey, TrustedDevice},
     events::{DeviceEventLog, DeviceReducer},
     sync::DeviceDiff,
@@ -32,7 +32,9 @@ use std::collections::HashSet;
 use indexmap::IndexSet;
 
 #[cfg(feature = "files")]
-use crate::events::{FileEvent, FileEventLog};
+use crate::sdk::events::{FileEvent, FileEventLog};
+
+mod sync;
 
 /// Server folders loaded into memory and mirrored to disc.
 pub struct ServerStorage {
@@ -160,7 +162,9 @@ impl ServerStorage {
         tracing::debug!(needs_init = %needs_init, "file_log");
 
         if needs_init {
-            let files = super::files::list_external_files(paths).await?;
+            let files =
+                crate::sdk::storage::files::list_external_files(paths)
+                    .await?;
             let events: Vec<FileEvent> =
                 files.into_iter().map(|f| f.into()).collect();
 

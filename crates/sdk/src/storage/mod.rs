@@ -16,14 +16,10 @@ mod folder;
 pub(crate) mod paths;
 #[cfg(feature = "search")]
 pub mod search;
-mod server;
-#[cfg(feature = "sync")]
-pub(crate) mod sync;
 
 pub use client::ClientStorage;
 pub use folder::{DiscFolder, Folder, MemoryFolder};
 pub use paths::FileLock;
-pub use server::ServerStorage;
 
 #[cfg(feature = "device")]
 use crate::events::DeviceEventLog;
