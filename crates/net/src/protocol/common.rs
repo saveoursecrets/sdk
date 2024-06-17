@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/common.rs"));
 
-use super::{Error, Result};
+use super::{Error, Result, WireConvert};
 use crate::sdk::{
     commit::{CommitHash, CommitProof, CommitState},
     events::EventRecord,
@@ -9,6 +9,10 @@ use crate::sdk::{
     UtcDateTime,
 };
 use rs_merkle::{algorithms::Sha256, MerkleProof};
+
+impl WireConvert for UtcDateTime {
+    type Inner = WireUtcDateTime;
+}
 
 impl TryFrom<WireUtcDateTime> for UtcDateTime {
     type Error = Error;
@@ -30,6 +34,10 @@ impl From<UtcDateTime> for WireUtcDateTime {
     }
 }
 
+impl WireConvert for CommitHash {
+    type Inner = WireCommitHash;
+}
+
 impl TryFrom<WireCommitHash> for CommitHash {
     type Error = Error;
 
@@ -45,6 +53,10 @@ impl From<CommitHash> for WireCommitHash {
             hash: value.as_ref().to_vec(),
         }
     }
+}
+
+impl WireConvert for CommitProof {
+    type Inner = WireCommitProof;
 }
 
 impl TryFrom<WireCommitProof> for CommitProof {
@@ -71,6 +83,10 @@ impl From<CommitProof> for WireCommitProof {
     }
 }
 
+impl WireConvert for CommitState {
+    type Inner = WireCommitState;
+}
+
 impl TryFrom<WireCommitState> for CommitState {
     type Error = Error;
 
@@ -89,6 +105,10 @@ impl From<CommitState> for WireCommitState {
             proof: Some(value.1.into()),
         }
     }
+}
+
+impl WireConvert for EventRecord {
+    type Inner = WireEventRecord;
 }
 
 impl TryFrom<WireEventRecord> for EventRecord {
@@ -119,6 +139,10 @@ impl From<EventRecord> for WireEventRecord {
             event,
         }
     }
+}
+
+impl WireConvert for CheckedPatch {
+    type Inner = WireCheckedPatch;
 }
 
 impl TryFrom<WireCheckedPatch> for CheckedPatch {
