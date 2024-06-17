@@ -4,7 +4,7 @@ use super::{Error, Result, WireConvert};
 use crate::sdk::{
     commit::Comparison,
     events::EventRecord,
-    sync::{Patch, SyncStatus},
+    sync::{Diff, MaybeDiff, Patch, SyncStatus},
 };
 use binary_stream::futures::{Decodable, Encodable};
 use indexmap::IndexMap;
@@ -145,6 +145,54 @@ where
     }
 }
 
+impl<T> WireConvert for Diff<T>
+where
+    T: Default + Encodable + Decodable,
+{
+    type Inner = WireDiff;
+}
+
+impl<T> TryFrom<WireDiff> for Diff<T>
+where
+    T: Default + Encodable + Decodable,
+{
+    type Error = Error;
+
+    fn try_from(value: WireDiff) -> Result<Self> {
+        let last_commit = if let Some(last_commit) = value.last_commit {
+            Some(last_commit.try_into()?)
+        } else {
+            None
+        };
+        Ok(Self {
+            last_commit,
+            patch: value.patch.unwrap().try_into()?,
+            checkpoint: value.checkpoint.unwrap().try_into()?,
+        })
+    }
+}
+
+impl<T> From<Diff<T>> for WireDiff
+where
+    T: Default + Encodable + Decodable,
+{
+    fn from(value: Diff<T>) -> Self {
+        Self {
+            last_commit: value.last_commit.map(|c| c.into()),
+            patch: Some(value.patch.into()),
+            checkpoint: Some(value.checkpoint.into()),
+        }
+    }
+}
+
+// TODO: MaybeDiff
+//
+// TODO: ChangeSet
+// TODO: UpdateSet
+// TODO: SyncDiff
+// TODO: SyncCompare
+// TODO: SyncPacket
+
 #[cfg(feature = "files")]
 mod files {
     use super::{WireExternalFile, WireFileSet, WireFileTransfersSet};
@@ -237,12 +285,3 @@ mod files {
         }
     }
 }
-
-// TODO: Patch
-// TODO: Diff
-// TODO: ChangeSet
-// TODO: UpdateSet
-// TODO: MaybeDiff
-// TODO: SyncDiff
-// TODO: SyncCompare
-// TODO: SyncPacket
