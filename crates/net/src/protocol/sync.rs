@@ -519,3 +519,5 @@ impl From<SyncPacket> for WireSyncPacket {
         }
     }
 }
+
+// TODO: MergeOutcome

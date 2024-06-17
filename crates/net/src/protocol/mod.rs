@@ -21,6 +21,8 @@ mod diff;
 mod error;
 #[cfg(feature = "files")]
 mod files;
+#[cfg(feature = "listen")]
+mod notifications;
 mod patch;
 mod scan;
 mod sync;
