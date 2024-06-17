@@ -101,3 +101,9 @@ impl From<ScanResponse> for WireScanResponse {
         }
     }
 }
+
+// TODO: Patch
+// TODO: Diff
+// TODO: ChangeSet
+// TODO: UpdateSet
+// TODO: MaybeDiff

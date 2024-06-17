@@ -79,3 +79,45 @@ message WireUpdateSet {
   // Diffs for user folders.
   repeated WireSyncFolderDiff folders = 5;
 }
+
+message WireMaybeDiffHasDiff {
+  WireDiff diff = 1;
+}
+
+message WireMaybeDiffNeedsCompare {
+  optional common.WireCommitState compare = 1;
+}
+
+message WireMaybeDiff {
+  optional WireMaybeDiffHasDiff diff = 1;
+  optional WireMaybeDiffNeedsCompare compare = 2;
+}
+
+message WireSyncFolderMaybeDiff {
+  // Folder identifier.
+  bytes folder_id = 1;
+  // Maybe diff for the folder.
+  WireMaybeDiff maybe_diff = 2;
+}
+
+message WireSyncDiff {
+  // Maybe diff for the identity folder.
+  optional WireMaybeDiff identity = 1;
+  // Maybe diff for the account events.
+  optional WireMaybeDiff account = 2;
+  // Maybe diff for the device events.
+  optional WireMaybeDiff device = 3;
+  // Maybe diff for the file events.
+  optional WireMaybeDiff files = 4;
+  // Maybe diffs for user folders.
+  repeated WireSyncFolderMaybeDiff folders = 5;
+}
+
+message WireComparison {
+  // Trees are equal
+  bool equal = 1;
+  // Tree contains the proof indices.
+  repeated uint64 contains = 2;
+  // Unknown comparison, trees may have diverged.
+  bool unknown = 3;
+}
