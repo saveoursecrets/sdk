@@ -141,3 +141,13 @@ message WireSyncCompare {
   // Comparisons for user folders.
   repeated WireSyncFolderComparison folders = 5;
 }
+
+message WireSyncPacket {
+  // Sync status.
+  WireSyncStatus status = 1;
+  // Sync diff.
+  WireSyncDiff diff = 2;
+  // Sync comparison information.
+  optional WireSyncCompare compare = 3;
+}
+
