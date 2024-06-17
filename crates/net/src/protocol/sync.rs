@@ -185,6 +185,62 @@ where
     }
 }
 
+impl<T> WireConvert for MaybeDiff<T>
+where
+    T: Default + Encodable + Decodable,
+{
+    type Inner = WireMaybeDiff;
+}
+
+impl<T> TryFrom<WireMaybeDiff> for MaybeDiff<T>
+where
+    T: Default + Encodable + Decodable,
+    T: TryFrom<WireDiff>,
+    <T as TryFrom<WireDiff>>::Error: std::fmt::Debug,
+{
+    type Error = Error;
+
+    fn try_from(value: WireMaybeDiff) -> Result<Self> {
+        if let Some(diff) = value.diff {
+            // FIXME: error conversion, do not do the outer unwrap
+            Ok(Self::Diff(diff.inner.unwrap().try_into().unwrap()))
+        } else if let Some(compare) = value.compare {
+            let compare = if let Some(compare) = compare.inner {
+                Some(compare.try_into()?)
+            } else {
+                None
+            };
+            Ok(Self::Compare(compare))
+        } else {
+            unreachable!()
+        }
+    }
+}
+
+impl<T> From<MaybeDiff<T>> for WireMaybeDiff
+where
+    T: Default + Encodable + Decodable,
+    T: Into<WireDiff>,
+{
+    fn from(value: MaybeDiff<T>) -> Self {
+        match value {
+            MaybeDiff::<T>::Noop => unreachable!(),
+            MaybeDiff::<T>::Diff(diff) => WireMaybeDiff {
+                diff: Some(WireMaybeDiffHasDiff {
+                    inner: Some(diff.into()),
+                }),
+                compare: None,
+            },
+            MaybeDiff::<T>::Compare(compare) => WireMaybeDiff {
+                diff: None,
+                compare: Some(WireMaybeDiffNeedsCompare {
+                    inner: compare.map(|c| c.into()),
+                }),
+            },
+        }
+    }
+}
+
 // TODO: MaybeDiff
 //
 // TODO: ChangeSet

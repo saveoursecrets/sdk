@@ -81,11 +81,11 @@ message WireUpdateSet {
 }
 
 message WireMaybeDiffHasDiff {
-  WireDiff diff = 1;
+  WireDiff inner = 1;
 }
 
 message WireMaybeDiffNeedsCompare {
-  optional common.WireCommitState compare = 1;
+  optional common.WireCommitState inner = 1;
 }
 
 message WireMaybeDiff {
