@@ -147,6 +147,6 @@ pub trait SyncClient {
     #[cfg(feature = "files")]
     async fn compare_files(
         &self,
-        local_files: &storage::files::FileSet,
+        local_files: storage::files::FileSet,
     ) -> Result<storage::files::FileTransfersSet>;
 }

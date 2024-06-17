@@ -61,29 +61,19 @@ where
 {
     fn encode(self) -> Result<Vec<u8>> {
         let value: <Self as WireConvert>::Inner = self.into();
-        Ok(encode(&value)?)
+        let mut buf = Vec::new();
+        buf.reserve(value.encoded_len());
+        value.encode(&mut buf)?;
+        Ok(buf)
     }
 
     fn decode(buffer: impl Buf) -> Result<Self>
     where
         Self: Sized,
     {
-        let result = decode::<<Self as WireConvert>::Inner>(buffer)?;
+        let result = <<Self as WireConvert>::Inner>::decode(buffer)?;
         Ok(result.try_into()?)
     }
-}
-
-/// Encode a protobuf message.
-fn encode(message: &impl Message) -> Result<Vec<u8>> {
-    let mut buf = Vec::new();
-    buf.reserve(message.encoded_len());
-    message.encode(&mut buf)?;
-    Ok(buf)
-}
-
-/// Decode a protobuf message.
-fn decode<T: Default + Message>(buffer: impl Buf) -> Result<T> {
-    Ok(T::decode(buffer)?)
 }
 
 fn decode_uuid(id: &[u8]) -> Result<uuid::Uuid> {

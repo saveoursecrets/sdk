@@ -228,7 +228,7 @@ impl RemoteBridge {
         };
 
         let file_set = FileSet(external_files);
-        let file_transfers = self.client.compare_files(&file_set).await?;
+        let file_transfers = self.client.compare_files(file_set).await?;
 
         let mut ops = Vec::new();
         for file in file_transfers.uploads.0 {

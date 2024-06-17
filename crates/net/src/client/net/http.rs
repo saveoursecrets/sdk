@@ -750,7 +750,7 @@ impl SyncClient for HttpClient {
     #[instrument(skip_all)]
     async fn compare_files(
         &self,
-        local_files: &FileSet,
+        local_files: FileSet,
     ) -> Result<FileTransfersSet> {
         let url_path = format!("api/v1/sync/files");
         let url = self.build_url(&url_path)?;
@@ -768,7 +768,7 @@ impl SyncClient for HttpClient {
         .await?;
         let auth = bearer_prefix(&account_signature, Some(&device_signature));
 
-        let body = encode(local_files).await?;
+        let body = local_files.encode()?;
 
         let response = self
             .client
@@ -781,6 +781,6 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::compare_files");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(decode(&buffer).await?)
+        Ok(FileTransfersSet::decode(buffer)?)
     }
 }

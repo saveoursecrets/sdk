@@ -359,9 +359,8 @@ pub(crate) async fn compare_files(
 mod handlers {
     use super::MoveFileQuery;
     use crate::{
+        protocol::WireEncodeDecode,
         sdk::{
-            constants::MIME_TYPE_SOS,
-            decode, encode,
             sha2::{Digest, Sha256},
             storage::files::{
                 list_external_files, ExternalFileName, FileSet,
@@ -377,6 +376,7 @@ mod handlers {
     use futures::TryStreamExt;
     use http::header::{self, HeaderMap, HeaderValue};
     use indexmap::IndexSet;
+    use sos_sdk::constants::MIME_TYPE_PROTOBUF;
     use std::{path::PathBuf, sync::Arc};
     use tokio::{
         fs::File,
@@ -618,7 +618,7 @@ mod handlers {
             account.storage.paths()
         };
 
-        let local_files: FileSet = decode(bytes).await?;
+        let local_files = FileSet::decode(bytes)?;
         let local_set = local_files.0;
         let remote_set = list_external_files(&*paths).await?;
         let uploads = local_set
@@ -637,10 +637,10 @@ mod handlers {
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
-            HeaderValue::from_static(MIME_TYPE_SOS),
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, encode(&transfers).await?))
+        Ok((headers, transfers.encode()?))
     }
 }
 

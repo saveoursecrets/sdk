@@ -65,11 +65,6 @@ impl<T> Patch<T> {
         }
         Ok(events)
     }
-
-    /// Append an event record to this patch.
-    pub(crate) fn append(&mut self, record: EventRecord) {
-        self.0.push(record);
-    }
 }
 
 impl<T> From<Patch<T>> for Vec<EventRecord> {
@@ -77,25 +72,3 @@ impl<T> From<Patch<T>> for Vec<EventRecord> {
         value.0
     }
 }
-
-/*
-impl<T: Default + Encodable + Decodable> From<Vec<T>> for Patch<T> {
-    fn from(value: Vec<T>) -> Self {
-        Self(value)
-    }
-}
-
-impl<T: Default + Encodable + Decodable> From<Patch<T>> for Vec<T> {
-    fn from(value: Patch<T>) -> Self {
-        value.0
-    }
-}
-
-impl<'a, T: Default + Encodable + Decodable> From<&'a Patch<T>>
-    for Vec<&'a T>
-{
-    fn from(value: &'a Patch<T>) -> Self {
-        value.0.iter().collect()
-    }
-}
-*/

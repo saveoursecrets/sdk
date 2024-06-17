@@ -601,8 +601,7 @@ mod handlers {
         StatusCode,
     };
     use sos_sdk::{
-        constants::{MIME_TYPE_PROTOBUF, MIME_TYPE_SOS},
-        decode, encode,
+        constants::MIME_TYPE_PROTOBUF,
         events::{
             AccountEvent, DiscEventLog, EventLogExt, EventLogType,
             EventRecord, WriteEvent,

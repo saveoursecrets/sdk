@@ -71,7 +71,7 @@ impl NetworkAccount {
                 || options.origins.contains(origin);
 
             if sync_remote {
-                match remote.client.compare_files(&local_files).await {
+                match remote.client.compare_files(local_files.clone()).await {
                     Ok(status) => {
                         transfer_status.insert(origin.clone(), Ok(status));
                     }
