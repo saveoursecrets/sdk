@@ -1,7 +1,10 @@
 include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 
 use super::{Error, Result, WireConvert};
-use crate::sdk::sync::{Patch, SyncStatus};
+use crate::sdk::{
+    commit::Comparison,
+    sync::{Patch, SyncStatus},
+};
 use binary_stream::futures::{Decodable, Encodable};
 use indexmap::IndexMap;
 use sos_sdk::events::EventRecord;
@@ -64,6 +67,50 @@ impl From<SyncStatus> for WireSyncStatus {
     }
 }
 
+impl WireConvert for Comparison {
+    type Inner = WireComparison;
+}
+
+impl TryFrom<WireComparison> for Comparison {
+    type Error = Error;
+
+    fn try_from(value: WireComparison) -> Result<Self> {
+        Ok(if let Some(true) = value.equal {
+            Self::Equal
+        } else if !value.contains.is_empty() {
+            Self::Contains(
+                value.contains.into_iter().map(|i| i as usize).collect(),
+            )
+        } else if let Some(true) = value.unknown {
+            Self::Unknown
+        } else {
+            unreachable!()
+        })
+    }
+}
+
+impl From<Comparison> for WireComparison {
+    fn from(value: Comparison) -> Self {
+        match value {
+            Comparison::Equal => WireComparison {
+                equal: Some(true),
+                contains: vec![],
+                unknown: Some(false),
+            },
+            Comparison::Contains(indices) => WireComparison {
+                equal: Some(false),
+                contains: indices.into_iter().map(|i| i as u64).collect(),
+                unknown: Some(false),
+            },
+            Comparison::Unknown => WireComparison {
+                equal: Some(false),
+                contains: vec![],
+                unknown: Some(true),
+            },
+        }
+    }
+}
+
 impl<T> WireConvert for Patch<T>
 where
     T: Default + Encodable + Decodable,
@@ -104,5 +151,4 @@ where
 // TODO: UpdateSet
 // TODO: MaybeDiff
 // TODO: SyncDiff
-// TODO: Comparison
 // TODO: SyncCompare

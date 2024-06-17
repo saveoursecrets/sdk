@@ -115,9 +115,29 @@ message WireSyncDiff {
 
 message WireComparison {
   // Trees are equal
-  bool equal = 1;
+  optional bool equal = 1;
   // Tree contains the proof indices.
   repeated uint64 contains = 2;
   // Unknown comparison, trees may have diverged.
-  bool unknown = 3;
+  optional bool unknown = 3;
+}
+
+message WireSyncFolderComparison {
+  // Folder identifier.
+  bytes folder_id = 1;
+  // Comparison for the folder.
+  WireComparison compare = 2;
+}
+
+message WireSyncCompare {
+  // Comparison for the identity folder.
+  optional WireComparison identity = 1;
+  // Comparison for the account events.
+  optional WireComparison account = 2;
+  // Comparison for the device events.
+  optional WireComparison device = 3;
+  // Comparison for the file events.
+  optional WireComparison files = 4;
+  // Comparisons for user folders.
+  repeated WireSyncFolderComparison folders = 5;
 }
