@@ -86,13 +86,13 @@ fn decode<T: Default + Message>(buffer: impl Buf) -> Result<T> {
     Ok(T::decode(buffer)?)
 }
 
-fn decode_uuid(id: Option<Vec<u8>>) -> Result<uuid::Uuid> {
-    let id: [u8; 16] = id.unwrap().as_slice().try_into()?;
+fn decode_uuid(id: &[u8]) -> Result<uuid::Uuid> {
+    let id: [u8; 16] = id.try_into()?;
     Ok(uuid::Uuid::from_bytes(id))
 }
 
-fn encode_uuid(id: uuid::Uuid) -> Option<Vec<u8>> {
-    Some(id.as_bytes().to_vec())
+fn encode_uuid(id: uuid::Uuid) -> Vec<u8> {
+    id.as_bytes().to_vec()
 }
 
 fn into_event_log_type(
@@ -107,8 +107,9 @@ fn into_event_log_type(
         2 => EventLogType::Device,
         #[cfg(feature = "files")]
         3 => EventLogType::Files,
-        4 => EventLogType::Folder(decode_uuid(folder_id)?),
+        4 => EventLogType::Folder(decode_uuid(folder_id.as_ref().unwrap())?),
         _ => {
+            // TODO: remove IO error here use protocol::Error
             return Err(Error::new(
                 ErrorKind::Other,
                 format!("unsupported wire event log type {}", wire_type),
@@ -128,6 +129,6 @@ fn into_wire_event_log_type(
         EventLogType::Device => (2, None),
         #[cfg(feature = "files")]
         EventLogType::Files => (3, None),
-        EventLogType::Folder(id) => (4, encode_uuid(id)),
+        EventLogType::Folder(id) => (4, Some(encode_uuid(id))),
     }
 }

@@ -88,6 +88,12 @@ impl From<ExternalFile> for FileEvent {
     }
 }
 
+impl From<ExternalFile> for (VaultId, SecretId, ExternalFileName) {
+    fn from(value: ExternalFile) -> Self {
+        (value.0, value.1, value.2)
+    }
+}
+
 impl ExternalFile {
     /// Create a new external file reference.
     pub fn new(
