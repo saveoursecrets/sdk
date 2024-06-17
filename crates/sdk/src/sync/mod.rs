@@ -144,11 +144,8 @@ pub(crate) enum FolderMergeOptions<'a> {
 }
 
 /// Result of a checked patch on an event log.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub enum CheckedPatch {
-    #[doc(hidden)]
-    #[default]
-    Noop,
     /// Patch was applied.
     Success(CommitProof),
     /// Patch conflict.

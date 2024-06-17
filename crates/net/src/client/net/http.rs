@@ -5,8 +5,7 @@ use http::StatusCode;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde_json::Value;
 use sos_sdk::{
-    constants::{MIME_TYPE_PROTOBUF, MIME_TYPE_SOS},
-    decode, encode,
+    constants::MIME_TYPE_PROTOBUF,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     sync::{ChangeSet, Origin, SyncPacket, SyncStatus, UpdateSet},
@@ -148,20 +147,18 @@ impl HttpClient {
         response: reqwest::Response,
     ) -> Result<reqwest::Response> {
         use reqwest::header::{self, HeaderValue};
-        let sos_type = HeaderValue::from_static(MIME_TYPE_SOS);
         let protobuf_type = HeaderValue::from_static(MIME_TYPE_PROTOBUF);
         let status = response.status();
         let content_type = response.headers().get(&header::CONTENT_TYPE);
         match (status, content_type) {
             // OK with the correct MIME type can be handled
             (http::StatusCode::OK, Some(content_type)) => {
-                if content_type == &sos_type || content_type == &protobuf_type
-                {
+                if content_type == &protobuf_type {
                     Ok(response)
                 } else {
                     Err(Error::ContentType(
                         content_type.to_str()?.to_owned(),
-                        MIME_TYPE_SOS.to_string(),
+                        MIME_TYPE_PROTOBUF.to_string(),
                     ))
                 }
             }

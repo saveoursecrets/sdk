@@ -146,7 +146,6 @@ impl TryFrom<WireCheckedPatch> for CheckedPatch {
 impl From<CheckedPatch> for WireCheckedPatch {
     fn from(value: CheckedPatch) -> Self {
         match value {
-            CheckedPatch::Noop => unreachable!(),
             CheckedPatch::Success(proof) => WireCheckedPatch {
                 success: Some(WireCheckedPatchSuccess {
                     proof: Some(proof.into()),

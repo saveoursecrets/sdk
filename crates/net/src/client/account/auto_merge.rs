@@ -590,7 +590,6 @@ impl RemoteBridge {
 
         let remote_patch = self.client.patch(req).await?.checked_patch;
         let local_patch = match &remote_patch {
-            CheckedPatch::Noop => unreachable!(),
             CheckedPatch::Success(_) => {
                 let local_patch = self
                     .rewind_local(log_type, commit, proof, events)
