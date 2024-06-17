@@ -7,8 +7,6 @@ mod events;
 mod recovery;
 mod secret;
 mod signer;
-#[cfg(feature = "sync")]
-mod sync;
 mod timestamp;
 mod vault;
 
