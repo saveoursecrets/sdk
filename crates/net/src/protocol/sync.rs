@@ -4,7 +4,9 @@ use super::{Error, Result, WireConvert};
 use crate::sdk::{
     commit::Comparison,
     events::EventRecord,
-    sync::{ChangeSet, Diff, MaybeDiff, Patch, SyncStatus, UpdateSet},
+    sync::{
+        ChangeSet, Diff, MaybeDiff, Patch, SyncDiff, SyncStatus, UpdateSet,
+    },
 };
 use binary_stream::futures::{Decodable, Encodable};
 use indexmap::IndexMap;
@@ -362,7 +364,80 @@ impl From<UpdateSet> for WireUpdateSet {
     }
 }
 
-// TODO: SyncDiff
+impl WireConvert for SyncDiff {
+    type Inner = WireSyncDiff;
+}
+
+impl TryFrom<WireSyncDiff> for SyncDiff {
+    type Error = Error;
+
+    fn try_from(value: WireSyncDiff) -> Result<Self> {
+        let identity = if let Some(identity) = value.identity {
+            Some(identity.try_into()?)
+        } else {
+            None
+        };
+
+        let account = if let Some(account) = value.account {
+            Some(account.try_into()?)
+        } else {
+            None
+        };
+
+        #[cfg(feature = "device")]
+        let device = if let Some(device) = value.device {
+            Some(device.try_into()?)
+        } else {
+            None
+        };
+
+        #[cfg(feature = "files")]
+        let files = if let Some(files) = value.files {
+            Some(files.try_into()?)
+        } else {
+            None
+        };
+
+        let mut folders = IndexMap::with_capacity(value.folders.len());
+        for folder in value.folders {
+            folders.insert(
+                super::decode_uuid(&folder.folder_id)?,
+                folder.maybe_diff.unwrap().try_into()?,
+            );
+        }
+        Ok(Self {
+            identity,
+            account,
+            #[cfg(feature = "device")]
+            device,
+            #[cfg(feature = "files")]
+            files,
+            folders,
+        })
+    }
+}
+
+impl From<SyncDiff> for WireSyncDiff {
+    fn from(value: SyncDiff) -> Self {
+        Self {
+            identity: value.identity.map(|d| d.into()),
+            account: value.account.map(|d| d.into()),
+            #[cfg(feature = "device")]
+            device: value.device.map(|d| d.into()),
+            #[cfg(feature = "files")]
+            files: value.files.map(|d| d.into()),
+            folders: value
+                .folders
+                .into_iter()
+                .map(|(k, v)| WireSyncFolderMaybeDiff {
+                    folder_id: super::encode_uuid(k),
+                    maybe_diff: Some(v.into()),
+                })
+                .collect(),
+        }
+    }
+}
+
 // TODO: SyncCompare
 // TODO: SyncPacket
 
