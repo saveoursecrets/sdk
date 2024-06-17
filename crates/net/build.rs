@@ -14,11 +14,12 @@ fn main() {
 
     prost_build::compile_protos(
         &[
-            "src/protocol/common.proto",
-            "src/protocol/diff.proto",
-            "src/protocol/patch.proto",
-            "src/protocol/scan.proto",
-            "src/protocol/sync.proto",
+            "src/protocol/protobuf/common.proto",
+            "src/protocol/protobuf/diff.proto",
+            "src/protocol/protobuf/files.proto",
+            "src/protocol/protobuf/patch.proto",
+            "src/protocol/protobuf/scan.proto",
+            "src/protocol/protobuf/sync.proto",
         ],
         &["src/protocol"],
     )

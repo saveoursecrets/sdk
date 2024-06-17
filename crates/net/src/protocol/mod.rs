@@ -19,6 +19,8 @@
 mod common;
 mod diff;
 mod error;
+#[cfg(feature = "files")]
+mod files;
 mod patch;
 mod scan;
 mod sync;

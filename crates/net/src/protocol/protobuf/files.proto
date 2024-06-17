@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package files;
+
+// import "protobuf/common.proto";
+
+message WireExternalFile {
+  bytes folder_id = 1;
+  bytes secret_id = 2;
+  bytes file_name = 3;
+}
+
+message WireFileSet {
+  repeated WireExternalFile files = 1;
+}
+
+message WireFileTransfersSet {
+  WireFileSet uploads = 1;
+  WireFileSet downloads = 2;
+}

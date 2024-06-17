@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package patch;
 
-import "common.proto";
+import "protobuf/common.proto";
 
 message WirePatchRequest {
   // Type of event log.

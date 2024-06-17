@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package sync;
 
-import "common.proto";
+import "protobuf/common.proto";
 
 message WireSyncFolderState {
   // Folder identifier.
@@ -149,19 +149,4 @@ message WireSyncPacket {
   WireSyncDiff diff = 2;
   // Sync comparison information.
   optional WireSyncCompare compare = 3;
-}
-
-message WireExternalFile {
-  bytes folder_id = 1;
-  bytes secret_id = 2;
-  bytes file_name = 3;
-}
-
-message WireFileSet {
-  repeated WireExternalFile files = 1;
-}
-
-message WireFileTransfersSet {
-  WireFileSet uploads = 1;
-  WireFileSet downloads = 2;
 }

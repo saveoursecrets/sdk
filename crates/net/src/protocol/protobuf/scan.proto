@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package scan;
 
-import "common.proto";
+import "protobuf/common.proto";
 
 message WireScanRequest {
   // Type of event log.
