@@ -42,7 +42,7 @@ macro_rules! auto_merge_impl {
 
             let req = ScanRequest {
                 log_type: $log_type,
-                offset: None,
+                offset: 0,
                 limit: PROOF_SCAN_LIMIT,
             };
             match self.scan_proofs(req).await {
@@ -263,7 +263,7 @@ impl RemoteBridge {
 
         let req = ScanRequest {
             log_type: EventLogType::Folder(*folder_id),
-            offset: None,
+            offset: 0,
             limit: PROOF_SCAN_LIMIT,
         };
         match self.scan_proofs(req).await {
@@ -741,7 +741,7 @@ impl RemoteBridge {
 
             // Try to scan more proofs
             let mut req = request;
-            req.offset = Some(response.offset);
+            req.offset = response.offset;
             self.iterate_scan_proofs(req, leaves).await
         } else {
             Err(Error::HardConflict)

@@ -14,7 +14,7 @@ message WireScanRequest {
   // should return.
   optional uint32 limit = 3;
   // Offset to resume a scan from.
-  optional uint64 offset = 4;
+  uint64 offset = 4;
 }
 
 message WireScanResponse {

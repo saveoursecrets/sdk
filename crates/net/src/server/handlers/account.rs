@@ -797,7 +797,7 @@ mod handlers {
             proofs: vec![],
             offset: 0,
         };
-        let offset = req.offset.unwrap_or(0);
+        let offset = req.offset;
         let num_commits = event_log.tree().len() as u64;
 
         let mut index = if event_log.tree().len() > 0 {

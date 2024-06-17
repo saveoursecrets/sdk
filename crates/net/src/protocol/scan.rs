@@ -16,7 +16,7 @@ pub struct ScanRequest {
     pub limit: u16,
     /// Offset from a previous scan used as a hint to
     /// continue scanning.
-    pub offset: Option<u64>,
+    pub offset: u64,
 }
 
 impl WireConvert for ScanRequest {

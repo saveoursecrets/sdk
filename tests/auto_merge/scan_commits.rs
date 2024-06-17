@@ -54,7 +54,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
     let req = ScanRequest {
         log_type: EventLogType::Identity,
         limit: 1,
-        offset: None,
+        offset: 0,
     };
     let res = client.scan(req).await?;
     assert_eq!(1, res.proofs.len());
@@ -63,7 +63,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
     let req = ScanRequest {
         log_type: EventLogType::Account,
         limit: 256,
-        offset: None,
+        offset: 0,
     };
     let res = client.scan(req).await?;
     assert!(!res.proofs.is_empty());
@@ -72,7 +72,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
     let req = ScanRequest {
         log_type: EventLogType::Device,
         limit: 256,
-        offset: None,
+        offset: 0,
     };
     let res = client.scan(req).await?;
     assert!(!res.proofs.is_empty());
@@ -81,7 +81,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
     let req = ScanRequest {
         log_type: EventLogType::Files,
         limit: 256,
-        offset: None,
+        offset: 0,
     };
     let res = client.scan(req).await?;
     // No files yet!
@@ -96,7 +96,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
     let req = ScanRequest {
         log_type: EventLogType::Folder(*default_folder.id()),
         limit: 256,
-        offset: None,
+        offset: 0,
     };
     let folder_desc = client.scan(req).await?;
     assert_eq!(4, folder_desc.proofs.len());
@@ -113,7 +113,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
     let req = ScanRequest {
         log_type: EventLogType::Folder(*default_folder.id()),
         limit: 256,
-        offset: None,
+        offset: 0,
     };
     let folder_asc = client.scan(req).await?;
     assert_eq!(4, folder_asc.proofs.len());
@@ -122,12 +122,12 @@ async fn auto_merge_scan_commits() -> Result<()> {
     let mut req = ScanRequest {
         log_type: EventLogType::Folder(*default_folder.id()),
         limit: 2,
-        offset: None,
+        offset: 0,
     };
     let folder_chunk_1 = client.scan(req.clone()).await?;
     assert_eq!(2, folder_chunk_1.offset);
     // Scan next chunk
-    req.offset = Some(folder_chunk_1.offset);
+    req.offset = folder_chunk_1.offset;
     let folder_chunk_2 = client.scan(req).await?;
     assert_eq!(4, folder_chunk_2.offset);
 
@@ -150,7 +150,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
     let req = ScanRequest {
         log_type: EventLogType::Folder(*default_folder.id()),
         limit: 256,
-        offset: Some(64),
+        offset: 64,
     };
     let res = client.scan(req).await?;
     assert!(res.proofs.is_empty());
