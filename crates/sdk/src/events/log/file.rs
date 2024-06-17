@@ -362,7 +362,7 @@ where
                 let proof = self.tree().head()?;
                 Ok(CheckedPatch::Success(proof))
             }
-            Comparison::Contains(indices, _leaves) => {
+            Comparison::Contains(indices) => {
                 let head = self.tree().head()?;
                 let contains = self.tree().proof(&indices)?;
                 Ok(CheckedPatch::Conflict {

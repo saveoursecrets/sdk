@@ -52,8 +52,9 @@ impl FromStr for CommitHash {
 pub enum Comparison {
     /// Trees are equal as their root commits match.
     Equal,
-    /// Tree contains the other proof.
-    Contains(Vec<usize>, Vec<TreeHash>),
+    /// Tree contains the other proof and returns
+    /// the indices that matched.
+    Contains(Vec<usize>),
     /// Unable to find a match against the proof.
     #[default]
     Unknown,

@@ -77,11 +77,11 @@ fn commit_proof_compare() -> Result<()> {
 
     let proof = tree1.proof(&[0])?;
     let comparison = tree2.compare(&proof)?;
-    assert!(matches!(comparison, Comparison::Contains(_, _)));
+    assert!(matches!(comparison, Comparison::Contains(_)));
 
     let proof = tree2.proof(&[0])?;
     let comparison = tree1.compare(&proof)?;
-    assert!(matches!(comparison, Comparison::Contains(_, _)));
+    assert!(matches!(comparison, Comparison::Contains(_)));
 
     // Completely different trees
     let proof = tree1.proof(&[0])?;

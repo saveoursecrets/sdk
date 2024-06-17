@@ -238,7 +238,7 @@ fn print_commit_state(
 
     let detail = match &comparison {
         Comparison::Equal => String::from("up to date"),
-        Comparison::Contains(_, _) => {
+        Comparison::Contains(_) => {
             let amount = local.1.len() - remote.1.len();
             format!("{} commit(s) ahead", amount)
         }

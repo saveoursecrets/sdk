@@ -479,7 +479,7 @@ impl SyncComparison {
 
         match self.identity {
             Comparison::Equal => {}
-            Comparison::Contains(_, _) => {
+            Comparison::Contains(_) => {
                 // Need to push changes to remote
                 let log = storage.identity_log().await?;
                 let reader = log.read().await;
@@ -522,7 +522,7 @@ impl SyncComparison {
 
         match self.account {
             Comparison::Equal => {}
-            Comparison::Contains(_, _) => {
+            Comparison::Contains(_) => {
                 // Need to push changes to remote
                 let log = storage.account_log().await?;
                 let reader = log.read().await;
@@ -567,7 +567,7 @@ impl SyncComparison {
         #[cfg(feature = "device")]
         match self.device {
             Comparison::Equal => {}
-            Comparison::Contains(_, _) => {
+            Comparison::Contains(_) => {
                 // Need to push changes to remote
                 let log = storage.device_log().await?;
                 let reader = log.read().await;
@@ -617,7 +617,7 @@ impl SyncComparison {
             (Some(files), Some(remote_files)) => {
                 match files {
                     Comparison::Equal => {}
-                    Comparison::Contains(_, _) => {
+                    Comparison::Contains(_) => {
                         // Need to push changes to remote
                         let log = storage.file_log().await?;
                         let reader = log.read().await;
@@ -687,7 +687,7 @@ impl SyncComparison {
 
             match folder {
                 Comparison::Equal => {}
-                Comparison::Contains(_, _) => {
+                Comparison::Contains(_) => {
                     // Need to push changes to remote
                     let log = storage.folder_log(id).await?;
                     let log = log.read().await;

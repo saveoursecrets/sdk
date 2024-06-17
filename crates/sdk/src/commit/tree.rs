@@ -119,10 +119,7 @@ impl CommitTree {
                     leaves_to_prove.as_slice(),
                     *length,
                 ) {
-                    Ok(Comparison::Contains(
-                        indices_to_prove.to_vec(),
-                        leaves_to_prove,
-                    ))
+                    Ok(Comparison::Contains(indices_to_prove.to_vec()))
                 } else {
                     Ok(Comparison::Unknown)
                 }
@@ -185,9 +182,7 @@ impl CommitTree {
         other_proof: &CommitProof,
     ) -> Result<Option<CommitProof>> {
         Ok(match self.compare(other_proof)? {
-            Comparison::Contains(indices, _leaves) => {
-                Some(self.proof(&indices)?)
-            }
+            Comparison::Contains(indices) => Some(self.proof(&indices)?),
             _ => None,
         })
     }

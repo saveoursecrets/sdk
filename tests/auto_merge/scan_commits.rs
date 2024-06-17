@@ -104,7 +104,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
         let comparison = event_log.tree().compare(proof)?;
         assert!(matches!(
             comparison,
-            Comparison::Equal | Comparison::Contains(_, _),
+            Comparison::Equal | Comparison::Contains(_),
         ));
     }
 
