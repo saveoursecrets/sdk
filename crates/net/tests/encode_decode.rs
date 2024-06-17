@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use sos_net::{
-    protocol::WireEncodeDecode,
+    protocol::{DiffRequest, DiffResponse, WireEncodeDecode},
     sdk::{
         commit::{CommitHash, CommitProof, CommitState},
         events::EventRecord,
@@ -9,6 +9,7 @@ use sos_net::{
         UtcDateTime,
     },
 };
+use sos_sdk::events::EventLogType;
 
 const HASH: &str =
     "54c4de4a0db65b62302964a52b0ea346e69b11d54b430d4615672a37ff0d4e58";
@@ -88,6 +89,45 @@ fn encode_decode_checked_patch() -> Result<()> {
     };
     let buffer = value.clone().encode()?;
     let decoded = CheckedPatch::decode(buffer.as_slice())?;
+    assert_eq!(value, decoded);
+
+    Ok(())
+}
+
+#[test]
+fn encode_decode_diff_request() -> Result<()> {
+    let hash: CommitHash = HASH.parse()?;
+    let value = DiffRequest {
+        log_type: EventLogType::Identity,
+        from_hash: Some(hash),
+    };
+
+    let buffer = value.clone().encode()?;
+    let decoded = DiffRequest::decode(buffer.as_slice())?;
+    assert_eq!(value, decoded);
+
+    Ok(())
+}
+
+#[test]
+fn encode_decode_diff_response() -> Result<()> {
+    let mock = "event-record-data";
+    let last_commit: CommitHash = HASH.parse()?;
+    let commit: CommitHash = HASH.parse()?;
+    let record = EventRecord::new(
+        UtcDateTime::default(),
+        last_commit,
+        commit,
+        mock.as_bytes().to_vec(),
+    );
+
+    let value = DiffResponse {
+        patch: vec![record],
+        checkpoint: Default::default(),
+    };
+
+    let buffer = value.clone().encode()?;
+    let decoded = DiffResponse::decode(buffer.as_slice())?;
     assert_eq!(value, decoded);
 
     Ok(())
