@@ -59,10 +59,12 @@ impl<T: Default + Encodable + Decodable> Patch<T> {
     }
 
     /// Decode this patch into the events.
-    pub async fn into_events(&self) -> Result<Vec<T>> {
+    pub async fn into_events<E: Default + Decodable + Encodable>(
+        &self,
+    ) -> Result<Vec<E>> {
         let mut events = Vec::with_capacity(self.0.len());
         for record in &self.0 {
-            events.push(record.decode_event::<T>().await?);
+            events.push(record.decode_event::<E>().await?);
         }
         Ok(events)
     }
