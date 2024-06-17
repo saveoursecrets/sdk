@@ -131,11 +131,7 @@ impl<T: std::error::Error> Default for SyncError<T> {
 }
 
 /// Options for folder merge.
-#[derive(Default)]
 pub(crate) enum FolderMergeOptions<'a> {
-    #[doc(hidden)]
-    #[default]
-    Noop,
     /// Update a URN lookup when merging.
     Urn(VaultId, &'a mut crate::identity::UrnLookup),
     /// Update a search index when merging.
