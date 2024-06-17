@@ -2,9 +2,9 @@
 
 // There are two layers to the types in this module; the wire
 // types which are defined in the proto files are prefixed
-// with `Wire` and then there are the protocol types.
+// with `Wire` and then there are the binding types.
 //
-// Each protocol type wraps an inner wire type and converts
+// Each binding type wraps an inner wire type and converts
 // infallibly to the inner wire type and fallibly from
 // the inner wire type which allows us to convert between
 // the limited protobuf types and the enforced optionality
