@@ -1,6 +1,9 @@
 include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 
-use super::{decode_uuid, encode_uuid, Error, Result, WireConvert};
+use super::{
+    decode_uuid, encode_uuid, files::WireExternalFile, Error, Result,
+    WireConvert,
+};
 use crate::sdk::{
     commit::Comparison,
     events::EventRecord,
@@ -56,8 +59,12 @@ impl From<SyncStatus> for WireSyncStatus {
             account: Some(value.account.into()),
             #[cfg(feature = "device")]
             device: Some(value.device.into()),
+            #[cfg(not(feature = "device"))]
+            device: None,
             #[cfg(feature = "files")]
             files: value.files.map(|s| s.into()),
+            #[cfg(not(feature = "files"))]
+            files: None,
             folders: value
                 .folders
                 .into_iter()
@@ -252,8 +259,12 @@ impl From<ChangeSet> for WireChangeSet {
             account: Some(value.account.into()),
             #[cfg(feature = "device")]
             device: Some(value.device.into()),
+            #[cfg(not(feature = "device"))]
+            device: None,
             #[cfg(feature = "files")]
             files: Some(value.files.into()),
+            #[cfg(not(feature = "files"))]
+            files: None,
             folders: value
                 .folders
                 .into_iter()
@@ -326,8 +337,12 @@ impl From<UpdateSet> for WireUpdateSet {
             account: value.account.map(|d| d.into()),
             #[cfg(feature = "device")]
             device: value.device.map(|d| d.into()),
+            #[cfg(not(feature = "device"))]
+            device: None,
             #[cfg(feature = "files")]
             files: value.files.map(|d| d.into()),
+            #[cfg(not(feature = "files"))]
+            files: None,
             folders: value
                 .folders
                 .into_iter()
@@ -400,8 +415,12 @@ impl From<SyncDiff> for WireSyncDiff {
             account: value.account.map(|d| d.into()),
             #[cfg(feature = "device")]
             device: value.device.map(|d| d.into()),
+            #[cfg(not(feature = "device"))]
+            device: None,
             #[cfg(feature = "files")]
             files: value.files.map(|d| d.into()),
+            #[cfg(not(feature = "files"))]
+            files: None,
             folders: value
                 .folders
                 .into_iter()
@@ -474,8 +493,12 @@ impl From<SyncCompare> for WireSyncCompare {
             account: value.account.map(|d| d.into()),
             #[cfg(feature = "device")]
             device: value.device.map(|d| d.into()),
+            #[cfg(not(feature = "device"))]
+            device: None,
             #[cfg(feature = "files")]
             files: value.files.map(|d| d.into()),
+            #[cfg(not(feature = "files"))]
+            files: None,
             folders: value
                 .folders
                 .into_iter()
@@ -532,11 +555,16 @@ impl TryFrom<WireMergeOutcome> for MergeOutcome {
         for folder in value.folders {
             folders.insert(decode_uuid(&folder.folder_id)?, folder.changes);
         }
-        let mut external_files =
-            IndexSet::with_capacity(value.external_files.len());
-        for file in value.external_files {
-            external_files.insert(file.try_into()?);
-        }
+
+        #[cfg(feature = "files")]
+        let external_files = {
+            let mut external_files =
+                IndexSet::with_capacity(value.external_files.len());
+            for file in value.external_files {
+                external_files.insert(file.try_into()?);
+            }
+            external_files
+        };
 
         Ok(Self {
             changes: value.changes,
@@ -547,6 +575,7 @@ impl TryFrom<WireMergeOutcome> for MergeOutcome {
             #[cfg(feature = "files")]
             files: value.files,
             folders,
+            #[cfg(feature = "files")]
             external_files,
         })
     }
@@ -554,14 +583,25 @@ impl TryFrom<WireMergeOutcome> for MergeOutcome {
 
 impl From<MergeOutcome> for WireMergeOutcome {
     fn from(value: MergeOutcome) -> Self {
+        #[cfg(feature = "files")]
+        let external_files: Vec<WireExternalFile> =
+            value.external_files.into_iter().map(|f| f.into()).collect();
+
+        #[cfg(not(feature = "files"))]
+        let external_files = vec![];
+
         Self {
             changes: value.changes,
             identity: value.identity,
             account: value.account,
             #[cfg(feature = "device")]
             device: value.device,
+            #[cfg(not(feature = "device"))]
+            device: 0,
             #[cfg(feature = "files")]
             files: value.files,
+            #[cfg(not(feature = "files"))]
+            files: 0,
             folders: value
                 .folders
                 .into_iter()
@@ -570,11 +610,7 @@ impl From<MergeOutcome> for WireMergeOutcome {
                     changes: v,
                 })
                 .collect(),
-            external_files: value
-                .external_files
-                .into_iter()
-                .map(|f| f.into())
-                .collect(),
+            external_files,
         }
     }
 }

@@ -19,7 +19,6 @@
 mod common;
 mod diff;
 mod error;
-#[cfg(feature = "files")]
 mod files;
 #[cfg(feature = "listen")]
 mod notifications;
@@ -116,5 +115,7 @@ fn into_wire_event_log_type(
         #[cfg(feature = "files")]
         EventLogType::Files => (3, None),
         EventLogType::Folder(id) => (4, Some(encode_uuid(id))),
+        #[cfg(any(not(feature = "device"), not(feature = "files")))]
+        _ => (2, None),
     }
 }
