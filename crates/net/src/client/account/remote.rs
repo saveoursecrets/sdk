@@ -76,7 +76,7 @@ impl RemoteBridge {
         {
             let account = self.account.lock().await;
             let public_account = account.change_set().await?;
-            self.client.create_account(&public_account).await?;
+            self.client.create_account(public_account).await?;
         }
         self.execute_sync_file_transfers().await?;
         Ok(())

@@ -67,7 +67,6 @@ where
         Self: Sized,
     {
         let result = decode::<<Self as WireConvert>::Inner>(buffer)?;
-        // FIXME: do error conversion rather than unwrap
         Ok(result.try_into()?)
     }
 }

@@ -259,8 +259,8 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn create_account(&self, account: &ChangeSet) -> Result<()> {
-        let body = encode(account).await?;
+    async fn create_account(&self, account: ChangeSet) -> Result<()> {
+        let body = account.encode()?;
         let url = self.build_url("api/v1/sync/account")?;
 
         tracing::debug!(url = %url, "http::create_account");
@@ -272,6 +272,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .put(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()
@@ -335,7 +336,7 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::fetch_account");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(decode(&buffer).await?)
+        Ok(ChangeSet::decode(buffer)?)
     }
 
     #[instrument(skip_all)]

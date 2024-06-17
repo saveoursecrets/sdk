@@ -72,7 +72,7 @@ pub trait SyncClient {
     async fn account_exists(&self) -> Result<bool>;
 
     /// Create a new account.
-    async fn create_account(&self, account: &ChangeSet) -> Result<()>;
+    async fn create_account(&self, account: ChangeSet) -> Result<()>;
 
     /// Update an account.
     async fn update_account(&self, account: &UpdateSet) -> Result<()>;

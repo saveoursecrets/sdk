@@ -648,7 +648,7 @@ mod handlers {
             }
         }
 
-        let account: ChangeSet = decode(bytes).await?;
+        let account = <ChangeSet as WireEncodeDecode>::decode(bytes)?;
         let mut writer = backend.write().await;
         writer.create_account(caller.address(), account).await?;
         Ok(())
@@ -688,10 +688,10 @@ mod handlers {
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
-            HeaderValue::from_static(MIME_TYPE_SOS),
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, encode(&account).await?))
+        Ok((headers, account.encode()?))
     }
 
     pub(super) async fn sync_status(
