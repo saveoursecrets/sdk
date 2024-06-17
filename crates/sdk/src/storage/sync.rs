@@ -161,7 +161,7 @@ impl ForceMerge for ServerStorage {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
@@ -192,7 +192,7 @@ impl ForceMerge for ServerStorage {
         diff: AccountDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
@@ -216,7 +216,7 @@ impl ForceMerge for ServerStorage {
         diff: DeviceDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
@@ -246,7 +246,7 @@ impl ForceMerge for ServerStorage {
         diff: FileDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
@@ -270,7 +270,7 @@ impl ForceMerge for ServerStorage {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             folder_id = %folder_id,
@@ -322,8 +322,8 @@ impl Merge for ServerStorage {
             writer.patch_checked(&diff.checkpoint, &diff.patch).await?;
 
         if let CheckedPatch::Success(_) = &checked_patch {
-            outcome.identity = diff.patch.len();
-            outcome.changes += diff.patch.len();
+            outcome.identity = diff.patch.len() as u64;
+            outcome.changes += diff.patch.len() as u64;
         }
 
         Ok(checked_patch)
@@ -398,8 +398,8 @@ impl Merge for ServerStorage {
                 }
             }
 
-            outcome.account = diff.patch.len();
-            outcome.changes += diff.patch.len();
+            outcome.account = diff.patch.len() as u64;
+            outcome.changes += diff.patch.len() as u64;
         } else {
             // FIXME: handle conflict situation
             println!("todo! account patch could not be merged");
@@ -441,8 +441,8 @@ impl Merge for ServerStorage {
             let reducer = DeviceReducer::new(&*event_log);
             self.devices = reducer.reduce().await?;
 
-            outcome.device = diff.patch.len();
-            outcome.changes += diff.patch.len();
+            outcome.device = diff.patch.len() as u64;
+            outcome.changes += diff.patch.len() as u64;
         } else {
             // FIXME: handle conflict situation
             println!("todo! device patch could not be merged");
@@ -489,8 +489,8 @@ impl Merge for ServerStorage {
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {
-            outcome.file = diff.patch.len();
-            outcome.changes += diff.patch.len();
+            outcome.files = diff.patch.len() as u64;
+            outcome.changes += diff.patch.len() as u64;
         }
 
         Ok(checked_patch)
@@ -508,7 +508,7 @@ impl Merge for ServerStorage {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             folder_id = %folder_id,

@@ -3,6 +3,7 @@ syntax = "proto3";
 package sync;
 
 import "protobuf/common.proto";
+import "protobuf/files.proto";
 
 message WireSyncFolderState {
   // Folder identifier.
@@ -149,4 +150,31 @@ message WireSyncPacket {
   WireSyncDiff diff = 2;
   // Sync comparison information.
   optional WireSyncCompare compare = 3;
+}
+
+message WireFolderMergeOutcome {
+  // Folder identifier.
+  bytes folder_id = 1;
+  // Number of changes to the folder.
+  uint64 changes = 2;
+}
+
+message WireMergeOutcome {
+  // Total number of changes made during a merge.
+  uint64 changes = 1;
+  // Number of changes to the identity folder.
+  uint64 identity = 2;
+  // Number of changes to the account event log.
+  uint64 account = 3;
+  // Number of changes to the device event log.
+  uint64 device = 4;
+  // Number of changes to the files event log.
+  uint64 files = 5;
+  // Number of changes to the folder event logs.
+  repeated WireFolderMergeOutcome folders = 6;
+  // Collection of external files detected when merging
+  // file events logs.
+  //
+  // Used after mege to update the file transfer queue.
+  repeated files.WireExternalFile external_files = 7;
 }

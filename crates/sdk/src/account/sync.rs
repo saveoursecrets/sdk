@@ -27,7 +27,7 @@ impl ForceMerge for LocalAccount {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
@@ -46,7 +46,7 @@ impl ForceMerge for LocalAccount {
         diff: AccountDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
@@ -70,7 +70,7 @@ impl ForceMerge for LocalAccount {
         diff: DeviceDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
@@ -95,7 +95,7 @@ impl ForceMerge for LocalAccount {
         diff: FileDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
@@ -119,7 +119,7 @@ impl ForceMerge for LocalAccount {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             folder_id = %folder_id,
@@ -151,7 +151,8 @@ impl Merge for LocalAccount {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
+
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
             num_events = len,
@@ -263,8 +264,8 @@ impl Merge for LocalAccount {
                 }
             }
 
-            outcome.account = diff.patch.len();
-            outcome.changes += diff.patch.len();
+            outcome.account = diff.patch.len() as u64;
+            outcome.changes += diff.patch.len() as u64;
         }
 
         Ok(checked_patch)
@@ -313,8 +314,8 @@ impl Merge for LocalAccount {
             let mut storage = storage.write().await;
             storage.devices = devices;
 
-            outcome.device = diff.patch.len();
-            outcome.changes += diff.patch.len();
+            outcome.device = diff.patch.len() as u64;
+            outcome.changes += diff.patch.len() as u64;
         } else {
             // FIXME: handle conflict situation
             println!("todo! device patch could not be merged");
@@ -373,8 +374,8 @@ impl Merge for LocalAccount {
         outcome.external_files = external_files;
 
         if let CheckedPatch::Success(_) = &checked_patch {
-            outcome.file = diff.patch.len();
-            outcome.changes += diff.patch.len();
+            outcome.files = diff.patch.len() as u64;
+            outcome.changes += diff.patch.len() as u64;
         }
 
         Ok(checked_patch)
@@ -393,7 +394,7 @@ impl Merge for LocalAccount {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         let storage = self.storage().await?;
         let mut storage = storage.write().await;

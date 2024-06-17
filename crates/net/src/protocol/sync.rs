@@ -5,11 +5,11 @@ use crate::sdk::{
     commit::Comparison,
     events::EventRecord,
     sync::{
-        ChangeSet, Diff, MaybeDiff, Patch, SyncCompare, SyncDiff, SyncPacket,
-        SyncStatus, UpdateSet,
+        ChangeSet, Diff, MaybeDiff, MergeOutcome, Patch, SyncCompare,
+        SyncDiff, SyncPacket, SyncStatus, UpdateSet,
     },
 };
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
 
 impl WireConvert for SyncStatus {
@@ -520,4 +520,61 @@ impl From<SyncPacket> for WireSyncPacket {
     }
 }
 
-// TODO: MergeOutcome
+impl WireConvert for MergeOutcome {
+    type Inner = WireMergeOutcome;
+}
+
+impl TryFrom<WireMergeOutcome> for MergeOutcome {
+    type Error = Error;
+
+    fn try_from(value: WireMergeOutcome) -> Result<Self> {
+        let mut folders = HashMap::with_capacity(value.folders.len());
+        for folder in value.folders {
+            folders.insert(decode_uuid(&folder.folder_id)?, folder.changes);
+        }
+        let mut external_files =
+            IndexSet::with_capacity(value.external_files.len());
+        for file in value.external_files {
+            external_files.insert(file.try_into()?);
+        }
+
+        Ok(Self {
+            changes: value.changes,
+            identity: value.identity,
+            account: value.account,
+            #[cfg(feature = "device")]
+            device: value.device,
+            #[cfg(feature = "files")]
+            files: value.files,
+            folders,
+            external_files,
+        })
+    }
+}
+
+impl From<MergeOutcome> for WireMergeOutcome {
+    fn from(value: MergeOutcome) -> Self {
+        Self {
+            changes: value.changes,
+            identity: value.identity,
+            account: value.account,
+            #[cfg(feature = "device")]
+            device: value.device,
+            #[cfg(feature = "files")]
+            files: value.files,
+            folders: value
+                .folders
+                .into_iter()
+                .map(|(k, v)| WireFolderMergeOutcome {
+                    folder_id: encode_uuid(k),
+                    changes: v,
+                })
+                .collect(),
+            external_files: value
+                .external_files
+                .into_iter()
+                .map(|f| f.into())
+                .collect(),
+        }
+    }
+}

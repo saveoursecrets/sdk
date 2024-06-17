@@ -837,8 +837,8 @@ pub trait SyncStorage: StorageEventLogs {
     }
 }
 
-fn is_zero(value: &usize) -> bool {
-    value == &usize::MIN
+fn is_zero(value: &u64) -> bool {
+    value == &u64::MIN
 }
 
 /// Outcome of a merge operation.
@@ -847,24 +847,24 @@ fn is_zero(value: &usize) -> bool {
 pub struct MergeOutcome {
     /// Total number of changes made during the merge.
     #[serde(skip_serializing_if = "is_zero")]
-    pub changes: usize,
+    pub changes: u64,
     /// Number of changes to the identity folder.
     #[serde(skip_serializing_if = "is_zero")]
-    pub identity: usize,
+    pub identity: u64,
     /// Number of changes to the account event log.
     #[serde(skip_serializing_if = "is_zero")]
-    pub account: usize,
+    pub account: u64,
     /// Number of changes to the device event log.
     #[cfg(feature = "device")]
     #[serde(skip_serializing_if = "is_zero")]
-    pub device: usize,
+    pub device: u64,
     /// Number of changes to the file event log.
     #[cfg(feature = "files")]
     #[serde(skip_serializing_if = "is_zero")]
-    pub file: usize,
+    pub files: u64,
     /// Number of changes to the folder event logs.
     #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub folders: HashMap<VaultId, usize>,
+    pub folders: HashMap<VaultId, u64>,
 
     /// Collection of external files detected when merging
     /// file events logs.
