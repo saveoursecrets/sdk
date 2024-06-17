@@ -98,7 +98,7 @@ impl RemoteBridge {
                 diff: local_changes,
                 compare: None,
             };
-            let remote_changes = self.client.sync(&packet).await?;
+            let remote_changes = self.client.sync(packet.clone()).await?;
 
             let maybe_conflict = remote_changes
                 .compare

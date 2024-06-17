@@ -526,6 +526,7 @@ impl TryFrom<WireSyncPacket> for SyncPacket {
         } else {
             None
         };
+
         Ok(Self {
             status: value.status.unwrap().try_into()?,
             diff: value.diff.unwrap().try_into()?,

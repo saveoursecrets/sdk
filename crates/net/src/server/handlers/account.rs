@@ -1168,7 +1168,7 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let packet: SyncPacket = decode(bytes).await?;
+        let packet = <SyncPacket as WireEncodeDecode>::decode(bytes)?;
         let (remote_status, diff) = (packet.status, packet.diff);
 
         // Apply the diff to the storage
@@ -1211,9 +1211,9 @@ mod handlers {
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
-            HeaderValue::from_static(MIME_TYPE_SOS),
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, encode(&packet).await?))
+        Ok((headers, packet.encode()?))
     }
 }

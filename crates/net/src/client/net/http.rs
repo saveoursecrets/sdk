@@ -370,8 +370,8 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn sync(&self, packet: &SyncPacket) -> Result<SyncPacket> {
-        let body = encode(packet).await?;
+    async fn sync(&self, packet: SyncPacket) -> Result<SyncPacket> {
+        let body = packet.encode()?;
         let url = self.build_url("api/v1/sync/account")?;
 
         tracing::debug!(url = %url, "http::sync");
@@ -386,6 +386,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .patch(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()
@@ -394,7 +395,7 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::sync");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(decode(&buffer).await?)
+        Ok(SyncPacket::decode(buffer)?)
     }
 
     #[instrument(skip_all)]

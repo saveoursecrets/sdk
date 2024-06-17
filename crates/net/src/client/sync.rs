@@ -87,7 +87,7 @@ pub trait SyncClient {
     async fn sync_status(&self) -> Result<SyncStatus>;
 
     /// Sync with a remote.
-    async fn sync(&self, packet: &SyncPacket) -> Result<SyncPacket>;
+    async fn sync(&self, packet: SyncPacket) -> Result<SyncPacket>;
 
     /// Scan commits in an event log.
     async fn scan(&self, request: ScanRequest) -> Result<ScanResponse>;

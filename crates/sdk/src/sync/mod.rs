@@ -206,7 +206,7 @@ pub type FileDiff = Diff<FileEvent>;
 pub type FolderDiff = Diff<WriteEvent>;
 
 /// Combined sync status, diff and comparisons.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct SyncPacket {
     /// Sync status.
     pub status: SyncStatus,
@@ -342,7 +342,7 @@ impl MaybeConflict {
 }
 
 /// Diff of events or conflict information.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub enum MaybeDiff<T> {
     #[doc(hidden)]
     #[default]
@@ -356,7 +356,7 @@ pub enum MaybeDiff<T> {
 }
 
 /// Diff between all events logs on local and remote.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct SyncDiff {
     /// Diff of the identity vault event logs.
     pub identity: Option<MaybeDiff<FolderDiff>>,
