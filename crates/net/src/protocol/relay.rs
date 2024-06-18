@@ -1,5 +1,7 @@
 include!(concat!(env!("OUT_DIR"), "/relay.rs"));
 
+use crate::protocol::{AsyncEncodeDecode, Error, Result};
+
 // Must match the protobuf enum variants
 const HANDSHAKE: &str = "Handshake";
 const TRANSPORT: &str = "Transport";
@@ -8,6 +10,51 @@ impl RelayPacket {
     /// Determine if this packet is in a handshake state.
     pub fn is_handshake(&self) -> bool {
         self.payload.as_ref().unwrap().is_handshake()
+    }
+
+    /// Encode a packet prefixed with the target public key.
+    pub(crate) async fn encode(self) -> Result<Vec<u8>> {
+        let mut recipient =
+            self.header.as_ref().unwrap().to_public_key.clone();
+        let key_length = recipient.len() as u16;
+        let length_bytes = key_length.to_le_bytes();
+        let mut message = self.encode_async().await?;
+
+        let mut encoded = Vec::new();
+        encoded.extend_from_slice(&length_bytes);
+        encoded.append(&mut recipient);
+        encoded.append(&mut message);
+
+        Ok(encoded)
+    }
+
+    /// Decode an encoded packet into a public key and
+    /// protobuf packet bytes.
+    pub(crate) async fn decode_split(
+        packet: Vec<u8>,
+    ) -> Result<(Vec<u8>, Vec<u8>)> {
+        let amount = std::mem::size_of::<u16>();
+        if packet.len() > amount {
+            let key_length = &packet[0..amount];
+            let key_length: [u8; 2] = key_length.try_into().unwrap();
+            let key_length = u16::from_le_bytes(key_length);
+            if packet.len() > key_length as usize + amount {
+                let boundary = key_length as usize + amount;
+                let public_key = &packet[amount..boundary];
+                let public_key = public_key.to_vec();
+                let message_len = packet.len() - boundary;
+
+                let mut message = Vec::new();
+                message.reserve(message_len);
+                message.extend_from_slice(&packet[boundary..]);
+
+                Ok((public_key, message))
+            } else {
+                Err(Error::EndOfFile)
+            }
+        } else {
+            Err(Error::EndOfFile)
+        }
     }
 }
 

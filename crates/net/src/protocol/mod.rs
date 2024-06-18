@@ -40,7 +40,6 @@ pub use relay::{
 pub use scan::{ScanRequest, ScanResponse};
 
 use crate::sdk::events::EventLogType;
-use async_trait::async_trait;
 use prost::{bytes::Buf, Message};
 
 /// Result type for the wire protocol.
@@ -64,37 +63,37 @@ pub trait WireEncodeDecode {
 }
 
 /// Encode and decode protobuf messages.
-#[async_trait]
-pub trait AsyncEncodeDecode {
+pub(crate) trait AsyncEncodeDecode {
     /// Encode this message.
-    async fn encode_async(&self) -> Result<Vec<u8>>;
+    async fn encode_async(self) -> Result<Vec<u8>>;
 
     /// Decode a message.
-    async fn decode_async(buffer: impl Buf + Send + Sync) -> Result<Self>
+    async fn decode_async<B>(buffer: B) -> Result<Self>
     where
+        B: Buf + Send + 'static,
         Self: Sized;
 }
 
-#[async_trait]
 impl<T> AsyncEncodeDecode for T
 where
-    T: Message + Default,
-    // <T as WireConvert>::Inner: From<T>,
-    // T: TryFrom<<T as WireConvert>::Inner, Error = Error>,
+    T: Message + Default + 'static,
 {
-    async fn encode_async(&self) -> Result<Vec<u8>> {
-        let mut buf = Vec::new();
-        buf.reserve(self.encoded_len());
-        self.encode(&mut buf)?;
-        Ok(buf)
+    async fn encode_async(self) -> Result<Vec<u8>> {
+        tokio::task::spawn_blocking(move || {
+            let mut buf = Vec::new();
+            buf.reserve(self.encoded_len());
+            self.encode(&mut buf)?;
+            Ok(buf)
+        })
+        .await?
     }
 
-    async fn decode_async(buffer: impl Buf + Send + Sync) -> Result<Self>
+    async fn decode_async<B>(buffer: B) -> Result<Self>
     where
+        B: Buf + Send + 'static,
         Self: Sized,
     {
-        let result = Self::decode(buffer)?;
-        Ok(result)
+        tokio::task::spawn_blocking(move || Ok(Self::decode(buffer)?)).await?
     }
 }
 

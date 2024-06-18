@@ -20,6 +20,7 @@ use futures::{
     stream::{SplitSink, SplitStream},
     FutureExt, SinkExt, StreamExt,
 };
+use prost::bytes::Bytes;
 use serde::{de::DeserializeOwned, Serialize};
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use std::{borrow::Cow, path::PathBuf};
@@ -75,7 +76,8 @@ async fn listen(
         match message {
             Ok(message) => {
                 if let Message::Binary(msg) = message {
-                    match RelayPacket::decode_async(msg.as_slice()).await {
+                    let buf: Bytes = msg.into();
+                    match RelayPacket::decode_async(buf).await {
                         Ok(result) => {
                             if let Err(e) = tx.send(result).await {
                                 tracing::error!(error = ?e);
@@ -314,7 +316,6 @@ impl<'a> OfferPairing<'a> {
         match action {
             IncomingAction::Reply(next_state, reply) => {
                 self.state = next_state;
-
                 let buffer = reply.encode_async().await?;
                 self.tx.send(Message::Binary(buffer)).await?;
             }

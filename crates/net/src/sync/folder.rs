@@ -1,3 +1,4 @@
+//! Implements merging for folders.
 use async_trait::async_trait;
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 

@@ -56,9 +56,9 @@ async fn handle_socket(
             Ok(msg) => match msg {
                 Message::Text(_) => {}
                 Message::Binary(buffer) => {
-                    if let Ok(packet) =
-                        RelayPacket::decode_async(buffer.as_slice()).await
-                    {
+                    // FIXME: don't clone and decode the whole packet here!
+                    let buf: prost::bytes::Bytes = buffer.clone().into();
+                    if let Ok(packet) = RelayPacket::decode_async(buf).await {
                         let header = packet.header.as_ref().unwrap();
                         let mut writer = state.lock().await;
                         if let Some(tx) =

@@ -1,3 +1,4 @@
+//! Implements merging into a local account.
 use crate::sdk::{
     account::{Account, LocalAccount},
     commit::{CommitState, CommitTree, Comparison},

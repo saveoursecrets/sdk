@@ -9,6 +9,11 @@ pub enum Error {
     #[error("unknown event log type '{0}'")]
     UnknownEventLogType(i32),
 
+    /// Error generated trying to decode a relay packet
+    /// that is not long enound.
+    #[error("relay packet end of file")]
+    EndOfFile,
+
     /// Error generated converting from a slice.
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),
@@ -32,4 +37,8 @@ pub enum Error {
     /// Error generated converting time types.
     #[error(transparent)]
     Time(#[from] time::error::ComponentRange),
+
+    /// Error generated joining a task.
+    #[error(transparent)]
+    Join(#[from] tokio::task::JoinError),
 }

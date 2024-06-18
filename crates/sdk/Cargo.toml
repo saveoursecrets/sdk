@@ -25,6 +25,7 @@ device = [
   "dep:whoami",
 ]
 files = []
+interactive-keychain-tests = []
 logs = ["rev_buf_reader", "tracing-appender", "tracing-subscriber"]
 mem-fs = ["sos-vfs/mem-fs"]
 migrate = ["dep:async_zip", "dep:csv-async"]
