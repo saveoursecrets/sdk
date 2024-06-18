@@ -1,7 +1,10 @@
 //! Adds sync capability to network account.
 use crate::{
     client::{NetworkAccount, RemoteSync, SyncClient, SyncError},
-    sync::{Origin, SyncOptions, SyncStatus, SyncStorage, UpdateSet},
+    sync::{
+        FileSet, FileTransfersSet, Origin, SyncOptions, SyncStatus,
+        SyncStorage, UpdateSet,
+    },
 };
 use async_trait::async_trait;
 use sos_sdk::{
@@ -17,10 +20,7 @@ use tokio::sync::RwLock;
 use sos_sdk::events::DeviceEventLog;
 
 #[cfg(feature = "files")]
-use sos_sdk::{
-    events::FileEventLog,
-    storage::files::{FileSet, FileTransfersSet},
-};
+use sos_sdk::events::FileEventLog;
 
 /// Server status for all remote origins.
 pub type ServerStatus = HashMap<Origin, crate::client::Result<SyncStatus>>;

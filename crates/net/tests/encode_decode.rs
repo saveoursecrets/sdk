@@ -243,9 +243,12 @@ fn encode_decode_change_notification() -> Result<()> {
 #[test]
 fn encode_decode_change_files() -> Result<()> {
     use indexmap::IndexSet;
-    use sos_net::sdk::{
-        storage::files::{ExternalFile, FileSet, FileTransfersSet},
-        vault::{secret::SecretId, VaultId},
+    use sos_net::{
+        sdk::{
+            storage::files::ExternalFile,
+            vault::{secret::SecretId, VaultId},
+        },
+        sync::{FileSet, FileTransfersSet},
     };
 
     let file_name = [1u8; 32];

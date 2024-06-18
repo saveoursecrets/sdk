@@ -3,21 +3,19 @@ use crate::{
     client::{
         net::HttpClient, Error, RemoteSync, Result, SyncClient, SyncError,
     },
+    sdk::{
+        account::{Account, LocalAccount},
+        signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
+        storage::StorageEventLogs,
+        vfs,
+    },
     sync::{
-        self, MaybeDiff, Merge, MergeOutcome, Origin, SyncOptions,
-        SyncPacket, SyncStatus, SyncStorage, UpdateSet,
+        self, FileOperation, FileSet, MaybeDiff, Merge, MergeOutcome, Origin,
+        SyncOptions, SyncPacket, SyncStatus, SyncStorage, TransferOperation,
+        UpdateSet,
     },
 };
 use async_trait::async_trait;
-use sos_sdk::{
-    account::{Account, LocalAccount},
-    signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    storage::{
-        files::{FileSet, TransferOperation},
-        StorageEventLogs,
-    },
-    vfs,
-};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, Mutex};
 
@@ -132,11 +130,12 @@ impl RemoteBridge {
                                 "add file download to transfers",
                             );
                             if self.file_transfer_queue.receiver_count() > 0 {
-                                let _ =
-                                    self.file_transfer_queue.send(vec![(
+                                let _ = self.file_transfer_queue.send(vec![
+                                    FileOperation(
                                         file,
                                         TransferOperation::Download,
-                                    )]);
+                                    ),
+                                ]);
                             }
                         }
                     }
@@ -234,11 +233,11 @@ impl RemoteBridge {
 
         let mut ops = Vec::new();
         for file in file_transfers.uploads.0 {
-            ops.push((file, TransferOperation::Upload));
+            ops.push(FileOperation(file, TransferOperation::Upload));
         }
 
         for file in file_transfers.downloads.0 {
-            ops.push((file, TransferOperation::Download));
+            ops.push(FileOperation(file, TransferOperation::Download));
         }
 
         if !ops.is_empty() && self.file_transfer_queue.receiver_count() > 0 {

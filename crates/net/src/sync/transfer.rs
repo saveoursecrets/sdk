@@ -1,5 +1,5 @@
 //! Manage pending file transfer operations.
-use crate::{
+use crate::sdk::{
     events::FileEvent,
     storage::files::{ExternalFile, FileMutationEvent},
 };
@@ -32,7 +32,11 @@ pub enum TransferOperation {
     Move(ExternalFile),
 }
 
-impl From<&FileMutationEvent> for (ExternalFile, TransferOperation) {
+/// File and transfer information.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub struct FileOperation(pub ExternalFile, pub TransferOperation);
+
+impl From<&FileMutationEvent> for FileOperation {
     fn from(value: &FileMutationEvent) -> Self {
         match value {
             FileMutationEvent::Create { event, .. } => event.into(),
@@ -42,18 +46,22 @@ impl From<&FileMutationEvent> for (ExternalFile, TransferOperation) {
     }
 }
 
-impl From<&FileEvent> for (ExternalFile, TransferOperation) {
+impl From<&FileEvent> for FileOperation {
     fn from(value: &FileEvent) -> Self {
         match value {
-            FileEvent::CreateFile(vault_id, secret_id, file_name) => (
-                ExternalFile::new(*vault_id, *secret_id, *file_name),
-                TransferOperation::Upload,
-            ),
-            FileEvent::DeleteFile(vault_id, secret_id, file_name) => (
-                ExternalFile::new(*vault_id, *secret_id, *file_name),
-                TransferOperation::Delete,
-            ),
-            FileEvent::MoveFile { name, from, dest } => (
+            FileEvent::CreateFile(vault_id, secret_id, file_name) => {
+                FileOperation(
+                    ExternalFile::new(*vault_id, *secret_id, *file_name),
+                    TransferOperation::Upload,
+                )
+            }
+            FileEvent::DeleteFile(vault_id, secret_id, file_name) => {
+                FileOperation(
+                    ExternalFile::new(*vault_id, *secret_id, *file_name),
+                    TransferOperation::Delete,
+                )
+            }
+            FileEvent::MoveFile { name, from, dest } => FileOperation(
                 ExternalFile::new(from.0, from.1, *name),
                 TransferOperation::Move(ExternalFile::new(
                     dest.0, dest.1, *name,

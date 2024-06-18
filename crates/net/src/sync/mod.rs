@@ -21,6 +21,9 @@ use url::Url;
 
 mod folder;
 mod local_account;
+mod transfer;
+
+pub use transfer::*;
 
 pub(crate) use folder::{FolderMerge, IdentityFolderMerge};
 

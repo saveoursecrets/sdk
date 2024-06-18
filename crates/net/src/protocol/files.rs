@@ -3,14 +3,13 @@ include!(concat!(env!("OUT_DIR"), "/files.rs"));
 #[cfg(feature = "files")]
 mod files {
     use super::*;
-    use crate::protocol::{
-        decode_uuid, encode_uuid, Error, Result, WireConvert,
-    };
-    use crate::sdk::{
-        storage::files::{
-            ExternalFile, ExternalFileName, FileSet, FileTransfersSet,
+    use crate::{
+        protocol::{decode_uuid, encode_uuid, Error, Result, WireConvert},
+        sdk::{
+            storage::files::{ExternalFile, ExternalFileName},
+            vault::{secret::SecretId, VaultId},
         },
-        vault::{secret::SecretId, VaultId},
+        sync::{FileSet, FileTransfersSet},
     };
     use indexmap::IndexSet;
 

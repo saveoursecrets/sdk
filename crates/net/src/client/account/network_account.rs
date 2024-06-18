@@ -15,7 +15,7 @@ use sos_sdk::{
     sha2::{Digest, Sha256},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
-        files::{ExternalFile, FileMutationEvent, TransferOperation},
+        files::FileMutationEvent,
         search::{
             AccountStatistics, ArchiveFilter, Document, DocumentCount,
             DocumentView, QueryFilter, SearchIndex,
@@ -38,7 +38,7 @@ use tokio::{
     sync::{Mutex, RwLock},
 };
 
-use crate::sync::{Origin, SyncError, SyncOptions, UpdateSet};
+use crate::sync::{FileOperation, Origin, SyncError, SyncOptions, UpdateSet};
 
 #[cfg(feature = "archive")]
 use crate::sdk::account::archive::{Inventory, RestoreOptions};
@@ -549,21 +549,6 @@ impl NetworkAccount {
         Ok(owner)
     }
 
-    /*
-    /// File transfers queue.
-    #[cfg(feature = "files")]
-    pub fn transfers(
-        &self,
-    ) -> crate::Result<Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>>
-    {
-        Ok(self
-            .file_transfers
-            .as_ref()
-            .map(|t| Arc::clone(&t.queue))
-            .ok_or_else(|| crate::sdk::Error::NotAuthenticated)?)
-    }
-    */
-
     /// Inflight file transfers.
     #[cfg(feature = "files")]
     pub fn inflight_transfers(&self) -> Result<Arc<InflightTransfers>> {
@@ -582,7 +567,7 @@ impl NetworkAccount {
         if let Some(handle) = &self.file_transfer_handle {
             let mut items = Vec::with_capacity(events.len());
             for event in events {
-                let item: (ExternalFile, TransferOperation) = event.into();
+                let item: FileOperation = event.into();
                 items.push(item);
             }
 

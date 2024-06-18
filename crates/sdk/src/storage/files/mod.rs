@@ -11,13 +11,9 @@ use std::{fmt, path::Path, str::FromStr};
 
 mod external_files;
 mod file_manager;
-#[cfg(feature = "sync")]
-mod transfer;
 
 pub use external_files::FileStorage;
 pub use file_manager::{FileMutationEvent, FileProgress, FileSource};
-#[cfg(feature = "sync")]
-pub use transfer::{FileSet, FileTransfersSet, TransferOperation};
 
 /// Meta data about an encrypted file.
 #[derive(Debug, Clone)]

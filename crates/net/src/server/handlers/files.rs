@@ -362,15 +362,13 @@ mod handlers {
         protocol::WireEncodeDecode,
         sdk::{
             sha2::{Digest, Sha256},
-            storage::files::{
-                list_external_files, ExternalFileName, FileSet,
-                FileTransfersSet,
-            },
+            storage::files::{list_external_files, ExternalFileName},
             vault::{secret::SecretId, VaultId},
         },
         server::{
             handlers::Caller, Error, Result, ServerBackend, ServerState,
         },
+        sync::{FileSet, FileTransfersSet},
     };
     use axum::{body::Body, http::StatusCode, response::Response};
     use futures::TryStreamExt;

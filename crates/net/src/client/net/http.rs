@@ -4,11 +4,6 @@ use futures::{Future, StreamExt};
 use http::StatusCode;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde_json::Value;
-use sos_sdk::{
-    constants::MIME_TYPE_PROTOBUF,
-    sha2::{Digest, Sha256},
-    signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-};
 use tracing::instrument;
 
 use crate::{
@@ -17,7 +12,15 @@ use crate::{
         DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
         ScanResponse, WireEncodeDecode,
     },
-    sync::{ChangeSet, Origin, SyncPacket, SyncStatus, UpdateSet},
+    sdk::{
+        constants::MIME_TYPE_PROTOBUF,
+        sha2::{Digest, Sha256},
+        signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
+    },
+    sync::{
+        ChangeSet, FileSet, FileTransfersSet, Origin, SyncPacket, SyncStatus,
+        UpdateSet,
+    },
 };
 use std::{fmt, path::Path, time::Duration};
 use url::Url;
@@ -33,7 +36,7 @@ use crate::protocol::ChangeNotification;
 use super::websocket::WebSocketChangeListener;
 
 #[cfg(feature = "files")]
-use crate::sdk::storage::files::{ExternalFile, FileSet, FileTransfersSet};
+use crate::sdk::storage::files::ExternalFile;
 
 #[cfg(feature = "files")]
 use crate::client::ProgressChannel;
