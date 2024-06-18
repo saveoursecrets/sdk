@@ -11,6 +11,10 @@ repository = "https://github.com/saveoursecrets/sdk"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 default = ["account", "archive", "audit", "logs", "search"]
 account = []
@@ -118,13 +122,7 @@ tokio = { version = "1", default-features = false, features = ["rt", "sync", "ma
 [dependencies.chbs]
 version = "0.1.1"
 
-[build-dependencies]
-rustc_version = "0.4.0"
-
 [dev-dependencies]
 anyhow = "1"
 tokio = { version = "1", features = ["full"] }
 sos_test_utils = { path = "../test_utils" }
-
-[package.metadata.docs.rs]
-all-features = true

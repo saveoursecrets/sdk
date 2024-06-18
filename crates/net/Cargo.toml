@@ -7,6 +7,10 @@ homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 default = []
 full = [
@@ -137,9 +141,6 @@ reqwest = { version = "0.12.3", default-features = false, features = ["json", "r
 anyhow = "1"
 
 [build-dependencies]
-rustc_version = "0.4.0"
 prost-build = "0.12.6"
 protoc-bin-vendored = "3"
 
-[package.metadata.docs.rs]
-all-features = true

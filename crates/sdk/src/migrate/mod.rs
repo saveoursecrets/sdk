@@ -1,6 +1,3 @@
-#![deny(missing_docs)]
-#![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Export and import unencrypted data.
 //!
 //! Used to move between different apps.
