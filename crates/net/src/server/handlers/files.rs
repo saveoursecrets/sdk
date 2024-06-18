@@ -343,7 +343,7 @@ pub(crate) async fn compare_files(
         .await
         {
             Ok(token) => {
-                match handlers::compare_files(state, backend, token, &bytes)
+                match handlers::compare_files(state, backend, token, bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -370,7 +370,11 @@ mod handlers {
         },
         sync::{FileSet, FileTransfersSet},
     };
-    use axum::{body::Body, http::StatusCode, response::Response};
+    use axum::{
+        body::{Body, Bytes},
+        http::StatusCode,
+        response::Response,
+    };
     use futures::TryStreamExt;
     use http::header::{self, HeaderMap, HeaderValue};
     use indexmap::IndexSet;
@@ -603,7 +607,7 @@ mod handlers {
         _state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-        bytes: &[u8],
+        body: Bytes,
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let paths = {
             let backend = backend.read().await;
@@ -616,7 +620,7 @@ mod handlers {
             account.storage.paths()
         };
 
-        let local_files = FileSet::decode(bytes).await?;
+        let local_files = FileSet::decode(body).await?;
         let local_set = local_files.0;
         let remote_set = list_external_files(&*paths).await?;
         let uploads = local_set

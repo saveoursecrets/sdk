@@ -1,5 +1,6 @@
 //! Basic smoke tests for encoding and decoding.
 use anyhow::Result;
+use prost::bytes::Bytes;
 
 use crate::{
     protocol::{
@@ -22,7 +23,8 @@ const HASH: &str =
 async fn encode_decode_utc_date_time() -> Result<()> {
     let value = UtcDateTime::default();
     let buffer = value.clone().encode().await?;
-    let decoded = UtcDateTime::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = UtcDateTime::decode(buffer).await?;
     assert_eq!(value, decoded);
     Ok(())
 }
@@ -31,7 +33,8 @@ async fn encode_decode_utc_date_time() -> Result<()> {
 async fn encode_decode_commit_hash() -> Result<()> {
     let value: CommitHash = HASH.parse()?;
     let buffer = value.encode().await?;
-    let decoded = CommitHash::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = CommitHash::decode(buffer).await?;
     assert_eq!(value, decoded);
     Ok(())
 }
@@ -40,7 +43,8 @@ async fn encode_decode_commit_hash() -> Result<()> {
 async fn encode_decode_commit_proof() -> Result<()> {
     let value = CommitProof::default();
     let buffer = value.clone().encode().await?;
-    let decoded = CommitProof::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = CommitProof::decode(buffer).await?;
     assert_eq!(value, decoded);
     Ok(())
 }
@@ -49,7 +53,8 @@ async fn encode_decode_commit_proof() -> Result<()> {
 async fn encode_decode_commit_state() -> Result<()> {
     let value = CommitState::default();
     let buffer = value.clone().encode().await?;
-    let decoded = CommitState::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = CommitState::decode(buffer).await?;
     assert_eq!(value, decoded);
     Ok(())
 }
@@ -66,7 +71,8 @@ async fn encode_decode_event_record() -> Result<()> {
         mock.as_bytes().to_vec(),
     );
     let buffer = value.clone().encode().await?;
-    let decoded = EventRecord::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = EventRecord::decode(buffer).await?;
     assert_eq!(value, decoded);
     assert_eq!(mock.as_bytes(), decoded.event_bytes());
     Ok(())
@@ -76,7 +82,8 @@ async fn encode_decode_event_record() -> Result<()> {
 async fn encode_decode_checked_patch() -> Result<()> {
     let value = CheckedPatch::Success(Default::default());
     let buffer = value.clone().encode().await?;
-    let decoded = CheckedPatch::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = CheckedPatch::decode(buffer).await?;
     assert_eq!(value, decoded);
 
     let value = CheckedPatch::Conflict {
@@ -84,7 +91,8 @@ async fn encode_decode_checked_patch() -> Result<()> {
         contains: None,
     };
     let buffer = value.clone().encode().await?;
-    let decoded = CheckedPatch::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = CheckedPatch::decode(buffer).await?;
     assert_eq!(value, decoded);
 
     let value = CheckedPatch::Conflict {
@@ -92,7 +100,8 @@ async fn encode_decode_checked_patch() -> Result<()> {
         contains: Some(Default::default()),
     };
     let buffer = value.clone().encode().await?;
-    let decoded = CheckedPatch::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = CheckedPatch::decode(buffer).await?;
     assert_eq!(value, decoded);
 
     Ok(())
@@ -107,7 +116,8 @@ async fn encode_decode_diff_request() -> Result<()> {
     };
 
     let buffer = value.clone().encode().await?;
-    let decoded = DiffRequest::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = DiffRequest::decode(buffer).await?;
     assert_eq!(value, decoded);
 
     Ok(())
@@ -131,7 +141,8 @@ async fn encode_decode_diff_response() -> Result<()> {
     };
 
     let buffer = value.clone().encode().await?;
-    let decoded = DiffResponse::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = DiffResponse::decode(buffer).await?;
     assert_eq!(value, decoded);
 
     Ok(())
@@ -146,7 +157,8 @@ async fn encode_decode_scan_request() -> Result<()> {
     };
 
     let buffer = value.clone().encode().await?;
-    let decoded = ScanRequest::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = ScanRequest::decode(buffer).await?;
     assert_eq!(value, decoded);
 
     Ok(())
@@ -161,7 +173,8 @@ async fn encode_decode_scan_response() -> Result<()> {
     };
 
     let buffer = value.clone().encode().await?;
-    let decoded = ScanResponse::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = ScanResponse::decode(buffer).await?;
     assert_eq!(value, decoded);
 
     Ok(())
@@ -187,7 +200,8 @@ async fn encode_decode_patch_request() -> Result<()> {
     };
 
     let buffer = value.clone().encode().await?;
-    let decoded = PatchRequest::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = PatchRequest::decode(buffer).await?;
     assert_eq!(value, decoded);
 
     Ok(())
@@ -198,7 +212,8 @@ async fn encode_decode_patch_response() -> Result<()> {
     let checked_patch = CheckedPatch::Success(Default::default());
     let value = PatchResponse { checked_patch };
     let buffer = value.clone().encode().await?;
-    let decoded = PatchResponse::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = PatchResponse::decode(buffer).await?;
     assert_eq!(value, decoded);
 
     Ok(())
@@ -211,7 +226,8 @@ async fn encode_decode_merge_outcom() -> Result<()> {
         ..Default::default()
     };
     let buffer = value.clone().encode().await?;
-    let decoded = MergeOutcome::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = MergeOutcome::decode(buffer).await?;
     assert_eq!(value, decoded);
 
     Ok(())
@@ -233,7 +249,8 @@ async fn encode_decode_change_notification() -> Result<()> {
         outcome,
     );
     let buffer = value.clone().encode().await?;
-    let decoded = ChangeNotification::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = ChangeNotification::decode(buffer).await?;
     assert_eq!(value, decoded);
 
     Ok(())
@@ -271,7 +288,8 @@ async fn encode_decode_change_files() -> Result<()> {
 
     let value = FileTransfersSet { uploads, downloads };
     let buffer = value.clone().encode().await?;
-    let decoded = FileTransfersSet::decode(buffer.as_slice()).await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = FileTransfersSet::decode(buffer).await?;
     assert_eq!(value, decoded);
 
     Ok(())

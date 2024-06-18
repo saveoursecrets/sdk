@@ -100,31 +100,39 @@ pub(crate) trait WireEncodeDecode {
     async fn encode(self) -> Result<Vec<u8>>;
 
     /// Decode this request.
-    async fn decode(buffer: impl Buf) -> Result<Self>
+    async fn decode<B>(buffer: B) -> Result<Self>
     where
+        B: Buf + Send + 'static,
         Self: Sized;
 }
 
 impl<T> WireEncodeDecode for T
 where
-    T: ProtoBinding,
-    <T as ProtoBinding>::Inner: From<T>,
+    T: ProtoBinding + Send + 'static,
+    <T as ProtoBinding>::Inner: From<T> + 'static,
     T: TryFrom<<T as ProtoBinding>::Inner, Error = Error>,
 {
     async fn encode(self) -> Result<Vec<u8>> {
-        let value: <Self as ProtoBinding>::Inner = self.into();
-        let mut buf = Vec::new();
-        buf.reserve(value.encoded_len());
-        value.encode(&mut buf)?;
-        Ok(buf)
+        tokio::task::spawn_blocking(move || {
+            let value: <Self as ProtoBinding>::Inner = self.into();
+            let mut buf = Vec::new();
+            buf.reserve(value.encoded_len());
+            value.encode(&mut buf)?;
+            Ok(buf)
+        })
+        .await?
     }
 
-    async fn decode(buffer: impl Buf) -> Result<Self>
+    async fn decode<B>(buffer: B) -> Result<Self>
     where
+        B: Buf + Send + 'static,
         Self: Sized,
     {
-        let result = <<Self as ProtoBinding>::Inner>::decode(buffer)?;
-        Ok(result.try_into()?)
+        tokio::task::spawn_blocking(move || {
+            let result = <<Self as ProtoBinding>::Inner>::decode(buffer)?;
+            Ok(result.try_into()?)
+        })
+        .await?
     }
 }
 

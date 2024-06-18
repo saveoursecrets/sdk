@@ -162,7 +162,6 @@ dependencies = ["clean-cli"]
 
 [tasks.test-lite]
 command = "cargo"
-toolchain = "nightly"
 args = ["test", "--all"]
 dependencies = ["clean-cli"]
 

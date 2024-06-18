@@ -114,7 +114,7 @@ pub(crate) async fn create_account(
         .await
         {
             Ok(caller) => {
-                match handlers::create_account(state, backend, caller, &bytes)
+                match handlers::create_account(state, backend, caller, bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -226,7 +226,7 @@ pub(crate) async fn update_account(
         .await
         {
             Ok(caller) => {
-                match handlers::update_account(state, backend, caller, &bytes)
+                match handlers::update_account(state, backend, caller, bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -390,7 +390,7 @@ pub(crate) async fn event_proofs(
         .await
         {
             Ok(caller) => {
-                match handlers::event_proofs(state, backend, caller, &bytes)
+                match handlers::event_proofs(state, backend, caller, bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -450,7 +450,7 @@ pub(crate) async fn event_diff(
         .await
         {
             Ok(caller) => {
-                match handlers::event_diff(state, backend, caller, &bytes)
+                match handlers::event_diff(state, backend, caller, bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -510,7 +510,7 @@ pub(crate) async fn event_patch(
         .await
         {
             Ok(caller) => {
-                match handlers::event_patch(state, backend, caller, &bytes)
+                match handlers::event_patch(state, backend, caller, bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -570,7 +570,7 @@ pub(crate) async fn sync_account(
         .await
         {
             Ok(caller) => {
-                match handlers::sync_account(state, backend, caller, &bytes)
+                match handlers::sync_account(state, backend, caller, bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -595,6 +595,7 @@ mod handlers {
             ServerState,
         },
     };
+    use axum::body::Bytes;
     use binary_stream::futures::{Decodable, Encodable};
     use http::{
         header::{self, HeaderMap, HeaderValue},
@@ -643,7 +644,7 @@ mod handlers {
         _state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-        bytes: &[u8],
+        bytes: Bytes,
     ) -> Result<()> {
         {
             let reader = backend.read().await;
@@ -672,7 +673,7 @@ mod handlers {
         _state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-        bytes: &[u8],
+        bytes: Bytes,
     ) -> Result<()> {
         let account = UpdateSet::decode(bytes).await?;
         let mut writer = backend.write().await;
@@ -725,7 +726,7 @@ mod handlers {
         _state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-        bytes: &[u8],
+        bytes: Bytes,
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let account = {
             let reader = backend.read().await;
@@ -854,7 +855,7 @@ mod handlers {
         _state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-        bytes: &[u8],
+        bytes: Bytes,
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let account = {
             let reader = backend.read().await;
@@ -930,7 +931,7 @@ mod handlers {
         state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-        bytes: &[u8],
+        bytes: Bytes,
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let account = {
             let reader = backend.read().await;
@@ -1160,7 +1161,7 @@ mod handlers {
         state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-        bytes: &[u8],
+        bytes: Bytes,
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let account = {
             let reader = backend.read().await;

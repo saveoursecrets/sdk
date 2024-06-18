@@ -1,4 +1,5 @@
 //! Listen for change notifications on a websocket connection.
+use axum::body::Bytes;
 use futures::{
     stream::{Map, SplitStream},
     Future, FutureExt, StreamExt,
@@ -185,8 +186,8 @@ pub fn changes(
 async fn decode_notification(message: Message) -> Result<ChangeNotification> {
     match message {
         Message::Binary(buffer) => {
-            let notification =
-                ChangeNotification::decode(buffer.as_slice()).await?;
+            let buf: Bytes = buffer.into();
+            let notification = ChangeNotification::decode(buf).await?;
             Ok(notification)
         }
         _ => Err(Error::NotBinaryWebsocketMessageType),
