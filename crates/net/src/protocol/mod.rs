@@ -41,9 +41,6 @@ pub use relay::{
 };
 pub use scan::{ScanRequest, ScanResponse};
 
-// TODO: remove direct use of this type
-pub use sync::WireOrigin;
-
 use crate::sdk::events::EventLogType;
 use prost::{bytes::Buf, Message};
 

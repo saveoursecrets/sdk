@@ -5,7 +5,6 @@ use crate::{
     protocol::{
         pairing_message, PairingConfirm, PairingMessage, PairingReady,
         PairingRequest, ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
-        WireOrigin,
     },
     sdk::{
         account::Account,
@@ -387,10 +386,7 @@ impl<'a> OfferPairing<'a> {
                         device_vault,
                         servers: servers
                             .into_iter()
-                            .map(|s| WireOrigin {
-                                name: s.name().to_string(),
-                                url: s.url().to_string(),
-                            })
+                            .map(|s| s.into())
                             .collect(),
                     };
 
@@ -833,7 +829,7 @@ impl<'a> AcceptPairing<'a> {
         let device_vault = confirmation.device_vault;
         let mut servers = HashSet::new();
         for server in confirmation.servers {
-            servers.insert(Origin::new(server.name, server.url.parse()?));
+            servers.insert(server.try_into()?);
         }
 
         let signer: SingleParty = signing_key.try_into()?;

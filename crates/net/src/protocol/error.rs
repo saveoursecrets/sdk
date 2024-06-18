@@ -9,8 +9,7 @@ pub enum Error {
     #[error("unknown event log type '{0}'")]
     UnknownEventLogType(i32),
 
-    /// Error generated trying to decode a relay packet
-    /// that is not long enound.
+    /// Reached EOF decoding a relay packet.
     #[error("relay packet end of file")]
     EndOfFile,
 
@@ -41,4 +40,8 @@ pub enum Error {
     /// Error generated joining a task.
     #[error(transparent)]
     Join(#[from] tokio::task::JoinError),
+
+    /// Error generated parsing URLs.
+    #[error(transparent)]
+    UrlParse(#[from] crate::sdk::url::ParseError),
 }

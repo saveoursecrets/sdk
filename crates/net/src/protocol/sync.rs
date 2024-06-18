@@ -1,16 +1,37 @@
 include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 
-use super::{decode_uuid, encode_uuid, Error, Result, ProtoBinding};
+use super::{decode_uuid, encode_uuid, Error, ProtoBinding, Result};
 use crate::sdk::{
     commit::Comparison,
     events::{Diff, EventRecord, Patch},
 };
 use crate::sync::{
-    ChangeSet, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff, SyncPacket,
-    SyncStatus, UpdateSet,
+    ChangeSet, MaybeDiff, MergeOutcome, Origin, SyncCompare, SyncDiff,
+    SyncPacket, SyncStatus, UpdateSet,
 };
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
+
+impl ProtoBinding for Origin {
+    type Inner = WireOrigin;
+}
+
+impl TryFrom<WireOrigin> for Origin {
+    type Error = Error;
+
+    fn try_from(value: WireOrigin) -> Result<Self> {
+        Ok(Self::new(value.name, value.url.parse()?))
+    }
+}
+
+impl From<Origin> for WireOrigin {
+    fn from(value: Origin) -> Self {
+        Self {
+            name: value.name().to_string(),
+            url: value.url().to_string(),
+        }
+    }
+}
 
 impl ProtoBinding for SyncStatus {
     type Inner = WireSyncStatus;
