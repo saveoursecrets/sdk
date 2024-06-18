@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/relay.rs"));
 
-use crate::protocol::{AsyncEncodeDecode, Result};
+use crate::protocol::{ProtoMessage, Result};
 
 // Must match the protobuf enum variants
 const HANDSHAKE: &str = "Handshake";
@@ -19,7 +19,7 @@ impl RelayPacket {
             self.header.as_ref().unwrap().to_public_key.clone();
         let key_length = recipient.len() as u16;
         let length_bytes = key_length.to_le_bytes();
-        let mut message = self.encode_async().await?;
+        let mut message = self.encode_proto().await?;
 
         let mut encoded = Vec::new();
         encoded.extend_from_slice(&length_bytes);

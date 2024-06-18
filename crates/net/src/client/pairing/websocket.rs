@@ -3,8 +3,8 @@ use super::{DeviceEnrollment, Error, Result, ServerPairUrl};
 use crate::{
     client::{sync::RemoteSync, NetworkAccount, WebSocketRequest},
     protocol::{
-        pairing_message, AsyncEncodeDecode, PairingConfirm, PairingMessage,
-        PairingReady, PairingRequest, RelayHeader, RelayPacket, RelayPayload,
+        pairing_message, PairingConfirm, PairingMessage, PairingReady,
+        PairingRequest, ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
         WireOrigin,
     },
     sdk::{
@@ -79,7 +79,7 @@ async fn listen(
             Ok(message) => {
                 if let Message::Binary(msg) = message {
                     let buf: Bytes = msg.into();
-                    match RelayPacket::decode_async(buf).await {
+                    match RelayPacket::decode_proto(buf).await {
                         Ok(result) => {
                             if let Err(e) = tx.send(result).await {
                                 tracing::error!(error = ?e);

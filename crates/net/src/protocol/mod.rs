@@ -50,8 +50,46 @@ use prost::{bytes::Buf, Message};
 /// Result type for the wire protocol.
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Marker trait to indicate the inner type for protocol
-/// type conversion.
+/// Trait for encoding and decoding protobuf generated types.
+///
+/// A blanket implementation adds this to any [prost::Message]
+/// and runs the encoding and decoding using `spawn_blocking`.
+pub(crate) trait ProtoMessage {
+    /// Encode this message.
+    async fn encode_proto(self) -> Result<Vec<u8>>;
+
+    /// Decode a message.
+    async fn decode_proto<B>(buffer: B) -> Result<Self>
+    where
+        B: Buf + Send + 'static,
+        Self: Sized;
+}
+
+impl<T> ProtoMessage for T
+where
+    T: Message + Default + 'static,
+{
+    async fn encode_proto(self) -> Result<Vec<u8>> {
+        tokio::task::spawn_blocking(move || {
+            let mut buf = Vec::new();
+            buf.reserve(self.encoded_len());
+            self.encode(&mut buf)?;
+            Ok(buf)
+        })
+        .await?
+    }
+
+    async fn decode_proto<B>(buffer: B) -> Result<Self>
+    where
+        B: Buf + Send + 'static,
+        Self: Sized,
+    {
+        tokio::task::spawn_blocking(move || Ok(Self::decode(buffer)?)).await?
+    }
+}
+
+/// Marker trait to indicate a binding type that
+/// converts to a protobuf type.
 trait WireConvert {
     type Inner: Message + Default;
 }
@@ -65,41 +103,6 @@ pub(crate) trait WireEncodeDecode {
     fn decode(buffer: impl Buf) -> Result<Self>
     where
         Self: Sized;
-}
-
-/// Encode and decode protobuf messages.
-pub(crate) trait AsyncEncodeDecode {
-    /// Encode this message.
-    async fn encode_async(self) -> Result<Vec<u8>>;
-
-    /// Decode a message.
-    async fn decode_async<B>(buffer: B) -> Result<Self>
-    where
-        B: Buf + Send + 'static,
-        Self: Sized;
-}
-
-impl<T> AsyncEncodeDecode for T
-where
-    T: Message + Default + 'static,
-{
-    async fn encode_async(self) -> Result<Vec<u8>> {
-        tokio::task::spawn_blocking(move || {
-            let mut buf = Vec::new();
-            buf.reserve(self.encoded_len());
-            self.encode(&mut buf)?;
-            Ok(buf)
-        })
-        .await?
-    }
-
-    async fn decode_async<B>(buffer: B) -> Result<Self>
-    where
-        B: Buf + Send + 'static,
-        Self: Sized,
-    {
-        tokio::task::spawn_blocking(move || Ok(Self::decode(buffer)?)).await?
-    }
 }
 
 impl<T> WireEncodeDecode for T
