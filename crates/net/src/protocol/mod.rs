@@ -41,6 +41,7 @@ pub use relay::{
 };
 pub use scan::{ScanRequest, ScanResponse};
 
+// TODO: remove direct use of this type
 pub use sync::WireOrigin;
 
 use crate::sdk::events::EventLogType;
@@ -56,7 +57,7 @@ trait WireConvert {
 }
 
 /// Trait for wire protocol encoding and decoding.
-pub trait WireEncodeDecode {
+pub(crate) trait WireEncodeDecode {
     /// Encode this request.
     fn encode(self) -> Result<Vec<u8>>;
 

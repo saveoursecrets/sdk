@@ -17,6 +17,9 @@ pub mod protocol;
 pub mod server;
 pub mod sync;
 
+#[cfg(test)]
+mod tests;
+
 /// Result type for the network module.
 pub type Result<T> = std::result::Result<T, error::Error>;
 pub use error::Error;

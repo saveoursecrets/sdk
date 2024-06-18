@@ -1,7 +1,7 @@
 //! Basic smoke tests for encoding and decoding.
 use anyhow::Result;
 
-use sos_net::{
+use crate::{
     protocol::{
         DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
         ScanResponse, WireEncodeDecode,
@@ -220,7 +220,7 @@ fn encode_decode_merge_outcom() -> Result<()> {
 #[cfg(feature = "listen")]
 #[test]
 fn encode_decode_change_notification() -> Result<()> {
-    use sos_net::protocol::ChangeNotification;
+    use crate::protocol::ChangeNotification;
     let outcome = MergeOutcome {
         changes: 7,
         ..Default::default()
@@ -242,14 +242,14 @@ fn encode_decode_change_notification() -> Result<()> {
 #[cfg(feature = "files")]
 #[test]
 fn encode_decode_change_files() -> Result<()> {
-    use indexmap::IndexSet;
-    use sos_net::{
+    use crate::{
         sdk::{
             storage::files::ExternalFile,
             vault::{secret::SecretId, VaultId},
         },
         sync::{FileSet, FileTransfersSet},
     };
+    use indexmap::IndexSet;
 
     let file_name = [1u8; 32];
 
