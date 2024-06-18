@@ -5,10 +5,9 @@ use crate::sdk::{
         ed25519::{self, Verifier, VerifyingKey},
     },
     storage::DiscFolder,
-    sync::{ChangeSet, SyncStorage, UpdateSet},
     vfs, Paths,
 };
-use sos_sdk::sync::MergeOutcome;
+use crate::sync::{ChangeSet, MergeOutcome, SyncStorage, UpdateSet};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},

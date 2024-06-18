@@ -3,11 +3,11 @@ include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 use super::{decode_uuid, encode_uuid, Error, Result, WireConvert};
 use crate::sdk::{
     commit::Comparison,
-    events::EventRecord,
-    sync::{
-        ChangeSet, Diff, MaybeDiff, MergeOutcome, Patch, SyncCompare,
-        SyncDiff, SyncPacket, SyncStatus, UpdateSet,
-    },
+    events::{Diff, EventRecord, Patch},
+};
+use crate::sync::{
+    ChangeSet, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff, SyncPacket,
+    SyncStatus, UpdateSet,
 };
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;

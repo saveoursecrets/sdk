@@ -106,7 +106,8 @@ impl Identity {
         self.identity.as_ref().ok_or(Error::NotAuthenticated)
     }
 
-    pub(crate) fn identity_mut(&mut self) -> Result<&mut DiscIdentityFolder> {
+    #[doc(hidden)]
+    pub fn identity_mut(&mut self) -> Result<&mut DiscIdentityFolder> {
         self.identity.as_mut().ok_or(Error::NotAuthenticated)
     }
 

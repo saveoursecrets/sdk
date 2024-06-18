@@ -33,8 +33,8 @@ pub use crate::storage::files::*;
 #[cfg(feature = "search")]
 pub use crate::storage::search::*;
 pub use crate::storage::*;
-#[cfg(feature = "sync")]
-pub use crate::sync::*;
+// #[cfg(feature = "sync")]
+// pub use crate::sync::*;
 pub use crate::vault::secret::*;
 pub use crate::vault::*;
 pub use crate::vfs;

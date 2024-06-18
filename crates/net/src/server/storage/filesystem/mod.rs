@@ -21,8 +21,7 @@ use crate::sdk::audit::AuditEvent;
 #[cfg(feature = "device")]
 use crate::sdk::{
     device::{DevicePublicKey, TrustedDevice},
-    events::{DeviceEventLog, DeviceReducer},
-    sync::DeviceDiff,
+    events::{DeviceDiff, DeviceEventLog, DeviceReducer},
 };
 
 #[cfg(feature = "device")]

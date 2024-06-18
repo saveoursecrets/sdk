@@ -18,9 +18,9 @@ use crate::{
     client::{net::NetworkRetry, CancelReason, Error, Result, SyncClient},
     sdk::{
         storage::files::{ExternalFile, TransferOperation},
-        sync::Origin,
         vfs, Paths,
     },
+    sync::Origin,
 };
 
 use futures::FutureExt;

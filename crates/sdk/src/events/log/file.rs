@@ -41,8 +41,7 @@ use crate::events::DeviceEvent;
 #[cfg(feature = "files")]
 use crate::events::FileEvent;
 
-#[cfg(feature = "sync")]
-use crate::sync::{CheckedPatch, Diff, Patch};
+use super::patch::{CheckedPatch, Diff, Patch};
 
 use async_trait::async_trait;
 use std::{
@@ -220,7 +219,6 @@ where
     /// Used when merging to verify that the HEAD of the
     /// event log matches the checkpoint before applying
     /// the patch.
-    #[cfg(feature = "sync")]
     async fn diff_checked(
         &self,
         commit: Option<CommitHash>,
@@ -242,7 +240,6 @@ where
     /// For example, when destructive changes are made (change
     /// cipher or password) then other devices need to rewrite
     /// the event logs.
-    #[cfg(feature = "sync")]
     async fn diff_unchecked(&self) -> Result<Diff<E>> {
         let patch = self.diff_events(None).await?;
         Ok(Diff::<E> {
@@ -256,7 +253,6 @@ where
     /// not include the target commit.
     ///
     /// If no commit hash is given then all events are included.
-    #[cfg(feature = "sync")]
     async fn diff_events(
         &self,
         commit: Option<&CommitHash>,
@@ -272,7 +268,6 @@ where
     /// all event records.
     ///
     /// Does not include the target commit.
-    #[doc(hidden)]
     async fn diff_records(
         &self,
         commit: Option<&CommitHash>,
@@ -349,7 +344,6 @@ where
 
     /// Append a patch to this event log only if the
     /// head of the tree matches the given proof.
-    #[cfg(feature = "sync")]
     async fn patch_checked(
         &mut self,
         commit_proof: &CommitProof,
@@ -395,7 +389,6 @@ where
     ///
     /// When verification fails an [Error::CheckpointVerification]
     /// error will always be returned.
-    #[cfg(feature = "sync")]
     async fn patch_replace(&mut self, diff: Diff<E>) -> Result<()> {
         // Create a snapshot for disc-based implementations
         let snapshot = self.try_create_snapshot().await?;
@@ -493,7 +486,6 @@ where
     }
 
     /// Append a patch to this event log.
-    #[cfg(feature = "sync")]
     async fn patch_unchecked(&mut self, patch: &Patch<E>) -> Result<()> {
         self.apply_records(patch.records().to_vec()).await
     }

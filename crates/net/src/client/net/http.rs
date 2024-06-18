@@ -8,7 +8,6 @@ use sos_sdk::{
     constants::MIME_TYPE_PROTOBUF,
     sha2::{Digest, Sha256},
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{ChangeSet, Origin, SyncPacket, SyncStatus, UpdateSet},
 };
 use tracing::instrument;
 
@@ -18,6 +17,7 @@ use crate::{
         DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
         ScanResponse, WireEncodeDecode,
     },
+    sync::{ChangeSet, Origin, SyncPacket, SyncStatus, UpdateSet},
 };
 use std::{fmt, path::Path, time::Duration};
 use url::Url;

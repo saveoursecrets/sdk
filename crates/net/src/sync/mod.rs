@@ -1,7 +1,10 @@
 //! Synchronization primitives.
-use crate::{
+use crate::sdk::{
     commit::{CommitHash, CommitProof, CommitState, Comparison},
-    events::{AccountEvent, EventLogExt, WriteEvent},
+    events::{
+        AccountDiff, AccountEvent, AccountPatch, CheckedPatch, EventLogExt,
+        FolderDiff, FolderPatch, WriteEvent,
+    },
     storage::StorageEventLogs,
     vault::VaultId,
     Error, Result,
@@ -16,20 +19,16 @@ use std::{
 };
 use url::Url;
 
-mod patch;
-pub use patch::{AccountPatch, FolderPatch, Patch};
+mod local_account;
 
 #[cfg(feature = "device")]
-use crate::events::DeviceEvent;
-
-#[cfg(feature = "device")]
-pub use patch::DevicePatch;
+use crate::sdk::events::{DeviceDiff, DeviceEvent, DevicePatch};
 
 #[cfg(feature = "files")]
-use crate::{events::FileEvent, storage::files::ExternalFile};
-
-#[cfg(feature = "files")]
-pub use patch::FilePatch;
+use crate::sdk::{
+    events::{FileDiff, FileEvent, FilePatch},
+    storage::files::ExternalFile,
+};
 
 /// Server origin information.
 #[derive(Debug, Clone, Eq, Serialize, Deserialize)]
@@ -104,6 +103,8 @@ pub struct SyncError<T: std::error::Error> {
     pub errors: Vec<(Origin, T)>,
 }
 
+// impl<T: std::error::Error> std::error::Error for SyncError<T> {}
+
 impl<T: std::error::Error> fmt::Display for SyncError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (_, e) in self.errors.iter() {
@@ -133,66 +134,11 @@ impl<T: std::error::Error> Default for SyncError<T> {
 /// Options for folder merge.
 pub(crate) enum FolderMergeOptions<'a> {
     /// Update a URN lookup when merging.
-    Urn(VaultId, &'a mut crate::identity::UrnLookup),
+    Urn(VaultId, &'a mut crate::sdk::identity::UrnLookup),
     /// Update a search index when merging.
     #[cfg(feature = "search")]
-    Search(VaultId, &'a mut crate::storage::search::SearchIndex),
+    Search(VaultId, &'a mut crate::sdk::storage::search::SearchIndex),
 }
-
-/// Result of a checked patch on an event log.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CheckedPatch {
-    /// Patch was applied.
-    Success(CommitProof),
-    /// Patch conflict.
-    Conflict {
-        /// Head of the event log.
-        head: CommitProof,
-        /// If the checked proof is contained
-        /// in the event log.
-        contains: Option<CommitProof>,
-    },
-}
-
-/// Diff between local and remote.
-#[derive(Default, Debug, Clone)]
-pub struct Diff<T> {
-    /// Last commit hash before the patch was created.
-    ///
-    /// This can be used to determine if the patch is to
-    /// be used to initialize a new set of events when
-    /// no last commit is available.
-    ///
-    /// For example, for file event logs which are
-    /// lazily instantiated once external files are created.
-    pub last_commit: Option<CommitHash>,
-
-    /// Contents of the patch.
-    pub patch: Patch<T>,
-    /// Checkpoint for the diff patch.
-    ///
-    /// For checked patches this must match the proof
-    /// of HEAD before the patch was created.
-    ///
-    /// For unchecked force merges this checkpoint
-    /// references the commit proof of HEAD after
-    /// applying the patch.
-    pub checkpoint: CommitProof,
-}
-
-/// Diff between account events logs.
-pub type AccountDiff = Diff<AccountEvent>;
-
-/// Diff between device events logs.
-#[cfg(feature = "device")]
-pub type DeviceDiff = Diff<DeviceEvent>;
-
-/// Diff between file events logs.
-#[cfg(feature = "files")]
-pub type FileDiff = Diff<FileEvent>;
-
-/// Diff between folder events logs.
-pub type FolderDiff = Diff<WriteEvent>;
 
 /// Combined sync status, diff and comparisons.
 #[derive(Debug, Default, Clone)]

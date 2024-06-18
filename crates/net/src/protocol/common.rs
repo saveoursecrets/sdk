@@ -3,8 +3,7 @@ include!(concat!(env!("OUT_DIR"), "/common.rs"));
 use super::{Error, Result, WireConvert};
 use crate::sdk::{
     commit::{CommitHash, CommitProof, CommitState},
-    events::EventRecord,
-    sync::CheckedPatch,
+    events::{CheckedPatch, EventRecord},
     time::{Duration, OffsetDateTime},
     UtcDateTime,
 };

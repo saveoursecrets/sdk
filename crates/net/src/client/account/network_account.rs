@@ -22,7 +22,6 @@ use sos_sdk::{
         },
         AccessOptions, ClientStorage, StorageEventLogs,
     },
-    sync::{Origin, SyncError, SyncOptions, UpdateSet},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Summary, Vault, VaultId,
@@ -38,6 +37,8 @@ use tokio::{
     io::{AsyncRead, AsyncSeek},
     sync::{Mutex, RwLock},
 };
+
+use crate::sync::{Origin, SyncError, SyncOptions, UpdateSet};
 
 #[cfg(feature = "archive")]
 use crate::sdk::account::archive::{Inventory, RestoreOptions};

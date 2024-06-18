@@ -5,18 +5,16 @@ use crate::{
         DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
         ScanResponse,
     },
-};
-use async_trait::async_trait;
-use sos_sdk::{
-    storage,
     sync::{
         ChangeSet, Origin, SyncOptions, SyncPacket, SyncStatus, UpdateSet,
     },
 };
+use async_trait::async_trait;
+use sos_sdk::storage;
 use std::path::Path;
 
 /// Error type that can be returned from a sync operation.
-pub type SyncError = sos_sdk::sync::SyncError<Error>;
+pub type SyncError = crate::sync::SyncError<Error>;
 
 /// Trait for types that can sync accounts with a remote.
 #[async_trait]

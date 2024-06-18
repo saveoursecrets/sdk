@@ -21,8 +21,8 @@ use tokio::sync::RwLock;
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
-#[cfg(feature = "sync")]
-use crate::sync::{CheckedPatch, FolderDiff, FolderMergeOptions};
+// #[cfg(feature = "sync")]
+// use crate::sync::{CheckedPatch, FolderDiff, FolderMergeOptions};
 
 /// Folder that writes events to disc.
 pub type DiscFolder = Folder<FolderEventLog, DiscLog, DiscLog, DiscData>;
@@ -206,6 +206,7 @@ where
         Ok(())
     }
 
+    /*
     #[cfg(feature = "sync")]
     pub(crate) async fn force_merge(
         &mut self,
@@ -386,6 +387,7 @@ where
 
         Ok(checked_patch)
     }
+    */
 }
 
 impl Folder<FolderEventLog, DiscLog, DiscLog, DiscData> {

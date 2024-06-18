@@ -4,14 +4,11 @@ use crate::sdk::{
     commit::{CommitState, CommitTree, Comparison},
     encode,
     events::{
-        AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
-        FolderReducer, LogEvent,
+        AccountDiff, AccountEvent, AccountEventLog, CheckedPatch,
+        EventLogExt, FolderDiff, FolderEventLog, FolderPatch, FolderReducer,
+        LogEvent,
     },
     storage::StorageEventLogs,
-    sync::{
-        AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch,
-        ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage, UpdateSet,
-    },
     vault::{VaultAccess, VaultId, VaultWriter},
     vfs, Error, Paths, Result,
 };
@@ -20,14 +17,16 @@ use indexmap::IndexMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-#[cfg(feature = "device")]
-use crate::sdk::{
-    events::{DeviceEventLog, DeviceReducer},
-    sync::DeviceDiff,
+use crate::sync::{
+    ChangeSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
+    UpdateSet,
 };
 
+#[cfg(feature = "device")]
+use crate::sdk::events::{DeviceDiff, DeviceEventLog, DeviceReducer};
+
 #[cfg(feature = "files")]
-use crate::sdk::{events::FileEventLog, sync::FileDiff};
+use crate::sdk::events::{FileDiff, FileEventLog};
 
 impl ServerStorage {
     /// Create a new vault file on disc and the associated

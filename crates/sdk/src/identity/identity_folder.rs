@@ -46,8 +46,8 @@ use urn::Urn;
 #[cfg(feature = "device")]
 use crate::device::{DeviceManager, DeviceSigner};
 
-#[cfg(feature = "sync")]
-use crate::sync::{CheckedPatch, FolderDiff, FolderMergeOptions};
+// #[cfg(feature = "sync")]
+// use crate::sync::{CheckedPatch, FolderDiff, FolderMergeOptions};
 
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
@@ -340,7 +340,8 @@ where
     ///
     /// The identity vault must already be unlocked to extract
     /// the secret password.
-    pub(crate) async fn find_folder_password(
+    #[doc(hidden)]
+    pub async fn find_folder_password(
         &self,
         vault_id: &VaultId,
     ) -> Result<AccessKey> {
@@ -532,6 +533,7 @@ where
         Ok((index, private_identity))
     }
 
+    /*
     #[cfg(feature = "sync")]
     pub(crate) async fn merge(
         &mut self,
@@ -551,6 +553,7 @@ where
     ) -> Result<()> {
         self.folder.force_merge(diff).await
     }
+    */
 }
 
 impl From<IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData>>

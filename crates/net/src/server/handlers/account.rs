@@ -603,24 +603,27 @@ mod handlers {
     use sos_sdk::{
         constants::MIME_TYPE_PROTOBUF,
         events::{
-            AccountEvent, DiscEventLog, EventLogExt, EventLogType,
-            EventRecord, WriteEvent,
+            AccountDiff, AccountEvent, CheckedPatch, DiscEventLog,
+            EventLogExt, EventLogType, EventRecord, FolderDiff, Patch,
+            WriteEvent,
         },
         storage::StorageEventLogs,
-        sync::{
-            self, AccountDiff, ChangeSet, CheckedPatch, FolderDiff, Merge,
-            MergeOutcome, Patch, SyncPacket, SyncStorage, UpdateSet,
-        },
     };
+
+    use crate::sync::{
+        self, ChangeSet, Merge, MergeOutcome, SyncPacket, SyncStorage,
+        UpdateSet,
+    };
+
     use tokio::sync::RwLock;
 
     use std::sync::Arc;
 
     #[cfg(feature = "files")]
-    use sos_sdk::{events::FileEvent, sync::FileDiff};
+    use sos_sdk::events::{FileDiff, FileEvent};
 
     #[cfg(feature = "device")]
-    use sos_sdk::{events::DeviceEvent, sync::DeviceDiff};
+    use sos_sdk::events::{DeviceDiff, DeviceEvent};
 
     #[cfg(feature = "listen")]
     use crate::{

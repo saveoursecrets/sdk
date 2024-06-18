@@ -9,26 +9,27 @@ use sos_sdk::{
     account::Account,
     commit::{CommitHash, CommitProof, CommitTree},
     events::{
-        AccountEvent, EventLogExt, EventLogType, EventRecord, WriteEvent,
+        AccountDiff, AccountEvent, CheckedPatch, EventLogExt, EventLogType,
+        EventRecord, FolderDiff, Patch, WriteEvent,
     },
     storage::StorageEventLogs,
-    sync::{
-        AccountDiff, CheckedPatch, FolderDiff, ForceMerge,
-        HardConflictResolver, MaybeConflict, Merge, MergeOutcome, Patch,
-        SyncOptions, SyncStatus,
-    },
     vault::VaultId,
 };
 use std::collections::HashSet;
 use tracing::instrument;
 
+use crate::sync::{
+    ForceMerge, HardConflictResolver, MaybeConflict, Merge, MergeOutcome,
+    SyncOptions, SyncStatus,
+};
+
 const PROOF_SCAN_LIMIT: u16 = 32;
 
 #[cfg(feature = "device")]
-use sos_sdk::{events::DeviceEvent, sync::DeviceDiff};
+use sos_sdk::events::{DeviceDiff, DeviceEvent};
 
 #[cfg(feature = "files")]
-use sos_sdk::{events::FileEvent, sync::FileDiff};
+use sos_sdk::events::{FileDiff, FileEvent};
 
 /// Implements the auto merge logic for an event log type.
 macro_rules! auto_merge_impl {

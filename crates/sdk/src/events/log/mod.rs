@@ -5,6 +5,7 @@ use crate::{
 use binary_stream::futures::Decodable;
 
 mod file;
+pub mod patch;
 mod reducer;
 
 #[cfg(feature = "device")]

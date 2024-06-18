@@ -5,9 +5,8 @@ use crate::{
         sync::RemoteSync, Error, ListenOptions, NetworkAccount, Result,
     },
     protocol::ChangeNotification,
-    sdk::sync::{Origin, SyncError},
+    sync::{Origin, SyncError, SyncStorage},
 };
-use sos_sdk::sync::SyncStorage;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 

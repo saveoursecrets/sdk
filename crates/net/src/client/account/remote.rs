@@ -1,6 +1,12 @@
 //! Bridge between local storage and a remote server.
-use crate::client::{
-    net::HttpClient, Error, RemoteSync, Result, SyncClient, SyncError,
+use crate::{
+    client::{
+        net::HttpClient, Error, RemoteSync, Result, SyncClient, SyncError,
+    },
+    sync::{
+        self, MaybeDiff, Merge, MergeOutcome, Origin, SyncOptions,
+        SyncPacket, SyncStatus, SyncStorage, UpdateSet,
+    },
 };
 use async_trait::async_trait;
 use sos_sdk::{
@@ -9,10 +15,6 @@ use sos_sdk::{
     storage::{
         files::{FileSet, TransferOperation},
         StorageEventLogs,
-    },
-    sync::{
-        self, MaybeDiff, Merge, MergeOutcome, Origin, SyncOptions,
-        SyncPacket, SyncStatus, SyncStorage, UpdateSet,
     },
     vfs,
 };

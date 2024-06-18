@@ -17,6 +17,7 @@ pub mod protocol;
 pub mod relay;
 #[cfg(feature = "server")]
 pub mod server;
+pub mod sync;
 
 /// Result type for the network module.
 pub type Result<T> = std::result::Result<T, error::Error>;

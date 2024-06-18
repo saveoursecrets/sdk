@@ -16,16 +16,14 @@ use tokio_tungstenite::{
 use async_recursion::async_recursion;
 use tokio::{net::TcpStream, sync::watch};
 
-use sos_sdk::{
-    signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::Origin,
-};
+use sos_sdk::signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 
 use crate::{
     client::{
         net::NetworkRetry, CancelReason, Error, Result, WebSocketRequest,
     },
     protocol::{ChangeNotification, WireEncodeDecode},
+    sync::Origin,
 };
 
 use super::{

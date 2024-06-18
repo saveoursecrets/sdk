@@ -1,5 +1,5 @@
 //! Protocol for pairing devices.
-use crate::sdk::{device::DeviceMetaData, sync::Origin};
+use crate::{sdk::device::DeviceMetaData, sync::Origin};
 use serde::{Deserialize, Serialize};
 use serde_with::{base64::Base64, serde_as};
 use std::collections::HashSet;

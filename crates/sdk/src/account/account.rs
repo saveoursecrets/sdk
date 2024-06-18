@@ -51,8 +51,8 @@ use crate::{events::FileEventLog, storage::files::FileMutationEvent};
 #[cfg(feature = "search")]
 use crate::storage::search::*;
 
-#[cfg(feature = "sync")]
-use crate::sync::SyncError;
+// #[cfg(feature = "sync")]
+// use crate::sync::SyncError;
 
 #[cfg(feature = "security-report")]
 use crate::{account::security_report::*, zxcvbn::Entropy};
@@ -103,7 +103,7 @@ pub struct AccountChange<T: std::error::Error> {
     pub event: Event,
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
+    pub sync_error: Option<T>,
     #[doc(hidden)]
     pub marker: std::marker::PhantomData<T>,
 }
@@ -121,7 +121,7 @@ pub struct SecretChange<T: std::error::Error> {
     pub folder: Summary,
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
+    pub sync_error: Option<T>,
     /// File mutation events.
     #[cfg(feature = "files")]
     pub file_events: Vec<FileMutationEvent>,
@@ -135,7 +135,7 @@ pub struct SecretInsert<T: std::error::Error> {
     pub results: Vec<SecretChange<T>>,
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
+    pub sync_error: Option<T>,
     #[doc(hidden)]
     pub marker: std::marker::PhantomData<T>,
 }
@@ -148,7 +148,7 @@ pub struct SecretMove<T: std::error::Error> {
     pub event: Event,
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
+    pub sync_error: Option<T>,
     /// File mutation events.
     #[cfg(feature = "files")]
     pub file_events: Vec<FileMutationEvent>,
@@ -167,7 +167,7 @@ pub struct SecretDelete<T: std::error::Error> {
     pub folder: Summary,
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
+    pub sync_error: Option<T>,
     /// File mutation events.
     #[cfg(feature = "files")]
     pub file_events: Vec<FileMutationEvent>,
@@ -185,7 +185,7 @@ pub struct FolderCreate<T: std::error::Error> {
     pub commit_state: CommitState,
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
+    pub sync_error: Option<T>,
     #[doc(hidden)]
     pub marker: std::marker::PhantomData<T>,
 }
@@ -198,7 +198,7 @@ pub struct FolderChange<T: std::error::Error> {
     pub commit_state: CommitState,
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
+    pub sync_error: Option<T>,
     #[doc(hidden)]
     pub marker: std::marker::PhantomData<T>,
 }
@@ -211,7 +211,7 @@ pub struct FolderDelete<T: std::error::Error> {
     pub commit_state: CommitState,
     /// Error generated during a sync.
     #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
+    pub sync_error: Option<T>,
     #[doc(hidden)]
     pub marker: std::marker::PhantomData<T>,
 }
@@ -980,7 +980,8 @@ impl LocalAccount {
     }
 
     /// Authenticated user information.
-    pub(super) fn user(&self) -> Result<&Identity> {
+    #[doc(hidden)]
+    pub fn user(&self) -> Result<&Identity> {
         self.authenticated
             .as_ref()
             .map(|a| &a.user)
@@ -988,7 +989,8 @@ impl LocalAccount {
     }
 
     /// Mutable authenticated user information.
-    pub(super) fn user_mut(&mut self) -> Result<&mut Identity> {
+    #[doc(hidden)]
+    pub fn user_mut(&mut self) -> Result<&mut Identity> {
         self.authenticated
             .as_mut()
             .map(|a| &mut a.user)
@@ -1132,7 +1134,8 @@ impl LocalAccount {
     /// Typically the handlers that update storage but don't append log
     /// events are declared in the storage implementation but the
     /// identity log is managed by the account so this must exist here.
-    pub(super) async fn import_identity_vault(
+    #[doc(hidden)]
+    pub async fn import_identity_vault(
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {

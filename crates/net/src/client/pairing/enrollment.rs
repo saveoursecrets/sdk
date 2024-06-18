@@ -1,6 +1,4 @@
 //! Enroll a device to an account on a remote server.
-use sos_sdk::vault::VaultAccess;
-
 use crate::{
     client::{
         pairing::{Error, Result},
@@ -12,18 +10,18 @@ use crate::{
         device::DeviceSigner,
         encode,
         events::{
-            AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
-            FolderReducer,
+            AccountEvent, AccountEventLog, AccountPatch, EventLogExt,
+            FolderEventLog, FolderPatch, FolderReducer,
         },
         identity::PublicIdentity,
         signer::{
             ecdsa::{Address, BoxedEcdsaSigner},
             ed25519::BoxedEd25519Signer,
         },
-        sync::{AccountPatch, FolderPatch, Origin},
-        vault::{VaultId, VaultWriter},
+        vault::{VaultAccess, VaultId, VaultWriter},
         vfs, Paths,
     },
+    sync::Origin,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -31,7 +29,7 @@ use std::{
 };
 
 #[cfg(feature = "device")]
-use crate::sdk::{events::DeviceEventLog, sync::DevicePatch};
+use crate::sdk::events::{DeviceEventLog, DevicePatch};
 
 /// Enroll a device.
 ///

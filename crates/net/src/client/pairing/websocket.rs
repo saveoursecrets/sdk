@@ -13,9 +13,9 @@ use crate::{
         encode,
         events::DeviceEvent,
         signer::ecdsa::SingleParty,
-        sync::{Origin, SyncOptions},
         url::Url,
     },
+    sync::{Origin, SyncOptions},
 };
 use futures::{
     select,
