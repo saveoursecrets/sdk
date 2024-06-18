@@ -128,13 +128,7 @@ pub trait StorageEventLogs {
 
         // Canonical list of external files.
         let reducer = FileReducer::new(&event_log);
-
-        #[cfg(feature = "sync")]
-        let result = reducer.reduce(None).await?;
-        #[cfg(not(feature = "sync"))]
-        let result = reducer.reduce().await?;
-
-        Ok(result)
+        Ok(reducer.reduce(None).await?)
     }
 
     /// Folder identifiers managed by this storage.

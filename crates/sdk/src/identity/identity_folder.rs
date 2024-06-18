@@ -46,9 +46,6 @@ use urn::Urn;
 #[cfg(feature = "device")]
 use crate::device::{DeviceManager, DeviceSigner};
 
-// #[cfg(feature = "sync")]
-// use crate::sync::{CheckedPatch, FolderDiff, FolderMergeOptions};
-
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
 
@@ -70,8 +67,10 @@ where
     D: Clone + Send + Sync,
 {
     /// Folder storage.
+    #[doc(hidden)]
     pub folder: Folder<T, R, W, D>,
     /// Lookup table.
+    #[doc(hidden)]
     pub index: UrnLookup,
 
     private_identity: PrivateIdentity,
@@ -540,40 +539,6 @@ where
     pub fn folder_id(&self) -> &VaultId {
         self.folder.id()
     }
-
-    /*
-    /// Mutable refernce to the lookup table.
-    pub fn index_mut(&mut self) -> &mut UrnLookup {
-        &mut self.index
-    }
-
-    /// Mutable refernce to the folder.
-    pub fn folder_mut(&mut self) -> &mut Folder<T, R, W, D> {
-        &mut self.folder
-    }
-    */
-
-    /*
-    #[cfg(feature = "sync")]
-    pub(crate) async fn merge(
-        &mut self,
-        diff: FolderDiff,
-    ) -> Result<CheckedPatch> {
-        let id = *self.folder.id();
-        let index = &mut self.index;
-        self.folder
-            .merge(diff, FolderMergeOptions::Urn(id, index))
-            .await
-    }
-
-    #[cfg(feature = "sync")]
-    pub(crate) async fn force_merge(
-        &mut self,
-        diff: FolderDiff,
-    ) -> Result<()> {
-        self.folder.force_merge(diff).await
-    }
-    */
 }
 
 impl From<IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData>>

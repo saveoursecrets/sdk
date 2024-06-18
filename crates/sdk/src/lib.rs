@@ -33,7 +33,6 @@
 //! * `files` Store external encrypted files.
 //! * `recovery` Primitives for social recovery.
 //! * `search` In-memory search index.
-//! * `sync` Synchronization primitive definitions.
 //!
 //! The following features require that the `account` feature is enabled:
 //!

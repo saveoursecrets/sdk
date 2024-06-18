@@ -1,9 +1,9 @@
 //! Synchronization primitives.
 use crate::sdk::{
-    commit::{CommitHash, CommitProof, CommitState, Comparison},
+    commit::{CommitHash, CommitState, Comparison},
     events::{
-        AccountDiff, AccountEvent, AccountPatch, CheckedPatch, EventLogExt,
-        FolderDiff, FolderPatch, WriteEvent,
+        AccountDiff, AccountPatch, CheckedPatch, EventLogExt, FolderDiff,
+        FolderPatch,
     },
     storage::StorageEventLogs,
     vault::VaultId,
@@ -28,11 +28,11 @@ pub use transfer::*;
 pub(crate) use folder::{FolderMerge, IdentityFolderMerge};
 
 #[cfg(feature = "device")]
-use crate::sdk::events::{DeviceDiff, DeviceEvent, DevicePatch};
+use crate::sdk::events::{DeviceDiff, DevicePatch};
 
 #[cfg(feature = "files")]
 use crate::sdk::{
-    events::{FileDiff, FileEvent, FilePatch},
+    events::{FileDiff, FilePatch},
     storage::files::ExternalFile,
 };
 
