@@ -10,9 +10,6 @@ repository = "https://github.com/saveoursecrets/sdk"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-# disable doctest which requires nightly due to auto_cfg
-# if we don't the tests fail as we want to run tests on stable
-doctest = false
 
 [package.metadata.docs.rs]
 all-features = true
