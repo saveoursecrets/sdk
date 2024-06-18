@@ -5,6 +5,7 @@ package sync;
 import "protobuf/common.proto";
 import "protobuf/files.proto";
 
+// Origin for a server.
 message WireOrigin {
   // Name of the origin.
   string name = 1;

@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/relay.rs"));
 
-use crate::protocol::{AsyncEncodeDecode, Error, Result};
+use crate::protocol::{AsyncEncodeDecode, Result};
 
 // Must match the protobuf enum variants
 const HANDSHAKE: &str = "Handshake";
@@ -13,6 +13,7 @@ impl RelayPacket {
     }
 
     /// Encode a packet prefixed with the target public key.
+    #[cfg(feature = "client")]
     pub(crate) async fn encode_prefixed(self) -> Result<Vec<u8>> {
         let mut recipient =
             self.header.as_ref().unwrap().to_public_key.clone();
@@ -30,9 +31,11 @@ impl RelayPacket {
 
     /// Decode an encoded packet into a public key and
     /// protobuf packet bytes.
+    #[cfg(feature = "server")]
     pub(crate) fn decode_split(
         packet: Vec<u8>,
     ) -> Result<(Vec<u8>, Vec<u8>)> {
+        use crate::protocol::Error;
         let amount = std::mem::size_of::<u16>();
         if packet.len() > amount {
             let key_length = &packet[0..amount];

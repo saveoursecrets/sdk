@@ -35,9 +35,13 @@ pub use notifications::ChangeNotification;
 pub use patch::{PatchRequest, PatchResponse};
 #[cfg(feature = "pairing")]
 pub use relay::{
-    RelayBody, RelayHeader, RelayPacket, RelayPayload, RelayType,
+    pairing_message, PairingConfirm, PairingMessage, PairingReady,
+    PairingRequest, RelayBody, RelayHeader, RelayPacket, RelayPayload,
+    RelayType,
 };
 pub use scan::{ScanRequest, ScanResponse};
+
+pub use sync::WireOrigin;
 
 use crate::sdk::events::EventLogType;
 use prost::{bytes::Buf, Message};

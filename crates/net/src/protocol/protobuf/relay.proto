@@ -64,3 +64,17 @@ message PairingConfirm {
   // Collection of server origins.
   repeated sync.WireOrigin servers = 4;
 }
+
+// Message for the pairing protocol.
+message PairingMessage {
+  // Inner message.
+  oneof message {
+    // Noise handshake is completed and the 
+    // participant is ready to begin.
+    PairingReady ready = 1;
+    // Request to pair with another device.
+    PairingRequest request = 2;
+    // Confirm a pairing request.
+    PairingConfirm confirm = 3;
+  }
+}
