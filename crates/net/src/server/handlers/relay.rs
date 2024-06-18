@@ -1,5 +1,5 @@
 //! Relay forwards packets between peers over a websocket connection.
-use crate::protocol::{AsyncEncodeDecode, RelayHeader};
+use crate::protocol::{AsyncEncodeDecode, RelayPacket};
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -56,9 +56,10 @@ async fn handle_socket(
             Ok(msg) => match msg {
                 Message::Text(_) => {}
                 Message::Binary(buffer) => {
-                    if let Ok(header) =
-                        RelayHeader::decode_async(buffer.as_slice()).await
+                    if let Ok(packet) =
+                        RelayPacket::decode_async(buffer.as_slice()).await
                     {
+                        let header = packet.header.as_ref().unwrap();
                         let mut writer = state.lock().await;
                         if let Some(tx) =
                             writer.get_mut(&header.to_public_key)

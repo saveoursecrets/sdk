@@ -3,7 +3,7 @@
 #![allow(clippy::new_without_default)]
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(all(docsrs, not(test)), feature(doc_auto_cfg))]
 //! High-level software development kit for a
 //! distributed encrypted database that can be used
 //! to build password managers, cryptocurrency wallets

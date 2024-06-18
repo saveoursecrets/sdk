@@ -118,11 +118,8 @@ async fn account_event_log() -> Result<()> {
     assert!(event_log.tree().root().is_some());
     assert!(event_log.tree().last_commit().is_some());
 
-    #[cfg(feature = "sync")]
-    {
-        let patch = event_log.diff_events(None).await?;
-        assert_eq!(2, patch.len());
-    }
+    let patch = event_log.diff_events(None).await?;
+    assert_eq!(2, patch.len());
 
     temp.close()?;
     Ok(())
@@ -140,18 +137,14 @@ async fn memory_folder_log() -> Result<()> {
     assert!(event_log.tree().root().is_some());
     assert!(event_log.tree().last_commit().is_some());
 
-    #[cfg(feature = "sync")]
     let previous_commit = event_log.tree().last_commit();
 
     event_log
         .apply(vec![&WriteEvent::SetVaultName("name".to_owned())])
         .await?;
 
-    #[cfg(feature = "sync")]
-    {
-        let patch = event_log.diff_events(previous_commit.as_ref()).await?;
-        assert_eq!(1, patch.len());
-    }
+    let patch = event_log.diff_events(previous_commit.as_ref()).await?;
+    assert_eq!(1, patch.len());
 
     Ok(())
 }

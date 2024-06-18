@@ -2,27 +2,42 @@ syntax = "proto3";
 
 package relay;
 
+// Relay packet.
 message RelayPacket {
+  // Packet header.
   RelayHeader header = 1;
+  // Packet payload.
   RelayPayload payload = 2;
 }
 
+// Relay header.
 message RelayHeader {
+  // Public key of the recipient.
   bytes to_public_key = 1;
+  // Public key of the sender.
   bytes from_public_key = 2;
 }
 
+// Relay type.
 enum RelayType {
+  // Handshake type.
   Handshake = 0;
+  // Transport type.
   Transport = 1;
 }
 
+// Relay payload.
 message RelayPayload {
+  // Type of this payload.
   RelayType kind = 1;
+  // Payload body.
   RelayBody body = 2;
 }
 
+// Relay body.
 message RelayBody {
+  // Length of the data.
   uint32 length = 1;
+  // Body contents.
   bytes contents = 2;
 }

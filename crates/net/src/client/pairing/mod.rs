@@ -30,9 +30,6 @@ pub(super) enum PairingMessage {
     /// Confirmation from the offering side to the
     /// accepting side is the account signing key.
     Confirm(PairingConfirmation),
-    /// Offer side generated an error whilst
-    /// adding the device to the list of trusted devices.
-    Error(String),
 }
 
 #[serde_as]

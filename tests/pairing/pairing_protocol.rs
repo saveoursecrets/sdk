@@ -9,7 +9,7 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 #[tokio::test]
 async fn pairing_protocol() -> Result<()> {
     const TEST_ID: &str = "pairing_protocol";
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

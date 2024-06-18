@@ -1,6 +1,5 @@
 //! Server storage backed by the filesystem.
 use crate::sdk::{
-    commit::CommitState,
     constants::VAULT_EXT,
     decode, encode,
     events::{
@@ -21,7 +20,7 @@ use crate::sdk::audit::AuditEvent;
 #[cfg(feature = "device")]
 use crate::sdk::{
     device::{DevicePublicKey, TrustedDevice},
-    events::{DeviceDiff, DeviceEventLog, DeviceReducer},
+    events::{DeviceEventLog, DeviceReducer},
 };
 
 #[cfg(feature = "device")]
@@ -175,12 +174,7 @@ impl ServerStorage {
         Ok(event_log)
     }
 
-    /// Get the event log cache.
-    pub fn cache(&self) -> &HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
-        &self.cache
-    }
-
-    /// Get the mutable event log cache.
+    /// Mutable folder event logs.
     pub fn cache_mut(
         &mut self,
     ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
@@ -364,27 +358,6 @@ impl ServerStorage {
 
         Ok(())
     }
-
-    /// Commit state of the identity folder.
-    pub async fn identity_state(&self) -> Result<CommitState> {
-        let reader = self.identity_log.read().await;
-        reader.tree().commit_state()
-    }
-
-    /// Get the commit state for a folder.
-    ///
-    /// The folder must have at least one commit.
-    pub async fn commit_state(
-        &self,
-        summary: &Summary,
-    ) -> Result<CommitState> {
-        let event_log = self
-            .cache
-            .get(summary.id())
-            .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
-        let event_log = event_log.read().await;
-        event_log.tree().commit_state()
-    }
 }
 
 #[cfg(feature = "device")]
@@ -392,21 +365,5 @@ impl ServerStorage {
     /// List the public keys of trusted devices.
     pub fn list_device_keys(&self) -> HashSet<&DevicePublicKey> {
         self.devices.iter().map(|d| d.public_key()).collect()
-    }
-
-    /// Patch the devices event log.
-    #[deprecated]
-    pub async fn patch_devices(&mut self, diff: &DeviceDiff) -> Result<()> {
-        let mut event_log = self.device_log.write().await;
-        event_log
-            .patch_checked(&diff.checkpoint, &diff.patch)
-            .await?;
-
-        // Update in-memory cache of trusted devices
-        let reducer = DeviceReducer::new(&event_log);
-        let devices = reducer.reduce().await?;
-        self.devices = devices;
-
-        Ok(())
     }
 }

@@ -5,9 +5,7 @@ use crate::{
         pairing::PairingConfirmation, sync::RemoteSync, NetworkAccount,
         WebSocketRequest,
     },
-    protocol::{
-        AsyncEncodeDecode, RelayBody, RelayHeader, RelayPacket, RelayPayload,
-    },
+    protocol::{AsyncEncodeDecode, RelayHeader, RelayPacket, RelayPayload},
     sdk::{
         account::Account,
         device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
@@ -243,38 +241,36 @@ impl<'a> OfferPairing<'a> {
 
     /// Process incoming packet.
     async fn incoming(&mut self, packet: RelayPacket) -> Result<()> {
-        if packet.header.unwrap().to_public_key != self.keypair.public {
+        if packet.header.as_ref().unwrap().to_public_key
+            != self.keypair.public
+        {
             return Err(Error::NotForMe);
         }
 
         let action = if !self.is_inverted {
-            match (&self.state, &packet.payload) {
-                (
-                    PairProtocolState::Pending,
-                    RelayPayload::Handshake(_, _),
-                ) => {
+            match (&self.state, packet.is_handshake()) {
+                (PairProtocolState::Pending, true) => {
                     let reply = self.noise_read_e(&packet).await?;
                     IncomingAction::Reply(PairProtocolState::Handshake, reply)
                 }
-                (
-                    PairProtocolState::Handshake,
-                    RelayPayload::Handshake(_, _),
-                ) => {
+                (PairProtocolState::Handshake, true) => {
                     let reply = self.noise_read_s(&packet).await?;
                     IncomingAction::Reply(
                         PairProtocolState::PskHandshake,
                         reply,
                     )
                 }
-                (
-                    PairProtocolState::PskHandshake,
-                    RelayPayload::Transport(len, buf),
-                ) => {
+                (PairProtocolState::PskHandshake, false) => {
                     if let Some(Tunnel::Transport(transport)) =
                         self.tunnel.as_mut()
                     {
+                        let payload = packet.payload.as_ref().unwrap();
+                        let body = payload.body.as_ref().unwrap();
+                        let (len, buf) =
+                            (body.length as usize, &body.contents);
+
                         IncomingAction::HandleMessage(
-                            decrypt(transport, *len, buf.as_slice()).await?,
+                            decrypt(transport, len, buf).await?,
                         )
                     } else {
                         unreachable!();
@@ -285,26 +281,25 @@ impl<'a> OfferPairing<'a> {
                 }
             }
         } else {
-            match (&self.state, &packet.payload) {
-                (
-                    PairProtocolState::Handshake,
-                    RelayPayload::Handshake(_, _),
-                ) => {
+            match (&self.state, packet.is_handshake()) {
+                (PairProtocolState::Handshake, true) => {
                     let reply = self.noise_send_s(&packet).await?;
                     IncomingAction::Reply(
                         PairProtocolState::PskHandshake,
                         reply,
                     )
                 }
-                (
-                    PairProtocolState::PskHandshake,
-                    RelayPayload::Transport(len, buf),
-                ) => {
+                (PairProtocolState::PskHandshake, false) => {
                     if let Some(Tunnel::Transport(transport)) =
                         self.tunnel.as_mut()
                     {
+                        let payload = packet.payload.as_ref().unwrap();
+                        let body = payload.body.as_ref().unwrap();
+                        let (len, buf) =
+                            (body.length as usize, &body.contents);
+
                         IncomingAction::HandleMessage(
-                            decrypt(transport, *len, buf.as_slice()).await?,
+                            decrypt(transport, len, buf).await?,
                         )
                     } else {
                         unreachable!();
@@ -339,6 +334,7 @@ impl<'a> OfferPairing<'a> {
                         header: Some(RelayHeader {
                             to_public_key: packet
                                 .header
+                                .as_ref()
                                 .unwrap()
                                 .from_public_key
                                 .clone(),
@@ -645,31 +641,32 @@ impl<'a> AcceptPairing<'a> {
 
     /// Process incoming packet.
     async fn incoming(&mut self, packet: RelayPacket) -> Result<()> {
-        if packet.header.unwrap().to_public_key != self.keypair.public {
+        if packet.header.as_ref().unwrap().to_public_key
+            != self.keypair.public
+        {
             return Err(Error::NotForMe);
         }
 
         let action = if !self.is_inverted {
-            match (&self.state, &packet.payload) {
-                (
-                    PairProtocolState::Handshake,
-                    RelayPayload::Handshake(_, _),
-                ) => {
+            match (&self.state, packet.is_handshake()) {
+                (PairProtocolState::Handshake, true) => {
                     let reply = self.noise_send_s(&packet).await?;
                     IncomingAction::Reply(
                         PairProtocolState::PskHandshake,
                         reply,
                     )
                 }
-                (
-                    PairProtocolState::PskHandshake,
-                    RelayPayload::Transport(len, buf),
-                ) => {
+                (PairProtocolState::PskHandshake, false) => {
                     if let Some(Tunnel::Transport(transport)) =
                         self.tunnel.as_mut()
                     {
+                        let payload = packet.payload.as_ref().unwrap();
+                        let body = payload.body.as_ref().unwrap();
+                        let (len, buf) =
+                            (body.length as usize, &body.contents);
+
                         IncomingAction::HandleMessage(
-                            decrypt(transport, *len, buf.as_slice()).await?,
+                            decrypt(transport, len, buf).await?,
                         )
                     } else {
                         unreachable!();
@@ -680,18 +677,12 @@ impl<'a> AcceptPairing<'a> {
                 }
             }
         } else {
-            match (&self.state, &packet.payload) {
-                (
-                    PairProtocolState::Pending,
-                    RelayPayload::Handshake(_, _),
-                ) => {
+            match (&self.state, packet.is_handshake()) {
+                (PairProtocolState::Pending, true) => {
                     let reply = self.noise_read_e(&packet).await?;
                     IncomingAction::Reply(PairProtocolState::Handshake, reply)
                 }
-                (
-                    PairProtocolState::Handshake,
-                    RelayPayload::Handshake(_, _),
-                ) => {
+                (PairProtocolState::Handshake, true) => {
                     let reply = self.noise_read_s(&packet).await?;
                     IncomingAction::Reply(
                         PairProtocolState::PskHandshake,
@@ -700,13 +691,19 @@ impl<'a> AcceptPairing<'a> {
                 }
                 (
                     PairProtocolState::PskHandshake,
-                    RelayPayload::Transport(len, buf),
+                    false,
+                    // RelayPayload::Transport(len, buf),
                 ) => {
                     if let Some(Tunnel::Transport(transport)) =
                         self.tunnel.as_mut()
                     {
+                        let payload = packet.payload.as_ref().unwrap();
+                        let body = payload.body.as_ref().unwrap();
+                        let (len, buf) =
+                            (body.length as usize, &body.contents);
+
                         IncomingAction::HandleMessage(
-                            decrypt(transport, *len, buf.as_slice()).await?,
+                            decrypt(transport, len, buf).await?,
                         )
                     } else {
                         unreachable!();
@@ -741,6 +738,7 @@ impl<'a> AcceptPairing<'a> {
                             header: Some(RelayHeader {
                                 to_public_key: packet
                                     .header
+                                    .as_ref()
                                     .unwrap()
                                     .from_public_key
                                     .to_vec(),
@@ -806,9 +804,9 @@ async fn encrypt<T: Serialize>(
     transport: &mut TransportState,
     message: &T,
 ) -> crate::client::pairing::Result<RelayPayload> {
-    let body = serde_json::to_vec(message)?;
-    let mut contents = vec![0u8; body.len() + TAGLEN];
-    let length = transport.write_message(&body, &mut contents)?;
+    let plaintext = serde_json::to_vec(message)?;
+    let mut contents = vec![0u8; plaintext.len() + TAGLEN];
+    let length = transport.write_message(&plaintext, &mut contents)?;
     Ok(RelayPayload::new_transport(length, contents))
 }
 
@@ -820,9 +818,8 @@ async fn decrypt<T: DeserializeOwned>(
 ) -> crate::client::pairing::Result<T> {
     let mut contents = vec![0; length];
     transport.read_message(&message[..length], &mut contents)?;
-    let body = RelayBody::decode_async(contents.as_slice()).await?;
-    let message = serde_json::from_slice(body.contents.as_ref())?;
-    Ok(message)
+    let message = &contents[..contents.len() - TAGLEN];
+    Ok(serde_json::from_slice(&message)?)
 }
 
 impl<'a> NoiseTunnel for AcceptPairing<'a> {

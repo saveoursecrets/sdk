@@ -2,7 +2,7 @@
 #![allow(clippy::module_inception)]
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(all(docsrs, not(test)), feature(doc_auto_cfg))]
 //! Networking library for the [sos-sdk crate](https://docs.rs/sos-sdk/latest/sos_sdk/).
 //!
 //! If the `listen` feature is enabled the server and client are compiled
