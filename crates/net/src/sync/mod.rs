@@ -22,7 +22,7 @@ use url::Url;
 mod folder;
 mod local_account;
 
-pub use folder::{FolderMerge, IdentityFolderMerge};
+pub(crate) use folder::{FolderMerge, IdentityFolderMerge};
 
 #[cfg(feature = "device")]
 use crate::sdk::events::{DeviceDiff, DeviceEvent, DevicePatch};
@@ -106,7 +106,7 @@ pub struct SyncError<T: std::error::Error> {
     pub errors: Vec<(Origin, T)>,
 }
 
-// impl<T: std::error::Error> std::error::Error for SyncError<T> {}
+impl<T: std::error::Error> std::error::Error for SyncError<T> {}
 
 impl<T: std::error::Error> fmt::Display for SyncError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

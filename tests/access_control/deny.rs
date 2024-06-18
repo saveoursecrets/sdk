@@ -9,6 +9,7 @@ use sos_net::{
     client::{Error as ClientError, NetworkAccount, RemoteSync},
     sdk::prelude::*,
     server::AccessControlConfig,
+    sync::SyncError,
 };
 
 /// Tests server deny access control.

@@ -434,7 +434,17 @@ impl Merge for LocalAccount {
             }
 
             #[cfg(not(feature = "search"))]
-            folder.merge(source, Default::default()).await?
+            {
+                folder
+                    .merge(
+                        diff,
+                        FolderMergeOptions::Urn(
+                            *folder_id,
+                            &mut Default::default(),
+                        ),
+                    )
+                    .await?
+            }
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {

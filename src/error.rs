@@ -1,6 +1,7 @@
 use sos_net::{
     client,
-    sdk::{sync::SyncError, vault::secret::SecretRef, vcard4},
+    sdk::{vault::secret::SecretRef, vcard4},
+    sync::SyncError,
 };
 use std::path::PathBuf;
 use thiserror::Error;

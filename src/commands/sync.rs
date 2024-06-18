@@ -11,9 +11,9 @@ use sos_net::{
         events::EventLogExt,
         identity::AccountRef,
         storage::StorageEventLogs,
-        sync::{Origin, SyncOptions, SyncStatus, SyncStorage},
         url::Url,
     },
+    sync::{Origin, SyncOptions, SyncStatus, SyncStorage},
 };
 
 #[derive(Subcommand, Debug)]

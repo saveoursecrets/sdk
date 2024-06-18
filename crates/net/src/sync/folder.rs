@@ -17,7 +17,7 @@ use crate::{
 
 /// Merge operations for the identity folder.
 #[async_trait]
-pub trait IdentityFolderMerge {
+pub(crate) trait IdentityFolderMerge {
     /// Checked merge.
     async fn merge(&mut self, diff: FolderDiff) -> Result<CheckedPatch>;
 
@@ -27,7 +27,7 @@ pub trait IdentityFolderMerge {
 
 /// Merge operations for folders.
 #[async_trait]
-pub trait FolderMerge {
+pub(crate) trait FolderMerge {
     /// Checked merge.
     async fn merge<'a>(
         &mut self,

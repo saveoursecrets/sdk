@@ -8,13 +8,11 @@ use sos_net::{
     },
     sdk::{
         commit::{CommitHash, CommitProof, CommitState},
-        events::EventRecord,
-        sync::CheckedPatch,
+        events::{CheckedPatch, EventLogType, EventRecord},
+        signer::ecdsa::Address,
         UtcDateTime,
     },
-};
-use sos_sdk::{
-    events::EventLogType, signer::ecdsa::Address, sync::MergeOutcome,
+    sync::MergeOutcome,
 };
 
 const HASH: &str =
