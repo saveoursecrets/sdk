@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/common.rs"));
 
-use super::{Error, Result, WireConvert};
+use super::{Error, Result, ProtoBinding};
 use crate::sdk::{
     commit::{CommitHash, CommitProof, CommitState},
     events::{CheckedPatch, EventRecord},
@@ -9,7 +9,7 @@ use crate::sdk::{
 };
 use rs_merkle::{algorithms::Sha256, MerkleProof};
 
-impl WireConvert for UtcDateTime {
+impl ProtoBinding for UtcDateTime {
     type Inner = WireUtcDateTime;
 }
 
@@ -33,7 +33,7 @@ impl From<UtcDateTime> for WireUtcDateTime {
     }
 }
 
-impl WireConvert for CommitHash {
+impl ProtoBinding for CommitHash {
     type Inner = WireCommitHash;
 }
 
@@ -54,7 +54,7 @@ impl From<CommitHash> for WireCommitHash {
     }
 }
 
-impl WireConvert for CommitProof {
+impl ProtoBinding for CommitProof {
     type Inner = WireCommitProof;
 }
 
@@ -82,7 +82,7 @@ impl From<CommitProof> for WireCommitProof {
     }
 }
 
-impl WireConvert for CommitState {
+impl ProtoBinding for CommitState {
     type Inner = WireCommitState;
 }
 
@@ -106,7 +106,7 @@ impl From<CommitState> for WireCommitState {
     }
 }
 
-impl WireConvert for EventRecord {
+impl ProtoBinding for EventRecord {
     type Inner = WireEventRecord;
 }
 
@@ -140,7 +140,7 @@ impl From<EventRecord> for WireEventRecord {
     }
 }
 
-impl WireConvert for CheckedPatch {
+impl ProtoBinding for CheckedPatch {
     type Inner = WireCheckedPatch;
 }
 

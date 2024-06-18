@@ -1,7 +1,7 @@
 include!(concat!(env!("OUT_DIR"), "/notifications.rs"));
 
 use crate::{
-    protocol::{Error, Result, WireConvert},
+    protocol::{Error, Result, ProtoBinding},
     sync::MergeOutcome,
 };
 use sos_sdk::{commit::CommitHash, signer::ecdsa::Address};
@@ -56,7 +56,7 @@ impl ChangeNotification {
     }
 }
 
-impl WireConvert for ChangeNotification {
+impl ProtoBinding for ChangeNotification {
     type Inner = WireChangeNotification;
 }
 

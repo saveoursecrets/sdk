@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/diff.rs"));
 
-use super::{Error, Result, WireConvert};
+use super::{Error, Result, ProtoBinding};
 use crate::sdk::{
     commit::{CommitHash, CommitProof},
     events::{EventLogType, EventRecord},
@@ -15,7 +15,7 @@ pub struct DiffRequest {
     pub from_hash: Option<CommitHash>,
 }
 
-impl WireConvert for DiffRequest {
+impl ProtoBinding for DiffRequest {
     type Inner = WireDiffRequest;
 }
 
@@ -58,7 +58,7 @@ pub struct DiffResponse {
     pub checkpoint: CommitProof,
 }
 
-impl WireConvert for DiffResponse {
+impl ProtoBinding for DiffResponse {
     type Inner = WireDiffResponse;
 }
 

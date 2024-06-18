@@ -652,7 +652,7 @@ mod handlers {
             }
         }
 
-        let account = ChangeSet::decode(bytes)?;
+        let account = ChangeSet::decode(bytes).await?;
         let mut writer = backend.write().await;
         writer.create_account(caller.address(), account).await?;
         Ok(())
@@ -674,7 +674,7 @@ mod handlers {
         caller: Caller,
         bytes: &[u8],
     ) -> Result<()> {
-        let account = UpdateSet::decode(bytes)?;
+        let account = UpdateSet::decode(bytes).await?;
         let mut writer = backend.write().await;
         writer.update_account(caller.address(), account).await?;
         Ok(())
@@ -695,7 +695,7 @@ mod handlers {
             HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, account.encode()?))
+        Ok((headers, account.encode().await?))
     }
 
     pub(super) async fn sync_status(
@@ -718,7 +718,7 @@ mod handlers {
             header::CONTENT_TYPE,
             HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
-        Ok((headers, status.encode()?))
+        Ok((headers, status.encode().await?))
     }
 
     pub(super) async fn event_proofs(
@@ -737,7 +737,7 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let req = ScanRequest::decode(bytes)?;
+        let req = ScanRequest::decode(bytes).await?;
 
         // Maximum number of proofs to return in a single request
         if req.limit > 256 {
@@ -785,7 +785,7 @@ mod handlers {
             HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, response.encode()?))
+        Ok((headers, response.encode().await?))
     }
 
     async fn scan_log<T>(
@@ -866,7 +866,7 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let req = DiffRequest::decode(bytes)?;
+        let req = DiffRequest::decode(bytes).await?;
 
         let response = match &req.log_type {
             EventLogType::Identity => {
@@ -923,7 +923,7 @@ mod handlers {
             patch: event_log.diff_records(req.from_hash.as_ref()).await?,
             checkpoint: event_log.tree().head()?,
         };
-        Ok(response.encode()?)
+        Ok(response.encode().await?)
     }
 
     pub(super) async fn event_patch(
@@ -942,7 +942,7 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let req = PatchRequest::decode(bytes)?;
+        let req = PatchRequest::decode(bytes).await?;
 
         let (checked_patch, outcome, records) = match &req.log_type {
             EventLogType::Identity => {
@@ -1114,7 +1114,7 @@ mod handlers {
         );
 
         let response = PatchResponse { checked_patch };
-        Ok((headers, response.encode()?))
+        Ok((headers, response.encode().await?))
     }
 
     async fn rollback_rewind(
@@ -1172,7 +1172,7 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let packet = <SyncPacket as WireEncodeDecode>::decode(bytes)?;
+        let packet = SyncPacket::decode(bytes).await?;
         let (remote_status, diff) = (packet.status, packet.diff);
 
         // Apply the diff to the storage
@@ -1218,6 +1218,6 @@ mod handlers {
             HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, packet.encode()?))
+        Ok((headers, packet.encode().await?))
     }
 }

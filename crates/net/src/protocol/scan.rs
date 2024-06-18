@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/scan.rs"));
 
-use super::{Error, Result, WireConvert};
+use super::{Error, Result, ProtoBinding};
 use crate::sdk::{commit::CommitProof, events::EventLogType};
 
 /// Request commit proofs from an event log.
@@ -19,7 +19,7 @@ pub struct ScanRequest {
     pub offset: u64,
 }
 
-impl WireConvert for ScanRequest {
+impl ProtoBinding for ScanRequest {
     type Inner = WireScanRequest;
 }
 
@@ -65,7 +65,7 @@ pub struct ScanResponse {
     pub offset: u64,
 }
 
-impl WireConvert for ScanResponse {
+impl ProtoBinding for ScanResponse {
     type Inner = WireScanResponse;
 }
 

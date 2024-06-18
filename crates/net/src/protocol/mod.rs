@@ -90,40 +90,40 @@ where
 
 /// Marker trait to indicate a binding type that
 /// converts to a protobuf type.
-trait WireConvert {
+trait ProtoBinding {
     type Inner: Message + Default;
 }
 
 /// Trait for wire protocol encoding and decoding.
 pub(crate) trait WireEncodeDecode {
     /// Encode this request.
-    fn encode(self) -> Result<Vec<u8>>;
+    async fn encode(self) -> Result<Vec<u8>>;
 
     /// Decode this request.
-    fn decode(buffer: impl Buf) -> Result<Self>
+    async fn decode(buffer: impl Buf) -> Result<Self>
     where
         Self: Sized;
 }
 
 impl<T> WireEncodeDecode for T
 where
-    T: WireConvert,
-    <T as WireConvert>::Inner: From<T>,
-    T: TryFrom<<T as WireConvert>::Inner, Error = Error>,
+    T: ProtoBinding,
+    <T as ProtoBinding>::Inner: From<T>,
+    T: TryFrom<<T as ProtoBinding>::Inner, Error = Error>,
 {
-    fn encode(self) -> Result<Vec<u8>> {
-        let value: <Self as WireConvert>::Inner = self.into();
+    async fn encode(self) -> Result<Vec<u8>> {
+        let value: <Self as ProtoBinding>::Inner = self.into();
         let mut buf = Vec::new();
         buf.reserve(value.encoded_len());
         value.encode(&mut buf)?;
         Ok(buf)
     }
 
-    fn decode(buffer: impl Buf) -> Result<Self>
+    async fn decode(buffer: impl Buf) -> Result<Self>
     where
         Self: Sized,
     {
-        let result = <<Self as WireConvert>::Inner>::decode(buffer)?;
+        let result = <<Self as ProtoBinding>::Inner>::decode(buffer)?;
         Ok(result.try_into()?)
     }
 }

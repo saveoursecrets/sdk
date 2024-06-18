@@ -4,7 +4,7 @@ include!(concat!(env!("OUT_DIR"), "/files.rs"));
 mod files {
     use super::*;
     use crate::{
-        protocol::{decode_uuid, encode_uuid, Error, Result, WireConvert},
+        protocol::{decode_uuid, encode_uuid, Error, Result, ProtoBinding},
         sdk::{
             storage::files::{ExternalFile, ExternalFileName},
             vault::{secret::SecretId, VaultId},
@@ -13,7 +13,7 @@ mod files {
     };
     use indexmap::IndexSet;
 
-    impl WireConvert for ExternalFile {
+    impl ProtoBinding for ExternalFile {
         type Inner = WireExternalFile;
     }
 
@@ -44,7 +44,7 @@ mod files {
         }
     }
 
-    impl WireConvert for FileSet {
+    impl ProtoBinding for FileSet {
         type Inner = WireFileSet;
     }
 
@@ -68,7 +68,7 @@ mod files {
         }
     }
 
-    impl WireConvert for FileTransfersSet {
+    impl ProtoBinding for FileTransfersSet {
         type Inner = WireFileTransfersSet;
     }
 

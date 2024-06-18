@@ -185,7 +185,8 @@ pub fn changes(
 async fn decode_notification(message: Message) -> Result<ChangeNotification> {
     match message {
         Message::Binary(buffer) => {
-            let notification = ChangeNotification::decode(buffer.as_slice())?;
+            let notification =
+                ChangeNotification::decode(buffer.as_slice()).await?;
             Ok(notification)
         }
         _ => Err(Error::NotBinaryWebsocketMessageType),

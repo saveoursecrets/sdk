@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/patch.rs"));
 
-use super::{Error, Result, WireConvert};
+use super::{Error, Result, ProtoBinding};
 use crate::sdk::{
     commit::{CommitHash, CommitProof},
     events::{CheckedPatch, EventLogType, EventRecord},
@@ -24,7 +24,7 @@ pub struct PatchRequest {
     pub patch: Vec<EventRecord>,
 }
 
-impl WireConvert for PatchRequest {
+impl ProtoBinding for PatchRequest {
     type Inner = WirePatchRequest;
 }
 
@@ -76,7 +76,7 @@ pub struct PatchResponse {
     pub checked_patch: CheckedPatch,
 }
 
-impl WireConvert for PatchResponse {
+impl ProtoBinding for PatchResponse {
     type Inner = WirePatchResponse;
 }
 

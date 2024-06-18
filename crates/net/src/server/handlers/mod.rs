@@ -134,7 +134,7 @@ pub(crate) async fn send_notification(
     notification: ChangeNotification,
 ) {
     // Send notification on the websockets channel
-    match notification.encode() {
+    match notification.encode().await {
         Ok(buffer) => {
             if let Some(account) = reader.sockets.get(caller.address()) {
                 if let Err(error) = account.broadcast(caller, buffer).await {

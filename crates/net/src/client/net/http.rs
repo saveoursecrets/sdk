@@ -260,7 +260,7 @@ impl SyncClient for HttpClient {
 
     #[instrument(skip_all)]
     async fn create_account(&self, account: ChangeSet) -> Result<()> {
-        let body = account.encode()?;
+        let body = account.encode().await?;
         let url = self.build_url("api/v1/sync/account")?;
 
         tracing::debug!(url = %url, "http::create_account");
@@ -285,7 +285,7 @@ impl SyncClient for HttpClient {
 
     #[instrument(skip_all)]
     async fn update_account(&self, account: UpdateSet) -> Result<()> {
-        let body = account.encode()?;
+        let body = account.encode().await?;
         let url = self.build_url("api/v1/sync/account")?;
 
         tracing::debug!(url = %url, "http::update_account");
@@ -337,7 +337,7 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::fetch_account");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(ChangeSet::decode(buffer)?)
+        Ok(ChangeSet::decode(buffer).await?)
     }
 
     #[instrument(skip_all)]
@@ -366,12 +366,12 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::sync_status");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(SyncStatus::decode(buffer)?)
+        Ok(SyncStatus::decode(buffer).await?)
     }
 
     #[instrument(skip_all)]
     async fn sync(&self, packet: SyncPacket) -> Result<SyncPacket> {
-        let body = packet.encode()?;
+        let body = packet.encode().await?;
         let url = self.build_url("api/v1/sync/account")?;
 
         tracing::debug!(url = %url, "http::sync");
@@ -395,12 +395,12 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::sync");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(SyncPacket::decode(buffer)?)
+        Ok(SyncPacket::decode(buffer).await?)
     }
 
     #[instrument(skip_all)]
     async fn scan(&self, request: ScanRequest) -> Result<ScanResponse> {
-        let body = request.encode()?;
+        let body = request.encode().await?;
         let url = self.build_url("api/v1/sync/account/events")?;
 
         tracing::debug!(url = %url, "http::scan");
@@ -424,12 +424,12 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::scan");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(ScanResponse::decode(buffer)?)
+        Ok(ScanResponse::decode(buffer).await?)
     }
 
     #[instrument(skip_all)]
     async fn diff(&self, request: DiffRequest) -> Result<DiffResponse> {
-        let body = request.encode()?;
+        let body = request.encode().await?;
         let url = self.build_url("api/v1/sync/account/events")?;
 
         tracing::debug!(url = %url, "http::diff");
@@ -453,12 +453,12 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::diff");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(DiffResponse::decode(buffer)?)
+        Ok(DiffResponse::decode(buffer).await?)
     }
 
     #[instrument(skip_all)]
     async fn patch(&self, request: PatchRequest) -> Result<PatchResponse> {
-        let body = request.encode()?;
+        let body = request.encode().await?;
         let url = self.build_url("api/v1/sync/account/events")?;
 
         tracing::debug!(url = %url, "http::patch");
@@ -482,7 +482,7 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::patch");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(PatchResponse::decode(buffer)?)
+        Ok(PatchResponse::decode(buffer).await?)
     }
 
     #[cfg(feature = "files")]
@@ -768,7 +768,7 @@ impl SyncClient for HttpClient {
         .await?;
         let auth = bearer_prefix(&account_signature, Some(&device_signature));
 
-        let body = local_files.encode()?;
+        let body = local_files.encode().await?;
 
         let response = self
             .client
@@ -781,6 +781,6 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::compare_files");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(FileTransfersSet::decode(buffer)?)
+        Ok(FileTransfersSet::decode(buffer).await?)
     }
 }

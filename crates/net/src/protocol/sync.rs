@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 
-use super::{decode_uuid, encode_uuid, Error, Result, WireConvert};
+use super::{decode_uuid, encode_uuid, Error, Result, ProtoBinding};
 use crate::sdk::{
     commit::Comparison,
     events::{Diff, EventRecord, Patch},
@@ -12,7 +12,7 @@ use crate::sync::{
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
 
-impl WireConvert for SyncStatus {
+impl ProtoBinding for SyncStatus {
     type Inner = WireSyncStatus;
 }
 
@@ -74,7 +74,7 @@ impl From<SyncStatus> for WireSyncStatus {
     }
 }
 
-impl WireConvert for Comparison {
+impl ProtoBinding for Comparison {
     type Inner = WireComparison;
 }
 
@@ -118,7 +118,7 @@ impl From<Comparison> for WireComparison {
     }
 }
 
-impl<T> WireConvert for Patch<T> {
+impl<T> ProtoBinding for Patch<T> {
     type Inner = WirePatch;
 }
 
@@ -143,7 +143,7 @@ impl<T> From<Patch<T>> for WirePatch {
     }
 }
 
-impl<T> WireConvert for Diff<T> {
+impl<T> ProtoBinding for Diff<T> {
     type Inner = WireDiff;
 }
 
@@ -174,7 +174,7 @@ impl<T> From<Diff<T>> for WireDiff {
     }
 }
 
-impl<T> WireConvert for MaybeDiff<T> {
+impl<T> ProtoBinding for MaybeDiff<T> {
     type Inner = WireMaybeDiff;
 }
 
@@ -222,7 +222,7 @@ where
     }
 }
 
-impl WireConvert for ChangeSet {
+impl ProtoBinding for ChangeSet {
     type Inner = WireChangeSet;
 }
 
@@ -274,7 +274,7 @@ impl From<ChangeSet> for WireChangeSet {
     }
 }
 
-impl WireConvert for UpdateSet {
+impl ProtoBinding for UpdateSet {
     type Inner = WireUpdateSet;
 }
 
@@ -352,7 +352,7 @@ impl From<UpdateSet> for WireUpdateSet {
     }
 }
 
-impl WireConvert for SyncDiff {
+impl ProtoBinding for SyncDiff {
     type Inner = WireSyncDiff;
 }
 
@@ -430,7 +430,7 @@ impl From<SyncDiff> for WireSyncDiff {
     }
 }
 
-impl WireConvert for SyncCompare {
+impl ProtoBinding for SyncCompare {
     type Inner = WireSyncCompare;
 }
 
@@ -508,7 +508,7 @@ impl From<SyncCompare> for WireSyncCompare {
     }
 }
 
-impl WireConvert for SyncPacket {
+impl ProtoBinding for SyncPacket {
     type Inner = WireSyncPacket;
 }
 
@@ -540,7 +540,7 @@ impl From<SyncPacket> for WireSyncPacket {
     }
 }
 
-impl WireConvert for MergeOutcome {
+impl ProtoBinding for MergeOutcome {
     type Inner = WireMergeOutcome;
 }
 

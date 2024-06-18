@@ -616,7 +616,7 @@ mod handlers {
             account.storage.paths()
         };
 
-        let local_files = FileSet::decode(bytes)?;
+        let local_files = FileSet::decode(bytes).await?;
         let local_set = local_files.0;
         let remote_set = list_external_files(&*paths).await?;
         let uploads = local_set
@@ -638,7 +638,7 @@ mod handlers {
             HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, transfers.encode()?))
+        Ok((headers, transfers.encode().await?))
     }
 }
 
