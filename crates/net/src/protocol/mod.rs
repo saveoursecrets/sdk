@@ -23,6 +23,8 @@ mod files;
 #[cfg(feature = "listen")]
 mod notifications;
 mod patch;
+#[cfg(feature = "pairing")]
+mod relay;
 mod scan;
 mod sync;
 
@@ -31,9 +33,14 @@ pub use error::Error;
 #[cfg(feature = "listen")]
 pub use notifications::ChangeNotification;
 pub use patch::{PatchRequest, PatchResponse};
+#[cfg(feature = "pairing")]
+pub use relay::{
+    RelayBody, RelayHeader, RelayPacket, RelayPayload, RelayType,
+};
 pub use scan::{ScanRequest, ScanResponse};
 
 use crate::sdk::events::EventLogType;
+use async_trait::async_trait;
 use prost::{bytes::Buf, Message};
 
 /// Result type for the wire protocol.
@@ -54,6 +61,41 @@ pub trait WireEncodeDecode {
     fn decode(buffer: impl Buf) -> Result<Self>
     where
         Self: Sized;
+}
+
+/// Encode and decode protobuf messages.
+#[async_trait]
+pub trait AsyncEncodeDecode {
+    /// Encode this message.
+    async fn encode_async(&self) -> Result<Vec<u8>>;
+
+    /// Decode a message.
+    async fn decode_async(buffer: impl Buf + Send + Sync) -> Result<Self>
+    where
+        Self: Sized;
+}
+
+#[async_trait]
+impl<T> AsyncEncodeDecode for T
+where
+    T: Message + Default,
+    // <T as WireConvert>::Inner: From<T>,
+    // T: TryFrom<<T as WireConvert>::Inner, Error = Error>,
+{
+    async fn encode_async(&self) -> Result<Vec<u8>> {
+        let mut buf = Vec::new();
+        buf.reserve(self.encoded_len());
+        self.encode(&mut buf)?;
+        Ok(buf)
+    }
+
+    async fn decode_async(buffer: impl Buf + Send + Sync) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let result = Self::decode(buffer)?;
+        Ok(result)
+    }
 }
 
 impl<T> WireEncodeDecode for T

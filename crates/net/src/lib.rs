@@ -13,8 +13,6 @@
 pub mod client;
 mod error;
 pub mod protocol;
-#[cfg(feature = "pairing")]
-pub mod relay;
 #[cfg(feature = "server")]
 pub mod server;
 pub mod sync;

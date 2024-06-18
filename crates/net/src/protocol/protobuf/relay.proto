@@ -19,5 +19,10 @@ enum RelayType {
 
 message RelayPayload {
   RelayType kind = 1;
-  bytes body = 2;
+  RelayBody body = 2;
+}
+
+message RelayBody {
+  uint32 length = 1;
+  bytes contents = 2;
 }

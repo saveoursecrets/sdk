@@ -5,12 +5,12 @@ use crate::{
         pairing::PairingConfirmation, sync::RemoteSync, NetworkAccount,
         WebSocketRequest,
     },
-    relay::{RelayBody, RelayHeader, RelayPacket, RelayPayload},
+    protocol::{
+        AsyncEncodeDecode, RelayBody, RelayHeader, RelayPacket, RelayPayload,
+    },
     sdk::{
         account::Account,
-        decode,
         device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
-        encode,
         events::DeviceEvent,
         signer::ecdsa::SingleParty,
         url::Url,
@@ -77,7 +77,7 @@ async fn listen(
         match message {
             Ok(message) => {
                 if let Message::Binary(msg) = message {
-                    match decode::<RelayPacket>(&msg).await {
+                    match RelayPacket::decode_async(msg.as_slice()).await {
                         Ok(result) => {
                             if let Err(e) = tx.send(result).await {
                                 tracing::error!(error = ?e);
@@ -243,7 +243,7 @@ impl<'a> OfferPairing<'a> {
 
     /// Process incoming packet.
     async fn incoming(&mut self, packet: RelayPacket) -> Result<()> {
-        if packet.header.to_public_key != self.keypair.public {
+        if packet.header.unwrap().to_public_key != self.keypair.public {
             return Err(Error::NotForMe);
         }
 
@@ -320,7 +320,7 @@ impl<'a> OfferPairing<'a> {
             IncomingAction::Reply(next_state, reply) => {
                 self.state = next_state;
 
-                let buffer = encode(&reply).await?;
+                let buffer = reply.encode_async().await?;
                 self.tx.send(Message::Binary(buffer)).await?;
             }
             IncomingAction::HandleMessage(message) => {
@@ -336,17 +336,18 @@ impl<'a> OfferPairing<'a> {
                         unreachable!();
                     };
                     let reply = RelayPacket {
-                        header: RelayHeader {
+                        header: Some(RelayHeader {
                             to_public_key: packet
                                 .header
+                                .unwrap()
                                 .from_public_key
                                 .clone(),
                             from_public_key: self.keypair().public.clone(),
-                        },
-                        payload,
+                        }),
+                        payload: Some(payload),
                     };
 
-                    let buffer = encode(&reply).await?;
+                    let buffer = reply.encode_async().await?;
                     self.tx.send(Message::Binary(buffer)).await?;
                 } else if let PairingMessage::Request(device) = message {
                     tracing::debug!("<- device");
@@ -382,18 +383,19 @@ impl<'a> OfferPairing<'a> {
                     };
 
                     let reply = RelayPacket {
-                        header: RelayHeader {
+                        header: Some(RelayHeader {
                             to_public_key: packet
                                 .header
+                                .unwrap()
                                 .from_public_key
                                 .to_vec(),
                             from_public_key: self.keypair.public.to_vec(),
-                        },
-                        payload,
+                        }),
+                        payload: Some(payload),
                     };
 
                     tracing::debug!("-> private-key");
-                    let buffer = encode(&reply).await?;
+                    let buffer = reply.encode_async().await?;
                     self.tx.send(Message::Binary(buffer)).await?;
                     self.state = PairProtocolState::Done;
                 } else {
@@ -643,7 +645,7 @@ impl<'a> AcceptPairing<'a> {
 
     /// Process incoming packet.
     async fn incoming(&mut self, packet: RelayPacket) -> Result<()> {
-        if packet.header.to_public_key != self.keypair.public {
+        if packet.header.unwrap().to_public_key != self.keypair.public {
             return Err(Error::NotForMe);
         }
 
@@ -720,7 +722,7 @@ impl<'a> AcceptPairing<'a> {
             IncomingAction::Reply(next_state, reply) => {
                 self.state = next_state;
 
-                let buffer = encode(&reply).await?;
+                let buffer = reply.encode_async().await?;
                 self.tx.send(Message::Binary(buffer)).await?;
             }
             IncomingAction::HandleMessage(message) => {
@@ -736,17 +738,18 @@ impl<'a> AcceptPairing<'a> {
                         let payload =
                             encrypt(transport, &private_message).await?;
                         let reply = RelayPacket {
-                            header: RelayHeader {
+                            header: Some(RelayHeader {
                                 to_public_key: packet
                                     .header
+                                    .unwrap()
                                     .from_public_key
                                     .to_vec(),
                                 from_public_key: self.keypair.public.to_vec(),
-                            },
-                            payload,
+                            }),
+                            payload: Some(payload),
                         };
                         tracing::debug!("-> device");
-                        let buffer = encode(&reply).await?;
+                        let buffer = reply.encode_async().await?;
                         self.tx.send(Message::Binary(buffer)).await?;
                     } else {
                         unreachable!();
@@ -803,12 +806,10 @@ async fn encrypt<T: Serialize>(
     transport: &mut TransportState,
     message: &T,
 ) -> crate::client::pairing::Result<RelayPayload> {
-    let message = serde_json::to_vec(message)?;
-    let body: RelayBody = message.into();
-    let body = encode(&body).await?;
+    let body = serde_json::to_vec(message)?;
     let mut contents = vec![0u8; body.len() + TAGLEN];
     let length = transport.write_message(&body, &mut contents)?;
-    Ok(RelayPayload::Transport(length, contents))
+    Ok(RelayPayload::new_transport(length, contents))
 }
 
 /// Decrypt a message and deserialize the content.
@@ -819,8 +820,8 @@ async fn decrypt<T: DeserializeOwned>(
 ) -> crate::client::pairing::Result<T> {
     let mut contents = vec![0; length];
     transport.read_message(&message[..length], &mut contents)?;
-    let body: RelayBody = decode(&contents).await?;
-    let message = serde_json::from_slice(body.as_ref())?;
+    let body = RelayBody::decode_async(contents.as_slice()).await?;
+    let message = serde_json::from_slice(body.contents.as_ref())?;
     Ok(message)
 }
 
@@ -876,13 +877,13 @@ trait NoiseTunnel {
             tracing::debug!("-> e");
             let len = state.write_message(&[], &mut buf)?;
             let message = RelayPacket {
-                header: RelayHeader {
+                header: Some(RelayHeader {
                     to_public_key: self.pairing_public_key().to_vec(),
                     from_public_key: self.keypair().public.to_vec(),
-                },
-                payload: RelayPayload::Handshake(len, buf.to_vec()),
+                }),
+                payload: Some(RelayPayload::new_handshake(len, buf.to_vec())),
             };
-            encode(&message).await?
+            message.encode_async().await?
         } else {
             unreachable!();
         };
@@ -895,25 +896,35 @@ trait NoiseTunnel {
         &mut self,
         packet: &RelayPacket,
     ) -> Result<RelayPacket> {
-        if let (
-            Some(Tunnel::Handshake(state)),
-            RelayPayload::Handshake(len, init_msg),
-        ) = (self.tunnel_mut(), &packet.payload)
+        if let (Some(Tunnel::Handshake(state)), true) =
+            (self.tunnel_mut(), packet.is_handshake())
         {
+            let payload = packet.payload.as_ref().unwrap();
+            let body = payload.body.as_ref().unwrap();
+            let (len, init_msg) = (body.length as usize, &body.contents);
+
             let mut buf = [0; 1024];
             let mut reply = [0; 1024];
             // <- e
             tracing::debug!("<- e");
-            state.read_message(&init_msg[..*len], &mut buf)?;
+            state.read_message(&init_msg[..len], &mut buf)?;
             // -> e, ee, s, es
             tracing::debug!("-> e, ee, s, es");
             let len = state.write_message(&[], &mut reply)?;
             Ok(RelayPacket {
-                header: RelayHeader {
-                    to_public_key: packet.header.from_public_key.clone(),
+                header: Some(RelayHeader {
+                    to_public_key: packet
+                        .header
+                        .as_ref()
+                        .unwrap()
+                        .from_public_key
+                        .clone(),
                     from_public_key: self.keypair().public.clone(),
-                },
-                payload: RelayPayload::Handshake(len, reply.to_vec()),
+                }),
+                payload: Some(RelayPayload::new_handshake(
+                    len,
+                    reply.to_vec(),
+                )),
             })
         } else {
             Err(Error::BadState)
@@ -926,25 +937,35 @@ trait NoiseTunnel {
         &mut self,
         packet: &RelayPacket,
     ) -> Result<RelayPacket> {
-        let packet = if let (
-            Some(Tunnel::Handshake(state)),
-            RelayPayload::Handshake(len, init_msg),
-        ) = (self.tunnel_mut(), &packet.payload)
+        let packet = if let (Some(Tunnel::Handshake(state)), true) =
+            (self.tunnel_mut(), packet.is_handshake())
         {
+            let payload = packet.payload.as_ref().unwrap();
+            let body = payload.body.as_ref().unwrap();
+            let (len, init_msg) = (body.length as usize, &body.contents);
+
             let mut buf = [0; 1024];
             let mut reply = [0; 1024];
             // <- e, ee, s, es
             tracing::debug!("<- e, ee, s, es");
-            state.read_message(&init_msg[..*len], &mut buf)?;
+            state.read_message(&init_msg[..len], &mut buf)?;
             // -> s, se
             tracing::debug!("-> s, se");
             let len = state.write_message(&[], &mut reply)?;
             Some(RelayPacket {
-                header: RelayHeader {
-                    to_public_key: packet.header.from_public_key.clone(),
+                header: Some(RelayHeader {
+                    to_public_key: packet
+                        .header
+                        .as_ref()
+                        .unwrap()
+                        .from_public_key
+                        .clone(),
                     from_public_key: self.keypair().public.clone(),
-                },
-                payload: RelayPayload::Handshake(len, reply.to_vec()),
+                }),
+                payload: Some(RelayPayload::new_handshake(
+                    len,
+                    reply.to_vec(),
+                )),
             })
         } else {
             None
@@ -964,15 +985,17 @@ trait NoiseTunnel {
         &mut self,
         packet: &RelayPacket,
     ) -> Result<RelayPacket> {
-        if let (
-            Some(Tunnel::Handshake(state)),
-            RelayPayload::Handshake(len, init_msg),
-        ) = (self.tunnel_mut(), &packet.payload)
+        if let (Some(Tunnel::Handshake(state)), true) =
+            (self.tunnel_mut(), packet.is_handshake())
         {
+            let payload = packet.payload.as_ref().unwrap();
+            let body = payload.body.as_ref().unwrap();
+            let (len, init_msg) = (body.length as usize, &body.contents);
+
             let mut buf = [0; 1024];
             // <- s, se
             tracing::debug!("<- s, se");
-            state.read_message(&init_msg[..*len], &mut buf)?;
+            state.read_message(&init_msg[..len], &mut buf)?;
 
             self.into_transport_mode()?;
 
@@ -984,11 +1007,16 @@ trait NoiseTunnel {
                 unreachable!();
             };
             Ok(RelayPacket {
-                header: RelayHeader {
-                    to_public_key: packet.header.from_public_key.clone(),
+                header: Some(RelayHeader {
+                    to_public_key: packet
+                        .header
+                        .as_ref()
+                        .unwrap()
+                        .from_public_key
+                        .clone(),
                     from_public_key: self.keypair().public.clone(),
-                },
-                payload,
+                }),
+                payload: Some(payload),
             })
         } else {
             Err(Error::BadState)

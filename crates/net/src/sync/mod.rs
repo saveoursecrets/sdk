@@ -21,8 +21,11 @@ use url::Url;
 
 mod folder;
 mod local_account;
+
+#[cfg(feature = "files")]
 mod transfer;
 
+#[cfg(feature = "files")]
 pub use transfer::*;
 
 pub(crate) use folder::{FolderMerge, IdentityFolderMerge};
