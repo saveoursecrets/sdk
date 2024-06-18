@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package relay;
+
+message RelayPacket {
+  RelayHeader header = 1;
+  RelayPayload payload = 2;
+}
+
+message RelayHeader {
+  bytes to_public_key = 1;
+  bytes from_public_key = 2;
+}
+
+enum RelayType {
+  Handshake = 0;
+  Transport = 1;
+}
+
+message RelayPayload {
+  RelayType kind = 1;
+  bytes body = 2;
+}

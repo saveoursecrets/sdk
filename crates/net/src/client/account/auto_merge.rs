@@ -4,7 +4,6 @@ use crate::{
     protocol::{DiffRequest, PatchRequest, ScanRequest},
 };
 use async_recursion::async_recursion;
-use binary_stream::futures::{Decodable, Encodable};
 use sos_sdk::{
     account::Account,
     commit::{CommitHash, CommitProof, CommitTree},
@@ -324,7 +323,7 @@ impl RemoteBridge {
         proof: CommitProof,
     ) -> Result<()>
     where
-        T: Default + Encodable + Decodable + Send + Sync,
+        T: Default + Send + Sync,
     {
         tracing::debug!(commit = %commit, "auto_merge::try_merge_from_ancestor");
 
@@ -573,7 +572,7 @@ impl RemoteBridge {
         events: Vec<EventRecord>,
     ) -> Result<(CheckedPatch, Option<CheckedPatch>)>
     where
-        T: Default + Encodable + Decodable + Send + Sync,
+        T: Default + Send + Sync,
     {
         tracing::debug!(
           log_type = ?log_type,
