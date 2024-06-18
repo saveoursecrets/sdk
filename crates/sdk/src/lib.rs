@@ -95,8 +95,6 @@ pub mod recovery;
 
 pub mod signer;
 pub mod storage;
-// #[cfg(feature = "sync")]
-// pub mod sync;
 pub mod vault;
 
 pub use date_time::UtcDateTime;

@@ -19,7 +19,10 @@ use std::{
 };
 use url::Url;
 
+mod folder;
 mod local_account;
+
+pub use folder::{FolderMerge, IdentityFolderMerge};
 
 #[cfg(feature = "device")]
 use crate::sdk::events::{DeviceDiff, DeviceEvent, DevicePatch};

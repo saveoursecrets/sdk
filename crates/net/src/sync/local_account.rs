@@ -20,8 +20,8 @@ use crate::sdk::events::{DeviceDiff, DeviceReducer};
 use crate::sdk::events::FileDiff;
 
 use crate::sync::{
-    FolderMergeOptions, ForceMerge, Merge, MergeOutcome, SyncStatus,
-    SyncStorage,
+    FolderMerge, FolderMergeOptions, ForceMerge, IdentityFolderMerge, Merge,
+    MergeOutcome, SyncStatus, SyncStorage,
 };
 
 #[async_trait]

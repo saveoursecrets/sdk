@@ -69,8 +69,11 @@ where
     W: AsyncWrite + Unpin + Send + Sync + 'static,
     D: Clone + Send + Sync,
 {
-    folder: Folder<T, R, W, D>,
-    pub(crate) index: UrnLookup,
+    /// Folder storage.
+    pub folder: Folder<T, R, W, D>,
+    /// Lookup table.
+    pub index: UrnLookup,
+
     private_identity: PrivateIdentity,
     #[cfg(feature = "device")]
     pub(super) devices: Option<crate::device::DeviceManager>,
@@ -532,6 +535,23 @@ where
 
         Ok((index, private_identity))
     }
+
+    /// Identifier of the folder.
+    pub fn folder_id(&self) -> &VaultId {
+        self.folder.id()
+    }
+
+    /*
+    /// Mutable refernce to the lookup table.
+    pub fn index_mut(&mut self) -> &mut UrnLookup {
+        &mut self.index
+    }
+
+    /// Mutable refernce to the folder.
+    pub fn folder_mut(&mut self) -> &mut Folder<T, R, W, D> {
+        &mut self.folder
+    }
+    */
 
     /*
     #[cfg(feature = "sync")]
