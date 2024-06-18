@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package relay;
 
+import "protobuf/sync.proto";
+
 // Relay packet.
 message RelayPacket {
   // Packet header.
@@ -40,4 +42,25 @@ message RelayBody {
   uint32 length = 1;
   // Body contents.
   bytes contents = 2;
+}
+
+// Ready to start pairing.
+message PairingReady {}
+
+// Request to pair.
+message PairingRequest {
+  // Meta data of the device making the request.
+  bytes device_meta_data = 1;
+}
+
+// Pairing confirmed.
+message PairingConfirm {
+  // Signing key of the account.
+  bytes account_signing_key = 1;
+  // Signing key for the new device being paired.
+  bytes device_signing_key = 2;
+  // Vault containing the device signing key.
+  bytes device_vault = 3;
+  // Collection of server origins.
+  repeated sync.WireOrigin servers = 4;
 }

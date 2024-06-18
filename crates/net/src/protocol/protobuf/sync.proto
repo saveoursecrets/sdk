@@ -5,6 +5,13 @@ package sync;
 import "protobuf/common.proto";
 import "protobuf/files.proto";
 
+message WireOrigin {
+  // Name of the origin.
+  string name = 1;
+  // URL of the origin.
+  string url = 2;
+}
+
 message WireSyncFolderState {
   // Folder identifier.
   bytes folder_id = 1;
