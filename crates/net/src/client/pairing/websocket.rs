@@ -316,7 +316,7 @@ impl<'a> OfferPairing<'a> {
         match action {
             IncomingAction::Reply(next_state, reply) => {
                 self.state = next_state;
-                let buffer = reply.encode_async().await?;
+                let buffer = reply.encode_prefixed().await?;
                 self.tx.send(Message::Binary(buffer)).await?;
             }
             IncomingAction::HandleMessage(message) => {
@@ -344,7 +344,7 @@ impl<'a> OfferPairing<'a> {
                         payload: Some(payload),
                     };
 
-                    let buffer = reply.encode_async().await?;
+                    let buffer = reply.encode_prefixed().await?;
                     self.tx.send(Message::Binary(buffer)).await?;
                 } else if let PairingMessage::Request(device) = message {
                     tracing::debug!("<- device");
@@ -392,7 +392,7 @@ impl<'a> OfferPairing<'a> {
                     };
 
                     tracing::debug!("-> private-key");
-                    let buffer = reply.encode_async().await?;
+                    let buffer = reply.encode_prefixed().await?;
                     self.tx.send(Message::Binary(buffer)).await?;
                     self.state = PairProtocolState::Done;
                 } else {
@@ -720,7 +720,7 @@ impl<'a> AcceptPairing<'a> {
             IncomingAction::Reply(next_state, reply) => {
                 self.state = next_state;
 
-                let buffer = reply.encode_async().await?;
+                let buffer = reply.encode_prefixed().await?;
                 self.tx.send(Message::Binary(buffer)).await?;
             }
             IncomingAction::HandleMessage(message) => {
@@ -748,7 +748,7 @@ impl<'a> AcceptPairing<'a> {
                             payload: Some(payload),
                         };
                         tracing::debug!("-> device");
-                        let buffer = reply.encode_async().await?;
+                        let buffer = reply.encode_prefixed().await?;
                         self.tx.send(Message::Binary(buffer)).await?;
                     } else {
                         unreachable!();
@@ -881,7 +881,7 @@ trait NoiseTunnel {
                 }),
                 payload: Some(RelayPayload::new_handshake(len, buf.to_vec())),
             };
-            message.encode_async().await?
+            message.encode_prefixed().await?
         } else {
             unreachable!();
         };

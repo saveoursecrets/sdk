@@ -13,7 +13,7 @@ impl RelayPacket {
     }
 
     /// Encode a packet prefixed with the target public key.
-    pub(crate) async fn encode(self) -> Result<Vec<u8>> {
+    pub(crate) async fn encode_prefixed(self) -> Result<Vec<u8>> {
         let mut recipient =
             self.header.as_ref().unwrap().to_public_key.clone();
         let key_length = recipient.len() as u16;
@@ -30,7 +30,7 @@ impl RelayPacket {
 
     /// Decode an encoded packet into a public key and
     /// protobuf packet bytes.
-    pub(crate) async fn decode_split(
+    pub(crate) fn decode_split(
         packet: Vec<u8>,
     ) -> Result<(Vec<u8>, Vec<u8>)> {
         let amount = std::mem::size_of::<u16>();
