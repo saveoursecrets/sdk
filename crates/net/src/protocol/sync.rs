@@ -206,17 +206,20 @@ where
     type Error = Error;
 
     fn try_from(value: WireMaybeDiff) -> Result<Self> {
-        if let Some(diff) = value.diff {
-            Ok(Self::Diff(diff.inner.unwrap().try_into()?))
-        } else if let Some(compare) = value.compare {
-            let compare = if let Some(compare) = compare.inner {
-                Some(compare.try_into()?)
-            } else {
-                None
-            };
-            Ok(Self::Compare(compare))
-        } else {
-            unreachable!()
+        let inner = value.inner.unwrap();
+
+        match inner {
+            wire_maybe_diff::Inner::Diff(value) => {
+                Ok(Self::Diff(value.diff.unwrap().try_into()?))
+            }
+            wire_maybe_diff::Inner::Compare(value) => {
+                let compare = if let Some(compare) = value.compare {
+                    Some(compare.try_into()?)
+                } else {
+                    None
+                };
+                Ok(Self::Compare(compare))
+            }
         }
     }
 }
@@ -228,16 +231,18 @@ where
     fn from(value: MaybeDiff<T>) -> Self {
         match value {
             MaybeDiff::<T>::Diff(diff) => WireMaybeDiff {
-                diff: Some(WireMaybeDiffHasDiff {
-                    inner: Some(diff.into()),
-                }),
-                compare: None,
+                inner: Some(wire_maybe_diff::Inner::Diff(
+                    WireMaybeDiffHasDiff {
+                        diff: Some(diff.into()),
+                    },
+                )),
             },
             MaybeDiff::<T>::Compare(compare) => WireMaybeDiff {
-                diff: None,
-                compare: Some(WireMaybeDiffNeedsCompare {
-                    inner: compare.map(|c| c.into()),
-                }),
+                inner: Some(wire_maybe_diff::Inner::Compare(
+                    WireMaybeDiffNeedsCompare {
+                        compare: compare.map(|c| c.into()),
+                    },
+                )),
             },
         }
     }

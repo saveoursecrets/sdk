@@ -90,16 +90,18 @@ message WireUpdateSet {
 }
 
 message WireMaybeDiffHasDiff {
-  WireDiff inner = 1;
+  WireDiff diff = 1;
 }
 
 message WireMaybeDiffNeedsCompare {
-  optional common.WireCommitState inner = 1;
+  optional common.WireCommitState compare = 1;
 }
 
 message WireMaybeDiff {
-  optional WireMaybeDiffHasDiff diff = 1;
-  optional WireMaybeDiffNeedsCompare compare = 2;
+  oneof inner {
+    WireMaybeDiffHasDiff diff = 1;
+    WireMaybeDiffNeedsCompare compare = 2;
+  }
 }
 
 message WireSyncFolderMaybeDiff {
