@@ -59,7 +59,9 @@ message WireCheckedPatchConflict {
 }
 
 message WireCheckedPatch {
-  optional WireCheckedPatchSuccess success = 1;
-  optional WireCheckedPatchConflict conflict = 2;
+  oneof inner {
+    WireCheckedPatchSuccess success = 1;
+    WireCheckedPatchConflict conflict = 2;
+  }
 }
 
