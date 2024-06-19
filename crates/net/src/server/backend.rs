@@ -1,13 +1,15 @@
 use super::{Error, Result};
-use crate::sdk::{
-    signer::{
-        ecdsa::Address,
-        ed25519::{self, Verifier, VerifyingKey},
+use crate::{
+    protocol::sync::{ChangeSet, MergeOutcome, SyncStorage, UpdateSet},
+    sdk::{
+        signer::{
+            ecdsa::Address,
+            ed25519::{self, Verifier, VerifyingKey},
+        },
+        storage::DiscFolder,
+        vfs, Paths,
     },
-    storage::DiscFolder,
-    vfs, Paths,
 };
-use crate::sync::{ChangeSet, MergeOutcome, SyncStorage, UpdateSet};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},

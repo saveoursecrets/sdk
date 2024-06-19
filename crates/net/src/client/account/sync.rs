@@ -1,18 +1,18 @@
 //! Adds sync capability to network account.
 use crate::{
     client::{NetworkAccount, RemoteSync, SyncClient, SyncError},
-    sync::{
+    protocol::sync::{
         FileSet, FileTransfersSet, Origin, SyncOptions, SyncStatus,
         SyncStorage, UpdateSet,
     },
+    sdk::{
+        events::{AccountEventLog, FolderEventLog},
+        storage::StorageEventLogs,
+        vault::VaultId,
+        Result,
+    },
 };
 use async_trait::async_trait;
-use sos_sdk::{
-    events::{AccountEventLog, FolderEventLog},
-    storage::StorageEventLogs,
-    vault::VaultId,
-    Result,
-};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 

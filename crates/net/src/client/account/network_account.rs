@@ -1,33 +1,38 @@
 //! Network aware account.
+use crate::{
+    protocol::sync::{
+        FileOperation, Origin, SyncError, SyncOptions, UpdateSet,
+    },
+    sdk::{
+        account::{
+            Account, AccountBuilder, AccountChange, AccountData,
+            CipherComparison, DetachedView, FolderChange, FolderCreate,
+            FolderDelete, LocalAccount, SecretChange, SecretDelete,
+            SecretInsert, SecretMove, SigninOptions,
+        },
+        commit::{CommitHash, CommitState},
+        crypto::{AccessKey, Cipher, KeyDerivation},
+        events::{AccountEvent, EventLogExt, ReadEvent},
+        identity::{AccountRef, PublicIdentity},
+        sha2::{Digest, Sha256},
+        signer::ecdsa::{Address, BoxedEcdsaSigner},
+        storage::{
+            files::FileMutationEvent,
+            search::{
+                AccountStatistics, ArchiveFilter, Document, DocumentCount,
+                DocumentView, QueryFilter, SearchIndex,
+            },
+            AccessOptions, ClientStorage, StorageEventLogs,
+        },
+        vault::{
+            secret::{Secret, SecretId, SecretMeta, SecretRow},
+            Summary, Vault, VaultId,
+        },
+        vfs, Paths,
+    },
+};
 use async_trait::async_trait;
 use secrecy::SecretString;
-use sos_sdk::{
-    account::{
-        Account, AccountBuilder, AccountChange, AccountData,
-        CipherComparison, DetachedView, FolderChange, FolderCreate,
-        FolderDelete, LocalAccount, SecretChange, SecretDelete, SecretInsert,
-        SecretMove, SigninOptions,
-    },
-    commit::{CommitHash, CommitState},
-    crypto::{AccessKey, Cipher, KeyDerivation},
-    events::{AccountEvent, EventLogExt, ReadEvent},
-    identity::{AccountRef, PublicIdentity},
-    sha2::{Digest, Sha256},
-    signer::ecdsa::{Address, BoxedEcdsaSigner},
-    storage::{
-        files::FileMutationEvent,
-        search::{
-            AccountStatistics, ArchiveFilter, Document, DocumentCount,
-            DocumentView, QueryFilter, SearchIndex,
-        },
-        AccessOptions, ClientStorage, StorageEventLogs,
-    },
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow},
-        Summary, Vault, VaultId,
-    },
-    vfs, Paths,
-};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -37,8 +42,6 @@ use tokio::{
     io::{AsyncRead, AsyncSeek},
     sync::{Mutex, RwLock},
 };
-
-use crate::sync::{FileOperation, Origin, SyncError, SyncOptions, UpdateSet};
 
 #[cfg(feature = "archive")]
 use crate::sdk::account::archive::{Inventory, RestoreOptions};

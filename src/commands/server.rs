@@ -8,8 +8,8 @@ use crate::{
 use clap::Subcommand;
 use sos_net::{
     client::RemoteSync,
+    protocol::sync::{Origin, SyncOptions},
     sdk::{identity::AccountRef, url::Url},
-    sync::{Origin, SyncOptions},
 };
 
 #[derive(Subcommand, Debug)]

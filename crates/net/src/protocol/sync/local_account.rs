@@ -1,15 +1,21 @@
 //! Implements merging into a local account.
-use crate::sdk::{
-    account::{Account, LocalAccount},
-    commit::{CommitState, CommitTree, Comparison},
-    decode,
-    events::{
-        AccountDiff, AccountEvent, CheckedPatch, EventLogExt, FolderDiff,
-        LogEvent,
+use crate::{
+    protocol::sync::{
+        FolderMerge, FolderMergeOptions, ForceMerge, IdentityFolderMerge,
+        Merge, MergeOutcome, SyncStatus, SyncStorage,
     },
-    storage::StorageEventLogs,
-    vault::{Vault, VaultId},
-    Error, Result,
+    sdk::{
+        account::{Account, LocalAccount},
+        commit::{CommitState, CommitTree, Comparison},
+        decode,
+        events::{
+            AccountDiff, AccountEvent, CheckedPatch, EventLogExt, FolderDiff,
+            LogEvent,
+        },
+        storage::StorageEventLogs,
+        vault::{Vault, VaultId},
+        Error, Result,
+    },
 };
 use async_trait::async_trait;
 use indexmap::IndexMap;
@@ -19,11 +25,6 @@ use crate::sdk::events::{DeviceDiff, DeviceReducer};
 
 #[cfg(feature = "files")]
 use crate::sdk::events::FileDiff;
-
-use crate::sync::{
-    FolderMerge, FolderMergeOptions, ForceMerge, IdentityFolderMerge, Merge,
-    MergeOutcome, SyncStatus, SyncStorage,
-};
 
 #[async_trait]
 impl ForceMerge for LocalAccount {

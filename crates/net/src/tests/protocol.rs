@@ -4,6 +4,7 @@ use prost::bytes::Bytes;
 
 use crate::{
     protocol::{
+        sync::{EventLogType, MergeOutcome},
         DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
         ScanResponse, WireEncodeDecode,
     },
@@ -13,7 +14,6 @@ use crate::{
         signer::ecdsa::Address,
         UtcDateTime,
     },
-    sync::{EventLogType, MergeOutcome},
 };
 
 const HASH: &str =
@@ -260,11 +260,11 @@ async fn encode_decode_change_notification() -> Result<()> {
 #[tokio::test]
 async fn encode_decode_change_files() -> Result<()> {
     use crate::{
+        protocol::sync::{FileSet, FileTransfersSet},
         sdk::{
             storage::files::ExternalFile,
             vault::{secret::SecretId, VaultId},
         },
-        sync::{FileSet, FileTransfersSet},
     };
     use indexmap::IndexSet;
 

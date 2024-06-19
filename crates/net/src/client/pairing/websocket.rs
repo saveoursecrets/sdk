@@ -3,8 +3,10 @@ use super::{DeviceEnrollment, Error, Result, ServerPairUrl};
 use crate::{
     client::{sync::RemoteSync, NetworkAccount, WebSocketRequest},
     protocol::{
-        pairing_message, PairingConfirm, PairingMessage, PairingReady,
-        PairingRequest, ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
+        pairing_message,
+        sync::{Origin, SyncOptions},
+        PairingConfirm, PairingMessage, PairingReady, PairingRequest,
+        ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
     },
     sdk::{
         account::Account,
@@ -13,7 +15,6 @@ use crate::{
         signer::ecdsa::SingleParty,
         url::Url,
     },
-    sync::{Origin, SyncOptions},
 };
 use futures::{
     select,

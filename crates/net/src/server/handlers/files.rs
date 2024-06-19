@@ -359,7 +359,10 @@ pub(crate) async fn compare_files(
 mod handlers {
     use super::MoveFileQuery;
     use crate::{
-        protocol::WireEncodeDecode,
+        protocol::{
+            sync::{FileSet, FileTransfersSet},
+            WireEncodeDecode,
+        },
         sdk::{
             sha2::{Digest, Sha256},
             storage::files::{list_external_files, ExternalFileName},
@@ -368,7 +371,6 @@ mod handlers {
         server::{
             handlers::Caller, Error, Result, ServerBackend, ServerState,
         },
-        sync::{FileSet, FileTransfersSet},
     };
     use axum::{
         body::{Body, Bytes},

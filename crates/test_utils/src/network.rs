@@ -7,6 +7,7 @@ use sos_net::{
         InflightNotification, InflightTransfers, ListenOptions,
         NetworkAccount, RemoteBridge, RemoteSync, SyncClient,
     },
+    protocol::sync::{Origin, SyncStorage},
     sdk::{
         account::{Account, AccountBuilder},
         constants::{FILES_DIR, VAULT_EXT},
@@ -19,7 +20,6 @@ use sos_net::{
         vault::{Summary, VaultId},
         vfs, Paths,
     },
-    sync::{Origin, SyncStorage},
 };
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::Mutex;

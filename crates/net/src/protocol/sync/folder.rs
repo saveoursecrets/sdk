@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 use crate::{
+    protocol::sync::FolderMergeOptions,
     sdk::{
         events::{
             CheckedPatch, EventLogExt, FolderDiff, FolderReducer, LogEvent,
@@ -13,7 +14,6 @@ use crate::{
         vault::secret::SecretRow,
         Result,
     },
-    sync::FolderMergeOptions,
 };
 
 /// Merge operations for the identity folder.

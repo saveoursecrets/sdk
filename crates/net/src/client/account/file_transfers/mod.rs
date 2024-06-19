@@ -16,8 +16,8 @@
 //! by a semaphore and notifications are sent via [InflightTransfers].
 use crate::{
     client::{net::NetworkRetry, CancelReason, Error, Result, SyncClient},
+    protocol::sync::{FileOperation, Origin, TransferOperation},
     sdk::{storage::files::ExternalFile, vfs, Paths},
-    sync::{FileOperation, Origin, TransferOperation},
 };
 
 use futures::FutureExt;

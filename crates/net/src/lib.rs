@@ -15,7 +15,6 @@ mod error;
 pub mod protocol;
 #[cfg(feature = "server")]
 pub mod server;
-pub mod sync;
 
 #[cfg(test)]
 mod tests;

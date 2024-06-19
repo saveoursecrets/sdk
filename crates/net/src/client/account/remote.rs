@@ -3,16 +3,16 @@ use crate::{
     client::{
         net::HttpClient, Error, RemoteSync, Result, SyncClient, SyncError,
     },
+    protocol::sync::{
+        self, FileOperation, FileSet, MaybeDiff, Merge, MergeOutcome, Origin,
+        SyncOptions, SyncPacket, SyncStatus, SyncStorage, TransferOperation,
+        UpdateSet,
+    },
     sdk::{
         account::{Account, LocalAccount},
         signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
         storage::StorageEventLogs,
         vfs,
-    },
-    sync::{
-        self, FileOperation, FileSet, MaybeDiff, Merge, MergeOutcome, Origin,
-        SyncOptions, SyncPacket, SyncStatus, SyncStorage, TransferOperation,
-        UpdateSet,
     },
 };
 use async_trait::async_trait;

@@ -9,6 +9,10 @@ use tracing::instrument;
 use crate::{
     client::{CancelReason, Error, Result, SyncClient},
     protocol::{
+        sync::{
+            ChangeSet, FileSet, FileTransfersSet, Origin, SyncPacket,
+            SyncStatus, UpdateSet,
+        },
         DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
         ScanResponse, WireEncodeDecode,
     },
@@ -16,10 +20,6 @@ use crate::{
         constants::MIME_TYPE_PROTOBUF,
         sha2::{Digest, Sha256},
         signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    },
-    sync::{
-        ChangeSet, FileSet, FileTransfersSet, Origin, SyncPacket, SyncStatus,
-        UpdateSet,
     },
 };
 use std::{fmt, path::Path, time::Duration};

@@ -586,6 +586,20 @@ pub(crate) async fn sync_account(
 mod handlers {
     use super::Caller;
     use crate::{
+        protocol::sync::{
+            self, ChangeSet, EventLogType, Merge, MergeOutcome, SyncPacket,
+            SyncStorage, UpdateSet,
+        },
+        sdk::{
+            constants::MIME_TYPE_PROTOBUF,
+            events::{
+                AccountDiff, AccountEvent, CheckedPatch, DiscEventLog,
+                EventLogExt, EventRecord, FolderDiff, Patch, WriteEvent,
+            },
+            storage::StorageEventLogs,
+        },
+    };
+    use crate::{
         protocol::{
             DiffRequest, DiffResponse, PatchRequest, PatchResponse,
             ScanRequest, ScanResponse, WireEncodeDecode,
@@ -600,19 +614,6 @@ mod handlers {
     use http::{
         header::{self, HeaderMap, HeaderValue},
         StatusCode,
-    };
-    use sos_sdk::{
-        constants::MIME_TYPE_PROTOBUF,
-        events::{
-            AccountDiff, AccountEvent, CheckedPatch, DiscEventLog,
-            EventLogExt, EventRecord, FolderDiff, Patch, WriteEvent,
-        },
-        storage::StorageEventLogs,
-    };
-
-    use crate::sync::{
-        self, ChangeSet, EventLogType, Merge, MergeOutcome, SyncPacket,
-        SyncStorage, UpdateSet,
     };
 
     use tokio::sync::RwLock;

@@ -1,5 +1,5 @@
 //! Error type for the client module.
-use crate::sync::{MaybeConflict, Origin, SyncError, SyncStatus};
+use crate::protocol::sync::{MaybeConflict, Origin, SyncError, SyncStatus};
 use http::StatusCode;
 use serde_json::Value;
 use std::error::Error as StdError;

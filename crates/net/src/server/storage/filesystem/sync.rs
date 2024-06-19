@@ -1,26 +1,27 @@
 //! Synchronization helpers.
 use super::ServerStorage;
-use crate::sdk::{
-    commit::{CommitState, CommitTree, Comparison},
-    encode,
-    events::{
-        AccountDiff, AccountEvent, AccountEventLog, CheckedPatch,
-        EventLogExt, FolderDiff, FolderEventLog, FolderPatch, FolderReducer,
-        LogEvent,
+use crate::{
+    protocol::sync::{
+        ChangeSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
+        UpdateSet,
     },
-    storage::StorageEventLogs,
-    vault::{VaultAccess, VaultId, VaultWriter},
-    vfs, Error, Paths, Result,
+    sdk::{
+        commit::{CommitState, CommitTree, Comparison},
+        encode,
+        events::{
+            AccountDiff, AccountEvent, AccountEventLog, CheckedPatch,
+            EventLogExt, FolderDiff, FolderEventLog, FolderPatch,
+            FolderReducer, LogEvent,
+        },
+        storage::StorageEventLogs,
+        vault::{VaultAccess, VaultId, VaultWriter},
+        vfs, Error, Paths, Result,
+    },
 };
 use async_trait::async_trait;
 use indexmap::IndexMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-
-use crate::sync::{
-    ChangeSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
-    UpdateSet,
-};
 
 #[cfg(feature = "device")]
 use crate::sdk::events::{DeviceDiff, DeviceEventLog, DeviceReducer};

@@ -19,6 +19,7 @@
 
 mod bindings;
 mod error;
+pub mod sync;
 
 pub use bindings::*;
 pub use error::Error;
