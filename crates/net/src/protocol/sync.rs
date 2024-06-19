@@ -103,16 +103,13 @@ impl TryFrom<WireComparison> for Comparison {
     type Error = Error;
 
     fn try_from(value: WireComparison) -> Result<Self> {
-        Ok(if let Some(true) = value.equal {
-            Self::Equal
-        } else if !value.contains.is_empty() {
-            Self::Contains(
-                value.contains.into_iter().map(|i| i as usize).collect(),
-            )
-        } else if let Some(true) = value.unknown {
-            Self::Unknown
-        } else {
-            unreachable!()
+        let inner = value.inner.unwrap();
+        Ok(match inner {
+            wire_comparison::Inner::Equal(_) => Self::Equal,
+            wire_comparison::Inner::Contains(value) => Self::Contains(
+                value.indices.into_iter().map(|i| i as usize).collect(),
+            ),
+            wire_comparison::Inner::Unknown(_) => Self::Unknown,
         })
     }
 }
@@ -121,19 +118,15 @@ impl From<Comparison> for WireComparison {
     fn from(value: Comparison) -> Self {
         match value {
             Comparison::Equal => WireComparison {
-                equal: Some(true),
-                contains: vec![],
-                unknown: Some(false),
+                inner: Some(wire_comparison::Inner::Equal(true)),
             },
             Comparison::Contains(indices) => WireComparison {
-                equal: Some(false),
-                contains: indices.into_iter().map(|i| i as u64).collect(),
-                unknown: Some(false),
+                inner: Some(wire_comparison::Inner::Contains(Contains {
+                    indices: indices.into_iter().map(|i| i as u64).collect(),
+                })),
             },
             Comparison::Unknown => WireComparison {
-                equal: Some(false),
-                contains: vec![],
-                unknown: Some(true),
+                inner: Some(wire_comparison::Inner::Unknown(true)),
             },
         }
     }

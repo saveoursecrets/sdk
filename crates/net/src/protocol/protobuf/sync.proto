@@ -124,13 +124,19 @@ message WireSyncDiff {
   repeated WireSyncFolderMaybeDiff folders = 5;
 }
 
+message Contains {
+    repeated uint64 indices = 1;
+}
+
 message WireComparison {
-  // Trees are equal
-  optional bool equal = 1;
-  // Tree contains the proof indices.
-  repeated uint64 contains = 2;
-  // Unknown comparison, trees may have diverged.
-  optional bool unknown = 3;
+  oneof inner {
+    // Trees are equal
+    bool equal = 1;
+    // Tree contains the proof indices.
+    Contains contains = 2;
+    // Unknown comparison, trees may have diverged.
+    bool unknown = 3;
+  }
 }
 
 message WireSyncFolderComparison {
