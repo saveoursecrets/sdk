@@ -40,11 +40,13 @@ impl Highlighter for MaskingHighlighter {
     }
 }
 
+/*
 pub fn clear_screen() -> Result<()> {
     let mut rl = basic_editor()?;
     rl.clear_screen()?;
     Ok(())
 }
+*/
 
 /// Read a passphrase from stdin prompt.
 pub fn read_password(prompt: Option<&str>) -> Result<SecretString> {

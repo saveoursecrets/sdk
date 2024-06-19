@@ -189,10 +189,10 @@ async fn print_status(
                 log.tree(),
             )?;
         }
-        (None, Some(remote_files)) => {
+        (None, Some(_remote_files)) => {
             print_title("📄 Files", "pull from server");
         }
-        (Some(local_files), None) => {
+        (Some(_local_files), None) => {
             print_title("📄 Files", "push to server");
         }
         _ => {}

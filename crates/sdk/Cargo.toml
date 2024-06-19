@@ -1,6 +1,6 @@
 [package]
 name = "sos-sdk"
-version = "0.12.1"
+version = "0.13.0"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
@@ -116,10 +116,6 @@ getrandom = {version = "0.2", features = ["js"]}
 uuid = { version = "1", features = ["serde", "v4", "js"] }
 tokio = { version = "1", default-features = false, features = ["rt", "sync", "macros", "io-util"] }
 
-#git = "https://github.com/tmpfs/rs-merkle"
-#branch = "sha2-update"
-#path = "../../../../forks/rs-merkle"
-
 [dependencies.chbs]
 version = "0.1.1"
 
@@ -130,6 +126,3 @@ sos_test_utils = { path = "../test_utils" }
 
 [build-dependencies]
 rustc_version = "0.4.0"
-
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(CHANNEL_NIGHTLY)'] }
