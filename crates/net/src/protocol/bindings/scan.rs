@@ -54,9 +54,8 @@ pub struct ScanResponse {
     pub first_proof: Option<CommitProof>,
     /// List of commit proofs.
     ///
-    /// Proofs are always listed in the order they
-    /// appear in the event log regardless of the scan
-    /// direction.
+    /// Proofs are listed in the order they
+    /// appear in the event log.
     pub proofs: Vec<CommitProof>,
     /// Offset that can be used to continue scanning.
     pub offset: u64,
