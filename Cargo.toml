@@ -1,6 +1,6 @@
 [package]
 name = "sos"
-version = "0.12.1"
+version = "0.13.0"
 edition = "2021"
 rust-version = "1.75.0"
 description = "Distributed, encrypted database for private secrets."
@@ -100,7 +100,7 @@ crossterm = "0.27"
 ctrlc = "3"
 
 [dependencies.sos-net]
-version = "0.12.0" 
+version = "0.13.0" 
 features = ["full"]
 path = "crates/net"
 
