@@ -1,9 +1,9 @@
 //! Listen for change notifications on a websocket connection.
-use axum::body::Bytes;
 use futures::{
     stream::{Map, SplitStream},
     Future, FutureExt, StreamExt,
 };
+use prost::bytes::Bytes;
 use std::{borrow::Cow, pin::Pin};
 use tokio_tungstenite::{
     connect_async,
@@ -67,42 +67,6 @@ impl ListenOptions {
         })
     }
 }
-
-/*
-/// Get the URI for a websocket connection.
-fn websocket_uri(endpoint: Url, connection_id: &str) -> String {
-    format!(
-        "{}?connection_id={}",
-        endpoint,
-        urlencoding::encode(connection_id),
-    )
-}
-*/
-
-/*
-/// Gets the endpoint URL for a websocket connection.
-///
-/// The `remote` must be an HTTP/S URL; it's scheme will
-/// be switched to `ws` or `wss` as appropiate and the path
-/// for the changes endpoint will be added.
-///
-/// Panics if the remote scheme is invalid or it failed to
-/// set the scheme on the endpoint.
-fn changes_endpoint_url(remote: &Url) -> Result<Url> {
-    let mut endpoint = remote.join("api/v1/sync/changes")?;
-    let scheme = if endpoint.scheme() == "http" {
-        "ws"
-    } else if endpoint.scheme() == "https" {
-        "wss"
-    } else {
-        panic!("bad url scheme for websocket connection, requires http(s)");
-    };
-    endpoint
-        .set_scheme(scheme)
-        .expect("failed to set websocket scheme");
-    Ok(endpoint)
-}
-*/
 
 /// Get the URI for a websocket changes connection.
 async fn request_bearer(
