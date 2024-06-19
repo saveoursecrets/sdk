@@ -7,11 +7,8 @@ import "protobuf/common.proto";
 message WireDiffRequest {
   // Type of event log.
   common.WireEventLogType log_type = 1;
-  // Folder identifier, must be present
-  // when the log event type is a folder.
-  optional bytes folder_id = 2;
   // Commit to generate the diff from.
-  common.WireCommitHash from_hash = 3;
+  common.WireCommitHash from_hash = 2;
 }
 
 message WireDiffResponse {

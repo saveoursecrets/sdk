@@ -87,7 +87,7 @@ impl From<SyncStatus> for WireSyncStatus {
                 .folders
                 .into_iter()
                 .map(|(k, v)| WireSyncFolderState {
-                    folder_id: encode_uuid(k),
+                    folder_id: encode_uuid(&k),
                     state: Some(v.into()),
                 })
                 .collect(),
@@ -285,7 +285,7 @@ impl From<ChangeSet> for WireChangeSet {
                 .folders
                 .into_iter()
                 .map(|(k, v)| WireSyncFolderPatch {
-                    folder_id: encode_uuid(k),
+                    folder_id: encode_uuid(&k),
                     patch: Some(v.into()),
                 })
                 .collect(),
@@ -363,7 +363,7 @@ impl From<UpdateSet> for WireUpdateSet {
                 .folders
                 .into_iter()
                 .map(|(k, v)| WireSyncFolderDiff {
-                    folder_id: encode_uuid(k),
+                    folder_id: encode_uuid(&k),
                     diff: Some(v.into()),
                 })
                 .collect(),
@@ -441,7 +441,7 @@ impl From<SyncDiff> for WireSyncDiff {
                 .folders
                 .into_iter()
                 .map(|(k, v)| WireSyncFolderMaybeDiff {
-                    folder_id: encode_uuid(k),
+                    folder_id: encode_uuid(&k),
                     maybe_diff: Some(v.into()),
                 })
                 .collect(),
@@ -519,7 +519,7 @@ impl From<SyncCompare> for WireSyncCompare {
                 .folders
                 .into_iter()
                 .map(|(k, v)| WireSyncFolderComparison {
-                    folder_id: super::encode_uuid(k),
+                    folder_id: encode_uuid(&k),
                     compare: Some(v.into()),
                 })
                 .collect(),
@@ -605,7 +605,7 @@ impl From<MergeOutcome> for WireMergeOutcome {
                 .folders
                 .into_iter()
                 .map(|(k, v)| WireFolderMergeOutcome {
-                    folder_id: encode_uuid(k),
+                    folder_id: encode_uuid(&k),
                     changes: v,
                 })
                 .collect(),

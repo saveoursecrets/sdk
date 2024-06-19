@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/diff.rs"));
 
-use super::{Error, Result, ProtoBinding};
+use super::{Error, ProtoBinding, Result};
 use crate::sdk::{
     commit::{CommitHash, CommitProof},
     events::{EventLogType, EventRecord},
@@ -23,15 +23,13 @@ impl TryFrom<WireDiffRequest> for DiffRequest {
     type Error = Error;
 
     fn try_from(value: WireDiffRequest) -> Result<Self> {
-        let log_type =
-            super::into_event_log_type(value.log_type, value.folder_id)?;
         let from_hash = if let Some(from_hash) = value.from_hash {
             Some(from_hash.try_into()?)
         } else {
             None
         };
         Ok(Self {
-            log_type,
+            log_type: value.log_type.unwrap().try_into()?,
             from_hash,
         })
     }
@@ -39,11 +37,8 @@ impl TryFrom<WireDiffRequest> for DiffRequest {
 
 impl From<DiffRequest> for WireDiffRequest {
     fn from(value: DiffRequest) -> WireDiffRequest {
-        let (log_type, folder_id) =
-            super::into_wire_event_log_type(value.log_type);
         Self {
-            log_type,
-            folder_id,
+            log_type: Some(value.log_type.into()),
             from_hash: value.from_hash.map(|h| h.into()),
         }
     }

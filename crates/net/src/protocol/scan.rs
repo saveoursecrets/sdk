@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/scan.rs"));
 
-use super::{Error, Result, ProtoBinding};
+use super::{Error, ProtoBinding, Result};
 use crate::sdk::{commit::CommitProof, events::EventLogType};
 
 /// Request commit proofs from an event log.
@@ -27,10 +27,8 @@ impl TryFrom<WireScanRequest> for ScanRequest {
     type Error = Error;
 
     fn try_from(value: WireScanRequest) -> Result<Self> {
-        let log_type =
-            super::into_event_log_type(value.log_type, value.folder_id)?;
         Ok(Self {
-            log_type,
+            log_type: value.log_type.unwrap().try_into()?,
             limit: value.limit.unwrap() as u16,
             offset: value.offset,
         })
@@ -39,11 +37,8 @@ impl TryFrom<WireScanRequest> for ScanRequest {
 
 impl From<ScanRequest> for WireScanRequest {
     fn from(value: ScanRequest) -> WireScanRequest {
-        let (log_type, folder_id) =
-            super::into_wire_event_log_type(value.log_type);
         Self {
-            log_type,
-            folder_id,
+            log_type: Some(value.log_type.into()),
             limit: Some(value.limit as u32),
             offset: value.offset,
         }

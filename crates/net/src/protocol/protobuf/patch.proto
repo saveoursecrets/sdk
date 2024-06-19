@@ -7,17 +7,14 @@ import "protobuf/common.proto";
 message WirePatchRequest {
   // Type of event log.
   common.WireEventLogType log_type = 1;
-  // Folder identifier, must be present
-  // when the log event type is a folder.
-  optional bytes folder_id = 2;
   // Hash of a commit to rewind to before
   // applying the patch.
-  optional common.WireCommitHash commit = 3;
+  optional common.WireCommitHash commit = 2;
   /// Proof for head of the event log before the
   /// events are applied.
-  optional common.WireCommitProof proof = 4;
+  optional common.WireCommitProof proof = 3;
   // Patch of event records to apply.
-  repeated common.WireEventRecord patch = 5;
+  repeated common.WireEventRecord patch = 4;
 }
 
 message WirePatchResponse {

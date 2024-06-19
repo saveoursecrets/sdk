@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/patch.rs"));
 
-use super::{Error, Result, ProtoBinding};
+use super::{Error, ProtoBinding, Result};
 use crate::sdk::{
     commit::{CommitHash, CommitProof},
     events::{CheckedPatch, EventLogType, EventRecord},
@@ -32,9 +32,6 @@ impl TryFrom<WirePatchRequest> for PatchRequest {
     type Error = Error;
 
     fn try_from(value: WirePatchRequest) -> Result<Self> {
-        let log_type =
-            super::into_event_log_type(value.log_type, value.folder_id)?;
-
         let commit = if let Some(commit) = value.commit {
             Some(commit.try_into()?)
         } else {
@@ -47,7 +44,7 @@ impl TryFrom<WirePatchRequest> for PatchRequest {
         }
 
         Ok(Self {
-            log_type,
+            log_type: value.log_type.unwrap().try_into()?,
             commit,
             proof: value.proof.unwrap().try_into()?,
             patch,
@@ -57,11 +54,8 @@ impl TryFrom<WirePatchRequest> for PatchRequest {
 
 impl From<PatchRequest> for WirePatchRequest {
     fn from(value: PatchRequest) -> WirePatchRequest {
-        let (log_type, folder_id) =
-            super::into_wire_event_log_type(value.log_type);
         Self {
-            log_type,
-            folder_id,
+            log_type: Some(value.log_type.into()),
             commit: value.commit.map(|c| c.into()),
             proof: Some(value.proof.into()),
             patch: value.patch.into_iter().map(|e| e.into()).collect(),

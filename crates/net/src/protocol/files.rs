@@ -4,7 +4,7 @@ include!(concat!(env!("OUT_DIR"), "/files.rs"));
 mod files {
     use super::*;
     use crate::{
-        protocol::{decode_uuid, encode_uuid, Error, Result, ProtoBinding},
+        protocol::{decode_uuid, encode_uuid, Error, ProtoBinding, Result},
         sdk::{
             storage::files::{ExternalFile, ExternalFileName},
             vault::{secret::SecretId, VaultId},
@@ -37,8 +37,8 @@ mod files {
                 ExternalFileName,
             ) = value.into();
             Self {
-                folder_id: encode_uuid(folder_id),
-                secret_id: encode_uuid(secret_id),
+                folder_id: encode_uuid(&folder_id),
+                secret_id: encode_uuid(&secret_id),
                 file_name: file_name.as_ref().to_vec(),
             }
         }

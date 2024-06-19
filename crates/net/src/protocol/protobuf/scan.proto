@@ -7,14 +7,11 @@ import "protobuf/common.proto";
 message WireScanRequest {
   // Type of event log.
   common.WireEventLogType log_type = 1;
-  // Folder identifier, must be present
-  // when the log event type is a folder.
-  optional bytes folder_id = 2;
   // Limit on the number of proofs the server
   // should return.
-  optional uint32 limit = 3;
+  optional uint32 limit = 2;
   // Offset to resume a scan from.
-  uint64 offset = 4;
+  uint64 offset = 3;
 }
 
 message WireScanResponse {

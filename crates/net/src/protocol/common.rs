@@ -1,9 +1,9 @@
 include!(concat!(env!("OUT_DIR"), "/common.rs"));
 
-use super::{Error, ProtoBinding, Result};
+use super::{decode_uuid, encode_uuid, Error, ProtoBinding, Result};
 use crate::sdk::{
     commit::{CommitHash, CommitProof, CommitState},
-    events::{CheckedPatch, EventRecord},
+    events::{CheckedPatch, EventLogType, EventRecord},
     time::{Duration, OffsetDateTime},
     UtcDateTime,
 };
@@ -186,6 +186,76 @@ impl From<CheckedPatch> for WireCheckedPatch {
                     },
                 )),
             },
+        }
+    }
+}
+
+impl ProtoBinding for EventLogType {
+    type Inner = WireEventLogType;
+}
+
+impl TryFrom<WireEventLogType> for EventLogType {
+    type Error = Error;
+
+    fn try_from(value: WireEventLogType) -> Result<Self> {
+        let inner = value.inner.unwrap();
+        Ok(match inner {
+            wire_event_log_type::Inner::User(value) => {
+                EventLogType::Folder(decode_uuid(&value.folder_id)?)
+            }
+            wire_event_log_type::Inner::System(value) => {
+                let value: WireEventLogTypeSystem = value.try_into()?;
+                let name = value.as_str_name();
+                match name {
+                    "Identity" => EventLogType::Identity,
+                    "Account" => EventLogType::Account,
+                    #[cfg(feature = "device")]
+                    "Device" => EventLogType::Device,
+                    #[cfg(feature = "files")]
+                    "Files" => EventLogType::Files,
+                    _ => unreachable!(),
+                }
+            }
+        })
+    }
+}
+
+impl From<EventLogType> for WireEventLogType {
+    fn from(value: EventLogType) -> Self {
+        if let EventLogType::Folder(id) = &value {
+            Self {
+                inner: Some(wire_event_log_type::Inner::User(
+                    WireEventLogTypeUser {
+                        folder_id: encode_uuid(id),
+                    },
+                )),
+            }
+        } else {
+            let system: i32 = match value {
+                EventLogType::Identity => {
+                    WireEventLogTypeSystem::from_str_name("Identity").unwrap()
+                        as i32
+                }
+                EventLogType::Account => {
+                    WireEventLogTypeSystem::from_str_name("Account").unwrap()
+                        as i32
+                }
+                #[cfg(feature = "device")]
+                EventLogType::Device => {
+                    WireEventLogTypeSystem::from_str_name("Device").unwrap()
+                        as i32
+                }
+                #[cfg(feature = "files")]
+                EventLogType::Files => {
+                    WireEventLogTypeSystem::from_str_name("Files").unwrap()
+                        as i32
+                }
+                _ => unreachable!(),
+            };
+
+            Self {
+                inner: Some(wire_event_log_type::Inner::System(system)),
+            }
         }
     }
 }

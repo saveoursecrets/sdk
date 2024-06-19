@@ -75,41 +75,6 @@ pub enum EventLogType {
     Folder(VaultId),
 }
 
-impl EventLogType {
-    /// Kind identifier of the identity log.
-    pub const IDENTITY_LOG: u8 = 1;
-    /// Kind identifier of the account log.
-    pub const ACCOUNT_LOG: u8 = 2;
-    /// Kind identifier of the device log.
-    #[cfg(feature = "device")]
-    pub const DEVICE_LOG: u8 = 3;
-    /// Kind identifier of the files log.
-    #[cfg(feature = "files")]
-    pub const FILES_LOG: u8 = 4;
-    /// Kind identifier of a folder log.
-    pub const FOLDER_LOG: u8 = 5;
-}
-
-impl From<&EventLogType> for u8 {
-    fn from(value: &EventLogType) -> Self {
-        match value {
-            EventLogType::Identity => EventLogType::IDENTITY_LOG,
-            EventLogType::Account => EventLogType::ACCOUNT_LOG,
-            #[cfg(feature = "device")]
-            EventLogType::Device => EventLogType::DEVICE_LOG,
-            #[cfg(feature = "files")]
-            EventLogType::Files => EventLogType::FILES_LOG,
-            EventLogType::Folder(_) => EventLogType::FOLDER_LOG,
-        }
-    }
-}
-
-impl From<EventLogType> for u8 {
-    fn from(value: EventLogType) -> Self {
-        (&value).into()
-    }
-}
-
 /// Encode an event into a record.
 #[async_trait]
 pub trait IntoRecord {

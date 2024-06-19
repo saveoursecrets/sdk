@@ -39,10 +39,8 @@ pub(crate) use relay::{
     PairingRequest, RelayHeader, RelayPacket, RelayPayload,
 };
 
-pub use scan::{ScanRequest, ScanResponse};
-
-use crate::sdk::events::EventLogType;
 use prost::{bytes::Buf, Message};
+pub use scan::{ScanRequest, ScanResponse};
 
 /// Result type for the wire protocol.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -138,36 +136,6 @@ fn decode_uuid(id: &[u8]) -> Result<uuid::Uuid> {
     Ok(uuid::Uuid::from_bytes(id))
 }
 
-fn encode_uuid(id: uuid::Uuid) -> Vec<u8> {
+fn encode_uuid(id: &uuid::Uuid) -> Vec<u8> {
     id.as_bytes().to_vec()
-}
-
-fn into_event_log_type(
-    wire_type: i32,
-    folder_id: Option<Vec<u8>>,
-) -> Result<EventLogType> {
-    Ok(match wire_type {
-        0 => EventLogType::Identity,
-        1 => EventLogType::Account,
-        #[cfg(feature = "device")]
-        2 => EventLogType::Device,
-        #[cfg(feature = "files")]
-        3 => EventLogType::Files,
-        4 => EventLogType::Folder(decode_uuid(folder_id.as_ref().unwrap())?),
-        _ => return Err(Error::UnknownEventLogType(wire_type)),
-    })
-}
-
-fn into_wire_event_log_type(
-    log_type: EventLogType,
-) -> (i32, Option<Vec<u8>>) {
-    match log_type {
-        EventLogType::Identity => (0, None),
-        EventLogType::Account => (1, None),
-        #[cfg(feature = "device")]
-        EventLogType::Device => (2, None),
-        #[cfg(feature = "files")]
-        EventLogType::Files => (3, None),
-        EventLogType::Folder(id) => (4, Some(encode_uuid(id))),
-    }
 }
