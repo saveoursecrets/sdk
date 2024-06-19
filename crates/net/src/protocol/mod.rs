@@ -16,31 +16,14 @@
 //
 // A 64-bit machine is assumed as we cast between `u64` and `usize`
 // for convenience, the code may panic on 32-bit machines.
-mod common;
-mod diff;
-mod error;
-mod files;
-#[cfg(feature = "listen")]
-mod notifications;
-mod patch;
-#[cfg(feature = "pairing")]
-mod relay;
-mod scan;
-mod sync;
 
-pub use diff::{DiffRequest, DiffResponse};
+mod bindings;
+mod error;
+
+pub use bindings::*;
 pub use error::Error;
-#[cfg(feature = "listen")]
-pub use notifications::ChangeNotification;
-pub use patch::{PatchRequest, PatchResponse};
-#[cfg(feature = "pairing")]
-pub(crate) use relay::{
-    pairing_message, PairingConfirm, PairingMessage, PairingReady,
-    PairingRequest, RelayHeader, RelayPacket, RelayPayload,
-};
 
 use prost::{bytes::Buf, Message};
-pub use scan::{ScanRequest, ScanResponse};
 
 /// Result type for the wire protocol.
 pub type Result<T> = std::result::Result<T, Error>;

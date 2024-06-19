@@ -1,7 +1,7 @@
 include!(concat!(env!("OUT_DIR"), "/common.rs"));
 
-use super::{decode_uuid, encode_uuid, Error, ProtoBinding, Result};
 use crate::{
+    protocol::{decode_uuid, encode_uuid, Error, ProtoBinding, Result},
     sdk::{
         commit::{CommitHash, CommitProof, CommitState},
         events::{CheckedPatch, EventRecord},

@@ -1,13 +1,15 @@
 include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 
-use super::{decode_uuid, encode_uuid, Error, ProtoBinding, Result};
-use crate::sdk::{
-    commit::Comparison,
-    events::{Diff, EventRecord, Patch},
-};
-use crate::sync::{
-    ChangeSet, MaybeDiff, MergeOutcome, Origin, SyncCompare, SyncDiff,
-    SyncPacket, SyncStatus, UpdateSet,
+use crate::{
+    protocol::{decode_uuid, encode_uuid, Error, ProtoBinding, Result},
+    sdk::{
+        commit::Comparison,
+        events::{Diff, EventRecord, Patch},
+    },
+    sync::{
+        ChangeSet, MaybeDiff, MergeOutcome, Origin, SyncCompare, SyncDiff,
+        SyncPacket, SyncStatus, UpdateSet,
+    },
 };
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;

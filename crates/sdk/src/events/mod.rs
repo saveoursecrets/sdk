@@ -31,7 +31,6 @@ pub use self::log::{
     EventRecord, FolderEventLog, FolderReducer, MemoryData, MemoryEventLog,
     MemoryFolderLog, MemoryLog,
 };
-use crate::vault::VaultId;
 
 #[cfg(feature = "device")]
 pub use self::log::{DeviceEventLog, DeviceReducer};
