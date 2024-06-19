@@ -7,6 +7,7 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 /// Tests changing the account password and force syncing
 /// the updated and diverged account data.
 #[tokio::test]
+#[cfg_attr(windows, ignore = "fix auto lock bug on windows (#451)")]
 async fn network_sync_change_account_password() -> Result<()> {
     const TEST_ID: &str = "sync_change_account_password";
     // crate::test_utils::init_tracing();

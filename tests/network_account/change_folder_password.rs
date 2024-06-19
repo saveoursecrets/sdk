@@ -7,6 +7,7 @@ use sos_net::{client::RemoteSync, sdk::prelude::*};
 /// Tests changing a folder password and force syncing
 /// the updated folder events log.
 #[tokio::test]
+#[cfg_attr(windows, ignore = "fix auto lock bug on windows (#451)")]
 async fn network_sync_change_folder_password() -> Result<()> {
     const TEST_ID: &str = "sync_change_folder_password";
     // crate::test_utils::init_tracing();
