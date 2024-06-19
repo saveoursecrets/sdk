@@ -3,6 +3,7 @@
 mod folder;
 mod local_account;
 mod primitives;
+mod transport;
 
 #[cfg(feature = "files")]
 mod transfer;
@@ -11,5 +12,6 @@ mod transfer;
 pub use transfer::*;
 
 pub use primitives::*;
+pub use transport::*;
 
 pub(crate) use folder::{FolderMerge, IdentityFolderMerge};

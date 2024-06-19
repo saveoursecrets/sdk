@@ -4,7 +4,7 @@ use prost::bytes::Bytes;
 
 use crate::{
     protocol::{
-        sync::{EventLogType, MergeOutcome},
+        sync::{EventLogType, MergeOutcome, Origin, SyncCompare, SyncStatus},
         DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
         ScanResponse, WireEncodeDecode,
     },
@@ -104,7 +104,6 @@ async fn encode_decode_checked_patch() -> Result<()> {
     let buffer: Bytes = buffer.into();
     let decoded = CheckedPatch::decode(buffer).await?;
     assert_eq!(value, decoded);
-
     Ok(())
 }
 
@@ -120,7 +119,6 @@ async fn encode_decode_diff_request() -> Result<()> {
     let buffer: Bytes = buffer.into();
     let decoded = DiffRequest::decode(buffer).await?;
     assert_eq!(value, decoded);
-
     Ok(())
 }
 
@@ -145,7 +143,6 @@ async fn encode_decode_diff_response() -> Result<()> {
     let buffer: Bytes = buffer.into();
     let decoded = DiffResponse::decode(buffer).await?;
     assert_eq!(value, decoded);
-
     Ok(())
 }
 
@@ -161,7 +158,6 @@ async fn encode_decode_scan_request() -> Result<()> {
     let buffer: Bytes = buffer.into();
     let decoded = ScanRequest::decode(buffer).await?;
     assert_eq!(value, decoded);
-
     Ok(())
 }
 
@@ -177,7 +173,6 @@ async fn encode_decode_scan_response() -> Result<()> {
     let buffer: Bytes = buffer.into();
     let decoded = ScanResponse::decode(buffer).await?;
     assert_eq!(value, decoded);
-
     Ok(())
 }
 
@@ -204,7 +199,6 @@ async fn encode_decode_patch_request() -> Result<()> {
     let buffer: Bytes = buffer.into();
     let decoded = PatchRequest::decode(buffer).await?;
     assert_eq!(value, decoded);
-
     Ok(())
 }
 
@@ -216,7 +210,6 @@ async fn encode_decode_patch_response() -> Result<()> {
     let buffer: Bytes = buffer.into();
     let decoded = PatchResponse::decode(buffer).await?;
     assert_eq!(value, decoded);
-
     Ok(())
 }
 
@@ -230,7 +223,6 @@ async fn encode_decode_merge_outcom() -> Result<()> {
     let buffer: Bytes = buffer.into();
     let decoded = MergeOutcome::decode(buffer).await?;
     assert_eq!(value, decoded);
-
     Ok(())
 }
 
@@ -253,7 +245,6 @@ async fn encode_decode_change_notification() -> Result<()> {
     let buffer: Bytes = buffer.into();
     let decoded = ChangeNotification::decode(buffer).await?;
     assert_eq!(value, decoded);
-
     Ok(())
 }
 
@@ -264,7 +255,6 @@ async fn encode_decode_event_log_type_system() -> Result<()> {
     let buffer: Bytes = buffer.into();
     let decoded = EventLogType::decode(buffer).await?;
     assert_eq!(value, decoded);
-
     Ok(())
 }
 
@@ -275,7 +265,37 @@ async fn encode_decode_event_log_type_user() -> Result<()> {
     let buffer: Bytes = buffer.into();
     let decoded = EventLogType::decode(buffer).await?;
     assert_eq!(value, decoded);
+    Ok(())
+}
 
+#[tokio::test]
+async fn encode_decode_origin() -> Result<()> {
+    let value =
+        Origin::new("example".to_string(), "https://example.com".parse()?);
+    let buffer = value.clone().encode().await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = Origin::decode(buffer).await?;
+    assert_eq!(value, decoded);
+    Ok(())
+}
+
+#[tokio::test]
+async fn encode_decode_sync_status() -> Result<()> {
+    let value = SyncStatus::default();
+    let buffer = value.clone().encode().await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = SyncStatus::decode(buffer).await?;
+    assert_eq!(value, decoded);
+    Ok(())
+}
+
+#[tokio::test]
+async fn encode_decode_sync_compare() -> Result<()> {
+    let value = SyncCompare::default();
+    let buffer = value.clone().encode().await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = SyncCompare::decode(buffer).await?;
+    assert_eq!(value, decoded);
     Ok(())
 }
 
