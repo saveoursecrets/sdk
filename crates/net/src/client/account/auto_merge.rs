@@ -8,8 +8,8 @@ use sos_sdk::{
     account::Account,
     commit::{CommitHash, CommitProof, CommitTree},
     events::{
-        AccountDiff, AccountEvent, CheckedPatch, EventLogExt, EventLogType,
-        EventRecord, FolderDiff, Patch, WriteEvent,
+        AccountDiff, AccountEvent, CheckedPatch, EventLogExt, EventRecord,
+        FolderDiff, Patch, WriteEvent,
     },
     storage::StorageEventLogs,
     vault::VaultId,
@@ -18,8 +18,8 @@ use std::collections::HashSet;
 use tracing::instrument;
 
 use crate::sync::{
-    ForceMerge, HardConflictResolver, MaybeConflict, Merge, MergeOutcome,
-    SyncOptions, SyncStatus,
+    EventLogType, ForceMerge, HardConflictResolver, MaybeConflict, Merge,
+    MergeOutcome, SyncOptions, SyncStatus,
 };
 
 const PROOF_SCAN_LIMIT: u16 = 32;

@@ -9,11 +9,11 @@ use crate::{
     },
     sdk::{
         commit::{CommitHash, CommitProof, CommitState},
-        events::{CheckedPatch, EventLogType, EventRecord},
+        events::{CheckedPatch, EventRecord},
         signer::ecdsa::Address,
         UtcDateTime,
     },
-    sync::MergeOutcome,
+    sync::{EventLogType, MergeOutcome},
 };
 
 const HASH: &str =

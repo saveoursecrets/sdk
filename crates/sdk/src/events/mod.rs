@@ -58,23 +58,6 @@ pub trait LogEvent {
     fn event_kind(&self) -> EventKind;
 }
 
-/// Types of event logs.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum EventLogType {
-    /// Identity folder event log.
-    Identity,
-    /// Account event log.
-    Account,
-    /// Device event log.
-    #[cfg(feature = "device")]
-    Device,
-    /// Files event log.
-    #[cfg(feature = "files")]
-    Files,
-    /// Folder event log.
-    Folder(VaultId),
-}
-
 /// Encode an event into a record.
 #[async_trait]
 pub trait IntoRecord {

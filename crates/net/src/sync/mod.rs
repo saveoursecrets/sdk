@@ -39,6 +39,23 @@ use crate::sdk::{
     storage::files::ExternalFile,
 };
 
+/// Types of event logs.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum EventLogType {
+    /// Identity folder event log.
+    Identity,
+    /// Account event log.
+    Account,
+    /// Device event log.
+    #[cfg(feature = "device")]
+    Device,
+    /// Files event log.
+    #[cfg(feature = "files")]
+    Files,
+    /// Folder event log.
+    Folder(VaultId),
+}
+
 /// Server origin information.
 #[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub struct Origin {

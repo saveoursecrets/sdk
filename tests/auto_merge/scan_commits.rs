@@ -1,6 +1,9 @@
 use crate::test_utils::{mock, simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::{client::SyncClient, protocol::ScanRequest, sdk::prelude::*};
+use sos_net::{
+    client::SyncClient, protocol::ScanRequest, sdk::prelude::*,
+    sync::EventLogType,
+};
 
 /// Tests scanning commit hashes on remote servers.
 #[tokio::test]

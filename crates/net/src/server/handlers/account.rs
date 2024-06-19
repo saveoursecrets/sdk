@@ -605,15 +605,14 @@ mod handlers {
         constants::MIME_TYPE_PROTOBUF,
         events::{
             AccountDiff, AccountEvent, CheckedPatch, DiscEventLog,
-            EventLogExt, EventLogType, EventRecord, FolderDiff, Patch,
-            WriteEvent,
+            EventLogExt, EventRecord, FolderDiff, Patch, WriteEvent,
         },
         storage::StorageEventLogs,
     };
 
     use crate::sync::{
-        self, ChangeSet, Merge, MergeOutcome, SyncPacket, SyncStorage,
-        UpdateSet,
+        self, ChangeSet, EventLogType, Merge, MergeOutcome, SyncPacket,
+        SyncStorage, UpdateSet,
     };
 
     use tokio::sync::RwLock;
