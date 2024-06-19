@@ -216,7 +216,7 @@ pub async fn cd_folder(
             reader.find(|s| s.flags().is_default()).cloned()
         };
 
-        summary.ok_or(Error::NoVault)?
+        summary.ok_or(Error::NoFolderFound)?
     };
     let mut owner = user.write().await;
     owner.open_folder(&summary).await?;

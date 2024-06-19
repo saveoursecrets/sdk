@@ -1,24 +1,34 @@
-#[cfg(not(target_arch = "wasm32"))]
+//! Command line tools for [Save Our Secrets](https://saveoursecrets.com).
+//!
+//! This crate contains the binaries for the `sos` client and
+//! the `sos-server` reference server; more information is on the
+//! [command line tools](https://saveoursecrets.com/command-line-tools/) downloads page.
+//!
+//! See the [CLI documentation](https://saveoursecrets.com/docs/cli/) for usage information or browse the [online help manual](https://saveoursecrets.com/docs/cli/help/); the libraries are available at [sos-sdk](https://docs.rs/sos-sdk/) and [sos-net](https://docs.rs/sos-net/).
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+
+#[doc(hidden)]
 pub mod cli;
-#[cfg(not(target_arch = "wasm32"))]
+#[doc(hidden)]
 pub mod commands;
-#[cfg(not(target_arch = "wasm32"))]
 mod error;
-#[cfg(not(target_arch = "wasm32"))]
+
 pub(crate) mod helpers;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub use error::Error;
-#[cfg(not(target_arch = "wasm32"))]
-pub type Result<T> = std::result::Result<T, error::Error>;
-
+#[doc(hidden)]
 pub use helpers::{messages::*, USER};
 
-use serde::{Deserialize, Serialize};
+#[doc(hidden)]
+pub use error::Error;
+
+/// Result type for the executable library.
+#[doc(hidden)]
+pub type Result<T> = std::result::Result<T, error::Error>;
 
 /// Command tree used to print help output for the website.
 #[doc(hidden)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct CommandTree {
     /// Name of the command.
     pub name: String,
