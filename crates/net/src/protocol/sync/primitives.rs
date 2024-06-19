@@ -1,6 +1,6 @@
 //! Synchronization types that are used internally.
 use crate::protocol::sync::{
-    ChangeSet, MaybeDiff, MergeOutcome, Origin, SyncCompare, SyncDiff,
+    CreateSet, MaybeDiff, MergeOutcome, Origin, SyncCompare, SyncDiff,
     SyncStatus,
 };
 use crate::sdk::{
@@ -515,7 +515,7 @@ pub trait SyncStorage: StorageEventLogs {
     ///
     /// Used by network aware implementations to transfer
     /// entire accounts.
-    async fn change_set(&self) -> Result<ChangeSet> {
+    async fn change_set(&self) -> Result<CreateSet> {
         let identity = {
             let log = self.identity_log().await?;
             let reader = log.read().await;
@@ -551,7 +551,7 @@ pub trait SyncStorage: StorageEventLogs {
             folders.insert(*id, log_file.diff_events(None).await?);
         }
 
-        Ok(ChangeSet {
+        Ok(CreateSet {
             identity,
             account,
             folders,

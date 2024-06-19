@@ -74,7 +74,7 @@ pub(crate) async fn account_exists(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = ChangeSet,
+        content = CreateSet,
     ),
     responses(
         (
@@ -186,7 +186,7 @@ pub(crate) async fn delete_account(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = ChangeSet,
+        content = CreateSet,
     ),
     responses(
         (
@@ -259,7 +259,7 @@ pub(crate) async fn update_account(
             status = StatusCode::OK,
             content_type = "application/octet-stream",
             description = "Account data sent.",
-            body = ChangeSet,
+            body = CreateSet,
         ),
     ),
 )]
@@ -587,7 +587,7 @@ mod handlers {
     use super::Caller;
     use crate::{
         protocol::sync::{
-            self, ChangeSet, EventLogType, Merge, MergeOutcome, SyncPacket,
+            self, CreateSet, EventLogType, Merge, MergeOutcome, SyncPacket,
             SyncStorage, UpdateSet,
         },
         sdk::{
@@ -653,7 +653,7 @@ mod handlers {
             }
         }
 
-        let account = ChangeSet::decode(bytes).await?;
+        let account = CreateSet::decode(bytes).await?;
         let mut writer = backend.write().await;
         writer.create_account(caller.address(), account).await?;
         Ok(())
@@ -687,7 +687,7 @@ mod handlers {
         caller: Caller,
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let reader = backend.read().await;
-        let account: ChangeSet =
+        let account: CreateSet =
             reader.fetch_account(caller.address()).await?;
 
         let mut headers = HeaderMap::new();

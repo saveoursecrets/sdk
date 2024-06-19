@@ -4,7 +4,7 @@ use crate::{
     protocol::{
         decode_uuid, encode_uuid,
         sync::{
-            ChangeSet, MaybeDiff, MergeOutcome, Origin, SyncCompare,
+            CreateSet, MaybeDiff, MergeOutcome, Origin, SyncCompare,
             SyncDiff, SyncPacket, SyncStatus, UpdateSet,
         },
         Error, ProtoBinding, Result,
@@ -246,14 +246,14 @@ where
     }
 }
 
-impl ProtoBinding for ChangeSet {
-    type Inner = WireChangeSet;
+impl ProtoBinding for CreateSet {
+    type Inner = WireCreateSet;
 }
 
-impl TryFrom<WireChangeSet> for ChangeSet {
+impl TryFrom<WireCreateSet> for CreateSet {
     type Error = Error;
 
-    fn try_from(value: WireChangeSet) -> Result<Self> {
+    fn try_from(value: WireCreateSet) -> Result<Self> {
         let mut folders = HashMap::with_capacity(value.folders.len());
         for folder in value.folders {
             folders.insert(
@@ -273,8 +273,8 @@ impl TryFrom<WireChangeSet> for ChangeSet {
     }
 }
 
-impl From<ChangeSet> for WireChangeSet {
-    fn from(value: ChangeSet) -> Self {
+impl From<CreateSet> for WireCreateSet {
+    fn from(value: CreateSet) -> Self {
         Self {
             identity: Some(value.identity.into()),
             account: Some(value.account.into()),

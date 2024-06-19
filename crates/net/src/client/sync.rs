@@ -3,7 +3,7 @@ use crate::{
     client::{CancelReason, Result},
     protocol::{
         sync::{
-            ChangeSet, Origin, SyncOptions, SyncPacket, SyncStatus, UpdateSet,
+            CreateSet, Origin, SyncOptions, SyncPacket, SyncStatus, UpdateSet,
         },
         DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
         ScanResponse,
@@ -70,13 +70,13 @@ pub trait SyncClient {
     async fn account_exists(&self) -> Result<bool>;
 
     /// Create a new account.
-    async fn create_account(&self, account: ChangeSet) -> Result<()>;
+    async fn create_account(&self, account: CreateSet) -> Result<()>;
 
     /// Update an account.
     async fn update_account(&self, account: UpdateSet) -> Result<()>;
 
     /// Fetch an account from a remote server.
-    async fn fetch_account(&self) -> Result<ChangeSet>;
+    async fn fetch_account(&self) -> Result<CreateSet>;
 
     /// Delete the account on the server.
     async fn delete_account(&self) -> Result<()>;

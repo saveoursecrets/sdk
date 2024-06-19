@@ -5,7 +5,7 @@ use prost::bytes::Bytes;
 use crate::{
     protocol::{
         sync::{
-            ChangeSet, EventLogType, MaybeDiff, MergeOutcome, Origin,
+            CreateSet, EventLogType, MaybeDiff, MergeOutcome, Origin,
             SyncCompare, SyncDiff, SyncPacket, SyncStatus, UpdateSet,
         },
         DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
@@ -337,11 +337,11 @@ async fn encode_decode_maybe_diff() -> Result<()> {
 
 #[tokio::test]
 async fn encode_decode_create_set() -> Result<()> {
-    let value = ChangeSet::default();
+    let value = CreateSet::default();
     let buffer = value.encode().await?;
     let buffer: Bytes = buffer.into();
-    let decoded = ChangeSet::decode(buffer).await?;
-    assert_eq!(ChangeSet::default(), decoded);
+    let decoded = CreateSet::decode(buffer).await?;
+    assert_eq!(CreateSet::default(), decoded);
     Ok(())
 }
 

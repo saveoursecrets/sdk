@@ -2,7 +2,7 @@
 use super::ServerStorage;
 use crate::{
     protocol::sync::{
-        ChangeSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
+        CreateSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
         UpdateSet,
     },
     sdk::{
@@ -71,7 +71,7 @@ impl ServerStorage {
     /// account from a collection of patches.
     pub async fn import_account(
         &mut self,
-        account_data: &ChangeSet,
+        account_data: &CreateSet,
     ) -> Result<()> {
         {
             let mut writer = self.account_log.write().await;

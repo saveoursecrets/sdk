@@ -10,7 +10,7 @@ use crate::{
     client::{CancelReason, Error, Result, SyncClient},
     protocol::{
         sync::{
-            ChangeSet, FileSet, FileTransfersSet, Origin, SyncPacket,
+            CreateSet, FileSet, FileTransfersSet, Origin, SyncPacket,
             SyncStatus, UpdateSet,
         },
         DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
@@ -259,7 +259,7 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn create_account(&self, account: ChangeSet) -> Result<()> {
+    async fn create_account(&self, account: CreateSet) -> Result<()> {
         let body = account.encode().await?;
         let url = self.build_url("api/v1/sync/account")?;
 
@@ -312,7 +312,7 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn fetch_account(&self) -> Result<ChangeSet> {
+    async fn fetch_account(&self) -> Result<CreateSet> {
         let url = self.build_url("api/v1/sync/account")?;
 
         tracing::debug!(url = %url, "http::fetch_account");
@@ -337,7 +337,7 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::fetch_account");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(ChangeSet::decode(buffer).await?)
+        Ok(CreateSet::decode(buffer).await?)
     }
 
     #[instrument(skip_all)]

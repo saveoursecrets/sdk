@@ -1,6 +1,6 @@
 use super::{Error, Result};
 use crate::{
-    protocol::sync::{ChangeSet, MergeOutcome, SyncStorage, UpdateSet},
+    protocol::sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet},
     sdk::{
         signer::{
             ecdsa::Address,
@@ -118,7 +118,7 @@ impl Backend {
     pub async fn create_account(
         &mut self,
         owner: &Address,
-        account_data: ChangeSet,
+        account_data: CreateSet,
     ) -> Result<()> {
         {
             let accounts = self.accounts.read().await;
@@ -193,7 +193,7 @@ impl Backend {
     }
 
     /// Fetch an existing account.
-    pub async fn fetch_account(&self, owner: &Address) -> Result<ChangeSet> {
+    pub async fn fetch_account(&self, owner: &Address) -> Result<CreateSet> {
         tracing::debug!(address = %owner, "backend::fetch_account");
 
         let accounts = self.accounts.read().await;

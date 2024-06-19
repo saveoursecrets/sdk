@@ -213,7 +213,7 @@ pub struct SyncDiff {
 
 /// Collection of patches for an account.
 #[derive(Debug, Default, PartialEq, Eq)]
-pub struct ChangeSet {
+pub struct CreateSet {
     /// Identity vault event logs.
     pub identity: FolderPatch,
     /// Account event logs.

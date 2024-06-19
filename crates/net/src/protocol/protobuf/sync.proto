@@ -47,7 +47,7 @@ message WireSyncFolderPatch {
   WirePatch patch = 2;
 }
 
-message WireChangeSet {
+message WireCreateSet {
   // Patch for the identity folder.
   WirePatch identity = 1;
   // Patch for the account events.
