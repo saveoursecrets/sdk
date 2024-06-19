@@ -12,6 +12,7 @@ use crate::{
         commit::{CommitHash, CommitProof, CommitState},
         events::{CheckedPatch, EventRecord},
         signer::ecdsa::Address,
+        vault::VaultId,
         UtcDateTime,
     },
 };
@@ -256,15 +257,34 @@ async fn encode_decode_change_notification() -> Result<()> {
     Ok(())
 }
 
+#[tokio::test]
+async fn encode_decode_event_log_type_system() -> Result<()> {
+    let value = EventLogType::Identity;
+    let buffer = value.clone().encode().await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = EventLogType::decode(buffer).await?;
+    assert_eq!(value, decoded);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn encode_decode_event_log_type_user() -> Result<()> {
+    let value = EventLogType::Folder(VaultId::new_v4());
+    let buffer = value.clone().encode().await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = EventLogType::decode(buffer).await?;
+    assert_eq!(value, decoded);
+
+    Ok(())
+}
+
 #[cfg(feature = "files")]
 #[tokio::test]
 async fn encode_decode_change_files() -> Result<()> {
     use crate::{
         protocol::sync::{FileSet, FileTransfersSet},
-        sdk::{
-            storage::files::ExternalFile,
-            vault::{secret::SecretId, VaultId},
-        },
+        sdk::{storage::files::ExternalFile, vault::secret::SecretId},
     };
     use indexmap::IndexSet;
 
