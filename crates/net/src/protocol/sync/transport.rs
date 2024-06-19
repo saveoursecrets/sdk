@@ -91,7 +91,7 @@ impl From<Url> for Origin {
 }
 
 /// Combined sync status, diff and comparisons.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct SyncPacket {
     /// Sync status.
     pub status: SyncStatus,
@@ -184,7 +184,7 @@ impl SyncCompare {
 }
 
 /// Diff of events or conflict information.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MaybeDiff<T> {
     /// Diff of local changes to send to the remote.
     Diff(T),
@@ -195,7 +195,7 @@ pub enum MaybeDiff<T> {
 }
 
 /// Diff between all events logs on local and remote.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct SyncDiff {
     /// Diff of the identity vault event logs.
     pub identity: Option<MaybeDiff<FolderDiff>>,
@@ -212,7 +212,7 @@ pub struct SyncDiff {
 }
 
 /// Collection of patches for an account.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub struct ChangeSet {
     /// Identity vault event logs.
     pub identity: FolderPatch,
@@ -235,7 +235,7 @@ pub struct ChangeSet {
 /// logs so that the account state can be overwritten in the
 /// case of events such as changing encryption cipher, changing
 /// folder password or compacing the events in a folder.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct UpdateSet {
     /// Identity folder event logs.
     pub identity: Option<FolderDiff>,

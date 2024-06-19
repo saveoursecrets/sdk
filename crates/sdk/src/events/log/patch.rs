@@ -27,7 +27,7 @@ pub type DevicePatch = Patch<DeviceEvent>;
 pub type FilePatch = Patch<FileEvent>;
 
 /// Patch wraps a changeset of events to be sent across the network.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Patch<T>(Vec<EventRecord>, PhantomData<T>);
 
 impl<T> Patch<T> {
@@ -90,7 +90,7 @@ pub enum CheckedPatch {
 }
 
 /// Diff between local and remote.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Diff<T> {
     /// Last commit hash before the patch was created.
     ///

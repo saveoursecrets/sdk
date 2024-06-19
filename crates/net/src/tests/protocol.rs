@@ -4,13 +4,16 @@ use prost::bytes::Bytes;
 
 use crate::{
     protocol::{
-        sync::{EventLogType, MergeOutcome, Origin, SyncCompare, SyncStatus},
+        sync::{
+            ChangeSet, EventLogType, MaybeDiff, MergeOutcome, Origin,
+            SyncCompare, SyncDiff, SyncPacket, SyncStatus, UpdateSet,
+        },
         DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
         ScanResponse, WireEncodeDecode,
     },
     sdk::{
         commit::{CommitHash, CommitProof, CommitState},
-        events::{CheckedPatch, EventRecord},
+        events::{CheckedPatch, EventRecord, FolderDiff},
         signer::ecdsa::Address,
         vault::VaultId,
         UtcDateTime,
@@ -249,17 +252,13 @@ async fn encode_decode_change_notification() -> Result<()> {
 }
 
 #[tokio::test]
-async fn encode_decode_event_log_type_system() -> Result<()> {
+async fn encode_decode_event_log_type() -> Result<()> {
     let value = EventLogType::Identity;
     let buffer = value.clone().encode().await?;
     let buffer: Bytes = buffer.into();
     let decoded = EventLogType::decode(buffer).await?;
     assert_eq!(value, decoded);
-    Ok(())
-}
 
-#[tokio::test]
-async fn encode_decode_event_log_type_user() -> Result<()> {
     let value = EventLogType::Folder(VaultId::new_v4());
     let buffer = value.clone().encode().await?;
     let buffer: Bytes = buffer.into();
@@ -296,6 +295,63 @@ async fn encode_decode_sync_compare() -> Result<()> {
     let buffer: Bytes = buffer.into();
     let decoded = SyncCompare::decode(buffer).await?;
     assert_eq!(value, decoded);
+    Ok(())
+}
+
+#[tokio::test]
+async fn encode_decode_sync_packet() -> Result<()> {
+    let value = SyncPacket::default();
+    let buffer = value.clone().encode().await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = SyncPacket::decode(buffer).await?;
+    assert_eq!(value, decoded);
+    Ok(())
+}
+
+#[tokio::test]
+async fn encode_decode_sync_diff() -> Result<()> {
+    let value = SyncDiff::default();
+    let buffer = value.clone().encode().await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = SyncDiff::decode(buffer).await?;
+    assert_eq!(value, decoded);
+    Ok(())
+}
+
+#[tokio::test]
+async fn encode_decode_maybe_diff() -> Result<()> {
+    let value = MaybeDiff::Diff(FolderDiff::default());
+    let buffer = value.clone().encode().await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = MaybeDiff::decode(buffer).await?;
+    assert_eq!(value, decoded);
+
+    let value = MaybeDiff::<FolderDiff>::Compare(Default::default());
+    let buffer = value.clone().encode().await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = MaybeDiff::decode(buffer).await?;
+    assert_eq!(value, decoded);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn encode_decode_create_set() -> Result<()> {
+    let value = ChangeSet::default();
+    let buffer = value.encode().await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = ChangeSet::decode(buffer).await?;
+    assert_eq!(ChangeSet::default(), decoded);
+    Ok(())
+}
+
+#[tokio::test]
+async fn encode_decode_update_set() -> Result<()> {
+    let value = UpdateSet::default();
+    let buffer = value.encode().await?;
+    let buffer: Bytes = buffer.into();
+    let decoded = UpdateSet::decode(buffer).await?;
+    assert_eq!(UpdateSet::default(), decoded);
     Ok(())
 }
 
