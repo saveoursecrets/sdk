@@ -321,11 +321,11 @@ impl<'a> OfferPairing<'a> {
                 self.tx.send(Message::Binary(buffer)).await?;
             }
             IncomingAction::HandleMessage(msg) => {
-                let msg = msg.message.unwrap();
+                let msg = msg.inner.unwrap();
                 // In inverted mode we can get a ready event
                 // so we just reply with another ready event
                 // to trigger the usual exchange of information
-                if let pairing_message::Message::Ready(_) = msg {
+                if let pairing_message::Inner::Ready(_) = msg {
                     let payload = if let Some(Tunnel::Transport(transport)) =
                         self.tunnel_mut()
                     {
@@ -333,11 +333,9 @@ impl<'a> OfferPairing<'a> {
                         encrypt(
                             transport,
                             PairingMessage {
-                                message: Some(
-                                    pairing_message::Message::Ready(
-                                        private_message,
-                                    ),
-                                ),
+                                inner: Some(pairing_message::Inner::Ready(
+                                    private_message,
+                                )),
                             },
                         )
                         .await?
@@ -359,8 +357,7 @@ impl<'a> OfferPairing<'a> {
 
                     let buffer = reply.encode_prefixed().await?;
                     self.tx.send(Message::Binary(buffer)).await?;
-                } else if let pairing_message::Message::Request(message) = msg
-                {
+                } else if let pairing_message::Inner::Request(message) = msg {
                     tracing::debug!("<- device");
 
                     let device_bytes = message.device_meta_data;
@@ -396,11 +393,9 @@ impl<'a> OfferPairing<'a> {
                         encrypt(
                             transport,
                             PairingMessage {
-                                message: Some(
-                                    pairing_message::Message::Confirm(
-                                        private_message,
-                                    ),
-                                ),
+                                inner: Some(pairing_message::Inner::Confirm(
+                                    private_message,
+                                )),
                             },
                         )
                         .await?
@@ -753,11 +748,11 @@ impl<'a> AcceptPairing<'a> {
                 self.tx.send(Message::Binary(buffer)).await?;
             }
             IncomingAction::HandleMessage(msg) => {
-                let msg = msg.message.unwrap();
+                let msg = msg.inner.unwrap();
 
                 // When the noise handshake is complete start
                 // pairing by sending the trusted device information
-                if let pairing_message::Message::Ready(_) = msg {
+                if let pairing_message::Inner::Ready(_) = msg {
                     tracing::debug!("<- ready");
                     if let Some(Tunnel::Transport(transport)) =
                         self.tunnel.as_mut()
@@ -771,11 +766,9 @@ impl<'a> AcceptPairing<'a> {
                         let payload = encrypt(
                             transport,
                             PairingMessage {
-                                message: Some(
-                                    pairing_message::Message::Request(
-                                        private_message,
-                                    ),
-                                ),
+                                inner: Some(pairing_message::Inner::Request(
+                                    private_message,
+                                )),
                             },
                         )
                         .await?;
@@ -797,9 +790,8 @@ impl<'a> AcceptPairing<'a> {
                     } else {
                         unreachable!();
                     }
-                } else if let pairing_message::Message::Confirm(
-                    confirmation,
-                ) = msg
+                } else if let pairing_message::Inner::Confirm(confirmation) =
+                    msg
                 {
                     self.create_enrollment(confirmation).await?;
                     self.state = PairProtocolState::Done;
@@ -1056,7 +1048,7 @@ trait NoiseTunnel {
                 encrypt(
                     transport,
                     PairingMessage {
-                        message: Some(pairing_message::Message::Ready(
+                        inner: Some(pairing_message::Inner::Ready(
                             private_message,
                         )),
                     },

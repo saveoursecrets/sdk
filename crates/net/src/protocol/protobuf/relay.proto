@@ -68,7 +68,7 @@ message PairingConfirm {
 // Message for the pairing protocol.
 message PairingMessage {
   // Inner message.
-  oneof message {
+  oneof inner {
     // Noise handshake is completed and the 
     // participant is ready to begin.
     PairingReady ready = 1;

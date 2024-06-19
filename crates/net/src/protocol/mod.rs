@@ -34,11 +34,11 @@ pub use error::Error;
 pub use notifications::ChangeNotification;
 pub use patch::{PatchRequest, PatchResponse};
 #[cfg(feature = "pairing")]
-pub use relay::{
+pub(crate) use relay::{
     pairing_message, PairingConfirm, PairingMessage, PairingReady,
-    PairingRequest, RelayBody, RelayHeader, RelayPacket, RelayPayload,
-    RelayType,
+    PairingRequest, RelayHeader, RelayPacket, RelayPayload,
 };
+
 pub use scan::{ScanRequest, ScanResponse};
 
 use crate::sdk::events::EventLogType;
