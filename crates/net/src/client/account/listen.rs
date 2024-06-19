@@ -4,10 +4,11 @@ use crate::{
     client::{
         sync::RemoteSync, Error, ListenOptions, NetworkAccount, Result,
     },
-    sdk::sync::{Origin, SyncError},
-    ChangeNotification,
+    protocol::{
+        sync::{Origin, SyncError, SyncStorage},
+        ChangeNotification,
+    },
 };
-use sos_sdk::sync::SyncStorage;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
@@ -73,7 +74,7 @@ impl NetworkAccount {
                         let differs = {
                             let account = local_account.lock().await;
                             let local_status = account.sync_status().await?;
-                            local_status.root != message.root
+                            &local_status.root != message.root()
                         };
 
                         if differs {
@@ -98,7 +99,7 @@ impl NetworkAccount {
                             }
                         } else {
                             tracing::debug!(
-                              root = %message.root,
+                              root = %message.root(),
                               "drop_change_notification",
                             );
                         }

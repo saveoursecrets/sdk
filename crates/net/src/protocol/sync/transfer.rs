@@ -1,19 +1,17 @@
 //! Manage pending file transfer operations.
-use crate::{
+use crate::sdk::{
     events::FileEvent,
     storage::files::{ExternalFile, FileMutationEvent},
 };
 use indexmap::IndexSet;
-use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
 
 /// Set of files built from the state on disc.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct FileSet(pub IndexSet<ExternalFile>);
 
 /// Sets of files that should be uploaded and
 /// downloaded from a remote server.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct FileTransfersSet {
     /// Files that exist on local but not on remote.
     pub uploads: FileSet,
@@ -22,9 +20,7 @@ pub struct FileTransfersSet {
 }
 
 /// Operations for file transfers.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-#[serde_as]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum TransferOperation {
     /// Upload a file.
     Upload,
@@ -33,10 +29,14 @@ pub enum TransferOperation {
     /// Delete a file.
     Delete,
     /// Move a file.
-    Move(#[serde_as(as = "DisplayFromStr")] ExternalFile),
+    Move(ExternalFile),
 }
 
-impl From<&FileMutationEvent> for (ExternalFile, TransferOperation) {
+/// File and transfer information.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub struct FileOperation(pub ExternalFile, pub TransferOperation);
+
+impl From<&FileMutationEvent> for FileOperation {
     fn from(value: &FileMutationEvent) -> Self {
         match value {
             FileMutationEvent::Create { event, .. } => event.into(),
@@ -46,18 +46,22 @@ impl From<&FileMutationEvent> for (ExternalFile, TransferOperation) {
     }
 }
 
-impl From<&FileEvent> for (ExternalFile, TransferOperation) {
+impl From<&FileEvent> for FileOperation {
     fn from(value: &FileEvent) -> Self {
         match value {
-            FileEvent::CreateFile(vault_id, secret_id, file_name) => (
-                ExternalFile::new(*vault_id, *secret_id, *file_name),
-                TransferOperation::Upload,
-            ),
-            FileEvent::DeleteFile(vault_id, secret_id, file_name) => (
-                ExternalFile::new(*vault_id, *secret_id, *file_name),
-                TransferOperation::Delete,
-            ),
-            FileEvent::MoveFile { name, from, dest } => (
+            FileEvent::CreateFile(vault_id, secret_id, file_name) => {
+                FileOperation(
+                    ExternalFile::new(*vault_id, *secret_id, *file_name),
+                    TransferOperation::Upload,
+                )
+            }
+            FileEvent::DeleteFile(vault_id, secret_id, file_name) => {
+                FileOperation(
+                    ExternalFile::new(*vault_id, *secret_id, *file_name),
+                    TransferOperation::Delete,
+                )
+            }
+            FileEvent::MoveFile { name, from, dest } => FileOperation(
                 ExternalFile::new(from.0, from.1, *name),
                 TransferOperation::Move(ExternalFile::new(
                     dest.0, dest.1, *name,

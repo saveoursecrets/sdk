@@ -116,17 +116,11 @@ impl Encodable for Comparison {
             Self::Equal => {
                 writer.write_u8(1).await?;
             }
-            Self::Contains(indices, leaves) => {
+            Self::Contains(indices) => {
                 writer.write_u8(2).await?;
-
                 writer.write_u32(indices.len() as u32).await?;
                 for i in indices {
                     writer.write_u64(*i as u64).await?;
-                }
-
-                writer.write_u32(leaves.len() as u32).await?;
-                for leaf in leaves {
-                    writer.write_bytes(leaf).await?;
                 }
             }
             Self::Unknown => {
@@ -155,19 +149,7 @@ impl Decodable for Comparison {
                     indices.push(reader.read_u64().await? as usize);
                 }
 
-                let leaves_len = reader.read_u32().await? as usize;
-                let mut leaves = Vec::with_capacity(leaves_len);
-                for _ in 0..leaves_len {
-                    let leaf: [u8; 32] = reader
-                        .read_bytes(32)
-                        .await?
-                        .as_slice()
-                        .try_into()
-                        .map_err(encoding_error)?;
-                    leaves.push(leaf);
-                }
-
-                *self = Self::Contains(indices, leaves);
+                *self = Self::Contains(indices);
             }
             3 => {
                 *self = Self::Unknown;

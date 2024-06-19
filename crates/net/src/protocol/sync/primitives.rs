@@ -1,85 +1,24 @@
-//! Synchronization primitives.
-use crate::{
-    commit::{CommitHash, CommitProof, CommitState, Comparison},
-    events::{AccountEvent, EventLogExt, WriteEvent},
-    storage::{files::ExternalFile, StorageEventLogs},
+//! Synchronization types that are used internally.
+use crate::protocol::sync::{
+    CreateSet, MaybeDiff, MergeOutcome, Origin, SyncCompare, SyncDiff,
+    SyncStatus,
+};
+use crate::sdk::{
+    commit::{CommitState, Comparison},
+    events::{AccountDiff, CheckedPatch, EventLogExt, FolderDiff},
+    storage::StorageEventLogs,
     vault::VaultId,
     Error, Result,
 };
 use async_trait::async_trait;
-use binary_stream::futures::{Decodable, Encodable};
-use indexmap::{IndexMap, IndexSet};
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    fmt,
-    hash::{Hash, Hasher},
-};
-use url::Url;
-
-mod patch;
-pub use patch::{AccountPatch, FolderPatch, Patch};
+use indexmap::IndexMap;
+use std::{collections::HashMap, fmt};
 
 #[cfg(feature = "device")]
-use crate::events::DeviceEvent;
-
-#[cfg(feature = "device")]
-pub use patch::DevicePatch;
+use crate::sdk::events::DeviceDiff;
 
 #[cfg(feature = "files")]
-use crate::events::FileEvent;
-
-#[cfg(feature = "files")]
-pub use patch::FilePatch;
-
-/// Server origin information.
-#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
-pub struct Origin {
-    name: String,
-    url: Url,
-}
-
-impl Origin {
-    /// Create a new origin.
-    pub fn new(name: String, url: Url) -> Self {
-        Self { name, url }
-    }
-
-    /// Name of the origin server.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// URL of the origin server.
-    pub fn url(&self) -> &Url {
-        &self.url
-    }
-}
-
-impl PartialEq for Origin {
-    fn eq(&self, other: &Self) -> bool {
-        self.url == other.url
-    }
-}
-
-impl Hash for Origin {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.url.hash(state);
-    }
-}
-
-impl fmt::Display for Origin {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} ({})", self.name, self.url)
-    }
-}
-
-impl From<Url> for Origin {
-    fn from(url: Url) -> Self {
-        let name = url.authority().to_owned();
-        Self { name, url }
-    }
-}
+use crate::sdk::events::FileDiff;
 
 /// How to resolve hard conflicts.
 #[derive(Default, Debug)]
@@ -104,6 +43,8 @@ pub struct SyncError<T: std::error::Error> {
     /// Errors generated during a sync operation.
     pub errors: Vec<(Origin, T)>,
 }
+
+impl<T: std::error::Error> std::error::Error for SyncError<T> {}
 
 impl<T: std::error::Error> fmt::Display for SyncError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -132,174 +73,16 @@ impl<T: std::error::Error> Default for SyncError<T> {
 }
 
 /// Options for folder merge.
-#[derive(Default)]
 pub(crate) enum FolderMergeOptions<'a> {
-    #[doc(hidden)]
-    #[default]
-    Noop,
     /// Update a URN lookup when merging.
-    Urn(VaultId, &'a mut crate::identity::UrnLookup),
+    Urn(VaultId, &'a mut crate::sdk::identity::UrnLookup),
     /// Update a search index when merging.
     #[cfg(feature = "search")]
-    Search(VaultId, &'a mut crate::storage::search::SearchIndex),
-}
-
-/// Result of a checked patch on an event log.
-#[derive(Default, Debug)]
-pub enum CheckedPatch {
-    #[doc(hidden)]
-    #[default]
-    Noop,
-    /// Patch was applied.
-    Success(CommitProof),
-    /// Patch conflict.
-    Conflict {
-        /// Head of the event log.
-        head: CommitProof,
-        /// If the checked proof is contained
-        /// in the event log.
-        contains: Option<CommitProof>,
-    },
-}
-
-/// Diff between local and remote.
-#[derive(Default, Debug)]
-pub struct Diff<T>
-where
-    T: Default + Encodable + Decodable,
-{
-    /// Last commit hash before the patch was created.
-    ///
-    /// This can be used to determine if the patch is to
-    /// be used to initialize a new set of events when
-    /// no last commit is available.
-    ///
-    /// For example, for file event logs which are
-    /// lazily instantiated once external files are created.
-    pub last_commit: Option<CommitHash>,
-
-    /// Contents of the patch.
-    pub patch: Patch<T>,
-    /// Checkpoint for the diff patch.
-    ///
-    /// For checked patches this must match the proof
-    /// of HEAD before the patch was created.
-    ///
-    /// For unchecked force merges this checkpoint
-    /// references the commit proof of HEAD after
-    /// applying the patch.
-    pub checkpoint: CommitProof,
-}
-
-/// Diff between account events logs.
-pub type AccountDiff = Diff<AccountEvent>;
-
-/// Diff between device events logs.
-#[cfg(feature = "device")]
-pub type DeviceDiff = Diff<DeviceEvent>;
-
-/// Diff between file events logs.
-#[cfg(feature = "files")]
-pub type FileDiff = Diff<FileEvent>;
-
-/// Diff between folder events logs.
-pub type FolderDiff = Diff<WriteEvent>;
-
-/// Combined sync status, diff and comparisons.
-#[derive(Debug, Default)]
-pub struct SyncPacket {
-    /// Sync status.
-    pub status: SyncStatus,
-    /// Sync diff.
-    pub diff: SyncDiff,
-    /// Sync comparisons.
-    pub compare: Option<SyncCompare>,
-}
-
-/// Provides a status overview of an account.
-///
-/// Intended to be used during a synchronization protocol.
-#[derive(Debug, Default, Clone, Eq, PartialEq)]
-pub struct SyncStatus {
-    /// Computed root of all event log roots.
-    pub root: CommitHash,
-    /// Identity vault commit state.
-    pub identity: CommitState,
-    /// Account log commit state.
-    pub account: CommitState,
-    /// Device log commit state.
-    #[cfg(feature = "device")]
-    pub device: CommitState,
-    /// Files log commit state.
-    #[cfg(feature = "files")]
-    pub files: Option<CommitState>,
-    /// Commit proofs for the account folders.
-    pub folders: IndexMap<VaultId, CommitState>,
-}
-
-/// Collection of comparisons for an account.
-///
-/// When a local account does not contain the proof for
-/// a remote event log if will interrogate the server to
-/// compare it's proof with the remote tree.
-///
-/// The server will reply with comparison(s) so that the local
-/// account can determine if the trees have completely diverged
-/// or whether it can attempt to automatically merge
-/// partially diverged trees.
-#[derive(Debug, Default, Clone, Eq, PartialEq)]
-pub struct SyncCompare {
-    /// Identity vault comparison.
-    pub identity: Option<Comparison>,
-    /// Account log comparison.
-    pub account: Option<Comparison>,
-    /// Device log comparison.
-    #[cfg(feature = "device")]
-    pub device: Option<Comparison>,
-    /// Files log comparison.
-    #[cfg(feature = "files")]
-    pub files: Option<Comparison>,
-    /// Comparisons for the account folders.
-    pub folders: IndexMap<VaultId, Comparison>,
-}
-
-impl SyncCompare {
-    /// Determine if this comparison might conflict.
-    pub fn maybe_conflict(&self) -> MaybeConflict {
-        MaybeConflict {
-            identity: self
-                .identity
-                .as_ref()
-                .map(|c| matches!(c, Comparison::Unknown))
-                .unwrap_or(false),
-            account: self
-                .account
-                .as_ref()
-                .map(|c| matches!(c, Comparison::Unknown))
-                .unwrap_or(false),
-            #[cfg(feature = "device")]
-            device: self
-                .device
-                .as_ref()
-                .map(|c| matches!(c, Comparison::Unknown))
-                .unwrap_or(false),
-            #[cfg(feature = "files")]
-            files: self
-                .files
-                .as_ref()
-                .map(|c| matches!(c, Comparison::Unknown))
-                .unwrap_or(false),
-            folders: self
-                .folders
-                .iter()
-                .map(|(k, v)| (*k, matches!(v, Comparison::Unknown)))
-                .collect(),
-        }
-    }
+    Search(VaultId, &'a mut crate::sdk::storage::search::SearchIndex),
 }
 
 /// Information about possible conflicts.
-#[derive(Debug, Default, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct MaybeConflict {
     /// Whether the identity folder might be conflicted.
     pub identity: bool,
@@ -339,37 +122,6 @@ impl MaybeConflict {
 
         has_conflicts
     }
-}
-
-/// Diff of events or conflict information.
-#[derive(Default, Debug)]
-pub enum MaybeDiff<T> {
-    #[doc(hidden)]
-    #[default]
-    Noop,
-    /// Diff of local changes to send to the remote.
-    Diff(T),
-    /// Local needs to compare it's state with remote.
-    // The additional `Option` wrapper is required because
-    // the files event log may not exist.
-    Compare(Option<CommitState>),
-}
-
-/// Diff between all events logs on local and remote.
-#[derive(Default, Debug)]
-pub struct SyncDiff {
-    /// Diff of the identity vault event logs.
-    pub identity: Option<MaybeDiff<FolderDiff>>,
-    /// Diff of the account event log.
-    pub account: Option<MaybeDiff<AccountDiff>>,
-    /// Diff of the device event log.
-    #[cfg(feature = "device")]
-    pub device: Option<MaybeDiff<DeviceDiff>>,
-    /// Diff of the files event log.
-    #[cfg(feature = "files")]
-    pub files: Option<MaybeDiff<FileDiff>>,
-    /// Diff for folders in the account.
-    pub folders: IndexMap<VaultId, MaybeDiff<FolderDiff>>,
 }
 
 /// Comparison between local and remote status.
@@ -479,7 +231,7 @@ impl SyncComparison {
 
         match self.identity {
             Comparison::Equal => {}
-            Comparison::Contains(_, _) => {
+            Comparison::Contains(_) => {
                 // Need to push changes to remote
                 let log = storage.identity_log().await?;
                 let reader = log.read().await;
@@ -522,7 +274,7 @@ impl SyncComparison {
 
         match self.account {
             Comparison::Equal => {}
-            Comparison::Contains(_, _) => {
+            Comparison::Contains(_) => {
                 // Need to push changes to remote
                 let log = storage.account_log().await?;
                 let reader = log.read().await;
@@ -567,7 +319,7 @@ impl SyncComparison {
         #[cfg(feature = "device")]
         match self.device {
             Comparison::Equal => {}
-            Comparison::Contains(_, _) => {
+            Comparison::Contains(_) => {
                 // Need to push changes to remote
                 let log = storage.device_log().await?;
                 let reader = log.read().await;
@@ -617,7 +369,7 @@ impl SyncComparison {
             (Some(files), Some(remote_files)) => {
                 match files {
                     Comparison::Equal => {}
-                    Comparison::Contains(_, _) => {
+                    Comparison::Contains(_) => {
                         // Need to push changes to remote
                         let log = storage.file_log().await?;
                         let reader = log.read().await;
@@ -687,7 +439,7 @@ impl SyncComparison {
 
             match folder {
                 Comparison::Equal => {}
-                Comparison::Contains(_, _) => {
+                Comparison::Contains(_) => {
                     // Need to push changes to remote
                     let log = storage.folder_log(id).await?;
                     let log = log.read().await;
@@ -753,46 +505,6 @@ impl SyncComparison {
     }
 }
 
-/// Collection of patches for an account.
-#[derive(Debug, Default)]
-pub struct ChangeSet {
-    /// Identity vault event logs.
-    pub identity: FolderPatch,
-    /// Account event logs.
-    pub account: AccountPatch,
-    /// Device event logs.
-    #[cfg(feature = "device")]
-    pub device: DevicePatch,
-    /// File event logs.
-    #[cfg(feature = "files")]
-    pub files: FilePatch,
-    /// Folders to be imported into the new account.
-    pub folders: HashMap<VaultId, FolderPatch>,
-}
-
-/// Set of updates to the folders in an account.
-///
-/// Used to destructively update folders in an account;
-/// the identity and folders are entire event
-/// logs so that the account state can be overwritten in the
-/// case of events such as changing encryption cipher, changing
-/// folder password or compacing the events in a folder.
-#[derive(Debug, Default)]
-pub struct UpdateSet {
-    /// Identity folder event logs.
-    pub identity: Option<FolderDiff>,
-    /// Account event log.
-    pub account: Option<AccountDiff>,
-    /// Device event log.
-    #[cfg(feature = "device")]
-    pub device: Option<DeviceDiff>,
-    /// Files event log.
-    #[cfg(feature = "files")]
-    pub files: Option<FileDiff>,
-    /// Folders to be updated.
-    pub folders: HashMap<VaultId, FolderDiff>,
-}
-
 /// Storage implementations that can synchronize.
 #[async_trait]
 pub trait SyncStorage: StorageEventLogs {
@@ -803,7 +515,7 @@ pub trait SyncStorage: StorageEventLogs {
     ///
     /// Used by network aware implementations to transfer
     /// entire accounts.
-    async fn change_set(&self) -> Result<ChangeSet> {
+    async fn change_set(&self) -> Result<CreateSet> {
         let identity = {
             let log = self.identity_log().await?;
             let reader = log.read().await;
@@ -839,7 +551,7 @@ pub trait SyncStorage: StorageEventLogs {
             folders.insert(*id, log_file.diff_events(None).await?);
         }
 
-        Ok(ChangeSet {
+        Ok(CreateSet {
             identity,
             account,
             folders,
@@ -849,44 +561,6 @@ pub trait SyncStorage: StorageEventLogs {
             files,
         })
     }
-}
-
-fn is_zero(value: &usize) -> bool {
-    value == &usize::MIN
-}
-
-/// Outcome of a merge operation.
-#[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(default)]
-pub struct MergeOutcome {
-    /// Total number of changes made during the merge.
-    #[serde(skip_serializing_if = "is_zero")]
-    pub changes: usize,
-    /// Number of changes to the identity folder.
-    #[serde(skip_serializing_if = "is_zero")]
-    pub identity: usize,
-    /// Number of changes to the account event log.
-    #[serde(skip_serializing_if = "is_zero")]
-    pub account: usize,
-    /// Number of changes to the device event log.
-    #[cfg(feature = "device")]
-    #[serde(skip_serializing_if = "is_zero")]
-    pub device: usize,
-    /// Number of changes to the file event log.
-    #[cfg(feature = "files")]
-    #[serde(skip_serializing_if = "is_zero")]
-    pub file: usize,
-    /// Number of changes to the folder event logs.
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub folders: HashMap<VaultId, usize>,
-
-    /// Collection of external files detected when merging
-    /// file events logs.
-    ///
-    /// Used after mege to update the file transfer queue.
-    #[cfg(feature = "files")]
-    #[serde(skip)]
-    pub external_files: IndexSet<ExternalFile>,
 }
 
 /// Types that can force merge a diff.
@@ -1048,7 +722,6 @@ pub trait Merge {
         let mut compare = SyncCompare::default();
 
         match diff.identity {
-            Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
                 self.merge_identity(diff, outcome).await?;
             }
@@ -1062,7 +735,6 @@ pub trait Merge {
         }
 
         match diff.account {
-            Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
                 self.merge_account(diff, outcome).await?;
             }
@@ -1077,7 +749,6 @@ pub trait Merge {
 
         #[cfg(feature = "device")]
         match diff.device {
-            Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
                 self.merge_device(diff, outcome).await?;
             }
@@ -1091,7 +762,6 @@ pub trait Merge {
 
         #[cfg(feature = "files")]
         match diff.files {
-            Some(MaybeDiff::Noop) => unreachable!(),
             Some(MaybeDiff::Diff(diff)) => {
                 self.merge_files(diff, outcome).await?;
             }
@@ -1105,7 +775,6 @@ pub trait Merge {
 
         for (id, maybe_diff) in diff.folders {
             match maybe_diff {
-                MaybeDiff::Noop => unreachable!(),
                 MaybeDiff::Diff(diff) => {
                     self.merge_folder(&id, diff, outcome).await?;
                 }

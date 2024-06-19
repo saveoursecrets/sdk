@@ -8,8 +8,6 @@ mod convert;
 pub mod preferences;
 #[cfg(feature = "security-report")]
 pub mod security_report;
-#[cfg(feature = "sync")]
-mod sync;
 #[cfg(feature = "system-messages")]
 pub mod system_messages;
 

@@ -133,7 +133,8 @@ impl Gatekeeper {
         }
     }
 
-    pub(crate) async fn decrypt_meta(
+    #[doc(hidden)]
+    pub async fn decrypt_meta(
         &self,
         meta_aead: &AeadPack,
     ) -> Result<VaultMeta> {
@@ -162,7 +163,8 @@ impl Gatekeeper {
         self.vault.set_vault_meta(meta_aead).await
     }
 
-    pub(crate) async fn decrypt_secret(
+    #[doc(hidden)]
+    pub async fn decrypt_secret(
         &self,
         vault_commit: &VaultCommit,
         private_key: Option<&PrivateKey>,

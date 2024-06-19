@@ -5,13 +5,13 @@ use crate::{
 use clap::Subcommand;
 use sos_net::{
     client::{NetworkAccount, RemoteSync},
+    protocol::sync::{Origin, SyncOptions, SyncStatus, SyncStorage},
     sdk::{
         account::Account,
         commit::{CommitState, CommitTree, Comparison},
         events::EventLogExt,
         identity::AccountRef,
         storage::StorageEventLogs,
-        sync::{Origin, SyncOptions, SyncStatus, SyncStorage},
         url::Url,
     },
 };
@@ -189,10 +189,10 @@ async fn print_status(
                 log.tree(),
             )?;
         }
-        (None, Some(remote_files)) => {
+        (None, Some(_remote_files)) => {
             print_title("📄 Files", "pull from server");
         }
-        (Some(local_files), None) => {
+        (Some(_local_files), None) => {
             print_title("📄 Files", "push to server");
         }
         _ => {}
@@ -238,7 +238,7 @@ fn print_commit_state(
 
     let detail = match &comparison {
         Comparison::Equal => String::from("up to date"),
-        Comparison::Contains(_, _) => {
+        Comparison::Contains(_) => {
             let amount = local.1.len() - remote.1.len();
             format!("{} commit(s) ahead", amount)
         }

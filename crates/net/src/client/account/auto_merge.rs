@@ -1,34 +1,35 @@
 //! Implements auto merge logic for a remote.
 use crate::{
     client::{Error, RemoteBridge, Result, SyncClient},
-    CommitDiffRequest, CommitScanRequest, EventPatchRequest,
+    protocol::{DiffRequest, PatchRequest, ScanRequest},
+};
+use crate::{
+    protocol::sync::{
+        EventLogType, ForceMerge, HardConflictResolver, MaybeConflict, Merge,
+        MergeOutcome, SyncOptions, SyncStatus,
+    },
+    sdk::{
+        account::Account,
+        commit::{CommitHash, CommitProof, CommitTree},
+        events::{
+            AccountDiff, AccountEvent, CheckedPatch, EventLogExt,
+            EventRecord, FolderDiff, Patch, WriteEvent,
+        },
+        storage::StorageEventLogs,
+        vault::VaultId,
+    },
 };
 use async_recursion::async_recursion;
-use binary_stream::futures::{Decodable, Encodable};
-use sos_sdk::{
-    account::Account,
-    commit::{CommitHash, CommitProof, CommitTree},
-    events::{
-        AccountEvent, EventLogExt, EventLogType, EventRecord, WriteEvent,
-    },
-    storage::StorageEventLogs,
-    sync::{
-        AccountDiff, CheckedPatch, FolderDiff, ForceMerge,
-        HardConflictResolver, MaybeConflict, Merge, MergeOutcome, Patch,
-        SyncOptions, SyncStatus,
-    },
-    vault::VaultId,
-};
 use std::collections::HashSet;
 use tracing::instrument;
 
 const PROOF_SCAN_LIMIT: u16 = 32;
 
 #[cfg(feature = "device")]
-use sos_sdk::{events::DeviceEvent, sync::DeviceDiff};
+use sos_sdk::events::{DeviceDiff, DeviceEvent};
 
 #[cfg(feature = "files")]
-use sos_sdk::{events::FileEvent, sync::FileDiff};
+use sos_sdk::events::{FileDiff, FileEvent};
 
 /// Implements the auto merge logic for an event log type.
 macro_rules! auto_merge_impl {
@@ -40,9 +41,9 @@ macro_rules! auto_merge_impl {
         ) -> Result<bool> {
             tracing::debug!($log_id);
 
-            let req = CommitScanRequest {
+            let req = ScanRequest {
                 log_type: $log_type,
-                offset: None,
+                offset: 0,
                 limit: PROOF_SCAN_LIMIT,
             };
             match self.scan_proofs(req).await {
@@ -80,11 +81,11 @@ macro_rules! auto_merge_conflict_impl {
                 HardConflictResolver::AutomaticFetch => {
                     tracing::debug!($log_id);
 
-                    let request = CommitDiffRequest {
+                    let request = DiffRequest {
                         log_type: $log_type,
                         from_hash: None,
                     };
-                    let response = self.client.diff(&request).await?;
+                    let response = self.client.diff(request).await?;
                     let patch = Patch::<$event_type>::new(response.patch);
                     let diff = $diff_type {
                         patch,
@@ -261,9 +262,9 @@ impl RemoteBridge {
     ) -> Result<bool> {
         tracing::debug!(folder_id = %folder_id, "auto_merge::folder");
 
-        let req = CommitScanRequest {
+        let req = ScanRequest {
             log_type: EventLogType::Folder(*folder_id),
-            offset: None,
+            offset: 0,
             limit: PROOF_SCAN_LIMIT,
         };
         match self.scan_proofs(req).await {
@@ -296,11 +297,11 @@ impl RemoteBridge {
     ) -> Result<()> {
         match &options.hard_conflict_resolver {
             HardConflictResolver::AutomaticFetch => {
-                let request = CommitDiffRequest {
+                let request = DiffRequest {
                     log_type: EventLogType::Folder(*folder_id),
                     from_hash: None,
                 };
-                let response = self.client.diff(&request).await?;
+                let response = self.client.diff(request).await?;
                 let patch = Patch::<WriteEvent>::new(response.patch);
                 let diff = FolderDiff {
                     patch,
@@ -323,7 +324,7 @@ impl RemoteBridge {
         proof: CommitProof,
     ) -> Result<()>
     where
-        T: Default + Encodable + Decodable + Send + Sync,
+        T: Default + Send + Sync,
     {
         tracing::debug!(commit = %commit, "auto_merge::try_merge_from_ancestor");
 
@@ -358,16 +359,15 @@ impl RemoteBridge {
                     let event_log = log.read().await;
                     event_log.diff_records(Some(&commit)).await?
                 }
-                EventLogType::Noop => unreachable!(),
             }
         };
 
         // Fetch the patch of remote events
-        let request = CommitDiffRequest {
+        let request = DiffRequest {
             log_type,
             from_hash: Some(commit),
         };
-        let remote_patch = self.client.diff(&request).await?.patch;
+        let remote_patch = self.client.diff(request).await?.patch;
 
         let result = self.merge_patches(local_patch, remote_patch).await?;
 
@@ -510,7 +510,6 @@ impl RemoteBridge {
                     };
                     account.merge_folder(id, diff, &mut outcome).await?
                 }
-                EventLogType::Noop => unreachable!(),
             }
         };
 
@@ -560,7 +559,6 @@ impl RemoteBridge {
                 let mut event_log = log.write().await;
                 event_log.apply_records(records).await?;
             }
-            EventLogType::Noop => unreachable!(),
         }
 
         Ok(())
@@ -575,7 +573,7 @@ impl RemoteBridge {
         events: Vec<EventRecord>,
     ) -> Result<(CheckedPatch, Option<CheckedPatch>)>
     where
-        T: Default + Encodable + Decodable + Send + Sync,
+        T: Default + Send + Sync,
     {
         tracing::debug!(
           log_type = ?log_type,
@@ -584,16 +582,15 @@ impl RemoteBridge {
           "auto_merge::push_remote",
         );
 
-        let req = EventPatchRequest {
+        let req = PatchRequest {
             log_type: *log_type,
             commit: Some(commit),
             proof: proof.clone(),
             patch: events.clone(),
         };
 
-        let remote_patch = self.client.patch(&req).await?;
+        let remote_patch = self.client.patch(req).await?.checked_patch;
         let local_patch = match &remote_patch {
-            CheckedPatch::Noop => unreachable!(),
             CheckedPatch::Success(_) => {
                 let local_patch = self
                     .rewind_local(log_type, commit, proof, events)
@@ -654,14 +651,13 @@ impl RemoteBridge {
                 let mut event_log = log.write().await;
                 event_log.rewind(commit).await?
             }
-            EventLogType::Noop => unreachable!(),
         })
     }
 
     /// Scan the remote for proofs that match this client.
     async fn scan_proofs(
         &self,
-        request: CommitScanRequest,
+        request: ScanRequest,
     ) -> Result<Option<(CommitHash, CommitProof)>> {
         tracing::debug!(request = ?request, "auto_merge::scan_proofs");
 
@@ -695,7 +691,6 @@ impl RemoteBridge {
                     let event_log = log.read().await;
                     event_log.tree().leaves().unwrap_or_default()
                 }
-                EventLogType::Noop => unreachable!(),
             }
         };
 
@@ -706,12 +701,12 @@ impl RemoteBridge {
     #[async_recursion]
     async fn iterate_scan_proofs(
         &self,
-        request: CommitScanRequest,
+        request: ScanRequest,
         leaves: &[[u8; 32]],
     ) -> Result<Option<(CommitHash, CommitProof)>> {
         tracing::debug!(request = ?request, "auto_merge::iterate_scan_proofs");
 
-        let response = self.client.scan(&request).await?;
+        let response = self.client.scan(request.clone()).await?;
 
         // If the server gave us a first proof and we don't
         // have it in our event log then there is no point scanning
@@ -746,8 +741,8 @@ impl RemoteBridge {
             }
 
             // Try to scan more proofs
-            let mut req = request.clone();
-            req.offset = Some(response.offset);
+            let mut req = request;
+            req.offset = response.offset;
             self.iterate_scan_proofs(req, leaves).await
         } else {
             Err(Error::HardConflict)

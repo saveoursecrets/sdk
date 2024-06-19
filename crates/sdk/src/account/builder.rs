@@ -251,6 +251,7 @@ impl AccountBuilder {
         )
         .await?;
 
+        #[cfg(feature = "files")]
         if create_file_password {
             user.create_file_encryption_password().await?;
         }

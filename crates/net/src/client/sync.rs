@@ -1,23 +1,20 @@
 use super::Error;
 use crate::{
     client::{CancelReason, Result},
-    commits::{
-        CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
-        CommitScanResponse, EventPatchRequest,
+    protocol::{
+        sync::{
+            CreateSet, Origin, SyncOptions, SyncPacket, SyncStatus, UpdateSet,
+        },
+        DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
+        ScanResponse,
     },
 };
 use async_trait::async_trait;
-use sos_sdk::{
-    storage,
-    sync::{
-        ChangeSet, CheckedPatch, Origin, SyncOptions, SyncPacket, SyncStatus,
-        UpdateSet,
-    },
-};
+use sos_sdk::storage;
 use std::path::Path;
 
 /// Error type that can be returned from a sync operation.
-pub type SyncError = sos_sdk::sync::SyncError<Error>;
+pub type SyncError = crate::protocol::sync::SyncError<Error>;
 
 /// Trait for types that can sync accounts with a remote.
 #[async_trait]
@@ -58,7 +55,7 @@ pub trait RemoteSync {
     /// password was changed or folder(s) were compacted.
     async fn force_update(
         &self,
-        account_data: &UpdateSet,
+        account_data: UpdateSet,
         options: &SyncOptions,
     ) -> Option<SyncError>;
 }
@@ -73,13 +70,13 @@ pub trait SyncClient {
     async fn account_exists(&self) -> Result<bool>;
 
     /// Create a new account.
-    async fn create_account(&self, account: &ChangeSet) -> Result<()>;
+    async fn create_account(&self, account: CreateSet) -> Result<()>;
 
     /// Update an account.
-    async fn update_account(&self, account: &UpdateSet) -> Result<()>;
+    async fn update_account(&self, account: UpdateSet) -> Result<()>;
 
     /// Fetch an account from a remote server.
-    async fn fetch_account(&self) -> Result<ChangeSet>;
+    async fn fetch_account(&self) -> Result<CreateSet>;
 
     /// Delete the account on the server.
     async fn delete_account(&self) -> Result<()>;
@@ -88,28 +85,19 @@ pub trait SyncClient {
     async fn sync_status(&self) -> Result<SyncStatus>;
 
     /// Sync with a remote.
-    async fn sync(&self, packet: &SyncPacket) -> Result<SyncPacket>;
+    async fn sync(&self, packet: SyncPacket) -> Result<SyncPacket>;
 
     /// Scan commits in an event log.
-    async fn scan(
-        &self,
-        request: &CommitScanRequest,
-    ) -> Result<CommitScanResponse>;
+    async fn scan(&self, request: ScanRequest) -> Result<ScanResponse>;
 
     /// Fetch a collection of event records since a given commit hash.
-    async fn diff(
-        &self,
-        request: &CommitDiffRequest,
-    ) -> Result<CommitDiffResponse>;
+    async fn diff(&self, request: DiffRequest) -> Result<DiffResponse>;
 
     /// Patch an event log.
     ///
     /// If the request contains a commit hash then the remote will
     /// attempt to rewind to the commit before applying the patch.
-    async fn patch(
-        &self,
-        request: &EventPatchRequest,
-    ) -> Result<CheckedPatch>;
+    async fn patch(&self, request: PatchRequest) -> Result<PatchResponse>;
 
     /// Send a file.
     #[cfg(feature = "files")]
@@ -157,6 +145,6 @@ pub trait SyncClient {
     #[cfg(feature = "files")]
     async fn compare_files(
         &self,
-        local_files: &storage::files::FileSet,
-    ) -> Result<storage::files::FileTransfersSet>;
+        local_files: crate::protocol::sync::FileSet,
+    ) -> Result<crate::protocol::sync::FileTransfersSet>;
 }

@@ -4,6 +4,7 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
+
 //! High-level software development kit for a
 //! distributed encrypted database that can be used
 //! to build password managers, cryptocurrency wallets
@@ -23,7 +24,7 @@
 //!
 //! # Features
 //!
-//! Default features enable account management, audit trail, external files,
+//! Default features enable account management, audit trail,
 //! search and backup archives. If you want to just use encrypted
 //! vaults without the account management support disable `default-features`.
 //!
@@ -33,7 +34,6 @@
 //! * `files` Store external encrypted files.
 //! * `recovery` Primitives for social recovery.
 //! * `search` In-memory search index.
-//! * `sync` Synchronization primitive definitions.
 //!
 //! The following features require that the `account` feature is enabled:
 //!
@@ -95,8 +95,6 @@ pub mod recovery;
 
 pub mod signer;
 pub mod storage;
-#[cfg(feature = "sync")]
-pub mod sync;
 pub mod vault;
 
 pub use date_time::UtcDateTime;

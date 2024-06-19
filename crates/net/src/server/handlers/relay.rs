@@ -1,5 +1,5 @@
 //! Relay forwards packets between peers over a websocket connection.
-use crate::relay::RelayHeader;
+use crate::protocol::RelayPacket;
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -10,7 +10,6 @@ use axum::{
 };
 use futures::{stream::SplitSink, SinkExt, StreamExt};
 use serde::Deserialize;
-use sos_sdk::decode;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
@@ -57,16 +56,20 @@ async fn handle_socket(
             Ok(msg) => match msg {
                 Message::Text(_) => {}
                 Message::Binary(buffer) => {
-                    if let Ok(header) = decode::<RelayHeader>(&buffer).await {
+                    if let Ok((public_key, buffer)) =
+                        RelayPacket::decode_split(buffer)
+                    {
                         let mut writer = state.lock().await;
-                        if let Some(tx) =
-                            writer.get_mut(&header.to_public_key)
-                        {
+                        if let Some(tx) = writer.get_mut(&public_key) {
                             if let Err(e) =
                                 tx.send(Message::Binary(buffer)).await
                             {
                                 tracing::warn!(error = ?e);
                             }
+                        } else {
+                            tracing::warn!(
+                                public_key = %hex::encode(&public_key),
+                                "ws_relay::public_key::not_found");
                         }
                     }
                 }

@@ -2,24 +2,24 @@
 use async_trait::async_trait;
 use futures::{Future, StreamExt};
 use http::StatusCode;
-use reqwest::header::AUTHORIZATION;
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde_json::Value;
-use sos_sdk::{
-    constants::MIME_TYPE_SOS,
-    decode, encode,
-    sha2::{Digest, Sha256},
-    signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    sync::{
-        ChangeSet, CheckedPatch, Origin, SyncPacket, SyncStatus, UpdateSet,
-    },
-};
 use tracing::instrument;
 
 use crate::{
     client::{CancelReason, Error, Result, SyncClient},
-    commits::{
-        CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
-        CommitScanResponse, EventPatchRequest,
+    protocol::{
+        sync::{
+            CreateSet, FileSet, FileTransfersSet, Origin, SyncPacket,
+            SyncStatus, UpdateSet,
+        },
+        DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
+        ScanResponse, WireEncodeDecode,
+    },
+    sdk::{
+        constants::MIME_TYPE_PROTOBUF,
+        sha2::{Digest, Sha256},
+        signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     },
 };
 use std::{fmt, path::Path, time::Duration};
@@ -30,13 +30,13 @@ use super::{
 };
 
 #[cfg(feature = "listen")]
-use crate::ChangeNotification;
+use crate::protocol::ChangeNotification;
 
 #[cfg(feature = "listen")]
 use super::websocket::WebSocketChangeListener;
 
 #[cfg(feature = "files")]
-use crate::sdk::storage::files::{ExternalFile, FileSet, FileTransfersSet};
+use crate::sdk::storage::files::ExternalFile;
 
 #[cfg(feature = "files")]
 use crate::client::ProgressChannel;
@@ -150,18 +150,18 @@ impl HttpClient {
         response: reqwest::Response,
     ) -> Result<reqwest::Response> {
         use reqwest::header::{self, HeaderValue};
-        let sos_type = HeaderValue::from_static(MIME_TYPE_SOS);
+        let protobuf_type = HeaderValue::from_static(MIME_TYPE_PROTOBUF);
         let status = response.status();
         let content_type = response.headers().get(&header::CONTENT_TYPE);
         match (status, content_type) {
             // OK with the correct MIME type can be handled
             (http::StatusCode::OK, Some(content_type)) => {
-                if content_type == &sos_type {
+                if content_type == &protobuf_type {
                     Ok(response)
                 } else {
                     Err(Error::ContentType(
                         content_type.to_str()?.to_owned(),
-                        MIME_TYPE_SOS.to_string(),
+                        MIME_TYPE_PROTOBUF.to_string(),
                     ))
                 }
             }
@@ -259,8 +259,8 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn create_account(&self, account: &ChangeSet) -> Result<()> {
-        let body = encode(account).await?;
+    async fn create_account(&self, account: CreateSet) -> Result<()> {
+        let body = account.encode().await?;
         let url = self.build_url("api/v1/sync/account")?;
 
         tracing::debug!(url = %url, "http::create_account");
@@ -272,6 +272,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .put(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()
@@ -283,8 +284,8 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn update_account(&self, account: &UpdateSet) -> Result<()> {
-        let body = encode(account).await?;
+    async fn update_account(&self, account: UpdateSet) -> Result<()> {
+        let body = account.encode().await?;
         let url = self.build_url("api/v1/sync/account")?;
 
         tracing::debug!(url = %url, "http::update_account");
@@ -299,6 +300,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .post(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()
@@ -310,7 +312,7 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn fetch_account(&self) -> Result<ChangeSet> {
+    async fn fetch_account(&self) -> Result<CreateSet> {
         let url = self.build_url("api/v1/sync/account")?;
 
         tracing::debug!(url = %url, "http::fetch_account");
@@ -335,7 +337,7 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::fetch_account");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(decode(&buffer).await?)
+        Ok(CreateSet::decode(buffer).await?)
     }
 
     #[instrument(skip_all)]
@@ -364,13 +366,12 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::sync_status");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        let sync_status: SyncStatus = decode(&buffer).await?;
-        Ok(sync_status)
+        Ok(SyncStatus::decode(buffer).await?)
     }
 
     #[instrument(skip_all)]
-    async fn sync(&self, packet: &SyncPacket) -> Result<SyncPacket> {
-        let body = encode(packet).await?;
+    async fn sync(&self, packet: SyncPacket) -> Result<SyncPacket> {
+        let body = packet.encode().await?;
         let url = self.build_url("api/v1/sync/account")?;
 
         tracing::debug!(url = %url, "http::sync");
@@ -385,6 +386,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .patch(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()
@@ -393,15 +395,12 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::sync");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(decode(&buffer).await?)
+        Ok(SyncPacket::decode(buffer).await?)
     }
 
     #[instrument(skip_all)]
-    async fn scan(
-        &self,
-        request: &CommitScanRequest,
-    ) -> Result<CommitScanResponse> {
-        let body = encode(request).await?;
+    async fn scan(&self, request: ScanRequest) -> Result<ScanResponse> {
+        let body = request.encode().await?;
         let url = self.build_url("api/v1/sync/account/events")?;
 
         tracing::debug!(url = %url, "http::scan");
@@ -416,6 +415,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .get(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()
@@ -424,15 +424,12 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::scan");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(decode(&buffer).await?)
+        Ok(ScanResponse::decode(buffer).await?)
     }
 
     #[instrument(skip_all)]
-    async fn diff(
-        &self,
-        request: &CommitDiffRequest,
-    ) -> Result<CommitDiffResponse> {
-        let body = encode(request).await?;
+    async fn diff(&self, request: DiffRequest) -> Result<DiffResponse> {
+        let body = request.encode().await?;
         let url = self.build_url("api/v1/sync/account/events")?;
 
         tracing::debug!(url = %url, "http::diff");
@@ -447,6 +444,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .post(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()
@@ -455,15 +453,12 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::diff");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(decode(&buffer).await?)
+        Ok(DiffResponse::decode(buffer).await?)
     }
 
     #[instrument(skip_all)]
-    async fn patch(
-        &self,
-        request: &EventPatchRequest,
-    ) -> Result<CheckedPatch> {
-        let body = encode(request).await?;
+    async fn patch(&self, request: PatchRequest) -> Result<PatchResponse> {
+        let body = request.encode().await?;
         let url = self.build_url("api/v1/sync/account/events")?;
 
         tracing::debug!(url = %url, "http::patch");
@@ -478,6 +473,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .patch(url)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
             .send()
@@ -486,7 +482,7 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::patch");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(decode(&buffer).await?)
+        Ok(PatchResponse::decode(buffer).await?)
     }
 
     #[cfg(feature = "files")]
@@ -754,7 +750,7 @@ impl SyncClient for HttpClient {
     #[instrument(skip_all)]
     async fn compare_files(
         &self,
-        local_files: &FileSet,
+        local_files: FileSet,
     ) -> Result<FileTransfersSet> {
         let url_path = format!("api/v1/sync/files");
         let url = self.build_url(&url_path)?;
@@ -772,7 +768,7 @@ impl SyncClient for HttpClient {
         .await?;
         let auth = bearer_prefix(&account_signature, Some(&device_signature));
 
-        let body = encode(local_files).await?;
+        let body = local_files.encode().await?;
 
         let response = self
             .client
@@ -785,6 +781,6 @@ impl SyncClient for HttpClient {
         tracing::debug!(status = %status, "http::compare_files");
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
-        Ok(decode(&buffer).await?)
+        Ok(FileTransfersSet::decode(buffer).await?)
     }
 }

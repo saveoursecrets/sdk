@@ -3,15 +3,15 @@ use utoipa::{openapi::security::*, Modify, OpenApi, ToSchema};
 
 #[derive(ToSchema)]
 #[allow(dead_code)]
-struct ChangeSet(crate::sdk::sync::ChangeSet);
+struct CreateSet(crate::protocol::sync::CreateSet);
 
 #[derive(ToSchema)]
 #[allow(dead_code)]
-struct SyncStatus(crate::sdk::sync::SyncStatus);
+struct SyncStatus(crate::protocol::sync::SyncStatus);
 
 #[derive(ToSchema)]
 #[allow(dead_code)]
-struct SyncPacket(crate::sdk::sync::SyncPacket);
+struct SyncPacket(crate::protocol::sync::SyncPacket);
 
 #[derive(OpenApi)]
 #[openapi(
@@ -48,7 +48,7 @@ struct SyncPacket(crate::sdk::sync::SyncPacket);
     ),
     components(
         schemas(
-            ChangeSet,
+            CreateSet,
             SyncStatus,
             SyncPacket,
         ),

@@ -27,11 +27,10 @@ mod types;
 mod write;
 
 pub use self::log::{
-    AccountEventLog, DiscData, DiscEventLog, DiscLog, EventLogExt,
+    patch::*, AccountEventLog, DiscData, DiscEventLog, DiscLog, EventLogExt,
     EventRecord, FolderEventLog, FolderReducer, MemoryData, MemoryEventLog,
     MemoryFolderLog, MemoryLog,
 };
-use crate::vault::VaultId;
 
 #[cfg(feature = "device")]
 pub use self::log::{DeviceEventLog, DeviceReducer};
@@ -56,62 +55,6 @@ pub use write::WriteEvent;
 pub trait LogEvent {
     /// Get the event kind for this event.
     fn event_kind(&self) -> EventKind;
-}
-
-/// Types of event logs.
-#[derive(Debug, Default, Copy, Clone)]
-pub enum EventLogType {
-    #[default]
-    #[doc(hidden)]
-    Noop,
-    /// Identity folder event log.
-    Identity,
-    /// Account event log.
-    Account,
-    /// Device event log.
-    #[cfg(feature = "device")]
-    Device,
-    /// Files event log.
-    #[cfg(feature = "files")]
-    Files,
-    /// Folder event log.
-    Folder(VaultId),
-}
-
-impl EventLogType {
-    /// Kind identifier of the identity log.
-    pub const IDENTITY_LOG: u8 = 1;
-    /// Kind identifier of the account log.
-    pub const ACCOUNT_LOG: u8 = 2;
-    /// Kind identifier of the device log.
-    #[cfg(feature = "device")]
-    pub const DEVICE_LOG: u8 = 3;
-    /// Kind identifier of the files log.
-    #[cfg(feature = "files")]
-    pub const FILES_LOG: u8 = 4;
-    /// Kind identifier of a folder log.
-    pub const FOLDER_LOG: u8 = 5;
-}
-
-impl From<&EventLogType> for u8 {
-    fn from(value: &EventLogType) -> Self {
-        match value {
-            EventLogType::Noop => panic!("attempt to convert a noop"),
-            EventLogType::Identity => EventLogType::IDENTITY_LOG,
-            EventLogType::Account => EventLogType::ACCOUNT_LOG,
-            #[cfg(feature = "device")]
-            EventLogType::Device => EventLogType::DEVICE_LOG,
-            #[cfg(feature = "files")]
-            EventLogType::Files => EventLogType::FILES_LOG,
-            EventLogType::Folder(_) => EventLogType::FOLDER_LOG,
-        }
-    }
-}
-
-impl From<EventLogType> for u8 {
-    fn from(value: EventLogType) -> Self {
-        (&value).into()
-    }
 }
 
 /// Encode an event into a record.

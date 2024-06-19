@@ -1,21 +1,21 @@
 //! Bridge between local storage and a remote server.
-use crate::client::{
-    net::HttpClient, Error, RemoteSync, Result, SyncClient, SyncError,
+use crate::{
+    client::{
+        net::HttpClient, Error, RemoteSync, Result, SyncClient, SyncError,
+    },
+    protocol::sync::{
+        self, FileOperation, FileSet, MaybeDiff, Merge, MergeOutcome, Origin,
+        SyncOptions, SyncPacket, SyncStatus, SyncStorage, TransferOperation,
+        UpdateSet,
+    },
+    sdk::{
+        account::{Account, LocalAccount},
+        signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
+        storage::StorageEventLogs,
+        vfs,
+    },
 };
 use async_trait::async_trait;
-use sos_sdk::{
-    account::{Account, LocalAccount},
-    signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    storage::{
-        files::{FileSet, TransferOperation},
-        StorageEventLogs,
-    },
-    sync::{
-        self, MaybeDiff, Merge, MergeOutcome, Origin, SyncOptions,
-        SyncPacket, SyncStatus, SyncStorage, UpdateSet,
-    },
-    vfs,
-};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, Mutex};
 
@@ -76,7 +76,7 @@ impl RemoteBridge {
         {
             let account = self.account.lock().await;
             let public_account = account.change_set().await?;
-            self.client.create_account(&public_account).await?;
+            self.client.create_account(public_account).await?;
         }
         self.execute_sync_file_transfers().await?;
         Ok(())
@@ -98,7 +98,7 @@ impl RemoteBridge {
                 diff: local_changes,
                 compare: None,
             };
-            let remote_changes = self.client.sync(&packet).await?;
+            let remote_changes = self.client.sync(packet.clone()).await?;
 
             let maybe_conflict = remote_changes
                 .compare
@@ -130,11 +130,12 @@ impl RemoteBridge {
                                 "add file download to transfers",
                             );
                             if self.file_transfer_queue.receiver_count() > 0 {
-                                let _ =
-                                    self.file_transfer_queue.send(vec![(
+                                let _ = self.file_transfer_queue.send(vec![
+                                    FileOperation(
                                         file,
                                         TransferOperation::Download,
-                                    )]);
+                                    ),
+                                ]);
                             }
                         }
                     }
@@ -228,15 +229,15 @@ impl RemoteBridge {
         };
 
         let file_set = FileSet(external_files);
-        let file_transfers = self.client.compare_files(&file_set).await?;
+        let file_transfers = self.client.compare_files(file_set).await?;
 
         let mut ops = Vec::new();
         for file in file_transfers.uploads.0 {
-            ops.push((file, TransferOperation::Upload));
+            ops.push(FileOperation(file, TransferOperation::Upload));
         }
 
         for file in file_transfers.downloads.0 {
-            ops.push((file, TransferOperation::Download));
+            ops.push(FileOperation(file, TransferOperation::Download));
         }
 
         if !ops.is_empty() && self.file_transfer_queue.receiver_count() > 0 {
@@ -307,7 +308,7 @@ impl RemoteSync for RemoteBridge {
 
     async fn force_update(
         &self,
-        account_data: &UpdateSet,
+        account_data: UpdateSet,
         _options: &SyncOptions,
     ) -> Option<SyncError> {
         match self.client.update_account(account_data).await {
@@ -323,7 +324,7 @@ impl RemoteSync for RemoteBridge {
 mod listen {
     use crate::{
         client::{ListenOptions, RemoteBridge, WebSocketHandle},
-        ChangeNotification,
+        protocol::ChangeNotification,
     };
     use tokio::sync::mpsc;
 

@@ -16,11 +16,8 @@
 //! by a semaphore and notifications are sent via [InflightTransfers].
 use crate::{
     client::{net::NetworkRetry, CancelReason, Error, Result, SyncClient},
-    sdk::{
-        storage::files::{ExternalFile, TransferOperation},
-        sync::Origin,
-        vfs, Paths,
-    },
+    protocol::sync::{FileOperation, Origin, TransferOperation},
+    sdk::{storage::files::ExternalFile, vfs, Paths},
 };
 
 use futures::FutureExt;
@@ -44,7 +41,7 @@ pub use inflight::{
 use std::collections::{HashSet, VecDeque};
 
 /// Request to queue a file transfer.
-pub type FileTransferQueueRequest = Vec<(ExternalFile, TransferOperation)>;
+pub type FileTransferQueueRequest = Vec<FileOperation>;
 
 /// Channel for upload and download progress notifications.
 pub type ProgressChannel = mpsc::Sender<(u64, Option<u64>)>;
@@ -98,9 +95,9 @@ struct TransferFailure {
     operation: TransferOperation,
 }
 
-impl From<TransferFailure> for (ExternalFile, TransferOperation) {
+impl From<TransferFailure> for FileOperation {
     fn from(value: TransferFailure) -> Self {
-        (value.file, value.operation)
+        FileOperation(value.file, value.operation)
     }
 }
 
@@ -228,7 +225,7 @@ where
 {
     clients: Arc<Mutex<Vec<C>>>,
     settings: Arc<FileTransferSettings>,
-    queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
+    queue: Arc<RwLock<VecDeque<FileOperation>>>,
     failures: Arc<Mutex<VecDeque<TransferFailure>>>,
     pub(super) inflight: Arc<InflightTransfers>,
 }
@@ -443,7 +440,7 @@ where
     async fn spawn_tasks(
         paths: Arc<Paths>,
         semaphore: Arc<Semaphore>,
-        queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
+        queue: Arc<RwLock<VecDeque<FileOperation>>>,
         failures: Arc<Mutex<VecDeque<TransferFailure>>>,
         inflight: Arc<InflightTransfers>,
         settings: Arc<FileTransferSettings>,
@@ -479,7 +476,7 @@ where
     async fn consume_queue(
         paths: Arc<Paths>,
         semaphore: Arc<Semaphore>,
-        queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
+        queue: Arc<RwLock<VecDeque<FileOperation>>>,
         failures: Arc<Mutex<VecDeque<TransferFailure>>>,
         inflight: Arc<InflightTransfers>,
         settings: Arc<FileTransferSettings>,
@@ -504,7 +501,7 @@ where
                 break;
             }
 
-            let (file, op) = item.unwrap();
+            let FileOperation(file, op) = item.unwrap();
 
             // println!("process: {:#?}", op);
             tracing::debug!(
@@ -634,8 +631,10 @@ where
                         );
 
                         if vfs::try_exists(path).await? {
-                            let item =
-                                (dest.clone(), TransferOperation::Upload);
+                            let item = FileOperation(
+                                dest.clone(),
+                                TransferOperation::Upload,
+                            );
                             let mut queue = request_queue.write().await;
                             if !queue.contains(&item) {
                                 queue.push_back(item);
@@ -928,7 +927,7 @@ fn compute_transfer_id(
 async fn normalize(
     file: &ExternalFile,
     operation: &TransferOperation,
-    queue: Arc<RwLock<VecDeque<(ExternalFile, TransferOperation)>>>,
+    queue: Arc<RwLock<VecDeque<FileOperation>>>,
     failures: Arc<Mutex<VecDeque<TransferFailure>>>,
     inflight: Arc<InflightTransfers>,
 ) {

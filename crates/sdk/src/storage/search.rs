@@ -714,7 +714,8 @@ impl AccountSearch {
     }
 
     /// Get a reference to the search index.
-    pub(crate) fn search(&self) -> Arc<RwLock<SearchIndex>> {
+    #[doc(hidden)]
+    pub fn search(&self) -> Arc<RwLock<SearchIndex>> {
         Arc::clone(&self.search_index)
     }
 

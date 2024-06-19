@@ -1,13 +1,18 @@
 //! Adds sync capability to network account.
-use crate::client::{NetworkAccount, RemoteSync, SyncClient, SyncError};
-use async_trait::async_trait;
-use sos_sdk::{
-    events::{AccountEventLog, FolderEventLog},
-    storage::StorageEventLogs,
-    sync::{Origin, SyncOptions, SyncStatus, SyncStorage, UpdateSet},
-    vault::VaultId,
-    Result,
+use crate::{
+    client::{NetworkAccount, RemoteSync, SyncClient, SyncError},
+    protocol::sync::{
+        FileSet, FileTransfersSet, Origin, SyncOptions, SyncStatus,
+        SyncStorage, UpdateSet,
+    },
+    sdk::{
+        events::{AccountEventLog, FolderEventLog},
+        storage::StorageEventLogs,
+        vault::VaultId,
+        Result,
+    },
 };
+use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -15,10 +20,7 @@ use tokio::sync::RwLock;
 use sos_sdk::events::DeviceEventLog;
 
 #[cfg(feature = "files")]
-use sos_sdk::{
-    events::FileEventLog,
-    storage::files::{FileSet, FileTransfersSet},
-};
+use sos_sdk::events::FileEventLog;
 
 /// Server status for all remote origins.
 pub type ServerStatus = HashMap<Origin, crate::client::Result<SyncStatus>>;
@@ -71,7 +73,7 @@ impl NetworkAccount {
                 || options.origins.contains(origin);
 
             if sync_remote {
-                match remote.client.compare_files(&local_files).await {
+                match remote.client.compare_files(local_files.clone()).await {
                     Ok(status) => {
                         transfer_status.insert(origin.clone(), Ok(status));
                     }
@@ -145,10 +147,10 @@ impl RemoteSync for NetworkAccount {
         }
         maybe_error.into_option()
     }
-  
+
     async fn force_update(
         &self,
-        account_data: &UpdateSet,
+        account_data: UpdateSet,
         options: &SyncOptions,
     ) -> Option<SyncError> {
         if self.offline {
@@ -166,7 +168,7 @@ impl RemoteSync for NetworkAccount {
 
             if sync_remote {
                 if let Some(mut e) =
-                    remote.force_update(account_data, options).await
+                    remote.force_update(account_data.clone(), options).await
                 {
                     maybe_error.errors.append(&mut e.errors);
                 }

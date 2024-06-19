@@ -74,32 +74,32 @@ pub struct ClientStorage {
 
     /// Search index.
     #[cfg(feature = "search")]
-    pub(crate) index: Option<AccountSearch>,
+    pub index: Option<AccountSearch>,
 
     /// Identity folder event log.
     ///
     /// This is a clone of the main identity folder
     /// event log and is defined here so we can
     /// get the commit state for synchronization.
-    pub(crate) identity_log: Arc<RwLock<FolderEventLog>>,
+    pub identity_log: Arc<RwLock<FolderEventLog>>,
 
     /// Account event log.
-    pub(crate) account_log: Arc<RwLock<AccountEventLog>>,
+    pub account_log: Arc<RwLock<AccountEventLog>>,
 
     /// Folder event logs.
-    pub(super) cache: HashMap<VaultId, DiscFolder>,
+    pub cache: HashMap<VaultId, DiscFolder>,
 
     /// Device event log.
     #[cfg(feature = "device")]
-    pub(crate) device_log: Arc<RwLock<DeviceEventLog>>,
+    pub device_log: Arc<RwLock<DeviceEventLog>>,
 
     /// Reduced collection of devices.
     #[cfg(feature = "device")]
-    pub(crate) devices: IndexSet<TrustedDevice>,
+    pub devices: IndexSet<TrustedDevice>,
 
     /// File event log.
     #[cfg(feature = "files")]
-    pub(crate) file_log: Arc<RwLock<FileEventLog>>,
+    pub file_log: Arc<RwLock<FileEventLog>>,
 
     /// Password for file encryption.
     #[cfg(feature = "files")]
@@ -957,7 +957,8 @@ impl ClientStorage {
         Ok(events)
     }
 
-    pub(crate) fn set_folder_name(
+    /// Update the in-memory name for a folder.
+    pub fn set_folder_name(
         &mut self,
         summary: &Summary,
         name: impl AsRef<str>,

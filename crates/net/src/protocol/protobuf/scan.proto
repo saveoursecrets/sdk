@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package scan;
+
+import "protobuf/common.proto";
+
+message WireScanRequest {
+  // Type of event log.
+  common.WireEventLogType log_type = 1;
+  // Limit on the number of proofs the server
+  // should return.
+  optional uint32 limit = 2;
+  // Offset to resume a scan from.
+  uint64 offset = 3;
+}
+
+message WireScanResponse {
+  // Proof of the first event so that callers
+  // can quickly determine if the trees have 
+  // completely diverged.
+  common.WireCommitProof first_proof = 1;
+  // Collection of proofs.
+  repeated common.WireCommitProof proofs = 2;
+  // Offset to resume a scan from if the client
+  // does not contain any of the proofs.
+  uint64 offset = 3;
+}

@@ -31,9 +31,6 @@ mod identity {
 
     /// Vault file identity magic bytes (SOSV).
     pub const VAULT_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x56];
-
-    /// Remote procedure call identity magic bytes (SOSR).
-    pub const RPC_IDENTITY: [u8; 4] = [0x53, 0x4F, 0x53, 0x52];
 }
 
 /// Constants for file extensions.
@@ -89,14 +86,8 @@ mod urn {
 
 /// Constants for MIME types.
 mod mime {
-    /// Mime type for event logs.
-    pub const MIME_TYPE_EVENT: &str = "application/sos+event";
-
-    /// Mime type for patches.
-    pub const MIME_TYPE_PATCH: &str = "application/sos+patch";
-
-    /// Mime type for binary packets.
-    pub const MIME_TYPE_SOS: &str = "application/sos+octet-stream";
+    /// Mime type for protocol buffers.
+    pub const MIME_TYPE_PROTOBUF: &str = "application/x-protobuf";
 }
 
 /// Constants for directory names.

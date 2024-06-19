@@ -106,7 +106,8 @@ impl Identity {
         self.identity.as_ref().ok_or(Error::NotAuthenticated)
     }
 
-    pub(crate) fn identity_mut(&mut self) -> Result<&mut DiscIdentityFolder> {
+    #[doc(hidden)]
+    pub fn identity_mut(&mut self) -> Result<&mut DiscIdentityFolder> {
         self.identity.as_mut().ok_or(Error::NotAuthenticated)
     }
 
@@ -182,6 +183,7 @@ impl Identity {
     }
 
     /// Create the file encryption password.
+    #[cfg(feature = "files")]
     pub(crate) async fn create_file_encryption_password(
         &mut self,
     ) -> Result<()> {
@@ -189,6 +191,7 @@ impl Identity {
     }
 
     /// Find the password used for symmetric file encryption (AGE).
+    #[cfg(feature = "files")]
     pub(crate) async fn find_file_encryption_password(
         &self,
     ) -> Result<SecretString> {

@@ -93,7 +93,7 @@ async fn event_log_compare() -> Result<()> {
     let proof = client.tree().head()?;
     let comparison = server.tree().compare(&proof)?;
 
-    let matched = if let Comparison::Contains(indices, _) = comparison {
+    let matched = if let Comparison::Contains(indices) = comparison {
         indices == vec![1]
     } else {
         false

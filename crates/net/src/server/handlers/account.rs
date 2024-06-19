@@ -74,7 +74,7 @@ pub(crate) async fn account_exists(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = ChangeSet,
+        content = CreateSet,
     ),
     responses(
         (
@@ -114,7 +114,7 @@ pub(crate) async fn create_account(
         .await
         {
             Ok(caller) => {
-                match handlers::create_account(state, backend, caller, &bytes)
+                match handlers::create_account(state, backend, caller, bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -186,7 +186,7 @@ pub(crate) async fn delete_account(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = ChangeSet,
+        content = CreateSet,
     ),
     responses(
         (
@@ -226,7 +226,7 @@ pub(crate) async fn update_account(
         .await
         {
             Ok(caller) => {
-                match handlers::update_account(state, backend, caller, &bytes)
+                match handlers::update_account(state, backend, caller, bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -259,7 +259,7 @@ pub(crate) async fn update_account(
             status = StatusCode::OK,
             content_type = "application/octet-stream",
             description = "Account data sent.",
-            body = ChangeSet,
+            body = CreateSet,
         ),
     ),
 )]
@@ -352,7 +352,7 @@ pub(crate) async fn sync_status(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = CommitScanRequest,
+        content = ScanRequest,
     ),
     responses(
         (
@@ -367,7 +367,7 @@ pub(crate) async fn sync_status(
             status = StatusCode::OK,
             content_type = "application/octet-stream",
             description = "Commit hashes sent.",
-            body = CommitScanResponse,
+            body = ScanResponse,
         ),
     ),
 )]
@@ -390,7 +390,7 @@ pub(crate) async fn event_proofs(
         .await
         {
             Ok(caller) => {
-                match handlers::event_proofs(state, backend, caller, &bytes)
+                match handlers::event_proofs(state, backend, caller, bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -412,7 +412,7 @@ pub(crate) async fn event_proofs(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = CommitDiffRequest,
+        content = DiffRequest,
     ),
     responses(
         (
@@ -427,7 +427,7 @@ pub(crate) async fn event_proofs(
             status = StatusCode::OK,
             content_type = "application/octet-stream",
             description = "Commit diff sent.",
-            body = CommitDiffResponse,
+            body = DiffResponse,
         ),
     ),
 )]
@@ -450,7 +450,7 @@ pub(crate) async fn event_diff(
         .await
         {
             Ok(caller) => {
-                match handlers::event_diff(state, backend, caller, &bytes)
+                match handlers::event_diff(state, backend, caller, bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -472,7 +472,7 @@ pub(crate) async fn event_diff(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = EventPatchRequest,
+        content = PatchRequest,
     ),
     responses(
         (
@@ -487,7 +487,7 @@ pub(crate) async fn event_diff(
             status = StatusCode::OK,
             content_type = "application/octet-stream",
             description = "Result of the attempt to apply the checked patch.",
-            body = CheckedPatch,
+            body = PatchResponse,
         ),
     ),
 )]
@@ -510,7 +510,7 @@ pub(crate) async fn event_patch(
         .await
         {
             Ok(caller) => {
-                match handlers::event_patch(state, backend, caller, &bytes)
+                match handlers::event_patch(state, backend, caller, bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -570,7 +570,7 @@ pub(crate) async fn sync_account(
         .await
         {
             Ok(caller) => {
-                match handlers::sync_account(state, backend, caller, &bytes)
+                match handlers::sync_account(state, backend, caller, bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -586,45 +586,50 @@ pub(crate) async fn sync_account(
 mod handlers {
     use super::Caller;
     use crate::{
-        commits::{
-            CommitDiffRequest, CommitDiffResponse, CommitScanRequest,
-            CommitScanResponse, EventPatchRequest,
+        protocol::sync::{
+            self, CreateSet, EventLogType, Merge, MergeOutcome, SyncPacket,
+            SyncStorage, UpdateSet,
+        },
+        sdk::{
+            constants::MIME_TYPE_PROTOBUF,
+            events::{
+                AccountDiff, AccountEvent, CheckedPatch, DiscEventLog,
+                EventLogExt, EventRecord, FolderDiff, Patch, WriteEvent,
+            },
+            storage::StorageEventLogs,
+        },
+    };
+    use crate::{
+        protocol::{
+            DiffRequest, DiffResponse, PatchRequest, PatchResponse,
+            ScanRequest, ScanResponse, WireEncodeDecode,
         },
         server::{
             backend::AccountStorage, Error, Result, ServerBackend,
             ServerState,
         },
     };
+    use axum::body::Bytes;
     use binary_stream::futures::{Decodable, Encodable};
     use http::{
         header::{self, HeaderMap, HeaderValue},
         StatusCode,
     };
-    use sos_sdk::{
-        constants::MIME_TYPE_SOS,
-        decode, encode,
-        events::{
-            AccountEvent, DiscEventLog, EventLogExt, EventLogType,
-            EventRecord, WriteEvent,
-        },
-        storage::StorageEventLogs,
-        sync::{
-            self, AccountDiff, ChangeSet, CheckedPatch, FolderDiff, Merge,
-            MergeOutcome, Patch, SyncPacket, SyncStorage, UpdateSet,
-        },
-    };
+
     use tokio::sync::RwLock;
 
     use std::sync::Arc;
 
     #[cfg(feature = "files")]
-    use sos_sdk::{events::FileEvent, sync::FileDiff};
+    use sos_sdk::events::{FileDiff, FileEvent};
 
     #[cfg(feature = "device")]
-    use sos_sdk::{events::DeviceEvent, sync::DeviceDiff};
+    use sos_sdk::events::{DeviceDiff, DeviceEvent};
 
     #[cfg(feature = "listen")]
-    use crate::{server::handlers::send_notification, ChangeNotification};
+    use crate::{
+        protocol::ChangeNotification, server::handlers::send_notification,
+    };
 
     pub(super) async fn account_exists(
         _state: ServerState,
@@ -639,7 +644,7 @@ mod handlers {
         _state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-        bytes: &[u8],
+        bytes: Bytes,
     ) -> Result<()> {
         {
             let reader = backend.read().await;
@@ -648,7 +653,7 @@ mod handlers {
             }
         }
 
-        let account: ChangeSet = decode(bytes).await?;
+        let account = CreateSet::decode(bytes).await?;
         let mut writer = backend.write().await;
         writer.create_account(caller.address(), account).await?;
         Ok(())
@@ -668,9 +673,9 @@ mod handlers {
         _state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-        bytes: &[u8],
+        bytes: Bytes,
     ) -> Result<()> {
-        let account: UpdateSet = decode(bytes).await?;
+        let account = UpdateSet::decode(bytes).await?;
         let mut writer = backend.write().await;
         writer.update_account(caller.address(), account).await?;
         Ok(())
@@ -682,16 +687,16 @@ mod handlers {
         caller: Caller,
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let reader = backend.read().await;
-        let account: ChangeSet =
+        let account: CreateSet =
             reader.fetch_account(caller.address()).await?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
-            HeaderValue::from_static(MIME_TYPE_SOS),
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, encode(&account).await?))
+        Ok((headers, account.encode().await?))
     }
 
     pub(super) async fn sync_status(
@@ -709,21 +714,19 @@ mod handlers {
         let account = reader.get(caller.address()).unwrap();
         let account = account.read().await;
         let status = account.storage.sync_status().await?;
-        let encoded = encode(&status).await?;
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
-            HeaderValue::from_static(MIME_TYPE_SOS),
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
-
-        Ok((headers, encoded))
+        Ok((headers, status.encode().await?))
     }
 
     pub(super) async fn event_proofs(
         _state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-        bytes: &[u8],
+        bytes: Bytes,
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let account = {
             let reader = backend.read().await;
@@ -735,7 +738,7 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let req: CommitScanRequest = decode(bytes).await?;
+        let req = ScanRequest::decode(bytes).await?;
 
         // Maximum number of proofs to return in a single request
         if req.limit > 256 {
@@ -743,9 +746,6 @@ mod handlers {
         }
 
         let response = match &req.log_type {
-            EventLogType::Noop => {
-                return Err(Error::Status(StatusCode::BAD_REQUEST));
-            }
             EventLogType::Identity => {
                 let reader = account.read().await;
                 let log = reader.storage.identity_log();
@@ -774,7 +774,7 @@ mod handlers {
             }
             EventLogType::Folder(id) => {
                 let reader = account.read().await;
-                let log = reader.storage.folder_log(id).await?;
+                let log = reader.storage.folder_log(&id).await?;
                 let event_log = log.read().await;
                 scan_log(&req, &*event_log).await?
             }
@@ -783,21 +783,25 @@ mod handlers {
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
-            HeaderValue::from_static(MIME_TYPE_SOS),
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, encode(&response).await?))
+        Ok((headers, response.encode().await?))
     }
 
     async fn scan_log<T>(
-        req: &CommitScanRequest,
+        req: &ScanRequest,
         event_log: &DiscEventLog<T>,
-    ) -> Result<CommitScanResponse>
+    ) -> Result<ScanResponse>
     where
         T: Default + Encodable + Decodable + Send + Sync + 'static,
     {
-        let mut res = CommitScanResponse::default();
-        let offset = req.offset.unwrap_or(0);
+        let mut res = ScanResponse {
+            first_proof: None,
+            proofs: vec![],
+            offset: 0,
+        };
+        let offset = req.offset;
         let num_commits = event_log.tree().len() as u64;
 
         let mut index = if event_log.tree().len() > 0 {
@@ -851,7 +855,7 @@ mod handlers {
         _state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-        bytes: &[u8],
+        bytes: Bytes,
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let account = {
             let reader = backend.read().await;
@@ -863,12 +867,9 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let req: CommitDiffRequest = decode(bytes).await?;
+        let req = DiffRequest::decode(bytes).await?;
 
         let response = match &req.log_type {
-            EventLogType::Noop => {
-                return Err(Error::Status(StatusCode::BAD_REQUEST));
-            }
             EventLogType::Identity => {
                 let reader = account.read().await;
                 let log = reader.storage.identity_log();
@@ -906,30 +907,31 @@ mod handlers {
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
-            HeaderValue::from_static(MIME_TYPE_SOS),
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
         Ok((headers, response))
     }
 
     async fn diff_log<T>(
-        req: &CommitDiffRequest,
+        req: &DiffRequest,
         event_log: &DiscEventLog<T>,
     ) -> Result<Vec<u8>>
     where
         T: Default + Encodable + Decodable + Send + Sync + 'static,
     {
-        let mut response = CommitDiffResponse::default();
-        response.patch =
-            event_log.diff_records(req.from_hash.as_ref()).await?;
-        Ok(encode(&response).await?)
+        let response = DiffResponse {
+            patch: event_log.diff_records(req.from_hash.as_ref()).await?,
+            checkpoint: event_log.tree().head()?,
+        };
+        Ok(response.encode().await?)
     }
 
     pub(super) async fn event_patch(
         state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-        bytes: &[u8],
+        bytes: Bytes,
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let account = {
             let reader = backend.read().await;
@@ -941,12 +943,9 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let req: EventPatchRequest = decode(bytes).await?;
+        let req = PatchRequest::decode(bytes).await?;
 
         let (checked_patch, outcome, records) = match &req.log_type {
-            EventLogType::Noop => {
-                return Err(Error::Status(StatusCode::BAD_REQUEST));
-            }
             EventLogType::Identity => {
                 let patch = Patch::<WriteEvent>::new(req.patch);
                 let mut writer = account.write().await;
@@ -1058,7 +1057,7 @@ mod handlers {
                 let mut writer = account.write().await;
                 let (last_commit, records) = if let Some(commit) = &req.commit
                 {
-                    let log = writer.storage.folder_log(id).await?;
+                    let log = writer.storage.folder_log(&id).await?;
                     let mut event_log = log.write().await;
                     let records = event_log.rewind(commit).await?;
                     (Some(*commit), records)
@@ -1076,7 +1075,7 @@ mod handlers {
                 (
                     writer
                         .storage
-                        .merge_folder(id, diff, &mut outcome)
+                        .merge_folder(&id, diff, &mut outcome)
                         .await?,
                     outcome,
                     records,
@@ -1112,10 +1111,11 @@ mod handlers {
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
-            HeaderValue::from_static(MIME_TYPE_SOS),
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, encode(&checked_patch).await?))
+        let response = PatchResponse { checked_patch };
+        Ok((headers, response.encode().await?))
     }
 
     async fn rollback_rewind(
@@ -1125,9 +1125,6 @@ mod handlers {
     ) -> Result<()> {
         let reader = account.read().await;
         match log_type {
-            EventLogType::Noop => {
-                return Err(Error::Status(StatusCode::BAD_REQUEST));
-            }
             EventLogType::Identity => {
                 let log = reader.storage.identity_log();
                 let mut event_log = log.write().await;
@@ -1164,7 +1161,7 @@ mod handlers {
         state: ServerState,
         backend: ServerBackend,
         caller: Caller,
-        bytes: &[u8],
+        bytes: Bytes,
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let account = {
             let reader = backend.read().await;
@@ -1176,7 +1173,7 @@ mod handlers {
             Arc::clone(account)
         };
 
-        let packet: SyncPacket = decode(bytes).await?;
+        let packet = SyncPacket::decode(bytes).await?;
         let (remote_status, diff) = (packet.status, packet.diff);
 
         // Apply the diff to the storage
@@ -1219,9 +1216,9 @@ mod handlers {
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
-            HeaderValue::from_static(MIME_TYPE_SOS),
+            HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, encode(&packet).await?))
+        Ok((headers, packet.encode().await?))
     }
 }

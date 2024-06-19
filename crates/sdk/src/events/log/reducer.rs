@@ -298,7 +298,6 @@ mod files {
 
         /// Reduce file events to a canonical collection
         /// of external files.
-        #[cfg(feature = "sync")]
         pub async fn reduce(
             self,
             from: Option<&CommitHash>,
@@ -312,18 +311,11 @@ mod files {
             // log which will be faster than scanning when there
             // are lots of file events.
             if let Some(from) = from {
-                #[cfg(feature = "sync")]
-                {
-                    let patch = self.log.diff_events(Some(from)).await?;
-                    for record in patch.iter() {
-                        let event =
-                            record.decode_event::<FileEvent>().await?;
-                        self.add_file_event(event, &mut files);
-                    }
+                let patch = self.log.diff_events(Some(from)).await?;
+                for record in patch.iter() {
+                    let event = record.decode_event::<FileEvent>().await?;
+                    self.add_file_event(event, &mut files);
                 }
-
-                #[cfg(not(feature = "sync"))]
-                panic!("file reducer with diff requires the sync feature");
             } else {
                 let stream = self.log.stream(false).await;
                 pin_mut!(stream);
@@ -332,23 +324,6 @@ mod files {
                     let (_, event) = event?;
                     self.add_file_event(event, &mut files);
                 }
-            }
-
-            Ok(files)
-        }
-
-        /// Reduce file events to a canonical collection
-        /// of external files.
-        #[cfg(not(feature = "sync"))]
-        pub async fn reduce(self) -> Result<IndexSet<ExternalFile>> {
-            let mut files: IndexSet<ExternalFile> = IndexSet::new();
-
-            let stream = self.log.stream(false).await;
-            pin_mut!(stream);
-
-            while let Some(event) = stream.next().await {
-                let (_, event) = event?;
-                self.add_file_event(event, &mut files);
             }
 
             Ok(files)

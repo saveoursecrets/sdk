@@ -1,20 +1,23 @@
 use super::{Error, Result};
-use crate::sdk::{
-    signer::{
-        ecdsa::Address,
-        ed25519::{self, Verifier, VerifyingKey},
+use crate::{
+    protocol::sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet},
+    sdk::{
+        signer::{
+            ecdsa::Address,
+            ed25519::{self, Verifier, VerifyingKey},
+        },
+        storage::DiscFolder,
+        vfs, Paths,
     },
-    storage::{DiscFolder, ServerStorage},
-    sync::{ChangeSet, SyncStorage, UpdateSet},
-    vfs, Paths,
 };
-use sos_sdk::sync::MergeOutcome;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
 use tokio::sync::RwLock;
+
+use crate::server::storage::filesystem::ServerStorage;
 
 /// Account storage.
 pub struct AccountStorage {
@@ -115,7 +118,7 @@ impl Backend {
     pub async fn create_account(
         &mut self,
         owner: &Address,
-        account_data: ChangeSet,
+        account_data: CreateSet,
     ) -> Result<()> {
         {
             let accounts = self.accounts.read().await;
@@ -190,7 +193,7 @@ impl Backend {
     }
 
     /// Fetch an existing account.
-    pub async fn fetch_account(&self, owner: &Address) -> Result<ChangeSet> {
+    pub async fn fetch_account(&self, owner: &Address) -> Result<CreateSet> {
         tracing::debug!(address = %owner, "backend::fetch_account");
 
         let accounts = self.accounts.read().await;

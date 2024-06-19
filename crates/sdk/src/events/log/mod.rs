@@ -5,6 +5,7 @@ use crate::{
 use binary_stream::futures::Decodable;
 
 mod file;
+pub mod patch;
 mod reducer;
 
 #[cfg(feature = "device")]
@@ -35,6 +36,16 @@ pub struct EventRecord(
 );
 
 impl EventRecord {
+    /// Create an event record.
+    pub fn new(
+        time: UtcDateTime,
+        last_commit: CommitHash,
+        commit: CommitHash,
+        event: Vec<u8>,
+    ) -> Self {
+        Self(time, last_commit, commit, event)
+    }
+
     /// Date and time the record was created.
     pub fn time(&self) -> &UtcDateTime {
         &self.0
@@ -79,5 +90,11 @@ impl From<(EventLogRecord, Vec<u8>)> for EventRecord {
             CommitHash(value.0.commit),
             value.1,
         )
+    }
+}
+
+impl From<EventRecord> for (UtcDateTime, CommitHash, CommitHash, Vec<u8>) {
+    fn from(value: EventRecord) -> Self {
+        (value.0, value.1, value.2, value.3)
     }
 }

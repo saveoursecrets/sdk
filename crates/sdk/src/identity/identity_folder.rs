@@ -46,9 +46,6 @@ use urn::Urn;
 #[cfg(feature = "device")]
 use crate::device::{DeviceManager, DeviceSigner};
 
-#[cfg(feature = "sync")]
-use crate::sync::{CheckedPatch, FolderDiff, FolderMergeOptions};
-
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
 
@@ -69,8 +66,13 @@ where
     W: AsyncWrite + Unpin + Send + Sync + 'static,
     D: Clone + Send + Sync,
 {
-    folder: Folder<T, R, W, D>,
-    pub(crate) index: UrnLookup,
+    /// Folder storage.
+    #[doc(hidden)]
+    pub folder: Folder<T, R, W, D>,
+    /// Lookup table.
+    #[doc(hidden)]
+    pub index: UrnLookup,
+
     private_identity: PrivateIdentity,
     #[cfg(feature = "device")]
     pub(super) devices: Option<crate::device::DeviceManager>,
@@ -340,7 +342,8 @@ where
     ///
     /// The identity vault must already be unlocked to extract
     /// the secret password.
-    pub(crate) async fn find_folder_password(
+    #[doc(hidden)]
+    pub async fn find_folder_password(
         &self,
         vault_id: &VaultId,
     ) -> Result<AccessKey> {
@@ -397,6 +400,7 @@ where
         Ok(())
     }
 
+    #[cfg(feature = "files")]
     pub(crate) async fn create_file_encryption_password(
         &mut self,
     ) -> Result<()> {
@@ -420,6 +424,7 @@ where
     }
 
     /// Find the password used for symmetric file encryption (AGE).
+    #[cfg(feature = "files")]
     pub(crate) async fn find_file_encryption_password(
         &self,
     ) -> Result<SecretString> {
@@ -530,24 +535,9 @@ where
         Ok((index, private_identity))
     }
 
-    #[cfg(feature = "sync")]
-    pub(crate) async fn merge(
-        &mut self,
-        diff: FolderDiff,
-    ) -> Result<CheckedPatch> {
-        let id = *self.folder.id();
-        let index = &mut self.index;
-        self.folder
-            .merge(diff, FolderMergeOptions::Urn(id, index))
-            .await
-    }
-
-    #[cfg(feature = "sync")]
-    pub(crate) async fn force_merge(
-        &mut self,
-        diff: FolderDiff,
-    ) -> Result<()> {
-        self.folder.force_merge(diff).await
+    /// Identifier of the folder.
+    pub fn folder_id(&self) -> &VaultId {
+        self.folder.id()
     }
 }
 

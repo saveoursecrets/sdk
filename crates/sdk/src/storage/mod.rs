@@ -16,14 +16,10 @@ mod folder;
 pub(crate) mod paths;
 #[cfg(feature = "search")]
 pub mod search;
-mod server;
-#[cfg(feature = "sync")]
-pub(crate) mod sync;
 
 pub use client::ClientStorage;
 pub use folder::{DiscFolder, Folder, MemoryFolder};
 pub use paths::FileLock;
-pub use server::ServerStorage;
 
 #[cfg(feature = "device")]
 use crate::events::DeviceEventLog;
@@ -132,13 +128,7 @@ pub trait StorageEventLogs {
 
         // Canonical list of external files.
         let reducer = FileReducer::new(&event_log);
-
-        #[cfg(feature = "sync")]
-        let result = reducer.reduce(None).await?;
-        #[cfg(not(feature = "sync"))]
-        let result = reducer.reduce().await?;
-
-        Ok(result)
+        Ok(reducer.reduce(None).await?)
     }
 
     /// Folder identifiers managed by this storage.

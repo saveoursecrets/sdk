@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package patch;
+
+import "protobuf/common.proto";
+
+message WirePatchRequest {
+  // Type of event log.
+  common.WireEventLogType log_type = 1;
+  // Hash of a commit to rewind to before
+  // applying the patch.
+  optional common.WireCommitHash commit = 2;
+  /// Proof for head of the event log before the
+  /// events are applied.
+  optional common.WireCommitProof proof = 3;
+  // Patch of event records to apply.
+  repeated common.WireEventRecord patch = 4;
+}
+
+message WirePatchResponse {
+  // Result of the checked patch operation.
+  common.WireCheckedPatch checked_patch = 1;
+}

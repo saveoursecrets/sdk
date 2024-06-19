@@ -15,7 +15,8 @@ use std::{
 use tokio::sync::{oneshot, RwLock};
 
 use sos_net::{
-    sdk::{signer::ecdsa::Address, sync::Origin, url::Url, vfs, Paths},
+    protocol::sync::Origin,
+    sdk::{signer::ecdsa::Address, url::Url, vfs, Paths},
     server::{Server, ServerConfig, State},
 };
 

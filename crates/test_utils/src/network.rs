@@ -7,6 +7,7 @@ use sos_net::{
         InflightNotification, InflightTransfers, ListenOptions,
         NetworkAccount, RemoteBridge, RemoteSync, SyncClient,
     },
+    protocol::sync::{Origin, SyncStorage},
     sdk::{
         account::{Account, AccountBuilder},
         constants::{FILES_DIR, VAULT_EXT},
@@ -15,7 +16,6 @@ use sos_net::{
         passwd::diceware::generate_passphrase,
         sha2::{Digest, Sha256},
         storage::files::ExternalFile,
-        sync::{Origin, SyncStorage},
         url::Url,
         vault::{Summary, VaultId},
         vfs, Paths,

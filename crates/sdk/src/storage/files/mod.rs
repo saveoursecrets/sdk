@@ -11,13 +11,9 @@ use std::{fmt, path::Path, str::FromStr};
 
 mod external_files;
 mod file_manager;
-#[cfg(feature = "sync")]
-mod transfer;
 
 pub use external_files::FileStorage;
 pub use file_manager::{FileMutationEvent, FileProgress, FileSource};
-#[cfg(feature = "sync")]
-pub use transfer::{FileSet, FileTransfersSet, TransferOperation};
 
 /// Meta data about an encrypted file.
 #[derive(Debug, Clone)]
@@ -85,6 +81,12 @@ pub struct ExternalFile(VaultId, SecretId, ExternalFileName);
 impl From<ExternalFile> for FileEvent {
     fn from(value: ExternalFile) -> Self {
         FileEvent::CreateFile(value.0, value.1, value.2)
+    }
+}
+
+impl From<ExternalFile> for (VaultId, SecretId, ExternalFileName) {
+    fn from(value: ExternalFile) -> Self {
+        (value.0, value.1, value.2)
     }
 }
 

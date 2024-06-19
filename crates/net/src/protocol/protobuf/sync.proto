@@ -1,0 +1,191 @@
+syntax = "proto3";
+
+package sync;
+
+import "protobuf/common.proto";
+import "protobuf/files.proto";
+
+// Origin for a server.
+message WireOrigin {
+  // Name of the origin.
+  string name = 1;
+  // URL of the origin.
+  string url = 2;
+}
+
+message WireSyncFolderState {
+  // Folder identifier.
+  bytes folder_id = 1;
+  // Commit state for the folder.
+  common.WireCommitState state = 2;
+}
+
+message WireSyncStatus {
+    // Computed root of all event log roots.
+    common.WireCommitHash root = 1;
+    // Identity vault commit state.
+    common.WireCommitState identity = 2;
+    // Account log commit state.
+    common.WireCommitState account = 3;
+    // Device log commit state.
+    common.WireCommitState device = 4;
+    // Files log commit state.
+    common.WireCommitState files = 5;
+    // Commit proofs for the account folders.
+    repeated WireSyncFolderState folders = 6;
+}
+
+message WirePatch {
+  // Collection of event records for the patch.
+  repeated common.WireEventRecord records = 1;
+}
+
+message WireSyncFolderPatch {
+  // Folder identifier.
+  bytes folder_id = 1;
+  // Patch for the folder.
+  WirePatch patch = 2;
+}
+
+message WireCreateSet {
+  // Patch for the identity folder.
+  WirePatch identity = 1;
+  // Patch for the account events.
+  WirePatch account = 2;
+  // Patch for the device events.
+  WirePatch device = 3;
+  // Patch for the file events.
+  WirePatch files = 4;
+  // Patches for user folders.
+  repeated WireSyncFolderPatch folders = 5;
+}
+
+message WireDiff {
+  // Last commit before the start of the patch.
+  optional common.WireCommitHash last_commit = 1;
+  // Contents of the patch.
+  WirePatch patch = 2;
+  // Checkpoint for the diff.
+  common.WireCommitProof checkpoint = 3;
+}
+
+message WireSyncFolderDiff {
+  // Folder identifier.
+  bytes folder_id = 1;
+  // Diff for the folder.
+  WireDiff diff = 2;
+}
+
+message WireUpdateSet {
+  // Diff for the identity folder.
+  WireDiff identity = 1;
+  // Diff for the account events.
+  WireDiff account = 2;
+  // Diff for the device events.
+  WireDiff device = 3;
+  // Diff for the file events.
+  WireDiff files = 4;
+  // Diffs for user folders.
+  repeated WireSyncFolderDiff folders = 5;
+}
+
+message WireMaybeDiffHasDiff {
+  WireDiff diff = 1;
+}
+
+message WireMaybeDiffNeedsCompare {
+  optional common.WireCommitState compare = 1;
+}
+
+message WireMaybeDiff {
+  oneof inner {
+    WireMaybeDiffHasDiff diff = 1;
+    WireMaybeDiffNeedsCompare compare = 2;
+  }
+}
+
+message WireSyncFolderMaybeDiff {
+  // Folder identifier.
+  bytes folder_id = 1;
+  // Maybe diff for the folder.
+  WireMaybeDiff maybe_diff = 2;
+}
+
+message WireSyncDiff {
+  // Maybe diff for the identity folder.
+  optional WireMaybeDiff identity = 1;
+  // Maybe diff for the account events.
+  optional WireMaybeDiff account = 2;
+  // Maybe diff for the device events.
+  optional WireMaybeDiff device = 3;
+  // Maybe diff for the file events.
+  optional WireMaybeDiff files = 4;
+  // Maybe diffs for user folders.
+  repeated WireSyncFolderMaybeDiff folders = 5;
+}
+
+message Contains {
+    repeated uint64 indices = 1;
+}
+
+message WireComparison {
+  oneof inner {
+    // Trees are equal
+    bool equal = 1;
+    // Tree contains the proof indices.
+    Contains contains = 2;
+    // Unknown comparison, trees may have diverged.
+    bool unknown = 3;
+  }
+}
+
+message WireSyncFolderComparison {
+  // Folder identifier.
+  bytes folder_id = 1;
+  // Comparison for the folder.
+  WireComparison compare = 2;
+}
+
+message WireSyncCompare {
+  // Comparison for the identity folder.
+  optional WireComparison identity = 1;
+  // Comparison for the account events.
+  optional WireComparison account = 2;
+  // Comparison for the device events.
+  optional WireComparison device = 3;
+  // Comparison for the file events.
+  optional WireComparison files = 4;
+  // Comparisons for user folders.
+  repeated WireSyncFolderComparison folders = 5;
+}
+
+message WireSyncPacket {
+  // Sync status.
+  WireSyncStatus status = 1;
+  // Sync diff.
+  WireSyncDiff diff = 2;
+  // Sync comparison information.
+  optional WireSyncCompare compare = 3;
+}
+
+message WireFolderMergeOutcome {
+  // Folder identifier.
+  bytes folder_id = 1;
+  // Number of changes to the folder.
+  uint64 changes = 2;
+}
+
+message WireMergeOutcome {
+  // Total number of changes made during a merge.
+  uint64 changes = 1;
+  // Number of changes to the identity folder.
+  uint64 identity = 2;
+  // Number of changes to the account event log.
+  uint64 account = 3;
+  // Number of changes to the device event log.
+  uint64 device = 4;
+  // Number of changes to the files event log.
+  uint64 files = 5;
+  // Number of changes to the folder event logs.
+  repeated WireFolderMergeOutcome folders = 6;
+}

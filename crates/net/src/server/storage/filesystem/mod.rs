@@ -1,6 +1,5 @@
 //! Server storage backed by the filesystem.
-use crate::{
-    commit::CommitState,
+use crate::sdk::{
     constants::VAULT_EXT,
     decode, encode,
     events::{
@@ -16,13 +15,12 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "audit")]
-use crate::audit::AuditEvent;
+use crate::sdk::audit::AuditEvent;
 
 #[cfg(feature = "device")]
-use crate::{
+use crate::sdk::{
     device::{DevicePublicKey, TrustedDevice},
     events::{DeviceEventLog, DeviceReducer},
-    sync::DeviceDiff,
 };
 
 #[cfg(feature = "device")]
@@ -32,7 +30,9 @@ use std::collections::HashSet;
 use indexmap::IndexSet;
 
 #[cfg(feature = "files")]
-use crate::events::{FileEvent, FileEventLog};
+use crate::sdk::events::{FileEvent, FileEventLog};
+
+mod sync;
 
 /// Server folders loaded into memory and mirrored to disc.
 pub struct ServerStorage {
@@ -160,7 +160,9 @@ impl ServerStorage {
         tracing::debug!(needs_init = %needs_init, "file_log");
 
         if needs_init {
-            let files = super::files::list_external_files(paths).await?;
+            let files =
+                crate::sdk::storage::files::list_external_files(paths)
+                    .await?;
             let events: Vec<FileEvent> =
                 files.into_iter().map(|f| f.into()).collect();
 
@@ -172,12 +174,7 @@ impl ServerStorage {
         Ok(event_log)
     }
 
-    /// Get the event log cache.
-    pub fn cache(&self) -> &HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
-        &self.cache
-    }
-
-    /// Get the mutable event log cache.
+    /// Mutable folder event logs.
     pub fn cache_mut(
         &mut self,
     ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
@@ -361,27 +358,6 @@ impl ServerStorage {
 
         Ok(())
     }
-
-    /// Commit state of the identity folder.
-    pub async fn identity_state(&self) -> Result<CommitState> {
-        let reader = self.identity_log.read().await;
-        reader.tree().commit_state()
-    }
-
-    /// Get the commit state for a folder.
-    ///
-    /// The folder must have at least one commit.
-    pub async fn commit_state(
-        &self,
-        summary: &Summary,
-    ) -> Result<CommitState> {
-        let event_log = self
-            .cache
-            .get(summary.id())
-            .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
-        let event_log = event_log.read().await;
-        event_log.tree().commit_state()
-    }
 }
 
 #[cfg(feature = "device")]
@@ -389,21 +365,5 @@ impl ServerStorage {
     /// List the public keys of trusted devices.
     pub fn list_device_keys(&self) -> HashSet<&DevicePublicKey> {
         self.devices.iter().map(|d| d.public_key()).collect()
-    }
-
-    /// Patch the devices event log.
-    #[deprecated]
-    pub async fn patch_devices(&mut self, diff: &DeviceDiff) -> Result<()> {
-        let mut event_log = self.device_log.write().await;
-        event_log
-            .patch_checked(&diff.checkpoint, &diff.patch)
-            .await?;
-
-        // Update in-memory cache of trusted devices
-        let reducer = DeviceReducer::new(&event_log);
-        let devices = reducer.reduce().await?;
-        self.devices = devices;
-
-        Ok(())
     }
 }

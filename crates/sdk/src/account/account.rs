@@ -18,7 +18,6 @@ use crate::{
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
-        files::FileMutationEvent,
         paths::FileLock,
         search::{DocumentCount, SearchIndex},
         AccessOptions, AccountPack, ClientStorage, StorageEventLogs,
@@ -47,13 +46,10 @@ use crate::{
 use indexmap::IndexSet;
 
 #[cfg(feature = "files")]
-use crate::events::FileEventLog;
+use crate::{events::FileEventLog, storage::files::FileMutationEvent};
 
 #[cfg(feature = "search")]
 use crate::storage::search::*;
-
-#[cfg(feature = "sync")]
-use crate::sync::SyncError;
 
 #[cfg(feature = "security-report")]
 use crate::{account::security_report::*, zxcvbn::Entropy};
@@ -103,10 +99,7 @@ pub struct AccountChange<T: std::error::Error> {
     /// Event to be logged.
     pub event: Event,
     /// Error generated during a sync.
-    #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
-    #[doc(hidden)]
-    pub marker: std::marker::PhantomData<T>,
+    pub sync_error: Option<T>,
 }
 
 /// Result information for a created or updated secret.
@@ -121,13 +114,10 @@ pub struct SecretChange<T: std::error::Error> {
     /// Folder containing the secret.
     pub folder: Summary,
     /// Error generated during a sync.
-    #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
+    pub sync_error: Option<T>,
     /// File mutation events.
     #[cfg(feature = "files")]
     pub file_events: Vec<FileMutationEvent>,
-    #[doc(hidden)]
-    pub marker: std::marker::PhantomData<T>,
 }
 
 /// Result information for a bulk insert.
@@ -135,10 +125,7 @@ pub struct SecretInsert<T: std::error::Error> {
     /// Created secrets.
     pub results: Vec<SecretChange<T>>,
     /// Error generated during a sync.
-    #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
-    #[doc(hidden)]
-    pub marker: std::marker::PhantomData<T>,
+    pub sync_error: Option<T>,
 }
 
 /// Result information for a secret move event.
@@ -148,13 +135,10 @@ pub struct SecretMove<T: std::error::Error> {
     /// Event to be logged.
     pub event: Event,
     /// Error generated during a sync.
-    #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
+    pub sync_error: Option<T>,
     /// File mutation events.
     #[cfg(feature = "files")]
     pub file_events: Vec<FileMutationEvent>,
-    #[doc(hidden)]
-    pub marker: std::marker::PhantomData<T>,
 }
 
 /// Result information for a deleted secret.
@@ -167,13 +151,10 @@ pub struct SecretDelete<T: std::error::Error> {
     /// Folder the secret was deleted from.
     pub folder: Summary,
     /// Error generated during a sync.
-    #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
+    pub sync_error: Option<T>,
     /// File mutation events.
     #[cfg(feature = "files")]
     pub file_events: Vec<FileMutationEvent>,
-    #[doc(hidden)]
-    pub marker: std::marker::PhantomData<T>,
 }
 
 /// Result information for folder creation.
@@ -185,10 +166,7 @@ pub struct FolderCreate<T: std::error::Error> {
     /// Commit state of the new folder.
     pub commit_state: CommitState,
     /// Error generated during a sync.
-    #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
-    #[doc(hidden)]
-    pub marker: std::marker::PhantomData<T>,
+    pub sync_error: Option<T>,
 }
 
 /// Result information for changes to a folder's attributes.
@@ -198,10 +176,7 @@ pub struct FolderChange<T: std::error::Error> {
     /// Commit state before the change.
     pub commit_state: CommitState,
     /// Error generated during a sync.
-    #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
-    #[doc(hidden)]
-    pub marker: std::marker::PhantomData<T>,
+    pub sync_error: Option<T>,
 }
 
 /// Result information for folder deletion.
@@ -211,10 +186,7 @@ pub struct FolderDelete<T: std::error::Error> {
     /// Commit state of the folder.
     pub commit_state: CommitState,
     /// Error generated during a sync.
-    #[cfg(feature = "sync")]
-    pub sync_error: Option<SyncError<T>>,
-    #[doc(hidden)]
-    pub marker: std::marker::PhantomData<T>,
+    pub sync_error: Option<T>,
 }
 
 /// Progress event when importing contacts.
@@ -242,6 +214,9 @@ pub trait Account {
 
     /// Errors for this account.
     type Error: std::error::Error + std::fmt::Debug;
+
+    /// Error type for network-aware implementations.
+    type NetworkError: std::error::Error + std::fmt::Debug;
 
     /// Account address.
     fn address(&self) -> &Address;
@@ -313,7 +288,7 @@ pub trait Account {
         &mut self,
         folder: &Summary,
         description: impl AsRef<str> + Send + Sync,
-    ) -> std::result::Result<FolderChange<Self::Error>, Self::Error>;
+    ) -> std::result::Result<FolderChange<Self::NetworkError>, Self::Error>;
 
     /// Find the password for a folder.
     async fn find_folder_password(
@@ -415,7 +390,7 @@ pub trait Account {
     async fn rename_account(
         &mut self,
         account_name: String,
-    ) -> std::result::Result<AccountChange<Self::Error>, Self::Error>;
+    ) -> std::result::Result<AccountChange<Self::NetworkError>, Self::Error>;
 
     /// Delete the account for this user and sign out.
     async fn delete_account(
@@ -577,13 +552,13 @@ pub trait Account {
         meta: SecretMeta,
         secret: Secret,
         options: AccessOptions,
-    ) -> std::result::Result<SecretChange<Self::Error>, Self::Error>;
+    ) -> std::result::Result<SecretChange<Self::NetworkError>, Self::Error>;
 
     /// Bulk insert secrets into the currently open folder.
     async fn insert_secrets(
         &mut self,
         secrets: Vec<(SecretMeta, Secret)>,
-    ) -> std::result::Result<SecretInsert<Self::Error>, Self::Error>;
+    ) -> std::result::Result<SecretInsert<Self::NetworkError>, Self::Error>;
 
     /// Update a secret in the current open folder or a specific folder.
     ///
@@ -596,7 +571,7 @@ pub trait Account {
         secret: Option<Secret>,
         options: AccessOptions,
         destination: Option<&Summary>,
-    ) -> std::result::Result<SecretChange<Self::Error>, Self::Error>;
+    ) -> std::result::Result<SecretChange<Self::NetworkError>, Self::Error>;
 
     /// Move a secret between folders.
     async fn move_secret(
@@ -605,7 +580,7 @@ pub trait Account {
         from: &Summary,
         to: &Summary,
         options: AccessOptions,
-    ) -> std::result::Result<SecretMove<Self::Error>, Self::Error>;
+    ) -> std::result::Result<SecretMove<Self::NetworkError>, Self::Error>;
 
     /// Read a secret in the current open folder.
     async fn read_secret(
@@ -619,7 +594,7 @@ pub trait Account {
         &mut self,
         secret_id: &SecretId,
         options: AccessOptions,
-    ) -> std::result::Result<SecretDelete<Self::Error>, Self::Error>;
+    ) -> std::result::Result<SecretDelete<Self::NetworkError>, Self::Error>;
 
     /// Move a secret to the archive.
     ///
@@ -629,7 +604,7 @@ pub trait Account {
         from: &Summary,
         secret_id: &SecretId,
         options: AccessOptions,
-    ) -> std::result::Result<SecretMove<Self::Error>, Self::Error>;
+    ) -> std::result::Result<SecretMove<Self::NetworkError>, Self::Error>;
 
     /// Move a secret out of the archive.
     ///
@@ -647,7 +622,10 @@ pub trait Account {
         secret_id: &SecretId,
         secret_meta: &SecretMeta,
         options: AccessOptions,
-    ) -> std::result::Result<(SecretMove<Self::Error>, Summary), Self::Error>;
+    ) -> std::result::Result<
+        (SecretMove<Self::NetworkError>, Summary),
+        Self::Error,
+    >;
 
     /// Update a file secret.
     ///
@@ -661,20 +639,20 @@ pub trait Account {
         path: impl AsRef<Path> + Send + Sync,
         options: AccessOptions,
         destination: Option<&Summary>,
-    ) -> std::result::Result<SecretChange<Self::Error>, Self::Error>;
+    ) -> std::result::Result<SecretChange<Self::NetworkError>, Self::Error>;
 
     /// Create a folder.
     async fn create_folder(
         &mut self,
         name: String,
-    ) -> std::result::Result<FolderCreate<Self::Error>, Self::Error>;
+    ) -> std::result::Result<FolderCreate<Self::NetworkError>, Self::Error>;
 
     /// Rename a folder.
     async fn rename_folder(
         &mut self,
         summary: &Summary,
         name: String,
-    ) -> std::result::Result<FolderChange<Self::Error>, Self::Error>;
+    ) -> std::result::Result<FolderChange<Self::NetworkError>, Self::Error>;
 
     /// Import a folder from a vault file.
     async fn import_folder(
@@ -682,7 +660,7 @@ pub trait Account {
         path: impl AsRef<Path> + Send + Sync,
         key: AccessKey,
         overwrite: bool,
-    ) -> std::result::Result<FolderCreate<Self::Error>, Self::Error>;
+    ) -> std::result::Result<FolderCreate<Self::NetworkError>, Self::Error>;
 
     /// Import a folder from a vault buffer.
     async fn import_folder_buffer(
@@ -690,7 +668,7 @@ pub trait Account {
         buffer: impl AsRef<[u8]> + Send + Sync,
         key: AccessKey,
         overwrite: bool,
-    ) -> std::result::Result<FolderCreate<Self::Error>, Self::Error>;
+    ) -> std::result::Result<FolderCreate<Self::NetworkError>, Self::Error>;
 
     /// Import and overwrite the identity folder from a vault.
     ///
@@ -722,7 +700,7 @@ pub trait Account {
     async fn delete_folder(
         &mut self,
         summary: &Summary,
-    ) -> std::result::Result<FolderDelete<Self::Error>, Self::Error>;
+    ) -> std::result::Result<FolderDelete<Self::NetworkError>, Self::Error>;
 
     /// Try to load an avatar JPEG image for a contact.
     ///
@@ -786,7 +764,7 @@ pub trait Account {
     async fn import_file(
         &mut self,
         target: ImportTarget,
-    ) -> std::result::Result<FolderCreate<Self::Error>, Self::Error>;
+    ) -> std::result::Result<FolderCreate<Self::NetworkError>, Self::Error>;
 
     /// Create a backup archive containing the
     /// encrypted data for the account.
@@ -944,8 +922,11 @@ impl LocalAccount {
                 .await?,
         );
 
-        let file_password = user.find_file_encryption_password().await?;
-        storage.set_file_password(Some(file_password));
+        #[cfg(feature = "files")]
+        {
+            let file_password = user.find_file_encryption_password().await?;
+            storage.set_file_password(Some(file_password));
+        }
 
         Self::initialize_account_log(
             &self.paths,
@@ -978,7 +959,8 @@ impl LocalAccount {
     }
 
     /// Authenticated user information.
-    pub(super) fn user(&self) -> Result<&Identity> {
+    #[doc(hidden)]
+    pub fn user(&self) -> Result<&Identity> {
         self.authenticated
             .as_ref()
             .map(|a| &a.user)
@@ -986,7 +968,8 @@ impl LocalAccount {
     }
 
     /// Mutable authenticated user information.
-    pub(super) fn user_mut(&mut self) -> Result<&mut Identity> {
+    #[doc(hidden)]
+    pub fn user_mut(&mut self) -> Result<&mut Identity> {
         self.authenticated
             .as_mut()
             .map(|a| &mut a.user)
@@ -1130,7 +1113,8 @@ impl LocalAccount {
     /// Typically the handlers that update storage but don't append log
     /// events are declared in the storage implementation but the
     /// identity log is managed by the account so this must exist here.
-    pub(super) async fn import_identity_vault(
+    #[doc(hidden)]
+    pub async fn import_identity_vault(
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
@@ -1188,6 +1172,7 @@ impl LocalAccount {
             writer.create_secret(secret_data, options).await?
         };
 
+        #[cfg(feature = "files")]
         file_events.append(&mut result.file_events);
 
         let event = Event::Write(*folder.id(), result.event);
@@ -1257,6 +1242,7 @@ impl LocalAccount {
                 secret_data.secret,
                 Default::default(),
                 false,
+                #[cfg(feature = "files")]
                 &mut file_events,
             )
             .await?;
@@ -1312,11 +1298,9 @@ impl LocalAccount {
         Ok(SecretMove {
             id: new_id,
             event,
-            #[cfg(feature = "sync")]
             sync_error: None,
             #[cfg(feature = "files")]
             file_events,
-            marker: std::marker::PhantomData,
         })
     }
 
@@ -1539,6 +1523,7 @@ impl LocalAccount {
 impl Account for LocalAccount {
     type Account = LocalAccount;
     type Error = Error;
+    type NetworkError = Error;
 
     fn address(&self) -> &Address {
         &self.address
@@ -1621,7 +1606,7 @@ impl Account for LocalAccount {
         &mut self,
         folder: &Summary,
         description: impl AsRef<str> + Send + Sync,
-    ) -> Result<FolderChange<Self::Error>> {
+    ) -> Result<FolderChange<Self::NetworkError>> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
 
         self.open_folder(folder).await?;
@@ -1643,9 +1628,7 @@ impl Account for LocalAccount {
         Ok(FolderChange {
             event,
             commit_state,
-            #[cfg(feature = "sync")]
             sync_error: None,
-            marker: std::marker::PhantomData,
         })
     }
 
@@ -1812,9 +1795,7 @@ impl Account for LocalAccount {
 
         Ok(AccountChange {
             event: Event::Account(event),
-            #[cfg(feature = "sync")]
             sync_error: None,
-            marker: std::marker::PhantomData,
         })
     }
 
@@ -2184,11 +2165,9 @@ impl Account for LocalAccount {
             event,
             commit_state,
             folder,
-            #[cfg(feature = "sync")]
             sync_error: None,
             #[cfg(feature = "files")]
             file_events,
-            marker: std::marker::PhantomData,
         })
     }
 
@@ -2204,9 +2183,7 @@ impl Account for LocalAccount {
         }
         Ok(SecretInsert {
             results,
-            #[cfg(feature = "sync")]
             sync_error: None,
-            marker: std::marker::PhantomData,
         })
     }
 
@@ -2249,6 +2226,8 @@ impl Account for LocalAccount {
                     file_events: mut move_file_events,
                 ..
             } = self.mv_secret(secret_id, &folder, to, options).await?;
+
+            #[cfg(feature = "files")]
             file_events.append(&mut move_file_events);
             id
         } else {
@@ -2263,11 +2242,9 @@ impl Account for LocalAccount {
             event,
             commit_state,
             folder,
-            #[cfg(feature = "sync")]
             sync_error: None,
             #[cfg(feature = "files")]
             file_events,
-            marker: std::marker::PhantomData,
         })
     }
 
@@ -2314,11 +2291,9 @@ impl Account for LocalAccount {
             event,
             commit_state,
             folder,
-            #[cfg(feature = "sync")]
             sync_error: None,
             #[cfg(feature = "files")]
             file_events: result.file_events,
-            marker: std::marker::PhantomData,
         })
     }
 
@@ -2436,9 +2411,7 @@ impl Account for LocalAccount {
             folder,
             event,
             commit_state,
-            #[cfg(feature = "sync")]
             sync_error: None,
-            marker: std::marker::PhantomData,
         })
     }
 
@@ -2446,7 +2419,7 @@ impl Account for LocalAccount {
         &mut self,
         summary: &Summary,
         name: String,
-    ) -> Result<FolderChange<Self::Error>> {
+    ) -> Result<FolderChange<Self::NetworkError>> {
         let options = AccessOptions {
             folder: Some(summary.clone()),
             ..Default::default()
@@ -2464,9 +2437,7 @@ impl Account for LocalAccount {
         Ok(FolderChange {
             event,
             commit_state,
-            #[cfg(feature = "sync")]
             sync_error: None,
-            marker: std::marker::PhantomData,
         })
     }
 
@@ -2475,7 +2446,7 @@ impl Account for LocalAccount {
         path: impl AsRef<Path> + Send + Sync,
         key: AccessKey,
         overwrite: bool,
-    ) -> Result<FolderCreate<Self::Error>> {
+    ) -> Result<FolderCreate<Self::NetworkError>> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
         let buffer = vfs::read(path.as_ref()).await?;
         self.import_folder_buffer(&buffer, key, overwrite).await
@@ -2486,7 +2457,7 @@ impl Account for LocalAccount {
         buffer: impl AsRef<[u8]> + Send + Sync,
         key: AccessKey,
         overwrite: bool,
-    ) -> Result<FolderCreate<Self::Error>> {
+    ) -> Result<FolderCreate<Self::NetworkError>> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
 
         let mut vault: Vault = decode(buffer.as_ref()).await?;
@@ -2601,9 +2572,7 @@ impl Account for LocalAccount {
             folder: summary,
             event,
             commit_state,
-            #[cfg(feature = "sync")]
             sync_error: None,
-            marker: std::marker::PhantomData,
         })
     }
 
@@ -2697,7 +2666,7 @@ impl Account for LocalAccount {
     async fn delete_folder(
         &mut self,
         summary: &Summary,
-    ) -> Result<FolderDelete<Self::Error>> {
+    ) -> Result<FolderDelete<Self::NetworkError>> {
         let options = AccessOptions {
             folder: Some(summary.clone()),
             ..Default::default()
@@ -2717,9 +2686,7 @@ impl Account for LocalAccount {
         Ok(FolderDelete {
             events,
             commit_state,
-            #[cfg(feature = "sync")]
             sync_error: None,
-            marker: std::marker::PhantomData,
         })
     }
 
@@ -3028,7 +2995,7 @@ impl Account for LocalAccount {
     async fn import_file(
         &mut self,
         target: ImportTarget,
-    ) -> Result<FolderCreate<Error>> {
+    ) -> Result<FolderCreate<Self::NetworkError>> {
         let result = match target.format {
             ImportFormat::OnePasswordCsv => {
                 self.import_csv(

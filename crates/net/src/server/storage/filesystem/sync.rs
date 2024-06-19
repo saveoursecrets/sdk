@@ -1,18 +1,22 @@
 //! Synchronization helpers.
+use super::ServerStorage;
 use crate::{
-    commit::{CommitState, CommitTree, Comparison},
-    encode,
-    events::{
-        AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
-        FolderReducer, LogEvent,
+    protocol::sync::{
+        CreateSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
+        UpdateSet,
     },
-    storage::{ServerStorage, StorageEventLogs},
-    sync::{
-        AccountDiff, ChangeSet, CheckedPatch, FolderDiff, FolderPatch,
-        ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage, UpdateSet,
+    sdk::{
+        commit::{CommitState, CommitTree, Comparison},
+        encode,
+        events::{
+            AccountDiff, AccountEvent, AccountEventLog, CheckedPatch,
+            EventLogExt, FolderDiff, FolderEventLog, FolderPatch,
+            FolderReducer, LogEvent,
+        },
+        storage::StorageEventLogs,
+        vault::{VaultAccess, VaultId, VaultWriter},
+        vfs, Error, Paths, Result,
     },
-    vault::{VaultAccess, VaultId, VaultWriter},
-    vfs, Error, Paths, Result,
 };
 use async_trait::async_trait;
 use indexmap::IndexMap;
@@ -20,13 +24,10 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[cfg(feature = "device")]
-use crate::{
-    events::{DeviceEventLog, DeviceReducer},
-    sync::DeviceDiff,
-};
+use crate::sdk::events::{DeviceDiff, DeviceEventLog, DeviceReducer};
 
 #[cfg(feature = "files")]
-use crate::{events::FileEventLog, sync::FileDiff};
+use crate::sdk::events::{FileDiff, FileEventLog};
 
 impl ServerStorage {
     /// Create a new vault file on disc and the associated
@@ -70,7 +71,7 @@ impl ServerStorage {
     /// account from a collection of patches.
     pub async fn import_account(
         &mut self,
-        account_data: &ChangeSet,
+        account_data: &CreateSet,
     ) -> Result<()> {
         {
             let mut writer = self.account_log.write().await;
@@ -161,7 +162,7 @@ impl ForceMerge for ServerStorage {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
@@ -192,7 +193,7 @@ impl ForceMerge for ServerStorage {
         diff: AccountDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
@@ -216,7 +217,7 @@ impl ForceMerge for ServerStorage {
         diff: DeviceDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
@@ -246,7 +247,7 @@ impl ForceMerge for ServerStorage {
         diff: FileDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
@@ -270,7 +271,7 @@ impl ForceMerge for ServerStorage {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             folder_id = %folder_id,
@@ -322,8 +323,8 @@ impl Merge for ServerStorage {
             writer.patch_checked(&diff.checkpoint, &diff.patch).await?;
 
         if let CheckedPatch::Success(_) = &checked_patch {
-            outcome.identity = diff.patch.len();
-            outcome.changes += diff.patch.len();
+            outcome.identity = diff.patch.len() as u64;
+            outcome.changes += diff.patch.len() as u64;
         }
 
         Ok(checked_patch)
@@ -398,8 +399,8 @@ impl Merge for ServerStorage {
                 }
             }
 
-            outcome.account = diff.patch.len();
-            outcome.changes += diff.patch.len();
+            outcome.account = diff.patch.len() as u64;
+            outcome.changes += diff.patch.len() as u64;
         } else {
             // FIXME: handle conflict situation
             println!("todo! account patch could not be merged");
@@ -441,8 +442,8 @@ impl Merge for ServerStorage {
             let reducer = DeviceReducer::new(&*event_log);
             self.devices = reducer.reduce().await?;
 
-            outcome.device = diff.patch.len();
-            outcome.changes += diff.patch.len();
+            outcome.device = diff.patch.len() as u64;
+            outcome.changes += diff.patch.len() as u64;
         } else {
             // FIXME: handle conflict situation
             println!("todo! device patch could not be merged");
@@ -489,8 +490,8 @@ impl Merge for ServerStorage {
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {
-            outcome.file = diff.patch.len();
-            outcome.changes += diff.patch.len();
+            outcome.files = diff.patch.len() as u64;
+            outcome.changes += diff.patch.len() as u64;
         }
 
         Ok(checked_patch)
@@ -508,7 +509,7 @@ impl Merge for ServerStorage {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        let len = diff.patch.len();
+        let len = diff.patch.len() as u64;
 
         tracing::debug!(
             folder_id = %folder_id,

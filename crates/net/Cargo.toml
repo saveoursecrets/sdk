@@ -1,15 +1,20 @@
 [package]
 name = "sos-net"
-version = "0.12.1"
+version = "0.13.0"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 default = []
 full = [
+  "audit",
   "archive",
   "client",
   "contacts",
@@ -44,6 +49,7 @@ server = [
   "device",
 ]
 hashcheck = []
+audit = ["sos-sdk/audit"]
 archive = ["sos-sdk/archive"]
 files = ["sos-sdk/files"]
 contacts = ["sos-sdk/contacts"]
@@ -85,6 +91,9 @@ indexmap.workspace = true
 async-stream = "0.3"
 colored = "2"
 binary-stream.workspace = true
+rs_merkle.workspace = true
+prost.workspace = true
+
 
 # server
 toml = { workspace = true, optional = true }
@@ -103,8 +112,7 @@ utoipa-rapidoc = { version = "3", features = ["axum"], optional = true }
 snow = { version = "0.9", optional = true }
 
 [dependencies.sos-sdk]
-version = "0.12.0"
-features = ["sync"]
+version = "0.13.0"
 path = "../sdk"
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
@@ -114,7 +122,7 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "m
 tokio = { version = "1", features = ["rt", "time", "sync"] }
 
 [target.'cfg(target_os="macos")'.dependencies]
-reqwest = { version = "0.12.4", default-features = true, features = ["json", "rustls-tls", "stream"], optional = true }
+reqwest = { version = "0.12.5", default-features = true, features = ["json", "rustls-tls", "stream"], optional = true }
 
 # NOTE: Must disable default-features so that openssl
 # NOTE: is not compiled when cross-compiling in CI.
@@ -127,13 +135,12 @@ reqwest = { version = "0.12.4", default-features = true, features = ["json", "ru
 # NOTE: being compiled on macos when `default-features` is 
 # NOTE: disabled.
 [target.'cfg(not(target_os="macos"))'.dependencies]
-reqwest = { version = "0.12.3", default-features = false, features = ["json", "rustls-tls", "stream"], optional = true }
+reqwest = { version = "0.12.5", default-features = false, features = ["json", "rustls-tls", "stream"], optional = true }
 
 [dev-dependencies]
 anyhow = "1"
 
 [build-dependencies]
 rustc_version = "0.4.0"
-
-[package.metadata.docs.rs]
-all-features = true
+prost-build = "0.12.6"
+protoc-bin-vendored = "3"

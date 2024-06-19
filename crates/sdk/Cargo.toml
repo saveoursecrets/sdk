@@ -1,6 +1,6 @@
 [package]
 name = "sos-sdk"
-version = "0.12.1"
+version = "0.13.1"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
@@ -11,8 +11,12 @@ repository = "https://github.com/saveoursecrets/sdk"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
-default = ["account", "archive", "audit", "files", "logs", "search"]
+default = ["account", "archive", "audit", "logs", "search"]
 account = []
 archive = ["dep:async_zip"]
 audit = []
@@ -21,6 +25,7 @@ device = [
   "dep:whoami",
 ]
 files = []
+interactive-keychain-tests = []
 logs = ["rev_buf_reader", "tracing-appender", "tracing-subscriber"]
 mem-fs = ["sos-vfs/mem-fs"]
 migrate = ["dep:async_zip", "dep:csv-async"]
@@ -30,7 +35,6 @@ preferences = []
 search = ["dep:probly-search"]
 security-report = []
 system-messages = []
-sync = []
 test-utils = ["dep:anyhow"]
 
 [dependencies]
@@ -63,6 +67,7 @@ bitflags.workspace = true
 enum-iterator.workspace = true
 file-guard.workspace = true
 tempfile.workspace = true
+rs_merkle.workspace = true
 subtle = { version = "2.5" }
 ethereum-types = "0.14"
 async_zip = { version = "0.0.17", default-features = false, features = ["deflate", "tokio"], optional = true }
@@ -111,22 +116,13 @@ getrandom = {version = "0.2", features = ["js"]}
 uuid = { version = "1", features = ["serde", "v4", "js"] }
 tokio = { version = "1", default-features = false, features = ["rt", "sync", "macros", "io-util"] }
 
-[dependencies.rs_merkle]
-version = "1.4.2"
-#git = "https://github.com/tmpfs/rs-merkle"
-#branch = "sha2-update"
-#path = "../../../../forks/rs-merkle"
-
 [dependencies.chbs]
 version = "0.1.1"
-
-[build-dependencies]
-rustc_version = "0.4.0"
 
 [dev-dependencies]
 anyhow = "1"
 tokio = { version = "1", features = ["full"] }
 sos_test_utils = { path = "../test_utils" }
 
-[package.metadata.docs.rs]
-all-features = true
+[build-dependencies]
+rustc_version = "0.4.0"

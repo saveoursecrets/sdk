@@ -13,19 +13,6 @@ BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
 # tests take a while due to so many exec calls
 RUST_TEST_TIME_INTEGRATION = "120000,240000"
 
-[tasks.fix-all]
-workspace = true
-command = "cargo"
-args = ["fix", "--all-features", "--allow-dirty"]
-
-[tasks.fix-clippy]
-workspace = true
-command = "cargo"
-args = ["clippy", "--fix", "--all-features"]
-
-[tasks.fix]
-dependencies = ["fix-clippy", "fix-all", "format"]
-
 [tasks.format]
 workspace = true
 command = "cargo"
@@ -60,6 +47,13 @@ dependencies = ["clean"]
 command = "cargo"
 args = ["build", "--bins", "--all", "--release"]
 
+[tasks.clean-doc]
+command = "cargo"
+args = [
+  "clean",
+  "--doc",
+]
+
 [tasks.doc]
 toolchain = "nightly"
 command = "cargo"
@@ -69,6 +63,7 @@ args = [
   "--open",
   "--no-deps"
 ]
+dependencies = ["clean-doc"]
 
 [tasks.unit]
 command = "cargo"

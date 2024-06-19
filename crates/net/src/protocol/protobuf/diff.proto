@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package diff;
+
+import "protobuf/common.proto";
+
+message WireDiffRequest {
+  // Type of event log.
+  common.WireEventLogType log_type = 1;
+  // Commit to generate the diff from.
+  common.WireCommitHash from_hash = 2;
+}
+
+message WireDiffResponse {
+  // Patch of event records.
+  repeated common.WireEventRecord patch = 1;
+  // Checkpoint for the diff.
+  common.WireCommitProof checkpoint = 2;
+}
