@@ -3,9 +3,9 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Networking library for the [sos-sdk crate](https://docs.rs/sos-sdk/latest/sos_sdk/).
+//! Networking support for the [sos-sdk crate](https://docs.rs/sos-sdk/latest/sos_sdk/).
 //!
-//! If the `listen` feature is enabled the server and client are compiled
+//! If the `listen` feature is enabled the client is compiled
 //! with support for sending and listening for change notification over
 //! a websocket connection.
 
@@ -13,8 +13,6 @@
 pub mod client;
 mod error;
 pub mod protocol;
-#[cfg(feature = "server")]
-pub mod server;
 
 #[cfg(test)]
 mod tests;

@@ -125,6 +125,7 @@ tokio = { version = "1", features = ["rt", "time", "sync"] }
 
 [dev-dependencies]
 indexmap.workspace = true
+sos-server = { path = "crates/server" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 anyhow = "1"

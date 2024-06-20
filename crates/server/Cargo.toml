@@ -4,7 +4,7 @@ version = "0.13.0"
 edition = "2021"
 description = "Server for the Save Our Secrets sync protocol."
 homepage = "https://saveoursecrets.com"
-license = "MIT OR Apache-2.0"
+license = "AGPL-3.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [package.metadata.docs.rs]
