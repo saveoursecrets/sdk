@@ -2,7 +2,7 @@
 name = "sos-server"
 version = "0.13.0"
 edition = "2021"
-description = "Reference server for the Save Our Secrets SDK."
+description = "Server for the Save Our Secrets sync protocol."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
@@ -34,9 +34,10 @@ url.workspace = true
 futures.workspace = true
 bs58.workspace = true
 indexmap.workspace = true
-colored = "2"
+colored.workspace = true
 binary-stream.workspace = true
 toml.workspace = true 
+clap.workspace = true
 
 # server
 axum = { version = "0.7", features = ["ws", "original-uri"] }
@@ -53,6 +54,10 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "m
 [dependencies.sos-net]
 version = "0.13.0"
 path = "../net"
+
+[dependencies.sos-cli-helpers]
+version = "0.1.0"
+path = "../cli_helpers"
 
 [dev-dependencies]
 anyhow = "1"

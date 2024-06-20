@@ -10,11 +10,7 @@
 //! with support for sending change notifications over
 //! a websocket connection.
 
-mod error;
+// mod error;
 mod server;
 
 pub use server::*;
-
-/// Result type for the server module.
-pub type Result<T> = std::result::Result<T, error::Error>;
-pub use error::Error;

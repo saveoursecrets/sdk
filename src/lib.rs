@@ -17,7 +17,9 @@ mod error;
 pub(crate) mod helpers;
 
 #[doc(hidden)]
-pub use helpers::{messages::*, USER};
+pub use helpers::USER;
+
+pub use sos_cli_helpers::*;
 
 #[doc(hidden)]
 pub use error::Error;
@@ -25,22 +27,3 @@ pub use error::Error;
 /// Result type for the executable library.
 #[doc(hidden)]
 pub type Result<T> = std::result::Result<T, error::Error>;
-
-/// Command tree used to print help output for the website.
-#[doc(hidden)]
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct CommandTree {
-    /// Name of the command.
-    pub name: String,
-    /// Subcommands.
-    pub commands: Vec<CommandTree>,
-}
-
-impl From<&clap::Command> for CommandTree {
-    fn from(value: &clap::Command) -> Self {
-        CommandTree {
-            name: value.get_name().to_string(),
-            commands: value.get_subcommands().map(|c| c.into()).collect(),
-        }
-    }
-}

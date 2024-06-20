@@ -1,7 +1,6 @@
-#[cfg(not(target_arch = "wasm32"))]
-use sos::{fail, Result};
+use sos::Result;
+use sos_cli_helpers::messages::fail;
 
-#[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> Result<()> {
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -18,6 +17,3 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
-
-#[cfg(target_arch = "wasm32")]
-fn main() {}

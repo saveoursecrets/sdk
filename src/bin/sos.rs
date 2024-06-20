@@ -1,5 +1,6 @@
 #[cfg(not(target_arch = "wasm32"))]
-use sos::{fail, warn, Result, USER};
+use sos::{Result, USER};
+use sos_cli_helpers::messages::{fail, warn};
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]

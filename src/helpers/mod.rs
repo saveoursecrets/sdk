@@ -7,9 +7,10 @@ use tokio::sync::broadcast::Sender;
 
 pub(crate) mod account;
 pub(crate) mod editor;
-pub(crate) mod messages;
 pub(crate) mod readline;
 pub(crate) mod secret;
+
+pub use sos_cli_helpers::messages;
 
 pub use account::USER;
 

@@ -4312,6 +4312,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shell-words",
+ "sos-cli-helpers",
  "sos-net",
  "sos_test_utils",
  "tempfile",
@@ -4339,6 +4340,15 @@ dependencies = [
  "thiserror",
  "time",
  "url",
+]
+
+[[package]]
+name = "sos-cli-helpers"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "colored",
+ "serde",
 ]
 
 [[package]]
@@ -4480,6 +4490,7 @@ dependencies = [
  "axum-server",
  "binary-stream",
  "bs58",
+ "clap",
  "colored",
  "futures",
  "hex",
@@ -4488,6 +4499,7 @@ dependencies = [
  "rustc_version",
  "serde",
  "serde_json",
+ "sos-cli-helpers",
  "sos-net",
  "thiserror",
  "tokio",

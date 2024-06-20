@@ -1,4 +1,6 @@
-use terminal_banner::colored::Colorize;
+//! Helper functions to print messages.
+
+use colored::Colorize;
 
 const TICK: &str = "✓";
 const INFO: &str = "Info";
