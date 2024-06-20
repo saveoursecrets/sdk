@@ -147,10 +147,6 @@ log = "0.4"
 name = "sos"
 path = "src/bin/sos.rs"
 
-[[bin]]
-name = "sos-server"
-path = "src/bin/sos_server.rs"
-
 [profile.release]
 codegen-units = 1
 lto = true
