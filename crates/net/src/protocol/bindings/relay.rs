@@ -31,10 +31,8 @@ impl RelayPacket {
 
     /// Decode an encoded packet into a public key and
     /// protobuf packet bytes.
-    #[cfg(feature = "server")]
-    pub(crate) fn decode_split(
-        packet: Vec<u8>,
-    ) -> Result<(Vec<u8>, Vec<u8>)> {
+    #[doc(hidden)]
+    pub fn decode_split(packet: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>)> {
         use crate::protocol::Error;
         let amount = std::mem::size_of::<u16>();
         if packet.len() > amount {

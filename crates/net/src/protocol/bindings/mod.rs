@@ -14,7 +14,8 @@ pub use diff::{DiffRequest, DiffResponse};
 pub use notifications::ChangeNotification;
 pub use patch::{PatchRequest, PatchResponse};
 #[cfg(feature = "pairing")]
-pub(crate) use relay::{
+#[doc(hidden)]
+pub use relay::{
     pairing_message, PairingConfirm, PairingMessage, PairingReady,
     PairingRequest, RelayHeader, RelayPacket, RelayPayload,
 };

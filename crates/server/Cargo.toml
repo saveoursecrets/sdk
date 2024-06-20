@@ -1,0 +1,61 @@
+[package]
+name = "sos-server"
+version = "0.13.0"
+edition = "2021"
+description = "Reference server for the Save Our Secrets SDK."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = ["listen", "device", "files", "audit", "pairing"]
+listen = ["sos-net/listen"]
+device = ["sos-net/device"]
+files = ["sos-net/files"]
+audit = ["sos-net/audit"]
+pairing = ["sos-net/pairing"]
+
+[dependencies]
+tokio-util.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+async-trait.workspace = true
+http.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+uuid.workspace = true
+hex.workspace = true
+url.workspace = true
+futures.workspace = true
+bs58.workspace = true
+indexmap.workspace = true
+colored = "2"
+binary-stream.workspace = true
+toml.workspace = true 
+
+# server
+axum = { version = "0.7", features = ["ws", "original-uri"] }
+axum-extra = {version = "0.9", features = ["typed-header"] }
+axum-macros = { version = "0.4" }
+axum-server = { version = "0.6", features = ["tls-rustls"] }
+tower = { version = "0.4" }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+tokio-stream = { version = "0.1" }
+utoipa = { version = "4", features = ["uuid"] }
+utoipa-rapidoc = { version = "3", features = ["axum"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
+
+[dependencies.sos-net]
+version = "0.13.0"
+path = "../net"
+
+[dev-dependencies]
+anyhow = "1"
+
+[build-dependencies]
+rustc_version = "0.4.0"

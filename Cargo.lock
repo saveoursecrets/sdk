@@ -4469,6 +4469,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-server"
+version = "0.13.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "axum-extra",
+ "axum-macros",
+ "axum-server",
+ "binary-stream",
+ "bs58",
+ "colored",
+ "futures",
+ "hex",
+ "http",
+ "indexmap 2.2.6",
+ "rustc_version",
+ "serde",
+ "serde_json",
+ "sos-net",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "toml 0.8.14",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "utoipa",
+ "utoipa-rapidoc",
+ "uuid",
+]
+
+[[package]]
 name = "sos-vfs"
 version = "0.2.2"
 dependencies = [

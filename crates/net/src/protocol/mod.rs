@@ -74,11 +74,14 @@ trait ProtoBinding {
 }
 
 /// Trait for wire protocol encoding and decoding.
-pub(crate) trait WireEncodeDecode {
+#[doc(hidden)]
+pub trait WireEncodeDecode {
     /// Encode this request.
+    #[allow(async_fn_in_trait)]
     async fn encode(self) -> Result<Vec<u8>>;
 
     /// Decode this request.
+    #[allow(async_fn_in_trait)]
     async fn decode<B>(buffer: B) -> Result<Self>
     where
         B: Buf + Send + 'static,
