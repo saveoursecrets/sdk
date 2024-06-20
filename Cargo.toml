@@ -32,7 +32,6 @@ members = [
 default = []
 enable-cli-tests = []
 mem-fs = ["sos-net/mem-fs"]
-test-utils = ["sos-net/test-utils"]
 
 [workspace.dependencies]
 csv-async = { version = "1", features = ["tokio", "with_serde"] }

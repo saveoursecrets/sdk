@@ -50,8 +50,6 @@ security-report = ["sos-sdk/security-report"]
 system-messages = ["sos-sdk/system-messages"]
 mem-fs = ["sos-sdk/mem-fs"]
 
-test-utils = ["sos-sdk/test-utils"]
-
 [dependencies]
 tokio-util.workspace = true
 thiserror.workspace = true
