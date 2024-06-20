@@ -1,4 +1,4 @@
-//! Helper types and functions for command line executables.
+//! Helper types and functions for the [Save Our Secrets](https://saveoursecrets.com) command line [executables](https://saveoursecrets.com/command-line-tools/).
 
 pub mod messages;
 
