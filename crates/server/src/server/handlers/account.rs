@@ -603,12 +603,9 @@ mod handlers {
             },
             storage::StorageEventLogs,
         },
-        sync::{
-            self, CreateSet, EventLogType, Merge, MergeOutcome, SyncPacket,
-            SyncStorage, UpdateSet,
-        },
-        DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
-        ScanResponse, WireEncodeDecode,
+        CreateSet, DiffRequest, DiffResponse, EventLogType, Merge,
+        MergeOutcome, PatchRequest, PatchResponse, ScanRequest, ScanResponse,
+        SyncPacket, SyncStorage, UpdateSet, WireEncodeDecode,
     };
 
     use tokio::sync::RwLock;
@@ -1185,7 +1182,7 @@ mod handlers {
         let (local_status, diff) = {
             let reader = account.read().await;
             let (_, local_status, diff) =
-                sync::diff(&reader.storage, remote_status).await?;
+                sos_protocol::diff(&reader.storage, remote_status).await?;
             (local_status, diff)
         };
 

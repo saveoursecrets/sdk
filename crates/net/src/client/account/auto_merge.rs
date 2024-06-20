@@ -1,25 +1,24 @@
 //! Implements auto merge logic for a remote.
+use crate::sdk::{
+    account::Account,
+    commit::{CommitHash, CommitProof, CommitTree},
+    events::{
+        AccountDiff, AccountEvent, CheckedPatch, EventLogExt, EventRecord,
+        FolderDiff, Patch, WriteEvent,
+    },
+    storage::StorageEventLogs,
+    vault::VaultId,
+};
 use crate::{
     client::{Error, RemoteBridge, Result, SyncClient},
     protocol::{DiffRequest, PatchRequest, ScanRequest},
 };
-use crate::{
-    protocol::sync::{
-        EventLogType, ForceMerge, HardConflictResolver, MaybeConflict, Merge,
-        MergeOutcome, SyncOptions, SyncStatus,
-    },
-    sdk::{
-        account::Account,
-        commit::{CommitHash, CommitProof, CommitTree},
-        events::{
-            AccountDiff, AccountEvent, CheckedPatch, EventLogExt,
-            EventRecord, FolderDiff, Patch, WriteEvent,
-        },
-        storage::StorageEventLogs,
-        vault::VaultId,
-    },
-};
+
 use async_recursion::async_recursion;
+use sos_protocol::{
+    EventLogType, ForceMerge, HardConflictResolver, MaybeConflict, Merge,
+    MergeOutcome, SyncOptions, SyncStatus,
+};
 use std::collections::HashSet;
 use tracing::instrument;
 

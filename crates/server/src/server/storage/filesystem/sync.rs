@@ -15,10 +15,8 @@ use sos_protocol::{
         vault::{VaultAccess, VaultId, VaultWriter},
         vfs, Error, Paths, Result,
     },
-    sync::{
-        CreateSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
-        UpdateSet,
-    },
+    CreateSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
+    UpdateSet,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;

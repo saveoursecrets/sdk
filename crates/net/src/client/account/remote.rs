@@ -3,8 +3,8 @@ use crate::{
     client::{
         net::HttpClient, Error, RemoteSync, Result, SyncClient, SyncError,
     },
-    protocol::sync::{
-        self, FileOperation, FileSet, MaybeDiff, Merge, MergeOutcome, Origin,
+    protocol::{
+        FileOperation, FileSet, MaybeDiff, Merge, MergeOutcome, Origin,
         SyncOptions, SyncPacket, SyncStatus, SyncStorage, TransferOperation,
         UpdateSet,
     },
@@ -88,7 +88,7 @@ impl RemoteBridge {
         tracing::debug!("merge_client");
 
         let (needs_sync, local_status, local_changes) =
-            sync::diff(&*account, remote_status).await?;
+            sos_protocol::diff(&*account, remote_status).await?;
 
         tracing::debug!(needs_sync = %needs_sync, "merge_client");
 

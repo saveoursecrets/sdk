@@ -3,15 +3,15 @@ use utoipa::{openapi::security::*, Modify, OpenApi, ToSchema};
 
 #[derive(ToSchema)]
 #[allow(dead_code)]
-struct CreateSet(sos_protocol::sync::CreateSet);
+struct CreateSet(sos_protocol::CreateSet);
 
 #[derive(ToSchema)]
 #[allow(dead_code)]
-struct SyncStatus(sos_protocol::sync::SyncStatus);
+struct SyncStatus(sos_protocol::SyncStatus);
 
 #[derive(ToSchema)]
 #[allow(dead_code)]
-struct SyncPacket(sos_protocol::sync::SyncPacket);
+struct SyncPacket(sos_protocol::SyncPacket);
 
 #[derive(OpenApi)]
 #[openapi(

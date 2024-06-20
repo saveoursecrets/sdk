@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/relay.rs"));
 
-use crate::protocol::{ProtoMessage, Result};
+use crate::{Error, ProtoMessage, Result};
 
 // Must match the protobuf enum variants
 const HANDSHAKE: &str = "Handshake";
@@ -33,7 +33,6 @@ impl RelayPacket {
     /// protobuf packet bytes.
     #[doc(hidden)]
     pub fn decode_split(packet: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>)> {
-        use crate::protocol::Error;
         let amount = std::mem::size_of::<u16>();
         if packet.len() > amount {
             let key_length = &packet[0..amount];

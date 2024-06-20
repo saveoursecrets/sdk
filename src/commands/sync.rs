@@ -5,7 +5,7 @@ use crate::{
 use clap::Subcommand;
 use sos_net::{
     client::{NetworkAccount, RemoteSync},
-    protocol::sync::{Origin, SyncOptions, SyncStatus, SyncStorage},
+    protocol::{Origin, SyncOptions, SyncStatus, SyncStorage},
     sdk::{
         account::Account,
         commit::{CommitState, CommitTree, Comparison},

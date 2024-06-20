@@ -9,12 +9,9 @@ use tracing::instrument;
 use crate::{
     client::{CancelReason, Error, Result, SyncClient},
     protocol::{
-        sync::{
-            CreateSet, FileSet, FileTransfersSet, Origin, SyncPacket,
-            SyncStatus, UpdateSet,
-        },
-        DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
-        ScanResponse, WireEncodeDecode,
+        CreateSet, DiffRequest, DiffResponse, FileSet, FileTransfersSet,
+        Origin, PatchRequest, PatchResponse, ScanRequest, ScanResponse,
+        SyncPacket, SyncStatus, UpdateSet, WireEncodeDecode,
     },
     sdk::{
         constants::MIME_TYPE_PROTOBUF,

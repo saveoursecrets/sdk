@@ -3,14 +3,6 @@ use anyhow::Result;
 use prost::bytes::Bytes;
 
 use crate::{
-    protocol::{
-        sync::{
-            CreateSet, EventLogType, MaybeDiff, MergeOutcome, Origin,
-            SyncCompare, SyncDiff, SyncPacket, SyncStatus, UpdateSet,
-        },
-        DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
-        ScanResponse, WireEncodeDecode,
-    },
     sdk::{
         commit::{CommitHash, CommitProof, CommitState},
         events::{CheckedPatch, EventRecord, FolderDiff},
@@ -18,6 +10,12 @@ use crate::{
         vault::VaultId,
         UtcDateTime,
     },
+    sync::{
+        CreateSet, EventLogType, MaybeDiff, MergeOutcome, Origin,
+        SyncCompare, SyncDiff, SyncPacket, SyncStatus, UpdateSet,
+    },
+    DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
+    ScanResponse, WireEncodeDecode,
 };
 
 const HASH: &str =
@@ -232,7 +230,7 @@ async fn encode_decode_merge_outcom() -> Result<()> {
 #[cfg(feature = "listen")]
 #[tokio::test]
 async fn encode_decode_change_notification() -> Result<()> {
-    use crate::protocol::ChangeNotification;
+    use crate::ChangeNotification;
     let outcome = MergeOutcome {
         changes: 7,
         ..Default::default()
@@ -359,8 +357,8 @@ async fn encode_decode_update_set() -> Result<()> {
 #[tokio::test]
 async fn encode_decode_change_files() -> Result<()> {
     use crate::{
-        protocol::sync::{FileSet, FileTransfersSet},
         sdk::{storage::files::ExternalFile, vault::secret::SecretId},
+        sync::{FileSet, FileTransfersSet},
     };
     use indexmap::IndexSet;
 

@@ -2,11 +2,9 @@ use super::Error;
 use crate::{
     client::{CancelReason, Result},
     protocol::{
-        sync::{
-            CreateSet, Origin, SyncOptions, SyncPacket, SyncStatus, UpdateSet,
-        },
-        DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
-        ScanResponse,
+        CreateSet, DiffRequest, DiffResponse, Origin, PatchRequest,
+        PatchResponse, ScanRequest, ScanResponse, SyncOptions, SyncPacket,
+        SyncStatus, UpdateSet,
     },
 };
 use async_trait::async_trait;
@@ -14,7 +12,7 @@ use sos_sdk::storage;
 use std::path::Path;
 
 /// Error type that can be returned from a sync operation.
-pub type SyncError = crate::protocol::sync::SyncError<Error>;
+pub type SyncError = crate::protocol::SyncError<Error>;
 
 /// Trait for types that can sync accounts with a remote.
 #[async_trait]
@@ -145,6 +143,6 @@ pub trait SyncClient {
     #[cfg(feature = "files")]
     async fn compare_files(
         &self,
-        local_files: crate::protocol::sync::FileSet,
-    ) -> Result<crate::protocol::sync::FileTransfersSet>;
+        local_files: crate::protocol::FileSet,
+    ) -> Result<crate::protocol::FileTransfersSet>;
 }

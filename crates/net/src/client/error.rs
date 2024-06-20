@@ -2,7 +2,7 @@
 use crate::client::CancelReason;
 use http::StatusCode;
 use serde_json::Value;
-use sos_protocol::sync::{MaybeConflict, Origin, SyncError, SyncStatus};
+use sos_protocol::{MaybeConflict, Origin, SyncError, SyncStatus};
 use std::error::Error as StdError;
 use std::path::PathBuf;
 use thiserror::Error;

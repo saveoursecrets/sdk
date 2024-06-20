@@ -4,15 +4,12 @@ include!(concat!(env!("OUT_DIR"), "/files.rs"));
 mod files {
     use super::*;
     use crate::{
-        protocol::{
-            decode_uuid, encode_uuid,
-            sync::{FileSet, FileTransfersSet},
-            Error, ProtoBinding, Result,
-        },
+        decode_uuid, encode_uuid,
         sdk::{
             storage::files::{ExternalFile, ExternalFileName},
             vault::{secret::SecretId, VaultId},
         },
+        Error, FileSet, FileTransfersSet, ProtoBinding, Result,
     };
     use indexmap::IndexSet;
 

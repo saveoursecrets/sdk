@@ -3,7 +3,6 @@ use async_trait::async_trait;
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 use crate::{
-    protocol::sync::FolderMergeOptions,
     sdk::{
         events::{
             CheckedPatch, EventLogExt, FolderDiff, FolderReducer, LogEvent,
@@ -14,6 +13,7 @@ use crate::{
         vault::secret::SecretRow,
         Result,
     },
+    FolderMergeOptions,
 };
 
 /// Merge operations for the identity folder.
@@ -109,6 +109,7 @@ where
                             .decrypt_secret(vault_commit, None)
                             .await?;
 
+                        #[allow(irrefutable_let_patterns)]
                         let mut urn =
                             if let FolderMergeOptions::Urn(_, _) = &options {
                                 meta.urn().cloned()
@@ -195,6 +196,7 @@ where
                         }
                     }
                     WriteEvent::DeleteSecret(id) => {
+                        #[allow(irrefutable_let_patterns)]
                         let mut urn =
                             if let FolderMergeOptions::Urn(_, _) = &options {
                                 if let Some((meta, _, _)) =

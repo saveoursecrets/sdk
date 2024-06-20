@@ -1,9 +1,5 @@
 //! Implements merging into a local account.
 use crate::{
-    protocol::sync::{
-        FolderMerge, FolderMergeOptions, ForceMerge, IdentityFolderMerge,
-        Merge, MergeOutcome, SyncStatus, SyncStorage,
-    },
     sdk::{
         account::{Account, LocalAccount},
         commit::{CommitState, CommitTree, Comparison},
@@ -16,6 +12,8 @@ use crate::{
         vault::{Vault, VaultId},
         Error, Result,
     },
+    FolderMerge, FolderMergeOptions, ForceMerge, IdentityFolderMerge, Merge,
+    MergeOutcome, SyncStatus, SyncStorage,
 };
 use async_trait::async_trait;
 use indexmap::IndexMap;

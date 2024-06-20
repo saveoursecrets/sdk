@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/notifications.rs"));
 
-use crate::protocol::{sync::MergeOutcome, Error, ProtoBinding, Result};
+use crate::{Error, MergeOutcome, ProtoBinding, Result};
 use sos_sdk::{commit::CommitHash, signer::ecdsa::Address};
 
 /// Notification sent by the server when changes were made.

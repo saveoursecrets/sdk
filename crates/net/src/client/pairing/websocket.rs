@@ -3,10 +3,9 @@ use super::{DeviceEnrollment, Error, Result, ServerPairUrl};
 use crate::{
     client::{sync::RemoteSync, NetworkAccount, WebSocketRequest},
     protocol::{
-        pairing_message,
-        sync::{Origin, SyncOptions},
-        PairingConfirm, PairingMessage, PairingReady, PairingRequest,
-        ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
+        pairing_message, Origin, PairingConfirm, PairingMessage,
+        PairingReady, PairingRequest, ProtoMessage, RelayHeader, RelayPacket,
+        RelayPayload, SyncOptions,
     },
     sdk::{
         account::Account,

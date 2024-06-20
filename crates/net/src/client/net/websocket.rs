@@ -23,7 +23,7 @@ use crate::{
     client::{
         net::NetworkRetry, CancelReason, Error, Result, WebSocketRequest,
     },
-    protocol::{sync::Origin, ChangeNotification, WireEncodeDecode},
+    protocol::{ChangeNotification, Origin, WireEncodeDecode},
 };
 
 use super::{

@@ -365,8 +365,7 @@ mod handlers {
             storage::files::{list_external_files, ExternalFileName},
             vault::{secret::SecretId, VaultId},
         },
-        sync::{FileSet, FileTransfersSet},
-        WireEncodeDecode,
+        FileSet, FileTransfersSet, WireEncodeDecode,
     };
 
     use crate::server::{

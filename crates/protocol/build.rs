@@ -18,16 +18,16 @@ fn main() {
 
     prost_build::compile_protos(
         &[
-            "src/protocol/protobuf/common.proto",
-            "src/protocol/protobuf/diff.proto",
-            "src/protocol/protobuf/files.proto",
-            "src/protocol/protobuf/notifications.proto",
-            "src/protocol/protobuf/patch.proto",
-            "src/protocol/protobuf/relay.proto",
-            "src/protocol/protobuf/scan.proto",
-            "src/protocol/protobuf/sync.proto",
+            "src/protobuf/common.proto",
+            "src/protobuf/diff.proto",
+            "src/protobuf/files.proto",
+            "src/protobuf/notifications.proto",
+            "src/protobuf/patch.proto",
+            "src/protobuf/relay.proto",
+            "src/protobuf/scan.proto",
+            "src/protobuf/sync.proto",
         ],
-        &["src/protocol"],
+        &["src"],
     )
     .unwrap();
 }

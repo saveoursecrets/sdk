@@ -1,16 +1,15 @@
 include!(concat!(env!("OUT_DIR"), "/common.rs"));
 
 use crate::{
-    protocol::{
-        decode_uuid, encode_uuid, sync::EventLogType, Error, ProtoBinding,
-        Result,
-    },
+    decode_uuid, encode_uuid,
     sdk::{
         commit::{CommitHash, CommitProof, CommitState},
         events::{CheckedPatch, EventRecord},
         time::{Duration, OffsetDateTime},
         UtcDateTime,
     },
+    sync::EventLogType,
+    Error, ProtoBinding, Result,
 };
 use rs_merkle::{algorithms::Sha256, MerkleProof};
 

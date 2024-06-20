@@ -8,7 +8,7 @@ use sos_protocol::{
         storage::DiscFolder,
         vfs, Paths,
     },
-    sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet},
+    CreateSet, MergeOutcome, SyncStorage, UpdateSet,
 };
 use std::{
     collections::HashMap,

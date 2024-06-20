@@ -4,10 +4,7 @@ use crate::{
     client::{
         sync::RemoteSync, Error, ListenOptions, NetworkAccount, Result,
     },
-    protocol::{
-        sync::{Origin, SyncError, SyncStorage},
-        ChangeNotification,
-    },
+    protocol::{ChangeNotification, Origin, SyncError, SyncStorage},
 };
 use std::sync::Arc;
 use tokio::sync::mpsc;

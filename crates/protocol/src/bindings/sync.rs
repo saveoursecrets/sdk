@@ -1,18 +1,13 @@
 include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 
 use crate::{
-    protocol::{
-        decode_uuid, encode_uuid,
-        sync::{
-            CreateSet, MaybeDiff, MergeOutcome, Origin, SyncCompare,
-            SyncDiff, SyncPacket, SyncStatus, UpdateSet,
-        },
-        Error, ProtoBinding, Result,
-    },
+    decode_uuid, encode_uuid,
     sdk::{
         commit::Comparison,
         events::{Diff, EventRecord, Patch},
     },
+    CreateSet, Error, MaybeDiff, MergeOutcome, Origin, ProtoBinding, Result,
+    SyncCompare, SyncDiff, SyncPacket, SyncStatus, UpdateSet,
 };
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;

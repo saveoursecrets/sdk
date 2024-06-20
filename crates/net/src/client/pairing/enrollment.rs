@@ -4,7 +4,7 @@ use crate::{
         pairing::{Error, Result},
         HttpClient, NetworkAccount, SyncClient,
     },
-    protocol::sync::Origin,
+    protocol::Origin,
     sdk::{
         account::Account,
         crypto::AccessKey,

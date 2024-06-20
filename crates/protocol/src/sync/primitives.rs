@@ -1,14 +1,14 @@
 //! Synchronization types that are used internally.
-use crate::protocol::sync::{
-    CreateSet, MaybeDiff, MergeOutcome, Origin, SyncCompare, SyncDiff,
-    SyncStatus,
-};
 use crate::sdk::{
     commit::{CommitState, Comparison},
     events::{AccountDiff, CheckedPatch, EventLogExt, FolderDiff},
     storage::StorageEventLogs,
     vault::VaultId,
     Error, Result,
+};
+use crate::{
+    CreateSet, MaybeDiff, MergeOutcome, Origin, SyncCompare, SyncDiff,
+    SyncStatus,
 };
 use async_trait::async_trait;
 use indexmap::IndexMap;

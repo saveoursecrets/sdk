@@ -1,8 +1,7 @@
 include!(concat!(env!("OUT_DIR"), "/scan.rs"));
 
 use crate::{
-    protocol::{sync::EventLogType, Error, ProtoBinding, Result},
-    sdk::commit::CommitProof,
+    sdk::commit::CommitProof, Error, EventLogType, ProtoBinding, Result,
 };
 
 /// Request commit proofs from an event log.

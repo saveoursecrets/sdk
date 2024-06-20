@@ -1,7 +1,7 @@
 //! Adds sync capability to network account.
 use crate::{
     client::{NetworkAccount, RemoteSync, SyncClient, SyncError},
-    protocol::sync::{
+    protocol::{
         FileSet, FileTransfersSet, Origin, SyncOptions, SyncStatus,
         SyncStorage, UpdateSet,
     },

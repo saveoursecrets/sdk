@@ -1,7 +1,7 @@
 use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_net::{
-    protocol::sync::{diff, Merge, MergeOutcome, SyncStorage},
+    protocol::{diff, Merge, MergeOutcome, SyncStorage},
     sdk::prelude::*,
 };
 

@@ -7,7 +7,7 @@ use sos_net::{
         InflightNotification, InflightTransfers, ListenOptions,
         NetworkAccount, RemoteBridge, RemoteSync, SyncClient,
     },
-    protocol::sync::{Origin, SyncStorage},
+    protocol::{Origin, SyncStorage},
     sdk::{
         account::{Account, AccountBuilder},
         constants::{FILES_DIR, VAULT_EXT},

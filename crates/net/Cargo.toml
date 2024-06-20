@@ -79,10 +79,11 @@ binary-stream.workspace = true
 rs_merkle.workspace = true
 prost.workspace = true
 
-tokio-tungstenite = { version = "0.23", features = ["rustls-tls-native-roots"] , optional = true}
-
 # pairing
 snow = { version = "0.9", optional = true }
+
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
+tokio-tungstenite = { version = "0.23", features = ["rustls-tls-native-roots"] , optional = true}
 
 [dependencies.sos-sdk]
 version = "0.13.0"
@@ -91,12 +92,6 @@ path = "../sdk"
 [dependencies.sos-protocol]
 version = "0.13.0"
 path = "../protocol"
-
-[target.'cfg(not(target_arch="wasm32"))'.dependencies]
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
-
-[target.'cfg(target_arch="wasm32")'.dependencies]
-tokio = { version = "1", features = ["rt", "time", "sync"] }
 
 [target.'cfg(target_os="macos")'.dependencies]
 reqwest = { version = "0.12.5", default-features = true, features = ["json", "rustls-tls", "stream"], optional = true }

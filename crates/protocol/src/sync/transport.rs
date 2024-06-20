@@ -1,11 +1,11 @@
 //! Synchronization types that are sent
 //! between the client and server.
-use crate::protocol::sync::MaybeConflict;
 use crate::sdk::{
     commit::{CommitHash, CommitState, Comparison},
     events::{AccountDiff, AccountPatch, FolderDiff, FolderPatch},
     vault::VaultId,
 };
+use crate::sync::MaybeConflict;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use std::{

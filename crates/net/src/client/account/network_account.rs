@@ -1,8 +1,6 @@
 //! Network aware account.
 use crate::{
-    protocol::sync::{
-        FileOperation, Origin, SyncError, SyncOptions, UpdateSet,
-    },
+    protocol::{FileOperation, Origin, SyncError, SyncOptions, UpdateSet},
     sdk::{
         account::{
             Account, AccountBuilder, AccountChange, AccountData,
