@@ -31,7 +31,6 @@ members = [
 [features]
 default = []
 enable-cli-tests = []
-mem-fs = ["sos-net/mem-fs"]
 
 [workspace.dependencies]
 csv-async = { version = "1", features = ["tokio", "with_serde"] }
@@ -153,10 +152,3 @@ codegen-units = 1
 lto = true
 strip = true
 opt-level = "z"
-
-[workspace.metadata.release]
-allow-branch = ["main"]
-sign-tag = true
-sign-commit = true
-pre-release-hook = ["cargo", "audit"]
-pre-release-commit-message = "Release {{version}}"

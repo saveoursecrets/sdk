@@ -16,7 +16,6 @@ default = []
 full = [
   "audit",
   "archive",
-  "client",
   "contacts",
   "device",
   "files",
@@ -29,9 +28,6 @@ full = [
   "security-report",
   "keychain-access",
   "system-messages",
-]
-client = [
-  "dep:reqwest",
 ]
 listen = ["dep:tokio-tungstenite", "sos-protocol/listen"]
 hashcheck = []
@@ -48,7 +44,6 @@ preferences = ["sos-sdk/preferences"]
 search = ["sos-sdk/search", "sos-protocol/search"]
 security-report = ["sos-sdk/security-report"]
 system-messages = ["sos-sdk/system-messages"]
-mem-fs = ["sos-sdk/mem-fs"]
 
 [dependencies]
 tokio-util.workspace = true
@@ -80,6 +75,7 @@ prost.workspace = true
 # pairing
 snow = { version = "0.9", optional = true }
 
+reqwest = { version = "0.12.5", features = ["json", "rustls-tls", "stream"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
 tokio-tungstenite = { version = "0.23", features = ["rustls-tls-native-roots"] , optional = true}
 
@@ -91,26 +87,8 @@ path = "../sdk"
 version = "0.13.0"
 path = "../protocol"
 
-[target.'cfg(target_os="macos")'.dependencies]
-reqwest = { version = "0.12.5", default-features = true, features = ["json", "rustls-tls", "stream"], optional = true }
-
-# NOTE: Must disable default-features so that openssl
-# NOTE: is not compiled when cross-compiling in CI.
-#
-# NOTE: If we disable `default-features` during
-# NOTE: development then attempting to connect to 
-# NOTE: the changes feed using the locally issued mkcert
-# NOTE: certificate yields an "Unknown Issuer" error.
-# NOTE: Which is related to the `security-framework` not 
-# NOTE: being compiled on macos when `default-features` is 
-# NOTE: disabled.
-[target.'cfg(not(target_os="macos"))'.dependencies]
-reqwest = { version = "0.12.5", default-features = false, features = ["json", "rustls-tls", "stream"], optional = true }
-
 [dev-dependencies]
 anyhow = "1"
 
 [build-dependencies]
 rustc_version = "0.4.0"
-# prost-build = "0.12.6"
-# protoc-bin-vendored = "3"
