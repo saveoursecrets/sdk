@@ -1,4 +1,4 @@
-use crate::server::handlers::account;
+use crate::handlers::account;
 use utoipa::{openapi::security::*, Modify, OpenApi, ToSchema};
 
 #[derive(ToSchema)]

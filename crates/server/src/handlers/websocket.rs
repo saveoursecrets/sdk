@@ -20,7 +20,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, watch};
 
 use super::{authenticate_endpoint, Caller, ConnectionQuery};
-use crate::server::{Result, ServerBackend, ServerState};
+use crate::{Result, ServerBackend, ServerState};
 
 /// State for the websocket connection for a single
 /// authenticated client.

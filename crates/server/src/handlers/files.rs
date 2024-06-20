@@ -20,7 +20,7 @@ use sos_protocol::sdk::{
     vault::{secret::SecretId, VaultId},
 };
 
-use crate::server::{
+use crate::{
     handlers::{authenticate_endpoint, ConnectionQuery},
     ServerBackend, ServerState, ServerTransfer,
 };
@@ -368,7 +368,7 @@ mod handlers {
         FileSet, FileTransfersSet, WireEncodeDecode,
     };
 
-    use crate::server::{
+    use crate::{
         handlers::Caller, Error, Result, ServerBackend, ServerState,
     };
     use axum::{

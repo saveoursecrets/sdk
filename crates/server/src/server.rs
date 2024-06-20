@@ -1,4 +1,4 @@
-use super::{
+use crate::{
     config::TlsConfig,
     handlers::{account, api, home, websocket::WebSocketAccount},
     Backend, Result, ServerConfig,
@@ -315,7 +315,7 @@ impl Server {
     ),
 )]
 pub async fn openapi() -> impl IntoResponse {
-    let value = crate::server::api_docs::openapi();
+    let value = crate::api_docs::openapi();
     Json(serde_json::json!(&value))
 }
 

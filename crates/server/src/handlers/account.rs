@@ -13,7 +13,7 @@ use axum_extra::{
 //use axum_macros::debug_handler;
 
 use super::BODY_LIMIT;
-use crate::server::{handlers::ConnectionQuery, ServerBackend, ServerState};
+use crate::{handlers::ConnectionQuery, ServerBackend, ServerState};
 
 use std::sync::Arc;
 
@@ -585,7 +585,7 @@ pub(crate) async fn sync_account(
 
 mod handlers {
     use super::Caller;
-    use crate::server::{
+    use crate::{
         backend::AccountStorage, Error, Result, ServerBackend, ServerState,
     };
     use axum::body::Bytes;
@@ -622,7 +622,7 @@ mod handlers {
     use sos_protocol::ChangeNotification;
 
     #[cfg(feature = "listen")]
-    use crate::server::handlers::send_notification;
+    use crate::handlers::send_notification;
 
     pub(super) async fn account_exists(
         _state: ServerState,
