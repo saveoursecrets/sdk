@@ -1,6 +1,6 @@
 [package]
 name = "sos-server"
-version = "0.13.0"
+version = "0.14.0"
 edition = "2021"
 description = "Server for the Save Our Secrets sync protocol."
 homepage = "https://saveoursecrets.com"
@@ -39,7 +39,6 @@ binary-stream.workspace = true
 toml.workspace = true 
 clap.workspace = true
 
-# server
 axum = { version = "0.7", features = ["ws", "original-uri"] }
 axum-extra = {version = "0.9", features = ["typed-header"] }
 axum-macros = { version = "0.4" }
@@ -52,15 +51,12 @@ utoipa-rapidoc = { version = "3", features = ["axum"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
 
 [dependencies.sos-protocol]
-version = "0.13.0"
+version = "0.14.0"
 path = "../protocol"
 
 [dependencies.sos-cli-helpers]
 version = "0.1.0"
 path = "../cli_helpers"
-
-[dev-dependencies]
-anyhow = "1"
 
 [build-dependencies]
 rustc_version = "0.4.0"
