@@ -1,8 +1,8 @@
 //! Tracks inflight file transfer requests.
 use crate::{
-    client::CancelReason,
     protocol::{Origin, TransferOperation},
     sdk::storage::files::ExternalFile,
+    CancelReason,
 };
 
 use std::{

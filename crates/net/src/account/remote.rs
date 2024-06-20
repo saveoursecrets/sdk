@@ -1,8 +1,6 @@
 //! Bridge between local storage and a remote server.
 use crate::{
-    client::{
-        net::HttpClient, Error, RemoteSync, Result, SyncClient, SyncError,
-    },
+    net::HttpClient,
     protocol::{
         FileOperation, FileSet, MaybeDiff, Merge, MergeOutcome, Origin,
         SyncOptions, SyncPacket, SyncStatus, SyncStorage, TransferOperation,
@@ -14,6 +12,7 @@ use crate::{
         storage::StorageEventLogs,
         vfs,
     },
+    Error, RemoteSync, Result, SyncClient, SyncError,
 };
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
@@ -323,8 +322,8 @@ impl RemoteSync for RemoteBridge {
 #[cfg(feature = "listen")]
 mod listen {
     use crate::{
-        client::{ListenOptions, RemoteBridge, WebSocketHandle},
-        protocol::ChangeNotification,
+        protocol::ChangeNotification, ListenOptions, RemoteBridge,
+        WebSocketHandle,
     };
     use tokio::sync::mpsc;
 

@@ -3,10 +3,10 @@ use std::sync::Arc;
 use terminal_banner::{Banner, Padding};
 
 use sos_net::{
-    client::NetworkAccount,
     sdk::{
         account::Account, identity::AccountRef, vault::FolderRef, vfs, Paths,
     },
+    NetworkAccount,
 };
 
 use tokio::sync::RwLock;

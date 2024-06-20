@@ -7,7 +7,6 @@ use serde_json::Value;
 use tracing::instrument;
 
 use crate::{
-    client::{CancelReason, Error, Result, SyncClient},
     protocol::{
         CreateSet, DiffRequest, DiffResponse, FileSet, FileTransfersSet,
         Origin, PatchRequest, PatchResponse, ScanRequest, ScanResponse,
@@ -18,6 +17,7 @@ use crate::{
         sha2::{Digest, Sha256},
         signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     },
+    CancelReason, Error, Result, SyncClient,
 };
 use std::{fmt, path::Path, time::Duration};
 use url::Url;
@@ -36,10 +36,10 @@ use super::websocket::WebSocketChangeListener;
 use crate::sdk::storage::files::ExternalFile;
 
 #[cfg(feature = "files")]
-use crate::client::ProgressChannel;
+use crate::ProgressChannel;
 
 #[cfg(feature = "listen")]
-use crate::client::{ListenOptions, WebSocketHandle};
+use crate::{ListenOptions, WebSocketHandle};
 
 /// Client that can synchronize with a server over HTTP(S).
 #[derive(Clone)]

@@ -53,7 +53,7 @@ use crate::sdk::device::{
 use indexmap::IndexSet;
 
 #[cfg(feature = "listen")]
-use crate::client::WebSocketHandle;
+use crate::WebSocketHandle;
 
 #[cfg(feature = "contacts")]
 use crate::sdk::account::ContactImportProgress;
@@ -70,10 +70,10 @@ use super::{
     file_transfers::{FileTransferSettings, FileTransfersHandle},
     remote::Remotes,
 };
-use crate::client::{Error, RemoteBridge, RemoteSync, Result};
+use crate::{Error, RemoteBridge, RemoteSync, Result};
 
 #[cfg(feature = "files")]
-use crate::client::{
+use crate::{
     account::file_transfers::{FileTransfers, InflightTransfers},
     HttpClient,
 };

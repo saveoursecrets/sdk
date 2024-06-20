@@ -1,11 +1,11 @@
 use super::Error;
 use crate::{
-    client::{CancelReason, Result},
     protocol::{
         CreateSet, DiffRequest, DiffResponse, Origin, PatchRequest,
         PatchResponse, ScanRequest, ScanResponse, SyncOptions, SyncPacket,
         SyncStatus, UpdateSet,
     },
+    CancelReason, Result,
 };
 use async_trait::async_trait;
 use sos_sdk::storage;
@@ -103,7 +103,7 @@ pub trait SyncClient {
         &self,
         file_info: &storage::files::ExternalFile,
         path: &Path,
-        progress: crate::client::ProgressChannel,
+        progress: crate::ProgressChannel,
         cancel: tokio::sync::watch::Receiver<CancelReason>,
     ) -> Result<http::StatusCode>;
 
@@ -113,7 +113,7 @@ pub trait SyncClient {
         &self,
         file_info: &storage::files::ExternalFile,
         path: &Path,
-        progress: crate::client::ProgressChannel,
+        progress: crate::ProgressChannel,
         cancel: tokio::sync::watch::Receiver<CancelReason>,
     ) -> Result<http::StatusCode>;
 

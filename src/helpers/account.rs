@@ -2,7 +2,6 @@
 use std::{borrow::Cow, sync::Arc};
 
 use sos_net::{
-    client::NetworkAccount,
     sdk::{
         account::{Account, AccountLocked, SigninOptions},
         constants::DEFAULT_VAULT_NAME,
@@ -14,6 +13,7 @@ use sos_net::{
         vault::{FolderRef, Summary},
         Paths,
     },
+    NetworkAccount,
 };
 use terminal_banner::{Banner, Padding};
 use tokio::sync::{mpsc, RwLock};

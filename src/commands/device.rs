@@ -3,8 +3,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use sos_net::{
-    client::NetworkAccount,
     sdk::{account::Account, device::TrustedDevice, identity::AccountRef},
+    NetworkAccount,
 };
 
 use crate::{

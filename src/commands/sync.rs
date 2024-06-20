@@ -4,7 +4,6 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_net::{
-    client::{NetworkAccount, RemoteSync},
     protocol::{Origin, SyncOptions, SyncStatus, SyncStorage},
     sdk::{
         account::Account,
@@ -14,6 +13,7 @@ use sos_net::{
         storage::StorageEventLogs,
         url::Url,
     },
+    NetworkAccount, RemoteSync,
 };
 
 #[derive(Subcommand, Debug)]

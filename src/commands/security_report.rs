@@ -3,7 +3,7 @@ use crate::{
     Error, Result,
 };
 use sos_net::{
-    client::hashcheck,
+    hashcheck,
     sdk::{
         account::{
             security_report::{SecurityReportOptions, SecurityReportRow},

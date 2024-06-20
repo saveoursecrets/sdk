@@ -1,6 +1,6 @@
 use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::{client::HttpClient, sdk::prelude::*};
+use sos_net::{sdk::prelude::*, HttpClient};
 use std::time::Duration;
 
 /// Tests websocket shutdown logic on sign out.

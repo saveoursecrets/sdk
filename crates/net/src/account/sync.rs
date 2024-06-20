@@ -1,6 +1,5 @@
 //! Adds sync capability to network account.
 use crate::{
-    client::{NetworkAccount, RemoteSync, SyncClient, SyncError},
     protocol::{
         FileSet, FileTransfersSet, Origin, SyncOptions, SyncStatus,
         SyncStorage, UpdateSet,
@@ -11,6 +10,7 @@ use crate::{
         vault::VaultId,
         Result,
     },
+    NetworkAccount, RemoteSync, SyncClient, SyncError,
 };
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
@@ -23,11 +23,10 @@ use sos_sdk::events::DeviceEventLog;
 use sos_sdk::events::FileEventLog;
 
 /// Server status for all remote origins.
-pub type ServerStatus = HashMap<Origin, crate::client::Result<SyncStatus>>;
+pub type ServerStatus = HashMap<Origin, crate::Result<SyncStatus>>;
 
 /// Transfer status for all remote origins.
-pub type TransferStatus =
-    HashMap<Origin, crate::client::Result<FileTransfersSet>>;
+pub type TransferStatus = HashMap<Origin, crate::Result<FileTransfersSet>>;
 
 impl NetworkAccount {
     /// Sync status for remote servers.

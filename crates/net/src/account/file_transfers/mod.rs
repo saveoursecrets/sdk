@@ -15,9 +15,10 @@
 //! Requests are limited to the `concurrent_requests` setting guarded
 //! by a semaphore and notifications are sent via [InflightTransfers].
 use crate::{
-    client::{net::NetworkRetry, CancelReason, Error, Result, SyncClient},
+    net::NetworkRetry,
     protocol::{FileOperation, Origin, TransferOperation},
     sdk::{storage::files::ExternalFile, vfs, Paths},
+    CancelReason, Error, Result, SyncClient,
 };
 
 use futures::FutureExt;

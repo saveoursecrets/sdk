@@ -2,7 +2,7 @@ use crate::test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::{client::RemoteSync, sdk::prelude::*};
+use sos_net::{sdk::prelude::*, RemoteSync};
 
 /// Tests changing the account cipher and force syncing
 /// the updated and diverged account data.

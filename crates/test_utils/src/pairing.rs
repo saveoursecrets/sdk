@@ -2,11 +2,9 @@ use crate::SimulatedDevice;
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, Future, StreamExt};
 use sos_net::{
-    client::{
-        pairing::{self, AcceptPairing, OfferPairing},
-        NetworkAccount,
-    },
+    pairing::{self, AcceptPairing, OfferPairing},
     sdk::prelude::*,
+    NetworkAccount,
 };
 use std::pin::Pin;
 use tokio::sync::mpsc;

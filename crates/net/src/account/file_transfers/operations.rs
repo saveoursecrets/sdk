@@ -3,8 +3,9 @@
 //! Tasks that handle retry until exhaustion for
 //! download, upload, move and delete operations.
 use crate::{
-    client::{net::NetworkRetry, CancelReason, Error, Result, SyncClient},
+    net::NetworkRetry,
     sdk::{storage::files::ExternalFile, vfs, Paths},
+    CancelReason, Error, Result, SyncClient,
 };
 
 use async_recursion::async_recursion;

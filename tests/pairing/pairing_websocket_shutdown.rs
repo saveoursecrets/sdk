@@ -2,7 +2,7 @@ use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, Future, StreamExt};
 use sos_net::{
-    client::pairing::{self, OfferPairing},
+    pairing::{self, OfferPairing},
     sdk::prelude::*,
 };
 use std::pin::Pin;

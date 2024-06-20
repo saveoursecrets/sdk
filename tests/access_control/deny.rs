@@ -6,9 +6,8 @@ use crate::test_utils::{
 };
 use http::StatusCode;
 use sos_net::{
-    client::{Error as ClientError, NetworkAccount, RemoteSync},
-    protocol::SyncError,
-    sdk::prelude::*,
+    protocol::SyncError, sdk::prelude::*, Error as ClientError,
+    NetworkAccount, RemoteSync,
 };
 
 use sos_server::AccessControlConfig;

@@ -1,7 +1,6 @@
 //! Protocol for pairing devices.
 use super::{DeviceEnrollment, Error, Result, ServerPairUrl};
 use crate::{
-    client::{sync::RemoteSync, NetworkAccount, WebSocketRequest},
     protocol::{
         pairing_message, Origin, PairingConfirm, PairingMessage,
         PairingReady, PairingRequest, ProtoMessage, RelayHeader, RelayPacket,
@@ -14,6 +13,8 @@ use crate::{
         signer::ecdsa::SingleParty,
         url::Url,
     },
+    sync::RemoteSync,
+    NetworkAccount, WebSocketRequest,
 };
 use futures::{
     select,
@@ -846,7 +847,7 @@ impl<'a> AcceptPairing<'a> {
 async fn encrypt<T: prost::Message>(
     transport: &mut TransportState,
     message: T,
-) -> crate::client::pairing::Result<RelayPayload> {
+) -> crate::pairing::Result<RelayPayload> {
     let mut plaintext = Vec::new();
     message.encode(&mut plaintext)?;
     let mut contents = vec![0u8; plaintext.len() + TAGLEN];
@@ -859,7 +860,7 @@ async fn decrypt<T: prost::Message + Default>(
     transport: &mut TransportState,
     length: usize,
     message: &[u8],
-) -> crate::client::pairing::Result<T> {
+) -> crate::pairing::Result<T> {
     let mut contents = vec![0; length];
     transport.read_message(&message[..length], &mut contents)?;
     let message = &contents[..contents.len() - TAGLEN];

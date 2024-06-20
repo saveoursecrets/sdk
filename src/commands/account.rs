@@ -1,7 +1,6 @@
 use clap::Subcommand;
 use enum_iterator::all;
 use sos_net::{
-    client::NetworkAccount,
     sdk::{
         account::{
             archive::{
@@ -14,6 +13,7 @@ use sos_net::{
         migrate::import::{ImportFormat, ImportTarget},
         vfs, Paths,
     },
+    NetworkAccount,
 };
 use std::{path::PathBuf, sync::Arc};
 use tokio::io::BufReader;

@@ -1,9 +1,6 @@
 use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::{
-    client::{HttpClient, ListenOptions, NetworkRetry},
-    sdk::prelude::*,
-};
+use sos_net::{sdk::prelude::*, HttpClient, ListenOptions, NetworkRetry};
 use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 

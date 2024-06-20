@@ -1,6 +1,6 @@
 //! HTTP transport trait and implementations.
 use super::{Error, Result};
-use crate::client::CancelReason;
+use crate::CancelReason;
 use sos_sdk::{
     encode,
     signer::{
