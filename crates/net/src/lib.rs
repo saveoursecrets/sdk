@@ -14,7 +14,7 @@ mod error;
 #[cfg(feature = "hashcheck")]
 pub mod hashcheck;
 mod net;
-#[cfg(all(feature = "device", feature = "pairing"))]
+#[cfg(feature = "pairing")]
 pub mod pairing;
 mod sync;
 

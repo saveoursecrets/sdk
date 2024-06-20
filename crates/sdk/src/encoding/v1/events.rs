@@ -8,7 +8,6 @@ use crate::{
     UtcDateTime,
 };
 
-#[cfg(feature = "device")]
 use crate::events::DeviceEvent;
 
 #[cfg(feature = "files")]
@@ -380,7 +379,6 @@ impl Decodable for AccountEvent {
     }
 }
 
-#[cfg(feature = "device")]
 #[async_trait]
 impl Encodable for DeviceEvent {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
@@ -404,7 +402,6 @@ impl Encodable for DeviceEvent {
     }
 }
 
-#[cfg(feature = "device")]
 #[async_trait]
 impl Decodable for DeviceEvent {
     async fn decode<R: AsyncRead + AsyncSeek + Unpin + Send>(

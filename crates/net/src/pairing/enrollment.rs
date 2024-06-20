@@ -26,7 +26,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[cfg(feature = "device")]
 use crate::sdk::events::{DeviceEventLog, DevicePatch};
 
 /// Enroll a device.
@@ -123,7 +122,6 @@ impl DeviceEnrollment {
         let change_set = self.client.fetch_account().await?;
         self.create_folders(change_set.folders).await?;
         self.create_account(change_set.account).await?;
-        #[cfg(feature = "device")]
         self.create_device(change_set.device).await?;
         self.create_identity(change_set.identity).await?;
 
@@ -202,7 +200,6 @@ impl DeviceEnrollment {
         Ok(())
     }
 
-    #[cfg(feature = "device")]
     async fn create_device(&self, patch: DevicePatch) -> Result<()> {
         let file = self.paths.device_events();
         let mut event_log = DeviceEventLog::new_device(file).await?;

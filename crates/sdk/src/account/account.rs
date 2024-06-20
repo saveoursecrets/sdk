@@ -36,13 +36,11 @@ use crate::audit::{AuditData, AuditEvent};
 #[cfg(feature = "archive")]
 use crate::account::archive::{Inventory, RestoreOptions};
 
-#[cfg(feature = "device")]
 use crate::{
     device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
     events::DeviceEventLog,
 };
 
-#[cfg(feature = "device")]
 use indexmap::IndexSet;
 
 #[cfg(feature = "files")]
@@ -235,31 +233,26 @@ pub trait Account {
     /// Create a new in-memory device vault.
     ///
     /// The password for the vault is saved to the identity folder.
-    #[cfg(feature = "device")]
     async fn new_device_vault(
         &mut self,
     ) -> std::result::Result<(DeviceSigner, DeviceManager), Self::Error>;
 
     /// Signing key for the device.
-    #[cfg(feature = "device")]
     async fn device_signer(
         &self,
     ) -> std::result::Result<DeviceSigner, Self::Error>;
 
     /// Public key for the device signing key.
-    #[cfg(feature = "device")]
     async fn device_public_key(
         &self,
     ) -> std::result::Result<DevicePublicKey, Self::Error>;
 
     /// Current device information.
-    #[cfg(feature = "device")]
     async fn current_device(
         &self,
     ) -> std::result::Result<TrustedDevice, Self::Error>;
 
     /// Collection of trusted devices.
-    #[cfg(feature = "device")]
     async fn trusted_devices(
         &self,
     ) -> std::result::Result<IndexSet<TrustedDevice>, Self::Error>;
@@ -829,7 +822,6 @@ pub struct AccountData {
     pub identity: String,
     /// Account folders.
     pub folders: Vec<Summary>,
-    #[cfg(feature = "device")]
     /// Identifier of the device public key.
     pub device_id: String,
 }
@@ -899,7 +891,6 @@ impl LocalAccount {
             signer.address()?,
             Some(data_dir),
             identity_log,
-            #[cfg(feature = "device")]
             user.identity()?.devices()?.current_device(None),
         )
         .await?;
@@ -1495,7 +1486,6 @@ impl LocalAccount {
             address,
             data_dir.clone(),
             identity_log,
-            #[cfg(feature = "device")]
             new_account.user.identity()?.devices()?.current_device(None),
         )
         .await?;
@@ -1541,12 +1531,10 @@ impl Account for LocalAccount {
         Ok(self.user()?.identity()?.signer().clone())
     }
 
-    #[cfg(feature = "device")]
     async fn device_signer(&self) -> Result<DeviceSigner> {
         Ok(self.user()?.identity()?.device().clone())
     }
 
-    #[cfg(feature = "device")]
     async fn new_device_vault(
         &mut self,
     ) -> Result<(DeviceSigner, DeviceManager)> {
@@ -1560,12 +1548,10 @@ impl Account for LocalAccount {
         Ok((signer, manager))
     }
 
-    #[cfg(feature = "device")]
     async fn device_public_key(&self) -> Result<DevicePublicKey> {
         Ok(self.user()?.identity()?.device().public_key())
     }
 
-    #[cfg(feature = "device")]
     async fn current_device(&self) -> Result<TrustedDevice> {
         Ok(self
             .authenticated
@@ -1576,7 +1562,6 @@ impl Account for LocalAccount {
             .current_device(None))
     }
 
-    #[cfg(feature = "device")]
     async fn trusted_devices(&self) -> Result<IndexSet<TrustedDevice>> {
         let storage = self.storage().await?;
         let reader = storage.read().await;
@@ -1862,7 +1847,6 @@ impl Account for LocalAccount {
                 .recipient()
                 .to_string(),
             folders: reader.list_folders().to_vec(),
-            #[cfg(feature = "device")]
             device_id: self.device_public_key().await?.to_string(),
         })
     }
@@ -3192,7 +3176,6 @@ impl StorageEventLogs for LocalAccount {
         Ok(Arc::clone(&storage.account_log))
     }
 
-    #[cfg(feature = "device")]
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
         let storage = self.storage().await?;
         let storage = storage.read().await;

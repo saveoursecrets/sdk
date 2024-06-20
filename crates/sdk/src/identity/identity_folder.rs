@@ -43,7 +43,6 @@ use std::{
 use tokio::sync::RwLock;
 use urn::Urn;
 
-#[cfg(feature = "device")]
 use crate::device::{DeviceManager, DeviceSigner};
 
 /// Number of words to use when generating passphrases for vaults.
@@ -74,7 +73,6 @@ where
     pub index: UrnLookup,
 
     private_identity: PrivateIdentity,
-    #[cfg(feature = "device")]
     pub(super) devices: Option<crate::device::DeviceManager>,
 }
 
@@ -125,13 +123,11 @@ where
     /// # Panics
     ///
     /// If the device manager has not been initialized.
-    #[cfg(feature = "device")]
     pub fn device(&self) -> &DeviceSigner {
         self.devices.as_ref().unwrap().signer()
     }
 
     /// Device manager.
-    #[cfg(feature = "device")]
     pub fn devices(&self) -> Result<&DeviceManager> {
         self.devices.as_ref().ok_or(Error::NotAuthenticated)
     }
@@ -147,7 +143,6 @@ where
 
     /// Ensure that the account has a vault for storing device specific
     /// information such as the private key used to identify a machine.
-    #[cfg(feature = "device")]
     pub(super) async fn ensure_device_vault(
         &mut self,
         paths: &Paths,
@@ -172,13 +167,11 @@ where
         Ok(())
     }
 
-    #[cfg(feature = "device")]
     fn device_urn(&self) -> Result<Urn> {
         use crate::constants::DEVICE_KEY_URN;
         Ok(DEVICE_KEY_URN.parse()?)
     }
 
-    #[cfg(feature = "device")]
     async fn read_device_vault(
         &mut self,
         paths: &Paths,
@@ -229,7 +222,6 @@ where
     }
 
     #[doc(hidden)]
-    #[cfg(feature = "device")]
     pub async fn create_device_vault(
         &mut self,
         paths: &Paths,
@@ -455,7 +447,6 @@ where
         self.index = Default::default();
 
         // Lock the devices vault
-        #[cfg(feature = "device")]
         if let Some(devices) = self.devices.as_mut() {
             devices.sign_out();
         }
@@ -640,7 +631,6 @@ impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
             folder,
             index,
             private_identity,
-            #[cfg(feature = "device")]
             devices: None,
         })
     }
@@ -670,7 +660,6 @@ impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
             folder,
             index,
             private_identity,
-            #[cfg(feature = "device")]
             devices: None,
         })
     }
@@ -705,7 +694,6 @@ impl IdentityFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
             folder,
             index,
             private_identity,
-            #[cfg(feature = "device")]
             devices: None,
         })
     }

@@ -21,7 +21,6 @@ use sos_protocol::{
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-#[cfg(feature = "device")]
 use sos_protocol::sdk::events::{DeviceDiff, DeviceEventLog, DeviceReducer};
 
 #[cfg(feature = "files")]
@@ -76,7 +75,6 @@ impl ServerStorage {
             writer.patch_unchecked(&account_data.account).await?;
         }
 
-        #[cfg(feature = "device")]
         {
             let mut writer = self.device_log.write().await;
             writer.patch_unchecked(&account_data.device).await?;
@@ -135,7 +133,6 @@ impl ServerStorage {
             self.force_merge_account(diff, outcome).await?;
         }
 
-        #[cfg(feature = "device")]
         if let Some(diff) = update_set.device.take() {
             self.force_merge_device(diff, outcome).await?;
         }
@@ -209,7 +206,6 @@ impl ForceMerge for ServerStorage {
         Ok(())
     }
 
-    #[cfg(feature = "device")]
     async fn force_merge_device(
         &mut self,
         diff: DeviceDiff,
@@ -415,7 +411,6 @@ impl Merge for ServerStorage {
         reader.tree().compare(&state.1)
     }
 
-    #[cfg(feature = "device")]
     async fn merge_device(
         &mut self,
         diff: DeviceDiff,
@@ -450,7 +445,6 @@ impl Merge for ServerStorage {
         Ok(checked_patch)
     }
 
-    #[cfg(feature = "device")]
     async fn compare_device(
         &self,
         state: &CommitState,
@@ -557,7 +551,6 @@ impl StorageEventLogs for ServerStorage {
         Ok(Arc::clone(&self.account_log))
     }
 
-    #[cfg(feature = "device")]
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
         Ok(Arc::clone(&self.device_log))
     }
@@ -600,7 +593,6 @@ impl SyncStorage for ServerStorage {
             reader.tree().commit_state()?
         };
 
-        #[cfg(feature = "device")]
         let device = {
             let reader = self.device_log.read().await;
             reader.tree().commit_state()?
@@ -631,7 +623,6 @@ impl SyncStorage for ServerStorage {
         let mut root_commits = vec![
             identity.1.root().into(),
             account.1.root().into(),
-            #[cfg(feature = "device")]
             device.1.root().into(),
         ];
         #[cfg(feature = "files")]
@@ -653,7 +644,6 @@ impl SyncStorage for ServerStorage {
             root,
             identity,
             account,
-            #[cfg(feature = "device")]
             device,
             #[cfg(feature = "files")]
             files,

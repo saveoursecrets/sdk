@@ -213,7 +213,6 @@ impl TryFrom<WireEventLogType> for EventLogType {
                 match name {
                     "Identity" => EventLogType::Identity,
                     "Account" => EventLogType::Account,
-                    #[cfg(feature = "device")]
                     "Device" => EventLogType::Device,
                     #[cfg(feature = "files")]
                     "Files" => EventLogType::Files,
@@ -244,7 +243,6 @@ impl From<EventLogType> for WireEventLogType {
                     WireEventLogTypeSystem::from_str_name("Account").unwrap()
                         as i32
                 }
-                #[cfg(feature = "device")]
                 EventLogType::Device => {
                     WireEventLogTypeSystem::from_str_name("Device").unwrap()
                         as i32

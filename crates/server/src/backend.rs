@@ -206,7 +206,6 @@ impl Backend {
     }
 
     /// Verify a device is allowed to access an account.
-    #[cfg(feature = "device")]
     pub(crate) async fn verify_device(
         &self,
         owner: &Address,

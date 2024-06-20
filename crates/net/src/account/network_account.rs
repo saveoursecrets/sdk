@@ -1,6 +1,6 @@
 //! Network aware account.
 use crate::{
-    protocol::{FileOperation, Origin, SyncError, SyncOptions, UpdateSet},
+    protocol::{Origin, SyncError, SyncOptions, UpdateSet},
     sdk::{
         account::{
             Account, AccountBuilder, AccountChange, AccountData,
@@ -15,7 +15,6 @@ use crate::{
         sha2::{Digest, Sha256},
         signer::ecdsa::{Address, BoxedEcdsaSigner},
         storage::{
-            files::FileMutationEvent,
             search::{
                 AccountStatistics, ArchiveFilter, Document, DocumentCount,
                 DocumentView, QueryFilter, SearchIndex,
@@ -44,12 +43,10 @@ use tokio::{
 #[cfg(feature = "archive")]
 use crate::sdk::account::archive::{Inventory, RestoreOptions};
 
-#[cfg(feature = "device")]
 use crate::sdk::device::{
     DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice,
 };
 
-#[cfg(feature = "device")]
 use indexmap::IndexSet;
 
 #[cfg(feature = "listen")]
@@ -75,6 +72,8 @@ use crate::{Error, RemoteBridge, RemoteSync, Result};
 #[cfg(feature = "files")]
 use crate::{
     account::file_transfers::{FileTransfers, InflightTransfers},
+    protocol::FileOperation,
+    sdk::storage::files::FileMutationEvent,
     HttpClient,
 };
 
@@ -180,7 +179,6 @@ impl NetworkAccount {
     }
 
     /// Revoke a device.
-    #[cfg(feature = "device")]
     pub async fn revoke_device(
         &mut self,
         device_key: &crate::sdk::device::DevicePublicKey,
@@ -235,7 +233,6 @@ impl NetworkAccount {
             if !self.is_authenticated().await {
                 hasher.update(docs_path.as_bytes());
             } else {
-                #[cfg(feature = "device")]
                 {
                     let device_signer = self.device_signer().await?;
                     let device_public_key = device_signer.public_key();
@@ -603,7 +600,6 @@ impl Account for NetworkAccount {
         Ok(account.account_signer().await?)
     }
 
-    #[cfg(feature = "device")]
     async fn new_device_vault(
         &mut self,
     ) -> Result<(DeviceSigner, DeviceManager)> {
@@ -611,25 +607,21 @@ impl Account for NetworkAccount {
         Ok(account.new_device_vault().await?)
     }
 
-    #[cfg(feature = "device")]
     async fn device_signer(&self) -> Result<DeviceSigner> {
         let account = self.account.lock().await;
         Ok(account.device_signer().await?)
     }
 
-    #[cfg(feature = "device")]
     async fn device_public_key(&self) -> Result<DevicePublicKey> {
         let account = self.account.lock().await;
         Ok(account.device_public_key().await?)
     }
 
-    #[cfg(feature = "device")]
     async fn current_device(&self) -> Result<TrustedDevice> {
         let account = self.account.lock().await;
         Ok(account.current_device().await?)
     }
 
-    #[cfg(feature = "device")]
     async fn trusted_devices(&self) -> Result<IndexSet<TrustedDevice>> {
         let account = self.account.lock().await;
         Ok(account.trusted_devices().await?)

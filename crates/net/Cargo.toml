@@ -17,7 +17,6 @@ full = [
   "audit",
   "archive",
   "contacts",
-  "device",
   "files",
   "hashcheck",
   "listen",
@@ -37,7 +36,6 @@ files = ["sos-sdk/files", "sos-protocol/files"]
 contacts = ["sos-sdk/contacts"]
 migrate = ["sos-sdk/migrate"]
 keychain-access = ["sos-sdk/keychain-access"]
-device = ["sos-sdk/device", "sos-protocol/device"]
 recovery = ["sos-sdk/recovery"]
 pairing = ["dep:snow", "sos-protocol/pairing"]
 preferences = ["sos-sdk/preferences"]

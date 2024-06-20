@@ -17,17 +17,13 @@ use tokio::sync::RwLock;
 #[cfg(feature = "audit")]
 use sos_protocol::sdk::audit::AuditEvent;
 
-#[cfg(feature = "device")]
 use sos_protocol::sdk::{
     device::{DevicePublicKey, TrustedDevice},
     events::{DeviceEventLog, DeviceReducer},
 };
 
-#[cfg(feature = "device")]
-use std::collections::HashSet;
-
-#[cfg(feature = "device")]
 use indexmap::IndexSet;
+use std::collections::HashSet;
 
 #[cfg(feature = "files")]
 use sos_protocol::sdk::events::{FileEvent, FileEventLog};
@@ -52,11 +48,9 @@ pub struct ServerStorage {
     pub(super) cache: HashMap<VaultId, Arc<RwLock<FolderEventLog>>>,
 
     /// Device event log.
-    #[cfg(feature = "device")]
     pub(super) device_log: Arc<RwLock<DeviceEventLog>>,
 
     /// Reduced collection of devices.
-    #[cfg(feature = "device")]
     pub(super) devices: IndexSet<TrustedDevice>,
 
     /// File event log.
@@ -100,7 +94,6 @@ impl ServerStorage {
         event_log.load_tree().await?;
         let account_log = Arc::new(RwLock::new(event_log));
 
-        #[cfg(feature = "device")]
         let (device_log, devices) =
             Self::initialize_device_log(&*paths).await?;
 
@@ -113,9 +106,7 @@ impl ServerStorage {
             paths,
             identity_log,
             account_log,
-            #[cfg(feature = "device")]
             device_log: Arc::new(RwLock::new(device_log)),
-            #[cfg(feature = "device")]
             devices,
             #[cfg(feature = "files")]
             file_log: Arc::new(RwLock::new(file_log)),
@@ -137,7 +128,6 @@ impl ServerStorage {
         Arc::clone(&self.account_log)
     }
 
-    #[cfg(feature = "device")]
     async fn initialize_device_log(
         paths: &Paths,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
@@ -360,7 +350,6 @@ impl ServerStorage {
     }
 }
 
-#[cfg(feature = "device")]
 impl ServerStorage {
     /// List the public keys of trusted devices.
     pub fn list_device_keys(&self) -> HashSet<&DevicePublicKey> {

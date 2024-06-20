@@ -615,7 +615,6 @@ mod handlers {
     #[cfg(feature = "files")]
     use sos_protocol::sdk::events::{FileDiff, FileEvent};
 
-    #[cfg(feature = "device")]
     use sos_protocol::sdk::events::{DeviceDiff, DeviceEvent};
 
     #[cfg(feature = "listen")]
@@ -751,7 +750,6 @@ mod handlers {
                 let event_log = log.read().await;
                 scan_log(&req, &*event_log).await?
             }
-            #[cfg(feature = "device")]
             EventLogType::Device => {
                 let reader = account.read().await;
                 let log = reader.storage.device_log().await?;
@@ -875,7 +873,6 @@ mod handlers {
                 let event_log = log.read().await;
                 diff_log(&req, &*event_log).await?
             }
-            #[cfg(feature = "device")]
             EventLogType::Device => {
                 let reader = account.read().await;
                 let log = reader.storage.device_log().await?;
@@ -991,7 +988,6 @@ mod handlers {
                     records,
                 )
             }
-            #[cfg(feature = "device")]
             EventLogType::Device => {
                 let patch = Patch::<DeviceEvent>::new(req.patch);
                 let mut writer = account.write().await;
@@ -1128,7 +1124,6 @@ mod handlers {
                 let mut event_log = log.write().await;
                 event_log.apply_records(records).await?;
             }
-            #[cfg(feature = "device")]
             EventLogType::Device => {
                 let log = reader.storage.device_log().await?;
                 let mut event_log = log.write().await;

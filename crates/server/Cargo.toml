@@ -12,9 +12,8 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["listen", "device", "files", "audit", "pairing"]
+default = ["listen", "files", "audit", "pairing"]
 listen = ["sos-protocol/listen"]
-device = ["sos-protocol/device"]
 files = ["sos-protocol/files"]
 pairing = ["sos-protocol/pairing"]
 audit = []

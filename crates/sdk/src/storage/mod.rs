@@ -21,7 +21,6 @@ pub use client::ClientStorage;
 pub use folder::{DiscFolder, Folder, MemoryFolder};
 pub use paths::FileLock;
 
-#[cfg(feature = "device")]
 use crate::events::DeviceEventLog;
 
 #[cfg(feature = "files")]
@@ -112,7 +111,6 @@ pub trait StorageEventLogs {
     async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>>;
 
     /// Clone of the device log.
-    #[cfg(feature = "device")]
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>>;
 
     /// Clone of the file log.

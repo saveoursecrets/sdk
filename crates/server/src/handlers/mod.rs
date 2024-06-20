@@ -105,7 +105,6 @@ async fn authenticate_endpoint(
     }
 
     // Restricted services require a device signature
-    #[cfg(feature = "device")]
     match (restricted, &token.device_signature) {
         (true, None) => {
             return Err(Error::Forbidden);

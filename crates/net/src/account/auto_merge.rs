@@ -24,7 +24,6 @@ use tracing::instrument;
 
 const PROOF_SCAN_LIMIT: u16 = 32;
 
-#[cfg(feature = "device")]
 use sos_sdk::events::{DeviceDiff, DeviceEvent};
 
 #[cfg(feature = "files")]
@@ -141,7 +140,6 @@ impl RemoteBridge {
             has_hard_conflict = has_hard_conflict || hard_conflict;
         }
 
-        #[cfg(feature = "device")]
         if conflict.device {
             let hard_conflict = self
                 .auto_merge_device(options, &mut force_merge_outcome)
@@ -214,7 +212,6 @@ impl RemoteBridge {
         force_merge_account
     );
 
-    #[cfg(feature = "device")]
     auto_merge_impl!(
         "auto_merge::device",
         auto_merge_device,
@@ -223,7 +220,6 @@ impl RemoteBridge {
         device_hard_conflict
     );
 
-    #[cfg(feature = "device")]
     auto_merge_conflict_impl!(
         "hard_conflict::force_merge::device",
         device_hard_conflict,
@@ -341,7 +337,6 @@ impl RemoteBridge {
                     let event_log = log.read().await;
                     event_log.diff_records(Some(&commit)).await?
                 }
-                #[cfg(feature = "device")]
                 EventLogType::Device => {
                     let log = account.device_log().await?;
                     let event_log = log.read().await;
@@ -480,7 +475,6 @@ impl RemoteBridge {
                     };
                     account.merge_account(diff, &mut outcome).await?
                 }
-                #[cfg(feature = "device")]
                 EventLogType::Device => {
                     let patch = Patch::<DeviceEvent>::new(events);
                     let diff = DeviceDiff {
@@ -541,7 +535,6 @@ impl RemoteBridge {
                 let mut event_log = log.write().await;
                 event_log.apply_records(records).await?;
             }
-            #[cfg(feature = "device")]
             EventLogType::Device => {
                 let log = account.device_log().await?;
                 let mut event_log = log.write().await;
@@ -633,7 +626,6 @@ impl RemoteBridge {
                 let mut event_log = log.write().await;
                 event_log.rewind(commit).await?
             }
-            #[cfg(feature = "device")]
             EventLogType::Device => {
                 let log = account.device_log().await?;
                 let mut event_log = log.write().await;
@@ -673,7 +665,6 @@ impl RemoteBridge {
                     let event_log = log.read().await;
                     event_log.tree().leaves().unwrap_or_default()
                 }
-                #[cfg(feature = "device")]
                 EventLogType::Device => {
                     let log = account.device_log().await?;
                     let event_log = log.read().await;

@@ -16,7 +16,6 @@ use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
-#[cfg(feature = "device")]
 use sos_sdk::events::DeviceEventLog;
 
 #[cfg(feature = "files")]
@@ -189,7 +188,6 @@ impl StorageEventLogs for NetworkAccount {
         account.account_log().await
     }
 
-    #[cfg(feature = "device")]
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
         let account = self.account.lock().await;
         account.device_log().await

@@ -16,7 +16,6 @@ default = []
 listen = []
 pairing = []
 files = ["sos-sdk/files"]
-device = ["sos-sdk/device"]
 search = ["sos-sdk/search"]
 
 [dependencies]

@@ -6,7 +6,6 @@ use crate::{
 use binary_stream::futures::{Decodable, Encodable};
 use std::marker::PhantomData;
 
-#[cfg(feature = "device")]
 use crate::events::DeviceEvent;
 
 #[cfg(feature = "files")]
@@ -19,7 +18,6 @@ pub type AccountPatch = Patch<AccountEvent>;
 pub type FolderPatch = Patch<WriteEvent>;
 
 /// Patch of device events.
-#[cfg(feature = "device")]
 pub type DevicePatch = Patch<DeviceEvent>;
 
 /// Patch of file events.
@@ -119,7 +117,6 @@ pub struct Diff<T> {
 pub type AccountDiff = Diff<AccountEvent>;
 
 /// Diff between device events logs.
-#[cfg(feature = "device")]
 pub type DeviceDiff = Diff<DeviceEvent>;
 
 /// Diff between file events logs.

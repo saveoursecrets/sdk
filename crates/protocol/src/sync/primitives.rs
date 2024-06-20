@@ -14,7 +14,6 @@ use async_trait::async_trait;
 use indexmap::IndexMap;
 use std::{collections::HashMap, fmt};
 
-#[cfg(feature = "device")]
 use crate::sdk::events::DeviceDiff;
 
 #[cfg(feature = "files")]
@@ -89,7 +88,6 @@ pub struct MaybeConflict {
     /// Whether the account log might be conflicted.
     pub account: bool,
     /// Whether the device log might be conflicted.
-    #[cfg(feature = "device")]
     pub device: bool,
     /// Whether the files log might be conflicted.
     #[cfg(feature = "files")]
@@ -101,12 +99,7 @@ pub struct MaybeConflict {
 impl MaybeConflict {
     /// Check for any conflicts.
     pub fn has_conflicts(&self) -> bool {
-        let mut has_conflicts = self.identity || self.account;
-
-        #[cfg(feature = "device")]
-        {
-            has_conflicts = has_conflicts || self.device;
-        }
+        let mut has_conflicts = self.identity || self.account || self.device;
 
         #[cfg(feature = "files")]
         {
@@ -136,7 +129,6 @@ pub struct SyncComparison {
     /// Comparison of the account event log.
     pub account: Comparison,
     /// Comparison of the device event log.
-    #[cfg(feature = "device")]
     pub device: Comparison,
     /// Comparison of the files event log.
     #[cfg(feature = "files")]
@@ -165,7 +157,6 @@ impl SyncComparison {
             reader.tree().compare(&remote_status.account.1)?
         };
 
-        #[cfg(feature = "device")]
         let device = {
             let device = storage.device_log().await?;
             let reader = device.read().await;
@@ -208,7 +199,6 @@ impl SyncComparison {
             remote_status,
             identity,
             account,
-            #[cfg(feature = "device")]
             device,
             #[cfg(feature = "files")]
             files,
@@ -316,7 +306,6 @@ impl SyncComparison {
             }
         }
 
-        #[cfg(feature = "device")]
         match self.device {
             Comparison::Equal => {}
             Comparison::Contains(_) => {
@@ -528,7 +517,6 @@ pub trait SyncStorage: StorageEventLogs {
             reader.diff_events(None).await?
         };
 
-        #[cfg(feature = "device")]
         let device = {
             let log = self.device_log().await?;
             let reader = log.read().await;
@@ -555,7 +543,6 @@ pub trait SyncStorage: StorageEventLogs {
             identity,
             account,
             folders,
-            #[cfg(feature = "device")]
             device,
             #[cfg(feature = "files")]
             files,
@@ -587,7 +574,6 @@ pub trait ForceMerge {
     ) -> Result<()>;
 
     /// Force merge changes to the devices event log.
-    #[cfg(feature = "device")]
     async fn force_merge_device(
         &mut self,
         diff: DeviceDiff,
@@ -641,7 +627,6 @@ pub trait Merge {
     ) -> Result<Comparison>;
 
     /// Merge changes to the devices event log.
-    #[cfg(feature = "device")]
     async fn merge_device(
         &mut self,
         diff: DeviceDiff,
@@ -649,7 +634,6 @@ pub trait Merge {
     ) -> Result<CheckedPatch>;
 
     /// Compare the device events.
-    #[cfg(feature = "device")]
     async fn compare_device(&self, state: &CommitState)
         -> Result<Comparison>;
 
@@ -693,11 +677,8 @@ pub trait Merge {
         compare.account =
             Some(self.compare_account(&remote_status.account).await?);
 
-        #[cfg(feature = "device")]
-        {
-            compare.device =
-                Some(self.compare_device(&remote_status.device).await?);
-        }
+        compare.device =
+            Some(self.compare_device(&remote_status.device).await?);
 
         #[cfg(feature = "files")]
         if let Some(files) = &remote_status.files {
@@ -747,7 +728,6 @@ pub trait Merge {
             None => {}
         }
 
-        #[cfg(feature = "device")]
         match diff.device {
             Some(MaybeDiff::Diff(diff)) => {
                 self.merge_device(diff, outcome).await?;

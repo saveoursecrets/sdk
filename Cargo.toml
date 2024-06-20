@@ -1,6 +1,6 @@
 [package]
 name = "sos-workspace"
-version = "0.13.0"
+version = "0.14.0"
 edition = "2021"
 rust-version = "1.78.0"
 description = "Distributed, encrypted database for private secrets."
@@ -109,7 +109,7 @@ pretty_assertions = "1.4"
 anticipate-runner = { version = "0.5.1" }
 
 [dev-dependencies.sos-net]
-version = "0.13.0" 
+version = "0.14.0" 
 features = ["full"]
 path = "crates/net"
 

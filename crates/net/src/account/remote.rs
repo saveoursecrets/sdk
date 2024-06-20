@@ -158,7 +158,6 @@ impl RemoteBridge {
                         account.merge_account(diff, &mut outcome).await?;
                     }
                 }
-                #[cfg(feature = "device")]
                 if !maybe_conflict.device {
                     if let Some(MaybeDiff::Diff(diff)) =
                         remote_changes.diff.device

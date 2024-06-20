@@ -15,7 +15,6 @@ use std::{
 };
 use url::Url;
 
-#[cfg(feature = "device")]
 use crate::sdk::events::{DeviceDiff, DevicePatch};
 
 #[cfg(feature = "files")]
@@ -32,7 +31,6 @@ pub enum EventLogType {
     /// Account event log.
     Account,
     /// Device event log.
-    #[cfg(feature = "device")]
     Device,
     /// Files event log.
     #[cfg(feature = "files")]
@@ -113,7 +111,6 @@ pub struct SyncStatus {
     /// Account log commit state.
     pub account: CommitState,
     /// Device log commit state.
-    #[cfg(feature = "device")]
     pub device: CommitState,
     /// Files log commit state.
     #[cfg(feature = "files")]
@@ -139,7 +136,6 @@ pub struct SyncCompare {
     /// Account log comparison.
     pub account: Option<Comparison>,
     /// Device log comparison.
-    #[cfg(feature = "device")]
     pub device: Option<Comparison>,
     /// Files log comparison.
     #[cfg(feature = "files")]
@@ -162,7 +158,6 @@ impl SyncCompare {
                 .as_ref()
                 .map(|c| matches!(c, Comparison::Unknown))
                 .unwrap_or(false),
-            #[cfg(feature = "device")]
             device: self
                 .device
                 .as_ref()
@@ -202,7 +197,6 @@ pub struct SyncDiff {
     /// Diff of the account event log.
     pub account: Option<MaybeDiff<AccountDiff>>,
     /// Diff of the device event log.
-    #[cfg(feature = "device")]
     pub device: Option<MaybeDiff<DeviceDiff>>,
     /// Diff of the files event log.
     #[cfg(feature = "files")]
@@ -219,7 +213,6 @@ pub struct CreateSet {
     /// Account event logs.
     pub account: AccountPatch,
     /// Device event logs.
-    #[cfg(feature = "device")]
     pub device: DevicePatch,
     /// File event logs.
     #[cfg(feature = "files")]
@@ -242,7 +235,6 @@ pub struct UpdateSet {
     /// Account event log.
     pub account: Option<AccountDiff>,
     /// Device event log.
-    #[cfg(feature = "device")]
     pub device: Option<DeviceDiff>,
     /// Files event log.
     #[cfg(feature = "files")]
@@ -261,7 +253,6 @@ pub struct MergeOutcome {
     /// Number of changes to the account event log.
     pub account: u64,
     /// Number of changes to the device event log.
-    #[cfg(feature = "device")]
     pub device: u64,
     /// Number of changes to the file event log.
     #[cfg(feature = "files")]

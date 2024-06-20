@@ -60,7 +60,6 @@ impl TryFrom<WireSyncStatus> for SyncStatus {
             root: value.root.unwrap().try_into()?,
             identity: value.identity.unwrap().try_into()?,
             account: value.account.unwrap().try_into()?,
-            #[cfg(feature = "device")]
             device: value.device.unwrap().try_into()?,
             #[cfg(feature = "files")]
             files,
@@ -75,10 +74,7 @@ impl From<SyncStatus> for WireSyncStatus {
             root: Some(value.root.into()),
             identity: Some(value.identity.into()),
             account: Some(value.account.into()),
-            #[cfg(feature = "device")]
             device: Some(value.device.into()),
-            #[cfg(not(feature = "device"))]
-            device: None,
             #[cfg(feature = "files")]
             files: value.files.map(|s| s.into()),
             #[cfg(not(feature = "files"))]
@@ -259,7 +255,6 @@ impl TryFrom<WireCreateSet> for CreateSet {
         Ok(Self {
             identity: value.identity.unwrap().try_into()?,
             account: value.account.unwrap().try_into()?,
-            #[cfg(feature = "device")]
             device: value.device.unwrap().try_into()?,
             #[cfg(feature = "files")]
             files: value.files.unwrap().try_into()?,
@@ -273,10 +268,7 @@ impl From<CreateSet> for WireCreateSet {
         Self {
             identity: Some(value.identity.into()),
             account: Some(value.account.into()),
-            #[cfg(feature = "device")]
             device: Some(value.device.into()),
-            #[cfg(not(feature = "device"))]
-            device: None,
             #[cfg(feature = "files")]
             files: Some(value.files.into()),
             #[cfg(not(feature = "files"))]
@@ -313,7 +305,6 @@ impl TryFrom<WireUpdateSet> for UpdateSet {
             None
         };
 
-        #[cfg(feature = "device")]
         let device = if let Some(device) = value.device {
             Some(device.try_into()?)
         } else {
@@ -337,7 +328,6 @@ impl TryFrom<WireUpdateSet> for UpdateSet {
         Ok(Self {
             identity,
             account,
-            #[cfg(feature = "device")]
             device,
             #[cfg(feature = "files")]
             files,
@@ -351,10 +341,7 @@ impl From<UpdateSet> for WireUpdateSet {
         Self {
             identity: value.identity.map(|d| d.into()),
             account: value.account.map(|d| d.into()),
-            #[cfg(feature = "device")]
             device: value.device.map(|d| d.into()),
-            #[cfg(not(feature = "device"))]
-            device: None,
             #[cfg(feature = "files")]
             files: value.files.map(|d| d.into()),
             #[cfg(not(feature = "files"))]
@@ -391,7 +378,6 @@ impl TryFrom<WireSyncDiff> for SyncDiff {
             None
         };
 
-        #[cfg(feature = "device")]
         let device = if let Some(device) = value.device {
             Some(device.try_into()?)
         } else {
@@ -415,7 +401,6 @@ impl TryFrom<WireSyncDiff> for SyncDiff {
         Ok(Self {
             identity,
             account,
-            #[cfg(feature = "device")]
             device,
             #[cfg(feature = "files")]
             files,
@@ -429,10 +414,7 @@ impl From<SyncDiff> for WireSyncDiff {
         Self {
             identity: value.identity.map(|d| d.into()),
             account: value.account.map(|d| d.into()),
-            #[cfg(feature = "device")]
             device: value.device.map(|d| d.into()),
-            #[cfg(not(feature = "device"))]
-            device: None,
             #[cfg(feature = "files")]
             files: value.files.map(|d| d.into()),
             #[cfg(not(feature = "files"))]
@@ -469,7 +451,6 @@ impl TryFrom<WireSyncCompare> for SyncCompare {
             None
         };
 
-        #[cfg(feature = "device")]
         let device = if let Some(device) = value.device {
             Some(device.try_into()?)
         } else {
@@ -493,7 +474,6 @@ impl TryFrom<WireSyncCompare> for SyncCompare {
         Ok(Self {
             identity,
             account,
-            #[cfg(feature = "device")]
             device,
             #[cfg(feature = "files")]
             files,
@@ -507,10 +487,7 @@ impl From<SyncCompare> for WireSyncCompare {
         Self {
             identity: value.identity.map(|d| d.into()),
             account: value.account.map(|d| d.into()),
-            #[cfg(feature = "device")]
             device: value.device.map(|d| d.into()),
-            #[cfg(not(feature = "device"))]
-            device: None,
             #[cfg(feature = "files")]
             files: value.files.map(|d| d.into()),
             #[cfg(not(feature = "files"))]
@@ -576,7 +553,6 @@ impl TryFrom<WireMergeOutcome> for MergeOutcome {
             changes: value.changes,
             identity: value.identity,
             account: value.account,
-            #[cfg(feature = "device")]
             device: value.device,
             #[cfg(feature = "files")]
             files: value.files,
@@ -593,10 +569,7 @@ impl From<MergeOutcome> for WireMergeOutcome {
             changes: value.changes,
             identity: value.identity,
             account: value.account,
-            #[cfg(feature = "device")]
             device: value.device,
-            #[cfg(not(feature = "device"))]
-            device: 0,
             #[cfg(feature = "files")]
             files: value.files,
             #[cfg(not(feature = "files"))]
