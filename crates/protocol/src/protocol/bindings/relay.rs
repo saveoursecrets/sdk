@@ -13,8 +13,8 @@ impl RelayPacket {
     }
 
     /// Encode a packet prefixed with the target public key.
-    #[cfg(feature = "client")]
-    pub(crate) async fn encode_prefixed(self) -> Result<Vec<u8>> {
+    #[doc(hidden)]
+    pub async fn encode_prefixed(self) -> Result<Vec<u8>> {
         let mut recipient =
             self.header.as_ref().unwrap().to_public_key.clone();
         let key_length = recipient.len() as u16;

@@ -13,11 +13,11 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["listen", "device", "files", "audit", "pairing"]
-listen = ["sos-net/listen"]
-device = ["sos-net/device"]
-files = ["sos-net/files"]
-audit = ["sos-net/audit"]
-pairing = ["sos-net/pairing"]
+listen = ["sos-protocol/listen"]
+device = ["sos-protocol/device"]
+files = ["sos-protocol/files"]
+pairing = ["sos-protocol/pairing"]
+audit = []
 
 [dependencies]
 tokio-util.workspace = true
@@ -51,9 +51,9 @@ utoipa = { version = "4", features = ["uuid"] }
 utoipa-rapidoc = { version = "3", features = ["axum"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
 
-[dependencies.sos-net]
+[dependencies.sos-protocol]
 version = "0.13.0"
-path = "../net"
+path = "../protocol"
 
 [dependencies.sos-cli-helpers]
 version = "0.1.0"

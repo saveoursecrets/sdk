@@ -15,7 +15,7 @@ use futures::{
     SinkExt, StreamExt,
 };
 
-use sos_net::sdk::signer::ecdsa::Address;
+use sos_protocol::sdk::signer::ecdsa::Address;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, watch};
 

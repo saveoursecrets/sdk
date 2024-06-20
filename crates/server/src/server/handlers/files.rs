@@ -15,7 +15,7 @@ use axum_extra::{
 
 use super::BODY_LIMIT;
 
-use sos_net::sdk::{
+use sos_protocol::sdk::{
     storage::files::{ExternalFile, ExternalFileName},
     vault::{secret::SecretId, VaultId},
 };
@@ -358,17 +358,15 @@ pub(crate) async fn compare_files(
 
 mod handlers {
     use super::MoveFileQuery;
-    use sos_net::{
-        protocol::{
-            sync::{FileSet, FileTransfersSet},
-            WireEncodeDecode,
-        },
+    use sos_protocol::{
         sdk::{
             constants::MIME_TYPE_PROTOBUF,
             sha2::{Digest, Sha256},
             storage::files::{list_external_files, ExternalFileName},
             vault::{secret::SecretId, VaultId},
         },
+        sync::{FileSet, FileTransfersSet},
+        WireEncodeDecode,
     };
 
     use crate::server::{

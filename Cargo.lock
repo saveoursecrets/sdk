@@ -4368,8 +4368,6 @@ dependencies = [
  "http",
  "indexmap 2.2.6",
  "prost",
- "prost-build",
- "protoc-bin-vendored",
  "rand",
  "reqwest",
  "rs_merkle",
@@ -4380,6 +4378,7 @@ dependencies = [
  "serde_with",
  "sha3",
  "snow",
+ "sos-protocol",
  "sos-sdk",
  "thiserror",
  "tokio",
@@ -4389,6 +4388,28 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "urlencoding",
+ "uuid",
+]
+
+[[package]]
+name = "sos-protocol"
+version = "0.13.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "futures",
+ "indexmap 2.2.6",
+ "prost",
+ "prost-build",
+ "protoc-bin-vendored",
+ "rs_merkle",
+ "rustc_version",
+ "serde",
+ "sos-sdk",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "url",
  "uuid",
 ]
 
@@ -4489,7 +4510,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sos-cli-helpers",
- "sos-net",
+ "sos-protocol",
  "thiserror",
  "tokio",
  "tokio-stream",

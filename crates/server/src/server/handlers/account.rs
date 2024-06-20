@@ -594,15 +594,7 @@ mod handlers {
         header::{self, HeaderMap, HeaderValue},
         StatusCode,
     };
-    use sos_net::{
-        protocol::{
-            sync::{
-                self, CreateSet, EventLogType, Merge, MergeOutcome,
-                SyncPacket, SyncStorage, UpdateSet,
-            },
-            DiffRequest, DiffResponse, PatchRequest, PatchResponse,
-            ScanRequest, ScanResponse, WireEncodeDecode,
-        },
+    use sos_protocol::{
         sdk::{
             constants::MIME_TYPE_PROTOBUF,
             events::{
@@ -611,6 +603,12 @@ mod handlers {
             },
             storage::StorageEventLogs,
         },
+        sync::{
+            self, CreateSet, EventLogType, Merge, MergeOutcome, SyncPacket,
+            SyncStorage, UpdateSet,
+        },
+        DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
+        ScanResponse, WireEncodeDecode,
     };
 
     use tokio::sync::RwLock;
@@ -618,13 +616,13 @@ mod handlers {
     use std::sync::Arc;
 
     #[cfg(feature = "files")]
-    use sos_net::sdk::events::{FileDiff, FileEvent};
+    use sos_protocol::sdk::events::{FileDiff, FileEvent};
 
     #[cfg(feature = "device")]
-    use sos_net::sdk::events::{DeviceDiff, DeviceEvent};
+    use sos_protocol::sdk::events::{DeviceDiff, DeviceEvent};
 
     #[cfg(feature = "listen")]
-    use sos_net::protocol::ChangeNotification;
+    use sos_protocol::ChangeNotification;
 
     #[cfg(feature = "listen")]
     use crate::server::handlers::send_notification;

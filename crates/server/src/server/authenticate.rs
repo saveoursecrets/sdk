@@ -2,7 +2,7 @@
 //! from a signature given in bearer authorization data.
 use axum_extra::headers::{authorization::Bearer, Authorization};
 
-use sos_net::sdk::{
+use sos_protocol::sdk::{
     decode,
     signer::{
         ecdsa::{self, recover_address, Address, BinaryEcdsaSignature},

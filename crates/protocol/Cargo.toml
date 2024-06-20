@@ -1,0 +1,44 @@
+[package]
+name = "sos-protocol"
+version = "0.13.0"
+edition = "2021"
+description = "Networking and sync protocol types for the Save Our Secrets SDK."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+listen = []
+pairing = []
+files = ["sos-sdk/files"]
+device = ["sos-sdk/device"]
+
+[dependencies]
+thiserror.workspace = true
+tracing.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+uuid.workspace = true
+url.workspace = true
+futures.workspace = true
+indexmap.workspace = true
+rs_merkle.workspace = true
+prost.workspace = true
+tokio = { version = "1", features = ["rt",  "macros"] }
+
+[dependencies.sos-sdk]
+version = "0.13.0"
+path = "../sdk"
+
+[dev-dependencies]
+anyhow = "1"
+
+[build-dependencies]
+rustc_version = "0.4.0"
+prost-build = "0.12.6"
+protoc-bin-vendored = "3"

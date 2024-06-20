@@ -21,6 +21,7 @@ members = [
   "crates/cli_helpers",
   "crates/keychain_parser",
   "crates/net",
+  "crates/protocol",
   "crates/sdk",
   "crates/server",
   "crates/test_utils",

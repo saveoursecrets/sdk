@@ -33,11 +33,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 ///
 /// A blanket implementation adds this to any [prost::Message]
 /// and runs the encoding and decoding using `spawn_blocking`.
-pub(crate) trait ProtoMessage {
+#[doc(hidden)]
+pub trait ProtoMessage {
     /// Encode this message.
+    #[allow(async_fn_in_trait)]
     async fn encode_proto(self) -> Result<Vec<u8>>;
 
     /// Decode a message.
+    #[allow(async_fn_in_trait)]
     async fn decode_proto<B>(buffer: B) -> Result<Self>
     where
         B: Buf + Send + 'static,

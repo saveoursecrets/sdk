@@ -77,7 +77,7 @@ mod cli {
 
     mod service {
         use axum_server::Handle;
-        use sos_net::sdk::vfs;
+        use sos_protocol::sdk::vfs;
         use sos_server::{
             Error, Result, Server, ServerConfig, State, StorageConfig,
         };

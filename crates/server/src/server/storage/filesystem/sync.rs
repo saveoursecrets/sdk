@@ -2,11 +2,7 @@
 use super::ServerStorage;
 use async_trait::async_trait;
 use indexmap::IndexMap;
-use sos_net::{
-    protocol::sync::{
-        CreateSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
-        UpdateSet,
-    },
+use sos_protocol::{
     sdk::{
         commit::{CommitState, CommitTree, Comparison},
         encode,
@@ -19,15 +15,19 @@ use sos_net::{
         vault::{VaultAccess, VaultId, VaultWriter},
         vfs, Error, Paths, Result,
     },
+    sync::{
+        CreateSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
+        UpdateSet,
+    },
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[cfg(feature = "device")]
-use sos_net::sdk::events::{DeviceDiff, DeviceEventLog, DeviceReducer};
+use sos_protocol::sdk::events::{DeviceDiff, DeviceEventLog, DeviceReducer};
 
 #[cfg(feature = "files")]
-use sos_net::sdk::events::{FileDiff, FileEventLog};
+use sos_protocol::sdk::events::{FileDiff, FileEventLog};
 
 impl ServerStorage {
     /// Create a new vault file on disc and the associated

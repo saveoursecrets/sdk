@@ -9,7 +9,7 @@ use url::Url;
 use super::backend::Backend;
 use super::{Error, Result};
 
-use sos_net::sdk::{signer::ecdsa::Address, vfs};
+use sos_protocol::sdk::{signer::ecdsa::Address, vfs};
 
 /// Configuration for the web server.
 #[derive(Default, Debug, Serialize, Deserialize)]

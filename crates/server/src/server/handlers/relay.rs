@@ -9,7 +9,7 @@ use axum::{
 };
 use futures::{stream::SplitSink, SinkExt, StreamExt};
 use serde::Deserialize;
-use sos_net::protocol::RelayPacket;
+use sos_protocol::RelayPacket;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 

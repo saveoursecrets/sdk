@@ -1,5 +1,5 @@
 //! Server storage backed by the filesystem.
-use sos_net::sdk::{
+use sos_protocol::sdk::{
     constants::VAULT_EXT,
     decode, encode,
     events::{
@@ -15,10 +15,10 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "audit")]
-use sos_net::sdk::audit::AuditEvent;
+use sos_protocol::sdk::audit::AuditEvent;
 
 #[cfg(feature = "device")]
-use sos_net::sdk::{
+use sos_protocol::sdk::{
     device::{DevicePublicKey, TrustedDevice},
     events::{DeviceEventLog, DeviceReducer},
 };
@@ -30,7 +30,7 @@ use std::collections::HashSet;
 use indexmap::IndexSet;
 
 #[cfg(feature = "files")]
-use sos_net::sdk::events::{FileEvent, FileEventLog};
+use sos_protocol::sdk::events::{FileEvent, FileEventLog};
 
 mod sync;
 
@@ -153,7 +153,7 @@ impl ServerStorage {
 
     #[cfg(feature = "files")]
     async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
-        use sos_net::sdk::storage::files::list_external_files;
+        use sos_protocol::sdk::storage::files::list_external_files;
 
         let log_file = paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;

@@ -33,22 +33,23 @@ full = [
 client = [
   "dep:reqwest",
 ]
-listen = ["dep:tokio-tungstenite"]
+listen = ["dep:tokio-tungstenite", "sos-protocol/listen"]
 hashcheck = []
 audit = ["sos-sdk/audit"]
 archive = ["sos-sdk/archive"]
-files = ["sos-sdk/files"]
+files = ["sos-sdk/files", "sos-protocol/files"]
 contacts = ["sos-sdk/contacts"]
 migrate = ["sos-sdk/migrate"]
 keychain-access = ["sos-sdk/keychain-access"]
-device = ["sos-sdk/device"]
+device = ["sos-sdk/device", "sos-protocol/device"]
 recovery = ["sos-sdk/recovery"]
-pairing = ["dep:snow"]
+pairing = ["dep:snow", "sos-protocol/pairing"]
 preferences = ["sos-sdk/preferences"]
 search = ["sos-sdk/search"]
 security-report = ["sos-sdk/security-report"]
 system-messages = ["sos-sdk/system-messages"]
 mem-fs = ["sos-sdk/mem-fs"]
+
 test-utils = ["sos-sdk/test-utils"]
 
 [dependencies]
@@ -87,6 +88,10 @@ snow = { version = "0.9", optional = true }
 version = "0.13.0"
 path = "../sdk"
 
+[dependencies.sos-protocol]
+version = "0.13.0"
+path = "../protocol"
+
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
 
@@ -114,5 +119,5 @@ anyhow = "1"
 
 [build-dependencies]
 rustc_version = "0.4.0"
-prost-build = "0.12.6"
-protoc-bin-vendored = "3"
+# prost-build = "0.12.6"
+# protoc-bin-vendored = "3"

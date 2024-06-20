@@ -1,6 +1,5 @@
 use super::{Error, Result};
-use sos_net::{
-    protocol::sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet},
+use sos_protocol::{
     sdk::{
         signer::{
             ecdsa::Address,
@@ -9,6 +8,7 @@ use sos_net::{
         storage::DiscFolder,
         vfs, Paths,
     },
+    sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet},
 };
 use std::{
     collections::HashMap,

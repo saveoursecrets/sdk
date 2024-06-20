@@ -13,7 +13,7 @@ use crate::server::{
 use axum_extra::headers::{authorization::Bearer, Authorization};
 use serde::Deserialize;
 use serde_json::json;
-use sos_net::sdk::signer::ecdsa::Address;
+use sos_protocol::sdk::signer::ecdsa::Address;
 
 pub mod account;
 
@@ -28,7 +28,7 @@ pub(crate) mod websocket;
 const BODY_LIMIT: usize = 33554432;
 
 #[cfg(feature = "listen")]
-use sos_net::protocol::{ChangeNotification, WireEncodeDecode};
+use sos_protocol::{ChangeNotification, WireEncodeDecode};
 
 use crate::server::{ServerState, State};
 

@@ -16,7 +16,9 @@ use axum::{
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use colored::Colorize;
-use sos_net::sdk::{signer::ecdsa::Address, storage::FileLock, UtcDateTime};
+use sos_protocol::sdk::{
+    signer::ecdsa::Address, storage::FileLock, UtcDateTime,
+};
 use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
@@ -34,7 +36,7 @@ use tracing::Level;
 use super::handlers::websocket::upgrade;
 
 #[cfg(feature = "files")]
-use sos_net::sdk::storage::files::ExternalFile;
+use sos_protocol::sdk::storage::files::ExternalFile;
 
 #[cfg(feature = "pairing")]
 use super::handlers::relay::{upgrade as relay_upgrade, RelayState};

@@ -9,19 +9,15 @@
 //! with support for sending and listening for change notification over
 //! a websocket connection.
 
-#[cfg(feature = "client")]
 pub mod client;
 mod error;
-pub mod protocol;
 
-#[cfg(test)]
-mod tests;
+// FIXME: remove this
+pub use sos_protocol as protocol;
 
 /// Result type for the network module.
 pub type Result<T> = std::result::Result<T, error::Error>;
 pub use error::Error;
 
-#[cfg(feature = "client")]
 pub use reqwest;
-
 pub use sos_sdk as sdk;
