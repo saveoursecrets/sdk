@@ -260,9 +260,12 @@ impl NetworkAccount {
     ) -> Result<Option<SyncError<Error>>> {
         let remote = self.remote_bridge(&origin).await?;
 
+        #[cfg(feature = "files")]
         if let Some(file_transfers) = self.file_transfers.as_mut() {
             file_transfers.add_client(remote.client().clone()).await;
         };
+
+        #[cfg(feature = "files")]
         {
             let mut remotes = self.remotes.write().await;
             if let Some(handle) = &self.file_transfer_handle {
@@ -317,6 +320,7 @@ impl NetworkAccount {
             let mut remotes = self.remotes.write().await;
             let remote = remotes.remove(origin);
             if let Some(remote) = &remote {
+                #[cfg(feature = "files")]
                 if let Some(file_transfers) = self.file_transfers.as_mut() {
                     file_transfers.remove_client(remote.client()).await;
                 }
@@ -558,6 +562,7 @@ impl NetworkAccount {
     }
 
     /// Convert file mutation events into file transfer queue entries.
+    #[cfg(feature = "files")]
     async fn queue_file_mutation_events(
         &self,
         events: &[FileMutationEvent],
@@ -1183,6 +1188,7 @@ impl Account for NetworkAccount {
                 .results
                 .into_iter()
                 .map(|mut result| {
+                    #[cfg(feature = "files")]
                     file_events.append(&mut result.file_events);
                     SecretChange {
                         id: result.id,

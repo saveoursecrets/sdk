@@ -117,6 +117,7 @@ impl RemoteSync for NetworkAccount {
         maybe_error.into_option()
     }
 
+    #[cfg(feature = "files")]
     async fn sync_file_transfers(
         &self,
         options: &SyncOptions,

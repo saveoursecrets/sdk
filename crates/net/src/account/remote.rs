@@ -77,6 +77,8 @@ impl RemoteBridge {
             let public_account = account.change_set().await?;
             self.client.create_account(public_account).await?;
         }
+
+        #[cfg(feature = "files")]
         self.execute_sync_file_transfers().await?;
         Ok(())
     }
@@ -113,6 +115,8 @@ impl RemoteBridge {
 
                 // Compute which external files need to be downloaded
                 // and add to the transfers queue
+
+                #[cfg(feature = "files")]
                 if !outcome.external_files.is_empty() {
                     let paths = account.paths();
                     // let mut writer = self.transfers.write().await;
@@ -220,6 +224,7 @@ impl RemoteBridge {
         }
     }
 
+    #[cfg(feature = "files")]
     async fn execute_sync_file_transfers(&self) -> Result<()> {
         let external_files = {
             let account = self.account.lock().await;
@@ -278,6 +283,7 @@ impl RemoteSync for RemoteBridge {
         }
     }
 
+    #[cfg(feature = "files")]
     async fn sync_file_transfers(
         &self,
         options: &SyncOptions,

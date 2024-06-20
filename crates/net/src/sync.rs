@@ -40,6 +40,7 @@ pub trait RemoteSync {
     /// Updates the file transfers queue with any pending
     /// uploads or downloads by comparing the local file
     /// state with the file state on remote server(s).
+    #[cfg(feature = "files")]
     async fn sync_file_transfers(
         &self,
         options: &SyncOptions,
