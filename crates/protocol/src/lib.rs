@@ -1,7 +1,7 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Networking and sync protocol types for the [sos-sdk crate](https://docs.rs/sos-sdk/latest/sos_sdk/).
+//! Networking and sync protocol types for [Save Our Secrets](https://saveoursecrets.com).
 
 // There are two layers to the types in this module; the wire
 // types which are defined in the protobuf files are prefixed
