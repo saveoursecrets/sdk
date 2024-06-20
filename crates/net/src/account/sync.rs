@@ -1,9 +1,6 @@
 //! Adds sync capability to network account.
 use crate::{
-    protocol::{
-        FileSet, FileTransfersSet, Origin, SyncOptions, SyncStatus,
-        SyncStorage, UpdateSet,
-    },
+    protocol::{Origin, SyncOptions, SyncStatus, SyncStorage, UpdateSet},
     sdk::{
         events::{AccountEventLog, FolderEventLog},
         storage::StorageEventLogs,
@@ -19,7 +16,10 @@ use tokio::sync::RwLock;
 use sos_sdk::events::DeviceEventLog;
 
 #[cfg(feature = "files")]
-use sos_sdk::events::FileEventLog;
+use crate::{
+    protocol::{FileSet, FileTransfersSet},
+    sdk::events::FileEventLog,
+};
 
 /// Server status for all remote origins.
 pub type ServerStatus = HashMap<Origin, crate::Result<SyncStatus>>;

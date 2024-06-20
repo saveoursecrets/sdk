@@ -18,9 +18,8 @@ use crate::{
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
-        paths::FileLock,
-        search::{DocumentCount, SearchIndex},
-        AccessOptions, AccountPack, ClientStorage, StorageEventLogs,
+        paths::FileLock, AccessOptions, AccountPack, ClientStorage,
+        StorageEventLogs,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
@@ -29,6 +28,9 @@ use crate::{
     },
     vfs, Error, Paths, Result, UtcDateTime,
 };
+
+#[cfg(feature = "search")]
+use crate::storage::search::{DocumentCount, SearchIndex};
 
 #[cfg(feature = "audit")]
 use crate::audit::{AuditData, AuditEvent};
@@ -471,6 +473,7 @@ pub trait Account {
     ///
     /// This is useful for time travel; browsing the event
     /// history at a particular point in time.
+    #[cfg(feature = "search")]
     async fn detached_view(
         &self,
         summary: &Summary,
@@ -625,6 +628,7 @@ pub trait Account {
     /// If the secret exists and is not a file secret it will be
     /// converted to a file secret so take care to ensure you only
     /// use this on file secrets.
+    #[cfg(feature = "files")]
     async fn update_file(
         &mut self,
         secret_id: &SecretId,
@@ -797,6 +801,7 @@ pub trait Account {
 /// Read-only view created from a specific event log commit.
 pub struct DetachedView {
     keeper: Gatekeeper,
+    #[cfg(feature = "search")]
     index: Arc<RwLock<SearchIndex>>,
 }
 
@@ -807,6 +812,7 @@ impl DetachedView {
     }
 
     /// Search index for the detached view.
+    #[cfg(feature = "search")]
     pub fn index(&self) -> Arc<RwLock<SearchIndex>> {
         Arc::clone(&self.index)
     }
@@ -1746,9 +1752,12 @@ impl Account for LocalAccount {
         let mut writer = storage.write().await;
         writer.lock().await;
 
-        tracing::debug!("clear search index");
-        // Remove the search index
-        writer.index_mut()?.clear().await;
+        #[cfg(feature = "search")]
+        {
+            tracing::debug!("clear search index");
+            // Remove the search index
+            writer.index_mut()?.clear().await;
+        }
 
         tracing::debug!("sign out user identity");
         // Forget private identity information
@@ -1967,6 +1976,7 @@ impl Account for LocalAccount {
         Ok(())
     }
 
+    #[cfg(feature = "search")]
     async fn detached_view(
         &self,
         summary: &Summary,
@@ -2330,6 +2340,7 @@ impl Account for LocalAccount {
         Ok((result, to))
     }
 
+    #[cfg(feature = "files")]
     async fn update_file(
         &mut self,
         secret_id: &SecretId,

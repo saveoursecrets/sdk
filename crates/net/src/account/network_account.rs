@@ -14,13 +14,7 @@ use crate::{
         identity::{AccountRef, PublicIdentity},
         sha2::{Digest, Sha256},
         signer::ecdsa::{Address, BoxedEcdsaSigner},
-        storage::{
-            search::{
-                AccountStatistics, ArchiveFilter, Document, DocumentCount,
-                DocumentView, QueryFilter, SearchIndex,
-            },
-            AccessOptions, ClientStorage, StorageEventLogs,
-        },
+        storage::{AccessOptions, ClientStorage, StorageEventLogs},
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow},
             Summary, Vault, VaultId,
@@ -38,6 +32,12 @@ use std::{
 use tokio::{
     io::{AsyncRead, AsyncSeek},
     sync::{Mutex, RwLock},
+};
+
+#[cfg(feature = "search")]
+use crate::sdk::storagesearch::{
+    AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
+    QueryFilter, SearchIndex,
 };
 
 #[cfg(feature = "archive")]
@@ -1060,6 +1060,7 @@ impl Account for NetworkAccount {
         Ok(())
     }
 
+    #[cfg(feature = "search")]
     async fn detached_view(
         &self,
         summary: &Summary,
