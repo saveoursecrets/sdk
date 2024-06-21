@@ -1,6 +1,4 @@
-use crate::test_utils::{
-    simulate_device, spawn, sync_pause, teardown, wait_for_cond,
-};
+use crate::test_utils::{simulate_device, spawn, teardown, wait_for_cond};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 

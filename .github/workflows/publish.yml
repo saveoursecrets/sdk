@@ -61,7 +61,7 @@ jobs:
       - name: Set environment variables
         shell: bash
         run: |
-          VERSION=$(cargo pkgid | cut -f2 -d '@')
+          VERSION=$(cd crates/sos && cargo pkgid | cut -f2 -d '#')
           echo "BUILD_DIR=target/${{ matrix.binary_target }}/release" >> $GITHUB_ENV
           echo "ZIP_FILE=${{ matrix.binary_target }}.zip" >> $GITHUB_ENV
           echo "SEMVER=$VERSION" >> $GITHUB_ENV
@@ -79,10 +79,6 @@ jobs:
         uses: sigstore/cosign-installer@v3.5.0
       - name: Check cosign install
         run: cosign version
-
-      #- name: Prepare Apple certificate
-        #if: matrix.distro == 'macos'
-        #run: |
 
       - name: Install musl tools
         if: matrix.binary_target == 'x86_64-unknown-linux-musl'

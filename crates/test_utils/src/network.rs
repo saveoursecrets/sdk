@@ -26,31 +26,6 @@ use std::{
 };
 use tokio::sync::Mutex;
 
-/// Wait for a condition to be met.
-pub async fn wait_for_cond<T>(test: T)
-where
-    T: Fn() -> bool,
-{
-    use std::time::Duration;
-    let timeout = Duration::from_millis(15000);
-    let start = SystemTime::now();
-
-    loop {
-        let elapsed = start.elapsed().unwrap();
-        if elapsed > timeout {
-            panic!(
-                "wait condition took too long, timeout {:?} exceeded",
-                timeout
-            );
-        }
-        let done = test();
-        if done {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-}
-
 /// Simulated device information.
 pub struct SimulatedDevice {
     /// Test identifier for the device.
@@ -395,16 +370,20 @@ pub async fn wait_for_file(
         file.secret_id(),
         file.file_name().to_string(),
     );
-    loop {
-        tokio::time::sleep(Duration::from_millis(50)).await;
-        if vfs::try_exists(&path).await? {
-            let contents = vfs::read(&path).await?;
+    wait_for_cond(move || {
+        if path.exists() {
+            let contents = std::fs::read(&path).unwrap();
             let checksum = Sha256::digest(&contents);
             if checksum.as_slice() == file.file_name().as_ref() {
-                break;
+                true
+            } else {
+                false
             }
+        } else {
+            false
         }
-    }
+    })
+    .await;
     Ok(())
 }
 
@@ -413,16 +392,39 @@ pub async fn wait_for_file_not_exist(
     paths: impl AsRef<Paths>,
     file: &ExternalFile,
 ) -> Result<()> {
-    let path = paths.as_ref().file_location(
-        file.vault_id(),
-        file.secret_id(),
-        file.file_name().to_string(),
-    );
+    wait_for_cond(move || {
+        let path = paths.as_ref().file_location(
+            file.vault_id(),
+            file.secret_id(),
+            file.file_name().to_string(),
+        );
+        !path.exists()
+    })
+    .await;
+    Ok(())
+}
+
+/// Wait for a condition to be met.
+pub async fn wait_for_cond<T>(test: T)
+where
+    T: Fn() -> bool,
+{
+    use std::time::Duration;
+    let timeout = Duration::from_millis(15000);
+    let start = SystemTime::now();
+
     loop {
-        tokio::time::sleep(Duration::from_millis(50)).await;
-        if !vfs::try_exists(&path).await? {
+        let elapsed = start.elapsed().unwrap();
+        if elapsed > timeout {
+            panic!(
+                "wait condition took too long, timeout {:?} exceeded",
+                timeout
+            );
+        }
+        let done = test();
+        if done {
             break;
         }
+        tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    Ok(())
 }
