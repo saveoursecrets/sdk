@@ -10,6 +10,9 @@ use crate::{
         },
         commit::{CommitHash, CommitState},
         crypto::{AccessKey, Cipher, KeyDerivation},
+        device::{
+            DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice,
+        },
         events::{AccountEvent, EventLogExt, ReadEvent},
         identity::{AccountRef, PublicIdentity},
         sha2::{Digest, Sha256},
@@ -35,17 +38,13 @@ use tokio::{
 };
 
 #[cfg(feature = "search")]
-use crate::sdk::storagesearch::{
+use crate::sdk::storage::search::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
     QueryFilter, SearchIndex,
 };
 
 #[cfg(feature = "archive")]
 use crate::sdk::account::archive::{Inventory, RestoreOptions};
-
-use crate::sdk::device::{
-    DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice,
-};
 
 use indexmap::IndexSet;
 
@@ -63,15 +62,15 @@ use crate::sdk::account::security_report::{
 #[cfg(feature = "migrate")]
 use crate::sdk::migrate::import::ImportTarget;
 
-use super::{
-    file_transfers::{FileTransferSettings, FileTransfersHandle},
-    remote::Remotes,
-};
+use super::remote::Remotes;
 use crate::{Error, RemoteBridge, RemoteSync, Result};
 
 #[cfg(feature = "files")]
 use crate::{
-    account::file_transfers::{FileTransfers, InflightTransfers},
+    account::file_transfers::{
+        FileTransferSettings, FileTransfers, FileTransfersHandle,
+        InflightTransfers,
+    },
     protocol::FileOperation,
     sdk::storage::files::FileMutationEvent,
     HttpClient,

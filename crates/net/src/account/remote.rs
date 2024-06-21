@@ -2,9 +2,8 @@
 use crate::{
     net::HttpClient,
     protocol::{
-        FileOperation, FileSet, MaybeDiff, Merge, MergeOutcome, Origin,
-        SyncOptions, SyncPacket, SyncStatus, SyncStorage, TransferOperation,
-        UpdateSet,
+        MaybeDiff, Merge, MergeOutcome, Origin, SyncOptions, SyncPacket,
+        SyncStatus, SyncStorage, UpdateSet,
     },
     sdk::{
         account::{Account, LocalAccount},
@@ -19,7 +18,10 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, Mutex};
 
 #[cfg(feature = "files")]
-use super::file_transfers::FileTransferQueueRequest;
+use crate::{
+    account::file_transfers::FileTransferQueueRequest,
+    protocol::{FileOperation, FileSet, TransferOperation},
+};
 
 /// Collection of remote targets for synchronization.
 pub(crate) type Remotes = HashMap<Origin, RemoteBridge>;
@@ -53,6 +55,7 @@ impl RemoteBridge {
         let client =
             HttpClient::new(origin.clone(), signer, device, connection_id)?;
 
+        #[cfg(feature = "files")]
         let (file_transfer_queue, _) =
             broadcast::channel::<FileTransferQueueRequest>(32);
 

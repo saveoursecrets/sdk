@@ -25,6 +25,7 @@ use crate::{
 pub type ServerStatus = HashMap<Origin, crate::Result<SyncStatus>>;
 
 /// Transfer status for all remote origins.
+#[cfg(feature = "files")]
 pub type TransferStatus = HashMap<Origin, crate::Result<FileTransfersSet>>;
 
 impl NetworkAccount {

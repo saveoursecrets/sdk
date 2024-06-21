@@ -8,9 +8,9 @@ use tracing::instrument;
 
 use crate::{
     protocol::{
-        CreateSet, DiffRequest, DiffResponse, FileSet, FileTransfersSet,
-        Origin, PatchRequest, PatchResponse, ScanRequest, ScanResponse,
-        SyncPacket, SyncStatus, UpdateSet, WireEncodeDecode,
+        CreateSet, DiffRequest, DiffResponse, Origin, PatchRequest,
+        PatchResponse, ScanRequest, ScanResponse, SyncPacket, SyncStatus,
+        UpdateSet, WireEncodeDecode,
     },
     sdk::{
         constants::MIME_TYPE_PROTOBUF,
@@ -27,19 +27,17 @@ use super::{
 };
 
 #[cfg(feature = "listen")]
-use crate::protocol::ChangeNotification;
-
-#[cfg(feature = "listen")]
-use super::websocket::WebSocketChangeListener;
-
-#[cfg(feature = "files")]
-use crate::sdk::storage::files::ExternalFile;
+use crate::{
+    net::websocket::WebSocketChangeListener, protocol::ChangeNotification,
+    ListenOptions, WebSocketHandle,
+};
 
 #[cfg(feature = "files")]
-use crate::ProgressChannel;
-
-#[cfg(feature = "listen")]
-use crate::{ListenOptions, WebSocketHandle};
+use crate::{
+    protocol::{FileSet, FileTransfersSet},
+    sdk::storage::files::ExternalFile,
+    ProgressChannel,
+};
 
 /// Client that can synchronize with a server over HTTP(S).
 #[derive(Clone)]
@@ -744,6 +742,7 @@ impl SyncClient for HttpClient {
         Ok(status)
     }
 
+    #[cfg(feature = "files")]
     #[instrument(skip_all)]
     async fn compare_files(
         &self,
