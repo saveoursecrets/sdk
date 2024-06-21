@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Set environment variables
         run: |
-          VERSION=$(cargo pkgid | cut -f2 -d '@')
+          VERSION=$(./scripts/version.sh)
           DOMAIN="https://releases.saveoursecrets.com"
 
           curl -OL $DOMAIN/$CHANNEL/cli/$VERSION/macos/aarch64/saveoursecrets.zip.sha256.txt

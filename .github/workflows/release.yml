@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Set environment variables
         run: |
-          VERSION=$(cargo pkgid | cut -f2 -d '@')
+          VERSION=$(./scripts/version.sh)
           echo "SEMVER=$VERSION" >> $GITHUB_ENV
       - name: Fetch release signing key
         run: |
