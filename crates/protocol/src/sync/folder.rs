@@ -1,4 +1,10 @@
 //! Implements merging for folders.
+
+// Ideally we want this code to be in the `sos-net`
+// crate but we also need to share some traits with the
+// server so we have to implement here otherwise we
+// hit the problem with foreign trait implementations.
+
 use async_trait::async_trait;
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 

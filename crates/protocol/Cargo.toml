@@ -1,6 +1,6 @@
 [package]
 name = "sos-protocol"
-version = "0.14.0"
+version = "0.14.1"
 edition = "2021"
 description = "Networking and sync protocol types for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"

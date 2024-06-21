@@ -4265,7 +4265,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "arboard",
  "async-recursion",
@@ -4324,7 +4324,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -4363,7 +4363,7 @@ dependencies = [
 
 [[package]]
 name = "sos-protocol"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4385,7 +4385,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "aes-gcm",
  "age",
@@ -4460,7 +4460,7 @@ dependencies = [
 
 [[package]]
 name = "sos-server"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "async-trait",
  "axum",
@@ -4524,7 +4524,7 @@ dependencies = [
 
 [[package]]
 name = "sos-workspace"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "anticipate-runner",
  "anyhow",

@@ -1,6 +1,6 @@
 [package]
 name = "sos"
-version = "0.14.0"
+version = "0.14.1"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
@@ -48,7 +48,7 @@ rustyline = "14"
 rustyline-derive = "0.10"
 
 [dependencies.sos-net]
-version = "0.14.0" 
+version = "0.14.1" 
 features = ["full"]
 path = "../net"
 
