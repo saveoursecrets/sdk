@@ -8,6 +8,14 @@ To see the code in action [download the app](https://saveoursecrets.com/#downloa
 
 See the [overview](/doc/overview.md) for concepts and terminology, the [API documentation for the SDK](https://docs.rs/sos-sdk/latest/sos_sdk/) or the [API documentation for the networking library](https://docs.rs/sos-net/latest/sos_net/).
 
+## Server
+
+The server can be run easily using docker:
+
+```
+docker compose up
+```
+
 ## License
 
 The server code is licensed under AGPL-3.0; other crates are licensed under the MIT or Apache-2.0 license at your discretion.
