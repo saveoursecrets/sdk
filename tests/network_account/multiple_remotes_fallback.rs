@@ -3,10 +3,7 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
-use sos_net::{
-    client::{RemoteSync, SyncError},
-    sdk::prelude::*,
-};
+use sos_net::{sdk::prelude::*, RemoteSync, SyncError};
 
 /// Tests syncing a single client with multiple
 /// remote servers when one of the servers is offline.

@@ -6,11 +6,11 @@ use crate::test_utils::{
 };
 use http::StatusCode;
 use sos_net::{
-    client::{Error as ClientError, NetworkAccount, RemoteSync},
-    protocol::sync::SyncError,
-    sdk::prelude::*,
-    server::AccessControlConfig,
+    protocol::SyncError, sdk::prelude::*, Error as ClientError,
+    NetworkAccount, RemoteSync,
 };
+
+use sos_server::AccessControlConfig;
 
 /// Tests server deny access control.
 #[tokio::test]

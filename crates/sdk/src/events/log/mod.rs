@@ -8,12 +8,6 @@ mod file;
 pub mod patch;
 mod reducer;
 
-#[cfg(feature = "device")]
-pub use file::DeviceEventLog;
-
-#[cfg(feature = "device")]
-pub use reducer::DeviceReducer;
-
 #[cfg(feature = "files")]
 pub use file::FileEventLog;
 
@@ -21,10 +15,11 @@ pub use file::FileEventLog;
 pub use reducer::FileReducer;
 
 pub use file::{
-    AccountEventLog, DiscData, DiscEventLog, DiscLog, EventLogExt,
-    FolderEventLog, MemoryData, MemoryEventLog, MemoryFolderLog, MemoryLog,
+    AccountEventLog, DeviceEventLog, DiscData, DiscEventLog, DiscLog,
+    EventLogExt, FolderEventLog, MemoryData, MemoryEventLog, MemoryFolderLog,
+    MemoryLog,
 };
-pub use reducer::FolderReducer;
+pub use reducer::{DeviceReducer, FolderReducer};
 
 /// Record for a row in the event log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]

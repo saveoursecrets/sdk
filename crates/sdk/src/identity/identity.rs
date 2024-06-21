@@ -22,7 +22,6 @@ use std::{
 };
 use urn::Urn;
 
-#[cfg(feature = "device")]
 use crate::device::DeviceManager;
 
 /// Collection of folder access keys.
@@ -84,7 +83,6 @@ impl Identity {
     }
 
     /// Device manager.
-    #[cfg(feature = "device")]
     pub fn devices(&self) -> Result<&DeviceManager> {
         self.identity
             .as_ref()
@@ -207,7 +205,6 @@ impl Identity {
         self.identity = Some(DiscIdentityFolder::login(file, key).await?);
 
         // Lazily create or retrieve a device specific signing key
-        #[cfg(feature = "device")]
         {
             let identity = self.identity.as_mut().unwrap();
             identity.ensure_device_vault(&self.paths).await?;

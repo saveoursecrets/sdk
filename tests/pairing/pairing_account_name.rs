@@ -3,7 +3,7 @@ use crate::test_utils::{
     simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::{client::RemoteSync, sdk::prelude::*};
+use sos_net::{sdk::prelude::*, RemoteSync};
 
 /// Tests the protocol for pairing devices respects
 /// an account name that has been changed.

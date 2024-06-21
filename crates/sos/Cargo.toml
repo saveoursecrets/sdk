@@ -1,0 +1,57 @@
+[package]
+name = "sos"
+version = "0.14.1"
+edition = "2021"
+description = "Distributed, encrypted database for private secrets."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+authors = ["saveoursecrets-developers <dev@saveoursecrets.com>"]
+categories = [
+  "command-line-utilities",
+  "cryptography::cryptocurrencies",
+  "authentication"
+]
+
+[features]
+default = []
+enable-cli-tests = []
+
+[dependencies]
+csv-async.workspace = true
+binary-stream.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+async-recursion.workspace = true
+futures.workspace = true
+parking_lot.workspace = true
+once_cell.workspace = true
+toml.workspace = true
+serde.workspace = true
+enum-iterator.workspace = true
+clap.workspace = true
+human_bytes = "0.4"
+tempfile = "3.5"
+shell-words = "1"
+terminal-banner = { version = "0.4.1", features = ["color"] }
+unicode-width = "0.1"
+kdam = { version = "0.5", features = ["rich", "spinner"] }
+num_cpus = "1"
+crossterm = "0.27"
+ctrlc = "3"
+
+axum-server = { version = "0.6", features = ["tls-rustls"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
+arboard = "3"
+rustyline = "14"
+rustyline-derive = "0.10"
+
+[dependencies.sos-net]
+version = "0.14.1" 
+features = ["full"]
+path = "../net"
+
+[dependencies.sos-cli-helpers]
+version = "0.1.0" 
+path = "../cli_helpers"

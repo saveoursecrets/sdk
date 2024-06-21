@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.13.0"
+version = "0.14.1"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -16,9 +16,7 @@ default = []
 full = [
   "audit",
   "archive",
-  "client",
   "contacts",
-  "device",
   "files",
   "hashcheck",
   "listen",
@@ -26,44 +24,24 @@ full = [
   "pairing",
   "preferences",
   "search",
-  "server",
   "security-report",
   "keychain-access",
   "system-messages",
 ]
-client = [
-  "dep:reqwest",
-]
-listen = ["dep:tokio-tungstenite"]
-server = [
-  "dep:toml",
-  "dep:axum",
-  "dep:axum-extra",
-  "dep:axum-macros",
-  "dep:axum-server",
-  "dep:tower",
-  "dep:tower-http",
-  "dep:tokio-stream",
-  "dep:utoipa",
-  "dep:utoipa-rapidoc",
-  "device",
-]
+listen = ["dep:tokio-tungstenite", "sos-protocol/listen"]
 hashcheck = []
 audit = ["sos-sdk/audit"]
 archive = ["sos-sdk/archive"]
-files = ["sos-sdk/files"]
+files = ["sos-sdk/files", "sos-protocol/files"]
 contacts = ["sos-sdk/contacts"]
 migrate = ["sos-sdk/migrate"]
 keychain-access = ["sos-sdk/keychain-access"]
-device = ["sos-sdk/device"]
 recovery = ["sos-sdk/recovery"]
-pairing = ["dep:snow"]
+pairing = ["dep:snow", "sos-protocol/pairing"]
 preferences = ["sos-sdk/preferences"]
-search = ["sos-sdk/search"]
+search = ["sos-sdk/search", "sos-protocol/search"]
 security-report = ["sos-sdk/security-report"]
 system-messages = ["sos-sdk/system-messages"]
-mem-fs = ["sos-sdk/mem-fs"]
-test-utils = ["sos-sdk/test-utils"]
 
 [dependencies]
 tokio-util.workspace = true
@@ -80,13 +58,11 @@ hex.workspace = true
 sha3.workspace = true
 secrecy.workspace = true
 serde_with.workspace = true
-once_cell.workspace = true
 rand.workspace = true
 url.workspace = true
 futures.workspace = true
 bs58.workspace = true
 urlencoding.workspace = true
-parking_lot.workspace = true
 indexmap.workspace = true
 async-stream = "0.3"
 colored = "2"
@@ -94,53 +70,23 @@ binary-stream.workspace = true
 rs_merkle.workspace = true
 prost.workspace = true
 
-
-# server
-toml = { workspace = true, optional = true }
-axum = { version = "0.7", features = ["ws", "original-uri"], optional = true }
-axum-extra = {version = "0.9", features = ["typed-header"], optional = true}
-axum-macros = { version = "0.4", optional = true }
-axum-server = { version = "0.6", features = ["tls-rustls"], optional = true }
-tower = { version = "0.4", optional = true }
-tower-http = { version = "0.5", features = ["cors", "trace"], optional = true }
-tokio-stream = { version = "0.1", optional = true }
-tokio-tungstenite = { version = "0.23", features = ["rustls-tls-native-roots"] , optional = true}
-utoipa = { version = "4", features = ["uuid"], optional = true }
-utoipa-rapidoc = { version = "3", features = ["axum"], optional = true }
-
 # pairing
 snow = { version = "0.9", optional = true }
 
+reqwest = { version = "0.12.5", features = ["json", "rustls-tls", "stream"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
+tokio-tungstenite = { version = "0.23", features = ["rustls-tls-native-roots"] , optional = true}
+
 [dependencies.sos-sdk]
-version = "0.13.0"
+version = "0.14.1"
 path = "../sdk"
 
-[target.'cfg(not(target_arch="wasm32"))'.dependencies]
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
-
-[target.'cfg(target_arch="wasm32")'.dependencies]
-tokio = { version = "1", features = ["rt", "time", "sync"] }
-
-[target.'cfg(target_os="macos")'.dependencies]
-reqwest = { version = "0.12.5", default-features = true, features = ["json", "rustls-tls", "stream"], optional = true }
-
-# NOTE: Must disable default-features so that openssl
-# NOTE: is not compiled when cross-compiling in CI.
-#
-# NOTE: If we disable `default-features` during
-# NOTE: development then attempting to connect to 
-# NOTE: the changes feed using the locally issued mkcert
-# NOTE: certificate yields an "Unknown Issuer" error.
-# NOTE: Which is related to the `security-framework` not 
-# NOTE: being compiled on macos when `default-features` is 
-# NOTE: disabled.
-[target.'cfg(not(target_os="macos"))'.dependencies]
-reqwest = { version = "0.12.5", default-features = false, features = ["json", "rustls-tls", "stream"], optional = true }
+[dependencies.sos-protocol]
+version = "0.14.1"
+path = "../protocol"
 
 [dev-dependencies]
 anyhow = "1"
 
 [build-dependencies]
 rustc_version = "0.4.0"
-prost-build = "0.12.6"
-protoc-bin-vendored = "3"

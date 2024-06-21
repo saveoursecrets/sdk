@@ -93,12 +93,19 @@ jobs:
           rustup update stable
           rustup target add ${{ matrix.binary_target }}
 
-      # Build
-      - name: Build binaries
+      # Build client
+      - name: Build client binary
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release --locked --target ${{ matrix.binary_target }}
+
+      # Build server
+      - name: Build server binary
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: -p sos-server --release --locked --target ${{ matrix.binary_target }}
 
       - name: Gather executables
         shell: bash

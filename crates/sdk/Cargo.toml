@@ -1,6 +1,6 @@
 [package]
 name = "sos-sdk"
-version = "0.13.1"
+version = "0.14.1"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
@@ -16,14 +16,11 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["account", "archive", "audit", "logs", "search"]
+default = ["account", "audit", "logs"]
 account = []
 archive = ["dep:async_zip"]
 audit = []
 contacts = []
-device = [
-  "dep:whoami",
-]
 files = []
 interactive-keychain-tests = []
 logs = ["rev_buf_reader", "tracing-appender", "tracing-subscriber"]
@@ -93,9 +90,9 @@ mime_guess = { version = "2" }
 sanitize-filename = "0.5"
 futures-util = "0.3"
 async-stream = "0.3"
+whoami = { version = "1.5" }
 anyhow = {version = "1", optional = true }
 vsss-rs = {version = "3", optional = true }
-whoami = { version = "1.5", optional = true }
 tracing-appender = { version = "0.2", optional = true }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "json"], optional = true }
 rev_buf_reader = { version = "0.3", optional = true }

@@ -14,7 +14,6 @@ use crate::{
 use async_trait::async_trait;
 use indexmap::IndexMap;
 
-#[cfg(feature = "device")]
 use crate::{events::DeviceReducer, sync::DeviceDiff};
 
 #[cfg(feature = "files")]
@@ -64,7 +63,6 @@ impl ForceMerge for LocalAccount {
         Ok(())
     }
 
-    #[cfg(feature = "device")]
     async fn force_merge_device(
         &mut self,
         diff: DeviceDiff,
@@ -280,7 +278,6 @@ impl Merge for LocalAccount {
         event_log.tree().compare(&state.1)
     }
 
-    #[cfg(feature = "device")]
     async fn merge_device(
         &mut self,
         diff: DeviceDiff,
@@ -324,7 +321,6 @@ impl Merge for LocalAccount {
         Ok(checked_patch)
     }
 
-    #[cfg(feature = "device")]
     async fn compare_device(
         &self,
         state: &CommitState,
@@ -482,7 +478,6 @@ impl SyncStorage for LocalAccount {
             reader.tree().commit_state()?
         };
 
-        #[cfg(feature = "device")]
         let device = {
             let reader = storage.device_log.read().await;
             reader.tree().commit_state()?
@@ -516,7 +511,6 @@ impl SyncStorage for LocalAccount {
         let mut root_commits = vec![
             identity.1.root().into(),
             account.1.root().into(),
-            #[cfg(feature = "device")]
             device.1.root().into(),
         ];
         #[cfg(feature = "files")]
@@ -537,7 +531,6 @@ impl SyncStorage for LocalAccount {
             root,
             identity,
             account,
-            #[cfg(feature = "device")]
             device,
             #[cfg(feature = "files")]
             files,

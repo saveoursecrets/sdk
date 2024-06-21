@@ -3,11 +3,7 @@ use anyhow::Result;
 use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
-    client::{
-        InflightNotification, InflightTransfers, ListenOptions,
-        NetworkAccount, RemoteBridge, RemoteSync, SyncClient,
-    },
-    protocol::sync::{Origin, SyncStorage},
+    protocol::{Origin, SyncStorage},
     sdk::{
         account::{Account, AccountBuilder},
         constants::{FILES_DIR, VAULT_EXT},
@@ -20,6 +16,8 @@ use sos_net::{
         vault::{Summary, VaultId},
         vfs, Paths,
     },
+    InflightNotification, InflightTransfers, ListenOptions, NetworkAccount,
+    RemoteBridge, RemoteSync, SyncClient,
 };
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::Mutex;

@@ -1,6 +1,6 @@
 [package]
 name = "keychain_parser"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Parse the output of security(1) dump-keychain."
 homepage = "https://saveoursecrets.com"

@@ -10,6 +10,6 @@ See the [overview](/doc/overview.md) for concepts and terminology, the [API docu
 
 ## License
 
-MIT or Apache-2.0 at your discretion.
+The server code is licensed under AGPL-3.0; other crates are licensed under the MIT or Apache-2.0 license at your discretion.
 
 © Copyright Save Our Secrets Pte Ltd 2022; all rights reserved.

@@ -16,7 +16,6 @@ use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 
 mod account;
-#[cfg(feature = "device")]
 mod device;
 mod event;
 #[cfg(feature = "files")]
@@ -32,7 +31,6 @@ pub use self::log::{
     MemoryFolderLog, MemoryLog,
 };
 
-#[cfg(feature = "device")]
 pub use self::log::{DeviceEventLog, DeviceReducer};
 
 #[cfg(feature = "files")]
@@ -42,7 +40,6 @@ pub use self::log::FileEventLog;
 pub use self::log::FileReducer;
 
 pub use account::AccountEvent;
-#[cfg(feature = "device")]
 pub use device::DeviceEvent;
 pub use event::Event;
 #[cfg(feature = "files")]

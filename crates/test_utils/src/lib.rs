@@ -15,10 +15,11 @@ use std::{
 use tokio::sync::{oneshot, RwLock};
 
 use sos_net::{
-    protocol::sync::Origin,
+    protocol::Origin,
     sdk::{signer::ecdsa::Address, url::Url, vfs, Paths},
-    server::{Server, ServerConfig, State},
 };
+
+use sos_server::{Server, ServerConfig, State};
 
 mod helpers;
 pub mod mock;

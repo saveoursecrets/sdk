@@ -1,13 +1,13 @@
 [package]
-name = "sos"
-version = "0.13.0"
+name = "sos-workspace"
+version = "0.14.1"
 edition = "2021"
-rust-version = "1.75.0"
+rust-version = "1.78.0"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
-license = "MIT OR Apache-2.0"
+license = "MIT OR Apache-2.0 OR AGPL-3.0"
 authors = ["saveoursecrets-developers <dev@saveoursecrets.com>"]
-default-run = "sos"
+publish = false
 categories = [
   "command-line-utilities",
   "cryptography::cryptocurrencies",
@@ -18,9 +18,13 @@ categories = [
 resolver = "2"
 members = [
   "crates/artifact",
+  "crates/cli_helpers",
   "crates/keychain_parser",
   "crates/net",
+  "crates/protocol",
   "crates/sdk",
+  "crates/server",
+  "crates/sos",
   "crates/test_utils",
   "crates/vfs",
 ]
@@ -28,16 +32,16 @@ members = [
 [features]
 default = []
 enable-cli-tests = []
-mem-fs = ["sos-net/mem-fs"]
-test-utils = ["sos-net/test-utils"]
 
 [workspace.dependencies]
 csv-async = { version = "1", features = ["tokio", "with_serde"] }
 thiserror = "1"
+anyhow = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 secrecy = { version = "0.8", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"]}
 serde_json = "1"
 serde_with = { version = "3", features = ["base64"] }
 tokio-util = { version = "0.7", default-features = false, features = ["io", "compat"] }
@@ -66,6 +70,8 @@ enum-iterator = "2"
 file-guard = "0.2"
 tempfile = "3.5"
 prost = "0.12.6"
+clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
+colored = "2"
 
 [workspace.dependencies.rs_merkle]
 version = "1.4.2"
@@ -75,8 +81,7 @@ version = "9.1.0"
 features = ["async"]
 #path = "../../../../binary-stream"
 
-[dependencies]
-csv-async.workspace = true
+[dev-dependencies]
 binary-stream.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
@@ -86,72 +91,31 @@ async-recursion.workspace = true
 futures.workspace = true
 parking_lot.workspace = true
 once_cell.workspace = true
-toml.workspace = true
 serde.workspace = true
-enum-iterator.workspace = true
-human_bytes = "0.4"
-tempfile = "3.5"
-shell-words = "1"
-terminal-banner = { version = "0.4.1", features = ["color"] }
-unicode-width = "0.1"
-kdam = { version = "0.5", features = ["rich", "spinner"] }
-num_cpus = "1"
-crossterm = "0.27"
-ctrlc = "3"
-
-[dependencies.sos-net]
-version = "0.13.0" 
-features = ["full"]
-path = "crates/net"
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
-axum-server = { version = "0.6", features = ["tls-rustls"] }
-tokio = { version = "1", features = ["full"] }
-arboard = "3"
-rustyline = "14"
-rustyline-derive = "0.10"
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-tokio = { version = "1", features = ["rt", "time", "sync"] }
-
-[dev-dependencies]
+clap.workspace = true
 indexmap.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+secrecy.workspace = true
+http.workspace = true
 
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-anyhow = "1"
-tokio = { version = "1", features = ["full"] }
-secrecy = "0.8"
-http = "1"
+sos-server = { path = "crates/server" }
+sos_test_utils = { path = "crates/test_utils" }
+
 copy_dir = "0.1"
 maplit2 = "1"
-sos_test_utils = { path = "crates/test_utils" }
+tempfile = "3.5"
+kdam = { version = "0.5", features = ["rich", "spinner"] }
 pretty_assertions = "1.4"
 anticipate-runner = { version = "0.5.1" }
 
-[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-wasm-bindgen-test = "0.3"
-wasm-bindgen = { version = "0.2.80", features = ["serde-serialize"] }
-wasm-log = "0.3"
-log = "0.4"
-
-[[bin]]
-name = "sos"
-path = "src/bin/sos.rs"
-
-[[bin]]
-name = "sos-server"
-path = "src/bin/sos_server.rs"
+[dev-dependencies.sos-net]
+version = "0.14.0" 
+features = ["full"]
+path = "crates/net"
 
 [profile.release]
 codegen-units = 1
 lto = true
 strip = true
 opt-level = "z"
-
-[workspace.metadata.release]
-allow-branch = ["main"]
-sign-tag = true
-sign-commit = true
-pre-release-hook = ["cargo", "audit"]
-pre-release-commit-message = "Release {{version}}"

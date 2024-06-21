@@ -32,7 +32,6 @@ use crate::account::archive::RestoreTargets;
 #[cfg(feature = "audit")]
 use crate::audit::AuditEvent;
 
-#[cfg(feature = "device")]
 use crate::{
     device::{DevicePublicKey, TrustedDevice},
     events::{DeviceEvent, DeviceEventLog, DeviceReducer},
@@ -90,11 +89,9 @@ pub struct ClientStorage {
     pub cache: HashMap<VaultId, DiscFolder>,
 
     /// Device event log.
-    #[cfg(feature = "device")]
     pub device_log: Arc<RwLock<DeviceEventLog>>,
 
     /// Reduced collection of devices.
-    #[cfg(feature = "device")]
     pub devices: IndexSet<TrustedDevice>,
 
     /// File event log.
@@ -112,7 +109,7 @@ impl ClientStorage {
         address: Address,
         data_dir: Option<PathBuf>,
         identity_log: Arc<RwLock<FolderEventLog>>,
-        #[cfg(feature = "device")] device: TrustedDevice,
+        device: TrustedDevice,
     ) -> Result<Self> {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
@@ -121,14 +118,7 @@ impl ClientStorage {
         };
 
         let dirs = Paths::new(data_dir, address.to_string());
-        Self::new_paths(
-            Arc::new(dirs),
-            address,
-            identity_log,
-            #[cfg(feature = "device")]
-            device,
-        )
-        .await
+        Self::new_paths(Arc::new(dirs), address, identity_log, device).await
     }
 
     /// Create new storage backed by files on disc.
@@ -136,7 +126,7 @@ impl ClientStorage {
         paths: Arc<Paths>,
         address: Address,
         identity_log: Arc<RwLock<FolderEventLog>>,
-        #[cfg(feature = "device")] device: TrustedDevice,
+        device: TrustedDevice,
     ) -> Result<Self> {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
@@ -151,7 +141,6 @@ impl ClientStorage {
         event_log.load_tree().await?;
         let account_log = Arc::new(RwLock::new(event_log));
 
-        #[cfg(feature = "device")]
         let (device_log, devices) =
             Self::initialize_device_log(&paths, device).await?;
 
@@ -168,9 +157,7 @@ impl ClientStorage {
             account_log,
             #[cfg(feature = "search")]
             index: Some(AccountSearch::new()),
-            #[cfg(feature = "device")]
             device_log: Arc::new(RwLock::new(device_log)),
-            #[cfg(feature = "device")]
             devices,
             #[cfg(feature = "files")]
             file_log: Arc::new(RwLock::new(file_log)),
@@ -184,7 +171,6 @@ impl ClientStorage {
         &self.address
     }
 
-    #[cfg(feature = "device")]
     async fn initialize_device_log(
         paths: &Paths,
         device: TrustedDevice,
@@ -214,7 +200,6 @@ impl ClientStorage {
     }
 
     /// Collection of trusted devices.
-    #[cfg(feature = "device")]
     pub fn devices(&self) -> &IndexSet<TrustedDevice> {
         &self.devices
     }
@@ -1378,7 +1363,6 @@ impl ClientStorage {
     }
 }
 
-#[cfg(feature = "device")]
 impl ClientStorage {
     /// List trusted devices.
     pub fn list_trusted_devices(&self) -> Vec<&TrustedDevice> {

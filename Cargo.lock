@@ -871,16 +871,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "console_error_panic_hook"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
-dependencies = [
- "cfg-if 1.0.0",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2448,7 +2438,7 @@ dependencies = [
 
 [[package]]
 name = "keychain_parser"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "logos",
@@ -3944,12 +3934,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "scoped-tls"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1cf6437eb19a8f4a6cc0f7dca544973b0b78843adbfeb3683d1a94a0024a294"
-
-[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4281,39 +4265,30 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.13.0"
+version = "0.14.1"
 dependencies = [
- "anticipate-runner",
- "anyhow",
  "arboard",
  "async-recursion",
  "axum-server",
  "binary-stream",
  "clap",
- "copy_dir",
  "crossterm",
  "csv-async",
  "ctrlc",
  "enum-iterator",
  "futures",
- "http",
  "human_bytes",
- "indexmap 2.2.6",
  "kdam",
- "log",
- "maplit2",
  "num_cpus",
  "once_cell",
  "parking_lot",
- "pretty_assertions",
  "rustyline",
  "rustyline-derive",
- "secrecy",
  "serde",
  "serde_json",
  "shell-words",
+ "sos-cli-helpers",
  "sos-net",
- "sos_test_utils",
  "tempfile",
  "terminal-banner",
  "thiserror",
@@ -4322,14 +4297,11 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "unicode-width",
- "wasm-bindgen",
- "wasm-bindgen-test",
- "wasm-log",
 ]
 
 [[package]]
 name = "sos-artifact"
-version = "0.8.6"
+version = "0.8.7"
 dependencies = [
  "anyhow",
  "hex",
@@ -4342,17 +4314,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-cli-helpers"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "colored",
+ "serde",
+]
+
+[[package]]
 name = "sos-net"
-version = "0.13.0"
+version = "0.14.1"
 dependencies = [
  "anyhow",
  "async-recursion",
  "async-stream",
  "async-trait",
- "axum",
- "axum-extra",
- "axum-macros",
- "axum-server",
  "binary-stream",
  "bs58",
  "colored",
@@ -4360,11 +4337,7 @@ dependencies = [
  "hex",
  "http",
  "indexmap 2.2.6",
- "once_cell",
- "parking_lot",
  "prost",
- "prost-build",
- "protoc-bin-vendored",
  "rand",
  "reqwest",
  "rs_merkle",
@@ -4375,27 +4348,44 @@ dependencies = [
  "serde_with",
  "sha3",
  "snow",
+ "sos-protocol",
  "sos-sdk",
  "thiserror",
  "tokio",
- "tokio-stream",
  "tokio-tungstenite 0.23.1",
  "tokio-util",
- "toml 0.8.14",
- "tower",
- "tower-http",
  "tracing",
  "tracing-subscriber",
  "url",
  "urlencoding",
- "utoipa",
- "utoipa-rapidoc",
+ "uuid",
+]
+
+[[package]]
+name = "sos-protocol"
+version = "0.14.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "futures",
+ "indexmap 2.2.6",
+ "prost",
+ "prost-build",
+ "protoc-bin-vendored",
+ "rs_merkle",
+ "rustc_version",
+ "serde",
+ "sos-sdk",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "url",
  "uuid",
 ]
 
 [[package]]
 name = "sos-sdk"
-version = "0.13.1"
+version = "0.14.1"
 dependencies = [
  "aes-gcm",
  "age",
@@ -4445,7 +4435,7 @@ dependencies = [
  "sha1",
  "sha2",
  "sha3",
- "sos-vfs 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-vfs 0.2.2",
  "sos_test_utils",
  "subtle",
  "tempfile",
@@ -4469,16 +4459,40 @@ dependencies = [
 ]
 
 [[package]]
-name = "sos-vfs"
-version = "0.2.2"
+name = "sos-server"
+version = "0.14.1"
 dependencies = [
- "anyhow",
- "async-recursion",
- "bitflags 2.5.0",
+ "async-trait",
+ "axum",
+ "axum-extra",
+ "axum-macros",
+ "axum-server",
+ "binary-stream",
+ "bs58",
+ "clap",
+ "colored",
  "futures",
- "once_cell",
- "parking_lot",
+ "hex",
+ "http",
+ "indexmap 2.2.6",
+ "rustc_version",
+ "serde",
+ "serde_json",
+ "sos-cli-helpers",
+ "sos-protocol",
+ "thiserror",
  "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "toml 0.8.14",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "utoipa",
+ "utoipa-rapidoc",
+ "uuid",
 ]
 
 [[package]]
@@ -4496,6 +4510,50 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-vfs"
+version = "0.2.3"
+dependencies = [
+ "anyhow",
+ "async-recursion",
+ "bitflags 2.5.0",
+ "futures",
+ "once_cell",
+ "parking_lot",
+ "tokio",
+]
+
+[[package]]
+name = "sos-workspace"
+version = "0.14.1"
+dependencies = [
+ "anticipate-runner",
+ "anyhow",
+ "async-recursion",
+ "binary-stream",
+ "clap",
+ "copy_dir",
+ "futures",
+ "http",
+ "indexmap 2.2.6",
+ "kdam",
+ "maplit2",
+ "once_cell",
+ "parking_lot",
+ "pretty_assertions",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sos-net",
+ "sos-server",
+ "sos_test_utils",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "sos_test_utils"
 version = "0.1.0"
 dependencies = [
@@ -4507,6 +4565,7 @@ dependencies = [
  "secrecy",
  "serde_json",
  "sos-net",
+ "sos-server",
  "tempfile",
  "tokio",
  "tracing",
@@ -5496,8 +5555,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4be2531df63900aeb2bca0daaaddec08491ee64ceecbee5076636a3b026795a8"
 dependencies = [
  "cfg-if 1.0.0",
- "serde",
- "serde_json",
  "wasm-bindgen-macro",
 ]
 
@@ -5556,42 +5613,6 @@ name = "wasm-bindgen-shared"
 version = "0.2.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af190c94f2773fdb3729c55b007a722abb5384da03bc0986df4c289bf5567e96"
-
-[[package]]
-name = "wasm-bindgen-test"
-version = "0.3.42"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9bf62a58e0780af3e852044583deee40983e5886da43a271dd772379987667b"
-dependencies = [
- "console_error_panic_hook",
- "js-sys",
- "scoped-tls",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-bindgen-test-macro",
-]
-
-[[package]]
-name = "wasm-bindgen-test-macro"
-version = "0.3.42"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7f89739351a2e03cb94beb799d47fb2cac01759b40ec441f7de39b00cbf7ef0"
-dependencies = [
- "proc-macro2 1.0.85",
- "quote 1.0.36",
- "syn 2.0.66",
-]
-
-[[package]]
-name = "wasm-log"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "def95b2a762924804037f77e3de791f1c177d6ecbe0385a64e519bd7902a5f81"
-dependencies = [
- "log",
- "wasm-bindgen",
- "web-sys",
-]
 
 [[package]]
 name = "wasm-streams"

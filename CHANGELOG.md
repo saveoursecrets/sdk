@@ -1,0 +1,889 @@
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.14.1](https://github.com/saveoursecrets/sdk/releases/tag/sos-workspace-v0.14.1) - 2024-06-21
+
+### Other
+- Update .gitignore.
+- Add release plz workflow.
+- Bump patch version.
+- Fix handling of files feature.
+- Improving feature handling.
+- Fixing handling of files feature.
+- Completely remove the device feature.
+- Bump minor version.
+- Move sos binary to crate.
+- Tweak doc comment.
+- Flatten structure in server crate.
+- Update Dockerfile.
+- Flatten structure in sos-net crate.
+- Tidy features and dependencies.
+- Remove obsolete test-utils feature.
+- Fix search feature in sos-protocol.
+- Move protocol files up a level.
+- Use shared sos-protocol crate.
+- Include AGPL license file.
+- Add AGPL license file, update README.
+- Remove obsolete convert command module.
+- Remove server module from the sos-net crate.
+- Update doc comments.
+- Remove sos-server binary from the sos crate.
+- Update doc comments.
+- Move binary file to sos-server crate.
+- Refactor to server crate.
+- Ignore failing tests on windows (see [#451](https://github.com/saveoursecrets/sdk/pull/451)) ([#456](https://github.com/saveoursecrets/sdk/pull/456))
+- Disable windows checks in CI for file guard bug.
+- Use protocol buffers for wire protocol ([#450](https://github.com/saveoursecrets/sdk/pull/450))
+- Automerge on soft conflict ([#448](https://github.com/saveoursecrets/sdk/pull/448))
+- No comment on saved account password.
+- Fix for crate Contents re-export.
+- Disable Linux CI checks for now.
+- Bump patch version.
+- Support updating servers origin information.
+- Support server account deletion ([#443](https://github.com/saveoursecrets/sdk/pull/443))
+- Verify device signature for sync status ([#442](https://github.com/saveoursecrets/sdk/pull/442))
+- Expose transfer_status() ([#441](https://github.com/saveoursecrets/sdk/pull/441))
+- Improve integrity checks ([#439](https://github.com/saveoursecrets/sdk/pull/439))
+- Bump tokio-tungstenite.
+- Transfer cancellation and notifications ([#432](https://github.com/saveoursecrets/sdk/pull/432))
+- Bump patch version.
+- File transfer improvements ([#431](https://github.com/saveoursecrets/sdk/pull/431))
+- Implement account-level file locking ([#429](https://github.com/saveoursecrets/sdk/pull/429))
+- Sync all servers on new device enrollment ([#427](https://github.com/saveoursecrets/sdk/pull/427))
+- Send websocket notifications with sync error result ([#422](https://github.com/saveoursecrets/sdk/pull/422))
+- Rename account sync support ([#419](https://github.com/saveoursecrets/sdk/pull/419))
+- Use biased select! for file transfers loop. ([#417](https://github.com/saveoursecrets/sdk/pull/417))
+- Update test spec for linux CI.
+- Bump patch version.
+- Update file-guard to fix Windows build issue.
+- Remove sleep from file_transfers logic.
+- Update timeout for file transfer with debug_assertions.
+- Remove span from upload_file.
+- Bump patch version.
+- Create folder inherits cipher/kdf from identity. ([#410](https://github.com/saveoursecrets/sdk/pull/410))
+- Update reqwest and HTTP client timeouts.
+- Bump patch version.
+- Optimize release builds for size.
+- Tidy unused functions.
+- Support setting folder names in account builder. ([#405](https://github.com/saveoursecrets/sdk/pull/405))
+- Import Address type from dependency ([#404](https://github.com/saveoursecrets/sdk/pull/404))
+- Fix statistics for file uploads ([#401](https://github.com/saveoursecrets/sdk/pull/401))
+- Enable aes_armv8 for aarch64-apple-darwin.
+- Decouple event log references from sync feature ([#393](https://github.com/saveoursecrets/sdk/pull/393))
+- add social recovery doc ([#234](https://github.com/saveoursecrets/sdk/pull/234))
+- Avoid glob pattern in clean-cli task. ([#392](https://github.com/saveoursecrets/sdk/pull/392))
+- Bump minor version.
+- Bump thedoctor0/zip-release from 0.7.1 to 0.7.6 ([#278](https://github.com/saveoursecrets/sdk/pull/278))
+- Bump jaxxstorm/action-install-gh-release from 1.10.0 to 1.11.0 ([#343](https://github.com/saveoursecrets/sdk/pull/343))
+- Bump softprops/action-gh-release from 1 to 2 ([#376](https://github.com/saveoursecrets/sdk/pull/376))
+- Bump sigstore/cosign-installer from 3.1.1 to 3.5.0 ([#384](https://github.com/saveoursecrets/sdk/pull/384))
+- Compact account ([#390](https://github.com/saveoursecrets/sdk/pull/390))
+- Draft security policy file. ([#388](https://github.com/saveoursecrets/sdk/pull/388))
+- Support changing account password ([#386](https://github.com/saveoursecrets/sdk/pull/386))
+- Support changing cipher and set AES-GCM as default cipher ([#383](https://github.com/saveoursecrets/sdk/pull/383))
+- Add generic type for Uuid::as_ref() inference.
+- Reqwest upgrade ([#379](https://github.com/saveoursecrets/sdk/pull/379))
+- Set last_modification_date() for zip entries.
+- Update async_zip, use BufReader.
+- Update plist, which updates line-wrap which fixes safemem.
+- Set connect_timeout() on reqwest client.
+- Do not call create-invalidation in workflow.
+- Update whoami dependency.
+- Remove check step from CI.
+- Add script_runner to Makefile.
+- Only run keychain tests on macos.
+- Bump patch version.
+- Tidy unused var.
+- Support options when sending devices patch  ([#369](https://github.com/saveoursecrets/sdk/pull/369))
+- Device vault fix ([#367](https://github.com/saveoursecrets/sdk/pull/367))
+- Remove unused field.
+- Fix device key URN handling.
+- Generate device key on authenticated side of pairing ([#363](https://github.com/saveoursecrets/sdk/pull/363))
+- Logging module ([#362](https://github.com/saveoursecrets/sdk/pull/362))
+- CLI Demos ([#354](https://github.com/saveoursecrets/sdk/pull/354))
+- CLI test specs ([#349](https://github.com/saveoursecrets/sdk/pull/349))
+- Improve server init command ([#347](https://github.com/saveoursecrets/sdk/pull/347))
+- Support inverted pairing flow ([#342](https://github.com/saveoursecrets/sdk/pull/342))
+- Tidy ShareUrl constructor.
+- Prefer concrete type to Self.
+- Improve system message counts.
+- Move keychain parser code to a crate ([#340](https://github.com/saveoursecrets/sdk/pull/340))
+- Update dependencies ([#339](https://github.com/saveoursecrets/sdk/pull/339))
+- Add sub_title to system messages.
+- Include key when sorting system messages.
+- Update feature combinator compiler errors.
+- Bump patch version.
+- Upgrade logos ([#336](https://github.com/saveoursecrets/sdk/pull/336))
+- Update probly-search dependency to 2.0.0.
+- Add CachedPreferences::new_account().
+- Only load when file exists.
+- System messages channel ([#335](https://github.com/saveoursecrets/sdk/pull/335))
+- Fix numeric handling in preferences.
+- System messages implementation ([#332](https://github.com/saveoursecrets/sdk/pull/332))
+- Improve preferences test specs and API. ([#331](https://github.com/saveoursecrets/sdk/pull/331))
+- Tidy tracing on sign out.
+- Docker file for the server ([#327](https://github.com/saveoursecrets/sdk/pull/327))
+- Tidy unused imports in relay handler.
+- Simplify relay handler. ([#325](https://github.com/saveoursecrets/sdk/pull/325))
+- Expose address in device enrollment.
+- Hack for CI failure on Linux ([#323](https://github.com/saveoursecrets/sdk/pull/323))
+- Bump minor version.
+- Pairing improvements ([#321](https://github.com/saveoursecrets/sdk/pull/321))
+- Shutdown pairing loop when socket closed. ([#320](https://github.com/saveoursecrets/sdk/pull/320))
+- :enroll_device() is no longer public.
+- Tidy unused imports.
+- Tidy unused field.
+- Remove obsolete type.
+- Fix language in docs.
+- Tweak language in docs.
+- Tweak docs language.
+- Device pairing protocol. ([#318](https://github.com/saveoursecrets/sdk/pull/318))
+- Harden device revoke logic. ([#315](https://github.com/saveoursecrets/sdk/pull/315))
+- Prefer IndexSet for trusted devices. ([#313](https://github.com/saveoursecrets/sdk/pull/313))
+- Explicit new resolver for the workspace.
+- Read PublicIdentity in DeviceEnrollment.
+- Expose address in DeviceEnrollment.
+- Improve DeviceShareUrl API.
+- Add formal DeviceShareUrl type.
+- Update bitflags dependency. ([#308](https://github.com/saveoursecrets/sdk/pull/308))
+- Test spec for preferences API. ([#304](https://github.com/saveoursecrets/sdk/pull/304))
+- Increase timeout in websocket test for CI.
+- Update lock file.
+- Preferences api ([#302](https://github.com/saveoursecrets/sdk/pull/302))
+- Improve file transfers list output ([#297](https://github.com/saveoursecrets/sdk/pull/297))
+- Add test spec for syncing the file transfers queue. ([#296](https://github.com/saveoursecrets/sdk/pull/296))
+- Show file progress in CLI ([#295](https://github.com/saveoursecrets/sdk/pull/295))
+- Bump human_bytes dependency.
+- Update indexmap, use explicit shift_remove().
+- Support file integrity command. ([#294](https://github.com/saveoursecrets/sdk/pull/294))
+- Bump actions/cache from 2 to 4 ([#280](https://github.com/saveoursecrets/sdk/pull/280))
+- Bump actions/checkout from 1 to 4 ([#279](https://github.com/saveoursecrets/sdk/pull/279))
+- Support querying inflight transfers ([#287](https://github.com/saveoursecrets/sdk/pull/287))
+- Deny revoking current device. ([#286](https://github.com/saveoursecrets/sdk/pull/286))
+- Fix for windows checks in CI ([#276](https://github.com/saveoursecrets/sdk/pull/276))
+- Tidy device list command.
+- Bump version.
+- Move network test specs ([#274](https://github.com/saveoursecrets/sdk/pull/274))
+- Use device signature in websockets ([#273](https://github.com/saveoursecrets/sdk/pull/273))
+- Wait for write lock in file transfers shutdown. ([#272](https://github.com/saveoursecrets/sdk/pull/272))
+- Add access control test specs ([#271](https://github.com/saveoursecrets/sdk/pull/271))
+- Expose sync command when not shell.
+- Use self::http for re-export.
+- Use self:: for re-export.
+- Do not enable keychain-access when migrate feature.
+- Update checks workflow.
+- Update workflow.
+- Update workflow.
+- Fix workflows and test-utils dependency.
+- Bump versions.
+- Self-hosted server sync ([#219](https://github.com/saveoursecrets/sdk/pull/219))
+- Add flatpak to linux distro definition.
+- Update mpc-protocol library. ([#217](https://github.com/saveoursecrets/sdk/pull/217))
+- Support notes column for CSV import (Chrome/MacOS/Safari) ([#216](https://github.com/saveoursecrets/sdk/pull/216))
+- Bump patch version.
+- Support chrome CSV with note column.
+- Remove keyring ([#213](https://github.com/saveoursecrets/sdk/pull/213))
+- Detached view ([#212](https://github.com/saveoursecrets/sdk/pull/212))
+- Fix doc comment.
+- Security report improvements ([#211](https://github.com/saveoursecrets/sdk/pull/211))
+- Bump version, update lock file.
+- Do not store field index.
+- Improve types for security report.
+- Bump patch version.
+- Tidy security report types.
+- Support --include-all option in security-report.
+- Bump patch version.
+- Security report command ([#210](https://github.com/saveoursecrets/sdk/pull/210))
+- Add cli collection to artifact release info.
+- Update libp2p for deprecated members.
+- Security report generation ([#209](https://github.com/saveoursecrets/sdk/pull/209))
+- App logs directory ([#207](https://github.com/saveoursecrets/sdk/pull/207))
+- Bump patch version for artifact.
+- Support finding meta data by channel.
+- Add release meta data.
+- Fix release info serde implementation.
+- Update README.
+- Update lock file.
+- Support unknown linux distro.
+- Tidy check warnings.
+- Run check with --all-features.
+- CI checks workflow ([#205](https://github.com/saveoursecrets/sdk/pull/205))
+- Update checks workflow.
+- Fix workflow path.
+- Update checks workflow.
+- Update paths in homebrew workflow.
+- Add checks workflow.
+- Fix release workflow.
+- Update dependencies.
+- Ensure version in lock file.
+- Add release information.
+- Prefer platform in Artifact.
+- Improve artifact types, bump minor version.
+- Add Arch type.
+- Expose constants in artifact package.
+- Artifact for iOS is standard artifact.
+- Linux distro defaults to debian.
+- Re-export semver library.
+- Bump patch version.
+- Add find_by_distro().
+- Derive debug in releases module.
+- Tidy serializing when None.
+- Add types for releases information.
+- Artifact fields must be public.
+- Add types for release artifact meta data.
+- Bump patch version.
+- Update to Account Password when saving account password.
+- Updating dependencies.
+- Revert forbid unsafe, expose reqwest.
+- Forbid unsafe code.
+- Use zeroize feature for totp-rs.
+- Bump version for sos-net library.
+- Bump version in migrate library.
+- Bump minor version.
+- Update totp-rs dependency.
+- Recovery group types ([#202](https://github.com/saveoursecrets/sdk/pull/202))
+- Refactor patch to use EventRecord not WriteEvent. ([#201](https://github.com/saveoursecrets/sdk/pull/201))
+- Use borrowed buffers for buffer streams.
+- Update Compat for stream iterator.
+- Expose prelude in SDK, bump patch version.
+- Add MIME type constants, bump SDK patch version.
+- Tweak doc comment.
+- Bump versions.
+- Update lock file.
+- Do not share version.
+- Update dependencies.
+- Update ouroboros dependency.
+- Update lock file version.
+- Bump patch version.
+- Update upload and download for distribution channel. ([#199](https://github.com/saveoursecrets/sdk/pull/199))
+- Force push in homebrew workflow.
+- Homebrew release workflow ([#198](https://github.com/saveoursecrets/sdk/pull/198))
+- Update changelog.
+- Tweak README.
+- Update README.
+- Tidy Makefile.
+- Tidy workflows.
+- Tidy workflow, no need to specify shell.
+- Fetch release signing public key.
+- Include COPYRIGHT in release.
+- Split server commands into executables ([#197](https://github.com/saveoursecrets/sdk/pull/197))
+- Cosign workflow integration ([#196](https://github.com/saveoursecrets/sdk/pull/196))
+- Fix env variable name in workflow.
+- Disable for sign test.
+- Sigstore cosign ([#195](https://github.com/saveoursecrets/sdk/pull/195))
+- Use variant and commit hash in upload.
+- Update publish.yaml
+- Github release workflow ([#194](https://github.com/saveoursecrets/sdk/pull/194))
+- Update lock file.
+- Update dependencies for the executable.
+- Update Cargo.toml for publish.
+- Remove git dependencies.
+- Fix test path assertions for nested debug dir.
+- Update conditional reqwest dependency.
+- Add debian-dist task using cargo-deb. ([#193](https://github.com/saveoursecrets/sdk/pull/193))
+- Use nested debug folder when debug_assertions.
+- Update notes for FileStorageSync hack.
+- Revert to sync file encryption.
+- Support file progress channel ([#192](https://github.com/saveoursecrets/sdk/pull/192))
+- Handle websocket close frame.
+- Noise channel ([#189](https://github.com/saveoursecrets/sdk/pull/189))
+- Support importing a folder from a buffer.
+- Remove brew script.
+- Remove direct dependency on hyper.
+- Update feature flags.
+- Tweak coverage ignore pattern.
+- Update APP_NAME to change storage location.
+- Use max_buffer_size in encoding ([#187](https://github.com/saveoursecrets/sdk/pull/187))
+- Integrate with system keyring ([#185](https://github.com/saveoursecrets/sdk/pull/185))
+- Asymmetric encryption (AGE X25519) ([#184](https://github.com/saveoursecrets/sdk/pull/184))
+- Split into AppDirs and UserDirs ([#182](https://github.com/saveoursecrets/sdk/pull/182))
+- Tidy algorithm enum.
+- Tidy key derivation enum.
+- Expose kdf() on Summary.
+- Support multiple KDFs ([#180](https://github.com/saveoursecrets/sdk/pull/180))
+- Audit trail integration test ([#179](https://github.com/saveoursecrets/sdk/pull/179))
+- Virtual file system for better webassembly integration ([#177](https://github.com/saveoursecrets/sdk/pull/177))
+- Support copy to clipboard in CLI ([#176](https://github.com/saveoursecrets/sdk/pull/176))
+- Fix bug with alt shell sort order.
+- Test specs for secret and shell commands ([#174](https://github.com/saveoursecrets/sdk/pull/174))
+- Refactor file content to enum ([#173](https://github.com/saveoursecrets/sdk/pull/173))
+- CLI enhancements ([#159](https://github.com/saveoursecrets/sdk/pull/159))
+- Unify event types ([#158](https://github.com/saveoursecrets/sdk/pull/158))
+- Fix and format.
+- Tidy file extension handling.
+- Update dependencies.
+- Update crypto-bigint.
+- Update rustyline dependency.
+- Refactor account manager ([#154](https://github.com/saveoursecrets/sdk/pull/154))
+- Support backup/restore in CLI ([#153](https://github.com/saveoursecrets/sdk/pull/153))
+- Peer to peer client and server code plus device signer types ([#149](https://github.com/saveoursecrets/sdk/pull/149))
+- Add NO_SYNC_* flags to VaultFlags.
+- Support Ed25519 secret and signer ([#145](https://github.com/saveoursecrets/sdk/pull/145))
+- Integration tests for AccountManager ([#144](https://github.com/saveoursecrets/sdk/pull/144))
+- Move deprecated account functions to integration tests.
+- Remove key agent ([#143](https://github.com/saveoursecrets/sdk/pull/143))
+- Remove web3_keystore, update CLI sign in logic ([#140](https://github.com/saveoursecrets/sdk/pull/140))
+- Use checksum of encrypted file data. ([#139](https://github.com/saveoursecrets/sdk/pull/139))
+- Fix archive writer bug.
+- Support for large files ([#136](https://github.com/saveoursecrets/sdk/pull/136))
+- Update vcard4 dependency.
+- Fix search test spec.
+- Search extra fields ([#135](https://github.com/saveoursecrets/sdk/pull/135))
+- Support contact vault flag.
+- Add From impl to Timestamp.
+- Update vcard dependency.
+- Update vcard dependency.
+- Tweak language in account manager.
+- Update vcard4 dependency.
+- Formatting.
+- Add SecretFlags to SecretMeta. ([#134](https://github.com/saveoursecrets/sdk/pull/134))
+- Support creating authenticator vault.
+- Use struct for new account options.
+- Fix for account restore logic.
+- Update logic for account restore.
+- Use zip for archive format ([#133](https://github.com/saveoursecrets/sdk/pull/133))
+- Formatting.
+- Guard against duplicates in search index.
+- Add export_archive_file() to AccountManager.
+- Expose measure_entropy().
+- Move diceware module to passgen.
+- Lazily instantiate diceware wordlist.
+- Create diceware config ahead of time.
+- Update doc comment.
+- Expose diceware via standard password generator.
+- Use zxcvbn for password entropy calculation.
+- Removed Heading variant, add SecretMeta to Embedded.
+- Convert note to comment in migrate import logic.
+- Update time and vcard4 dependencies.
+- Card expiry date is optional.
+- Fix dashlane card expiry parsing.
+- Use Timestamp type for card expiry.
+- Identity kind ([#131](https://github.com/saveoursecrets/sdk/pull/131))
+- Search index supports pointer to archive vault.
+- Rename note field to comment.
+- Support creating archive vault in new_account().
+- Add archive vault flag.
+- Increase VaultFlags size, upgrade binary-stream.
+- Keep count of favorites in search index.
+- Set favorite flag on the master passphrase secret.
+- Use note for master passphrase signing address.
+- Add generic note to UserData.
+- Store master passphrase when creating account.
+- Update shell client for identification secret.
+- Update vcard dependency.
+- Add favorite flag to SecretMeta.
+- Add find_by_label_any() to SearchIndex.
+- Add parse_rfc33939() to Timestamp.
+- Basic assertions for dashlane import.
+- Do not use time re-export from vcard4.
+- Preparing to handle dashlane personalInfo.
+- Prepare to handle dashlane payments records.
+- Prepare to handle dashlane identification types.
+- Update identification types.
+- Support secret type to represent identification.
+- Rename struct.
+- Support parsing bitwarden CSV input.
+- Prepare for multiple CSV variants.
+- Initial 1Password CSV support.
+- Add assertions for 1password csv.
+- Prepare for 1password csv filtering.
+- Support for firefox CSV export.
+- Prepare for firefox CSV handling.
+- Support chrome CSV passwords export.
+- Add fixtures, prepare zip dependency.
+- Move module.
+- Ensure we drop search index in convert code.
+- Handling for duplicate labels on import.
+- Fix parser bug, allow for empty data: block.
+- Update AccountManager with dir builder functions.
+- Improve logic for ignoring system keychains.
+- Ignore empty lines when parsing keychain list.
+- Call security list-keychains, do not readdir().
+- Make fields public, rename struct.
+- Handle file attachments when exporting.
+- Improve keychain import logic.
+- Handle parsing MacOS passwords export in CSV.
+- Pass existing vault when converting.
+- Assert on converting keychain dump to a vault.
+- Draft logic to generate data dump with autofill.
+- Add test spec for parsing certificate.
+- Support parsing data: in keychain dump.
+- Run fmt.
+- Update fixtures, support unescaping octal.
+- Update fixtures.
+- Improve keychain parser assertions.
+- Update fixtures and readme.
+- Add readme and update test spec.
+- Improve draft keychain dump parser.
+- Improve parser error handling.
+- Draft keychain dump parser.
+- Move error module, prepare Convert trait.
+- Exploring keychain access support with security framework.
+- Move migration code to a crate.
+- Optional seed entropy for the master passphrase ([#125](https://github.com/saveoursecrets/sdk/pull/125))
+- Support unencrypted export archive ([#124](https://github.com/saveoursecrets/sdk/pull/124))
+- Add date_created to VaultMeta.
+- Use more words for vault passphrases.
+- Add date_created to SecretMeta.
+- Better error message when decryption fails.
+- Run formatting.
+- Add remove_vault() to SearchIndex.
+- Add rotate_identifier() to Vault.
+- Add find_default_vault() to AccountManager.
+- Update doc comments.
+- Add export_vault() and find_local_vault().
+- Add find_vault_passphrase() to AccountManager.
+- Support removing vault passphrases from identity vault.
+- Support creating a mirrored Gatekeeper on login.
+- Update test specs for API change.
+- Fix new_account() logic.
+- Save default vault passphrase in identity vault.
+- Return Gatekeeper for identity vault on sign in.
+- Define account_manager module.
+- Fix shell client for new secret types.
+- Support URN in SecretMeta ([#120](https://github.com/saveoursecrets/sdk/pull/120))
+- Support standalone Secret::Password type.
+- Support Link secret type.
+- Update crate type to generate wasm file.
+- Support tag count in search index statistics.
+- Run cargo fmt.
+- Update DocumentCount to expose fields.
+- Expose access to search index statistics.
+- Add basic count statistics to search index.
+- Do not always call reduce_wal() in open_vault().
+- User fields ([#113](https://github.com/saveoursecrets/sdk/pull/113))
+- Update shell client ([#111](https://github.com/saveoursecrets/sdk/pull/111))
+- Tweak coverage scripts.
+- Support bank account secret type ([#110](https://github.com/saveoursecrets/sdk/pull/110))
+- Support Secret::Card type. ([#108](https://github.com/saveoursecrets/sdk/pull/108))
+- Use git repo for search fork.
+- Support tags for secret meta data ([#106](https://github.com/saveoursecrets/sdk/pull/106))
+- Add remove_all() to SearchIndex().
+- Verify an archive has at least one default vault.
+- Verify identity signing key in archive.
+- Basic assertion on restoring from an archive.
+- Improve coverage tasks.
+- Prepare restore_archive() in StorageProvider.
+- Expose Inventory fields.
+- Assert on archive inventory.
+- Support reading inventory in archive reader.
+- Rename struct field.
+- Archive writing and reading ([#104](https://github.com/saveoursecrets/sdk/pull/104))
+- Include VaultId in search index.
+- Support predicate in SearchIndex::query_map().
+- Prefer create_search_index().
+- Support vault_id in SearchIndex Document.
+- Do not call create_index() in open_vault().
+- Run cargo fmt.
+- Refactor SearchIndex to Arc<RwLock>.
+- Always use OpenOptions with truncate().
+- Use SOS_CACHE_DIR for cache dir override.
+- Add workaround for set_len(0) failing with "Access Denied" on Windows.
+- Include reqwest for windows builds.
+- Switch to vcard4 library.
+- Fix totp library for test spec.
+- Tweak cover task.
+- Switch to forked TOTP library.
+- Switch to git dependency for vcard_parser.
+- Contact vCard secret type ([#103](https://github.com/saveoursecrets/sdk/pull/103))
+- Improve identity unit tests.
+- Update storage dirs.
+- Remove indirection on encryption passphrase.
+- Tweak struct field name.
+- Add VaultFlags::Login.
+- Create login vault as identity ([#101](https://github.com/saveoursecrets/sdk/pull/101))
+- Exposing import_vault() on providers.
+- Remove generate_safe_nonce().
+- Change default vault name.
+- Do not assert on password length.
+- Expose passgen module.
+- Include score with generated passwords.
+- Wrap in SecretString.
+- Add passgen module.
+- Add VaultFlags to constructors.
+- Expose mutable reference to the VaultFlags.
+- Change default server bind address.
+- Update keystore dependency.
+- Rebuild browser webapp.
+- Support purpose field in vault meta data.
+- Reserve 32 bit VaultFlags in Summary.
+- Rebuild bundled webapp.
+- Add methods to search index.
+- Use bundle id for fallback storage location.
+- Fix bug with path location.
+- Rename config field.
+- Support for polymorphic providers ([#100](https://github.com/saveoursecrets/sdk/pull/100))
+- Refactor to support local provider ([#99](https://github.com/saveoursecrets/sdk/pull/99))
+- Expose close_vault().
+- Add open_vault() and TryFrom impl.
+- Use TraceLayer in server.
+- Expose create_remote_account().
+- Expose list_vaults() in SpotFileClient.
+- Update doc comments.
+- Expose all server config types.
+- Support server config with dummy file path.
+- Non-reference TryFrom for SingleParty.
+- Update web3-keystore for label option.
+- Remove run_blocking() from wasm32 build.
+- Used nested vaults directory for local vaults.
+- Do not use HTTPS for local development.
+- Fix compilation for ios.
+- Check response status in SpotFileClient::create_account().
+- Tidy create_account() signature.
+- Remove Send bound from run_blocking().
+- Tweak constructor argument order.
+- Update binary-stream dependency.
+- Update dependencies for target_family="wasm".
+- Update dependencies for android.
+- Update binary-stream dependency.
+- Update conditional dependencies.
+- Improve wrapper executable help. ([#98](https://github.com/saveoursecrets/sdk/pull/98))
+- Use address library. ([#97](https://github.com/saveoursecrets/sdk/pull/97))
+- Update binary-stream dependency.
+- Update tower-http dependency.
+- Update rustyline dependency.
+- Using ngram tokenizer for search index.
+- Update search dependency for improved API.
+- Support PIN secret type ([#94](https://github.com/saveoursecrets/sdk/pull/94))
+- Add find_all_by_label().
+- Return Summary in SpotMemoryClient::create_account().
+- Update search library.
+- Respond to change actions ([#91](https://github.com/saveoursecrets/sdk/pull/91))
+- Use websocket for change notifications ([#89](https://github.com/saveoursecrets/sdk/pull/89))
+- Use RPC client in node cache. ([#87](https://github.com/saveoursecrets/sdk/pull/87))
+- Request session support ([#84](https://github.com/saveoursecrets/sdk/pull/84))
+- Expose index_mut() on Gatekeeper.
+- Support query_map() on SearchIndex.
+- Restore whoami command, closes [#80](https://github.com/saveoursecrets/sdk/pull/80).
+- Search index ([#83](https://github.com/saveoursecrets/sdk/pull/83))
+- Update browser-gui task.
+- Static futures for webassembly compat ([#78](https://github.com/saveoursecrets/sdk/pull/78))
+- Tidy dependencies.
+- Use chrono for wasm32 and macros in request client ([#77](https://github.com/saveoursecrets/sdk/pull/77))
+- Update chbs dependency.
+- Use last updated in shell client.
+- Add updated date/time to secret meta data. ([#76](https://github.com/saveoursecrets/sdk/pull/76))
+- Basic lock file handling in shell client. ([#74](https://github.com/saveoursecrets/sdk/pull/74))
+- Support page secret variant. ([#73](https://github.com/saveoursecrets/sdk/pull/73))
+- Client for the SPOT networking mode ([#72](https://github.com/saveoursecrets/sdk/pull/72))
+- Tidy filesystem handling logic in node cache ([#71](https://github.com/saveoursecrets/sdk/pull/71))
+- Patch cache ([#69](https://github.com/saveoursecrets/sdk/pull/69))
+- Cache generics ([#67](https://github.com/saveoursecrets/sdk/pull/67))
+- Update readme.
+- Update main proxy program.
+- Agent for caching identity keys ([#66](https://github.com/saveoursecrets/sdk/pull/66))
+- Update SecretKey to use secrecy types.
+- Add comment to secret type.
+- Use secrecy types ([#64](https://github.com/saveoursecrets/sdk/pull/64))
+- Improve changes listener handling.
+- Update readme.
+- Improve readme.
+- Update readme.
+- Fix changes stream handling.
+- Fix error logging in shell client.
+- Tweak readme.
+- Update readme.
+- Binary encoding refactor ([#63](https://github.com/saveoursecrets/sdk/pull/63))
+- Binary signatures ([#61](https://github.com/saveoursecrets/sdk/pull/61))
+- Sketching node types, rename trait.
+- Improve features handling in node crate.
+- Change stream ([#58](https://github.com/saveoursecrets/sdk/pull/58))
+- Update check-wasm task.
+- Support building node client feature for wasm32.
+- Add integration test for checking file integrity.
+- Rename trait.
+- Do not expose server URL.
+- Tidy change password builder.
+- Tidy re-exports in core library.
+- Tidy main files.
+- Use trait for the HTTP client.
+- Tidy re-exports.
+- Use node crate to encapsulate the client and server library code ([#57](https://github.com/saveoursecrets/sdk/pull/57))
+- Update release config.
+- Configure for release.
+- Implement switch command in shell client. ([#56](https://github.com/saveoursecrets/sdk/pull/56))
+- Guard against nonce re-use. ([#55](https://github.com/saveoursecrets/sdk/pull/55))
+- Add integration test for force pull on compact event.
+- Improve assertions in integration test.
+- Add integration test for handling change notifications.
+- Add integration test for resolvable conflict.
+- Improve readme docs.
+- Support PEM secret type ([#53](https://github.com/saveoursecrets/sdk/pull/53))
+- React to change notifications in shell client ([#52](https://github.com/saveoursecrets/sdk/pull/52))
+- Support changing encryption passphrase. ([#51](https://github.com/saveoursecrets/sdk/pull/51))
+- Audit monitor ([#49](https://github.com/saveoursecrets/sdk/pull/49))
+- Store hash for previous row in WAL logs ([#48](https://github.com/saveoursecrets/sdk/pull/48))
+- Remove GetVaultName from SyncEvent.
+- Improve WAL file iterator handling.
+- Refactor vault iteration. ([#47](https://github.com/saveoursecrets/sdk/pull/47))
+- Prefer explicit VaultId.
+- Tidy audit module.
+- Improving generic iterator.
+- Audit file iterator ([#45](https://github.com/saveoursecrets/sdk/pull/45))
+- Patch file iterator ([#42](https://github.com/saveoursecrets/sdk/pull/42))
+- Disable PR workflow for now.
+- Update chbs dependency for strict cargo audit.
+- Run cargo fmt.
+- Implement draft sos executable.
+- Add task to build homebrew tarball.
+- Sketch top-level proxy executable.
+- Disable windows ARM, need to wait for ring:0.17.
+- Try setting TARGET_CC for windows ARM.
+- Update release build for windows ARM.
+- Trying ARM windows builds.
+- Try windows with msvc vendor.
+- Update release workflow for windows.
+- Try for windows release build.
+- Restore targets in release build.
+- Try to set linker.
+- Disable default-features for reqwest.
+- Revert script changes.
+- Trying new sources list.
+- Move cat statement.
+- Debug sources.list.
+- Update script.
+- Update dependencies.
+- Update depdendencies in script.
+- Update install script for linux.
+- Update CI install script.
+- Try new config for aarch64 linux.
+- Disable aarch64 linux for now.
+- Update test script.
+- Update CI build script.
+- Try sudo for dpkg.
+- Trying libssl-dev:armhf.
+- Add libssl-dev to CI build script.
+- Tweak CI build script.
+- Try new release matrix.
+- Update release workflow.
+- Lifting ring script for aarch64 linux build.
+- Reduce matrix settings in release.
+- Disable failing aarch64 for windows due to ring.
+- Update release targets.
+- Fix for release workflow.
+- Update release workflow.
+- Update release workflow.
+- Update release workflow for test.
+- Update library workflow.
+- Update workflow.
+- Test workflow change.
+- Update workflow.
+- Update library workflow.
+- Update workflow.
+- Use self-signed certificate in integration tests.
+- Update readme.
+- Support generating code coverage.
+- Switch to cargo make as task runner.
+- Improve handling of change notifications. ([#40](https://github.com/saveoursecrets/sdk/pull/40))
+- Trying new release workflow.
+- Update release targets.
+- Update target in rust toolchain.
+- Update build targets in release workflow.
+- Enable release action in workflow.
+- Disable windows for now.
+- Update Makefile task.
+- Preparing release workflow.
+- Integration tests ([#39](https://github.com/saveoursecrets/sdk/pull/39))
+- Tweak force pull/push logic.
+- Pull and push command implementations ([#36](https://github.com/saveoursecrets/sdk/pull/36))
+- Handling conflict responses ([#26](https://github.com/saveoursecrets/sdk/pull/26))
+- Tidy shell command.
+- Remove save() from VaultAccess trait.
+- Update make task.
+- Move Patch to events module.
+- Improve shell client logic for managing summaries.
+- Fix bug converting to ChangeEvent.
+- Update README.
+- Remove public directory.
+- Update the README.
+- Add sandbox directory with mock server config.
+- Update Cargo.toml with license info.
+- Write ahead log ([#16](https://github.com/saveoursecrets/sdk/pull/16))
+- Support commit merkle tree ([#15](https://github.com/saveoursecrets/sdk/pull/15))
+- Client shell implementation ([#11](https://github.com/saveoursecrets/sdk/pull/11))
+- Handle conflicts ([#10](https://github.com/saveoursecrets/sdk/pull/10))
+- Draft file access logic. ([#8](https://github.com/saveoursecrets/sdk/pull/8))
+- Encode header length after identity bytes.
+- Encode row length for each entry in the contents. ([#7](https://github.com/saveoursecrets/sdk/pull/7))
+- Improve layout of file upload reader.
+- Use two bytes for bit flags and operation identifier.
+- Use u16 for log record bit flags.
+- Improve audit log documentation.
+- Use .dat file extension for audit logs.
+- Move audit log record bit flags.
+- Use bit flags in audit log record.
+- Support secret UUID in audit log data.
+- Mark deprecated modules.
+- Support printing audit log records.
+- Add LoginChallenge and LoginResponse to audit logs.
+- Use enum for Operation.
+- Rename module.
+- Fix bug with audit lock file.
+- Tidy make task and script.
+- Fix public URL for bundled GUI.
+- Ensure backend API is async.
+- Improve server handlers.
+- Tidy x-signed-message handling.
+- Use the x-signed-message header.
+- Updating whitepaper.
+- Draft audit log implementation.
+- Helper for file identity magic bytes.
+- Improve audit log.
+- Improve handling of audit file path.
+- Draft audit file support.
+- Fix padding on signup views.
+- Use u16 for audit log operation.
+- Tidy encoding of UUID values.
+- Sketch audit log record.
+- Use tokio::fs in file system backend.
+- Separate views for login flow.
+- Render summaries in vault list.
+- Rename vaults to summaries.
+- Save vault summaries with the Account.
+- Return vault summaries at login.
+- Draft login logic.
+- Use Summary type in vault header.
+- Check account exists before issuing a challenge.
+- Rename routes.
+- Sketch authenticate module.
+- Draft logic for creating new accounts.
+- Use single backend for server config.
+- Extract address from bearer auth token.
+- Improve signup finish view.
+- Upgrade dependencies.
+- Improve the signup components.
+- Add signup screen to verify encryption passphrase.
+- Add logic to dispose of signup state.
+- Use snackbar, improve error handling.
+- Draft web signer class.
+- Improving signup logic.
+- Improving file upload read logic.
+- Improve signup flow.
+- Support downloading new private key.
+- Prepare for new signup views.
+- Pass payload back from CRUD operations.
+- Sketching logic for signing payloads.
+- Restore validation for create / update.
+- Migrate to tuple for meta data and secret. ([#6](https://github.com/saveoursecrets/sdk/pull/6))
+- Fix bug on update with unique label test.
+- Use thunk for reading a secret.
+- Tweak link target.
+- Support editing the file upload secret type.
+- Support editing the credentials type.
+- Support editing the account password type.
+- Draft logic to update secure notes.
+- Support name field when creaing vaults.
+- Use vault name in browser GUI.
+- Encode public name in file.
+- Support deleting secrets in browser GUI.
+- Show dialog to confirm secret deletion.
+- Improve secret layout.
+- Tidy logic for secret creation.
+- Use untagged enum variants.
+- Camel case for Secret variants.
+- Improve secret views.
+- Sketch account secret view.
+- Draft secret views for notes and files.
+- Prepare for secret view.
+- Hack for meta data sorting.
+- Improve routing logic in browser app.
+- Support navigating to secret view.
+- Sort secrets list using a BTreeMap.
+- Improve meta data handling in webassembly.
+- Draft logic to unlock vaults in browser.
+- Show mime and file size for file secrets.
+- Support show for credentials type in cli.
+- Support show for account and blob secret types.
+- Draft support for creating credentials lists.
+- Improve handling when label already exists.
+- Support adding the account type in the cli.
+- Encode kind in secret meta data.
+- Support removing secrets in the cli.
+- Ensure meta data labels are unique.
+- Prepare to support removing secrets.
+- Prepare gatekeeper for new API.
+- Tidy module names.
+- Support multiple algorithms ([#5](https://github.com/saveoursecrets/sdk/pull/5))
+- Support adding files via the cli.
+- Multiline input for notes ([#4](https://github.com/saveoursecrets/sdk/pull/4))
+- Hack for pasted passwords.
+- Support listing secrets in the vault.
+- Support UUID when creating new vault.
+- Support writing passphrase to stdin.
+- Add support for XChaCha20Poly1305. ([#3](https://github.com/saveoursecrets/sdk/pull/3))
+- Tidy encode and decode function names.
+- Initialize new vaults with passphrase.
+- Remove React.StrictMode as it renders twice.
+- Debugging double render.
+- Ensure salt is encoded and decoded from the auth map.
+- Parcel for web app ([#2](https://github.com/saveoursecrets/sdk/pull/2))
+- Serde binary migration ([#1](https://github.com/saveoursecrets/sdk/pull/1))
+- Update dependencies for web gui.
+- Update to react@18 for webapp.
+- Update axum.
+- Use fixtures for test specs.
+- Use 32 bit for wasm32 compatibility.
+- Fixing worker handling.
+- Handle CORS origin configuration.
+- Mapping user configs to backend implementations.
+- Draft logic to support config in server.
+- Sketch AddressStr new type wrapper.
+- Tidy error handling.
+- Draft file upload handling.
+- Work in progress on the credentials list logic.
+- Draft logic to create account password secrets.
+- Tweak secure note form.
+- Initial listing of secrets.
+- Draft logic for create a new secure note.
+- Support bundling GUI assets in the server.
+- Sketching the secure note form.
+- Separate routers for auth states.
+- Sketch logout logic.
+- Improve dialog handling.
+- Improve Diceware component.
+- Use top-level await.
+- Fix wasm issue.
+- Fix lint issues.
+- Add Diceware UI component.
+- Support diceware passphrases.
+- Draft logic to lock/unlock a vault.
+- Improve whitepaper.
+- Integrate Argon2 pbkdf with vault initialization.
+- Draft implementation of Argon2 pbkdf.
+- Rename sandbox -> browser.
+- Use dialog for new vault form.
+- Sketch secret list and UI elements.
+- Draft new vault form.
+- Support download for exporting the vault.
+- Improve navigation in sandbox sketch.
+- Using material UI in sandbox.
+- Draft logic for creating webassembly vaults.
+- Tweak doc comments.
+- Sketch sandbox logic for creating a new vault.
+- Add draft sandbox.
+- Improve webassembly bindings.
+- Complete update to thiserror.
+- Work in progress migrating to thiserror.
+- Start migration to thiserror.
+- Start sketching webassembly bindings.
+- Assert on secret meta data.
+- Assert on creating and retrieving secrets.
+- Sketch types of secret.
+- Draft gatekeeper logic.
+- Flush backend on index POST.
+- Work in progress in index update handler.
+- Abstraction for server backend.
+- Improving server sketch.
+- Sketch draft server.
+- Use UUID for secret keys.
+- Update whitepaper.
+- Import old Makefile, update whitepaper.
+- Add whitepaper source file.
+- Add native module.
+- Import draft rust libraries.
+- Add initial flutter files.

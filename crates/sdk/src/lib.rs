@@ -30,7 +30,6 @@
 //!
 //! * `account` Local account management.
 //! * `audit` Audit trail logs.
-//! * `device` Device signing keys and device management.
 //! * `files` Store external encrypted files.
 //! * `recovery` Primitives for social recovery.
 //! * `search` In-memory search index.
@@ -71,7 +70,6 @@ pub mod commit;
 pub mod constants;
 pub mod crypto;
 mod date_time;
-#[cfg(feature = "device")]
 pub mod device;
 pub mod encoding;
 mod error;

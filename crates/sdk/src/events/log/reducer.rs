@@ -193,7 +193,6 @@ impl FolderReducer {
     }
 }
 
-#[cfg(feature = "device")]
 mod device {
     use crate::{
         device::TrustedDevice,
@@ -246,7 +245,6 @@ mod device {
     }
 }
 
-#[cfg(feature = "device")]
 pub use device::DeviceReducer;
 
 #[cfg(feature = "files")]

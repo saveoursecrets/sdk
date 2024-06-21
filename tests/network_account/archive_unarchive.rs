@@ -3,7 +3,7 @@ use crate::test_utils::{
     simulate_device_with_builder, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::{client::RemoteSync, sdk::prelude::*};
+use sos_net::{sdk::prelude::*, RemoteSync};
 
 /// Tests moving to and from an archive folder.
 #[tokio::test]

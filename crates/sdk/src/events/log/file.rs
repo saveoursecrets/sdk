@@ -35,7 +35,6 @@ use futures::io::{
     AsyncWriteExt, BufReader, Cursor,
 };
 
-#[cfg(feature = "device")]
 use crate::events::DeviceEvent;
 
 #[cfg(feature = "files")]
@@ -85,7 +84,6 @@ pub type MemoryFolderLog =
 pub type AccountEventLog = DiscEventLog<AccountEvent>;
 
 /// Event log for devices.
-#[cfg(feature = "device")]
 pub type DeviceEventLog = DiscEventLog<DeviceEvent>;
 
 /// Event log for changes to a folder.
@@ -924,7 +922,6 @@ impl EventLog<AccountEvent, DiscLog, DiscLog, PathBuf> {
     }
 }
 
-#[cfg(feature = "device")]
 impl EventLog<DeviceEvent, DiscLog, DiscLog, PathBuf> {
     /// Create a new device event log file.
     pub async fn new_device(path: impl AsRef<Path>) -> Result<Self> {

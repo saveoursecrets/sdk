@@ -1,0 +1,13 @@
+[package]
+name = "sos-cli-helpers"
+version = "0.1.0"
+edition = "2021"
+description = "Shared helpers for command line executables."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+authors = ["saveoursecrets-developers <dev@saveoursecrets.com>"]
+
+[dependencies]
+serde.workspace = true
+clap.workspace = true
+colored.workspace = true
