@@ -9,7 +9,6 @@ env:
   BUCKET: ${{ vars.RELEASE_BUCKET }} 
   RELEASE_REGION: ${{ vars.RELEASE_REGION }}
   CHANNEL: ${{ vars.DISTRIBUTION_CHANNEL }}
-  RELEASES_CLOUDFRONT_ID: ${{ vars.RELEASES_CLOUDFRONT_ID }}
 
 jobs:
   checks:
