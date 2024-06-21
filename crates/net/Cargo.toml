@@ -73,7 +73,7 @@ prost.workspace = true
 # pairing
 snow = { version = "0.9", optional = true }
 
-reqwest = { version = "0.12.5", features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.12.5", default-features = false, features = ["json", "rustls-tls", "stream"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
 tokio-tungstenite = { version = "0.23", features = ["rustls-tls-native-roots"] , optional = true}
 
