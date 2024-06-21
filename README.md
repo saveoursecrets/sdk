@@ -10,7 +10,7 @@ See the [overview](/doc/overview.md) for concepts and terminology, the [API docu
 
 ## Server
 
-The server can be run easily using docker:
+The server can be run using docker writing account data to the `sandbox/accounts` directory:
 
 ```
 docker compose up
