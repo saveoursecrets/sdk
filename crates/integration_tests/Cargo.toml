@@ -38,7 +38,7 @@ pretty_assertions = "1.4"
 anticipate-runner = { version = "0.5.1" }
 
 [dev-dependencies.sos-net]
-version = "0.14.0" 
+version = "0.14.2"
 features = ["full"]
 path = "../net"
 
