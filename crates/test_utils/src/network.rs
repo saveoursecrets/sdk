@@ -409,7 +409,6 @@ pub async fn wait_for_cond<T>(test: T)
 where
     T: Fn() -> bool,
 {
-    use std::time::Duration;
     let timeout = Duration::from_millis(15000);
     let start = SystemTime::now();
 

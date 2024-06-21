@@ -6,11 +6,11 @@ This repository contains the software development kit (SDK) and several command 
 
 To see the code in action [download the app](https://saveoursecrets.com/#downloads).
 
-See the [overview](/doc/overview.md) for concepts and terminology, the [API documentation for the SDK](https://docs.rs/sos-sdk/latest/sos_sdk/) or the [API documentation for the networking library](https://docs.rs/sos-net/latest/sos_net/).
+See the [overview](/doc/overview.md) for concepts and terminology, the [API documentation for the SDK](https://docs.rs/sos-sdk/latest/sos_sdk/) or the [API documentation for the networking library](https://docs.rs/sos-net/latest/sos_net/) and check out the [sync protocol API types](https://docs.rs/sos-protocol/) for common networking code.
 
 ## Server
 
-The server can be run using docker writing account data to the `sandbox/accounts` directory:
+The server can be run using docker; account data is written to the `sandbox/accounts` directory:
 
 ```
 docker compose up
@@ -20,4 +20,4 @@ docker compose up
 
 The server code is licensed under AGPL-3.0; other crates are licensed under the MIT or Apache-2.0 license at your discretion.
 
-© Copyright Save Our Secrets Pte Ltd 2022; all rights reserved.
+© Copyright Save Our Secrets Pte Ltd 2022-2024; all rights reserved.
