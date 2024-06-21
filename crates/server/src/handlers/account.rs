@@ -612,7 +612,6 @@ mod handlers {
 
     use std::sync::Arc;
 
-    #[cfg(feature = "files")]
     use sos_protocol::sdk::events::{FileDiff, FileEvent};
 
     use sos_protocol::sdk::events::{DeviceDiff, DeviceEvent};
@@ -756,7 +755,6 @@ mod handlers {
                 let event_log = log.read().await;
                 scan_log(&req, &*event_log).await?
             }
-            #[cfg(feature = "files")]
             EventLogType::Files => {
                 let reader = account.read().await;
                 let log = reader.storage.file_log().await?;
@@ -879,7 +877,6 @@ mod handlers {
                 let event_log = log.read().await;
                 diff_log(&req, &*event_log).await?
             }
-            #[cfg(feature = "files")]
             EventLogType::Files => {
                 let reader = account.read().await;
                 let log = reader.storage.file_log().await?;
@@ -1014,7 +1011,6 @@ mod handlers {
                     records,
                 )
             }
-            #[cfg(feature = "files")]
             EventLogType::Files => {
                 let patch = Patch::<FileEvent>::new(req.patch);
                 let mut writer = account.write().await;
@@ -1129,7 +1125,6 @@ mod handlers {
                 let mut event_log = log.write().await;
                 event_log.apply_records(records).await?;
             }
-            #[cfg(feature = "files")]
             EventLogType::Files => {
                 let log = reader.storage.file_log().await?;
                 let mut event_log = log.write().await;

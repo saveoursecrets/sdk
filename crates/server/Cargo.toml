@@ -12,9 +12,8 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["listen", "files", "audit", "pairing"]
+default = ["listen", "audit", "pairing"]
 listen = ["sos-protocol/listen"]
-files = ["sos-protocol/files"]
 pairing = ["sos-protocol/pairing"]
 audit = []
 
@@ -47,11 +46,12 @@ tower-http = { version = "0.5", features = ["cors", "trace"] }
 tokio-stream = { version = "0.1" }
 utoipa = { version = "4", features = ["uuid"] }
 utoipa-rapidoc = { version = "3", features = ["axum"] }
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros"] }
 
 [dependencies.sos-protocol]
 version = "0.14.1"
 path = "../protocol"
+features = ["files"]
 
 [dependencies.sos-cli-helpers]
 version = "0.1.0"

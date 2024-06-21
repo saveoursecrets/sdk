@@ -1,4 +1,4 @@
-use crate::handlers::account;
+use crate::handlers::{account, files};
 use utoipa::{openapi::security::*, Modify, OpenApi, ToSchema};
 
 #[derive(ToSchema)]
@@ -41,10 +41,10 @@ struct SyncPacket(sos_protocol::SyncPacket);
         account::event_diff,
         account::event_patch,
         account::delete_account,
-        // files::receive_file,
-        // files::send_file,
-        // files::move_file,
-        // files::delete_file,
+        files::receive_file,
+        files::send_file,
+        files::move_file,
+        files::delete_file,
     ),
     components(
         schemas(

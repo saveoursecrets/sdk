@@ -25,7 +25,4 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 
 pub use backend::Backend;
 pub use config::*;
-pub use server::{Server, ServerBackend, ServerState, State};
-
-#[cfg(feature = "files")]
-pub use server::ServerTransfer;
+pub use server::{Server, ServerBackend, ServerState, ServerTransfer, State};

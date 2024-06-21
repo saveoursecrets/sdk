@@ -22,8 +22,6 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use sos_protocol::sdk::events::{DeviceDiff, DeviceEventLog, DeviceReducer};
-
-#[cfg(feature = "files")]
 use sos_protocol::sdk::events::{FileDiff, FileEventLog};
 
 impl ServerStorage {
@@ -82,7 +80,6 @@ impl ServerStorage {
             self.devices = reducer.reduce().await?;
         }
 
-        #[cfg(feature = "files")]
         {
             let mut writer = self.file_log.write().await;
             writer.patch_unchecked(&account_data.files).await?;
@@ -137,7 +134,6 @@ impl ServerStorage {
             self.force_merge_device(diff, outcome).await?;
         }
 
-        #[cfg(feature = "files")]
         if let Some(diff) = update_set.files.take() {
             self.force_merge_files(diff, outcome).await?;
         }
@@ -235,7 +231,6 @@ impl ForceMerge for ServerStorage {
     }
 
     /// Force merge changes to the files event log.
-    #[cfg(feature = "files")]
     async fn force_merge_files(
         &mut self,
         diff: FileDiff,
@@ -453,7 +448,6 @@ impl Merge for ServerStorage {
         reader.tree().compare(&state.1)
     }
 
-    #[cfg(feature = "files")]
     async fn merge_files(
         &mut self,
         diff: FileDiff,
@@ -489,7 +483,6 @@ impl Merge for ServerStorage {
         Ok(checked_patch)
     }
 
-    #[cfg(feature = "files")]
     async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
         let reader = self.file_log.read().await;
         reader.tree().compare(&state.1)
@@ -555,7 +548,6 @@ impl StorageEventLogs for ServerStorage {
         Ok(Arc::clone(&self.device_log))
     }
 
-    #[cfg(feature = "files")]
     async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
         Ok(Arc::clone(&self.file_log))
     }
@@ -598,7 +590,6 @@ impl SyncStorage for ServerStorage {
             reader.tree().commit_state()?
         };
 
-        #[cfg(feature = "files")]
         let files = {
             let reader = self.file_log.read().await;
             if reader.tree().is_empty() {
@@ -625,7 +616,7 @@ impl SyncStorage for ServerStorage {
             account.1.root().into(),
             device.1.root().into(),
         ];
-        #[cfg(feature = "files")]
+
         if let Some(files) = &files {
             root_commits.push(files.1.root().into());
         }
@@ -645,7 +636,6 @@ impl SyncStorage for ServerStorage {
             identity,
             account,
             device,
-            #[cfg(feature = "files")]
             files,
             folders,
         })

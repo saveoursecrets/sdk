@@ -16,8 +16,6 @@ use serde_json::json;
 use sos_protocol::sdk::signer::ecdsa::Address;
 
 pub mod account;
-
-#[cfg(feature = "files")]
 pub mod files;
 
 #[cfg(feature = "pairing")]

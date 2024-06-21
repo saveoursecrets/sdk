@@ -25,7 +25,6 @@ use sos_protocol::sdk::{
 use indexmap::IndexSet;
 use std::collections::HashSet;
 
-#[cfg(feature = "files")]
 use sos_protocol::sdk::events::{FileEvent, FileEventLog};
 
 mod sync;
@@ -54,7 +53,6 @@ pub struct ServerStorage {
     pub(super) devices: IndexSet<TrustedDevice>,
 
     /// File event log.
-    #[cfg(feature = "files")]
     pub(super) file_log: Arc<RwLock<FileEventLog>>,
 }
 
@@ -97,7 +95,6 @@ impl ServerStorage {
         let (device_log, devices) =
             Self::initialize_device_log(&*paths).await?;
 
-        #[cfg(feature = "files")]
         let file_log = Self::initialize_file_log(&paths).await?;
 
         Ok(Self {
@@ -108,7 +105,6 @@ impl ServerStorage {
             account_log,
             device_log: Arc::new(RwLock::new(device_log)),
             devices,
-            #[cfg(feature = "files")]
             file_log: Arc::new(RwLock::new(file_log)),
         })
     }
@@ -141,7 +137,6 @@ impl ServerStorage {
         Ok((event_log, devices))
     }
 
-    #[cfg(feature = "files")]
     async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
         use sos_protocol::sdk::storage::files::list_external_files;
 
@@ -306,7 +301,6 @@ impl ServerStorage {
         // Remove local state
         self.cache.remove(id);
 
-        #[cfg(feature = "files")]
         {
             let files_folder = self.paths.files_dir().join(id.to_string());
             if vfs::try_exists(&files_folder).await? {

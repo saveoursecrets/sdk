@@ -35,7 +35,6 @@ use tracing::Level;
 #[cfg(feature = "listen")]
 use super::handlers::websocket::upgrade;
 
-#[cfg(feature = "files")]
 use sos_protocol::sdk::storage::files::ExternalFile;
 
 #[cfg(feature = "pairing")]
@@ -56,11 +55,9 @@ pub type ServerState = Arc<RwLock<State>>;
 pub type ServerBackend = Arc<RwLock<Backend>>;
 
 /// Transfer operations in progress.
-#[cfg(feature = "files")]
 pub type TransferOperations = HashSet<ExternalFile>;
 
 /// State for the file transfer operations.
-#[cfg(feature = "files")]
 pub type ServerTransfer = Arc<RwLock<TransferOperations>>;
 
 /// Web server implementation.
@@ -241,7 +238,6 @@ impl Server {
                         .patch(account::event_patch),
                 );
 
-            #[cfg(feature = "files")]
             {
                 use super::handlers::files::{self, file_operation_lock};
                 router = router
@@ -288,7 +284,6 @@ impl Server {
 
         v1 = v1.layer(Extension(backend)).layer(Extension(state));
 
-        #[cfg(feature = "files")]
         {
             let file_operations: ServerTransfer =
                 Arc::new(RwLock::new(HashSet::new()));
