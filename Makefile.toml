@@ -22,20 +22,10 @@ args = ["fmt"]
 command = "cargo"
 args = ["fmt", "--all", "--", "--check"]
 
-[tasks.check]
-workspace = true
-command = "cargo"
-args = ["check"]
-
 [tasks.clippy]
 workspace = true
 command = "cargo"
 args = ["clippy", "--all-features"]
-
-[tasks.clean]
-workspace = true
-command = "cargo"
-args = ["clean"]
 
 [tasks.build]
 workspace = true
@@ -69,54 +59,17 @@ dependencies = ["clean-doc"]
 command = "cargo"
 args = ["test", "--all", "--lib"]
 
-[tasks.test-audit-trail]
-command = "cargo"
-args = ["test", "audit"]
-
-[tasks.test-backup-archive]
-command = "cargo"
-args = ["test", "backup_archive"]
-
 [tasks.test-command-line]
 command = "cargo"
-args = ["test", "command_line", "--features", "enable-cli-tests", "--", "--nocapture"]
+args = [
+  "test",
+  "command_line",
+  "--features",
+  "enable-cli-tests",
+  "--",
+  "--nocapture",
+]
 dependencies = ["clean-cli"]
-
-[tasks.test-event-log]
-command = "cargo"
-args = ["test", "event_log_"]
-
-[tasks.test-diff-merge]
-command = "cargo"
-args = ["test", "diff_merge_"]
-
-[tasks.test-local-account]
-command = "cargo"
-args = ["test", "local_"]
-
-[tasks.test-network-account]
-command = "cargo"
-args = ["test", "network_"]
-
-[tasks.test-pairing]
-command = "cargo"
-args = ["test", "pairing_"]
-
-[tasks.test-file-transfers]
-command = "cargo"
-args = ["test", "file_transfers_"]
-
-[tasks.test-access-control]
-command = "cargo"
-args = ["test", "access_control_"]
-
-[tasks.test-preferences]
-command = "cargo"
-args = ["test", "preferences_"]
-
-[tasks.test-system-messages]
-command = "cargo"
-args = ["test", "system_messages_"]
 
 [tasks.clean-cli]
 script_runner = "@shell"
@@ -150,27 +103,6 @@ dependencies = ["clean-cli"]
 command = "cargo"
 args = ["test", "--all"]
 dependencies = ["clean-cli"]
-
-[tasks.dev]
-dependencies = ["check-wasm", "test", "format"]
-
-[tasks.check-wasm-node-client]
-command = "cargo"
-args = [
-  "check",
-  "--target",
-  "wasm32-unknown-unknown",
-  "-p",
-  "sos-net",
-  "--no-default-features",
-  "--features",
-  "client"
-]
-
-[tasks.check-wasm]
-command = "cargo"
-args = ["check", "--target", "wasm32-unknown-unknown", "-p", "sos-sdk"]
-dependencies = ["check-wasm-node-client"]
 
 [tasks.dev-server]
 script = '''

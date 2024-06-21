@@ -14,8 +14,9 @@ use std::path::PathBuf;
 
 pub mod files;
 
-const IPHONE: &str =
-    include_str!("../../../../tests/fixtures/devices/iphone.json");
+const IPHONE: &str = include_str!(
+    "../../../integration_tests/tests/fixtures/devices/iphone.json"
+);
 
 /// Create a login secret.
 pub fn login(
@@ -90,8 +91,9 @@ pub fn list(label: &str, items: HashMap<&str, &str>) -> (SecretMeta, Secret) {
 
 /// Create a certificate secret.
 pub fn pem(label: &str) -> (SecretMeta, Secret) {
-    const CERTIFICATE: &str =
-        include_str!("../../../../tests/fixtures/mock-cert.pem");
+    const CERTIFICATE: &str = include_str!(
+        "../../../integration_tests/tests/fixtures/mock-cert.pem"
+    );
     let certificates = pem::parse_many(CERTIFICATE).unwrap();
     let secret_value = Secret::Pem {
         certificates,

@@ -176,7 +176,7 @@ async fn secret_encode_list() -> Result<()> {
 #[tokio::test]
 async fn secret_encode_pem() -> Result<()> {
     const CERTIFICATE: &str =
-        include_str!("../../../tests/fixtures/mock-cert.pem");
+        include_str!("../../integration_tests/tests/fixtures/mock-cert.pem");
     let certificates = pem::parse_many(CERTIFICATE).unwrap();
     let secret = Secret::Pem {
         certificates,
@@ -219,7 +219,8 @@ async fn secret_encode_signer() -> Result<()> {
 
 #[tokio::test]
 async fn secret_encode_contact() -> Result<()> {
-    const TEXT: &str = include_str!("../../../tests/fixtures/contact.vcf");
+    const TEXT: &str =
+        include_str!("../../integration_tests/tests/fixtures/contact.vcf");
     let vcard: Vcard = TEXT.try_into()?;
     let secret = Secret::Contact {
         vcard: Box::new(vcard),

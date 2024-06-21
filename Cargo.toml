@@ -1,25 +1,10 @@
-[package]
-name = "sos-workspace"
-version = "0.14.1"
-edition = "2021"
-rust-version = "1.78.0"
-description = "Distributed, encrypted database for private secrets."
-homepage = "https://saveoursecrets.com"
-license = "MIT OR Apache-2.0 OR AGPL-3.0"
-authors = ["saveoursecrets-developers <dev@saveoursecrets.com>"]
-publish = false
-categories = [
-  "command-line-utilities",
-  "cryptography::cryptocurrencies",
-  "authentication"
-]
-
 [workspace]
 resolver = "2"
 members = [
   "crates/artifact",
-  "crates/cli_helpers",
+  "crates/cli_helpers", 
   "crates/keychain_parser",
+  "crates/integration_tests",
   "crates/net",
   "crates/protocol",
   "crates/sdk",
@@ -28,10 +13,6 @@ members = [
   "crates/test_utils",
   "crates/vfs",
 ]
-
-[features]
-default = []
-enable-cli-tests = []
 
 [workspace.dependencies]
 csv-async = { version = "1", features = ["tokio", "with_serde"] }
@@ -80,39 +61,6 @@ version = "1.4.2"
 version = "9.1.0"
 features = ["async"]
 #path = "../../../../binary-stream"
-
-[dev-dependencies]
-binary-stream.workspace = true
-tracing.workspace = true
-tracing-subscriber.workspace = true
-serde_json.workspace = true
-thiserror.workspace = true
-async-recursion.workspace = true
-futures.workspace = true
-parking_lot.workspace = true
-once_cell.workspace = true
-serde.workspace = true
-clap.workspace = true
-indexmap.workspace = true
-tokio.workspace = true
-anyhow.workspace = true
-secrecy.workspace = true
-http.workspace = true
-
-sos-server = { path = "crates/server" }
-sos_test_utils = { path = "crates/test_utils" }
-
-copy_dir = "0.1"
-maplit2 = "1"
-tempfile = "3.5"
-kdam = { version = "0.5", features = ["rich", "spinner"] }
-pretty_assertions = "1.4"
-anticipate-runner = { version = "0.5.1" }
-
-[dev-dependencies.sos-net]
-version = "0.14.0" 
-features = ["full"]
-path = "crates/net"
 
 [profile.release]
 codegen-units = 1

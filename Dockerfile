@@ -1,4 +1,4 @@
-FROM rust:1.78-buster AS rust
+FROM rust:latest
 
 WORKDIR /usr/app
 
@@ -7,6 +7,6 @@ COPY Cargo.toml Cargo.toml
 COPY Cargo.lock Cargo.lock
 COPY sandbox/config.toml config.toml
 RUN mkdir accounts
-RUN cargo build --locked --release -p sos-server
+RUN cargo build --release --locked -p sos-server
 
 CMD /usr/app/target/release/sos-server start /usr/app/config.toml

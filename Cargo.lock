@@ -4323,6 +4323,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-integration-tests"
+version = "0.1.0"
+dependencies = [
+ "anticipate-runner",
+ "anyhow",
+ "async-recursion",
+ "binary-stream",
+ "clap",
+ "copy_dir",
+ "futures",
+ "http",
+ "indexmap 2.2.6",
+ "kdam",
+ "maplit2",
+ "once_cell",
+ "parking_lot",
+ "pretty_assertions",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sos-net",
+ "sos-server",
+ "sos_test_utils",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "sos-net"
 version = "0.14.1"
 dependencies = [
@@ -4520,37 +4551,6 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "tokio",
-]
-
-[[package]]
-name = "sos-workspace"
-version = "0.14.1"
-dependencies = [
- "anticipate-runner",
- "anyhow",
- "async-recursion",
- "binary-stream",
- "clap",
- "copy_dir",
- "futures",
- "http",
- "indexmap 2.2.6",
- "kdam",
- "maplit2",
- "once_cell",
- "parking_lot",
- "pretty_assertions",
- "secrecy",
- "serde",
- "serde_json",
- "sos-net",
- "sos-server",
- "sos_test_utils",
- "tempfile",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
