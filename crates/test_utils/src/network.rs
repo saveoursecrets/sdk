@@ -19,8 +19,37 @@ use sos_net::{
     InflightNotification, InflightTransfers, ListenOptions, NetworkAccount,
     RemoteBridge, RemoteSync, SyncClient,
 };
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    path::PathBuf,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 use tokio::sync::Mutex;
+
+/// Wait for a condition to be met.
+pub async fn wait_for_cond<T>(test: T)
+where
+    T: Fn() -> bool,
+{
+    use std::time::Duration;
+    let timeout = Duration::from_millis(15000);
+    let start = SystemTime::now();
+
+    loop {
+        let elapsed = start.elapsed().unwrap();
+        if elapsed > timeout {
+            panic!(
+                "wait condition took too long, timeout {:?} exceeded",
+                timeout
+            );
+        }
+        let done = test();
+        if done {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
 
 /// Simulated device information.
 pub struct SimulatedDevice {

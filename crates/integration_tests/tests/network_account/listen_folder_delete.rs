@@ -1,4 +1,6 @@
-use crate::test_utils::{simulate_device, spawn, sync_pause, teardown};
+use crate::test_utils::{
+    simulate_device, spawn, sync_pause, teardown, wait_for_cond,
+};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
@@ -39,9 +41,35 @@ async fn network_sync_listen_folder_delete() -> Result<()> {
         device1.owner.delete_folder(&new_folder).await?;
     assert!(sync_error.is_none());
 
-    // Pause a while to give the listener some time to process
-    // the change notification
-    sync_pause(Some(1500)).await;
+    let mut server_files = vec![
+        server_path.join(&address).join(format!(
+            "{}.{}",
+            new_folder.id(),
+            VAULT_EXT
+        )),
+        server_path.join(&address).join(format!(
+            "{}.{}",
+            new_folder.id(),
+            EVENT_LOG_EXT
+        )),
+    ];
+
+    let mut device1_files = vec![
+        device1.owner.paths().vault_path(new_folder.id()),
+        device1.owner.paths().event_log_path(new_folder.id()),
+    ];
+
+    let mut device2_files = vec![
+        device2.owner.paths().vault_path(new_folder.id()),
+        device2.owner.paths().event_log_path(new_folder.id()),
+    ];
+
+    let mut wait_files = Vec::new();
+    wait_files.extend_from_slice(&server_files);
+    wait_files.extend_from_slice(&device1_files);
+    wait_files.extend_from_slice(&device2_files);
+
+    wait_for_cond(move || wait_files.iter().all(|p| !p.exists())).await;
 
     let updated_summaries: Vec<Summary> = {
         let storage = device1.owner.storage().await?;
@@ -50,35 +78,14 @@ async fn network_sync_listen_folder_delete() -> Result<()> {
     };
     assert_eq!(folders.len(), updated_summaries.len());
 
-    // Assert server
-    let expected_vault_file = server_path.join(&address).join(format!(
-        "{}.{}",
-        new_folder.id(),
-        VAULT_EXT
-    ));
-    let expected_event_file = server_path.join(&address).join(format!(
-        "{}.{}",
-        new_folder.id(),
-        EVENT_LOG_EXT
-    ));
-    assert!(!vfs::try_exists(expected_vault_file).await?);
-    assert!(!vfs::try_exists(expected_event_file).await?);
+    assert!(!vfs::try_exists(server_files.remove(0)).await?);
+    assert!(!vfs::try_exists(server_files.remove(0)).await?);
 
-    // Assert first device
-    let expected_vault_file =
-        device1.owner.paths().vault_path(new_folder.id());
-    let expected_event_file =
-        device1.owner.paths().vault_path(new_folder.id());
-    assert!(!vfs::try_exists(expected_vault_file).await?);
-    assert!(!vfs::try_exists(expected_event_file).await?);
+    assert!(!vfs::try_exists(device1_files.remove(0)).await?);
+    assert!(!vfs::try_exists(device1_files.remove(0)).await?);
 
-    // Assert second device
-    let expected_vault_file =
-        device2.owner.paths().vault_path(new_folder.id());
-    let expected_event_file =
-        device2.owner.paths().vault_path(new_folder.id());
-    assert!(!vfs::try_exists(expected_vault_file).await?);
-    assert!(!vfs::try_exists(expected_event_file).await?);
+    assert!(!vfs::try_exists(device2_files.remove(0)).await?);
+    assert!(!vfs::try_exists(device2_files.remove(0)).await?);
 
     device1.owner.sign_out().await?;
     device2.owner.sign_out().await?;
