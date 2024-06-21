@@ -11,7 +11,7 @@ fi
 
 command -v sos
 
-scripts=tests/command_line/scripts
+scripts=crates/integration_tests/tests/command_line/scripts
 SPECS=($scripts/specs/*.sh)
 SPEC=${SPEC:-${SPECS[@]}}
 

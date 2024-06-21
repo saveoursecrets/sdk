@@ -104,17 +104,6 @@ command = "cargo"
 args = ["test", "--all"]
 dependencies = ["clean-cli"]
 
-[tasks.dev-server]
-script = '''
-cargo run --bin sos-server -- start sandbox/config.toml
-'''
-
-[tasks.dev-certs]
-script = '''
-command -v mkcert && cd sandbox && 
-  mkcert -key-file key.pem -cert-file cert.pem localhost 127.0.0.1 ::1
-'''
-
 [tasks.genhtml]
 script = '''
 grcov ${COVERAGE_PROF_OUTPUT} -s . --binary-path ./target/cover/debug -t html --branch --ignore-not-existing -o ./target/coverage/ --ignore 'workspace/*/build.rs' --ignore 'tests/*' --ignore 'target/*'
