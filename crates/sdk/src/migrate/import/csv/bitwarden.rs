@@ -190,7 +190,7 @@ mod test {
         let key: AccessKey = passphrase.into();
         let vault = BitwardenCsv
             .convert(
-                "../../tests/fixtures/migrate/bitwarden-export.csv".into(),
+                "../../fixtures/migrate/bitwarden-export.csv".into(),
                 vault,
                 &key,
             )

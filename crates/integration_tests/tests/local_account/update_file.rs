@@ -31,7 +31,7 @@ async fn local_update_file() -> Result<()> {
         .create_secret(meta.clone(), secret, Default::default())
         .await?;
 
-    let new_path = "tests/fixtures/test-file.txt";
+    let new_path = "fixtures/test-file.txt";
     account
         .update_file(&id, meta, new_path, Default::default(), None)
         .await?;

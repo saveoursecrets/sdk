@@ -71,17 +71,17 @@ mod cli {
         set_var("ACCOUNT_NAME_ALT", "Demo Account");
         set_var("ACCOUNT_PASSWORD", "demo-test-password-case");
         set_var("ACCOUNT_BACKUP", "target/demo-backup.zip");
-        set_var("ACCOUNT_CONTACTS", "tests/fixtures/contacts.vcf");
+        set_var("ACCOUNT_CONTACTS", "fixtures/contacts.vcf");
         set_var("CONTACTS_EXPORT", "target/demo-contacts.vcf");
 
         set_var("DEFAULT_FOLDER_NAME", "Documents");
         set_var("FOLDER_NAME", "mock-folder");
         set_var("NEW_FOLDER_NAME", "mock-folder-renamed");
 
-        set_var("FILE_INPUT", "tests/fixtures/sample.heic");
+        set_var("FILE_INPUT", "fixtures/sample.heic");
         set_var("FILE_OUTPUT", "target/file-download.heic");
 
-        set_var("ATTACH_INPUT", "tests/fixtures/test-file.txt");
+        set_var("ATTACH_INPUT", "fixtures/test-file.txt");
         set_var("ATTACH_OUTPUT", "target/attachment-download.txt");
 
         set_var("NOTE_NAME", "mock note");
@@ -105,23 +105,11 @@ mod cli {
         set_var("PASSWORD_ATTACHMENT", "password-attachment");
         set_var("LINK_VALUE", "https://example.com");
 
-        set_var(
-            "MIGRATE_1PASSWORD",
-            "tests/fixtures/migrate/1password-export.csv",
-        );
-        set_var(
-            "MIGRATE_DASHLANE",
-            "tests/fixtures/migrate/dashlane-export.zip",
-        );
-        set_var(
-            "MIGRATE_BITWARDEN",
-            "tests/fixtures/migrate/bitwarden-export.csv",
-        );
-        set_var(
-            "MIGRATE_FIREFOX",
-            "tests/fixtures/migrate/firefox-export.csv",
-        );
-        set_var("MIGRATE_MACOS", "tests/fixtures/migrate/macos-export.csv");
+        set_var("MIGRATE_1PASSWORD", "fixtures/migrate/1password-export.csv");
+        set_var("MIGRATE_DASHLANE", "fixtures/migrate/dashlane-export.zip");
+        set_var("MIGRATE_BITWARDEN", "fixtures/migrate/bitwarden-export.csv");
+        set_var("MIGRATE_FIREFOX", "fixtures/migrate/firefox-export.csv");
+        set_var("MIGRATE_MACOS", "fixtures/migrate/macos-export.csv");
     }
 }
 

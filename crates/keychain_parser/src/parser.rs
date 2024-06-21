@@ -794,25 +794,18 @@ mod test {
     #[test]
     fn keychain_unescape_octal() -> Result<()> {
         let expected = include_str!(
-            "../../integration_tests/tests/fixtures/migrate/plist-data-unescaped.txt"
+            "../../../fixtures/migrate/plist-data-unescaped.txt"
         );
-        let contents = include_str!(
-            "../../integration_tests/tests/fixtures/migrate/plist-data-escaped.txt"
-        );
+        let contents =
+            include_str!("../../../fixtures/migrate/plist-data-escaped.txt");
         let plist = unescape_octal(&contents)?;
-        /*
-        vfs::write(
-            "tests/fixtures/plist-data-unescaped.txt", plist.as_ref()).await?;
-        */
         assert_eq!(&expected, &plist);
         Ok(())
     }
 
     #[test]
     fn keychain_parse_basic() -> Result<()> {
-        let contents = include_str!(
-            "../../integration_tests/tests/fixtures/migrate/sos-mock.txt"
-        );
+        let contents = include_str!("../../../fixtures/migrate/sos-mock.txt");
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;
 
@@ -827,9 +820,8 @@ mod test {
 
     #[test]
     fn keychain_parse_certificate() -> Result<()> {
-        let contents = include_str!(
-            "../../integration_tests/tests/fixtures/migrate/mock-certificate.txt",
-        );
+        let contents =
+            include_str!("../../../fixtures/migrate/mock-certificate.txt",);
         let parser = KeychainParser::new(&contents);
         let _list = parser.parse()?;
         Ok(())
@@ -837,9 +829,8 @@ mod test {
 
     #[test]
     fn keychain_parse_data() -> Result<()> {
-        let contents = include_str!(
-            "../../integration_tests/tests/fixtures/migrate/sos-mock-data.txt",
-        );
+        let contents =
+            include_str!("../../../fixtures/migrate/sos-mock-data.txt",);
         let parser = KeychainParser::new(&contents);
         let list = parser.parse()?;
 

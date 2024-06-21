@@ -251,7 +251,9 @@ pub struct TestDirs {
 pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
-    let target = current_dir.join("target/integration-test");
+    // NOTE: we run in the crates/integration_test cwd but
+    // NOTE: want to use top-level target directory
+    let target = current_dir.join("../../target/integration-test");
     vfs::create_dir_all(&target).await?;
 
     let mut clients = Vec::new();
@@ -280,7 +282,9 @@ pub fn copy_account(
 pub async fn teardown(test_id: &str) {
     let current_dir = std::env::current_dir()
         .expect("failed to get current working directory");
-    let target = current_dir.join("target/integration-test").join(test_id);
+    let target = current_dir
+        .join("../../target/integration-test")
+        .join(test_id);
     tracing::debug!(path = ?target, "teardown");
     if let Err(e) = vfs::remove_dir_all(&target).await {
         // Sometimes we get this:

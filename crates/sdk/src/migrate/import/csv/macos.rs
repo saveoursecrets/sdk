@@ -119,8 +119,7 @@ mod test {
     #[tokio::test]
     async fn macos_passwords_csv_parse() -> Result<()> {
         let mut records =
-            parse_path("../../tests/fixtures/migrate/macos-export.csv")
-                .await?;
+            parse_path("../../fixtures/migrate/macos-export.csv").await?;
         assert_eq!(2, records.len());
 
         let first = records.remove(0);
@@ -154,7 +153,7 @@ mod test {
         let key: AccessKey = passphrase.into();
         let vault = MacPasswordCsv
             .convert(
-                "../../tests/fixtures/migrate/macos-export.csv".into(),
+                "../../fixtures/migrate/macos-export.csv".into(),
                 vault,
                 &key,
             )
@@ -192,7 +191,7 @@ mod test {
         let key: AccessKey = passphrase.into();
         let vault = MacPasswordCsv
             .convert(
-                "../../tests/fixtures/migrate/macos-notes-export.csv".into(),
+                "../../fixtures/migrate/macos-notes-export.csv".into(),
                 vault,
                 &key,
             )

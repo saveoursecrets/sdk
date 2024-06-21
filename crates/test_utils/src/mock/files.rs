@@ -60,7 +60,7 @@ where
         .update_file(
             &id,
             new_meta,
-            "tests/fixtures/test-file.txt",
+            "../../fixtures/test-file.txt",
             AccessOptions {
                 folder: None,
                 file_progress: progress_tx,
