@@ -2438,7 +2438,7 @@ dependencies = [
 
 [[package]]
 name = "keychain_parser"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "logos",
@@ -4301,7 +4301,7 @@ dependencies = [
 
 [[package]]
 name = "sos-artifact"
-version = "0.8.6"
+version = "0.8.7"
 dependencies = [
  "anyhow",
  "hex",
@@ -4435,7 +4435,7 @@ dependencies = [
  "sha1",
  "sha2",
  "sha3",
- "sos-vfs 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sos-vfs 0.2.2",
  "sos_test_utils",
  "subtle",
  "tempfile",
@@ -4498,10 +4498,11 @@ dependencies = [
 [[package]]
 name = "sos-vfs"
 version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9009f68f8a2f7b64f24916907114467b74f25c2e7cb16a89885a0601cb7e4664"
 dependencies = [
- "anyhow",
  "async-recursion",
- "bitflags 2.5.0",
+ "bitflags 1.3.2",
  "futures",
  "once_cell",
  "parking_lot",
@@ -4510,12 +4511,11 @@ dependencies = [
 
 [[package]]
 name = "sos-vfs"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9009f68f8a2f7b64f24916907114467b74f25c2e7cb16a89885a0601cb7e4664"
+version = "0.2.3"
 dependencies = [
+ "anyhow",
  "async-recursion",
- "bitflags 1.3.2",
+ "bitflags 2.5.0",
  "futures",
  "once_cell",
  "parking_lot",

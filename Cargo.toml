@@ -7,6 +7,7 @@ description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0 OR AGPL-3.0"
 authors = ["saveoursecrets-developers <dev@saveoursecrets.com>"]
+publish = false
 categories = [
   "command-line-utilities",
   "cryptography::cryptocurrencies",
