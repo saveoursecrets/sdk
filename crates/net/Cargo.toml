@@ -84,6 +84,7 @@ path = "../sdk"
 [dependencies.sos-protocol]
 version = "0.14.1"
 path = "../protocol"
+features = ["account"]
 
 [dev-dependencies]
 anyhow = "1"
