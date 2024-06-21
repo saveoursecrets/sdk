@@ -61,7 +61,7 @@ jobs:
       - name: Set environment variables
         shell: bash
         run: |
-          VERSION=$(cd crates/sos && cargo pkgid | cut -f2 -d '#')
+          VERSION=$(cd crates/sdk && cargo pkgid | cut -f2 -d '@')
           echo "BUILD_DIR=target/${{ matrix.binary_target }}/release" >> $GITHUB_ENV
           echo "ZIP_FILE=${{ matrix.binary_target }}.zip" >> $GITHUB_ENV
           echo "SEMVER=$VERSION" >> $GITHUB_ENV
