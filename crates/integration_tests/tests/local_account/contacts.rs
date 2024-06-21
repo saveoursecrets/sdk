@@ -2,8 +2,8 @@ use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_net::sdk::prelude::*;
 
-const CONTACT: &str = include_str!("../../tests/fixtures/contact.vcf");
-const AVATAR: &str = include_str!("../../tests/fixtures/avatar.vcf");
+const CONTACT: &str = include_str!("../../../../fixtures/contact.vcf");
+const AVATAR: &str = include_str!("../../../../fixtures/avatar.vcf");
 
 /// Tests importing and exporting contacts from vCard
 /// files.

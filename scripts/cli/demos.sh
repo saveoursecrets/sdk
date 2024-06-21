@@ -4,7 +4,7 @@ set -e
 
 source scripts/cli/env.sh
 
-scripts=tests/command_line/scripts
+scripts=crates/integration_tests/tests/command_line/scripts
 SPECS=($scripts/demos/*.sh)
 SPEC=${SPEC:-${SPECS[@]}}
 

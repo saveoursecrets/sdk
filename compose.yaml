@@ -1,0 +1,8 @@
+services:
+  web:
+    build:
+      target: builder
+    ports: 
+      - '5053:5053'
+    volumes:
+      - ./sandbox/accounts:/usr/app/accounts

@@ -574,6 +574,7 @@ impl ClientStorage {
                 SecretRow::new(id, secret_data.meta, new_secret);
 
             // Update with new checksum(s)
+            #[cfg(feature = "account")]
             self.write_secret(&id, secret_data, false).await?;
         }
 

@@ -14,8 +14,7 @@ use std::path::PathBuf;
 
 pub mod files;
 
-const IPHONE: &str =
-    include_str!("../../../../tests/fixtures/devices/iphone.json");
+const IPHONE: &str = include_str!("../../../../fixtures/devices/iphone.json");
 
 /// Create a login secret.
 pub fn login(
@@ -91,7 +90,7 @@ pub fn list(label: &str, items: HashMap<&str, &str>) -> (SecretMeta, Secret) {
 /// Create a certificate secret.
 pub fn pem(label: &str) -> (SecretMeta, Secret) {
     const CERTIFICATE: &str =
-        include_str!("../../../../tests/fixtures/mock-cert.pem");
+        include_str!("../../../../fixtures/mock-cert.pem");
     let certificates = pem::parse_many(CERTIFICATE).unwrap();
     let secret_value = Secret::Pem {
         certificates,
@@ -233,7 +232,7 @@ pub fn page(
 
 /// Create an external file secret (image).
 pub fn file_image_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
-    let file_path = PathBuf::from("tests/fixtures/sample.heic");
+    let file_path = PathBuf::from("../../fixtures/sample.heic");
     let secret: Secret = file_path.clone().try_into()?;
     let meta = SecretMeta::new("image".to_string(), secret.kind());
     Ok((meta, secret, file_path))
@@ -241,7 +240,7 @@ pub fn file_image_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
 
 /// Create an external file secret (text).
 pub fn file_text_secret() -> Result<(SecretMeta, Secret, PathBuf)> {
-    let file_path = PathBuf::from("tests/fixtures/test-file.txt");
+    let file_path = PathBuf::from("../../fixtures/test-file.txt");
     let secret: Secret = file_path.clone().try_into()?;
     let meta = SecretMeta::new("text".to_string(), secret.kind());
     Ok((meta, secret, file_path))

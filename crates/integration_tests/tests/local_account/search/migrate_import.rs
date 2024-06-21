@@ -28,7 +28,7 @@ async fn local_search_migrate_import() -> Result<()> {
 
     let target = ImportTarget {
         format: ImportFormat::OnePasswordCsv,
-        path: PathBuf::from("tests/fixtures/migrate/1password-export.csv"),
+        path: PathBuf::from("../../fixtures/migrate/1password-export.csv"),
         folder_name: "1password".to_string(),
     };
     account.import_file(target).await?;

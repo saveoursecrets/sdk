@@ -125,7 +125,7 @@ mod test {
     #[tokio::test]
     async fn file_encrypt_decrypt() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
-        let input = "../../tests/fixtures/sample.heic";
+        let input = "../../fixtures/sample.heic";
         let output = "target/file-encrypt-decrypt";
 
         if let Ok(true) = vfs::try_exists(output).await {
