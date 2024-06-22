@@ -508,6 +508,13 @@ pub enum Error {
         rollback_completed: bool,
     },
 
+    /// Attempt to apply a patch whose timestamp of the first event
+    /// is younger than the last event in the log file.
+    ///
+    /// Typically, this can happen when clocks are out of sync.
+    #[error("attempt to add an event in the past, this can happen if your clocks are out of sync, to fix this ensure that your device clock is using the correct date and time")]
+    EventTimeBehind,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),

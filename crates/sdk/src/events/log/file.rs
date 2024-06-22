@@ -348,6 +348,7 @@ where
         patch: &Patch<E>,
     ) -> Result<CheckedPatch> {
         let comparison = self.tree().compare(commit_proof)?;
+
         match comparison {
             Comparison::Equal => {
                 self.patch_unchecked(patch).await?;
@@ -485,7 +486,26 @@ where
 
     /// Append a patch to this event log.
     async fn patch_unchecked(&mut self, patch: &Patch<E>) -> Result<()> {
+        if let Some(record) = patch.records().first() {
+            self.check_event_time_ahead(record).await?;
+        }
         self.apply_records(patch.records().to_vec()).await
+    }
+
+    #[doc(hidden)]
+    async fn check_event_time_ahead(
+        &self,
+        record: &EventRecord,
+    ) -> Result<()> {
+        let mut it = self.iter(true).await?;
+        if let Some(head_record) = it.next().await? {
+            if record.time().0 < head_record.time().0 {
+                println!("record: {:#?}", record.time().0);
+                println!("head: {:#?}", head_record.time().0);
+                return Err(Error::EventTimeBehind);
+            }
+        }
+        Ok(())
     }
 
     /// Append a collection of events and commit the tree hashes
@@ -511,6 +531,8 @@ where
         let mut last_commit_hash = self.tree().last_commit();
 
         for mut record in records {
+            println!("apply_record: {:#?}", record.time());
+
             record.set_last_commit(last_commit_hash);
             let mut buf = encode(&record).await?;
             buffer.append(&mut buf);
