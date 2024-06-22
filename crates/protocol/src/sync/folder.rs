@@ -58,8 +58,6 @@ where
         let id = *self.folder_id();
         let index = &mut self.index;
 
-        println!("MERGING IDENTITY FOLDER");
-
         self.folder
             .merge(diff, FolderMergeOptions::Urn(id, index))
             .await
@@ -239,9 +237,6 @@ where
                     }
                 }
             }
-        } else {
-            // FIXME: handle conflict situation
-            println!("todo! folder patch could not be merged");
         }
 
         Ok(checked_patch)

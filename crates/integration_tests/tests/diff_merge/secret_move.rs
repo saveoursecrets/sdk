@@ -65,7 +65,6 @@ async fn diff_merge_secret_move() -> Result<()> {
 
     println!("default folder id: {}", default_folder.id());
     println!("new folder id: {}", summary.id());
-
     println!("Merging the changes: {:#?}", diff.folders.len());
 
     /*
