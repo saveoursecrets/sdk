@@ -46,6 +46,11 @@ impl EventRecord {
         &self.0
     }
 
+    /// Set the record time.
+    pub fn set_time(&mut self, time: UtcDateTime) {
+        self.0 = time;
+    }
+
     /// Last commit hash for the record.
     pub fn last_commit(&self) -> &CommitHash {
         &self.1

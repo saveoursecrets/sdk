@@ -10,7 +10,7 @@ use sos_net::{
 #[tokio::test]
 async fn diff_merge_secret_move() -> Result<()> {
     const TEST_ID: &str = "diff_merge_secret_move";
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 2).await?;
     let data_dir = dirs.clients.remove(0);
@@ -64,7 +64,6 @@ async fn diff_merge_secret_move() -> Result<()> {
 
     // Merge the changes
     remote.merge(diff, &mut MergeOutcome::default()).await?;
-
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
 
     // Should have the additional folder now

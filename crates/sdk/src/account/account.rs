@@ -2518,7 +2518,7 @@ impl Account for LocalAccount {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer
-                .import_folder(buffer.as_ref(), Some(&key), true)
+                .import_folder(buffer.as_ref(), Some(&key), true, None)
                 .await?
         };
 

@@ -208,8 +208,12 @@ impl Merge for LocalAccount {
 
         if let CheckedPatch::Success(_) = &checked_patch {
             for record in diff.patch.iter() {
+                let time = record.time();
                 let event = record.decode_event::<AccountEvent>().await?;
-                tracing::debug!(event_kind = %event.event_kind());
+                tracing::debug!(
+                    time = %time,
+                    event_kind = %event.event_kind(),
+                );
 
                 match &event {
                     AccountEvent::Noop => {
@@ -244,7 +248,12 @@ impl Merge for LocalAccount {
                             let storage = self.storage().await?;
                             let mut storage = storage.write().await;
                             storage
-                                .import_folder(buf, Some(&key), false)
+                                .import_folder(
+                                    buf,
+                                    Some(&key),
+                                    false,
+                                    Some(time),
+                                )
                                 .await?;
                         }
                     }
