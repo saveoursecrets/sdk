@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.14.1"
+version = "0.14.2"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -82,7 +82,7 @@ version = "0.14.1"
 path = "../sdk"
 
 [dependencies.sos-protocol]
-version = "0.14.1"
+version = "0.14.2"
 path = "../protocol"
 features = ["account"]
 
