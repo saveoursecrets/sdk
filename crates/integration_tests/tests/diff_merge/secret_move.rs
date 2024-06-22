@@ -11,7 +11,7 @@ use sos_net::{
 #[ignore]
 async fn diff_merge_secret_move() -> Result<()> {
     const TEST_ID: &str = "diff_merge_secret_move";
-    crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 2).await?;
     let data_dir = dirs.clients.remove(0);
@@ -66,7 +66,7 @@ async fn diff_merge_secret_move() -> Result<()> {
     println!("default folder id: {}", default_folder.id());
     println!("new folder id: {}", summary.id());
 
-    // println!("Merging the changes: {:#?}", diff);
+    println!("Merging the changes: {:#?}", diff.folders.len());
 
     /*
     for (id, folder_diff) in &diff.folders {

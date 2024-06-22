@@ -57,6 +57,9 @@ where
     async fn merge(&mut self, diff: FolderDiff) -> Result<CheckedPatch> {
         let id = *self.folder_id();
         let index = &mut self.index;
+
+        println!("MERGING IDENTITY FOLDER");
+
         self.folder
             .merge(diff, FolderMergeOptions::Urn(id, index))
             .await
