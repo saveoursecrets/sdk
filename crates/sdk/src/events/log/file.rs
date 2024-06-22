@@ -536,8 +536,6 @@ where
         let mut last_commit_hash = self.tree().last_commit();
 
         for mut record in records {
-            println!("apply_record: {:#?}", record.time());
-
             record.set_last_commit(last_commit_hash);
             let mut buf = encode(&record).await?;
             buffer.append(&mut buf);

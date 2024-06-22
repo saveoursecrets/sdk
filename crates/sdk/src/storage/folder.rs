@@ -5,8 +5,9 @@ use crate::{
     crypto::AccessKey,
     decode,
     events::{
-        DiscData, DiscLog, EventLogExt, FolderEventLog, FolderReducer,
-        MemoryData, MemoryFolderLog, MemoryLog, ReadEvent, WriteEvent,
+        DiscData, DiscLog, EventLogExt, EventRecord, FolderEventLog,
+        FolderReducer, MemoryData, MemoryFolderLog, MemoryLog, ReadEvent,
+        WriteEvent,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
@@ -192,6 +193,16 @@ where
     ) -> Result<()> {
         let mut event_log = self.events.write().await;
         event_log.apply(events).await?;
+        Ok(())
+    }
+
+    /// Apply event recordds to the event log.
+    pub(super) async fn apply_records(
+        &mut self,
+        records: Vec<EventRecord>,
+    ) -> Result<()> {
+        let mut event_log = self.events.write().await;
+        event_log.apply_records(records).await?;
         Ok(())
     }
 

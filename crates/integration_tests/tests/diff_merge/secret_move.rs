@@ -1,14 +1,13 @@
 use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_net::{
-    protocol::{diff, MaybeDiff, Merge, MergeOutcome, SyncStorage},
+    protocol::{diff, Merge, MergeOutcome, SyncStorage},
     sdk::prelude::*,
 };
 
 /// Tests creating a diff and merging a move secret
 /// event without any networking.
 #[tokio::test]
-#[ignore]
 async fn diff_merge_secret_move() -> Result<()> {
     const TEST_ID: &str = "diff_merge_secret_move";
     // crate::test_utils::init_tracing();
@@ -62,22 +61,6 @@ async fn diff_merge_secret_move() -> Result<()> {
     let remote_status = remote.sync_status().await?;
     let (needs_sync, _status, diff) = diff(&local, remote_status).await?;
     assert!(needs_sync);
-
-    println!("default folder id: {}", default_folder.id());
-    println!("new folder id: {}", summary.id());
-    println!("Merging the changes: {:#?}", diff.folders.len());
-
-    /*
-    for (id, folder_diff) in &diff.folders {
-        if let MaybeDiff::Diff(diff) = folder_diff {
-            println!(
-                "{} {:#?}",
-                id,
-                diff.patch.records().first().map(|r| r.time())
-            );
-        }
-    }
-    */
 
     // Merge the changes
     remote.merge(diff, &mut MergeOutcome::default()).await?;

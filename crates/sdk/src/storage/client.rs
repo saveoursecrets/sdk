@@ -6,7 +6,7 @@ use crate::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventLogExt, FolderEventLog,
-        FolderReducer, ReadEvent, WriteEvent,
+        FolderReducer, IntoRecord, ReadEvent, WriteEvent,
     },
     identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
@@ -374,7 +374,8 @@ impl ClientStorage {
         // Import folders
         for folder in &account.folders {
             let buffer = encode(folder).await?;
-            let (event, _) = self.import_folder(buffer, None, true).await?;
+            let (event, _) =
+                self.import_folder(buffer, None, true, None).await?;
             events.push(event);
         }
 
@@ -433,6 +434,7 @@ impl ClientStorage {
         &mut self,
         summary: &Summary,
         vault: Option<Vault>,
+        creation_time: Option<&UtcDateTime>,
     ) -> Result<()> {
         let vault_path = self.paths.vault_path(summary.id());
         let mut event_log = DiscFolder::new(&vault_path).await?;
@@ -443,7 +445,17 @@ impl ClientStorage {
             event_log.clear().await?;
 
             let (_, events) = FolderReducer::split(vault).await?;
-            event_log.apply(events.iter().collect()).await?;
+
+            let mut records = Vec::with_capacity(events.len());
+            for event in events.iter() {
+                records.push(event.default_record().await?);
+            }
+            if let (Some(creation_time), Some(event)) =
+                (creation_time, records.get_mut(0))
+            {
+                event.set_time(creation_time.to_owned());
+            }
+            event_log.apply_records(records).await?;
         }
 
         self.cache.insert(*summary.id(), event_log);
@@ -508,7 +520,7 @@ impl ClientStorage {
         for summary in summaries {
             // Ensure we don't overwrite existing data
             if self.cache().get(summary.id()).is_none() {
-                self.create_cache_entry(summary, None).await?;
+                self.create_cache_entry(summary, None, None).await?;
             }
         }
         Ok(())
@@ -637,7 +649,7 @@ impl ClientStorage {
         self.add_summary(summary.clone());
 
         // Initialize the local cache for the event log
-        self.create_cache_entry(&summary, Some(vault)).await?;
+        self.create_cache_entry(&summary, Some(vault), None).await?;
 
         self.unlock_folder(summary.id(), &key).await?;
 
@@ -661,9 +673,11 @@ impl ClientStorage {
         buffer: impl AsRef<[u8]>,
         key: Option<&AccessKey>,
         apply_event: bool,
+        creation_time: Option<&UtcDateTime>,
     ) -> Result<(Event, Summary)> {
-        let (exists, write_event, summary) =
-            self.upsert_vault_buffer(buffer.as_ref(), key).await?;
+        let (exists, write_event, summary) = self
+            .upsert_vault_buffer(buffer.as_ref(), key, creation_time)
+            .await?;
 
         // If there is an existing folder
         // and we are overwriting then log the update
@@ -744,6 +758,7 @@ impl ClientStorage {
         &mut self,
         buffer: impl AsRef<[u8]>,
         key: Option<&AccessKey>,
+        creation_time: Option<&UtcDateTime>,
     ) -> Result<(bool, WriteEvent, Summary)> {
         let vault: Vault = decode(buffer.as_ref()).await?;
         let exists = self.find(|s| s.id() == vault.id()).is_some();
@@ -784,7 +799,8 @@ impl ClientStorage {
         let event = vault.into_event().await?;
 
         // Initialize the local cache for event log
-        self.create_cache_entry(&summary, Some(vault)).await?;
+        self.create_cache_entry(&summary, Some(vault), creation_time)
+            .await?;
 
         // Must ensure the folder is unlocked
         if let Some(key) = key {
