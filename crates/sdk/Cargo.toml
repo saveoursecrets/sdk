@@ -92,7 +92,7 @@ futures-util = "0.3"
 async-stream = "0.3"
 whoami = { version = "1.5" }
 anyhow = {version = "1", optional = true }
-vsss-rs = {version = "3", optional = true }
+vsss-rs = {version = "4", optional = true }
 tracing-appender = { version = "0.2", optional = true }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "json"], optional = true }
 rev_buf_reader = { version = "0.3", optional = true }
