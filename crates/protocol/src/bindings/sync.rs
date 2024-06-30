@@ -669,13 +669,63 @@ impl TryFrom<WireTrackedAccountChange> for TrackedAccountChange {
     type Error = Error;
 
     fn try_from(value: WireTrackedAccountChange) -> Result<Self> {
-        todo!();
+        Ok(match value.inner.unwrap() {
+            wire_tracked_account_change::Inner::FolderCreated(inner) => {
+                TrackedAccountChange::FolderCreated(decode_uuid(
+                    &inner.folder_id,
+                )?)
+            }
+            wire_tracked_account_change::Inner::FolderUpdated(inner) => {
+                TrackedAccountChange::FolderUpdated(decode_uuid(
+                    &inner.folder_id,
+                )?)
+            }
+            wire_tracked_account_change::Inner::FolderDeleted(inner) => {
+                TrackedAccountChange::FolderDeleted(decode_uuid(
+                    &inner.folder_id,
+                )?)
+            }
+        })
     }
 }
 
 impl From<TrackedAccountChange> for WireTrackedAccountChange {
     fn from(value: TrackedAccountChange) -> Self {
-        todo!();
+        match value {
+            TrackedAccountChange::FolderCreated(folder_id) => {
+                WireTrackedAccountChange {
+                    inner: Some(
+                        wire_tracked_account_change::Inner::FolderCreated(
+                            WireTrackedAccountFolderCreated {
+                                folder_id: encode_uuid(&folder_id),
+                            },
+                        ),
+                    ),
+                }
+            }
+            TrackedAccountChange::FolderUpdated(folder_id) => {
+                WireTrackedAccountChange {
+                    inner: Some(
+                        wire_tracked_account_change::Inner::FolderUpdated(
+                            WireTrackedAccountFolderUpdated {
+                                folder_id: encode_uuid(&folder_id),
+                            },
+                        ),
+                    ),
+                }
+            }
+            TrackedAccountChange::FolderDeleted(folder_id) => {
+                WireTrackedAccountChange {
+                    inner: Some(
+                        wire_tracked_account_change::Inner::FolderDeleted(
+                            WireTrackedAccountFolderDeleted {
+                                folder_id: encode_uuid(&folder_id),
+                            },
+                        ),
+                    ),
+                }
+            }
+        }
     }
 }
 
@@ -687,13 +737,47 @@ impl TryFrom<WireTrackedDeviceChange> for TrackedDeviceChange {
     type Error = Error;
 
     fn try_from(value: WireTrackedDeviceChange) -> Result<Self> {
-        todo!();
+        Ok(match value.inner.unwrap() {
+            wire_tracked_device_change::Inner::Trusted(inner) => {
+                TrackedDeviceChange::Trusted(
+                    inner.device_public_key.as_slice().try_into()?,
+                )
+            }
+            wire_tracked_device_change::Inner::Revoked(inner) => {
+                TrackedDeviceChange::Revoked(
+                    inner.device_public_key.as_slice().try_into()?,
+                )
+            }
+        })
     }
 }
 
 impl From<TrackedDeviceChange> for WireTrackedDeviceChange {
     fn from(value: TrackedDeviceChange) -> Self {
-        todo!();
+        match value {
+            TrackedDeviceChange::Trusted(device_public_key) => {
+                WireTrackedDeviceChange {
+                    inner: Some(wire_tracked_device_change::Inner::Trusted(
+                        WireTrackedDeviceChangeTrusted {
+                            device_public_key: device_public_key
+                                .as_ref()
+                                .to_vec(),
+                        },
+                    )),
+                }
+            }
+            TrackedDeviceChange::Revoked(device_public_key) => {
+                WireTrackedDeviceChange {
+                    inner: Some(wire_tracked_device_change::Inner::Revoked(
+                        WireTrackedDeviceChangeRevoked {
+                            device_public_key: device_public_key
+                                .as_ref()
+                                .to_vec(),
+                        },
+                    )),
+                }
+            }
+        }
     }
 }
 
@@ -729,12 +813,50 @@ impl TryFrom<WireTrackedFolderChange> for TrackedFolderChange {
     type Error = Error;
 
     fn try_from(value: WireTrackedFolderChange) -> Result<Self> {
-        todo!();
+        Ok(match value.inner.unwrap() {
+            wire_tracked_folder_change::Inner::Created(inner) => {
+                TrackedFolderChange::Created(decode_uuid(&inner.secret_id)?)
+            }
+            wire_tracked_folder_change::Inner::Updated(inner) => {
+                TrackedFolderChange::Updated(decode_uuid(&inner.secret_id)?)
+            }
+            wire_tracked_folder_change::Inner::Deleted(inner) => {
+                TrackedFolderChange::Deleted(decode_uuid(&inner.secret_id)?)
+            }
+        })
     }
 }
 
 impl From<TrackedFolderChange> for WireTrackedFolderChange {
     fn from(value: TrackedFolderChange) -> Self {
-        todo!();
+        match value {
+            TrackedFolderChange::Created(secret_id) => {
+                WireTrackedFolderChange {
+                    inner: Some(wire_tracked_folder_change::Inner::Created(
+                        WireTrackedFolderChangeCreated {
+                            secret_id: encode_uuid(&secret_id),
+                        },
+                    )),
+                }
+            }
+            TrackedFolderChange::Updated(secret_id) => {
+                WireTrackedFolderChange {
+                    inner: Some(wire_tracked_folder_change::Inner::Updated(
+                        WireTrackedFolderChangeUpdated {
+                            secret_id: encode_uuid(&secret_id),
+                        },
+                    )),
+                }
+            }
+            TrackedFolderChange::Deleted(secret_id) => {
+                WireTrackedFolderChange {
+                    inner: Some(wire_tracked_folder_change::Inner::Deleted(
+                        WireTrackedFolderChangeDeleted {
+                            secret_id: encode_uuid(&secret_id),
+                        },
+                    )),
+                }
+            }
+        }
     }
 }

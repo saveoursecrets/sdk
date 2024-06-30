@@ -202,9 +202,9 @@ message WireTrackedChanges {
 
 message WireTrackedAccountChange {
   oneof inner {
-    WireTrackedAccountFolderCreated created = 1;
-    WireTrackedAccountFolderUpdated updated = 2;
-    WireTrackedAccountFolderDeleted deleted = 3;
+    WireTrackedAccountFolderCreated folder_created = 1;
+    WireTrackedAccountFolderUpdated folder_updated = 2;
+    WireTrackedAccountFolderDeleted folder_deleted = 3;
   }
 }
 
@@ -290,4 +290,3 @@ message WireTrackedUserFolderChange {
   bytes folder_id = 1;
   repeated WireTrackedFolderChange changes = 2;
 }
-
