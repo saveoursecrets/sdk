@@ -24,6 +24,10 @@ pub struct EncryptedFile {
     pub digest: Vec<u8>,
 }
 
+/// Owner information for an external file.
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct FileOwner(pub VaultId, pub SecretId);
+
 /// External file name is an SHA2-256 checksum of
 /// the encrypted file contents.
 #[derive(
@@ -54,6 +58,15 @@ impl AsRef<[u8]> for ExternalFileName {
 impl From<[u8; 32]> for ExternalFileName {
     fn from(value: [u8; 32]) -> Self {
         Self(value)
+    }
+}
+
+impl TryFrom<&[u8]> for ExternalFileName {
+    type Error = Error;
+
+    fn try_from(value: &[u8]) -> Result<Self> {
+        let value: [u8; 32] = value.try_into()?;
+        Ok(value.into())
     }
 }
 

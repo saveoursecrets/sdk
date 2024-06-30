@@ -649,6 +649,8 @@ impl From<TrackedChanges> for WireTrackedChanges {
             device: value.device.into_iter().map(|c| c.into()).collect(),
             #[cfg(feature = "files")]
             files: value.files.into_iter().map(|c| c.into()).collect(),
+            #[cfg(not(feature = "files"))]
+            files: Default::default(),
             folders: value
                 .folders
                 .into_iter()
@@ -783,8 +785,16 @@ impl From<TrackedDeviceChange> for WireTrackedDeviceChange {
 
 #[cfg(feature = "files")]
 mod files {
-    use super::WireTrackedFileChange;
-    use crate::{Error, ProtoBinding, Result, TrackedFileChange};
+    use sos_sdk::storage::files::FileOwner;
+
+    use super::{
+        wire_tracked_file_change, WireFileOwner, WireTrackedFileChange,
+        WireTrackedFileDeleted, WireTrackedFileMoved,
+    };
+    use crate::{
+        bindings::sync::WireTrackedFileCreated, decode_uuid, encode_uuid,
+        Error, ProtoBinding, Result, TrackedFileChange,
+    };
 
     impl ProtoBinding for TrackedFileChange {
         type Inner = WireTrackedFileChange;
@@ -794,13 +804,89 @@ mod files {
         type Error = Error;
 
         fn try_from(value: WireTrackedFileChange) -> Result<Self> {
-            todo!();
+            Ok(match value.inner.unwrap() {
+                wire_tracked_file_change::Inner::Created(inner) => {
+                    TrackedFileChange::Created(
+                        inner.owner.unwrap().try_into()?,
+                        inner.file_name.as_slice().try_into()?,
+                    )
+                }
+                wire_tracked_file_change::Inner::Moved(inner) => {
+                    TrackedFileChange::Moved {
+                        name: inner.name.as_slice().try_into()?,
+                        from: inner.from.unwrap().try_into()?,
+                        dest: inner.dest.unwrap().try_into()?,
+                    }
+                }
+                wire_tracked_file_change::Inner::Deleted(inner) => {
+                    TrackedFileChange::Deleted(
+                        inner.owner.unwrap().try_into()?,
+                        inner.file_name.as_slice().try_into()?,
+                    )
+                }
+            })
         }
     }
 
     impl From<TrackedFileChange> for WireTrackedFileChange {
         fn from(value: TrackedFileChange) -> Self {
-            todo!();
+            match value {
+                TrackedFileChange::Created(owner, file_name) => {
+                    WireTrackedFileChange {
+                        inner: Some(
+                            wire_tracked_file_change::Inner::Created(
+                                WireTrackedFileCreated {
+                                    owner: Some(owner.into()),
+                                    file_name: file_name.as_ref().to_vec(),
+                                },
+                            ),
+                        ),
+                    }
+                }
+                TrackedFileChange::Moved { name, from, dest } => {
+                    WireTrackedFileChange {
+                        inner: Some(wire_tracked_file_change::Inner::Moved(
+                            WireTrackedFileMoved {
+                                name: name.as_ref().to_vec(),
+                                from: Some(from.into()),
+                                dest: Some(dest.into()),
+                            },
+                        )),
+                    }
+                }
+                TrackedFileChange::Deleted(owner, file_name) => {
+                    WireTrackedFileChange {
+                        inner: Some(
+                            wire_tracked_file_change::Inner::Deleted(
+                                WireTrackedFileDeleted {
+                                    owner: Some(owner.into()),
+                                    file_name: file_name.as_ref().to_vec(),
+                                },
+                            ),
+                        ),
+                    }
+                }
+            }
+        }
+    }
+
+    impl TryFrom<WireFileOwner> for FileOwner {
+        type Error = Error;
+
+        fn try_from(value: WireFileOwner) -> Result<Self> {
+            Ok(FileOwner(
+                decode_uuid(&value.folder_id)?,
+                decode_uuid(&value.secret_id)?,
+            ))
+        }
+    }
+
+    impl From<FileOwner> for WireFileOwner {
+        fn from(value: FileOwner) -> Self {
+            WireFileOwner {
+                folder_id: encode_uuid(&value.0),
+                secret_id: encode_uuid(&value.1),
+            }
         }
     }
 }

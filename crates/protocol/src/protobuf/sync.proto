@@ -244,26 +244,24 @@ message WireTrackedFileChange {
 }
 
 message WireTrackedFileCreated {
-  bytes folder_id = 1;
-  bytes secret_id = 2;
-  bytes file_name = 3;
+  WireFileOwner owner = 1;
+  bytes file_name = 2;
 }
 
 message WireTrackedFileMoved {
-  bytes file_name = 1;
-  WireTrackedFileOwner from = 2;
-  WireTrackedFileOwner dest = 3;
+  bytes name = 1;
+  WireFileOwner from = 2;
+  WireFileOwner dest = 3;
 }
 
-message WireTrackedFileOwner {
+message WireFileOwner {
   bytes folder_id = 1;
   bytes secret_id = 2;
 }
 
 message WireTrackedFileDeleted {
-  bytes folder_id = 1;
-  bytes secret_id = 2;
-  bytes file_name = 3;
+  WireFileOwner owner = 1;
+  bytes file_name = 2;
 }
 
 message WireTrackedFolderChange {

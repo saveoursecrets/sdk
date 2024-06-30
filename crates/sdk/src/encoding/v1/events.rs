@@ -11,7 +11,7 @@ use crate::{
 use crate::events::DeviceEvent;
 
 #[cfg(feature = "files")]
-use crate::events::FileEvent;
+use crate::{events::FileEvent, storage::files::FileOwner};
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Error, ErrorKind, Result, SeekFrom};
@@ -501,11 +501,11 @@ impl Decodable for FileEvent {
                 let name = reader.read_bytes(32).await?;
                 let name: [u8; 32] =
                     name.as_slice().try_into().map_err(encoding_error)?;
-                let from = (
+                let from = FileOwner(
                     decode_uuid(&mut *reader).await?,
                     decode_uuid(&mut *reader).await?,
                 );
-                let dest = (
+                let dest = FileOwner(
                     decode_uuid(&mut *reader).await?,
                     decode_uuid(&mut *reader).await?,
                 );

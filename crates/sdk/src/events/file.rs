@@ -1,10 +1,9 @@
 //! Event for modifications to external files.
 use super::{EventKind, LogEvent};
 use crate::{
-    storage::files::ExternalFileName,
+    storage::files::{ExternalFileName, FileOwner},
     vault::{secret::SecretId, VaultId},
 };
-use serde::{Deserialize, Serialize};
 
 /// File event records changes to external files
 ///
@@ -12,7 +11,7 @@ use serde::{Deserialize, Serialize};
 /// are content-addressable by SHA256 digest so
 /// changing a file's contents results in a
 /// delete and create.
-#[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub enum FileEvent {
     #[default]
     #[doc(hidden)]
@@ -24,9 +23,9 @@ pub enum FileEvent {
         /// File name.
         name: ExternalFileName,
         /// From identifiers.
-        from: (VaultId, SecretId),
+        from: FileOwner,
         /// Destination identifiers.
-        dest: (VaultId, SecretId),
+        dest: FileOwner,
     },
     /// File was deleted.
     DeleteFile(VaultId, SecretId, ExternalFileName),
