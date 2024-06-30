@@ -7,10 +7,11 @@ use crate::{
         events::{Diff, EventRecord, Patch},
     },
     CreateSet, Error, MaybeDiff, MergeOutcome, Origin, ProtoBinding, Result,
-    SyncCompare, SyncDiff, SyncPacket, SyncStatus, UpdateSet,
+    SyncCompare, SyncDiff, SyncPacket, SyncStatus, TrackedAccountChange,
+    TrackedChanges, TrackedDeviceChange, TrackedFolderChange, UpdateSet,
 };
 use indexmap::{IndexMap, IndexSet};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 impl ProtoBinding for Origin {
     type Inner = WireOrigin;
@@ -557,6 +558,7 @@ impl TryFrom<WireMergeOutcome> for MergeOutcome {
             #[cfg(feature = "files")]
             files: value.files,
             folders,
+            tracked: value.tracked.unwrap().try_into()?,
             #[cfg(feature = "files")]
             external_files: IndexSet::new(),
         })
@@ -582,6 +584,157 @@ impl From<MergeOutcome> for WireMergeOutcome {
                     changes: v,
                 })
                 .collect(),
+            tracked: Some(value.tracked.into()),
         }
+    }
+}
+
+impl ProtoBinding for TrackedChanges {
+    type Inner = WireTrackedChanges;
+}
+
+impl TryFrom<WireTrackedChanges> for TrackedChanges {
+    type Error = Error;
+
+    fn try_from(value: WireTrackedChanges) -> Result<Self> {
+        let mut identity = HashSet::with_capacity(value.identity.len());
+        for change in value.identity {
+            identity.insert(change.try_into()?);
+        }
+
+        let mut account = HashSet::with_capacity(value.account.len());
+        for change in value.account {
+            account.insert(change.try_into()?);
+        }
+
+        let mut device = HashSet::with_capacity(value.device.len());
+        for change in value.device {
+            device.insert(change.try_into()?);
+        }
+
+        #[cfg(feature = "files")]
+        let files = {
+            let mut files = HashSet::with_capacity(value.files.len());
+            for change in value.files {
+                files.insert(change.try_into()?);
+            }
+            files
+        };
+
+        let mut folders = HashMap::with_capacity(value.folders.len());
+        for folder in value.folders {
+            let mut changes = HashSet::with_capacity(folder.changes.len());
+            for change in folder.changes {
+                changes.insert(change.try_into()?);
+            }
+            folders.insert(decode_uuid(&folder.folder_id)?, changes);
+        }
+
+        Ok(Self {
+            identity,
+            account,
+            device,
+            #[cfg(feature = "files")]
+            files,
+            folders,
+        })
+    }
+}
+
+impl From<TrackedChanges> for WireTrackedChanges {
+    fn from(value: TrackedChanges) -> Self {
+        Self {
+            identity: value.identity.into_iter().map(|c| c.into()).collect(),
+            account: value.account.into_iter().map(|c| c.into()).collect(),
+            device: value.device.into_iter().map(|c| c.into()).collect(),
+            #[cfg(feature = "files")]
+            files: value.files.into_iter().map(|c| c.into()).collect(),
+            folders: value
+                .folders
+                .into_iter()
+                .map(|(k, v)| WireTrackedUserFolderChange {
+                    folder_id: encode_uuid(&k),
+                    changes: v.into_iter().map(|c| c.into()).collect(),
+                })
+                .collect(),
+        }
+    }
+}
+
+impl ProtoBinding for TrackedAccountChange {
+    type Inner = WireTrackedAccountChange;
+}
+
+impl TryFrom<WireTrackedAccountChange> for TrackedAccountChange {
+    type Error = Error;
+
+    fn try_from(value: WireTrackedAccountChange) -> Result<Self> {
+        todo!();
+    }
+}
+
+impl From<TrackedAccountChange> for WireTrackedAccountChange {
+    fn from(value: TrackedAccountChange) -> Self {
+        todo!();
+    }
+}
+
+impl ProtoBinding for TrackedDeviceChange {
+    type Inner = WireTrackedDeviceChange;
+}
+
+impl TryFrom<WireTrackedDeviceChange> for TrackedDeviceChange {
+    type Error = Error;
+
+    fn try_from(value: WireTrackedDeviceChange) -> Result<Self> {
+        todo!();
+    }
+}
+
+impl From<TrackedDeviceChange> for WireTrackedDeviceChange {
+    fn from(value: TrackedDeviceChange) -> Self {
+        todo!();
+    }
+}
+
+#[cfg(feature = "files")]
+mod files {
+    use super::WireTrackedFileChange;
+    use crate::{Error, ProtoBinding, Result, TrackedFileChange};
+
+    impl ProtoBinding for TrackedFileChange {
+        type Inner = WireTrackedFileChange;
+    }
+
+    impl TryFrom<WireTrackedFileChange> for TrackedFileChange {
+        type Error = Error;
+
+        fn try_from(value: WireTrackedFileChange) -> Result<Self> {
+            todo!();
+        }
+    }
+
+    impl From<TrackedFileChange> for WireTrackedFileChange {
+        fn from(value: TrackedFileChange) -> Self {
+            todo!();
+        }
+    }
+}
+
+impl ProtoBinding for TrackedFolderChange {
+    type Inner = WireTrackedFolderChange;
+}
+
+impl TryFrom<WireTrackedFolderChange> for TrackedFolderChange {
+    type Error = Error;
+
+    fn try_from(value: WireTrackedFolderChange) -> Result<Self> {
+        todo!();
+    }
+}
+
+impl From<TrackedFolderChange> for WireTrackedFolderChange {
+    fn from(value: TrackedFolderChange) -> Self {
+        todo!();
     }
 }
