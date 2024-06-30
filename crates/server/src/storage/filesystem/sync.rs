@@ -174,7 +174,6 @@ impl ForceMerge for ServerStorage {
         let buffer = encode(&vault).await?;
         vfs::write(self.paths.identity_vault(), buffer).await?;
 
-        outcome.identity = len;
         outcome.changes += len;
         Ok(())
     }
@@ -196,7 +195,6 @@ impl ForceMerge for ServerStorage {
         let mut event_log = event_log.write().await;
         event_log.patch_replace(diff).await?;
 
-        outcome.identity = len;
         outcome.changes += len;
 
         Ok(())
@@ -224,7 +222,6 @@ impl ForceMerge for ServerStorage {
         let devices = reducer.reduce().await?;
         self.devices = devices;
 
-        outcome.identity = len;
         outcome.changes += len;
 
         Ok(())
@@ -248,7 +245,6 @@ impl ForceMerge for ServerStorage {
         let mut event_log = event_log.write().await;
         event_log.patch_replace(diff).await?;
 
-        outcome.identity = len;
         outcome.changes += len;
 
         Ok(())
@@ -287,7 +283,6 @@ impl ForceMerge for ServerStorage {
         self.cache_mut()
             .insert(*folder_id, Arc::new(RwLock::new(event_log)));
 
-        outcome.folders.insert(*folder_id, len);
         outcome.changes += len;
 
         Ok(())
@@ -312,7 +307,6 @@ impl Merge for ServerStorage {
             writer.patch_checked(&diff.checkpoint, &diff.patch).await?;
 
         if let CheckedPatch::Success(_) = &checked_patch {
-            outcome.identity = diff.patch.len() as u64;
             outcome.changes += diff.patch.len() as u64;
         }
 
@@ -388,7 +382,6 @@ impl Merge for ServerStorage {
                 }
             }
 
-            outcome.account = diff.patch.len() as u64;
             outcome.changes += diff.patch.len() as u64;
         } else {
             // FIXME: handle conflict situation
@@ -430,7 +423,6 @@ impl Merge for ServerStorage {
             let reducer = DeviceReducer::new(&*event_log);
             self.devices = reducer.reduce().await?;
 
-            outcome.device = diff.patch.len() as u64;
             outcome.changes += diff.patch.len() as u64;
         } else {
             // FIXME: handle conflict situation
@@ -476,7 +468,6 @@ impl Merge for ServerStorage {
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {
-            outcome.files = diff.patch.len() as u64;
             outcome.changes += diff.patch.len() as u64;
         }
 
@@ -513,7 +504,6 @@ impl Merge for ServerStorage {
             log.patch_checked(&diff.checkpoint, &diff.patch).await?;
 
         if let CheckedPatch::Success(_) = &checked_patch {
-            outcome.folders.insert(*folder_id, len);
             outcome.changes += len;
         }
 

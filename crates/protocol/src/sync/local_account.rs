@@ -45,7 +45,6 @@ impl ForceMerge for LocalAccount {
         );
 
         self.user_mut()?.identity_mut()?.force_merge(diff).await?;
-        outcome.identity = len;
         outcome.changes += len;
         Ok(())
     }
@@ -67,7 +66,6 @@ impl ForceMerge for LocalAccount {
         let mut event_log = event_log.write().await;
         event_log.patch_replace(diff).await?;
 
-        outcome.identity = len;
         outcome.changes += len;
 
         Ok(())
@@ -90,7 +88,6 @@ impl ForceMerge for LocalAccount {
         let mut event_log = event_log.write().await;
         event_log.patch_replace(diff).await?;
 
-        outcome.identity = len;
         outcome.changes += len;
 
         Ok(())
@@ -115,7 +112,6 @@ impl ForceMerge for LocalAccount {
         let mut event_log = event_log.write().await;
         event_log.patch_replace(diff).await?;
 
-        outcome.identity = len;
         outcome.changes += len;
 
         Ok(())
@@ -145,7 +141,6 @@ impl ForceMerge for LocalAccount {
             .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
         folder.force_merge(diff).await?;
 
-        outcome.folders.insert(*folder_id, len);
         outcome.changes += len;
 
         Ok(())
@@ -171,7 +166,6 @@ impl Merge for LocalAccount {
             self.user_mut()?.identity_mut()?.merge(diff).await?;
 
         if let CheckedPatch::Success(_) = &checked_patch {
-            outcome.identity = len;
             outcome.changes += len;
         }
 
@@ -281,7 +275,6 @@ impl Merge for LocalAccount {
                 }
             }
 
-            outcome.account = diff.patch.len() as u64;
             outcome.changes += diff.patch.len() as u64;
         }
 
@@ -330,7 +323,6 @@ impl Merge for LocalAccount {
             let mut storage = storage.write().await;
             storage.devices = devices;
 
-            outcome.device = diff.patch.len() as u64;
             outcome.changes += diff.patch.len() as u64;
         } else {
             // FIXME: handle conflict situation
@@ -389,7 +381,6 @@ impl Merge for LocalAccount {
         outcome.external_files = external_files;
 
         if let CheckedPatch::Success(_) = &checked_patch {
-            outcome.files = diff.patch.len() as u64;
             outcome.changes += diff.patch.len() as u64;
         }
 
@@ -459,7 +450,6 @@ impl Merge for LocalAccount {
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {
-            outcome.folders.insert(*folder_id, len);
             outcome.changes += len;
         }
 

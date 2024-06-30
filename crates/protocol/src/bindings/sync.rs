@@ -545,19 +545,8 @@ impl TryFrom<WireMergeOutcome> for MergeOutcome {
     type Error = Error;
 
     fn try_from(value: WireMergeOutcome) -> Result<Self> {
-        let mut folders = HashMap::with_capacity(value.folders.len());
-        for folder in value.folders {
-            folders.insert(decode_uuid(&folder.folder_id)?, folder.changes);
-        }
-
         Ok(Self {
             changes: value.changes,
-            identity: value.identity,
-            account: value.account,
-            device: value.device,
-            #[cfg(feature = "files")]
-            files: value.files,
-            folders,
             tracked: value.tracked.unwrap().try_into()?,
             #[cfg(feature = "files")]
             external_files: IndexSet::new(),
@@ -569,21 +558,6 @@ impl From<MergeOutcome> for WireMergeOutcome {
     fn from(value: MergeOutcome) -> Self {
         Self {
             changes: value.changes,
-            identity: value.identity,
-            account: value.account,
-            device: value.device,
-            #[cfg(feature = "files")]
-            files: value.files,
-            #[cfg(not(feature = "files"))]
-            files: 0,
-            folders: value
-                .folders
-                .into_iter()
-                .map(|(k, v)| WireFolderMergeOutcome {
-                    folder_id: encode_uuid(&k),
-                    changes: v,
-                })
-                .collect(),
             tracked: Some(value.tracked.into()),
         }
     }

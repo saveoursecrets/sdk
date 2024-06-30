@@ -248,20 +248,8 @@ pub struct UpdateSet {
 /// Outcome of a merge operation.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct MergeOutcome {
-    /// Total number of changes made during the merge.
+    /// Total number of changes made during a merge.
     pub changes: u64,
-    /// Number of changes to the identity folder.
-    pub identity: u64,
-    /// Number of changes to the account event log.
-    pub account: u64,
-    /// Number of changes to the device event log.
-    pub device: u64,
-    /// Number of changes to the file event log.
-    #[cfg(feature = "files")]
-    pub files: u64,
-    /// Number of changes to the folder event logs.
-    pub folders: HashMap<VaultId, u64>,
-
     /// Tracked changes that were made during a merge.
     pub tracked: TrackedChanges,
 
