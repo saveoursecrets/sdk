@@ -188,4 +188,106 @@ message WireMergeOutcome {
   uint64 files = 5;
   // Number of changes to the folder event logs.
   repeated WireFolderMergeOutcome folders = 6;
+  // Tracked changes made during a merge.
+  WireTrackedChanges tracked = 7;
 }
+
+message WireTrackedChanges {
+  repeated WireTrackedFolderChange identity = 1;
+  repeated WireTrackedAccountChange account = 2;
+  repeated WireTrackedDeviceChange device = 3;
+  repeated WireTrackedFileChange files = 4;
+  repeated WireTrackedUserFolderChange folders = 5;
+}
+
+message WireTrackedAccountChange {
+  oneof inner {
+    WireTrackedAccountFolderCreated created = 1;
+    WireTrackedAccountFolderUpdated updated = 2;
+    WireTrackedAccountFolderDeleted deleted = 3;
+  }
+}
+
+message WireTrackedAccountFolderCreated {
+  bytes folder_id = 1;
+}
+
+message WireTrackedAccountFolderUpdated {
+  bytes folder_id = 1;
+}
+
+message WireTrackedAccountFolderDeleted {
+  bytes folder_id = 1;
+}
+
+message WireTrackedDeviceChange {
+  oneof inner {
+    WireTrackedDeviceChangeTrusted trusted = 1;
+    WireTrackedDeviceChangeRevoked revoked = 2;
+  }
+}
+
+message WireTrackedDeviceChangeTrusted {
+  bytes device_public_key = 1;
+}
+
+message WireTrackedDeviceChangeRevoked {
+  bytes device_public_key = 1;
+}
+
+message WireTrackedFileChange {
+  oneof inner {
+    WireTrackedFileCreated created = 1;
+    WireTrackedFileMoved moved = 2;
+    WireTrackedFileDeleted deleted = 3;
+  }
+}
+
+message WireTrackedFileCreated {
+  bytes folder_id = 1;
+  bytes secret_id = 2;
+  bytes file_name = 3;
+}
+
+message WireTrackedFileMoved {
+  bytes file_name = 1;
+  WireTrackedFileOwner from = 2;
+  WireTrackedFileOwner dest = 3;
+}
+
+message WireTrackedFileOwner {
+  bytes folder_id = 1;
+  bytes secret_id = 2;
+}
+
+message WireTrackedFileDeleted {
+  bytes folder_id = 1;
+  bytes secret_id = 2;
+  bytes file_name = 3;
+}
+
+message WireTrackedFolderChange {
+  oneof inner {
+    WireTrackedFolderChangeCreated created = 1;
+    WireTrackedFolderChangeUpdated updated = 2;
+    WireTrackedFolderChangeDeleted deleted = 3;
+  }
+}
+
+message WireTrackedFolderChangeCreated {
+  bytes secret_id = 1;
+}
+
+message WireTrackedFolderChangeUpdated {
+  bytes secret_id = 1;
+}
+
+message WireTrackedFolderChangeDeleted {
+  bytes secret_id = 1;
+}
+
+message WireTrackedUserFolderChange {
+  bytes folder_id = 1;
+  repeated WireTrackedFolderChange changes = 2;
+}
+

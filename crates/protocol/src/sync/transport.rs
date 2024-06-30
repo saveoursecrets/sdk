@@ -2,25 +2,27 @@
 //! between the client and server.
 use crate::sdk::{
     commit::{CommitHash, CommitState, Comparison},
-    events::{AccountDiff, AccountPatch, FolderDiff, FolderPatch},
-    vault::VaultId,
+    device::DevicePublicKey,
+    events::{
+        AccountDiff, AccountPatch, DeviceDiff, DevicePatch, FolderDiff,
+        FolderPatch,
+    },
+    vault::{secret::SecretId, VaultId},
 };
 use crate::sync::MaybeConflict;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt,
     hash::{Hash, Hasher},
 };
 use url::Url;
 
-use crate::sdk::events::{DeviceDiff, DevicePatch};
-
 #[cfg(feature = "files")]
 use crate::sdk::{
     events::{FileDiff, FilePatch},
-    storage::files::ExternalFile,
+    storage::files::{ExternalFile, ExternalFileName},
 };
 
 /// Types of event logs.
@@ -260,6 +262,9 @@ pub struct MergeOutcome {
     /// Number of changes to the folder event logs.
     pub folders: HashMap<VaultId, u64>,
 
+    /// Tracked changes that were made during a merge.
+    pub tracked: TrackedChanges,
+
     /// Collection of external files detected when merging
     /// file events logs, must never be serialized over
     /// the wire.
@@ -268,4 +273,74 @@ pub struct MergeOutcome {
     #[doc(hidden)]
     #[cfg(feature = "files")]
     pub external_files: IndexSet<ExternalFile>,
+}
+
+/// Changes tracking during a merge operation.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct TrackedChanges {
+    /// Changes made to the identity folder.
+    pub identity: HashSet<TrackedFolderChange>,
+
+    /// Changes made to the devices collection.
+    pub device: HashSet<TrackedDeviceChange>,
+
+    /// Changes made to the account.
+    pub account: HashSet<TrackedAccountChange>,
+
+    /// Changes to the files log.
+    #[cfg(feature = "files")]
+    pub files: HashSet<TrackedFileChange>,
+
+    /// Change made to each folder.
+    pub folders: HashMap<VaultId, HashSet<TrackedFolderChange>>,
+}
+
+/// Change made to a device.
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum TrackedDeviceChange {
+    /// Device was trusted.
+    Trusted(DevicePublicKey),
+    /// Device was revoked.
+    Revoked(DevicePublicKey),
+}
+
+/// Change made to an account.
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum TrackedAccountChange {
+    /// Folder was added.
+    FolderCreated(VaultId),
+    /// Folder was updated.
+    FolderUpdated(VaultId),
+    /// Folder was deleted.
+    FolderDeleted(VaultId),
+}
+
+/// Change made to file event logs.
+#[cfg(feature = "files")]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum TrackedFileChange {
+    /// File was created in the log.
+    Created(VaultId, SecretId, ExternalFileName),
+    /// File was moved in the log.
+    Moved {
+        /// File name.
+        name: ExternalFileName,
+        /// From identifiers.
+        from: (VaultId, SecretId),
+        /// Destination identifiers.
+        dest: (VaultId, SecretId),
+    },
+    /// File was deleted in the log.
+    Deleted(VaultId, SecretId, ExternalFileName),
+}
+
+/// Change made to a folder.
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum TrackedFolderChange {
+    /// Secret was created.
+    Created(SecretId),
+    /// Secret was updated.
+    Updated(SecretId),
+    /// Secret was deleted.
+    Deleted(SecretId),
 }
