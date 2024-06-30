@@ -53,6 +53,19 @@ impl ChangeNotification {
     }
 }
 
+impl From<ChangeNotification>
+    for (Address, String, CommitHash, MergeOutcome)
+{
+    fn from(value: ChangeNotification) -> Self {
+        (
+            value.address,
+            value.connection_id,
+            value.root,
+            value.outcome,
+        )
+    }
+}
+
 impl ProtoBinding for ChangeNotification {
     type Inner = WireChangeNotification;
 }
