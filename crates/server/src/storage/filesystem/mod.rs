@@ -171,12 +171,6 @@ impl ServerStorage {
         Arc::clone(&self.paths)
     }
 
-    /// Read the summary of the identity vault.
-    pub async fn identity_folder_summary(&self) -> Result<Summary> {
-        let path = self.paths.identity_vault();
-        Ok(Header::read_summary_file(path).await?)
-    }
-
     /// Create new event log cache entries.
     async fn create_cache_entry(&mut self, id: &VaultId) -> Result<()> {
         let event_log_path = self.paths.event_log_path(id);

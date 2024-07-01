@@ -7,7 +7,7 @@ use crate::sdk::{
         AccountDiff, AccountEvent, AccountPatch, DeviceDiff, DeviceEvent,
         DevicePatch, FolderDiff, FolderPatch,
     },
-    vault::VaultId,
+    vault::{secret::SecretId, VaultId},
     Result,
 };
 use crate::sync::MaybeConflict;
@@ -289,36 +289,28 @@ pub struct TrackedChanges {
 impl TrackedChanges {
     /// Create a new set of tracked changes to a folder from a patch.
     pub async fn new_folder_records(
-        folder_id: &VaultId,
         value: &FolderPatch,
     ) -> Result<HashSet<TrackedFolderChange>> {
         let events = value.into_events::<WriteEvent>().await?;
-        Self::new_folder_events(folder_id, events).await
+        Self::new_folder_events(events).await
     }
 
     /// Create a new set of tracked changes from a
     /// collection of folder events.
     pub async fn new_folder_events(
-        folder_id: &VaultId,
         events: Vec<WriteEvent>,
     ) -> Result<HashSet<TrackedFolderChange>> {
         let mut changes = HashSet::new();
         for event in events {
             match event {
                 WriteEvent::CreateSecret(secret_id, _) => {
-                    changes.insert(TrackedFolderChange::Created(SecretPath(
-                        *folder_id, secret_id,
-                    )));
+                    changes.insert(TrackedFolderChange::Created(secret_id));
                 }
                 WriteEvent::UpdateSecret(secret_id, _) => {
-                    changes.insert(TrackedFolderChange::Updated(SecretPath(
-                        *folder_id, secret_id,
-                    )));
+                    changes.insert(TrackedFolderChange::Updated(secret_id));
                 }
                 WriteEvent::DeleteSecret(secret_id) => {
-                    changes.insert(TrackedFolderChange::Deleted(SecretPath(
-                        *folder_id, secret_id,
-                    )));
+                    changes.insert(TrackedFolderChange::Deleted(secret_id));
                 }
                 _ => {}
             }
@@ -476,9 +468,9 @@ pub enum TrackedFileChange {
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum TrackedFolderChange {
     /// Secret was created.
-    Created(SecretPath),
+    Created(SecretId),
     /// Secret was updated.
-    Updated(SecretPath),
+    Updated(SecretId),
     /// Secret was deleted.
-    Deleted(SecretPath),
+    Deleted(SecretId),
 }

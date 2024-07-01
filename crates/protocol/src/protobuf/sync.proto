@@ -251,15 +251,15 @@ message WireTrackedFolderChange {
 }
 
 message WireTrackedFolderChangeCreated {
-  common.WireSecretPath path = 1;
+  bytes secret_id = 1;
 }
 
 message WireTrackedFolderChangeUpdated {
-  common.WireSecretPath path = 1;
+  bytes secret_id = 1;
 }
 
 message WireTrackedFolderChangeDeleted {
-  common.WireSecretPath path = 1;
+  bytes secret_id = 1;
 }
 
 message WireTrackedUserFolderChange {

@@ -853,13 +853,13 @@ impl TryFrom<WireTrackedFolderChange> for TrackedFolderChange {
     fn try_from(value: WireTrackedFolderChange) -> Result<Self> {
         Ok(match value.inner.unwrap() {
             wire_tracked_folder_change::Inner::Created(inner) => {
-                TrackedFolderChange::Created(inner.path.unwrap().try_into()?)
+                TrackedFolderChange::Created(decode_uuid(&inner.secret_id)?)
             }
             wire_tracked_folder_change::Inner::Updated(inner) => {
-                TrackedFolderChange::Updated(inner.path.unwrap().try_into()?)
+                TrackedFolderChange::Updated(decode_uuid(&inner.secret_id)?)
             }
             wire_tracked_folder_change::Inner::Deleted(inner) => {
-                TrackedFolderChange::Deleted(inner.path.unwrap().try_into()?)
+                TrackedFolderChange::Deleted(decode_uuid(&inner.secret_id)?)
             }
         })
     }
@@ -868,27 +868,33 @@ impl TryFrom<WireTrackedFolderChange> for TrackedFolderChange {
 impl From<TrackedFolderChange> for WireTrackedFolderChange {
     fn from(value: TrackedFolderChange) -> Self {
         match value {
-            TrackedFolderChange::Created(path) => WireTrackedFolderChange {
-                inner: Some(wire_tracked_folder_change::Inner::Created(
-                    WireTrackedFolderChangeCreated {
-                        path: Some(path.into()),
-                    },
-                )),
-            },
-            TrackedFolderChange::Updated(path) => WireTrackedFolderChange {
-                inner: Some(wire_tracked_folder_change::Inner::Updated(
-                    WireTrackedFolderChangeUpdated {
-                        path: Some(path.into()),
-                    },
-                )),
-            },
-            TrackedFolderChange::Deleted(path) => WireTrackedFolderChange {
-                inner: Some(wire_tracked_folder_change::Inner::Deleted(
-                    WireTrackedFolderChangeDeleted {
-                        path: Some(path.into()),
-                    },
-                )),
-            },
+            TrackedFolderChange::Created(secret_id) => {
+                WireTrackedFolderChange {
+                    inner: Some(wire_tracked_folder_change::Inner::Created(
+                        WireTrackedFolderChangeCreated {
+                            secret_id: encode_uuid(&secret_id),
+                        },
+                    )),
+                }
+            }
+            TrackedFolderChange::Updated(secret_id) => {
+                WireTrackedFolderChange {
+                    inner: Some(wire_tracked_folder_change::Inner::Updated(
+                        WireTrackedFolderChangeUpdated {
+                            secret_id: encode_uuid(&secret_id),
+                        },
+                    )),
+                }
+            }
+            TrackedFolderChange::Deleted(secret_id) => {
+                WireTrackedFolderChange {
+                    inner: Some(wire_tracked_folder_change::Inner::Deleted(
+                        WireTrackedFolderChangeDeleted {
+                            secret_id: encode_uuid(&secret_id),
+                        },
+                    )),
+                }
+            }
         }
     }
 }
