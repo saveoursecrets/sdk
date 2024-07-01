@@ -85,9 +85,7 @@ impl FromStr for ExternalFileName {
 }
 
 /// Pointer to an external file.
-#[derive(
-    Default, Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize,
-)]
+#[derive(Default, Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct ExternalFile(VaultId, SecretId, ExternalFileName);
 
 impl From<ExternalFile> for FileEvent {
