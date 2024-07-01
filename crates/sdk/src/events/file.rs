@@ -1,6 +1,6 @@
 //! Event for modifications to external files.
 use super::{EventKind, LogEvent};
-use crate::storage::files::{ExternalFileName, FileOwner};
+use crate::storage::files::{ExternalFileName, SecretPath};
 
 /// File event records changes to external files
 ///
@@ -14,18 +14,18 @@ pub enum FileEvent {
     #[doc(hidden)]
     Noop,
     /// File was created.
-    CreateFile(FileOwner, ExternalFileName),
+    CreateFile(SecretPath, ExternalFileName),
     /// File was moved.
     MoveFile {
         /// File name.
         name: ExternalFileName,
         /// From identifiers.
-        from: FileOwner,
+        from: SecretPath,
         /// Destination identifiers.
-        dest: FileOwner,
+        dest: SecretPath,
     },
     /// File was deleted.
-    DeleteFile(FileOwner, ExternalFileName),
+    DeleteFile(SecretPath, ExternalFileName),
 }
 
 impl LogEvent for FileEvent {

@@ -1,7 +1,7 @@
 //! File manager to keep external files in sync
 //! as secrets are created, updated and moved.
 
-use super::{list_folder_files, FileOwner};
+use super::{list_folder_files, SecretPath};
 use crate::{
     events::{EventLogExt, FileEvent},
     storage::{
@@ -174,7 +174,7 @@ impl ClientStorage {
         for (secret_id, mut external_files) in folder_files.drain(..) {
             for file_name in external_files.drain(..) {
                 events.push(FileEvent::DeleteFile(
-                    FileOwner(*folder_id, secret_id),
+                    SecretPath(*folder_id, secret_id),
                     file_name,
                 ));
             }
@@ -337,7 +337,7 @@ impl ClientStorage {
         }
 
         Ok(FileEvent::DeleteFile(
-            FileOwner(*vault_id, *secret_id),
+            SecretPath(*vault_id, *secret_id),
             file_name.parse()?,
         ))
     }
@@ -432,8 +432,8 @@ impl ClientStorage {
 
         let event = FileEvent::MoveFile {
             name: file_name.parse()?,
-            from: FileOwner(*old_vault_id, *old_secret_id),
-            dest: FileOwner(*new_vault_id, *new_secret_id),
+            from: SecretPath(*old_vault_id, *old_secret_id),
+            dest: SecretPath(*new_vault_id, *new_secret_id),
         };
 
         Ok(FileMutationEvent::Move(event))
@@ -483,7 +483,7 @@ impl ClientStorage {
                         encrypted_file,
                     },
                     FileEvent::CreateFile(
-                        FileOwner(*summary.id(), id),
+                        SecretPath(*summary.id(), id),
                         file_name.parse()?,
                     ),
                 );

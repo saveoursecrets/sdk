@@ -11,7 +11,7 @@ use crate::{
 use crate::events::DeviceEvent;
 
 #[cfg(feature = "files")]
-use crate::{events::FileEvent, storage::files::FileOwner};
+use crate::{events::FileEvent, storage::files::SecretPath};
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Error, ErrorKind, Result, SeekFrom};
@@ -486,7 +486,7 @@ impl Decodable for FileEvent {
                 let name: [u8; 32] =
                     name.as_slice().try_into().map_err(encoding_error)?;
                 *self = FileEvent::CreateFile(
-                    FileOwner(folder_id, secret_id),
+                    SecretPath(folder_id, secret_id),
                     name.into(),
                 )
             }
@@ -497,7 +497,7 @@ impl Decodable for FileEvent {
                 let name: [u8; 32] =
                     name.as_slice().try_into().map_err(encoding_error)?;
                 *self = FileEvent::DeleteFile(
-                    FileOwner(folder_id, secret_id),
+                    SecretPath(folder_id, secret_id),
                     name.into(),
                 )
             }
@@ -505,11 +505,11 @@ impl Decodable for FileEvent {
                 let name = reader.read_bytes(32).await?;
                 let name: [u8; 32] =
                     name.as_slice().try_into().map_err(encoding_error)?;
-                let from = FileOwner(
+                let from = SecretPath(
                     decode_uuid(&mut *reader).await?,
                     decode_uuid(&mut *reader).await?,
                 );
-                let dest = FileOwner(
+                let dest = SecretPath(
                     decode_uuid(&mut *reader).await?,
                     decode_uuid(&mut *reader).await?,
                 );

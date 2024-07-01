@@ -24,9 +24,9 @@ pub struct EncryptedFile {
     pub digest: Vec<u8>,
 }
 
-/// Owner information for an external file.
+/// Path to a secret.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct FileOwner(pub VaultId, pub SecretId);
+pub struct SecretPath(pub VaultId, pub SecretId);
 
 /// External file name is an SHA2-256 checksum of
 /// the encrypted file contents.
@@ -93,7 +93,7 @@ pub struct ExternalFile(VaultId, SecretId, ExternalFileName);
 
 impl From<ExternalFile> for FileEvent {
     fn from(value: ExternalFile) -> Self {
-        FileEvent::CreateFile(FileOwner(value.0, value.1), value.2)
+        FileEvent::CreateFile(SecretPath(value.0, value.1), value.2)
     }
 }
 

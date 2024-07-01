@@ -24,7 +24,7 @@ use url::Url;
 #[cfg(feature = "files")]
 use crate::sdk::{
     events::{FileDiff, FileEvent, FilePatch},
-    storage::files::{ExternalFile, ExternalFileName, FileOwner},
+    storage::files::{ExternalFile, ExternalFileName, SecretPath},
 };
 
 /// Types of event logs.
@@ -449,18 +449,18 @@ pub enum TrackedAccountChange {
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum TrackedFileChange {
     /// File was created in the log.
-    Created(FileOwner, ExternalFileName),
+    Created(SecretPath, ExternalFileName),
     /// File was moved in the log.
     Moved {
         /// File name.
         name: ExternalFileName,
         /// From identifiers.
-        from: FileOwner,
+        from: SecretPath,
         /// Destination identifiers.
-        dest: FileOwner,
+        dest: SecretPath,
     },
     /// File was deleted in the log.
-    Deleted(FileOwner, ExternalFileName),
+    Deleted(SecretPath, ExternalFileName),
 }
 
 /// Change made to a folder.
