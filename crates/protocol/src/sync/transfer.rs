@@ -1,7 +1,7 @@
 //! Manage pending file transfer operations.
 use crate::sdk::{
     events::FileEvent,
-    storage::files::{ExternalFile, FileMutationEvent},
+    storage::files::{ExternalFile, FileMutationEvent, FileOwner},
 };
 use indexmap::IndexSet;
 
@@ -49,18 +49,20 @@ impl From<&FileMutationEvent> for FileOperation {
 impl From<&FileEvent> for FileOperation {
     fn from(value: &FileEvent) -> Self {
         match value {
-            FileEvent::CreateFile(vault_id, secret_id, file_name) => {
-                FileOperation(
-                    ExternalFile::new(*vault_id, *secret_id, *file_name),
-                    TransferOperation::Upload,
-                )
-            }
-            FileEvent::DeleteFile(vault_id, secret_id, file_name) => {
-                FileOperation(
-                    ExternalFile::new(*vault_id, *secret_id, *file_name),
-                    TransferOperation::Delete,
-                )
-            }
+            FileEvent::CreateFile(
+                FileOwner(vault_id, secret_id),
+                file_name,
+            ) => FileOperation(
+                ExternalFile::new(*vault_id, *secret_id, *file_name),
+                TransferOperation::Upload,
+            ),
+            FileEvent::DeleteFile(
+                FileOwner(vault_id, secret_id),
+                file_name,
+            ) => FileOperation(
+                ExternalFile::new(*vault_id, *secret_id, *file_name),
+                TransferOperation::Delete,
+            ),
             FileEvent::MoveFile { name, from, dest } => FileOperation(
                 ExternalFile::new(from.0, from.1, *name),
                 TransferOperation::Move(ExternalFile::new(

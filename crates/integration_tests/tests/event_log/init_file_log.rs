@@ -38,10 +38,7 @@ async fn event_log_init_file_log() -> Result<()> {
     let patch = event_log.diff_events(None).await?;
     assert_eq!(1, patch.len());
     let events = patch.into_events().await?;
-    assert!(matches!(
-        events.get(0),
-        Some(FileEvent::CreateFile(_, _, _))
-    ));
+    assert!(matches!(events.get(0), Some(FileEvent::CreateFile(_, _))));
 
     // Sign out the account
     account.sign_out().await?;
@@ -56,7 +53,7 @@ async fn event_log_init_file_log() -> Result<()> {
     // Check the event log was initialized from the files on disc
     let mut event_log = FileEventLog::new_file(&file_events).await?;
     let event = last_log_event(&mut event_log, None).await?;
-    assert!(matches!(event, Some(FileEvent::CreateFile(_, _, _))));
+    assert!(matches!(event, Some(FileEvent::CreateFile(_, _))));
 
     teardown(TEST_ID).await;
 

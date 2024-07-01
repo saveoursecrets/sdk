@@ -93,7 +93,7 @@ pub struct ExternalFile(VaultId, SecretId, ExternalFileName);
 
 impl From<ExternalFile> for FileEvent {
     fn from(value: ExternalFile) -> Self {
-        FileEvent::CreateFile(value.0, value.1, value.2)
+        FileEvent::CreateFile(FileOwner(value.0, value.1), value.2)
     }
 }
 

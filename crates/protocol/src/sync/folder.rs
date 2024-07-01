@@ -245,7 +245,7 @@ where
     async fn force_merge(&mut self, diff: FolderDiff) -> Result<()> {
         let event_log = self.event_log();
         let mut event_log = event_log.write().await;
-        event_log.patch_replace(diff).await?;
+        event_log.patch_replace(&diff).await?;
 
         // Build a new vault
         let vault = FolderReducer::new()

@@ -174,7 +174,8 @@ impl ClientStorage {
         for (secret_id, mut external_files) in folder_files.drain(..) {
             for file_name in external_files.drain(..) {
                 events.push(FileEvent::DeleteFile(
-                    *folder_id, secret_id, file_name,
+                    FileOwner(*folder_id, secret_id),
+                    file_name,
                 ));
             }
         }
@@ -336,8 +337,7 @@ impl ClientStorage {
         }
 
         Ok(FileEvent::DeleteFile(
-            *vault_id,
-            *secret_id,
+            FileOwner(*vault_id, *secret_id),
             file_name.parse()?,
         ))
     }
@@ -483,8 +483,7 @@ impl ClientStorage {
                         encrypted_file,
                     },
                     FileEvent::CreateFile(
-                        *summary.id(),
-                        id,
+                        FileOwner(*summary.id(), id),
                         file_name.parse()?,
                     ),
                 );

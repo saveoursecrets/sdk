@@ -16,7 +16,7 @@ use sos_protocol::{
         vfs, Error, Paths, Result,
     },
     CreateSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
-    UpdateSet,
+    TrackedChanges, UpdateSet,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -162,7 +162,7 @@ impl ForceMerge for ServerStorage {
         );
 
         let mut event_log = self.identity_log.write().await;
-        event_log.patch_replace(diff).await?;
+        event_log.patch_replace(&diff).await?;
 
         // Rebuild the head-only identity vault
         let vault = FolderReducer::new()
@@ -175,6 +175,9 @@ impl ForceMerge for ServerStorage {
         vfs::write(self.paths.identity_vault(), buffer).await?;
 
         outcome.changes += len;
+        outcome.tracked.identity =
+            TrackedChanges::new_folder_records(&diff.patch).await?;
+
         Ok(())
     }
 
@@ -193,9 +196,11 @@ impl ForceMerge for ServerStorage {
 
         let event_log = self.account_log();
         let mut event_log = event_log.write().await;
-        event_log.patch_replace(diff).await?;
+        event_log.patch_replace(&diff).await?;
 
         outcome.changes += len;
+        outcome.tracked.account =
+            TrackedChanges::new_account_records(&diff.patch).await?;
 
         Ok(())
     }
@@ -215,7 +220,7 @@ impl ForceMerge for ServerStorage {
 
         let event_log = self.device_log().await?;
         let mut event_log = event_log.write().await;
-        event_log.patch_replace(diff).await?;
+        event_log.patch_replace(&diff).await?;
 
         // Update in-memory cache of trusted devices
         let reducer = DeviceReducer::new(&event_log);
@@ -223,6 +228,8 @@ impl ForceMerge for ServerStorage {
         self.devices = devices;
 
         outcome.changes += len;
+        outcome.tracked.device =
+            TrackedChanges::new_device_records(&diff.patch).await?;
 
         Ok(())
     }
@@ -243,9 +250,11 @@ impl ForceMerge for ServerStorage {
 
         let event_log = self.file_log().await?;
         let mut event_log = event_log.write().await;
-        event_log.patch_replace(diff).await?;
+        event_log.patch_replace(&diff).await?;
 
         outcome.changes += len;
+        outcome.tracked.files =
+            TrackedChanges::new_file_records(&diff.patch).await?;
 
         Ok(())
     }
@@ -269,7 +278,7 @@ impl ForceMerge for ServerStorage {
         let events_path = self.paths.event_log_path(folder_id);
 
         let mut event_log = FolderEventLog::new(events_path).await?;
-        event_log.patch_replace(diff).await?;
+        event_log.patch_replace(&diff).await?;
 
         let vault = FolderReducer::new()
             .reduce(&event_log)
@@ -284,6 +293,10 @@ impl ForceMerge for ServerStorage {
             .insert(*folder_id, Arc::new(RwLock::new(event_log)));
 
         outcome.changes += len;
+        outcome.tracked.folders.insert(
+            *folder_id,
+            TrackedChanges::new_folder_records(&diff.patch).await?,
+        );
 
         Ok(())
     }
@@ -308,6 +321,8 @@ impl Merge for ServerStorage {
 
         if let CheckedPatch::Success(_) = &checked_patch {
             outcome.changes += diff.patch.len() as u64;
+            outcome.tracked.identity =
+                TrackedChanges::new_folder_records(&diff.patch).await?;
         }
 
         Ok(checked_patch)
@@ -340,6 +355,7 @@ impl Merge for ServerStorage {
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {
+            let mut events = Vec::new();
             for record in diff.patch.iter() {
                 let event = record.decode_event::<AccountEvent>().await?;
                 tracing::debug!(event_kind = %event.event_kind());
@@ -380,9 +396,12 @@ impl Merge for ServerStorage {
                         }
                     }
                 }
+                events.push(event);
             }
 
             outcome.changes += diff.patch.len() as u64;
+            outcome.tracked.account =
+                TrackedChanges::new_account_events(events).await?;
         } else {
             // FIXME: handle conflict situation
             println!("todo! account patch could not be merged");
@@ -424,6 +443,8 @@ impl Merge for ServerStorage {
             self.devices = reducer.reduce().await?;
 
             outcome.changes += diff.patch.len() as u64;
+            outcome.tracked.device =
+                TrackedChanges::new_device_records(&diff.patch).await?;
         } else {
             // FIXME: handle conflict situation
             println!("todo! device patch could not be merged");
@@ -469,6 +490,8 @@ impl Merge for ServerStorage {
 
         if let CheckedPatch::Success(_) = &checked_patch {
             outcome.changes += diff.patch.len() as u64;
+            outcome.tracked.files =
+                TrackedChanges::new_file_records(&diff.patch).await?;
         }
 
         Ok(checked_patch)
@@ -505,6 +528,10 @@ impl Merge for ServerStorage {
 
         if let CheckedPatch::Success(_) = &checked_patch {
             outcome.changes += len;
+            outcome.tracked.folders.insert(
+                *folder_id,
+                TrackedChanges::new_folder_records(&diff.patch).await?,
+            );
         }
 
         Ok(checked_patch)

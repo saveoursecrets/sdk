@@ -1,9 +1,6 @@
 //! Event for modifications to external files.
 use super::{EventKind, LogEvent};
-use crate::{
-    storage::files::{ExternalFileName, FileOwner},
-    vault::{secret::SecretId, VaultId},
-};
+use crate::storage::files::{ExternalFileName, FileOwner};
 
 /// File event records changes to external files
 ///
@@ -17,7 +14,7 @@ pub enum FileEvent {
     #[doc(hidden)]
     Noop,
     /// File was created.
-    CreateFile(VaultId, SecretId, ExternalFileName),
+    CreateFile(FileOwner, ExternalFileName),
     /// File was moved.
     MoveFile {
         /// File name.
@@ -28,16 +25,16 @@ pub enum FileEvent {
         dest: FileOwner,
     },
     /// File was deleted.
-    DeleteFile(VaultId, SecretId, ExternalFileName),
+    DeleteFile(FileOwner, ExternalFileName),
 }
 
 impl LogEvent for FileEvent {
     fn event_kind(&self) -> EventKind {
         match self {
             Self::Noop => EventKind::Noop,
-            Self::CreateFile(_, _, _) => EventKind::CreateFile,
+            Self::CreateFile(_, _) => EventKind::CreateFile,
             Self::MoveFile { .. } => EventKind::MoveFile,
-            Self::DeleteFile(_, _, _) => EventKind::DeleteFile,
+            Self::DeleteFile(_, _) => EventKind::DeleteFile,
         }
     }
 }

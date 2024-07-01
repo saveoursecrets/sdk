@@ -275,9 +275,9 @@ mod files {
             files: &mut IndexSet<ExternalFile>,
         ) {
             match event {
-                FileEvent::CreateFile(vault_id, secret_id, file_name) => {
+                FileEvent::CreateFile(owner, file_name) => {
                     files.insert(ExternalFile::new(
-                        vault_id, secret_id, file_name,
+                        owner.0, owner.1, file_name,
                     ));
                 }
                 FileEvent::MoveFile { name, from, dest } => {
@@ -285,9 +285,8 @@ mod files {
                     files.shift_remove(&file);
                     files.insert(ExternalFile::new(dest.0, dest.1, name));
                 }
-                FileEvent::DeleteFile(vault_id, secret_id, file_name) => {
-                    let file =
-                        ExternalFile::new(vault_id, secret_id, file_name);
+                FileEvent::DeleteFile(owner, file_name) => {
+                    let file = ExternalFile::new(owner.0, owner.1, file_name);
                     files.shift_remove(&file);
                 }
                 _ => {}

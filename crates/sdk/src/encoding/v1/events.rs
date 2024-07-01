@@ -450,10 +450,10 @@ impl Encodable for FileEvent {
         op.encode(&mut *writer).await?;
         match self {
             FileEvent::Noop => panic!("attempt to encode a noop"),
-            FileEvent::CreateFile(folder_id, secret_id, name)
-            | FileEvent::DeleteFile(folder_id, secret_id, name) => {
-                writer.write_bytes(folder_id.as_bytes()).await?;
-                writer.write_bytes(secret_id.as_bytes()).await?;
+            FileEvent::CreateFile(owner, name)
+            | FileEvent::DeleteFile(owner, name) => {
+                writer.write_bytes(owner.0.as_bytes()).await?;
+                writer.write_bytes(owner.1.as_bytes()).await?;
                 writer.write_bytes(name.as_ref()).await?;
             }
             FileEvent::MoveFile { name, from, dest } => {
@@ -485,8 +485,10 @@ impl Decodable for FileEvent {
                 let name = reader.read_bytes(32).await?;
                 let name: [u8; 32] =
                     name.as_slice().try_into().map_err(encoding_error)?;
-                *self =
-                    FileEvent::CreateFile(folder_id, secret_id, name.into())
+                *self = FileEvent::CreateFile(
+                    FileOwner(folder_id, secret_id),
+                    name.into(),
+                )
             }
             EventKind::DeleteFile => {
                 let folder_id = decode_uuid(&mut *reader).await?;
@@ -494,8 +496,10 @@ impl Decodable for FileEvent {
                 let name = reader.read_bytes(32).await?;
                 let name: [u8; 32] =
                     name.as_slice().try_into().map_err(encoding_error)?;
-                *self =
-                    FileEvent::DeleteFile(folder_id, secret_id, name.into())
+                *self = FileEvent::DeleteFile(
+                    FileOwner(folder_id, secret_id),
+                    name.into(),
+                )
             }
             EventKind::MoveFile => {
                 let name = reader.read_bytes(32).await?;

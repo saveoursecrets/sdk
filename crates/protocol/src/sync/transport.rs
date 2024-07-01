@@ -4,14 +4,16 @@ use crate::sdk::{
     commit::{CommitHash, CommitState, Comparison},
     device::DevicePublicKey,
     events::{
-        AccountDiff, AccountPatch, DeviceDiff, DevicePatch, FolderDiff,
-        FolderPatch,
+        AccountDiff, AccountEvent, AccountPatch, DeviceDiff, DeviceEvent,
+        DevicePatch, FolderDiff, FolderPatch,
     },
     vault::{secret::SecretId, VaultId},
+    Result,
 };
 use crate::sync::MaybeConflict;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
+use sos_sdk::events::WriteEvent;
 use std::{
     collections::{HashMap, HashSet},
     fmt,
@@ -21,7 +23,7 @@ use url::Url;
 
 #[cfg(feature = "files")]
 use crate::sdk::{
-    events::{FileDiff, FilePatch},
+    events::{FileDiff, FileEvent, FilePatch},
     storage::files::{ExternalFile, ExternalFileName, FileOwner},
 };
 
@@ -281,6 +283,145 @@ pub struct TrackedChanges {
 
     /// Change made to each folder.
     pub folders: HashMap<VaultId, HashSet<TrackedFolderChange>>,
+}
+
+impl TrackedChanges {
+    /// Create a new set of tracked changes to a folder from a patch.
+    pub async fn new_folder_records(
+        value: &FolderPatch,
+    ) -> Result<HashSet<TrackedFolderChange>> {
+        let events = value.into_events::<WriteEvent>().await?;
+        Self::new_folder_events(events).await
+    }
+
+    /// Create a new set of tracked changes from a
+    /// collection of folder events.
+    pub async fn new_folder_events(
+        events: Vec<WriteEvent>,
+    ) -> Result<HashSet<TrackedFolderChange>> {
+        let mut changes = HashSet::new();
+        for event in events {
+            match event {
+                WriteEvent::CreateSecret(secret_id, _) => {
+                    changes.insert(TrackedFolderChange::Created(secret_id));
+                }
+                WriteEvent::UpdateSecret(secret_id, _) => {
+                    changes.insert(TrackedFolderChange::Updated(secret_id));
+                }
+                WriteEvent::DeleteSecret(secret_id) => {
+                    changes.insert(TrackedFolderChange::Deleted(secret_id));
+                }
+                _ => {}
+            }
+        }
+        Ok(changes)
+    }
+
+    /// Create a new set of tracked changes to an account from a patch.
+    pub async fn new_account_records(
+        value: &AccountPatch,
+    ) -> Result<HashSet<TrackedAccountChange>> {
+        let events = value.into_events::<AccountEvent>().await?;
+        Self::new_account_events(events).await
+    }
+
+    /// Create a new set of tracked changes from a
+    /// collection of account events.
+    pub async fn new_account_events(
+        events: Vec<AccountEvent>,
+    ) -> Result<HashSet<TrackedAccountChange>> {
+        let mut changes = HashSet::new();
+        for event in events {
+            match event {
+                AccountEvent::CreateFolder(folder_id, _) => {
+                    changes.insert(TrackedAccountChange::FolderCreated(
+                        folder_id,
+                    ));
+                }
+                AccountEvent::UpdateFolder(folder_id, _) => {
+                    changes.insert(TrackedAccountChange::FolderUpdated(
+                        folder_id,
+                    ));
+                }
+                AccountEvent::DeleteFolder(folder_id) => {
+                    changes.insert(TrackedAccountChange::FolderDeleted(
+                        folder_id,
+                    ));
+                }
+                // TODO: track other destructive changes
+                // TODO: eg: compact, change folder password etc.
+                _ => {}
+            }
+        }
+        Ok(changes)
+    }
+
+    /// Create a new set of tracked changes to a device from a patch.
+    pub async fn new_device_records(
+        value: &DevicePatch,
+    ) -> Result<HashSet<TrackedDeviceChange>> {
+        let events = value.into_events::<DeviceEvent>().await?;
+        Self::new_device_events(events).await
+    }
+
+    /// Create a new set of tracked changes from a
+    /// collection of device events.
+    pub async fn new_device_events(
+        events: Vec<DeviceEvent>,
+    ) -> Result<HashSet<TrackedDeviceChange>> {
+        let mut changes = HashSet::new();
+        for event in events {
+            match event {
+                DeviceEvent::Trust(device) => {
+                    changes.insert(TrackedDeviceChange::Trusted(
+                        device.public_key().to_owned(),
+                    ));
+                }
+                DeviceEvent::Revoke(public_key) => {
+                    changes.insert(TrackedDeviceChange::Revoked(public_key));
+                }
+                _ => {}
+            }
+        }
+        Ok(changes)
+    }
+
+    /// Create a new set of tracked changes to a file from a patch.
+    #[cfg(feature = "files")]
+    pub async fn new_file_records(
+        value: &FilePatch,
+    ) -> Result<HashSet<TrackedFileChange>> {
+        let events = value.into_events::<FileEvent>().await?;
+        Self::new_file_events(events).await
+    }
+
+    /// Create a new set of tracked changes from a
+    /// collection of file events.
+    #[cfg(feature = "files")]
+    pub async fn new_file_events(
+        events: Vec<FileEvent>,
+    ) -> Result<HashSet<TrackedFileChange>> {
+        let mut changes = HashSet::new();
+        for event in events {
+            match event {
+                FileEvent::CreateFile(owner, name) => {
+                    changes.insert(TrackedFileChange::Created(owner, name));
+                }
+                FileEvent::MoveFile { name, from, dest } => {
+                    changes.insert(TrackedFileChange::Moved {
+                        name,
+                        from,
+                        dest,
+                    });
+                }
+                FileEvent::DeleteFile(owner, name) => {
+                    changes.insert(TrackedFileChange::Deleted(owner, name));
+                }
+                _ => {}
+            }
+        }
+        Ok(changes)
+    }
 }
 
 /// Change made to a device.
