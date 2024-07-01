@@ -31,7 +31,10 @@ async fn file_transfers_multi_upload() -> Result<()> {
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
     wait_for_num_transfers(&device.owner, 2).await?;
-    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*default_folder.id(), secret_id),
+        file_name,
+    );
 
     let server1_path = device.server_path;
     let server2_path =
@@ -88,7 +91,10 @@ async fn file_transfers_multi_update() -> Result<()> {
     )
     .await?;
     wait_for_num_transfers(&device.owner, 4).await?;
-    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*default_folder.id(), secret_id),
+        file_name,
+    );
 
     let server1_path = device.server_path;
     let server2_path =
@@ -150,7 +156,10 @@ async fn file_transfers_multi_move() -> Result<()> {
         )
         .await?;
     wait_for_num_transfers(&device.owner, 2).await?;
-    let file = ExternalFile::new(*destination.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*destination.id(), secret_id),
+        file_name,
+    );
 
     let server1_path = device.server_path;
     let server2_path =
@@ -193,7 +202,10 @@ async fn file_transfers_multi_delete() -> Result<()> {
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
     wait_for_num_transfers(&device.owner, 2).await?;
-    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*default_folder.id(), secret_id),
+        file_name,
+    );
 
     // Assert the files on disc are equal
     assert_local_remote_file_eq(
@@ -262,8 +274,10 @@ async fn file_transfers_multi_download() -> Result<()> {
         let (secret_id, _, _, file_name) =
             create_file_secret(&mut uploader.owner, &default_folder, None)
                 .await?;
-        let file =
-            ExternalFile::new(*default_folder.id(), secret_id, file_name);
+        let file = ExternalFile::new(
+            SecretPath(*default_folder.id(), secret_id),
+            file_name,
+        );
         wait_for_num_transfers(&uploader.owner, 2).await?;
         assert_local_remote_file_eq(
             uploader.owner.paths(),

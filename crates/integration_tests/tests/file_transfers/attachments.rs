@@ -28,8 +28,7 @@ async fn file_transfers_attach_create() -> Result<()> {
         create_file_secret(&mut device.owner, &default_folder, None).await?;
     wait_for_num_transfers(&device.owner, 1).await?;
     files.push(ExternalFile::new(
-        *default_folder.id(),
-        secret_id,
+        SecretPath(*default_folder.id(), secret_id),
         file_name,
     ));
 
@@ -43,8 +42,7 @@ async fn file_transfers_attach_create() -> Result<()> {
     .await?;
     wait_for_num_transfers(&device.owner, 1).await?;
     files.push(ExternalFile::new(
-        *default_folder.id(),
-        secret_id,
+        SecretPath(*default_folder.id(), secret_id),
         file_name,
     ));
 
@@ -86,8 +84,7 @@ async fn file_transfers_attach_update() -> Result<()> {
         create_file_secret(&mut device.owner, &default_folder, None).await?;
     wait_for_num_transfers(&device.owner, 1).await?;
     files.push(ExternalFile::new(
-        *default_folder.id(),
-        secret_id,
+        SecretPath(*default_folder.id(), secret_id),
         file_name,
     ));
 
@@ -113,8 +110,7 @@ async fn file_transfers_attach_update() -> Result<()> {
 
     wait_for_num_transfers(&device.owner, 2).await?;
     files.push(ExternalFile::new(
-        *default_folder.id(),
-        secret_id,
+        SecretPath(*default_folder.id(), secret_id),
         file_name,
     ));
 
@@ -184,10 +180,12 @@ async fn file_transfers_attach_move() -> Result<()> {
         .await?;
 
     // Use the new folder and secret identifiers after moving
-    files.push(ExternalFile::new(*destination.id(), secret_id, file_name));
     files.push(ExternalFile::new(
-        *destination.id(),
-        secret_id,
+        SecretPath(*destination.id(), secret_id),
+        file_name,
+    ));
+    files.push(ExternalFile::new(
+        SecretPath(*destination.id(), secret_id),
         attachment_file_name,
     ));
 
@@ -232,8 +230,7 @@ async fn file_transfers_attach_delete() -> Result<()> {
         create_file_secret(&mut device.owner, &default_folder, None).await?;
     wait_for_num_transfers(&device.owner, 1).await?;
     files.push(ExternalFile::new(
-        *default_folder.id(),
-        secret_id,
+        SecretPath(*default_folder.id(), secret_id),
         file_name,
     ));
 
@@ -247,8 +244,7 @@ async fn file_transfers_attach_delete() -> Result<()> {
     .await?;
     wait_for_num_transfers(&device.owner, 1).await?;
     files.push(ExternalFile::new(
-        *default_folder.id(),
-        secret_id,
+        SecretPath(*default_folder.id(), secret_id),
         file_name,
     ));
 

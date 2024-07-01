@@ -85,50 +85,52 @@ impl FromStr for ExternalFileName {
 }
 
 /// Pointer to an external file.
-#[derive(Default, Debug, Copy, Clone, Hash, Eq, PartialEq)]
-pub struct ExternalFile(VaultId, SecretId, ExternalFileName);
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+pub struct ExternalFile(SecretPath, ExternalFileName);
 
 impl From<ExternalFile> for FileEvent {
     fn from(value: ExternalFile) -> Self {
-        FileEvent::CreateFile(SecretPath(value.0, value.1), value.2)
+        FileEvent::CreateFile(value.0, value.1)
     }
 }
 
-impl From<ExternalFile> for (VaultId, SecretId, ExternalFileName) {
+impl From<ExternalFile> for (SecretPath, ExternalFileName) {
     fn from(value: ExternalFile) -> Self {
-        (value.0, value.1, value.2)
+        (value.0, value.1)
     }
 }
 
 impl ExternalFile {
     /// Create a new external file reference.
-    pub fn new(
-        vault_id: VaultId,
-        secret_id: SecretId,
-        file_name: ExternalFileName,
-    ) -> Self {
-        Self(vault_id, secret_id, file_name)
+    pub fn new(path: SecretPath, file_name: ExternalFileName) -> Self {
+        Self(path, file_name)
     }
 
     /// Vault identifier.
     pub fn vault_id(&self) -> &VaultId {
-        &self.0
+        &self.0 .0
     }
 
     /// Secret identifier.
     pub fn secret_id(&self) -> &SecretId {
-        &self.1
+        &self.0 .1
     }
 
     /// File name.
     pub fn file_name(&self) -> &ExternalFileName {
-        &self.2
+        &self.1
     }
 }
 
 impl fmt::Display for ExternalFile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{}/{}", self.0, self.1, self.2)
+        write!(
+            f,
+            "{}/{}/{}",
+            self.vault_id(),
+            self.secret_id(),
+            self.file_name()
+        )
     }
 }
 
@@ -149,7 +151,7 @@ impl FromStr for ExternalFile {
         let vault_id: VaultId = vault_id.parse()?;
         let secret_id: SecretId = secret_id.parse()?;
         let file_name: ExternalFileName = file_name.parse()?;
-        Ok(Self(vault_id, secret_id, file_name))
+        Ok(Self(SecretPath(vault_id, secret_id), file_name))
     }
 }
 
@@ -179,7 +181,8 @@ pub async fn list_external_files(
                     {
                         for file_name in external_files.drain(..) {
                             files.insert(ExternalFile(
-                                folder_id, secret_id, file_name,
+                                SecretPath(folder_id, secret_id),
+                                file_name,
                             ));
                         }
                     }

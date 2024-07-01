@@ -25,7 +25,10 @@ async fn file_transfers_abort_delete() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
-    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*default_folder.id(), secret_id),
+        file_name,
+    );
 
     // Deleting the secret will queue a file delete
     // event for transfer which in turn will cancel

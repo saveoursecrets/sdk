@@ -276,17 +276,15 @@ mod files {
         ) {
             match event {
                 FileEvent::CreateFile(owner, file_name) => {
-                    files.insert(ExternalFile::new(
-                        owner.0, owner.1, file_name,
-                    ));
+                    files.insert(ExternalFile::new(owner, file_name));
                 }
                 FileEvent::MoveFile { name, from, dest } => {
-                    let file = ExternalFile::new(from.0, from.1, name);
+                    let file = ExternalFile::new(from, name);
                     files.shift_remove(&file);
-                    files.insert(ExternalFile::new(dest.0, dest.1, name));
+                    files.insert(ExternalFile::new(dest, name));
                 }
                 FileEvent::DeleteFile(owner, file_name) => {
-                    let file = ExternalFile::new(owner.0, owner.1, file_name);
+                    let file = ExternalFile::new(owner, file_name);
                     files.shift_remove(&file);
                 }
                 _ => {}

@@ -26,7 +26,10 @@ async fn file_transfers_single_upload() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
-    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*default_folder.id(), secret_id),
+        file_name,
+    );
 
     // Wait until the transfers are completed
     wait_for_num_transfers(&device.owner, 1).await?;
@@ -77,7 +80,10 @@ async fn file_transfers_single_update() -> Result<()> {
         None,
     )
     .await?;
-    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*default_folder.id(), secret_id),
+        file_name,
+    );
 
     // Wait until the transfers are completed
     wait_for_num_transfers(&device.owner, 2).await?;
@@ -135,7 +141,10 @@ async fn file_transfers_single_move() -> Result<()> {
             Default::default(),
         )
         .await?;
-    let file = ExternalFile::new(*destination.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*destination.id(), secret_id),
+        file_name,
+    );
 
     // Wait until the move is completed
     wait_for_num_transfers(&device.owner, 1).await?;
@@ -172,7 +181,10 @@ async fn file_transfers_single_delete() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
-    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*default_folder.id(), secret_id),
+        file_name,
+    );
 
     // Wait until the transfers are completed
     wait_for_num_transfers(&device.owner, 1).await?;
@@ -231,8 +243,10 @@ async fn file_transfers_single_download() -> Result<()> {
         let (secret_id, _, _, file_name) =
             create_file_secret(&mut uploader.owner, &default_folder, None)
                 .await?;
-        let file =
-            ExternalFile::new(*default_folder.id(), secret_id, file_name);
+        let file = ExternalFile::new(
+            SecretPath(*default_folder.id(), secret_id),
+            file_name,
+        );
 
         wait_for_num_transfers(&uploader.owner, 1).await?;
 

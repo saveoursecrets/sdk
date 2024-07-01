@@ -17,7 +17,10 @@ use super::BODY_LIMIT;
 
 use sos_protocol::sdk::{
     storage::files::{ExternalFile, ExternalFileName},
-    vault::{secret::SecretId, VaultId},
+    vault::{
+        secret::{SecretId, SecretPath},
+        VaultId,
+    },
 };
 
 use crate::{
@@ -658,7 +661,8 @@ pub async fn file_operation_lock(
     request: Request,
     next: Next,
 ) -> Response {
-    let file_ref = ExternalFile::new(vault_id, secret_id, file_name);
+    let file_ref =
+        ExternalFile::new(SecretPath(vault_id, secret_id), file_name);
     {
         let mut writer = transfer.write().await;
         if writer.get(&file_ref).is_some() {

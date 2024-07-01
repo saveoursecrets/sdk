@@ -37,7 +37,8 @@ async fn network_sync_folder_delete() -> Result<()> {
 
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &new_folder, None).await?;
-    let file = ExternalFile::new(*new_folder.id(), secret_id, file_name);
+    let file =
+        ExternalFile::new(SecretPath(*new_folder.id(), secret_id), file_name);
 
     assert_eq!(3, num_events(&mut device.owner, new_folder.id()).await);
 

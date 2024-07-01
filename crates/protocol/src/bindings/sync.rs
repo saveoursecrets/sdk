@@ -759,15 +759,13 @@ impl From<TrackedDeviceChange> for WireTrackedDeviceChange {
 
 #[cfg(feature = "files")]
 mod files {
-    use sos_sdk::vault::secret::SecretPath;
-
     use super::{
-        wire_tracked_file_change, WireSecretPath, WireTrackedFileChange,
+        wire_tracked_file_change, WireTrackedFileChange,
         WireTrackedFileDeleted, WireTrackedFileMoved,
     };
     use crate::{
-        bindings::sync::WireTrackedFileCreated, decode_uuid, encode_uuid,
-        Error, ProtoBinding, Result, TrackedFileChange,
+        bindings::sync::WireTrackedFileCreated, Error, ProtoBinding, Result,
+        TrackedFileChange,
     };
 
     impl ProtoBinding for TrackedFileChange {
@@ -840,26 +838,6 @@ mod files {
                         ),
                     }
                 }
-            }
-        }
-    }
-
-    impl TryFrom<WireSecretPath> for SecretPath {
-        type Error = Error;
-
-        fn try_from(value: WireSecretPath) -> Result<Self> {
-            Ok(SecretPath(
-                decode_uuid(&value.folder_id)?,
-                decode_uuid(&value.secret_id)?,
-            ))
-        }
-    }
-
-    impl From<SecretPath> for WireSecretPath {
-        fn from(value: SecretPath) -> Self {
-            WireSecretPath {
-                folder_id: encode_uuid(&value.0),
-                secret_id: encode_uuid(&value.1),
             }
         }
     }

@@ -37,8 +37,7 @@ async fn file_transfers_late_upload() -> Result<()> {
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
     files.push(ExternalFile::new(
-        *default_folder.id(),
-        secret_id,
+        SecretPath(*default_folder.id(), secret_id),
         file_name,
     ));
 
@@ -58,13 +57,19 @@ async fn file_transfers_late_upload() -> Result<()> {
             Default::default(),
         )
         .await?;
-    files.push(ExternalFile::new(*destination.id(), secret_id, file_name));
+    files.push(ExternalFile::new(
+        SecretPath(*destination.id(), secret_id),
+        file_name,
+    ));
 
     // Add an attachment to the moved secret
     let (_, _, file_name) =
         create_attachment(&mut device.owner, &secret_id, &destination, None)
             .await?;
-    files.push(ExternalFile::new(*destination.id(), secret_id, file_name));
+    files.push(ExternalFile::new(
+        SecretPath(*destination.id(), secret_id),
+        file_name,
+    ));
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

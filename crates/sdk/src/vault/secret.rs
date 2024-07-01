@@ -35,7 +35,7 @@ use crate::{
 use std::path::PathBuf;
 
 /// Path to a secret.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct SecretPath(pub VaultId, pub SecretId);
 
 bitflags! {

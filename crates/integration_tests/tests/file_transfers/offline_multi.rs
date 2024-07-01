@@ -39,7 +39,10 @@ async fn file_transfers_offline_multi_upload() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
-    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*default_folder.id(), secret_id),
+        file_name,
+    );
 
     // Wait for the file to exist
     wait_for_file(&server2_paths, &file).await?;
@@ -98,7 +101,10 @@ async fn file_transfers_offline_multi_update() -> Result<()> {
     // Create an external file secret
     let (secret_id, data, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
-    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*default_folder.id(), secret_id),
+        file_name,
+    );
 
     // Wait for the file to exist
     wait_for_file(&server2_paths, &file).await?;
@@ -112,7 +118,10 @@ async fn file_transfers_offline_multi_update() -> Result<()> {
         None,
     )
     .await?;
-    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*default_folder.id(), secret_id),
+        file_name,
+    );
 
     // Wait for the file to exist
     wait_for_file(&server2_paths, &file).await?;
@@ -171,7 +180,10 @@ async fn file_transfers_offline_multi_move() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
-    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*default_folder.id(), secret_id),
+        file_name,
+    );
 
     // Wait for the file to exist
     wait_for_file(&server2_paths, &file).await?;
@@ -192,7 +204,10 @@ async fn file_transfers_offline_multi_move() -> Result<()> {
             Default::default(),
         )
         .await?;
-    let file = ExternalFile::new(*destination.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*destination.id(), secret_id),
+        file_name,
+    );
 
     // Wait for the file to exist
     wait_for_file(&server2_paths, &file).await?;
@@ -252,7 +267,10 @@ async fn file_transfers_offline_multi_delete() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
-    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*default_folder.id(), secret_id),
+        file_name,
+    );
 
     // Wait for the file to exist
     wait_for_file(&server2_paths, &file).await?;
@@ -339,8 +357,10 @@ async fn file_transfers_offline_multi_download() -> Result<()> {
         let (secret_id, _, _, file_name) =
             create_file_secret(&mut uploader.owner, &default_folder, None)
                 .await?;
-        let file =
-            ExternalFile::new(*default_folder.id(), secret_id, file_name);
+        let file = ExternalFile::new(
+            SecretPath(*default_folder.id(), secret_id),
+            file_name,
+        );
 
         // Wait for the file to exist
         wait_for_file(&server2_paths, &file).await?;
