@@ -176,7 +176,8 @@ impl ForceMerge for ServerStorage {
 
         outcome.changes += len;
         outcome.tracked.identity =
-            TrackedChanges::new_folder_records(&diff.patch).await?;
+            TrackedChanges::new_folder_records(vault.id(), &diff.patch)
+                .await?;
 
         Ok(())
     }
@@ -295,7 +296,8 @@ impl ForceMerge for ServerStorage {
         outcome.changes += len;
         outcome.tracked.folders.insert(
             *folder_id,
-            TrackedChanges::new_folder_records(&diff.patch).await?,
+            TrackedChanges::new_folder_records(folder_id, &diff.patch)
+                .await?,
         );
 
         Ok(())
@@ -315,14 +317,18 @@ impl Merge for ServerStorage {
             "identity",
         );
 
+        let identity = self.identity_folder_summary().await?;
         let mut writer = self.identity_log.write().await;
         let checked_patch =
             writer.patch_checked(&diff.checkpoint, &diff.patch).await?;
 
         if let CheckedPatch::Success(_) = &checked_patch {
             outcome.changes += diff.patch.len() as u64;
-            outcome.tracked.identity =
-                TrackedChanges::new_folder_records(&diff.patch).await?;
+            outcome.tracked.identity = TrackedChanges::new_folder_records(
+                identity.id(),
+                &diff.patch,
+            )
+            .await?;
         }
 
         Ok(checked_patch)
@@ -530,7 +536,8 @@ impl Merge for ServerStorage {
             outcome.changes += len;
             outcome.tracked.folders.insert(
                 *folder_id,
-                TrackedChanges::new_folder_records(&diff.patch).await?,
+                TrackedChanges::new_folder_records(folder_id, &diff.patch)
+                    .await?,
             );
         }
 
