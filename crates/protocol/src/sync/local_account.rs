@@ -19,7 +19,7 @@ use crate::{
         Error, Result,
     },
     FolderMerge, FolderMergeOptions, ForceMerge, IdentityFolderMerge, Merge,
-    MergeOutcome, SyncStatus, SyncStorage,
+    MergeOutcome, SyncStatus, SyncStorage, TrackedChanges,
 };
 use async_trait::async_trait;
 use indexmap::IndexMap;
@@ -44,8 +44,10 @@ impl ForceMerge for LocalAccount {
             "force_merge::identity",
         );
 
-        self.user_mut()?.identity_mut()?.force_merge(diff).await?;
+        self.user_mut()?.identity_mut()?.force_merge(&diff).await?;
         outcome.changes += len;
+        outcome.tracked.identity =
+            TrackedChanges::new_folder_records(&diff.patch).await?;
         Ok(())
     }
 
@@ -67,6 +69,8 @@ impl ForceMerge for LocalAccount {
         event_log.patch_replace(&diff).await?;
 
         outcome.changes += len;
+        outcome.tracked.account =
+            TrackedChanges::new_account_records(&diff.patch).await?;
 
         Ok(())
     }
@@ -89,6 +93,8 @@ impl ForceMerge for LocalAccount {
         event_log.patch_replace(&diff).await?;
 
         outcome.changes += len;
+        outcome.tracked.device =
+            TrackedChanges::new_device_records(&diff.patch).await?;
 
         Ok(())
     }
@@ -113,6 +119,8 @@ impl ForceMerge for LocalAccount {
         event_log.patch_replace(&diff).await?;
 
         outcome.changes += len;
+        outcome.tracked.files =
+            TrackedChanges::new_file_records(&diff.patch).await?;
 
         Ok(())
     }
@@ -139,9 +147,13 @@ impl ForceMerge for LocalAccount {
             .cache_mut()
             .get_mut(folder_id)
             .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
-        folder.force_merge(diff).await?;
+        folder.force_merge(&diff).await?;
 
         outcome.changes += len;
+        outcome.tracked.folders.insert(
+            *folder_id,
+            TrackedChanges::new_folder_records(&diff.patch).await?,
+        );
 
         Ok(())
     }
@@ -163,10 +175,12 @@ impl Merge for LocalAccount {
         );
 
         let checked_patch =
-            self.user_mut()?.identity_mut()?.merge(diff).await?;
+            self.user_mut()?.identity_mut()?.merge(&diff).await?;
 
         if let CheckedPatch::Success(_) = &checked_patch {
             outcome.changes += len;
+            outcome.tracked.identity =
+                TrackedChanges::new_folder_records(&diff.patch).await?;
         }
 
         Ok(checked_patch)
@@ -201,6 +215,7 @@ impl Merge for LocalAccount {
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {
+            let mut events = Vec::new();
             for record in diff.patch.iter() {
                 let time = record.time();
                 let event = record.decode_event::<AccountEvent>().await?;
@@ -273,9 +288,12 @@ impl Merge for LocalAccount {
                         }
                     }
                 }
+                events.push(event);
             }
 
             outcome.changes += diff.patch.len() as u64;
+            outcome.tracked.account =
+                TrackedChanges::new_account_events(events).await?;
         }
 
         Ok(checked_patch)
@@ -324,6 +342,8 @@ impl Merge for LocalAccount {
             storage.devices = devices;
 
             outcome.changes += diff.patch.len() as u64;
+            outcome.tracked.device =
+                TrackedChanges::new_device_records(&diff.patch).await?;
         } else {
             // FIXME: handle conflict situation
             println!("todo! device patch could not be merged");
@@ -382,6 +402,8 @@ impl Merge for LocalAccount {
 
         if let CheckedPatch::Success(_) = &checked_patch {
             outcome.changes += diff.patch.len() as u64;
+            outcome.tracked.files =
+                TrackedChanges::new_file_records(&diff.patch).await?;
         }
 
         Ok(checked_patch)
@@ -429,7 +451,7 @@ impl Merge for LocalAccount {
                 let mut search = search.write().await;
                 folder
                     .merge(
-                        diff,
+                        &diff,
                         FolderMergeOptions::Search(*folder_id, &mut search),
                     )
                     .await?
@@ -451,6 +473,10 @@ impl Merge for LocalAccount {
 
         if let CheckedPatch::Success(_) = &checked_patch {
             outcome.changes += len;
+            outcome.tracked.folders.insert(
+                *folder_id,
+                TrackedChanges::new_folder_records(&diff.patch).await?,
+            );
         }
 
         Ok(checked_patch)

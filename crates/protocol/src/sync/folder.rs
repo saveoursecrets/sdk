@@ -26,10 +26,10 @@ use crate::{
 #[async_trait]
 pub(crate) trait IdentityFolderMerge {
     /// Checked merge.
-    async fn merge(&mut self, diff: FolderDiff) -> Result<CheckedPatch>;
+    async fn merge(&mut self, diff: &FolderDiff) -> Result<CheckedPatch>;
 
     /// Unchecked merge.
-    async fn force_merge(&mut self, diff: FolderDiff) -> Result<()>;
+    async fn force_merge(&mut self, diff: &FolderDiff) -> Result<()>;
 }
 
 /// Merge operations for folders.
@@ -38,12 +38,12 @@ pub(crate) trait FolderMerge {
     /// Checked merge.
     async fn merge<'a>(
         &mut self,
-        diff: FolderDiff,
+        diff: &FolderDiff,
         options: FolderMergeOptions<'a>,
     ) -> Result<CheckedPatch>;
 
     /// Unchecked merge.
-    async fn force_merge(&mut self, diff: FolderDiff) -> Result<()>;
+    async fn force_merge(&mut self, diff: &FolderDiff) -> Result<()>;
 }
 
 #[async_trait]
@@ -54,7 +54,7 @@ where
     W: AsyncWrite + Unpin + Send + Sync,
     D: Clone + Send + Sync,
 {
-    async fn merge(&mut self, diff: FolderDiff) -> Result<CheckedPatch> {
+    async fn merge(&mut self, diff: &FolderDiff) -> Result<CheckedPatch> {
         let id = *self.folder_id();
         let index = &mut self.index;
 
@@ -63,7 +63,7 @@ where
             .await
     }
 
-    async fn force_merge(&mut self, diff: FolderDiff) -> Result<()> {
+    async fn force_merge(&mut self, diff: &FolderDiff) -> Result<()> {
         self.folder.force_merge(diff).await
     }
 }
@@ -78,7 +78,7 @@ where
 {
     async fn merge<'a>(
         &mut self,
-        diff: FolderDiff,
+        diff: &FolderDiff,
         mut options: FolderMergeOptions<'a>,
     ) -> Result<CheckedPatch> {
         let checked_patch = {
@@ -242,10 +242,10 @@ where
         Ok(checked_patch)
     }
 
-    async fn force_merge(&mut self, diff: FolderDiff) -> Result<()> {
+    async fn force_merge(&mut self, diff: &FolderDiff) -> Result<()> {
         let event_log = self.event_log();
         let mut event_log = event_log.write().await;
-        event_log.patch_replace(&diff).await?;
+        event_log.patch_replace(diff).await?;
 
         // Build a new vault
         let vault = FolderReducer::new()
