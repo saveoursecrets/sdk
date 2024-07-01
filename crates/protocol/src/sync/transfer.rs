@@ -1,7 +1,8 @@
 //! Manage pending file transfer operations.
 use crate::sdk::{
     events::FileEvent,
-    storage::files::{ExternalFile, FileMutationEvent, SecretPath},
+    storage::files::{ExternalFile, FileMutationEvent},
+    vault::secret::SecretPath,
 };
 use indexmap::IndexSet;
 

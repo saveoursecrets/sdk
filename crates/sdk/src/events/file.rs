@@ -1,6 +1,6 @@
 //! Event for modifications to external files.
 use super::{EventKind, LogEvent};
-use crate::storage::files::{ExternalFileName, SecretPath};
+use crate::{storage::files::ExternalFileName, vault::secret::SecretPath};
 
 /// File event records changes to external files
 ///

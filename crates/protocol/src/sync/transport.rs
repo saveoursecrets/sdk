@@ -24,7 +24,8 @@ use url::Url;
 #[cfg(feature = "files")]
 use crate::sdk::{
     events::{FileDiff, FileEvent, FilePatch},
-    storage::files::{ExternalFile, ExternalFileName, SecretPath},
+    storage::files::{ExternalFile, ExternalFileName},
+    vault::secret::SecretPath,
 };
 
 /// Types of event logs.

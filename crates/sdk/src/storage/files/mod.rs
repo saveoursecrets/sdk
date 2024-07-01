@@ -2,7 +2,10 @@
 use crate::{
     events::FileEvent,
     hex,
-    vault::{secret::SecretId, VaultId},
+    vault::{
+        secret::{SecretId, SecretPath},
+        VaultId,
+    },
     vfs, Error, Paths, Result,
 };
 use indexmap::IndexSet;
@@ -23,10 +26,6 @@ pub struct EncryptedFile {
     /// Sha256 digest of the encrypted buffer.
     pub digest: Vec<u8>,
 }
-
-/// Path to a secret.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct SecretPath(pub VaultId, pub SecretId);
 
 /// External file name is an SHA2-256 checksum of
 /// the encrypted file contents.

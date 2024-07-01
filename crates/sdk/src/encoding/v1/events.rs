@@ -11,7 +11,7 @@ use crate::{
 use crate::events::DeviceEvent;
 
 #[cfg(feature = "files")]
-use crate::{events::FileEvent, storage::files::SecretPath};
+use crate::{events::FileEvent, vault::secret::SecretPath};
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Error, ErrorKind, Result, SeekFrom};

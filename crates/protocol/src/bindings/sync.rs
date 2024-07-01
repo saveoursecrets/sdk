@@ -759,7 +759,7 @@ impl From<TrackedDeviceChange> for WireTrackedDeviceChange {
 
 #[cfg(feature = "files")]
 mod files {
-    use sos_sdk::storage::files::SecretPath;
+    use sos_sdk::vault::secret::SecretPath;
 
     use super::{
         wire_tracked_file_change, WireSecretPath, WireTrackedFileChange,
