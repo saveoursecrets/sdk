@@ -310,7 +310,14 @@ impl TrackedChanges {
                     changes.insert(TrackedFolderChange::Updated(secret_id));
                 }
                 WriteEvent::DeleteSecret(secret_id) => {
-                    changes.insert(TrackedFolderChange::Deleted(secret_id));
+                    let created = TrackedFolderChange::Created(secret_id);
+                    let updated = TrackedFolderChange::Updated(secret_id);
+                    let had_created = changes.remove(&created);
+                    changes.remove(&updated);
+                    if !had_created {
+                        changes
+                            .insert(TrackedFolderChange::Deleted(secret_id));
+                    }
                 }
                 _ => {}
             }
@@ -345,12 +352,19 @@ impl TrackedChanges {
                     ));
                 }
                 AccountEvent::DeleteFolder(folder_id) => {
-                    changes.insert(TrackedAccountChange::FolderDeleted(
-                        folder_id,
-                    ));
+                    let created =
+                        TrackedAccountChange::FolderCreated(folder_id);
+                    let updated =
+                        TrackedAccountChange::FolderUpdated(folder_id);
+                    let had_created = changes.remove(&created);
+                    changes.remove(&updated);
+
+                    if !had_created {
+                        changes.insert(TrackedAccountChange::FolderDeleted(
+                            folder_id,
+                        ));
+                    }
                 }
-                // TODO: track other destructive changes
-                // TODO: eg: compact, change folder password etc.
                 _ => {}
             }
         }
@@ -379,7 +393,12 @@ impl TrackedChanges {
                     ));
                 }
                 DeviceEvent::Revoke(public_key) => {
-                    changes.insert(TrackedDeviceChange::Revoked(public_key));
+                    let trusted = TrackedDeviceChange::Trusted(public_key);
+                    let had_trusted = changes.remove(&trusted);
+                    if !had_trusted {
+                        changes
+                            .insert(TrackedDeviceChange::Revoked(public_key));
+                    }
                 }
                 _ => {}
             }
@@ -416,7 +435,34 @@ impl TrackedChanges {
                     });
                 }
                 FileEvent::DeleteFile(owner, name) => {
-                    changes.insert(TrackedFileChange::Deleted(owner, name));
+                    let created = TrackedFileChange::Created(owner, name);
+                    let had_created = changes.remove(&created);
+
+                    let moved = changes.iter().find_map(|event| {
+                        if let TrackedFileChange::Moved {
+                            name: moved_name,
+                            dest,
+                            from,
+                        } = event
+                        {
+                            if moved_name == &name && dest == &owner {
+                                return Some(TrackedFileChange::Moved {
+                                    name: *moved_name,
+                                    from: *from,
+                                    dest: *dest,
+                                });
+                            }
+                        }
+                        None
+                    });
+                    if let Some(moved) = moved {
+                        changes.remove(&moved);
+                    }
+
+                    if !had_created {
+                        changes
+                            .insert(TrackedFileChange::Deleted(owner, name));
+                    }
                 }
                 _ => {}
             }
