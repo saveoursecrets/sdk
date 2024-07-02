@@ -253,7 +253,21 @@ pub struct UpdateSet {
 pub struct MergeOutcome {
     /// Total number of changes made during a merge.
     pub changes: u64,
-    /// Tracked changes that were made during a merge.
+    /// Tracked changes made during a merge.
+    ///
+    /// These events can be used by client implementations
+    /// to react to changes on other devices but they are not
+    /// an exact representation of what was merged as tracked
+    /// changes are normalized.
+    ///
+    /// For example, a create secret followed by a deletion of
+    /// the same secret will result in both events being omitted.
+    ///
+    /// Tracked changes are normalized for all event types.
+    ///
+    /// Not all events are tracked, for example, renaming a folder
+    /// triggers events on the account event log and also on the
+    /// folder but only the account level events are tracked.
     pub tracked: TrackedChanges,
 
     /// Collection of external files detected when merging
