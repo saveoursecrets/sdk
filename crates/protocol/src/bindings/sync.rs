@@ -11,7 +11,7 @@ use crate::{
     TrackedChanges, TrackedDeviceChange, TrackedFolderChange, UpdateSet,
 };
 use indexmap::{IndexMap, IndexSet};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 impl ProtoBinding for Origin {
     type Inner = WireOrigin;
@@ -571,24 +571,24 @@ impl TryFrom<WireTrackedChanges> for TrackedChanges {
     type Error = Error;
 
     fn try_from(value: WireTrackedChanges) -> Result<Self> {
-        let mut identity = HashSet::with_capacity(value.identity.len());
+        let mut identity = IndexSet::with_capacity(value.identity.len());
         for change in value.identity {
             identity.insert(change.try_into()?);
         }
 
-        let mut account = HashSet::with_capacity(value.account.len());
+        let mut account = IndexSet::with_capacity(value.account.len());
         for change in value.account {
             account.insert(change.try_into()?);
         }
 
-        let mut device = HashSet::with_capacity(value.device.len());
+        let mut device = IndexSet::with_capacity(value.device.len());
         for change in value.device {
             device.insert(change.try_into()?);
         }
 
         #[cfg(feature = "files")]
         let files = {
-            let mut files = HashSet::with_capacity(value.files.len());
+            let mut files = IndexSet::with_capacity(value.files.len());
             for change in value.files {
                 files.insert(change.try_into()?);
             }
@@ -597,7 +597,7 @@ impl TryFrom<WireTrackedChanges> for TrackedChanges {
 
         let mut folders = HashMap::with_capacity(value.folders.len());
         for folder in value.folders {
-            let mut changes = HashSet::with_capacity(folder.changes.len());
+            let mut changes = IndexSet::with_capacity(folder.changes.len());
             for change in folder.changes {
                 changes.insert(change.try_into()?);
             }

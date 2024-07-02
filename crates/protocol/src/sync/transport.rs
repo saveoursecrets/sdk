@@ -15,7 +15,7 @@ use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use sos_sdk::events::WriteEvent;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fmt,
     hash::{Hash, Hasher},
 };
@@ -270,27 +270,27 @@ pub struct MergeOutcome {
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct TrackedChanges {
     /// Changes made to the identity folder.
-    pub identity: HashSet<TrackedFolderChange>,
+    pub identity: IndexSet<TrackedFolderChange>,
 
     /// Changes made to the devices collection.
-    pub device: HashSet<TrackedDeviceChange>,
+    pub device: IndexSet<TrackedDeviceChange>,
 
     /// Changes made to the account.
-    pub account: HashSet<TrackedAccountChange>,
+    pub account: IndexSet<TrackedAccountChange>,
 
     /// Changes to the files log.
     #[cfg(feature = "files")]
-    pub files: HashSet<TrackedFileChange>,
+    pub files: IndexSet<TrackedFileChange>,
 
     /// Change made to each folder.
-    pub folders: HashMap<VaultId, HashSet<TrackedFolderChange>>,
+    pub folders: HashMap<VaultId, IndexSet<TrackedFolderChange>>,
 }
 
 impl TrackedChanges {
     /// Create a new set of tracked changes to a folder from a patch.
     pub async fn new_folder_records(
         value: &FolderPatch,
-    ) -> Result<HashSet<TrackedFolderChange>> {
+    ) -> Result<IndexSet<TrackedFolderChange>> {
         let events = value.into_events::<WriteEvent>().await?;
         Self::new_folder_events(events).await
     }
@@ -299,8 +299,8 @@ impl TrackedChanges {
     /// collection of folder events.
     pub async fn new_folder_events(
         events: Vec<WriteEvent>,
-    ) -> Result<HashSet<TrackedFolderChange>> {
-        let mut changes = HashSet::new();
+    ) -> Result<IndexSet<TrackedFolderChange>> {
+        let mut changes = IndexSet::new();
         for event in events {
             match event {
                 WriteEvent::CreateSecret(secret_id, _) => {
@@ -312,8 +312,8 @@ impl TrackedChanges {
                 WriteEvent::DeleteSecret(secret_id) => {
                     let created = TrackedFolderChange::Created(secret_id);
                     let updated = TrackedFolderChange::Updated(secret_id);
-                    let had_created = changes.remove(&created);
-                    changes.remove(&updated);
+                    let had_created = changes.shift_remove(&created);
+                    changes.shift_remove(&updated);
                     if !had_created {
                         changes
                             .insert(TrackedFolderChange::Deleted(secret_id));
@@ -328,7 +328,7 @@ impl TrackedChanges {
     /// Create a new set of tracked changes to an account from a patch.
     pub async fn new_account_records(
         value: &AccountPatch,
-    ) -> Result<HashSet<TrackedAccountChange>> {
+    ) -> Result<IndexSet<TrackedAccountChange>> {
         let events = value.into_events::<AccountEvent>().await?;
         Self::new_account_events(events).await
     }
@@ -337,8 +337,8 @@ impl TrackedChanges {
     /// collection of account events.
     pub async fn new_account_events(
         events: Vec<AccountEvent>,
-    ) -> Result<HashSet<TrackedAccountChange>> {
-        let mut changes = HashSet::new();
+    ) -> Result<IndexSet<TrackedAccountChange>> {
+        let mut changes = IndexSet::new();
         for event in events {
             match event {
                 AccountEvent::CreateFolder(folder_id, _) => {
@@ -356,8 +356,8 @@ impl TrackedChanges {
                         TrackedAccountChange::FolderCreated(folder_id);
                     let updated =
                         TrackedAccountChange::FolderUpdated(folder_id);
-                    let had_created = changes.remove(&created);
-                    changes.remove(&updated);
+                    let had_created = changes.shift_remove(&created);
+                    changes.shift_remove(&updated);
 
                     if !had_created {
                         changes.insert(TrackedAccountChange::FolderDeleted(
@@ -374,7 +374,7 @@ impl TrackedChanges {
     /// Create a new set of tracked changes to a device from a patch.
     pub async fn new_device_records(
         value: &DevicePatch,
-    ) -> Result<HashSet<TrackedDeviceChange>> {
+    ) -> Result<IndexSet<TrackedDeviceChange>> {
         let events = value.into_events::<DeviceEvent>().await?;
         Self::new_device_events(events).await
     }
@@ -383,8 +383,8 @@ impl TrackedChanges {
     /// collection of device events.
     pub async fn new_device_events(
         events: Vec<DeviceEvent>,
-    ) -> Result<HashSet<TrackedDeviceChange>> {
-        let mut changes = HashSet::new();
+    ) -> Result<IndexSet<TrackedDeviceChange>> {
+        let mut changes = IndexSet::new();
         for event in events {
             match event {
                 DeviceEvent::Trust(device) => {
@@ -394,7 +394,7 @@ impl TrackedChanges {
                 }
                 DeviceEvent::Revoke(public_key) => {
                     let trusted = TrackedDeviceChange::Trusted(public_key);
-                    let had_trusted = changes.remove(&trusted);
+                    let had_trusted = changes.shift_remove(&trusted);
                     if !had_trusted {
                         changes
                             .insert(TrackedDeviceChange::Revoked(public_key));
@@ -410,7 +410,7 @@ impl TrackedChanges {
     #[cfg(feature = "files")]
     pub async fn new_file_records(
         value: &FilePatch,
-    ) -> Result<HashSet<TrackedFileChange>> {
+    ) -> Result<IndexSet<TrackedFileChange>> {
         let events = value.into_events::<FileEvent>().await?;
         Self::new_file_events(events).await
     }
@@ -420,8 +420,8 @@ impl TrackedChanges {
     #[cfg(feature = "files")]
     pub async fn new_file_events(
         events: Vec<FileEvent>,
-    ) -> Result<HashSet<TrackedFileChange>> {
-        let mut changes = HashSet::new();
+    ) -> Result<IndexSet<TrackedFileChange>> {
+        let mut changes = IndexSet::new();
         for event in events {
             match event {
                 FileEvent::CreateFile(owner, name) => {
@@ -436,7 +436,7 @@ impl TrackedChanges {
                 }
                 FileEvent::DeleteFile(owner, name) => {
                     let created = TrackedFileChange::Created(owner, name);
-                    let had_created = changes.remove(&created);
+                    let had_created = changes.shift_remove(&created);
 
                     let moved = changes.iter().find_map(|event| {
                         if let TrackedFileChange::Moved {
@@ -456,7 +456,7 @@ impl TrackedChanges {
                         None
                     });
                     if let Some(moved) = moved {
-                        changes.remove(&moved);
+                        changes.shift_remove(&moved);
                     }
 
                     if !had_created {
