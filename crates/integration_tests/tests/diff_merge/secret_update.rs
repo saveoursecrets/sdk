@@ -69,8 +69,6 @@ async fn diff_merge_secret_update() -> Result<()> {
     remote.merge(diff, &mut outcome).await?;
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
 
-    println!("{:#?}", outcome);
-
     assert_eq!(2, outcome.changes);
     let folder_changes =
         outcome.tracked.folders.get(default_folder.id()).unwrap();
