@@ -461,7 +461,7 @@ impl Merge for LocalAccount {
             {
                 folder
                     .merge(
-                        diff,
+                        &diff,
                         FolderMergeOptions::Urn(
                             *folder_id,
                             &mut Default::default(),
