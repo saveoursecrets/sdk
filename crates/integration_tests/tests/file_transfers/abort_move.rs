@@ -44,7 +44,10 @@ async fn file_transfers_abort_move() -> Result<()> {
             Default::default(),
         )
         .await?;
-    let file = ExternalFile::new(*destination.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*destination.id(), secret_id),
+        file_name,
+    );
 
     // Wait until the move transfer is completed
     wait_for_num_transfers(&device.owner, 1).await?;

@@ -388,7 +388,7 @@ where
     ///
     /// When verification fails an [Error::CheckpointVerification]
     /// error will always be returned.
-    async fn patch_replace(&mut self, diff: Diff<E>) -> Result<()> {
+    async fn patch_replace(&mut self, diff: &Diff<E>) -> Result<()> {
         // Create a snapshot for disc-based implementations
         let snapshot = self.try_create_snapshot().await?;
 

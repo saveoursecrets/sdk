@@ -7,7 +7,8 @@ use crate::{
         events::{Diff, EventRecord, Patch},
     },
     CreateSet, Error, MaybeDiff, MergeOutcome, Origin, ProtoBinding, Result,
-    SyncCompare, SyncDiff, SyncPacket, SyncStatus, UpdateSet,
+    SyncCompare, SyncDiff, SyncPacket, SyncStatus, TrackedAccountChange,
+    TrackedChanges, TrackedDeviceChange, TrackedFolderChange, UpdateSet,
 };
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
@@ -544,19 +545,9 @@ impl TryFrom<WireMergeOutcome> for MergeOutcome {
     type Error = Error;
 
     fn try_from(value: WireMergeOutcome) -> Result<Self> {
-        let mut folders = HashMap::with_capacity(value.folders.len());
-        for folder in value.folders {
-            folders.insert(decode_uuid(&folder.folder_id)?, folder.changes);
-        }
-
         Ok(Self {
             changes: value.changes,
-            identity: value.identity,
-            account: value.account,
-            device: value.device,
-            #[cfg(feature = "files")]
-            files: value.files,
-            folders,
+            tracked: value.tracked.unwrap().try_into()?,
             #[cfg(feature = "files")]
             external_files: IndexSet::new(),
         })
@@ -567,21 +558,343 @@ impl From<MergeOutcome> for WireMergeOutcome {
     fn from(value: MergeOutcome) -> Self {
         Self {
             changes: value.changes,
-            identity: value.identity,
-            account: value.account,
-            device: value.device,
+            tracked: Some(value.tracked.into()),
+        }
+    }
+}
+
+impl ProtoBinding for TrackedChanges {
+    type Inner = WireTrackedChanges;
+}
+
+impl TryFrom<WireTrackedChanges> for TrackedChanges {
+    type Error = Error;
+
+    fn try_from(value: WireTrackedChanges) -> Result<Self> {
+        let mut identity = IndexSet::with_capacity(value.identity.len());
+        for change in value.identity {
+            identity.insert(change.try_into()?);
+        }
+
+        let mut account = IndexSet::with_capacity(value.account.len());
+        for change in value.account {
+            account.insert(change.try_into()?);
+        }
+
+        let mut device = IndexSet::with_capacity(value.device.len());
+        for change in value.device {
+            device.insert(change.try_into()?);
+        }
+
+        #[cfg(feature = "files")]
+        let files = {
+            let mut files = IndexSet::with_capacity(value.files.len());
+            for change in value.files {
+                files.insert(change.try_into()?);
+            }
+            files
+        };
+
+        let mut folders = HashMap::with_capacity(value.folders.len());
+        for folder in value.folders {
+            let mut changes = IndexSet::with_capacity(folder.changes.len());
+            for change in folder.changes {
+                changes.insert(change.try_into()?);
+            }
+            folders.insert(decode_uuid(&folder.folder_id)?, changes);
+        }
+
+        Ok(Self {
+            identity,
+            account,
+            device,
             #[cfg(feature = "files")]
-            files: value.files,
+            files,
+            folders,
+        })
+    }
+}
+
+impl From<TrackedChanges> for WireTrackedChanges {
+    fn from(value: TrackedChanges) -> Self {
+        Self {
+            identity: value.identity.into_iter().map(|c| c.into()).collect(),
+            account: value.account.into_iter().map(|c| c.into()).collect(),
+            device: value.device.into_iter().map(|c| c.into()).collect(),
+            #[cfg(feature = "files")]
+            files: value.files.into_iter().map(|c| c.into()).collect(),
             #[cfg(not(feature = "files"))]
-            files: 0,
+            files: Default::default(),
             folders: value
                 .folders
                 .into_iter()
-                .map(|(k, v)| WireFolderMergeOutcome {
+                .map(|(k, v)| WireTrackedUserFolderChange {
                     folder_id: encode_uuid(&k),
-                    changes: v,
+                    changes: v.into_iter().map(|c| c.into()).collect(),
                 })
                 .collect(),
+        }
+    }
+}
+
+impl ProtoBinding for TrackedAccountChange {
+    type Inner = WireTrackedAccountChange;
+}
+
+impl TryFrom<WireTrackedAccountChange> for TrackedAccountChange {
+    type Error = Error;
+
+    fn try_from(value: WireTrackedAccountChange) -> Result<Self> {
+        Ok(match value.inner.unwrap() {
+            wire_tracked_account_change::Inner::FolderCreated(inner) => {
+                TrackedAccountChange::FolderCreated(decode_uuid(
+                    &inner.folder_id,
+                )?)
+            }
+            wire_tracked_account_change::Inner::FolderUpdated(inner) => {
+                TrackedAccountChange::FolderUpdated(decode_uuid(
+                    &inner.folder_id,
+                )?)
+            }
+            wire_tracked_account_change::Inner::FolderDeleted(inner) => {
+                TrackedAccountChange::FolderDeleted(decode_uuid(
+                    &inner.folder_id,
+                )?)
+            }
+        })
+    }
+}
+
+impl From<TrackedAccountChange> for WireTrackedAccountChange {
+    fn from(value: TrackedAccountChange) -> Self {
+        match value {
+            TrackedAccountChange::FolderCreated(folder_id) => {
+                WireTrackedAccountChange {
+                    inner: Some(
+                        wire_tracked_account_change::Inner::FolderCreated(
+                            WireTrackedAccountFolderCreated {
+                                folder_id: encode_uuid(&folder_id),
+                            },
+                        ),
+                    ),
+                }
+            }
+            TrackedAccountChange::FolderUpdated(folder_id) => {
+                WireTrackedAccountChange {
+                    inner: Some(
+                        wire_tracked_account_change::Inner::FolderUpdated(
+                            WireTrackedAccountFolderUpdated {
+                                folder_id: encode_uuid(&folder_id),
+                            },
+                        ),
+                    ),
+                }
+            }
+            TrackedAccountChange::FolderDeleted(folder_id) => {
+                WireTrackedAccountChange {
+                    inner: Some(
+                        wire_tracked_account_change::Inner::FolderDeleted(
+                            WireTrackedAccountFolderDeleted {
+                                folder_id: encode_uuid(&folder_id),
+                            },
+                        ),
+                    ),
+                }
+            }
+        }
+    }
+}
+
+impl ProtoBinding for TrackedDeviceChange {
+    type Inner = WireTrackedDeviceChange;
+}
+
+impl TryFrom<WireTrackedDeviceChange> for TrackedDeviceChange {
+    type Error = Error;
+
+    fn try_from(value: WireTrackedDeviceChange) -> Result<Self> {
+        Ok(match value.inner.unwrap() {
+            wire_tracked_device_change::Inner::Trusted(inner) => {
+                TrackedDeviceChange::Trusted(
+                    inner.device_public_key.as_slice().try_into()?,
+                )
+            }
+            wire_tracked_device_change::Inner::Revoked(inner) => {
+                TrackedDeviceChange::Revoked(
+                    inner.device_public_key.as_slice().try_into()?,
+                )
+            }
+        })
+    }
+}
+
+impl From<TrackedDeviceChange> for WireTrackedDeviceChange {
+    fn from(value: TrackedDeviceChange) -> Self {
+        match value {
+            TrackedDeviceChange::Trusted(device_public_key) => {
+                WireTrackedDeviceChange {
+                    inner: Some(wire_tracked_device_change::Inner::Trusted(
+                        WireTrackedDeviceChangeTrusted {
+                            device_public_key: device_public_key
+                                .as_ref()
+                                .to_vec(),
+                        },
+                    )),
+                }
+            }
+            TrackedDeviceChange::Revoked(device_public_key) => {
+                WireTrackedDeviceChange {
+                    inner: Some(wire_tracked_device_change::Inner::Revoked(
+                        WireTrackedDeviceChangeRevoked {
+                            device_public_key: device_public_key
+                                .as_ref()
+                                .to_vec(),
+                        },
+                    )),
+                }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "files")]
+mod files {
+    use super::{
+        wire_tracked_file_change, WireTrackedFileChange,
+        WireTrackedFileDeleted, WireTrackedFileMoved,
+    };
+    use crate::{
+        bindings::sync::WireTrackedFileCreated, Error, ProtoBinding, Result,
+        TrackedFileChange,
+    };
+
+    impl ProtoBinding for TrackedFileChange {
+        type Inner = WireTrackedFileChange;
+    }
+
+    impl TryFrom<WireTrackedFileChange> for TrackedFileChange {
+        type Error = Error;
+
+        fn try_from(value: WireTrackedFileChange) -> Result<Self> {
+            Ok(match value.inner.unwrap() {
+                wire_tracked_file_change::Inner::Created(inner) => {
+                    TrackedFileChange::Created(
+                        inner.owner.unwrap().try_into()?,
+                        inner.file_name.as_slice().try_into()?,
+                    )
+                }
+                wire_tracked_file_change::Inner::Moved(inner) => {
+                    TrackedFileChange::Moved {
+                        name: inner.name.as_slice().try_into()?,
+                        from: inner.from.unwrap().try_into()?,
+                        dest: inner.dest.unwrap().try_into()?,
+                    }
+                }
+                wire_tracked_file_change::Inner::Deleted(inner) => {
+                    TrackedFileChange::Deleted(
+                        inner.owner.unwrap().try_into()?,
+                        inner.file_name.as_slice().try_into()?,
+                    )
+                }
+            })
+        }
+    }
+
+    impl From<TrackedFileChange> for WireTrackedFileChange {
+        fn from(value: TrackedFileChange) -> Self {
+            match value {
+                TrackedFileChange::Created(owner, file_name) => {
+                    WireTrackedFileChange {
+                        inner: Some(
+                            wire_tracked_file_change::Inner::Created(
+                                WireTrackedFileCreated {
+                                    owner: Some(owner.into()),
+                                    file_name: file_name.as_ref().to_vec(),
+                                },
+                            ),
+                        ),
+                    }
+                }
+                TrackedFileChange::Moved { name, from, dest } => {
+                    WireTrackedFileChange {
+                        inner: Some(wire_tracked_file_change::Inner::Moved(
+                            WireTrackedFileMoved {
+                                name: name.as_ref().to_vec(),
+                                from: Some(from.into()),
+                                dest: Some(dest.into()),
+                            },
+                        )),
+                    }
+                }
+                TrackedFileChange::Deleted(owner, file_name) => {
+                    WireTrackedFileChange {
+                        inner: Some(
+                            wire_tracked_file_change::Inner::Deleted(
+                                WireTrackedFileDeleted {
+                                    owner: Some(owner.into()),
+                                    file_name: file_name.as_ref().to_vec(),
+                                },
+                            ),
+                        ),
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl ProtoBinding for TrackedFolderChange {
+    type Inner = WireTrackedFolderChange;
+}
+
+impl TryFrom<WireTrackedFolderChange> for TrackedFolderChange {
+    type Error = Error;
+
+    fn try_from(value: WireTrackedFolderChange) -> Result<Self> {
+        Ok(match value.inner.unwrap() {
+            wire_tracked_folder_change::Inner::Created(inner) => {
+                TrackedFolderChange::Created(decode_uuid(&inner.secret_id)?)
+            }
+            wire_tracked_folder_change::Inner::Updated(inner) => {
+                TrackedFolderChange::Updated(decode_uuid(&inner.secret_id)?)
+            }
+            wire_tracked_folder_change::Inner::Deleted(inner) => {
+                TrackedFolderChange::Deleted(decode_uuid(&inner.secret_id)?)
+            }
+        })
+    }
+}
+
+impl From<TrackedFolderChange> for WireTrackedFolderChange {
+    fn from(value: TrackedFolderChange) -> Self {
+        match value {
+            TrackedFolderChange::Created(secret_id) => {
+                WireTrackedFolderChange {
+                    inner: Some(wire_tracked_folder_change::Inner::Created(
+                        WireTrackedFolderChangeCreated {
+                            secret_id: encode_uuid(&secret_id),
+                        },
+                    )),
+                }
+            }
+            TrackedFolderChange::Updated(secret_id) => {
+                WireTrackedFolderChange {
+                    inner: Some(wire_tracked_folder_change::Inner::Updated(
+                        WireTrackedFolderChangeUpdated {
+                            secret_id: encode_uuid(&secret_id),
+                        },
+                    )),
+                }
+            }
+            TrackedFolderChange::Deleted(secret_id) => {
+                WireTrackedFolderChange {
+                    inner: Some(wire_tracked_folder_change::Inner::Deleted(
+                        WireTrackedFolderChangeDeleted {
+                            secret_id: encode_uuid(&secret_id),
+                        },
+                    )),
+                }
+            }
         }
     }
 }

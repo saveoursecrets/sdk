@@ -7,7 +7,7 @@ mod files {
         decode_uuid, encode_uuid,
         sdk::{
             storage::files::{ExternalFile, ExternalFileName},
-            vault::{secret::SecretId, VaultId},
+            vault::secret::SecretPath,
         },
         Error, FileSet, FileTransfersSet, ProtoBinding, Result,
     };
@@ -25,20 +25,20 @@ mod files {
             let secret_id = decode_uuid(&value.secret_id)?;
             let file_name: [u8; 32] =
                 value.file_name.as_slice().try_into()?;
-            Ok(Self::new(folder_id, secret_id, file_name.into()))
+            Ok(Self::new(
+                SecretPath(folder_id, secret_id),
+                file_name.into(),
+            ))
         }
     }
 
     impl From<ExternalFile> for WireExternalFile {
         fn from(value: ExternalFile) -> Self {
-            let (folder_id, secret_id, file_name): (
-                VaultId,
-                SecretId,
-                ExternalFileName,
-            ) = value.into();
+            let (owner, file_name): (SecretPath, ExternalFileName) =
+                value.into();
             Self {
-                folder_id: encode_uuid(&folder_id),
-                secret_id: encode_uuid(&secret_id),
+                folder_id: encode_uuid(&owner.0),
+                secret_id: encode_uuid(&owner.1),
                 file_name: file_name.as_ref().to_vec(),
             }
         }

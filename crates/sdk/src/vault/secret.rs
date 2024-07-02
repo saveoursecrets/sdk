@@ -28,10 +28,15 @@ use crate::{
         ecdsa::{self, BoxedEcdsaSigner},
         ed25519::{self, BoxedEd25519Signer},
     },
+    vault::VaultId,
     Error, Result, UtcDateTime,
 };
 
 use std::path::PathBuf;
+
+/// Path to a secret.
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct SecretPath(pub VaultId, pub SecretId);
 
 bitflags! {
     /// Bit flags for a secret.

@@ -6,6 +6,7 @@ use crate::{
         commit::{CommitHash, CommitProof, CommitState},
         events::{CheckedPatch, EventRecord},
         time::{Duration, OffsetDateTime},
+        vault::secret::SecretPath,
         UtcDateTime,
     },
     sync::EventLogType,
@@ -258,6 +259,26 @@ impl From<EventLogType> for WireEventLogType {
             Self {
                 inner: Some(wire_event_log_type::Inner::System(system)),
             }
+        }
+    }
+}
+
+impl TryFrom<WireSecretPath> for SecretPath {
+    type Error = Error;
+
+    fn try_from(value: WireSecretPath) -> Result<Self> {
+        Ok(SecretPath(
+            decode_uuid(&value.folder_id)?,
+            decode_uuid(&value.secret_id)?,
+        ))
+    }
+}
+
+impl From<SecretPath> for WireSecretPath {
+    fn from(value: SecretPath) -> Self {
+        WireSecretPath {
+            folder_id: encode_uuid(&value.0),
+            secret_id: encode_uuid(&value.1),
         }
     }
 }

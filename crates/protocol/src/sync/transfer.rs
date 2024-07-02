@@ -49,23 +49,17 @@ impl From<&FileMutationEvent> for FileOperation {
 impl From<&FileEvent> for FileOperation {
     fn from(value: &FileEvent) -> Self {
         match value {
-            FileEvent::CreateFile(vault_id, secret_id, file_name) => {
-                FileOperation(
-                    ExternalFile::new(*vault_id, *secret_id, *file_name),
-                    TransferOperation::Upload,
-                )
-            }
-            FileEvent::DeleteFile(vault_id, secret_id, file_name) => {
-                FileOperation(
-                    ExternalFile::new(*vault_id, *secret_id, *file_name),
-                    TransferOperation::Delete,
-                )
-            }
+            FileEvent::CreateFile(owner, file_name) => FileOperation(
+                ExternalFile::new(*owner, *file_name),
+                TransferOperation::Upload,
+            ),
+            FileEvent::DeleteFile(owner, file_name) => FileOperation(
+                ExternalFile::new(*owner, *file_name),
+                TransferOperation::Delete,
+            ),
             FileEvent::MoveFile { name, from, dest } => FileOperation(
-                ExternalFile::new(from.0, from.1, *name),
-                TransferOperation::Move(ExternalFile::new(
-                    dest.0, dest.1, *name,
-                )),
+                ExternalFile::new(*from, *name),
+                TransferOperation::Move(ExternalFile::new(*dest, *name)),
             ),
             _ => panic!("attempt to convert noop file event"),
         }

@@ -87,29 +87,17 @@ async fn event_log_file() -> Result<()> {
     assert_eq!(5, events.len());
 
     // Initial file secret creation
-    assert!(matches!(
-        events.get(0),
-        Some(FileEvent::CreateFile(_, _, _))
-    ));
+    assert!(matches!(events.get(0), Some(FileEvent::CreateFile(_, _))));
 
     // Moving event
     assert!(matches!(events.get(1), Some(FileEvent::MoveFile { .. })));
 
     // Adding the file attachment triggered another create
-    assert!(matches!(
-        events.get(2),
-        Some(FileEvent::CreateFile(_, _, _))
-    ));
+    assert!(matches!(events.get(2), Some(FileEvent::CreateFile(_, _))));
 
     // Both files were deleted
-    assert!(matches!(
-        events.get(3),
-        Some(FileEvent::DeleteFile(_, _, _))
-    ));
-    assert!(matches!(
-        events.get(4),
-        Some(FileEvent::DeleteFile(_, _, _))
-    ));
+    assert!(matches!(events.get(3), Some(FileEvent::DeleteFile(_, _))));
+    assert!(matches!(events.get(4), Some(FileEvent::DeleteFile(_, _))));
 
     teardown(TEST_ID).await;
 
@@ -160,23 +148,11 @@ async fn event_log_file_folder_delete() -> Result<()> {
     let mut event_log = FileEventLog::new_file(&file_events).await?;
     let events = all_events(&mut event_log).await?;
     assert_eq!(4, events.len());
-    assert!(matches!(
-        events.get(0),
-        Some(FileEvent::CreateFile(_, _, _))
-    ));
-    assert!(matches!(
-        events.get(1),
-        Some(FileEvent::CreateFile(_, _, _))
-    ));
+    assert!(matches!(events.get(0), Some(FileEvent::CreateFile(_, _))));
+    assert!(matches!(events.get(1), Some(FileEvent::CreateFile(_, _))));
     // Both files were deleted
-    assert!(matches!(
-        events.get(2),
-        Some(FileEvent::DeleteFile(_, _, _))
-    ));
-    assert!(matches!(
-        events.get(3),
-        Some(FileEvent::DeleteFile(_, _, _))
-    ));
+    assert!(matches!(events.get(2), Some(FileEvent::DeleteFile(_, _))));
+    assert!(matches!(events.get(3), Some(FileEvent::DeleteFile(_, _))));
 
     teardown(TEST_ID).await;
 

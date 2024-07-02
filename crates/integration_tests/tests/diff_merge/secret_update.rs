@@ -1,7 +1,7 @@
 use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_net::{
-    protocol::{diff, Merge, MergeOutcome, SyncStorage},
+    protocol::{diff, Merge, MergeOutcome, SyncStorage, TrackedFolderChange},
     sdk::prelude::*,
 };
 
@@ -28,6 +28,7 @@ async fn diff_merge_secret_update() -> Result<()> {
 
     let key: AccessKey = password.clone().into();
     local.sign_in(&key).await?;
+    let default_folder = local.default_folder().await.unwrap();
     let address = local.address().clone();
 
     // Copy the initial account disc state
@@ -64,8 +65,15 @@ async fn diff_merge_secret_update() -> Result<()> {
     assert!(needs_sync);
 
     // Merge the changes
-    remote.merge(diff, &mut MergeOutcome::default()).await?;
+    let mut outcome = MergeOutcome::default();
+    remote.merge(diff, &mut outcome).await?;
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
+
+    assert_eq!(2, outcome.changes);
+    let folder_changes =
+        outcome.tracked.folders.get(default_folder.id()).unwrap();
+    assert!(folder_changes.contains(&TrackedFolderChange::Created(id)));
+    assert!(folder_changes.contains(&TrackedFolderChange::Updated(id)));
 
     // Check we can read the secret
     let (data, _) = remote.read_secret(&id, None).await?;

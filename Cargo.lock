@@ -4248,7 +4248,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.14.2"
+version = "0.14.3"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -4287,7 +4287,7 @@ dependencies = [
 
 [[package]]
 name = "sos-protocol"
-version = "0.14.2"
+version = "0.14.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4309,7 +4309,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.14.2"
+version = "0.14.3"
 dependencies = [
  "aes-gcm",
  "age",
@@ -4384,7 +4384,7 @@ dependencies = [
 
 [[package]]
 name = "sos-server"
-version = "0.14.1"
+version = "0.14.3"
 dependencies = [
  "async-trait",
  "axum",

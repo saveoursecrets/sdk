@@ -7,7 +7,7 @@ use crate::{
         commit::{CommitHash, CommitProof, CommitState},
         events::{CheckedPatch, EventRecord, FolderDiff},
         signer::ecdsa::Address,
-        vault::VaultId,
+        vault::{secret::SecretPath, VaultId},
         UtcDateTime,
     },
     sync::{
@@ -366,14 +366,12 @@ async fn encode_decode_change_files() -> Result<()> {
 
     let mut up = IndexSet::new();
     up.insert(ExternalFile::new(
-        VaultId::new_v4(),
-        SecretId::new_v4(),
+        SecretPath(VaultId::new_v4(), SecretId::new_v4()),
         file_name.into(),
     ));
     let mut down = IndexSet::new();
     down.insert(ExternalFile::new(
-        VaultId::new_v4(),
-        SecretId::new_v4(),
+        SecretPath(VaultId::new_v4(), SecretId::new_v4()),
         file_name.into(),
     ));
 

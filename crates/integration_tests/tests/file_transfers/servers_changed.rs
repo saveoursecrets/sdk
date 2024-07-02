@@ -26,7 +26,10 @@ async fn file_transfers_servers_changed_upload() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
-    let file = ExternalFile::new(*default_folder.id(), secret_id, file_name);
+    let file = ExternalFile::new(
+        SecretPath(*default_folder.id(), secret_id),
+        file_name,
+    );
 
     // Wait until the transfers are completed
     wait_for_num_transfers(&device.owner, 1).await?;

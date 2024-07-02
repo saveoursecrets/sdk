@@ -20,6 +20,11 @@ message WireEventLogType {
   }
 }
 
+message WireSecretPath {
+  bytes folder_id = 1;
+  bytes secret_id = 2;
+}
+
 message WireCommitHash {
   // Bytes for the commit hash.
   bytes hash = 1;

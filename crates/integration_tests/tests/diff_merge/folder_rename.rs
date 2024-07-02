@@ -1,7 +1,9 @@
 use crate::test_utils::{copy_account, setup, teardown};
 use anyhow::Result;
 use sos_net::{
-    protocol::{diff, Merge, MergeOutcome, SyncStorage},
+    protocol::{
+        diff, Merge, MergeOutcome, SyncStorage, TrackedAccountChange,
+    },
     sdk::prelude::*,
 };
 
@@ -53,8 +55,18 @@ async fn diff_merge_folder_rename() -> Result<()> {
     assert!(needs_sync);
 
     // Merge the changes
-    remote.merge(diff, &mut MergeOutcome::default()).await?;
+    let mut outcome = MergeOutcome::default();
+    remote.merge(diff, &mut outcome).await?;
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
+
+    // There are two changes as renaming a folder applies
+    // changes at the account level and also at the folder level
+    assert_eq!(2, outcome.changes);
+    // But only the account level event is tracked
+    assert!(matches!(
+        outcome.tracked.account.first().unwrap(),
+        TrackedAccountChange::FolderUpdated(_)
+    ));
 
     let default_folder = remote.default_folder().await.unwrap();
     assert_eq!(new_name, default_folder.name());

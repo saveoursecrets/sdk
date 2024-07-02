@@ -35,8 +35,7 @@ async fn file_transfers_sync_file_transfers() -> Result<()> {
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
     files.push(ExternalFile::new(
-        *default_folder.id(),
-        secret_id,
+        SecretPath(*default_folder.id(), secret_id),
         file_name,
     ));
 
@@ -49,8 +48,7 @@ async fn file_transfers_sync_file_transfers() -> Result<()> {
     )
     .await?;
     files.push(ExternalFile::new(
-        *default_folder.id(),
-        secret_id,
+        SecretPath(*default_folder.id(), secret_id),
         file_name,
     ));
 
