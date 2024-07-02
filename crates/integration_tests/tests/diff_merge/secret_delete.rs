@@ -63,9 +63,7 @@ async fn diff_merge_secret_delete() -> Result<()> {
     // Collection of changes exists but the collection is
     // empty because the create event followed by a
     // delete event was normalized
-    let folder_changes =
-        outcome.tracked.folders.get(default_folder.id()).unwrap();
-    assert!(folder_changes.is_empty());
+    assert!(outcome.tracked.folders.get(default_folder.id()).is_none());
 
     // Check we can't read the secret
     let result = remote.read_secret(&id, None).await;

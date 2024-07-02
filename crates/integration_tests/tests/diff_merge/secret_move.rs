@@ -83,11 +83,8 @@ async fn diff_merge_secret_move() -> Result<()> {
         TrackedAccountChange::FolderCreated(_)
     ));
     // The default folder has the create and delete events
-    // normalized away so we check it's empty
-    let default_folder_changes =
-        outcome.tracked.folders.get(default_folder.id()).unwrap();
-    assert!(default_folder_changes.is_empty());
-    // New folder contains a created event
+    // normalized away but the new folder contains a created event
+    assert!(outcome.tracked.folders.get(default_folder.id()).is_none());
     let folder_changes = outcome.tracked.folders.get(summary.id()).unwrap();
     assert!(folder_changes.contains(&TrackedFolderChange::Created(new_id)));
 
