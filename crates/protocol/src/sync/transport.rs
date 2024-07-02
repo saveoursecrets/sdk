@@ -252,7 +252,11 @@ pub struct UpdateSet {
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct MergeOutcome {
     /// Total number of changes made during a merge.
+    ///
+    /// Will often be different to the number of tracked changes
+    /// as tracked changes are normalized.
     pub changes: u64,
+
     /// Tracked changes made during a merge.
     ///
     /// These events can be used by client implementations

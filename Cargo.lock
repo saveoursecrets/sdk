@@ -4309,7 +4309,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.14.2"
+version = "0.14.3"
 dependencies = [
  "aes-gcm",
  "age",
