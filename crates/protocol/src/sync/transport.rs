@@ -287,6 +287,18 @@ pub struct TrackedChanges {
 }
 
 impl TrackedChanges {
+    /// Add tracked folder changes only when
+    /// the set of tracked changes is not empty.
+    pub fn add_tracked_folder_changes(
+        &mut self,
+        folder_id: &VaultId,
+        changes: IndexSet<TrackedFolderChange>,
+    ) {
+        if !changes.is_empty() {
+            self.folders.insert(*folder_id, changes);
+        }
+    }
+
     /// Create a new set of tracked changes to a folder from a patch.
     pub async fn new_folder_records(
         value: &FolderPatch,
@@ -346,7 +358,8 @@ impl TrackedChanges {
                         folder_id,
                     ));
                 }
-                AccountEvent::UpdateFolder(folder_id, _) => {
+                AccountEvent::RenameFolder(folder_id, _)
+                | AccountEvent::UpdateFolder(folder_id, _) => {
                     changes.insert(TrackedAccountChange::FolderUpdated(
                         folder_id,
                     ));

@@ -293,8 +293,8 @@ impl ForceMerge for ServerStorage {
             .insert(*folder_id, Arc::new(RwLock::new(event_log)));
 
         outcome.changes += len;
-        outcome.tracked.folders.insert(
-            *folder_id,
+        outcome.tracked.add_tracked_folder_changes(
+            folder_id,
             TrackedChanges::new_folder_records(&diff.patch).await?,
         );
 
@@ -528,8 +528,8 @@ impl Merge for ServerStorage {
 
         if let CheckedPatch::Success(_) = &checked_patch {
             outcome.changes += len;
-            outcome.tracked.folders.insert(
-                *folder_id,
+            outcome.tracked.add_tracked_folder_changes(
+                folder_id,
                 TrackedChanges::new_folder_records(&diff.patch).await?,
             );
         }

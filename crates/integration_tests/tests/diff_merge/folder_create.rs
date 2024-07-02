@@ -1,7 +1,10 @@
 use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_net::{
-    protocol::{diff, Merge, MergeOutcome, SyncStorage},
+    protocol::{
+        diff, Merge, MergeOutcome, SyncStorage, TrackedAccountChange,
+        TrackedFolderChange,
+    },
     sdk::prelude::*,
 };
 
@@ -51,8 +54,20 @@ async fn diff_merge_folder_create() -> Result<()> {
     assert!(needs_sync);
 
     // Merge the changes
-    remote.merge(diff, &mut MergeOutcome::default()).await?;
+    let mut outcome = MergeOutcome::default();
+    remote.merge(diff, &mut outcome).await?;
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
+
+    assert_eq!(2, outcome.changes);
+    assert!(matches!(
+        outcome.tracked.identity.first().unwrap(),
+        TrackedFolderChange::Created(_)
+    ));
+    // Account tracked a folder created event
+    assert!(matches!(
+        outcome.tracked.account.first().unwrap(),
+        TrackedAccountChange::FolderCreated(_)
+    ));
 
     // Should have the additional folder now
     let folders = remote.list_folders().await?;

@@ -54,8 +54,14 @@ async fn diff_merge_folder_delete() -> Result<()> {
     assert!(needs_sync);
 
     // Merge the changes
-    remote.merge(diff, &mut MergeOutcome::default()).await?;
+    let mut outcome = MergeOutcome::default();
+    remote.merge(diff, &mut outcome).await?;
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
+
+    assert_eq!(4, outcome.changes);
+    // All the events were normalized away
+    assert!(outcome.tracked.identity.is_empty());
+    assert!(outcome.tracked.account.is_empty());
 
     // Should have the same number of folders
     let folders = remote.list_folders().await?;
