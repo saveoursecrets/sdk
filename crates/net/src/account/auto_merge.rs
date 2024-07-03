@@ -473,7 +473,7 @@ impl RemoteBridge {
                         checkpoint: proof,
                         patch,
                     };
-                    account.merge_account(diff, &mut outcome).await?
+                    account.merge_account(diff, &mut outcome).await?.0
                 }
                 EventLogType::Device => {
                     let patch = Patch::<DeviceEvent>::new(events);

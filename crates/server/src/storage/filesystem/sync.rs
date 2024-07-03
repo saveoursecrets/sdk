@@ -18,7 +18,7 @@ use sos_protocol::{
     CreateSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
     TrackedChanges, UpdateSet,
 };
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
 
 use sos_protocol::sdk::events::{DeviceDiff, DeviceEventLog, DeviceReducer};
@@ -340,12 +340,14 @@ impl Merge for ServerStorage {
         &mut self,
         diff: AccountDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<CheckedPatch> {
+    ) -> Result<(CheckedPatch, HashSet<VaultId>)> {
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
             "account",
         );
+
+        let mut deleted_folders = HashSet::new();
 
         let checked_patch = {
             let mut event_log = self.account_log.write().await;
@@ -393,6 +395,7 @@ impl Merge for ServerStorage {
                             self.cache.keys().find(|&fid| fid == id).cloned();
                         if let Some(id) = &id {
                             self.delete_folder(id).await?;
+                            deleted_folders.insert(*id);
                         }
                     }
                 }
@@ -402,12 +405,9 @@ impl Merge for ServerStorage {
             outcome.changes += diff.patch.len() as u64;
             outcome.tracked.account =
                 TrackedChanges::new_account_events(events).await?;
-        } else {
-            // FIXME: handle conflict situation
-            println!("todo! account patch could not be merged");
         }
 
-        Ok(checked_patch)
+        Ok((checked_patch, deleted_folders))
     }
 
     async fn compare_account(
@@ -445,9 +445,6 @@ impl Merge for ServerStorage {
             outcome.changes += diff.patch.len() as u64;
             outcome.tracked.device =
                 TrackedChanges::new_device_records(&diff.patch).await?;
-        } else {
-            // FIXME: handle conflict situation
-            println!("todo! device patch could not be merged");
         }
 
         Ok(checked_patch)

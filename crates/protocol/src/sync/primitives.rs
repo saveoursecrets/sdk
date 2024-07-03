@@ -12,7 +12,10 @@ use crate::{
 };
 use async_trait::async_trait;
 use indexmap::IndexMap;
-use std::{collections::HashMap, fmt};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+};
 
 use crate::sdk::events::DeviceDiff;
 
@@ -618,7 +621,7 @@ pub trait Merge {
         &mut self,
         diff: AccountDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<CheckedPatch>;
+    ) -> Result<(CheckedPatch, HashSet<VaultId>)>;
 
     /// Compare the account events.
     async fn compare_account(
@@ -715,9 +718,13 @@ pub trait Merge {
             None => {}
         }
 
+        let mut deleted_folders = HashSet::new();
+
         match diff.account {
             Some(MaybeDiff::Diff(diff)) => {
-                self.merge_account(diff, outcome).await?;
+                let (_, deletions) =
+                    self.merge_account(diff, outcome).await?;
+                deleted_folders = deletions;
             }
             Some(MaybeDiff::Compare(state)) => {
                 if let Some(state) = state {
@@ -754,6 +761,14 @@ pub trait Merge {
         }
 
         for (id, maybe_diff) in diff.folders {
+            // Don't bother trying to merge folders that
+            // have been deleted
+            if deleted_folders.contains(&id) {
+                tracing::debug!(
+                    folder_id = %id,
+                    "merge::ignore_deleted_folder");
+                continue;
+            }
             match maybe_diff {
                 MaybeDiff::Diff(diff) => {
                     self.merge_folder(&id, diff, outcome).await?;
