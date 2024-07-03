@@ -1204,8 +1204,8 @@ impl LocalAccount {
 
         let (meta, secret, read_event) = {
             let storage = self.storage().await?;
-            let mut writer = storage.write().await;
-            writer.read_secret(secret_id).await?
+            let reader = storage.read().await;
+            reader.read_secret(secret_id).await?
         };
 
         if audit {

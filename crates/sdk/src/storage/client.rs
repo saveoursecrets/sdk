@@ -1187,7 +1187,7 @@ impl ClientStorage {
 
     /// Read a secret in the currently open folder.
     pub(crate) async fn read_secret(
-        &mut self,
+        &self,
         id: &SecretId,
     ) -> Result<(SecretMeta, Secret, ReadEvent)> {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
