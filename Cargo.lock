@@ -3094,9 +3094,9 @@ dependencies = [
 
 [[package]]
 name = "probly-search"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfa8caf6b113b654634c9c0f161731ad623b0aa11941f57048edf78e080c0973"
+checksum = "ef13edf31de4998490e1c716a4565554191e0e670f615be3eae87027b8caa2d0"
 dependencies = [
  "hashbrown 0.14.5",
  "typed-generational-arena",

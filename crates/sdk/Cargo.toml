@@ -98,7 +98,7 @@ tracing-subscriber = { version = "0.3.16", features = ["env-filter", "json"], op
 rev_buf_reader = { version = "0.3", optional = true }
 
 [dependencies.probly-search]
-version = "2.0.0"
+version = "2.0.1"
 optional = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
