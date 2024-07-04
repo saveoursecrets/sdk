@@ -1,6 +1,6 @@
 [package]
 name = "sos-account-extras"
-version = "0.14.3"
+version = "0.14.5"
 edition = "2021"
 description = "Extra features for Save Our Secrets local accounts."
 homepage = "https://saveoursecrets.com"
@@ -21,7 +21,7 @@ tokio.workspace = true
 once_cell.workspace = true
 
 [dependencies.sos-sdk]
-version = "0.14"
+version = "0.14.5"
 path = "../sdk"
 
 [build-dependencies]
