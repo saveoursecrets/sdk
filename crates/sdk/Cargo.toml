@@ -1,6 +1,6 @@
 [package]
 name = "sos-sdk"
-version = "0.14.3"
+version = "0.14.5"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
@@ -28,10 +28,7 @@ mem-fs = ["sos-vfs/mem-fs"]
 migrate = ["dep:async_zip", "dep:csv-async"]
 keychain-access = ["dep:security-framework", "dep:keychain_parser"]
 recovery = ["dep:vsss-rs"]
-preferences = []
 search = ["dep:probly-search"]
-security-report = []
-system-messages = []
 test-utils = ["dep:anyhow"]
 
 [dependencies]
@@ -98,7 +95,7 @@ tracing-subscriber = { version = "0.3.16", features = ["env-filter", "json"], op
 rev_buf_reader = { version = "0.3", optional = true }
 
 [dependencies.probly-search]
-version = "2.0.0"
+version = "2.0.1"
 optional = true
 
 [target.'cfg(target_os = "macos")'.dependencies]

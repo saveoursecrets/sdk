@@ -1,7 +1,10 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use secrecy::SecretString;
-use sos_net::sdk::{prelude::*, zxcvbn::Score};
+use sos_net::{
+    extras::security_report::*,
+    sdk::{prelude::*, zxcvbn::Score},
+};
 
 #[tokio::test]
 async fn local_security_report() -> Result<()> {
@@ -36,9 +39,14 @@ async fn local_security_report() -> Result<()> {
         target: None,
     };
 
-    let report = account
-        .generate_security_report::<bool, _, _>(report_options)
-        .await?;
+    let report = generate_security_report::<
+        LocalAccount,
+        sos_net::sdk::Error,
+        bool,
+        _,
+        _,
+    >(&account, report_options)
+    .await?;
 
     let weak_record = report
         .records

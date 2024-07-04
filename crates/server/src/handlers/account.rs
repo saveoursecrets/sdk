@@ -980,7 +980,7 @@ mod handlers {
 
                 let mut outcome = MergeOutcome::default();
                 (
-                    writer.storage.merge_account(diff, &mut outcome).await?,
+                    writer.storage.merge_account(diff, &mut outcome).await?.0,
                     outcome,
                     records,
                 )
@@ -1157,13 +1157,19 @@ mod handlers {
         };
 
         let packet = SyncPacket::decode(bytes).await?;
-        let (remote_status, diff) = (packet.status, packet.diff);
+        let (remote_status, mut diff) = (packet.status, packet.diff);
 
         // Apply the diff to the storage
         let mut outcome = MergeOutcome::default();
         let compare = {
             tracing::debug!("merge_server");
             let mut writer = account.write().await;
+
+            // Only try to merge folders that exist in storage
+            // otherwise after folder deletion sync will fail
+            let folders = writer.storage.folder_identifiers();
+            diff.folders.retain(|k, _| folders.contains(k));
+
             writer.storage.merge(diff, &mut outcome).await?
         };
 

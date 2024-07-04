@@ -5,7 +5,10 @@ use axum::{
     response::{IntoResponse, Json, Response},
 };
 use serde_json::{json, Value};
-use sos_protocol::sdk::signer::ecdsa::Address;
+use sos_protocol::{
+    sdk::{signer::ecdsa::Address, Error as SdkError},
+    Error as ProtocolError,
+};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -141,6 +144,9 @@ impl Error {
             Self::BadRequest => StatusCode::BAD_REQUEST,
             Self::Forbidden => StatusCode::FORBIDDEN,
             Self::Conflict => StatusCode::CONFLICT,
+            Self::Protocol(ProtocolError::Sdk(
+                SdkError::CacheNotAvailable(_),
+            )) => StatusCode::NOT_FOUND,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

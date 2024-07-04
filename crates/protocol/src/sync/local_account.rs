@@ -1,6 +1,8 @@
 //! Implements merging into a local account.
 //!
 
+use std::collections::HashSet;
+
 // Ideally we want this code to be in the `sos-net`
 // crate but we also need to share some traits with the
 // server so we have to implement here otherwise we
@@ -199,12 +201,14 @@ impl Merge for LocalAccount {
         &mut self,
         diff: AccountDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<CheckedPatch> {
+    ) -> Result<(CheckedPatch, HashSet<VaultId>)> {
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
             "account",
         );
+
+        let mut deleted_folders = HashSet::new();
 
         let checked_patch = {
             let account_log = self.account_log().await?;
@@ -285,6 +289,7 @@ impl Merge for LocalAccount {
                             let storage = self.storage().await?;
                             let mut storage = storage.write().await;
                             storage.delete_folder(summary, false).await?;
+                            deleted_folders.insert(*id);
                         }
                     }
                 }
@@ -296,7 +301,7 @@ impl Merge for LocalAccount {
                 TrackedChanges::new_account_events(events).await?;
         }
 
-        Ok(checked_patch)
+        Ok((checked_patch, deleted_folders))
     }
 
     async fn compare_account(

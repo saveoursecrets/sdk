@@ -4,14 +4,32 @@
 //! of named keys to typed data similar to
 //! the shared preferences provided by an operating
 //! system library.
-use crate::{
-    identity::PublicIdentity, signer::ecdsa::Address, vfs, Error, Paths,
-    Result,
-};
+use crate::{Error, Result};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use sos_sdk::{
+    constants::JSON_EXT, identity::PublicIdentity, signer::ecdsa::Address,
+    vfs, Paths,
+};
 use std::{collections::HashMap, fmt, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
+
+/// File thats stores account-level preferences.
+pub const PREFERENCES_FILE: &str = "preferences";
+
+/// Path to the file used to store account-level preferences.
+///
+/// # Panics
+///
+/// If this set of paths are global (no user identifier).
+pub fn preferences_path(paths: &Paths) -> PathBuf {
+    if paths.is_global() {
+        panic!("preferences are not accessible for global paths");
+    }
+    let mut vault_path = paths.user_dir().join(PREFERENCES_FILE);
+    vault_path.set_extension(JSON_EXT);
+    vault_path
+}
 
 static CACHE: Lazy<Mutex<HashMap<Address, Arc<Mutex<Preferences>>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
@@ -55,7 +73,7 @@ impl CachedPreferences {
 
         let mut cache = CACHE.lock().await;
         let paths = Paths::new(&data_dir, address.to_string());
-        let file = paths.preferences();
+        let file = preferences_path(&paths);
         let prefs = if vfs::try_exists(&file).await? {
             let mut prefs = Preferences::new(&paths);
             prefs.load().await?;
@@ -152,7 +170,7 @@ impl Preferences {
     ///
     pub fn new(paths: &Paths) -> Self {
         Self {
-            path: paths.preferences(),
+            path: preferences_path(paths),
             values: Default::default(),
         }
     }

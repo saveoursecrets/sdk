@@ -452,31 +452,6 @@ pub enum Error {
     #[error("external file reference '{0}' could not be parsed")]
     InvalidExternalFile(String),
 
-    /// Error generated when a preference is not a number.
-    #[cfg(feature = "preferences")]
-    #[error("expecting integer preference for '{0}'")]
-    PreferenceTypeNumber(String),
-
-    /// Error generated when a preference is not a boolean.
-    #[cfg(feature = "preferences")]
-    #[error("expecting boolean preference for '{0}'")]
-    PreferenceTypeBool(String),
-
-    /// Error generated when a preference is not a string.
-    #[cfg(feature = "preferences")]
-    #[error("expecting string preference for '{0}'")]
-    PreferenceTypeString(String),
-
-    /// Error generated when a preference is not a string list.
-    #[cfg(feature = "preferences")]
-    #[error("expecting string list preference for '{0}'")]
-    PreferenceTypeStringList(String),
-
-    /// Error generated when a system message is not found.
-    #[cfg(feature = "system-messages")]
-    #[error("no system message for key '{0}'")]
-    NoSysMessage(String),
-
     /// Error generated when an address has the wrong prefix.
     #[error("address must begin with 0x")]
     BadAddressPrefix,
