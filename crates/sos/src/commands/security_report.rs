@@ -4,14 +4,12 @@ use crate::{
 };
 use sos_net::{
     hashcheck,
-    sdk::{
-        account::{
-            security_report::{SecurityReportOptions, SecurityReportRow},
-            Account,
-        },
-        identity::AccountRef,
-        zxcvbn::Score,
-    },
+    sdk::{identity::AccountRef, zxcvbn::Score},
+    NetworkAccount,
+};
+
+use sos_net::extras::security_report::{
+    generate_security_report, SecurityReportOptions, SecurityReportRow,
 };
 use std::{fmt, path::PathBuf, str::FromStr};
 
@@ -62,7 +60,7 @@ pub async fn run(
     }
 
     let user = resolve_user(account.as_ref(), false).await?;
-    let mut owner = user.write().await;
+    let owner = user.read().await;
 
     let report_options = SecurityReportOptions {
         excludes: vec![],
@@ -74,9 +72,14 @@ pub async fn run(
         }),
         target: None,
     };
-    let report = owner
-        .generate_security_report::<bool, _, _>(report_options)
-        .await?;
+    let report = generate_security_report::<
+        NetworkAccount,
+        sos_net::Error,
+        bool,
+        _,
+        _,
+    >(&*owner, report_options)
+    .await?;
 
     let rows: Vec<SecurityReportRow<bool>> = report.into();
     let rows = if include_all {

@@ -1,6 +1,6 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
-use sos_net::sdk::prelude::*;
+use sos_net::{extras::preferences::*, sdk::prelude::*};
 
 /// Tests the preferences in the context of a local account.
 #[tokio::test]

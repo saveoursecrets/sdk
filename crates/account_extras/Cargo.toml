@@ -1,0 +1,28 @@
+[package]
+name = "sos-account-extras"
+version = "0.14.3"
+edition = "2021"
+description = "Extra features for Save Our Secrets local accounts."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[features]
+preferences = []
+security-report = []
+system-messages = []
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_with.workspace = true
+tokio.workspace = true
+once_cell.workspace = true
+
+[dependencies.sos-sdk]
+version = "0.14"
+path = "../sdk"
+
+[build-dependencies]
+rustc_version = "0.4.0"

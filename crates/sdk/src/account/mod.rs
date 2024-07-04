@@ -4,12 +4,6 @@ mod account;
 pub mod archive;
 mod builder;
 mod convert;
-#[cfg(feature = "preferences")]
-pub mod preferences;
-#[cfg(feature = "security-report")]
-pub mod security_report;
-#[cfg(feature = "system-messages")]
-pub mod system_messages;
 
 pub use account::{
     Account, AccountChange, AccountData, AccountLocked, DetachedView,

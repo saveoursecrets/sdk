@@ -54,10 +54,12 @@ use crate::WebSocketHandle;
 #[cfg(feature = "contacts")]
 use crate::sdk::account::ContactImportProgress;
 
+/*
 #[cfg(feature = "security-report")]
 use crate::sdk::account::security_report::{
     SecurityReport, SecurityReportOptions,
 };
+*/
 
 #[cfg(feature = "migrate")]
 use crate::sdk::migrate::import::ImportTarget;
@@ -1561,6 +1563,7 @@ impl Account for NetworkAccount {
         Ok(account.import_contacts(content, progress).await?)
     }
 
+    /*
     #[cfg(feature = "security-report")]
     async fn generate_security_report<T, D, R>(
         &mut self,
@@ -1573,6 +1576,7 @@ impl Account for NetworkAccount {
         let mut account = self.account.lock().await;
         Ok(account.generate_security_report(options).await?)
     }
+    */
 
     #[cfg(feature = "migrate")]
     async fn export_unsafe_archive(

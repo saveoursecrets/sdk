@@ -38,10 +38,11 @@ migrate = ["sos-sdk/migrate"]
 keychain-access = ["sos-sdk/keychain-access"]
 recovery = ["sos-sdk/recovery"]
 pairing = ["dep:snow", "sos-protocol/pairing"]
-preferences = ["sos-sdk/preferences"]
 search = ["sos-sdk/search", "sos-protocol/search"]
-security-report = ["sos-sdk/security-report"]
-system-messages = ["sos-sdk/system-messages"]
+
+preferences = ["sos-account-extras/preferences"]
+security-report = ["sos-account-extras/security-report"]
+system-messages = ["sos-account-extras/system-messages"]
 
 [dependencies]
 tokio-util.workspace = true
@@ -85,6 +86,11 @@ path = "../sdk"
 version = "0.14.4"
 path = "../protocol"
 features = ["account"]
+
+[dependencies.sos-account-extras]
+version = "0.14.3"
+path = "../account_extras/"
+optional = true
 
 [dev-dependencies]
 anyhow = "1"

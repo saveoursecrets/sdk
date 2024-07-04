@@ -1,9 +1,12 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
-use sos_net::sdk::{
-    prelude::*,
-    signer::{ecdsa::SingleParty, Signer},
-    urn::Urn,
+use sos_net::{
+    extras::system_messages::*,
+    sdk::{
+        prelude::*,
+        signer::{ecdsa::SingleParty, Signer},
+        urn::Urn,
+    },
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;

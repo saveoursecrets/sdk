@@ -13,13 +13,31 @@
 //! changes to the underlying collection. This allows
 //! an interface to show the number of unread system
 //! messages.
-use crate::{vfs, Error, Paths, Result};
+use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
+use sos_sdk::{
+    constants::JSON_EXT, time::OffsetDateTime, urn::Urn, vfs, Paths,
+};
 use std::{cmp::Ordering, collections::HashMap, path::PathBuf};
-use time::OffsetDateTime;
 use tokio::sync::broadcast;
-use urn::Urn;
+
+/// File thats stores account-level system messages.
+pub const SYSTEM_MESSAGES_FILE: &str = "system-messages";
+
+/// Path to the file used to store account-level system messages.
+///
+/// # Panics
+///
+/// If this set of paths are global (no user identifier).
+pub fn system_messages_path(paths: &Paths) -> PathBuf {
+    if paths.is_global() {
+        panic!("system messages are not accessible for global paths");
+    }
+    let mut vault_path = paths.user_dir().join(SYSTEM_MESSAGES_FILE);
+    vault_path.set_extension(JSON_EXT);
+    vault_path
+}
 
 /// System messages count.
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
@@ -161,7 +179,7 @@ impl SystemMessages {
     ///
     pub fn new(paths: &Paths) -> Self {
         Self {
-            path: paths.system_messages(),
+            path: system_messages_path(paths),
             messages: Default::default(),
             channel: stream_channel(),
         }

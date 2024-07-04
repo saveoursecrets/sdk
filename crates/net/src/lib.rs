@@ -30,6 +30,13 @@ pub use net::{changes, connect, ListenOptions, WebSocketHandle};
 pub use net::{HttpClient, NetworkRetry};
 pub use sync::{RemoteSync, SyncClient, SyncError};
 
+#[cfg(any(
+    feature = "preferences",
+    feature = "security-report",
+    feature = "system-messages"
+))]
+pub use sos_account_extras as extras;
+
 /// Result type for the client module.
 pub type Result<T> = std::result::Result<T, error::Error>;
 

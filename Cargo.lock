@@ -4193,6 +4193,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-account-extras"
+version = "0.14.3"
+dependencies = [
+ "once_cell",
+ "rustc_version",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "sos-sdk",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "sos-artifact"
 version = "0.8.7"
 dependencies = [
@@ -4272,6 +4286,7 @@ dependencies = [
  "serde_with",
  "sha3",
  "snow",
+ "sos-account-extras",
  "sos-protocol",
  "sos-sdk",
  "thiserror",

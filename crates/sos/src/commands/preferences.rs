@@ -6,6 +6,7 @@ use crate::{
     Result,
 };
 use clap::Subcommand;
+use sos_net::extras::preferences::*;
 use sos_net::sdk::prelude::*;
 
 #[derive(Subcommand, Debug)]
