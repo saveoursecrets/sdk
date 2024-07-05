@@ -124,43 +124,6 @@ impl VaultBuilder {
         encrypt_meta(&mut vault, &private_key, meta).await?;
         Ok(vault)
     }
-
-    /*
-    /// Build a password protected vault.
-    pub async fn password(
-        self,
-        password: SecretString,
-        seed: Option<Seed>,
-    ) -> Result<Vault> {
-        let (builder, mut vault, meta) = self.prepare();
-        let private_key = vault.symmetric(password.clone(), seed).await?;
-        builder.private_key(vault, meta, private_key).await
-    }
-
-    /// Build a using the given private key.
-    pub async fn private_key(
-        self,
-        mut vault: Vault,
-        meta: VaultMeta,
-        private_key: PrivateKey,
-    ) -> Result<Vault> {
-        encrypt_meta(&mut vault, &private_key, meta).await?;
-        Ok(vault)
-    }
-
-    /// Build a shared vault.
-    pub async fn shared(
-        self,
-        owner: &Identity,
-        recipients: Vec<Recipient>,
-        read_only: bool,
-    ) -> Result<Vault> {
-        let (builder, mut vault, meta) = self.prepare();
-        let private_key =
-            vault.asymmetric(owner, recipients, read_only).await?;
-        builder.private_key(vault, meta, private_key).await
-    }
-    */
 }
 
 /// Encrypt the meta data and assign to the vault.
