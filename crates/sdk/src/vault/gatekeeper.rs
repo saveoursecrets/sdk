@@ -219,7 +219,7 @@ impl Gatekeeper {
 
         if let Some(mirror) = self.mirror.as_mut() {
             mirror
-                .insert(
+                .insert_secret(
                     id,
                     commit,
                     VaultEntry(meta_aead.clone(), secret_aead.clone()),
@@ -229,7 +229,7 @@ impl Gatekeeper {
 
         let result = self
             .vault
-            .insert(id, commit, VaultEntry(meta_aead, secret_aead))
+            .insert_secret(id, commit, VaultEntry(meta_aead, secret_aead))
             .await?;
 
         Ok(result)
@@ -241,7 +241,7 @@ impl Gatekeeper {
         id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
         let event = ReadEvent::ReadSecret(*id);
-        if let (Some(value), _payload) = self.vault.read(id).await? {
+        if let (Some(value), _payload) = self.vault.read_secret(id).await? {
             let (meta, secret) = self
                 .decrypt_secret(value.as_ref(), self.private_key.as_ref())
                 .await?;
@@ -275,7 +275,7 @@ impl Gatekeeper {
 
         if let Some(mirror) = self.mirror.as_mut() {
             mirror
-                .update(
+                .update_secret(
                     id,
                     commit,
                     VaultEntry(meta_aead.clone(), secret_aead.clone()),
@@ -284,7 +284,7 @@ impl Gatekeeper {
         }
 
         self.vault
-            .update(id, commit, VaultEntry(meta_aead, secret_aead))
+            .update_secret(id, commit, VaultEntry(meta_aead, secret_aead))
             .await
     }
 
@@ -297,9 +297,9 @@ impl Gatekeeper {
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
         self.enforce_shared_readonly(private_key).await?;
         if let Some(mirror) = self.mirror.as_mut() {
-            mirror.delete(id).await?;
+            mirror.delete_secret(id).await?;
         }
-        self.vault.delete(id).await
+        self.vault.delete_secret(id).await
     }
 
     /// Verify an encryption passphrase.

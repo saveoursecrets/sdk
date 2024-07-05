@@ -39,7 +39,7 @@ async fn mock_event_log_file(
         mock_vault_note(&mut vault, &encryption_key, "qux", "baz").await?;
     event_log.apply(vec![&event]).await?;
 
-    let event = vault.delete(&del_id).await?;
+    let event = vault.delete_secret(&del_id).await?;
     if let Some(event) = event {
         event_log.apply(vec![&event]).await?;
     }

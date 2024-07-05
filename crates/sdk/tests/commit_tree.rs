@@ -23,7 +23,7 @@ async fn mock_commit_tree() -> Result<CommitTree> {
         let (commit, _) =
             Vault::commit_hash(&meta_aead, &secret_aead).await?;
         let _secret_id = match vault
-            .create(commit, VaultEntry(meta_aead, secret_aead))
+            .create_secret(commit, VaultEntry(meta_aead, secret_aead))
             .await?
         {
             WriteEvent::CreateSecret(secret_id, _) => secret_id,

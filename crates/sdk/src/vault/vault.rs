@@ -226,7 +226,7 @@ pub trait VaultAccess {
     ) -> Result<WriteEvent>;
 
     /// Add an encrypted secret to the vault.
-    async fn create(
+    async fn create_secret(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
@@ -237,7 +237,7 @@ pub trait VaultAccess {
     /// Used internally to support consistent identifiers when
     /// mirroring in the `Gatekeeper` implementation.
     #[doc(hidden)]
-    async fn insert(
+    async fn insert_secret(
         &mut self,
         id: SecretId,
         commit: CommitHash,
@@ -245,13 +245,13 @@ pub trait VaultAccess {
     ) -> Result<WriteEvent>;
 
     /// Get an encrypted secret from the vault.
-    async fn read<'a>(
+    async fn read_secret<'a>(
         &'a self,
         id: &SecretId,
     ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)>;
 
     /// Update an encrypted secret in the vault.
-    async fn update(
+    async fn update_secret(
         &mut self,
         id: &SecretId,
         commit: CommitHash,
@@ -259,7 +259,10 @@ pub trait VaultAccess {
     ) -> Result<Option<WriteEvent>>;
 
     /// Remove an encrypted secret from the vault.
-    async fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent>>;
+    async fn delete_secret(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<Option<WriteEvent>>;
 }
 
 /// Authentication information.
@@ -1032,16 +1035,16 @@ impl VaultAccess for Vault {
         Ok(WriteEvent::SetVaultMeta(meta_data))
     }
 
-    async fn create(
+    async fn create_secret(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<WriteEvent> {
         let id = Uuid::new_v4();
-        self.insert(id, commit, secret).await
+        self.insert_secret(id, commit, secret).await
     }
 
-    async fn insert(
+    async fn insert_secret(
         &mut self,
         id: SecretId,
         commit: CommitHash,
@@ -1055,7 +1058,7 @@ impl VaultAccess for Vault {
         Ok(WriteEvent::CreateSecret(id, value.clone()))
     }
 
-    async fn read<'a>(
+    async fn read_secret<'a>(
         &'a self,
         id: &SecretId,
     ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)> {
@@ -1063,7 +1066,7 @@ impl VaultAccess for Vault {
         Ok((result, ReadEvent::ReadSecret(*id)))
     }
 
-    async fn update(
+    async fn update_secret(
         &mut self,
         id: &SecretId,
         commit: CommitHash,
@@ -1078,12 +1081,11 @@ impl VaultAccess for Vault {
         }
     }
 
-    async fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent>> {
+    async fn delete_secret(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<Option<WriteEvent>> {
         let entry = self.contents.data.shift_remove(id);
-        if entry.is_some() {
-            Ok(Some(WriteEvent::DeleteSecret(*id)))
-        } else {
-            Ok(None)
-        }
+        Ok(entry.map(|_| WriteEvent::DeleteSecret(*id)))
     }
 }

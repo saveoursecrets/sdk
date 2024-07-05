@@ -152,7 +152,11 @@ impl<'a> ChangePassword<'a> {
 
             // Insert into the new vault preserving the secret identifiers
             let sync_event = new_vault
-                .insert(*id, commit, VaultEntry(meta_aead, secret_aead))
+                .insert_secret(
+                    *id,
+                    commit,
+                    VaultEntry(meta_aead, secret_aead),
+                )
                 .await?;
 
             event_log_events.push(sync_event);

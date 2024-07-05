@@ -85,7 +85,7 @@ pub async fn mock_vault_note(
 
     let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead).await?;
     let event = vault
-        .create(commit, VaultEntry(meta_aead, secret_aead))
+        .create_secret(commit, VaultEntry(meta_aead, secret_aead))
         .await?;
     let secret_id = match &event {
         WriteEvent::CreateSecret(secret_id, _) => *secret_id,
@@ -111,7 +111,7 @@ pub async fn mock_vault_note_update(
 
     let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead).await?;
     let event = vault
-        .update(id, commit, VaultEntry(meta_aead, secret_aead))
+        .update_secret(id, commit, VaultEntry(meta_aead, secret_aead))
         .await?;
     Ok((commit, secret_meta, secret_value, event))
 }
