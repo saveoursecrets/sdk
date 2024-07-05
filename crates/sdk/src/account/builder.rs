@@ -282,7 +282,7 @@ impl AccountBuilder {
                 .public_name(authenticator_folder_name.unwrap_or_else(|| {
                     DEFAULT_AUTHENTICATOR_VAULT_NAME.to_string()
                 }))
-                .flags(VaultFlags::AUTHENTICATOR | VaultFlags::NO_SYNC_SELF)
+                .flags(VaultFlags::AUTHENTICATOR | VaultFlags::NO_SYNC)
                 .build(BuilderCredentials::Password(password.clone(), None))
                 .await?;
 

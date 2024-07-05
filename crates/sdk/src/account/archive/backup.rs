@@ -70,13 +70,13 @@ pub struct RestoreTargets {
 
 /// Options to use when building an account manifest.
 pub struct AccountManifestOptions {
-    /// Ignore vaults with the NO_SYNC_SELF flag (default: `true`).
-    pub no_sync_self: bool,
+    /// Ignore vaults with the NO_SYNC flag (default: `true`).
+    pub no_sync: bool,
 }
 
 impl Default for AccountManifestOptions {
     fn default() -> Self {
-        Self { no_sync_self: true }
+        Self { no_sync: true }
     }
 }
 
@@ -199,7 +199,7 @@ impl AccountBackup {
 
         let vaults = Identity::list_local_folders(paths).await?;
         for (summary, path) in vaults {
-            if options.no_sync_self && summary.flags().is_no_sync_self() {
+            if options.no_sync && summary.flags().is_no_sync() {
                 continue;
             }
 

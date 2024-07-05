@@ -236,10 +236,7 @@ where
         let vault = VaultBuilder::new()
             .public_name("Device".to_string())
             .flags(
-                VaultFlags::SYSTEM
-                    | VaultFlags::DEVICE
-                    | VaultFlags::NO_SYNC_SELF
-                    | VaultFlags::NO_SYNC_OTHER,
+                VaultFlags::SYSTEM | VaultFlags::DEVICE | VaultFlags::NO_SYNC,
             )
             .build(BuilderCredentials::Password(
                 device_password.clone().into(),

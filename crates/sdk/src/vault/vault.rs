@@ -64,19 +64,15 @@ bitflags! {
         /// specific private keys.
         ///
         /// Typically these vaults should also be assigned the
-        /// NO_SYNC_SELF flag.
+        /// NO_SYNC flag.
         const DEVICE            =        0b0000000001000000;
         /// Indicates this vault should not be synced with
         /// devices owned by the account holder.
         ///
-        /// You may want to combine this with NO_SYNC_OTHER
-        /// to completely ignore this vault from sync operations.
-        ///
         /// This is useful for storing device specific keys.
-        const NO_SYNC_SELF      =        0b0000000010000000;
-        /// Indicates this vault should not be synced with
-        /// devices owned by other accounts.
-        const NO_SYNC_OTHER     =        0b0000000100000000;
+        const NO_SYNC           =        0b0000000010000000;
+        /// Reserved flag.
+        const _RESERVED         =        0b0000000100000000;
         /// Indicates this vault is shared using asymmetric
         /// encryption.
         const SHARED            =        0b0000001000000000;
@@ -121,14 +117,8 @@ impl VaultFlags {
 
     /// Determine if this vault is set to ignore sync
     /// with other devices owned by the account holder.
-    pub fn is_no_sync_self(&self) -> bool {
-        self.contains(VaultFlags::NO_SYNC_SELF)
-    }
-
-    /// Determine if this vault is set to ignore sync
-    /// with devices owned by other accounts.
-    pub fn is_no_sync_other(&self) -> bool {
-        self.contains(VaultFlags::NO_SYNC_OTHER)
+    pub fn is_no_sync(&self) -> bool {
+        self.contains(VaultFlags::NO_SYNC)
     }
 
     /// Determine if this vault is shared.
@@ -743,14 +733,8 @@ impl Vault {
     }
 
     /// Set whether this vault should not sync with own devices.
-    pub fn set_no_sync_self_flag(&mut self, value: bool) {
-        self.flags_mut().set(VaultFlags::NO_SYNC_SELF, value);
-    }
-
-    /// Set whether this vault should not sync with devices
-    /// owned by other accounts.
-    pub fn set_no_sync_other_flag(&mut self, value: bool) {
-        self.flags_mut().set(VaultFlags::NO_SYNC_OTHER, value);
+    pub fn set_no_sync_flag(&mut self, value: bool) {
+        self.flags_mut().set(VaultFlags::NO_SYNC, value);
     }
 
     /// Insert a secret into this vault.
