@@ -46,7 +46,7 @@ bitflags! {
         /// the default folder.
         const DEFAULT           =        0b0000000000000001;
         /// Indicates this vault is an identity vault used
-        /// to authenticate a user.
+        /// to authenticate a user and store delegated folder passwords.
         const IDENTITY          =        0b0000000000000010;
         /// Indicates this vault is to be used as an archive.
         const ARCHIVE           =        0b0000000000000100;
