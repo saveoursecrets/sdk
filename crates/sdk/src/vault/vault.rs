@@ -352,22 +352,22 @@ impl Summary {
         &self.version
     }
 
-    /// Get the cipher.
+    /// Encryption cipher.
     pub fn cipher(&self) -> &Cipher {
         &self.cipher
     }
 
-    /// Get the key derivation function.
+    /// Key derivation function.
     pub fn kdf(&self) -> &KeyDerivation {
         &self.kdf
     }
 
-    /// Get the unique identifier.
+    /// Vault identifier.
     pub fn id(&self) -> &VaultId {
         &self.id
     }
 
-    /// Get the public name.
+    /// Public name.
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -377,12 +377,12 @@ impl Summary {
         self.name = name;
     }
 
-    /// Get the vault flags.
+    /// Vault flags.
     pub fn flags(&self) -> &VaultFlags {
         &self.flags
     }
 
-    /// Get a mutable reference to the vault flags.
+    /// Mutable reference to the vault flags.
     pub fn flags_mut(&mut self) -> &mut VaultFlags {
         &mut self.flags
     }
@@ -425,9 +425,19 @@ impl Header {
         }
     }
 
-    /// Get the vault identifier.
+    /// Vault identifier.
     pub fn id(&self) -> &VaultId {
         self.summary.id()
+    }
+
+    /// Reference to the vault flags.
+    pub fn flags(&self) -> &VaultFlags {
+        self.summary.flags()
+    }
+
+    /// Mutable reference to the vault flags.
+    pub fn flags_mut(&mut self) -> &mut VaultFlags {
+        self.summary.flags_mut()
     }
 
     /// Clear an existing salt.
@@ -902,48 +912,48 @@ impl Vault {
         &self.header.summary
     }
 
-    /// Get a reference to the vault flags.
+    /// Reference to the vault flags.
     pub fn flags(&self) -> &VaultFlags {
-        self.header.summary.flags()
+        self.header.flags()
     }
 
-    /// Get a mutable reference to the vault flags.
+    /// Mutable reference to the vault flags.
     pub fn flags_mut(&mut self) -> &mut VaultFlags {
-        self.header.summary.flags_mut()
+        self.header.flags_mut()
     }
 
-    /// Get the unique identifier for this vault.
+    /// Unique identifier for this vault.
     pub fn id(&self) -> &VaultId {
         &self.header.summary.id
     }
 
-    /// Get the public name for this vault.
+    /// Public name for this vault.
     pub fn name(&self) -> &str {
         self.header.name()
     }
 
-    /// Set the public name for this vault.
+    /// Set the public name of this vault.
     pub fn set_name(&mut self, name: String) {
         self.header.set_name(name);
     }
 
-    /// Get the encryption cipher for this vault.
+    /// Encryption cipher for this vault.
     pub fn cipher(&self) -> &Cipher {
         &self.header.summary.cipher
     }
 
-    /// Get the key derivation function.
+    /// Key derivation function.
     pub fn kdf(&self) -> &KeyDerivation {
         &self.header.summary.kdf
     }
 
-    /// Get the vault header.
+    /// Vault header.
     pub fn header(&self) -> &Header {
         &self.header
     }
 
-    /// Get the mutable vault header.
-    pub fn header_mut(&mut self) -> &mut Header {
+    /// Mutable vault header.
+    pub(crate) fn header_mut(&mut self) -> &mut Header {
         &mut self.header
     }
 
