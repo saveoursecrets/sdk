@@ -211,3 +211,21 @@ async fn vault_file_del_splice() -> Result<()> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn vault_file_flags() -> Result<()> {
+    let (temp, _) = mock_vault_file().await?;
+
+    let vault_file = VaultWriter::open(temp.path()).await?;
+    let mut vault_access = VaultWriter::new(temp.path(), vault_file)?;
+
+    let flags = VaultFlags::NO_SYNC;
+    vault_access.set_vault_flags(flags.clone()).await?;
+
+    let current = Header::read_header_file(temp.path()).await?;
+    assert_eq!(current.flags(), &flags);
+
+    temp.close()?;
+
+    Ok(())
+}
