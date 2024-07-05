@@ -31,7 +31,7 @@ use crate::{
     events::{ReadEvent, WriteEvent},
     vault::{
         secret::SecretId, Contents, Header, Summary, VaultAccess,
-        VaultCommit, VaultEntry,
+        VaultCommit, VaultEntry, VaultFlags,
     },
     vfs::{File, OpenOptions},
     Result,
@@ -208,6 +208,17 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         header.set_name(name.clone());
         self.write_header(content_offset, &header).await?;
         Ok(WriteEvent::SetVaultName(name))
+    }
+
+    async fn set_vault_flags(
+        &mut self,
+        flags: VaultFlags,
+    ) -> Result<WriteEvent> {
+        let content_offset = self.check_identity().await?;
+        let mut header = Header::read_header_file(&self.file_path).await?;
+        *header.flags_mut() = flags.clone();
+        self.write_header(content_offset, &header).await?;
+        Ok(WriteEvent::SetVaultFlags(flags))
     }
 
     async fn set_vault_meta(

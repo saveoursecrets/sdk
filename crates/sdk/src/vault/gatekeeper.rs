@@ -11,6 +11,8 @@ use crate::{
     vfs, Error, Result,
 };
 
+use super::VaultFlags;
+
 /// Access to an in-memory vault optionally mirroring changes to disc.
 ///
 /// It stores the derived private key in memory so should only be
@@ -121,6 +123,17 @@ impl Gatekeeper {
             mirror.set_vault_name(name.clone()).await?;
         }
         self.vault.set_vault_name(name).await
+    }
+
+    /// Set the vault flags.
+    pub async fn set_vault_flags(
+        &mut self,
+        flags: VaultFlags,
+    ) -> Result<WriteEvent> {
+        if let Some(mirror) = self.mirror.as_mut() {
+            mirror.set_vault_flags(flags.clone()).await?;
+        }
+        self.vault.set_vault_flags(flags).await
     }
 
     /// Attempt to decrypt the meta data for the vault

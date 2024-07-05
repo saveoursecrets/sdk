@@ -4,6 +4,7 @@ use crate::{
     encoding::{decode_uuid, encoding_error},
     events::{AccountEvent, EventKind, EventRecord, LogEvent, WriteEvent},
     formats::{EventLogRecord, FileRecord, VaultRecord},
+    prelude::VaultFlags,
     vault::VaultCommit,
     UtcDateTime,
 };
@@ -150,6 +151,9 @@ impl Encodable for WriteEvent {
             WriteEvent::SetVaultName(name) => {
                 writer.write_string(name).await?;
             }
+            WriteEvent::SetVaultFlags(flags) => {
+                writer.write_u64(flags.bits()).await?;
+            }
             WriteEvent::SetVaultMeta(meta) => {
                 meta.encode(&mut *writer).await?;
             }
@@ -187,6 +191,17 @@ impl Decodable for WriteEvent {
             EventKind::SetVaultName => {
                 let name = reader.read_string().await?;
                 *self = WriteEvent::SetVaultName(name);
+            }
+            EventKind::SetVaultFlags => {
+                let flags = reader.read_u64().await?;
+                let flags =
+                    VaultFlags::from_bits(flags).ok_or_else(|| {
+                        Error::new(
+                            ErrorKind::Other,
+                            format!("invalid vault flags {}", flags),
+                        )
+                    })?;
+                *self = WriteEvent::SetVaultFlags(flags);
             }
             EventKind::SetVaultMeta => {
                 let mut aead_pack: AeadPack = Default::default();

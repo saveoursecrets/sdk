@@ -219,6 +219,12 @@ pub trait VaultAccess {
     /// Set the name of a vault.
     async fn set_vault_name(&mut self, name: String) -> Result<WriteEvent>;
 
+    /// Set the flags for a vault.
+    async fn set_vault_flags(
+        &mut self,
+        flags: VaultFlags,
+    ) -> Result<WriteEvent>;
+
     /// Set the vault meta data.
     async fn set_vault_meta(
         &mut self,
@@ -1035,6 +1041,14 @@ impl VaultAccess for Vault {
     async fn set_vault_name(&mut self, name: String) -> Result<WriteEvent> {
         self.set_name(name.clone());
         Ok(WriteEvent::SetVaultName(name))
+    }
+
+    async fn set_vault_flags(
+        &mut self,
+        flags: VaultFlags,
+    ) -> Result<WriteEvent> {
+        *self.header.flags_mut() = flags.clone();
+        Ok(WriteEvent::SetVaultFlags(flags))
     }
 
     async fn set_vault_meta(

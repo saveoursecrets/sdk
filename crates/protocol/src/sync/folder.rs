@@ -105,6 +105,11 @@ where
                             .set_vault_name(name.to_owned())
                             .await?;
                     }
+                    WriteEvent::SetVaultFlags(flags) => {
+                        self.keeper_mut()
+                            .set_vault_flags(flags.clone())
+                            .await?;
+                    }
                     WriteEvent::SetVaultMeta(aead) => {
                         let meta =
                             self.keeper_mut().decrypt_meta(aead).await?;

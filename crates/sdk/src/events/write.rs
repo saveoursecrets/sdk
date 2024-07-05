@@ -1,7 +1,7 @@
 //! Folder write operations.
 use crate::{
     crypto::AeadPack,
-    vault::{secret::SecretId, VaultCommit},
+    vault::{secret::SecretId, VaultCommit, VaultFlags},
 };
 
 use super::{EventKind, LogEvent};
@@ -28,6 +28,9 @@ pub enum WriteEvent {
     /// Event used to indicate the vault name was set.
     SetVaultName(String),
 
+    /// Event used to indicate the vault flags were set.
+    SetVaultFlags(VaultFlags),
+
     /// Event used to indicate the vault meta data was set.
     SetVaultMeta(AeadPack),
 
@@ -47,6 +50,7 @@ impl LogEvent for WriteEvent {
             WriteEvent::Noop => EventKind::Noop,
             WriteEvent::CreateVault(_) => EventKind::CreateVault,
             WriteEvent::SetVaultName(_) => EventKind::SetVaultName,
+            WriteEvent::SetVaultFlags(_) => EventKind::SetVaultFlags,
             WriteEvent::SetVaultMeta(_) => EventKind::SetVaultMeta,
             WriteEvent::CreateSecret(_, _) => EventKind::CreateSecret,
             WriteEvent::UpdateSecret(_, _) => EventKind::UpdateSecret,
