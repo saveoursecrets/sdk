@@ -29,8 +29,9 @@ async fn event_log_file() -> Result<()> {
 
     // Create a folder so we can move the secret
     let folder_name = "folder_name";
-    let FolderCreate { folder, .. } =
-        account.create_folder(folder_name.to_string()).await?;
+    let FolderCreate { folder, .. } = account
+        .create_folder(folder_name.to_string(), Default::default())
+        .await?;
 
     // Create an external file secret
     let (meta, secret, _file_path) = mock::file_text_secret()?;

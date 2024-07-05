@@ -2,7 +2,7 @@
 use crate::{
     commit::{CommitHash, CommitState},
     constants::VAULT_EXT,
-    crypto::{AccessKey, Cipher, KeyDerivation},
+    crypto::AccessKey,
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventLogExt, FolderEventLog,
@@ -11,7 +11,7 @@ use crate::{
     identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
     signer::ecdsa::Address,
-    storage::{AccessOptions, AccountPack, DiscFolder},
+    storage::{AccessOptions, AccountPack, DiscFolder, NewFolderOptions},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         BuilderCredentials, FolderRef, Header, Summary, Vault, VaultBuilder,
@@ -601,11 +601,14 @@ impl ClientStorage {
     async fn prepare_folder(
         &mut self,
         name: Option<String>,
+        mut options: NewFolderOptions,
+        /*
         key: Option<AccessKey>,
         cipher: Option<Cipher>,
         kdf: Option<KeyDerivation>,
+        */
     ) -> Result<(Vec<u8>, AccessKey, Summary)> {
-        let key = if let Some(key) = key {
+        let key = if let Some(key) = options.key.take() {
             key
         } else {
             let (passphrase, _) = generate_passphrase()?;
@@ -613,8 +616,9 @@ impl ClientStorage {
         };
 
         let mut builder = VaultBuilder::new()
-            .cipher(cipher.unwrap_or_default())
-            .kdf(kdf.unwrap_or_default());
+            .flags(options.flags)
+            .cipher(options.cipher.unwrap_or_default())
+            .kdf(options.kdf.unwrap_or_default());
         if let Some(name) = name {
             builder = builder.public_name(name);
         }
@@ -731,12 +735,15 @@ impl ClientStorage {
     pub async fn create_folder(
         &mut self,
         name: String,
+        options: NewFolderOptions,
+        /*
         key: Option<AccessKey>,
         cipher: Option<Cipher>,
         kdf: Option<KeyDerivation>,
+        */
     ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)> {
         let (buf, key, summary) =
-            self.prepare_folder(Some(name), key, cipher, kdf).await?;
+            self.prepare_folder(Some(name), options).await?;
 
         let account_event =
             AccountEvent::CreateFolder(*summary.id(), buf.clone());

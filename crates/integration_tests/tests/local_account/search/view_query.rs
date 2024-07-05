@@ -78,8 +78,9 @@ async fn local_search_view_query() -> Result<()> {
 
     // Create a folder and add secrets to the other folder
     let folder_name = "folder_name";
-    let FolderCreate { folder, .. } =
-        account.create_folder(folder_name.to_string()).await?;
+    let FolderCreate { folder, .. } = account
+        .create_folder(folder_name.to_string(), Default::default())
+        .await?;
 
     account.open_folder(&folder).await?;
     account.insert_secrets(new_folder_docs).await?;

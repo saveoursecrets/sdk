@@ -17,7 +17,9 @@ use crate::{
         identity::{AccountRef, PublicIdentity},
         sha2::{Digest, Sha256},
         signer::ecdsa::{Address, BoxedEcdsaSigner},
-        storage::{AccessOptions, ClientStorage, StorageEventLogs},
+        storage::{
+            AccessOptions, ClientStorage, NewFolderOptions, StorageEventLogs,
+        },
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow},
             Summary, Vault, VaultId,
@@ -1401,11 +1403,12 @@ impl Account for NetworkAccount {
     async fn create_folder(
         &mut self,
         name: String,
+        options: NewFolderOptions,
     ) -> Result<FolderCreate<Self::NetworkError>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.create_folder(name).await?
+            account.create_folder(name, options).await?
         };
 
         let result = FolderCreate {

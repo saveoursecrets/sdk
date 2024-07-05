@@ -33,8 +33,9 @@ async fn event_log_account() -> Result<()> {
     // Create a folder
     let commit = event_log.tree().last_commit();
     let folder_name = "folder_name";
-    let FolderCreate { folder, .. } =
-        account.create_folder(folder_name.to_string()).await?;
+    let FolderCreate { folder, .. } = account
+        .create_folder(folder_name.to_string(), Default::default())
+        .await?;
 
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;
     assert!(matches!(event, Some(AccountEvent::CreateFolder(_, _))));

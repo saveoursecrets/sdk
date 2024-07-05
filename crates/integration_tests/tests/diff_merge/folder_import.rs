@@ -52,7 +52,9 @@ async fn diff_merge_folder_import() -> Result<()> {
     temp.sign_in(&key).await?;
     let FolderCreate {
         folder: summary, ..
-    } = temp.create_folder("new_folder".to_owned()).await?;
+    } = temp
+        .create_folder("new_folder".to_owned(), Default::default())
+        .await?;
     let (folder_password, _) = generate_passphrase()?;
     let folder_key: AccessKey = folder_password.into();
     let exported = data_dir_export.join("exported.vault");

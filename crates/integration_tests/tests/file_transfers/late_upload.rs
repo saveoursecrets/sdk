@@ -47,7 +47,10 @@ async fn file_transfers_late_upload() -> Result<()> {
     let FolderCreate {
         folder: destination,
         ..
-    } = device.owner.create_folder("new_folder".to_owned()).await?;
+    } = device
+        .owner
+        .create_folder("new_folder".to_owned(), Default::default())
+        .await?;
     let SecretMove { id: secret_id, .. } = device
         .owner
         .move_secret(

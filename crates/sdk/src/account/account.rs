@@ -19,7 +19,7 @@ use crate::{
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
         paths::FileLock, AccessOptions, AccountPack, ClientStorage,
-        StorageEventLogs,
+        NewFolderOptions, StorageEventLogs,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
@@ -639,6 +639,7 @@ pub trait Account {
     async fn create_folder(
         &mut self,
         name: String,
+        options: NewFolderOptions,
     ) -> std::result::Result<FolderCreate<Self::NetworkError>, Self::Error>;
 
     /// Rename a folder.
@@ -2351,27 +2352,35 @@ impl Account for LocalAccount {
     async fn create_folder(
         &mut self,
         name: String,
+        mut options: NewFolderOptions,
     ) -> Result<FolderCreate<Self::Error>> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
 
-        let passphrase = self.user()?.generate_folder_password()?;
-        let key: AccessKey = passphrase.into();
+        let key: AccessKey = if let Some(key) = options.key.take() {
+            key
+        } else {
+            let passphrase = self.user()?.generate_folder_password()?;
+            passphrase.into()
+        };
 
         let identity_folder = self.identity_folder_summary().await?;
-        let cipher = identity_folder.cipher.clone();
-        let kdf = identity_folder.kdf.clone();
+        let cipher = options
+            .cipher
+            .take()
+            .unwrap_or_else(|| identity_folder.cipher.clone());
+        let kdf = options
+            .kdf
+            .take()
+            .unwrap_or_else(|| identity_folder.kdf.clone());
+
+        options.key = Some(key.clone());
+        options.cipher = Some(cipher);
+        options.kdf = Some(kdf);
 
         let (buffer, _, summary, account_event) = {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
-            writer
-                .create_folder(
-                    name,
-                    Some(key.clone()),
-                    Some(cipher),
-                    Some(kdf),
-                )
-                .await?
+            writer.create_folder(name, options).await?
         };
 
         // Must save the password before getting the secure access key

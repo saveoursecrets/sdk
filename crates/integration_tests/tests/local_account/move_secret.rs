@@ -37,8 +37,9 @@ async fn local_move_secret() -> Result<()> {
 
     // Create a folder
     let folder_name = "folder_name";
-    let FolderCreate { folder, .. } =
-        account.create_folder(folder_name.to_string()).await?;
+    let FolderCreate { folder, .. } = account
+        .create_folder(folder_name.to_string(), Default::default())
+        .await?;
 
     // Move to the new folder
     account

@@ -292,7 +292,9 @@ async fn assert_move_file_secret(
     let FolderCreate {
         folder: destination,
         ..
-    } = account.create_folder(new_folder_name).await?;
+    } = account
+        .create_folder(new_folder_name, Default::default())
+        .await?;
 
     let SecretMove { id: new_id, .. } = account
         .move_secret(
@@ -400,7 +402,9 @@ async fn assert_create_update_move_file_secret(
     let FolderCreate {
         folder: destination,
         ..
-    } = account.create_folder(new_folder_name).await?;
+    } = account
+        .create_folder(new_folder_name, Default::default())
+        .await?;
 
     let (new_secret_data, _) = update_file_secret(
         account,

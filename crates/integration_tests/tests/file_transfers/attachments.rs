@@ -166,7 +166,10 @@ async fn file_transfers_attach_move() -> Result<()> {
     let FolderCreate {
         folder: destination,
         ..
-    } = device.owner.create_folder("new_folder".to_owned()).await?;
+    } = device
+        .owner
+        .create_folder("new_folder".to_owned(), Default::default())
+        .await?;
 
     // Moving the secret also needs to move the files
     let SecretMove { id: secret_id, .. } = device

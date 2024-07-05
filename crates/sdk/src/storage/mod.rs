@@ -1,8 +1,9 @@
 //! Folder storage backed by the file system.
 use crate::{
+    crypto::{AccessKey, Cipher, KeyDerivation},
     events::{AccountEventLog, FolderEventLog},
     signer::ecdsa::Address,
-    vault::{Summary, Vault, VaultId},
+    vault::{Summary, Vault, VaultFlags, VaultId},
     Result,
 };
 use async_trait::async_trait;
@@ -28,6 +29,19 @@ use crate::{events::FileEventLog, storage::files::ExternalFile};
 
 #[cfg(feature = "files")]
 use indexmap::IndexSet;
+
+/// Options used when creating a new folder.
+#[derive(Debug, Default)]
+pub struct NewFolderOptions {
+    /// Flags for the new folder.
+    pub flags: VaultFlags,
+    /// Access key.
+    pub key: Option<AccessKey>,
+    /// Encryption cipher.
+    pub cipher: Option<Cipher>,
+    /// Key derivation function.
+    pub kdf: Option<KeyDerivation>,
+}
 
 /// Collection of vaults for an account.
 #[derive(Default)]

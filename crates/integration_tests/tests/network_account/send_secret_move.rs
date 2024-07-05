@@ -36,7 +36,7 @@ async fn network_sync_secret_move() -> Result<()> {
         ..
     } = device1
         .owner
-        .create_folder("dest_folder".to_string())
+        .create_folder("dest_folder".to_string(), Default::default())
         .await?;
 
     // Sync up both clients

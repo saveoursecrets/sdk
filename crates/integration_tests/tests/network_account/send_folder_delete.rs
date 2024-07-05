@@ -31,7 +31,7 @@ async fn network_sync_folder_delete() -> Result<()> {
         ..
     } = device
         .owner
-        .create_folder("sync_delete_folder".to_string())
+        .create_folder("sync_delete_folder".to_string(), Default::default())
         .await?;
     assert!(sync_error.is_none());
 

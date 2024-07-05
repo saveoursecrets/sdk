@@ -27,7 +27,7 @@ async fn network_sync_folder_create() -> Result<()> {
         ..
     } = device
         .owner
-        .create_folder("sync_folder".to_string())
+        .create_folder("sync_folder".to_string(), Default::default())
         .await?;
 
     assert!(sync_error.is_none());
