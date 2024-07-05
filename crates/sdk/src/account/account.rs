@@ -24,7 +24,7 @@ use crate::{
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
         BuilderCredentials, Gatekeeper, Header, Summary, Vault, VaultBuilder,
-        VaultId,
+        VaultFlags, VaultId,
     },
     vfs, Error, Paths, Result, UtcDateTime,
 };
@@ -647,6 +647,13 @@ pub trait Account {
         &mut self,
         summary: &Summary,
         name: String,
+    ) -> std::result::Result<FolderChange<Self::NetworkError>, Self::Error>;
+
+    /// Update folder flags.
+    async fn update_folder_flags(
+        &mut self,
+        summary: &Summary,
+        flags: VaultFlags,
     ) -> std::result::Result<FolderChange<Self::NetworkError>, Self::Error>;
 
     /// Import a folder from a vault file.
@@ -2423,6 +2430,32 @@ impl Account for LocalAccount {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.rename_folder(&summary, &name).await?
+        };
+
+        Ok(FolderChange {
+            event,
+            commit_state,
+            sync_error: None,
+        })
+    }
+
+    async fn update_folder_flags(
+        &mut self,
+        summary: &Summary,
+        flags: VaultFlags,
+    ) -> Result<FolderChange<Self::NetworkError>> {
+        let options = AccessOptions {
+            folder: Some(summary.clone()),
+            ..Default::default()
+        };
+        let (summary, commit_state) =
+            self.compute_folder_state(&options).await?;
+
+        // Update the provider
+        let event = {
+            let storage = self.storage().await?;
+            let mut writer = storage.write().await;
+            writer.update_folder_flags(&summary, flags).await?
         };
 
         Ok(FolderChange {

@@ -10,6 +10,7 @@ use crate::{
     },
     identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
+    prelude::VaultFlags,
     signer::ecdsa::Address,
     storage::{AccessOptions, AccountPack, DiscFolder, NewFolderOptions},
     vault::{
@@ -971,10 +972,25 @@ impl ClientStorage {
         summary: &Summary,
         name: impl AsRef<str>,
     ) -> Result<()> {
-        // Update the in-memory name.
         for item in self.summaries.iter_mut() {
             if item.id() == summary.id() {
                 item.set_name(name.as_ref().to_owned());
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    /// Update the in-memory name for a folder.
+    pub fn set_folder_flags(
+        &mut self,
+        summary: &Summary,
+        flags: VaultFlags,
+    ) -> Result<()> {
+        for item in self.summaries.iter_mut() {
+            if item.id() == summary.id() {
+                *item.flags_mut() = flags;
+                break;
             }
         }
         Ok(())
@@ -1012,6 +1028,32 @@ impl ClientStorage {
         }
 
         Ok(Event::Account(account_event))
+    }
+
+    /// Update the flags for a vault.
+    pub async fn update_folder_flags(
+        &mut self,
+        summary: &Summary,
+        flags: VaultFlags,
+    ) -> Result<Event> {
+        // Update the in-memory name.
+        self.set_folder_flags(summary, flags.clone())?;
+
+        let folder = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        let event = folder.update_folder_flags(flags).await?;
+        let event = Event::Write(*summary.id(), event);
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent = (self.address(), &event).into();
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
+
+        Ok(event)
     }
 
     /// Get the description of the currently open folder.

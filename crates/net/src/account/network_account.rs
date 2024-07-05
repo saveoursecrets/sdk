@@ -29,6 +29,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use secrecy::SecretString;
+use sos_sdk::vault::VaultFlags;
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -1430,6 +1431,26 @@ impl Account for NetworkAccount {
         let result = {
             let mut account = self.account.lock().await;
             account.rename_folder(summary, name).await?
+        };
+
+        let result = FolderChange {
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_error: self.sync().await,
+        };
+
+        Ok(result)
+    }
+
+    async fn update_folder_flags(
+        &mut self,
+        summary: &Summary,
+        flags: VaultFlags,
+    ) -> Result<FolderChange<Self::NetworkError>> {
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            account.update_folder_flags(summary, flags).await?
         };
 
         let result = FolderChange {
