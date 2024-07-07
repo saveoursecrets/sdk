@@ -9,7 +9,7 @@ use sos_protocol::{
         events::{
             AccountDiff, AccountEvent, AccountEventLog, CheckedPatch,
             EventLogExt, FolderDiff, FolderEventLog, FolderPatch,
-            FolderReducer, LogEvent,
+            FolderReducer, LogEvent, WriteEvent,
         },
         storage::StorageEventLogs,
         vault::{Header, Summary, VaultAccess, VaultId, VaultWriter},
@@ -504,7 +504,7 @@ impl Merge for ServerStorage {
         folder_id: &VaultId,
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<CheckedPatch> {
+    ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
         let len = diff.patch.len() as u64;
 
         tracing::debug!(
@@ -531,7 +531,7 @@ impl Merge for ServerStorage {
             );
         }
 
-        Ok(checked_patch)
+        Ok((checked_patch, vec![]))
     }
 
     async fn compare_folder(

@@ -501,7 +501,7 @@ impl RemoteBridge {
                         checkpoint: proof,
                         patch,
                     };
-                    account.merge_folder(id, diff, &mut outcome).await?
+                    account.merge_folder(id, diff, &mut outcome).await?.0
                 }
             }
         };

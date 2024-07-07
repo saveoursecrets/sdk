@@ -1,8 +1,6 @@
 //! Implements merging into a local account.
 //!
 
-use std::collections::HashSet;
-
 // Ideally we want this code to be in the `sos-net`
 // crate but we also need to share some traits with the
 // server so we have to implement here otherwise we
@@ -14,7 +12,7 @@ use crate::{
         decode,
         events::{
             AccountDiff, AccountEvent, CheckedPatch, EventLogExt, FolderDiff,
-            LogEvent,
+            LogEvent, WriteEvent,
         },
         storage::StorageEventLogs,
         vault::{Vault, VaultId},
@@ -25,6 +23,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use indexmap::IndexMap;
+use std::collections::HashSet;
 
 use crate::sdk::events::{DeviceDiff, DeviceReducer};
 
@@ -176,7 +175,7 @@ impl Merge for LocalAccount {
             "identity",
         );
 
-        let checked_patch =
+        let (checked_patch, _) =
             self.user_mut()?.identity_mut()?.merge(&diff).await?;
 
         if let CheckedPatch::Success(_) = &checked_patch {
@@ -426,7 +425,7 @@ impl Merge for LocalAccount {
         folder_id: &VaultId,
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<CheckedPatch> {
+    ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
         let len = diff.patch.len() as u64;
 
         let storage = self.storage().await?;
@@ -450,7 +449,7 @@ impl Merge for LocalAccount {
             .get_mut(folder_id)
             .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
 
-        let checked_patch = {
+        let (checked_patch, events) = {
             #[cfg(feature = "search")]
             {
                 let mut search = search.write().await;
@@ -484,7 +483,7 @@ impl Merge for LocalAccount {
             );
         }
 
-        Ok(checked_patch)
+        Ok((checked_patch, events))
     }
 
     async fn compare_folder(

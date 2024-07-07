@@ -1,7 +1,9 @@
 //! Synchronization types that are used internally.
 use crate::sdk::{
     commit::{CommitState, Comparison},
-    events::{AccountDiff, CheckedPatch, EventLogExt, FolderDiff},
+    events::{
+        AccountDiff, CheckedPatch, EventLogExt, FolderDiff, WriteEvent,
+    },
     storage::StorageEventLogs,
     vault::VaultId,
     Error, Result,
@@ -627,7 +629,7 @@ pub trait Merge {
         folder_id: &VaultId,
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<CheckedPatch>;
+    ) -> Result<(CheckedPatch, Vec<WriteEvent>)>;
 
     /// Compare folder events.
     async fn compare_folder(

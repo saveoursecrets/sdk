@@ -1,4 +1,5 @@
 mod archive_unarchive;
+mod authenticator_sync;
 mod create_account;
 mod delete_account;
 mod folder_description;
