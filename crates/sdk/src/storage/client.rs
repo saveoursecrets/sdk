@@ -2,7 +2,7 @@
 use crate::{
     commit::{CommitHash, CommitState},
     constants::VAULT_EXT,
-    crypto::{AccessKey, Cipher, KeyDerivation},
+    crypto::AccessKey,
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventLogExt, FolderEventLog,
@@ -10,8 +10,9 @@ use crate::{
     },
     identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
+    prelude::VaultFlags,
     signer::ecdsa::Address,
-    storage::{AccessOptions, AccountPack, DiscFolder},
+    storage::{AccessOptions, AccountPack, DiscFolder, NewFolderOptions},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         BuilderCredentials, FolderRef, Header, Summary, Vault, VaultBuilder,
@@ -601,11 +602,14 @@ impl ClientStorage {
     async fn prepare_folder(
         &mut self,
         name: Option<String>,
+        mut options: NewFolderOptions,
+        /*
         key: Option<AccessKey>,
         cipher: Option<Cipher>,
         kdf: Option<KeyDerivation>,
+        */
     ) -> Result<(Vec<u8>, AccessKey, Summary)> {
-        let key = if let Some(key) = key {
+        let key = if let Some(key) = options.key.take() {
             key
         } else {
             let (passphrase, _) = generate_passphrase()?;
@@ -613,8 +617,9 @@ impl ClientStorage {
         };
 
         let mut builder = VaultBuilder::new()
-            .cipher(cipher.unwrap_or_default())
-            .kdf(kdf.unwrap_or_default());
+            .flags(options.flags)
+            .cipher(options.cipher.unwrap_or_default())
+            .kdf(options.kdf.unwrap_or_default());
         if let Some(name) = name {
             builder = builder.public_name(name);
         }
@@ -731,12 +736,15 @@ impl ClientStorage {
     pub async fn create_folder(
         &mut self,
         name: String,
+        options: NewFolderOptions,
+        /*
         key: Option<AccessKey>,
         cipher: Option<Cipher>,
         kdf: Option<KeyDerivation>,
+        */
     ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)> {
         let (buf, key, summary) =
-            self.prepare_folder(Some(name), key, cipher, kdf).await?;
+            self.prepare_folder(Some(name), options).await?;
 
         let account_event =
             AccountEvent::CreateFolder(*summary.id(), buf.clone());
@@ -958,16 +966,41 @@ impl ClientStorage {
         Ok(events)
     }
 
+    /// Remove a local folder and do not register the
+    /// account event so the folder will not be removed
+    /// from other devices.
+    pub async fn remove_local_folder(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<Vec<Event>> {
+        self.delete_folder(summary, false).await
+    }
+
     /// Update the in-memory name for a folder.
     pub fn set_folder_name(
         &mut self,
         summary: &Summary,
         name: impl AsRef<str>,
     ) -> Result<()> {
-        // Update the in-memory name.
         for item in self.summaries.iter_mut() {
             if item.id() == summary.id() {
                 item.set_name(name.as_ref().to_owned());
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    /// Update the in-memory name for a folder.
+    pub fn set_folder_flags(
+        &mut self,
+        summary: &Summary,
+        flags: VaultFlags,
+    ) -> Result<()> {
+        for item in self.summaries.iter_mut() {
+            if item.id() == summary.id() {
+                *item.flags_mut() = flags;
+                break;
             }
         }
         Ok(())
@@ -1005,6 +1038,32 @@ impl ClientStorage {
         }
 
         Ok(Event::Account(account_event))
+    }
+
+    /// Update the flags for a vault.
+    pub async fn update_folder_flags(
+        &mut self,
+        summary: &Summary,
+        flags: VaultFlags,
+    ) -> Result<Event> {
+        // Update the in-memory name.
+        self.set_folder_flags(summary, flags.clone())?;
+
+        let folder = self
+            .cache
+            .get_mut(summary.id())
+            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+
+        let event = folder.update_folder_flags(flags).await?;
+        let event = Event::Write(*summary.id(), event);
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent = (self.address(), &event).into();
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
+
+        Ok(event)
     }
 
     /// Get the description of the currently open folder.

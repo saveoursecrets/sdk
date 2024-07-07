@@ -17,7 +17,9 @@ use crate::{
         identity::{AccountRef, PublicIdentity},
         sha2::{Digest, Sha256},
         signer::ecdsa::{Address, BoxedEcdsaSigner},
-        storage::{AccessOptions, ClientStorage, StorageEventLogs},
+        storage::{
+            AccessOptions, ClientStorage, NewFolderOptions, StorageEventLogs,
+        },
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow},
             Summary, Vault, VaultId,
@@ -27,6 +29,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use secrecy::SecretString;
+use sos_sdk::vault::VaultFlags;
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -718,17 +721,15 @@ impl Account for NetworkAccount {
         // Prepare event logs for the folders that
         // were converted
         let mut folders = HashMap::new();
-        let identifiers = conversion
-            .folders
-            .iter()
-            .map(|s| *s.id())
-            .collect::<Vec<_>>();
 
-        for id in &identifiers {
-            let event_log = self.folder_log(id).await?;
+        for folder in &conversion.folders {
+            if folder.flags().is_sync_disabled() {
+                continue;
+            }
+            let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
             let diff = log_file.diff_unchecked().await?;
-            folders.insert(*id, diff);
+            folders.insert(*folder.id(), diff);
         }
 
         // Force update the folders on remote servers
@@ -933,18 +934,16 @@ impl Account for NetworkAccount {
         // Prepare event logs for the folders that
         // were converted
         let mut folders = HashMap::new();
-        let identifiers = self
-            .list_folders()
-            .await?
-            .into_iter()
-            .map(|s| *s.id())
-            .collect::<Vec<_>>();
+        let compact_folders = self.list_folders().await?;
 
-        for id in &identifiers {
-            let event_log = self.folder_log(id).await?;
+        for folder in &compact_folders {
+            if folder.flags().is_sync_disabled() {
+                continue;
+            }
+            let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
             let diff = log_file.diff_unchecked().await?;
-            folders.insert(*id, diff);
+            folders.insert(*folder.id(), diff);
         }
 
         // Force update the folders on remote servers
@@ -982,31 +981,34 @@ impl Account for NetworkAccount {
         // Prepare event logs for the folders that
         // were converted
         let mut folders = HashMap::new();
-        {
+        if !folder.flags().is_sync_disabled() {
             let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
             let diff = log_file.diff_unchecked().await?;
             folders.insert(*folder.id(), diff);
         }
 
-        // Force update the folders on remote servers
-        let sync_options: SyncOptions = Default::default();
-        let updates = UpdateSet {
-            identity: None,
-            folders,
-            ..Default::default()
-        };
+        if !folders.is_empty() {
+            // Force update the folders on remote servers
+            let sync_options: SyncOptions = Default::default();
+            let updates = UpdateSet {
+                identity: None,
+                folders,
+                ..Default::default()
+            };
 
-        let sync_error = self.force_update(updates, &sync_options).await;
-        if let Some(sync_error) = sync_error {
-            return Err(Error::ForceUpdate(sync_error));
-        }
+            let sync_error = self.force_update(updates, &sync_options).await;
+            if let Some(sync_error) = sync_error {
+                return Err(Error::ForceUpdate(sync_error));
+            }
 
-        // In case we have pending updates to the account, device
-        // or file event logs
-        if let Some(sync_error) = self.sync_with_options(&sync_options).await
-        {
-            return Err(Error::ForceUpdate(sync_error));
+            // In case we have pending updates to the account, device
+            // or file event logs
+            if let Some(sync_error) =
+                self.sync_with_options(&sync_options).await
+            {
+                return Err(Error::ForceUpdate(sync_error));
+            }
         }
 
         Ok(result)
@@ -1031,31 +1033,34 @@ impl Account for NetworkAccount {
         // Prepare event logs for the folders that
         // were converted
         let mut folders = HashMap::new();
-        {
+        if !folder.flags().is_sync_disabled() {
             let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
             let diff = log_file.diff_unchecked().await?;
             folders.insert(*folder.id(), diff);
         }
 
-        // Force update the folders on remote servers
-        let sync_options: SyncOptions = Default::default();
-        let updates = UpdateSet {
-            identity: Some(identity),
-            folders,
-            ..Default::default()
-        };
+        if !folders.is_empty() {
+            // Force update the folders on remote servers
+            let sync_options: SyncOptions = Default::default();
+            let updates = UpdateSet {
+                identity: Some(identity),
+                folders,
+                ..Default::default()
+            };
 
-        let sync_error = self.force_update(updates, &sync_options).await;
-        if let Some(sync_error) = sync_error {
-            return Err(Error::ForceUpdate(sync_error));
-        }
+            let sync_error = self.force_update(updates, &sync_options).await;
+            if let Some(sync_error) = sync_error {
+                return Err(Error::ForceUpdate(sync_error));
+            }
 
-        // In case we have pending updates to the account, device
-        // or file event logs
-        if let Some(sync_error) = self.sync_with_options(&sync_options).await
-        {
-            return Err(Error::ForceUpdate(sync_error));
+            // In case we have pending updates to the account, device
+            // or file event logs
+            if let Some(sync_error) =
+                self.sync_with_options(&sync_options).await
+            {
+                return Err(Error::ForceUpdate(sync_error));
+            }
         }
 
         Ok(())
@@ -1401,11 +1406,12 @@ impl Account for NetworkAccount {
     async fn create_folder(
         &mut self,
         name: String,
+        options: NewFolderOptions,
     ) -> Result<FolderCreate<Self::NetworkError>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.create_folder(name).await?
+            account.create_folder(name, options).await?
         };
 
         let result = FolderCreate {
@@ -1427,6 +1433,26 @@ impl Account for NetworkAccount {
         let result = {
             let mut account = self.account.lock().await;
             account.rename_folder(summary, name).await?
+        };
+
+        let result = FolderChange {
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_error: self.sync().await,
+        };
+
+        Ok(result)
+    }
+
+    async fn update_folder_flags(
+        &mut self,
+        summary: &Summary,
+        flags: VaultFlags,
+    ) -> Result<FolderChange<Self::NetworkError>> {
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            account.update_folder_flags(summary, flags).await?
         };
 
         let result = FolderChange {
@@ -1518,6 +1544,24 @@ impl Account for NetworkAccount {
             events: result.events,
             commit_state: result.commit_state,
             sync_error: self.sync().await,
+        };
+
+        Ok(result)
+    }
+
+    async fn remove_local_folder(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<FolderDelete<Self::NetworkError>> {
+        let result = {
+            let mut account = self.account.lock().await;
+            account.remove_local_folder(summary).await?
+        };
+
+        let result = FolderDelete {
+            events: result.events,
+            commit_state: result.commit_state,
+            sync_error: None,
         };
 
         Ok(result)

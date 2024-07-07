@@ -3,7 +3,7 @@ use crate::{
     crypto::AeadPack,
     decode,
     events::{EventLogExt, WriteEvent},
-    vault::{secret::SecretId, Vault, VaultCommit},
+    vault::{secret::SecretId, Vault, VaultCommit, VaultFlags},
     Error, Result,
 };
 
@@ -18,6 +18,8 @@ pub struct FolderReducer {
     vault: Option<Vec<u8>>,
     /// Last encountered vault name.
     vault_name: Option<String>,
+    /// Last encountered vault flags.
+    vault_flags: Option<VaultFlags>,
     /// Last encountered vault meta data.
     vault_meta: Option<AeadPack>,
     /// Map of the reduced secrets.
@@ -95,6 +97,9 @@ impl FolderReducer {
                         WriteEvent::SetVaultName(name) => {
                             self.vault_name = Some(name);
                         }
+                        WriteEvent::SetVaultFlags(flags) => {
+                            self.vault_flags = Some(flags);
+                        }
                         WriteEvent::SetVaultMeta(meta) => {
                             self.vault_meta = Some(meta);
                         }
@@ -169,6 +174,10 @@ impl FolderReducer {
             let mut vault: Vault = decode(&vault).await?;
             if let Some(name) = self.vault_name {
                 vault.set_name(name);
+            }
+
+            if let Some(flags) = self.vault_flags {
+                *vault.flags_mut() = flags;
             }
 
             if let Some(meta) = self.vault_meta {

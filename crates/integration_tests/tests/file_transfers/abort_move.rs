@@ -26,7 +26,10 @@ async fn file_transfers_abort_move() -> Result<()> {
     let FolderCreate {
         folder: destination,
         ..
-    } = device.owner.create_folder("new_folder".to_owned()).await?;
+    } = device
+        .owner
+        .create_folder("new_folder".to_owned(), Default::default())
+        .await?;
 
     // Create an external file secret
     let (secret_id, _, _, file_name) =

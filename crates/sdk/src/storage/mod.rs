@@ -1,11 +1,13 @@
 //! Folder storage backed by the file system.
 use crate::{
+    crypto::{AccessKey, Cipher, KeyDerivation},
     events::{AccountEventLog, FolderEventLog},
     signer::ecdsa::Address,
-    vault::{Summary, Vault, VaultId},
+    vault::{Summary, Vault, VaultFlags, VaultId},
     Result,
 };
 use async_trait::async_trait;
+use indexmap::IndexSet;
 use std::{path::Path, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
 
@@ -26,8 +28,18 @@ use crate::events::DeviceEventLog;
 #[cfg(feature = "files")]
 use crate::{events::FileEventLog, storage::files::ExternalFile};
 
-#[cfg(feature = "files")]
-use indexmap::IndexSet;
+/// Options used when creating a new folder.
+#[derive(Debug, Default)]
+pub struct NewFolderOptions {
+    /// Flags for the new folder.
+    pub flags: VaultFlags,
+    /// Access key.
+    pub key: Option<AccessKey>,
+    /// Encryption cipher.
+    pub cipher: Option<Cipher>,
+    /// Key derivation function.
+    pub kdf: Option<KeyDerivation>,
+}
 
 /// Collection of vaults for an account.
 #[derive(Default)]
@@ -130,7 +142,10 @@ pub trait StorageEventLogs {
     }
 
     /// Folder identifiers managed by this storage.
-    async fn folder_identifiers(&self) -> Result<Vec<VaultId>>;
+    async fn folder_identifiers(&self) -> Result<IndexSet<VaultId>>;
+
+    /// Folder information managed by this storage.
+    async fn folder_details(&self) -> Result<IndexSet<Summary>>;
 
     /// Folder event log.
     async fn folder_log(

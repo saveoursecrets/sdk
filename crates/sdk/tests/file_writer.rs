@@ -44,7 +44,7 @@ async fn create_secure_note<
             .await?;
 
     if let WriteEvent::CreateSecret(secret_id, _) =
-        vault_access.create(commit, entry).await?
+        vault_access.create_secret(commit, entry).await?
     {
         Ok(secret_id)
     } else {
@@ -91,7 +91,7 @@ async fn vault_file_access() -> Result<()> {
 
     // Missing row should not exist
     let missing_id = Uuid::new_v4();
-    let (row, _) = vault_access.read(&missing_id).await?;
+    let (row, _) = vault_access.read_secret(&missing_id).await?;
     assert!(row.is_none());
 
     // Create a secret note
@@ -107,14 +107,14 @@ async fn vault_file_access() -> Result<()> {
     .await?;
 
     // Verify the secret exists
-    let (row, _) = vault_access.read(&secret_id).await?;
+    let (row, _) = vault_access.read_secret(&secret_id).await?;
     assert!(row.is_some());
 
     // Delete the secret
-    let _ = vault_access.delete(&secret_id).await?;
+    let _ = vault_access.delete_secret(&secret_id).await?;
 
     // Verify it does not exist after deletion
-    let (row, _) = vault_access.read(&secret_id).await?;
+    let (row, _) = vault_access.read_secret(&secret_id).await?;
     assert!(row.is_none());
 
     // Create a new secure note so we can update it
@@ -139,11 +139,15 @@ async fn vault_file_access() -> Result<()> {
     let (commit, _) =
         Vault::commit_hash(&updated_meta, &updated_secret).await?;
     let _ = vault_access
-        .update(&secret_id, commit, VaultEntry(updated_meta, updated_secret))
+        .update_secret(
+            &secret_id,
+            commit,
+            VaultEntry(updated_meta, updated_secret),
+        )
         .await?;
 
     // Clean up the secret for next test execution
-    let _ = vault_access.delete(&secret_id).await?;
+    let _ = vault_access.delete_secret(&secret_id).await?;
 
     let vault_name = vault_access.vault_name().await?;
     assert_eq!(DEFAULT_VAULT_NAME, &vault_name);
@@ -190,18 +194,36 @@ async fn vault_file_del_splice() -> Result<()> {
     }
 
     let del_secret_id = secret_ids.get(1).unwrap();
-    let _ = vault_access.delete(del_secret_id).await?;
+    let _ = vault_access.delete_secret(del_secret_id).await?;
 
     // Check the file identity is good after the deletion splice
     assert!(Header::read_header_file(temp.path()).await.is_ok());
 
     // Clean up other secrets
     for secret_id in secret_ids {
-        let _ = vault_access.delete(&secret_id).await?;
+        let _ = vault_access.delete_secret(&secret_id).await?;
     }
 
     // Verify again to finish up
     assert!(Header::read_header_file(temp.path()).await.is_ok());
+
+    temp.close()?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn vault_file_flags() -> Result<()> {
+    let (temp, _) = mock_vault_file().await?;
+
+    let vault_file = VaultWriter::open(temp.path()).await?;
+    let mut vault_access = VaultWriter::new(temp.path(), vault_file)?;
+
+    let flags = VaultFlags::NO_SYNC;
+    vault_access.set_vault_flags(flags.clone()).await?;
+
+    let current = Header::read_header_file(temp.path()).await?;
+    assert_eq!(current.flags(), &flags);
 
     temp.close()?;
 

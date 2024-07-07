@@ -42,7 +42,9 @@ async fn diff_merge_folder_delete() -> Result<()> {
     // Create a new folder
     let FolderCreate {
         folder: summary, ..
-    } = local.create_folder("new_folder".to_owned()).await?;
+    } = local
+        .create_folder("new_folder".to_owned(), Default::default())
+        .await?;
 
     // Delete the folder
     local.delete_folder(&summary).await?;

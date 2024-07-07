@@ -26,6 +26,8 @@ mod listen_multiple;
 mod multiple_remotes;
 mod multiple_remotes_fallback;
 
+mod no_sync;
+
 mod offline_manual;
 mod rename_account;
 mod server_definitions;

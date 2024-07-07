@@ -1167,7 +1167,7 @@ mod handlers {
 
             // Only try to merge folders that exist in storage
             // otherwise after folder deletion sync will fail
-            let folders = writer.storage.folder_identifiers();
+            let folders = writer.storage.folder_identifiers().await?;
             diff.folders.retain(|k, _| folders.contains(k));
 
             writer.storage.merge(diff, &mut outcome).await?

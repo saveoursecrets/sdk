@@ -45,7 +45,9 @@ async fn diff_merge_folder_create() -> Result<()> {
     // Create a new folder
     let FolderCreate {
         folder: summary, ..
-    } = local.create_folder("new_folder".to_owned()).await?;
+    } = local
+        .create_folder("new_folder".to_owned(), Default::default())
+        .await?;
 
     assert_ne!(local.sync_status().await?, remote.sync_status().await?);
 

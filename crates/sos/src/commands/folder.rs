@@ -165,7 +165,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             }
 
             let FolderCreate { folder, .. } =
-                writer.create_folder(name).await?;
+                writer.create_folder(name, Default::default()).await?;
             success("Folder created");
             drop(writer);
             if cwd {

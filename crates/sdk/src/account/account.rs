@@ -19,12 +19,12 @@ use crate::{
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
         paths::FileLock, AccessOptions, AccountPack, ClientStorage,
-        StorageEventLogs,
+        NewFolderOptions, StorageEventLogs,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
         BuilderCredentials, Gatekeeper, Header, Summary, Vault, VaultBuilder,
-        VaultId,
+        VaultFlags, VaultId,
     },
     vfs, Error, Paths, Result, UtcDateTime,
 };
@@ -639,6 +639,7 @@ pub trait Account {
     async fn create_folder(
         &mut self,
         name: String,
+        options: NewFolderOptions,
     ) -> std::result::Result<FolderCreate<Self::NetworkError>, Self::Error>;
 
     /// Rename a folder.
@@ -646,6 +647,13 @@ pub trait Account {
         &mut self,
         summary: &Summary,
         name: String,
+    ) -> std::result::Result<FolderChange<Self::NetworkError>, Self::Error>;
+
+    /// Update folder flags.
+    async fn update_folder_flags(
+        &mut self,
+        summary: &Summary,
+        flags: VaultFlags,
     ) -> std::result::Result<FolderChange<Self::NetworkError>, Self::Error>;
 
     /// Import a folder from a vault file.
@@ -692,6 +700,18 @@ pub trait Account {
 
     /// Delete a folder.
     async fn delete_folder(
+        &mut self,
+        summary: &Summary,
+    ) -> std::result::Result<FolderDelete<Self::NetworkError>, Self::Error>;
+
+    /// Remove a local folder.
+    ///
+    /// Does not log the account event so the folder will not
+    /// be removed from other devices.
+    ///
+    /// Useful for certain folders like an authenticator
+    /// that requires special handling.
+    async fn remove_local_folder(
         &mut self,
         summary: &Summary,
     ) -> std::result::Result<FolderDelete<Self::NetworkError>, Self::Error>;
@@ -2351,27 +2371,35 @@ impl Account for LocalAccount {
     async fn create_folder(
         &mut self,
         name: String,
+        mut options: NewFolderOptions,
     ) -> Result<FolderCreate<Self::Error>> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
 
-        let passphrase = self.user()?.generate_folder_password()?;
-        let key: AccessKey = passphrase.into();
+        let key: AccessKey = if let Some(key) = options.key.take() {
+            key
+        } else {
+            let passphrase = self.user()?.generate_folder_password()?;
+            passphrase.into()
+        };
 
         let identity_folder = self.identity_folder_summary().await?;
-        let cipher = identity_folder.cipher.clone();
-        let kdf = identity_folder.kdf.clone();
+        let cipher = options
+            .cipher
+            .take()
+            .unwrap_or_else(|| identity_folder.cipher.clone());
+        let kdf = options
+            .kdf
+            .take()
+            .unwrap_or_else(|| identity_folder.kdf.clone());
+
+        options.key = Some(key.clone());
+        options.cipher = Some(cipher);
+        options.kdf = Some(kdf);
 
         let (buffer, _, summary, account_event) = {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
-            writer
-                .create_folder(
-                    name,
-                    Some(key.clone()),
-                    Some(cipher),
-                    Some(kdf),
-                )
-                .await?
+            writer.create_folder(name, options).await?
         };
 
         // Must save the password before getting the secure access key
@@ -2414,6 +2442,32 @@ impl Account for LocalAccount {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.rename_folder(&summary, &name).await?
+        };
+
+        Ok(FolderChange {
+            event,
+            commit_state,
+            sync_error: None,
+        })
+    }
+
+    async fn update_folder_flags(
+        &mut self,
+        summary: &Summary,
+        flags: VaultFlags,
+    ) -> Result<FolderChange<Self::NetworkError>> {
+        let options = AccessOptions {
+            folder: Some(summary.clone()),
+            ..Default::default()
+        };
+        let (summary, commit_state) =
+            self.compute_folder_state(&options).await?;
+
+        // Update the provider
+        let event = {
+            let storage = self.storage().await?;
+            let mut writer = storage.write().await;
+            writer.update_folder_flags(&summary, flags).await?
         };
 
         Ok(FolderChange {
@@ -2660,6 +2714,33 @@ impl Account for LocalAccount {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.delete_folder(&summary, true).await?
+        };
+        self.user_mut()?
+            .remove_folder_password(summary.id())
+            .await?;
+
+        Ok(FolderDelete {
+            events,
+            commit_state,
+            sync_error: None,
+        })
+    }
+
+    async fn remove_local_folder(
+        &mut self,
+        summary: &Summary,
+    ) -> Result<FolderDelete<Self::NetworkError>> {
+        let options = AccessOptions {
+            folder: Some(summary.clone()),
+            ..Default::default()
+        };
+        let (summary, commit_state) =
+            self.compute_folder_state(&options).await?;
+
+        let events = {
+            let storage = self.storage().await?;
+            let mut writer = storage.write().await;
+            writer.remove_local_folder(&summary).await?
         };
         self.user_mut()?
             .remove_folder_password(summary.id())
@@ -3103,11 +3184,16 @@ impl StorageEventLogs for LocalAccount {
         Ok(Arc::clone(&storage.file_log))
     }
 
-    async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {
+    async fn folder_identifiers(&self) -> Result<IndexSet<VaultId>> {
         let storage = self.storage().await?;
         let storage = storage.read().await;
         let summaries = storage.list_folders().to_vec();
         Ok(summaries.iter().map(|s| *s.id()).collect())
+    }
+
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
+        let folders = self.list_folders().await?;
+        Ok(folders.into_iter().collect())
     }
 
     async fn folder_log(

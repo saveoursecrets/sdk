@@ -9,6 +9,7 @@ use crate::{
         FolderReducer, MemoryData, MemoryFolderLog, MemoryLog, ReadEvent,
         WriteEvent,
     },
+    prelude::VaultFlags,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Gatekeeper, Vault, VaultId, VaultMeta, VaultWriter,
@@ -145,6 +146,18 @@ where
     ) -> Result<WriteEvent> {
         self.keeper.set_vault_name(name.as_ref().to_owned()).await?;
         let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
+        let mut events = self.events.write().await;
+        events.apply(vec![&event]).await?;
+        Ok(event)
+    }
+
+    /// Set the folder flags.
+    pub async fn update_folder_flags(
+        &mut self,
+        flags: VaultFlags,
+    ) -> Result<WriteEvent> {
+        self.keeper.set_vault_flags(flags.clone()).await?;
+        let event = WriteEvent::SetVaultFlags(flags);
         let mut events = self.events.write().await;
         events.apply(vec![&event]).await?;
         Ok(event)

@@ -71,6 +71,8 @@ const REVOKE_DEVICE: u16 = 30;
 const UPDATE_IDENTITY: u16 = 31;
 /// Type identifier for renaming an account.
 const RENAME_ACCOUNT: u16 = 32;
+/// Type identifier for the set vault flags operation.
+const SET_VAULT_FLAGS: u16 = 33;
 
 /// EventKind wraps an event type identifier and
 /// provides a `Display` implementation.
@@ -94,6 +96,8 @@ pub enum EventKind {
     GetVaultName,
     /// Event to set vault name.
     SetVaultName,
+    /// Event to set vault flags.
+    SetVaultFlags,
     /// Event to set vault meta data.
     SetVaultMeta,
     /// Event to delete a vault.
@@ -164,6 +168,7 @@ impl TryFrom<u16> for EventKind {
             DELETE_VAULT => EventKind::DeleteVault,
             GET_VAULT_NAME => EventKind::GetVaultName,
             SET_VAULT_NAME => EventKind::SetVaultName,
+            SET_VAULT_FLAGS => EventKind::SetVaultFlags,
             SET_VAULT_META => EventKind::SetVaultMeta,
             CREATE_SECRET => EventKind::CreateSecret,
             READ_SECRET => EventKind::ReadSecret,
@@ -205,6 +210,7 @@ impl From<&EventKind> for u16 {
             EventKind::DeleteVault => DELETE_VAULT,
             EventKind::GetVaultName => GET_VAULT_NAME,
             EventKind::SetVaultName => SET_VAULT_NAME,
+            EventKind::SetVaultFlags => SET_VAULT_FLAGS,
             EventKind::SetVaultMeta => SET_VAULT_META,
             EventKind::CreateSecret => CREATE_SECRET,
             EventKind::ReadSecret => READ_SECRET,
@@ -252,6 +258,7 @@ impl fmt::Display for EventKind {
                 EventKind::DeleteVault => "DELETE_FOLDER",
                 EventKind::GetVaultName => "GET_FOLDER_NAME",
                 EventKind::SetVaultName => "SET_FOLDER_NAME",
+                EventKind::SetVaultFlags => "SET_FOLDER_FLAGS",
                 EventKind::SetVaultMeta => "SET_FOLDER_META",
                 EventKind::CreateSecret => "CREATE_SECRET",
                 EventKind::ReadSecret => "READ_SECRET",

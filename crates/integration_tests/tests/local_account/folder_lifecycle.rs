@@ -28,8 +28,9 @@ async fn local_folder_lifecycle() -> Result<()> {
 
     // Create a folder
     let folder_name = "folder_name";
-    let FolderCreate { folder, .. } =
-        account.create_folder(folder_name.to_string()).await?;
+    let FolderCreate { folder, .. } = account
+        .create_folder(folder_name.to_string(), Default::default())
+        .await?;
 
     // Open the new folder for writing
     account.open_folder(&folder).await?;

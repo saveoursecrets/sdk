@@ -46,7 +46,7 @@ bitflags! {
         /// the default folder.
         const DEFAULT           =        0b0000000000000001;
         /// Indicates this vault is an identity vault used
-        /// to authenticate a user.
+        /// to authenticate a user and store delegated folder passwords.
         const IDENTITY          =        0b0000000000000010;
         /// Indicates this vault is to be used as an archive.
         const ARCHIVE           =        0b0000000000000100;
@@ -64,19 +64,15 @@ bitflags! {
         /// specific private keys.
         ///
         /// Typically these vaults should also be assigned the
-        /// NO_SYNC_SELF flag.
+        /// NO_SYNC flag.
         const DEVICE            =        0b0000000001000000;
         /// Indicates this vault should not be synced with
         /// devices owned by the account holder.
         ///
-        /// You may want to combine this with NO_SYNC_OTHER
-        /// to completely ignore this vault from sync operations.
-        ///
         /// This is useful for storing device specific keys.
-        const NO_SYNC_SELF      =        0b0000000010000000;
-        /// Indicates this vault should not be synced with
-        /// devices owned by other accounts.
-        const NO_SYNC_OTHER     =        0b0000000100000000;
+        const NO_SYNC           =        0b0000000010000000;
+        /// Reserved flag.
+        const _RESERVED         =        0b0000000100000000;
         /// Indicates this vault is shared using asymmetric
         /// encryption.
         const SHARED            =        0b0000001000000000;
@@ -121,14 +117,8 @@ impl VaultFlags {
 
     /// Determine if this vault is set to ignore sync
     /// with other devices owned by the account holder.
-    pub fn is_no_sync_self(&self) -> bool {
-        self.contains(VaultFlags::NO_SYNC_SELF)
-    }
-
-    /// Determine if this vault is set to ignore sync
-    /// with devices owned by other accounts.
-    pub fn is_no_sync_other(&self) -> bool {
-        self.contains(VaultFlags::NO_SYNC_OTHER)
+    pub fn is_sync_disabled(&self) -> bool {
+        self.contains(VaultFlags::NO_SYNC)
     }
 
     /// Determine if this vault is shared.
@@ -229,6 +219,12 @@ pub trait VaultAccess {
     /// Set the name of a vault.
     async fn set_vault_name(&mut self, name: String) -> Result<WriteEvent>;
 
+    /// Set the flags for a vault.
+    async fn set_vault_flags(
+        &mut self,
+        flags: VaultFlags,
+    ) -> Result<WriteEvent>;
+
     /// Set the vault meta data.
     async fn set_vault_meta(
         &mut self,
@@ -236,7 +232,7 @@ pub trait VaultAccess {
     ) -> Result<WriteEvent>;
 
     /// Add an encrypted secret to the vault.
-    async fn create(
+    async fn create_secret(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
@@ -247,7 +243,7 @@ pub trait VaultAccess {
     /// Used internally to support consistent identifiers when
     /// mirroring in the `Gatekeeper` implementation.
     #[doc(hidden)]
-    async fn insert(
+    async fn insert_secret(
         &mut self,
         id: SecretId,
         commit: CommitHash,
@@ -255,13 +251,13 @@ pub trait VaultAccess {
     ) -> Result<WriteEvent>;
 
     /// Get an encrypted secret from the vault.
-    async fn read<'a>(
+    async fn read_secret<'a>(
         &'a self,
         id: &SecretId,
     ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)>;
 
     /// Update an encrypted secret in the vault.
-    async fn update(
+    async fn update_secret(
         &mut self,
         id: &SecretId,
         commit: CommitHash,
@@ -269,7 +265,10 @@ pub trait VaultAccess {
     ) -> Result<Option<WriteEvent>>;
 
     /// Remove an encrypted secret from the vault.
-    async fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent>>;
+    async fn delete_secret(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<Option<WriteEvent>>;
 }
 
 /// Authentication information.
@@ -359,22 +358,22 @@ impl Summary {
         &self.version
     }
 
-    /// Get the cipher.
+    /// Encryption cipher.
     pub fn cipher(&self) -> &Cipher {
         &self.cipher
     }
 
-    /// Get the key derivation function.
+    /// Key derivation function.
     pub fn kdf(&self) -> &KeyDerivation {
         &self.kdf
     }
 
-    /// Get the unique identifier.
+    /// Vault identifier.
     pub fn id(&self) -> &VaultId {
         &self.id
     }
 
-    /// Get the public name.
+    /// Public name.
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -384,12 +383,12 @@ impl Summary {
         self.name = name;
     }
 
-    /// Get the vault flags.
+    /// Vault flags.
     pub fn flags(&self) -> &VaultFlags {
         &self.flags
     }
 
-    /// Get a mutable reference to the vault flags.
+    /// Mutable reference to the vault flags.
     pub fn flags_mut(&mut self) -> &mut VaultFlags {
         &mut self.flags
     }
@@ -432,9 +431,19 @@ impl Header {
         }
     }
 
-    /// Get the vault identifier.
+    /// Vault identifier.
     pub fn id(&self) -> &VaultId {
         self.summary.id()
+    }
+
+    /// Reference to the vault flags.
+    pub fn flags(&self) -> &VaultFlags {
+        self.summary.flags()
+    }
+
+    /// Mutable reference to the vault flags.
+    pub fn flags_mut(&mut self) -> &mut VaultFlags {
+        self.summary.flags_mut()
     }
 
     /// Clear an existing salt.
@@ -743,14 +752,8 @@ impl Vault {
     }
 
     /// Set whether this vault should not sync with own devices.
-    pub fn set_no_sync_self_flag(&mut self, value: bool) {
-        self.flags_mut().set(VaultFlags::NO_SYNC_SELF, value);
-    }
-
-    /// Set whether this vault should not sync with devices
-    /// owned by other accounts.
-    pub fn set_no_sync_other_flag(&mut self, value: bool) {
-        self.flags_mut().set(VaultFlags::NO_SYNC_OTHER, value);
+    pub fn set_no_sync_flag(&mut self, value: bool) {
+        self.flags_mut().set(VaultFlags::NO_SYNC, value);
     }
 
     /// Insert a secret into this vault.
@@ -915,48 +918,48 @@ impl Vault {
         &self.header.summary
     }
 
-    /// Get a reference to the vault flags.
+    /// Reference to the vault flags.
     pub fn flags(&self) -> &VaultFlags {
-        self.header.summary.flags()
+        self.header.flags()
     }
 
-    /// Get a mutable reference to the vault flags.
+    /// Mutable reference to the vault flags.
     pub fn flags_mut(&mut self) -> &mut VaultFlags {
-        self.header.summary.flags_mut()
+        self.header.flags_mut()
     }
 
-    /// Get the unique identifier for this vault.
+    /// Unique identifier for this vault.
     pub fn id(&self) -> &VaultId {
         &self.header.summary.id
     }
 
-    /// Get the public name for this vault.
+    /// Public name for this vault.
     pub fn name(&self) -> &str {
         self.header.name()
     }
 
-    /// Set the public name for this vault.
+    /// Set the public name of this vault.
     pub fn set_name(&mut self, name: String) {
         self.header.set_name(name);
     }
 
-    /// Get the encryption cipher for this vault.
+    /// Encryption cipher for this vault.
     pub fn cipher(&self) -> &Cipher {
         &self.header.summary.cipher
     }
 
-    /// Get the key derivation function.
+    /// Key derivation function.
     pub fn kdf(&self) -> &KeyDerivation {
         &self.header.summary.kdf
     }
 
-    /// Get the vault header.
+    /// Vault header.
     pub fn header(&self) -> &Header {
         &self.header
     }
 
-    /// Get the mutable vault header.
-    pub fn header_mut(&mut self) -> &mut Header {
+    /// Mutable vault header.
+    pub(crate) fn header_mut(&mut self) -> &mut Header {
         &mut self.header
     }
 
@@ -1040,6 +1043,14 @@ impl VaultAccess for Vault {
         Ok(WriteEvent::SetVaultName(name))
     }
 
+    async fn set_vault_flags(
+        &mut self,
+        flags: VaultFlags,
+    ) -> Result<WriteEvent> {
+        *self.header.flags_mut() = flags.clone();
+        Ok(WriteEvent::SetVaultFlags(flags))
+    }
+
     async fn set_vault_meta(
         &mut self,
         meta_data: AeadPack,
@@ -1048,16 +1059,16 @@ impl VaultAccess for Vault {
         Ok(WriteEvent::SetVaultMeta(meta_data))
     }
 
-    async fn create(
+    async fn create_secret(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<WriteEvent> {
         let id = Uuid::new_v4();
-        self.insert(id, commit, secret).await
+        self.insert_secret(id, commit, secret).await
     }
 
-    async fn insert(
+    async fn insert_secret(
         &mut self,
         id: SecretId,
         commit: CommitHash,
@@ -1071,7 +1082,7 @@ impl VaultAccess for Vault {
         Ok(WriteEvent::CreateSecret(id, value.clone()))
     }
 
-    async fn read<'a>(
+    async fn read_secret<'a>(
         &'a self,
         id: &SecretId,
     ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)> {
@@ -1079,7 +1090,7 @@ impl VaultAccess for Vault {
         Ok((result, ReadEvent::ReadSecret(*id)))
     }
 
-    async fn update(
+    async fn update_secret(
         &mut self,
         id: &SecretId,
         commit: CommitHash,
@@ -1094,12 +1105,11 @@ impl VaultAccess for Vault {
         }
     }
 
-    async fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent>> {
+    async fn delete_secret(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<Option<WriteEvent>> {
         let entry = self.contents.data.shift_remove(id);
-        if entry.is_some() {
-            Ok(Some(WriteEvent::DeleteSecret(*id)))
-        } else {
-            Ok(None)
-        }
+        Ok(entry.map(|_| WriteEvent::DeleteSecret(*id)))
     }
 }

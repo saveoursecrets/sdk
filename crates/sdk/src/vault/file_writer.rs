@@ -31,7 +31,7 @@ use crate::{
     events::{ReadEvent, WriteEvent},
     vault::{
         secret::SecretId, Contents, Header, Summary, VaultAccess,
-        VaultCommit, VaultEntry,
+        VaultCommit, VaultEntry, VaultFlags,
     },
     vfs::{File, OpenOptions},
     Result,
@@ -210,6 +210,17 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         Ok(WriteEvent::SetVaultName(name))
     }
 
+    async fn set_vault_flags(
+        &mut self,
+        flags: VaultFlags,
+    ) -> Result<WriteEvent> {
+        let content_offset = self.check_identity().await?;
+        let mut header = Header::read_header_file(&self.file_path).await?;
+        *header.flags_mut() = flags.clone();
+        self.write_header(content_offset, &header).await?;
+        Ok(WriteEvent::SetVaultFlags(flags))
+    }
+
     async fn set_vault_meta(
         &mut self,
         meta_data: AeadPack,
@@ -221,16 +232,16 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         Ok(WriteEvent::SetVaultMeta(meta_data))
     }
 
-    async fn create(
+    async fn create_secret(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<WriteEvent> {
         let id = Uuid::new_v4();
-        self.insert(id, commit, secret).await
+        self.insert_secret(id, commit, secret).await
     }
 
-    async fn insert(
+    async fn insert_secret(
         &mut self,
         id: SecretId,
         commit: CommitHash,
@@ -252,7 +263,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         Ok(WriteEvent::CreateSecret(id, row))
     }
 
-    async fn read<'a>(
+    async fn read_secret<'a>(
         &'a self,
         id: &SecretId,
     ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)> {
@@ -271,7 +282,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         }
     }
 
-    async fn update(
+    async fn update_secret(
         &mut self,
         id: &SecretId,
         commit: CommitHash,
@@ -306,7 +317,10 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         }
     }
 
-    async fn delete(&mut self, id: &SecretId) -> Result<Option<WriteEvent>> {
+    async fn delete_secret(
+        &mut self,
+        id: &SecretId,
+    ) -> Result<Option<WriteEvent>> {
         let _summary = self.summary().await?;
         let (_content_offset, row) = self.find_row(id).await?;
         if let Some((row_offset, row_len)) = row {

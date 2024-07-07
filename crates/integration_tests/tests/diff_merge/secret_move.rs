@@ -52,7 +52,9 @@ async fn diff_merge_secret_move() -> Result<()> {
     // Create a new folder
     let FolderCreate {
         folder: summary, ..
-    } = local.create_folder("new_folder".to_owned()).await?;
+    } = local
+        .create_folder("new_folder".to_owned(), Default::default())
+        .await?;
 
     // Move the secret
     let SecretMove { id: new_id, .. } = local
