@@ -24,6 +24,10 @@ pub enum Command {
     },
     /// Print a vault file header.
     Header {
+        /// Print the header flags.
+        #[clap(short, long)]
+        verbose: bool,
+
         /// Vault file path.
         file: PathBuf,
     },
@@ -48,7 +52,7 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Vault { file, verbose } => {
             verify_vault(file, verbose).await?;
         }
-        Command::Header { file } => header(file).await?,
+        Command::Header { file, verbose } => header(file, verbose).await?,
         Command::Keys { file } => keys(file).await?,
         Command::Events { verbose, file } => {
             verify_events(file, verbose).await?;
@@ -104,13 +108,41 @@ pub(crate) async fn verify_events(
 }
 
 /// Print a vault header.
-pub async fn header(vault: PathBuf) -> Result<()> {
+pub async fn header(vault: PathBuf, verbose: bool) -> Result<()> {
     if !vfs::metadata(&vault).await?.is_file() {
         return Err(Error::NotFile(vault));
     }
 
     let header = Header::read_header_file(&vault).await?;
     println!("{}", header);
+    if verbose {
+        let mut details = Vec::new();
+        details.push(("identity", header.flags().is_identity()));
+        details.push(("system", header.flags().is_system()));
+        details.push(("default", header.flags().is_default()));
+        details.push(("archive", header.flags().is_archive()));
+        details.push(("device", header.flags().is_device()));
+        details.push(("contact", header.flags().is_contact()));
+        details.push(("authenticator", header.flags().is_authenticator()));
+        details.push(("sync_disabled", header.flags().is_sync_disabled()));
+        details.push(("shared", header.flags().is_shared()));
+
+        let details =
+            details.into_iter().filter(|(_, v)| *v).collect::<Vec<_>>();
+
+        let mut len = 0;
+        for (k, _) in &details {
+            len = std::cmp::max(len, k.len());
+        }
+
+        for (name, value) in details {
+            if value {
+                let padding = " ".repeat(len - name.len() + 2);
+                let name = format!("{}{}", padding, name);
+                println!("{}: {}", name, value);
+            }
+        }
+    }
     Ok(())
 }
 
