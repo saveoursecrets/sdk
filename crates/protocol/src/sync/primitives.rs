@@ -387,10 +387,11 @@ impl SyncComparison {
             _ => {}
         }
 
+        let is_client = storage.is_client_storage();
         let storage_folders = storage.folder_details().await?;
         for (id, folder) in &self.folders {
-            if let Some(folder) =
-                storage_folders.iter().find(|s| s.id() == id)
+            if let (true, Some(folder)) =
+                (is_client, storage_folders.iter().find(|s| s.id() == id))
             {
                 if folder.flags().is_sync_disabled() {
                     continue;
@@ -465,6 +466,9 @@ impl SyncComparison {
 /// Storage implementations that can synchronize.
 #[async_trait]
 pub trait SyncStorage: StorageEventLogs {
+    /// Determine if this is client-side storage.
+    fn is_client_storage(&self) -> bool;
+
     /// Get the sync status.
     async fn sync_status(&self) -> Result<SyncStatus>;
 

@@ -518,6 +518,10 @@ impl Merge for LocalAccount {
 
 #[async_trait]
 impl SyncStorage for LocalAccount {
+    fn is_client_storage(&self) -> bool {
+        true
+    }
+
     async fn sync_status(&self) -> Result<SyncStatus> {
         // NOTE: the order for computing the cumulative
         // NOTE: root hash must be identical to the logic

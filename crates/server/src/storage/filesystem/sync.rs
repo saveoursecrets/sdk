@@ -593,6 +593,10 @@ impl StorageEventLogs for ServerStorage {
 
 #[async_trait]
 impl SyncStorage for ServerStorage {
+    fn is_client_storage(&self) -> bool {
+        false
+    }
+
     async fn sync_status(&self) -> Result<SyncStatus> {
         // NOTE: the order for computing the cumulative
         // NOTE: root hash must be identical to the logic
