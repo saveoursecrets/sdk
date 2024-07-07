@@ -428,28 +428,29 @@ impl Merge for LocalAccount {
     ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
         let len = diff.patch.len() as u64;
 
-        let storage = self.storage().await?;
-        let mut storage = storage.write().await;
-
-        #[cfg(feature = "search")]
-        let search = {
-            let index = storage.index.as_ref().ok_or(Error::NoSearchIndex)?;
-            index.search()
-        };
-
-        tracing::debug!(
-            folder_id = %folder_id,
-            checkpoint = ?diff.checkpoint,
-            num_events = len,
-            "folder",
-        );
-
-        let folder = storage
-            .cache_mut()
-            .get_mut(folder_id)
-            .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
-
         let (checked_patch, events) = {
+            let storage = self.storage().await?;
+            let mut storage = storage.write().await;
+
+            #[cfg(feature = "search")]
+            let search = {
+                let index =
+                    storage.index.as_ref().ok_or(Error::NoSearchIndex)?;
+                index.search()
+            };
+
+            tracing::debug!(
+                folder_id = %folder_id,
+                checkpoint = ?diff.checkpoint,
+                num_events = len,
+                "folder",
+            );
+
+            let folder = storage
+                .cache_mut()
+                .get_mut(folder_id)
+                .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+
             #[cfg(feature = "search")]
             {
                 let mut search = search.write().await;
@@ -476,6 +477,17 @@ impl Merge for LocalAccount {
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {
+            let flags_changed = events
+                .iter()
+                .find(|e| matches!(e, WriteEvent::SetVaultFlags(_)))
+                .is_some();
+
+            // If the flags changed ensure the in-memory summaries
+            // are up to date
+            if flags_changed {
+                self.load_folders().await?;
+            }
+
             outcome.changes += len;
             outcome.tracked.add_tracked_folder_changes(
                 folder_id,

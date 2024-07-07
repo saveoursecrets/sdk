@@ -1,9 +1,6 @@
 use crate::test_utils::{mock, simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::{
-    protocol::SyncStorage, sdk::prelude::*, NetworkAccount, RemoteSync,
-    SyncClient,
-};
+use sos_net::{sdk::prelude::*, RemoteSync};
 
 /// Tests syncing an authenticator folder after disabling the NO_SYNC flag.
 #[tokio::test]
@@ -12,8 +9,7 @@ async fn network_authenticator_sync() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
-    let server = spawn(TEST_ID, None, Some(TEST_ID)).await?;
-    let origin = server.origin.clone();
+    let server = spawn(TEST_ID, None, None).await?;
 
     // Prepare mock devices
     let mut desktop = simulate_device(TEST_ID, 2, Some(&server)).await?;
@@ -28,8 +24,6 @@ async fn network_authenticator_sync() -> Result<()> {
         .owner
         .create_folder(TEST_ID.to_owned(), options)
         .await?;
-
-    println!("auth_folder_id: {}", folder.id());
 
     // Sync the account to push the new folder
     assert!(mobile.owner.sync().await.is_none());
@@ -55,13 +49,18 @@ async fn network_authenticator_sync() -> Result<()> {
         desktop.owner.read_secret(&id, Some(folder.clone())).await?;
     assert_eq!(TEST_ID, data.meta().label());
 
+    // Desktop now has an auth folder
     let auth_folder = desktop.owner.authenticator_folder().await;
-    println!("{:#?}", auth_folder);
+    assert!(auth_folder.is_some());
+
+    // Auth folder flags should be updated and correct
+    let auth_folder = auth_folder.unwrap();
+    assert!(auth_folder.flags().is_authenticator());
+    assert!(!auth_folder.flags().is_sync_disabled());
 
     desktop.owner.sign_out().await?;
     mobile.owner.sign_out().await?;
-
-    // teardown(TEST_ID).await;
+    teardown(TEST_ID).await;
 
     Ok(())
 }
