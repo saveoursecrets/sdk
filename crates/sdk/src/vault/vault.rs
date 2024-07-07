@@ -117,7 +117,7 @@ impl VaultFlags {
 
     /// Determine if this vault is set to ignore sync
     /// with other devices owned by the account holder.
-    pub fn is_no_sync(&self) -> bool {
+    pub fn is_sync_disabled(&self) -> bool {
         self.contains(VaultFlags::NO_SYNC)
     }
 

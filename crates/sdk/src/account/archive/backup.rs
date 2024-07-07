@@ -199,7 +199,7 @@ impl AccountBackup {
 
         let vaults = Identity::list_local_folders(paths).await?;
         for (summary, path) in vaults {
-            if options.no_sync && summary.flags().is_no_sync() {
+            if options.no_sync && summary.flags().is_sync_disabled() {
                 continue;
             }
 

@@ -1,7 +1,7 @@
 //! Synchronization helpers.
 use super::ServerStorage;
 use async_trait::async_trait;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use sos_protocol::{
     sdk::{
         commit::{CommitState, CommitTree, Comparison},
@@ -12,7 +12,7 @@ use sos_protocol::{
             FolderReducer, LogEvent,
         },
         storage::StorageEventLogs,
-        vault::{VaultAccess, VaultId, VaultWriter},
+        vault::{Header, Summary, VaultAccess, VaultId, VaultWriter},
         vfs, Error, Paths, Result,
     },
     CreateSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
@@ -566,8 +566,19 @@ impl StorageEventLogs for ServerStorage {
         Ok(Arc::clone(&self.file_log))
     }
 
-    async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {
+    async fn folder_identifiers(&self) -> Result<IndexSet<VaultId>> {
         Ok(self.cache.keys().copied().collect())
+    }
+
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
+        let mut output = IndexSet::new();
+        let ids = self.folder_identifiers().await?;
+        for id in &ids {
+            let path = self.paths.vault_path(id);
+            let summary = Header::read_summary_file(path).await?;
+            output.insert(summary);
+        }
+        Ok(output)
     }
 
     async fn folder_log(

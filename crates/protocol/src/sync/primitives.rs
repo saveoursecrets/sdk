@@ -534,12 +534,18 @@ pub trait SyncStorage: StorageEventLogs {
         };
 
         let mut folders = HashMap::new();
-        let identifiers = self.folder_identifiers().await?;
+        let details = self.folder_details().await?;
 
-        for id in &identifiers {
-            let event_log = self.folder_log(id).await?;
+        for folder in details {
+            if folder.flags().is_sync_disabled() {
+                tracing::debug!(
+                    folder_id = %folder.id(),
+                    "create_set::ignore::no_sync_flag");
+                continue;
+            }
+            let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
-            folders.insert(*id, log_file.diff_events(None).await?);
+            folders.insert(*folder.id(), log_file.diff_events(None).await?);
         }
 
         Ok(CreateSet {

@@ -3184,11 +3184,16 @@ impl StorageEventLogs for LocalAccount {
         Ok(Arc::clone(&storage.file_log))
     }
 
-    async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {
+    async fn folder_identifiers(&self) -> Result<IndexSet<VaultId>> {
         let storage = self.storage().await?;
         let storage = storage.read().await;
         let summaries = storage.list_folders().to_vec();
         Ok(summaries.iter().map(|s| *s.id()).collect())
+    }
+
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
+        let folders = self.list_folders().await?;
+        Ok(folders.into_iter().collect())
     }
 
     async fn folder_log(

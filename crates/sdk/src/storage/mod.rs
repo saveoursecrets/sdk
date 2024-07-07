@@ -144,7 +144,10 @@ pub trait StorageEventLogs {
     }
 
     /// Folder identifiers managed by this storage.
-    async fn folder_identifiers(&self) -> Result<Vec<VaultId>>;
+    async fn folder_identifiers(&self) -> Result<IndexSet<VaultId>>;
+
+    /// Folder information managed by this storage.
+    async fn folder_details(&self) -> Result<IndexSet<Summary>>;
 
     /// Folder event log.
     async fn folder_log(

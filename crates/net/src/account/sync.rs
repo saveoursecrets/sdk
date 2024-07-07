@@ -4,12 +4,13 @@ use crate::{
     sdk::{
         events::{AccountEventLog, FolderEventLog},
         storage::StorageEventLogs,
-        vault::VaultId,
+        vault::{Summary, VaultId},
         Result,
     },
     NetworkAccount, RemoteSync, SyncClient, SyncError,
 };
 use async_trait::async_trait;
+use indexmap::IndexSet;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -201,9 +202,14 @@ impl StorageEventLogs for NetworkAccount {
         account.file_log().await
     }
 
-    async fn folder_identifiers(&self) -> Result<Vec<VaultId>> {
+    async fn folder_identifiers(&self) -> Result<IndexSet<VaultId>> {
         let account = self.account.lock().await;
         account.folder_identifiers().await
+    }
+
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
+        let account = self.account.lock().await;
+        account.folder_details().await
     }
 
     async fn folder_log(

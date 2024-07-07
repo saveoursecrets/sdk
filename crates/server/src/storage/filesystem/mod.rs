@@ -166,10 +166,12 @@ impl ServerStorage {
         &mut self.cache
     }
 
+    /*
     /// Set of folders identifiers.
     pub fn folder_identifiers(&self) -> HashSet<VaultId> {
         self.cache.keys().copied().collect::<HashSet<_>>()
     }
+    */
 
     /// Get the computed storage directories for the provider.
     pub fn paths(&self) -> Arc<Paths> {
