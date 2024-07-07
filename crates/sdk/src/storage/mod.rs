@@ -7,6 +7,7 @@ use crate::{
     Result,
 };
 use async_trait::async_trait;
+use indexmap::IndexSet;
 use std::{path::Path, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
 
@@ -26,9 +27,6 @@ use crate::events::DeviceEventLog;
 
 #[cfg(feature = "files")]
 use crate::{events::FileEventLog, storage::files::ExternalFile};
-
-#[cfg(feature = "files")]
-use indexmap::IndexSet;
 
 /// Options used when creating a new folder.
 #[derive(Debug, Default)]
