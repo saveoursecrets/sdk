@@ -1,8 +1,12 @@
-use crate::test_utils::{setup, spawn, teardown};
+use crate::test_utils::{setup, simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, NetworkAccount, RemoteSync};
+use sos_net::{
+    protocol::SyncStorage, sdk::prelude::*, NetworkAccount, RemoteSync,
+    SyncClient,
+};
 
-/// Tests syncing with the NO_SYNC flag set.
+/// Tests syncing with the NO_SYNC flag set before the account
+/// exists on the remote server.
 #[tokio::test]
 async fn network_no_sync_create_account() -> Result<()> {
     const TEST_ID: &str = "no_sync_create_account";
@@ -54,6 +58,67 @@ async fn network_no_sync_create_account() -> Result<()> {
 
     account.sign_out().await?;
 
+    teardown(TEST_ID).await;
+
+    Ok(())
+}
+
+/// Tests syncing with the NO_SYNC flag set after the account
+/// has already been synced with the remote server.
+#[tokio::test]
+async fn network_no_sync_update_account() -> Result<()> {
+    const TEST_ID: &str = "no_sync_update_account";
+    //crate::test_utils::init_tracing();
+
+    // Spawn a backend server and wait for it to be listening
+    let server = spawn(TEST_ID, None, None).await?;
+    let origin = server.origin.clone();
+
+    // Prepare mock device
+    let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
+
+    // Create folder with AUTHENTICATOR flag
+    let options = NewFolderOptions {
+        flags: VaultFlags::AUTHENTICATOR,
+        ..Default::default()
+    };
+    let FolderCreate { folder, .. } = device
+        .owner
+        .create_folder(TEST_ID.to_owned(), options)
+        .await?;
+
+    // Sync the account to push the new folder
+    assert!(device.owner.sync().await.is_none());
+
+    // Update the folder with new flags.
+    device
+        .owner
+        .update_folder_flags(
+            &folder,
+            VaultFlags::AUTHENTICATOR | VaultFlags::NO_SYNC,
+        )
+        .await?;
+
+    // Sync the account again which should ignore the updates
+    // to the new folder that has now been marked with NO_SYNC
+    assert!(device.owner.sync().await.is_none());
+
+    // Local should be ahead of remote now as it has
+    // the extra event for modifying the flags when
+    // update_folder_flags() was called
+    let local_status = device.owner.sync_status().await?;
+    let bridge = device.owner.remove_server(&origin).await?.unwrap();
+    let remote_status = bridge.client().sync_status().await?;
+
+    let local_folder = local_status.folders.get(folder.id()).unwrap();
+    let remote_folder = remote_status.folders.get(folder.id()).unwrap();
+    let local_proof = &local_folder.1;
+    let remote_proof = &remote_folder.1;
+
+    assert_ne!(local_proof.root, remote_proof.root);
+    assert!(local_proof.length > remote_proof.length);
+
+    device.owner.sign_out().await?;
     teardown(TEST_ID).await;
 
     Ok(())
