@@ -41,5 +41,5 @@ anyhow = "1"
 
 [build-dependencies]
 rustc_version = "0.4.0"
-prost-build = "0.12.6"
+prost-build = "0.13.0"
 protoc-bin-vendored = "3"
