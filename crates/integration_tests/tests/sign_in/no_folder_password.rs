@@ -6,7 +6,7 @@ use sos_net::sdk::prelude::*;
 #[tokio::test]
 async fn sign_in_no_folder_password() -> Result<()> {
     const TEST_ID: &str = "no_folder_password";
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -37,8 +37,12 @@ async fn sign_in_no_folder_password() -> Result<()> {
 
     account.sign_out().await?;
 
+    // Should be able to sign in when the folder password
+    // is missing so that we can still access other folders
+    // that can be unlocked
     account.sign_in(&key).await?;
 
+    account.sign_out().await?;
     teardown(TEST_ID).await;
 
     Ok(())

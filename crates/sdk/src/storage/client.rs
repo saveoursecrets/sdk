@@ -413,7 +413,7 @@ impl ClientStorage {
             // Refresh the in-memory and disc-based mirror
             let key = folder_keys
                 .find(vault.id())
-                .ok_or(Error::NoFolderKey(*vault.id()))?;
+                .ok_or(Error::NoFolderPassword(*vault.id()))?;
             self.refresh_vault(vault.summary(), key).await?;
         }
 
@@ -530,8 +530,14 @@ impl ClientStorage {
     /// Unlock all folders.
     pub async fn unlock(&mut self, keys: &FolderKeys) -> Result<()> {
         for (id, folder) in self.cache.iter_mut() {
-            let key = keys.find(id).ok_or(Error::NoFolderKey(*id))?;
-            folder.unlock(key).await?;
+            if let Some(key) = keys.find(id) {
+                folder.unlock(key).await?;
+            } else {
+                tracing::error!(
+                    folder_id = %id,
+                    "unlock::no_folder_key",
+                );
+            }
         }
         Ok(())
     }
