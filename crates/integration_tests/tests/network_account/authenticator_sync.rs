@@ -17,7 +17,9 @@ async fn network_authenticator_sync() -> Result<()> {
 
     // Create folder with AUTHENTICATOR | NO_SYNC flags
     let options = NewFolderOptions {
-        flags: VaultFlags::AUTHENTICATOR | VaultFlags::NO_SYNC,
+        flags: VaultFlags::AUTHENTICATOR
+            | VaultFlags::LOCAL
+            | VaultFlags::NO_SYNC,
         ..Default::default()
     };
     let FolderCreate { folder, .. } = mobile
@@ -38,7 +40,10 @@ async fn network_authenticator_sync() -> Result<()> {
     // Update the folder with new flags so it can be synced
     mobile
         .owner
-        .update_folder_flags(&folder, VaultFlags::AUTHENTICATOR)
+        .update_folder_flags(
+            &folder,
+            VaultFlags::AUTHENTICATOR | VaultFlags::LOCAL,
+        )
         .await?;
 
     // Sync the account on the desktop device

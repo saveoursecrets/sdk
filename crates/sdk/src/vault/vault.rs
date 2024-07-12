@@ -71,8 +71,8 @@ bitflags! {
         ///
         /// This is useful for storing device specific keys.
         const NO_SYNC           =        0b0000000010000000;
-        /// Reserved flag.
-        const _RESERVED         =        0b0000000100000000;
+        /// Indicates the folder is intended to be local first.
+        const LOCAL             =        0b0000000100000000;
         /// Indicates this vault is shared using asymmetric
         /// encryption.
         const SHARED            =        0b0000001000000000;
@@ -119,6 +119,11 @@ impl VaultFlags {
     /// with other devices owned by the account holder.
     pub fn is_sync_disabled(&self) -> bool {
         self.contains(VaultFlags::NO_SYNC)
+    }
+
+    /// Determine if this vault is local first.
+    pub fn is_local(&self) -> bool {
+        self.contains(VaultFlags::LOCAL)
     }
 
     /// Determine if this vault is shared.
