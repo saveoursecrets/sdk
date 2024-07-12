@@ -867,10 +867,11 @@ impl ClientStorage {
         let exists = self.find(|s| s.id() == vault.id()).is_some();
         let summary = vault.summary().clone();
 
-        let is_local_folder = summary.flags.is_local();
+        let is_local_folder =
+            summary.flags.is_local() && summary.flags().is_sync_disabled();
 
         #[cfg(feature = "search")]
-        if !is_local_folder && exists {
+        if exists {
             if let Some(index) = self.index.as_mut() {
                 // Clean entries from the search index
                 index.remove_folder(summary.id()).await;
