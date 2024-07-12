@@ -387,11 +387,11 @@ impl SyncComparison {
             _ => {}
         }
 
-        let is_client = storage.is_client_storage();
+        let is_server = !storage.is_client_storage();
         let storage_folders = storage.folder_details().await?;
         for (id, folder) in &self.folders {
             if let (true, Some(folder)) =
-                (is_client, storage_folders.iter().find(|s| s.id() == id))
+                (is_server, storage_folders.iter().find(|s| s.id() == id))
             {
                 if folder.flags().is_sync_disabled() {
                     continue;
