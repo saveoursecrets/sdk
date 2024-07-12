@@ -75,7 +75,7 @@ async fn network_no_sync_update_account() -> Result<()> {
     let origin = server.origin.clone();
 
     // Prepare mock device
-    let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
+    let mut device = simulate_device(TEST_ID, 2, Some(&server)).await?;
 
     // Create folder with AUTHENTICATOR flag
     let options = NewFolderOptions {
@@ -103,9 +103,11 @@ async fn network_no_sync_update_account() -> Result<()> {
     // to the new folder that has now been marked with NO_SYNC
     assert!(device.owner.sync().await.is_none());
 
-    // Local should be ahead of remote now as it has
-    // the extra event for modifying the flags when
-    // update_folder_flags() was called
+    // Local should be equal with remote now.
+    //
+    // The folder is set to NO_SYNC which means it should not be
+    // shared with other devices but we still want a copy on server(s)
+    // for redundancy.
     let local_status = device.owner.sync_status().await?;
     let bridge = device.owner.remove_server(&origin).await?.unwrap();
     let remote_status = bridge.client().sync_status().await?;
@@ -115,8 +117,7 @@ async fn network_no_sync_update_account() -> Result<()> {
     let local_proof = &local_folder.1;
     let remote_proof = &remote_folder.1;
 
-    assert_ne!(local_proof.root, remote_proof.root);
-    assert!(local_proof.length > remote_proof.length);
+    assert_eq!(local_proof.root, remote_proof.root);
 
     device.owner.sign_out().await?;
     teardown(TEST_ID).await;
