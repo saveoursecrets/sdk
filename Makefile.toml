@@ -101,7 +101,7 @@ dependencies = ["clean-cli"]
 
 [tasks.test-lite]
 command = "cargo"
-args = ["test", "--all"]
+args = ["nextest", "run"]
 dependencies = ["clean-cli"]
 
 [tasks.genhtml]
