@@ -286,7 +286,7 @@ pub trait Account {
     async fn find_folder_password(
         &self,
         folder_id: &VaultId,
-    ) -> std::result::Result<AccessKey, Self::Error>;
+    ) -> std::result::Result<Option<AccessKey>, Self::Error>;
 
     /// Generate the password for a folder.
     async fn generate_folder_password(
@@ -1033,7 +1033,11 @@ impl LocalAccount {
         use crate::passwd::ChangePassword;
         let paths = self.paths().clone();
         // Get the current vault passphrase from the identity vault
-        let current_key = self.user()?.find_folder_password(vault_id).await?;
+        let current_key = self
+            .user()?
+            .find_folder_password(vault_id)
+            .await?
+            .ok_or(Error::NoVaultEntry(vault_id.to_string()))?;
 
         // Find the local vault for the account
         let (vault, _) = Identity::load_local_vault(&paths, vault_id).await?;
@@ -1326,10 +1330,15 @@ impl LocalAccount {
         let folders = reader.list_folders();
         let mut keys = HashMap::new();
         for folder in folders {
-            keys.insert(
-                folder.clone(),
-                self.user()?.find_folder_password(folder.id()).await?,
-            );
+            if let Some(key) =
+                self.user()?.find_folder_password(folder.id()).await?
+            {
+                keys.insert(folder.clone(), key);
+            } else {
+                tracing::warn!(
+                    folder_id = %folder.id(),
+                    "folder_keys::no_folder_key");
+            }
         }
         Ok(FolderKeys(keys))
     }
@@ -1633,8 +1642,8 @@ impl Account for LocalAccount {
     async fn find_folder_password(
         &self,
         folder_id: &VaultId,
-    ) -> Result<AccessKey> {
-        Ok(self.user()?.find_folder_password(folder_id).await?)
+    ) -> Result<Option<AccessKey>> {
+        self.user()?.find_folder_password(folder_id).await
     }
 
     async fn generate_folder_password(&self) -> Result<SecretString> {
@@ -1940,7 +1949,11 @@ impl Account for LocalAccount {
         &mut self,
         summary: &Summary,
     ) -> Result<(AccountEvent, u64, u64)> {
-        let key = self.user()?.find_folder_password(summary.id()).await?;
+        let key = self
+            .user()?
+            .find_folder_password(summary.id())
+            .await?
+            .ok_or(Error::NoVaultEntry(summary.id().to_string()))?;
 
         let (event, old_size, new_size) = {
             let storage = self.storage().await?;
@@ -1958,8 +1971,11 @@ impl Account for LocalAccount {
     ) -> Result<()> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
 
-        let current_key =
-            self.user()?.find_folder_password(folder.id()).await?;
+        let current_key = self
+            .user()?
+            .find_folder_password(folder.id())
+            .await?
+            .ok_or(Error::NoVaultEntry(folder.id().to_string()))?;
 
         let vault = {
             let storage = self.storage().await?;
@@ -1998,7 +2014,11 @@ impl Account for LocalAccount {
             .get(summary.id())
             .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
 
-        let key = self.user()?.find_folder_password(summary.id()).await?;
+        let key = self
+            .user()?
+            .find_folder_password(summary.id())
+            .await?
+            .ok_or(Error::NoVaultEntry(summary.id().to_string()))?;
 
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
@@ -2822,8 +2842,11 @@ impl Account for LocalAccount {
             .await
             .ok_or_else(|| Error::NoContactsFolder)?;
 
-        let contacts_passphrase =
-            self.user()?.find_folder_password(contacts.id()).await?;
+        let contacts_passphrase = self
+            .user()?
+            .find_folder_password(contacts.id())
+            .await?
+            .ok_or(Error::NoVaultEntry(contacts.id().to_string()))?;
         let (vault, _) =
             Identity::load_local_vault(&self.paths, contacts.id()).await?;
         let mut keeper = Gatekeeper::new(vault);
@@ -2936,8 +2959,11 @@ impl Account for LocalAccount {
                 Identity::load_local_vault(&*paths, summary.id())
                     .await
                     .map_err(Box::from)?;
-            let vault_passphrase =
-                self.user()?.find_folder_password(summary.id()).await?;
+            let vault_passphrase = self
+                .user()?
+                .find_folder_password(summary.id())
+                .await?
+                .ok_or(Error::NoVaultEntry(summary.id().to_string()))?;
 
             let mut keeper = Gatekeeper::new(vault);
             keeper.unlock(&vault_passphrase).await?;

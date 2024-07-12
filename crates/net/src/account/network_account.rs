@@ -677,7 +677,7 @@ impl Account for NetworkAccount {
     async fn find_folder_password(
         &self,
         folder_id: &VaultId,
-    ) -> Result<AccessKey> {
+    ) -> Result<Option<AccessKey>> {
         let account = self.account.lock().await;
         Ok(account.find_folder_password(folder_id).await?)
     }

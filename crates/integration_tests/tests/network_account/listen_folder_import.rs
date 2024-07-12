@@ -48,8 +48,11 @@ async fn network_sync_listen_folder_import() -> Result<()> {
     };
 
     // Need the vault passphrase to import a buffer
-    let vault_passphrase =
-        device1.owner.find_folder_password(new_folder.id()).await?;
+    let vault_passphrase = device1
+        .owner
+        .find_folder_password(new_folder.id())
+        .await?
+        .unwrap();
 
     // Make a change so we can assert on the new value
     vault.set_name("sync_folder_imported".to_string());

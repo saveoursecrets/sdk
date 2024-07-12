@@ -248,7 +248,7 @@ impl Merge for LocalAccount {
                         // in the same sequence of events then the folder
                         // password won't exist after merging the identity
                         // events so we need to skip the operation.
-                        if let Ok(key) = self
+                        if let Ok(Some(key)) = self
                             .user()?
                             .identity()?
                             .find_folder_password(id)
