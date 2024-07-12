@@ -85,6 +85,18 @@ pub(crate) enum FolderMergeOptions<'a> {
     Search(VaultId, &'a mut crate::sdk::storage::search::SearchIndex),
 }
 
+/*
+impl FolderMergeOptions<'_> {
+    /// Folder identifier.
+    pub fn folder_id(&self) -> &VaultId {
+        match self {
+            Self::Urn(id, _) => id,
+            Self::Search(id, _) => id,
+        }
+    }
+}
+*/
+
 /// Information about possible conflicts.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct MaybeConflict {

@@ -6,7 +6,7 @@ use sos_net::{sdk::prelude::*, RemoteSync};
 #[tokio::test]
 async fn network_authenticator_sync() -> Result<()> {
     const TEST_ID: &str = "authenticator_sync";
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -15,7 +15,7 @@ async fn network_authenticator_sync() -> Result<()> {
     let mut desktop = simulate_device(TEST_ID, 2, Some(&server)).await?;
     let mut mobile = desktop.connect(1, None).await?;
 
-    // Create folder with AUTHENTICATOR | NO_SYNC flags
+    // Create folder with AUTHENTICATOR | LOCAL | NO_SYNC flags
     let options = NewFolderOptions {
         flags: VaultFlags::AUTHENTICATOR
             | VaultFlags::LOCAL
@@ -47,7 +47,8 @@ async fn network_authenticator_sync() -> Result<()> {
         .await?;
 
     // Sync the account on the desktop device
-    assert!(desktop.owner.sync().await.is_none());
+    let sync_error = desktop.owner.sync().await;
+    assert!(sync_error.is_none());
 
     // Should be able to read the TOTP on the synced desktop device
     let (data, _) =

@@ -446,6 +446,16 @@ impl Merge for LocalAccount {
                 "folder",
             );
 
+            let promoted =
+                storage.try_promote_pending_folder(folder_id).await?;
+            if promoted {
+                let key = self
+                    .find_folder_password(folder_id)
+                    .await?
+                    .ok_or(Error::NoFolderPassword(*folder_id))?;
+                storage.unlock_folder(folder_id, &key).await?;
+            }
+
             let folder = storage
                 .cache_mut()
                 .get_mut(folder_id)

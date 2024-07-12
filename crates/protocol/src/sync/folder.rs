@@ -101,9 +101,7 @@ where
                 let event = record.decode_event::<WriteEvent>().await?;
                 tracing::debug!(event_kind = %event.event_kind());
                 match &event {
-                    WriteEvent::Noop => {
-                        tracing::error!("merge got noop event");
-                    }
+                    WriteEvent::Noop => unreachable!(),
                     WriteEvent::CreateVault(_) => {
                         tracing::warn!("merge got create vault event");
                     }
