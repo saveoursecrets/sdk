@@ -186,7 +186,7 @@ where
         let device_password = self
             .find_folder_password(summary.id())
             .await?
-            .ok_or(Error::NoVaultEntry(summary.id().to_string()))?;
+            .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
         let vault_file = VaultWriter::open(&device_vault_path).await?;
         let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
@@ -383,7 +383,7 @@ where
             let id = self
                 .index
                 .get(&(*self.folder.keeper().id(), urn.clone()))
-                .ok_or(Error::NoVaultEntry(urn.to_string()))?;
+                .ok_or(Error::NoFolderPassword(*vault_id))?;
             (*self.folder.keeper().id(), *id, urn)
         };
 
@@ -426,7 +426,7 @@ where
         let id = self
             .index
             .get(&(*self.folder.id(), urn.clone()))
-            .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
+            .ok_or_else(|| Error::NoFileEncryptionPassword)?;
 
         let password =
             if let Some((_, Secret::Password { password, .. }, _)) =

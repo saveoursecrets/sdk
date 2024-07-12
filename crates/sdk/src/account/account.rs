@@ -1037,7 +1037,7 @@ impl LocalAccount {
             .user()?
             .find_folder_password(vault_id)
             .await?
-            .ok_or(Error::NoVaultEntry(vault_id.to_string()))?;
+            .ok_or(Error::NoFolderPassword(*vault_id))?;
 
         // Find the local vault for the account
         let (vault, _) = Identity::load_local_vault(&paths, vault_id).await?;
@@ -1953,7 +1953,7 @@ impl Account for LocalAccount {
             .user()?
             .find_folder_password(summary.id())
             .await?
-            .ok_or(Error::NoVaultEntry(summary.id().to_string()))?;
+            .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
         let (event, old_size, new_size) = {
             let storage = self.storage().await?;
@@ -1975,7 +1975,7 @@ impl Account for LocalAccount {
             .user()?
             .find_folder_password(folder.id())
             .await?
-            .ok_or(Error::NoVaultEntry(folder.id().to_string()))?;
+            .ok_or(Error::NoFolderPassword(*folder.id()))?;
 
         let vault = {
             let storage = self.storage().await?;
@@ -2018,7 +2018,7 @@ impl Account for LocalAccount {
             .user()?
             .find_folder_password(summary.id())
             .await?
-            .ok_or(Error::NoVaultEntry(summary.id().to_string()))?;
+            .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
@@ -2846,7 +2846,7 @@ impl Account for LocalAccount {
             .user()?
             .find_folder_password(contacts.id())
             .await?
-            .ok_or(Error::NoVaultEntry(contacts.id().to_string()))?;
+            .ok_or(Error::NoFolderPassword(*contacts.id()))?;
         let (vault, _) =
             Identity::load_local_vault(&self.paths, contacts.id()).await?;
         let mut keeper = Gatekeeper::new(vault);
@@ -2963,7 +2963,7 @@ impl Account for LocalAccount {
                 .user()?
                 .find_folder_password(summary.id())
                 .await?
-                .ok_or(Error::NoVaultEntry(summary.id().to_string()))?;
+                .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
             let mut keeper = Gatekeeper::new(vault);
             keeper.unlock(&vault_passphrase).await?;

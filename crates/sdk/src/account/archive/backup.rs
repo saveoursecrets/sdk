@@ -530,7 +530,7 @@ impl AccountBackup {
             let vault_passphrase = restored_user
                 .find_folder_password(vault.id())
                 .await?
-                .ok_or(Error::NoVaultEntry(vault.id().to_string()))?;
+                .ok_or(Error::NoFolderPassword(*vault.id()))?;
 
             user.save_folder_password(vault.id(), vault_passphrase)
                 .await?;

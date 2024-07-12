@@ -330,10 +330,14 @@ pub enum Error {
     #[error("failed to parse AGE identity: {0}")]
     AgeIdentityParse(String),
 
-    /// Error generated when a vault entry in the identity vault could not
-    /// be located.
-    #[error("could not find vault entry for {0}")]
-    NoVaultEntry(String),
+    /// Error generated when a folder password in the identity
+    /// vault could not be located.
+    #[error("could not find folder password for '{0}'")]
+    NoFolderPassword(VaultId),
+
+    /// Error generated when a file encryption password could not be found.
+    #[error("could not find file encryption password in identity folder")]
+    NoFileEncryptionPassword,
 
     /// Error generated when a vault entry in an identity vault is of
     /// the wrong secret kind.

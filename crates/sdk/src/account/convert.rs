@@ -77,7 +77,7 @@ impl LocalAccount {
             let key = self
                 .find_folder_password(folder.id())
                 .await?
-                .ok_or(Error::NoVaultEntry(folder.id().to_string()))?;
+                .ok_or(Error::NoFolderPassword(*folder.id()))?;
             let vault = self
                 .convert_folder_cipher(
                     &conversion.cipher,
