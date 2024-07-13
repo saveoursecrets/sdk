@@ -6,8 +6,10 @@ use async_trait::async_trait;
 
 use crate::{crypto::AccessKey, vault::Vault};
 
+mod authenticator;
 mod error;
 
+pub use authenticator::*;
 pub use error::Error;
 
 /// Result type for the migration library.
