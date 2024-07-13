@@ -3,8 +3,6 @@ use sos_sdk::prelude::*;
 use std::path::Path;
 use uuid::Uuid;
 
-// const PATH: &str = "target/event_log_standalone.events";
-
 async fn mock_secret<'a>() -> Result<(SecretId, VaultCommit)> {
     let id = Uuid::new_v4();
     let entry = VaultEntry(Default::default(), Default::default());
@@ -123,9 +121,10 @@ async fn event_log_compare() -> Result<()> {
 
 #[tokio::test]
 async fn event_log_file_load() -> Result<()> {
-    mock_event_log_standalone("target/event_log_file_load.events").await?;
+    let path = "target/event_log_file_load.events";
+    mock_event_log_standalone(path).await?;
 
-    let event_log = FolderEventLog::new(PATH).await?;
+    let event_log = FolderEventLog::new(path).await?;
     let mut it = event_log.iter(false).await?;
     while let Some(record) = it.next().await? {
         let _event = event_log.decode_event(&record).await?;
