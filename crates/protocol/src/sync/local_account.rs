@@ -348,9 +348,6 @@ impl Merge for LocalAccount {
             outcome.changes += diff.patch.len() as u64;
             outcome.tracked.device =
                 TrackedChanges::new_device_records(&diff.patch).await?;
-        } else {
-            // FIXME: handle conflict situation
-            println!("todo! device patch could not be merged");
         }
 
         Ok(checked_patch)
@@ -446,6 +443,11 @@ impl Merge for LocalAccount {
                 "folder",
             );
 
+            // Try to promote a pending folder when we receive
+            // events for a folder.
+            //
+            // Relies on the server never including events when
+            // the NO_SYNC flag has been set.
             let promoted =
                 storage.try_promote_pending_folder(folder_id).await?;
             if promoted {

@@ -399,17 +399,7 @@ impl SyncComparison {
             _ => {}
         }
 
-        let is_server = !storage.is_client_storage();
-        let storage_folders = storage.folder_details().await?;
         for (id, folder) in &self.folders {
-            if let (true, Some(folder)) =
-                (is_server, storage_folders.iter().find(|s| s.id() == id))
-            {
-                if folder.flags().is_sync_disabled() {
-                    continue;
-                }
-            }
-
             let commit_state = self
                 .remote_status
                 .folders
@@ -789,6 +779,20 @@ pub async fn diff(
     };
 
     let needs_sync = comparison.needs_sync();
-    let diff = comparison.diff(storage).await?;
+    let mut diff = comparison.diff(storage).await?;
+
+    let is_server = !storage.is_client_storage();
+    if is_server {
+        let storage_folders = storage.folder_details().await?;
+        diff.folders.retain(|k, _| {
+            if let Some(folder) = storage_folders.iter().find(|s| s.id() == k)
+            {
+                !folder.flags().is_sync_disabled()
+            } else {
+                true
+            }
+        });
+    }
+
     Ok((needs_sync, comparison.local_status, diff))
 }

@@ -27,15 +27,24 @@ async fn network_authenticator_sync() -> Result<()> {
         .create_folder(TEST_ID.to_owned(), options)
         .await?;
 
-    // Sync the account to push the new folder
-    assert!(mobile.owner.sync().await.is_none());
-
     // Create a TOTP secret in the new authenticator folder
     let (meta, secret) = mock::totp(TEST_ID);
     let SecretChange { id, .. } = mobile
         .owner
         .create_secret(meta, secret, folder.clone().into())
         .await?;
+
+    // Desktop syncs before NO_SYNC flag has been removed
+    let sync_error = desktop.owner.sync().await;
+    assert!(sync_error.is_none());
+
+    // Try to read the secret but can't as the server
+    // will not send events when NO_SYNC is set
+    assert!(desktop
+        .owner
+        .read_secret(&id, Some(folder.clone()))
+        .await
+        .is_err());
 
     // Update the folder with new flags so it can be synced
     mobile
@@ -66,6 +75,7 @@ async fn network_authenticator_sync() -> Result<()> {
 
     desktop.owner.sign_out().await?;
     mobile.owner.sign_out().await?;
+
     teardown(TEST_ID).await;
 
     Ok(())

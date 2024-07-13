@@ -524,6 +524,19 @@ impl Merge for ServerStorage {
             log.patch_checked(&diff.checkpoint, &diff.patch).await?;
 
         if let CheckedPatch::Success(_) = &checked_patch {
+            // Must update files on disc when we encounter a change
+            // to the vault flags so that the NO_SYNC flag will be
+            // respected
+            let events = diff.patch.into_events::<WriteEvent>().await?;
+            for event in events {
+                if let WriteEvent::SetVaultFlags(flags) = event {
+                    let path = self.paths.vault_path(folder_id);
+                    let file = VaultWriter::open(&path).await?;
+                    let mut writer = VaultWriter::new(path, file)?;
+                    writer.set_vault_flags(flags).await?;
+                }
+            }
+
             outcome.changes += len;
             outcome.tracked.add_tracked_folder_changes(
                 folder_id,
