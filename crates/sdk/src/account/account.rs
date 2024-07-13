@@ -704,18 +704,6 @@ pub trait Account {
         summary: &Summary,
     ) -> std::result::Result<FolderDelete<Self::NetworkError>, Self::Error>;
 
-    /// Remove a local folder.
-    ///
-    /// Does not log the account event so the folder will not
-    /// be removed from other devices.
-    ///
-    /// Useful for certain folders like an authenticator
-    /// that requires special handling.
-    async fn remove_local_folder(
-        &mut self,
-        summary: &Summary,
-    ) -> std::result::Result<FolderDelete<Self::NetworkError>, Self::Error>;
-
     /// Try to load an avatar JPEG image for a contact.
     ///
     /// Looks in the current open folder if no specified folder is given.
@@ -2734,33 +2722,6 @@ impl Account for LocalAccount {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
             writer.delete_folder(&summary, true).await?
-        };
-        self.user_mut()?
-            .remove_folder_password(summary.id())
-            .await?;
-
-        Ok(FolderDelete {
-            events,
-            commit_state,
-            sync_error: None,
-        })
-    }
-
-    async fn remove_local_folder(
-        &mut self,
-        summary: &Summary,
-    ) -> Result<FolderDelete<Self::NetworkError>> {
-        let options = AccessOptions {
-            folder: Some(summary.clone()),
-            ..Default::default()
-        };
-        let (summary, commit_state) =
-            self.compute_folder_state(&options).await?;
-
-        let events = {
-            let storage = self.storage().await?;
-            let mut writer = storage.write().await;
-            writer.remove_local_folder(&summary).await?
         };
         self.user_mut()?
             .remove_folder_password(summary.id())

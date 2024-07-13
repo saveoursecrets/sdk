@@ -2,7 +2,8 @@ use crate::test_utils::{mock, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_net::{sdk::prelude::*, RemoteSync};
 
-/// Tests syncing an authenticator folder after disabling the NO_SYNC flag.
+/// Tests syncing an authenticator folder after
+/// disabling the NO_SYNC flag.
 #[tokio::test]
 async fn network_authenticator_sync() -> Result<()> {
     const TEST_ID: &str = "authenticator_sync";

@@ -1549,24 +1549,6 @@ impl Account for NetworkAccount {
         Ok(result)
     }
 
-    async fn remove_local_folder(
-        &mut self,
-        summary: &Summary,
-    ) -> Result<FolderDelete<Self::NetworkError>> {
-        let result = {
-            let mut account = self.account.lock().await;
-            account.remove_local_folder(summary).await?
-        };
-
-        let result = FolderDelete {
-            events: result.events,
-            commit_state: result.commit_state,
-            sync_error: None,
-        };
-
-        Ok(result)
-    }
-
     #[cfg(feature = "contacts")]
     async fn load_avatar(
         &mut self,

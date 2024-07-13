@@ -1075,16 +1075,6 @@ impl ClientStorage {
         Ok(events)
     }
 
-    /// Remove a local folder and do not register the
-    /// account event so the folder will not be removed
-    /// from other devices.
-    pub async fn remove_local_folder(
-        &mut self,
-        summary: &Summary,
-    ) -> Result<Vec<Event>> {
-        self.delete_folder(summary, false).await
-    }
-
     /// Update the in-memory name for a folder.
     pub fn set_folder_name(
         &mut self,
