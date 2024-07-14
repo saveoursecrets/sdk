@@ -22,11 +22,13 @@ use std::path::PathBuf;
 use terminal_banner::{Banner, Padding};
 
 mod audit;
+mod authenticator;
 mod check;
 mod events;
 mod security_report;
 
 use audit::Command as AuditCommand;
+use authenticator::Command as AuthenticatorCommand;
 use check::{verify_events, Command as CheckCommand};
 use events::Command as EventsCommand;
 use security_report::SecurityReportFormat;
@@ -37,6 +39,12 @@ pub enum Command {
     Audit {
         #[clap(subcommand)]
         cmd: AuditCommand,
+    },
+    /// Export and import TOTP secrets.
+    #[clap(alias = "auth")]
+    Authenticator {
+        #[clap(subcommand)]
+        cmd: AuthenticatorCommand,
     },
     /// Check file status and integrity.
     Check {
@@ -105,6 +113,7 @@ pub enum Command {
 pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
         Command::Audit { cmd } => audit::run(cmd).await?,
+        Command::Authenticator { cmd } => authenticator::run(cmd).await?,
         Command::Check { cmd } => check::run(cmd).await?,
         Command::ConvertCipher {
             account,
