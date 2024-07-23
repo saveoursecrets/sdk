@@ -26,7 +26,10 @@ use crate::{
 #[async_trait]
 pub(crate) trait IdentityFolderMerge {
     /// Checked merge.
-    async fn merge(&mut self, diff: &FolderDiff) -> Result<CheckedPatch>;
+    async fn merge(
+        &mut self,
+        diff: &FolderDiff,
+    ) -> Result<(CheckedPatch, Vec<WriteEvent>)>;
 
     /// Unchecked merge.
     async fn force_merge(&mut self, diff: &FolderDiff) -> Result<()>;
@@ -40,7 +43,7 @@ pub(crate) trait FolderMerge {
         &mut self,
         diff: &FolderDiff,
         options: FolderMergeOptions<'a>,
-    ) -> Result<CheckedPatch>;
+    ) -> Result<(CheckedPatch, Vec<WriteEvent>)>;
 
     /// Unchecked merge.
     async fn force_merge(&mut self, diff: &FolderDiff) -> Result<()>;
@@ -54,7 +57,10 @@ where
     W: AsyncWrite + Unpin + Send + Sync,
     D: Clone + Send + Sync,
 {
-    async fn merge(&mut self, diff: &FolderDiff) -> Result<CheckedPatch> {
+    async fn merge(
+        &mut self,
+        diff: &FolderDiff,
+    ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
         let id = *self.folder_id();
         let index = &mut self.index;
 
@@ -80,7 +86,8 @@ where
         &mut self,
         diff: &FolderDiff,
         mut options: FolderMergeOptions<'a>,
-    ) -> Result<CheckedPatch> {
+    ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
+        let mut events = Vec::new();
         let checked_patch = {
             let event_log = self.event_log();
             let mut event_log = event_log.write().await;
@@ -94,9 +101,7 @@ where
                 let event = record.decode_event::<WriteEvent>().await?;
                 tracing::debug!(event_kind = %event.event_kind());
                 match &event {
-                    WriteEvent::Noop => {
-                        tracing::error!("merge got noop event");
-                    }
+                    WriteEvent::Noop => unreachable!(),
                     WriteEvent::CreateVault(_) => {
                         tracing::warn!("merge got create vault event");
                     }
@@ -241,10 +246,12 @@ where
                         }
                     }
                 }
+
+                events.push(event);
             }
         }
 
-        Ok(checked_patch)
+        Ok((checked_patch, events))
     }
 
     async fn force_merge(&mut self, diff: &FolderDiff) -> Result<()> {

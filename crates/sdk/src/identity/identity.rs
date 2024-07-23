@@ -176,7 +176,7 @@ impl Identity {
     pub async fn find_folder_password(
         &self,
         vault_id: &VaultId,
-    ) -> Result<AccessKey> {
+    ) -> Result<Option<AccessKey>> {
         self.identity()?.find_folder_password(vault_id).await
     }
 

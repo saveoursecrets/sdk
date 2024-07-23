@@ -36,6 +36,10 @@ pub enum Error {
     #[error(r#"initial sync has errors: {0}"#)]
     InitialSync(SyncError<sos_net::Error>),
 
+    /// Could not find an authenticator folder.
+    #[error("could not find an authenticator folder")]
+    NoAuthenticatorFolder,
+
     /// Sync failed.
     #[error(r#"sync failed"#)]
     SyncFail,

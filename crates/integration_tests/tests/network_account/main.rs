@@ -1,4 +1,5 @@
 mod archive_unarchive;
+mod authenticator_sync;
 mod create_account;
 mod delete_account;
 mod folder_description;
@@ -43,5 +44,4 @@ mod change_folder_password;
 mod compact_account;
 mod compact_folder;
 
-#[cfg(not(target_arch = "wasm32"))]
 pub use sos_test_utils as test_utils;

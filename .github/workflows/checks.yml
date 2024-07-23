@@ -2,7 +2,7 @@ name: Checks
 
 on:
   workflow_call:
-  #pull_request:
+  # pull_request:
 
 env:
   RUST_TEST_TIME_INTEGRATION: "120000,300000"
@@ -50,10 +50,10 @@ jobs:
           security list-keychains -s $HOME/Library/Keychains/sos-mock.keychain-db
           security list-keychains
 
-      - name: Install cargo-make
-        run: |
-          cargo install cargo-make
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
 
       - name: Run tests
         run: |
-          cargo make test-lite
+          cargo nextest run

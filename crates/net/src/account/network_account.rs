@@ -677,7 +677,7 @@ impl Account for NetworkAccount {
     async fn find_folder_password(
         &self,
         folder_id: &VaultId,
-    ) -> Result<AccessKey> {
+    ) -> Result<Option<AccessKey>> {
         let account = self.account.lock().await;
         Ok(account.find_folder_password(folder_id).await?)
     }
@@ -1544,24 +1544,6 @@ impl Account for NetworkAccount {
             events: result.events,
             commit_state: result.commit_state,
             sync_error: self.sync().await,
-        };
-
-        Ok(result)
-    }
-
-    async fn remove_local_folder(
-        &mut self,
-        summary: &Summary,
-    ) -> Result<FolderDelete<Self::NetworkError>> {
-        let result = {
-            let mut account = self.account.lock().await;
-            account.remove_local_folder(summary).await?
-        };
-
-        let result = FolderDelete {
-            events: result.events,
-            commit_state: result.commit_state,
-            sync_error: None,
         };
 
         Ok(result)

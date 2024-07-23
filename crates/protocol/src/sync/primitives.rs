@@ -1,7 +1,9 @@
 //! Synchronization types that are used internally.
 use crate::sdk::{
     commit::{CommitState, Comparison},
-    events::{AccountDiff, CheckedPatch, EventLogExt, FolderDiff},
+    events::{
+        AccountDiff, CheckedPatch, EventLogExt, FolderDiff, WriteEvent,
+    },
     storage::StorageEventLogs,
     vault::VaultId,
     Error, Result,
@@ -82,6 +84,18 @@ pub(crate) enum FolderMergeOptions<'a> {
     #[cfg(feature = "search")]
     Search(VaultId, &'a mut crate::sdk::storage::search::SearchIndex),
 }
+
+/*
+impl FolderMergeOptions<'_> {
+    /// Folder identifier.
+    pub fn folder_id(&self) -> &VaultId {
+        match self {
+            Self::Urn(id, _) => id,
+            Self::Search(id, _) => id,
+        }
+    }
+}
+*/
 
 /// Information about possible conflicts.
 #[derive(Debug, Default, Eq, PartialEq)]
@@ -385,16 +399,7 @@ impl SyncComparison {
             _ => {}
         }
 
-        let storage_folders = storage.folder_details().await?;
         for (id, folder) in &self.folders {
-            if let Some(folder) =
-                storage_folders.iter().find(|s| s.id() == id)
-            {
-                if folder.flags().is_sync_disabled() {
-                    continue;
-                }
-            }
-
             let commit_state = self
                 .remote_status
                 .folders
@@ -463,6 +468,9 @@ impl SyncComparison {
 /// Storage implementations that can synchronize.
 #[async_trait]
 pub trait SyncStorage: StorageEventLogs {
+    /// Determine if this is client-side storage.
+    fn is_client_storage(&self) -> bool;
+
     /// Get the sync status.
     async fn sync_status(&self) -> Result<SyncStatus>;
 
@@ -627,7 +635,7 @@ pub trait Merge {
         folder_id: &VaultId,
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<CheckedPatch>;
+    ) -> Result<(CheckedPatch, Vec<WriteEvent>)>;
 
     /// Compare folder events.
     async fn compare_folder(
@@ -771,6 +779,20 @@ pub async fn diff(
     };
 
     let needs_sync = comparison.needs_sync();
-    let diff = comparison.diff(storage).await?;
+    let mut diff = comparison.diff(storage).await?;
+
+    let is_server = !storage.is_client_storage();
+    if is_server {
+        let storage_folders = storage.folder_details().await?;
+        diff.folders.retain(|k, _| {
+            if let Some(folder) = storage_folders.iter().find(|s| s.id() == k)
+            {
+                !folder.flags().is_sync_disabled()
+            } else {
+                true
+            }
+        });
+    }
+
     Ok((needs_sync, comparison.local_status, diff))
 }

@@ -95,6 +95,14 @@ mod folders {
     /// Directory to store vaults.
     pub const VAULTS_DIR: &str = "vaults";
 
+    /// Directory to store pending folders.
+    ///
+    /// Pending folders are folders with the LOCAL
+    /// flag set that were created from an
+    /// [AccountEvent::CreateFolder] event but won't have any
+    /// events yet unless a NO_SYNC flag has been removed.
+    pub const PENDING_DIR: &str = "pending";
+
     /// Directory to store data for clients.
     pub const LOCAL_DIR: &str = "local";
 

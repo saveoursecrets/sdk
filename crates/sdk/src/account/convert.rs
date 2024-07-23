@@ -7,7 +7,7 @@ use crate::{
         secret::SecretRow, BuilderCredentials, Gatekeeper, Summary, Vault,
         VaultBuilder,
     },
-    vfs, Result,
+    vfs, Error, Result,
 };
 use serde::{Deserialize, Serialize};
 
@@ -74,7 +74,10 @@ impl LocalAccount {
         account_key: &AccessKey,
     ) -> Result<()> {
         for folder in &conversion.folders {
-            let key = self.find_folder_password(folder.id()).await?;
+            let key = self
+                .find_folder_password(folder.id())
+                .await?
+                .ok_or(Error::NoFolderPassword(*folder.id()))?;
             let vault = self
                 .convert_folder_cipher(
                     &conversion.cipher,

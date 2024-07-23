@@ -1,8 +1,6 @@
 //! Implements merging into a local account.
 //!
 
-use std::collections::HashSet;
-
 // Ideally we want this code to be in the `sos-net`
 // crate but we also need to share some traits with the
 // server so we have to implement here otherwise we
@@ -14,7 +12,7 @@ use crate::{
         decode,
         events::{
             AccountDiff, AccountEvent, CheckedPatch, EventLogExt, FolderDiff,
-            LogEvent,
+            LogEvent, WriteEvent,
         },
         storage::StorageEventLogs,
         vault::{Vault, VaultId},
@@ -25,6 +23,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use indexmap::IndexMap;
+use std::collections::HashSet;
 
 use crate::sdk::events::{DeviceDiff, DeviceReducer};
 
@@ -176,7 +175,7 @@ impl Merge for LocalAccount {
             "identity",
         );
 
-        let checked_patch =
+        let (checked_patch, _) =
             self.user_mut()?.identity_mut()?.merge(&diff).await?;
 
         if let CheckedPatch::Success(_) = &checked_patch {
@@ -249,7 +248,7 @@ impl Merge for LocalAccount {
                         // in the same sequence of events then the folder
                         // password won't exist after merging the identity
                         // events so we need to skip the operation.
-                        if let Ok(key) = self
+                        if let Ok(Some(key)) = self
                             .user()?
                             .identity()?
                             .find_folder_password(id)
@@ -349,9 +348,6 @@ impl Merge for LocalAccount {
             outcome.changes += diff.patch.len() as u64;
             outcome.tracked.device =
                 TrackedChanges::new_device_records(&diff.patch).await?;
-        } else {
-            // FIXME: handle conflict situation
-            println!("todo! device patch could not be merged");
         }
 
         Ok(checked_patch)
@@ -426,31 +422,47 @@ impl Merge for LocalAccount {
         folder_id: &VaultId,
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<CheckedPatch> {
+    ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
         let len = diff.patch.len() as u64;
 
-        let storage = self.storage().await?;
-        let mut storage = storage.write().await;
+        let (checked_patch, events) = {
+            let storage = self.storage().await?;
+            let mut storage = storage.write().await;
 
-        #[cfg(feature = "search")]
-        let search = {
-            let index = storage.index.as_ref().ok_or(Error::NoSearchIndex)?;
-            index.search()
-        };
+            #[cfg(feature = "search")]
+            let search = {
+                let index =
+                    storage.index.as_ref().ok_or(Error::NoSearchIndex)?;
+                index.search()
+            };
 
-        tracing::debug!(
-            folder_id = %folder_id,
-            checkpoint = ?diff.checkpoint,
-            num_events = len,
-            "folder",
-        );
+            tracing::debug!(
+                folder_id = %folder_id,
+                checkpoint = ?diff.checkpoint,
+                num_events = len,
+                "folder",
+            );
 
-        let folder = storage
-            .cache_mut()
-            .get_mut(folder_id)
-            .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+            // Try to promote a pending folder when we receive
+            // events for a folder.
+            //
+            // Relies on the server never including events when
+            // the NO_SYNC flag has been set.
+            let promoted =
+                storage.try_promote_pending_folder(folder_id).await?;
+            if promoted {
+                let key = self
+                    .find_folder_password(folder_id)
+                    .await?
+                    .ok_or(Error::NoFolderPassword(*folder_id))?;
+                storage.unlock_folder(folder_id, &key).await?;
+            }
 
-        let checked_patch = {
+            let folder = storage
+                .cache_mut()
+                .get_mut(folder_id)
+                .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+
             #[cfg(feature = "search")]
             {
                 let mut search = search.write().await;
@@ -477,6 +489,17 @@ impl Merge for LocalAccount {
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {
+            let flags_changed = events
+                .iter()
+                .find(|e| matches!(e, WriteEvent::SetVaultFlags(_)))
+                .is_some();
+
+            // If the flags changed ensure the in-memory summaries
+            // are up to date
+            if flags_changed {
+                self.load_folders().await?;
+            }
+
             outcome.changes += len;
             outcome.tracked.add_tracked_folder_changes(
                 folder_id,
@@ -484,7 +507,7 @@ impl Merge for LocalAccount {
             );
         }
 
-        Ok(checked_patch)
+        Ok((checked_patch, events))
     }
 
     async fn compare_folder(
@@ -507,6 +530,10 @@ impl Merge for LocalAccount {
 
 #[async_trait]
 impl SyncStorage for LocalAccount {
+    fn is_client_storage(&self) -> bool {
+        true
+    }
+
     async fn sync_status(&self) -> Result<SyncStatus> {
         // NOTE: the order for computing the cumulative
         // NOTE: root hash must be identical to the logic

@@ -43,6 +43,7 @@ async fn auto_merge_delete_secrets() -> Result<()> {
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
+    println!("{:#?}", result2.sync_error);
     assert!(result2.sync_error.is_none());
 
     // Oh no, the server has gone offline!

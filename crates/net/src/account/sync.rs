@@ -223,6 +223,10 @@ impl StorageEventLogs for NetworkAccount {
 
 #[async_trait]
 impl SyncStorage for NetworkAccount {
+    fn is_client_storage(&self) -> bool {
+        true
+    }
+
     async fn sync_status(&self) -> Result<SyncStatus> {
         let account = self.account.lock().await;
         account.sync_status().await

@@ -183,7 +183,10 @@ where
         tracing::debug!(urn = %device_key_urn, "read_device_vault");
 
         let summary = vault.summary().clone();
-        let device_password = self.find_folder_password(summary.id()).await?;
+        let device_password = self
+            .find_folder_password(summary.id())
+            .await?
+            .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
         let vault_file = VaultWriter::open(&device_vault_path).await?;
         let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
@@ -335,36 +338,37 @@ where
     pub async fn find_folder_password(
         &self,
         vault_id: &VaultId,
-    ) -> Result<AccessKey> {
+    ) -> Result<Option<AccessKey>> {
         let urn = Vault::vault_urn(vault_id)?;
 
-        tracing::debug!(folder = %vault_id, urn = %urn, "find_folder_password");
+        tracing::debug!(
+            folder = %vault_id,
+            urn = %urn,
+            "find_folder_password");
 
-        let id = self
-            .index
-            .get(&(*self.folder.id(), urn.clone()))
-            .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
+        if let Some(id) = self.index.get(&(*self.folder.id(), urn.clone())) {
+            let (_, secret, _) =
+                self.folder.read_secret(id).await?.ok_or_else(|| {
+                    Error::NoSecretId(*self.folder.id(), *id)
+                })?;
 
-        let (_, secret, _) = self
-            .folder
-            .read_secret(id)
-            .await?
-            .ok_or_else(|| Error::NoSecretId(*self.folder.id(), *id))?;
-
-        let key = match secret {
-            Secret::Password { password, .. } => {
-                AccessKey::Password(password)
-            }
-            Secret::Age { key, .. } => {
-                AccessKey::Identity(key.expose_secret().parse().map_err(
-                    |s: &str| Error::InvalidX25519Identity(s.to_owned()),
-                )?)
-            }
-            _ => {
-                return Err(Error::VaultEntryKind(urn.to_string()));
-            }
-        };
-        Ok(key)
+            let key = match secret {
+                Secret::Password { password, .. } => {
+                    AccessKey::Password(password)
+                }
+                Secret::Age { key, .. } => {
+                    AccessKey::Identity(key.expose_secret().parse().map_err(
+                        |s: &str| Error::InvalidX25519Identity(s.to_owned()),
+                    )?)
+                }
+                _ => {
+                    return Err(Error::VaultEntryKind(urn.to_string()));
+                }
+            };
+            Ok(Some(key))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Remove a folder password from this identity.
@@ -379,7 +383,7 @@ where
             let id = self
                 .index
                 .get(&(*self.folder.keeper().id(), urn.clone()))
-                .ok_or(Error::NoVaultEntry(urn.to_string()))?;
+                .ok_or(Error::NoFolderPassword(*vault_id))?;
             (*self.folder.keeper().id(), *id, urn)
         };
 
@@ -422,7 +426,7 @@ where
         let id = self
             .index
             .get(&(*self.folder.id(), urn.clone()))
-            .ok_or_else(|| Error::NoVaultEntry(urn.to_string()))?;
+            .ok_or_else(|| Error::NoFileEncryptionPassword)?;
 
         let password =
             if let Some((_, Secret::Password { password, .. }, _)) =

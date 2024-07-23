@@ -1,8 +1,7 @@
 use anyhow::Result;
 use sos_sdk::prelude::*;
+use std::path::Path;
 use uuid::Uuid;
-
-const PATH: &str = "target/event_log_standalone.events";
 
 async fn mock_secret<'a>() -> Result<(SecretId, VaultCommit)> {
     let id = Uuid::new_v4();
@@ -13,9 +12,11 @@ async fn mock_secret<'a>() -> Result<(SecretId, VaultCommit)> {
     Ok((id, result))
 }
 
-async fn mock_event_log_standalone() -> Result<(FolderEventLog, SecretId)> {
-    if vfs::try_exists(PATH).await? {
-        vfs::remove_file(PATH).await?;
+async fn mock_event_log_standalone(
+    path: impl AsRef<Path>,
+) -> Result<(FolderEventLog, SecretId)> {
+    if vfs::try_exists(path.as_ref()).await? {
+        vfs::remove_file(path.as_ref()).await?;
     }
 
     let mut vault: Vault = Default::default();
@@ -25,7 +26,7 @@ async fn mock_event_log_standalone() -> Result<(FolderEventLog, SecretId)> {
     let (id, data) = mock_secret().await?;
 
     // Create a simple event log
-    let mut event_log = FolderEventLog::new(PATH).await?;
+    let mut event_log = FolderEventLog::new(path.as_ref()).await?;
     event_log
         .apply(vec![
             &WriteEvent::CreateVault(vault_buffer),
@@ -109,7 +110,8 @@ async fn event_log_compare() -> Result<()> {
     //
     // This can happen if a client compacts its event log which would create
     // a new commit tree.
-    let (standalone, _) = mock_event_log_standalone().await?;
+    let (standalone, _) =
+        mock_event_log_standalone("target/event_log_compare.events").await?;
     let proof = standalone.tree().head()?;
     let comparison = server.tree().compare(&proof)?;
     assert_eq!(Comparison::Unknown, comparison);
@@ -119,9 +121,10 @@ async fn event_log_compare() -> Result<()> {
 
 #[tokio::test]
 async fn event_log_file_load() -> Result<()> {
-    mock_event_log_standalone().await?;
+    let path = "target/event_log_file_load.events";
+    mock_event_log_standalone(path).await?;
 
-    let event_log = FolderEventLog::new(PATH).await?;
+    let event_log = FolderEventLog::new(path).await?;
     let mut it = event_log.iter(false).await?;
     while let Some(record) = it.next().await? {
         let _event = event_log.decode_event(&record).await?;

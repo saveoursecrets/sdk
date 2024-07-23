@@ -1,6 +1,6 @@
 [package]
 name = "sos-protocol"
-version = "0.14.6"
+version = "0.14.7"
 edition = "2021"
 description = "Networking and sync protocol types for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -33,7 +33,7 @@ prost.workspace = true
 tokio = { version = "1", features = ["rt",  "macros"] }
 
 [dependencies.sos-sdk]
-version = "0.14.6"
+version = "0.14.7"
 path = "../sdk"
 
 [dev-dependencies]
@@ -41,5 +41,5 @@ anyhow = "1"
 
 [build-dependencies]
 rustc_version = "0.4.0"
-prost-build = "0.12.6"
+prost-build = "0.13"
 protoc-bin-vendored = "3"

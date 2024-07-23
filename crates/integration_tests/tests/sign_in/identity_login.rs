@@ -5,7 +5,7 @@ use sos_net::sdk::{prelude::*, vfs};
 /// Tests creating an identity vault and logging in
 /// with the new vault and managing delegated passwords.
 #[tokio::test]
-async fn local_identity_login() -> Result<()> {
+async fn sign_in_identity_login() -> Result<()> {
     const TEST_ID: &str = "identity_login";
     //crate::test_utils::init_tracing();
 

@@ -4,13 +4,10 @@ use std::path::PathBuf;
 
 use crate::{
     commands::{
-        account, audit, check, device, environment, events, folder,
-        preferences, secret,
-        security_report::{self, SecurityReportFormat},
-        server, shell, sync, tools, AccountCommand, AuditCommand,
-        CheckCommand, DeviceCommand, EnvironmentCommand, EventsCommand,
-        FolderCommand, PreferenceCommand, SecretCommand, ServerCommand,
-        SyncCommand, ToolsCommand,
+        account, device, environment, folder, preferences, secret, server,
+        shell, sync, tools, AccountCommand, DeviceCommand,
+        EnvironmentCommand, FolderCommand, PreferenceCommand, SecretCommand,
+        ServerCommand, SyncCommand, ToolsCommand,
     },
     helpers::{PROGRESS_MONITOR, USER},
     CommandTree, Result,
@@ -84,51 +81,6 @@ pub enum Command {
         cmd: FileCommand,
     },
     */
-    /// Generate a security report.
-    ///
-    /// Inspect all passwords in an account and report
-    /// passwords with an entropy score less than 3 or
-    /// passwords that are breached.
-    SecurityReport {
-        /// Force overwrite if the file exists.
-        #[clap(long)]
-        force: bool,
-
-        /// Account name or address.
-        #[clap(short, long)]
-        account: Option<AccountRef>,
-
-        /// Include all entries.
-        ///
-        /// Security reports by default only include
-        /// entries that fail, use this option to include
-        /// entries that passed the security threshold.
-        #[clap(short, long)]
-        include_all: bool,
-
-        /// Output format: csv or json.
-        #[clap(short, long, default_value = "csv")]
-        format: SecurityReportFormat,
-
-        /// Write report to this file.
-        file: PathBuf,
-    },
-    /// Print and monitor audit logs.
-    Audit {
-        #[clap(subcommand)]
-        cmd: AuditCommand,
-    },
-    /// Check file status and integrity.
-    Check {
-        #[clap(subcommand)]
-        cmd: CheckCommand,
-    },
-    /// Inspect event records.
-    #[clap(alias = "event")]
-    Events {
-        #[clap(subcommand)]
-        cmd: EventsCommand,
-    },
     /// Interactive login shell.
     Shell {
         /// Folder name or identifier.
@@ -201,19 +153,6 @@ pub async fn run() -> Result<()> {
         Command::Server { cmd } => server::run(cmd).await?,
         Command::Sync { cmd } => sync::run(cmd).await?,
         // Command::File { cmd } => file::run(cmd).await?,
-        Command::SecurityReport {
-            account,
-            force,
-            format,
-            include_all,
-            file,
-        } => {
-            security_report::run(account, force, format, include_all, file)
-                .await?
-        }
-        Command::Audit { cmd } => audit::run(cmd).await?,
-        Command::Check { cmd } => check::run(cmd).await?,
-        Command::Events { cmd } => events::run(cmd).await?,
         Command::Shell { account, folder } => {
             shell::run(account, folder).await?
         }

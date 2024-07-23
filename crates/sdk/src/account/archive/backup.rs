@@ -527,8 +527,10 @@ impl AccountBackup {
         // Use the delegated passwords for the folders
         // that were restored
         for (_, vault) in vaults {
-            let vault_passphrase =
-                restored_user.find_folder_password(vault.id()).await?;
+            let vault_passphrase = restored_user
+                .find_folder_password(vault.id())
+                .await?
+                .ok_or(Error::NoFolderPassword(*vault.id()))?;
 
             user.save_folder_password(vault.id(), vault_passphrase)
                 .await?;

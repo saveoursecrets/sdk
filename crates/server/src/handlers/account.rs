@@ -1061,7 +1061,8 @@ mod handlers {
                     writer
                         .storage
                         .merge_folder(&id, diff, &mut outcome)
-                        .await?,
+                        .await?
+                        .0,
                     outcome,
                     records,
                 )

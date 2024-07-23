@@ -125,6 +125,7 @@ pub async fn header(vault: PathBuf, verbose: bool) -> Result<()> {
         details.push(("contact", header.flags().is_contact()));
         details.push(("authenticator", header.flags().is_authenticator()));
         details.push(("sync_disabled", header.flags().is_sync_disabled()));
+        details.push(("local", header.flags().is_local()));
         details.push(("shared", header.flags().is_shared()));
 
         let details =

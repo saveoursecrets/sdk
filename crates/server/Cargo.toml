@@ -1,6 +1,6 @@
 [package]
 name = "sos-server"
-version = "0.14.6"
+version = "0.14.7"
 edition = "2021"
 description = "Server for the Save Our Secrets sync protocol."
 homepage = "https://saveoursecrets.com"
@@ -49,7 +49,7 @@ utoipa-rapidoc = { version = "3", features = ["axum"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros"] }
 
 [dependencies.sos-protocol]
-version = "0.14.6"
+version = "0.14.7"
 path = "../protocol"
 features = ["files"]
 
