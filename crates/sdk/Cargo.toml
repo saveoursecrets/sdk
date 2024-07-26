@@ -74,7 +74,7 @@ argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
 app_dirs2 = "2"
 pem = { version = "3", features = ["serde"] }
-zxcvbn = { version = "3.0.1", features = ["ser"] }
+zxcvbn = { version = "3.1.0", features = ["ser"] }
 totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
 vcard4 = { version = "0.5", features = ["serde"] }
 async-once-cell = "0.5"
