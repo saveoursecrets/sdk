@@ -486,9 +486,11 @@ where
 
     /// Append a patch to this event log.
     async fn patch_unchecked(&mut self, patch: &Patch<E>) -> Result<()> {
+        /*
         if let Some(record) = patch.records().first() {
             self.check_event_time_ahead(record).await?;
         }
+        */
         self.apply_records(patch.records().to_vec()).await
     }
 
@@ -498,6 +500,7 @@ where
         it.next().await
     }
 
+    /*
     #[doc(hidden)]
     async fn check_event_time_ahead(
         &self,
@@ -512,6 +515,7 @@ where
         }
         Ok(())
     }
+    */
 
     /// Append a collection of events and commit the tree hashes
     /// only if all the events were successfully written.
