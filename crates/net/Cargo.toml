@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.14.8"
+version = "0.14.9"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -79,11 +79,11 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync"] }
 tokio-tungstenite = { version = "0.23", features = ["rustls-tls-native-roots"] , optional = true}
 
 [dependencies.sos-sdk]
-version = "0.14.8"
+version = "0.14.9"
 path = "../sdk"
 
 [dependencies.sos-protocol]
-version = "0.14.7"
+version = "0.14.9"
 path = "../protocol"
 features = ["account"]
 
