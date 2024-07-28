@@ -1066,10 +1066,9 @@ impl Account for NetworkAccount {
         &mut self,
         folder_id: &VaultId,
         records: Vec<EventRecord>,
-    ) -> Result<()> {
+    ) -> Result<Summary> {
         let mut account = self.account.lock().await;
-        account.restore_folder(folder_id, records).await?;
-        Ok(())
+        Ok(account.restore_folder(folder_id, records).await?)
     }
 
     async fn change_folder_password(

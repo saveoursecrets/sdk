@@ -391,7 +391,7 @@ impl ClientStorage {
         folder_id: &VaultId,
         records: Vec<EventRecord>,
         key: &AccessKey,
-    ) -> Result<()> {
+    ) -> Result<Summary> {
         let vault_path = self.paths.vault_path(folder_id);
 
         // Prepare the vault file on disc
@@ -433,7 +433,7 @@ impl ClientStorage {
         self.cache.insert(*folder_id, folder);
         self.add_summary(vault.summary().to_owned());
 
-        Ok(())
+        Ok(vault.summary().to_owned())
     }
 
     /// Restore vaults from an archive.

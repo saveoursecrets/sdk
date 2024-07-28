@@ -459,7 +459,7 @@ pub trait Account {
         &mut self,
         folder_id: &VaultId,
         records: Vec<EventRecord>,
-    ) -> std::result::Result<(), Self::Error>;
+    ) -> std::result::Result<Summary, Self::Error>;
 
     /// Change the password for a folder.
     ///
@@ -1963,7 +1963,7 @@ impl Account for LocalAccount {
         &mut self,
         folder_id: &VaultId,
         records: Vec<EventRecord>,
-    ) -> std::result::Result<(), Self::Error> {
+    ) -> std::result::Result<Summary, Self::Error> {
         let key = self
             .user()?
             .find_folder_password(folder_id)
@@ -1972,9 +1972,7 @@ impl Account for LocalAccount {
 
         let storage = self.storage().await?;
         let mut writer = storage.write().await;
-        writer.restore_folder(folder_id, records, &key).await?;
-
-        Ok(())
+        Ok(writer.restore_folder(folder_id, records, &key).await?)
     }
 
     async fn change_folder_password(
