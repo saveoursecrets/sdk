@@ -5,8 +5,8 @@ use crate::{
     crypto::AccessKey,
     decode, encode,
     events::{
-        AccountEvent, AccountEventLog, Event, EventLogExt, FolderEventLog,
-        FolderReducer, IntoRecord, ReadEvent, WriteEvent,
+        AccountEvent, AccountEventLog, Event, EventLogExt, EventRecord,
+        FolderEventLog, FolderReducer, IntoRecord, ReadEvent, WriteEvent,
     },
     identity::FolderKeys,
     passwd::{diceware::generate_passphrase, ChangePassword},
@@ -383,6 +383,57 @@ impl ClientStorage {
         events.insert(0, create_account);
 
         Ok(events)
+    }
+
+    /// Restore a folder from an event log.
+    pub async fn restore_folder(
+        &mut self,
+        folder_id: &VaultId,
+        records: Vec<EventRecord>,
+        key: &AccessKey,
+    ) -> Result<()> {
+        let vault_path = self.paths.vault_path(folder_id);
+
+        // Prepare the vault file on disc
+        let vault = {
+            // We need a vault on disc to create the event log
+            // so set a placeholder
+            let vault: Vault = Default::default();
+            let buffer = encode(&vault).await?;
+            self.write_vault_file(folder_id, buffer).await?;
+
+            let folder = DiscFolder::new(&vault_path).await?;
+
+            let event_log = folder.event_log();
+            let mut event_log = event_log.write().await;
+            event_log.clear().await?;
+            event_log.apply_records(records).await?;
+
+            let vault = FolderReducer::new()
+                .reduce(&*event_log)
+                .await?
+                .build(true)
+                .await?;
+
+            let buffer = encode(&vault).await?;
+            self.write_vault_file(folder_id, buffer).await?;
+
+            vault
+        };
+
+        // Setup the folder access to the latest vault information
+        // and load the merkle tree
+        let mut folder = DiscFolder::new(&vault_path).await?;
+        let event_log = folder.event_log();
+        let mut event_log = event_log.write().await;
+        event_log.load_tree().await?;
+
+        // Unlock the folder and create the in-memory reference
+        folder.unlock(key).await?;
+        self.cache.insert(*folder_id, folder);
+        self.add_summary(vault.summary().to_owned());
+
+        Ok(())
     }
 
     /// Restore vaults from an archive.

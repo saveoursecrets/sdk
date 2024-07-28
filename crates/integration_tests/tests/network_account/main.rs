@@ -30,6 +30,7 @@ mod multiple_remotes_fallback;
 mod no_sync;
 
 mod offline_manual;
+mod recover_remote_folder;
 mod rename_account;
 mod server_definitions;
 

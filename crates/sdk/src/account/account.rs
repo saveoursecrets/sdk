@@ -13,7 +13,7 @@ use crate::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
-        FolderEventLog, FolderReducer, ReadEvent, WriteEvent,
+        EventRecord, FolderEventLog, FolderReducer, ReadEvent, WriteEvent,
     },
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
@@ -453,6 +453,13 @@ pub trait Account {
         &mut self,
         summary: &Summary,
     ) -> std::result::Result<(AccountEvent, u64, u64), Self::Error>;
+
+    /// Restore a folder from an event log.
+    async fn restore_folder(
+        &mut self,
+        folder_id: &VaultId,
+        records: Vec<EventRecord>,
+    ) -> std::result::Result<(), Self::Error>;
 
     /// Change the password for a folder.
     ///
@@ -1950,6 +1957,24 @@ impl Account for LocalAccount {
         };
 
         Ok((event, old_size, new_size))
+    }
+
+    async fn restore_folder(
+        &mut self,
+        folder_id: &VaultId,
+        records: Vec<EventRecord>,
+    ) -> std::result::Result<(), Self::Error> {
+        let key = self
+            .user()?
+            .find_folder_password(folder_id)
+            .await?
+            .ok_or(Error::NoFolderPassword(*folder_id))?;
+
+        let storage = self.storage().await?;
+        let mut writer = storage.write().await;
+        writer.restore_folder(folder_id, records, &key).await?;
+
+        Ok(())
     }
 
     async fn change_folder_password(

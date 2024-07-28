@@ -26,10 +26,12 @@ use crate::{
         },
         vfs, Paths,
     },
+    SyncClient,
 };
 use async_trait::async_trait;
 use secrecy::SecretString;
-use sos_sdk::vault::VaultFlags;
+use sos_protocol::{DiffRequest, EventLogType};
+use sos_sdk::{events::EventRecord, vault::VaultFlags};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -363,6 +365,52 @@ impl NetworkAccount {
     pub async fn servers(&self) -> HashSet<Origin> {
         let remotes = self.remotes.read().await;
         remotes.keys().cloned().collect()
+    }
+
+    /// Try to recover a folder from a remote origin; it is an
+    /// error if the folder exists in memory or on disc.
+    pub async fn recover_remote_folder(
+        &mut self,
+        origin: &Origin,
+        folder_id: &VaultId,
+    ) -> Result<()> {
+        let folders = self.list_folders().await?;
+        if folders.iter().find(|f| f.id() == folder_id).is_some() {
+            return Err(Error::FolderExists(*folder_id));
+        }
+
+        let vault_path = self.paths.vault_path(folder_id);
+        let event_path = self.paths.event_log_path(folder_id);
+
+        if vfs::try_exists(&vault_path).await? {
+            return Err(Error::FileExists(vault_path));
+        }
+
+        if vfs::try_exists(&event_path).await? {
+            return Err(Error::FileExists(event_path));
+        }
+
+        self.recover_remote_folder_unchecked(origin, folder_id)
+            .await
+    }
+
+    /// Try to recover a folder from a remote origin.
+    ///
+    /// If the folder already exists on disc it is overwritten.
+    async fn recover_remote_folder_unchecked(
+        &mut self,
+        origin: &Origin,
+        folder_id: &VaultId,
+    ) -> Result<()> {
+        let _ = self.sync_lock.lock().await;
+        let remote = self.remote_bridge(origin).await?;
+        let request = DiffRequest {
+            log_type: EventLogType::Folder(*folder_id),
+            from_hash: None,
+        };
+        let response = remote.client().diff(request).await?;
+        self.restore_folder(folder_id, response.patch).await?;
+        Ok(())
     }
 
     /// Load origin servers from disc.
@@ -1012,6 +1060,16 @@ impl Account for NetworkAccount {
         }
 
         Ok(result)
+    }
+
+    async fn restore_folder(
+        &mut self,
+        folder_id: &VaultId,
+        records: Vec<EventRecord>,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        account.restore_folder(folder_id, records).await?;
+        Ok(())
     }
 
     async fn change_folder_password(

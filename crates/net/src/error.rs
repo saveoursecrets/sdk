@@ -3,6 +3,7 @@ use crate::CancelReason;
 use http::StatusCode;
 use serde_json::Value;
 use sos_protocol::{MaybeConflict, Origin, SyncError, SyncStatus};
+use sos_sdk::vault::VaultId;
 use std::error::Error as StdError;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -21,6 +22,10 @@ pub enum Error {
     /// Error generated when a file already exists.
     #[error("file {0} already exists")]
     FileExists(PathBuf),
+
+    /// Error generated when a folder already exists.
+    #[error("folder {0} already exists")]
+    FolderExists(VaultId),
 
     /// Error generated when an unexpected response code is received.
     #[error("unexpected response status code {0}")]
