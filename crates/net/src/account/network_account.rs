@@ -373,7 +373,7 @@ impl NetworkAccount {
         &mut self,
         origin: &Origin,
         folder_id: &VaultId,
-    ) -> Result<()> {
+    ) -> Result<Summary> {
         let folders = self.list_folders().await?;
         if folders.iter().find(|f| f.id() == folder_id).is_some() {
             return Err(Error::FolderExists(*folder_id));
@@ -401,7 +401,7 @@ impl NetworkAccount {
         &mut self,
         origin: &Origin,
         folder_id: &VaultId,
-    ) -> Result<()> {
+    ) -> Result<Summary> {
         let _ = self.sync_lock.lock().await;
         let remote = self.remote_bridge(origin).await?;
         let request = DiffRequest {
@@ -409,8 +409,7 @@ impl NetworkAccount {
             from_hash: None,
         };
         let response = remote.client().diff(request).await?;
-        self.restore_folder(folder_id, response.patch).await?;
-        Ok(())
+        self.restore_folder(folder_id, response.patch).await
     }
 
     /// Load origin servers from disc.
