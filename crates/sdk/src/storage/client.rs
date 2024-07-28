@@ -431,9 +431,17 @@ impl ClientStorage {
         // Unlock the folder and create the in-memory reference
         folder.unlock(key).await?;
         self.cache.insert(*folder_id, folder);
-        self.add_summary(vault.summary().to_owned());
 
-        Ok(vault.summary().to_owned())
+        let summary = vault.summary().to_owned();
+        self.add_summary(summary.clone());
+
+        #[cfg(feature = "search")]
+        if let Some(index) = self.index.as_mut() {
+            // Ensure the imported secrets are in the search index
+            index.add_vault(vault, key).await?;
+        }
+
+        Ok(summary)
     }
 
     /// Restore vaults from an archive.
