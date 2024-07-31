@@ -41,7 +41,7 @@ num_cpus = "1"
 crossterm = "0.27"
 ctrlc = "3"
 
-axum-server = { version = "0.6", features = ["tls-rustls"] }
+axum-server = { version = "0.7", features = ["tls-rustls"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
 arboard = "3"
 rustyline = "14"
