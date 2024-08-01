@@ -52,7 +52,7 @@ enum-iterator = "2"
 file-guard = "0.2"
 tempfile = "3.5"
 prost = "0.13"
-clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
+clap = { version = "4.5.13", features = ["derive", "wrap_help", "env"] }
 colored = "2"
 
 [workspace.dependencies.rs_merkle]
