@@ -1932,7 +1932,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "http",
- "indexmap 2.2.6",
+ "indexmap 2.3.0",
  "slab",
  "tokio",
  "tokio-util",
@@ -2316,9 +2316,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.2.6"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "168fb715dda47215e360912c096649d23d58bf392ac62f73919e831745e40f26"
+checksum = "de3fc2e30ba82dd1b3911c8de1ffc143c74a914a14e99514d7637e3099df5ea0"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.5",
@@ -3076,7 +3076,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
 dependencies = [
  "fixedbitset",
- "indexmap 2.2.6",
+ "indexmap 2.3.0",
 ]
 
 [[package]]
@@ -3128,7 +3128,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42cf17e9a1800f5f396bc67d193dc9411b59012a5876445ef450d449881e1016"
 dependencies = [
  "base64 0.22.1",
- "indexmap 2.2.6",
+ "indexmap 2.3.0",
  "quick-xml",
  "serde",
  "time",
@@ -4099,7 +4099,7 @@ dependencies = [
  "chrono",
  "hex",
  "indexmap 1.9.3",
- "indexmap 2.2.6",
+ "indexmap 2.3.0",
  "serde",
  "serde_derive",
  "serde_json",
@@ -4350,7 +4350,7 @@ dependencies = [
  "copy_dir",
  "futures",
  "http",
- "indexmap 2.2.6",
+ "indexmap 2.3.0",
  "kdam",
  "maplit2",
  "once_cell",
@@ -4383,7 +4383,7 @@ dependencies = [
  "futures",
  "hex",
  "http",
- "indexmap 2.2.6",
+ "indexmap 2.3.0",
  "prost",
  "rand",
  "reqwest",
@@ -4416,7 +4416,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "futures",
- "indexmap 2.2.6",
+ "indexmap 2.3.0",
  "prost",
  "prost-build",
  "protoc-bin-vendored",
@@ -4462,7 +4462,7 @@ dependencies = [
  "getrandom",
  "hex",
  "http",
- "indexmap 2.2.6",
+ "indexmap 2.3.0",
  "k256",
  "keychain_parser",
  "mime_guess",
@@ -4522,7 +4522,7 @@ dependencies = [
  "futures",
  "hex",
  "http",
- "indexmap 2.2.6",
+ "indexmap 2.3.0",
  "rustc_version",
  "serde",
  "serde_json",
@@ -5001,7 +5001,7 @@ version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a8534fd7f78b5405e860340ad6575217ce99f38d4d5c8f2442cb5ecb50090e1"
 dependencies = [
- "indexmap 2.2.6",
+ "indexmap 2.3.0",
  "toml_datetime",
  "winnow 0.5.40",
 ]
@@ -5012,7 +5012,7 @@ version = "0.22.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d9f8729f5aea9562aac1cc0441f5d6de3cff1ee0c5d67293eeca5eb36ee7c16"
 dependencies = [
- "indexmap 2.2.6",
+ "indexmap 2.3.0",
  "serde",
  "serde_spanned",
  "toml_datetime",
@@ -5398,7 +5398,7 @@ version = "4.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c5afb1a60e207dca502682537fefcfd9921e71d0b83e9576060f09abc6efab23"
 dependencies = [
- "indexmap 2.2.6",
+ "indexmap 2.3.0",
  "serde",
  "serde_json",
  "utoipa-gen",
