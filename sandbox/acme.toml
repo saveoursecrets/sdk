@@ -1,6 +1,27 @@
 [storage]
 path = "./accounts"
 
+# To use the Let's Encrypt ACME TLS provider you must:
+#
+# 1. Change the domain name and email address
+# 2. Ensure the DNS points to a public IP address
+# 3. Start the server on port 443
+# 4. Ensure the `production` flag is set to `true`
+#
+# If the production flag is not set then you will get 
+# an error attempting to connect to the server as a 
+# staging certificate will have been issued.
+#
+# Once the certificate has been issued you should see 
+# output like this:
+#
+# INFO sos_server::server: acme result=AccountCacheStore
+# INFO sos_server::server: acme result=DeployedNewCert
+# INFO sos_server::server: acme result=CertCacheStore
+# 
+# You can then check the connection, eg:
+#
+# curl -vL https://acme.saveoursecrets.com
 [acme]
 cache = "sandbox/acme-cache"
 domains = ["acme.saveoursecrets.com"]
