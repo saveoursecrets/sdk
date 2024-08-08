@@ -43,7 +43,7 @@ jobs:
         run: |
           curl -OL https://releases.saveoursecrets.com/signing-key.pub
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3.5.0
+        uses: sigstore/cosign-installer@v3.6.0
       - name: Check cosign install
         run: cosign version
       - name: Install release tools
