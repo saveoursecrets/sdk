@@ -37,10 +37,13 @@ binary-stream.workspace = true
 toml.workspace = true 
 clap.workspace = true
 
+axum-server.workspace = true
+tokio-rustls.workspace = true
+rustls.workspace = true
+
 axum = { version = "0.7", features = ["ws", "original-uri"] }
 axum-extra = {version = "0.9", features = ["typed-header"] }
 axum-macros = { version = "0.4" }
-axum-server = { version = "0.7", features = ["tls-rustls"] }
 tower = { version = "0.4" }
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 tokio-stream = { version = "0.1" }
