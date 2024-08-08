@@ -21,6 +21,10 @@ pub struct ServerConfig {
     /// Configuration for TLS encryption.
     pub tls: Option<TlsConfig>,
 
+    /// Configuration for ACME TLS management.
+    #[cfg(feature = "acme")]
+    pub acme: Option<AcmeConfig>,
+
     /// Access controls.
     pub access: Option<AccessControlConfig>,
 
@@ -88,6 +92,20 @@ pub struct TlsConfig {
     pub cert: PathBuf,
     /// Path to the certificate key file.
     pub key: PathBuf,
+}
+
+/// Configuration for ACME certficates.
+#[cfg(feature = "acme")]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct AcmeConfig {
+    /// Path to the cache directory.
+    pub cache: PathBuf,
+    /// List of domain names.
+    pub domains: Vec<String>,
+    /// List of email addresses.
+    pub email: Vec<String>,
+    /// Use production environment.
+    pub production: bool,
 }
 
 /// Configuration for CORS.

@@ -1,5 +1,5 @@
 use crate::{
-    config::TlsConfig,
+    config::{self, TlsConfig},
     handlers::{account, api, home, websocket::WebSocketAccount},
     Backend, Result, ServerConfig,
 };
@@ -16,6 +16,7 @@ use axum::{
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use colored::Colorize;
+use futures::StreamExt;
 use sos_protocol::sdk::{
     signer::ecdsa::Address, storage::FileLock, UtcDateTime,
 };
@@ -31,6 +32,9 @@ use tower_http::{
     trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer},
 };
 use tracing::Level;
+
+#[cfg(feature = "acme")]
+use tokio_rustls_acme::{caches::DirCache, AcmeConfig};
 
 #[cfg(feature = "listen")]
 use super::handlers::websocket::upgrade;
@@ -97,8 +101,33 @@ impl Server {
         let reader = state.read().await;
         let origins = Server::read_origins(&reader)?;
         let tls = reader.config.tls.as_ref().cloned();
+        #[cfg(feature = "acme")]
+        let acme = reader.config.acme.as_ref().cloned();
         drop(reader);
 
+        #[cfg(feature = "acme")]
+        if let Some(acme) = acme {
+            self.run_acme(addr, state, backend, handle, origins, acme)
+                .await
+        } else {
+            self.run_maybe_tls(addr, state, backend, handle, origins, tls)
+                .await
+        }
+
+        #[cfg(not(feature = "acme"))]
+        self.run_maybe_tls(addr, state, backend, handle, origins, tls)
+            .await
+    }
+
+    async fn run_maybe_tls(
+        &self,
+        addr: SocketAddr,
+        state: ServerState,
+        backend: ServerBackend,
+        handle: Handle,
+        origins: Vec<HeaderValue>,
+        tls: Option<TlsConfig>,
+    ) -> Result<()> {
         if let Some(tls) = tls {
             self.run_tls(addr, state, backend, handle, origins, tls)
                 .await
@@ -126,6 +155,50 @@ impl Server {
             .handle(handle)
             .serve(app.into_make_service())
             .await?;
+        Ok(())
+    }
+
+    /// Start the server running on HTTPS using ACME.
+    #[cfg(feature = "acme")]
+    async fn run_acme(
+        &self,
+        addr: SocketAddr,
+        state: ServerState,
+        backend: ServerBackend,
+        handle: Handle,
+        origins: Vec<HeaderValue>,
+        acme: config::AcmeConfig,
+    ) -> Result<()> {
+        let mut acme_state = AcmeConfig::new(acme.domains)
+            .contact(acme.email.iter().map(|e| format!("mailto:{}", e)))
+            .cache_option(Some(DirCache::new(acme.cache)))
+            .directory_lets_encrypt(acme.production)
+            .state();
+
+        let app = Server::router(Arc::clone(&state), backend, origins)?;
+
+        self.startup_message(state, &addr, true).await;
+
+        let rustls_config = rustls::ServerConfig::builder()
+            .with_no_client_auth()
+            .with_cert_resolver(acme_state.resolver());
+        let acceptor = acme_state.axum_acceptor(Arc::new(rustls_config));
+
+        tokio::spawn(async move {
+            loop {
+                match acme_state.next().await.unwrap() {
+                    Ok(res) => tracing::info!(result = ?res, "acme"),
+                    Err(err) => tracing::error!(error = ?err, "acme"),
+                }
+            }
+        });
+
+        axum_server::bind(addr)
+            .acceptor(acceptor)
+            .handle(handle)
+            .serve(app.into_make_service())
+            .await?;
+
         Ok(())
     }
 

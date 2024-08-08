@@ -2,5 +2,7 @@
 !.gitignore
 !config.toml
 !config-backup.toml
+!acme.toml
 !accounts
 !accounts-backup
+!acme-cache

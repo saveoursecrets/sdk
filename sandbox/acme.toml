@@ -1,0 +1,8 @@
+[storage]
+path = "./accounts"
+
+[acme]
+cache = "sandbox/acme-cache"
+domains = ["acme.saveoursecrets.com"]
+email = ["acme@saveoursecrets.com"]
+production = false
