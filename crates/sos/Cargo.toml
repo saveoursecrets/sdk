@@ -43,7 +43,7 @@ terminal-banner = { version = "0.4.1", features = ["color"] }
 unicode-width = "0.1"
 kdam = { version = "0.5", features = ["rich", "spinner"] }
 num_cpus = "1"
-crossterm = "0.27"
+crossterm = "0.28"
 ctrlc = "3"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
 arboard = "3"
