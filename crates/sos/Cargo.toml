@@ -31,6 +31,11 @@ toml.workspace = true
 serde.workspace = true
 enum-iterator.workspace = true
 clap.workspace = true
+
+axum-server.workspace = true
+tokio-rustls.workspace = true
+rustls.workspace = true
+
 human_bytes = "0.4"
 tempfile = "3.5"
 shell-words = "1"
@@ -40,8 +45,6 @@ kdam = { version = "0.5", features = ["rich", "spinner"] }
 num_cpus = "1"
 crossterm = "0.27"
 ctrlc = "3"
-
-axum-server = { version = "0.7", features = ["tls-rustls"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
 arboard = "3"
 rustyline = "14"
