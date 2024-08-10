@@ -4,7 +4,10 @@ use crate::{Error, Result};
 use app_dirs2::{get_app_root, AppDataType, AppInfo};
 #[cfg(feature = "audit")]
 use async_once_cell::OnceCell;
+
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use file_guard::{try_lock, FileGuard, Lock};
+
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -493,6 +496,7 @@ impl Paths {
     }
 
     /// Attempt to acquire an account lock.
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     pub(crate) async fn acquire_account_lock<F>(
         &self,
         on_message: impl Fn() -> F,
@@ -524,11 +528,13 @@ fn default_storage_dir() -> Result<PathBuf> {
 /// the same account simultaneously which could lead to
 /// data corruption.
 #[doc(hidden)]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub struct FileLock {
     #[allow(dead_code)]
     guard: FileGuard<Arc<File>>,
 }
 
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 impl FileLock {
     /// Try to acquire a file lock for a path.
     pub async fn acquire<F>(

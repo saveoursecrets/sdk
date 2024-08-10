@@ -59,7 +59,6 @@ bs58.workspace = true
 indexmap.workspace = true
 bitflags.workspace = true
 enum-iterator.workspace = true
-file-guard.workspace = true
 tempfile.workspace = true
 rs_merkle.workspace = true
 subtle = { version = "2.5" }
@@ -104,6 +103,7 @@ keychain_parser = { version = "0.1", path = "../keychain_parser", optional = tru
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
+file-guard.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = {version = "0.2", features = ["js"]}
