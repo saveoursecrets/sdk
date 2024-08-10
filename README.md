@@ -18,6 +18,16 @@ docker compose up
 
 To run a server that uses a certificate issued by the Let's Encrypt ACME service for TLS see the notes in [acme.toml](/sandbox/acme.toml).
 
+### OpenAPI
+
+Start a development server using the `sos-server` crate:
+
+```
+cargo run -p sos-server -- start sandbox/config.toml
+```
+
+Then browse the server [OpenAPI documentation](http://localhost:5053/api/v1/docs) or [download the JSON](http://localhost:5053/api/v1/docs/openapi.json).
+
 ## License
 
 The server code is licensed under AGPL-3.0; other crates are licensed under the MIT or Apache-2.0 license at your discretion.
