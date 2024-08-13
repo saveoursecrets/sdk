@@ -94,21 +94,14 @@ impl MockServer {
         // Override the storage path to use the path
         // using the test identifier
         config.storage.path = self.path.clone();
+        config.set_bind_address(self.addr);
 
         let backend = config.backend().await?;
-        let state = Arc::new(RwLock::new(State {
-            config,
-            sockets: Default::default(),
-        }));
+        let state = Arc::new(RwLock::new(State::new(config)));
 
         let server = Server::new(backend.directory()).await?;
         server
-            .start(
-                self.addr.clone(),
-                state,
-                Arc::new(RwLock::new(backend)),
-                self.handle.clone(),
-            )
+            .start(state, Arc::new(RwLock::new(backend)), self.handle.clone())
             .await?;
         Ok(())
     }

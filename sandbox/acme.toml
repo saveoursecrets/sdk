@@ -1,12 +1,14 @@
 [storage]
 path = "./accounts"
 
+[net]
+bind = "0.0.0.0:443"
+
 # To use the Let's Encrypt ACME TLS provider you must:
 #
 # 1. Change the domain name and email address
 # 2. Ensure the DNS points to a public IP address
-# 3. Start the server on port 443
-# 4. Ensure the `production` flag is set to `true`
+# 3. Ensure the `production` flag is set to `true`
 #
 # If the production flag is not set then you will get 
 # an error attempting to connect to the server as a 
@@ -21,9 +23,9 @@ path = "./accounts"
 # 
 # You can then check the connection, eg:
 #
-# curl -vL https://acme.saveoursecrets.com
+# curl -vL https://acme.example.com
 [net.ssl.acme]
 cache = "sandbox/acme-cache"
-domains = ["acme.saveoursecrets.com"]
-email = ["acme@saveoursecrets.com"]
+domains = ["acme.example.com"]
+email = ["acme@example.com"]
 production = false

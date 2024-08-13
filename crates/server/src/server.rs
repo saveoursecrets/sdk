@@ -48,8 +48,18 @@ use super::handlers::relay::{upgrade as relay_upgrade, RelayState};
 pub struct State {
     /// The server configuration.
     pub config: ServerConfig,
-    /// Map of websocket  channels by connection identifier.
-    pub sockets: HashMap<Address, WebSocketAccount>,
+    /// Map of websocket channels by account identifier.
+    pub(crate) sockets: HashMap<Address, WebSocketAccount>,
+}
+
+impl State {
+    /// Create new server state.
+    pub fn new(config: ServerConfig) -> Self {
+        Self {
+            config,
+            sockets: Default::default(),
+        }
+    }
 }
 
 /// State for the server.
@@ -93,30 +103,29 @@ impl Server {
     /// Start the server.
     pub async fn start(
         &self,
-        addr: SocketAddr,
         state: ServerState,
         backend: ServerBackend,
         handle: Handle,
     ) -> Result<()> {
         let reader = state.read().await;
         let origins = Server::read_origins(&reader)?;
-        let ssl = reader.config.net.as_ref().map(|n| n.ssl.clone());
+        let ssl = reader.config.net.ssl.clone();
+        let addr = reader.config.bind_address().clone();
         drop(reader);
 
         match ssl {
-            Some(SslConfig::Http) => {
+            SslConfig::Http => {
                 self.run(addr, state, backend, handle, origins).await
             }
-            Some(SslConfig::Tls(tls)) => {
+            SslConfig::Tls(tls) => {
                 self.run_tls(addr, state, backend, handle, origins, tls)
                     .await
             }
             #[cfg(feature = "acme")]
-            Some(SslConfig::Acme(acme)) => {
+            SslConfig::Acme(acme) => {
                 self.run_acme(addr, state, backend, handle, origins, acme)
                     .await
             }
-            None => self.run(addr, state, backend, handle, origins).await,
         }
     }
 
@@ -244,12 +253,7 @@ impl Server {
         reader: &RwLockReadGuard<'_, State>,
     ) -> Result<Vec<HeaderValue>> {
         let mut origins = Vec::new();
-        let cors = reader
-            .config
-            .net
-            .as_ref()
-            .map(|n| n.cors.as_ref())
-            .flatten();
+        let cors = reader.config.net.cors.as_ref();
         if let Some(cors) = cors {
             for url in cors.origins.iter() {
                 origins.push(HeaderValue::from_str(

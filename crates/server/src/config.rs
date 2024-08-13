@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
 };
 use url::Url;
@@ -22,7 +23,7 @@ pub struct ServerConfig {
     pub access: Option<AccessControlConfig>,
 
     /// Configuration for the network.
-    pub net: Option<NetworkConfig>,
+    pub net: NetworkConfig,
 
     /// Path the file was loaded from used to determine
     /// relative paths.
@@ -79,8 +80,12 @@ impl AccessControlConfig {
 }
 
 /// Server network configuration.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct NetworkConfig {
+    /// Bind address for the server.
+    pub bind: SocketAddr,
+
     /// SSL configuration.
     pub ssl: SslConfig,
 
@@ -88,8 +93,22 @@ pub struct NetworkConfig {
     pub cors: Option<CorsConfig>,
 }
 
+impl Default for NetworkConfig {
+    fn default() -> Self {
+        Self {
+            bind: SocketAddr::new(
+                IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+                5053,
+            ),
+            ssl: Default::default(),
+            cors: None,
+        }
+    }
+}
+
 /// Server SSL configuration.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum SslConfig {
     /// Default HTTP transport.
     #[default]
@@ -159,22 +178,29 @@ impl ServerConfig {
 
         let dir = config.directory();
 
-        let mut ssl = config.net.as_mut().map(|n| &mut n.ssl);
-        if let Some(ssl) = ssl.as_mut() {
-            if let SslConfig::Tls(tls) = ssl {
-                if tls.cert.is_relative() {
-                    tls.cert = dir.join(&tls.cert);
-                }
-                if tls.key.is_relative() {
-                    tls.key = dir.join(&tls.key);
-                }
-
-                tls.cert = tls.cert.canonicalize()?;
-                tls.key = tls.key.canonicalize()?;
+        if let SslConfig::Tls(tls) = &mut config.net.ssl {
+            if tls.cert.is_relative() {
+                tls.cert = dir.join(&tls.cert);
             }
+            if tls.key.is_relative() {
+                tls.key = dir.join(&tls.key);
+            }
+
+            tls.cert = tls.cert.canonicalize()?;
+            tls.key = tls.key.canonicalize()?;
         }
 
         Ok(config)
+    }
+
+    /// Set the server bind address.
+    pub fn set_bind_address(&mut self, addr: SocketAddr) {
+        self.net.bind = addr;
+    }
+
+    /// Server bind address.
+    pub fn bind_address(&self) -> &SocketAddr {
+        &self.net.bind
     }
 
     /// Parent directory of the configuration file.

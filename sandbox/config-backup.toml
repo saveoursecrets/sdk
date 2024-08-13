@@ -1,2 +1,5 @@
 [storage]
 path = "./accounts-backup"
+
+[net]
+bind = "0.0.0.0:5054"
