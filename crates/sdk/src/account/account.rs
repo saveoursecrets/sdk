@@ -18,8 +18,8 @@ use crate::{
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     storage::{
-        paths::FileLock, AccessOptions, AccountPack, ClientStorage,
-        NewFolderOptions, StorageEventLogs,
+        AccessOptions, AccountPack, ClientStorage, NewFolderOptions,
+        StorageEventLogs,
     },
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
@@ -28,6 +28,9 @@ use crate::{
     },
     vfs, Error, Paths, Result, UtcDateTime,
 };
+
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use crate::storage::paths::FileLock;
 
 #[cfg(feature = "search")]
 use crate::storage::search::{DocumentCount, SearchIndex};
@@ -864,6 +867,7 @@ pub struct LocalAccount {
     /// Prevents multiple client implementations trying to
     /// access the same account simultaneously which could
     /// lead to data corruption.
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     account_lock: Option<FileLock>,
 }
 
@@ -904,22 +908,25 @@ impl LocalAccount {
         .await?;
         self.paths = storage.paths();
 
-        self.account_lock = Some(
-            self.paths
-                .acquire_account_lock(|| async {
-                    let locked = options.locked.clone();
-                    match locked {
-                        AccountLocked::Error => {
-                            return Err(Error::AccountLocked);
+        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+        {
+            self.account_lock = Some(
+                self.paths
+                    .acquire_account_lock(|| async {
+                        let locked = options.locked.clone();
+                        match locked {
+                            AccountLocked::Error => {
+                                return Err(Error::AccountLocked);
+                            }
+                            AccountLocked::Notify(tx) => {
+                                tx.send(()).await?;
+                                Ok(())
+                            }
                         }
-                        AccountLocked::Notify(tx) => {
-                            tx.send(()).await?;
-                            Ok(())
-                        }
-                    }
-                })
-                .await?,
-        );
+                    })
+                    .await?,
+            );
+        }
 
         #[cfg(feature = "files")]
         {
@@ -1451,6 +1458,7 @@ impl LocalAccount {
             address,
             paths: Arc::new(paths),
             authenticated: None,
+            #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
             account_lock: None,
         })
     }
@@ -1519,6 +1527,7 @@ impl LocalAccount {
             address,
             paths: storage.paths(),
             authenticated: None,
+            #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
             account_lock: None,
         };
 
@@ -1755,7 +1764,10 @@ impl Account for LocalAccount {
     async fn sign_out(&mut self) -> Result<()> {
         tracing::debug!(address = %self.address(), "sign_out");
 
-        self.account_lock.take();
+        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+        {
+            self.account_lock.take();
+        }
 
         tracing::debug!("lock storage vaults");
         // Lock all the storage vaults

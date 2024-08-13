@@ -1,6 +1,9 @@
 [storage]
 path = "./accounts"
 
+[net]
+bind = "0.0.0.0:5053"
+
 #[access]
 #allow = [
   #"0x6f4e977644ca8f21d335ab13271616b615ea28cb"
@@ -9,6 +12,6 @@ path = "./accounts"
   #"0x6f4e977644ca8f21d335ab13271616b615ea28cb"
 #]
 
-#[tls]
+#[net.ssl.tls]
 #cert = "cert.pem"
 #key = "key.pem"

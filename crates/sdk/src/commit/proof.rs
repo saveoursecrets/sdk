@@ -21,6 +21,12 @@ impl AsRef<TreeHash> for CommitHash {
     }
 }
 
+impl From<CommitHash> for [u8; 32] {
+    fn from(value: CommitHash) -> Self {
+        value.0
+    }
+}
+
 impl From<&CommitHash> for [u8; 32] {
     fn from(value: &CommitHash) -> Self {
         value.0

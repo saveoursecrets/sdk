@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
 };
 use url::Url;
@@ -18,14 +19,11 @@ pub struct ServerConfig {
     /// Storage for the backend.
     pub storage: StorageConfig,
 
-    /// Configuration for TLS encryption.
-    pub tls: Option<TlsConfig>,
-
     /// Access controls.
     pub access: Option<AccessControlConfig>,
 
-    /// Configuration for CORS.
-    pub cors: Option<CorsConfig>,
+    /// Configuration for the network.
+    pub net: NetworkConfig,
 
     /// Path the file was loaded from used to determine
     /// relative paths.
@@ -81,6 +79,47 @@ impl AccessControlConfig {
     }
 }
 
+/// Server network configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct NetworkConfig {
+    /// Bind address for the server.
+    pub bind: SocketAddr,
+
+    /// SSL configuration.
+    pub ssl: SslConfig,
+
+    /// Configuration for CORS.
+    pub cors: Option<CorsConfig>,
+}
+
+impl Default for NetworkConfig {
+    fn default() -> Self {
+        Self {
+            bind: SocketAddr::new(
+                IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+                5053,
+            ),
+            ssl: Default::default(),
+            cors: None,
+        }
+    }
+}
+
+/// Server SSL configuration.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SslConfig {
+    /// Default HTTP transport.
+    #[default]
+    Http,
+    /// Configuration for TLS certificate and private key.
+    Tls(TlsConfig),
+    /// Configuration for Let's Encrypt ACME certificates.
+    #[cfg(feature = "acme")]
+    Acme(AcmeConfig),
+}
+
 /// Certificate and key for TLS.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct TlsConfig {
@@ -90,8 +129,22 @@ pub struct TlsConfig {
     pub key: PathBuf,
 }
 
+/// Configuration for ACME certficates.
+#[cfg(feature = "acme")]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct AcmeConfig {
+    /// Path to the cache directory.
+    pub cache: PathBuf,
+    /// List of domain names.
+    pub domains: Vec<String>,
+    /// List of email addresses.
+    pub email: Vec<String>,
+    /// Use production environment.
+    pub production: bool,
+}
+
 /// Configuration for CORS.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CorsConfig {
     /// List of additional CORS origins for the server.
     pub origins: Vec<Url>,
@@ -125,7 +178,7 @@ impl ServerConfig {
 
         let dir = config.directory();
 
-        if let Some(tls) = config.tls.as_mut() {
+        if let SslConfig::Tls(tls) = &mut config.net.ssl {
             if tls.cert.is_relative() {
                 tls.cert = dir.join(&tls.cert);
             }
@@ -138,6 +191,16 @@ impl ServerConfig {
         }
 
         Ok(config)
+    }
+
+    /// Set the server bind address.
+    pub fn set_bind_address(&mut self, addr: SocketAddr) {
+        self.net.bind = addr;
+    }
+
+    /// Server bind address.
+    pub fn bind_address(&self) -> &SocketAddr {
+        &self.net.bind
     }
 
     /// Parent directory of the configuration file.

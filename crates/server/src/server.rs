@@ -1,7 +1,7 @@
 use crate::{
-    config::TlsConfig,
+    config::{self, TlsConfig},
     handlers::{account, api, home, websocket::WebSocketAccount},
-    Backend, Result, ServerConfig,
+    Backend, Result, ServerConfig, SslConfig,
 };
 use axum::{
     extract::Extension,
@@ -16,6 +16,7 @@ use axum::{
 };
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use colored::Colorize;
+use futures::StreamExt;
 use sos_protocol::sdk::{
     signer::ecdsa::Address, storage::FileLock, UtcDateTime,
 };
@@ -32,6 +33,9 @@ use tower_http::{
 };
 use tracing::Level;
 
+#[cfg(feature = "acme")]
+use tokio_rustls_acme::{caches::DirCache, AcmeConfig};
+
 #[cfg(feature = "listen")]
 use super::handlers::websocket::upgrade;
 
@@ -44,8 +48,18 @@ use super::handlers::relay::{upgrade as relay_upgrade, RelayState};
 pub struct State {
     /// The server configuration.
     pub config: ServerConfig,
-    /// Map of websocket  channels by connection identifier.
-    pub sockets: HashMap<Address, WebSocketAccount>,
+    /// Map of websocket channels by account identifier.
+    pub(crate) sockets: HashMap<Address, WebSocketAccount>,
+}
+
+impl State {
+    /// Create new server state.
+    pub fn new(config: ServerConfig) -> Self {
+        Self {
+            config,
+            sockets: Default::default(),
+        }
+    }
 }
 
 /// State for the server.
@@ -89,21 +103,29 @@ impl Server {
     /// Start the server.
     pub async fn start(
         &self,
-        addr: SocketAddr,
         state: ServerState,
         backend: ServerBackend,
         handle: Handle,
     ) -> Result<()> {
         let reader = state.read().await;
         let origins = Server::read_origins(&reader)?;
-        let tls = reader.config.tls.as_ref().cloned();
+        let ssl = reader.config.net.ssl.clone();
+        let addr = reader.config.bind_address().clone();
         drop(reader);
 
-        if let Some(tls) = tls {
-            self.run_tls(addr, state, backend, handle, origins, tls)
-                .await
-        } else {
-            self.run(addr, state, backend, handle, origins).await
+        match ssl {
+            SslConfig::Http => {
+                self.run(addr, state, backend, handle, origins).await
+            }
+            SslConfig::Tls(tls) => {
+                self.run_tls(addr, state, backend, handle, origins, tls)
+                    .await
+            }
+            #[cfg(feature = "acme")]
+            SslConfig::Acme(acme) => {
+                self.run_acme(addr, state, backend, handle, origins, acme)
+                    .await
+            }
         }
     }
 
@@ -126,6 +148,50 @@ impl Server {
             .handle(handle)
             .serve(app.into_make_service())
             .await?;
+        Ok(())
+    }
+
+    /// Start the server running on HTTPS using ACME.
+    #[cfg(feature = "acme")]
+    async fn run_acme(
+        &self,
+        addr: SocketAddr,
+        state: ServerState,
+        backend: ServerBackend,
+        handle: Handle,
+        origins: Vec<HeaderValue>,
+        acme: config::AcmeConfig,
+    ) -> Result<()> {
+        let mut acme_state = AcmeConfig::new(acme.domains)
+            .contact(acme.email.iter().map(|e| format!("mailto:{}", e)))
+            .cache_option(Some(DirCache::new(acme.cache)))
+            .directory_lets_encrypt(acme.production)
+            .state();
+
+        let app = Server::router(Arc::clone(&state), backend, origins)?;
+
+        self.startup_message(state, &addr, true).await;
+
+        let rustls_config = rustls::ServerConfig::builder()
+            .with_no_client_auth()
+            .with_cert_resolver(acme_state.resolver());
+        let acceptor = acme_state.axum_acceptor(Arc::new(rustls_config));
+
+        tokio::spawn(async move {
+            loop {
+                match acme_state.next().await.unwrap() {
+                    Ok(res) => tracing::info!(result = ?res, "acme"),
+                    Err(err) => tracing::error!(error = ?err, "acme"),
+                }
+            }
+        });
+
+        axum_server::bind(addr)
+            .acceptor(acceptor)
+            .handle(handle)
+            .serve(app.into_make_service())
+            .await?;
+
         Ok(())
     }
 
@@ -187,7 +253,8 @@ impl Server {
         reader: &RwLockReadGuard<'_, State>,
     ) -> Result<Vec<HeaderValue>> {
         let mut origins = Vec::new();
-        if let Some(cors) = &reader.config.cors {
+        let cors = reader.config.net.cors.as_ref();
+        if let Some(cors) = cors {
             for url in cors.origins.iter() {
                 origins.push(HeaderValue::from_str(
                     url.as_str().trim_end_matches('/'),

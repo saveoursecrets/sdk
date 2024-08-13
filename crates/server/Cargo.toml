@@ -1,6 +1,6 @@
 [package]
 name = "sos-server"
-version = "0.14.9"
+version = "0.14.10"
 edition = "2021"
 description = "Server for the Save Our Secrets sync protocol."
 homepage = "https://saveoursecrets.com"
@@ -12,7 +12,8 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["listen", "audit", "pairing"]
+default = ["listen", "audit", "pairing", "acme"]
+acme = ["dep:tokio-rustls-acme"]
 listen = ["sos-protocol/listen"]
 pairing = ["sos-protocol/pairing"]
 audit = []
@@ -48,11 +49,13 @@ tower = { version = "0.4" }
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 tokio-stream = { version = "0.1" }
 utoipa = { version = "4", features = ["uuid"] }
-utoipa-rapidoc = { version = "3", features = ["axum"] }
+utoipa-rapidoc = { version = "4", features = ["axum"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros"] }
 
+tokio-rustls-acme = { version = "0.4", features = ["axum"], optional = true }
+
 [dependencies.sos-protocol]
-version = "0.14.9"
+version = "0.14.10"
 path = "../protocol"
 features = ["files"]
 

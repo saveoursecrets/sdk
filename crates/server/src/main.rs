@@ -44,8 +44,8 @@ mod cli {
         /// Start a server.
         Start {
             /// Bind to host:port.
-            #[clap(short, long, default_value = "0.0.0.0:5053")]
-            bind: String,
+            #[clap(short, long)]
+            bind: Option<String>,
 
             /// Config file to load.
             config: PathBuf,
@@ -104,21 +104,25 @@ mod cli {
         }
 
         /// Start a web server.
-        pub async fn start(bind: String, config: PathBuf) -> Result<()> {
-            let config = ServerConfig::load(&config).await?;
+        pub async fn start(
+            bind: Option<String>,
+            config: PathBuf,
+        ) -> Result<()> {
+            let mut config = ServerConfig::load(&config).await?;
+
+            if let Some(bind) = bind {
+                let addr = SocketAddr::from_str(&bind)?;
+                config.set_bind_address(addr);
+            }
+
             let backend = config.backend().await?;
 
-            let state = Arc::new(RwLock::new(State {
-                config,
-                sockets: Default::default(),
-            }));
+            let state = Arc::new(RwLock::new(State::new(config)));
 
             let handle = Handle::new();
-
-            let addr = SocketAddr::from_str(&bind)?;
             let server = Server::new(backend.directory()).await?;
             server
-                .start(addr, state, Arc::new(RwLock::new(backend)), handle)
+                .start(state, Arc::new(RwLock::new(backend)), handle)
                 .await?;
             Ok(())
         }
