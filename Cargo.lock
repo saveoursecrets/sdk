@@ -4898,8 +4898,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-rustls-acme"
-version = "0.3.0"
-source = "git+https://github.com/n0-computer/tokio-rustls-acme.git?rev=7b39efcd0a7dfb6417779b9d0b0e7036eb2481d6#7b39efcd0a7dfb6417779b9d0b0e7036eb2481d6"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4ee7cbca7da86fa030e33b0deac55bad0e0bf8ab909f1a84666f04447f6339b"
 dependencies = [
  "async-trait",
  "axum-server",
