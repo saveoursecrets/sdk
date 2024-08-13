@@ -18,18 +18,11 @@ pub struct ServerConfig {
     /// Storage for the backend.
     pub storage: StorageConfig,
 
-    /// Configuration for TLS encryption.
-    pub tls: Option<TlsConfig>,
-
-    /// Configuration for ACME TLS management.
-    #[cfg(feature = "acme")]
-    pub acme: Option<AcmeConfig>,
-
     /// Access controls.
     pub access: Option<AccessControlConfig>,
 
-    /// Configuration for CORS.
-    pub cors: Option<CorsConfig>,
+    /// Configuration for the network.
+    pub net: Option<NetworkConfig>,
 
     /// Path the file was loaded from used to determine
     /// relative paths.
@@ -85,6 +78,29 @@ impl AccessControlConfig {
     }
 }
 
+/// Server network configuration.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct NetworkConfig {
+    /// SSL configuration.
+    pub ssl: SslConfig,
+
+    /// Configuration for CORS.
+    pub cors: Option<CorsConfig>,
+}
+
+/// Server SSL configuration.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub enum SslConfig {
+    /// Default HTTP transport.
+    #[default]
+    Http,
+    /// Configuration for TLS certificate and private key.
+    Tls(TlsConfig),
+    /// Configuration for Let's Encrypt ACME certificates.
+    #[cfg(feature = "acme")]
+    Acme(AcmeConfig),
+}
+
 /// Certificate and key for TLS.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct TlsConfig {
@@ -109,7 +125,7 @@ pub struct AcmeConfig {
 }
 
 /// Configuration for CORS.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CorsConfig {
     /// List of additional CORS origins for the server.
     pub origins: Vec<Url>,
@@ -143,16 +159,19 @@ impl ServerConfig {
 
         let dir = config.directory();
 
-        if let Some(tls) = config.tls.as_mut() {
-            if tls.cert.is_relative() {
-                tls.cert = dir.join(&tls.cert);
-            }
-            if tls.key.is_relative() {
-                tls.key = dir.join(&tls.key);
-            }
+        let mut ssl = config.net.as_mut().map(|n| &mut n.ssl);
+        if let Some(ssl) = ssl.as_mut() {
+            if let SslConfig::Tls(tls) = ssl {
+                if tls.cert.is_relative() {
+                    tls.cert = dir.join(&tls.cert);
+                }
+                if tls.key.is_relative() {
+                    tls.key = dir.join(&tls.key);
+                }
 
-            tls.cert = tls.cert.canonicalize()?;
-            tls.key = tls.key.canonicalize()?;
+                tls.cert = tls.cert.canonicalize()?;
+                tls.key = tls.key.canonicalize()?;
+            }
         }
 
         Ok(config)

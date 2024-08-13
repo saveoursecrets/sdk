@@ -9,6 +9,6 @@ path = "./accounts"
   #"0x6f4e977644ca8f21d335ab13271616b615ea28cb"
 #]
 
-#[tls]
+#[net.ssl.tls]
 #cert = "cert.pem"
 #key = "key.pem"

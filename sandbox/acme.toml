@@ -22,7 +22,7 @@ path = "./accounts"
 # You can then check the connection, eg:
 #
 # curl -vL https://acme.saveoursecrets.com
-[acme]
+[net.ssl.acme]
 cache = "sandbox/acme-cache"
 domains = ["acme.saveoursecrets.com"]
 email = ["acme@saveoursecrets.com"]

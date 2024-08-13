@@ -1,7 +1,7 @@
 use crate::{
     config::{self, TlsConfig},
     handlers::{account, api, home, websocket::WebSocketAccount},
-    Backend, Result, ServerConfig,
+    Backend, Result, ServerConfig, SslConfig,
 };
 use axum::{
     extract::Extension,
@@ -100,39 +100,23 @@ impl Server {
     ) -> Result<()> {
         let reader = state.read().await;
         let origins = Server::read_origins(&reader)?;
-        let tls = reader.config.tls.as_ref().cloned();
-        #[cfg(feature = "acme")]
-        let acme = reader.config.acme.as_ref().cloned();
+        let ssl = reader.config.net.as_ref().map(|n| n.ssl.clone());
         drop(reader);
 
-        #[cfg(feature = "acme")]
-        if let Some(acme) = acme {
-            self.run_acme(addr, state, backend, handle, origins, acme)
-                .await
-        } else {
-            self.run_maybe_tls(addr, state, backend, handle, origins, tls)
-                .await
-        }
-
-        #[cfg(not(feature = "acme"))]
-        self.run_maybe_tls(addr, state, backend, handle, origins, tls)
-            .await
-    }
-
-    async fn run_maybe_tls(
-        &self,
-        addr: SocketAddr,
-        state: ServerState,
-        backend: ServerBackend,
-        handle: Handle,
-        origins: Vec<HeaderValue>,
-        tls: Option<TlsConfig>,
-    ) -> Result<()> {
-        if let Some(tls) = tls {
-            self.run_tls(addr, state, backend, handle, origins, tls)
-                .await
-        } else {
-            self.run(addr, state, backend, handle, origins).await
+        match ssl {
+            Some(SslConfig::Http) => {
+                self.run(addr, state, backend, handle, origins).await
+            }
+            Some(SslConfig::Tls(tls)) => {
+                self.run_tls(addr, state, backend, handle, origins, tls)
+                    .await
+            }
+            #[cfg(feature = "acme")]
+            Some(SslConfig::Acme(acme)) => {
+                self.run_acme(addr, state, backend, handle, origins, acme)
+                    .await
+            }
+            None => self.run(addr, state, backend, handle, origins).await,
         }
     }
 
@@ -260,7 +244,13 @@ impl Server {
         reader: &RwLockReadGuard<'_, State>,
     ) -> Result<Vec<HeaderValue>> {
         let mut origins = Vec::new();
-        if let Some(cors) = &reader.config.cors {
+        let cors = reader
+            .config
+            .net
+            .as_ref()
+            .map(|n| n.cors.as_ref())
+            .flatten();
+        if let Some(cors) = cors {
             for url in cors.origins.iter() {
                 origins.push(HeaderValue::from_str(
                     url.as_str().trim_end_matches('/'),
