@@ -4513,7 +4513,7 @@ dependencies = [
 
 [[package]]
 name = "sos-server"
-version = "0.14.10"
+version = "0.14.11"
 dependencies = [
  "async-trait",
  "axum",

@@ -1,6 +1,6 @@
 [package]
 name = "sos-server"
-version = "0.14.10"
+version = "0.14.11"
 edition = "2021"
 description = "Server for the Save Our Secrets sync protocol."
 homepage = "https://saveoursecrets.com"
