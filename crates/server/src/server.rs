@@ -114,7 +114,7 @@ impl Server {
         drop(reader);
 
         match ssl {
-            SslConfig::Http => {
+            SslConfig::None => {
                 self.run(addr, state, backend, handle, origins).await
             }
             SslConfig::Tls(tls) => {

@@ -112,7 +112,7 @@ impl Default for NetworkConfig {
 pub enum SslConfig {
     /// Default HTTP transport.
     #[default]
-    Http,
+    None,
     /// Configuration for TLS certificate and private key.
     Tls(TlsConfig),
     /// Configuration for Let's Encrypt ACME certificates.

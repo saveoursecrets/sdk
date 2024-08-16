@@ -1,6 +1,6 @@
 [package]
 name = "sos-server"
-version = "0.14.10"
+version = "0.14.11"
 edition = "2021"
 description = "Server for the Save Our Secrets sync protocol."
 homepage = "https://saveoursecrets.com"
@@ -45,7 +45,6 @@ rustls.workspace = true
 axum = { version = "0.7", features = ["ws", "original-uri"] }
 axum-extra = {version = "0.9", features = ["typed-header"] }
 axum-macros = { version = "0.4" }
-tower = { version = "0.4" }
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 tokio-stream = { version = "0.1" }
 utoipa = { version = "4", features = ["uuid"] }
