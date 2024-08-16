@@ -21,7 +21,7 @@ mod cli {
     use crate::Result;
     use clap::{CommandFactory, Parser, Subcommand};
     use sos_cli_helpers::CommandTree;
-    use std::path::PathBuf;
+    use std::{net::SocketAddr, path::PathBuf};
 
     #[derive(Parser, Debug)]
     #[clap(name = "sos-server", author, version, about, long_about = None)]
@@ -38,6 +38,26 @@ mod cli {
             #[clap(short, long)]
             path: Option<PathBuf>,
 
+            /// Bind to host:port.
+            #[clap(short, long)]
+            bind: Option<SocketAddr>,
+
+            /// Cache directory for ACME SSL configration.
+            #[clap(short, long)]
+            cache: Option<PathBuf>,
+
+            /// Domains for ACME SSL configration.
+            #[clap(short, long)]
+            domains: Vec<String>,
+
+            /// Email addresses for ACME SSL configration.
+            #[clap(short, long)]
+            email: Vec<String>,
+
+            /// Production flag for ACME SSL configration.
+            #[clap(long)]
+            production: bool,
+
             /// Config file to write.
             config: PathBuf,
         },
@@ -45,7 +65,7 @@ mod cli {
         Start {
             /// Bind to host:port.
             #[clap(short, long)]
-            bind: Option<String>,
+            bind: Option<SocketAddr>,
 
             /// Config file to load.
             config: PathBuf,
@@ -64,11 +84,22 @@ mod cli {
         let args = SosServer::parse();
 
         match args.cmd {
-            Command::Init { config, path } => {
-                service::init(config, path).await?;
+            Command::Init {
+                config,
+                path,
+                bind,
+                cache,
+                domains,
+                email,
+                production,
+            } => {
+                service::init(
+                    config, path, bind, cache, domains, email, production,
+                )
+                .await?;
             }
             Command::Start { bind, config } => {
-                service::start(bind, config).await?;
+                service::start(config, bind).await?;
             }
         }
 
@@ -79,15 +110,21 @@ mod cli {
         use axum_server::Handle;
         use sos_protocol::sdk::vfs;
         use sos_server::{
-            Error, Result, Server, ServerConfig, State, StorageConfig,
+            AcmeConfig, Error, Result, Server, ServerConfig, SslConfig,
+            State, StorageConfig,
         };
-        use std::{net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
+        use std::{net::SocketAddr, path::PathBuf, sync::Arc};
         use tokio::sync::RwLock;
 
         /// Initialize default server configuration.
         pub async fn init(
             output: PathBuf,
             mut path: Option<PathBuf>,
+            bind: Option<SocketAddr>,
+            cache: Option<PathBuf>,
+            domains: Vec<String>,
+            email: Vec<String>,
+            production: bool,
         ) -> Result<()> {
             if vfs::try_exists(&output).await? {
                 return Err(Error::FileExists(output));
@@ -97,6 +134,18 @@ mod cli {
             if let Some(path) = path.take() {
                 config.storage = StorageConfig { path };
             }
+            if let Some(addr) = bind {
+                config.set_bind_address(addr);
+            }
+
+            if let (Some(cache), false) = (cache, domains.is_empty()) {
+                config.net.ssl = SslConfig::Acme(AcmeConfig {
+                    cache,
+                    domains,
+                    email,
+                    production,
+                })
+            }
 
             let content = toml::to_string_pretty(&config)?;
             vfs::write(output, content.as_bytes()).await?;
@@ -105,13 +154,12 @@ mod cli {
 
         /// Start a web server.
         pub async fn start(
-            bind: Option<String>,
             config: PathBuf,
+            bind: Option<SocketAddr>,
         ) -> Result<()> {
             let mut config = ServerConfig::load(&config).await?;
 
-            if let Some(bind) = bind {
-                let addr = SocketAddr::from_str(&bind)?;
+            if let Some(addr) = bind {
                 config.set_bind_address(addr);
             }
 
