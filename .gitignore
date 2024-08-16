@@ -9,6 +9,7 @@ target
 *.bundle
 /*.csv
 /*.svg
+server.lock
 *.rustfmt
 .homebrew
 tests/server_public_key.txt
