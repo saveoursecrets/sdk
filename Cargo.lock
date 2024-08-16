@@ -4270,7 +4270,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.14.10"
+version = "0.14.11"
 dependencies = [
  "arboard",
  "async-recursion",
