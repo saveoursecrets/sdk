@@ -1,15 +1,8 @@
-use sos_server::Result;
+use sos_protocol::sdk::logs::Logger;
+use sos_server::{LogConfig, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "sos=info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer().without_time())
-        .init();
-
     if let Err(e) = cli::run().await {
         sos_cli_helpers::messages::fail(e.to_string());
     }
@@ -17,10 +10,34 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+fn init_default_subscriber() {
+    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "sos=info".into()),
+        ))
+        .with(tracing_subscriber::fmt::layer().without_time())
+        .init();
+}
+
+fn init_server_logs(config: &LogConfig) -> Logger {
+    if !config.directory.exists() {
+        std::fs::create_dir(&config.directory)
+            .expect("create logs directory");
+    }
+    let logger =
+        Logger::new_dir(config.directory.clone(), config.name.clone());
+    logger
+        .init_subscriber(Some(config.level.clone()))
+        .expect("initialize tracing subscriber");
+    logger
+}
+
 mod cli {
-    use crate::Result;
+    use crate::{init_default_subscriber, init_server_logs, Result};
     use clap::{CommandFactory, Parser, Subcommand};
     use sos_cli_helpers::CommandTree;
+    use sos_server::ServerConfig;
     use std::{net::SocketAddr, path::PathBuf};
 
     #[derive(Parser, Debug)]
@@ -93,13 +110,21 @@ mod cli {
                 email,
                 production,
             } => {
+                init_default_subscriber();
                 service::init(
                     config, path, bind, cache, domains, email, production,
                 )
                 .await?;
             }
             Command::Start { bind, config } => {
-                service::start(config, bind).await?;
+                let mut config = ServerConfig::load(&config).await?;
+
+                if let Some(addr) = bind {
+                    config.set_bind_address(addr);
+                }
+
+                let _logger = init_server_logs(&config.log);
+                service::start(config).await?;
             }
         }
 
@@ -153,20 +178,9 @@ mod cli {
         }
 
         /// Start a web server.
-        pub async fn start(
-            config: PathBuf,
-            bind: Option<SocketAddr>,
-        ) -> Result<()> {
-            let mut config = ServerConfig::load(&config).await?;
-
-            if let Some(addr) = bind {
-                config.set_bind_address(addr);
-            }
-
+        pub async fn start(config: ServerConfig) -> Result<()> {
             let backend = config.backend().await?;
-
             let state = Arc::new(RwLock::new(State::new(config)));
-
             let handle = Handle::new();
             let server = Server::new(backend.directory()).await?;
             server
