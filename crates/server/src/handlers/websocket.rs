@@ -69,10 +69,12 @@ impl WebSocketAccount {
         self.connections.len()
     }
 
+    /*
     /// Whether the account connections are empty.
     pub fn is_empty(&self) -> bool {
         self.connections.is_empty()
     }
+    */
 }
 
 /// Upgrade to a websocket connection.

@@ -87,7 +87,7 @@ pub struct NetworkConfig {
     pub bind: SocketAddr,
 
     /// SSL configuration.
-    pub ssl: SslConfig,
+    pub ssl: Option<SslConfig>,
 
     /// Configuration for CORS.
     pub cors: Option<CorsConfig>,
@@ -107,12 +107,9 @@ impl Default for NetworkConfig {
 }
 
 /// Server SSL configuration.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SslConfig {
-    /// Default HTTP transport.
-    #[default]
-    None,
     /// Configuration for TLS certificate and private key.
     Tls(TlsConfig),
     /// Configuration for Let's Encrypt ACME certificates.
@@ -178,7 +175,7 @@ impl ServerConfig {
 
         let dir = config.directory();
 
-        if let SslConfig::Tls(tls) = &mut config.net.ssl {
+        if let Some(SslConfig::Tls(tls)) = &mut config.net.ssl {
             if tls.cert.is_relative() {
                 tls.cert = dir.join(&tls.cert);
             }

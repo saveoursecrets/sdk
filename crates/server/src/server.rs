@@ -114,18 +114,16 @@ impl Server {
         drop(reader);
 
         match ssl {
-            SslConfig::None => {
-                self.run(addr, state, backend, handle, origins).await
-            }
-            SslConfig::Tls(tls) => {
+            Some(SslConfig::Tls(tls)) => {
                 self.run_tls(addr, state, backend, handle, origins, tls)
                     .await
             }
             #[cfg(feature = "acme")]
-            SslConfig::Acme(acme) => {
+            Some(SslConfig::Acme(acme)) => {
                 self.run_acme(addr, state, backend, handle, origins, acme)
                     .await
             }
+            None => self.run(addr, state, backend, handle, origins).await,
         }
     }
 

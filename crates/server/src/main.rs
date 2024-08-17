@@ -139,12 +139,12 @@ mod cli {
             }
 
             if let (Some(cache), false) = (cache, domains.is_empty()) {
-                config.net.ssl = SslConfig::Acme(AcmeConfig {
+                config.net.ssl = Some(SslConfig::Acme(AcmeConfig {
                     cache,
                     domains,
                     email,
                     production,
-                })
+                }))
             }
 
             let content = toml::to_string_pretty(&config)?;
