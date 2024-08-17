@@ -1,6 +1,6 @@
 [package]
 name = "sos-server"
-version = "0.14.11"
+version = "0.14.12"
 edition = "2021"
 description = "Server for the Save Our Secrets sync protocol."
 homepage = "https://saveoursecrets.com"
@@ -54,7 +54,7 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros"] 
 tokio-rustls-acme = { version = "0.4", features = ["axum"], optional = true }
 
 [dependencies.sos-protocol]
-version = "0.14.10"
+version = "0.14"
 path = "../protocol"
 features = ["files"]
 
