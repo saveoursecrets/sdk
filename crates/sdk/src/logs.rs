@@ -31,8 +31,8 @@ pub struct LogFileStatus {
 /// to stdout and to disc; for release builds tracing is just written
 /// to disc.
 pub struct Logger {
-    paths: Paths,
-    name: &'static str,
+    logs_dir: PathBuf,
+    name: String,
 }
 
 impl Default for Logger {
@@ -47,16 +47,22 @@ impl Logger {
     /// # Panics
     ///
     /// If the default data directory could not be determined.
-    pub fn new(name: Option<&'static str>) -> Self {
+    pub fn new(name: Option<String>) -> Self {
         Self::new_paths(Paths::new_global(Paths::data_dir().unwrap()), name)
     }
 
     /// Create a new logger with the given paths.
-    pub fn new_paths(paths: Paths, name: Option<&'static str>) -> Self {
+    pub fn new_paths(paths: Paths, name: Option<String>) -> Self {
+        let logs_dir = paths.logs_dir().to_owned();
         Self {
-            paths,
-            name: name.unwrap_or(LOG_FILE_NAME),
+            logs_dir,
+            name: name.unwrap_or(LOG_FILE_NAME.to_string()),
         }
+    }
+
+    /// Create a new logger with the given directory and file name.
+    pub fn new_dir(logs_dir: PathBuf, name: String) -> Self {
+        Self { logs_dir, name }
     }
 
     /// Initialize the tracing subscriber.
@@ -65,9 +71,9 @@ impl Logger {
         &self,
         default_log_level: Option<String>,
     ) -> Result<()> {
-        let logs_dir = self.paths.logs_dir();
+        let logs_dir = &self.logs_dir;
         let logfile =
-            RollingFileAppender::new(Rotation::DAILY, logs_dir, self.name);
+            RollingFileAppender::new(Rotation::DAILY, logs_dir, &self.name);
         let default_log_level =
             default_log_level.unwrap_or_else(|| DEFAULT_LOG_LEVEL.to_owned());
         let env_layer = tracing_subscriber::EnvFilter::new(
@@ -103,9 +109,11 @@ impl Logger {
         &self,
         default_log_level: Option<String>,
     ) -> Result<()> {
-        let logs_dir = self.paths.logs_dir();
-        let logfile =
-            RollingFileAppender::new(Rotation::DAILY, logs_dir, self.name);
+        let logfile = RollingFileAppender::new(
+            Rotation::DAILY,
+            &self.logs_dir,
+            &self.name,
+        );
         let default_log_level =
             default_log_level.unwrap_or_else(|| DEFAULT_LOG_LEVEL.to_owned());
         let env_layer = tracing_subscriber::EnvFilter::new(
@@ -186,12 +194,11 @@ impl Logger {
     /// Get all the log files in the logs directory.
     fn log_file_paths(&self) -> Result<Vec<PathBuf>> {
         let mut files = Vec::new();
-        let logs_dir = self.paths.logs_dir();
-        for entry in std::fs::read_dir(logs_dir)? {
+        for entry in std::fs::read_dir(&self.logs_dir)? {
             let entry = entry?;
             let path = entry.path();
             if let Some(name) = path.file_name() {
-                if name.to_string_lossy().starts_with(self.name) {
+                if name.to_string_lossy().starts_with(&self.name) {
                     files.push(path);
                 }
             }
@@ -202,8 +209,7 @@ impl Logger {
     /// Log file for today.
     fn current_log_file(&self) -> Result<PathBuf> {
         let now: UtcDateTime = OffsetDateTime::now_utc().into();
-        let logs_dir = self.paths.logs_dir();
-        let file = logs_dir.join(format!(
+        let file = self.logs_dir.join(format!(
             "{}.{}",
             self.name,
             now.format_simple_date()?

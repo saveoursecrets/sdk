@@ -19,6 +19,9 @@ pub struct ServerConfig {
     /// Storage for the backend.
     pub storage: StorageConfig,
 
+    /// Log configuration.
+    pub log: LogConfig,
+
     /// Access controls.
     pub access: Option<AccessControlConfig>,
 
@@ -79,6 +82,27 @@ impl AccessControlConfig {
     }
 }
 
+/// Log file configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogConfig {
+    /// Directory for log files.
+    pub directory: PathBuf,
+    /// Name of log files.
+    pub name: String,
+    /// Tracing level.
+    pub level: String,
+}
+
+impl Default for LogConfig {
+    fn default() -> Self {
+        Self {
+            directory: PathBuf::from("logs"),
+            name: "sos-server.log".to_string(),
+            level: "sos_server=info".to_string(),
+        }
+    }
+}
+
 /// Server network configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -108,7 +132,7 @@ impl Default for NetworkConfig {
 
 /// Server SSL configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "lowercase", untagged)]
 pub enum SslConfig {
     /// Configuration for TLS certificate and private key.
     Tls(TlsConfig),

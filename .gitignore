@@ -12,5 +12,6 @@ target
 server.lock
 *.rustfmt
 .homebrew
+/logs
 tests/server_public_key.txt
 geiger-report.txt
