@@ -3,7 +3,7 @@ use crate::test_utils::{
     sync_pause, teardown,
 };
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, RemoteSync};
+use sos_net::{sdk::prelude::*, AccountSync};
 
 /// Tests syncing events between two clients after
 /// a server goes offline and a client commits changes

@@ -2,7 +2,7 @@ use crate::test_utils::{
     assert_local_remote_events_eq, simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, RemoteSync};
+use sos_net::{sdk::prelude::*, AccountSync};
 
 /// Tests changing the account name is synced.
 #[tokio::test]

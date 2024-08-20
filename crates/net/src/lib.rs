@@ -28,7 +28,7 @@ pub use error::Error;
 #[cfg(feature = "listen")]
 pub use net::{changes, connect, ListenOptions, WebSocketHandle};
 pub use net::{HttpClient, NetworkRetry};
-pub use sync::{RemoteSync, SyncClient, SyncError};
+pub use sync::{AccountSync, RemoteSync, SyncClient, SyncError};
 
 #[cfg(any(
     feature = "preferences",

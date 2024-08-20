@@ -85,6 +85,17 @@ pub(crate) enum FolderMergeOptions<'a> {
     Search(VaultId, &'a mut crate::sdk::storage::search::SearchIndex),
 }
 
+/// Result of a sync operation.
+pub struct SyncResult<E: std::error::Error> {
+    /// Errors during the sync operation.
+    pub error: Option<SyncError<E>>,
+    /// Outcome of merge operations.
+    ///
+    /// When there is no merge outcome it indicates that
+    /// the account did not exist and was created on the remote.
+    pub outcome: Vec<Option<MergeOutcome>>,
+}
+
 /*
 impl FolderMergeOptions<'_> {
     /// Folder identifier.

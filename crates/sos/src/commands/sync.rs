@@ -13,7 +13,7 @@ use sos_net::{
         storage::StorageEventLogs,
         url::Url,
     },
-    NetworkAccount, RemoteSync,
+    AccountSync, NetworkAccount,
 };
 
 #[derive(Subcommand, Debug)]

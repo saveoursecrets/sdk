@@ -14,9 +14,54 @@ use std::path::Path;
 /// Error type that can be returned from a sync operation.
 pub type SyncError = crate::protocol::SyncError<Error>;
 
-/// Trait for types that can sync accounts with a remote.
+/// Trait for types that can sync with a single remote.
 #[async_trait]
 pub trait RemoteSync {
+    /// Perform a full sync of the account using
+    /// the default options.
+    ///
+    /// If the account does not exist on the remote
+    /// server the account will be created and
+    /// [RemoteSync::sync_file_transfers] will be called
+    /// to ensure the transfers queue is synced.
+    async fn sync(&self) -> Option<SyncError>;
+
+    /// Perform a full sync of the account
+    /// using the given options.
+    ///
+    /// See the documentation for [RemoteSync::sync] for more details.
+    async fn sync_with_options(
+        &self,
+        options: &SyncOptions,
+    ) -> Option<SyncError>;
+
+    /// Sync file transfers.
+    ///
+    /// Updates the file transfers queue with any pending
+    /// uploads or downloads by comparing the local file
+    /// state with the file state on remote server(s).
+    #[cfg(feature = "files")]
+    async fn sync_file_transfers(
+        &self,
+        options: &SyncOptions,
+    ) -> Option<SyncError>;
+
+    /// Force update an account on remote servers.
+    ///
+    /// Should be called after making destructive
+    /// changes to an account's folders. For example, if
+    /// the encryption cipher has been changed, a folder
+    /// password was changed or folder(s) were compacted.
+    async fn force_update(
+        &self,
+        account_data: UpdateSet,
+        options: &SyncOptions,
+    ) -> Option<SyncError>;
+}
+
+/// Trait for types that can sync with multiple remotes.
+#[async_trait]
+pub trait AccountSync {
     /// Perform a full sync of the account using
     /// the default options.
     ///

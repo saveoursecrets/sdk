@@ -1,7 +1,7 @@
 use crate::test_utils::{setup, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_net::{
-    protocol::SyncStorage, sdk::prelude::*, NetworkAccount, RemoteSync,
+    protocol::SyncStorage, sdk::prelude::*, AccountSync, NetworkAccount,
     SyncClient,
 };
 

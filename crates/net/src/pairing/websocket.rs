@@ -13,7 +13,7 @@ use crate::{
         signer::ecdsa::SingleParty,
         url::Url,
     },
-    sync::RemoteSync,
+    sync::AccountSync,
     NetworkAccount, WebSocketRequest,
 };
 use futures::{

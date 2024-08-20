@@ -7,7 +7,7 @@ use crate::{
         vault::{Summary, VaultId},
         Result,
     },
-    NetworkAccount, RemoteSync, SyncClient, SyncError,
+    AccountSync, NetworkAccount, RemoteSync, SyncClient, SyncError,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -88,7 +88,7 @@ impl NetworkAccount {
 }
 
 #[async_trait]
-impl RemoteSync for NetworkAccount {
+impl AccountSync for NetworkAccount {
     async fn sync(&self) -> Option<SyncError> {
         self.sync_with_options(&Default::default()).await
     }

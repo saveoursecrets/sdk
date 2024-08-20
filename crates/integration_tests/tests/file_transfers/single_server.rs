@@ -7,7 +7,7 @@ use crate::test_utils::{
     mock::files::{create_file_secret, update_file_secret},
     simulate_device, spawn, teardown, wait_for_num_transfers,
 };
-use sos_net::{sdk::prelude::*, RemoteSync};
+use sos_net::{sdk::prelude::*, AccountSync};
 
 /// Tests uploading an external file.
 #[tokio::test]

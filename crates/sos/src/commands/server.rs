@@ -9,7 +9,7 @@ use clap::Subcommand;
 use sos_net::{
     protocol::{Origin, SyncOptions},
     sdk::{identity::AccountRef, url::Url},
-    RemoteSync,
+    AccountSync,
 };
 
 #[derive(Subcommand, Debug)]

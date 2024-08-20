@@ -70,7 +70,7 @@ use crate::sdk::account::security_report::{
 use crate::sdk::migrate::import::ImportTarget;
 
 use super::remote::Remotes;
-use crate::{Error, RemoteBridge, RemoteSync, Result};
+use crate::{Error, AccountSync, RemoteBridge, RemoteSync, Result};
 
 #[cfg(feature = "files")]
 use crate::{

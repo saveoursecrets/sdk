@@ -16,8 +16,8 @@ use sos_net::{
         vault::{Summary, VaultId},
         vfs, Paths,
     },
-    InflightNotification, InflightTransfers, ListenOptions, NetworkAccount,
-    RemoteBridge, RemoteSync, SyncClient,
+    InflightNotification, InflightTransfers, ListenOptions, AccountSync,
+    NetworkAccount, RemoteBridge, SyncClient,
 };
 use std::{
     path::PathBuf,

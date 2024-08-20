@@ -4,7 +4,9 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use http::StatusCode;
-use sos_net::{sdk::prelude::*, Error as ClientError, RemoteSync, SyncError};
+use sos_net::{
+    sdk::prelude::*, Error as ClientError, AccountSync, SyncError,
+};
 
 /// Tests pairing a new device and revoking trust in the device.
 #[tokio::test]
