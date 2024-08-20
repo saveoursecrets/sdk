@@ -27,17 +27,17 @@ async fn network_sync_listen_folder_delete() -> Result<()> {
 
     let FolderCreate {
         folder: new_folder,
-        sync_error,
+        sync_result,
         ..
     } = device1
         .owner
         .create_folder("sync_folder".to_string(), Default::default())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
-    let FolderDelete { sync_error, .. } =
+    let FolderDelete { sync_result, .. } =
         device1.owner.delete_folder(&new_folder).await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     let mut server_files = vec![
         server_path.join(&address).join(format!(

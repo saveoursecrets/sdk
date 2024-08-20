@@ -32,7 +32,7 @@ async fn network_sync_change_account_password() -> Result<()> {
         .await?;
 
     // Sync on the second device to fetch initial account state
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     let (new_password, _) = generate_passphrase()?;
     device1
@@ -58,8 +58,8 @@ async fn network_sync_change_account_password() -> Result<()> {
     // account data.
     //
     // Account will be signed out due to the forced pull.
-    let sync_error = device2.owner.sync().await;
-    assert!(sync_error.is_none());
+    let sync_result = device2.owner.sync().await;
+    assert!(sync_result.first_error().is_none());
 
     // Check we can sign in again
     // on the device that just synced using the
@@ -74,7 +74,7 @@ async fn network_sync_change_account_password() -> Result<()> {
         .await?;
 
     // Sync on the original device and check it can read the secret
-    assert!(device1.owner.sync().await.is_none());
+    assert!(device1.owner.sync().await.first_error().is_none());
     let (secret_data, _) = device1
         .owner
         .read_secret(&id, Some(default_folder.clone()))

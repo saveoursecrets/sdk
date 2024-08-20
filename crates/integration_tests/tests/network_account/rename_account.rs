@@ -50,7 +50,7 @@ async fn network_sync_rename_account() -> Result<()> {
     assert_ne!(device1_name, device2_name);
 
     // Sync on the other device
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     // Now the names are back in sync
     let device1_name = {

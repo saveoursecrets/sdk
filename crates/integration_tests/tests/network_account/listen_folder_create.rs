@@ -36,13 +36,13 @@ async fn network_sync_listen_folder_create() -> Result<()> {
 
     let FolderCreate {
         folder: new_folder,
-        sync_error,
+        sync_result,
         ..
     } = device1
         .owner
         .create_folder("sync_folder".to_string(), Default::default())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     // Our new local folder should have the single create vault event
     assert_eq!(1, num_events(&mut device1.owner, new_folder.id()).await);
@@ -62,7 +62,7 @@ async fn network_sync_listen_folder_create() -> Result<()> {
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(result.sync_error.is_none());
+    assert!(result.sync_result.first_error().is_none());
 
     // Pause a while to allow the first owner to sync
     // with the new change

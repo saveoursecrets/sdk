@@ -28,11 +28,11 @@ async fn network_sync_listen_folder_rename() -> Result<()> {
     device1.listen().await?;
     device2.listen().await?;
 
-    let FolderChange { sync_error, .. } = device1
+    let FolderChange { sync_result, .. } = device1
         .owner
         .rename_folder(&default_folder, "new_name".to_string())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     // Pause a while to give the listener some time to process
     // the change notification

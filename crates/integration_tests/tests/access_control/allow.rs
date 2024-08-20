@@ -6,8 +6,8 @@ use crate::test_utils::{
 };
 use http::StatusCode;
 use sos_net::{
-    protocol::SyncError, sdk::prelude::*, Error as ClientError,
-    AccountSync, NetworkAccount,
+    protocol::SyncError, sdk::prelude::*, AccountSync, Error as ClientError,
+    NetworkAccount,
 };
 
 use sos_server::AccessControlConfig;
@@ -52,9 +52,9 @@ async fn access_control_allow() -> Result<()> {
     allowed.owner.add_server(origin.clone()).await?;
     denied.add_server(origin.clone()).await?;
 
-    assert!(allowed.owner.sync().await.is_none());
+    assert!(allowed.owner.sync().await.first_error().is_none());
     let sync_error = denied.sync().await;
-    if let Some(SyncError { mut errors }) = sync_error {
+    if let Some(SyncError { mut errors }) = sync_error.first_error() {
         let (_, err) = errors.remove(0);
         assert!(matches!(
             err,

@@ -35,8 +35,8 @@ async fn network_sync_archive_unarchive() -> Result<()> {
         .await?;
 
     // Sync so they both have the secret
-    assert!(device1.owner.sync().await.is_none());
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device1.owner.sync().await.first_error().is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     // Move to the archive
     let SecretMove { id: secret_id, .. } = device1
@@ -52,7 +52,7 @@ async fn network_sync_archive_unarchive() -> Result<()> {
     assert_eq!(1, num_events(&mut device2.owner, archive_folder.id()).await);
 
     // Second client syncs
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     // Events should be in sync now
     assert_eq!(3, num_events(&mut device1.owner, default_folder.id()).await);
@@ -81,7 +81,7 @@ async fn network_sync_archive_unarchive() -> Result<()> {
     assert_eq!(2, num_events(&mut device2.owner, archive_folder.id()).await);
 
     // Second client syncs to get up to date
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     let mut bridge = device1.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_events_eq(

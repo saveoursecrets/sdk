@@ -30,10 +30,10 @@ async fn auto_merge_edit_secrets() -> Result<()> {
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(result.sync_error.is_none());
+    assert!(result.sync_result.first_error().is_none());
 
     // Sync to fetch the new secret on the second device
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     // Oh no, the server has gone offline!
     drop(server);
@@ -42,7 +42,7 @@ async fn auto_merge_edit_secrets() -> Result<()> {
 
     // Update the secret whilst offline on first device
     let (meta, secret) = mock::note("edit_1", TEST_ID);
-    let SecretChange { sync_error, .. } = device1
+    let SecretChange { sync_result, .. } = device1
         .owner
         .update_secret(
             &result.id,
@@ -52,11 +52,11 @@ async fn auto_merge_edit_secrets() -> Result<()> {
             None,
         )
         .await?;
-    assert!(sync_error.is_some());
+    assert!(sync_result.first_error().is_some());
 
     // Update the secret whilst offline on second device
     let (meta, secret) = mock::note("edit_2", TEST_ID);
-    let SecretChange { sync_error, .. } = device2
+    let SecretChange { sync_result, .. } = device2
         .owner
         .update_secret(
             &result.id,
@@ -66,7 +66,7 @@ async fn auto_merge_edit_secrets() -> Result<()> {
             None,
         )
         .await?;
-    assert!(sync_error.is_some());
+    assert!(sync_result.first_error().is_some());
 
     let device1_folder_state =
         device1.owner.commit_state(&default_folder).await?;
@@ -82,13 +82,13 @@ async fn auto_merge_edit_secrets() -> Result<()> {
     let _server = spawn(TEST_ID, Some(addr), None).await?;
 
     // Sync first device to push changes
-    assert!(device1.owner.sync().await.is_none());
+    assert!(device1.owner.sync().await.first_error().is_none());
 
     // Sync second device to auto merge
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     // Sync first device again to fetch auto merged changes
-    assert!(device1.owner.sync().await.is_none());
+    assert!(device1.owner.sync().await.first_error().is_none());
 
     let device1_folder_state =
         device1.owner.commit_state(&default_folder).await?;

@@ -24,7 +24,7 @@ async fn network_sync_multiple_remotes() -> Result<()> {
     device.owner.add_server(origin.clone()).await?;
 
     // Sync again with the additional remote
-    assert!(device.owner.sync().await.is_none());
+    assert!(device.owner.sync().await.first_error().is_none());
 
     // Create a secret that should be synced to multiple remotes
     let (meta, secret) = mock::note("note", TEST_ID);

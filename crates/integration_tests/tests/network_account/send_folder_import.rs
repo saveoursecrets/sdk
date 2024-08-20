@@ -23,13 +23,13 @@ async fn network_sync_folder_import() -> Result<()> {
     // with the default folder
     let FolderCreate {
         folder: new_folder,
-        sync_error,
+        sync_result,
         ..
     } = device
         .owner
         .create_folder("sync_folder".to_string(), Default::default())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     // Open the new folder so we can get a copy of the data,
     // using the same vault data ensures the same identifier

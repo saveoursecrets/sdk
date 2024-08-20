@@ -23,14 +23,14 @@ async fn network_sync_folder_create() -> Result<()> {
 
     let FolderCreate {
         folder: new_folder,
-        sync_error,
+        sync_result,
         ..
     } = device
         .owner
         .create_folder("sync_folder".to_string(), Default::default())
         .await?;
 
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     // Our new local folder should have the single create vault event
     assert_eq!(1, num_events(&mut device.owner, new_folder.id()).await);

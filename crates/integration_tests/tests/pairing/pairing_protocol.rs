@@ -27,7 +27,7 @@ async fn pairing_protocol() -> Result<()> {
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(result.sync_error.is_none());
+    assert!(result.sync_result.first_error().is_none());
 
     // Run the pairing protocol to completion.
     let mut enrolled_account =
@@ -36,7 +36,7 @@ async fn pairing_protocol() -> Result<()> {
             .unwrap();
 
     // Sync on the original device to fetch the updated device logs
-    assert!(primary_device.owner.sync().await.is_none());
+    assert!(primary_device.owner.sync().await.first_error().is_none());
 
     // Read the secret on the newly enrolled account
     let (secret_data, _) =

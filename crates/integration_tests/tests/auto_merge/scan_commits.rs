@@ -32,7 +32,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(result.sync_error.is_none());
+    assert!(result.sync_result.first_error().is_none());
     let (meta, secret) = mock::note("note_edited", TEST_ID);
     device
         .owner

@@ -39,7 +39,7 @@ async fn network_sync_compact_account() -> Result<()> {
         .await?;
 
     // Sync on the second device to fetch initial account state
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     // Compact the account folders (rewrites all event logs)
     device1.owner.compact_account().await?;
@@ -55,7 +55,7 @@ async fn network_sync_compact_account() -> Result<()> {
     // Try to sync on other device after force update
     // which should perform a force pull to update the
     // account data
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     // Check we can read in the secret data on synced device
     let (secret_data, _) = device2
@@ -80,7 +80,7 @@ async fn network_sync_compact_account() -> Result<()> {
         .await?;
 
     // Sync on the original device and check it can read the secret
-    assert!(device1.owner.sync().await.is_none());
+    assert!(device1.owner.sync().await.first_error().is_none());
     let (secret_data, _) = device1
         .owner
         .read_secret(&id, Some(default_folder.clone()))

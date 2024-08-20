@@ -35,7 +35,7 @@ async fn auto_merge_create_secrets() -> Result<()> {
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(result1.sync_error.is_some());
+    assert!(result1.sync_result.first_error().is_some());
 
     // Create a secret on second device and fail to sync
     let (meta, secret) = mock::note("note_2", "offline_secret_2");
@@ -43,7 +43,7 @@ async fn auto_merge_create_secrets() -> Result<()> {
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(result2.sync_error.is_some());
+    assert!(result2.sync_result.first_error().is_some());
 
     let device1_folder_state =
         device1.owner.commit_state(&default_folder).await?;
@@ -59,12 +59,12 @@ async fn auto_merge_create_secrets() -> Result<()> {
     let _server = spawn(TEST_ID, Some(addr), None).await?;
 
     // Sync the first device
-    assert!(device1.owner.sync().await.is_none());
+    assert!(device1.owner.sync().await.first_error().is_none());
 
     // Sync the second device which will auto merge local
     // changes with the remote so it has both secrets
-    let sync_error = device2.owner.sync().await;
-    assert!(sync_error.is_none());
+    let sync_result = device2.owner.sync().await;
+    assert!(sync_result.first_error().is_none());
 
     // Second device now has both secrets
     let (s1, _) = device2
@@ -94,7 +94,7 @@ async fn auto_merge_create_secrets() -> Result<()> {
 
     // Sync the first device again to fetch the remote commits
     // that were changed when the auto merge executed
-    assert!(device1.owner.sync().await.is_none());
+    assert!(device1.owner.sync().await.first_error().is_none());
 
     // First device now has both secrets
     let (s1, _) = device1

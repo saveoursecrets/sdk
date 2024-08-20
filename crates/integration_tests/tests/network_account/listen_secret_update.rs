@@ -36,12 +36,12 @@ async fn network_sync_listen_secret_update() -> Result<()> {
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(result.sync_error.is_none());
+    assert!(result.sync_result.first_error().is_none());
 
     // Update the secret
     let (meta, secret) =
         mock::note("note_first_owner", "send_events_secret_updated");
-    let SecretChange { sync_error, .. } = device1
+    let SecretChange { sync_result, .. } = device1
         .owner
         .update_secret(
             &result.id,
@@ -52,11 +52,7 @@ async fn network_sync_listen_secret_update() -> Result<()> {
         )
         .await?;
 
-    if sync_error.is_some() {
-        println!("{:#?}", sync_error);
-    }
-
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     // Pause a while to give the listener some time to process
     // the change notification

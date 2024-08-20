@@ -388,8 +388,8 @@ async fn file_transfers_offline_multi_download() -> Result<()> {
         //
         // We have an error here as the first server will fail
         // to connect for the sync.
-        let sync_error = downloader.owner.sync().await;
-        assert!(sync_error.is_none());
+        let sync_result = downloader.owner.sync().await;
+        assert!(sync_result.first_error().is_none());
 
         // Wait for the file to exist
         let paths = downloader.owner.paths();

@@ -51,7 +51,7 @@ async fn network_sync_secret_create() -> Result<()> {
     assert_eq!(3, num_events(&mut device2.owner, &default_folder_id).await);
 
     // First client runs sync to pull down the additional secret
-    assert!(device1.owner.sync().await.is_none());
+    assert!(device1.owner.sync().await.first_error().is_none());
 
     // Everyone is equal
     assert_eq!(3, num_events(&mut device1.owner, &default_folder_id).await);

@@ -19,14 +19,14 @@ async fn network_sync_folder_description() -> Result<()> {
     let default_folder = device.default_folder.clone();
     let folders = device.folders.clone();
 
-    let FolderChange { sync_error, .. } = device
+    let FolderChange { sync_result, .. } = device
         .owner
         .set_folder_description(
             &default_folder,
             "new_description".to_string(),
         )
         .await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote

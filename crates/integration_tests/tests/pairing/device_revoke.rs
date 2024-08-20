@@ -5,7 +5,7 @@ use crate::test_utils::{
 use anyhow::Result;
 use http::StatusCode;
 use sos_net::{
-    sdk::prelude::*, Error as ClientError, AccountSync, SyncError,
+    sdk::prelude::*, AccountSync, Error as ClientError, SyncError,
 };
 
 /// Tests pairing a new device and revoking trust in the device.
@@ -42,7 +42,7 @@ async fn pairing_device_revoke() -> Result<()> {
     assert!(matches!(result, Err(ClientError::RevokeDeviceSelf)));
 
     // Sync on the original device to fetch the updated device logs
-    assert!(primary_device.owner.sync().await.is_none());
+    assert!(primary_device.owner.sync().await.first_error().is_none());
 
     // Primary device revokes access to the newly enrolled device
     // as if it were lost or stolen
@@ -70,8 +70,8 @@ async fn pairing_device_revoke() -> Result<()> {
 
     // Attempting to sync after the device was revoked
     // yields a forbidden response
-    let sync_error = enrolled_account.sync().await;
-    if let Some(SyncError { mut errors }) = sync_error {
+    let sync_result = enrolled_account.sync().await;
+    if let Some(SyncError { mut errors }) = sync_result.first_error() {
         let (_, err) = errors.remove(0);
         assert!(matches!(
             err,

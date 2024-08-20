@@ -266,7 +266,7 @@ async fn file_transfers_single_download() -> Result<()> {
     {
         // Sync pulls down the file event logs and
         // creates the pending download transfer operation
-        assert!(downloader.owner.sync().await.is_none());
+        assert!(downloader.owner.sync().await.first_error().is_none());
 
         wait_for_num_transfers(&downloader.owner, 1).await?;
 
