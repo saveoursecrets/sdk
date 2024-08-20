@@ -15,6 +15,7 @@ use std::path::Path;
 pub type SyncError = crate::protocol::SyncError<Error>;
 
 /// Result of a sync operation with a single remote.
+#[derive(Debug)]
 pub enum RemoteResult {
     /// Remote was ignored from sync operation.
     Skip,
@@ -38,6 +39,7 @@ impl RemoteResult {
 }
 
 /// Result of a sync operation.
+#[derive(Debug)]
 pub struct SyncResult {}
 
 /// Trait for types that can sync with a single remote.
