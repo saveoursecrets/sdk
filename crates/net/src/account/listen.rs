@@ -3,7 +3,7 @@
 use crate::{
     protocol::{ChangeNotification, Origin, SyncError, SyncStorage},
     sync::RemoteSync,
-    Error, ListenOptions, NetworkAccount, Result,
+    Error, ListenOptions, NetworkAccount, RemoteResult, Result,
 };
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -80,7 +80,7 @@ impl NetworkAccount {
 
                             // Sync with the remote that notified us
                             let sync_error = sync_remote.sync().await;
-                            if let Some(e) = &sync_error {
+                            if let RemoteResult::Error(e) = &sync_error {
                                 tracing::error!(
                                     error = ?e,
                                     "listen_sync",
@@ -91,7 +91,9 @@ impl NetworkAccount {
                             // change notification and a possible sync error
                             let tx = listener.clone();
                             if let Some(tx) = tx {
-                                let _ = tx.send((message, sync_error)).await;
+                                let _ = tx
+                                    .send((message, sync_error.as_err()))
+                                    .await;
                             }
                         } else {
                             tracing::debug!(

@@ -70,7 +70,7 @@ use crate::sdk::account::security_report::{
 use crate::sdk::migrate::import::ImportTarget;
 
 use super::remote::Remotes;
-use crate::{Error, AccountSync, RemoteBridge, RemoteSync, Result};
+use crate::{AccountSync, Error, RemoteBridge, RemoteSync, Result};
 
 #[cfg(feature = "files")]
 use crate::{
@@ -289,7 +289,8 @@ impl NetworkAccount {
                     origins: vec![origin.clone()],
                     ..Default::default()
                 };
-                sync_error = remote.sync_with_options(&options).await;
+                sync_error =
+                    remote.sync_with_options(&options).await.as_err();
             }
         }
 

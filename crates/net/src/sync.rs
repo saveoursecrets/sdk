@@ -1,9 +1,9 @@
 use super::Error;
 use crate::{
     protocol::{
-        CreateSet, DiffRequest, DiffResponse, Origin, PatchRequest,
-        PatchResponse, ScanRequest, ScanResponse, SyncOptions, SyncPacket,
-        SyncStatus, UpdateSet,
+        CreateSet, DiffRequest, DiffResponse, MergeOutcome, Origin,
+        PatchRequest, PatchResponse, ScanRequest, ScanResponse, SyncOptions,
+        SyncPacket, SyncStatus, UpdateSet,
     },
     CancelReason, Result,
 };
@@ -13,6 +13,32 @@ use std::path::Path;
 
 /// Error type that can be returned from a sync operation.
 pub type SyncError = crate::protocol::SyncError<Error>;
+
+/// Result of a sync operation with a single remote.
+pub enum RemoteResult {
+    /// Remote was ignored from sync operation.
+    Skip,
+    /// Outcome of a merge operation.
+    ///
+    /// When there is no merge outcome it indicates that
+    /// the account did not exist and was created on the remote.
+    MergeOutcome(Option<MergeOutcome>),
+    /// Error result.
+    Error(SyncError),
+}
+
+impl RemoteResult {
+    /// Convert to `Option<SyncError>`.
+    pub fn as_err(self) -> Option<SyncError> {
+        match self {
+            Self::Error(err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
+/// Result of a sync operation.
+pub struct SyncResult {}
 
 /// Trait for types that can sync with a single remote.
 #[async_trait]
@@ -24,16 +50,13 @@ pub trait RemoteSync {
     /// server the account will be created and
     /// [RemoteSync::sync_file_transfers] will be called
     /// to ensure the transfers queue is synced.
-    async fn sync(&self) -> Option<SyncError>;
+    async fn sync(&self) -> RemoteResult;
 
     /// Perform a full sync of the account
     /// using the given options.
     ///
     /// See the documentation for [RemoteSync::sync] for more details.
-    async fn sync_with_options(
-        &self,
-        options: &SyncOptions,
-    ) -> Option<SyncError>;
+    async fn sync_with_options(&self, options: &SyncOptions) -> RemoteResult;
 
     /// Sync file transfers.
     ///

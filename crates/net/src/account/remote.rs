@@ -11,7 +11,7 @@ use crate::{
         storage::StorageEventLogs,
         vfs,
     },
-    Error, RemoteSync, Result, SyncClient, SyncError,
+    Error, RemoteResult, RemoteSync, Result, SyncClient, SyncError,
 };
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
@@ -265,14 +265,11 @@ impl RemoteBridge {
 
 #[async_trait]
 impl RemoteSync for RemoteBridge {
-    async fn sync(&self) -> Option<SyncError> {
+    async fn sync(&self) -> RemoteResult {
         self.sync_with_options(&Default::default()).await
     }
 
-    async fn sync_with_options(
-        &self,
-        options: &SyncOptions,
-    ) -> Option<SyncError> {
+    async fn sync_with_options(&self, options: &SyncOptions) -> RemoteResult {
         let should_sync = options.origins.is_empty()
             || options
                 .origins
@@ -282,14 +279,14 @@ impl RemoteSync for RemoteBridge {
 
         if !should_sync {
             tracing::warn!(origin = %self.origin, "skip sync");
-            return None;
+            return RemoteResult::Skip;
         }
 
         tracing::debug!(origin = %self.origin.url());
 
         match self.execute_sync(options).await {
-            Ok(_) => None,
-            Err(e) => Some(SyncError {
+            Ok(outcome) => RemoteResult::MergeOutcome(outcome),
+            Err(e) => RemoteResult::Error(SyncError {
                 errors: vec![(self.origin.clone(), e)],
             }),
         }
