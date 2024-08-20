@@ -207,26 +207,32 @@ impl RemoteBridge {
         Ok(outcome)
     }
 
-    async fn execute_sync(&self, options: &SyncOptions) -> Result<()> {
+    async fn execute_sync(
+        &self,
+        options: &SyncOptions,
+    ) -> Result<Option<MergeOutcome>> {
         let exists = self.client.account_exists().await?;
         if exists {
             let sync_status = self.client.sync_status().await?;
             match self.sync_account(sync_status).await {
-                Ok(_) => Ok(()),
+                Ok(outcome) => Ok(Some(outcome)),
                 Err(e) => match e {
                     Error::SoftConflict {
                         conflict,
                         local,
                         remote,
                     } => {
-                        self.auto_merge(options, conflict, local, remote)
-                            .await
+                        let outcome = self
+                            .auto_merge(options, conflict, local, remote)
+                            .await?;
+                        Ok(Some(outcome))
                     }
                     _ => Err(e),
                 },
             }
         } else {
-            self.create_remote_account().await
+            self.create_remote_account().await?;
+            Ok(None)
         }
     }
 

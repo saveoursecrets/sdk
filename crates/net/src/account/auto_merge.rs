@@ -122,7 +122,7 @@ impl RemoteBridge {
         conflict: MaybeConflict,
         local: SyncStatus,
         _remote: SyncStatus,
-    ) -> Result<()> {
+    ) -> Result<MergeOutcome> {
         let mut force_merge_outcome = MergeOutcome::default();
         let mut has_hard_conflict = false;
 
@@ -175,7 +175,7 @@ impl RemoteBridge {
             account.sign_out().await?;
         }
 
-        Ok(())
+        Ok(force_merge_outcome)
     }
 
     auto_merge_impl!(
