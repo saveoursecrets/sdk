@@ -50,7 +50,7 @@ impl SyncResult {
     }
 
     /// Determine if the sync has one or more errors.
-    pub fn has_errors(&self) -> bool {
+    pub fn has_error(&self) -> bool {
         self.remotes.iter().any(|r| r.result.is_err())
     }
 }
