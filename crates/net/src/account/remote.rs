@@ -86,7 +86,10 @@ impl RemoteBridge {
         Ok(())
     }
 
-    async fn sync_account(&self, remote_status: SyncStatus) -> Result<()> {
+    async fn sync_account(
+        &self,
+        remote_status: SyncStatus,
+    ) -> Result<MergeOutcome> {
         let mut account = self.account.lock().await;
 
         tracing::debug!("merge_client");
@@ -95,6 +98,8 @@ impl RemoteBridge {
             sos_protocol::diff(&*account, remote_status).await?;
 
         tracing::debug!(needs_sync = %needs_sync, "merge_client");
+
+        let mut outcome = MergeOutcome::default();
 
         if needs_sync {
             let packet = SyncPacket {
@@ -110,8 +115,6 @@ impl RemoteBridge {
                 .map(|c| c.maybe_conflict())
                 .unwrap_or_default();
             let has_conflicts = maybe_conflict.has_conflicts();
-
-            let mut outcome = MergeOutcome::default();
 
             if !has_conflicts {
                 account.merge(remote_changes.diff, &mut outcome).await?;
@@ -201,7 +204,7 @@ impl RemoteBridge {
             }
         }
 
-        Ok(())
+        Ok(outcome)
     }
 
     async fn execute_sync(&self, options: &SyncOptions) -> Result<()> {
