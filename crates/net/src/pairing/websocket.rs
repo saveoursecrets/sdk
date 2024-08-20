@@ -459,7 +459,7 @@ impl<'a> OfferPairing<'a> {
             ..Default::default()
         };
         if let Some(sync_error) =
-            self.account.sync_with_options(&options).await
+            self.account.sync_with_options(&options).await.first_error()
         {
             return Err(Error::DevicePatchSync(sync_error));
         }
@@ -470,7 +470,7 @@ impl<'a> OfferPairing<'a> {
         // fetch data that includes the password for the device
         // vault we will send
         if let Some(sync_error) =
-            self.account.sync_with_options(&options).await
+            self.account.sync_with_options(&options).await.first_error()
         {
             return Err(Error::EnrollSync(sync_error));
         }

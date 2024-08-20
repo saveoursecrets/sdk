@@ -26,7 +26,7 @@ use crate::{
         },
         vfs, Paths,
     },
-    SyncClient,
+    SyncClient, SyncResult,
 };
 use async_trait::async_trait;
 use secrecy::SecretString;
@@ -203,7 +203,7 @@ impl NetworkAccount {
         }
 
         // Send the device event logs to the remote servers
-        if let Some(e) = self.sync().await {
+        if let Some(e) = self.sync().await.first_error() {
             tracing::error!(error = ?e);
             return Err(Error::RevokeDeviceSync(e));
         }
@@ -640,7 +640,7 @@ impl NetworkAccount {
 impl Account for NetworkAccount {
     type Account = NetworkAccount;
     type Error = Error;
-    type NetworkError = SyncError<Error>;
+    type NetworkResult = SyncResult;
 
     fn address(&self) -> &Address {
         &self.address
@@ -709,7 +709,7 @@ impl Account for NetworkAccount {
         &mut self,
         folder: &Summary,
         description: impl AsRef<str> + Send + Sync,
-    ) -> Result<FolderChange<Self::NetworkError>> {
+    ) -> Result<FolderChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
@@ -719,7 +719,7 @@ impl Account for NetworkAccount {
         let result = FolderChange {
             event: result.event,
             commit_state: result.commit_state,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
         };
 
         Ok(result)
@@ -798,7 +798,8 @@ impl Account for NetworkAccount {
 
         // In case we have pending updates to the account, device
         // or file event logs
-        if let Some(sync_error) = self.sync_with_options(&sync_options).await
+        if let Some(sync_error) =
+            self.sync_with_options(&sync_options).await.first_error()
         {
             return Err(Error::ForceUpdate(sync_error));
         }
@@ -833,7 +834,8 @@ impl Account for NetworkAccount {
 
         // In case we have pending updates to the account, device
         // or file event logs
-        if let Some(sync_error) = self.sync_with_options(&sync_options).await
+        if let Some(sync_error) =
+            self.sync_with_options(&sync_options).await.first_error()
         {
             return Err(Error::ForceUpdate(sync_error));
         }
@@ -886,7 +888,7 @@ impl Account for NetworkAccount {
     async fn rename_account(
         &mut self,
         account_name: String,
-    ) -> Result<AccountChange<Self::NetworkError>> {
+    ) -> Result<AccountChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
@@ -896,7 +898,7 @@ impl Account for NetworkAccount {
 
         let result = AccountChange {
             event: result.event,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
         };
 
         Ok(result)
@@ -1012,7 +1014,8 @@ impl Account for NetworkAccount {
 
         // In case we have pending updates to the account, device
         // or file event logs
-        if let Some(sync_error) = self.sync_with_options(&sync_options).await
+        if let Some(sync_error) =
+            self.sync_with_options(&sync_options).await.first_error()
         {
             return Err(Error::ForceUpdate(sync_error));
         }
@@ -1056,7 +1059,7 @@ impl Account for NetworkAccount {
             // In case we have pending updates to the account, device
             // or file event logs
             if let Some(sync_error) =
-                self.sync_with_options(&sync_options).await
+                self.sync_with_options(&sync_options).await.first_error()
             {
                 return Err(Error::ForceUpdate(sync_error));
             }
@@ -1117,7 +1120,7 @@ impl Account for NetworkAccount {
             // In case we have pending updates to the account, device
             // or file event logs
             if let Some(sync_error) =
-                self.sync_with_options(&sync_options).await
+                self.sync_with_options(&sync_options).await.first_error()
             {
                 return Err(Error::ForceUpdate(sync_error));
             }
@@ -1211,7 +1214,7 @@ impl Account for NetworkAccount {
         meta: SecretMeta,
         secret: Secret,
         options: AccessOptions,
-    ) -> Result<SecretChange<Self::NetworkError>> {
+    ) -> Result<SecretChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
@@ -1225,7 +1228,7 @@ impl Account for NetworkAccount {
             event: result.event,
             commit_state: result.commit_state,
             folder: result.folder,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
             #[cfg(feature = "files")]
             file_events: result.file_events,
         };
@@ -1239,7 +1242,7 @@ impl Account for NetworkAccount {
     async fn insert_secrets(
         &mut self,
         secrets: Vec<(SecretMeta, Secret)>,
-    ) -> Result<SecretInsert<Self::NetworkError>> {
+    ) -> Result<SecretInsert<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
@@ -1262,13 +1265,13 @@ impl Account for NetworkAccount {
                         event: result.event,
                         commit_state: result.commit_state,
                         folder: result.folder,
-                        sync_error: None,
+                        sync_result: Default::default(),
                         #[cfg(feature = "files")]
                         file_events: result.file_events,
                     }
                 })
                 .collect(),
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
         };
 
         #[cfg(feature = "files")]
@@ -1284,7 +1287,7 @@ impl Account for NetworkAccount {
         secret: Option<Secret>,
         options: AccessOptions,
         destination: Option<&Summary>,
-    ) -> Result<SecretChange<Self::NetworkError>> {
+    ) -> Result<SecretChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
@@ -1300,7 +1303,7 @@ impl Account for NetworkAccount {
             event: result.event,
             commit_state: result.commit_state,
             folder: result.folder,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
             #[cfg(feature = "files")]
             file_events: result.file_events,
         };
@@ -1317,7 +1320,7 @@ impl Account for NetworkAccount {
         from: &Summary,
         to: &Summary,
         options: AccessOptions,
-    ) -> Result<SecretMove<Self::NetworkError>> {
+    ) -> Result<SecretMove<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
@@ -1328,7 +1331,7 @@ impl Account for NetworkAccount {
         let result = SecretMove {
             id: result.id,
             event: result.event,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
             #[cfg(feature = "files")]
             file_events: result.file_events,
         };
@@ -1352,7 +1355,7 @@ impl Account for NetworkAccount {
         &mut self,
         secret_id: &SecretId,
         options: AccessOptions,
-    ) -> Result<SecretDelete<Self::NetworkError>> {
+    ) -> Result<SecretDelete<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
@@ -1364,7 +1367,7 @@ impl Account for NetworkAccount {
             event: result.event,
             commit_state: result.commit_state,
             folder: result.folder,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
             #[cfg(feature = "files")]
             file_events: result.file_events,
         };
@@ -1380,7 +1383,7 @@ impl Account for NetworkAccount {
         from: &Summary,
         secret_id: &SecretId,
         options: AccessOptions,
-    ) -> Result<SecretMove<Self::NetworkError>> {
+    ) -> Result<SecretMove<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
@@ -1390,7 +1393,7 @@ impl Account for NetworkAccount {
         let result = SecretMove {
             id: result.id,
             event: result.event,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
             #[cfg(feature = "files")]
             file_events: result.file_events,
         };
@@ -1406,7 +1409,7 @@ impl Account for NetworkAccount {
         secret_id: &SecretId,
         secret_meta: &SecretMeta,
         options: AccessOptions,
-    ) -> Result<(SecretMove<Self::NetworkError>, Summary)> {
+    ) -> Result<(SecretMove<Self::NetworkResult>, Summary)> {
         let _ = self.sync_lock.lock().await;
 
         let (result, to) = {
@@ -1417,7 +1420,7 @@ impl Account for NetworkAccount {
         let result = SecretMove {
             id: result.id,
             event: result.event,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
             #[cfg(feature = "files")]
             file_events: result.file_events,
         };
@@ -1436,7 +1439,7 @@ impl Account for NetworkAccount {
         path: impl AsRef<Path> + Send + Sync,
         options: AccessOptions,
         destination: Option<&Summary>,
-    ) -> Result<SecretChange<Self::NetworkError>> {
+    ) -> Result<SecretChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
@@ -1452,7 +1455,7 @@ impl Account for NetworkAccount {
             event: result.event,
             commit_state: result.commit_state,
             folder: result.folder,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
             #[cfg(feature = "files")]
             file_events: result.file_events,
         };
@@ -1467,7 +1470,7 @@ impl Account for NetworkAccount {
         &mut self,
         name: String,
         options: NewFolderOptions,
-    ) -> Result<FolderCreate<Self::NetworkError>> {
+    ) -> Result<FolderCreate<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
@@ -1478,7 +1481,7 @@ impl Account for NetworkAccount {
             folder: result.folder,
             event: result.event,
             commit_state: result.commit_state,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
         };
 
         Ok(result)
@@ -1488,7 +1491,7 @@ impl Account for NetworkAccount {
         &mut self,
         summary: &Summary,
         name: String,
-    ) -> Result<FolderChange<Self::NetworkError>> {
+    ) -> Result<FolderChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
@@ -1498,7 +1501,7 @@ impl Account for NetworkAccount {
         let result = FolderChange {
             event: result.event,
             commit_state: result.commit_state,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
         };
 
         Ok(result)
@@ -1508,7 +1511,7 @@ impl Account for NetworkAccount {
         &mut self,
         summary: &Summary,
         flags: VaultFlags,
-    ) -> Result<FolderChange<Self::NetworkError>> {
+    ) -> Result<FolderChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
@@ -1518,7 +1521,7 @@ impl Account for NetworkAccount {
         let result = FolderChange {
             event: result.event,
             commit_state: result.commit_state,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
         };
 
         Ok(result)
@@ -1529,7 +1532,7 @@ impl Account for NetworkAccount {
         path: impl AsRef<Path> + Send + Sync,
         key: AccessKey,
         overwrite: bool,
-    ) -> Result<FolderCreate<Self::NetworkError>> {
+    ) -> Result<FolderCreate<Self::NetworkResult>> {
         let buffer = vfs::read(path.as_ref()).await?;
         self.import_folder_buffer(&buffer, key, overwrite).await
     }
@@ -1547,7 +1550,7 @@ impl Account for NetworkAccount {
         buffer: impl AsRef<[u8]> + Send + Sync,
         key: AccessKey,
         overwrite: bool,
-    ) -> Result<FolderCreate<Self::NetworkError>> {
+    ) -> Result<FolderCreate<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
@@ -1559,7 +1562,7 @@ impl Account for NetworkAccount {
             folder: result.folder,
             event: result.event,
             commit_state: result.commit_state,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
         };
 
         Ok(result)
@@ -1593,7 +1596,7 @@ impl Account for NetworkAccount {
     async fn delete_folder(
         &mut self,
         summary: &Summary,
-    ) -> Result<FolderDelete<Self::NetworkError>> {
+    ) -> Result<FolderDelete<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
@@ -1603,7 +1606,7 @@ impl Account for NetworkAccount {
         let result = FolderDelete {
             events: result.events,
             commit_state: result.commit_state,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
         };
 
         Ok(result)
@@ -1677,7 +1680,7 @@ impl Account for NetworkAccount {
     async fn import_file(
         &mut self,
         target: ImportTarget,
-    ) -> Result<FolderCreate<Self::NetworkError>> {
+    ) -> Result<FolderCreate<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
@@ -1689,7 +1692,7 @@ impl Account for NetworkAccount {
             folder: result.folder,
             event: result.event,
             commit_state: result.commit_state,
-            sync_error: self.sync().await,
+            sync_result: self.sync().await,
         };
 
         Ok(result)

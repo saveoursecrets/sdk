@@ -24,10 +24,23 @@ pub struct RemoteResult {
 }
 
 /// Result of a sync operation.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SyncResult {
     /// Result of syncing with remote servers.
     pub remotes: Vec<RemoteResult>,
+}
+
+impl SyncResult {
+    /// Find the first sync error.
+    pub fn first_error(self) -> Option<SyncError> {
+        self.remotes.into_iter().find_map(|res| {
+            if res.result.is_err() {
+                res.result.err()
+            } else {
+                None
+            }
+        })
+    }
 }
 
 /// Trait for types that can sync with a single remote.
@@ -82,16 +95,13 @@ pub trait AccountSync {
     /// server the account will be created and
     /// [RemoteSync::sync_file_transfers] will be called
     /// to ensure the transfers queue is synced.
-    async fn sync(&self) -> Option<SyncError>;
+    async fn sync(&self) -> SyncResult;
 
     /// Perform a full sync of the account
     /// using the given options.
     ///
     /// See the documentation for [RemoteSync::sync] for more details.
-    async fn sync_with_options(
-        &self,
-        options: &SyncOptions,
-    ) -> Option<SyncError>;
+    async fn sync_with_options(&self, options: &SyncOptions) -> SyncResult;
 
     /// Sync file transfers.
     ///
