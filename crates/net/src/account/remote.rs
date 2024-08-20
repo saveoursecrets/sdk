@@ -285,42 +285,33 @@ impl RemoteSync for RemoteBridge {
     }
 
     #[cfg(feature = "files")]
-    async fn sync_file_transfers(
-        &self,
-        options: &SyncOptions,
-    ) -> Option<SyncError> {
-        let should_sync = options.origins.is_empty()
-            || options
-                .origins
-                .iter()
-                .find(|&o| o == &self.origin)
-                .is_some();
-
-        if !should_sync {
-            tracing::warn!(origin = %self.origin, "skip sync");
-            return None;
-        }
-
-        tracing::debug!(origin = %self.origin.url());
-
+    async fn sync_file_transfers(&self) -> RemoteResult {
         match self.execute_sync_file_transfers().await {
-            Ok(_) => None,
-            Err(e) => Some(SyncError {
-                errors: vec![(self.origin.clone(), e)],
-            }),
+            Ok(_) => RemoteResult {
+                origin: self.origin.clone(),
+                result: Ok(None),
+            },
+            Err(e) => RemoteResult {
+                origin: self.origin.clone(),
+                result: Err(SyncError {
+                    errors: vec![(self.origin.clone(), e)],
+                }),
+            },
         }
     }
 
-    async fn force_update(
-        &self,
-        account_data: UpdateSet,
-        _options: &SyncOptions,
-    ) -> Option<SyncError> {
+    async fn force_update(&self, account_data: UpdateSet) -> RemoteResult {
         match self.client.update_account(account_data).await {
-            Ok(_) => None,
-            Err(e) => Some(SyncError {
-                errors: vec![(self.origin.clone(), e)],
-            }),
+            Ok(_) => RemoteResult {
+                origin: self.origin.clone(),
+                result: Ok(None),
+            },
+            Err(e) => RemoteResult {
+                origin: self.origin.clone(),
+                result: Err(SyncError {
+                    errors: vec![(self.origin.clone(), e)],
+                }),
+            },
         }
     }
 }

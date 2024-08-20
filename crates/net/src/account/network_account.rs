@@ -791,8 +791,8 @@ impl Account for NetworkAccount {
             ..Default::default()
         };
 
-        let sync_error = self.force_update(updates, &sync_options).await;
-        if let Some(sync_error) = sync_error {
+        let sync_result = self.force_update(updates, &sync_options).await;
+        if let Some(sync_error) = sync_result.first_error() {
             return Err(Error::ForceUpdate(sync_error));
         }
 
@@ -827,8 +827,8 @@ impl Account for NetworkAccount {
             ..Default::default()
         };
 
-        let sync_error = self.force_update(updates, &sync_options).await;
-        if let Some(sync_error) = sync_error {
+        let sync_result = self.force_update(updates, &sync_options).await;
+        if let Some(sync_error) = sync_result.first_error() {
             return Err(Error::ForceUpdate(sync_error));
         }
 
@@ -1007,8 +1007,8 @@ impl Account for NetworkAccount {
             ..Default::default()
         };
 
-        let sync_error = self.force_update(updates, &sync_options).await;
-        if let Some(sync_error) = sync_error {
+        let sync_result = self.force_update(updates, &sync_options).await;
+        if let Some(sync_error) = sync_result.first_error() {
             return Err(Error::ForceUpdate(sync_error));
         }
 
@@ -1051,8 +1051,8 @@ impl Account for NetworkAccount {
                 ..Default::default()
             };
 
-            let sync_error = self.force_update(updates, &sync_options).await;
-            if let Some(sync_error) = sync_error {
+            let sync_result = self.force_update(updates, &sync_options).await;
+            if let Some(sync_error) = sync_result.first_error() {
                 return Err(Error::ForceUpdate(sync_error));
             }
 
@@ -1112,8 +1112,8 @@ impl Account for NetworkAccount {
                 ..Default::default()
             };
 
-            let sync_error = self.force_update(updates, &sync_options).await;
-            if let Some(sync_error) = sync_error {
+            let sync_result = self.force_update(updates, &sync_options).await;
+            if let Some(sync_error) = sync_result.first_error() {
                 return Err(Error::ForceUpdate(sync_error));
             }
 

@@ -86,8 +86,8 @@ pub async fn run(cmd: Command) -> Result<()> {
             };
 
             if files {
-                let sync_error = owner.sync_file_transfers(&options).await;
-                if sync_error.is_some() {
+                let sync_result = owner.sync_file_transfers(&options).await;
+                if sync_result.first_error().is_some() {
                     return Err(Error::SyncFail);
                 }
             }

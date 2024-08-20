@@ -59,17 +59,6 @@ impl<T: std::error::Error> fmt::Display for SyncError<T> {
     }
 }
 
-impl<T: std::error::Error> SyncError<T> {
-    /// Convert to an option.
-    pub fn into_option(self) -> Option<Self> {
-        if self.errors.is_empty() {
-            None
-        } else {
-            Some(self)
-        }
-    }
-}
-
 impl<T: std::error::Error> Default for SyncError<T> {
     fn default() -> Self {
         Self { errors: Vec::new() }

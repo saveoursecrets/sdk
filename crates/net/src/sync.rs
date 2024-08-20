@@ -67,10 +67,7 @@ pub trait RemoteSync {
     /// uploads or downloads by comparing the local file
     /// state with the file state on remote server(s).
     #[cfg(feature = "files")]
-    async fn sync_file_transfers(
-        &self,
-        options: &SyncOptions,
-    ) -> Option<SyncError>;
+    async fn sync_file_transfers(&self) -> RemoteResult;
 
     /// Force update an account on remote servers.
     ///
@@ -78,11 +75,7 @@ pub trait RemoteSync {
     /// changes to an account's folders. For example, if
     /// the encryption cipher has been changed, a folder
     /// password was changed or folder(s) were compacted.
-    async fn force_update(
-        &self,
-        account_data: UpdateSet,
-        options: &SyncOptions,
-    ) -> Option<SyncError>;
+    async fn force_update(&self, account_data: UpdateSet) -> RemoteResult;
 }
 
 /// Trait for types that can sync with multiple remotes.
@@ -109,10 +102,7 @@ pub trait AccountSync {
     /// uploads or downloads by comparing the local file
     /// state with the file state on remote server(s).
     #[cfg(feature = "files")]
-    async fn sync_file_transfers(
-        &self,
-        options: &SyncOptions,
-    ) -> Option<SyncError>;
+    async fn sync_file_transfers(&self, options: &SyncOptions) -> SyncResult;
 
     /// Force update an account on remote servers.
     ///
@@ -124,7 +114,7 @@ pub trait AccountSync {
         &self,
         account_data: UpdateSet,
         options: &SyncOptions,
-    ) -> Option<SyncError>;
+    ) -> SyncResult;
 }
 
 /// Client that can synchronize with a remote server.
