@@ -37,6 +37,22 @@ impl SyncResult {
             }
         })
     }
+
+    /// Find the first sync error by reference.
+    pub fn first_error_ref(&self) -> Option<&crate::Error> {
+        self.remotes.iter().find_map(|res| {
+            if let Err(e) = &res.result {
+                Some(e)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Determine if the sync has one or more errors.
+    pub fn has_errors(&self) -> bool {
+        self.remotes.iter().any(|r| r.result.is_err())
+    }
 }
 
 /// Trait for types that can sync with a single remote.
