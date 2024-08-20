@@ -78,7 +78,7 @@ impl NetworkAccount {
 
                             // Sync with the remote that notified us
                             let sync_result = sync_remote.sync().await;
-                            if let Err(e) = &sync_result.1 {
+                            if let Err(e) = &sync_result.result {
                                 tracing::error!(
                                     error = ?e,
                                     "listen_sync",

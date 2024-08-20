@@ -15,10 +15,12 @@ use std::path::Path;
 pub type SyncError = crate::protocol::SyncError<Error>;
 
 /// Result of a sync operation with a single remote.
-pub struct RemoteResult(
-    pub Origin,
-    pub std::result::Result<Option<MergeOutcome>, SyncError>,
-);
+pub struct RemoteResult {
+    /// Origin of the remote.
+    pub origin: Origin,
+    /// Result of the sync operation.
+    pub result: std::result::Result<Option<MergeOutcome>, SyncError>,
+}
 
 /// Result of a sync operation.
 #[derive(Debug)]

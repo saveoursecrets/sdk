@@ -271,13 +271,16 @@ impl RemoteSync for RemoteBridge {
 
     async fn sync_with_options(&self, options: &SyncOptions) -> RemoteResult {
         match self.execute_sync(options).await {
-            Ok(outcome) => RemoteResult(self.origin.clone(), Ok(outcome)),
-            Err(e) => RemoteResult(
-                self.origin.clone(),
-                Err(SyncError {
+            Ok(outcome) => RemoteResult {
+                origin: self.origin.clone(),
+                result: Ok(outcome),
+            },
+            Err(e) => RemoteResult {
+                origin: self.origin.clone(),
+                result: Err(SyncError {
                     errors: vec![(self.origin.clone(), e)],
                 }),
-            ),
+            },
         }
     }
 
