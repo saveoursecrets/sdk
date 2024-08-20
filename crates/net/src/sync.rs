@@ -15,6 +15,7 @@ use std::path::Path;
 pub type SyncError = crate::protocol::SyncError<Error>;
 
 /// Result of a sync operation with a single remote.
+#[derive(Debug)]
 pub struct RemoteResult {
     /// Origin of the remote.
     pub origin: Origin,
@@ -24,7 +25,10 @@ pub struct RemoteResult {
 
 /// Result of a sync operation.
 #[derive(Debug)]
-pub struct SyncResult {}
+pub struct SyncResult {
+    /// Result of syncing with remote servers.
+    pub remotes: Vec<RemoteResult>,
+}
 
 /// Trait for types that can sync with a single remote.
 #[async_trait]
