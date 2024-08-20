@@ -119,7 +119,8 @@ impl AccountSync for NetworkAccount {
             }
 
             if sync_remote {
-                if let Err(mut e) = remote.sync_with_options(options).await {
+                if let Err(mut e) = remote.sync_with_options(options).await.1
+                {
                     maybe_error.errors.append(&mut e.errors);
                 }
             }
