@@ -16,7 +16,7 @@ use sos_net::{
         vault::{Summary, VaultId},
         vfs, Paths,
     },
-    InflightNotification, InflightTransfers, ListenOptions, AccountSync,
+    AccountSync, InflightNotification, InflightTransfers, ListenOptions,
     NetworkAccount, RemoteBridge, SyncClient,
 };
 use std::{
@@ -147,8 +147,8 @@ pub async fn simulate_device_with_builder(
         owner.add_server(origin.clone()).await?;
 
         // Sync the local account to create the account on remote
-        let sync_error = owner.sync().await;
-        assert!(sync_error.is_none());
+        let sync_result = owner.sync().await;
+        assert!(sync_result.first_error().is_none());
 
         (origin, server.account_path(owner.address()))
     } else {

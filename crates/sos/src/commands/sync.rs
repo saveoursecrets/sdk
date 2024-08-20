@@ -58,8 +58,8 @@ pub async fn run(cmd: Command) -> Result<()> {
             }
 
             let options = if url.is_empty() {
-                let sync_error = owner.sync().await;
-                if sync_error.is_some() {
+                let sync_result = owner.sync().await;
+                if sync_result.first_error().is_some() {
                     return Err(Error::SyncFail);
                 }
                 Default::default()
@@ -78,8 +78,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                     origins,
                     ..Default::default()
                 };
-                let sync_error = owner.sync_with_options(&options).await;
-                if sync_error.is_some() {
+                let sync_result = owner.sync_with_options(&options).await;
+                if sync_result.first_error().is_some() {
                     return Err(Error::SyncFail);
                 }
                 options
