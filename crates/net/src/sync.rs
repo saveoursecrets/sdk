@@ -15,28 +15,7 @@ use std::path::Path;
 pub type SyncError = crate::protocol::SyncError<Error>;
 
 /// Result of a sync operation with a single remote.
-#[derive(Debug)]
-pub enum RemoteResult {
-    /// Remote was ignored from sync operation.
-    Skip,
-    /// Outcome of a merge operation.
-    ///
-    /// When there is no merge outcome it indicates that
-    /// the account did not exist and was created on the remote.
-    MergeOutcome(Option<MergeOutcome>),
-    /// Error result.
-    Error(SyncError),
-}
-
-impl RemoteResult {
-    /// Convert to `Option<SyncError>`.
-    pub fn as_err(self) -> Option<SyncError> {
-        match self {
-            Self::Error(err) => Some(err),
-            _ => None,
-        }
-    }
-}
+pub type RemoteResult = std::result::Result<Option<MergeOutcome>, SyncError>;
 
 /// Result of a sync operation.
 #[derive(Debug)]

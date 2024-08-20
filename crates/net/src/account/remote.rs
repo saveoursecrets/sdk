@@ -270,6 +270,7 @@ impl RemoteSync for RemoteBridge {
     }
 
     async fn sync_with_options(&self, options: &SyncOptions) -> RemoteResult {
+        /*
         let should_sync = options.origins.is_empty()
             || options
                 .origins
@@ -279,14 +280,15 @@ impl RemoteSync for RemoteBridge {
 
         if !should_sync {
             tracing::warn!(origin = %self.origin, "skip sync");
-            return RemoteResult::Skip;
+            return None;
         }
+        */
 
         tracing::debug!(origin = %self.origin.url());
 
         match self.execute_sync(options).await {
-            Ok(outcome) => RemoteResult::MergeOutcome(outcome),
-            Err(e) => RemoteResult::Error(SyncError {
+            Ok(outcome) => Ok(outcome),
+            Err(e) => Err(SyncError {
                 errors: vec![(self.origin.clone(), e)],
             }),
         }

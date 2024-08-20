@@ -7,8 +7,7 @@ use crate::{
         vault::{Summary, VaultId},
         Result,
     },
-    AccountSync, NetworkAccount, RemoteResult, RemoteSync, SyncClient,
-    SyncError,
+    AccountSync, NetworkAccount, RemoteSync, SyncClient, SyncError,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -111,10 +110,16 @@ impl AccountSync for NetworkAccount {
             let sync_remote = options.origins.is_empty()
                 || options.origins.contains(origin);
 
+            let should_sync = options.origins.is_empty()
+                || options.origins.iter().find(|&o| o == origin).is_some();
+
+            if !should_sync {
+                tracing::warn!(origin = %origin, "skip sync");
+                continue;
+            }
+
             if sync_remote {
-                if let RemoteResult::Error(mut e) =
-                    remote.sync_with_options(options).await
-                {
+                if let Err(mut e) = remote.sync_with_options(options).await {
                     maybe_error.errors.append(&mut e.errors);
                 }
             }

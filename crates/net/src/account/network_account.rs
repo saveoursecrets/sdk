@@ -289,8 +289,9 @@ impl NetworkAccount {
                     origins: vec![origin.clone()],
                     ..Default::default()
                 };
-                sync_error =
-                    remote.sync_with_options(&options).await.as_err();
+                if let Err(err) = remote.sync_with_options(&options).await {
+                    sync_error = Some(err);
+                }
             }
         }
 
