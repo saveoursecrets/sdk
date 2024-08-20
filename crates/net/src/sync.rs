@@ -1,4 +1,3 @@
-use super::Error;
 use crate::{
     protocol::{
         CreateSet, DiffRequest, DiffResponse, MergeOutcome, Origin,
@@ -11,16 +10,13 @@ use async_trait::async_trait;
 use sos_sdk::storage;
 use std::path::Path;
 
-/// Error type that can be returned from a sync operation.
-pub type SyncError = crate::protocol::SyncError<Error>;
-
 /// Result of a sync operation with a single remote.
 #[derive(Debug)]
 pub struct RemoteResult {
     /// Origin of the remote.
     pub origin: Origin,
     /// Result of the sync operation.
-    pub result: std::result::Result<Option<MergeOutcome>, SyncError>,
+    pub result: Result<Option<MergeOutcome>>,
 }
 
 /// Result of a sync operation.
@@ -32,7 +28,7 @@ pub struct SyncResult {
 
 impl SyncResult {
     /// Find the first sync error.
-    pub fn first_error(self) -> Option<SyncError> {
+    pub fn first_error(self) -> Option<crate::Error> {
         self.remotes.into_iter().find_map(|res| {
             if res.result.is_err() {
                 res.result.err()

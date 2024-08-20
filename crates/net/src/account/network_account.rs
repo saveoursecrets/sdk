@@ -1,6 +1,6 @@
 //! Network aware account.
 use crate::{
-    protocol::{Origin, SyncError, SyncOptions, UpdateSet},
+    protocol::{Origin, SyncOptions, UpdateSet},
     sdk::{
         account::{
             Account, AccountBuilder, AccountChange, AccountData,
@@ -205,7 +205,7 @@ impl NetworkAccount {
         // Send the device event logs to the remote servers
         if let Some(e) = self.sync().await.first_error() {
             tracing::error!(error = ?e);
-            return Err(Error::RevokeDeviceSync(e));
+            return Err(Error::RevokeDeviceSync(Box::new(e)));
         }
 
         Ok(())
@@ -263,7 +263,7 @@ impl NetworkAccount {
     pub async fn add_server(
         &mut self,
         origin: Origin,
-    ) -> Result<Option<SyncError<Error>>> {
+    ) -> Result<Option<Error>> {
         let remote = self.remote_bridge(&origin).await?;
 
         #[cfg(feature = "files")]
@@ -793,7 +793,7 @@ impl Account for NetworkAccount {
 
         let sync_result = self.force_update(updates, &sync_options).await;
         if let Some(sync_error) = sync_result.first_error() {
-            return Err(Error::ForceUpdate(sync_error));
+            return Err(Error::ForceUpdate(Box::new(sync_error)));
         }
 
         // In case we have pending updates to the account, device
@@ -801,7 +801,7 @@ impl Account for NetworkAccount {
         if let Some(sync_error) =
             self.sync_with_options(&sync_options).await.first_error()
         {
-            return Err(Error::ForceUpdate(sync_error));
+            return Err(Error::ForceUpdate(Box::new(sync_error)));
         }
 
         Ok(conversion)
@@ -829,7 +829,7 @@ impl Account for NetworkAccount {
 
         let sync_result = self.force_update(updates, &sync_options).await;
         if let Some(sync_error) = sync_result.first_error() {
-            return Err(Error::ForceUpdate(sync_error));
+            return Err(Error::ForceUpdate(Box::new(sync_error)));
         }
 
         // In case we have pending updates to the account, device
@@ -837,7 +837,7 @@ impl Account for NetworkAccount {
         if let Some(sync_error) =
             self.sync_with_options(&sync_options).await.first_error()
         {
-            return Err(Error::ForceUpdate(sync_error));
+            return Err(Error::ForceUpdate(Box::new(sync_error)));
         }
 
         Ok(())
@@ -1009,7 +1009,7 @@ impl Account for NetworkAccount {
 
         let sync_result = self.force_update(updates, &sync_options).await;
         if let Some(sync_error) = sync_result.first_error() {
-            return Err(Error::ForceUpdate(sync_error));
+            return Err(Error::ForceUpdate(Box::new(sync_error)));
         }
 
         // In case we have pending updates to the account, device
@@ -1017,7 +1017,7 @@ impl Account for NetworkAccount {
         if let Some(sync_error) =
             self.sync_with_options(&sync_options).await.first_error()
         {
-            return Err(Error::ForceUpdate(sync_error));
+            return Err(Error::ForceUpdate(Box::new(sync_error)));
         }
 
         Ok(result)
@@ -1053,7 +1053,7 @@ impl Account for NetworkAccount {
 
             let sync_result = self.force_update(updates, &sync_options).await;
             if let Some(sync_error) = sync_result.first_error() {
-                return Err(Error::ForceUpdate(sync_error));
+                return Err(Error::ForceUpdate(Box::new(sync_error)));
             }
 
             // In case we have pending updates to the account, device
@@ -1061,7 +1061,7 @@ impl Account for NetworkAccount {
             if let Some(sync_error) =
                 self.sync_with_options(&sync_options).await.first_error()
             {
-                return Err(Error::ForceUpdate(sync_error));
+                return Err(Error::ForceUpdate(Box::new(sync_error)));
             }
         }
 
@@ -1114,7 +1114,7 @@ impl Account for NetworkAccount {
 
             let sync_result = self.force_update(updates, &sync_options).await;
             if let Some(sync_error) = sync_result.first_error() {
-                return Err(Error::ForceUpdate(sync_error));
+                return Err(Error::ForceUpdate(Box::new(sync_error)));
             }
 
             // In case we have pending updates to the account, device
@@ -1122,7 +1122,7 @@ impl Account for NetworkAccount {
             if let Some(sync_error) =
                 self.sync_with_options(&sync_options).await.first_error()
             {
-                return Err(Error::ForceUpdate(sync_error));
+                return Err(Error::ForceUpdate(Box::new(sync_error)));
             }
         }
 

@@ -1,7 +1,4 @@
-use sos_net::{
-    protocol::SyncError,
-    sdk::{vault::secret::SecretRef, vcard4},
-};
+use sos_net::sdk::{vault::secret::SecretRef, vcard4};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -34,7 +31,7 @@ pub enum Error {
 
     /// Error performing an initial sync with a server.
     #[error(r#"initial sync has errors: {0}"#)]
-    InitialSync(SyncError<sos_net::Error>),
+    InitialSync(sos_net::Error),
 
     /// Could not find an authenticator folder.
     #[error("could not find an authenticator folder")]

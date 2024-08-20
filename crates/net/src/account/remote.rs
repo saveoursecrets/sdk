@@ -11,7 +11,7 @@ use crate::{
         storage::StorageEventLogs,
         vfs,
     },
-    Error, RemoteResult, RemoteSync, Result, SyncClient, SyncError,
+    Error, RemoteResult, RemoteSync, Result, SyncClient,
 };
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
@@ -277,9 +277,7 @@ impl RemoteSync for RemoteBridge {
             },
             Err(e) => RemoteResult {
                 origin: self.origin.clone(),
-                result: Err(SyncError {
-                    errors: vec![(self.origin.clone(), e)],
-                }),
+                result: Err(e),
             },
         }
     }
@@ -293,9 +291,7 @@ impl RemoteSync for RemoteBridge {
             },
             Err(e) => RemoteResult {
                 origin: self.origin.clone(),
-                result: Err(SyncError {
-                    errors: vec![(self.origin.clone(), e)],
-                }),
+                result: Err(e),
             },
         }
     }
@@ -308,9 +304,7 @@ impl RemoteSync for RemoteBridge {
             },
             Err(e) => RemoteResult {
                 origin: self.origin.clone(),
-                result: Err(SyncError {
-                    errors: vec![(self.origin.clone(), e)],
-                }),
+                result: Err(e),
             },
         }
     }

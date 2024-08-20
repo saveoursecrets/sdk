@@ -461,7 +461,7 @@ impl<'a> OfferPairing<'a> {
         if let Some(sync_error) =
             self.account.sync_with_options(&options).await.first_error()
         {
-            return Err(Error::DevicePatchSync(sync_error));
+            return Err(Error::DevicePatchSync(Box::new(sync_error)));
         }
 
         // Creating a new device vault saves the folder password
@@ -472,7 +472,7 @@ impl<'a> OfferPairing<'a> {
         if let Some(sync_error) =
             self.account.sync_with_options(&options).await.first_error()
         {
-            return Err(Error::EnrollSync(sync_error));
+            return Err(Error::EnrollSync(Box::new(sync_error)));
         }
 
         Ok(())

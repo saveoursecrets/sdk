@@ -101,7 +101,6 @@ impl AccountSync for NetworkAccount {
         }
 
         let _ = self.sync_lock.lock().await;
-        // let mut maybe_error: SyncError = Default::default();
         let remotes = self.remotes.read().await;
 
         for (origin, remote) in &*remotes {

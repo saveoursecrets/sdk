@@ -29,7 +29,7 @@ pub use error::Error;
 pub use net::{changes, connect, ListenOptions, WebSocketHandle};
 pub use net::{HttpClient, NetworkRetry};
 pub use sync::{
-    AccountSync, RemoteResult, RemoteSync, SyncClient, SyncError, SyncResult,
+    AccountSync, RemoteResult, RemoteSync, SyncClient, SyncResult,
 };
 
 #[cfg(any(

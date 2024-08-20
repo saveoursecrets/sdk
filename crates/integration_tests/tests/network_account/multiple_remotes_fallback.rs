@@ -3,7 +3,7 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, AccountSync, SyncError};
+use sos_net::{sdk::prelude::*, AccountSync};
 
 /// Tests syncing a single client with multiple
 /// remote servers when one of the servers is offline.
@@ -43,7 +43,7 @@ async fn network_sync_multiple_remotes_fallback() -> Result<()> {
     // Explicit sync afterwards, triggers the code path
     // where we try to connect to a remote which is down
     let sync_result = device.owner.sync().await;
-    assert!(matches!(sync_result.first_error(), Some(SyncError { .. })));
+    assert!(sync_result.first_error().is_some());
 
     // Bring the server back online
     let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
