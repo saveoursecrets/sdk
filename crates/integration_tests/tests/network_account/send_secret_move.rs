@@ -3,7 +3,7 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, RemoteSync};
+use sos_net::{sdk::prelude::*, AccountSync};
 
 /// Tests syncing move secret events between two
 /// clients.
@@ -40,8 +40,8 @@ async fn network_sync_secret_move() -> Result<()> {
         .await?;
 
     // Sync up both clients
-    assert!(device1.owner.sync().await.is_none());
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device1.owner.sync().await.first_error().is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     // Move the secret
     device1
@@ -59,8 +59,8 @@ async fn network_sync_secret_move() -> Result<()> {
     assert_eq!(1, num_events(&mut device2.owner, destination.id()).await);
 
     // Sync up both clients
-    assert!(device1.owner.sync().await.is_none());
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device1.owner.sync().await.first_error().is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     // Folder is now up to date
     assert_eq!(2, num_events(&mut device1.owner, destination.id()).await);

@@ -2,7 +2,7 @@ use crate::test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, RemoteSync};
+use sos_net::{sdk::prelude::*, AccountSync};
 
 /// Tests changing the account cipher and force syncing
 /// the updated and diverged account data.
@@ -36,7 +36,7 @@ async fn network_sync_change_cipher() -> Result<()> {
         .await?;
 
     // Sync on the second device to fetch initial account state
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     let target_cipher = Cipher::XChaCha20Poly1305;
     let target_kdf = KeyDerivation::BalloonHash;
@@ -80,7 +80,7 @@ async fn network_sync_change_cipher() -> Result<()> {
     // Try to sync on other device after force update
     // which should perform a force pull to update the
     // account data
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     // Check we can sign in again
     device2.owner.sign_in(&key).await?;
@@ -92,14 +92,16 @@ async fn network_sync_change_cipher() -> Result<()> {
 
     // Create a secret on the synced device
     let (meta, secret) = mock::note(TEST_ID, TEST_ID);
-    let SecretChange { id, sync_error, .. } = device2
+    let SecretChange {
+        id, sync_result, ..
+    } = device2
         .owner
         .create_secret(meta.clone(), secret.clone(), Default::default())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     // Sync on the original device and check it can read the secret
-    assert!(device1.owner.sync().await.is_none());
+    assert!(device1.owner.sync().await.first_error().is_none());
 
     let device1_commit = device1.owner.root_commit(&default_folder).await?;
     let device2_commit = device2.owner.root_commit(&default_folder).await?;

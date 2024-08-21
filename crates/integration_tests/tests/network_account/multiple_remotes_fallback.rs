@@ -3,7 +3,7 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, RemoteSync, SyncError};
+use sos_net::{sdk::prelude::*, AccountSync};
 
 /// Tests syncing a single client with multiple
 /// remote servers when one of the servers is offline.
@@ -27,7 +27,7 @@ async fn network_sync_multiple_remotes_fallback() -> Result<()> {
     device.owner.add_server(origin.clone()).await?;
 
     // Sync again with the additional remote
-    assert!(device.owner.sync().await.is_none());
+    assert!(device.owner.sync().await.first_error().is_none());
 
     // Shutdown the first server
     drop(server1);
@@ -42,15 +42,15 @@ async fn network_sync_multiple_remotes_fallback() -> Result<()> {
 
     // Explicit sync afterwards, triggers the code path
     // where we try to connect to a remote which is down
-    let sync_error = device.owner.sync().await;
-    assert!(matches!(sync_error, Some(SyncError { .. })));
+    let sync_result = device.owner.sync().await;
+    assert!(sync_result.first_error().is_some());
 
     // Bring the server back online
     let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
     sync_pause(None).await;
 
     // Now we should be able to sync to both remotes
-    assert!(device.owner.sync().await.is_none());
+    assert!(device.owner.sync().await.first_error().is_none());
 
     // Assert on first server
     let mut bridge =

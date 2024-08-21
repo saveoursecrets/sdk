@@ -7,7 +7,7 @@ use crate::{
         vault::{Summary, VaultId},
         Result,
     },
-    NetworkAccount, RemoteSync, SyncClient, SyncError,
+    AccountSync, NetworkAccount, RemoteSync, SyncClient, SyncResult,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -88,94 +88,92 @@ impl NetworkAccount {
 }
 
 #[async_trait]
-impl RemoteSync for NetworkAccount {
-    async fn sync(&self) -> Option<SyncError> {
+impl AccountSync for NetworkAccount {
+    async fn sync(&self) -> SyncResult {
         self.sync_with_options(&Default::default()).await
     }
 
-    async fn sync_with_options(
-        &self,
-        options: &SyncOptions,
-    ) -> Option<SyncError> {
+    async fn sync_with_options(&self, options: &SyncOptions) -> SyncResult {
+        let mut result = SyncResult::default();
         if self.offline {
             tracing::warn!("offline mode active, ignoring sync");
-            return None;
+            return result;
         }
 
         let _ = self.sync_lock.lock().await;
-        let mut maybe_error: SyncError = Default::default();
         let remotes = self.remotes.read().await;
 
         for (origin, remote) in &*remotes {
             let sync_remote = options.origins.is_empty()
                 || options.origins.contains(origin);
 
-            if sync_remote {
-                if let Some(mut e) = remote.sync_with_options(options).await {
-                    maybe_error.errors.append(&mut e.errors);
-                }
+            if !sync_remote {
+                tracing::warn!(origin = %origin, "skip_sync::sync_with_options");
+                continue;
             }
+
+            let remote_result = remote.sync_with_options(options).await;
+            result.remotes.push(remote_result);
         }
-        maybe_error.into_option()
+        result
     }
 
     #[cfg(feature = "files")]
-    async fn sync_file_transfers(
-        &self,
-        options: &SyncOptions,
-    ) -> Option<SyncError> {
+    async fn sync_file_transfers(&self, options: &SyncOptions) -> SyncResult {
+        let mut result = SyncResult::default();
         if self.offline {
             tracing::warn!(
                 "offline mode active, ignoring sync file transfers"
             );
-            return None;
+            return result;
         }
 
         let _ = self.sync_lock.lock().await;
-        let mut maybe_error: SyncError = Default::default();
         let remotes = self.remotes.read().await;
 
         for (origin, remote) in &*remotes {
             let sync_remote = options.origins.is_empty()
                 || options.origins.contains(origin);
 
-            if sync_remote {
-                if let Some(mut e) = remote.sync_file_transfers(options).await
-                {
-                    maybe_error.errors.append(&mut e.errors);
-                }
+            if !sync_remote {
+                tracing::warn!(origin = %origin, "skip_sync::sync_file_transfers");
+                continue;
             }
+
+            let remote_result = remote.sync_file_transfers().await;
+            result.remotes.push(remote_result);
         }
-        maybe_error.into_option()
+        result
     }
 
     async fn force_update(
         &self,
         account_data: UpdateSet,
         options: &SyncOptions,
-    ) -> Option<SyncError> {
+    ) -> SyncResult {
+        let mut result = SyncResult::default();
         if self.offline {
             tracing::warn!("offline mode active, ignoring force update");
-            return None;
+            return result;
         }
 
         let _ = self.sync_lock.lock().await;
-        let mut maybe_error: SyncError = Default::default();
         let remotes = self.remotes.read().await;
 
         for (origin, remote) in &*remotes {
             let sync_remote = options.origins.is_empty()
                 || options.origins.contains(origin);
 
-            if sync_remote {
-                if let Some(mut e) =
-                    remote.force_update(account_data.clone(), options).await
-                {
-                    maybe_error.errors.append(&mut e.errors);
-                }
+            if !sync_remote {
+                tracing::warn!(origin = %origin, "skip_sync::force_update");
+                continue;
             }
+
+            let remote_result =
+                remote.force_update(account_data.clone()).await;
+            result.remotes.push(remote_result);
         }
-        maybe_error.into_option()
+        result
     }
 }
 

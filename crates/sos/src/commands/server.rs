@@ -9,7 +9,7 @@ use clap::Subcommand;
 use sos_net::{
     protocol::{Origin, SyncOptions},
     sdk::{identity::AccountRef, url::Url},
-    RemoteSync,
+    AccountSync,
 };
 
 #[derive(Subcommand, Debug)]
@@ -53,8 +53,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                 ..Default::default()
             };
 
-            let sync_error = owner.sync_with_options(&options).await;
-            if let Some(err) = sync_error {
+            let sync_result = owner.sync_with_options(&options).await;
+            if let Some(err) = sync_result.first_error() {
                 owner.remove_server(&origin).await?;
                 return Err(Error::InitialSync(err));
             } else {

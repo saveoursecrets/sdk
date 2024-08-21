@@ -4,7 +4,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use http::StatusCode;
-use sos_net::{sdk::prelude::*, Error as ClientError, RemoteSync, SyncError};
+use sos_net::{sdk::prelude::*, AccountSync, Error as ClientError};
 
 /// Tests pairing a new device and revoking trust in the device.
 #[tokio::test]
@@ -40,7 +40,7 @@ async fn pairing_device_revoke() -> Result<()> {
     assert!(matches!(result, Err(ClientError::RevokeDeviceSelf)));
 
     // Sync on the original device to fetch the updated device logs
-    assert!(primary_device.owner.sync().await.is_none());
+    assert!(primary_device.owner.sync().await.first_error().is_none());
 
     // Primary device revokes access to the newly enrolled device
     // as if it were lost or stolen
@@ -56,10 +56,9 @@ async fn pairing_device_revoke() -> Result<()> {
 
     // println!("{:#?}", revoke_error);
 
-    if let Err(ClientError::RevokeDeviceSync(mut e)) = revoke_error {
-        let (_, err) = e.errors.remove(0);
+    if let Err(ClientError::RevokeDeviceSync(err)) = revoke_error {
         assert!(matches!(
-            err,
+            &*err,
             ClientError::ResponseJson(StatusCode::FORBIDDEN, _)
         ));
     } else {
@@ -68,9 +67,8 @@ async fn pairing_device_revoke() -> Result<()> {
 
     // Attempting to sync after the device was revoked
     // yields a forbidden response
-    let sync_error = enrolled_account.sync().await;
-    if let Some(SyncError { mut errors }) = sync_error {
-        let (_, err) = errors.remove(0);
+    let sync_result = enrolled_account.sync().await;
+    if let Some(err) = sync_result.first_error() {
         assert!(matches!(
             err,
             ClientError::ResponseJson(StatusCode::FORBIDDEN, _)

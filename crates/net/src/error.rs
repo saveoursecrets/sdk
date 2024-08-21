@@ -2,7 +2,7 @@
 use crate::CancelReason;
 use http::StatusCode;
 use serde_json::Value;
-use sos_protocol::{MaybeConflict, Origin, SyncError, SyncStatus};
+use sos_protocol::{MaybeConflict, Origin, SyncStatus};
 use sos_sdk::vault::VaultId;
 use std::error::Error as StdError;
 use std::path::PathBuf;
@@ -58,11 +58,11 @@ pub enum Error {
 
     /// Error generated when failing to sync after revoking a device.
     #[error("failed to sync after revoking device, {0}")]
-    RevokeDeviceSync(SyncError<Error>),
+    RevokeDeviceSync(Box<Error>),
 
     /// Error generated force update of an account failed.
     #[error("failed to force update, {0}")]
-    ForceUpdate(SyncError<Error>),
+    ForceUpdate(Box<Error>),
 
     /// Error generated trying to parse a device enrollment sharing URL.
     #[deprecated]

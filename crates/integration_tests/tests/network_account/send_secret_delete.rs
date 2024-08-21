@@ -26,16 +26,16 @@ async fn network_sync_secret_delete() -> Result<()> {
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(result.sync_error.is_none());
+    assert!(result.sync_result.first_error().is_none());
 
     // Should have two events
     assert_eq!(2, num_events(&mut device.owner, &default_folder_id).await);
 
-    let SecretDelete { sync_error, .. } = device
+    let SecretDelete { sync_result, .. } = device
         .owner
         .delete_secret(&result.id, Default::default())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     // Should have three events
     assert_eq!(3, num_events(&mut device.owner, &default_folder_id).await);

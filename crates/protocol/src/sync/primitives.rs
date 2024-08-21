@@ -14,10 +14,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use indexmap::IndexMap;
-use std::{
-    collections::{HashMap, HashSet},
-    fmt,
-};
+use std::collections::{HashMap, HashSet};
 
 use crate::sdk::events::DeviceDiff;
 
@@ -39,41 +36,6 @@ pub struct SyncOptions {
     pub origins: Vec<Origin>,
     /// Resolver for hard conflicts.
     pub hard_conflict_resolver: HardConflictResolver,
-}
-
-/// Error type that can be returned from a sync operation.
-#[derive(Debug)]
-pub struct SyncError<T: std::error::Error> {
-    /// Errors generated during a sync operation.
-    pub errors: Vec<(Origin, T)>,
-}
-
-impl<T: std::error::Error> std::error::Error for SyncError<T> {}
-
-impl<T: std::error::Error> fmt::Display for SyncError<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (_, e) in self.errors.iter() {
-            write!(f, "{}", e)?;
-        }
-        Ok(())
-    }
-}
-
-impl<T: std::error::Error> SyncError<T> {
-    /// Convert to an option.
-    pub fn into_option(self) -> Option<Self> {
-        if self.errors.is_empty() {
-            None
-        } else {
-            Some(self)
-        }
-    }
-}
-
-impl<T: std::error::Error> Default for SyncError<T> {
-    fn default() -> Self {
-        Self { errors: Vec::new() }
-    }
 }
 
 /// Options for folder merge.

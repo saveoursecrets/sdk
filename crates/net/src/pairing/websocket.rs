@@ -13,7 +13,7 @@ use crate::{
         signer::ecdsa::SingleParty,
         url::Url,
     },
-    sync::RemoteSync,
+    sync::AccountSync,
     NetworkAccount, WebSocketRequest,
 };
 use futures::{
@@ -459,9 +459,9 @@ impl<'a> OfferPairing<'a> {
             ..Default::default()
         };
         if let Some(sync_error) =
-            self.account.sync_with_options(&options).await
+            self.account.sync_with_options(&options).await.first_error()
         {
-            return Err(Error::DevicePatchSync(sync_error));
+            return Err(Error::DevicePatchSync(Box::new(sync_error)));
         }
 
         // Creating a new device vault saves the folder password
@@ -470,9 +470,9 @@ impl<'a> OfferPairing<'a> {
         // fetch data that includes the password for the device
         // vault we will send
         if let Some(sync_error) =
-            self.account.sync_with_options(&options).await
+            self.account.sync_with_options(&options).await.first_error()
         {
-            return Err(Error::EnrollSync(sync_error));
+            return Err(Error::EnrollSync(Box::new(sync_error)));
         }
 
         Ok(())

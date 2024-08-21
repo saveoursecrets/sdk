@@ -27,13 +27,13 @@ async fn network_sync_listen_folder_import() -> Result<()> {
 
     let FolderCreate {
         folder: new_folder,
-        sync_error,
+        sync_result,
         ..
     } = device1
         .owner
         .create_folder("sync_folder".to_string(), Default::default())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     // Open the new folder so we can get a copy of the data,
     // using the same vault data ensures the same identifier
@@ -76,7 +76,7 @@ async fn network_sync_listen_folder_import() -> Result<()> {
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(result.sync_error.is_none());
+    assert!(result.sync_result.first_error().is_none());
 
     // Pause a while to allow the first owner to sync
     // with the new change

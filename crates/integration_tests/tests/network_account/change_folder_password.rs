@@ -2,7 +2,7 @@ use crate::test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, RemoteSync};
+use sos_net::{sdk::prelude::*, AccountSync};
 
 /// Tests changing a folder password and force syncing
 /// the updated folder events log.
@@ -34,7 +34,7 @@ async fn network_sync_change_folder_password() -> Result<()> {
         .await?;
 
     // Sync on the second device to fetch initial account state
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     let (new_password, _) = generate_passphrase()?;
     let key: AccessKey = new_password.into();
@@ -58,7 +58,7 @@ async fn network_sync_change_folder_password() -> Result<()> {
     // Try to sync on other device after force update
     // which should perform a force pull to update the
     // account data
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     // Check we can sign out and sign in again
     // on the device that just synced using the
@@ -73,7 +73,7 @@ async fn network_sync_change_folder_password() -> Result<()> {
         .await?;
 
     // Sync on the original device and check it can read the secret
-    assert!(device1.owner.sync().await.is_none());
+    assert!(device1.owner.sync().await.first_error().is_none());
     let (secret_data, _) = device1
         .owner
         .read_secret(&id, Some(default_folder.clone()))

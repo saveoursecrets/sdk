@@ -1,7 +1,7 @@
 use crate::test_utils::{setup, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_net::{
-    protocol::SyncStorage, sdk::prelude::*, NetworkAccount, RemoteSync,
+    protocol::SyncStorage, sdk::prelude::*, AccountSync, NetworkAccount,
     SyncClient,
 };
 
@@ -46,7 +46,7 @@ async fn network_no_sync_create_account() -> Result<()> {
     // Configure the server on the client account
     account.add_server(server.origin.clone()).await?;
 
-    assert!(account.sync().await.is_none());
+    assert!(account.sync().await.first_error().is_none());
 
     // Server should not contain the folder files
     // as the NO_SYNC flag was set before the first sync
@@ -88,7 +88,7 @@ async fn network_no_sync_update_account() -> Result<()> {
         .await?;
 
     // Sync the account to push the new folder
-    assert!(device.owner.sync().await.is_none());
+    assert!(device.owner.sync().await.first_error().is_none());
 
     // Update the folder with new flags.
     device
@@ -101,7 +101,7 @@ async fn network_no_sync_update_account() -> Result<()> {
 
     // Sync the account again which should ignore the updates
     // to the new folder that has now been marked with NO_SYNC
-    assert!(device.owner.sync().await.is_none());
+    assert!(device.owner.sync().await.first_error().is_none());
 
     // Local should be equal with remote now.
     //

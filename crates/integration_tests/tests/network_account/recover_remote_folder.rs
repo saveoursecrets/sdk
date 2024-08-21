@@ -2,7 +2,7 @@ use crate::test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, RemoteSync};
+use sos_net::{sdk::prelude::*, AccountSync};
 
 /// Tests recovering a folder from a remote origin after
 /// it has been removed from the local account.
@@ -21,21 +21,23 @@ async fn network_sync_recover_remote_folder() -> Result<()> {
     // Create a folder
     let FolderCreate {
         folder: new_folder,
-        sync_error,
+        sync_result,
         ..
     } = device
         .owner
         .create_folder(TEST_ID.to_string(), Default::default())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     // Create a secret in the new folder
     let (meta, secret) = mock::note(TEST_ID, TEST_ID);
-    let SecretChange { id, sync_error, .. } = device
+    let SecretChange {
+        id, sync_result, ..
+    } = device
         .owner
         .create_secret(meta.clone(), secret, new_folder.clone().into())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     // Remove the folder files from the local account
     let paths = device.owner.paths();
@@ -54,8 +56,8 @@ async fn network_sync_recover_remote_folder() -> Result<()> {
 
     // Now sync is broken as the local account is
     // in an inconsistent state
-    let sync_error = device.owner.sync().await;
-    assert!(sync_error.is_some());
+    let sync_result = device.owner.sync().await;
+    assert!(sync_result.first_error().is_some());
 
     // Recover the folder from the remote origin
     device

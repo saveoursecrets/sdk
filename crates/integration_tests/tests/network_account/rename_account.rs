@@ -2,7 +2,7 @@ use crate::test_utils::{
     assert_local_remote_events_eq, simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, RemoteSync};
+use sos_net::{sdk::prelude::*, AccountSync};
 
 /// Tests changing the account name is synced.
 #[tokio::test]
@@ -50,7 +50,7 @@ async fn network_sync_rename_account() -> Result<()> {
     assert_ne!(device1_name, device2_name);
 
     // Sync on the other device
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     // Now the names are back in sync
     let device1_name = {

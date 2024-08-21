@@ -11,7 +11,7 @@ use crate::{
         storage::StorageEventLogs,
         vfs,
     },
-    Error, RemoteSync, Result, SyncClient, SyncError,
+    Error, RemoteResult, RemoteSync, Result, SyncClient,
 };
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
@@ -86,7 +86,10 @@ impl RemoteBridge {
         Ok(())
     }
 
-    async fn sync_account(&self, remote_status: SyncStatus) -> Result<()> {
+    async fn sync_account(
+        &self,
+        remote_status: SyncStatus,
+    ) -> Result<MergeOutcome> {
         let mut account = self.account.lock().await;
 
         tracing::debug!("merge_client");
@@ -95,6 +98,8 @@ impl RemoteBridge {
             sos_protocol::diff(&*account, remote_status).await?;
 
         tracing::debug!(needs_sync = %needs_sync, "merge_client");
+
+        let mut outcome = MergeOutcome::default();
 
         if needs_sync {
             let packet = SyncPacket {
@@ -110,8 +115,6 @@ impl RemoteBridge {
                 .map(|c| c.maybe_conflict())
                 .unwrap_or_default();
             let has_conflicts = maybe_conflict.has_conflicts();
-
-            let mut outcome = MergeOutcome::default();
 
             if !has_conflicts {
                 account.merge(remote_changes.diff, &mut outcome).await?;
@@ -201,29 +204,35 @@ impl RemoteBridge {
             }
         }
 
-        Ok(())
+        Ok(outcome)
     }
 
-    async fn execute_sync(&self, options: &SyncOptions) -> Result<()> {
+    async fn execute_sync(
+        &self,
+        options: &SyncOptions,
+    ) -> Result<Option<MergeOutcome>> {
         let exists = self.client.account_exists().await?;
         if exists {
             let sync_status = self.client.sync_status().await?;
             match self.sync_account(sync_status).await {
-                Ok(_) => Ok(()),
+                Ok(outcome) => Ok(Some(outcome)),
                 Err(e) => match e {
                     Error::SoftConflict {
                         conflict,
                         local,
                         remote,
                     } => {
-                        self.auto_merge(options, conflict, local, remote)
-                            .await
+                        let outcome = self
+                            .auto_merge(options, conflict, local, remote)
+                            .await?;
+                        Ok(Some(outcome))
                     }
                     _ => Err(e),
                 },
             }
         } else {
-            self.create_remote_account().await
+            self.create_remote_account().await?;
+            Ok(None)
         }
     }
 
@@ -256,73 +265,47 @@ impl RemoteBridge {
 
 #[async_trait]
 impl RemoteSync for RemoteBridge {
-    async fn sync(&self) -> Option<SyncError> {
+    async fn sync(&self) -> RemoteResult {
         self.sync_with_options(&Default::default()).await
     }
 
-    async fn sync_with_options(
-        &self,
-        options: &SyncOptions,
-    ) -> Option<SyncError> {
-        let should_sync = options.origins.is_empty()
-            || options
-                .origins
-                .iter()
-                .find(|&o| o == &self.origin)
-                .is_some();
-
-        if !should_sync {
-            tracing::warn!(origin = %self.origin, "skip sync");
-            return None;
-        }
-
-        tracing::debug!(origin = %self.origin.url());
-
+    async fn sync_with_options(&self, options: &SyncOptions) -> RemoteResult {
         match self.execute_sync(options).await {
-            Ok(_) => None,
-            Err(e) => Some(SyncError {
-                errors: vec![(self.origin.clone(), e)],
-            }),
+            Ok(outcome) => RemoteResult {
+                origin: self.origin.clone(),
+                result: Ok(outcome),
+            },
+            Err(e) => RemoteResult {
+                origin: self.origin.clone(),
+                result: Err(e),
+            },
         }
     }
 
     #[cfg(feature = "files")]
-    async fn sync_file_transfers(
-        &self,
-        options: &SyncOptions,
-    ) -> Option<SyncError> {
-        let should_sync = options.origins.is_empty()
-            || options
-                .origins
-                .iter()
-                .find(|&o| o == &self.origin)
-                .is_some();
-
-        if !should_sync {
-            tracing::warn!(origin = %self.origin, "skip sync");
-            return None;
-        }
-
-        tracing::debug!(origin = %self.origin.url());
-
+    async fn sync_file_transfers(&self) -> RemoteResult {
         match self.execute_sync_file_transfers().await {
-            Ok(_) => None,
-            Err(e) => Some(SyncError {
-                errors: vec![(self.origin.clone(), e)],
-            }),
+            Ok(_) => RemoteResult {
+                origin: self.origin.clone(),
+                result: Ok(None),
+            },
+            Err(e) => RemoteResult {
+                origin: self.origin.clone(),
+                result: Err(e),
+            },
         }
     }
 
-    async fn force_update(
-        &self,
-        account_data: UpdateSet,
-        _options: &SyncOptions,
-    ) -> Option<SyncError> {
+    async fn force_update(&self, account_data: UpdateSet) -> RemoteResult {
         match self.client.update_account(account_data).await {
-            Ok(_) => None,
-            Err(e) => Some(SyncError {
-                errors: vec![(self.origin.clone(), e)],
-            }),
+            Ok(_) => RemoteResult {
+                origin: self.origin.clone(),
+                result: Ok(None),
+            },
+            Err(e) => RemoteResult {
+                origin: self.origin.clone(),
+                result: Err(e),
+            },
         }
     }
 }

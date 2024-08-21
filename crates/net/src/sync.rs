@@ -1,9 +1,8 @@
-use super::Error;
 use crate::{
     protocol::{
-        CreateSet, DiffRequest, DiffResponse, Origin, PatchRequest,
-        PatchResponse, ScanRequest, ScanResponse, SyncOptions, SyncPacket,
-        SyncStatus, UpdateSet,
+        CreateSet, DiffRequest, DiffResponse, MergeOutcome, Origin,
+        PatchRequest, PatchResponse, ScanRequest, ScanResponse, SyncOptions,
+        SyncPacket, SyncStatus, UpdateSet,
     },
     CancelReason, Result,
 };
@@ -11,10 +10,52 @@ use async_trait::async_trait;
 use sos_sdk::storage;
 use std::path::Path;
 
-/// Error type that can be returned from a sync operation.
-pub type SyncError = crate::protocol::SyncError<Error>;
+/// Result of a sync operation with a single remote.
+#[derive(Debug)]
+pub struct RemoteResult {
+    /// Origin of the remote.
+    pub origin: Origin,
+    /// Result of the sync operation.
+    pub result: Result<Option<MergeOutcome>>,
+}
 
-/// Trait for types that can sync accounts with a remote.
+/// Result of a sync operation.
+#[derive(Debug, Default)]
+pub struct SyncResult {
+    /// Result of syncing with remote servers.
+    pub remotes: Vec<RemoteResult>,
+}
+
+impl SyncResult {
+    /// Find the first sync error.
+    pub fn first_error(self) -> Option<crate::Error> {
+        self.remotes.into_iter().find_map(|res| {
+            if res.result.is_err() {
+                res.result.err()
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Find the first sync error by reference.
+    pub fn first_error_ref(&self) -> Option<&crate::Error> {
+        self.remotes.iter().find_map(|res| {
+            if let Err(e) = &res.result {
+                Some(e)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Determine if the sync has one or more errors.
+    pub fn has_error(&self) -> bool {
+        self.remotes.iter().any(|r| r.result.is_err())
+    }
+}
+
+/// Trait for types that can sync with a single remote.
 #[async_trait]
 pub trait RemoteSync {
     /// Perform a full sync of the account using
@@ -24,16 +65,13 @@ pub trait RemoteSync {
     /// server the account will be created and
     /// [RemoteSync::sync_file_transfers] will be called
     /// to ensure the transfers queue is synced.
-    async fn sync(&self) -> Option<SyncError>;
+    async fn sync(&self) -> RemoteResult;
 
     /// Perform a full sync of the account
     /// using the given options.
     ///
     /// See the documentation for [RemoteSync::sync] for more details.
-    async fn sync_with_options(
-        &self,
-        options: &SyncOptions,
-    ) -> Option<SyncError>;
+    async fn sync_with_options(&self, options: &SyncOptions) -> RemoteResult;
 
     /// Sync file transfers.
     ///
@@ -41,10 +79,42 @@ pub trait RemoteSync {
     /// uploads or downloads by comparing the local file
     /// state with the file state on remote server(s).
     #[cfg(feature = "files")]
-    async fn sync_file_transfers(
-        &self,
-        options: &SyncOptions,
-    ) -> Option<SyncError>;
+    async fn sync_file_transfers(&self) -> RemoteResult;
+
+    /// Force update an account on remote servers.
+    ///
+    /// Should be called after making destructive
+    /// changes to an account's folders. For example, if
+    /// the encryption cipher has been changed, a folder
+    /// password was changed or folder(s) were compacted.
+    async fn force_update(&self, account_data: UpdateSet) -> RemoteResult;
+}
+
+/// Trait for types that can sync with multiple remotes.
+#[async_trait]
+pub trait AccountSync {
+    /// Perform a full sync of the account using
+    /// the default options.
+    ///
+    /// If the account does not exist on the remote
+    /// server the account will be created and
+    /// [RemoteSync::sync_file_transfers] will be called
+    /// to ensure the transfers queue is synced.
+    async fn sync(&self) -> SyncResult;
+
+    /// Perform a full sync of the account
+    /// using the given options.
+    ///
+    /// See the documentation for [RemoteSync::sync] for more details.
+    async fn sync_with_options(&self, options: &SyncOptions) -> SyncResult;
+
+    /// Sync file transfers.
+    ///
+    /// Updates the file transfers queue with any pending
+    /// uploads or downloads by comparing the local file
+    /// state with the file state on remote server(s).
+    #[cfg(feature = "files")]
+    async fn sync_file_transfers(&self, options: &SyncOptions) -> SyncResult;
 
     /// Force update an account on remote servers.
     ///
@@ -56,7 +126,7 @@ pub trait RemoteSync {
         &self,
         account_data: UpdateSet,
         options: &SyncOptions,
-    ) -> Option<SyncError>;
+    ) -> SyncResult;
 }
 
 /// Client that can synchronize with a remote server.

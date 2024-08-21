@@ -27,13 +27,13 @@ async fn network_sync_folder_delete() -> Result<()> {
 
     let FolderCreate {
         folder: new_folder,
-        sync_error,
+        sync_result,
         ..
     } = device
         .owner
         .create_folder("sync_delete_folder".to_string(), Default::default())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &new_folder, None).await?;
@@ -42,9 +42,9 @@ async fn network_sync_folder_delete() -> Result<()> {
 
     assert_eq!(3, num_events(&mut device.owner, new_folder.id()).await);
 
-    let FolderDelete { sync_error, .. } =
+    let FolderDelete { sync_result, .. } =
         device.owner.delete_folder(&new_folder).await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     let updated_summaries: Vec<Summary> = {
         let storage = device.owner.storage().await?;

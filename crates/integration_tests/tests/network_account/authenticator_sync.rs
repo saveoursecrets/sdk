@@ -1,6 +1,6 @@
 use crate::test_utils::{mock, simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, RemoteSync};
+use sos_net::{sdk::prelude::*, AccountSync};
 
 /// Tests syncing an authenticator folder after
 /// disabling the NO_SYNC flag.
@@ -36,8 +36,8 @@ async fn network_authenticator_sync() -> Result<()> {
         .await?;
 
     // Desktop syncs before NO_SYNC flag has been removed
-    let sync_error = desktop.owner.sync().await;
-    assert!(sync_error.is_none());
+    let sync_result = desktop.owner.sync().await;
+    assert!(sync_result.first_error().is_none());
 
     // Try to read the secret but can't as the server
     // will not send events when NO_SYNC is set
@@ -57,8 +57,8 @@ async fn network_authenticator_sync() -> Result<()> {
         .await?;
 
     // Sync the account on the desktop device
-    let sync_error = desktop.owner.sync().await;
-    assert!(sync_error.is_none());
+    let sync_result = desktop.owner.sync().await;
+    assert!(sync_result.first_error().is_none());
 
     // Should be able to read the TOTP on the synced desktop device
     let (data, _) =

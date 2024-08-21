@@ -6,8 +6,7 @@ use crate::test_utils::{
 };
 use http::StatusCode;
 use sos_net::{
-    protocol::SyncError, sdk::prelude::*, Error as ClientError,
-    NetworkAccount, RemoteSync,
+    sdk::prelude::*, AccountSync, Error as ClientError, NetworkAccount,
 };
 
 use sos_server::AccessControlConfig;
@@ -51,10 +50,9 @@ async fn access_control_deny() -> Result<()> {
 
     allowed.owner.add_server(origin.clone()).await?;
     denied.add_server(origin.clone()).await?;
-    assert!(allowed.owner.sync().await.is_none());
+    assert!(allowed.owner.sync().await.first_error().is_none());
     let sync_error = denied.sync().await;
-    if let Some(SyncError { mut errors }) = sync_error {
-        let (_, err) = errors.remove(0);
+    if let Some(err) = sync_error.first_error() {
         assert!(matches!(
             err,
             ClientError::ResponseCode(StatusCode::FORBIDDEN)

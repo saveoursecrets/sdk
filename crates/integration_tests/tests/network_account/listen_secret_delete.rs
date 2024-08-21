@@ -36,14 +36,14 @@ async fn network_sync_listen_secret_delete() -> Result<()> {
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(result.sync_error.is_none());
+    assert!(result.sync_result.first_error().is_none());
 
     // Delete the secret
-    let SecretDelete { sync_error, .. } = device1
+    let SecretDelete { sync_result, .. } = device1
         .owner
         .delete_secret(&result.id, Default::default())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     // Pause a while to give the listener some time to process
     // the change notification

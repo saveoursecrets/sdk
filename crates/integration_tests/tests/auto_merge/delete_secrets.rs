@@ -3,7 +3,7 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, RemoteSync};
+use sos_net::{sdk::prelude::*, AccountSync};
 
 /// Tests making deletes to a folder whilst
 /// a server is offline and resolving the conflicts with
@@ -30,7 +30,7 @@ async fn auto_merge_delete_secrets() -> Result<()> {
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    assert!(result1.sync_error.is_none());
+    assert!(result1.sync_result.first_error().is_none());
 
     // Create a secret (device2) which will auto merge
     //
@@ -43,8 +43,7 @@ async fn auto_merge_delete_secrets() -> Result<()> {
         .owner
         .create_secret(meta, secret, Default::default())
         .await?;
-    println!("{:#?}", result2.sync_error);
-    assert!(result2.sync_error.is_none());
+    assert!(result2.sync_result.first_error().is_none());
 
     // Oh no, the server has gone offline!
     drop(server);
@@ -56,14 +55,14 @@ async fn auto_merge_delete_secrets() -> Result<()> {
         .owner
         .delete_secret(&result1.id, Default::default())
         .await?;
-    assert!(result.sync_error.is_some());
+    assert!(result.sync_result.first_error().is_some());
 
     // Second device deletes it's secret
     let result = device2
         .owner
         .delete_secret(&result2.id, Default::default())
         .await?;
-    assert!(result.sync_error.is_some());
+    assert!(result.sync_result.first_error().is_some());
 
     let device1_folder_state =
         device1.owner.commit_state(&default_folder).await?;
@@ -83,13 +82,13 @@ async fn auto_merge_delete_secrets() -> Result<()> {
     // This brings the first client and server into sync
     // with both create secrets and the deletion on the
     // first client but the second client is out of sync.
-    assert!(device1.owner.sync().await.is_none());
+    assert!(device1.owner.sync().await.first_error().is_none());
 
     // Sync second device to auto merge and push their offline changes
-    assert!(device2.owner.sync().await.is_none());
+    assert!(device2.owner.sync().await.first_error().is_none());
 
     // Sync first device again to fetch the pushed changes
-    assert!(device1.owner.sync().await.is_none());
+    assert!(device1.owner.sync().await.first_error().is_none());
 
     // Folder commits are back in sync
     let device1_folder_state =

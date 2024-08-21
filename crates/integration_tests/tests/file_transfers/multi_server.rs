@@ -7,7 +7,7 @@ use crate::test_utils::{
     mock::files::{create_file_secret, update_file_secret},
     simulate_device, spawn, teardown, wait_for_num_transfers,
 };
-use sos_net::{sdk::prelude::*, RemoteSync};
+use sos_net::{sdk::prelude::*, AccountSync};
 
 /// Tests uploading an external file to multiple servers.
 #[tokio::test]
@@ -295,7 +295,7 @@ async fn file_transfers_multi_download() -> Result<()> {
     {
         // Sync pulls down the file event logs and
         // creates the pending download transfer operation
-        assert!(downloader.owner.sync().await.is_none());
+        assert!(downloader.owner.sync().await.first_error().is_none());
         wait_for_num_transfers(&downloader.owner, 1).await?;
 
         let server1_path = downloader.server_path;

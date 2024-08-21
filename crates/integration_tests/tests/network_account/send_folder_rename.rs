@@ -23,11 +23,11 @@ async fn network_sync_folder_rename() -> Result<()> {
     // Path that we expect the remote server to write to
     let server_path = server.account_path(device.owner.address());
 
-    let FolderChange { sync_error, .. } = device
+    let FolderChange { sync_result, .. } = device
         .owner
         .rename_folder(&default_folder, "new_name".to_string())
         .await?;
-    assert!(sync_error.is_none());
+    assert!(sync_result.first_error().is_none());
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
