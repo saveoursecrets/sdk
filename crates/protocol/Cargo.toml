@@ -40,6 +40,6 @@ path = "../sdk"
 anyhow = "1"
 
 [build-dependencies]
-rustc_version = "0.4.0"
+rustc_version = "0.4.1"
 prost-build = "0.13"
 protoc-bin-vendored = "3"
