@@ -4297,6 +4297,7 @@ dependencies = [
 name = "sos-account-extras"
 version = "0.15.0"
 dependencies = [
+ "arboard",
  "once_cell",
  "rustc_version",
  "serde",
