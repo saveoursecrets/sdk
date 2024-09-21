@@ -4297,6 +4297,7 @@ dependencies = [
 name = "sos-account-extras"
 version = "0.15.0"
 dependencies = [
+ "anyhow",
  "arboard",
  "once_cell",
  "rustc_version",
@@ -4306,6 +4307,8 @@ dependencies = [
  "sos-sdk",
  "thiserror",
  "tokio",
+ "tracing",
+ "zeroize",
 ]
 
 [[package]]
