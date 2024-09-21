@@ -13,19 +13,20 @@ use zeroize::Zeroize;
 /// Wraps [arboard::Clipboard](https://docs.rs/arboard/latest/arboard/struct.Clipboard.html) and provides functions for
 /// setting clipboard text with a timeout to clear the clipboard
 /// content.
+///
 pub struct NativeClipboard {
     clipboard: Clipboard,
     timeout_seconds: u16,
 }
 
 impl NativeClipboard {
-    /// Create a new native clipboard using the default
+    /// Create a native clipboard using the default
     /// timeout of 90 seconds.
     pub fn new() -> Result<Self> {
         Self::new_timeout(90)
     }
 
-    /// Create a new native clipboard with a timeout.
+    /// Create a native clipboard with a timeout.
     pub fn new_timeout(timeout_seconds: u16) -> Result<Self> {
         Ok(Self {
             clipboard: Clipboard::new()?,
