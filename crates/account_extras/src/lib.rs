@@ -19,3 +19,6 @@ pub mod security_report;
 
 #[cfg(feature = "system-messages")]
 pub mod system_messages;
+
+#[cfg(feature = "clipboard")]
+pub mod clipboard;

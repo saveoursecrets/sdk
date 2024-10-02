@@ -31,6 +31,7 @@ toml.workspace = true
 serde.workspace = true
 enum-iterator.workspace = true
 clap.workspace = true
+arboard.workspace = true
 
 axum-server.workspace = true
 tokio-rustls.workspace = true
@@ -46,7 +47,6 @@ num_cpus = "1"
 crossterm = "0.28"
 ctrlc = "3"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
-arboard = "3"
 rustyline = "14"
 rustyline-derive = "0.10"
 

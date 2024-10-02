@@ -27,6 +27,7 @@ full = [
   "security-report",
   "keychain-access",
   "system-messages",
+  "clipboard",
 ]
 listen = ["dep:tokio-tungstenite", "sos-protocol/listen"]
 hashcheck = []
@@ -43,6 +44,7 @@ search = ["sos-sdk/search", "sos-protocol/search"]
 preferences = ["sos-account-extras/preferences"]
 security-report = ["sos-account-extras/security-report"]
 system-messages = ["sos-account-extras/system-messages"]
+clipboard = ["sos-account-extras/clipboard"]
 
 [dependencies]
 tokio-util.workspace = true
