@@ -33,4 +33,4 @@ anyhow.workspace = true
 tokio = { version = "1", features = ["full"] }
 
 [build-dependencies]
-rustc_version = "0.4.0"
+rustc_version = "0.4.1"
