@@ -629,8 +629,16 @@ impl Decodable for Secret {
                 let has_url = reader.read_bool().await?;
                 let url = if has_url {
                     let s = reader.read_string().await?;
-                    let value: WebsiteUrl = serde_json::from_str(&s)?;
-                    value.to_vec()
+                    // Original encoding was a String Url
+                    match s.parse::<Url>() {
+                        Ok(u) => WebsiteUrl::One(u).to_vec(),
+                        // Newer encoding is JSON to support
+                        // list of Urls
+                        Err(_) => {
+                            let value: WebsiteUrl = serde_json::from_str(&s)?;
+                            value.to_vec()
+                        }
+                    }
                 } else {
                     vec![]
                 };
