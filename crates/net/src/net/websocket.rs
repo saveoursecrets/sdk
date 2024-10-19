@@ -14,8 +14,7 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
-use async_recursion::async_recursion;
-use tokio::{net::TcpStream, sync::watch};
+use tokio::{net::TcpStream, sync::watch, time::Duration};
 
 use sos_sdk::signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 
@@ -188,6 +187,7 @@ pub struct WebSocketChangeListener {
     options: ListenOptions,
     shutdown: watch::Sender<()>,
     cancel_retry: watch::Sender<CancelReason>,
+    connection_status: watch::Sender<bool>,
 }
 
 impl WebSocketChangeListener {
@@ -200,6 +200,7 @@ impl WebSocketChangeListener {
     ) -> Self {
         let (shutdown, _) = watch::channel(());
         let (cancel_retry, _) = watch::channel(Default::default());
+        let (connection_status, _) = watch::channel(false);
         Self {
             origin,
             signer,
@@ -207,6 +208,7 @@ impl WebSocketChangeListener {
             options,
             shutdown,
             cancel_retry,
+            connection_status,
         }
     }
 
@@ -222,7 +224,7 @@ impl WebSocketChangeListener {
         let notify = self.shutdown.clone();
         let cancel_retry = self.cancel_retry.clone();
         tokio::task::spawn(async move {
-            let _ = self.connect(&handler).await;
+            let _ = self.connect_loop(&handler).await;
         });
         WebSocketHandle {
             notify,
@@ -230,7 +232,6 @@ impl WebSocketChangeListener {
         }
     }
 
-    #[async_recursion]
     async fn listen<F>(
         &self,
         mut stream: WsStream,
@@ -240,6 +241,7 @@ impl WebSocketChangeListener {
         F: Future<Output = ()> + Send + 'static,
     {
         tracing::debug!("ws_client::connected");
+        self.connection_status.send(true).ok();
 
         let mut shutdown_rx = self.shutdown.subscribe();
         loop {
@@ -271,17 +273,16 @@ impl WebSocketChangeListener {
                                 break;
                             }
                         }
+                    } else {
+                        break;
                     }
                 }
             }
         }
 
-        // reconnection is recursive so explicitly drop the receiver
-        drop(shutdown_rx);
-
         tracing::debug!("ws_client::disconnected");
-
-        self.delay_connect(handler).await
+        self.connection_status.send(false).ok();
+        Ok(())
     }
 
     async fn stream(&self) -> Result<WsStream> {
@@ -294,53 +295,45 @@ impl WebSocketChangeListener {
         .await
     }
 
-    async fn connect<F>(
+    async fn connect_loop<F>(
         &self,
         handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
     ) -> Result<()>
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        match self.stream().await {
-            Ok(stream) => self.listen(stream, handler).await,
-            Err(_) => self.delay_connect(handler).await,
-        }
-    }
+        let mut retries = 0;
+        let mut cancel_retry_rx = self.cancel_retry.subscribe();
 
-    #[async_recursion]
-    async fn delay_connect<F>(
-        &self,
-        handler: &(impl Fn(ChangeNotification) -> F + Send + Sync + 'static),
-    ) -> Result<()>
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        let retries = self.options.retry.increment();
-        if self.options.retry.is_exhausted(retries) {
-            tracing::debug!(
-                maximum_retries = %self.options.retry.maximum_retries,
-                "wsclient::retry_attempts_exhausted");
-            return Ok(());
-        }
+        loop {
+            match self.stream().await {
+                Ok(stream) => {
+                    if let Err(e) = self.listen(stream, handler).await {
+                        tracing::error!(error = ?e, "WebSocket connection error");
+                    }
+                    retries = 0;
+                }
+                Err(e) => {
+                    tracing::error!(error = ?e, "Failed to establish WebSocket connection");
+                    retries += 1;
+                    if self.options.retry.is_exhausted(retries) {
+                        tracing::debug!(
+                            maximum_retries = %self.options.retry.maximum_retries,
+                            "wsclient::retry_attempts_exhausted");
+                        return Ok(());
+                    }
+                }
+            }
 
-        tracing::debug!(retries = %retries, "ws_client::retry");
+            tracing::debug!(retries = %retries, "ws_client::retry");
 
-        match self
-            .options
-            .retry
-            .wait_and_retry(
-                "ws_client",
-                retries,
-                async move { self.connect(handler).await },
-                self.cancel_retry.subscribe(),
-            )
-            .await
-        {
-            Ok(_) => Ok(()),
-            Err(e) => match e {
-                Error::RetryCanceled(_) => Ok(()),
-                _ => Err(e),
-            },
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_millis(self.options.retry.delay(retries))) => {}
+                _ = cancel_retry_rx.changed() => {
+                    tracing::debug!("ws_client::retry_canceled");
+                    return Ok(());
+                }
+            }
         }
     }
 }
