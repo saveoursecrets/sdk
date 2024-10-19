@@ -86,8 +86,8 @@ pub fn print_secret(
             ..
         } => {
             let mut account = format!("Account:  {}\n", account);
-            if let Some(url) = url {
-                account.push_str(&format!("Website:  {}\n", url));
+            for u in url {
+                account.push_str(&format!("Website:  {}\n", u));
             }
             account
                 .push_str(&format!("Password: {}", password.expose_secret()));
@@ -381,10 +381,10 @@ pub fn add_login(
     let url = read_option(Some("Website: "))?;
     let password = read_password(Some("Password: "))?;
 
-    let url: Option<Url> = if let Some(url) = url {
-        Some(url.parse().map_err(|_| Error::InvalidUrl)?)
+    let url: Vec<Url> = if let Some(url) = url {
+        vec![url.parse().map_err(|_| Error::InvalidUrl)?]
     } else {
-        None
+        vec![]
     };
 
     let secret = Secret::Account {

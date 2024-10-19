@@ -171,8 +171,8 @@ impl From<GenericCsvEntry> for Secret {
 pub struct GenericPasswordRecord {
     /// The label of the entry.
     pub label: String,
-    /// The URL of the entry.
-    pub url: Option<Url>,
+    /// The URLs of the entry.
+    pub url: Vec<Url>,
     /// The username for the entry.
     pub username: String,
     /// The password for the entry.

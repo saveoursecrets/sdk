@@ -1067,11 +1067,11 @@ pub enum Secret {
     Account {
         /// Name of the account.
         account: String,
-        /// Optional URL associated with the account.
-        url: Option<Url>,
         /// The account password.
         #[serde(serialize_with = "serialize_secret_string")]
         password: SecretString,
+        /// Optional URLs associated with the account.
+        url: Vec<Url>,
         /// Custom user data.
         #[serde(default, skip_serializing_if = "UserData::is_default")]
         user_data: UserData,

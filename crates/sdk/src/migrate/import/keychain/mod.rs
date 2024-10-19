@@ -191,7 +191,7 @@ impl Convert for KeychainImport {
                         let secret = Secret::Account {
                             account: attr_account.as_str().to_owned(),
                             password: SecretString::new(password),
-                            url: None,
+                            url: Default::default(),
                             user_data: Default::default(),
                         };
 

@@ -67,9 +67,15 @@ impl From<BitwardenPasswordRecord> for GenericPasswordRecord {
             None
         };
 
+        let url = if let Some(uri) = value.login_uri {
+            vec![uri]
+        } else {
+            vec![]
+        };
+
         Self {
             label,
-            url: value.login_uri,
+            url,
             username: value.login_username,
             password: value.login_password,
             otp_auth: None,

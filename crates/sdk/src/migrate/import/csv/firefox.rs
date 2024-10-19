@@ -43,7 +43,7 @@ impl From<FirefoxPasswordRecord> for GenericPasswordRecord {
     fn from(value: FirefoxPasswordRecord) -> Self {
         Self {
             label: value.url.to_string(),
-            url: Some(value.url),
+            url: vec![value.url],
             username: value.username,
             password: value.password,
             otp_auth: None,

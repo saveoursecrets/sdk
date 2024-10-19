@@ -320,9 +320,15 @@ impl From<DashlanePasswordRecord> for GenericPasswordRecord {
             None
         };
 
+        let url = if let Some(url) = value.url {
+            vec![url]
+        } else {
+            vec![]
+        };
+
         Self {
             label,
-            url: value.url,
+            url,
             username: value.username,
             password: value.password,
             otp_auth: None,

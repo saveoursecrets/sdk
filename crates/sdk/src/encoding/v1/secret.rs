@@ -34,6 +34,30 @@ mod signer_kind {
     pub(crate) const SINGLE_PARTY_ED25519: u8 = 2;
 }
 
+/// Utility for backwards compatible encoding
+/// when the URL for an account/login secret only
+/// supported a single URL.
+///
+/// Initially a single URL was encoded as a string,
+/// when support for multiple URLs was added a Vec<Url>
+/// is encoded to a JSON string.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+enum WebsiteUrl {
+    One(Url),
+    Many(Vec<Url>),
+}
+
+impl WebsiteUrl {
+    /// Convert to a vector of URLs.
+    pub fn to_vec(self) -> Vec<Url> {
+        match self {
+            Self::One(url) => vec![url],
+            Self::Many(urls) => urls,
+        }
+    }
+}
+
 #[async_trait]
 impl Encodable for SecretMeta {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
@@ -378,9 +402,14 @@ impl Encodable for Secret {
             } => {
                 writer.write_string(account).await?;
                 writer.write_string(password.expose_secret()).await?;
-                writer.write_bool(url.is_some()).await?;
-                if let Some(url) = url {
-                    writer.write_string(url).await?;
+
+                // NOTE: must write this bool to be backwards
+                // NOTE: compatible from when `url` was Option<Url>
+                writer.write_bool(!url.is_empty()).await?;
+                if !url.is_empty() {
+                    let websites = WebsiteUrl::Many(url.clone());
+                    let value = serde_json::to_string(&websites)?;
+                    writer.write_string(value).await?;
                 }
                 write_user_data(user_data, writer).await?;
             }
@@ -599,13 +628,21 @@ impl Decodable for Secret {
                     secrecy::Secret::new(reader.read_string().await?);
                 let has_url = reader.read_bool().await?;
                 let url = if has_url {
-                    Some(
-                        Url::parse(&reader.read_string().await?)
-                            .map_err(encoding_error)?,
-                    )
+                    let s = reader.read_string().await?;
+                    // Original encoding was a String Url
+                    match s.parse::<Url>() {
+                        Ok(u) => WebsiteUrl::One(u).to_vec(),
+                        // Newer encoding is JSON to support
+                        // list of Urls
+                        Err(_) => {
+                            let value: WebsiteUrl = serde_json::from_str(&s)?;
+                            value.to_vec()
+                        }
+                    }
                 } else {
-                    None
+                    vec![]
                 };
+
                 let user_data = read_user_data(reader).await?;
 
                 *self = Self::Account {
