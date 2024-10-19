@@ -172,7 +172,7 @@ pub struct GenericPasswordRecord {
     /// The label of the entry.
     pub label: String,
     /// The URL of the entry.
-    pub url: Option<Url>,
+    pub url: Option<Vec<Url>>,
     /// The username for the entry.
     pub username: String,
     /// The password for the entry.

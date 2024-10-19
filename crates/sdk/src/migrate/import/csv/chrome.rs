@@ -24,7 +24,7 @@ pub struct ChromePasswordRecord {
     /// The name of the entry.
     pub name: String,
     /// The URL of the entry.
-    pub url: Option<Url>,
+    pub url: Option<String>,
     /// The username for the entry.
     pub username: String,
     /// The password for the entry.
@@ -40,9 +40,22 @@ impl From<ChromePasswordRecord> for GenericPasswordRecord {
         } else {
             value.name
         };
+
+        let url = if let Some(url) = value.url {
+            let mut websites = Vec::new();
+            for u in url.split(",") {
+                if let Ok(url) = u.trim().parse::<Url>() {
+                    websites.push(url);
+                }
+            }
+            Some(websites)
+        } else {
+            None
+        };
+
         Self {
             label,
-            url: value.url,
+            url,
             username: value.username,
             password: value.password,
             otp_auth: None,
@@ -97,7 +110,7 @@ impl Convert for ChromePasswordCsv {
 #[cfg(test)]
 mod test {
     use super::{parse_path, ChromePasswordCsv};
-    use crate::migrate::Convert;
+    use crate::migrate::{import::csv::GenericPasswordRecord, Convert};
     use anyhow::Result;
 
     use crate::{
@@ -119,7 +132,7 @@ mod test {
 
         assert_eq!("mock.example.com", &first.name);
         assert_eq!(
-            Some(Url::parse("https://mock.example.com/login")?),
+            Some("https://mock.example.com/login,https://mock.example.com/login2".to_owned()),
             first.url
         );
         assert_eq!("mock@example.com", &first.username);
@@ -127,11 +140,21 @@ mod test {
 
         assert_eq!("mock2.example.com", &second.name);
         assert_eq!(
-            Some(Url::parse("https://mock2.example.com/login")?),
+            Some("https://mock2.example.com/login".to_owned()),
             second.url
         );
         assert_eq!("mock2@example.com", &second.username);
         assert_eq!("XXX-MOCK-2", &second.password);
+
+        // Check multiple URL parsing
+        let entry: GenericPasswordRecord = first.into();
+        assert_eq!(
+            Some(vec![
+                Url::parse("https://mock.example.com/login")?,
+                Url::parse("https://mock.example.com/login2")?,
+            ]),
+            entry.url
+        );
 
         Ok(())
     }

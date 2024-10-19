@@ -107,7 +107,7 @@ async fn secret_encode_file() -> Result<()> {
 async fn secret_encode_account() -> Result<()> {
     let secret = Secret::Account {
         account: "Email".to_string(),
-        url: Some("https://webmail.example.com".parse().unwrap()),
+        url: Some(vec!["https://webmail.example.com".parse().unwrap()]),
         password: secrecy::Secret::new("mock-password".to_string()),
         user_data: Default::default(),
     };

@@ -1067,8 +1067,8 @@ pub enum Secret {
     Account {
         /// Name of the account.
         account: String,
-        /// Optional URL associated with the account.
-        url: Option<Url>,
+        /// Optional URLs associated with the account.
+        url: Option<Vec<Url>>,
         /// The account password.
         #[serde(serialize_with = "serialize_secret_string")]
         password: SecretString,

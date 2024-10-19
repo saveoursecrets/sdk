@@ -69,7 +69,7 @@ impl From<BitwardenPasswordRecord> for GenericPasswordRecord {
 
         Self {
             label,
-            url: value.login_uri,
+            url: value.login_uri.map(|u| vec![u]),
             username: value.login_username,
             password: value.login_password,
             otp_auth: None,

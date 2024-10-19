@@ -50,7 +50,7 @@ impl From<MacPasswordRecord> for GenericPasswordRecord {
         };
         Self {
             label,
-            url: value.url,
+            url: value.url.map(|u| vec![u]),
             username: value.username,
             password: value.password,
             otp_auth: value.otp_auth,

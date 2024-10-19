@@ -86,8 +86,10 @@ pub fn print_secret(
             ..
         } => {
             let mut account = format!("Account:  {}\n", account);
-            if let Some(url) = url {
-                account.push_str(&format!("Website:  {}\n", url));
+            if let Some(urls) = url {
+                for url in urls {
+                    account.push_str(&format!("Website:  {}\n", url));
+                }
             }
             account
                 .push_str(&format!("Password: {}", password.expose_secret()));
@@ -389,7 +391,7 @@ pub fn add_login(
 
     let secret = Secret::Account {
         account,
-        url,
+        url: url.map(|u| vec![u]),
         password,
         user_data: Default::default(),
     };
