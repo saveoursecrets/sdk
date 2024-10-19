@@ -94,7 +94,7 @@ async fn simulate_session(
     let weak_secret = Secret::Account {
         account: "weak@example.com".to_string(),
         password: secrecy::SecretString::new("test".to_string()),
-        url: None,
+        url: Default::default(),
         user_data: Default::default(),
     };
     let weak_meta =
@@ -126,7 +126,7 @@ async fn simulate_session(
     let strong_secret = Secret::Account {
         account: "string@example.com".to_string(),
         password,
-        url: None,
+        url: Default::default(),
         user_data,
     };
     let strong_meta =

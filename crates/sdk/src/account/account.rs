@@ -2711,7 +2711,7 @@ impl Account for LocalAccount {
             );
             let secret = Secret::Account {
                 account: format!("{}.vault", summary.id()),
-                url: None,
+                url: Default::default(),
                 password: new_key.into(),
                 user_data: Default::default(),
             };

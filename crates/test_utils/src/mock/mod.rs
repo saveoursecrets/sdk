@@ -25,7 +25,7 @@ pub fn login(
     let secret_value = Secret::Account {
         account: account.to_owned(),
         password,
-        url: None,
+        url: Default::default(),
         user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());

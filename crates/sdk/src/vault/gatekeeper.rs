@@ -460,7 +460,7 @@ mod tests {
         let secret = Secret::Account {
             account: "mock-username".to_string(),
             password: SecretString::new(secret_value),
-            url: Some(vec!["https://example.com".parse()?]),
+            url: vec!["https://example.com".parse()?],
             user_data: Default::default(),
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
@@ -485,7 +485,7 @@ mod tests {
         let new_secret = Secret::Account {
             account: "mock-new-username".to_string(),
             password: SecretString::new(new_secret_value),
-            url: Some(vec!["https://example.com/new".parse()?]),
+            url: vec!["https://example.com/new".parse()?],
             user_data: Default::default(),
         };
         let new_secret_meta =

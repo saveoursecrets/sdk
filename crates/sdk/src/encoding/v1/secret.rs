@@ -402,8 +402,11 @@ impl Encodable for Secret {
             } => {
                 writer.write_string(account).await?;
                 writer.write_string(password.expose_secret()).await?;
-                writer.write_bool(url.is_some()).await?;
-                if let Some(url) = url {
+
+                // NOTE: must write this bool to be backwards
+                // NOTE: compatible from when `url` was Option<Url>
+                writer.write_bool(!url.is_empty()).await?;
+                if !url.is_empty() {
                     let websites = WebsiteUrl::Many(url.clone());
                     let value = serde_json::to_string(&websites)?;
                     writer.write_string(value).await?;
@@ -627,9 +630,9 @@ impl Decodable for Secret {
                 let url = if has_url {
                     let s = reader.read_string().await?;
                     let value: WebsiteUrl = serde_json::from_str(&s)?;
-                    Some(value.to_vec())
+                    value.to_vec()
                 } else {
-                    None
+                    vec![]
                 };
 
                 let user_data = read_user_data(reader).await?;

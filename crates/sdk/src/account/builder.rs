@@ -229,7 +229,7 @@ impl AccountBuilder {
             let secret = Secret::Account {
                 account: account_name,
                 password: passphrase.clone(),
-                url: None,
+                url: Default::default(),
                 user_data: Default::default(),
             };
             let mut meta = SecretMeta::new(

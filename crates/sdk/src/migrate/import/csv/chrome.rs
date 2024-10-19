@@ -48,9 +48,9 @@ impl From<ChromePasswordRecord> for GenericPasswordRecord {
                     websites.push(url);
                 }
             }
-            Some(websites)
+            websites
         } else {
-            None
+            vec![]
         };
 
         Self {
@@ -149,10 +149,10 @@ mod test {
         // Check multiple URL parsing
         let entry: GenericPasswordRecord = first.into();
         assert_eq!(
-            Some(vec![
+            vec![
                 Url::parse("https://mock.example.com/login")?,
                 Url::parse("https://mock.example.com/login2")?,
-            ]),
+            ],
             entry.url
         );
 

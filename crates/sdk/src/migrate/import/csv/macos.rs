@@ -48,9 +48,16 @@ impl From<MacPasswordRecord> for GenericPasswordRecord {
         } else {
             value.title
         };
+
+        let url = if let Some(url) = value.url {
+            vec![url]
+        } else {
+            vec![]
+        };
+
         Self {
             label,
-            url: value.url.map(|u| vec![u]),
+            url,
             username: value.username,
             password: value.password,
             otp_auth: value.otp_auth,
