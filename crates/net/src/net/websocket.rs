@@ -306,25 +306,33 @@ impl WebSocketChangeListener {
         let mut cancel_retry_rx = self.cancel_retry.subscribe();
 
         loop {
-            match self.stream().await {
-                Ok(stream) => {
-                    if let Err(e) = self.listen(stream, handler).await {
-                        tracing::error!(
-                          error = ?e,
-                          "ws_client::connection_error");
-                    }
-                    retries = 0;
+            tokio::select! {
+                _ = cancel_retry_rx.changed() => {
+                    tracing::debug!("ws_client::retry_canceled");
+                    return Ok(());
                 }
-                Err(e) => {
-                    tracing::error!(
-                      error = ?e,
-                      "failed to establish websocket connection");
-                    retries += 1;
-                    if self.options.retry.is_exhausted(retries) {
-                        tracing::debug!(
-                            maximum_retries = %self.options.retry.maximum_retries,
-                            "wsclient::retry_attempts_exhausted");
-                        return Ok(());
+                result = self.stream() => {
+                    match result {
+                        Ok(stream) => {
+                            if let Err(e) = self.listen(stream, handler).await {
+                                tracing::error!(
+                                    error = ?e,
+                                    "ws_client::connection_error");
+                            }
+                            retries = 0;
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                error = ?e,
+                                "failed to establish websocket connection");
+                            retries += 1;
+                            if self.options.retry.is_exhausted(retries) {
+                                tracing::debug!(
+                                    maximum_retries = %self.options.retry.maximum_retries,
+                                    "wsclient::retry_attempts_exhausted");
+                                return Ok(());
+                            }
+                        }
                     }
                 }
             }
