@@ -19,19 +19,18 @@ pub fn memorable_password() -> String {
         }
 
         let mut part = String::new();
-        for j in 0..6 {
-            let char = if (j == 5 && i < 2 && rng.gen_bool(0.3))
-                || (j == 5 && i == 2 && !digit_placed)
-            {
-                // Place digit at the end of first two parts with 30% chance, or at the end if not placed yet
+        for j in 0..3 {
+            let syllable = if j == 2 && !digit_placed && (i == 2 || rng.gen_bool(0.3)) {
+                // Place digit at the end of a part with 30% chance, or at the end if not placed yet
                 digit_placed = true;
-                DIGITS[rng.gen_range(0..DIGITS.len())]
-            } else if rng.gen_bool(0.4) {
-                VOWELS[rng.gen_range(0..VOWELS.len())]
+                format!("{}{}", VOWELS[rng.gen_range(0..VOWELS.len())], DIGITS[rng.gen_range(0..DIGITS.len())])
             } else {
-                CONSONANTS[rng.gen_range(0..CONSONANTS.len())]
+                format!("{}{}", 
+                    CONSONANTS[rng.gen_range(0..CONSONANTS.len())],
+                    VOWELS[rng.gen_range(0..VOWELS.len())]
+                )
             };
-            part.push(char);
+            part.push_str(&syllable);
         }
 
         // Capitalize the first letter of a random part
@@ -49,6 +48,15 @@ pub fn memorable_password() -> String {
         password.replace_range(
             last_part_start..last_part_start + 1,
             &password[last_part_start..last_part_start + 1].to_ascii_uppercase(),
+        );
+    }
+
+    // If no digit has been placed, replace the last character with a digit
+    if !digit_placed {
+        let last_char_index = password.len() - 1;
+        password.replace_range(
+            last_char_index..last_char_index + 1,
+            &DIGITS[rng.gen_range(0..DIGITS.len())].to_string(),
         );
     }
 
@@ -76,17 +84,22 @@ mod tests {
             // Check for exactly one uppercase letter
             assert_eq!(password.chars().filter(|c| c.is_ascii_uppercase()).count(), 1);
 
-            // Check for at least one digit
-            assert!(password.chars().any(|c| c.is_ascii_digit()));
+            // Check for exactly one digit
+            assert_eq!(password.chars().filter(|c| c.is_ascii_digit()).count(), 1);
 
             // Check that the uppercase letter is at the start of one of the parts
             assert!(parts.iter().any(|part| part.chars().next().unwrap().is_ascii_uppercase()));
 
-            // Check that the digit is at the end of any part or at the end of the password
-            assert!(
-                parts.iter().any(|part| part.chars().last().unwrap().is_ascii_digit())
-                    || password.chars().last().unwrap().is_ascii_digit()
-            );
+            // Check that each part follows the consonant-vowel pattern (except for the digit)
+            for part in parts.iter() {
+                let chars: Vec<char> = part.chars().collect();
+                assert!(CONSONANTS.contains(&chars[0].to_ascii_lowercase()) || chars[0].is_ascii_digit());
+                assert!(VOWELS.contains(&chars[1].to_ascii_lowercase()));
+                assert!(CONSONANTS.contains(&chars[2].to_ascii_lowercase()) || chars[2].is_ascii_digit());
+                assert!(VOWELS.contains(&chars[3].to_ascii_lowercase()));
+                assert!(CONSONANTS.contains(&chars[4].to_ascii_lowercase()) || chars[4].is_ascii_digit());
+                assert!(VOWELS.contains(&chars[5].to_ascii_lowercase()) || chars[5].is_ascii_digit());
+            }
         }
     }
 }
