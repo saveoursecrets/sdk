@@ -72,26 +72,92 @@ pub fn measure_entropy(password: &str, user_inputs: &[&str]) -> Entropy {
     zxcvbn(password, user_inputs)
 }
 
+/// Generate a password.
+pub fn generate_one(kind: &PasswordType) -> Result<PasswordResult> {
+    let builder = PasswordBuilder::new(kind);
+    builder.one()
+}
+
+/// Generate multiple passwords.
+pub fn generate_many(
+    kind: &PasswordType,
+    count: usize,
+) -> Result<Vec<PasswordResult>> {
+    let builder = PasswordBuilder::new(kind);
+    builder.many(count)
+}
+
+/// Type of passwords that can be generated.
+#[derive(Debug)]
+pub enum PasswordType {
+    /// Alpha ASCII password.
+    Alpha {
+        /// Number of characters.
+        characters: usize,
+    },
+    /// Alphanumeric ASCII password.
+    AlphaNumeric {
+        /// Number of characters.
+        characters: usize,
+    },
+    /// Numeric password.
+    Numeric {
+        /// Number of digits.
+        digits: usize,
+    },
+    /// Random ASCII printable password.
+    Random {
+        /// Number of characters.
+        length: usize,
+    },
+    /// Diceware password.
+    Diceware {
+        /// Number of words.
+        words: usize,
+    },
+}
+
 /// Generated password result.
 #[derive(Debug, Clone)]
 pub struct PasswordResult {
-    /// The generated password.
+    /// Generated password.
     pub password: SecretString,
-    /// The computed entropy for the password.
+    /// Computed entropy for the password.
     pub entropy: Entropy,
 }
 
-/// Options for password generation.
+/// Builder for password generation.
 #[derive(Debug, Clone)]
-pub struct PasswordGen {
+struct PasswordBuilder {
     length: usize,
     characters: Vec<&'static str>,
     diceware: Option<BasicConfig<WordSampler>>,
 }
 
-impl PasswordGen {
+impl PasswordBuilder {
     /// Create a new password generator.
-    pub fn new(length: usize) -> Self {
+    pub fn new(kind: &PasswordType) -> Self {
+        match kind {
+            PasswordType::Alpha { characters } => {
+                PasswordBuilder::new_alpha(*characters)
+            }
+            PasswordType::AlphaNumeric { characters } => {
+                PasswordBuilder::new_alpha_numeric(*characters)
+            }
+            PasswordType::Numeric { digits } => {
+                PasswordBuilder::new_numeric(*digits)
+            }
+            PasswordType::Random { length } => {
+                PasswordBuilder::new_ascii_printable(*length)
+            }
+            PasswordType::Diceware { words } => {
+                PasswordBuilder::new_diceware(*words)
+            }
+        }
+    }
+
+    /// Create a password generator with a length.
+    fn new_length(length: usize) -> Self {
         Self {
             length,
             characters: vec![],
@@ -101,23 +167,23 @@ impl PasswordGen {
 
     /// Create with lowercase and uppercase character sets.
     pub fn new_alpha(length: usize) -> Self {
-        Self::new(length).upper().lower()
+        Self::new_length(length).upper().lower()
     }
 
     /// Create with numeric digits only.
     pub fn new_numeric(length: usize) -> Self {
-        Self::new(length).numeric()
+        Self::new_length(length).numeric()
     }
 
     /// Create with numeric digits, uppercase and lowercase
     /// roman letters.
     pub fn new_alpha_numeric(length: usize) -> Self {
-        Self::new(length).upper().lower().numeric()
+        Self::new_length(length).upper().lower().numeric()
     }
 
     /// Options using printable ASCII characters.
     pub fn new_ascii_printable(length: usize) -> Self {
-        Self::new(length)
+        Self::new_length(length)
             .upper()
             .lower()
             .numeric()
@@ -126,7 +192,7 @@ impl PasswordGen {
 
     /// Create with diceware words.
     pub fn new_diceware(length: usize) -> Self {
-        Self::new(length).diceware()
+        Self::new_length(length).diceware()
     }
 
     /// Length of the generated password.
@@ -134,10 +200,12 @@ impl PasswordGen {
         self.length
     }
 
+    /*
     /// Determine if this generator is zero length.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+    */
 
     /// Use lowercase roman letters.
     pub fn lower(mut self) -> Self {
@@ -196,7 +264,7 @@ impl PasswordGen {
 
     /// Generate multiple passwords
     pub fn many(&self, count: usize) -> Result<Vec<PasswordResult>> {
-        let mut results = Vec::new();
+        let mut results = Vec::with_capacity(count);
         for _ in 0..count {
             results.push(self.one()?);
         }
@@ -212,7 +280,7 @@ mod test {
 
     #[test]
     fn passgen_alpha() -> Result<()> {
-        let generator = PasswordGen::new_alpha(12);
+        let generator = PasswordBuilder::new_alpha(12);
         let result = generator.one()?;
         assert_eq!(generator.len(), result.password.expose_secret().len());
         Ok(())
@@ -220,7 +288,7 @@ mod test {
 
     #[test]
     fn passgen_numeric() -> Result<()> {
-        let generator = PasswordGen::new_numeric(12);
+        let generator = PasswordBuilder::new_numeric(12);
         let result = generator.one()?;
         assert_eq!(generator.len(), result.password.expose_secret().len());
         Ok(())
@@ -228,7 +296,7 @@ mod test {
 
     #[test]
     fn passgen_alphanumeric() -> Result<()> {
-        let generator = PasswordGen::new_alpha_numeric(12);
+        let generator = PasswordBuilder::new_alpha_numeric(12);
         let result = generator.one()?;
         assert_eq!(generator.len(), result.password.expose_secret().len());
         Ok(())
@@ -236,7 +304,7 @@ mod test {
 
     #[test]
     fn passgen_ascii_printable() -> Result<()> {
-        let generator = PasswordGen::new_ascii_printable(12);
+        let generator = PasswordBuilder::new_ascii_printable(12);
         let result = generator.one()?;
         assert_eq!(generator.len(), result.password.expose_secret().len());
         Ok(())
@@ -244,7 +312,7 @@ mod test {
 
     #[test]
     fn passgen_ascii_printable_long() -> Result<()> {
-        let generator = PasswordGen::new_ascii_printable(32);
+        let generator = PasswordBuilder::new_ascii_printable(32);
         let result = generator.one()?;
         assert_eq!(generator.len(), result.password.expose_secret().len());
         Ok(())
@@ -252,7 +320,7 @@ mod test {
 
     #[test]
     fn passgen_diceware() -> Result<()> {
-        let generator = PasswordGen::new_diceware(6);
+        let generator = PasswordBuilder::new_diceware(6);
         let result = generator.one()?;
         let words: Vec<String> = result
             .password
@@ -266,7 +334,7 @@ mod test {
 
     #[test]
     fn passgen_generate() -> Result<()> {
-        let generator = PasswordGen::new_ascii_printable(12);
+        let generator = PasswordBuilder::new_ascii_printable(12);
         let count = 5;
         let passwords = generator.many(count)?;
         assert_eq!(count, passwords.len());
