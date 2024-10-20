@@ -817,7 +817,7 @@ where
           "file_transfer"
         );
 
-        let retry = settings.retry.reset();
+        let retry = settings.retry.clone_reset();
         let result = match &op {
             TransferOperation::Upload => {
                 let operation = operations::UploadOperation::new(
