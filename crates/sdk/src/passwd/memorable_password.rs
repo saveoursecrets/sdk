@@ -2,8 +2,8 @@ use rand::Rng;
 
 const VOWELS: &[char] = &['a', 'e', 'i', 'o', 'u'];
 const CONSONANTS: &[char] = &[
-    'b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm',
-    'n', 'p', 'q', 'r', 's', 't', 'v', 'w', 'x', 'y', 'z'
+    'b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'q', 'r',
+    's', 't', 'v', 'w', 'x', 'y', 'z',
 ];
 
 pub fn generate_memorable_password() -> String {
@@ -14,7 +14,7 @@ pub fn generate_memorable_password() -> String {
         if i > 0 {
             password.push('-');
         }
-        
+
         for _ in 0..6 {
             if rng.gen_bool(0.4) {
                 password.push(VOWELS[rng.gen_range(0..VOWELS.len())]);
@@ -34,9 +34,10 @@ mod tests {
     #[test]
     fn test_generate_memorable_password() {
         let password = generate_memorable_password();
+        println!("{:#?}", password);
         assert_eq!(password.len(), 20);
         assert_eq!(password.matches('-').count(), 2);
-        
+
         let parts: Vec<&str> = password.split('-').collect();
         assert_eq!(parts.len(), 3);
         for part in parts {
