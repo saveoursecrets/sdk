@@ -10,6 +10,7 @@ const DIGITS: &[char] = &['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 pub fn generate_memorable_password() -> String {
     let mut rng = rand::thread_rng();
     let mut password = String::new();
+    let mut digit_placed = false;
 
     for i in 0..3 {
         if i > 0 {
@@ -20,8 +21,9 @@ pub fn generate_memorable_password() -> String {
             let char = if j == 0 && i == 0 {
                 // Ensure first character is uppercase
                 CONSONANTS[rng.gen_range(0..CONSONANTS.len())].to_ascii_uppercase()
-            } else if j == 5 && i == 2 {
-                // Ensure last character is a digit
+            } else if (j == 5 && i < 2 && rng.gen_bool(0.3)) || (j == 5 && i == 2 && !digit_placed) {
+                // Place digit at the end of first two parts with 30% chance, or at the end if not placed yet
+                digit_placed = true;
                 DIGITS[rng.gen_range(0..DIGITS.len())]
             } else if rng.gen_bool(0.4) {
                 VOWELS[rng.gen_range(0..VOWELS.len())]
@@ -68,7 +70,8 @@ mod tests {
         // Check that the first character is uppercase
         assert!(password.chars().next().unwrap().is_ascii_uppercase());
 
-        // Check that the last character is a digit
-        assert!(password.chars().last().unwrap().is_ascii_digit());
+        // Check that the digit is at the end of any part or at the end of the password
+        assert!(parts.iter().any(|part| part.chars().last().unwrap().is_ascii_digit()) || 
+                password.chars().last().unwrap().is_ascii_digit());
     }
 }
