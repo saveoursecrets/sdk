@@ -9,14 +9,14 @@ use crate::{
         FolderEventLog, FolderReducer, IntoRecord, ReadEvent, WriteEvent,
     },
     identity::FolderKeys,
-    passwd::{diceware::generate_passphrase, ChangePassword},
+    passwd::diceware::generate_passphrase,
     prelude::{VaultFlags, EVENT_LOG_EXT},
     signer::ecdsa::Address,
     storage::{AccessOptions, AccountPack, DiscFolder, NewFolderOptions},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
-        BuilderCredentials, FolderRef, Header, Summary, Vault, VaultBuilder,
-        VaultId,
+        BuilderCredentials, ChangePassword, FolderRef, Header, Summary,
+        Vault, VaultBuilder, VaultId,
     },
     vfs, Error, Paths, Result, UtcDateTime,
 };

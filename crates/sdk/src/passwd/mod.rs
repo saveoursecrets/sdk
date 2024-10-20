@@ -1,6 +1,4 @@
-//! Generate and change passwords.
-mod change;
+//! Generate passwords.
 pub mod generator;
 
-pub use change::ChangePassword;
 pub use generator::diceware;

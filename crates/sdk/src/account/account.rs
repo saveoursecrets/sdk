@@ -1032,7 +1032,7 @@ impl LocalAccount {
         vault_id: &VaultId,
         new_key: AccessKey,
     ) -> Result<Vec<u8>> {
-        use crate::passwd::ChangePassword;
+        use crate::vault::ChangePassword;
         let paths = self.paths().clone();
         // Get the current vault passphrase from the identity vault
         let current_key = self
