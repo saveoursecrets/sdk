@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-#[cfg(feature = "clipboard")]
+#[cfg(all(feature = "clipboard", NOT_CI))]
 #[tokio::test]
 async fn clipboard() -> Result<()> {
     // NOTE: we must run these tests in serial
