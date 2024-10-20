@@ -5,6 +5,7 @@ const CONSONANTS: &[char] = &[
     'b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'q', 'r',
     's', 't', 'v', 'w', 'x', 'y', 'z',
 ];
+const DIGITS: &[char] = &['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 pub fn generate_memorable_password() -> String {
     let mut rng = rand::thread_rng();
@@ -15,14 +16,28 @@ pub fn generate_memorable_password() -> String {
             password.push('-');
         }
 
-        for _ in 0..6 {
-            if rng.gen_bool(0.4) {
-                password.push(VOWELS[rng.gen_range(0..VOWELS.len())]);
+        for j in 0..6 {
+            let char = if j == 0 && i == 0 {
+                // Ensure first character is uppercase
+                CONSONANTS[rng.gen_range(0..CONSONANTS.len())].to_ascii_uppercase()
+            } else if j == 5 && i == 2 {
+                // Ensure last character is a digit
+                DIGITS[rng.gen_range(0..DIGITS.len())]
+            } else if rng.gen_bool(0.4) {
+                VOWELS[rng.gen_range(0..VOWELS.len())]
             } else {
-                password.push(CONSONANTS[rng.gen_range(0..CONSONANTS.len())]);
-            }
+                CONSONANTS[rng.gen_range(0..CONSONANTS.len())]
+            };
+            password.push(char);
         }
     }
+
+    // Randomly capitalize one more character
+    let uppercase_index = rng.gen_range(1..password.len());
+    password.replace_range(
+        uppercase_index..=uppercase_index,
+        &password[uppercase_index..=uppercase_index].to_ascii_uppercase(),
+    );
 
     password
 }
@@ -43,5 +58,17 @@ mod tests {
         for part in parts {
             assert_eq!(part.len(), 6);
         }
+
+        // Check for at least one uppercase letter
+        assert!(password.chars().any(|c| c.is_ascii_uppercase()));
+
+        // Check for at least one digit
+        assert!(password.chars().any(|c| c.is_ascii_digit()));
+
+        // Check that the first character is uppercase
+        assert!(password.chars().next().unwrap().is_ascii_uppercase());
+
+        // Check that the last character is a digit
+        assert!(password.chars().last().unwrap().is_ascii_digit());
     }
 }
