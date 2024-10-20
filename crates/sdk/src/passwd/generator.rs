@@ -167,13 +167,6 @@ impl PasswordBuilder {
         self.length
     }
 
-    /*
-    /// Determine if this generator is zero length.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-    */
-
     /// Use memorable strategy.
     pub fn memorable(mut self) -> Self {
         self.memorable = true;

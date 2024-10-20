@@ -11,11 +11,10 @@ const DIGITS: &[char] = &['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 pub fn memorable_password(num_words: usize) -> String {
     let rng = &mut OsRng;
     let num_syllables = num_words * 2;
-
     let mut words = Vec::with_capacity(num_words);
     let mut syllables = Vec::with_capacity(num_syllables);
 
-    for _ in 0..6 {
+    for _ in 0..num_syllables {
         let mut syllable = String::new();
         let vowel = VOWELS[rng.gen_range(0..VOWELS.len())];
         syllable.push(CONSONANTS[rng.gen_range(0..CONSONANTS.len())]);
