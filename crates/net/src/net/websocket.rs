@@ -319,7 +319,7 @@ impl WebSocketChangeListener {
                             tracing::error!(
                                 error = ?e,
                                 "ws_client::connect_error");
-                            let retries = self.options.retry.increment();
+                            let retries = self.options.retry.retries();
                             if self.options.retry.is_exhausted(retries) {
                                 tracing::debug!(
                                     maximum_retries = %self.options.retry.maximum_retries,
@@ -335,7 +335,9 @@ impl WebSocketChangeListener {
             tracing::debug!(retries = %retries, "ws_client::retry");
 
             tokio::select! {
-                _ = tokio::time::sleep(Duration::from_millis(self.options.retry.delay(retries))) => {}
+                _ = tokio::time::sleep(Duration::from_millis(self.options.retry.delay(retries))) => {
+                  self.options.retry.increment();
+                }
                 _ = cancel_retry_rx.changed() => {
                     tracing::debug!("ws_client::retry_canceled");
                     return Ok(());
