@@ -52,16 +52,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn generate_memorable_password() {
+    fn test_memorable_password() {
         for _ in 0..10 {
             let password = memorable_password();
-            println!("{:#?}", password);
+            println!("{}", password);
             assert_eq!(password.len(), 20);
             assert_eq!(password.matches('-').count(), 2);
 
             let parts: Vec<&str> = password.split('-').collect();
             assert_eq!(parts.len(), 3);
-            for part in parts {
+            for part in parts.iter() {
                 assert_eq!(part.len(), 6);
             }
 
@@ -76,11 +76,7 @@ mod tests {
 
             // Check that the digit is at the end of any part or at the end of the password
             assert!(
-                parts.iter().any(|part| part
-                    .chars()
-                    .last()
-                    .unwrap()
-                    .is_ascii_digit())
+                parts.iter().any(|part| part.chars().last().unwrap().is_ascii_digit())
                     || password.chars().last().unwrap().is_ascii_digit()
             );
         }
