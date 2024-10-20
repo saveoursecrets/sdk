@@ -61,6 +61,11 @@ impl NetworkRetry {
         (retries * self.reconnect_interval as u32) as u64
     }
 
+    /// Current number of retries.
+    pub fn retries(&self) -> u32 {
+        self.retries.load(Ordering::SeqCst)
+    }
+
     /// Clone of this network retry with the retry counter reset.
     pub fn reset(&self) -> Self {
         Self {

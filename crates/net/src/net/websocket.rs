@@ -187,7 +187,6 @@ pub struct WebSocketChangeListener {
     options: ListenOptions,
     shutdown: watch::Sender<()>,
     cancel_retry: watch::Sender<CancelReason>,
-    connection_status: watch::Sender<bool>,
 }
 
 impl WebSocketChangeListener {
@@ -200,7 +199,6 @@ impl WebSocketChangeListener {
     ) -> Self {
         let (shutdown, _) = watch::channel(());
         let (cancel_retry, _) = watch::channel(Default::default());
-        let (connection_status, _) = watch::channel(false);
         Self {
             origin,
             signer,
@@ -208,7 +206,6 @@ impl WebSocketChangeListener {
             options,
             shutdown,
             cancel_retry,
-            connection_status,
         }
     }
 
@@ -241,7 +238,6 @@ impl WebSocketChangeListener {
         F: Future<Output = ()> + Send + 'static,
     {
         tracing::debug!("ws_client::connected");
-        self.connection_status.send(true).ok();
 
         let mut shutdown_rx = self.shutdown.subscribe();
         loop {
@@ -281,7 +277,6 @@ impl WebSocketChangeListener {
         }
 
         tracing::debug!("ws_client::disconnected");
-        self.connection_status.send(false).ok();
         Ok(())
     }
 
@@ -302,7 +297,6 @@ impl WebSocketChangeListener {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        let mut retries = 0;
         let mut cancel_retry_rx = self.cancel_retry.subscribe();
 
         loop {
@@ -317,15 +311,15 @@ impl WebSocketChangeListener {
                             if let Err(e) = self.listen(stream, handler).await {
                                 tracing::error!(
                                     error = ?e,
-                                    "ws_client::connection_error");
+                                    "ws_client::listen_error");
                             }
-                            retries = 0;
+                            self.options.retry.reset();
                         }
                         Err(e) => {
                             tracing::error!(
                                 error = ?e,
-                                "failed to establish websocket connection");
-                            retries += 1;
+                                "ws_client::connect_error");
+                            let retries = self.options.retry.increment();
                             if self.options.retry.is_exhausted(retries) {
                                 tracing::debug!(
                                     maximum_retries = %self.options.retry.maximum_retries,
@@ -337,6 +331,7 @@ impl WebSocketChangeListener {
                 }
             }
 
+            let retries = self.options.retry.retries();
             tracing::debug!(retries = %retries, "ws_client::retry");
 
             tokio::select! {
