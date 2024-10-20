@@ -76,7 +76,11 @@ mod tests {
 
             // Check that the digit is at the end of any part or at the end of the password
             assert!(
-                parts.iter().any(|part| part.chars().last().unwrap().is_ascii_digit())
+                parts.iter().any(|part| part
+                    .chars()
+                    .last()
+                    .unwrap()
+                    .is_ascii_digit())
                     || password.chars().last().unwrap().is_ascii_digit()
             );
         }
