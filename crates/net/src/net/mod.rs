@@ -56,9 +56,10 @@ impl NetworkRetry {
         }
     }
 
-    /// Millisecond delay for a current retry.
-    pub fn delay(&self, retries: u32) -> u64 {
-        (retries * self.reconnect_interval as u32) as u64
+    /// Exponential backoff millisecond delay for a retry counter.
+    pub fn delay(&self, retries: u32) -> Result<u64> {
+        let factor = 2u64.checked_pow(retries).ok_or(Error::RetryOverflow)?;
+        Ok(self.reconnect_interval as u64 * factor)
     }
 
     /// Current number of retries.
@@ -66,8 +67,18 @@ impl NetworkRetry {
         self.retries.load(Ordering::SeqCst)
     }
 
+    /// Maximum number of retries.
+    pub fn maximum(&self) -> u32 {
+        self.maximum_retries
+    }
+
+    /// Reset retries counter.
+    pub fn reset(&self) {
+        self.retries.store(1, Ordering::SeqCst)
+    }
+
     /// Clone of this network retry with the retry counter reset.
-    pub fn reset(&self) -> Self {
+    pub fn clone_reset(&self) -> Self {
         Self {
             retries: Arc::new(AtomicU32::from(1)),
             reconnect_interval: self.reconnect_interval,
@@ -97,8 +108,7 @@ impl NetworkRetry {
         D: std::fmt::Display,
         F: Future<Output = T>,
     {
-        let factor = 2u64.checked_pow(retries).ok_or(Error::RetryOverflow)?;
-        let delay = self.reconnect_interval as u64 * factor;
+        let delay = self.delay(retries)?;
         tracing::debug!(
             id = %id,
             delay = %delay,

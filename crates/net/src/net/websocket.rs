@@ -308,12 +308,12 @@ impl WebSocketChangeListener {
                 result = self.stream() => {
                     match result {
                         Ok(stream) => {
+                            self.options.retry.reset();
                             if let Err(e) = self.listen(stream, handler).await {
                                 tracing::error!(
                                     error = ?e,
                                     "ws_client::listen_error");
                             }
-                            self.options.retry.reset();
                         }
                         Err(e) => {
                             tracing::error!(
@@ -332,10 +332,16 @@ impl WebSocketChangeListener {
             }
 
             let retries = self.options.retry.retries();
-            tracing::debug!(retries = %retries, "ws_client::retry");
+            let delay = self.options.retry.delay(retries)?;
+            let maximum = self.options.retry.maximum();
+            tracing::debug!(
+              retries = %retries,
+              delay = %delay,
+              maximum_retries = %maximum,
+              "ws_client::retry");
 
             tokio::select! {
-                _ = tokio::time::sleep(Duration::from_millis(self.options.retry.delay(retries))) => {
+                _ = tokio::time::sleep(Duration::from_millis(delay)) => {
                   self.options.retry.increment();
                 }
                 _ = cancel_retry_rx.changed() => {
