@@ -1,4 +1,4 @@
 //! Generate passwords.
+pub mod diceware;
 pub mod generator;
-
-pub use generator::diceware;
+mod memorable_password;

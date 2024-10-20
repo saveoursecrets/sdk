@@ -1,3 +1,4 @@
+use rand::rngs::OsRng;
 use rand::Rng;
 
 const VOWELS: &[char] = &['a', 'e', 'i', 'o', 'u'];
@@ -7,62 +8,54 @@ const CONSONANTS: &[char] = &[
 ];
 const DIGITS: &[char] = &['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
-pub fn memorable_password() -> String {
-    let mut rng = rand::thread_rng();
-    let mut password = String::new();
-    let mut digit_placed = false;
-    let mut uppercase_placed = false;
+pub fn memorable_password(num_words: usize) -> String {
+    let rng = &mut OsRng;
+    let num_syllables = num_words * 2;
 
-    for i in 0..3 {
-        if i > 0 {
-            password.push('-');
-        }
+    let mut words = Vec::with_capacity(num_words);
+    let mut syllables = Vec::with_capacity(num_syllables);
 
-        let mut part = String::new();
-        for j in 0..3 {
-            let consonant = CONSONANTS[rng.gen_range(0..CONSONANTS.len())];
-            let vowel = VOWELS[rng.gen_range(0..VOWELS.len())];
-            
-            if j == 2 && !digit_placed && (i == 2 || rng.gen_bool(0.3)) {
-                // Place digit at the end of a part with 30% chance, or at the end if not placed yet
-                digit_placed = true;
-                part.push(consonant);
-                part.push(vowel);
-                part.push(DIGITS[rng.gen_range(0..DIGITS.len())]);
+    for _ in 0..6 {
+        let mut syllable = String::new();
+        let vowel = VOWELS[rng.gen_range(0..VOWELS.len())];
+        syllable.push(CONSONANTS[rng.gen_range(0..CONSONANTS.len())]);
+        syllable.push(vowel);
+        syllable.push(CONSONANTS[rng.gen_range(0..CONSONANTS.len())]);
+        syllables.push(syllable);
+    }
+
+    let digit_word = rng.gen_range(0..=2);
+    let upper_word = rng.gen_range(0..=2);
+
+    for (index, chunks) in syllables.chunks_exact(2).enumerate() {
+        let mut word = String::new();
+        word.push_str(chunks.first().unwrap());
+        word.push_str(chunks.last().unwrap());
+
+        if index == digit_word {
+            let digit = DIGITS[rng.gen_range(0..DIGITS.len())].to_string();
+            // Avoid starting the first word with a digit
+            // or colliding with an uppercase character
+            if index == 0 || digit_word == upper_word {
+                word.replace_range(5..6, &digit);
             } else {
-                part.push(consonant);
-                part.push(vowel);
+                if rng.gen_bool(0.5) {
+                    word.replace_range(0..1, &digit);
+                } else {
+                    word.replace_range(5..6, &digit);
+                }
             }
         }
 
-        // Capitalize the first letter of a random part
-        if !uppercase_placed && (i == 0 || rng.gen_bool(0.5)) {
-            part = part[0..1].to_ascii_uppercase() + &part[1..];
-            uppercase_placed = true;
+        // Capitalize the first letter
+        if index == upper_word {
+            word = word[0..1].to_ascii_uppercase() + &word[1..];
         }
 
-        password.push_str(&part);
+        words.push(word);
     }
 
-    // If no uppercase letter has been placed, capitalize the first letter of the last part
-    if !uppercase_placed {
-        let last_part_start = password.rfind('-').map(|i| i + 1).unwrap_or(0);
-        password.replace_range(
-            last_part_start..last_part_start + 1,
-            &password[last_part_start..last_part_start + 1].to_ascii_uppercase(),
-        );
-    }
-
-    // If no digit has been placed, replace the last character with a digit
-    if !digit_placed {
-        let last_char_index = password.len() - 1;
-        password.replace_range(
-            last_char_index..last_char_index + 1,
-            &DIGITS[rng.gen_range(0..DIGITS.len())].to_string(),
-        );
-    }
-
-    password
+    words.join("-")
 }
 
 #[cfg(test)]
@@ -72,8 +65,9 @@ mod tests {
     #[test]
     fn test_memorable_password() {
         for _ in 0..100 {
-            let password = memorable_password();
+            let password = memorable_password(3);
             println!("{}", password);
+
             assert_eq!(password.len(), 20);
             assert_eq!(password.matches('-').count(), 2);
 
@@ -84,23 +78,44 @@ mod tests {
             }
 
             // Check for exactly one uppercase letter
-            assert_eq!(password.chars().filter(|c| c.is_ascii_uppercase()).count(), 1);
+            assert_eq!(
+                password.chars().filter(|c| c.is_ascii_uppercase()).count(),
+                1
+            );
 
             // Check for exactly one digit
-            assert_eq!(password.chars().filter(|c| c.is_ascii_digit()).count(), 1);
+            assert_eq!(
+                password.chars().filter(|c| c.is_ascii_digit()).count(),
+                1
+            );
 
             // Check that the uppercase letter is at the start of one of the parts
-            assert!(parts.iter().any(|part| part.chars().next().unwrap().is_ascii_uppercase()));
+            assert!(parts.iter().any(|part| part
+                .chars()
+                .next()
+                .unwrap()
+                .is_ascii_uppercase()));
+
+            fn is_consonant(c: &char, allow_digit: bool) -> bool {
+                CONSONANTS.contains(&c.to_ascii_lowercase())
+                    || (allow_digit && c.is_ascii_digit())
+            }
+
+            fn is_vowel(c: &char) -> bool {
+                VOWELS.contains(&c.to_ascii_lowercase())
+            }
 
             // Check that each part follows the consonant-vowel pattern (except for the possible digit at the end)
-            for part in parts.iter() {
+            for (index, part) in parts.iter().enumerate() {
                 let chars: Vec<char> = part.chars().collect();
-                assert!(CONSONANTS.contains(&chars[0].to_ascii_lowercase()));
-                assert!(VOWELS.contains(&chars[1].to_ascii_lowercase()));
-                assert!(CONSONANTS.contains(&chars[2].to_ascii_lowercase()));
-                assert!(VOWELS.contains(&chars[3].to_ascii_lowercase()));
-                assert!(CONSONANTS.contains(&chars[4].to_ascii_lowercase()));
-                assert!(VOWELS.contains(&chars[5].to_ascii_lowercase()) || chars[5].is_ascii_digit());
+
+                assert!(is_consonant(&chars[0], index > 0));
+                assert!(is_vowel(&chars[1]));
+                assert!(is_consonant(&chars[2], false));
+
+                assert!(is_consonant(&chars[3], false));
+                assert!(is_vowel(&chars[4]));
+                assert!(is_consonant(&chars[5], true));
             }
         }
     }
