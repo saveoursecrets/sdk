@@ -309,12 +309,16 @@ impl WebSocketChangeListener {
             match self.stream().await {
                 Ok(stream) => {
                     if let Err(e) = self.listen(stream, handler).await {
-                        tracing::error!(error = ?e, "WebSocket connection error");
+                        tracing::error!(
+                          error = ?e,
+                          "ws_client::connection_error");
                     }
                     retries = 0;
                 }
                 Err(e) => {
-                    tracing::error!(error = ?e, "Failed to establish WebSocket connection");
+                    tracing::error!(
+                      error = ?e,
+                      "failed to establish websocket connection");
                     retries += 1;
                     if self.options.retry.is_exhausted(retries) {
                         tracing::debug!(

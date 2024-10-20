@@ -56,6 +56,11 @@ impl NetworkRetry {
         }
     }
 
+    /// Millisecond delay for a current retry.
+    pub fn delay(&self, retries: u32) -> u64 {
+        (retries * self.reconnect_interval as u32) as u64
+    }
+
     /// Clone of this network retry with the retry counter reset.
     pub fn reset(&self) -> Self {
         Self {
