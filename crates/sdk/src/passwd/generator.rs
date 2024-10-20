@@ -11,7 +11,7 @@ const ROMAN_UPPER: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const DIGITS: &str = "0123456789";
 const PUNCTUATION: &str = "!\"#$%&'()*+,-./:;<=>?@`~\\]^_{}";
 
-use super::{diceware, memorable_password};
+use super::{diceware, memorable::memorable_password};
 
 /// Measure the entropy in a password.
 pub fn measure_entropy(password: &str, user_inputs: &[&str]) -> Entropy {
@@ -36,6 +36,11 @@ pub fn generate_many(
 /// Type of passwords that can be generated.
 #[derive(Debug)]
 pub enum PasswordType {
+    /// Apple-style memorable and easy to type password.
+    Memorable {
+        /// Number of words.
+        words: usize,
+    },
     /// Alpha ASCII password.
     Alpha {
         /// Number of characters.
@@ -63,6 +68,12 @@ pub enum PasswordType {
     },
 }
 
+impl Default for PasswordType {
+    fn default() -> Self {
+        Self::Memorable { words: 3 }
+    }
+}
+
 /// Generated password result.
 #[derive(Debug, Clone)]
 pub struct PasswordResult {
@@ -76,6 +87,7 @@ pub struct PasswordResult {
 #[derive(Debug, Clone)]
 struct PasswordBuilder {
     length: usize,
+    memorable: bool,
     characters: Vec<&'static str>,
     diceware: Option<BasicConfig<WordSampler>>,
 }
@@ -84,6 +96,9 @@ impl PasswordBuilder {
     /// Create a new password generator.
     pub fn new(kind: &PasswordType) -> Self {
         match kind {
+            PasswordType::Memorable { words } => {
+                PasswordBuilder::new_memorable(*words)
+            }
             PasswordType::Alpha { characters } => {
                 PasswordBuilder::new_alpha(*characters)
             }
@@ -106,9 +121,15 @@ impl PasswordBuilder {
     fn new_length(length: usize) -> Self {
         Self {
             length,
+            memorable: false,
             characters: vec![],
             diceware: None,
         }
+    }
+
+    /// Create memorable password.
+    pub fn new_memorable(length: usize) -> Self {
+        Self::new_length(length).memorable()
     }
 
     /// Create with lowercase and uppercase character sets.
@@ -153,6 +174,12 @@ impl PasswordBuilder {
     }
     */
 
+    /// Use memorable strategy.
+    pub fn memorable(mut self) -> Self {
+        self.memorable = true;
+        self
+    }
+
     /// Use lowercase roman letters.
     pub fn lower(mut self) -> Self {
         self.characters.push(ROMAN_LOWER);
@@ -189,6 +216,8 @@ impl PasswordBuilder {
             let (passphrase, _) =
                 diceware::generate_passphrase_config(config)?;
             passphrase
+        } else if self.memorable {
+            SecretString::new(memorable_password(self.length))
         } else {
             let rng = &mut csprng();
             let len = self.characters.iter().fold(0, |acc, s| acc + s.len());
@@ -204,8 +233,7 @@ impl PasswordBuilder {
             SecretString::new(password)
         };
         let entropy = zxcvbn(password.expose_secret(), &[]);
-        let result = PasswordResult { password, entropy };
-        Ok(result)
+        Ok(PasswordResult { password, entropy })
     }
 
     /// Generate multiple passwords
@@ -223,6 +251,14 @@ mod test {
     use super::*;
     use anyhow::Result;
     use secrecy::ExposeSecret;
+
+    #[test]
+    fn passgen_memorable() -> Result<()> {
+        let generator = PasswordBuilder::new_memorable(3);
+        let result = generator.one()?;
+        assert_eq!(20, result.password.expose_secret().len());
+        Ok(())
+    }
 
     #[test]
     fn passgen_alpha() -> Result<()> {
