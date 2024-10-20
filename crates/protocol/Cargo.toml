@@ -1,6 +1,6 @@
 [package]
 name = "sos-protocol"
-version = "0.15.0"
+version = "0.15.1"
 edition = "2021"
 description = "Networking and sync protocol types for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -33,7 +33,7 @@ prost.workspace = true
 tokio = { version = "1", features = ["rt",  "macros"] }
 
 [dependencies.sos-sdk]
-version = "0.15"
+version = "0.15.1"
 path = "../sdk"
 
 [dev-dependencies]
