@@ -131,8 +131,8 @@ impl Signature {
         let mut out = [0u8; 64];
         let mut r: [u8; 32] = [0u8; 32];
         let mut s: [u8; 32] = [0u8; 32];
-        self.r.to_big_endian(&mut r);
-        self.s.to_big_endian(&mut s);
+        self.r.write_as_big_endian(&mut r);
+        self.s.write_as_big_endian(&mut s);
         let (left, right) = out.split_at_mut(32);
         left.copy_from_slice(&r);
         right.copy_from_slice(&s);
@@ -209,8 +209,8 @@ impl TryFrom<Signature> for (k256::ecdsa::Signature, RecoveryId) {
     fn try_from(value: Signature) -> Result<Self, Self::Error> {
         let mut r: [u8; 32] = [0u8; 32];
         let mut s: [u8; 32] = [0u8; 32];
-        value.r.to_big_endian(&mut r);
-        value.s.to_big_endian(&mut s);
+        value.r.write_as_big_endian(&mut r);
+        value.s.write_as_big_endian(&mut s);
         let signature = k256::ecdsa::Signature::from_scalars(r, s)?;
         let recid = RecoveryId::try_from(value.v as u8)?;
         Ok((signature, recid))
