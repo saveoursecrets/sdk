@@ -409,7 +409,7 @@ mod tests {
         let secret_label = "Mock Secret".to_string();
         let secret_value = "Super Secret Note".to_string();
         let secret = Secret::Note {
-            text: SecretString::new(secret_value),
+            text: secret_value.into(),
             user_data: Default::default(),
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
