@@ -387,7 +387,7 @@ mod tests {
 
     #[tokio::test]
     async fn gatekeeper_secret_note() -> Result<()> {
-        let passphrase = SecretString::new("mock-passphrase".to_owned());
+        let passphrase: SecretString = "mock-passphrase".to_owned().into();
         let name = String::from(DEFAULT_VAULT_NAME);
         let description = String::from("Mock Vault Description");
 
@@ -409,7 +409,7 @@ mod tests {
         let secret_label = "Mock Secret".to_string();
         let secret_value = "Super Secret Note".to_string();
         let secret = Secret::Note {
-            text: SecretString::new(secret_value),
+            text: secret_value.into(),
             user_data: Default::default(),
         };
         let secret_meta = SecretMeta::new(secret_label, secret.kind());
@@ -436,7 +436,7 @@ mod tests {
 
     #[tokio::test]
     async fn gatekeeper_secret_account() -> Result<()> {
-        let passphrase = SecretString::new("mock-passphrase".to_owned());
+        let passphrase: SecretString = "mock-passphrase".to_owned().into();
         let name = String::from(DEFAULT_VAULT_NAME);
         let description = String::from("Mock Vault Description");
 
@@ -459,7 +459,7 @@ mod tests {
         let secret_value = "super-secret-password".to_string();
         let secret = Secret::Account {
             account: "mock-username".to_string(),
-            password: SecretString::new(secret_value),
+            password: secret_value.into(),
             url: vec!["https://example.com".parse()?],
             user_data: Default::default(),
         };
@@ -484,7 +484,7 @@ mod tests {
         let new_secret_value = "new-secret-password".to_string();
         let new_secret = Secret::Account {
             account: "mock-new-username".to_string(),
-            password: SecretString::new(new_secret_value),
+            password: new_secret_value.into(),
             url: vec!["https://example.com/new".parse()?],
             user_data: Default::default(),
         };

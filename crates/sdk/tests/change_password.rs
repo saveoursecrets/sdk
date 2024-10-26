@@ -35,8 +35,7 @@ async fn change_password() -> Result<()> {
     let expected_passphrase = AccessKey::Password(new_key.clone());
 
     // Using an incorrect current passphrase should fail
-    let bad_passphrase =
-        AccessKey::Password(secrecy::Secret::new(String::from("oops")));
+    let bad_passphrase = AccessKey::Password(String::from("oops").into());
     assert!(ChangePassword::new(
         keeper.vault(),
         bad_passphrase,

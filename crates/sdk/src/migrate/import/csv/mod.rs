@@ -8,7 +8,6 @@ pub mod macos;
 pub mod one_password;
 
 use async_trait::async_trait;
-use secrecy::SecretString;
 use std::collections::{HashMap, HashSet};
 use url::Url;
 use vcard4::Vcard;
@@ -84,7 +83,7 @@ impl From<GenericCsvEntry> for Secret {
         match value {
             GenericCsvEntry::Password(record) => Secret::Account {
                 account: record.username,
-                password: SecretString::new(record.password),
+                password: record.password.into(),
                 url: record.url,
                 user_data: if let Some(notes) = record.note {
                     UserData::new_comment(notes)
@@ -93,7 +92,7 @@ impl From<GenericCsvEntry> for Secret {
                 },
             },
             GenericCsvEntry::Note(record) => Secret::Note {
-                text: SecretString::new(record.text),
+                text: record.text.into(),
                 user_data: if let Some(notes) = record.note {
                     UserData::new_comment(notes)
                 } else {
@@ -102,7 +101,7 @@ impl From<GenericCsvEntry> for Secret {
             },
             GenericCsvEntry::Id(record) => Secret::Identity {
                 id_kind: record.id_kind,
-                number: SecretString::new(record.number),
+                number: record.number.into(),
                 issue_place: record.issue_place,
                 issue_date: record.issue_date,
                 expiry_date: record.expiration_date,
@@ -122,8 +121,8 @@ impl From<GenericCsvEntry> for Secret {
                 } => {
                     // TODO: handle country?
                     Secret::Card {
-                        number: SecretString::new(number),
-                        cvv: SecretString::new(code),
+                        number: number.into(),
+                        cvv: code.into(),
                         expiry: expiration,
                         name: None,
                         atm_pin: None,
@@ -142,8 +141,8 @@ impl From<GenericCsvEntry> for Secret {
                 } => {
                     // TODO: handle country and account_holder
                     Secret::Bank {
-                        number: SecretString::new(account_number),
-                        routing: SecretString::new(routing_number),
+                        number: account_number.into(),
+                        routing: routing_number.into(),
                         bic: None,
                         iban: None,
                         swift: None,

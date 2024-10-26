@@ -1,5 +1,5 @@
 use anyhow::Result;
-use secrecy::{ExposeSecret, SecretString, SecretVec};
+use secrecy::{ExposeSecret, SecretBox};
 use sos_sdk::{
     prelude::*,
     signer::{ecdsa::SingleParty, Signer},
@@ -11,7 +11,7 @@ use vcard4::Vcard;
 #[test]
 fn secret_serde() -> Result<()> {
     let secret = Secret::Note {
-        text: secrecy::Secret::new(String::from("foo")),
+        text: String::from("foo").into(),
         user_data: Default::default(),
     };
     let value = serde_json::to_string_pretty(&secret)?;
@@ -27,18 +27,18 @@ async fn secret_encode_user_data() -> Result<()> {
     user_data.set_recovery_note(Some("Recovery".to_string()));
 
     let card = Secret::Card {
-        number: SecretString::new("1234567890123456".to_string()),
+        number: "1234567890123456".to_string().into(),
         expiry: Default::default(),
-        cvv: SecretString::new("123".to_string()),
-        name: Some(SecretString::new("Miss Jane Doe".to_string())),
+        cvv: "123".to_string().into(),
+        name: Some("Miss Jane Doe".to_string().into()),
         atm_pin: None,
         user_data: Default::default(),
     };
     let card_meta = SecretMeta::new("Embedded card".to_string(), card.kind());
 
     let bank = Secret::Bank {
-        number: SecretString::new("12345678".to_string()),
-        routing: SecretString::new("00-00-00".to_string()),
+        number: "12345678".to_string().into(),
+        routing: "00-00-00".to_string().into(),
         iban: None,
         swift: None,
         bic: None,
@@ -79,7 +79,7 @@ END:VCARD"#;
 async fn secret_encode_note() -> Result<()> {
     let user_data: UserData = Default::default();
     let secret = Secret::Note {
-        text: secrecy::Secret::new(String::from("My Note")),
+        text: String::from("My Note").into(),
         user_data,
     };
     let encoded = encode(&secret).await?;
@@ -108,7 +108,7 @@ async fn secret_encode_account() -> Result<()> {
     let secret = Secret::Account {
         account: "Email".to_string(),
         url: vec!["https://webmail.example.com".parse().unwrap()],
-        password: secrecy::Secret::new("mock-password".to_string()),
+        password: "mock-password".to_string().into(),
         user_data: Default::default(),
     };
     let encoded = encode(&secret).await?;
@@ -118,7 +118,7 @@ async fn secret_encode_account() -> Result<()> {
     let secret_no_url = Secret::Account {
         account: "Email".to_string(),
         url: Default::default(),
-        password: secrecy::Secret::new("mock-password".to_string()),
+        password: "mock-password".to_string().into(),
         user_data: Default::default(),
     };
     let encoded = encode(&secret_no_url).await?;
@@ -130,13 +130,11 @@ async fn secret_encode_account() -> Result<()> {
 #[tokio::test]
 async fn secret_encode_list() -> Result<()> {
     let mut credentials = HashMap::new();
-    credentials.insert(
-        "API_KEY".to_owned(),
-        secrecy::Secret::new("mock-access-key".to_owned()),
-    );
+    credentials
+        .insert("API_KEY".to_owned(), "mock-access-key".to_owned().into());
     credentials.insert(
         "PROVIDER_KEY".to_owned(),
-        secrecy::Secret::new("mock-provider-key".to_owned()),
+        "mock-provider-key".to_owned().into(),
     );
     let secret = Secret::List {
         items: credentials,
@@ -192,7 +190,7 @@ async fn secret_encode_page() -> Result<()> {
     let secret = Secret::Page {
         title: "Welcome".to_string(),
         mime: "text/markdown".to_string(),
-        document: secrecy::Secret::new("# Mock Page".to_owned()),
+        document: "# Mock Page".to_string().into(),
         user_data: Default::default(),
     };
     let encoded = encode(&secret).await?;
@@ -204,8 +202,9 @@ async fn secret_encode_page() -> Result<()> {
 #[tokio::test]
 async fn secret_encode_signer() -> Result<()> {
     let signer = SingleParty::new_random();
-    let private_key =
-        SecretSigner::SinglePartyEcdsa(SecretVec::new(signer.to_bytes()));
+    let private_key = SecretSigner::SinglePartyEcdsa(SecretBox::new(
+        signer.to_bytes().into(),
+    ));
     let secret = Secret::Signer {
         private_key,
         user_data: Default::default(),
@@ -260,11 +259,11 @@ async fn secret_encode_totp() -> Result<()> {
 #[tokio::test]
 async fn secret_encode_card() -> Result<()> {
     let secret = Secret::Card {
-        number: SecretString::new("1234567890123456".to_string()),
+        number: "1234567890123456".to_string().into(),
         expiry: Default::default(),
-        cvv: SecretString::new("123".to_string()),
-        name: Some(SecretString::new("Mock name".to_string())),
-        atm_pin: Some(SecretString::new("123456".to_string())),
+        cvv: "123".to_string().into(),
+        name: Some("Mock name".to_string().into()),
+        atm_pin: Some("123456".to_string().into()),
         user_data: Default::default(),
     };
     let encoded = encode(&secret).await?;
@@ -277,11 +276,11 @@ async fn secret_encode_card() -> Result<()> {
 #[tokio::test]
 async fn secret_encode_bank() -> Result<()> {
     let secret = Secret::Bank {
-        number: SecretString::new("12345678".to_string()),
-        routing: SecretString::new("01-02-03".to_string()),
-        iban: Some(SecretString::new("GB 23 01020312345678".to_string())),
-        swift: Some(SecretString::new("XCVDFGB".to_string())),
-        bic: Some(SecretString::new("6789".to_string())),
+        number: "12345678".to_string().into(),
+        routing: "01-02-03".to_string().into(),
+        iban: Some("GB 23 01020312345678".to_string().into()),
+        swift: Some("XCVDFGB".to_string().into()),
+        bic: Some("6789".to_string().into()),
         user_data: Default::default(),
     };
     let encoded = encode(&secret).await?;
@@ -294,9 +293,9 @@ async fn secret_encode_bank() -> Result<()> {
 #[tokio::test]
 async fn secret_encode_link() -> Result<()> {
     let secret = Secret::Link {
-        url: SecretString::new("https://example.com".to_string()),
-        label: Some(SecretString::new("Example".to_string())),
-        title: Some(SecretString::new("Open example website".to_string())),
+        url: "https://example.com".to_string().into(),
+        label: Some("Example".to_string().into()),
+        title: Some("Open example website".to_string().into()),
         user_data: Default::default(),
     };
     let encoded = encode(&secret).await?;
@@ -309,8 +308,8 @@ async fn secret_encode_link() -> Result<()> {
 #[tokio::test]
 async fn secret_encode_password() -> Result<()> {
     let secret = Secret::Password {
-        password: SecretString::new("abracadabra".to_string()),
-        name: Some(SecretString::new("Open the magic cave".to_string())),
+        password: "abracadabra".to_string().into(),
+        name: Some("Open the magic cave".to_string().into()),
         user_data: Default::default(),
     };
     let encoded = encode(&secret).await?;
@@ -324,7 +323,7 @@ async fn secret_encode_password() -> Result<()> {
 async fn secret_encode_identification() -> Result<()> {
     let secret = Secret::Identity {
         id_kind: IdentityKind::IdCard,
-        number: SecretString::new("12345678".to_string()),
+        number: "12345678".to_string().into(),
         issue_place: Some("Mock city".to_string()),
         issue_date: Some(Default::default()),
         expiry_date: Some(Default::default()),

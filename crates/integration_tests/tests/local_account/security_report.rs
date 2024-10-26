@@ -93,7 +93,7 @@ async fn simulate_session(
     // Create a weak account secret
     let weak_secret = Secret::Account {
         account: "weak@example.com".to_string(),
-        password: secrecy::SecretString::new("test".to_string()),
+        password: "test".to_string().into(),
         url: Default::default(),
         user_data: Default::default(),
     };

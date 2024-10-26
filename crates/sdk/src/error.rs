@@ -90,21 +90,6 @@ pub enum Error {
     #[error("not a contact")]
     NotContact,
 
-    /// Error generated when decrypting via AGE and expecting passhrase
-    /// based encryption.
-    #[error("expected passphrase based encryption (AGE)")]
-    NotPassphraseEncryption,
-
-    /// Error generated when decrypting via AGE and expecting recipient
-    /// based encryption.
-    #[error("expected recipient based encryption (AGE)")]
-    NotRecipientEncryption,
-
-    /// Error generated attempting to encrypt asymmetrically without
-    /// and recipients.
-    #[error("no encryption recipients")]
-    NoRecipients,
-
     /// Error generated when a signing key is required.
     #[error("no signer")]
     NoSigner,
@@ -607,10 +592,6 @@ pub enum Error {
     /// Error generated when stripping a prefix from a path.
     #[error(transparent)]
     StripPrefix(#[from] std::path::StripPrefixError),
-
-    /// Error generated when determining application paths.
-    #[error(transparent)]
-    AppDirs(#[from] app_dirs2::AppDirsError),
 
     /// Error generated when attempting to join a task.
     #[error(transparent)]

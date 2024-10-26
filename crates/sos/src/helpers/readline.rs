@@ -52,7 +52,7 @@ pub fn clear_screen() -> Result<()> {
 pub fn read_password(prompt: Option<&str>) -> Result<SecretString> {
     #[cfg(any(test, debug_assertions))]
     if let Ok(password) = std::env::var("SOS_PASSWORD") {
-        return Ok(SecretString::new(password));
+        return Ok(password.into());
     }
 
     let h = MaskingHighlighter { masking: true };
@@ -68,7 +68,7 @@ pub fn read_password(prompt: Option<&str>) -> Result<SecretString> {
         .trim_end_matches('\n')
         .to_string();
 
-    Ok(SecretString::new(passwd))
+    Ok(passwd.into())
 }
 
 pub(crate) fn basic_editor() -> Result<Editor<(), MemHistory>> {
@@ -206,9 +206,9 @@ pub fn choose<'a, T>(
 
 pub fn choose_password() -> Result<SecretString> {
     #[allow(unused_assignments)]
-    let mut passwd1 = SecretString::new(String::new());
+    let mut passwd1 = String::new().into();
     #[allow(unused_assignments)]
-    let mut passwd2 = SecretString::new(String::new());
+    let mut passwd2 = String::new().into();
 
     loop {
         passwd1 = read_password(Some("Password: "))?;

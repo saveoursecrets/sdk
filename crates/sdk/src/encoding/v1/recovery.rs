@@ -38,7 +38,7 @@ impl Decodable for RecoveryData {
         let len = reader.read_u32().await?;
         for _ in 0..len {
             let id = decode_uuid(&mut *reader).await?;
-            let password = SecretString::new(reader.read_string().await?);
+            let password = reader.read_string().await?.into();
             self.vaults_mut().insert(id, password);
         }
         Ok(())

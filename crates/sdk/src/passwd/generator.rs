@@ -210,7 +210,7 @@ impl PasswordBuilder {
                 diceware::generate_passphrase_config(config)?;
             passphrase
         } else if self.memorable {
-            SecretString::new(memorable_password(self.length))
+            memorable_password(self.length).into()
         } else {
             let rng = &mut csprng();
             let len = self.characters.iter().fold(0, |acc, s| acc + s.len());
@@ -223,7 +223,7 @@ impl PasswordBuilder {
             for _ in 0..self.length {
                 password.push(characters[rng.gen_range(0..len)]);
             }
-            SecretString::new(password)
+            password.into()
         };
         let entropy = zxcvbn(password.expose_secret(), &[]);
         Ok(PasswordResult { password, entropy })

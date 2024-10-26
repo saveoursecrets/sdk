@@ -85,11 +85,10 @@ fn to_bytes(secret: &Secret) -> Result<(Vec<u8>, String)> {
 fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
     Ok(match secret {
         Secret::Note { user_data, .. } => Secret::Note {
-            text: secrecy::Secret::new(
-                std::str::from_utf8(content)?
-                    //.trim_end_matches('\n')
-                    .to_owned(),
-            ),
+            text: std::str::from_utf8(content)?
+                //.trim_end_matches('\n')
+                .to_owned()
+                .into(),
             user_data: user_data.clone(),
         },
         Secret::List { .. }
@@ -117,7 +116,7 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
                 content: FileContent::Embedded {
                     name: name.clone(),
                     mime: mime.clone(),
-                    buffer: secrecy::Secret::new(content.to_vec()),
+                    buffer: secrecy::SecretBox::new(content.to_vec().into()),
                     checksum: *checksum,
                 },
                 user_data: user_data.clone(),
@@ -134,9 +133,7 @@ fn from_bytes(secret: &Secret, content: &[u8]) -> Result<Secret> {
         } => Secret::Page {
             title: title.clone(),
             mime: mime.clone(),
-            document: secrecy::Secret::new(
-                std::str::from_utf8(content)?.to_owned(),
-            ),
+            document: std::str::from_utf8(content)?.to_owned().into(),
             user_data: user_data.clone(),
         },
         Secret::Signer { .. } | Secret::Age { .. } => {

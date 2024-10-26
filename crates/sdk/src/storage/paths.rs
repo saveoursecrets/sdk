@@ -1,9 +1,11 @@
 //! File system paths for application level folders
 //! and user-specific account folders.
-use crate::{Error, Result};
-use app_dirs2::{get_app_root, AppDataType, AppInfo};
+use crate::Result;
 #[cfg(feature = "audit")]
 use async_once_cell::OnceCell;
+use etcetera::{
+    app_strategy::choose_native_strategy, AppStrategy, AppStrategyArgs,
+};
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use file_guard::{try_lock, FileGuard, Lock};
@@ -35,10 +37,10 @@ use tokio::sync::Mutex;
 #[cfg(feature = "audit")]
 use crate::audit::{AuditEvent, AuditLogFile, AuditProvider};
 
-const APP_INFO: AppInfo = AppInfo {
-    name: APP_NAME,
-    author: APP_AUTHOR,
-};
+// const APP_INFO: AppInfo = AppInfo {
+//     name: APP_NAME,
+//     author: APP_AUTHOR,
+// };
 
 static DATA_DIR: Lazy<RwLock<Option<PathBuf>>> =
     Lazy::new(|| RwLock::new(None));
@@ -514,7 +516,25 @@ impl Paths {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn default_storage_dir() -> Result<PathBuf> {
-    get_app_root(AppDataType::UserData, &APP_INFO).map_err(|_| Error::NoCache)
+    let strategy = choose_native_strategy(AppStrategyArgs {
+        top_level_domain: "com".to_string(),
+        author: APP_AUTHOR.to_string(),
+        app_name: APP_NAME.to_string(),
+    })
+    .map_err(Box::from)?;
+
+    #[cfg(not(windows))]
+    {
+        let mut path = strategy.data_dir();
+        path.set_file_name(APP_AUTHOR);
+        Ok(path)
+    }
+    #[cfg(windows)]
+    {
+        let mut path = strategy.cache_dir();
+        path.pop();
+        Ok(path)
+    }
 }
 
 #[cfg(target_arch = "wasm32")]

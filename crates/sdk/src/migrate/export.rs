@@ -1,7 +1,7 @@
 //! Export an archive of unencrypted secrets that
 //! can be used to migrate data to another app.
 
-use secrecy::ExposeSecret;
+use secrecy::{ExposeSecret, SecretBox};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -119,7 +119,7 @@ impl<W: AsyncWrite + Unpin> PublicExport<W> {
 
                 // Clear the buffer so the export does not encode the bytes
                 // in the JSON document
-                *buffer = secrecy::Secret::new(vec![]);
+                *buffer = SecretBox::new(vec![].into());
             }
         }
         Ok(())

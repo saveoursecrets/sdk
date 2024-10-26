@@ -71,13 +71,13 @@ chacha20poly1305 = { version = "0.10.1", features = ["std"] }
 filetime = "0.2"
 argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
-app_dirs2 = "2"
+etcetera = "0.8"
 pem = { version = "3", features = ["serde"] }
 zxcvbn = { version = "3.0.1", features = ["ser"] }
 totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
 vcard4 = { version = "0.5", features = ["serde"] }
 async-once-cell = "0.5"
-age = { version = "0.10", features = ["async"] }
+age = { version = "0.10", features = ["async"], git = "https://github.com/tmpfs/rage", branch = "secrecy-0.10" }
 ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
 urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"

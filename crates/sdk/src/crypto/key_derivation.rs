@@ -135,8 +135,8 @@ pub trait Deriver<D: Digest> {
         let password_hash = self.hash_password(buffer.as_slice(), salt)?;
         let password_hash_string = password_hash.serialize();
         let hash = D::digest(password_hash_string.as_bytes());
-        Ok(DerivedPrivateKey::new(secrecy::Secret::new(
-            hash.as_slice().to_vec(),
+        Ok(DerivedPrivateKey::new(secrecy::SecretBox::new(
+            hash.as_slice().to_vec().into(),
         )))
     }
 }

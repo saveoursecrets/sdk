@@ -368,7 +368,7 @@ pub async fn new_account(
         AccountPasswordOption::Generated => {
             // Support for CI environments choosing the account password
             if let Ok(password) = std::env::var("SOS_PASSWORD") {
-                SecretString::new(password)
+                password.into()
             } else {
                 let (passphrase, _) = generate_passphrase()?;
                 passphrase

@@ -18,7 +18,7 @@ use std::io::Write;
 use tempfile::NamedTempFile;
 
 use anyhow::Result;
-use secrecy::SecretString;
+use secrecy::{SecretBox, SecretString};
 
 /// Generate a mock encyption key.
 pub fn mock_encryption_key() -> Result<(PrivateKey, SaltString, SecretString)>
@@ -37,7 +37,7 @@ pub async fn mock_secret_note(
     text: &str,
 ) -> Result<(SecretMeta, Secret, Vec<u8>, Vec<u8>)> {
     let secret_value = Secret::Note {
-        text: secrecy::Secret::new(text.to_string()),
+        text: text.to_string().into(),
         user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
@@ -59,7 +59,7 @@ pub async fn mock_secret_file(
             name: name.to_string(),
             mime: mime.to_string(),
             checksum: checksum.into(),
-            buffer: secrecy::Secret::new(buffer),
+            buffer: SecretBox::new(buffer.into()),
         },
         user_data: Default::default(),
     };
