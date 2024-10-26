@@ -387,7 +387,7 @@ mod tests {
 
     #[tokio::test]
     async fn gatekeeper_secret_note() -> Result<()> {
-        let passphrase = SecretString::new("mock-passphrase".to_owned());
+        let passphrase: SecretString = "mock-passphrase".to_owned().into();
         let name = String::from(DEFAULT_VAULT_NAME);
         let description = String::from("Mock Vault Description");
 

@@ -3,7 +3,7 @@
 use bitflags::bitflags;
 use ed25519_dalek::SECRET_KEY_LENGTH;
 use pem::Pem;
-use secrecy::{ExposeSecret, SecretString, SecretVec};
+use secrecy::{ExposeSecret, SecretBox, SecretString};
 use serde::{
     de::{self, Deserializer, Visitor},
     ser::{SerializeMap, SerializeSeq},
@@ -94,7 +94,7 @@ where
 }
 
 fn serialize_secret_buffer<S>(
-    secret: &SecretVec<u8>,
+    secret: &SecretBox<Vec<u8>>,
     ser: S,
 ) -> std::result::Result<S::Ok, S::Error>
 where
@@ -107,12 +107,12 @@ where
     seq.end()
 }
 
-fn is_empty_secret_vec(value: &SecretVec<u8>) -> bool {
+fn is_empty_secret_vec(value: &SecretBox<Vec<u8>>) -> bool {
     value.expose_secret().is_empty()
 }
 
-fn default_secret_vec() -> SecretVec<u8> {
-    SecretVec::new(Vec::new())
+fn default_secret_vec() -> SecretBox<Vec<u8>> {
+    SecretBox::new(Box::new(Vec::new()))
 }
 
 /// Identifier for secrets.
@@ -493,21 +493,25 @@ impl SecretMeta {
 pub enum SecretSigner {
     /// Single party Ethereum-compatible ECDSA signing private key.
     #[serde(serialize_with = "serialize_secret_buffer")]
-    SinglePartyEcdsa(SecretVec<u8>),
+    SinglePartyEcdsa(SecretBox<Vec<u8>>),
     /// Single party Ed25519 signing private key.
     #[serde(serialize_with = "serialize_secret_buffer")]
-    SinglePartyEd25519(SecretVec<u8>),
+    SinglePartyEd25519(SecretBox<Vec<u8>>),
 }
 
 impl From<ecdsa::SingleParty> for SecretSigner {
     fn from(value: ecdsa::SingleParty) -> Self {
-        Self::SinglePartyEcdsa(SecretVec::new(value.0.to_bytes().to_vec()))
+        Self::SinglePartyEcdsa(SecretBox::new(
+            value.0.to_bytes().to_vec().into(),
+        ))
     }
 }
 
 impl From<ed25519::SingleParty> for SecretSigner {
     fn from(value: ed25519::SingleParty) -> Self {
-        Self::SinglePartyEd25519(SecretVec::new(value.0.to_bytes().to_vec()))
+        Self::SinglePartyEd25519(SecretBox::new(
+            value.0.to_bytes().to_vec().into(),
+        ))
     }
 }
 
@@ -541,7 +545,7 @@ impl SecretSigner {
 
 impl Default for SecretSigner {
     fn default() -> Self {
-        Self::SinglePartyEcdsa(SecretVec::new(vec![]))
+        Self::SinglePartyEcdsa(SecretBox::new(vec![].into()))
     }
 }
 
@@ -549,10 +553,10 @@ impl Clone for SecretSigner {
     fn clone(&self) -> Self {
         match self {
             Self::SinglePartyEcdsa(buffer) => Self::SinglePartyEcdsa(
-                SecretVec::new(buffer.expose_secret().to_vec()),
+                SecretBox::new(buffer.expose_secret().to_vec().into()),
             ),
             Self::SinglePartyEd25519(buffer) => Self::SinglePartyEd25519(
-                SecretVec::new(buffer.expose_secret().to_vec()),
+                SecretBox::new(buffer.expose_secret().to_vec().into()),
             ),
         }
     }
@@ -856,7 +860,7 @@ pub enum FileContent {
             serialize_with = "serialize_secret_buffer",
             skip_serializing_if = "is_empty_secret_vec"
         )]
-        buffer: SecretVec<u8>,
+        buffer: SecretBox<Vec<u8>>,
 
         /// The SHA-256 digest of the buffer.
         ///
@@ -942,7 +946,7 @@ impl Default for FileContent {
         Self::Embedded {
             name: String::new(),
             mime: String::new(),
-            buffer: SecretVec::new(vec![]),
+            buffer: SecretBox::new(vec![].into()),
             checksum: [0; 32],
         }
     }
@@ -1008,7 +1012,9 @@ impl Clone for FileContent {
             } => FileContent::Embedded {
                 name: name.to_owned(),
                 mime: mime.to_owned(),
-                buffer: secrecy::Secret::new(buffer.expose_secret().to_vec()),
+                buffer: SecretBox::new(
+                    buffer.expose_secret().to_vec().into(),
+                ),
                 checksum: *checksum,
             },
             FileContent::External {
@@ -1262,7 +1268,7 @@ impl Clone for Secret {
     fn clone(&self) -> Self {
         match self {
             Secret::Note { text, user_data } => Secret::Note {
-                text: secrecy::Secret::new(text.expose_secret().to_owned()),
+                text: SecretBox::new(text.expose_secret().to_owned().into()),
                 user_data: user_data.clone(),
             },
             Secret::File { content, user_data } => Secret::File {
@@ -1277,8 +1283,8 @@ impl Clone for Secret {
             } => Secret::Account {
                 account: account.to_owned(),
                 url: url.clone(),
-                password: secrecy::Secret::new(
-                    password.expose_secret().to_owned(),
+                password: SecretBox::new(
+                    password.expose_secret().to_owned().into(),
                 ),
                 user_data: user_data.clone(),
             },
@@ -1288,8 +1294,8 @@ impl Clone for Secret {
                     .map(|(k, v)| {
                         (
                             k.to_owned(),
-                            secrecy::Secret::new(
-                                v.expose_secret().to_owned(),
+                            SecretBox::new(
+                                v.expose_secret().to_owned().into(),
                             ),
                         )
                     })
@@ -1314,8 +1320,8 @@ impl Clone for Secret {
             } => Secret::Page {
                 title: title.to_owned(),
                 mime: mime.to_owned(),
-                document: secrecy::Secret::new(
-                    document.expose_secret().to_owned(),
+                document: SecretBox::new(
+                    document.expose_secret().to_owned().into(),
                 ),
                 user_data: user_data.clone(),
             },
@@ -1393,7 +1399,7 @@ impl Clone for Secret {
                 user_data,
             } => Secret::Identity {
                 id_kind: id_kind.clone(),
-                number: SecretString::new(number.expose_secret().to_owned()),
+                number: number.expose_secret().to_owned().into(),
                 issue_place: issue_place.clone(),
                 issue_date: issue_date.clone(),
                 expiry_date: expiry_date.clone(),
@@ -1405,7 +1411,7 @@ impl Clone for Secret {
                 user_data,
             } => Secret::Age {
                 version: version.clone(),
-                key: secrecy::Secret::new(key.expose_secret().to_owned()),
+                key: SecretBox::new(key.expose_secret().to_owned().into()),
                 user_data: user_data.clone(),
             },
         }
@@ -1562,10 +1568,7 @@ impl Secret {
         for line in list.as_ref().lines() {
             let key_value = line.split_once('=');
             if let Some((key, value)) = key_value {
-                credentials.insert(
-                    key.to_string(),
-                    SecretString::new(value.to_string()),
-                );
+                credentials.insert(key.to_string(), value.to_string().into());
             } else {
                 return Err(Error::InvalidKeyValue(line.to_string()));
             }
@@ -1993,7 +1996,7 @@ impl Eq for Secret {}
 impl Default for Secret {
     fn default() -> Self {
         Self::Note {
-            text: secrecy::Secret::new(String::new()),
+            text: SecretBox::new(String::new().into()),
             user_data: Default::default(),
         }
     }
@@ -2064,7 +2067,7 @@ impl From<SecretString> for Secret {
 impl From<Url> for Secret {
     fn from(url: Url) -> Self {
         Secret::Link {
-            url: SecretString::new(url.to_string()),
+            url: url.to_string().into(),
             label: None,
             title: None,
             user_data: Default::default(),
@@ -2075,7 +2078,7 @@ impl From<Url> for Secret {
 impl From<String> for Secret {
     fn from(text: String) -> Self {
         Secret::Note {
-            text: SecretString::new(text),
+            text: text.into(),
             user_data: Default::default(),
         }
     }

@@ -161,15 +161,15 @@ impl Decodable for SecretSigner {
         match kind {
             signer_kind::SINGLE_PARTY_ECDSA => {
                 let buffer_len = reader.read_u32().await?;
-                let buffer = secrecy::Secret::new(
-                    reader.read_bytes(buffer_len as usize).await?,
+                let buffer = secrecy::SecretBox::new(
+                    reader.read_bytes(buffer_len as usize).await?.into(),
                 );
                 *self = Self::SinglePartyEcdsa(buffer);
             }
             signer_kind::SINGLE_PARTY_ED25519 => {
                 let buffer_len = reader.read_u32().await?;
-                let buffer = secrecy::Secret::new(
-                    reader.read_bytes(buffer_len as usize).await?,
+                let buffer = secrecy::SecretBox::new(
+                    reader.read_bytes(buffer_len as usize).await?.into(),
                 );
                 *self = Self::SinglePartyEd25519(buffer);
             }
@@ -339,8 +339,8 @@ impl Decodable for FileContent {
                 let name = reader.read_string().await?;
                 let mime = reader.read_string().await?;
                 let buffer_len = reader.read_u32().await?;
-                let buffer = secrecy::Secret::new(
-                    reader.read_bytes(buffer_len as usize).await?,
+                let buffer = secrecy::SecretBox::new(
+                    reader.read_bytes(buffer_len as usize).await?.into(),
                 );
                 let checksum: [u8; 32] = reader
                     .read_bytes(32)
@@ -612,7 +612,7 @@ impl Decodable for Secret {
                 let text = reader.read_string().await?;
                 let user_data = read_user_data(reader).await?;
                 *self = Self::Note {
-                    text: secrecy::Secret::new(text),
+                    text: secrecy::SecretBox::new(text.into()),
                     user_data,
                 };
             }
@@ -624,8 +624,9 @@ impl Decodable for Secret {
             }
             SecretType::Account => {
                 let account = reader.read_string().await?;
-                let password =
-                    secrecy::Secret::new(reader.read_string().await?);
+                let password = secrecy::SecretBox::new(
+                    reader.read_string().await?.into(),
+                );
                 let has_url = reader.read_bool().await?;
                 let url = if has_url {
                     let s = reader.read_string().await?;
@@ -657,8 +658,9 @@ impl Decodable for Secret {
                 let mut items = HashMap::with_capacity(items_len as usize);
                 for _ in 0..items_len {
                     let key = reader.read_string().await?;
-                    let value =
-                        secrecy::Secret::new(reader.read_string().await?);
+                    let value = secrecy::SecretBox::new(
+                        reader.read_string().await?.into(),
+                    );
                     items.insert(key, value);
                 }
                 let user_data = read_user_data(reader).await?;
@@ -677,8 +679,9 @@ impl Decodable for Secret {
             SecretType::Page => {
                 let title = reader.read_string().await?;
                 let mime = reader.read_string().await?;
-                let document =
-                    secrecy::Secret::new(reader.read_string().await?);
+                let document = secrecy::SecretBox::new(
+                    reader.read_string().await?.into(),
+                );
                 let user_data = read_user_data(reader).await?;
                 *self = Self::Page {
                     title,
@@ -692,7 +695,7 @@ impl Decodable for Secret {
                 let id_kind: IdentityKind =
                     id_kind.try_into().map_err(encoding_error)?;
 
-                let number = SecretString::new(reader.read_string().await?);
+                let number = reader.read_string().await?.into();
 
                 let has_issue_place = reader.read_bool().await?;
                 let issue_place = if has_issue_place {
@@ -758,7 +761,7 @@ impl Decodable for Secret {
                 *self = Self::Totp { totp, user_data };
             }
             SecretType::Card => {
-                let number = SecretString::new(reader.read_string().await?);
+                let number = reader.read_string().await?.into();
                 let has_expiry = reader.read_bool().await?;
                 let expiry = if has_expiry {
                     let mut expiry: UtcDateTime = Default::default();
@@ -767,18 +770,18 @@ impl Decodable for Secret {
                 } else {
                     None
                 };
-                let cvv = SecretString::new(reader.read_string().await?);
+                let cvv = reader.read_string().await?.into();
 
                 let has_name = reader.read_bool().await?;
                 let name = if has_name {
-                    Some(SecretString::new(reader.read_string().await?))
+                    Some(reader.read_string().await?.into())
                 } else {
                     None
                 };
 
                 let has_atm_pin = reader.read_bool().await?;
                 let atm_pin = if has_atm_pin {
-                    Some(SecretString::new(reader.read_string().await?))
+                    Some(reader.read_string().await?.into())
                 } else {
                     None
                 };
@@ -794,26 +797,26 @@ impl Decodable for Secret {
                 };
             }
             SecretType::Bank => {
-                let number = SecretString::new(reader.read_string().await?);
-                let routing = SecretString::new(reader.read_string().await?);
+                let number = reader.read_string().await?.into();
+                let routing = reader.read_string().await?.into();
 
                 let has_iban = reader.read_bool().await?;
                 let iban = if has_iban {
-                    Some(SecretString::new(reader.read_string().await?))
+                    Some(reader.read_string().await?.into())
                 } else {
                     None
                 };
 
                 let has_swift = reader.read_bool().await?;
                 let swift = if has_swift {
-                    Some(SecretString::new(reader.read_string().await?))
+                    Some(reader.read_string().await?.into())
                 } else {
                     None
                 };
 
                 let has_bic = reader.read_bool().await?;
                 let bic = if has_bic {
-                    Some(SecretString::new(reader.read_string().await?))
+                    Some(reader.read_string().await?.into())
                 } else {
                     None
                 };
@@ -829,18 +832,18 @@ impl Decodable for Secret {
                 };
             }
             SecretType::Link => {
-                let url = SecretString::new(reader.read_string().await?);
+                let url = reader.read_string().await?.into();
 
                 let has_label = reader.read_bool().await?;
                 let label = if has_label {
-                    Some(SecretString::new(reader.read_string().await?))
+                    Some(reader.read_string().await?.into())
                 } else {
                     None
                 };
 
                 let has_title = reader.read_bool().await?;
                 let title = if has_title {
-                    Some(SecretString::new(reader.read_string().await?))
+                    Some(reader.read_string().await?.into())
                 } else {
                     None
                 };
@@ -854,11 +857,11 @@ impl Decodable for Secret {
                 };
             }
             SecretType::Password => {
-                let password = SecretString::new(reader.read_string().await?);
+                let password = reader.read_string().await?.into();
 
                 let has_name = reader.read_bool().await?;
                 let name = if has_name {
-                    Some(SecretString::new(reader.read_string().await?))
+                    Some(reader.read_string().await?.into())
                 } else {
                     None
                 };
@@ -883,7 +886,7 @@ impl Decodable for Secret {
                         ))
                     })?;
 
-                let key = SecretString::new(id);
+                let key = id.into();
 
                 let user_data = read_user_data(reader).await?;
                 *self = Self::Age {

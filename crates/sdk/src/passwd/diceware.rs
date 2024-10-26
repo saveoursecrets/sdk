@@ -6,7 +6,7 @@ use chbs::{
     probability::Probability,
     word::{WordList, WordSampler},
 };
-use secrecy::{Secret, SecretString};
+use secrecy::SecretString;
 
 use once_cell::sync::Lazy;
 
@@ -21,7 +21,7 @@ pub fn generate_passphrase_config(
     }
 
     let scheme = config.to_scheme();
-    Ok((Secret::new(scheme.generate()), scheme.entropy().bits()))
+    Ok((scheme.generate().into(), scheme.entropy().bits()))
 }
 
 /// Generate a diceware passphrase with the given number of words.

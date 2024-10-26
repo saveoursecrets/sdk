@@ -34,7 +34,7 @@ use crate::{
     vfs, Error, Paths, Result,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use secrecy::{ExposeSecret, SecretString, SecretVec};
+use secrecy::{ExposeSecret, SecretBox, SecretSlice, SecretString};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -267,8 +267,8 @@ where
         device_keeper.unlock(&key).await?;
 
         let secret = Secret::Signer {
-            private_key: SecretSigner::SinglePartyEd25519(SecretVec::new(
-                signer.signing_key().to_bytes(),
+            private_key: SecretSigner::SinglePartyEd25519(SecretBox::new(
+                signer.signing_key().to_bytes().into(),
             )),
             user_data: Default::default(),
         };
@@ -581,8 +581,9 @@ impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
         folder.unlock(&key).await?;
 
         // Store the signing key
-        let private_key =
-            SecretSigner::SinglePartyEcdsa(SecretVec::new(signer.to_bytes()));
+        let private_key = SecretSigner::SinglePartyEcdsa(SecretBox::new(
+            signer.to_bytes().into(),
+        ));
         let signer_secret = Secret::Signer {
             private_key,
             user_data: Default::default(),

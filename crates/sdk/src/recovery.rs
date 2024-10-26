@@ -156,7 +156,7 @@ impl RecoveryPack {
         let address = signer.address()?;
         let signer_bytes = signer.to_bytes();
         let signer_hex = hex::encode(signer_bytes);
-        let password = SecretString::new(signer_hex);
+        let password = signer_hex.into();
         let deriver = options.kdf.deriver();
         let salt = KeyDerivation::generate_salt();
         let seed = KeyDerivation::generate_seed();
@@ -212,7 +212,7 @@ impl RecoveryPack {
 
         let signer_bytes = sk.to_bytes();
         let signer_hex = hex::encode(signer_bytes);
-        let password = SecretString::new(signer_hex);
+        let password = signer_hex.into();
 
         let deriver = self.options.kdf.deriver();
         let salt = KeyDerivation::parse_salt(&self.salt)?;
@@ -447,10 +447,8 @@ mod tests {
         let mock_id = VaultId::new_v4();
         let mock_password = "mock-password";
         let mut data: RecoveryData = Default::default();
-        data.vaults_mut().insert(
-            mock_id.clone(),
-            SecretString::new(mock_password.to_string()),
-        );
+        data.vaults_mut()
+            .insert(mock_id.clone(), mock_password.to_string().into());
         (mock_id, mock_password, data)
     }
 

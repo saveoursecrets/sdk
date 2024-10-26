@@ -1,7 +1,7 @@
 //! Private key types.
 use age::x25519::Identity;
 use argon2::password_hash::SaltString;
-use secrecy::{ExposeSecret, SecretString, SecretVec};
+use secrecy::{ExposeSecret, SecretBox, SecretString};
 use std::convert::AsRef;
 use std::fmt;
 
@@ -35,7 +35,7 @@ impl From<AccessKey> for SecretString {
     fn from(value: AccessKey) -> Self {
         match value {
             AccessKey::Password(password) => password,
-            AccessKey::Identity(id) => id.to_string(),
+            AccessKey::Identity(id) => id.to_string().into(),
         }
     }
 }
@@ -95,7 +95,7 @@ pub enum PrivateKey {
 
 /// Encapsulates the bytes for a derived symmetric secret key.
 pub struct DerivedPrivateKey {
-    inner: SecretVec<u8>,
+    inner: SecretBox<Vec<u8>>,
 }
 
 impl DerivedPrivateKey {
@@ -105,7 +105,7 @@ impl DerivedPrivateKey {
         use rand::Rng;
         let bytes: [u8; 32] = csprng().gen();
         Self {
-            inner: SecretVec::new(bytes.to_vec()),
+            inner: SecretBox::new(Box::new(bytes.to_vec())),
         }
     }
 
@@ -114,7 +114,7 @@ impl DerivedPrivateKey {
         let pem = pem::parse(key)?;
         let contents = pem.contents();
         Ok(Self {
-            inner: SecretVec::new(contents.to_vec()),
+            inner: SecretBox::new(Box::new(contents.to_vec())),
         })
     }
 
@@ -127,7 +127,7 @@ impl DerivedPrivateKey {
     }
 
     /// Create a new derived private key.
-    pub(crate) fn new(inner: SecretVec<u8>) -> Self {
+    pub(crate) fn new(inner: SecretBox<Vec<u8>>) -> Self {
         Self { inner }
     }
 }
@@ -141,7 +141,7 @@ impl AsRef<[u8]> for DerivedPrivateKey {
 impl From<Vec<u8>> for DerivedPrivateKey {
     fn from(value: Vec<u8>) -> Self {
         Self {
-            inner: SecretVec::new(value),
+            inner: SecretBox::new(value.into()),
         }
     }
 }

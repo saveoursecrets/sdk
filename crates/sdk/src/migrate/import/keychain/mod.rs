@@ -174,7 +174,7 @@ impl Convert for KeychainImport {
                     if entry.is_note() {
                         let text = generic_data.into_owned();
                         let secret = Secret::Note {
-                            text: SecretString::new(text),
+                            text: text.into(),
                             user_data: Default::default(),
                         };
 
@@ -190,7 +190,7 @@ impl Convert for KeychainImport {
                         let password = generic_data.into_owned();
                         let secret = Secret::Account {
                             account: attr_account.as_str().to_owned(),
-                            password: SecretString::new(password),
+                            password: password.into(),
                             url: Default::default(),
                             user_data: Default::default(),
                         };
@@ -379,8 +379,8 @@ mod test {
             KeychainImport::import_data(&keychain, Some(password))?;
         assert!(data_dump.is_some());
 
-        let vault_password =
-            SecretString::new("mock-vault-password".to_owned());
+        let vault_password: SecretString =
+            "mock-vault-password".to_owned().into();
 
         let vault = VaultBuilder::new()
             .password(vault_password.clone(), None)
