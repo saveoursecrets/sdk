@@ -71,7 +71,7 @@ chacha20poly1305 = { version = "0.10.1", features = ["std"] }
 filetime = "0.2"
 argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
-app_dirs2 = "2"
+etcetera = "0.8"
 pem = { version = "3", features = ["serde"] }
 zxcvbn = { version = "3.0.1", features = ["ser"] }
 totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }

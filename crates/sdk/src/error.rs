@@ -608,10 +608,6 @@ pub enum Error {
     #[error(transparent)]
     StripPrefix(#[from] std::path::StripPrefixError),
 
-    /// Error generated when determining application paths.
-    #[error(transparent)]
-    AppDirs(#[from] app_dirs2::AppDirsError),
-
     /// Error generated when attempting to join a task.
     #[error(transparent)]
     Join(#[from] tokio::task::JoinError),
