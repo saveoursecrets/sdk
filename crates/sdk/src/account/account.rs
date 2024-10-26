@@ -209,9 +209,6 @@ pub enum ContactImportProgress {
 /// Trait for account implementations.
 #[async_trait]
 pub trait Account {
-    /// Account type to create.
-    type Account;
-
     /// Errors for this account.
     type Error: std::error::Error + std::fmt::Debug;
 
@@ -1537,7 +1534,6 @@ impl LocalAccount {
 
 #[async_trait]
 impl Account for LocalAccount {
-    type Account = LocalAccount;
     type Error = Error;
     type NetworkResult = ();
 

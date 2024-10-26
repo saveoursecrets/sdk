@@ -638,7 +638,6 @@ impl NetworkAccount {
 
 #[async_trait]
 impl Account for NetworkAccount {
-    type Account = NetworkAccount;
     type Error = Error;
     type NetworkResult = SyncResult;
 
