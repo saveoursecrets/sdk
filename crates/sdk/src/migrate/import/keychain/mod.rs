@@ -373,6 +373,7 @@ mod test {
     #[tokio::test]
     #[cfg(feature = "interactive-keychain-tests")]
     async fn keychain_import_autofill() -> Result<()> {
+        use crate::vault::BuilderCredentials;
         let keychain = find_test_keychain()?;
         let password = "mock-password".to_owned().into();
         let data_dump =
@@ -383,14 +384,14 @@ mod test {
             "mock-vault-password".to_owned().into();
 
         let vault = VaultBuilder::new()
-            .password(vault_password.clone(), None)
+            .build(BuilderCredentials::Password(vault_password.clone(), None))
             .await?;
 
         let vault = KeychainImport
             .convert(
                 data_dump.unwrap(),
                 vault,
-                AccessKey::Password(vault_password.clone()),
+                &AccessKey::Password(vault_password.clone()),
             )
             .await?;
 
@@ -398,8 +399,8 @@ mod test {
 
         // Assert on the data
         let keys: Vec<_> = vault.keys().copied().collect();
-        let mut keeper = Gatekeeper::new(vault, None);
-        keeper.unlock(AccessKey::Password(vault_password)).await?;
+        let mut keeper = Gatekeeper::new(vault);
+        keeper.unlock(&AccessKey::Password(vault_password)).await?;
 
         for key in &keys {
             if let Some((_meta, secret, _)) = keeper.read_secret(key).await? {
