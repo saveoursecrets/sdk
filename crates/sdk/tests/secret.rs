@@ -1,5 +1,5 @@
 use anyhow::Result;
-use secrecy::{ExposeSecret, SecretString, SecretVec};
+use secrecy::{ExposeSecret, SecretBox, SecretString};
 use sos_sdk::{
     prelude::*,
     signer::{ecdsa::SingleParty, Signer},
@@ -11,7 +11,7 @@ use vcard4::Vcard;
 #[test]
 fn secret_serde() -> Result<()> {
     let secret = Secret::Note {
-        text: secrecy::Secret::new(String::from("foo")),
+        text: String::from("foo").into(),
         user_data: Default::default(),
     };
     let value = serde_json::to_string_pretty(&secret)?;
@@ -27,18 +27,18 @@ async fn secret_encode_user_data() -> Result<()> {
     user_data.set_recovery_note(Some("Recovery".to_string()));
 
     let card = Secret::Card {
-        number: SecretString::new("1234567890123456".to_string()),
+        number: "1234567890123456".to_string().into(),
         expiry: Default::default(),
-        cvv: SecretString::new("123".to_string()),
-        name: Some(SecretString::new("Miss Jane Doe".to_string())),
+        cvv: "123".to_string().into(),
+        name: Some("Miss Jane Doe".to_string().into()),
         atm_pin: None,
         user_data: Default::default(),
     };
     let card_meta = SecretMeta::new("Embedded card".to_string(), card.kind());
 
     let bank = Secret::Bank {
-        number: SecretString::new("12345678".to_string()),
-        routing: SecretString::new("00-00-00".to_string()),
+        number: "12345678".to_string().into(),
+        routing: "00-00-00".to_string().into(),
         iban: None,
         swift: None,
         bic: None,

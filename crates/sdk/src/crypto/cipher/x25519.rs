@@ -19,8 +19,9 @@ pub async fn encrypt(
             })
             .collect();
 
-        let encryptor = age::Encryptor::with_recipients(recipients)
-            .ok_or_else(|| Error::NoRecipients)?;
+        let encryptor = age::Encryptor::with_recipients(
+            recipients.iter().map(|r| &**r as _),
+        )?;
         let mut ciphertext = Vec::new();
         let mut writer = encryptor.wrap_async_output(&mut ciphertext).await?;
         let mut reader = BufReader::new(plaintext);
@@ -44,10 +45,8 @@ pub async fn decrypt(
 ) -> Result<Vec<u8>> {
     if let Cipher::X25519 = cipher {
         let mut reader = BufReader::new(aead.ciphertext.as_slice());
-        let decryptor = match age::Decryptor::new_async(&mut reader).await? {
-            age::Decryptor::Recipients(d) => d,
-            _ => return Err(Error::NotRecipientEncryption),
-        };
+        let decryptor =
+            age::Decryptor::new_async_buffered(&mut reader).await?;
 
         let mut plaintext = vec![];
         let mut reader = decryptor

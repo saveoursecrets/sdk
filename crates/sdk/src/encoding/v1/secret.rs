@@ -1,4 +1,4 @@
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::ExposeSecret;
 
 use std::{
     collections::HashMap,

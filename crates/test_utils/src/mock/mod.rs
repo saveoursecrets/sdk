@@ -35,7 +35,7 @@ pub fn login(
 /// Create a note secret.
 pub fn note(label: &str, text: &str) -> (SecretMeta, Secret) {
     let secret_value = Secret::Note {
-        text: secrecy::Secret::new(text.to_string()),
+        text: text.to_string().into(),
         user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
@@ -45,8 +45,8 @@ pub fn note(label: &str, text: &str) -> (SecretMeta, Secret) {
 /// Create a debit/credit card secret.
 pub fn card(label: &str, number: &str, cvv: &str) -> (SecretMeta, Secret) {
     let secret_value = Secret::Card {
-        number: secrecy::Secret::new(number.to_string()),
-        cvv: secrecy::Secret::new(cvv.to_string()),
+        number: number.to_string().into(),
+        cvv: cvv.to_string().into(),
         expiry: None,
         name: None,
         atm_pin: None,
@@ -63,8 +63,8 @@ pub fn bank(
     routing: &str,
 ) -> (SecretMeta, Secret) {
     let secret_value = Secret::Bank {
-        number: secrecy::Secret::new(number.to_string()),
-        routing: secrecy::Secret::new(routing.to_string()),
+        number: number.to_string().into(),
+        routing: routing.to_string().into(),
         iban: None,
         swift: None,
         bic: None,
@@ -79,7 +79,7 @@ pub fn list(label: &str, items: HashMap<&str, &str>) -> (SecretMeta, Secret) {
     let secret_value = Secret::List {
         items: items
             .into_iter()
-            .map(|(k, v)| (k.to_owned(), secrecy::Secret::new(v.to_owned())))
+            .map(|(k, v)| (k.to_owned(), v.to_owned().into()))
             .collect(),
         user_data: Default::default(),
     };
@@ -113,7 +113,9 @@ pub fn internal_file(
             name: name.to_string(),
             mime: mime.to_string(),
             checksum: checksum.try_into().unwrap(),
-            buffer: secrecy::Secret::new(buffer.as_ref().to_owned()),
+            buffer: secrecy::SecretBox::new(
+                buffer.as_ref().to_owned().into(),
+            ),
         },
         user_data: Default::default(),
     };
@@ -124,7 +126,7 @@ pub fn internal_file(
 /// Create a link secret.
 pub fn link(label: &str, url: &str) -> (SecretMeta, Secret) {
     let secret_value = Secret::Link {
-        url: SecretString::new(url.to_string()),
+        url: url.to_string().into(),
         label: None,
         title: None,
         user_data: Default::default(),
@@ -163,7 +165,7 @@ pub fn identity(
 ) -> (SecretMeta, Secret) {
     let secret_value = Secret::Identity {
         id_kind,
-        number: SecretString::new(number.to_string()),
+        number: number.to_string().into(),
         issue_place: None,
         issue_date: None,
         expiry_date: None,
@@ -223,7 +225,7 @@ pub fn page(
     let secret_value = Secret::Page {
         title: title.to_string(),
         mime: "text/markdown".to_string(),
-        document: secrecy::Secret::new(document.to_string()),
+        document: document.to_string().into(),
         user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());

@@ -16,7 +16,7 @@ use crate::{
     Error, Paths, Result,
 };
 use age::Encryptor;
-use futures::io::AsyncReadExt;
+use futures::io::{AsyncReadExt, BufReader};
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
@@ -64,14 +64,14 @@ impl FileStorage {
         input: P,
         passphrase: &SecretString,
     ) -> Result<Vec<u8>> {
-        let mut file = File::open(input.as_ref()).await?.compat();
-        let decryptor = match age::Decryptor::new_async(&mut file).await? {
-            age::Decryptor::Passphrase(d) => d,
-            _ => return Err(Error::NotPassphraseEncryption),
-        };
+        let mut file =
+            BufReader::new(File::open(input.as_ref()).await?.compat());
+        let decryptor = age::Decryptor::new_async_buffered(&mut file).await?;
 
         let mut decrypted = vec![];
-        let mut reader = decryptor.decrypt_async(passphrase, None)?;
+        let mut reader = decryptor.decrypt_async(std::iter::once(
+            &age::scrypt::Identity::new(passphrase.clone()) as _,
+        ))?;
         reader.read_to_end(&mut decrypted).await?;
         Ok(decrypted)
     }
