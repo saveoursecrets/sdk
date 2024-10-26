@@ -253,7 +253,6 @@ impl Identity {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use secrecy::SecretString;
     use urn::Urn;
 
     use crate::{
@@ -323,7 +322,7 @@ mod tests {
 
         // Create a secret using the expected name but of the wrong kind
         let signer_secret = Secret::Note {
-            text: SecretString::new("Mock note".to_owned()),
+            text: "Mock note".to_owned().into(),
             user_data: Default::default(),
         };
 

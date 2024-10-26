@@ -90,21 +90,6 @@ pub enum Error {
     #[error("not a contact")]
     NotContact,
 
-    /// Error generated when decrypting via AGE and expecting passhrase
-    /// based encryption.
-    #[error("expected passphrase based encryption (AGE)")]
-    NotPassphraseEncryption,
-
-    /// Error generated when decrypting via AGE and expecting recipient
-    /// based encryption.
-    #[error("expected recipient based encryption (AGE)")]
-    NotRecipientEncryption,
-
-    /// Error generated attempting to encrypt asymmetrically without
-    /// and recipients.
-    #[error("no encryption recipients")]
-    NoRecipients,
-
     /// Error generated when a signing key is required.
     #[error("no signer")]
     NoSigner,

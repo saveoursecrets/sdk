@@ -1,5 +1,5 @@
 use anyhow::Result;
-use secrecy::{ExposeSecret, SecretBox, SecretString};
+use secrecy::{ExposeSecret, SecretBox};
 use sos_sdk::{
     prelude::*,
     signer::{ecdsa::SingleParty, Signer},
@@ -79,7 +79,7 @@ END:VCARD"#;
 async fn secret_encode_note() -> Result<()> {
     let user_data: UserData = Default::default();
     let secret = Secret::Note {
-        text: secrecy::Secret::new(String::from("My Note")),
+        text: String::from("My Note").into(),
         user_data,
     };
     let encoded = encode(&secret).await?;
@@ -108,7 +108,7 @@ async fn secret_encode_account() -> Result<()> {
     let secret = Secret::Account {
         account: "Email".to_string(),
         url: vec!["https://webmail.example.com".parse().unwrap()],
-        password: secrecy::Secret::new("mock-password".to_string()),
+        password: "mock-password".to_string().into(),
         user_data: Default::default(),
     };
     let encoded = encode(&secret).await?;
@@ -118,7 +118,7 @@ async fn secret_encode_account() -> Result<()> {
     let secret_no_url = Secret::Account {
         account: "Email".to_string(),
         url: Default::default(),
-        password: secrecy::Secret::new("mock-password".to_string()),
+        password: "mock-password".to_string().into(),
         user_data: Default::default(),
     };
     let encoded = encode(&secret_no_url).await?;
@@ -130,13 +130,11 @@ async fn secret_encode_account() -> Result<()> {
 #[tokio::test]
 async fn secret_encode_list() -> Result<()> {
     let mut credentials = HashMap::new();
-    credentials.insert(
-        "API_KEY".to_owned(),
-        secrecy::Secret::new("mock-access-key".to_owned()),
-    );
+    credentials
+        .insert("API_KEY".to_owned(), "mock-access-key".to_owned().into());
     credentials.insert(
         "PROVIDER_KEY".to_owned(),
-        secrecy::Secret::new("mock-provider-key".to_owned()),
+        "mock-provider-key".to_owned().into(),
     );
     let secret = Secret::List {
         items: credentials,
@@ -192,7 +190,7 @@ async fn secret_encode_page() -> Result<()> {
     let secret = Secret::Page {
         title: "Welcome".to_string(),
         mime: "text/markdown".to_string(),
-        document: secrecy::Secret::new("# Mock Page".to_owned()),
+        document: "# Mock Page".to_string().into(),
         user_data: Default::default(),
     };
     let encoded = encode(&secret).await?;
@@ -204,8 +202,9 @@ async fn secret_encode_page() -> Result<()> {
 #[tokio::test]
 async fn secret_encode_signer() -> Result<()> {
     let signer = SingleParty::new_random();
-    let private_key =
-        SecretSigner::SinglePartyEcdsa(SecretVec::new(signer.to_bytes()));
+    let private_key = SecretSigner::SinglePartyEcdsa(SecretBox::new(
+        signer.to_bytes().into(),
+    ));
     let secret = Secret::Signer {
         private_key,
         user_data: Default::default(),

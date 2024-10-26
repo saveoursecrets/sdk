@@ -374,7 +374,7 @@ mod test {
     #[cfg(feature = "interactive-keychain-tests")]
     async fn keychain_import_autofill() -> Result<()> {
         let keychain = find_test_keychain()?;
-        let password = SecretString::new("mock-password".to_owned());
+        let password = "mock-password".to_owned().into();
         let data_dump =
             KeychainImport::import_data(&keychain, Some(password))?;
         assert!(data_dump.is_some());

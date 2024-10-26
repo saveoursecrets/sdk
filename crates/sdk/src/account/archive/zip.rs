@@ -353,7 +353,6 @@ mod test {
     use super::*;
     use crate::{encode, identity::IdentityFolder, vault::Vault, Paths};
     use anyhow::Result;
-    use secrecy::SecretString;
     use std::io::Cursor;
 
     #[tokio::test]
@@ -366,7 +365,7 @@ mod test {
 
         let identity_vault = IdentityFolder::new(
             "Mock".to_string(),
-            SecretString::new("mock-password".to_string()),
+            "mock-password".to_string().into(),
             Some(dir.path().to_owned()),
         )
         .await?;

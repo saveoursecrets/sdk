@@ -13,7 +13,7 @@
 use crate::{
     vault::{secret::SecretId, VaultId},
     vfs::{self, File},
-    Error, Paths, Result,
+    Paths, Result,
 };
 use age::Encryptor;
 use futures::io::{AsyncReadExt, BufReader};

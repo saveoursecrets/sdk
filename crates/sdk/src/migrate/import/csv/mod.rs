@@ -8,7 +8,6 @@ pub mod macos;
 pub mod one_password;
 
 use async_trait::async_trait;
-use secrecy::SecretString;
 use std::collections::{HashMap, HashSet};
 use url::Url;
 use vcard4::Vcard;

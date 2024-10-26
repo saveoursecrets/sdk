@@ -34,7 +34,7 @@ use crate::{
     vfs, Error, Paths, Result,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use secrecy::{ExposeSecret, SecretBox, SecretSlice, SecretString};
+use secrecy::{ExposeSecret, SecretBox, SecretString};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
