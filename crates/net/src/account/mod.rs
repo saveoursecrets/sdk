@@ -1,5 +1,6 @@
 //! Network aware account storage.
 
+mod account_switcher;
 mod auto_merge;
 #[cfg(feature = "files")]
 mod file_transfers;
@@ -28,6 +29,7 @@ pub enum CancelReason {
     Aborted,
 }
 
+pub use account_switcher::AccountSwitcher;
 #[cfg(feature = "files")]
 pub use file_transfers::{
     CancelChannel, FileTransferSettings, InflightNotification,
