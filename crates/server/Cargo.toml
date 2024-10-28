@@ -48,7 +48,7 @@ axum-macros = { version = "0.4" }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 tokio-stream = { version = "0.1" }
 utoipa = { version = "4", features = ["uuid"] }
-utoipa-rapidoc = { version = "4", features = ["axum"] }
+utoipa-rapidoc = { version = "5", features = ["axum"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros"] }
 
 tokio-rustls-acme = { version = "0.4", features = ["axum"], optional = true }
