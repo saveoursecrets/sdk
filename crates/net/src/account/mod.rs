@@ -1,6 +1,6 @@
 //! Network aware account storage.
+use crate::sdk::prelude::{Account, AccountSwitcher};
 
-mod account_switcher;
 mod auto_merge;
 #[cfg(feature = "files")]
 mod file_transfers;
@@ -9,6 +9,13 @@ mod listen;
 mod network_account;
 mod remote;
 mod sync;
+
+/// Account switcher for network-enabled accounts.
+pub type NetworkAccountSwitcher = AccountSwitcher<
+    <NetworkAccount as Account>::Error,
+    <NetworkAccount as Account>::NetworkResult,
+    NetworkAccount,
+>;
 
 /// Information about a cancellation.
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq)]
@@ -29,7 +36,6 @@ pub enum CancelReason {
     Aborted,
 }
 
-pub use account_switcher::AccountSwitcher;
 #[cfg(feature = "files")]
 pub use file_transfers::{
     CancelChannel, FileTransferSettings, InflightNotification,
