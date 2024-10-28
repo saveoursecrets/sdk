@@ -73,8 +73,9 @@ pub(crate) async fn account_exists(
         ("bearer_token" = [])
     ),
     request_body(
+        description = "Protobuf encoded CreateSet",
         content_type = "application/octet-stream",
-        // content = CreateSet,
+        content = Vec<u8>,
     ),
     responses(
         (
@@ -185,8 +186,9 @@ pub(crate) async fn delete_account(
         ("bearer_token" = [])
     ),
     request_body(
+        description = "Protobuf encoded CreateSet",
         content_type = "application/octet-stream",
-        // content = CreateSet,
+        content = Vec<u8>,
     ),
     responses(
         (
@@ -203,7 +205,7 @@ pub(crate) async fn delete_account(
         ),
         (
             status = StatusCode::OK,
-            description = "Account was created.",
+            description = "Account was updated.",
         ),
     ),
 )]
@@ -258,8 +260,8 @@ pub(crate) async fn update_account(
         (
             status = StatusCode::OK,
             content_type = "application/octet-stream",
-            description = "Account data sent.",
-            // body = CreateSet,
+            description = "Account data sent as protobuf-encoded CreateSet.",
+            body = Vec<u8>,
         ),
     ),
 )]
@@ -310,8 +312,8 @@ pub(crate) async fn fetch_account(
         (
             status = StatusCode::OK,
             content_type = "application/octet-stream",
-            description = "Account sync status sent.",
-            // body = SyncStatus,
+            description = "Account sync status sent as protobuf-encoded SyncStatus",
+            body = Vec<u8>,
         ),
     ),
 )]
@@ -351,8 +353,9 @@ pub(crate) async fn sync_status(
         ("bearer_token" = [])
     ),
     request_body(
+        description = "Protobuf encoded ScanRequest",
         content_type = "application/octet-stream",
-        // content = ScanRequest,
+        content = Vec<u8>,
     ),
     responses(
         (
@@ -366,8 +369,8 @@ pub(crate) async fn sync_status(
         (
             status = StatusCode::OK,
             content_type = "application/octet-stream",
-            description = "Commit hashes sent.",
-            // body = ScanResponse,
+            description = "Commit hashes sent as protobuf-encoded ScanResponse.",
+            body = Vec<u8>,
         ),
     ),
 )]
@@ -411,8 +414,9 @@ pub(crate) async fn event_proofs(
         ("bearer_token" = [])
     ),
     request_body(
+        description = "Protobuf encoded DiffRequest",
         content_type = "application/octet-stream",
-        // content = DiffRequest,
+        content = Vec<u8>,
     ),
     responses(
         (
@@ -426,8 +430,8 @@ pub(crate) async fn event_proofs(
         (
             status = StatusCode::OK,
             content_type = "application/octet-stream",
-            description = "Commit diff sent.",
-            // body = DiffResponse,
+            description = "Commit diff sent as protobuf-encoded DiffResponse.",
+            body = Vec<u8>,
         ),
     ),
 )]
@@ -471,8 +475,9 @@ pub(crate) async fn event_diff(
         ("bearer_token" = [])
     ),
     request_body(
+        description = "Protobuf encoded PatchRequest",
         content_type = "application/octet-stream",
-        // content = PatchRequest,
+        content = Vec<u8>,
     ),
     responses(
         (
@@ -486,8 +491,8 @@ pub(crate) async fn event_diff(
         (
             status = StatusCode::OK,
             content_type = "application/octet-stream",
-            description = "Result of the attempt to apply the checked patch.",
-            // body = PatchResonse,
+            description = "Result of the attempt to apply the checked patch as a protobuf-encoded PatchResponse.",
+            body = Vec<u8>,
         ),
     ),
 )]
@@ -531,8 +536,9 @@ pub(crate) async fn event_patch(
         ("bearer_token" = [])
     ),
     request_body(
+        description = "Protobuf encoded SyncPacket",
         content_type = "application/octet-stream",
-        // content = SyncPacket,
+        content = Vec<u8>,
     ),
     responses(
         (
@@ -546,8 +552,8 @@ pub(crate) async fn event_patch(
         (
             status = StatusCode::OK,
             content_type = "application/octet-stream",
-            description = "Account event logs were patched.",
-            // body = SyncPacket,
+            description = "Account event logs as protobuf-encoded SyncPacket",
+            body = Vec<u8>,
         ),
     ),
 )]

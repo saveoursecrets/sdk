@@ -48,15 +48,13 @@ struct SyncPacket(sos_protocol::SyncPacket);
         files::move_file,
         files::delete_file,
     ),
-    /*
     components(
         schemas(
-            CreateSet,
-            SyncStatus,
-            SyncPacket,
+            // CreateSet,
+            // SyncStatus,
+            // SyncPacket,
         ),
     ),
-    */
 )]
 pub struct ApiDoc;
 

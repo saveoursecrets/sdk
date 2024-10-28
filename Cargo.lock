@@ -4414,6 +4414,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "utoipa",
+ "utoipa-config",
  "utoipa-rapidoc",
  "uuid",
 ]
@@ -5298,6 +5299,16 @@ dependencies = [
  "serde",
  "serde_json",
  "utoipa-gen",
+]
+
+[[package]]
+name = "utoipa-config"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06638ae95f08a14f307292bcf2e8ae34b6adbec526190a46a83d27363007a81e"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
