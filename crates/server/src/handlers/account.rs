@@ -74,7 +74,7 @@ pub(crate) async fn account_exists(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = CreateSet,
+        // content = CreateSet,
     ),
     responses(
         (
@@ -186,7 +186,7 @@ pub(crate) async fn delete_account(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = CreateSet,
+        // content = CreateSet,
     ),
     responses(
         (
@@ -259,7 +259,7 @@ pub(crate) async fn update_account(
             status = StatusCode::OK,
             content_type = "application/octet-stream",
             description = "Account data sent.",
-            body = CreateSet,
+            // body = CreateSet,
         ),
     ),
 )]
@@ -311,7 +311,7 @@ pub(crate) async fn fetch_account(
             status = StatusCode::OK,
             content_type = "application/octet-stream",
             description = "Account sync status sent.",
-            body = SyncStatus,
+            // body = SyncStatus,
         ),
     ),
 )]
@@ -352,7 +352,7 @@ pub(crate) async fn sync_status(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = ScanRequest,
+        // content = ScanRequest,
     ),
     responses(
         (
@@ -367,7 +367,7 @@ pub(crate) async fn sync_status(
             status = StatusCode::OK,
             content_type = "application/octet-stream",
             description = "Commit hashes sent.",
-            body = ScanResponse,
+            // body = ScanResponse,
         ),
     ),
 )]
@@ -412,7 +412,7 @@ pub(crate) async fn event_proofs(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = DiffRequest,
+        // content = DiffRequest,
     ),
     responses(
         (
@@ -427,7 +427,7 @@ pub(crate) async fn event_proofs(
             status = StatusCode::OK,
             content_type = "application/octet-stream",
             description = "Commit diff sent.",
-            body = DiffResponse,
+            // body = DiffResponse,
         ),
     ),
 )]
@@ -472,7 +472,7 @@ pub(crate) async fn event_diff(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = PatchRequest,
+        // content = PatchRequest,
     ),
     responses(
         (
@@ -487,7 +487,7 @@ pub(crate) async fn event_diff(
             status = StatusCode::OK,
             content_type = "application/octet-stream",
             description = "Result of the attempt to apply the checked patch.",
-            body = PatchResponse,
+            // body = PatchResonse,
         ),
     ),
 )]
@@ -532,7 +532,7 @@ pub(crate) async fn event_patch(
     ),
     request_body(
         content_type = "application/octet-stream",
-        content = SyncPacket,
+        // content = SyncPacket,
     ),
     responses(
         (
@@ -547,7 +547,7 @@ pub(crate) async fn event_patch(
             status = StatusCode::OK,
             content_type = "application/octet-stream",
             description = "Account event logs were patched.",
-            body = SyncPacket,
+            // body = SyncPacket,
         ),
     ),
 )]
