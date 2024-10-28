@@ -17,13 +17,18 @@ pub struct AccountSwitcher {
 
 impl AccountSwitcher {
     /// List local accounts.
-    pub async fn list_accounts() -> Result<Vec<PublicIdentity>> {
+    pub async fn list_accounts(&self) -> Result<Vec<PublicIdentity>> {
         Ok(Identity::list_accounts(None).await?)
     }
 
-    /// Add an account to the collection.
-    pub fn add_account(&mut self, account: NetworkAccount) {
-        self.accounts.push(account);
+    /// Add an account to the collection if it does not already exist.
+    pub fn add_account(&mut self, account: NetworkAccount) -> bool {
+        if self.position(account.address()).is_none() {
+            self.accounts.push(account);
+            true
+        } else {
+            false
+        }
     }
 
     /// Remove an account from the collection.
