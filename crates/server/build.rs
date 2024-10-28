@@ -11,8 +11,4 @@ fn main() {
         Channel::Dev => "CHANNEL_DEV",
     };
     println!("cargo:rustc-cfg={}", channel);
-
-    utoipa_config::Config::new()
-        .alias_for("CreateSet", "sos_protocol::CreateSet")
-        .write_to_file()
 }
