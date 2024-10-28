@@ -41,7 +41,7 @@ human_bytes = "0.4"
 tempfile = "3.5"
 shell-words = "1"
 terminal-banner = { version = "0.4.1", features = ["color"] }
-unicode-width = "0.1"
+unicode-width = "0.2"
 kdam = { version = "0.5", features = ["rich", "spinner"] }
 num_cpus = "1"
 crossterm = "0.28"
