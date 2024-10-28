@@ -1,6 +1,7 @@
 use crate::handlers::{account, files};
 use utoipa::{openapi::security::*, Modify, OpenApi, ToSchema};
 
+/*
 #[derive(ToSchema)]
 #[allow(dead_code)]
 struct CreateSet(sos_protocol::CreateSet);
@@ -12,6 +13,7 @@ struct SyncStatus(sos_protocol::SyncStatus);
 #[derive(ToSchema)]
 #[allow(dead_code)]
 struct SyncPacket(sos_protocol::SyncPacket);
+*/
 
 #[derive(OpenApi)]
 #[openapi(
@@ -48,9 +50,9 @@ struct SyncPacket(sos_protocol::SyncPacket);
     ),
     components(
         schemas(
-            CreateSet,
-            SyncStatus,
-            SyncPacket,
+            // CreateSet,
+            // SyncStatus,
+            // SyncPacket,
         ),
     ),
 )]

@@ -52,7 +52,7 @@ pub struct MoveFileQuery {
     params(
         ("vault_id" = Uuid, description = "Vault identifier"),
         ("secret_id" = Uuid, description = "Secret identifier"),
-        ("file_name" = ExternalFileName, description = "Hex-encoded SHA256 checksum"),
+        ("file_name" = String, description = "Hex-encoded SHA256 checksum"),
     ),
     responses(
         (
@@ -117,7 +117,7 @@ pub(crate) async fn receive_file(
     params(
         ("vault_id" = Uuid, description = "Vault identifier"),
         ("secret_id" = Uuid, description = "Secret identifier"),
-        ("file_name" = ExternalFileName, description = "Hex-encoded SHA256 checksum"),
+        ("file_name" = String, description = "Hex-encoded SHA256 checksum"),
     ),
     responses(
         (
@@ -181,7 +181,7 @@ pub(crate) async fn delete_file(
     params(
         ("vault_id" = Uuid, description = "Vault identifier"),
         ("secret_id" = Uuid, description = "Secret identifier"),
-        ("file_name" = ExternalFileName, description = "Hex-encoded SHA256 checksum"),
+        ("file_name" = String, description = "Hex-encoded SHA256 checksum"),
     ),
     responses(
         (
@@ -246,7 +246,7 @@ pub(crate) async fn send_file(
     params(
         ("vault_id" = Uuid, description = "Vault identifier"),
         ("secret_id" = Uuid, description = "Secret identifier"),
-        ("file_name" = ExternalFileName, description = "Hex-encoded SHA256 checksum"),
+        ("file_name" = String, description = "Hex-encoded SHA256 checksum"),
     ),
     responses(
         (

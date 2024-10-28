@@ -522,7 +522,7 @@ impl NetworkAccount {
             LocalAccount::new_unauthenticated(address, data_dir).await?;
 
         Ok(Self {
-            address: Default::default(),
+            address,
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             remotes: Arc::new(RwLock::new(Default::default())),
