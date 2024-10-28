@@ -31,6 +31,11 @@ impl<E, R, A: Account<Error = E, NetworkResult = R>>
         }
     }
 
+    /// Number of accounts.
+    pub fn len(&self) -> usize {
+        self.accounts.len()
+    }
+
     /// Add an account if it does not already exist and make
     /// it the selected account.
     ///
