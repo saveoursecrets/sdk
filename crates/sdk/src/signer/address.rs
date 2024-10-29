@@ -8,6 +8,7 @@ use k256::{
     AffinePoint, EncodedPoint, FieldBytes, Scalar, Secp256k1,
 };
 
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 use std::{fmt, str::FromStr};
@@ -20,6 +21,14 @@ use subtle::Choice;
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, Hash, Eq, PartialEq)]
 #[serde(try_from = "String", into = "String")]
 pub struct Address([u8; 20]);
+
+impl Address {
+    /// Create a random address.
+    pub fn random() -> Self {
+        let rng = &mut rand::rngs::OsRng;
+        Self(rng.gen())
+    }
+}
 
 impl fmt::Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

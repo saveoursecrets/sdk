@@ -28,7 +28,7 @@ secrecy.workspace = true
 http.workspace = true
 
 sos-server = { path = "../server" }
-sos_test_utils = { path = "../test_utils" }
+sos-test-utils = { path = "../test_utils" }
 
 copy_dir = "0.1"
 maplit2 = "1"

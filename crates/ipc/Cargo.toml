@@ -18,6 +18,9 @@ tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["codec"] }
 futures-util = { version = "0.3", features = ["sink"] }
 
+[dev-dependencies]
+sos-test-utils = { path = "../test_utils" }
+
 [build-dependencies]
 rustc_version = "0.4.1"
 prost-build = "0.13"

@@ -4234,7 +4234,7 @@ dependencies = [
  "serde_json",
  "sos-net",
  "sos-server",
- "sos_test_utils",
+ "sos-test-utils",
  "tempfile",
  "thiserror",
  "tokio",
@@ -4253,6 +4253,7 @@ dependencies = [
  "protoc-bin-vendored",
  "rustc_version",
  "sos-net",
+ "sos-test-utils",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -4374,8 +4375,8 @@ dependencies = [
  "sha1",
  "sha2",
  "sha3",
+ "sos-test-utils",
  "sos-vfs 0.2.2",
- "sos_test_utils",
  "subtle",
  "tempfile",
  "thiserror",
@@ -4437,6 +4438,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-test-utils"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum-server",
+ "copy_dir",
+ "futures",
+ "pretty_assertions",
+ "rustls",
+ "secrecy",
+ "serde_json",
+ "sos-net",
+ "sos-server",
+ "tempfile",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "sos-vfs"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4461,27 +4483,6 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "tokio",
-]
-
-[[package]]
-name = "sos_test_utils"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum-server",
- "copy_dir",
- "futures",
- "pretty_assertions",
- "rustls",
- "secrecy",
- "serde_json",
- "sos-net",
- "sos-server",
- "tempfile",
- "tokio",
- "tokio-rustls",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

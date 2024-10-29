@@ -2,27 +2,39 @@ syntax = "proto3";
 
 package protocol;
 
-message WireIpcRequest {
+message IpcRequest {
   // Message identifier.
   uint64 message_id = 1;
-  // Request type.
-  WireIpcRequestMethod request_method = 2;
+  // Request body.
+  IpcRequestBody body = 2;
 }
 
-enum WireIpcRequestMethod {
-  Authenticated = 0;
+message IpcRequestBody {
+  oneof inner {
+    VoidBody authenticated = 1;
+  }
 }
 
-message WireIpcResponse {
+message VoidBody {}
+
+message IpcResponse {
   // Message identifier.
   uint64 message_id = 1;
+  // Message body.
+  IpcResponseBody body = 2;
 }
 
-message WireAuthenticatedList {
-  repeated WireAuthenticatedState accounts = 1;
+message IpcResponseBody {
+  oneof inner {
+    AccountList authenticated = 1;
+  }
 }
 
-message WireAuthenticatedState {
+message AccountList {
+  repeated AccountAuthenticatedState accounts = 1;
+}
+
+message AccountAuthenticatedState {
   // Account address identifier.
   string address = 1;
   // Authenticated state.

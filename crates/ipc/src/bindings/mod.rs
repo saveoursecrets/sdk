@@ -1,6 +1,3 @@
-pub(crate) mod protocol;
-mod request;
-mod response;
+mod protocol;
 
-pub use request::*;
-pub use response::*;
+pub use protocol::*;

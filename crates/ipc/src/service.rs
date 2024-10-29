@@ -1,4 +1,4 @@
-use crate::{IpcRequest, IpcResponse, Result};
+use crate::{ipc_request_body, Error, IpcRequest, IpcResponse, Result};
 use async_trait::async_trait;
 use sos_net::{
     sdk::account::{Account, AccountSwitcher, LocalAccount},
@@ -37,14 +37,21 @@ impl<E, R, A: Account<Error = E, NetworkResult = R>>
 }
 
 #[async_trait]
-impl<E, R, A: Account<Error = E, NetworkResult = R> + Send> IpcService
+impl<E, R, A: Account<Error = E, NetworkResult = R> + Send + Sync> IpcService
     for IpcServiceHandler<E, R, A>
+where
+    E: std::fmt::Debug,
 {
     /// Handle an incoming request.
     async fn handle(&mut self, request: IpcRequest) -> Result<IpcResponse> {
-        let response = IpcResponse {
-            message_id: request.message_id,
-        };
-        Ok(response)
+        let body = request.body.ok_or(Error::DecodeRequest)?;
+        match body.inner {
+            Some(ipc_request_body::Inner::Authenticated(_)) => {
+                // FIXME: the unwrap!
+                let data = self.accounts.authenticated().await.unwrap();
+                Ok(IpcResponse::new_authenticated(request.message_id, data))
+            }
+            _ => Err(Error::DecodeRequest),
+        }
     }
 }

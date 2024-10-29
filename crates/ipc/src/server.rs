@@ -9,10 +9,8 @@ use tokio_util::{
 };
 
 use crate::{
-    decode_proto, encode_proto,
-    protocol::{WireIpcRequest, WireIpcResponse},
-    Error, IpcRequest, IpcService, LocalAccountIpcService,
-    NetworkAccountIpcService, Result,
+    decode_proto, encode_proto, Error, IpcRequest, IpcService,
+    LocalAccountIpcService, NetworkAccountIpcService, Result,
 };
 
 pub type NetworkAccountIpcServer = IpcServer<NetworkAccountIpcService>;
@@ -48,20 +46,17 @@ where
                                 len = bytes.len(),
                                 "ipc_server::socket_recv"
                             );
-                            let request: WireIpcRequest =
-                                decode_proto(&bytes)?;
+                            let request: IpcRequest = decode_proto(&bytes)?;
                             tracing::debug!(
                                 request = ?request,
                                 "ipc_server::socket_request"
                             );
-                            let request: IpcRequest = request.try_into()?;
                             let mut handler = service.lock().await;
                             let response = handler.handle(request).await?;
                             tracing::debug!(
                                 response = ?response,
                                 "ipc_server::socket_response"
                             );
-                            let response: WireIpcResponse = response.into();
                             let buffer = encode_proto(&response)?;
                             let bytes: BytesMut = buffer.as_slice().into();
                             framed.send(bytes).await?;
