@@ -6,13 +6,14 @@ members = [
   "crates/cli_helpers", 
   "crates/keychain_parser",
   "crates/integration_tests",
+  "crates/ipc",
   "crates/net",
   "crates/protocol",
   "crates/sdk",
   "crates/server",
   "crates/sos",
   "crates/test_utils",
-  "crates/vfs" 
+  "crates/vfs"
 ]
 
 [workspace.dependencies]

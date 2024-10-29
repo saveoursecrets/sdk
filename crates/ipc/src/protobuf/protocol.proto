@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package protocol;
+
+message IpcRequest {
+  // Message identifier.
+  uint64 message_id = 1;
+}
+
+message IpcResponse {
+  // Message identifier.
+  uint64 message_id = 1;
+}

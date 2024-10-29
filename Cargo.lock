@@ -4243,6 +4243,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-ipc"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "prost",
+ "prost-build",
+ "protoc-bin-vendored",
+ "rustc_version",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+]
+
+[[package]]
 name = "sos-net"
 version = "0.15.1"
 dependencies = [
