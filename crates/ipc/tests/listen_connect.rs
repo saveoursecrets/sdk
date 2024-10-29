@@ -1,11 +1,13 @@
-use std::time::Duration;
-
-use sos_ipc::{Error, IpcClient, IpcRequest, IpcServer, Result};
+use sos_ipc::{Error, IpcClient, IpcRequest, IpcServer, IpcService, Result};
+use std::{sync::Arc, time::Duration};
+use tokio::sync::Mutex;
 
 #[tokio::test]
 async fn listen_connect() -> Result<()> {
+    let service = Arc::new(Mutex::new(IpcService::new()));
+
     tokio::task::spawn(async move {
-        IpcServer::listen("127.0.0.1:5353").await?;
+        IpcServer::listen("127.0.0.1:5353", service).await?;
         Ok::<(), Error>(())
     });
 
@@ -16,7 +18,8 @@ async fn listen_connect() -> Result<()> {
 
     println!("{:#?}", request);
 
-    client.send(request).await?;
+    let response = client.send(request).await?;
+    println!("response: {:#?}", response);
     tokio::time::sleep(Duration::from_millis(500)).await;
 
     Ok(())

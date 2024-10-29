@@ -10,7 +10,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 [dependencies]
 thiserror.workspace = true
 prost.workspace = true
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "macros", "io-util"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "macros", "io-util", "sync"] }
 tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["codec"] }
 futures-util = { version = "0.3", features = ["sink"] }
