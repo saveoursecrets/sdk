@@ -16,7 +16,7 @@ pub struct IpcClient {
 }
 
 impl IpcClient {
-    /// Create a new client and connect the stream.
+    /// Create a client and connect the server.
     pub async fn connect<A: ToSocketAddrs>(addr: A) -> Result<Self> {
         let stream = TcpStream::connect(&addr).await?;
         let (reader, writer) = stream.into_split();

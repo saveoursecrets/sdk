@@ -1,19 +1,5 @@
 use crate::handlers::{account, files};
-use utoipa::{openapi::security::*, Modify, OpenApi, ToSchema};
-
-/*
-#[derive(ToSchema)]
-#[allow(dead_code)]
-struct CreateSet(sos_protocol::CreateSet);
-
-#[derive(ToSchema)]
-#[allow(dead_code)]
-struct SyncStatus(sos_protocol::SyncStatus);
-
-#[derive(ToSchema)]
-#[allow(dead_code)]
-struct SyncPacket(sos_protocol::SyncPacket);
-*/
+use utoipa::{openapi::security::*, Modify, OpenApi};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -49,11 +35,7 @@ struct SyncPacket(sos_protocol::SyncPacket);
         files::delete_file,
     ),
     components(
-        schemas(
-            // CreateSet,
-            // SyncStatus,
-            // SyncPacket,
-        ),
+        schemas(),
     ),
 )]
 pub struct ApiDoc;

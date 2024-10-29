@@ -9,17 +9,29 @@ use tokio_util::{
 };
 
 use crate::{
-    decode_proto, encode_proto, Error, IpcRequest, IpcService, Result,
+    decode_proto, encode_proto, Error, IpcRequest, IpcService,
+    LocalAccountIpcService, NetworkAccountIpcService, Result,
 };
 
-/// Server for inter-process communication.
-pub struct IpcServer;
+pub type NetworkAccountIpcServer = IpcServer<NetworkAccountIpcService>;
+pub type LocalAccountIpcServer = IpcServer<LocalAccountIpcService>;
 
-impl IpcServer {
+/// Server for inter-process communication.
+pub struct IpcServer<S>
+where
+    S: IpcService + Send + 'static,
+{
+    phantom: std::marker::PhantomData<S>,
+}
+
+impl<S> IpcServer<S>
+where
+    S: IpcService + Send + 'static,
+{
     /// Listen on a bind address.
     pub async fn listen<A: ToSocketAddrs>(
         addr: A,
-        service: Arc<Mutex<IpcService>>,
+        service: Arc<Mutex<S>>,
     ) -> Result<()> {
         let listener = TcpListener::bind(&addr).await?;
         loop {
@@ -30,20 +42,34 @@ impl IpcServer {
                 while let Some(message) = framed.next().await {
                     match message {
                         Ok(bytes) => {
+                            tracing::debug!(
+                                len = bytes.len(),
+                                "ipc_server::socket_recv"
+                            );
                             let request: IpcRequest = decode_proto(&bytes)?;
-                            // println!("Server got {:#?}", request);
+                            tracing::debug!(
+                                request = ?request,
+                                "ipc_server::socket_request"
+                            );
                             let mut handler = service.lock().await;
                             let response = handler.handle(request).await?;
+                            tracing::debug!(
+                                response = ?response,
+                                "ipc_server::socket_response"
+                            );
                             let buffer = encode_proto(&response)?;
                             let bytes: BytesMut = buffer.as_slice().into();
                             framed.send(bytes).await?;
                         }
                         Err(err) => {
-                            println!("Socket closed with error: {:?}", err)
+                            tracing::error!(
+                              error = ?err,
+                              "ipc_server::socket_error",
+                            );
                         }
                     }
                 }
-                println!("Socket received FIN packet and closed connection");
+                tracing::debug!("ipc_server::socket_closed");
 
                 Ok::<(), Error>(())
             });

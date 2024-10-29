@@ -11,8 +11,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 pub use bindings::*;
 pub use client::IpcClient;
-pub use server::IpcServer;
-pub use service::IpcService;
+pub use server::{LocalAccountIpcServer, NetworkAccountIpcServer};
+pub use service::{
+    IpcService, LocalAccountIpcService, NetworkAccountIpcService,
+};
 
 /// Encode to protobuf.
 pub(crate) fn encode_proto<T: prost::Message>(value: &T) -> Result<Vec<u8>> {

@@ -2,6 +2,7 @@ use crate::{
     account::{Account, LocalAccount},
     prelude::Address,
 };
+use std::collections::HashMap;
 
 /// Account switcher for local accounts.
 pub type LocalAccountSwitcher = AccountSwitcher<
@@ -111,6 +112,17 @@ impl<E, R, A: Account<Error = E, NetworkResult = R>>
         } else {
             None
         }
+    }
+
+    /// Read the authenticated state for the accounts.
+    pub async fn authenticated(&self) -> Result<HashMap<Address, bool>, E> {
+        let mut out = HashMap::new();
+        for account in &self.accounts {
+            let address = *account.address();
+            let authenticated = account.is_authenticated().await;
+            out.insert(address, authenticated);
+        }
+        Ok(out)
     }
 
     fn position(&self, address: &Address) -> Option<usize> {

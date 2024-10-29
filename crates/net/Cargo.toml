@@ -29,6 +29,7 @@ full = [
   "system-messages",
   "clipboard",
 ]
+
 listen = ["dep:tokio-tungstenite", "sos-protocol/listen"]
 hashcheck = []
 audit = ["sos-sdk/audit"]
