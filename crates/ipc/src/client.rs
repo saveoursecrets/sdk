@@ -1,5 +1,7 @@
 use crate::{
-    decode_proto, encode_proto, Error, IpcRequest, IpcResponse, Result,
+    decode_proto, encode_proto,
+    protocol::{WireIpcRequest, WireIpcResponse},
+    Error, IpcRequest, IpcResponse, Result,
 };
 use tokio::io::AsyncWriteExt;
 use tokio::net::{
@@ -24,7 +26,8 @@ impl IpcClient {
     }
 
     /// Send a request.
-    pub async fn send(&mut self, request: IpcRequest) -> Result<IpcResponse> {
+    async fn send(&mut self, request: IpcRequest) -> Result<IpcResponse> {
+        let request: WireIpcRequest = request.into();
         let buf = encode_proto(&request)?;
         self.write_all(&buf).await?;
         self.read_response().await
@@ -38,8 +41,8 @@ impl IpcClient {
         while let Some(message) = stream.next().await {
             match message {
                 Ok(bytes) => {
-                    let response: IpcResponse = decode_proto(&bytes)?;
-                    reply = Some(response);
+                    let response: WireIpcResponse = decode_proto(&bytes)?;
+                    reply = Some(response.try_into()?);
                     break;
                 }
                 Err(err) => {

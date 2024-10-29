@@ -20,6 +20,7 @@ async fn listen_connect() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(50)).await;
     let mut client = IpcClient::connect("127.0.0.1:5353").await?;
 
+    /*
     let request = IpcRequest { message_id: 5000 };
 
     println!("{:#?}", request);
@@ -27,6 +28,7 @@ async fn listen_connect() -> Result<()> {
     let response = client.send(request).await?;
     println!("response: {:#?}", response);
     tokio::time::sleep(Duration::from_millis(500)).await;
+    */
 
     Ok(())
 }
