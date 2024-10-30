@@ -1,7 +1,9 @@
 use serde_json::Value;
 use sos_ipc::Result;
 use sos_net::sdk::logs::Logger;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
+use tokio::io::{
+    AsyncReadExt, AsyncWriteExt, BufReader, BufWriter, Stdin, Stdout,
+};
 
 /// Executable used to bridge JSON requests from browser extensions
 /// using the native messaging API to the IPC channel.
@@ -21,7 +23,7 @@ pub async fn main() -> Result<()> {
 
     loop {
         // Read the length of the message (u32)
-        let length = match stdin.read_u32_le().await {
+        let length = match read_length(&mut stdin).await {
             Ok(len) => len,
             Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
             Err(e) => {
@@ -58,10 +60,40 @@ pub async fn main() -> Result<()> {
             "sos_native_bridge::encoded_json",
         );
 
-        stdout.write_u32_le(output.len() as u32).await?;
+        write_length(&mut stdout, output.len() as u32).await?;
         stdout.write_all(&output).await?;
         stdout.flush().await?;
     }
 
     Ok(())
+}
+
+#[cfg(target_endian = "little")]
+async fn read_length(
+    stdin: &mut BufReader<Stdin>,
+) -> std::result::Result<u32, std::io::Error> {
+    stdin.read_u32_le().await
+}
+
+#[cfg(target_endian = "big")]
+async fn read_length(
+    stdin: &mut BufReader<Stdin>,
+) -> std::result::Result<u32, std::io::Error> {
+    stdin.read_u32().await
+}
+
+#[cfg(target_endian = "little")]
+async fn write_length(
+    stdout: &mut BufWriter<Stdout>,
+    length: u32,
+) -> std::result::Result<(), std::io::Error> {
+    stdout.write_u32_le(length).await
+}
+
+#[cfg(target_endian = "big")]
+async fn write_length(
+    stdout: &mut BufWriter<Stdout>,
+    length: u32,
+) -> std::result::Result<(), std::io::Error> {
+    stdout.write_u32(length).await
 }
