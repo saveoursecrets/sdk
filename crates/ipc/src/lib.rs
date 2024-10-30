@@ -1,3 +1,13 @@
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
+//! Inter-process communcation library for the [Save Our Secrets SDK](https://docs.rs/sos-sdk/latest/sos_sdk/).
+
+#[cfg(all(feature = "tcp", feature = "local-socket"))]
+compile_error!(
+    "sos-ipc requires you choose either the tcp or local-socket feature"
+);
+
 mod error;
 
 mod bindings;
@@ -7,14 +17,17 @@ mod service;
 
 pub use error::Error;
 
+/// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub use bindings::*;
 pub use client::IpcClient;
-pub use server::{LocalAccountIpcServer, NetworkAccountIpcServer};
 pub use service::{
     IpcService, LocalAccountIpcService, NetworkAccountIpcService,
 };
+
+#[cfg(feature = "tcp")]
+pub use server::{LocalAccountTcpServer, NetworkAccountTcpServer};
 
 /// Encode to protobuf.
 pub(crate) fn encode_proto<T: prost::Message>(value: &T) -> Result<Vec<u8>> {

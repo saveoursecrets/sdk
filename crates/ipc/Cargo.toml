@@ -8,6 +8,11 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 default-run = "sos-native-bridge"
 
+[features]
+default = ["tcp"]
+tcp = []
+local-socket = []
+
 [dependencies]
 thiserror.workspace = true
 prost.workspace = true

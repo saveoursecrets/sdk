@@ -11,7 +11,7 @@ impl From<(u64, AccountsListRequest)> for IpcRequest {
         IpcRequest {
             message_id,
             body: Some(IpcRequestBody {
-                inner: Some(ipc_request_body::Inner::Authenticated(
+                inner: Some(ipc_request_body::Inner::ListAccounts(
                     VoidBody {},
                 )),
             }),

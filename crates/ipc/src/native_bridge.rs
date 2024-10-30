@@ -3,6 +3,8 @@ use sos_ipc::Result;
 use sos_net::sdk::logs::Logger;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 
+/// Executable used to bridge JSON requests from browser extensions
+/// using the native messaging API to the IPC channel.
 #[tokio::main]
 pub async fn main() -> Result<()> {
     let mut stdin = BufReader::new(tokio::io::stdin());

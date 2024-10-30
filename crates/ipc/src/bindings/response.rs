@@ -25,7 +25,7 @@ impl IpcResponse {
         Self {
             message_id,
             body: Some(IpcResponseBody {
-                inner: Some(ipc_response_body::Inner::Authenticated(list)),
+                inner: Some(ipc_response_body::Inner::ListAccounts(list)),
             }),
         }
     }
@@ -38,7 +38,7 @@ impl TryFrom<IpcResponse> for AccountsList {
     fn try_from(value: IpcResponse) -> Result<Self> {
         let body = value.body.ok_or(Error::DecodeResponse)?;
         match body.inner {
-            Some(ipc_response_body::Inner::Authenticated(list)) => {
+            Some(ipc_response_body::Inner::ListAccounts(list)) => {
                 let mut data = Vec::new();
                 for item in list.accounts {
                     let public_id = item.public_id.unwrap();

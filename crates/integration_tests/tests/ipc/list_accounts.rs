@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sos_ipc::{
-    Error, IpcClient, LocalAccountIpcServer, LocalAccountIpcService,
+    Error, IpcClient, LocalAccountIpcService, LocalAccountTcpServer,
 };
 use sos_net::sdk::{
     crypto::AccessKey,
@@ -61,7 +61,7 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     let service = Arc::new(Mutex::new(LocalAccountIpcService::new(accounts)));
 
     tokio::task::spawn(async move {
-        LocalAccountIpcServer::listen("127.0.0.1:5353", service).await?;
+        LocalAccountTcpServer::listen("127.0.0.1:5353", service).await?;
         Ok::<(), Error>(())
     });
 

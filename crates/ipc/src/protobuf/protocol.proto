@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package protocol;
 
+// IPC request packet.
 message IpcRequest {
   // Message identifier.
   uint64 message_id = 1;
@@ -9,14 +10,19 @@ message IpcRequest {
   IpcRequestBody body = 2;
 }
 
+// IPC request body.
 message IpcRequestBody {
+  // Inner values.
   oneof inner {
-    VoidBody authenticated = 1;
+    // List accounts body.
+    VoidBody list_accounts = 1;
   }
 }
 
+// Void request body.
 message VoidBody {}
 
+// IPC response packet.
 message IpcResponse {
   // Message identifier.
   uint64 message_id = 1;
@@ -24,24 +30,30 @@ message IpcResponse {
   IpcResponseBody body = 2;
 }
 
+// IPC response body.
 message IpcResponseBody {
+  // Inner values.
   oneof inner {
-    WireAccountList authenticated = 1;
+    // List accounts body.
+    WireAccountList list_accounts = 1;
   }
 }
 
+/// List of accounts.
 message WireAccountList {
   // Collection of accounts.
   repeated WireAccountInfo accounts = 1;
 }
 
+/// Information about an account.
 message WireAccountInfo {
   // Public identity information.
   WirePublicIdentity public_id = 1;
-  // Authenticated state.
+  // Whether the account is currently authenticated.
   bool authenticated = 2;
 }
 
+/// Public identity for an account.
 message WirePublicIdentity {
   // Account address.
   string address = 1;

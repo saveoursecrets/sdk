@@ -13,8 +13,11 @@ use crate::{
     LocalAccountIpcService, NetworkAccountIpcService, Result,
 };
 
-pub type NetworkAccountIpcServer = IpcServer<NetworkAccountIpcService>;
-pub type LocalAccountIpcServer = IpcServer<LocalAccountIpcService>;
+/// TCP server for network-enabled accounts.
+pub type NetworkAccountTcpServer = IpcServer<NetworkAccountIpcService>;
+
+/// TCP server for local accounts.
+pub type LocalAccountTcpServer = IpcServer<LocalAccountIpcService>;
 
 /// Server for inter-process communication.
 pub struct IpcServer<S>

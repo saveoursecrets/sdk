@@ -19,8 +19,10 @@ pub type NetworkAccountIpcService = IpcServiceHandler<
     NetworkAccount,
 >;
 
+/// Service handler for IPC requests
 #[async_trait]
 pub trait IpcService {
+    /// Handle a request and reply with a response.
     async fn handle(&mut self, request: IpcRequest) -> Result<IpcResponse>;
 }
 
@@ -52,7 +54,7 @@ where
     async fn handle(&mut self, request: IpcRequest) -> Result<IpcResponse> {
         let body = request.body.ok_or(Error::DecodeRequest)?;
         match body.inner {
-            Some(ipc_request_body::Inner::Authenticated(_)) => {
+            Some(ipc_request_body::Inner::ListAccounts(_)) => {
                 // FIXME: the unwrap!
                 let data = self.accounts.list_accounts().await.unwrap();
                 Ok(IpcResponse::new_accounts_list(request.message_id, data))
