@@ -6,6 +6,7 @@ description = "Inter-process communication for Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
+default-run = "sos-native-bridge"
 
 [dependencies]
 thiserror.workspace = true
@@ -13,8 +14,9 @@ prost.workspace = true
 tracing.workspace = true
 async-trait.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 sos-net = { version = "0.15", path = "../net", features = ["full"] }
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "macros", "io-util", "sync"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "macros", "io-util", "io-std", "sync"] }
 tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["codec"] }
 futures-util = { version = "0.3", features = ["sink"] }
@@ -26,3 +28,7 @@ sos-test-utils = { path = "../test_utils" }
 rustc_version = "0.4.1"
 prost-build = "0.13"
 protoc-bin-vendored = "3"
+
+[[bin]]
+name = "sos-native-bridge"
+path = "src/native_bridge.rs"

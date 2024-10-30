@@ -5,8 +5,7 @@ use sos_ipc::{
 use sos_net::sdk::{
     crypto::AccessKey,
     prelude::{
-        generate_passphrase, Account, Address, LocalAccount,
-        LocalAccountSwitcher,
+        generate_passphrase, Account, LocalAccount, LocalAccountSwitcher,
     },
     Paths,
 };
@@ -42,7 +41,7 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     // Create an account and don't authenticate
     let account_name = format!("{}_unauthenticated", TEST_ID);
     let (password, _) = generate_passphrase()?;
-    let mut unauth_account = LocalAccount::new_account(
+    let unauth_account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
         Some(data_dir.clone()),

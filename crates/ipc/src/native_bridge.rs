@@ -1,12 +1,21 @@
 use serde_json::Value;
 use sos_ipc::Result;
-use std::io::Write;
-use tokio::io::{AsyncReadExt, BufReader};
+use sos_net::sdk::logs::Logger;
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
     let mut stdin = BufReader::new(tokio::io::stdin());
-    let mut stdout = std::io::stdout();
+    let mut stdout = BufWriter::new(tokio::io::stdout());
+
+    let args = std::env::args();
+
+    // Always send log messages to disc as the browser
+    // extension reads from stdout
+    let logger = Logger::new(None);
+    logger.init_file_subscriber(Some("info".to_string()))?;
+
+    tracing::info!(args = ?args, "native_bridge");
 
     loop {
         // Read the length of the message (u32)
@@ -14,32 +23,42 @@ pub async fn main() -> Result<()> {
             Ok(len) => len,
             Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
             Err(e) => {
-                eprintln!("Error reading message length: {}", e);
+                tracing::error!("Error reading message length: {}", e);
                 continue;
             }
         };
 
-        // Read the JSON message
+        tracing::info!(len = %length, "native_bridge::read_length");
+
         let mut buffer = vec![0u8; length as usize];
         if let Err(e) = stdin.read_exact(&mut buffer).await {
-            eprintln!("Error reading message: {}", e);
+            tracing::error!("Error reading message: {}", e);
             continue;
         }
 
-        // Parse the JSON
         let json: Value = match serde_json::from_slice(&buffer) {
             Ok(value) => value,
             Err(e) => {
-                eprintln!("Error parsing JSON: {}", e);
+                tracing::error!("Error parsing JSON: {}", e);
                 continue;
             }
         };
 
-        // Process the JSON input (you can replace this with your actual processing logic)
-        let output = format!("Processed JSON: {}", json);
+        tracing::info!(
+            value = ?json,
+            "sos_native_bridge::decoded_json",
+        );
 
-        writeln!(stdout, "{}", output)?;
-        stdout.flush()?;
+        let output = serde_json::to_vec(&json).unwrap();
+
+        tracing::info!(
+            len = ?output.len(),
+            "sos_native_bridge::encoded_json",
+        );
+
+        stdout.write_u32_le(output.len() as u32).await?;
+        stdout.write_all(&output).await?;
+        stdout.flush().await?;
     }
 
     Ok(())

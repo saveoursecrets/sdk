@@ -4254,6 +4254,7 @@ dependencies = [
  "protoc-bin-vendored",
  "rustc_version",
  "serde",
+ "serde_json",
  "sos-net",
  "sos-test-utils",
  "thiserror",

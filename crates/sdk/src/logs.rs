@@ -72,6 +72,7 @@ impl Logger {
         default_log_level: Option<String>,
     ) -> Result<()> {
         let logs_dir = &self.logs_dir;
+
         let logfile =
             RollingFileAppender::new(Rotation::DAILY, logs_dir, &self.name);
         let default_log_level =
@@ -103,9 +104,8 @@ impl Logger {
         Ok(())
     }
 
-    /// Initialize the tracing subscriber.
-    #[cfg(not(debug_assertions))]
-    pub fn init_subscriber(
+    /// Initialize a subscriber that writes to a file.
+    pub fn init_file_subscriber(
         &self,
         default_log_level: Option<String>,
     ) -> Result<()> {
@@ -135,6 +135,15 @@ impl Logger {
             .try_init();
 
         Ok(())
+    }
+
+    /// Initialize the tracing subscriber.
+    #[cfg(not(debug_assertions))]
+    pub fn init_subscriber(
+        &self,
+        default_log_level: Option<String>,
+    ) -> Result<()> {
+        self.init_file_subscriber(default_log_level)
     }
 
     /// Log file status.
