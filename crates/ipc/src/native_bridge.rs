@@ -1,4 +1,3 @@
-use byteorder::{LittleEndian, ReadBytesExt};
 use serde_json::Value;
 use sos_ipc::Result;
 use std::io::Write;
