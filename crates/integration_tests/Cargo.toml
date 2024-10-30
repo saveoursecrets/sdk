@@ -27,6 +27,7 @@ anyhow.workspace = true
 secrecy.workspace = true
 http.workspace = true
 
+sos-ipc = { path = "../ipc" }
 sos-server = { path = "../server" }
 sos-test-utils = { path = "../test_utils" }
 

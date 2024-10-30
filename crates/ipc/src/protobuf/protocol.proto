@@ -26,17 +26,25 @@ message IpcResponse {
 
 message IpcResponseBody {
   oneof inner {
-    AccountList authenticated = 1;
+    WireAccountList authenticated = 1;
   }
 }
 
-message AccountList {
-  repeated AccountAuthenticatedState accounts = 1;
+message WireAccountList {
+  // Collection of accounts.
+  repeated WireAccountInfo accounts = 1;
 }
 
-message AccountAuthenticatedState {
-  // Account address identifier.
-  string address = 1;
+message WireAccountInfo {
+  // Public identity information.
+  WirePublicIdentity public_id = 1;
   // Authenticated state.
   bool authenticated = 2;
+}
+
+message WirePublicIdentity {
+  // Account address.
+  string address = 1;
+  // Account label.
+  string label = 2;
 }

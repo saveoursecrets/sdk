@@ -1,8 +1,8 @@
 use crate::{
     account::{Account, LocalAccount},
-    prelude::Address,
+    prelude::{Address, Identity, PublicIdentity},
+    Paths,
 };
-use std::collections::HashMap;
 
 /// Account switcher for local accounts.
 pub type LocalAccountSwitcher = AccountSwitcher<
@@ -19,16 +19,28 @@ pub type LocalAccountSwitcher = AccountSwitcher<
 pub struct AccountSwitcher<E, R, A: Account<Error = E, NetworkResult = R>> {
     accounts: Vec<A>,
     selected: Option<Address>,
+    data_dir: Option<Paths>,
 }
 
-impl<E, R, A: Account<Error = E, NetworkResult = R>>
-    AccountSwitcher<E, R, A>
+impl<E, R, A: Account<Error = E, NetworkResult = R>> AccountSwitcher<E, R, A>
+where
+    E: From<crate::Error>,
 {
     /// Create an account switcher.
     pub fn new() -> Self {
         Self {
             accounts: Default::default(),
             selected: None,
+            data_dir: None,
+        }
+    }
+
+    /// Create an account switcher with a data directory.
+    pub fn new_with_options(data_dir: Option<Paths>) -> Self {
+        Self {
+            accounts: Default::default(),
+            selected: None,
+            data_dir,
         }
     }
 
@@ -114,13 +126,25 @@ impl<E, R, A: Account<Error = E, NetworkResult = R>>
         }
     }
 
-    /// Read the authenticated state for the accounts.
-    pub async fn authenticated(&self) -> Result<HashMap<Address, bool>, E> {
-        let mut out = HashMap::new();
-        for account in &self.accounts {
-            let address = *account.address();
-            let authenticated = account.is_authenticated().await;
-            out.insert(address, authenticated);
+    /// List the accounts on disc and include authentication state.
+    pub async fn list_accounts(
+        &self,
+    ) -> Result<Vec<(PublicIdentity, bool)>, E> {
+        let mut out = Vec::new();
+        let disc_accounts =
+            Identity::list_accounts(self.data_dir.as_ref()).await?;
+        for account in disc_accounts {
+            let authenticated = if let Some(memory_account) = self
+                .accounts
+                .iter()
+                .find(|a| a.address() == account.address())
+            {
+                memory_account.is_authenticated().await
+            } else {
+                false
+            };
+
+            out.push((account, authenticated));
         }
         Ok(out)
     }

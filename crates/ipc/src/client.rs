@@ -1,13 +1,9 @@
-use std::{
-    collections::HashMap,
-    sync::atomic::{AtomicU64, Ordering},
-};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::{
-    decode_proto, encode_proto, ipc_request_body, Error, IpcRequest,
-    IpcRequestBody, IpcResponse, Result, VoidBody,
+    decode_proto, encode_proto, AccountsList, AccountsListRequest, Error,
+    IpcRequest, IpcResponse, Result,
 };
-use sos_net::sdk::prelude::Address;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{
     tcp::{OwnedReadHalf, OwnedWriteHalf},
@@ -35,19 +31,13 @@ impl IpcClient {
         })
     }
 
-    /// Account authenticated state.
-    pub async fn authenticated(&mut self) -> Result<HashMap<Address, bool>> {
-        let request = IpcRequest {
-            message_id: self.id.fetch_add(1, Ordering::SeqCst),
-            body: Some(IpcRequestBody {
-                inner: Some(ipc_request_body::Inner::Authenticated(
-                    VoidBody {},
-                )),
-            }),
-        };
-
+    /// List accounts.
+    pub async fn list_accounts(&mut self) -> Result<AccountsList> {
+        let message_id = self.id.fetch_add(1, Ordering::SeqCst);
+        let req = AccountsListRequest;
+        let request: IpcRequest = (message_id, req).into();
         let response = self.send(request).await?;
-        Ok(response.as_authenticated()?)
+        Ok(response.try_into()?)
     }
 
     /// Send a request.
