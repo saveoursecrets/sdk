@@ -1,8 +1,8 @@
-use sos_ipc::Result;
-use tokio::io::{AsyncReadExt, BufReader};
+use byteorder::{LittleEndian, ReadBytesExt};
 use serde_json::Value;
+use sos_ipc::Result;
 use std::io::Write;
-use byteorder::{ReadBytesExt, LittleEndian};
+use tokio::io::{AsyncReadExt, BufReader};
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
