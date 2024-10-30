@@ -3,6 +3,7 @@ use crate::{
     prelude::{Address, Identity, PublicIdentity},
     Paths,
 };
+use async_trait::async_trait;
 
 /// Account switcher for local accounts.
 pub type LocalAccountSwitcher = AccountSwitcher<
@@ -11,19 +12,34 @@ pub type LocalAccountSwitcher = AccountSwitcher<
     LocalAccount,
 >;
 
+/// Describes the contract for types that expose an API to
+/// app integrations such as browser extensions.
+#[async_trait]
+pub trait AppIntegration<E: From<crate::Error>> {
+    /// List the accounts on disc and include authentication state.
+    async fn list_accounts(
+        &mut self,
+    ) -> Result<Vec<(PublicIdentity, bool)>, E>;
+}
+
 /// Collection of accounts with a currently selected account.
 ///
 /// Allows multiple accounts to be authenticated concurrently
 /// so that integrations are able to operate on multiple accounts
 /// provided they are authenticated.
-pub struct AccountSwitcher<E, R, A: Account<Error = E, NetworkResult = R>> {
+pub struct AccountSwitcher<E, R, A>
+where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    E: From<crate::Error>,
+{
     accounts: Vec<A>,
     selected: Option<Address>,
     data_dir: Option<Paths>,
 }
 
-impl<E, R, A: Account<Error = E, NetworkResult = R>> AccountSwitcher<E, R, A>
+impl<E, R, A> AccountSwitcher<E, R, A>
 where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     E: From<crate::Error>,
 {
     /// Create an account switcher.
@@ -126,9 +142,19 @@ where
         }
     }
 
-    /// List the accounts on disc and include authentication state.
-    pub async fn list_accounts(
-        &self,
+    fn position(&self, address: &Address) -> Option<usize> {
+        self.accounts.iter().position(|a| a.address() == address)
+    }
+}
+
+#[async_trait]
+impl<E, R, A> AppIntegration<E> for AccountSwitcher<E, R, A>
+where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    E: From<crate::Error>,
+{
+    async fn list_accounts(
+        &mut self,
     ) -> Result<Vec<(PublicIdentity, bool)>, E> {
         let mut out = Vec::new();
         let disc_accounts =
@@ -147,9 +173,5 @@ where
             out.push((account, authenticated));
         }
         Ok(out)
-    }
-
-    fn position(&self, address: &Address) -> Option<usize> {
-        self.accounts.iter().position(|a| a.address() == address)
     }
 }

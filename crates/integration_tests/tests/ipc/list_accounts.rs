@@ -5,7 +5,8 @@ use sos_ipc::{
 use sos_net::sdk::{
     crypto::AccessKey,
     prelude::{
-        generate_passphrase, Account, LocalAccount, LocalAccountSwitcher,
+        generate_passphrase, Account, AppIntegration, LocalAccount,
+        LocalAccountSwitcher,
     },
     Paths,
 };

@@ -1,9 +1,10 @@
-use std::sync::atomic::{AtomicU64, Ordering};
-
 use crate::{
     decode_proto, encode_proto, AccountsList, AccountsListRequest, Error,
     IpcRequest, IpcResponse, Result,
 };
+use async_trait::async_trait;
+use sos_net::sdk::account::AppIntegration;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::io::AsyncWriteExt;
 use tokio::net::{
     tcp::{OwnedReadHalf, OwnedWriteHalf},
@@ -29,15 +30,6 @@ impl IpcClient {
             writer,
             id: AtomicU64::new(1),
         })
-    }
-
-    /// List accounts.
-    pub async fn list_accounts(&mut self) -> Result<AccountsList> {
-        let message_id = self.id.fetch_add(1, Ordering::SeqCst);
-        let req = AccountsListRequest;
-        let request: IpcRequest = (message_id, req).into();
-        let response = self.send(request).await?;
-        Ok(response.try_into()?)
     }
 
     /// Send a request.
@@ -70,5 +62,16 @@ impl IpcClient {
     /// Write a buffer.
     async fn write_all(&mut self, buf: &[u8]) -> Result<()> {
         Ok(self.writer.write_all(buf).await?)
+    }
+}
+
+#[async_trait]
+impl AppIntegration<crate::Error> for IpcClient {
+    async fn list_accounts(&mut self) -> Result<AccountsList> {
+        let message_id = self.id.fetch_add(1, Ordering::SeqCst);
+        let req = AccountsListRequest;
+        let request: IpcRequest = (message_id, req).into();
+        let response = self.send(request).await?;
+        Ok(response.try_into()?)
     }
 }

@@ -1,7 +1,7 @@
 use crate::{ipc_request_body, Error, IpcRequest, IpcResponse, Result};
 use async_trait::async_trait;
 use sos_net::{
-    sdk::account::{Account, AccountSwitcher, LocalAccount},
+    sdk::account::{Account, AccountSwitcher, AppIntegration, LocalAccount},
     NetworkAccount,
 };
 
@@ -24,12 +24,18 @@ pub trait IpcService {
     async fn handle(&mut self, request: IpcRequest) -> Result<IpcResponse>;
 }
 
-pub struct IpcServiceHandler<E, R, A: Account<Error = E, NetworkResult = R>> {
+pub struct IpcServiceHandler<E, R, A>
+where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    E: From<sos_net::sdk::Error>,
+{
     accounts: AccountSwitcher<E, R, A>,
 }
 
-impl<E, R, A: Account<Error = E, NetworkResult = R>>
-    IpcServiceHandler<E, R, A>
+impl<E, R, A> IpcServiceHandler<E, R, A>
+where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    E: From<sos_net::sdk::Error>,
 {
     pub fn new(accounts: AccountSwitcher<E, R, A>) -> Self {
         Self { accounts }
@@ -40,8 +46,7 @@ impl<E, R, A: Account<Error = E, NetworkResult = R>>
 impl<E, R, A: Account<Error = E, NetworkResult = R> + Send + Sync> IpcService
     for IpcServiceHandler<E, R, A>
 where
-    E: std::fmt::Debug,
-    E: From<sos_net::sdk::Error>,
+    E: std::fmt::Debug + From<sos_net::sdk::Error>,
 {
     /// Handle an incoming request.
     async fn handle(&mut self, request: IpcRequest) -> Result<IpcResponse> {

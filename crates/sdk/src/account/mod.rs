@@ -11,7 +11,9 @@ pub use account::{
     FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
     SecretDelete, SecretInsert, SecretMove, SigninOptions,
 };
-pub use account_switcher::{AccountSwitcher, LocalAccountSwitcher};
+pub use account_switcher::{
+    AccountSwitcher, AppIntegration, LocalAccountSwitcher,
+};
 pub use builder::{AccountBuilder, PrivateNewAccount};
 pub use convert::CipherComparison;
 
