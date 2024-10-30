@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sos_ipc::{
-    Error, IpcClient, LocalAccountIpcService, LocalAccountTcpServer,
+    Error, LocalAccountIpcService, LocalAccountTcpServer, TcpClient,
 };
 use sos_net::sdk::{
     crypto::AccessKey,
@@ -68,7 +68,7 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     // Create a client and list accounts
-    let mut client = IpcClient::connect("127.0.0.1:5353").await?;
+    let mut client = TcpClient::connect("127.0.0.1:5353").await?;
     let accounts = client.list_accounts().await?;
     assert_eq!(2, accounts.len());
 

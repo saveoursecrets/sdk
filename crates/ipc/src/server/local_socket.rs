@@ -14,20 +14,20 @@ use crate::{
 };
 
 /// TCP server for network-enabled accounts.
-pub type NetworkAccountTcpServer = TcpServer<NetworkAccountIpcService>;
+pub type NetworkAccountSocketServer = SocketServer<NetworkAccountIpcService>;
 
 /// TCP server for local accounts.
-pub type LocalAccountTcpServer = TcpServer<LocalAccountIpcService>;
+pub type LocalAccountSocketServer = SocketServer<LocalAccountIpcService>;
 
 /// Server for inter-process communication.
-pub struct TcpServer<S>
+pub struct SocketServer<S>
 where
     S: IpcService + Send + 'static,
 {
     phantom: std::marker::PhantomData<S>,
 }
 
-impl<S> TcpServer<S>
+impl<S> SocketServer<S>
 where
     S: IpcService + Send + 'static,
 {
@@ -36,9 +36,12 @@ where
         addr: A,
         service: Arc<Mutex<S>>,
     ) -> Result<()> {
+        todo!();
+
+        /*
         let listener = TcpListener::bind(&addr).await?;
         loop {
-            let (socket, _) = listener.accept().await?;
+        let (socket, _) = listener.accept().await?;
             let service = service.clone();
             tokio::spawn(async move {
                 let mut framed = BytesCodec::new().framed(socket);
@@ -77,5 +80,6 @@ where
                 Ok::<(), Error>(())
             });
         }
+        */
     }
 }

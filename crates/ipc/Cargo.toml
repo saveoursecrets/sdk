@@ -11,7 +11,7 @@ default-run = "sos-native-bridge"
 [features]
 default = ["tcp"]
 tcp = []
-local-socket = []
+local-socket = ["interprocess"]
 
 [dependencies]
 thiserror.workspace = true
@@ -25,6 +25,7 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "macros", "
 tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["codec"] }
 futures-util = { version = "0.3", features = ["sink"] }
+interprocess = { version = "2", features = ["tokio"], optional = true }
 
 [dev-dependencies]
 sos-test-utils = { path = "../test_utils" }

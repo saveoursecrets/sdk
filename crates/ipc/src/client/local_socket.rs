@@ -11,15 +11,18 @@ use tokio_stream::StreamExt;
 use tokio_util::codec::{BytesCodec, FramedRead};
 
 /// Client for inter-process communication.
-pub struct TcpClient {
+pub struct SocketClient {
+    /*
     reader: OwnedReadHalf,
     writer: OwnedWriteHalf,
+    */
     pub(super) id: AtomicU64,
 }
 
-impl TcpClient {
+impl SocketClient {
     /// Create a client and connect the server.
     pub async fn connect<A: ToSocketAddrs>(addr: A) -> Result<Self> {
+        /*
         let stream = TcpStream::connect(&addr).await?;
         let (reader, writer) = stream.into_split();
         Ok(Self {
@@ -27,6 +30,9 @@ impl TcpClient {
             writer,
             id: AtomicU64::new(1),
         })
+        */
+
+        todo!();
     }
 
     /// Send a request.
@@ -34,13 +40,18 @@ impl TcpClient {
         &mut self,
         request: IpcRequest,
     ) -> Result<IpcResponse> {
+        /*
         let buf = encode_proto(&request)?;
         self.write_all(&buf).await?;
         self.read_response().await
+        */
+
+        todo!();
     }
 
     /// Read response from the server.
     async fn read_response(&mut self) -> Result<IpcResponse> {
+        /*
         let mut stream = FramedRead::new(&mut self.reader, BytesCodec::new());
 
         let mut reply: Option<IpcResponse> = None;
@@ -57,10 +68,13 @@ impl TcpClient {
             }
         }
         reply.ok_or(Error::NoResponse)
+        */
+        todo!();
     }
 
     /// Write a buffer.
     async fn write_all(&mut self, buf: &[u8]) -> Result<()> {
-        Ok(self.writer.write_all(buf).await?)
+        // Ok(self.writer.write_all(buf).await?)
+        todo!();
     }
 }
