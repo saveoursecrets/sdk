@@ -142,6 +142,17 @@ where
         }
     }
 
+    /// Sign out of all authenticated accounts.
+    pub async fn sign_out_all(&mut self) -> Result<(), E> {
+        for account in &mut self.accounts {
+            if account.is_authenticated().await {
+                tracing::info!(account = %account.address(), "sign out");
+                account.sign_out().await?;
+            }
+        }
+        Ok(())
+    }
+
     fn position(&self, address: &Address) -> Option<usize> {
         self.accounts.iter().position(|a| a.address() == address)
     }
