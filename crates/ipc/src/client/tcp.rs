@@ -1,5 +1,7 @@
 use super::client_impl;
-use crate::{decode_proto, encode_proto, Error, Result, WireIpcResponse};
+use crate::{
+    decode_proto, encode_proto, Error, IpcRequest, IpcResponse, Result,
+};
 use std::sync::atomic::AtomicU64;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{

@@ -1,5 +1,6 @@
 use crate::{
-    wire_ipc_request_body, Error, Result, WireIpcRequest, WireIpcResponse,
+    wire_ipc_request_body, Error, IpcResponse, Result, WireIpcRequest,
+    WireIpcResponse,
 };
 use async_trait::async_trait;
 use sos_net::{
@@ -65,10 +66,8 @@ where
             Some(wire_ipc_request_body::Inner::ListAccounts(_)) => {
                 // FIXME: the unwrap!
                 let data = self.accounts.list_accounts().await.unwrap();
-                Ok(WireIpcResponse::new_accounts_list(
-                    request.message_id,
-                    data,
-                ))
+                Ok((request.message_id, IpcResponse::ListAccounts(data))
+                    .into())
             }
             _ => Err(Error::DecodeRequest),
         }

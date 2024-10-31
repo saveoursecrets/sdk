@@ -1239,7 +1239,7 @@ impl LocalAccount {
         secret_id: &SecretId,
         from: &Summary,
         to: &Summary,
-        #[allow(unused_mut)] mut options: AccessOptions,
+        #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<SecretMove<<LocalAccount as Account>::NetworkResult>> {
         self.open_vault(from, false).await?;
         let (secret_data, read_event) =

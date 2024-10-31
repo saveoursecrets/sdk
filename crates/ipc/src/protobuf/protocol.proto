@@ -14,13 +14,22 @@ message WireIpcRequest {
 message WireIpcRequestBody {
   // Inner values.
   oneof inner {
-    // List accounts body.
+    // Request a list of accounts.
     WireVoidBody list_accounts = 1;
+
+    // Request to authenticate to an account.
+    WireAuthenticateBody authenticate  = 2;
   }
 }
 
 // Void request body.
 message WireVoidBody {}
+
+// Authenticate request body.
+message WireAuthenticateBody {
+  // Account address.
+  string address = 1;
+}
 
 // IPC response packet.
 message WireIpcResponse {
@@ -36,6 +45,8 @@ message WireIpcResponseBody {
   oneof inner {
     // List accounts body.
     WireAccountList list_accounts = 1;
+    // Authenticate body.
+    WireAuthenticateOutcome authenticate = 2;
   }
 }
 
@@ -43,6 +54,16 @@ message WireIpcResponseBody {
 message WireAccountList {
   // Collection of accounts.
   repeated WireAccountInfo accounts = 1;
+}
+
+// Outcome of an authentication request.
+enum WireAuthenticateOutcome {
+  // Authentication success.
+  Success = 0;
+  // User canceled.
+  Canceled = 1;
+  // Timed out waiting for user input.
+  TimedOut = 2;
 }
 
 // Information about an account.

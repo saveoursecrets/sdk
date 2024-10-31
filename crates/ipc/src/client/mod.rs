@@ -1,8 +1,7 @@
 use async_trait::async_trait;
 use sos_net::sdk::account::AppIntegration;
-use std::sync::atomic::Ordering;
 
-use crate::{AccountsList, AccountsListRequest, Result, WireIpcRequest};
+use crate::{AccountsList, Error, IpcRequest, IpcResponse, Result};
 
 #[cfg(feature = "tcp")]
 mod tcp;
@@ -22,11 +21,14 @@ macro_rules! app_integration_impl {
         #[async_trait]
         impl AppIntegration<crate::Error> for $impl {
             async fn list_accounts(&mut self) -> Result<AccountsList> {
-                let message_id = self.id.fetch_add(1, Ordering::SeqCst);
-                let req = AccountsListRequest;
-                let request: WireIpcRequest = (message_id, req).into();
-                let response = self.send(request).await?;
-                Ok(response.try_into()?)
+                let request = IpcRequest::ListAccounts;
+                if let IpcResponse::ListAccounts(list) =
+                    self.send(request).await?
+                {
+                    Ok(list)
+                } else {
+                    Err(Error::ResponseType)
+                }
             }
         }
     };
@@ -36,26 +38,36 @@ macro_rules! app_integration_impl {
 macro_rules! client_impl {
     () => {
         /// Send a request.
-        pub(super) async fn send<R: prost::Message>(
+        pub(super) async fn send(
             &mut self,
-            request: R,
-        ) -> Result<WireIpcResponse> {
+            request: IpcRequest,
+        ) -> Result<IpcResponse> {
+            use std::sync::atomic::Ordering;
+            let request_id = self.id.fetch_add(1, Ordering::SeqCst);
+            let request: crate::WireIpcRequest = (request_id, request).into();
             let buf = encode_proto(&request)?;
             self.write_all(&buf).await?;
-            self.read_response().await
+            let (response_id, response) = self.read_response().await?;
+
+            if request_id != response_id {
+                return Err(Error::MessageId(request_id, response_id));
+            }
+
+            Ok(response)
         }
 
         /// Read response from the server.
-        async fn read_response(&mut self) -> Result<WireIpcResponse> {
+        async fn read_response(&mut self) -> Result<(u64, IpcResponse)> {
             let mut stream =
                 FramedRead::new(&mut self.reader, BytesCodec::new());
 
-            let mut reply: Option<WireIpcResponse> = None;
+            let mut reply: Option<(u64, IpcResponse)> = None;
             while let Some(message) = stream.next().await {
                 match message {
                     Ok(bytes) => {
-                        let response: WireIpcResponse = decode_proto(&bytes)?;
-                        reply = Some(response);
+                        let response: crate::WireIpcResponse =
+                            decode_proto(&bytes)?;
+                        reply = Some(response.try_into()?);
                         break;
                     }
                     Err(err) => {
