@@ -1,6 +1,7 @@
 use anyhow::Result;
 use sos_ipc::{
-    Error, LocalAccountIpcService, LocalAccountSocketServer, SocketClient,
+    AuthenticateOutcome, Error, LocalAccountIpcService,
+    LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{
     crypto::AccessKey,
@@ -16,8 +17,8 @@ use tokio::sync::RwLock;
 use crate::test_utils::setup;
 
 #[tokio::test]
-async fn integration_ipc_list_accounts() -> Result<()> {
-    const TEST_ID: &str = "ipc_list_accounts";
+async fn integration_ipc_authenticate_success() -> Result<()> {
+    const TEST_ID: &str = "ipc_authenticate_success";
     // crate::test_utils::init_tracing();
     //
 
@@ -54,10 +55,10 @@ async fn integration_ipc_list_accounts() -> Result<()> {
 
     // Create an account and don't authenticate
     let account_name = format!("{}_unauthenticated", TEST_ID);
-    let (password, _) = generate_passphrase()?;
+    let (unauth_password, _) = generate_passphrase()?;
     let unauth_account = LocalAccount::new_account(
         account_name.clone(),
-        password.clone(),
+        unauth_password.clone(),
         Some(data_dir.clone()),
     )
     .await?;
@@ -70,10 +71,40 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     accounts.add_account(auth_account);
     accounts.add_account(unauth_account);
 
+    let ipc_accounts = Arc::new(RwLock::new(accounts));
+
+    let auth_key: AccessKey = unauth_password.into();
+
     // Start the IPC service
-    let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
-        Arc::new(RwLock::new(accounts)),
-    )));
+    let service = Arc::new(RwLock::new(
+        LocalAccountIpcService::new_with_authenticator(
+            ipc_accounts,
+            Box::new(move |accounts, address| {
+                let pass = auth_key.clone();
+                Box::pin(async move {
+                    let mut accounts = accounts.write().await;
+                    // accounts.try_sign_in(address, pass).await?;
+                    todo!();
+
+                    /*
+                    if let Some(account) =
+                        accounts.iter_mut().find(|a| a.address() == &address)
+                    {
+                        // account.sign_in(&*pass).await?;
+                        Ok::<_, sos_net::sdk::Error>(
+                            AuthenticateOutcome::Success,
+                        )
+                    } else {
+                        // Use not found event
+                        Ok::<_, sos_net::sdk::Error>(
+                            AuthenticateOutcome::Canceled,
+                        )
+                    }
+                    */
+                })
+            }),
+        ),
+    ));
 
     let server_socket_name = socket_name.clone();
     tokio::task::spawn(async move {

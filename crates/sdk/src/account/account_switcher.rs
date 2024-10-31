@@ -1,5 +1,6 @@
 use crate::{
     account::{Account, LocalAccount},
+    crypto::AccessKey,
     prelude::Address,
     Paths,
 };
@@ -38,6 +39,27 @@ where
             selected: None,
             data_dir: None,
         }
+    }
+
+    /// Try to sign in an account.
+    pub async fn try_sign_in(
+        &mut self,
+        address: Address,
+        key: AccessKey,
+    ) -> Result<(), E> {
+        if let Some(account) =
+            self.accounts.iter_mut().find(|a| a.address() == &address)
+        {
+            account.sign_in(&key).await?;
+            todo!();
+        } else {
+            todo!();
+        }
+    }
+
+    /// Mutable iterator.
+    pub fn iter_mut<'a>(&'a mut self) -> std::slice::IterMut<'a, A> {
+        self.accounts.iter_mut()
     }
 
     /// Create an account switcher with a data directory.
