@@ -39,13 +39,13 @@ message IpcResponseBody {
   }
 }
 
-/// List of accounts.
+// List of accounts.
 message WireAccountList {
   // Collection of accounts.
   repeated WireAccountInfo accounts = 1;
 }
 
-/// Information about an account.
+// Information about an account.
 message WireAccountInfo {
   // Public identity information.
   WirePublicIdentity public_id = 1;
@@ -53,7 +53,7 @@ message WireAccountInfo {
   bool authenticated = 2;
 }
 
-/// Public identity for an account.
+// Public identity for an account.
 message WirePublicIdentity {
   // Account address.
   string address = 1;

@@ -1,7 +1,9 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Inter-process communcation library for the [Save Our Secrets SDK](https://docs.rs/sos-sdk/latest/sos_sdk/).
+//! Inter-process communcation library for [Save Our Secrets](https://saveoursecrets.com/).
+//!
+//! Supports a local socket transport using [interprocess](https://docs.rs/interprocess/latest/interprocess/) which is enabled by default and an alternative TCP transport which can be enabled using the `tcp` feature if required.
 
 mod error;
 

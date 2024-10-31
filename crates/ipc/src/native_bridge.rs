@@ -1,3 +1,4 @@
+#[doc(hidden)]
 use serde_json::Value;
 use sos_ipc::Result;
 use sos_net::sdk::logs::Logger;
@@ -7,6 +8,7 @@ use tokio::io::{
 
 /// Executable used to bridge JSON requests from browser extensions
 /// using the native messaging API to the IPC channel.
+#[doc(hidden)]
 #[tokio::main]
 pub async fn main() -> Result<()> {
     let mut stdin = BufReader::new(tokio::io::stdin());
@@ -68,6 +70,7 @@ pub async fn main() -> Result<()> {
     Ok(())
 }
 
+#[doc(hidden)]
 #[cfg(target_endian = "little")]
 async fn read_length(
     stdin: &mut BufReader<Stdin>,
@@ -75,6 +78,7 @@ async fn read_length(
     stdin.read_u32_le().await
 }
 
+#[doc(hidden)]
 #[cfg(target_endian = "big")]
 async fn read_length(
     stdin: &mut BufReader<Stdin>,
@@ -82,6 +86,7 @@ async fn read_length(
     stdin.read_u32().await
 }
 
+#[doc(hidden)]
 #[cfg(target_endian = "little")]
 async fn write_length(
     stdout: &mut BufWriter<Stdout>,
@@ -90,6 +95,7 @@ async fn write_length(
     stdout.write_u32_le(length).await
 }
 
+#[doc(hidden)]
 #[cfg(target_endian = "big")]
 async fn write_length(
     stdout: &mut BufWriter<Stdout>,
