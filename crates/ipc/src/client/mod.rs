@@ -1,8 +1,13 @@
 use async_trait::async_trait;
-use sos_net::sdk::account::AppIntegration;
 
-use crate::{Error, IpcRequest, IpcResponse, Result};
-use sos_net::sdk::account::AccountsList;
+use crate::{
+    AccountsList, AppIntegration, AuthenticateOutcome, Error, IpcRequest,
+    IpcResponse, Result,
+};
+
+use sos_net::sdk::prelude::Address;
+
+pub(crate) mod app_integration;
 
 #[cfg(feature = "tcp")]
 mod tcp;
@@ -27,6 +32,20 @@ macro_rules! app_integration_impl {
                     self.send(request).await?
                 {
                     Ok(list)
+                } else {
+                    Err(Error::ResponseType)
+                }
+            }
+
+            async fn authenticate(
+                &mut self,
+                address: Address,
+            ) -> Result<AuthenticateOutcome> {
+                let request = IpcRequest::Authenticate { address };
+                if let IpcResponse::Authenticate(outcome) =
+                    self.send(request).await?
+                {
+                    Ok(outcome)
                 } else {
                     Err(Error::ResponseType)
                 }

@@ -1,12 +1,12 @@
 use anyhow::Result;
 use sos_ipc::{
-    Error, LocalAccountIpcService, LocalAccountSocketServer, SocketClient,
+    AppIntegration, Error, LocalAccountIpcService, LocalAccountSocketServer,
+    SocketClient,
 };
 use sos_net::sdk::{
     crypto::AccessKey,
     prelude::{
-        generate_passphrase, Account, AppIntegration, LocalAccount,
-        LocalAccountSwitcher,
+        generate_passphrase, Account, LocalAccount, LocalAccountSwitcher,
     },
     Paths,
 };

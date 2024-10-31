@@ -3,13 +3,12 @@ use sos_net::sdk::prelude::PublicIdentity;
 
 use super::{WireAuthenticateOutcome, WirePublicIdentity};
 use crate::{
-    wire_ipc_response_body, Error, Result, WireAccountInfo, WireAccountList,
-    WireIpcResponse, WireIpcResponseBody,
+    wire_ipc_response_body, AccountsList, Error, Result, WireAccountInfo,
+    WireAccountList, WireIpcResponse, WireIpcResponseBody,
 };
-use sos_net::sdk::account::AccountsList;
 
 /// IPC response information.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum IpcResponse {
     /// List of accounts.
     ListAccounts(AccountsList),
@@ -18,8 +17,12 @@ pub enum IpcResponse {
 }
 
 /// Outcome of an authentication request.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum AuthenticateOutcome {
+    /// Authenticate is not supported.
+    Unsupported,
+    /// Account not found.
+    NotFound,
     /// Account was authenticated.
     Success,
     /// User canceled.
@@ -34,6 +37,8 @@ impl TryFrom<WireAuthenticateOutcome> for AuthenticateOutcome {
     fn try_from(value: WireAuthenticateOutcome) -> Result<Self> {
         let name = value.as_str_name();
         Ok(match name {
+            "Unsupported" => AuthenticateOutcome::Unsupported,
+            "NotFound" => AuthenticateOutcome::NotFound,
             "Success" => AuthenticateOutcome::Success,
             "Canceled" => AuthenticateOutcome::Canceled,
             "TimedOut" => AuthenticateOutcome::TimedOut,
@@ -45,6 +50,12 @@ impl TryFrom<WireAuthenticateOutcome> for AuthenticateOutcome {
 impl From<AuthenticateOutcome> for WireAuthenticateOutcome {
     fn from(value: AuthenticateOutcome) -> Self {
         match value {
+            AuthenticateOutcome::Unsupported => {
+                WireAuthenticateOutcome::from_str_name("Unsupported").unwrap()
+            }
+            AuthenticateOutcome::NotFound => {
+                WireAuthenticateOutcome::from_str_name("NotFound").unwrap()
+            }
             AuthenticateOutcome::Success => {
                 WireAuthenticateOutcome::from_str_name("Success").unwrap()
             }

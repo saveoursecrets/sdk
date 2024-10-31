@@ -28,7 +28,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 pub use bindings::*;
 pub use service::{
-    IpcService, LocalAccountIpcService, NetworkAccountIpcService,
+    IpcService, LocalAccountAuthenticateCommand, LocalAccountIpcService,
+    NetworkAccountAuthenticateCommand, NetworkAccountIpcService,
 };
 
 #[cfg(feature = "tcp")]
@@ -42,6 +43,8 @@ pub use server::{LocalAccountSocketServer, NetworkAccountSocketServer};
 
 #[cfg(feature = "local-socket")]
 pub use client::SocketClient;
+
+pub use client::app_integration::*;
 
 /// Encode to protobuf.
 pub(crate) fn encode_proto<T: prost::Message>(value: &T) -> Result<Vec<u8>> {

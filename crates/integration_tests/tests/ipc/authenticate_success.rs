@@ -1,13 +1,13 @@
 use anyhow::Result;
 use sos_ipc::{
-    AuthenticateOutcome, Error, LocalAccountIpcService,
+    AppIntegration, AuthenticateOutcome, Error,
+    LocalAccountAuthenticateCommand, LocalAccountIpcService,
     LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{
     crypto::AccessKey,
     prelude::{
-        generate_passphrase, Account, AppIntegration, LocalAccount,
-        LocalAccountSwitcher,
+        generate_passphrase, Account, LocalAccount, LocalAccountSwitcher,
     },
     Paths,
 };
@@ -63,7 +63,6 @@ async fn integration_ipc_authenticate_success() -> Result<()> {
     )
     .await?;
 
-    let auth_address = auth_account.address().clone();
     let unauth_address = unauth_account.address().clone();
 
     // Add the accounts
@@ -72,38 +71,30 @@ async fn integration_ipc_authenticate_success() -> Result<()> {
     accounts.add_account(unauth_account);
 
     let ipc_accounts = Arc::new(RwLock::new(accounts));
-
+    let assert_accounts = ipc_accounts.clone();
     let auth_key: AccessKey = unauth_password.into();
+
+    let (auth_tx, mut auth_rx) =
+        tokio::sync::mpsc::channel::<LocalAccountAuthenticateCommand>(16);
+
+    tokio::task::spawn(async move {
+        while let Some(command) = auth_rx.recv().await {
+            let mut accounts = command.accounts.write().await;
+            if let Some(account) = accounts
+                .iter_mut()
+                .find(|a| a.address() == &command.address)
+            {
+                account.sign_in(&auth_key).await.unwrap();
+                command.result.send(AuthenticateOutcome::Success).unwrap();
+            } else {
+                command.result.send(AuthenticateOutcome::NotFound).unwrap();
+            }
+        }
+    });
 
     // Start the IPC service
     let service = Arc::new(RwLock::new(
-        LocalAccountIpcService::new_with_authenticator(
-            ipc_accounts,
-            Box::new(move |accounts, address| {
-                let pass = auth_key.clone();
-                Box::pin(async move {
-                    let mut accounts = accounts.write().await;
-                    // accounts.try_sign_in(address, pass).await?;
-                    todo!();
-
-                    /*
-                    if let Some(account) =
-                        accounts.iter_mut().find(|a| a.address() == &address)
-                    {
-                        // account.sign_in(&*pass).await?;
-                        Ok::<_, sos_net::sdk::Error>(
-                            AuthenticateOutcome::Success,
-                        )
-                    } else {
-                        // Use not found event
-                        Ok::<_, sos_net::sdk::Error>(
-                            AuthenticateOutcome::Canceled,
-                        )
-                    }
-                    */
-                })
-            }),
-        ),
+        LocalAccountIpcService::new_with_authenticator(ipc_accounts, auth_tx),
     ));
 
     let server_socket_name = socket_name.clone();
@@ -115,26 +106,18 @@ async fn integration_ipc_authenticate_success() -> Result<()> {
 
     tokio::time::sleep(Duration::from_millis(250)).await;
 
-    // Create a client and list accounts
     let mut client = SocketClient::connect(&socket_name).await?;
-    let accounts = client.list_accounts().await?;
-    assert_eq!(2, accounts.len());
+    let outcome = client.authenticate(unauth_address).await?;
 
-    let authenticated = accounts
-        .iter()
-        .filter(|(a, _)| a.address() == &auth_address)
-        .map(|(_, v)| *v)
-        .collect::<Vec<_>>();
-    let authenticated = authenticated.first().unwrap();
-    assert!(*authenticated);
+    println!("{:#?}", outcome);
 
-    let authenticated = accounts
-        .iter()
-        .filter(|(a, _)| a.address() == &unauth_address)
-        .map(|(_, v)| *v)
-        .collect::<Vec<_>>();
-    let authenticated = authenticated.first().unwrap();
-    assert!(!*authenticated);
+    let accounts = assert_accounts.write().await;
+    let mut it = accounts.iter();
+    let first_account = it.next().unwrap();
+    let second_account = it.next().unwrap();
+
+    assert!(first_account.is_authenticated().await);
+    assert!(second_account.is_authenticated().await);
 
     Ok(())
 }

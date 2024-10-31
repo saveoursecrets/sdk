@@ -1,6 +1,5 @@
 use crate::{
     account::{Account, LocalAccount},
-    crypto::AccessKey,
     prelude::Address,
     Paths,
 };
@@ -22,9 +21,10 @@ where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     E: From<crate::Error>,
 {
-    pub(super) accounts: Vec<A>,
+    #[doc(hidden)]
+    pub accounts: Vec<A>,
     selected: Option<Address>,
-    pub(super) data_dir: Option<Paths>,
+    data_dir: Option<Paths>,
 }
 
 impl<E, R, A> AccountSwitcher<E, R, A>
@@ -41,23 +41,17 @@ where
         }
     }
 
-    /// Try to sign in an account.
-    pub async fn try_sign_in(
-        &mut self,
-        address: Address,
-        key: AccessKey,
-    ) -> Result<(), E> {
-        if let Some(account) =
-            self.accounts.iter_mut().find(|a| a.address() == &address)
-        {
-            account.sign_in(&key).await?;
-            todo!();
-        } else {
-            todo!();
-        }
+    /// Data directory.
+    pub fn data_dir(&self) -> Option<&Paths> {
+        self.data_dir.as_ref()
     }
 
-    /// Mutable iterator.
+    /// Accounts iterator.
+    pub fn iter<'a>(&'a self) -> std::slice::Iter<'a, A> {
+        self.accounts.iter()
+    }
+
+    /// Mutable accounts iterator.
     pub fn iter_mut<'a>(&'a mut self) -> std::slice::IterMut<'a, A> {
         self.accounts.iter_mut()
     }

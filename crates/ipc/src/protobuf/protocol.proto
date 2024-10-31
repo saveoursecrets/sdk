@@ -58,12 +58,16 @@ message WireAccountList {
 
 // Outcome of an authentication request.
 enum WireAuthenticateOutcome {
+  // Authenticate is not supported.
+  Unsupported = 0;
+  // Account not found.
+  NotFound = 1;
   // Authentication success.
-  Success = 0;
+  Success = 2;
   // User canceled.
-  Canceled = 1;
+  Canceled = 3;
   // Timed out waiting for user input.
-  TimedOut = 2;
+  TimedOut = 4;
 }
 
 // Information about an account.

@@ -7,7 +7,7 @@ use sos_net::sdk::prelude::Address;
 use super::WireAuthenticateBody;
 
 /// IPC request information.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum IpcRequest {
     /// Request the accounts list.
     ListAccounts,

@@ -1,7 +1,6 @@
 //! Create and manage local accounts.
 mod account;
 mod account_switcher;
-mod app_integration;
 #[cfg(feature = "archive")]
 pub mod archive;
 mod builder;
@@ -13,7 +12,6 @@ pub use account::{
     SecretDelete, SecretInsert, SecretMove, SigninOptions,
 };
 pub use account_switcher::{AccountSwitcher, LocalAccountSwitcher};
-pub use app_integration::{AccountsList, AppIntegration};
 pub use builder::{AccountBuilder, PrivateNewAccount};
 pub use convert::CipherComparison;
 
