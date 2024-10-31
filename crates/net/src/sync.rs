@@ -4,11 +4,9 @@ use crate::{
         PatchRequest, PatchResponse, ScanRequest, ScanResponse, SyncOptions,
         SyncPacket, SyncStatus, UpdateSet,
     },
-    CancelReason, Result,
+    Result,
 };
 use async_trait::async_trait;
-use sos_sdk::storage;
-use std::path::Path;
 
 /// Result of a sync operation with a single remote.
 #[derive(Debug)]
@@ -172,35 +170,35 @@ pub trait SyncClient {
     #[cfg(feature = "files")]
     async fn upload_file(
         &self,
-        file_info: &storage::files::ExternalFile,
-        path: &Path,
+        file_info: &sos_sdk::storage::files::ExternalFile,
+        path: &std::path::Path,
         progress: crate::ProgressChannel,
-        cancel: tokio::sync::watch::Receiver<CancelReason>,
+        cancel: tokio::sync::watch::Receiver<crate::CancelReason>,
     ) -> Result<http::StatusCode>;
 
     /// Receive a file.
     #[cfg(feature = "files")]
     async fn download_file(
         &self,
-        file_info: &storage::files::ExternalFile,
-        path: &Path,
+        file_info: &sos_sdk::storage::files::ExternalFile,
+        path: &std::path::Path,
         progress: crate::ProgressChannel,
-        cancel: tokio::sync::watch::Receiver<CancelReason>,
+        cancel: tokio::sync::watch::Receiver<crate::CancelReason>,
     ) -> Result<http::StatusCode>;
 
     /// Delete a file on the remote server.
     #[cfg(feature = "files")]
     async fn delete_file(
         &self,
-        file_info: &storage::files::ExternalFile,
+        file_info: &sos_sdk::storage::files::ExternalFile,
     ) -> Result<http::StatusCode>;
 
     /// Move a file on the remote server.
     #[cfg(feature = "files")]
     async fn move_file(
         &self,
-        from: &storage::files::ExternalFile,
-        to: &storage::files::ExternalFile,
+        from: &sos_sdk::storage::files::ExternalFile,
+        to: &sos_sdk::storage::files::ExternalFile,
     ) -> Result<http::StatusCode>;
 
     /// Compare local files with a remote server.

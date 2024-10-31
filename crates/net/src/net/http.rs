@@ -1,6 +1,5 @@
 //! HTTP client implementation.
 use async_trait::async_trait;
-use futures::{Future, StreamExt};
 use http::StatusCode;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde_json::Value;
@@ -14,13 +13,15 @@ use crate::{
     },
     sdk::{
         constants::MIME_TYPE_PROTOBUF,
-        sha2::{Digest, Sha256},
         signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     },
-    CancelReason, Error, Result, SyncClient,
+    Error, Result, SyncClient,
 };
-use std::{fmt, path::Path, time::Duration};
+use std::{fmt, time::Duration};
 use url::Url;
+
+#[cfg(feature = "listen")]
+use futures::{Future, StreamExt};
 
 use super::{
     bearer_prefix, encode_account_signature, encode_device_signature,
@@ -485,9 +486,9 @@ impl SyncClient for HttpClient {
     async fn upload_file(
         &self,
         file_info: &ExternalFile,
-        path: &Path,
+        path: &std::path::Path,
         progress: ProgressChannel,
-        mut cancel: tokio::sync::watch::Receiver<CancelReason>,
+        mut cancel: tokio::sync::watch::Receiver<crate::CancelReason>,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
         use reqwest::{
@@ -571,11 +572,14 @@ impl SyncClient for HttpClient {
     async fn download_file(
         &self,
         file_info: &ExternalFile,
-        path: &Path,
+        path: &std::path::Path,
         progress: ProgressChannel,
-        mut cancel: tokio::sync::watch::Receiver<CancelReason>,
+        mut cancel: tokio::sync::watch::Receiver<crate::CancelReason>,
     ) -> Result<http::StatusCode> {
-        use crate::sdk::vfs;
+        use crate::sdk::{
+            sha2::{Digest, Sha256},
+            vfs,
+        };
         use tokio::io::AsyncWriteExt;
 
         let url_path = format!("api/v1/sync/file/{}", file_info);

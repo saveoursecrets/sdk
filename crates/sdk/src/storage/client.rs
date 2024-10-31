@@ -23,7 +23,6 @@ use crate::{
 
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
-use secrecy::SecretString;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -101,7 +100,7 @@ pub struct ClientStorage {
 
     /// Password for file encryption.
     #[cfg(feature = "files")]
-    pub(super) file_password: Option<SecretString>,
+    pub(super) file_password: Option<secrecy::SecretString>,
 }
 
 impl ClientStorage {
@@ -207,7 +206,10 @@ impl ClientStorage {
 
     /// Set the password for file encryption.
     #[cfg(feature = "files")]
-    pub fn set_file_password(&mut self, file_password: Option<SecretString>) {
+    pub fn set_file_password(
+        &mut self,
+        file_password: Option<secrecy::SecretString>,
+    ) {
         self.file_password = file_password;
     }
 
@@ -1350,7 +1352,7 @@ impl ClientStorage {
     pub(crate) async fn create_secret(
         &mut self,
         secret_data: SecretRow,
-        mut options: AccessOptions,
+        #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
 
@@ -1533,7 +1535,7 @@ impl ClientStorage {
     pub(crate) async fn delete_secret(
         &mut self,
         secret_id: &SecretId,
-        mut options: AccessOptions,
+        #[allow(unused_mut)] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
         let (meta, secret, _) = self.read_secret(secret_id).await?;
         let secret_data = SecretRow::new(*secret_id, meta, secret);
@@ -1574,7 +1576,6 @@ impl ClientStorage {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
 
         let event = {
-            let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
             let folder = self
                 .cache
                 .get_mut(summary.id())

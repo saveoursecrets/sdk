@@ -4,9 +4,9 @@ use crate::{
     sdk::{
         account::{
             Account, AccountBuilder, AccountChange, AccountData,
-            CipherComparison, DetachedView, FolderChange, FolderCreate,
-            FolderDelete, LocalAccount, SecretChange, SecretDelete,
-            SecretInsert, SecretMove, SigninOptions,
+            CipherComparison, FolderChange, FolderCreate, FolderDelete,
+            LocalAccount, SecretChange, SecretDelete, SecretInsert,
+            SecretMove, SigninOptions,
         },
         commit::{CommitHash, CommitState},
         crypto::{AccessKey, Cipher, KeyDerivation},
@@ -37,10 +37,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::{
-    io::{AsyncRead, AsyncSeek},
-    sync::{Mutex, RwLock},
-};
+use tokio::sync::{Mutex, RwLock};
 
 #[cfg(feature = "search")]
 use crate::sdk::storage::search::{
@@ -58,6 +55,9 @@ use crate::WebSocketHandle;
 
 #[cfg(feature = "contacts")]
 use crate::sdk::account::ContactImportProgress;
+
+#[cfg(feature = "archive")]
+use tokio::io::{AsyncRead, AsyncSeek};
 
 /*
 #[cfg(feature = "security-report")]
@@ -134,6 +134,7 @@ pub struct NetworkAccount {
     pub(crate) offline: bool,
 
     /// Options for the network account.
+    #[allow(dead_code)]
     options: NetworkAccountOptions,
 }
 
@@ -264,15 +265,14 @@ impl NetworkAccount {
         &mut self,
         origin: Origin,
     ) -> Result<Option<Error>> {
-        let remote = self.remote_bridge(&origin).await?;
-
-        #[cfg(feature = "files")]
-        if let Some(file_transfers) = self.file_transfers.as_mut() {
-            file_transfers.add_client(remote.client().clone()).await;
-        };
-
         #[cfg(feature = "files")]
         {
+            let remote = self.remote_bridge(&origin).await?;
+
+            if let Some(file_transfers) = self.file_transfers.as_mut() {
+                file_transfers.add_client(remote.client().clone()).await;
+            };
+
             let mut remotes = self.remotes.write().await;
             if let Some(handle) = &self.file_transfer_handle {
                 self.proxy_remote_file_queue(handle, &remote).await;
@@ -329,6 +329,7 @@ impl NetworkAccount {
         let remote = {
             let mut remotes = self.remotes.write().await;
             let remote = remotes.remove(origin);
+            #[allow(unused_variables)]
             if let Some(remote) = &remote {
                 #[cfg(feature = "files")]
                 if let Some(file_transfers) = self.file_transfers.as_mut() {
@@ -1133,7 +1134,7 @@ impl Account for NetworkAccount {
         &self,
         summary: &Summary,
         commit: CommitHash,
-    ) -> Result<DetachedView> {
+    ) -> Result<crate::sdk::account::DetachedView> {
         let account = self.account.lock().await;
         Ok(account.detached_view(summary, commit).await?)
     }
@@ -1256,7 +1257,7 @@ impl Account for NetworkAccount {
             results: result
                 .results
                 .into_iter()
-                .map(|mut result| {
+                .map(|#[allow(unused_mut)] mut result| {
                     #[cfg(feature = "files")]
                     file_events.append(&mut result.file_events);
                     SecretChange {

@@ -72,9 +72,12 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use tokio::{
-    io::{AsyncRead, AsyncSeek, BufReader},
+    io::{AsyncRead, AsyncSeek},
     sync::{mpsc, RwLock},
 };
+
+#[cfg(feature = "archive")]
+use tokio::io::BufReader;
 
 /// Determine how to handle a locked account.
 #[derive(Default, Clone)]
@@ -896,6 +899,7 @@ impl LocalAccount {
 
         let identity_log = user.identity().as_ref().unwrap().event_log();
 
+        #[allow(unused_mut)]
         let mut storage = ClientStorage::new(
             signer.address()?,
             Some(data_dir),
@@ -903,6 +907,7 @@ impl LocalAccount {
             user.identity()?.devices()?.current_device(None),
         )
         .await?;
+
         self.paths = storage.paths();
 
         #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
@@ -1173,6 +1178,8 @@ impl LocalAccount {
 
         let id = SecretId::new_v4();
         let secret_data = SecretRow::new(id, meta, secret);
+
+        #[allow(unused_mut)]
         let mut result = {
             let storage = self.storage().await?;
             let mut writer = storage.write().await;
@@ -1232,11 +1239,13 @@ impl LocalAccount {
         secret_id: &SecretId,
         from: &Summary,
         to: &Summary,
-        mut options: AccessOptions,
+        #[allow(unused_mut)] mut options: AccessOptions,
     ) -> Result<SecretMove<<LocalAccount as Account>::NetworkResult>> {
         self.open_vault(from, false).await?;
         let (secret_data, read_event) =
             self.get_secret(secret_id, None, false).await?;
+
+        #[cfg(feature = "files")]
         let move_secret_data = secret_data.clone();
 
         #[cfg(feature = "files")]

@@ -9,7 +9,7 @@ use crate::{
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use std::{path::Path, sync::Arc};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::RwLock;
 
 mod client;
 #[cfg(feature = "files")]
@@ -66,7 +66,7 @@ pub struct AccessOptions {
     pub folder: Option<Summary>,
     /// Channel for file progress operations.
     #[cfg(feature = "files")]
-    pub file_progress: Option<mpsc::Sender<files::FileProgress>>,
+    pub file_progress: Option<tokio::sync::mpsc::Sender<files::FileProgress>>,
 }
 
 impl From<Summary> for AccessOptions {

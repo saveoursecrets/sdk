@@ -15,7 +15,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::Mutex;
 
 #[cfg(feature = "files")]
 use crate::{
@@ -39,7 +39,7 @@ pub struct RemoteBridge {
     // File transfers.
     #[cfg(feature = "files")]
     pub(crate) file_transfer_queue:
-        broadcast::Sender<FileTransferQueueRequest>,
+        tokio::sync::broadcast::Sender<FileTransferQueueRequest>,
 }
 
 impl RemoteBridge {
@@ -57,7 +57,7 @@ impl RemoteBridge {
 
         #[cfg(feature = "files")]
         let (file_transfer_queue, _) =
-            broadcast::channel::<FileTransferQueueRequest>(32);
+            tokio::sync::broadcast::channel::<FileTransferQueueRequest>(32);
 
         Ok(Self {
             account,

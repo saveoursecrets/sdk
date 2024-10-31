@@ -7,10 +7,7 @@
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single primary password.
 use crate::{
-    constants::{
-        FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
-        VAULT_NSS,
-    },
+    constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN, VAULT_NSS},
     crypto::{AccessKey, KeyDerivation},
     decode, encode,
     events::{
@@ -25,9 +22,7 @@ use crate::{
     },
     storage::{DiscFolder, Folder, MemoryFolder},
     vault::{
-        secret::{
-            Secret, SecretId, SecretMeta, SecretRow, SecretSigner, UserData,
-        },
+        secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
         BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
         VaultId, VaultWriter,
     },
@@ -397,6 +392,7 @@ where
     pub(crate) async fn create_file_encryption_password(
         &mut self,
     ) -> Result<()> {
+        use crate::{constants::FILE_PASSWORD_URN, vault::secret::UserData};
         let file_passphrase = self.generate_folder_password()?;
         let secret = Secret::Password {
             password: file_passphrase,
@@ -421,6 +417,7 @@ where
     pub(crate) async fn find_file_encryption_password(
         &self,
     ) -> Result<SecretString> {
+        use crate::constants::FILE_PASSWORD_URN;
         let urn: Urn = FILE_PASSWORD_URN.parse()?;
 
         let id = self
