@@ -2,11 +2,11 @@ use sos_net::sdk::prelude::PublicIdentity;
 
 use super::WirePublicIdentity;
 use crate::{
-    ipc_response_body, AccountsList, Error, IpcResponse, IpcResponseBody,
-    Result, WireAccountInfo, WireAccountList,
+    wire_ipc_response_body, AccountsList, Error, Result, WireAccountInfo,
+    WireAccountList, WireIpcResponse, WireIpcResponseBody,
 };
 
-impl IpcResponse {
+impl WireIpcResponse {
     /// Create an accounts list response.
     pub fn new_accounts_list(message_id: u64, data: AccountsList) -> Self {
         let list = WireAccountList {
@@ -24,21 +24,23 @@ impl IpcResponse {
 
         Self {
             message_id,
-            body: Some(IpcResponseBody {
-                inner: Some(ipc_response_body::Inner::ListAccounts(list)),
+            body: Some(WireIpcResponseBody {
+                inner: Some(wire_ipc_response_body::Inner::ListAccounts(
+                    list,
+                )),
             }),
         }
     }
 }
 
 /// Convert a response to an accounts list.
-impl TryFrom<IpcResponse> for AccountsList {
+impl TryFrom<WireIpcResponse> for AccountsList {
     type Error = crate::Error;
 
-    fn try_from(value: IpcResponse) -> Result<Self> {
+    fn try_from(value: WireIpcResponse) -> Result<Self> {
         let body = value.body.ok_or(Error::DecodeResponse)?;
         match body.inner {
-            Some(ipc_response_body::Inner::ListAccounts(list)) => {
+            Some(wire_ipc_response_body::Inner::ListAccounts(list)) => {
                 let mut data = Vec::new();
                 for item in list.accounts {
                     let public_id = item.public_id.unwrap();

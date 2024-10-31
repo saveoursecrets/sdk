@@ -1,4 +1,3 @@
-#[doc(hidden)]
 use serde_json::Value;
 use sos_ipc::Result;
 use sos_net::sdk::logs::Logger;

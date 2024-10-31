@@ -9,8 +9,8 @@ use tokio_util::{
 };
 
 use crate::{
-    decode_proto, encode_proto, Error, IpcRequest, IpcService,
-    LocalAccountIpcService, NetworkAccountIpcService, Result,
+    decode_proto, encode_proto, Error, IpcService, LocalAccountIpcService,
+    NetworkAccountIpcService, Result, WireIpcRequest,
 };
 
 /// TCP server for network-enabled accounts.
@@ -49,7 +49,8 @@ where
                                 len = bytes.len(),
                                 "tcp_server::socket_recv"
                             );
-                            let request: IpcRequest = decode_proto(&bytes)?;
+                            let request: WireIpcRequest =
+                                decode_proto(&bytes)?;
                             tracing::debug!(
                                 request = ?request,
                                 "tcp_server::socket_request"

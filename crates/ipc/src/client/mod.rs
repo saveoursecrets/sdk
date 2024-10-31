@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use sos_net::sdk::account::AppIntegration;
 use std::sync::atomic::Ordering;
 
-use crate::{AccountsList, AccountsListRequest, IpcRequest, Result};
+use crate::{AccountsList, AccountsListRequest, Result, WireIpcRequest};
 
 #[cfg(feature = "tcp")]
 mod tcp;
@@ -24,7 +24,7 @@ macro_rules! app_integration_impl {
             async fn list_accounts(&mut self) -> Result<AccountsList> {
                 let message_id = self.id.fetch_add(1, Ordering::SeqCst);
                 let req = AccountsListRequest;
-                let request: IpcRequest = (message_id, req).into();
+                let request: WireIpcRequest = (message_id, req).into();
                 let response = self.send(request).await?;
                 Ok(response.try_into()?)
             }
@@ -36,25 +36,25 @@ macro_rules! app_integration_impl {
 macro_rules! client_impl {
     () => {
         /// Send a request.
-        pub(super) async fn send(
+        pub(super) async fn send<R: prost::Message>(
             &mut self,
-            request: IpcRequest,
-        ) -> Result<IpcResponse> {
+            request: R,
+        ) -> Result<WireIpcResponse> {
             let buf = encode_proto(&request)?;
             self.write_all(&buf).await?;
             self.read_response().await
         }
 
         /// Read response from the server.
-        async fn read_response(&mut self) -> Result<IpcResponse> {
+        async fn read_response(&mut self) -> Result<WireIpcResponse> {
             let mut stream =
                 FramedRead::new(&mut self.reader, BytesCodec::new());
 
-            let mut reply: Option<IpcResponse> = None;
+            let mut reply: Option<WireIpcResponse> = None;
             while let Some(message) = stream.next().await {
                 match message {
                     Ok(bytes) => {
-                        let response: IpcResponse = decode_proto(&bytes)?;
+                        let response: WireIpcResponse = decode_proto(&bytes)?;
                         reply = Some(response);
                         break;
                     }

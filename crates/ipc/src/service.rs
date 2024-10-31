@@ -1,4 +1,6 @@
-use crate::{ipc_request_body, Error, IpcRequest, IpcResponse, Result};
+use crate::{
+    wire_ipc_request_body, Error, Result, WireIpcRequest, WireIpcResponse,
+};
 use async_trait::async_trait;
 use sos_net::{
     sdk::account::{Account, AccountSwitcher, AppIntegration, LocalAccount},
@@ -23,7 +25,10 @@ pub type NetworkAccountIpcService = IpcServiceHandler<
 #[async_trait]
 pub trait IpcService {
     /// Handle a request and reply with a response.
-    async fn handle(&mut self, request: IpcRequest) -> Result<IpcResponse>;
+    async fn handle(
+        &mut self,
+        request: WireIpcRequest,
+    ) -> Result<WireIpcResponse>;
 }
 
 pub struct IpcServiceHandler<E, R, A>
@@ -51,13 +56,19 @@ where
     E: std::fmt::Debug + From<sos_net::sdk::Error>,
 {
     /// Handle an incoming request.
-    async fn handle(&mut self, request: IpcRequest) -> Result<IpcResponse> {
+    async fn handle(
+        &mut self,
+        request: WireIpcRequest,
+    ) -> Result<WireIpcResponse> {
         let body = request.body.ok_or(Error::DecodeRequest)?;
         match body.inner {
-            Some(ipc_request_body::Inner::ListAccounts(_)) => {
+            Some(wire_ipc_request_body::Inner::ListAccounts(_)) => {
                 // FIXME: the unwrap!
                 let data = self.accounts.list_accounts().await.unwrap();
-                Ok(IpcResponse::new_accounts_list(request.message_id, data))
+                Ok(WireIpcResponse::new_accounts_list(
+                    request.message_id,
+                    data,
+                ))
             }
             _ => Err(Error::DecodeRequest),
         }

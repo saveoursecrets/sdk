@@ -3,35 +3,35 @@ syntax = "proto3";
 package protocol;
 
 // IPC request packet.
-message IpcRequest {
+message WireIpcRequest {
   // Message identifier.
   uint64 message_id = 1;
   // Request body.
-  IpcRequestBody body = 2;
+  WireIpcRequestBody body = 2;
 }
 
 // IPC request body.
-message IpcRequestBody {
+message WireIpcRequestBody {
   // Inner values.
   oneof inner {
     // List accounts body.
-    VoidBody list_accounts = 1;
+    WireVoidBody list_accounts = 1;
   }
 }
 
 // Void request body.
-message VoidBody {}
+message WireVoidBody {}
 
 // IPC response packet.
-message IpcResponse {
+message WireIpcResponse {
   // Message identifier.
   uint64 message_id = 1;
   // Message body.
-  IpcResponseBody body = 2;
+  WireIpcResponseBody body = 2;
 }
 
 // IPC response body.
-message IpcResponseBody {
+message WireIpcResponseBody {
   // Inner values.
   oneof inner {
     // List accounts body.

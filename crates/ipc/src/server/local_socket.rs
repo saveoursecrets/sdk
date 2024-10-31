@@ -11,8 +11,8 @@ use tokio_util::{
 };
 
 use crate::{
-    decode_proto, encode_proto, Error, IpcRequest, IpcService,
-    LocalAccountIpcService, NetworkAccountIpcService, Result,
+    decode_proto, encode_proto, Error, IpcService, LocalAccountIpcService,
+    NetworkAccountIpcService, Result, WireIpcRequest,
 };
 
 /// TCP server for network-enabled accounts.
@@ -50,8 +50,6 @@ where
             x => x?,
         };
 
-        println!("Listener created...");
-
         loop {
             let socket = listener.accept().await?;
             let service = service.clone();
@@ -65,7 +63,8 @@ where
                                 len = bytes.len(),
                                 "socket_server::socket_recv"
                             );
-                            let request: IpcRequest = decode_proto(&bytes)?;
+                            let request: WireIpcRequest =
+                                decode_proto(&bytes)?;
                             tracing::debug!(
                                 request = ?request,
                                 "socket_server::socket_request"

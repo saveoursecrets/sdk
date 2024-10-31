@@ -4,6 +4,15 @@
 //! Inter-process communcation library for [Save Our Secrets](https://saveoursecrets.com/).
 //!
 //! Supports a local socket transport using [interprocess](https://docs.rs/interprocess/latest/interprocess/) which is enabled by default and an alternative TCP transport which can be enabled using the `tcp` feature if required.
+//!
+//! Communication uses [protocol buffers](https://protobuf.dev/)
+//! however to facilitate browser extensions that need to use
+//! [native messaging](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging) all request and response types must
+//! also implement the [serde](https://docs.rs/serde/latest/serde/) traits.
+//!
+//! This crate also includes the source for the `sos-native-bridge`
+//! executable which translates JSON requests into the underlying protobuf
+//! messages and relay them over the IPC channel.
 
 mod error;
 
