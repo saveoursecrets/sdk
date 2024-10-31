@@ -74,9 +74,10 @@ async fn integration_ipc_list_accounts() -> Result<()> {
         tokio::sync::mpsc::channel::<LocalAccountAuthenticateCommand>(16);
 
     // Start the IPC service
+    let delegate = LocalAccountIpcService::new_delegate(auth_tx);
     let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
         Arc::new(RwLock::new(accounts)),
-        auth_tx,
+        delegate,
     )));
 
     let server_socket_name = socket_name.clone();

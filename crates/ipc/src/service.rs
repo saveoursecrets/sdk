@@ -56,23 +56,43 @@ where
 pub type AuthenticateHandler<E, R, A> =
     tokio::sync::mpsc::Sender<AuthenticateCommand<E, R, A>>;
 
-/// Service handler for IPC requests
+/// Service handler called by servers.
+///
+/// Some requests are delegated to a service delegate as they
+/// may need to get input from the user and how that is done
+/// will vary for each application.
 #[async_trait]
 pub trait IpcService<E> {
     /// Handle a request and reply with a response.
     async fn handle(
-        &mut self,
+        &self,
         request: IpcRequest,
     ) -> std::result::Result<IpcResponse, E>;
 }
 
+/// Delegate for service requests.
+///
+/// Create a delegate by calling [NetworkAccountIpcService::new_delegate] or [LocalAccountIpcService::new_delegate].
+///
+/// When delegates receive a message on the authenticate channel
+/// they MUST reply on the [AuthenticateCommand::result] sender
+/// with an [AuthenticateOutcome].
+pub struct ServiceDelegate<E, R, A>
+where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    E: From<sos_net::sdk::Error>,
+{
+    authenticate: AuthenticateHandler<E, R, A>,
+}
+
+/// Handler for IPC requests.
 pub struct IpcServiceHandler<E, R, A>
 where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     E: From<sos_net::sdk::Error>,
 {
     accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
-    authenticate_handler: AuthenticateHandler<E, R, A>,
+    delegate: ServiceDelegate<E, R, A>,
 }
 
 impl<E, R, A> IpcServiceHandler<E, R, A>
@@ -80,14 +100,19 @@ where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     E: From<sos_net::sdk::Error>,
 {
+    /// Create a new service handler.
     pub fn new(
         accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
-        authenticate_handler: AuthenticateHandler<E, R, A>,
+        delegate: ServiceDelegate<E, R, A>,
     ) -> Self {
-        Self {
-            accounts,
-            authenticate_handler,
-        }
+        Self { accounts, delegate }
+    }
+
+    /// Create a new serice delegate.
+    pub fn new_delegate(
+        authenticate: AuthenticateHandler<E, R, A>,
+    ) -> ServiceDelegate<E, R, A> {
+        return ServiceDelegate { authenticate };
     }
 
     async fn list_accounts(&self) -> std::result::Result<AccountsList, E> {
@@ -118,7 +143,7 @@ where
 {
     /// Handle an incoming request.
     async fn handle(
-        &mut self,
+        &self,
         request: IpcRequest,
     ) -> std::result::Result<IpcResponse, E> {
         Ok(match request {
@@ -133,7 +158,7 @@ where
                     accounts: self.accounts.clone(),
                     result: result_tx,
                 };
-                match self.authenticate_handler.send(command).await {
+                match self.delegate.authenticate.send(command).await {
                     Ok(_) => match result_rx.await {
                         Ok(outcome) => IpcResponse::Authenticate(outcome),
                         Err(err) => todo!("handle authenticate send error"),

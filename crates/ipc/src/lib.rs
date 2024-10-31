@@ -28,8 +28,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 pub use bindings::*;
 pub use service::{
-    IpcService, LocalAccountAuthenticateCommand, LocalAccountIpcService,
+    AuthenticateCommand, IpcService, IpcServiceHandler,
+    LocalAccountAuthenticateCommand, LocalAccountIpcService,
     NetworkAccountAuthenticateCommand, NetworkAccountIpcService,
+    ServiceDelegate,
 };
 
 #[cfg(feature = "tcp")]

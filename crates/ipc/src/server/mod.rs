@@ -48,7 +48,7 @@ where
                     "socket_server::socket_request"
                 );
                 let (message_id, request) = request;
-                let mut handler = service.write().await;
+                let handler = service.read().await;
                 match handler.handle(request).await {
                     Ok(response) => {
                         tracing::debug!(

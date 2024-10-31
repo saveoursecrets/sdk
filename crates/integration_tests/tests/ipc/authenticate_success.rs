@@ -93,9 +93,10 @@ async fn integration_ipc_authenticate_success() -> Result<()> {
     });
 
     // Start the IPC service
+    let delegate = LocalAccountIpcService::new_delegate(auth_tx);
     let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
         ipc_accounts,
-        auth_tx,
+        delegate,
     )));
 
     let server_socket_name = socket_name.clone();
