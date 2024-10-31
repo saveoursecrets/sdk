@@ -1,9 +1,8 @@
 use crate::{
     account::{Account, LocalAccount},
-    prelude::{Address, Identity, PublicIdentity},
+    prelude::Address,
     Paths,
 };
-use async_trait::async_trait;
 
 /// Account switcher for local accounts.
 pub type LocalAccountSwitcher = AccountSwitcher<
@@ -11,16 +10,6 @@ pub type LocalAccountSwitcher = AccountSwitcher<
     <LocalAccount as Account>::NetworkResult,
     LocalAccount,
 >;
-
-/// Describes the contract for types that expose an API to
-/// app integrations such as browser extensions.
-#[async_trait]
-pub trait AppIntegration<E: From<crate::Error>> {
-    /// List the accounts on disc and include authentication state.
-    async fn list_accounts(
-        &mut self,
-    ) -> Result<Vec<(PublicIdentity, bool)>, E>;
-}
 
 /// Collection of accounts with a currently selected account.
 ///
@@ -32,9 +21,9 @@ where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     E: From<crate::Error>,
 {
-    accounts: Vec<A>,
+    pub(super) accounts: Vec<A>,
     selected: Option<Address>,
-    data_dir: Option<Paths>,
+    pub(super) data_dir: Option<Paths>,
 }
 
 impl<E, R, A> AccountSwitcher<E, R, A>
@@ -155,34 +144,5 @@ where
 
     fn position(&self, address: &Address) -> Option<usize> {
         self.accounts.iter().position(|a| a.address() == address)
-    }
-}
-
-#[async_trait]
-impl<E, R, A> AppIntegration<E> for AccountSwitcher<E, R, A>
-where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    E: From<crate::Error>,
-{
-    async fn list_accounts(
-        &mut self,
-    ) -> Result<Vec<(PublicIdentity, bool)>, E> {
-        let mut out = Vec::new();
-        let disc_accounts =
-            Identity::list_accounts(self.data_dir.as_ref()).await?;
-        for account in disc_accounts {
-            let authenticated = if let Some(memory_account) = self
-                .accounts
-                .iter()
-                .find(|a| a.address() == account.address())
-            {
-                memory_account.is_authenticated().await
-            } else {
-                false
-            };
-
-            out.push((account, authenticated));
-        }
-        Ok(out)
     }
 }

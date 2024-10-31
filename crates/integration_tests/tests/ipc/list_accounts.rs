@@ -71,8 +71,9 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     accounts.add_account(unauth_account);
 
     // Start the IPC service
-    let service =
-        Arc::new(RwLock::new(LocalAccountIpcService::new(accounts)));
+    let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
+        Arc::new(RwLock::new(accounts)),
+    )));
 
     let server_socket_name = socket_name.clone();
     tokio::task::spawn(async move {

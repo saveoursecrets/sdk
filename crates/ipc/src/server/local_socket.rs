@@ -15,10 +15,10 @@ use crate::{
     NetworkAccountIpcService, Result, WireIpcRequest,
 };
 
-/// TCP server for network-enabled accounts.
+/// Socket server for network-enabled accounts.
 pub type NetworkAccountSocketServer = SocketServer<NetworkAccountIpcService>;
 
-/// TCP server for local accounts.
+/// Socket server for local accounts.
 pub type LocalAccountSocketServer = SocketServer<LocalAccountIpcService>;
 
 /// Socket server for inter-process communication.

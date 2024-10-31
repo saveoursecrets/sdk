@@ -7,6 +7,8 @@ use sos_net::{
     sdk::account::{Account, AccountSwitcher, AppIntegration, LocalAccount},
     NetworkAccount,
 };
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 /// IPC service for local accounts.
 pub type LocalAccountIpcService = IpcServiceHandler<
@@ -15,7 +17,7 @@ pub type LocalAccountIpcService = IpcServiceHandler<
     LocalAccount,
 >;
 
-/// IPC service for network accounts.
+/// IPC service for network-enabled accounts.
 pub type NetworkAccountIpcService = IpcServiceHandler<
     <NetworkAccount as Account>::Error,
     <NetworkAccount as Account>::NetworkResult,
@@ -37,7 +39,7 @@ where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     E: From<sos_net::sdk::Error>,
 {
-    accounts: AccountSwitcher<E, R, A>,
+    accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
 }
 
 impl<E, R, A> IpcServiceHandler<E, R, A>
@@ -45,7 +47,7 @@ where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     E: From<sos_net::sdk::Error>,
 {
-    pub fn new(accounts: AccountSwitcher<E, R, A>) -> Self {
+    pub fn new(accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>) -> Self {
         Self { accounts }
     }
 }
@@ -65,7 +67,8 @@ where
         match body.inner {
             Some(wire_ipc_request_body::Inner::ListAccounts(_)) => {
                 // FIXME: the unwrap!
-                let data = self.accounts.list_accounts().await.unwrap();
+                let mut accounts = self.accounts.write().await;
+                let data = accounts.list_accounts().await.unwrap();
                 Ok((request.message_id, IpcResponse::ListAccounts(data))
                     .into())
             }

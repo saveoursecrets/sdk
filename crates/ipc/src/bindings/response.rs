@@ -3,9 +3,10 @@ use sos_net::sdk::prelude::PublicIdentity;
 
 use super::{WireAuthenticateOutcome, WirePublicIdentity};
 use crate::{
-    wire_ipc_response_body, AccountsList, Error, Result, WireAccountInfo,
-    WireAccountList, WireIpcResponse, WireIpcResponseBody,
+    wire_ipc_response_body, Error, Result, WireAccountInfo, WireAccountList,
+    WireIpcResponse, WireIpcResponseBody,
 };
+use sos_net::sdk::account::AccountsList;
 
 /// IPC response information.
 #[derive(Serialize, Deserialize)]

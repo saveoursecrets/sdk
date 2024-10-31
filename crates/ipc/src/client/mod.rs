@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use sos_net::sdk::account::AppIntegration;
 
-use crate::{AccountsList, Error, IpcRequest, IpcResponse, Result};
+use crate::{Error, IpcRequest, IpcResponse, Result};
+use sos_net::sdk::account::AccountsList;
 
 #[cfg(feature = "tcp")]
 mod tcp;

@@ -1427,7 +1427,7 @@ impl ClientStorage {
         secret_id: &SecretId,
         meta: SecretMeta,
         secret: Option<Secret>,
-        mut options: AccessOptions,
+        #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
         let (old_meta, old_secret, _) = self.read_secret(secret_id).await?;
         let old_secret_data =
@@ -1480,7 +1480,7 @@ impl ClientStorage {
         &mut self,
         id: &SecretId,
         mut secret_data: SecretRow,
-        is_update: bool,
+        #[allow(unused_variables)] is_update: bool,
     ) -> Result<WriteEvent> {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
 
@@ -1510,7 +1510,6 @@ impl ClientStorage {
         };
 
         let event = {
-            let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
             let folder = self
                 .cache
                 .get_mut(summary.id())
@@ -1535,10 +1534,13 @@ impl ClientStorage {
     pub(crate) async fn delete_secret(
         &mut self,
         secret_id: &SecretId,
-        #[allow(unused_mut)] mut options: AccessOptions,
+        #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
-        let (meta, secret, _) = self.read_secret(secret_id).await?;
-        let secret_data = SecretRow::new(*secret_id, meta, secret);
+        #[cfg(feature = "files")]
+        let secret_data = {
+            let (meta, secret, _) = self.read_secret(secret_id).await?;
+            SecretRow::new(*secret_id, meta, secret)
+        };
 
         let event = self.remove_secret(secret_id).await?;
 

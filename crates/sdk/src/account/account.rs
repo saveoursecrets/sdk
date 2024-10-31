@@ -71,13 +71,10 @@ use crate::migrate::{
 use async_trait::async_trait;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
-use tokio::{
-    io::{AsyncRead, AsyncSeek},
-    sync::{mpsc, RwLock},
-};
+use tokio::sync::{mpsc, RwLock};
 
 #[cfg(feature = "archive")]
-use tokio::io::BufReader;
+use tokio::io::{AsyncRead, AsyncSeek, BufReader};
 
 /// Determine how to handle a locked account.
 #[derive(Default, Clone)]

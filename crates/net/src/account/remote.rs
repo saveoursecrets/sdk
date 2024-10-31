@@ -6,10 +6,8 @@ use crate::{
         SyncStatus, SyncStorage, UpdateSet,
     },
     sdk::{
-        account::{Account, LocalAccount},
+        account::LocalAccount,
         signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-        storage::StorageEventLogs,
-        vfs,
     },
     Error, RemoteResult, RemoteSync, Result, SyncClient,
 };
@@ -124,6 +122,7 @@ impl RemoteBridge {
 
                 #[cfg(feature = "files")]
                 if !outcome.external_files.is_empty() {
+                    use sos_sdk::account::Account;
                     let paths = account.paths();
                     // let mut writer = self.transfers.write().await;
 
@@ -133,7 +132,7 @@ impl RemoteBridge {
                             file.secret_id(),
                             file.file_name().to_string(),
                         );
-                        if !vfs::try_exists(file_path).await? {
+                        if !sos_sdk::vfs::try_exists(file_path).await? {
                             tracing::debug!(
                                 file = ?file,
                                 "add file download to transfers",
@@ -238,6 +237,7 @@ impl RemoteBridge {
 
     #[cfg(feature = "files")]
     async fn execute_sync_file_transfers(&self) -> Result<()> {
+        use sos_sdk::storage::StorageEventLogs;
         let external_files = {
             let account = self.account.lock().await;
             account.canonical_files().await?
