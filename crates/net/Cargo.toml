@@ -84,6 +84,7 @@ tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] ,
 [dependencies.sos-sdk]
 version = "0.15.1"
 path = "../sdk"
+features = ["account"]
 
 [dependencies.sos-protocol]
 version = "0.15.1"
