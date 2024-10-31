@@ -18,10 +18,20 @@ use crate::test_utils::setup;
 #[tokio::test]
 async fn integration_ipc_list_accounts() -> Result<()> {
     const TEST_ID: &str = "ipc_list_accounts";
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
     //
 
     let socket_name = format!("{}.sock", TEST_ID);
+
+    // Must clean up the tmp file on MacOS
+    #[cfg(target_os = "macos")]
+    {
+        let socket_path =
+            std::path::PathBuf::from(format!("/tmp/{}", socket_name));
+        if socket_path.exists() {
+            let _ = std::fs::remove_file(&socket_path);
+        }
+    }
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -66,12 +76,13 @@ async fn integration_ipc_list_accounts() -> Result<()> {
 
     let server_socket_name = socket_name.clone();
     tokio::task::spawn(async move {
+        println!("Starting server...");
         LocalAccountSocketServer::listen(&server_socket_name, service)
             .await?;
         Ok::<(), Error>(())
     });
 
-    tokio::time::sleep(Duration::from_millis(50)).await;
+    tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Create a client and list accounts
     let mut client = SocketClient::connect(&socket_name).await?;

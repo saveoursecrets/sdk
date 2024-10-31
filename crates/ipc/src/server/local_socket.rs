@@ -50,6 +50,8 @@ where
             x => x?,
         };
 
+        println!("Listener created...");
+
         loop {
             let socket = listener.accept().await?;
             let service = service.clone();
