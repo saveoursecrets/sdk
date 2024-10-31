@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.15.1"
+version = "0.15.2"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -14,6 +14,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 full = [
+  "account",
   "audit",
   "archive",
   "contacts",
@@ -30,6 +31,7 @@ full = [
   "clipboard",
 ]
 
+account = ["sos-sdk/account"]
 listen = ["dep:tokio-tungstenite", "sos-protocol/listen"]
 hashcheck = []
 audit = ["sos-sdk/audit"]
@@ -84,7 +86,6 @@ tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] ,
 [dependencies.sos-sdk]
 version = "0.15.1"
 path = "../sdk"
-features = ["account"]
 
 [dependencies.sos-protocol]
 version = "0.15.1"

@@ -4273,7 +4273,7 @@ dependencies = [
 
 [[package]]
 name = "sos-ipc"
-version = "0.15.0"
+version = "0.15.2"
 dependencies = [
  "async-trait",
  "futures-util",
@@ -4285,7 +4285,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sos-net",
- "sos-test-utils",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -4295,7 +4294,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.15.1"
+version = "0.15.2"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -4357,7 +4356,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.15.1"
+version = "0.15.2"
 dependencies = [
  "aes-gcm",
  "age",
