@@ -1,7 +1,7 @@
 use futures_util::sink::SinkExt;
 use std::sync::Arc;
 use tokio::net::{TcpListener, ToSocketAddrs};
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
 use tokio_util::{
     bytes::BytesMut,
@@ -22,19 +22,19 @@ pub type LocalAccountTcpServer = TcpServer<LocalAccountIpcService>;
 /// TCP server for inter-process communication.
 pub struct TcpServer<S>
 where
-    S: IpcService + Send + 'static,
+    S: IpcService + Send + Sync + 'static,
 {
     phantom: std::marker::PhantomData<S>,
 }
 
 impl<S> TcpServer<S>
 where
-    S: IpcService + Send + 'static,
+    S: IpcService + Send + Sync + 'static,
 {
     /// Listen on a bind address.
     pub async fn listen<A: ToSocketAddrs>(
         addr: A,
-        service: Arc<Mutex<S>>,
+        service: Arc<RwLock<S>>,
     ) -> Result<()> {
         let listener = TcpListener::bind(&addr).await?;
         loop {
@@ -54,7 +54,7 @@ where
                                 request = ?request,
                                 "tcp_server::socket_request"
                             );
-                            let mut handler = service.lock().await;
+                            let mut handler = service.write().await;
                             let response = handler.handle(request).await?;
                             tracing::debug!(
                                 response = ?response,

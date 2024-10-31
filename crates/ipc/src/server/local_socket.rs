@@ -3,7 +3,7 @@ use interprocess::local_socket::{
     tokio::prelude::*, GenericNamespaced, ListenerOptions,
 };
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
 use tokio_util::{
     bytes::BytesMut,
@@ -24,19 +24,19 @@ pub type LocalAccountSocketServer = SocketServer<LocalAccountIpcService>;
 /// Socket server for inter-process communication.
 pub struct SocketServer<S>
 where
-    S: IpcService + Send + 'static,
+    S: IpcService + Send + Sync + 'static,
 {
     phantom: std::marker::PhantomData<S>,
 }
 
 impl<S> SocketServer<S>
 where
-    S: IpcService + Send + 'static,
+    S: IpcService + Send + Sync + 'static,
 {
     /// Listen on a bind address.
     pub async fn listen(
         socket_name: &str,
-        service: Arc<Mutex<S>>,
+        service: Arc<RwLock<S>>,
     ) -> Result<()> {
         let name = socket_name.to_ns_name::<GenericNamespaced>()?;
         let opts = ListenerOptions::new().name(name);
@@ -68,7 +68,7 @@ where
                                 request = ?request,
                                 "socket_server::socket_request"
                             );
-                            let mut handler = service.lock().await;
+                            let mut handler = service.write().await;
                             let response = handler.handle(request).await?;
                             tracing::debug!(
                                 response = ?response,
