@@ -1,6 +1,8 @@
 use futures_util::sink::SinkExt;
+use interprocess::local_socket::{
+    tokio::prelude::*, GenericNamespaced, ListenerOptions, ToNsName,
+};
 use std::sync::Arc;
-use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use tokio_util::{
@@ -32,17 +34,26 @@ where
     S: IpcService + Send + 'static,
 {
     /// Listen on a bind address.
-    pub async fn listen<A: ToSocketAddrs>(
-        addr: A,
+    pub async fn listen(
+        socket_name: &str,
         service: Arc<Mutex<S>>,
     ) -> Result<()> {
-        todo!();
+        let name = socket_name.to_ns_name::<GenericNamespaced>()?;
+        let opts = ListenerOptions::new().name(name);
+        let listener = match opts.create_tokio() {
+            Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+                tracing::error!(
+                    "Error: could not start server because the socket file is occupied. Please check if {socket_name} is in use by another process and try again."
+                );
+                return Err(e.into());
+            }
+            x => x?,
+        };
 
-        /*
-        let listener = TcpListener::bind(&addr).await?;
         loop {
-        let (socket, _) = listener.accept().await?;
+            let socket = listener.accept().await?;
             let service = service.clone();
+
             tokio::spawn(async move {
                 let mut framed = BytesCodec::new().framed(socket);
                 while let Some(message) = framed.next().await {
@@ -50,18 +61,18 @@ where
                         Ok(bytes) => {
                             tracing::debug!(
                                 len = bytes.len(),
-                                "ipc_server::socket_recv"
+                                "socket_server::socket_recv"
                             );
                             let request: IpcRequest = decode_proto(&bytes)?;
                             tracing::debug!(
                                 request = ?request,
-                                "ipc_server::socket_request"
+                                "socket_server::socket_request"
                             );
                             let mut handler = service.lock().await;
                             let response = handler.handle(request).await?;
                             tracing::debug!(
                                 response = ?response,
-                                "ipc_server::socket_response"
+                                "socket_server::socket_response"
                             );
                             let buffer = encode_proto(&response)?;
                             let bytes: BytesMut = buffer.as_slice().into();
@@ -70,16 +81,15 @@ where
                         Err(err) => {
                             tracing::error!(
                               error = ?err,
-                              "ipc_server::socket_error",
+                              "socket_server::socket_error",
                             );
                         }
                     }
                 }
-                tracing::debug!("ipc_server::socket_closed");
+                tracing::debug!("socket_server::socket_closed");
 
                 Ok::<(), Error>(())
             });
         }
-        */
     }
 }

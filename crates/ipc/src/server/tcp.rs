@@ -47,18 +47,18 @@ where
                         Ok(bytes) => {
                             tracing::debug!(
                                 len = bytes.len(),
-                                "ipc_server::socket_recv"
+                                "tcp_server::socket_recv"
                             );
                             let request: IpcRequest = decode_proto(&bytes)?;
                             tracing::debug!(
                                 request = ?request,
-                                "ipc_server::socket_request"
+                                "tcp_server::socket_request"
                             );
                             let mut handler = service.lock().await;
                             let response = handler.handle(request).await?;
                             tracing::debug!(
                                 response = ?response,
-                                "ipc_server::socket_response"
+                                "tcp_server::socket_response"
                             );
                             let buffer = encode_proto(&response)?;
                             let bytes: BytesMut = buffer.as_slice().into();
@@ -67,12 +67,12 @@ where
                         Err(err) => {
                             tracing::error!(
                               error = ?err,
-                              "ipc_server::socket_error",
+                              "tcp_server::socket_error",
                             );
                         }
                     }
                 }
-                tracing::debug!("ipc_server::socket_closed");
+                tracing::debug!("tcp_server::socket_closed");
 
                 Ok::<(), Error>(())
             });
