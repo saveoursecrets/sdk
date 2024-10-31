@@ -19,7 +19,7 @@ pub type NetworkAccountTcpServer = TcpServer<NetworkAccountIpcService>;
 /// TCP server for local accounts.
 pub type LocalAccountTcpServer = TcpServer<LocalAccountIpcService>;
 
-/// Server for inter-process communication.
+/// TCP server for inter-process communication.
 pub struct TcpServer<S>
 where
     S: IpcService + Send + 'static,

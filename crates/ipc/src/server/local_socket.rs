@@ -21,7 +21,7 @@ pub type NetworkAccountSocketServer = SocketServer<NetworkAccountIpcService>;
 /// TCP server for local accounts.
 pub type LocalAccountSocketServer = SocketServer<LocalAccountIpcService>;
 
-/// Server for inter-process communication.
+/// Socket server for inter-process communication.
 pub struct SocketServer<S>
 where
     S: IpcService + Send + 'static,

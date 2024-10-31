@@ -16,6 +16,7 @@ pub use tcp::*;
 #[cfg(feature = "local-socket")]
 pub use local_socket::*;
 
+/// App integration functions for clients.
 macro_rules! app_integration_impl {
     ($impl:ident) => {
         #[async_trait]
@@ -31,8 +32,52 @@ macro_rules! app_integration_impl {
     };
 }
 
+/// Shared functions for the TCP and local socket clients.
+macro_rules! client_impl {
+    () => {
+        /// Send a request.
+        pub(super) async fn send(
+            &mut self,
+            request: IpcRequest,
+        ) -> Result<IpcResponse> {
+            let buf = encode_proto(&request)?;
+            self.write_all(&buf).await?;
+            self.read_response().await
+        }
+
+        /// Read response from the server.
+        async fn read_response(&mut self) -> Result<IpcResponse> {
+            let mut stream =
+                FramedRead::new(&mut self.reader, BytesCodec::new());
+
+            let mut reply: Option<IpcResponse> = None;
+            while let Some(message) = stream.next().await {
+                match message {
+                    Ok(bytes) => {
+                        let response: IpcResponse = decode_proto(&bytes)?;
+                        reply = Some(response);
+                        break;
+                    }
+                    Err(err) => {
+                        return Err(err.into());
+                    }
+                }
+            }
+            reply.ok_or(Error::NoResponse)
+        }
+
+        /// Write a buffer.
+        async fn write_all(&mut self, buf: &[u8]) -> Result<()> {
+            self.writer.write_all(buf).await?;
+            Ok(self.writer.flush().await?)
+        }
+    };
+}
+
 #[cfg(feature = "tcp")]
 app_integration_impl!(TcpClient);
 
 #[cfg(feature = "local-socket")]
 app_integration_impl!(SocketClient);
+
+pub(crate) use client_impl;
