@@ -4,7 +4,7 @@ use crate::{
 };
 use interprocess::local_socket::{
     tokio::{prelude::*, RecvHalf, SendHalf},
-    GenericFilePath, ToFsName,
+    GenericNamespaced,
 };
 use std::sync::atomic::AtomicU64;
 use tokio::io::AsyncWriteExt;
@@ -21,7 +21,7 @@ pub struct SocketClient {
 impl SocketClient {
     /// Create a client and connect the server.
     pub async fn connect(socket_name: &str) -> Result<Self> {
-        let name = socket_name.to_fs_name::<GenericFilePath>()?;
+        let name = socket_name.to_ns_name::<GenericNamespaced>()?;
         let stream = LocalSocketStream::connect(name).await?;
         let (reader, writer) = stream.split();
         Ok(Self {

@@ -1,6 +1,6 @@
 use futures_util::sink::SinkExt;
 use interprocess::local_socket::{
-    tokio::prelude::*, GenericFilePath, ListenerOptions, ToFsName,
+    tokio::prelude::*, GenericNamespaced, ListenerOptions,
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -38,7 +38,7 @@ where
         socket_name: &str,
         service: Arc<Mutex<S>>,
     ) -> Result<()> {
-        let name = socket_name.to_fs_name::<GenericFilePath>()?;
+        let name = socket_name.to_ns_name::<GenericNamespaced>()?;
         let opts = ListenerOptions::new().name(name);
         let listener = match opts.create_tokio() {
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
