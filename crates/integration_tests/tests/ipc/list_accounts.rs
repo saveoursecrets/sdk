@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sos_ipc::{
-    AppIntegration, Error, LocalAccountIpcService, LocalAccountSocketServer,
-    SocketClient,
+    AppIntegration, Error, LocalAccountAuthenticateCommand,
+    LocalAccountIpcService, LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{
     crypto::AccessKey,
@@ -70,9 +70,13 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     accounts.add_account(auth_account);
     accounts.add_account(unauth_account);
 
+    let (auth_tx, _auth_rx) =
+        tokio::sync::mpsc::channel::<LocalAccountAuthenticateCommand>(16);
+
     // Start the IPC service
     let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
         Arc::new(RwLock::new(accounts)),
+        auth_tx,
     )));
 
     let server_socket_name = socket_name.clone();

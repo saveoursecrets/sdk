@@ -1,37 +1,41 @@
-use futures_util::sink::SinkExt;
 use interprocess::local_socket::{
     tokio::prelude::*, GenericNamespaced, ListenerOptions,
 };
+use sos_net::{
+    sdk::prelude::{Account, LocalAccount},
+    NetworkAccount,
+};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tokio_stream::StreamExt;
-use tokio_util::{
-    bytes::BytesMut,
-    codec::{BytesCodec, Decoder},
-};
 
 use crate::{
-    decode_proto, encode_proto, Error, IpcService, LocalAccountIpcService,
-    NetworkAccountIpcService, Result, WireIpcRequest,
+    Error, IpcService, LocalAccountIpcService, NetworkAccountIpcService,
+    Result,
 };
 
 /// Socket server for network-enabled accounts.
-pub type NetworkAccountSocketServer = SocketServer<NetworkAccountIpcService>;
+pub type NetworkAccountSocketServer = SocketServer<
+    NetworkAccountIpcService,
+    <NetworkAccount as Account>::Error,
+>;
 
 /// Socket server for local accounts.
-pub type LocalAccountSocketServer = SocketServer<LocalAccountIpcService>;
+pub type LocalAccountSocketServer =
+    SocketServer<LocalAccountIpcService, <LocalAccount as Account>::Error>;
 
 /// Socket server for inter-process communication.
-pub struct SocketServer<S>
+pub struct SocketServer<S, E>
 where
-    S: IpcService + Send + Sync + 'static,
+    S: IpcService<E> + Send + Sync + 'static,
+    E: Send,
 {
-    phantom: std::marker::PhantomData<S>,
+    phantom: std::marker::PhantomData<(S, E)>,
 }
 
-impl<S> SocketServer<S>
+impl<S, E> SocketServer<S, E>
 where
-    S: IpcService + Send + Sync + 'static,
+    S: IpcService<E> + Send + Sync + 'static,
+    E: Send,
 {
     /// Listen on a bind address.
     pub async fn listen(
@@ -55,40 +59,7 @@ where
             let service = service.clone();
 
             tokio::spawn(async move {
-                let mut framed = BytesCodec::new().framed(socket);
-                while let Some(message) = framed.next().await {
-                    match message {
-                        Ok(bytes) => {
-                            tracing::debug!(
-                                len = bytes.len(),
-                                "socket_server::socket_recv"
-                            );
-                            let request: WireIpcRequest =
-                                decode_proto(&bytes)?;
-                            tracing::debug!(
-                                request = ?request,
-                                "socket_server::socket_request"
-                            );
-                            let mut handler = service.write().await;
-                            let response = handler.handle(request).await?;
-                            tracing::debug!(
-                                response = ?response,
-                                "socket_server::socket_response"
-                            );
-                            let buffer = encode_proto(&response)?;
-                            let bytes: BytesMut = buffer.as_slice().into();
-                            framed.send(bytes).await?;
-                        }
-                        Err(err) => {
-                            tracing::error!(
-                              error = ?err,
-                              "socket_server::socket_error",
-                            );
-                        }
-                    }
-                }
-                tracing::debug!("socket_server::socket_closed");
-
+                super::handle_conn(service, socket).await?;
                 Ok::<(), Error>(())
             });
         }

@@ -1,5 +1,6 @@
 use crate::{
-    wire_ipc_request_body, WireIpcRequest, WireIpcRequestBody, WireVoidBody,
+    wire_ipc_request_body, Error, Result, WireIpcRequest, WireIpcRequestBody,
+    WireVoidBody,
 };
 use serde::{Deserialize, Serialize};
 use sos_net::sdk::prelude::Address;
@@ -41,5 +42,24 @@ impl From<(u64, IpcRequest)> for WireIpcRequest {
                 }),
             },
         }
+    }
+}
+
+impl TryFrom<WireIpcRequest> for (u64, IpcRequest) {
+    type Error = Error;
+
+    fn try_from(value: WireIpcRequest) -> Result<Self> {
+        let message_id = value.message_id;
+        let body = value.body.ok_or(Error::DecodeRequest)?;
+        Ok(match body.inner {
+            Some(wire_ipc_request_body::Inner::ListAccounts(_)) => {
+                (message_id, IpcRequest::ListAccounts)
+            }
+            Some(wire_ipc_request_body::Inner::Authenticate(body)) => {
+                let address: Address = body.address.parse()?;
+                (message_id, IpcRequest::Authenticate { address })
+            }
+            _ => return Err(Error::DecodeResponse),
+        })
     }
 }

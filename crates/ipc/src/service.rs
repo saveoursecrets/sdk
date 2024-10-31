@@ -1,7 +1,4 @@
-use crate::{
-    wire_ipc_request_body, AccountsList, AuthenticateOutcome, Error,
-    IpcResponse, Result, WireIpcRequest, WireIpcResponse,
-};
+use crate::{AccountsList, AuthenticateOutcome, IpcRequest, IpcResponse};
 use async_trait::async_trait;
 use sos_net::{
     sdk::{
@@ -61,12 +58,12 @@ pub type AuthenticateHandler<E, R, A> =
 
 /// Service handler for IPC requests
 #[async_trait]
-pub trait IpcService {
+pub trait IpcService<E> {
     /// Handle a request and reply with a response.
     async fn handle(
         &mut self,
-        request: WireIpcRequest,
-    ) -> Result<WireIpcResponse>;
+        request: IpcRequest,
+    ) -> std::result::Result<IpcResponse, E>;
 }
 
 pub struct IpcServiceHandler<E, R, A>
@@ -75,7 +72,7 @@ where
     E: From<sos_net::sdk::Error>,
 {
     accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
-    authenticate_handler: Option<AuthenticateHandler<E, R, A>>,
+    authenticate_handler: AuthenticateHandler<E, R, A>,
 }
 
 impl<E, R, A> IpcServiceHandler<E, R, A>
@@ -83,20 +80,13 @@ where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     E: From<sos_net::sdk::Error>,
 {
-    pub fn new(accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>) -> Self {
-        Self {
-            accounts,
-            authenticate_handler: None,
-        }
-    }
-
-    pub fn new_with_authenticator(
+    pub fn new(
         accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
         authenticate_handler: AuthenticateHandler<E, R, A>,
     ) -> Self {
         Self {
             accounts,
-            authenticate_handler: Some(authenticate_handler),
+            authenticate_handler,
         }
     }
 
@@ -121,51 +111,36 @@ where
 }
 
 #[async_trait]
-impl<E, R, A: Account<Error = E, NetworkResult = R> + Send + Sync> IpcService
-    for IpcServiceHandler<E, R, A>
+impl<E, R, A: Account<Error = E, NetworkResult = R> + Send + Sync>
+    IpcService<E> for IpcServiceHandler<E, R, A>
 where
     E: std::fmt::Debug + From<sos_net::sdk::Error>,
 {
     /// Handle an incoming request.
     async fn handle(
         &mut self,
-        request: WireIpcRequest,
-    ) -> Result<WireIpcResponse> {
-        let message_id = request.message_id;
-
-        let body = request.body.ok_or(Error::DecodeRequest)?;
-        match body.inner {
-            Some(wire_ipc_request_body::Inner::ListAccounts(_)) => {
-                // FIXME: the unwrap!
-                let data = self.list_accounts().await.unwrap();
-                Ok((message_id, IpcResponse::ListAccounts(data)).into())
+        request: IpcRequest,
+    ) -> std::result::Result<IpcResponse, E> {
+        Ok(match request {
+            IpcRequest::ListAccounts => {
+                let data = self.list_accounts().await?;
+                IpcResponse::ListAccounts(data)
             }
-            Some(wire_ipc_request_body::Inner::Authenticate(body)) => {
-                let address: Address = body.address.parse()?;
-                if let Some(handler) = self.authenticate_handler.as_mut() {
-                    let (result_tx, result_rx) =
-                        tokio::sync::oneshot::channel();
-                    let command = AuthenticateCommand {
-                        address,
-                        accounts: self.accounts.clone(),
-                        result: result_tx,
-                    };
-
-                    handler.send(command).await.unwrap();
-
-                    // FIXME: the unwrap!
-                    let outcome = result_rx.await.unwrap();
-
-                    // let outcome = handler(accounts, address).await.unwrap();
-                    Ok((message_id, IpcResponse::Authenticate(outcome))
-                        .into())
-                } else {
-                    let outcome = AuthenticateOutcome::Unsupported;
-                    Ok((message_id, IpcResponse::Authenticate(outcome))
-                        .into())
+            IpcRequest::Authenticate { address } => {
+                let (result_tx, result_rx) = tokio::sync::oneshot::channel();
+                let command = AuthenticateCommand {
+                    address,
+                    accounts: self.accounts.clone(),
+                    result: result_tx,
+                };
+                match self.authenticate_handler.send(command).await {
+                    Ok(_) => match result_rx.await {
+                        Ok(outcome) => IpcResponse::Authenticate(outcome),
+                        Err(err) => todo!("handle authenticate send error"),
+                    },
+                    Err(err) => todo!("handle authenticate receive error"),
                 }
             }
-            _ => Err(Error::DecodeRequest),
-        }
+        })
     }
 }
