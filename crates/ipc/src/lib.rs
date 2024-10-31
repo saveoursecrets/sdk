@@ -3,11 +3,6 @@
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Inter-process communcation library for the [Save Our Secrets SDK](https://docs.rs/sos-sdk/latest/sos_sdk/).
 
-#[cfg(all(feature = "tcp", feature = "local-socket"))]
-compile_error!(
-    "sos-ipc requires you choose either the tcp or local-socket feature"
-);
-
 mod error;
 
 mod bindings;
