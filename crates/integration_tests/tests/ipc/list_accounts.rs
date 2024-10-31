@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sos_ipc::{
-    Error, LocalAccountIpcService, LocalAccountTcpServer, TcpClient,
+    Error, LocalAccountIpcService, LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{
     crypto::AccessKey,
@@ -19,6 +19,9 @@ use crate::test_utils::setup;
 async fn integration_ipc_list_accounts() -> Result<()> {
     const TEST_ID: &str = "ipc_list_accounts";
     //crate::test_utils::init_tracing();
+    //
+
+    let socket_name = format!("{}.sock", TEST_ID);
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -60,15 +63,17 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     // Start the IPC service
     let service = Arc::new(Mutex::new(LocalAccountIpcService::new(accounts)));
 
+    let server_socket_name = socket_name.clone();
     tokio::task::spawn(async move {
-        LocalAccountTcpServer::listen("127.0.0.1:5353", service).await?;
+        LocalAccountSocketServer::listen(&server_socket_name, service)
+            .await?;
         Ok::<(), Error>(())
     });
 
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     // Create a client and list accounts
-    let mut client = TcpClient::connect("127.0.0.1:5353").await?;
+    let mut client = SocketClient::connect(&socket_name).await?;
     let accounts = client.list_accounts().await?;
     assert_eq!(2, accounts.len());
 

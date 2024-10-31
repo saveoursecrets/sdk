@@ -9,7 +9,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 default-run = "sos-native-bridge"
 
 [features]
-default = ["tcp"]
+default = ["local-socket"]
 tcp = []
 local-socket = ["interprocess"]
 
