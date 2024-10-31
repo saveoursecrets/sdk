@@ -19,8 +19,6 @@ pub enum IpcResponse {
 /// Outcome of an authentication request.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum AuthenticateOutcome {
-    /// Authenticate is not supported.
-    Unsupported,
     /// Account not found.
     NotFound,
     /// Account was authenticated.
@@ -37,7 +35,6 @@ impl TryFrom<WireAuthenticateOutcome> for AuthenticateOutcome {
     fn try_from(value: WireAuthenticateOutcome) -> Result<Self> {
         let name = value.as_str_name();
         Ok(match name {
-            "Unsupported" => AuthenticateOutcome::Unsupported,
             "NotFound" => AuthenticateOutcome::NotFound,
             "Success" => AuthenticateOutcome::Success,
             "Canceled" => AuthenticateOutcome::Canceled,
@@ -50,9 +47,6 @@ impl TryFrom<WireAuthenticateOutcome> for AuthenticateOutcome {
 impl From<AuthenticateOutcome> for WireAuthenticateOutcome {
     fn from(value: AuthenticateOutcome) -> Self {
         match value {
-            AuthenticateOutcome::Unsupported => {
-                WireAuthenticateOutcome::from_str_name("Unsupported").unwrap()
-            }
             AuthenticateOutcome::NotFound => {
                 WireAuthenticateOutcome::from_str_name("NotFound").unwrap()
             }
