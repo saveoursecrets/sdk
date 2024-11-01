@@ -1,21 +1,47 @@
+//! Proxy to an IPC server using length-prefixed JSON encoding
+//! read from stdin and written to stdout.
+//!
+//! Used to support the native messaging API provided
+//! by browser extensions.
+
+use crate::{IpcRequest, Result};
 use futures_util::{SinkExt, StreamExt};
-use sos_ipc::{IpcRequest, Result};
-use sos_net::sdk::logs::Logger;
+use sos_net::sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME};
 use tokio_util::codec::LengthDelimitedCodec;
 
-/// Executable used to bridge JSON requests from browser extensions
-/// using the native messaging API to the IPC channel.
-#[doc(hidden)]
-#[tokio::main]
-pub async fn main() -> Result<()> {
-    let args = std::env::args();
+/// Options for a native bridge.
+#[derive(Debug, Default)]
+pub struct NativeBridgeOptions {
+    /// Identifier of the extension.
+    pub extension_id: String,
+    /// Socket name for the IPC server.
+    pub socket_name: Option<String>,
+}
 
+impl NativeBridgeOptions {
+    /// Create new options.
+    pub fn new(extension_id: String) -> Self {
+        Self {
+            extension_id,
+            ..Default::default()
+        }
+    }
+}
+
+/// Run a native bridge.
+pub async fn run(options: NativeBridgeOptions) -> Result<()> {
     // Always send log messages to disc as the browser
     // extension reads from stdout
     let logger = Logger::new(None);
     logger.init_file_subscriber(Some("info".to_string()))?;
 
-    tracing::info!(args = ?args, "native_bridge");
+    let socket_name = options
+        .socket_name
+        .as_ref()
+        .map(|s| &s[..])
+        .unwrap_or(IPC_GUI_SOCKET_NAME);
+
+    tracing::info!(options = ?options, "native_bridge");
 
     let mut stdin = LengthDelimitedCodec::builder()
         .native_endian()

@@ -34,4 +34,4 @@ protoc-bin-vendored = "3"
 
 [[bin]]
 name = "sos-native-bridge"
-path = "src/native_bridge.rs"
+path = "src/bin/native_bridge.rs"

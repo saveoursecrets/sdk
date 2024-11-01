@@ -1,6 +1,7 @@
 use crate::{helpers::readline::read_password, Result};
 use clap::Subcommand;
 use sos_ipc::{
+    native_bridge::{self, NativeBridgeOptions},
     remove_socket_file, AppIntegration, AuthenticateOutcome,
     LocalAccountAuthenticateCommand, LocalAccountIpcService,
     LocalAccountSocketServer, SocketClient,
@@ -31,6 +32,13 @@ pub enum Command {
         /// Request command.
         #[clap(subcommand)]
         cmd: ClientCommand,
+    },
+    /// Start a native bridge.
+    #[clap(alias = "bridge")]
+    NativeBridge {
+        /// Socket name.
+        #[clap(short, long)]
+        socket: Option<String>,
     },
 }
 
@@ -104,6 +112,18 @@ pub async fn run(cmd: Command) -> Result<()> {
                     )?;
                 }
             }
+        }
+
+        Command::NativeBridge { socket } => {
+            let socket_name = socket
+                .as_ref()
+                .map(|s| &s[..])
+                .unwrap_or(IPC_CLI_SOCKET_NAME);
+            let mut options = NativeBridgeOptions::new(
+                "com.saveoursecrets.sos".to_string(),
+            );
+            options.socket_name = Some(socket_name.to_string());
+            native_bridge::run(options).await?;
         }
     }
     Ok(())
