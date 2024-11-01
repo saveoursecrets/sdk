@@ -70,35 +70,24 @@ pub async fn main() -> Result<()> {
 }
 
 #[doc(hidden)]
-#[cfg(target_endian = "little")]
 async fn read_length(
     stdin: &mut BufReader<Stdin>,
 ) -> std::result::Result<u32, std::io::Error> {
-    stdin.read_u32_le().await
+    if cfg!(target_endian = "little") {
+        stdin.read_u32_le().await
+    } else {
+        stdin.read_u32().await
+    }
 }
 
 #[doc(hidden)]
-#[cfg(target_endian = "big")]
-async fn read_length(
-    stdin: &mut BufReader<Stdin>,
-) -> std::result::Result<u32, std::io::Error> {
-    stdin.read_u32().await
-}
-
-#[doc(hidden)]
-#[cfg(target_endian = "little")]
 async fn write_length(
     stdout: &mut BufWriter<Stdout>,
     length: u32,
 ) -> std::result::Result<(), std::io::Error> {
-    stdout.write_u32_le(length).await
-}
-
-#[doc(hidden)]
-#[cfg(target_endian = "big")]
-async fn write_length(
-    stdout: &mut BufWriter<Stdout>,
-    length: u32,
-) -> std::result::Result<(), std::io::Error> {
-    stdout.write_u32(length).await
+    if cfg!(target_endian = "little") {
+        stdout.write_u32_le(length).await
+    } else {
+        stdout.write_u32(length).await
+    }
 }
