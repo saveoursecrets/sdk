@@ -91,6 +91,7 @@ impl Logger {
         let fmt_layer = tracing_subscriber::fmt::layer()
             .with_file(false)
             .with_line_number(false)
+            .with_writer(std::io::stderr)
             .with_target(false);
 
         // NOTE: drop the error if already set so hot reload
