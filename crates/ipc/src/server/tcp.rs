@@ -5,8 +5,7 @@ use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::RwLock;
 
 use crate::{
-    Error, IpcService, LocalAccountIpcService, NetworkAccountIpcService,
-    Result,
+    IpcService, LocalAccountIpcService, NetworkAccountIpcService, Result,
 };
 
 /// TCP server for network-enabled accounts.
@@ -41,8 +40,7 @@ where
             let (socket, _) = listener.accept().await?;
             let service = service.clone();
             tokio::spawn(async move {
-                super::handle_conn(service, socket).await?;
-                Ok::<(), Error>(())
+                super::handle_conn(service, socket).await;
             });
         }
     }

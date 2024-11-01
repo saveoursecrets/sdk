@@ -1,10 +1,11 @@
 use futures_util::sink::SinkExt;
-use std::sync::Arc;
+use std::{pin::Pin, sync::Arc};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
 use tokio_util::{
     bytes::BytesMut,
-    codec::{BytesCodec, Decoder},
+    codec::{BytesCodec, Decoder, Framed},
 };
 
 use crate::{
@@ -24,14 +25,11 @@ mod local_socket;
 #[cfg(feature = "local-socket")]
 pub use local_socket::*;
 
-async fn handle_conn<E, S, T>(
-    service: Arc<RwLock<S>>,
-    socket: T,
-) -> Result<()>
+async fn handle_conn<E, S, T>(service: Arc<RwLock<S>>, socket: T)
 where
     S: IpcService<E> + Send + Sync + 'static,
     E: Send,
-    T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sized,
+    T: AsyncRead + AsyncWrite + Sized,
 {
     let mut framed = BytesCodec::new().framed(Box::pin(socket));
     while let Some(message) = framed.next().await {
@@ -41,27 +39,11 @@ where
                     len = bytes.len(),
                     "socket_server::socket_recv"
                 );
-                let request: WireIpcRequest = decode_proto(&bytes)?;
-                let request: (u64, IpcRequest) = request.try_into()?;
-                tracing::debug!(
-                    request = ?request,
-                    "socket_server::socket_request"
-                );
-                let (message_id, request) = request;
-                let handler = service.read().await;
-                match handler.handle(request).await {
-                    Ok(response) => {
-                        tracing::debug!(
-                            response = ?response,
-                            "socket_server::socket_response"
-                        );
-                        let response: WireIpcResponse =
-                            (message_id, response).into();
-                        let buffer = encode_proto(&response)?;
-                        let bytes: BytesMut = buffer.as_slice().into();
-                        framed.send(bytes).await?;
-                    }
-                    Err(err) => todo!("handle service error"),
+
+                if let Err(err) =
+                    handle_request(service.clone(), &mut framed, bytes).await
+                {
+                    todo!("send error response {:#?}", err);
                 }
             }
             Err(err) => {
@@ -73,6 +55,39 @@ where
         }
     }
     tracing::debug!("socket_server::socket_closed");
+}
+
+async fn handle_request<E, S, T>(
+    service: Arc<RwLock<S>>,
+    channel: &mut Framed<Pin<Box<T>>, BytesCodec>,
+    bytes: BytesMut,
+) -> Result<()>
+where
+    S: IpcService<E> + Send + Sync + 'static,
+    E: Send,
+    T: AsyncRead + AsyncWrite + Sized,
+{
+    let request: WireIpcRequest = decode_proto(&bytes)?;
+    let request: (u64, IpcRequest) = request.try_into()?;
+    tracing::debug!(
+        request = ?request,
+        "socket_server::socket_request"
+    );
+    let (message_id, request) = request;
+    let handler = service.read().await;
+    match handler.handle(request).await {
+        Ok(response) => {
+            tracing::debug!(
+                response = ?response,
+                "socket_server::socket_response"
+            );
+            let response: WireIpcResponse = (message_id, response).into();
+            let buffer = encode_proto(&response)?;
+            let bytes: BytesMut = buffer.as_slice().into();
+            channel.send(bytes).await?;
+        }
+        Err(err) => todo!("handle service error"),
+    }
 
     Ok(())
 }
