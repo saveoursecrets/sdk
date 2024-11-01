@@ -28,7 +28,7 @@ macro_rules! app_integration_impl {
         impl AppIntegration<crate::Error> for $impl {
             async fn list_accounts(&mut self) -> Result<AccountsList> {
                 let request = IpcRequest::ListAccounts;
-                let response = self.send(request).await?;
+                let response = self.send_request(request).await?;
                 match response {
                     IpcResponse::Error(err) => Err(Error::ResponseError(err)),
                     IpcResponse::Body(IpcResponseBody::ListAccounts(
@@ -43,7 +43,7 @@ macro_rules! app_integration_impl {
                 address: Address,
             ) -> Result<AuthenticateOutcome> {
                 let request = IpcRequest::Authenticate { address };
-                let response = self.send(request).await?;
+                let response = self.send_request(request).await?;
                 match response {
                     IpcResponse::Error(err) => Err(Error::ResponseError(err)),
                     IpcResponse::Body(IpcResponseBody::Authenticate(
@@ -60,7 +60,7 @@ macro_rules! app_integration_impl {
 macro_rules! client_impl {
     () => {
         /// Send a request.
-        pub(super) async fn send(
+        pub(super) async fn send_request(
             &mut self,
             request: IpcRequest,
         ) -> Result<IpcResponse> {
@@ -68,7 +68,7 @@ macro_rules! client_impl {
             let request_id = self.id.fetch_add(1, Ordering::SeqCst);
             let request: crate::WireIpcRequest = (request_id, request).into();
             let buf = encode_proto(&request)?;
-            self.write_all(&buf).await?;
+            self.send(buf.into()).await?;
             let (response_id, response) = self.read_response().await?;
 
             // Response id will be zero if an error occurs
@@ -82,8 +82,7 @@ macro_rules! client_impl {
 
         /// Read response from the server.
         async fn read_response(&mut self) -> Result<(u64, IpcResponse)> {
-            let mut stream =
-                FramedRead::new(&mut self.reader, BytesCodec::new());
+            let mut stream = FramedRead::new(&mut self.reader, codec());
 
             let mut reply: Option<(u64, IpcResponse)> = None;
             while let Some(message) = stream.next().await {
@@ -102,10 +101,9 @@ macro_rules! client_impl {
             reply.ok_or(Error::NoResponse)
         }
 
-        /// Write a buffer.
-        async fn write_all(&mut self, buf: &[u8]) -> Result<()> {
-            self.writer.write_all(buf).await?;
-            Ok(self.writer.flush().await?)
+        /// Send a buffer on the sink.
+        async fn send(&mut self, buf: Bytes) -> Result<()> {
+            Ok(self.writer.send(buf).await?)
         }
     };
 }

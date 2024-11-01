@@ -8,12 +8,13 @@ use tokio::{
 use tokio_stream::StreamExt;
 use tokio_util::{
     bytes::BytesMut,
-    codec::{BytesCodec, Decoder, Framed},
+    codec::{Framed, LengthDelimitedCodec},
 };
 
 use crate::{
-    decode_proto, encode_proto, io_err, Error, IpcRequest, IpcResponse,
-    IpcResponseError, IpcService, WireIpcRequest, WireIpcResponse,
+    codec, decode_proto, encode_proto, io_err, Error, IpcRequest,
+    IpcResponse, IpcResponseError, IpcService, WireIpcRequest,
+    WireIpcResponse,
 };
 
 #[cfg(feature = "tcp")]
@@ -34,7 +35,7 @@ where
     E: Send + From<std::io::Error> + std::fmt::Debug + std::fmt::Display,
     T: AsyncRead + AsyncWrite + Sized,
 {
-    let mut framed = BytesCodec::new().framed(Box::pin(socket));
+    let mut framed = Framed::new(Box::pin(socket), codec());
     while let Some(message) = framed.next().await {
         match message {
             Ok(bytes) => {
@@ -55,8 +56,7 @@ where
                     let response: WireIpcResponse = (0, response).into();
                     match encode_proto(&response) {
                         Ok(buffer) => {
-                            let bytes: BytesMut = buffer.as_slice().into();
-                            match framed.send(bytes).await {
+                            match framed.send(buffer.into()).await {
                                 Err(err) => {
                                     tracing::error!(
                                         error = ?err,
@@ -90,7 +90,7 @@ where
 
 async fn handle_request<E, S, T>(
     service: Arc<RwLock<S>>,
-    channel: &mut Framed<Pin<Box<T>>, BytesCodec>,
+    channel: &mut Framed<Pin<Box<T>>, LengthDelimitedCodec>,
     bytes: BytesMut,
 ) -> std::result::Result<(), E>
 where
@@ -119,7 +119,6 @@ where
 
     let response: WireIpcResponse = (message_id, response).into();
     let buffer = encode_proto(&response).map_err(io_err)?;
-    let bytes: BytesMut = buffer.as_slice().into();
-    channel.send(bytes).await?;
+    channel.send(buffer.into()).await?;
     Ok(())
 }

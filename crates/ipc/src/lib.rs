@@ -47,6 +47,7 @@ pub use server::{LocalAccountSocketServer, NetworkAccountSocketServer};
 pub use client::SocketClient;
 
 pub use client::app_integration::*;
+use tokio_util::codec::LengthDelimitedCodec;
 
 /// Encode to protobuf.
 pub(crate) fn encode_proto<T: prost::Message>(value: &T) -> Result<Vec<u8>> {
@@ -68,4 +69,8 @@ where
     E: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
 {
     std::io::Error::new(std::io::ErrorKind::Other, err)
+}
+
+pub(crate) fn codec() -> LengthDelimitedCodec {
+    LengthDelimitedCodec::new()
 }
