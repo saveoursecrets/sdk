@@ -35,7 +35,9 @@ where
     E: Send + From<std::io::Error> + std::fmt::Debug + std::fmt::Display,
     T: AsyncRead + AsyncWrite + Sized,
 {
-    let mut framed = Framed::new(Box::pin(socket), codec());
+    let io = Box::pin(socket);
+    let mut framed = codec::framed(io);
+
     while let Some(message) = framed.next().await {
         match message {
             Ok(bytes) => {

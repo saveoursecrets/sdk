@@ -68,7 +68,7 @@ macro_rules! client_impl {
             let request_id = self.id.fetch_add(1, Ordering::SeqCst);
             let request: crate::WireIpcRequest = (request_id, request).into();
             let buf = encode_proto(&request)?;
-            self.send(buf.into()).await?;
+            self.socket.send(buf.into()).await?;
             let (response_id, response) = self.read_response().await?;
 
             // Response id will be zero if an error occurs
@@ -82,10 +82,8 @@ macro_rules! client_impl {
 
         /// Read response from the server.
         async fn read_response(&mut self) -> Result<(u64, IpcResponse)> {
-            let mut stream = FramedRead::new(&mut self.reader, codec());
-
             let mut reply: Option<(u64, IpcResponse)> = None;
-            while let Some(message) = stream.next().await {
+            while let Some(message) = self.socket.next().await {
                 match message {
                     Ok(bytes) => {
                         let response: crate::WireIpcResponse =
@@ -99,11 +97,6 @@ macro_rules! client_impl {
                 }
             }
             reply.ok_or(Error::NoResponse)
-        }
-
-        /// Send a buffer on the sink.
-        async fn send(&mut self, buf: Bytes) -> Result<()> {
-            Ok(self.writer.send(buf).await?)
         }
     };
 }

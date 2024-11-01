@@ -5,31 +5,22 @@ use crate::{
 
 use futures_util::sink::SinkExt;
 use std::sync::atomic::AtomicU64;
-use tokio::net::{
-    tcp::{OwnedReadHalf, OwnedWriteHalf},
-    TcpStream, ToSocketAddrs,
-};
+use tokio::net::{TcpStream, ToSocketAddrs};
 use tokio_stream::StreamExt;
-use tokio_util::{
-    bytes::Bytes,
-    codec::{FramedRead, FramedWrite, LengthDelimitedCodec},
-};
+use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
 /// TCP client for inter-process communication.
 pub struct TcpClient {
-    reader: OwnedReadHalf,
-    writer: FramedWrite<OwnedWriteHalf, LengthDelimitedCodec>,
+    socket: Framed<TcpStream, LengthDelimitedCodec>,
     pub(super) id: AtomicU64,
 }
 
 impl TcpClient {
     /// Create a client and connect the server.
     pub async fn connect<A: ToSocketAddrs>(addr: A) -> Result<Self> {
-        let stream = TcpStream::connect(&addr).await?;
-        let (reader, writer) = stream.into_split();
+        let io = TcpStream::connect(&addr).await?;
         Ok(Self {
-            reader,
-            writer: FramedWrite::new(writer, codec()),
+            socket: codec::framed(io),
             id: AtomicU64::new(1),
         })
     }
