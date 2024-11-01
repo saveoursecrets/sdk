@@ -9,8 +9,8 @@ use tokio_util::{
 };
 
 use crate::{
-    decode_proto, encode_proto, IpcRequest, IpcService, Result,
-    WireIpcRequest, WireIpcResponse,
+    decode_proto, encode_proto, IpcRequest, IpcService, WireIpcRequest,
+    WireIpcResponse,
 };
 
 #[cfg(feature = "tcp")]
@@ -28,7 +28,7 @@ pub use local_socket::*;
 async fn handle_conn<E, S, T>(service: Arc<RwLock<S>>, socket: T)
 where
     S: IpcService<E> + Send + Sync + 'static,
-    E: Send,
+    E: Send + From<std::io::Error> + std::fmt::Debug,
     T: AsyncRead + AsyncWrite + Sized,
 {
     let mut framed = BytesCodec::new().framed(Box::pin(socket));
@@ -61,33 +61,36 @@ async fn handle_request<E, S, T>(
     service: Arc<RwLock<S>>,
     channel: &mut Framed<Pin<Box<T>>, BytesCodec>,
     bytes: BytesMut,
-) -> Result<()>
+) -> std::result::Result<(), E>
 where
     S: IpcService<E> + Send + Sync + 'static,
-    E: Send,
+    E: Send + From<std::io::Error> + std::fmt::Debug,
     T: AsyncRead + AsyncWrite + Sized,
 {
-    let request: WireIpcRequest = decode_proto(&bytes)?;
-    let request: (u64, IpcRequest) = request.try_into()?;
+    let request: WireIpcRequest = decode_proto(&bytes).map_err(io_err)?;
+    let request: (u64, IpcRequest) = request.try_into().map_err(io_err)?;
     tracing::debug!(
         request = ?request,
         "socket_server::socket_request"
     );
     let (message_id, request) = request;
     let handler = service.read().await;
-    match handler.handle(request).await {
-        Ok(response) => {
-            tracing::debug!(
-                response = ?response,
-                "socket_server::socket_response"
-            );
-            let response: WireIpcResponse = (message_id, response).into();
-            let buffer = encode_proto(&response)?;
-            let bytes: BytesMut = buffer.as_slice().into();
-            channel.send(bytes).await?;
-        }
-        Err(err) => todo!("handle service error"),
-    }
+    let response = handler.handle(request).await?;
+    tracing::debug!(
+        response = ?response,
+        "socket_server::socket_response"
+    );
+    let response: WireIpcResponse = (message_id, response).into();
+    let buffer = encode_proto(&response).map_err(io_err)?;
+    let bytes: BytesMut = buffer.as_slice().into();
+    channel.send(bytes).await?;
 
     Ok(())
+}
+
+fn io_err<E>(err: E) -> std::io::Error
+where
+    E: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
+{
+    std::io::Error::new(std::io::ErrorKind::Other, err)
 }

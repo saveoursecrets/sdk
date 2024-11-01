@@ -28,7 +28,7 @@ where
 impl<S, E> TcpServer<S, E>
 where
     S: IpcService<E> + Send + Sync + 'static,
-    E: Send,
+    E: Send + From<std::io::Error> + std::fmt::Debug,
 {
     /// Listen on a bind address.
     pub async fn listen<A: ToSocketAddrs>(

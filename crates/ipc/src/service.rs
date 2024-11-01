@@ -41,8 +41,12 @@ pub type NetworkAccountAuthenticateCommand = AuthenticateCommand<
 /// Command to authenticate an account.
 pub struct AuthenticateCommand<E, R, A>
 where
+    E: std::fmt::Debug
+        + From<sos_net::sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+    R: 'static,
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    E: From<sos_net::sdk::Error>,
 {
     /// Account address.
     pub address: Address,
@@ -79,8 +83,12 @@ pub trait IpcService<E> {
 /// with an [AuthenticateOutcome].
 pub struct ServiceDelegate<E, R, A>
 where
+    E: std::fmt::Debug
+        + From<sos_net::sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+    R: 'static,
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    E: From<sos_net::sdk::Error>,
 {
     authenticate: AuthenticateHandler<E, R, A>,
 }
@@ -88,8 +96,12 @@ where
 /// Handler for IPC requests.
 pub struct IpcServiceHandler<E, R, A>
 where
+    E: std::fmt::Debug
+        + From<sos_net::sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+    R: 'static,
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    E: From<sos_net::sdk::Error>,
 {
     accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
     delegate: ServiceDelegate<E, R, A>,
@@ -97,8 +109,12 @@ where
 
 impl<E, R, A> IpcServiceHandler<E, R, A>
 where
+    E: std::fmt::Debug
+        + From<sos_net::sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+    R: 'static,
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    E: From<sos_net::sdk::Error>,
 {
     /// Create a new service handler.
     pub fn new(
@@ -136,20 +152,24 @@ where
 }
 
 #[async_trait]
-impl<E, R, A: Account<Error = E, NetworkResult = R> + Send + Sync>
-    IpcService<E> for IpcServiceHandler<E, R, A>
+impl<E, R, A> IpcService<E> for IpcServiceHandler<E, R, A>
 where
-    E: std::fmt::Debug + From<sos_net::sdk::Error>,
+    E: std::fmt::Debug
+        + From<sos_net::sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+    R: 'static,
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
 {
     /// Handle an incoming request.
     async fn handle(
         &self,
         request: IpcRequest,
     ) -> std::result::Result<IpcResponse, E> {
-        Ok(match request {
+        match request {
             IpcRequest::ListAccounts => {
                 let data = self.list_accounts().await?;
-                IpcResponse::ListAccounts(data)
+                Ok(IpcResponse::ListAccounts(data))
             }
             IpcRequest::Authenticate { address } => {
                 let (result_tx, result_rx) = tokio::sync::oneshot::channel();
@@ -160,12 +180,20 @@ where
                 };
                 match self.delegate.authenticate.send(command).await {
                     Ok(_) => match result_rx.await {
-                        Ok(outcome) => IpcResponse::Authenticate(outcome),
-                        Err(err) => todo!("handle authenticate send error"),
+                        Ok(outcome) => Ok(IpcResponse::Authenticate(outcome)),
+                        Err(err) => Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            err,
+                        )
+                        .into()),
                     },
-                    Err(err) => todo!("handle authenticate receive error"),
+                    Err(err) => Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        err,
+                    )
+                    .into()),
                 }
             }
-        })
+        }
     }
 }

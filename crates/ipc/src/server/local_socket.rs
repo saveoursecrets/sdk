@@ -34,7 +34,7 @@ where
 impl<S, E> SocketServer<S, E>
 where
     S: IpcService<E> + Send + Sync + 'static,
-    E: Send,
+    E: Send + From<std::io::Error> + std::fmt::Debug,
 {
     /// Listen on a bind address.
     pub async fn listen(
