@@ -1,7 +1,10 @@
 use futures_util::sink::SinkExt;
 use std::{pin::Pin, sync::Arc};
-use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::sync::RwLock;
+use tokio::{
+    io::{AsyncRead, AsyncWrite},
+    sync::RwLock,
+    time::timeout,
+};
 use tokio_stream::StreamExt;
 use tokio_util::{
     bytes::BytesMut,
@@ -9,7 +12,7 @@ use tokio_util::{
 };
 
 use crate::{
-    decode_proto, encode_proto, io_err, IpcRequest, IpcResponse,
+    decode_proto, encode_proto, io_err, Error, IpcRequest, IpcResponse,
     IpcResponseError, IpcService, WireIpcRequest, WireIpcResponse,
 };
 
@@ -103,15 +106,20 @@ where
     );
     let (message_id, request) = request;
     let handler = service.read().await;
-    let response = handler.handle(request).await?;
-    tracing::debug!(
-        response = ?response,
-        "socket_server::socket_response"
-    );
+    let duration = request.timeout_duration();
+    let response = match timeout(duration, handler.handle(request)).await {
+        Ok(res) => res?,
+        Err(_) => {
+            tracing::debug!(
+                duration = ?duration,
+                "socket_server::request_timeout");
+            IpcResponse::Error(Error::ServiceTimeout(duration).into())
+        }
+    };
+
     let response: WireIpcResponse = (message_id, response).into();
     let buffer = encode_proto(&response).map_err(io_err)?;
     let bytes: BytesMut = buffer.as_slice().into();
     channel.send(bytes).await?;
-
     Ok(())
 }

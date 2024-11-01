@@ -4,6 +4,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use sos_net::sdk::prelude::Address;
+use tokio::time::Duration;
 
 use super::WireAuthenticateBody;
 
@@ -17,6 +18,16 @@ pub enum IpcRequest {
         /// Account address.
         address: Address,
     },
+}
+
+impl IpcRequest {
+    /// Duration allowed for a request.
+    pub fn timeout_duration(&self) -> Duration {
+        match self {
+            IpcRequest::Authenticate { .. } => Duration::from_secs(60),
+            _ => Duration::from_secs(5),
+        }
+    }
 }
 
 impl From<(u64, IpcRequest)> for WireIpcRequest {
