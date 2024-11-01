@@ -70,3 +70,14 @@ where
 {
     std::io::Error::new(std::io::ErrorKind::Other, err)
 }
+
+#[doc(hidden)]
+pub fn remove_socket_file(socket_name: &str) {
+    if cfg!(target_os = "macos") {
+        let socket_path =
+            std::path::PathBuf::from(format!("/tmp/{}", socket_name));
+        if socket_path.exists() {
+            let _ = std::fs::remove_file(&socket_path);
+        }
+    }
+}

@@ -9,6 +9,12 @@ pub const APP_AUTHOR: &str = "SaveOurSecrets";
 /// File name for audit logs.
 pub const AUDIT_FILE_NAME: &str = "audit.dat";
 
+/// Name for GUI IPC sockets.
+pub const IPC_GUI_SOCKET_NAME: &str = "com.saveoursecrets.gui.sock";
+
+/// Name for CLI IPC sockets.
+pub const IPC_CLI_SOCKET_NAME: &str = "com.saveoursecrets.cli.sock";
+
 /// Constants for file identity.
 mod identity {
     /// Audit log identity magic bytes (SOSA).

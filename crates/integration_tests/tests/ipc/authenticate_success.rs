@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sos_ipc::{
-    AppIntegration, AuthenticateOutcome, Error,
+    remove_socket_file, AppIntegration, AuthenticateOutcome, Error,
     LocalAccountAuthenticateCommand, LocalAccountIpcService,
     LocalAccountSocketServer, SocketClient,
 };
@@ -14,7 +14,7 @@ use sos_net::sdk::{
 use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
-use crate::{remove_socket_file, test_utils::setup};
+use crate::test_utils::setup;
 
 #[tokio::test]
 async fn integration_ipc_authenticate_success() -> Result<()> {
@@ -25,7 +25,6 @@ async fn integration_ipc_authenticate_success() -> Result<()> {
     let socket_name = format!("{}.sock", TEST_ID);
 
     // Must clean up the tmp file on MacOS
-    #[cfg(target_os = "macos")]
     remove_socket_file(&socket_name);
 
     let mut dirs = setup(TEST_ID, 1).await?;

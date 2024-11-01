@@ -4186,6 +4186,7 @@ dependencies = [
  "serde_json",
  "shell-words",
  "sos-cli-helpers",
+ "sos-ipc",
  "sos-net",
  "tempfile",
  "terminal-banner",
