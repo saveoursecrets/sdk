@@ -9,8 +9,8 @@ use tokio_util::{
 };
 
 use crate::{
-    decode_proto, encode_proto, IpcRequest, IpcService, WireIpcRequest,
-    WireIpcResponse,
+    decode_proto, encode_proto, io_err, IpcRequest, IpcService,
+    WireIpcRequest, WireIpcResponse,
 };
 
 #[cfg(feature = "tcp")]
@@ -43,6 +43,7 @@ where
                 if let Err(err) =
                     handle_request(service.clone(), &mut framed, bytes).await
                 {
+                    // err.foo();
                     todo!("send error response {:#?}", err);
                 }
             }
@@ -86,11 +87,4 @@ where
     channel.send(bytes).await?;
 
     Ok(())
-}
-
-fn io_err<E>(err: E) -> std::io::Error
-where
-    E: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
-{
-    std::io::Error::new(std::io::ErrorKind::Other, err)
 }

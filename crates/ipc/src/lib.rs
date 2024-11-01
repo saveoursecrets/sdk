@@ -62,3 +62,10 @@ pub(crate) fn decode_proto<T: prost::Message + Default>(
 ) -> Result<T> {
     Ok(T::decode(buffer)?)
 }
+
+pub(crate) fn io_err<E>(err: E) -> std::io::Error
+where
+    E: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
+{
+    std::io::Error::new(std::io::ErrorKind::Other, err)
+}

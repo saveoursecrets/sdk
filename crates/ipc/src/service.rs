@@ -1,4 +1,6 @@
-use crate::{AccountsList, AuthenticateOutcome, IpcRequest, IpcResponse};
+use crate::{
+    io_err, AccountsList, AuthenticateOutcome, IpcRequest, IpcResponse,
+};
 use async_trait::async_trait;
 use sos_net::{
     sdk::{
@@ -181,17 +183,9 @@ where
                 match self.delegate.authenticate.send(command).await {
                     Ok(_) => match result_rx.await {
                         Ok(outcome) => Ok(IpcResponse::Authenticate(outcome)),
-                        Err(err) => Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            err,
-                        )
-                        .into()),
+                        Err(err) => Err(io_err(err).into()),
                     },
-                    Err(err) => Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        err,
-                    )
-                    .into()),
+                    Err(err) => Err(io_err(err).into()),
                 }
             }
         }
