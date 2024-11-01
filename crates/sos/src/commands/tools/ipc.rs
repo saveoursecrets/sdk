@@ -75,13 +75,30 @@ pub async fn run(cmd: Command) -> Result<()> {
                             "authenticate account {}",
                             account.address(),
                         );
-                        let password = read_password(None)?;
-                        let key: AccessKey = password.into();
-                        account.sign_in(&key).await?;
-                        command
-                            .result
-                            .send(AuthenticateOutcome::Success)
-                            .unwrap();
+                        let mut result = Some(command.result);
+                        let mut attempts = 0;
+                        loop {
+                            if attempts == 3 {
+                                tracing::warn!("authentication aborted, too many attempts");
+                                break;
+                            }
+                            if let Ok(password) = read_password(None) {
+                                attempts += 1;
+                                let key: AccessKey = password.into();
+                                if let Ok(_) = account.sign_in(&key).await {
+                                    result
+                                        .take()
+                                        .unwrap()
+                                        .send(AuthenticateOutcome::Success)
+                                        .unwrap();
+                                } else {
+                                    tracing::warn!("incorrect password");
+                                    continue;
+                                }
+                            } else {
+                                break;
+                            }
+                        }
                     } else {
                         command
                             .result
