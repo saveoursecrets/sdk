@@ -73,12 +73,20 @@ message WireAccountList {
 enum WireAuthenticateOutcome {
   // Account not found.
   NotFound = 0;
+  // Already authenticated.
+  AlreadyAuthenticated = 2;
   // Authentication success.
-  Success = 1;
+  Success = 3;
+  // Authentication failed.
+  Failed = 4;
   // User canceled.
-  Canceled = 2;
+  Canceled = 5;
   // Timed out waiting for user input.
-  TimedOut = 3;
+  TimedOut = 6;
+  // Too many authentication attempts.
+  Exhausted = 7;
+  // Error getting user input.
+  InputError = 8;
 }
 
 // Information about an account.

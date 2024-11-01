@@ -1,4 +1,4 @@
-use crate::{helpers::readline::read_password, Error, Result};
+use crate::{helpers::readline::read_password, Result};
 use clap::Subcommand;
 use sos_ipc::{
     remove_socket_file, AppIntegration, AuthenticateOutcome,
@@ -60,55 +60,11 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .await?;
                 accounts.add_account(account);
             }
-            let (auth_tx, mut auth_rx) = tokio::sync::mpsc::channel::<
+            let (auth_tx, auth_rx) = tokio::sync::mpsc::channel::<
                 LocalAccountAuthenticateCommand,
-            >(1024);
+            >(16);
 
-            tokio::task::spawn(async move {
-                while let Some(command) = auth_rx.recv().await {
-                    let mut accounts = command.accounts.write().await;
-                    if let Some(account) = accounts
-                        .iter_mut()
-                        .find(|a| a.address() == &command.address)
-                    {
-                        tracing::info!(
-                            "authenticate account {}",
-                            account.address(),
-                        );
-                        let mut result = Some(command.result);
-                        let mut attempts = 0;
-                        loop {
-                            if attempts == 3 {
-                                tracing::warn!("authentication aborted, too many attempts");
-                                break;
-                            }
-                            if let Ok(password) = read_password(None) {
-                                attempts += 1;
-                                let key: AccessKey = password.into();
-                                if let Ok(_) = account.sign_in(&key).await {
-                                    result
-                                        .take()
-                                        .unwrap()
-                                        .send(AuthenticateOutcome::Success)
-                                        .unwrap();
-                                } else {
-                                    tracing::warn!("incorrect password");
-                                    continue;
-                                }
-                            } else {
-                                break;
-                            }
-                        }
-                    } else {
-                        command
-                            .result
-                            .send(AuthenticateOutcome::NotFound)
-                            .unwrap();
-                    }
-                }
-
-                Ok::<_, Error>(())
-            });
+            tokio::task::spawn(async move { authenticate(auth_rx).await });
 
             let delegate = LocalAccountIpcService::new_delegate(auth_tx);
             let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
@@ -151,4 +107,52 @@ pub async fn run(cmd: Command) -> Result<()> {
         }
     }
     Ok(())
+}
+
+async fn authenticate(
+    mut auth_rx: tokio::sync::mpsc::Receiver<LocalAccountAuthenticateCommand>,
+) {
+    while let Some(mut command) = auth_rx.recv().await {
+        let outcome = try_authenticate(&mut command).await;
+        if let Err(_) = command.result.send(outcome) {
+            tracing::warn!("auth command send failed");
+        }
+    }
+}
+
+async fn try_authenticate(
+    command: &mut LocalAccountAuthenticateCommand,
+) -> AuthenticateOutcome {
+    let mut accounts = command.accounts.write().await;
+    if let Some(account) = accounts
+        .iter_mut()
+        .find(|a| a.address() == &command.address)
+    {
+        if account.is_authenticated().await {
+            return AuthenticateOutcome::AlreadyAuthenticated;
+        }
+
+        tracing::info!("authenticate account {}", account.address(),);
+        let mut attempts = 0;
+        loop {
+            if attempts == 3 {
+                tracing::warn!("authentication aborted, too many attempts");
+                return AuthenticateOutcome::Exhausted;
+            }
+            if let Ok(password) = read_password(None) {
+                attempts += 1;
+                let key: AccessKey = password.into();
+                if let Ok(_) = account.sign_in(&key).await {
+                    return AuthenticateOutcome::Success;
+                } else {
+                    tracing::warn!("incorrect password");
+                    continue;
+                }
+            } else {
+                return AuthenticateOutcome::InputError;
+            }
+        }
+    } else {
+        AuthenticateOutcome::NotFound
+    }
 }

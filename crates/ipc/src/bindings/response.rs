@@ -42,12 +42,20 @@ pub struct IpcResponseError {
 pub enum AuthenticateOutcome {
     /// Account not found.
     NotFound,
+    /// Already authenticated.
+    AlreadyAuthenticated,
     /// Account was authenticated.
     Success,
+    /// Authentication failed.
+    Failed,
     /// User canceled.
     Canceled,
     /// Timed out waiting for user input.
     TimedOut,
+    /// Too many attempts to authenticate.
+    Exhausted,
+    /// Error attempting to get user input.
+    InputError,
 }
 
 impl TryFrom<WireAuthenticateOutcome> for AuthenticateOutcome {
@@ -57,9 +65,15 @@ impl TryFrom<WireAuthenticateOutcome> for AuthenticateOutcome {
         let name = value.as_str_name();
         Ok(match name {
             "NotFound" => AuthenticateOutcome::NotFound,
+            "AlreadyAuthenticated" => {
+                AuthenticateOutcome::AlreadyAuthenticated
+            }
             "Success" => AuthenticateOutcome::Success,
+            "Failed" => AuthenticateOutcome::Failed,
             "Canceled" => AuthenticateOutcome::Canceled,
             "TimedOut" => AuthenticateOutcome::TimedOut,
+            "Exhausted" => AuthenticateOutcome::Exhausted,
+            "InputError" => AuthenticateOutcome::InputError,
             _ => unreachable!(),
         })
     }
@@ -71,14 +85,27 @@ impl From<AuthenticateOutcome> for WireAuthenticateOutcome {
             AuthenticateOutcome::NotFound => {
                 WireAuthenticateOutcome::from_str_name("NotFound").unwrap()
             }
+            AuthenticateOutcome::AlreadyAuthenticated => {
+                WireAuthenticateOutcome::from_str_name("AlreadyAuthenticated")
+                    .unwrap()
+            }
             AuthenticateOutcome::Success => {
                 WireAuthenticateOutcome::from_str_name("Success").unwrap()
+            }
+            AuthenticateOutcome::Failed => {
+                WireAuthenticateOutcome::from_str_name("Failed").unwrap()
             }
             AuthenticateOutcome::Canceled => {
                 WireAuthenticateOutcome::from_str_name("Canceled").unwrap()
             }
             AuthenticateOutcome::TimedOut => {
                 WireAuthenticateOutcome::from_str_name("TimedOut").unwrap()
+            }
+            AuthenticateOutcome::Exhausted => {
+                WireAuthenticateOutcome::from_str_name("Exhausted").unwrap()
+            }
+            AuthenticateOutcome::InputError => {
+                WireAuthenticateOutcome::from_str_name("InputError").unwrap()
             }
         }
     }
