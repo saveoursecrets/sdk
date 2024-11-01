@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use crate::{
     AccountsList, AppIntegration, AuthenticateOutcome, Error, IpcRequest,
-    IpcResponse, Result,
+    IpcResponse, IpcResponseBody, Result,
 };
 
 use sos_net::sdk::prelude::Address;
@@ -28,12 +28,13 @@ macro_rules! app_integration_impl {
         impl AppIntegration<crate::Error> for $impl {
             async fn list_accounts(&mut self) -> Result<AccountsList> {
                 let request = IpcRequest::ListAccounts;
-                if let IpcResponse::ListAccounts(list) =
-                    self.send(request).await?
-                {
-                    Ok(list)
-                } else {
-                    Err(Error::ResponseType)
+                let response = self.send(request).await?;
+                match response {
+                    IpcResponse::Error(err) => Err(Error::ResponseError(err)),
+                    IpcResponse::Body(IpcResponseBody::ListAccounts(
+                        list,
+                    )) => Ok(list),
+                    _ => Err(Error::ResponseType),
                 }
             }
 
@@ -42,12 +43,13 @@ macro_rules! app_integration_impl {
                 address: Address,
             ) -> Result<AuthenticateOutcome> {
                 let request = IpcRequest::Authenticate { address };
-                if let IpcResponse::Authenticate(outcome) =
-                    self.send(request).await?
-                {
-                    Ok(outcome)
-                } else {
-                    Err(Error::ResponseType)
+                let response = self.send(request).await?;
+                match response {
+                    IpcResponse::Error(err) => Err(Error::ResponseError(err)),
+                    IpcResponse::Body(IpcResponseBody::Authenticate(
+                        outcome,
+                    )) => Ok(outcome),
+                    _ => Err(Error::ResponseType),
                 }
             }
         }
@@ -69,7 +71,9 @@ macro_rules! client_impl {
             self.write_all(&buf).await?;
             let (response_id, response) = self.read_response().await?;
 
-            if request_id != response_id {
+            // Response id will be zero if an error occurs
+            // before a message_id could be parsed from the request
+            if response_id > 0 && request_id != response_id {
                 return Err(Error::MessageId(request_id, response_id));
             }
 

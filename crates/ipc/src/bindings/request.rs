@@ -59,7 +59,7 @@ impl TryFrom<WireIpcRequest> for (u64, IpcRequest) {
                 let address: Address = body.address.parse()?;
                 (message_id, IpcRequest::Authenticate { address })
             }
-            _ => return Err(Error::DecodeResponse),
+            _ => return Err(Error::DecodeRequest),
         })
     }
 }

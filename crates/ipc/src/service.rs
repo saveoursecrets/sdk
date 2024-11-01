@@ -1,5 +1,6 @@
 use crate::{
     io_err, AccountsList, AuthenticateOutcome, IpcRequest, IpcResponse,
+    IpcResponseBody,
 };
 use async_trait::async_trait;
 use sos_net::{
@@ -171,7 +172,7 @@ where
         match request {
             IpcRequest::ListAccounts => {
                 let data = self.list_accounts().await?;
-                Ok(IpcResponse::ListAccounts(data))
+                Ok(IpcResponse::Body(IpcResponseBody::ListAccounts(data)))
             }
             IpcRequest::Authenticate { address } => {
                 let (result_tx, result_rx) = tokio::sync::oneshot::channel();
@@ -182,7 +183,9 @@ where
                 };
                 match self.delegate.authenticate.send(command).await {
                     Ok(_) => match result_rx.await {
-                        Ok(outcome) => Ok(IpcResponse::Authenticate(outcome)),
+                        Ok(outcome) => Ok(IpcResponse::Body(
+                            IpcResponseBody::Authenticate(outcome),
+                        )),
                         Err(err) => Err(io_err(err).into()),
                     },
                     Err(err) => Err(io_err(err).into()),

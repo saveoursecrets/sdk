@@ -9,8 +9,8 @@ use tokio_util::{
 };
 
 use crate::{
-    decode_proto, encode_proto, io_err, IpcRequest, IpcService,
-    WireIpcRequest, WireIpcResponse,
+    decode_proto, encode_proto, io_err, IpcRequest, IpcResponse,
+    IpcResponseError, IpcService, WireIpcRequest, WireIpcResponse,
 };
 
 #[cfg(feature = "tcp")]
@@ -28,7 +28,7 @@ pub use local_socket::*;
 async fn handle_conn<E, S, T>(service: Arc<RwLock<S>>, socket: T)
 where
     S: IpcService<E> + Send + Sync + 'static,
-    E: Send + From<std::io::Error> + std::fmt::Debug,
+    E: Send + From<std::io::Error> + std::fmt::Debug + std::fmt::Display,
     T: AsyncRead + AsyncWrite + Sized,
 {
     let mut framed = BytesCodec::new().framed(Box::pin(socket));
@@ -43,8 +43,35 @@ where
                 if let Err(err) =
                     handle_request(service.clone(), &mut framed, bytes).await
                 {
-                    // err.foo();
-                    todo!("send error response {:#?}", err);
+                    // Internal error, try to send a response and close
+                    // the connection if we error here
+                    let response = IpcResponse::Error(IpcResponseError {
+                        code: -1,
+                        message: err.to_string(),
+                    });
+                    let response: WireIpcResponse = (0, response).into();
+                    match encode_proto(&response) {
+                        Ok(buffer) => {
+                            let bytes: BytesMut = buffer.as_slice().into();
+                            match framed.send(bytes).await {
+                                Err(err) => {
+                                    tracing::error!(
+                                        error = ?err,
+                                        "socket_server::internal_error::close_connection"
+                                    );
+                                    break;
+                                }
+                                _ => {}
+                            }
+                        }
+                        Err(err) => {
+                            tracing::error!(
+                                error = ?err,
+                                "socket_server::internal_error::close_connection"
+                            );
+                            break;
+                        }
+                    }
                 }
             }
             Err(err) => {

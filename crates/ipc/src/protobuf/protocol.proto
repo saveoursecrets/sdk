@@ -35,8 +35,13 @@ message WireAuthenticateBody {
 message WireIpcResponse {
   // Message identifier.
   uint64 message_id = 1;
-  // Message body.
-  WireIpcResponseBody body = 2;
+  // Response result.
+  oneof result {
+    // Error result.
+    WireIpcResponseError error = 2;
+    // Result body.
+    WireIpcResponseBody body = 3;
+  }
 }
 
 // IPC response body.
@@ -48,6 +53,14 @@ message WireIpcResponseBody {
     // Authenticate body.
     WireAuthenticateOutcome authenticate = 2;
   }
+}
+
+// IPC response error.
+message WireIpcResponseError {
+  // Error code.
+  int32 code = 1;
+  // Error message.
+  string message = 2;
 }
 
 // List of accounts.
