@@ -21,7 +21,7 @@ async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sos-net = { version = "0.15", path = "../net", features = ["account"] }
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "macros", "io-util", "io-std", "sync"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "macros", "io-util", "io-std", "sync", "process"] }
 tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["codec"] }
 futures-util = { version = "0.3", features = ["sink"] }
