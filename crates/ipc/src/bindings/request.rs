@@ -10,6 +10,7 @@ use super::WireAuthenticateBody;
 
 /// IPC request information.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "type")]
 pub enum IpcRequest {
     /// Request the accounts list.
     ListAccounts,

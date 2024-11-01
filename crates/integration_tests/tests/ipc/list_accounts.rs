@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sos_ipc::{
-    AppIntegration, Error, LocalAccountAuthenticateCommand,
+    AppIntegration, Error, IpcRequest, LocalAccountAuthenticateCommand,
     LocalAccountIpcService, LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{
@@ -22,6 +22,11 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     //
 
     let socket_name = format!("{}.sock", TEST_ID);
+
+    println!(
+        "{}",
+        serde_json::to_string(&IpcRequest::ListAccounts).unwrap()
+    );
 
     // Must clean up the tmp file on MacOS
     #[cfg(target_os = "macos")]
