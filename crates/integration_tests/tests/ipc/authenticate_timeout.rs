@@ -1,8 +1,7 @@
 use anyhow::Result;
 use sos_ipc::{
-    AppIntegration, AuthenticateOutcome, Error,
-    LocalAccountAuthenticateCommand, LocalAccountIpcService,
-    LocalAccountSocketServer, SocketClient,
+    AppIntegration, Error, IpcResponseError, LocalAccountAuthenticateCommand,
+    LocalAccountIpcService, LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{
     crypto::AccessKey,
@@ -17,8 +16,8 @@ use tokio::sync::RwLock;
 use crate::{remove_socket_file, test_utils::setup};
 
 #[tokio::test]
-async fn integration_ipc_authenticate_success() -> Result<()> {
-    const TEST_ID: &str = "ipc_authenticate_success";
+async fn integration_ipc_authenticate_timeout() -> Result<()> {
+    const TEST_ID: &str = "ipc_authenticate_timeout";
     // crate::test_utils::init_tracing();
     //
 
@@ -65,24 +64,16 @@ async fn integration_ipc_authenticate_success() -> Result<()> {
     accounts.add_account(unauth_account);
 
     let ipc_accounts = Arc::new(RwLock::new(accounts));
-    let assert_accounts = ipc_accounts.clone();
-    let auth_key: AccessKey = unauth_password.into();
 
     let (auth_tx, mut auth_rx) =
         tokio::sync::mpsc::channel::<LocalAccountAuthenticateCommand>(16);
 
     tokio::task::spawn(async move {
-        while let Some(command) = auth_rx.recv().await {
-            let mut accounts = command.accounts.write().await;
-            if let Some(account) = accounts
-                .iter_mut()
-                .find(|a| a.address() == &command.address)
-            {
-                account.sign_in(&auth_key).await.unwrap();
-                command.result.send(AuthenticateOutcome::Success).unwrap();
-            } else {
-                command.result.send(AuthenticateOutcome::NotFound).unwrap();
-            }
+        while let Some(_command) = auth_rx.recv().await {
+            // Must wait longer than the timeout (5s) otherwise
+            // the returned error will be "channel closed"
+            // when the command.result is dropped
+            tokio::time::sleep(Duration::from_secs(10)).await;
         }
     });
 
@@ -103,16 +94,13 @@ async fn integration_ipc_authenticate_success() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(250)).await;
 
     let mut client = SocketClient::connect(&socket_name).await?;
-    let outcome = client.authenticate(unauth_address).await?;
-    assert_eq!(AuthenticateOutcome::Success, outcome);
+    let result = client.authenticate(unauth_address).await;
 
-    let accounts = assert_accounts.write().await;
-    let mut it = accounts.iter();
-    let first_account = it.next().unwrap();
-    let second_account = it.next().unwrap();
-
-    assert!(first_account.is_authenticated().await);
-    assert!(second_account.is_authenticated().await);
+    if let Err(Error::ResponseError(IpcResponseError { code, .. })) = result {
+        assert_eq!(504, code);
+    } else {
+        panic!("expecting timeout error");
+    }
 
     Ok(())
 }

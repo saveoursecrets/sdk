@@ -38,7 +38,7 @@ pub struct IpcResponseError {
 }
 
 /// Outcome of an authentication request.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AuthenticateOutcome {
     /// Account not found.
     NotFound,

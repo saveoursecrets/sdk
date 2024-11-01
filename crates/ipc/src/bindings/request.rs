@@ -24,6 +24,9 @@ impl IpcRequest {
     /// Duration allowed for a request.
     pub fn timeout_duration(&self) -> Duration {
         match self {
+            #[cfg(debug_assertions)]
+            IpcRequest::Authenticate { .. } => Duration::from_secs(5),
+            #[cfg(not(debug_assertions))]
             IpcRequest::Authenticate { .. } => Duration::from_secs(60),
             _ => Duration::from_secs(5),
         }

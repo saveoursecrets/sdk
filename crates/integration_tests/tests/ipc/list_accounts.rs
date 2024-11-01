@@ -13,7 +13,7 @@ use sos_net::sdk::{
 use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
-use crate::test_utils::setup;
+use crate::{remove_socket_file, test_utils::setup};
 
 #[tokio::test]
 async fn integration_ipc_list_accounts() -> Result<()> {
@@ -25,13 +25,7 @@ async fn integration_ipc_list_accounts() -> Result<()> {
 
     // Must clean up the tmp file on MacOS
     #[cfg(target_os = "macos")]
-    {
-        let socket_path =
-            std::path::PathBuf::from(format!("/tmp/{}", socket_name));
-        if socket_path.exists() {
-            let _ = std::fs::remove_file(&socket_path);
-        }
-    }
+    remove_socket_file(&socket_name);
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
