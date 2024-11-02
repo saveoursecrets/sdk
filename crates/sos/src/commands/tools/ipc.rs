@@ -1,9 +1,10 @@
 use crate::{helpers::readline::read_password, Result};
 use clap::Subcommand;
 use sos_ipc::{
+    local_account_delegate,
     native_bridge::{self, NativeBridgeOptions, CLI_EXTENSION_ID},
-    remove_socket_file, CommandOutcome, IpcRequest,
-    LocalAccountAuthenticateCommand, LocalAccountIpcService,
+    remove_socket_file, Command as IpcCommand, CommandOptions,
+    CommandOutcome, IpcRequest, LocalAccountCommand, LocalAccountIpcService,
     LocalAccountServiceDelegate, LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{
@@ -89,10 +90,11 @@ pub async fn run(cmd: Command) -> Result<()> {
                 accounts.add_account(account);
             }
 
-            let (delegate, commands) = LocalAccountServiceDelegate::new(16);
-            let auth_rx = commands.authenticate;
+            let (delegate, commands) = local_account_delegate(16);
 
-            tokio::task::spawn(async move { authenticate(auth_rx).await });
+            tokio::task::spawn(
+                async move { handle_commands(commands).await },
+            );
 
             let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
                 Arc::new(RwLock::new(accounts)),
@@ -157,50 +159,61 @@ async fn send_bridge(
     Ok(())
 }
 
-async fn authenticate(
-    mut auth_rx: tokio::sync::mpsc::Receiver<LocalAccountAuthenticateCommand>,
+async fn handle_commands(
+    mut commands: tokio::sync::mpsc::Receiver<LocalAccountCommand>,
 ) {
-    while let Some(mut command) = auth_rx.recv().await {
-        let outcome = try_authenticate(&mut command).await;
-        if let Err(_) = command.result.send(outcome) {
-            tracing::warn!("auth command send failed");
+    while let Some(command) = commands.recv().await {
+        handle_command(command).await;
+    }
+}
+
+async fn handle_command(command: LocalAccountCommand) {
+    let IpcCommand { accounts, options } = command;
+
+    match options {
+        CommandOptions::Authenticate { address, result } => {
+            let mut accounts = accounts.write().await;
+            let outcome = if let Some(account) =
+                accounts.iter_mut().find(|a| a.address() == &address)
+            {
+                try_authenticate(account).await
+            } else {
+                CommandOutcome::NotFound
+            };
+
+            if let Err(e) = result.send(outcome) {
+                tracing::error!(error = ?e, "ipc::result_channel_closed");
+            }
+        }
+        CommandOptions::Lock { address, result } => {
+            todo!("implement lock handling");
         }
     }
 }
 
-async fn try_authenticate(
-    command: &mut LocalAccountAuthenticateCommand,
-) -> CommandOutcome {
-    let mut accounts = command.accounts.write().await;
-    if let Some(account) = accounts
-        .iter_mut()
-        .find(|a| a.address() == &command.address)
-    {
-        if account.is_authenticated().await {
-            return CommandOutcome::AlreadyAuthenticated;
-        }
+async fn try_authenticate(account: &mut LocalAccount) -> CommandOutcome {
+    if account.is_authenticated().await {
+        return CommandOutcome::AlreadyAuthenticated;
+    }
 
-        tracing::info!("authenticate account {}", account.address(),);
-        let mut attempts = 0;
-        loop {
-            if attempts == 3 {
-                tracing::warn!("authentication aborted, too many attempts");
-                return CommandOutcome::Exhausted;
-            }
-            if let Ok(password) = read_password(None) {
-                attempts += 1;
-                let key: AccessKey = password.into();
-                if let Ok(_) = account.sign_in(&key).await {
-                    return CommandOutcome::Success;
-                } else {
-                    tracing::warn!("incorrect password");
-                    continue;
-                }
-            } else {
-                return CommandOutcome::InputError;
-            }
+    tracing::info!("authenticate account {}", account.address(),);
+    let mut attempts = 0;
+    loop {
+        if attempts == 3 {
+            tracing::warn!("authentication aborted, too many attempts");
+            return CommandOutcome::Exhausted;
         }
-    } else {
-        CommandOutcome::NotFound
+        if let Ok(password) = read_password(None) {
+            attempts += 1;
+            let key: AccessKey = password.into();
+            if let Ok(_) = account.sign_in(&key).await {
+                return CommandOutcome::Success;
+            } else {
+                tracing::warn!("incorrect password");
+                continue;
+            }
+        } else {
+            return CommandOutcome::InputError;
+        }
     }
 }

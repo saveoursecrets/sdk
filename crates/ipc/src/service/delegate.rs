@@ -10,21 +10,42 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot, RwLock};
 
 /// Service delegate for local accounts.
-pub type LocalAccountServiceDelegate = ServiceDelegate<
+pub type LocalAccountServiceDelegate = mpsc::Sender<
+    Command<
+        <LocalAccount as Account>::Error,
+        <LocalAccount as Account>::NetworkResult,
+        LocalAccount,
+    >,
+>;
+
+/// Service delegate for network-enabled accounts.
+pub type NetworkAccountServiceDelegate = mpsc::Sender<
+    Command<
+        <NetworkAccount as Account>::Error,
+        <NetworkAccount as Account>::NetworkResult,
+        NetworkAccount,
+    >,
+>;
+
+/// Command for local accounts.
+pub type LocalAccountCommand = Command<
     <LocalAccount as Account>::Error,
     <LocalAccount as Account>::NetworkResult,
     LocalAccount,
 >;
 
-/// Service delegate for network-enabled accounts.
-pub type NetworkAccountServiceDelegate = ServiceDelegate<
+/// Command for network-enabled accounts.
+pub type NetworkAccountCommand = Command<
     <NetworkAccount as Account>::Error,
     <NetworkAccount as Account>::NetworkResult,
     NetworkAccount,
 >;
 
-/// Command to authenticate an account.
-pub struct AuthenticateCommand<E, R, A>
+/// Command sent to delegates.
+///
+/// When a delegate receives a command it MUST reply
+/// on the `result` channel in the command options.
+pub struct Command<E, R, A>
 where
     E: std::fmt::Debug
         + From<sos_net::sdk::Error>
@@ -33,98 +54,70 @@ where
     R: 'static,
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
 {
-    /// Account address.
-    pub address: Address,
     /// Collection of accounts.
     pub accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
-    /// Result channel for the outcome.
-    pub result: oneshot::Sender<CommandOutcome>,
+    /// Options for the command.
+    pub options: CommandOptions,
 }
 
-/// Command to lock an account.
-pub struct LockCommand<E, R, A>
-where
-    E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-{
-    /// Account address.
-    pub address: Address,
-    /// Collection of accounts.
-    pub accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
-    /// Result channel for the outcome.
-    pub result: oneshot::Sender<CommandOutcome>,
+/// Options for a command.
+pub enum CommandOptions {
+    /// Options to authenticate an account.
+    Authenticate {
+        /// Account address.
+        address: Address,
+        /// Result channel for the outcome.
+        result: oneshot::Sender<CommandOutcome>,
+    },
+    /// Options to lock an account.
+    Lock {
+        /// Account address.
+        address: Address,
+        /// Result channel for the outcome.
+        result: oneshot::Sender<CommandOutcome>,
+    },
 }
 
-/// Collection of command receivers for service delegates.
-pub struct CommandDelegate<E, R, A>
-where
-    E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-{
-    /// Receiver for authenticate commands.
-    pub authenticate: mpsc::Receiver<AuthenticateCommand<E, R, A>>,
-
-    /// Receiver for lock commands.
-    pub lock: mpsc::Receiver<LockCommand<E, R, A>>,
+/// Create a delegate channel for local accounts.
+pub fn local_account_delegate(
+    buffer: usize,
+) -> (
+    mpsc::Sender<
+        Command<
+            <LocalAccount as Account>::Error,
+            <LocalAccount as Account>::NetworkResult,
+            LocalAccount,
+        >,
+    >,
+    mpsc::Receiver<
+        Command<
+            <LocalAccount as Account>::Error,
+            <LocalAccount as Account>::NetworkResult,
+            LocalAccount,
+        >,
+    >,
+) {
+    mpsc::channel(buffer)
 }
 
-/// Delegate for service requests.
-///
-/// Create a delegate by calling [NetworkAccountIpcService::new_delegate] or [LocalAccountIpcService::new_delegate].
-///
-/// When delegates receive a message on the authenticate channel
-/// they MUST reply on the [AuthenticateCommand::result] sender
-/// with an [CommandOutcome].
-pub struct ServiceDelegate<E, R, A>
-where
-    E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-{
-    pub(super) authenticate: mpsc::Sender<AuthenticateCommand<E, R, A>>,
-    pub(super) lock: mpsc::Sender<LockCommand<E, R, A>>,
-}
-
-impl<E, R, A> ServiceDelegate<E, R, A>
-where
-    E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-{
-    /// Create a new service delegate.
-    pub fn new(
-        buffer: usize,
-    ) -> (ServiceDelegate<E, R, A>, CommandDelegate<E, R, A>) {
-        let (authenticate_tx, authenticate_rx) =
-            mpsc::channel::<AuthenticateCommand<E, R, A>>(buffer);
-
-        let (lock_tx, lock_rx) =
-            mpsc::channel::<LockCommand<E, R, A>>(buffer);
-
-        let service = ServiceDelegate {
-            authenticate: authenticate_tx,
-            lock: lock_tx,
-        };
-
-        let command = CommandDelegate {
-            authenticate: authenticate_rx,
-            lock: lock_rx,
-        };
-
-        (service, command)
-    }
+/// Create a delegate channel for network-enabled accounts.
+pub fn network_account_delegate(
+    buffer: usize,
+) -> (
+    mpsc::Sender<
+        Command<
+            <NetworkAccount as Account>::Error,
+            <NetworkAccount as Account>::NetworkResult,
+            NetworkAccount,
+        >,
+    >,
+    mpsc::Receiver<
+        Command<
+            <NetworkAccount as Account>::Error,
+            <NetworkAccount as Account>::NetworkResult,
+            NetworkAccount,
+        >,
+    >,
+) {
+    mpsc::channel(buffer)
 }

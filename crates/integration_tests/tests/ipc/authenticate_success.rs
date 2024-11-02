@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sos_ipc::{
-    remove_socket_file, AppIntegration, CommandOutcome, Error,
-    LocalAccountIpcService, LocalAccountServiceDelegate,
+    local_account_delegate, remove_socket_file, AppIntegration, Command,
+    CommandOptions, CommandOutcome, Error, LocalAccountIpcService,
     LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{
@@ -67,18 +67,21 @@ async fn integration_ipc_authenticate_success() -> Result<()> {
     let assert_accounts = ipc_accounts.clone();
     let auth_key: AccessKey = unauth_password.into();
 
-    let (delegate, commands) = LocalAccountServiceDelegate::new(16);
-    let mut auth_rx = commands.authenticate;
+    let (delegate, mut commands) = local_account_delegate(16);
 
     tokio::task::spawn(async move {
-        while let Some(command) = auth_rx.recv().await {
-            let mut accounts = command.accounts.write().await;
-            let account = accounts
-                .iter_mut()
-                .find(|a| a.address() == &command.address)
-                .unwrap();
-            account.sign_in(&auth_key).await.unwrap();
-            command.result.send(CommandOutcome::Success).unwrap();
+        while let Some(command) = commands.recv().await {
+            let Command { accounts, options } = command;
+            if let CommandOptions::Authenticate { address, result } = options
+            {
+                let mut accounts = accounts.write().await;
+                let account = accounts
+                    .iter_mut()
+                    .find(|a| a.address() == &address)
+                    .unwrap();
+                account.sign_in(&auth_key).await.unwrap();
+                result.send(CommandOutcome::Success).unwrap();
+            }
         }
     });
 

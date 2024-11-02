@@ -41,7 +41,7 @@ pub struct IpcResponseError {
     pub message: String,
 }
 
-/// Outcome of an authentication request.
+/// Generic command outcome.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum CommandOutcome {
@@ -72,9 +72,7 @@ impl TryFrom<WireCommandOutcome> for CommandOutcome {
         let name = value.as_str_name();
         Ok(match name {
             "NotFound" => CommandOutcome::NotFound,
-            "AlreadyAuthenticated" => {
-                CommandOutcome::AlreadyAuthenticated
-            }
+            "AlreadyAuthenticated" => CommandOutcome::AlreadyAuthenticated,
             "NotAuthenticated" => CommandOutcome::NotAuthenticated,
             "Success" => CommandOutcome::Success,
             "Failed" => CommandOutcome::Failed,
@@ -98,8 +96,7 @@ impl From<CommandOutcome> for WireCommandOutcome {
                     .unwrap()
             }
             CommandOutcome::NotAuthenticated => {
-                WireCommandOutcome::from_str_name("NotAuthenticated")
-                    .unwrap()
+                WireCommandOutcome::from_str_name("NotAuthenticated").unwrap()
             }
             CommandOutcome::Success => {
                 WireCommandOutcome::from_str_name("Success").unwrap()
@@ -163,8 +160,7 @@ impl From<(u64, IpcResponse)> for WireIpcResponse {
                         WireIpcResponseBody {
                             inner: Some(
                                 wire_ipc_response_body::Inner::Authenticate(
-                                    WireCommandOutcome::from(outcome)
-                                        as i32,
+                                    WireCommandOutcome::from(outcome) as i32,
                                 ),
                             ),
                         },

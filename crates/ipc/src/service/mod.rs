@@ -8,7 +8,7 @@ use sos_net::{
     NetworkAccount,
 };
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{mpsc, RwLock};
 
 mod delegate;
 pub use delegate::*;
@@ -22,20 +22,6 @@ pub type LocalAccountIpcService = IpcServiceHandler<
 
 /// IPC service for network-enabled accounts.
 pub type NetworkAccountIpcService = IpcServiceHandler<
-    <NetworkAccount as Account>::Error,
-    <NetworkAccount as Account>::NetworkResult,
-    NetworkAccount,
->;
-
-/// Authenticate command for local accounts.
-pub type LocalAccountAuthenticateCommand = AuthenticateCommand<
-    <LocalAccount as Account>::Error,
-    <LocalAccount as Account>::NetworkResult,
-    LocalAccount,
->;
-
-/// Authenticate command for network-enabled accounts.
-pub type NetworkAccountAuthenticateCommand = AuthenticateCommand<
     <NetworkAccount as Account>::Error,
     <NetworkAccount as Account>::NetworkResult,
     NetworkAccount,
@@ -66,7 +52,7 @@ where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
 {
     accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
-    delegate: ServiceDelegate<E, R, A>,
+    delegate: mpsc::Sender<Command<E, R, A>>,
 }
 
 impl<E, R, A> IpcServiceHandler<E, R, A>
@@ -81,7 +67,7 @@ where
     /// Create a new service handler.
     pub fn new(
         accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
-        delegate: ServiceDelegate<E, R, A>,
+        delegate: mpsc::Sender<Command<E, R, A>>,
     ) -> Self {
         Self { accounts, delegate }
     }
@@ -127,13 +113,12 @@ where
                 Ok(IpcResponse::Body(IpcResponseBody::Accounts(data)))
             }
             IpcRequest::Authenticate { address } => {
-                let (result_tx, result_rx) = tokio::sync::oneshot::channel();
-                let command = AuthenticateCommand {
-                    address,
+                let (result, result_rx) = tokio::sync::oneshot::channel();
+                let command = Command {
                     accounts: self.accounts.clone(),
-                    result: result_tx,
+                    options: CommandOptions::Authenticate { address, result },
                 };
-                match self.delegate.authenticate.send(command).await {
+                match self.delegate.send(command).await {
                     Ok(_) => match result_rx.await {
                         Ok(outcome) => Ok(IpcResponse::Body(
                             IpcResponseBody::Authenticate(outcome),
@@ -144,13 +129,12 @@ where
                 }
             }
             IpcRequest::Lock { address } => {
-                let (result_tx, result_rx) = tokio::sync::oneshot::channel();
-                let command = LockCommand {
-                    address,
+                let (result, result_rx) = tokio::sync::oneshot::channel();
+                let command = Command {
                     accounts: self.accounts.clone(),
-                    result: result_tx,
+                    options: CommandOptions::Lock { address, result },
                 };
-                match self.delegate.lock.send(command).await {
+                match self.delegate.send(command).await {
                     Ok(_) => match result_rx.await {
                         Ok(outcome) => Ok(IpcResponse::Body(
                             IpcResponseBody::Lock(outcome),

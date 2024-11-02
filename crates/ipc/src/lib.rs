@@ -30,10 +30,11 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 pub use bindings::*;
 pub use service::{
-    AuthenticateCommand, IpcService, IpcServiceHandler,
-    LocalAccountAuthenticateCommand, LocalAccountIpcService,
-    LocalAccountServiceDelegate, NetworkAccountAuthenticateCommand,
-    NetworkAccountIpcService, NetworkAccountServiceDelegate, ServiceDelegate,
+    local_account_delegate, network_account_delegate, Command,
+    CommandOptions, IpcService, IpcServiceHandler, LocalAccountCommand,
+    LocalAccountIpcService, LocalAccountServiceDelegate,
+    NetworkAccountCommand, NetworkAccountIpcService,
+    NetworkAccountServiceDelegate,
 };
 
 #[cfg(feature = "tcp")]

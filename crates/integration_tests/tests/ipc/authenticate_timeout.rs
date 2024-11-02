@@ -1,8 +1,8 @@
 use anyhow::Result;
 use sos_ipc::{
-    remove_socket_file, AppIntegration, Error, IpcResponseError,
-    LocalAccountIpcService, LocalAccountServiceDelegate,
-    LocalAccountSocketServer, SocketClient,
+    local_account_delegate, remove_socket_file, AppIntegration, Error,
+    IpcResponseError, LocalAccountIpcService, LocalAccountSocketServer,
+    SocketClient,
 };
 use sos_net::sdk::{
     crypto::AccessKey,
@@ -65,11 +65,10 @@ async fn integration_ipc_authenticate_timeout() -> Result<()> {
 
     let ipc_accounts = Arc::new(RwLock::new(accounts));
 
-    let (delegate, commands) = LocalAccountServiceDelegate::new(16);
-    let mut auth_rx = commands.authenticate;
+    let (delegate, mut commands) = local_account_delegate(16);
 
     tokio::task::spawn(async move {
-        while let Some(_command) = auth_rx.recv().await {
+        while let Some(_command) = commands.recv().await {
             // Must wait longer than the timeout (5s) otherwise
             // the returned error will be "channel closed"
             // when the command.result is dropped

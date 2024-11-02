@@ -1,8 +1,7 @@
 use anyhow::Result;
 use sos_ipc::{
-    remove_socket_file, AppIntegration, Error, IpcRequest,
-    LocalAccountIpcService, LocalAccountServiceDelegate,
-    LocalAccountSocketServer, SocketClient,
+    local_account_delegate, remove_socket_file, AppIntegration, Error,
+    LocalAccountIpcService, LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{
     crypto::AccessKey,
@@ -23,11 +22,6 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     //
 
     let socket_name = format!("{}.sock", TEST_ID);
-
-    println!(
-        "{}",
-        serde_json::to_string(&IpcRequest::ListAccounts).unwrap()
-    );
 
     // Must clean up the tmp file on MacOS
     remove_socket_file(&socket_name);
@@ -70,7 +64,7 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     accounts.add_account(unauth_account);
 
     // Start the IPC service
-    let (delegate, _commands) = LocalAccountServiceDelegate::new(16);
+    let (delegate, _commands) = local_account_delegate(16);
     let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
         Arc::new(RwLock::new(accounts)),
         delegate,
