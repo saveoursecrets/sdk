@@ -60,9 +60,9 @@ message WireIpcResponseBody {
     // List accounts body.
     WireAccountList list_accounts = 1;
     // Authenticate body.
-    WireAuthenticateOutcome authenticate = 2;
+    WireCommandOutcome authenticate = 2;
     // Lock body.
-    WireAuthenticateOutcome lock = 3;
+    WireCommandOutcome lock = 3;
   }
 }
 
@@ -80,8 +80,8 @@ message WireAccountList {
   repeated WireAccountInfo accounts = 1;
 }
 
-// Outcome of an authentication request.
-enum WireAuthenticateOutcome {
+// Outcome of a delegated command.
+enum WireCommandOutcome {
   // Account not found.
   NotFound = 0;
   // Already authenticated.

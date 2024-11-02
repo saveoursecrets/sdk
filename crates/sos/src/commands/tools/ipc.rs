@@ -2,7 +2,7 @@ use crate::{helpers::readline::read_password, Result};
 use clap::Subcommand;
 use sos_ipc::{
     native_bridge::{self, NativeBridgeOptions},
-    remove_socket_file, AuthenticateOutcome, IpcRequest,
+    remove_socket_file, CommandOutcome, IpcRequest,
     LocalAccountAuthenticateCommand, LocalAccountIpcService,
     LocalAccountServiceDelegate, LocalAccountSocketServer, SocketClient,
 };
@@ -172,14 +172,14 @@ async fn authenticate(
 
 async fn try_authenticate(
     command: &mut LocalAccountAuthenticateCommand,
-) -> AuthenticateOutcome {
+) -> CommandOutcome {
     let mut accounts = command.accounts.write().await;
     if let Some(account) = accounts
         .iter_mut()
         .find(|a| a.address() == &command.address)
     {
         if account.is_authenticated().await {
-            return AuthenticateOutcome::AlreadyAuthenticated;
+            return CommandOutcome::AlreadyAuthenticated;
         }
 
         tracing::info!("authenticate account {}", account.address(),);
@@ -187,22 +187,22 @@ async fn try_authenticate(
         loop {
             if attempts == 3 {
                 tracing::warn!("authentication aborted, too many attempts");
-                return AuthenticateOutcome::Exhausted;
+                return CommandOutcome::Exhausted;
             }
             if let Ok(password) = read_password(None) {
                 attempts += 1;
                 let key: AccessKey = password.into();
                 if let Ok(_) = account.sign_in(&key).await {
-                    return AuthenticateOutcome::Success;
+                    return CommandOutcome::Success;
                 } else {
                     tracing::warn!("incorrect password");
                     continue;
                 }
             } else {
-                return AuthenticateOutcome::InputError;
+                return CommandOutcome::InputError;
             }
         }
     } else {
-        AuthenticateOutcome::NotFound
+        CommandOutcome::NotFound
     }
 }

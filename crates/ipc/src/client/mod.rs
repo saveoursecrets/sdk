@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 use crate::{
-    AccountsList, AppIntegration, AuthenticateOutcome, Error, IpcRequest,
+    AccountsList, AppIntegration, CommandOutcome, Error, IpcRequest,
     IpcResponse, IpcResponseBody, Result,
 };
 
@@ -41,7 +41,7 @@ macro_rules! app_integration_impl {
             async fn authenticate(
                 &mut self,
                 address: Address,
-            ) -> Result<AuthenticateOutcome> {
+            ) -> Result<CommandOutcome> {
                 let request = IpcRequest::Authenticate { address };
                 let response = self.send_request(request).await?;
                 match response {
@@ -56,7 +56,7 @@ macro_rules! app_integration_impl {
             async fn lock(
                 &mut self,
                 address: Address,
-            ) -> Result<AuthenticateOutcome> {
+            ) -> Result<CommandOutcome> {
                 let request = IpcRequest::Lock { address };
                 let response = self.send_request(request).await?;
                 match response {

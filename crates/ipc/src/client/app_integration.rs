@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use sos_net::sdk::prelude::{Address, PublicIdentity};
 
-use crate::AuthenticateOutcome;
+use crate::CommandOutcome;
 
 /// List of accounts with authenticated status flag.
 pub type AccountsList = Vec<(PublicIdentity, bool)>;
@@ -19,11 +19,11 @@ pub trait AppIntegration<E: From<sos_net::sdk::Error>> {
     async fn authenticate(
         &mut self,
         address: Address,
-    ) -> Result<AuthenticateOutcome, E>;
+    ) -> Result<CommandOutcome, E>;
 
     /// Attempt to lock an account.
     async fn lock(
         &mut self,
         address: Address,
-    ) -> Result<AuthenticateOutcome, E>;
+    ) -> Result<CommandOutcome, E>;
 }

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use sos_net::sdk::prelude::PublicIdentity;
 
 use super::{
-    wire_ipc_response, WireAuthenticateOutcome, WireIpcResponseError,
+    wire_ipc_response, WireCommandOutcome, WireIpcResponseError,
     WirePublicIdentity,
 };
 use crate::{
@@ -27,9 +27,9 @@ pub enum IpcResponseBody {
     /// List of accounts.
     Accounts(AccountsList),
     /// Authenticate response.
-    Authenticate(AuthenticateOutcome),
+    Authenticate(CommandOutcome),
     /// Lock response.
-    Lock(AuthenticateOutcome),
+    Lock(CommandOutcome),
 }
 
 /// IPC response error.
@@ -44,7 +44,7 @@ pub struct IpcResponseError {
 /// Outcome of an authentication request.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub enum AuthenticateOutcome {
+pub enum CommandOutcome {
     /// Account not found.
     NotFound,
     /// Already authenticated.
@@ -65,59 +65,59 @@ pub enum AuthenticateOutcome {
     InputError,
 }
 
-impl TryFrom<WireAuthenticateOutcome> for AuthenticateOutcome {
+impl TryFrom<WireCommandOutcome> for CommandOutcome {
     type Error = Error;
 
-    fn try_from(value: WireAuthenticateOutcome) -> Result<Self> {
+    fn try_from(value: WireCommandOutcome) -> Result<Self> {
         let name = value.as_str_name();
         Ok(match name {
-            "NotFound" => AuthenticateOutcome::NotFound,
+            "NotFound" => CommandOutcome::NotFound,
             "AlreadyAuthenticated" => {
-                AuthenticateOutcome::AlreadyAuthenticated
+                CommandOutcome::AlreadyAuthenticated
             }
-            "NotAuthenticated" => AuthenticateOutcome::NotAuthenticated,
-            "Success" => AuthenticateOutcome::Success,
-            "Failed" => AuthenticateOutcome::Failed,
-            "Canceled" => AuthenticateOutcome::Canceled,
-            "TimedOut" => AuthenticateOutcome::TimedOut,
-            "Exhausted" => AuthenticateOutcome::Exhausted,
-            "InputError" => AuthenticateOutcome::InputError,
+            "NotAuthenticated" => CommandOutcome::NotAuthenticated,
+            "Success" => CommandOutcome::Success,
+            "Failed" => CommandOutcome::Failed,
+            "Canceled" => CommandOutcome::Canceled,
+            "TimedOut" => CommandOutcome::TimedOut,
+            "Exhausted" => CommandOutcome::Exhausted,
+            "InputError" => CommandOutcome::InputError,
             _ => unreachable!(),
         })
     }
 }
 
-impl From<AuthenticateOutcome> for WireAuthenticateOutcome {
-    fn from(value: AuthenticateOutcome) -> Self {
+impl From<CommandOutcome> for WireCommandOutcome {
+    fn from(value: CommandOutcome) -> Self {
         match value {
-            AuthenticateOutcome::NotFound => {
-                WireAuthenticateOutcome::from_str_name("NotFound").unwrap()
+            CommandOutcome::NotFound => {
+                WireCommandOutcome::from_str_name("NotFound").unwrap()
             }
-            AuthenticateOutcome::AlreadyAuthenticated => {
-                WireAuthenticateOutcome::from_str_name("AlreadyAuthenticated")
+            CommandOutcome::AlreadyAuthenticated => {
+                WireCommandOutcome::from_str_name("AlreadyAuthenticated")
                     .unwrap()
             }
-            AuthenticateOutcome::NotAuthenticated => {
-                WireAuthenticateOutcome::from_str_name("NotAuthenticated")
+            CommandOutcome::NotAuthenticated => {
+                WireCommandOutcome::from_str_name("NotAuthenticated")
                     .unwrap()
             }
-            AuthenticateOutcome::Success => {
-                WireAuthenticateOutcome::from_str_name("Success").unwrap()
+            CommandOutcome::Success => {
+                WireCommandOutcome::from_str_name("Success").unwrap()
             }
-            AuthenticateOutcome::Failed => {
-                WireAuthenticateOutcome::from_str_name("Failed").unwrap()
+            CommandOutcome::Failed => {
+                WireCommandOutcome::from_str_name("Failed").unwrap()
             }
-            AuthenticateOutcome::Canceled => {
-                WireAuthenticateOutcome::from_str_name("Canceled").unwrap()
+            CommandOutcome::Canceled => {
+                WireCommandOutcome::from_str_name("Canceled").unwrap()
             }
-            AuthenticateOutcome::TimedOut => {
-                WireAuthenticateOutcome::from_str_name("TimedOut").unwrap()
+            CommandOutcome::TimedOut => {
+                WireCommandOutcome::from_str_name("TimedOut").unwrap()
             }
-            AuthenticateOutcome::Exhausted => {
-                WireAuthenticateOutcome::from_str_name("Exhausted").unwrap()
+            CommandOutcome::Exhausted => {
+                WireCommandOutcome::from_str_name("Exhausted").unwrap()
             }
-            AuthenticateOutcome::InputError => {
-                WireAuthenticateOutcome::from_str_name("InputError").unwrap()
+            CommandOutcome::InputError => {
+                WireCommandOutcome::from_str_name("InputError").unwrap()
             }
         }
     }
@@ -163,7 +163,7 @@ impl From<(u64, IpcResponse)> for WireIpcResponse {
                         WireIpcResponseBody {
                             inner: Some(
                                 wire_ipc_response_body::Inner::Authenticate(
-                                    WireAuthenticateOutcome::from(outcome)
+                                    WireCommandOutcome::from(outcome)
                                         as i32,
                                 ),
                             ),
@@ -175,7 +175,7 @@ impl From<(u64, IpcResponse)> for WireIpcResponse {
                     result: Some(wire_ipc_response::Result::Body(
                         WireIpcResponseBody {
                             inner: Some(wire_ipc_response_body::Inner::Lock(
-                                WireAuthenticateOutcome::from(outcome) as i32,
+                                WireCommandOutcome::from(outcome) as i32,
                             )),
                         },
                     )),
@@ -227,7 +227,7 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
                     Some(wire_ipc_response_body::Inner::Authenticate(
                         outcome,
                     )) => {
-                        let outcome: WireAuthenticateOutcome =
+                        let outcome: WireCommandOutcome =
                             outcome.try_into()?;
                         (
                             message_id,
@@ -237,7 +237,7 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
                         )
                     }
                     Some(wire_ipc_response_body::Inner::Lock(outcome)) => {
-                        let outcome: WireAuthenticateOutcome =
+                        let outcome: WireCommandOutcome =
                             outcome.try_into()?;
                         (
                             message_id,

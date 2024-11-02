@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sos_ipc::{
-    remove_socket_file, AppIntegration, AuthenticateOutcome, Error,
+    remove_socket_file, AppIntegration, CommandOutcome, Error,
     LocalAccountIpcService, LocalAccountServiceDelegate,
     LocalAccountSocketServer, SocketClient,
 };
@@ -66,9 +66,9 @@ async fn integration_ipc_lock_account() -> Result<()> {
                 .find(|a| a.address() == &command.address)
             {
                 account.sign_out().await.unwrap();
-                command.result.send(AuthenticateOutcome::Success).unwrap();
+                command.result.send(CommandOutcome::Success).unwrap();
             } else {
-                command.result.send(AuthenticateOutcome::NotFound).unwrap();
+                command.result.send(CommandOutcome::NotFound).unwrap();
             }
         }
     });
@@ -90,7 +90,7 @@ async fn integration_ipc_lock_account() -> Result<()> {
 
     let mut client = SocketClient::connect(&socket_name).await?;
     let outcome = client.lock(auth_address).await?;
-    assert_eq!(AuthenticateOutcome::Success, outcome);
+    assert_eq!(CommandOutcome::Success, outcome);
 
     /*
     let accounts = assert_accounts.write().await;

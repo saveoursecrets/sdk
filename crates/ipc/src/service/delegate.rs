@@ -1,4 +1,4 @@
-use crate::AuthenticateOutcome;
+use crate::CommandOutcome;
 use sos_net::{
     sdk::{
         account::Account,
@@ -38,7 +38,7 @@ where
     /// Collection of accounts.
     pub accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
     /// Result channel for the outcome.
-    pub result: oneshot::Sender<AuthenticateOutcome>,
+    pub result: oneshot::Sender<CommandOutcome>,
 }
 
 /// Command to lock an account.
@@ -56,7 +56,7 @@ where
     /// Collection of accounts.
     pub accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
     /// Result channel for the outcome.
-    pub result: oneshot::Sender<AuthenticateOutcome>,
+    pub result: oneshot::Sender<CommandOutcome>,
 }
 
 /// Collection of command receivers for service delegates.
@@ -82,7 +82,7 @@ where
 ///
 /// When delegates receive a message on the authenticate channel
 /// they MUST reply on the [AuthenticateCommand::result] sender
-/// with an [AuthenticateOutcome].
+/// with an [CommandOutcome].
 pub struct ServiceDelegate<E, R, A>
 where
     E: std::fmt::Debug
