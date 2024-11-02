@@ -1,17 +1,17 @@
-use crate::{
-    io_err, AccountsList, AuthenticateOutcome, IpcRequest, IpcResponse,
-    IpcResponseBody,
-};
+use crate::{io_err, AccountsList, IpcRequest, IpcResponse, IpcResponseBody};
 use async_trait::async_trait;
 use sos_net::{
     sdk::{
         account::{Account, AccountSwitcher, LocalAccount},
-        prelude::{Address, Identity},
+        prelude::Identity,
     },
     NetworkAccount,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
+
+mod delegate;
+pub use delegate::*;
 
 /// IPC service for local accounts.
 pub type LocalAccountIpcService = IpcServiceHandler<
@@ -41,28 +41,6 @@ pub type NetworkAccountAuthenticateCommand = AuthenticateCommand<
     NetworkAccount,
 >;
 
-/// Command to authenticate an account.
-pub struct AuthenticateCommand<E, R, A>
-where
-    E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-{
-    /// Account address.
-    pub address: Address,
-    /// Collection of accounts.
-    pub accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
-    /// Result channel for the outcome.
-    pub result: tokio::sync::oneshot::Sender<AuthenticateOutcome>,
-}
-
-/// Handler for authenticate requests.
-pub type AuthenticateHandler<E, R, A> =
-    tokio::sync::mpsc::Sender<AuthenticateCommand<E, R, A>>;
-
 /// Service handler called by servers.
 ///
 /// Some requests are delegated to a service delegate as they
@@ -75,25 +53,6 @@ pub trait IpcService<E> {
         &self,
         request: IpcRequest,
     ) -> std::result::Result<IpcResponse, E>;
-}
-
-/// Delegate for service requests.
-///
-/// Create a delegate by calling [NetworkAccountIpcService::new_delegate] or [LocalAccountIpcService::new_delegate].
-///
-/// When delegates receive a message on the authenticate channel
-/// they MUST reply on the [AuthenticateCommand::result] sender
-/// with an [AuthenticateOutcome].
-pub struct ServiceDelegate<E, R, A>
-where
-    E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-{
-    authenticate: AuthenticateHandler<E, R, A>,
 }
 
 /// Handler for IPC requests.
@@ -125,13 +84,6 @@ where
         delegate: ServiceDelegate<E, R, A>,
     ) -> Self {
         Self { accounts, delegate }
-    }
-
-    /// Create a new serice delegate.
-    pub fn new_delegate(
-        authenticate: AuthenticateHandler<E, R, A>,
-    ) -> ServiceDelegate<E, R, A> {
-        return ServiceDelegate { authenticate };
     }
 
     async fn list_accounts(&self) -> std::result::Result<AccountsList, E> {

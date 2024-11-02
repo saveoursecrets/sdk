@@ -4,7 +4,7 @@
 //! Used to support the native messaging API provided
 //! by browser extensions.
 
-use crate::{IpcRequest, IpcResponse, Result, SocketClient};
+use crate::{Error, IpcRequest, IpcResponse, Result, SocketClient};
 use futures_util::{SinkExt, StreamExt};
 use sos_net::sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME};
 use tokio_util::codec::LengthDelimitedCodec;
@@ -54,20 +54,23 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
     let mut client = SocketClient::connect(&socket_name).await?;
 
     while let Some(Ok(buffer)) = stdin.next().await {
-        let request: IpcRequest = match serde_json::from_slice(&buffer) {
-            Ok(value) => value,
-            Err(e) => {
-                tracing::error!("Error parsing JSON: {}", e);
-                continue;
+        let response = match serde_json::from_slice(&buffer) {
+            Ok(request) => {
+                tracing::debug!(
+                    request = ?request,
+                    "sos_native_bridge::request",
+                );
+                match client.send_request(request).await {
+                    Ok(response) => response,
+                    Err(e) => IpcResponse::Error(
+                        Error::NativeBridgeClientProxy(e.to_string()).into(),
+                    ),
+                }
             }
+            Err(e) => IpcResponse::Error(
+                Error::NativeBridgeJsonParse(e.to_string()).into(),
+            ),
         };
-
-        tracing::debug!(
-            request = ?request,
-            "sos_native_bridge::request",
-        );
-
-        let response = client.send_request(request).await?;
 
         tracing::debug!(
             response = ?response,

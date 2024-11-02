@@ -32,8 +32,8 @@ pub use bindings::*;
 pub use service::{
     AuthenticateCommand, IpcService, IpcServiceHandler,
     LocalAccountAuthenticateCommand, LocalAccountIpcService,
-    NetworkAccountAuthenticateCommand, NetworkAccountIpcService,
-    ServiceDelegate,
+    LocalAccountServiceDelegate, NetworkAccountAuthenticateCommand,
+    NetworkAccountIpcService, NetworkAccountServiceDelegate, ServiceDelegate,
 };
 
 #[cfg(feature = "tcp")]

@@ -4,7 +4,7 @@ use sos_ipc::{
     native_bridge::{self, NativeBridgeOptions},
     remove_socket_file, AuthenticateOutcome, IpcRequest,
     LocalAccountAuthenticateCommand, LocalAccountIpcService,
-    LocalAccountSocketServer, SocketClient,
+    LocalAccountServiceDelegate, LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{
     crypto::AccessKey,
@@ -90,13 +90,12 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .await?;
                 accounts.add_account(account);
             }
-            let (auth_tx, auth_rx) = tokio::sync::mpsc::channel::<
-                LocalAccountAuthenticateCommand,
-            >(16);
+
+            let (delegate, commands) = LocalAccountServiceDelegate::new(16);
+            let auth_rx = commands.authenticate;
 
             tokio::task::spawn(async move { authenticate(auth_rx).await });
 
-            let delegate = LocalAccountIpcService::new_delegate(auth_tx);
             let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
                 Arc::new(RwLock::new(accounts)),
                 delegate,
