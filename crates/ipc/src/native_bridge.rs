@@ -4,7 +4,7 @@
 //! Used to support the native messaging API provided
 //! by browser extensions.
 
-use crate::{Error, IpcRequest, IpcResponse, Result, SocketClient};
+use crate::{Error, IpcResponse, Result, SocketClient};
 use futures_util::{SinkExt, StreamExt};
 use sos_net::sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME};
 use tokio_util::codec::LengthDelimitedCodec;
@@ -89,7 +89,7 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
 pub async fn send<C, I, S>(
     command: C,
     arguments: I,
-    request: &IpcRequest,
+    request: &crate::IpcRequest,
 ) -> Result<IpcResponse>
 where
     C: AsRef<std::ffi::OsStr>,

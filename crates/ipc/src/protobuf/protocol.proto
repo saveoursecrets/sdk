@@ -19,6 +19,9 @@ message WireIpcRequestBody {
 
     // Request to authenticate to an account.
     WireAuthenticateBody authenticate  = 2;
+
+    // Request to lock an account.
+    WireLockBody lock  = 3;
   }
 }
 
@@ -27,6 +30,12 @@ message WireVoidBody {}
 
 // Authenticate request body.
 message WireAuthenticateBody {
+  // Account address.
+  string address = 1;
+}
+
+// Lock request body.
+message WireLockBody {
   // Account address.
   string address = 1;
 }
@@ -52,6 +61,8 @@ message WireIpcResponseBody {
     WireAccountList list_accounts = 1;
     // Authenticate body.
     WireAuthenticateOutcome authenticate = 2;
+    // Lock body.
+    WireAuthenticateOutcome lock = 3;
   }
 }
 
@@ -75,18 +86,20 @@ enum WireAuthenticateOutcome {
   NotFound = 0;
   // Already authenticated.
   AlreadyAuthenticated = 1;
+  // Not authenticated.
+  NotAuthenticated = 2;
   // Authentication success.
-  Success = 2;
+  Success = 3;
   // Authentication failed.
-  Failed = 3;
+  Failed = 4;
   // User canceled.
-  Canceled = 4;
+  Canceled = 5;
   // Timed out waiting for user input.
-  TimedOut = 5;
-  // Too many authentication attempts.
-  Exhausted = 6;
+  TimedOut = 6;
+  // Too many attempts.
+  Exhausted = 7;
   // Error getting user input.
-  InputError = 7;
+  InputError = 8;
 }
 
 // Information about an account.

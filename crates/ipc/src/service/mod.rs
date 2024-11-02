@@ -143,6 +143,23 @@ where
                     Err(err) => Err(io_err(err).into()),
                 }
             }
+            IpcRequest::Lock { address } => {
+                let (result_tx, result_rx) = tokio::sync::oneshot::channel();
+                let command = LockCommand {
+                    address,
+                    accounts: self.accounts.clone(),
+                    result: result_tx,
+                };
+                match self.delegate.lock.send(command).await {
+                    Ok(_) => match result_rx.await {
+                        Ok(outcome) => Ok(IpcResponse::Body(
+                            IpcResponseBody::Lock(outcome),
+                        )),
+                        Err(err) => Err(io_err(err).into()),
+                    },
+                    Err(err) => Err(io_err(err).into()),
+                }
+            }
         }
     }
 }

@@ -52,6 +52,21 @@ macro_rules! app_integration_impl {
                     _ => Err(Error::ResponseType),
                 }
             }
+
+            async fn lock(
+                &mut self,
+                address: Address,
+            ) -> Result<AuthenticateOutcome> {
+                let request = IpcRequest::Lock { address };
+                let response = self.send_request(request).await?;
+                match response {
+                    IpcResponse::Error(err) => Err(Error::ResponseError(err)),
+                    IpcResponse::Body(IpcResponseBody::Lock(outcome)) => {
+                        Ok(outcome)
+                    }
+                    _ => Err(Error::ResponseType),
+                }
+            }
         }
     };
 }

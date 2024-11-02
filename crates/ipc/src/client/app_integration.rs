@@ -20,4 +20,10 @@ pub trait AppIntegration<E: From<sos_net::sdk::Error>> {
         &mut self,
         address: Address,
     ) -> Result<AuthenticateOutcome, E>;
+
+    /// Attempt to lock an account.
+    async fn lock(
+        &mut self,
+        address: Address,
+    ) -> Result<AuthenticateOutcome, E>;
 }

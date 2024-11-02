@@ -28,6 +28,8 @@ pub enum IpcResponseBody {
     Accounts(AccountsList),
     /// Authenticate response.
     Authenticate(AuthenticateOutcome),
+    /// Lock response.
+    Lock(AuthenticateOutcome),
 }
 
 /// IPC response error.
@@ -41,11 +43,14 @@ pub struct IpcResponseError {
 
 /// Outcome of an authentication request.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub enum AuthenticateOutcome {
     /// Account not found.
     NotFound,
     /// Already authenticated.
     AlreadyAuthenticated,
+    /// Not authenticated.
+    NotAuthenticated,
     /// Account was authenticated.
     Success,
     /// Authentication failed.
@@ -70,6 +75,7 @@ impl TryFrom<WireAuthenticateOutcome> for AuthenticateOutcome {
             "AlreadyAuthenticated" => {
                 AuthenticateOutcome::AlreadyAuthenticated
             }
+            "NotAuthenticated" => AuthenticateOutcome::NotAuthenticated,
             "Success" => AuthenticateOutcome::Success,
             "Failed" => AuthenticateOutcome::Failed,
             "Canceled" => AuthenticateOutcome::Canceled,
@@ -89,6 +95,10 @@ impl From<AuthenticateOutcome> for WireAuthenticateOutcome {
             }
             AuthenticateOutcome::AlreadyAuthenticated => {
                 WireAuthenticateOutcome::from_str_name("AlreadyAuthenticated")
+                    .unwrap()
+            }
+            AuthenticateOutcome::NotAuthenticated => {
+                WireAuthenticateOutcome::from_str_name("NotAuthenticated")
                     .unwrap()
             }
             AuthenticateOutcome::Success => {
@@ -160,6 +170,16 @@ impl From<(u64, IpcResponse)> for WireIpcResponse {
                         },
                     )),
                 },
+                IpcResponseBody::Lock(outcome) => Self {
+                    message_id,
+                    result: Some(wire_ipc_response::Result::Body(
+                        WireIpcResponseBody {
+                            inner: Some(wire_ipc_response_body::Inner::Lock(
+                                WireAuthenticateOutcome::from(outcome) as i32,
+                            )),
+                        },
+                    )),
+                },
             },
             IpcResponse::Error(err) => Self {
                 message_id,
@@ -212,6 +232,16 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
                         (
                             message_id,
                             IpcResponse::Body(IpcResponseBody::Authenticate(
+                                outcome.try_into()?,
+                            )),
+                        )
+                    }
+                    Some(wire_ipc_response_body::Inner::Lock(outcome)) => {
+                        let outcome: WireAuthenticateOutcome =
+                            outcome.try_into()?;
+                        (
+                            message_id,
+                            IpcResponse::Body(IpcResponseBody::Lock(
                                 outcome.try_into()?,
                             )),
                         )

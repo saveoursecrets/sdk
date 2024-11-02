@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use sos_net::sdk::prelude::Address;
 use tokio::time::Duration;
 
-use super::WireAuthenticateBody;
+use super::{WireAuthenticateBody, WireLockBody};
 
 /// IPC request information.
 #[derive(Debug, Serialize, Deserialize)]
@@ -16,6 +16,11 @@ pub enum IpcRequest {
     ListAccounts,
     /// Request authentication for an account.
     Authenticate {
+        /// Account address.
+        address: Address,
+    },
+    /// Request to lock an account.
+    Lock {
         /// Account address.
         address: Address,
     },
@@ -56,6 +61,16 @@ impl From<(u64, IpcRequest)> for WireIpcRequest {
                     )),
                 }),
             },
+            IpcRequest::Lock { address } => WireIpcRequest {
+                message_id,
+                body: Some(WireIpcRequestBody {
+                    inner: Some(wire_ipc_request_body::Inner::Lock(
+                        WireLockBody {
+                            address: address.to_string(),
+                        },
+                    )),
+                }),
+            },
         }
     }
 }
@@ -73,6 +88,10 @@ impl TryFrom<WireIpcRequest> for (u64, IpcRequest) {
             Some(wire_ipc_request_body::Inner::Authenticate(body)) => {
                 let address: Address = body.address.parse()?;
                 (message_id, IpcRequest::Authenticate { address })
+            }
+            Some(wire_ipc_request_body::Inner::Lock(body)) => {
+                let address: Address = body.address.parse()?;
+                (message_id, IpcRequest::Lock { address })
             }
             _ => return Err(Error::DecodeRequest),
         })

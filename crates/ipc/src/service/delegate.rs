@@ -41,9 +41,23 @@ where
     pub result: oneshot::Sender<AuthenticateOutcome>,
 }
 
-/// Handler for authenticate requests.
-pub type AuthenticateHandler<E, R, A> =
-    mpsc::Sender<AuthenticateCommand<E, R, A>>;
+/// Command to lock an account.
+pub struct LockCommand<E, R, A>
+where
+    E: std::fmt::Debug
+        + From<sos_net::sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+    R: 'static,
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+{
+    /// Account address.
+    pub address: Address,
+    /// Collection of accounts.
+    pub accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
+    /// Result channel for the outcome.
+    pub result: oneshot::Sender<AuthenticateOutcome>,
+}
 
 /// Collection of command receivers for service delegates.
 pub struct CommandDelegate<E, R, A>
@@ -57,6 +71,9 @@ where
 {
     /// Receiver for authenticate commands.
     pub authenticate: mpsc::Receiver<AuthenticateCommand<E, R, A>>,
+
+    /// Receiver for lock commands.
+    pub lock: mpsc::Receiver<LockCommand<E, R, A>>,
 }
 
 /// Delegate for service requests.
@@ -75,7 +92,8 @@ where
     R: 'static,
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
 {
-    pub(super) authenticate: AuthenticateHandler<E, R, A>,
+    pub(super) authenticate: mpsc::Sender<AuthenticateCommand<E, R, A>>,
+    pub(super) lock: mpsc::Sender<LockCommand<E, R, A>>,
 }
 
 impl<E, R, A> ServiceDelegate<E, R, A>
@@ -94,12 +112,17 @@ where
         let (authenticate_tx, authenticate_rx) =
             mpsc::channel::<AuthenticateCommand<E, R, A>>(buffer);
 
+        let (lock_tx, lock_rx) =
+            mpsc::channel::<LockCommand<E, R, A>>(buffer);
+
         let service = ServiceDelegate {
             authenticate: authenticate_tx,
+            lock: lock_tx,
         };
 
         let command = CommandDelegate {
             authenticate: authenticate_rx,
+            lock: lock_rx,
         };
 
         (service, command)
