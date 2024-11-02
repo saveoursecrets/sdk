@@ -9,6 +9,20 @@ use futures_util::{SinkExt, StreamExt};
 use sos_net::sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME};
 use tokio_util::codec::LengthDelimitedCodec;
 
+/// Extension id used by the CLI.
+pub const CLI_EXTENSION_ID: &str = "com.saveoursecrets.sos";
+
+/// Extension id used by Chrome.
+pub const CHROME_EXTENSION_ID: &str =
+    "chrome-extension://fdgmkdbcpncojjipdjkaadcomcjcbhbi/";
+
+/// Extension id used by Firefox.
+pub const FIREFOX_EXTENSION_ID: &str =
+    "{86d5958d-dd72-47bc-8a7e-b62c3363752b}";
+
+const ALLOWED_EXTENSIONS: [&str; 3] =
+    [CLI_EXTENSION_ID, CHROME_EXTENSION_ID, FIREFOX_EXTENSION_ID];
+
 /// Options for a native bridge.
 #[derive(Debug, Default)]
 pub struct NativeBridgeOptions {
@@ -30,6 +44,10 @@ impl NativeBridgeOptions {
 
 /// Run a native bridge.
 pub async fn run(options: NativeBridgeOptions) -> Result<()> {
+    if !ALLOWED_EXTENSIONS.contains(&&options.extension_id[..]) {
+        return Err(Error::NativeBridgeDenied(options.extension_id));
+    }
+
     // Always send log messages to disc as the browser
     // extension reads from stdout
     let logger = Logger::new(None);

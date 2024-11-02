@@ -34,6 +34,11 @@ pub enum Error {
     #[error("service request timed out, exceeded duration {0:?}")]
     ServiceTimeout(Duration),
 
+    /// Error when the native bridge denies proxying due to an
+    /// invalid extension identifier.
+    #[error("permission denied: {0}")]
+    NativeBridgeDenied(String),
+
     /// Error when the native bridge fails to send a proxy
     /// request via the IPC client socket.
     #[error("native bridge failed to send IPC proxy request, reason: {0}")]
@@ -77,6 +82,7 @@ impl From<Error> for IpcResponseError {
     fn from(value: Error) -> Self {
         let code = match &value {
             Error::ServiceTimeout(_) => 504, // Gateway timeout
+            Error::NativeBridgeDenied(_) => 403, // Forbidden
             Error::NativeBridgeClientProxy(_) => 502, // Bad gateway
             Error::NativeBridgeJsonParse(_) => 400, // Bad request
             _ => -1,

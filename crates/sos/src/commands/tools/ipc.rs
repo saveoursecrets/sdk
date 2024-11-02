@@ -1,7 +1,7 @@
 use crate::{helpers::readline::read_password, Result};
 use clap::Subcommand;
 use sos_ipc::{
-    native_bridge::{self, NativeBridgeOptions},
+    native_bridge::{self, NativeBridgeOptions, CLI_EXTENSION_ID},
     remove_socket_file, CommandOutcome, IpcRequest,
     LocalAccountAuthenticateCommand, LocalAccountIpcService,
     LocalAccountServiceDelegate, LocalAccountSocketServer, SocketClient,
@@ -15,8 +15,6 @@ use sos_net::sdk::{
 };
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
-
-const CLI_EXTENSION_ID: &str = "com.saveoursecrets.sos";
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
