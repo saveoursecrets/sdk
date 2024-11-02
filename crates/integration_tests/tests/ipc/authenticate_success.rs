@@ -73,15 +73,12 @@ async fn integration_ipc_authenticate_success() -> Result<()> {
     tokio::task::spawn(async move {
         while let Some(command) = auth_rx.recv().await {
             let mut accounts = command.accounts.write().await;
-            if let Some(account) = accounts
+            let account = accounts
                 .iter_mut()
                 .find(|a| a.address() == &command.address)
-            {
-                account.sign_in(&auth_key).await.unwrap();
-                command.result.send(CommandOutcome::Success).unwrap();
-            } else {
-                command.result.send(CommandOutcome::NotFound).unwrap();
-            }
+                .unwrap();
+            account.sign_in(&auth_key).await.unwrap();
+            command.result.send(CommandOutcome::Success).unwrap();
         }
     });
 

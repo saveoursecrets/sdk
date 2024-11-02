@@ -61,15 +61,13 @@ async fn integration_ipc_lock_account() -> Result<()> {
     tokio::task::spawn(async move {
         while let Some(command) = lock_rx.recv().await {
             let mut accounts = command.accounts.write().await;
-            if let Some(account) = accounts
+
+            let account = accounts
                 .iter_mut()
                 .find(|a| a.address() == &command.address)
-            {
-                account.sign_out().await.unwrap();
-                command.result.send(CommandOutcome::Success).unwrap();
-            } else {
-                command.result.send(CommandOutcome::NotFound).unwrap();
-            }
+                .unwrap();
+            account.sign_out().await.unwrap();
+            command.result.send(CommandOutcome::Success).unwrap();
         }
     });
 
@@ -92,15 +90,10 @@ async fn integration_ipc_lock_account() -> Result<()> {
     let outcome = client.lock(auth_address).await?;
     assert_eq!(CommandOutcome::Success, outcome);
 
-    /*
     let accounts = assert_accounts.write().await;
     let mut it = accounts.iter();
-    let first_account = it.next().unwrap();
-    let second_account = it.next().unwrap();
-
-    assert!(first_account.is_authenticated().await);
-    assert!(second_account.is_authenticated().await);
-    */
+    let account = it.next().unwrap();
+    assert!(!account.is_authenticated().await);
 
     Ok(())
 }
