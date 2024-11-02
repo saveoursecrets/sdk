@@ -172,7 +172,7 @@ where
         match request {
             IpcRequest::ListAccounts => {
                 let data = self.list_accounts().await?;
-                Ok(IpcResponse::Body(IpcResponseBody::ListAccounts(data)))
+                Ok(IpcResponse::Body(IpcResponseBody::Accounts(data)))
             }
             IpcRequest::Authenticate { address } => {
                 let (result_tx, result_rx) = tokio::sync::oneshot::channel();

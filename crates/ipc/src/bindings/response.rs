@@ -12,6 +12,7 @@ use crate::{
 
 /// IPC response information.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum IpcResponse {
     /// Error response.
     Error(IpcResponseError),
@@ -21,9 +22,10 @@ pub enum IpcResponse {
 
 /// IPC response body.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum IpcResponseBody {
     /// List of accounts.
-    ListAccounts(AccountsList),
+    Accounts(AccountsList),
     /// Authenticate response.
     Authenticate(AuthenticateOutcome),
 }
@@ -117,7 +119,7 @@ impl From<(u64, IpcResponse)> for WireIpcResponse {
 
         match res {
             IpcResponse::Body(body) => match body {
-                IpcResponseBody::ListAccounts(data) => {
+                IpcResponseBody::Accounts(data) => {
                     let list = WireAccountList {
                         accounts: data
                             .into_iter()
@@ -197,7 +199,7 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
                         }
                         (
                             message_id,
-                            IpcResponse::Body(IpcResponseBody::ListAccounts(
+                            IpcResponse::Body(IpcResponseBody::Accounts(
                                 data,
                             )),
                         )

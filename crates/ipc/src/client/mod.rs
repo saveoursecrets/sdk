@@ -31,9 +31,9 @@ macro_rules! app_integration_impl {
                 let response = self.send_request(request).await?;
                 match response {
                     IpcResponse::Error(err) => Err(Error::ResponseError(err)),
-                    IpcResponse::Body(IpcResponseBody::ListAccounts(
-                        list,
-                    )) => Ok(list),
+                    IpcResponse::Body(IpcResponseBody::Accounts(list)) => {
+                        Ok(list)
+                    }
                     _ => Err(Error::ResponseType),
                 }
             }
@@ -60,7 +60,7 @@ macro_rules! app_integration_impl {
 macro_rules! client_impl {
     () => {
         /// Send a request.
-        pub(super) async fn send_request(
+        pub async fn send_request(
             &mut self,
             request: IpcRequest,
         ) -> Result<IpcResponse> {

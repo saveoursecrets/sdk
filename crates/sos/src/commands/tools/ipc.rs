@@ -2,7 +2,7 @@ use crate::{helpers::readline::read_password, Result};
 use clap::Subcommand;
 use sos_ipc::{
     native_bridge::{self, NativeBridgeOptions},
-    remove_socket_file, AppIntegration, AuthenticateOutcome,
+    remove_socket_file, AuthenticateOutcome, IpcRequest,
     LocalAccountAuthenticateCommand, LocalAccountIpcService,
     LocalAccountSocketServer, SocketClient,
 };
@@ -13,8 +13,10 @@ use sos_net::sdk::{
         IPC_CLI_SOCKET_NAME,
     },
 };
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
+
+const CLI_EXTENSION_ID: &str = "com.saveoursecrets.sos";
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -24,14 +26,23 @@ pub enum Command {
         #[clap(short, long)]
         socket: Option<String>,
     },
-    /// Send requests to an IPC server.
-    Client {
+    /// Send requests to an IPC server or bridge.
+    Send {
         /// Socket name.
         #[clap(short, long)]
         socket: Option<String>,
+
+        /// Path to to the native bridge command.
+        #[clap(short, long)]
+        command: Option<PathBuf>,
+
+        /// Native bridge arguments.
+        #[clap(short, long)]
+        arguments: Vec<String>,
+
         /// Request command.
         #[clap(subcommand)]
-        cmd: ClientCommand,
+        cmd: SendCommand,
     },
     /// Start a native bridge.
     #[clap(alias = "bridge")]
@@ -43,7 +54,7 @@ pub enum Command {
 }
 
 #[derive(Subcommand, Debug)]
-pub enum ClientCommand {
+pub enum SendCommand {
     /// List accounts request.
     ListAccounts,
     /// Authenticate request.
@@ -53,6 +64,17 @@ pub enum ClientCommand {
         #[clap(short, long)]
         address: Address,
     },
+}
+
+impl From<SendCommand> for IpcRequest {
+    fn from(value: SendCommand) -> Self {
+        match value {
+            SendCommand::ListAccounts => IpcRequest::ListAccounts,
+            SendCommand::Authenticate { address } => {
+                IpcRequest::Authenticate { address }
+            }
+        }
+    }
 }
 
 pub async fn run(cmd: Command) -> Result<()> {
@@ -88,44 +110,53 @@ pub async fn run(cmd: Command) -> Result<()> {
             remove_socket_file(socket_name);
             LocalAccountSocketServer::listen(socket_name, service).await?;
         }
-        Command::Client { socket, cmd } => {
-            let socket_name = socket
-                .as_ref()
-                .map(|s| &s[..])
-                .unwrap_or(IPC_CLI_SOCKET_NAME);
-
-            let mut client = SocketClient::connect(&socket_name).await?;
-            match cmd {
-                ClientCommand::ListAccounts => {
-                    let accounts = client.list_accounts().await?;
-                    serde_json::to_writer_pretty(
-                        std::io::stdout(),
-                        &accounts,
-                    )?;
-                }
-                ClientCommand::Authenticate { address } => {
-                    println!("Sending auth {}", address);
-                    let outcome = client.authenticate(address).await?;
-                    serde_json::to_writer_pretty(
-                        std::io::stdout(),
-                        &outcome,
-                    )?;
-                }
+        Command::Send {
+            socket,
+            cmd,
+            command,
+            arguments,
+        } => {
+            if let Some(command) = command {
+                send_bridge(command, arguments, cmd).await?;
+            } else {
+                send_ipc(socket, cmd).await?;
             }
         }
-
         Command::NativeBridge { socket } => {
             let socket_name = socket
                 .as_ref()
                 .map(|s| &s[..])
                 .unwrap_or(IPC_CLI_SOCKET_NAME);
-            let mut options = NativeBridgeOptions::new(
-                "com.saveoursecrets.sos".to_string(),
-            );
+            let mut options =
+                NativeBridgeOptions::new(CLI_EXTENSION_ID.to_string());
             options.socket_name = Some(socket_name.to_string());
             native_bridge::run(options).await?;
         }
     }
+    Ok(())
+}
+
+async fn send_ipc(socket: Option<String>, cmd: SendCommand) -> Result<()> {
+    let socket_name = socket
+        .as_ref()
+        .map(|s| &s[..])
+        .unwrap_or(IPC_CLI_SOCKET_NAME);
+
+    let mut client = SocketClient::connect(&socket_name).await?;
+    let request = cmd.into();
+    let response = client.send_request(request).await?;
+    serde_json::to_writer_pretty(std::io::stdout(), &response)?;
+    Ok(())
+}
+
+async fn send_bridge(
+    command: PathBuf,
+    arguments: Vec<String>,
+    cmd: SendCommand,
+) -> Result<()> {
+    let request = cmd.into();
+    let response = native_bridge::send(command, arguments, &request).await?;
+    serde_json::to_writer_pretty(std::io::stdout(), &response)?;
     Ok(())
 }
 

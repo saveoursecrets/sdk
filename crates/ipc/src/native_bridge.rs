@@ -4,7 +4,7 @@
 //! Used to support the native messaging API provided
 //! by browser extensions.
 
-use crate::{IpcRequest, IpcResponse, Result};
+use crate::{IpcRequest, IpcResponse, Result, SocketClient};
 use futures_util::{SinkExt, StreamExt};
 use sos_net::sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME};
 use tokio_util::codec::LengthDelimitedCodec;
@@ -51,6 +51,8 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
         .native_endian()
         .new_write(tokio::io::stdout());
 
+    let mut client = SocketClient::connect(&socket_name).await?;
+
     while let Some(Ok(buffer)) = stdin.next().await {
         let request: IpcRequest = match serde_json::from_slice(&buffer) {
             Ok(value) => value,
@@ -60,35 +62,42 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
             }
         };
 
-        tracing::info!(
+        tracing::debug!(
             request = ?request,
-            "sos_native_bridge::decoded_json",
+            "sos_native_bridge::request",
         );
 
-        let output = serde_json::to_vec(&request).unwrap();
+        let response = client.send_request(request).await?;
 
-        tracing::info!(
-            len = ?output.len(),
-            "sos_native_bridge::encoded_json",
+        tracing::debug!(
+            response = ?response,
+            "sos_native_bridge::response",
         );
 
+        let output = serde_json::to_vec(&response)?;
         stdout.send(output.into()).await?;
     }
 
     Ok(())
 }
 
+#[cfg(feature = "native-send")]
 /// Send a request to a native bridge executable.
-pub async fn send<S: AsRef<std::ffi::OsStr>>(
-    command: S,
-    extension_id: String,
+pub async fn send<C, I, S>(
+    command: C,
+    arguments: I,
     request: &IpcRequest,
-) -> Result<IpcResponse> {
+) -> Result<IpcResponse>
+where
+    C: AsRef<std::ffi::OsStr>,
+    I: IntoIterator<Item = S>,
+    S: AsRef<std::ffi::OsStr>,
+{
     use std::process::Stdio;
     use tokio::process::Command;
 
     let mut child = Command::new(command)
-        .arg(extension_id)
+        .args(arguments)
         .stdout(Stdio::piped())
         .stdin(Stdio::piped())
         .spawn()?;

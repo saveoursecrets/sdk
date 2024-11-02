@@ -58,6 +58,7 @@ path = "../net"
 [dependencies.sos-ipc]
 version = "0.15.1" 
 path = "../ipc"
+features = ["native-send"]
 
 [dependencies.sos-cli-helpers]
 version = "0.1.0" 
