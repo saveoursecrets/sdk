@@ -355,18 +355,19 @@ impl Server {
             v1 = v1.layer(Extension(file_operations));
         }
 
-        #[cfg(feature = "prometheus")]
-        let (prometheus_layer, metric_handle) =
-            axum_prometheus::PrometheusMetricLayerBuilder::new()
-                .with_default_metrics()
-                .enable_response_body_size(true)
-                .build_pair();
-
-        let mut app = Router::new();
-        app = app.route("/", get(home));
+        #[allow(unused_mut)]
+        let mut app = Router::new()
+            .route("/", get(home))
+            .nest_service("/api/v1", v1);
 
         #[cfg(feature = "prometheus")]
         {
+            let (prometheus_layer, metric_handle) =
+                axum_prometheus::PrometheusMetricLayerBuilder::new()
+                    .with_default_metrics()
+                    .enable_response_body_size(true)
+                    .build_pair();
+
             app = app
                 .route(
                     "/metrics",
@@ -375,7 +376,6 @@ impl Server {
                 .layer(prometheus_layer);
         }
 
-        app = app.nest_service("/api/v1", v1);
         Ok(app)
     }
 }

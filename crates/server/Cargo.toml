@@ -12,7 +12,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["listen", "audit", "pairing", "acme", "prometheus"]
+default = ["listen", "audit", "pairing", "acme"]
 prometheus = ["axum-prometheus"]
 acme = ["dep:tokio-rustls-acme"]
 listen = ["sos-protocol/listen"]

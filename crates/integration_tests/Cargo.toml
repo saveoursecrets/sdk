@@ -28,7 +28,7 @@ secrecy.workspace = true
 http.workspace = true
 
 sos-ipc = { path = "../ipc", features = ["tcp"] }
-sos-server = { path = "../server" }
+sos-server = { path = "../server", default-features = false, features = ["listen", "audit", "pairing"] }
 sos-test-utils = { path = "../test_utils" }
 
 copy_dir = "0.1"
