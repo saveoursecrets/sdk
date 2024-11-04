@@ -12,6 +12,8 @@ use super::{WireAuthenticateBody, WireLockBody};
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum IpcRequest {
+    /// Query app status.
+    Status,
     /// Ping the server.
     Ping,
     /// Request to open a URL.
@@ -47,6 +49,14 @@ impl From<(u64, IpcRequest)> for WireIpcRequest {
     fn from(value: (u64, IpcRequest)) -> Self {
         let (message_id, req) = value;
         match req {
+            IpcRequest::Status => WireIpcRequest {
+                message_id,
+                body: Some(WireIpcRequestBody {
+                    inner: Some(wire_ipc_request_body::Inner::Status(
+                        WireVoidBody {},
+                    )),
+                }),
+            },
             IpcRequest::Ping => WireIpcRequest {
                 message_id,
                 body: Some(WireIpcRequestBody {
@@ -102,6 +112,9 @@ impl TryFrom<WireIpcRequest> for (u64, IpcRequest) {
         let message_id = value.message_id;
         let body = value.body.ok_or(Error::DecodeRequest)?;
         Ok(match body.inner {
+            Some(wire_ipc_request_body::Inner::Status(_)) => {
+                (message_id, IpcRequest::Status)
+            }
             Some(wire_ipc_request_body::Inner::Ping(_)) => {
                 (message_id, IpcRequest::Ping)
             }

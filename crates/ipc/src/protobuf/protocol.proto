@@ -15,20 +15,23 @@ message WireIpcRequestBody {
   // Inner values.
   oneof inner {
 
+    // Query app status.
+    WireVoidBody status = 1;
+
     // Ping the server.
-    WireVoidBody ping = 1;
+    WireVoidBody ping = 2;
 
     // Request to open a program.
-    WireOpenUrlBody open_url = 2;
+    WireOpenUrlBody open_url = 3;
 
     // Request a list of accounts.
-    WireVoidBody list_accounts = 3;
+    WireVoidBody list_accounts = 4;
 
     // Request to authenticate to an account.
-    WireAuthenticateBody authenticate  = 4;
+    WireAuthenticateBody authenticate  = 5;
 
     // Request to lock an account.
-    WireLockBody lock  = 5;
+    WireLockBody lock  = 6;
   }
 }
 
@@ -70,16 +73,18 @@ message WireIpcResponse {
 message WireIpcResponseBody {
   // Inner values.
   oneof inner {
+    // App status.
+    WireStatusBody status = 1;
     // Reply to a ping.
-    WireVoidBody pong = 1;
+    WireVoidBody pong = 2;
     // Request to open a URL.
-    WireOpenUrl open_url = 2;
+    WireOpenUrl open_url = 3;
     // List accounts body.
-    WireAccountList list_accounts = 3;
+    WireAccountList list_accounts = 4;
     // Authenticate body.
-    WireCommandOutcome authenticate = 4;
+    WireCommandOutcome authenticate = 5;
     // Lock body.
-    WireCommandOutcome lock = 5;
+    WireCommandOutcome lock = 6;
   }
 }
 
@@ -89,6 +94,14 @@ message WireIpcResponseError {
   int32 code = 1;
   // Error message.
   string message = 2;
+}
+
+// Result of a status query.
+message WireStatusBody {
+  // Whether the app is running.
+  bool app = 1;
+  // Whether the IPC channel is responding.
+  bool ipc = 2;
 }
 
 // Result of an open command.

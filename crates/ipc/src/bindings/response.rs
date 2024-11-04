@@ -5,7 +5,7 @@ use crate::{
     wire_ipc_response, wire_ipc_response_body, AccountsList, Error, Result,
     WireAccountInfo, WireAccountList, WireCommandOutcome, WireIpcResponse,
     WireIpcResponseBody, WireIpcResponseError, WireOpenUrl,
-    WirePublicIdentity,
+    WirePublicIdentity, WireStatusBody,
 };
 
 use super::WireVoidBody;
@@ -24,6 +24,14 @@ pub enum IpcResponse {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum IpcResponseBody {
+    /// Status information.
+    Status {
+        /// Whether the app is running as determined
+        /// by an active account file lock.
+        app: bool,
+        /// Whether the IPC channel is responding to a ping.
+        ipc: bool,
+    },
     /// Reply to a ping.
     Pong,
     /// Result of opening a URL.
@@ -130,6 +138,19 @@ impl From<(u64, IpcResponse)> for WireIpcResponse {
 
         match res {
             IpcResponse::Body(body) => match body {
+                IpcResponseBody::Status { app, ipc } => Self {
+                    message_id,
+                    result: Some(wire_ipc_response::Result::Body(
+                        WireIpcResponseBody {
+                            inner: Some(
+                                wire_ipc_response_body::Inner::Status(
+                                    WireStatusBody { app, ipc },
+                                ),
+                            ),
+                        },
+                    )),
+                },
+
                 IpcResponseBody::Pong => Self {
                     message_id,
                     result: Some(wire_ipc_response::Result::Body(
@@ -226,6 +247,13 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
         match value.result {
             Some(wire_ipc_response::Result::Body(body)) => {
                 Ok(match body.inner {
+                    Some(wire_ipc_response_body::Inner::Status(inner)) => (
+                        message_id,
+                        IpcResponse::Body(IpcResponseBody::Status {
+                            app: inner.app,
+                            ipc: inner.ipc,
+                        }),
+                    ),
                     Some(wire_ipc_response_body::Inner::Pong(_)) => {
                         (message_id, IpcResponse::Body(IpcResponseBody::Pong))
                     }
