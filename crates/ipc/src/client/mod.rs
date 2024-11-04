@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::time::{Duration, SystemTime};
 
 use crate::{
     AccountsList, AppIntegration, CommandOutcome, Error, IpcRequest,
@@ -26,6 +27,19 @@ macro_rules! app_integration_impl {
     ($impl:ident) => {
         #[async_trait]
         impl AppIntegration<crate::Error> for $impl {
+            async fn ping(&mut self) -> Result<Duration> {
+                let now = SystemTime::now();
+                let request = IpcRequest::Ping;
+                let response = self.send_request(request).await?;
+                match response {
+                    IpcResponse::Error(err) => Err(Error::ResponseError(err)),
+                    IpcResponse::Body(IpcResponseBody::Pong) => {
+                        Ok(now.elapsed()?)
+                    }
+                    _ => Err(Error::ResponseType),
+                }
+            }
+
             async fn list_accounts(&mut self) -> Result<AccountsList> {
                 let request = IpcRequest::ListAccounts;
                 let response = self.send_request(request).await?;

@@ -15,17 +15,20 @@ message WireIpcRequestBody {
   // Inner values.
   oneof inner {
 
+    // Ping the server.
+    WireVoidBody ping = 1;
+
     // Request to open a program.
-    WireOpenUrlBody open_url = 1;
+    WireOpenUrlBody open_url = 2;
 
     // Request a list of accounts.
-    WireVoidBody list_accounts = 2;
+    WireVoidBody list_accounts = 3;
 
     // Request to authenticate to an account.
-    WireAuthenticateBody authenticate  = 3;
+    WireAuthenticateBody authenticate  = 4;
 
     // Request to lock an account.
-    WireLockBody lock  = 4;
+    WireLockBody lock  = 5;
   }
 }
 
@@ -67,14 +70,16 @@ message WireIpcResponse {
 message WireIpcResponseBody {
   // Inner values.
   oneof inner {
+    // Reply to a ping.
+    WireVoidBody pong = 1;
     // Request to open a URL.
-    WireOpenUrl open_url = 1;
+    WireOpenUrl open_url = 2;
     // List accounts body.
-    WireAccountList list_accounts = 2;
+    WireAccountList list_accounts = 3;
     // Authenticate body.
-    WireCommandOutcome authenticate = 3;
+    WireCommandOutcome authenticate = 4;
     // Lock body.
-    WireCommandOutcome lock = 4;
+    WireCommandOutcome lock = 5;
   }
 }
 

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use sos_net::sdk::prelude::{Address, PublicIdentity};
+use std::time::Duration;
 
 use crate::CommandOutcome;
 
@@ -10,6 +11,9 @@ pub type AccountsList = Vec<(PublicIdentity, bool)>;
 /// app integrations such as browser extensions.
 #[async_trait]
 pub trait AppIntegration<E: From<sos_net::sdk::Error>> {
+    /// Ping the server.
+    async fn ping(&mut self) -> Result<Duration, E>;
+
     /// List the accounts on disc and include authentication state.
     async fn list_accounts(
         &mut self,
@@ -22,8 +26,5 @@ pub trait AppIntegration<E: From<sos_net::sdk::Error>> {
     ) -> Result<CommandOutcome, E>;
 
     /// Attempt to lock an account.
-    async fn lock(
-        &mut self,
-        address: Address,
-    ) -> Result<CommandOutcome, E>;
+    async fn lock(&mut self, address: Address) -> Result<CommandOutcome, E>;
 }

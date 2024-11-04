@@ -108,6 +108,7 @@ where
         request: IpcRequest,
     ) -> std::result::Result<IpcResponse, E> {
         match request {
+            IpcRequest::Ping => Ok(IpcResponse::Body(IpcResponseBody::Pong)),
             IpcRequest::OpenUrl(_) => {
                 // Open is a noop as we let the native bridge
                 // handle it

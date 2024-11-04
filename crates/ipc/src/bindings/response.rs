@@ -8,6 +8,8 @@ use crate::{
     WirePublicIdentity,
 };
 
+use super::WireVoidBody;
+
 /// IPC response information.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -20,8 +22,10 @@ pub enum IpcResponse {
 
 /// IPC response body.
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", tag = "kind", content = "content")]
+#[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum IpcResponseBody {
+    /// Reply to a ping.
+    Pong,
     /// Result of opening a URL.
     OpenUrl(bool),
     /// List of accounts.
@@ -126,6 +130,16 @@ impl From<(u64, IpcResponse)> for WireIpcResponse {
 
         match res {
             IpcResponse::Body(body) => match body {
+                IpcResponseBody::Pong => Self {
+                    message_id,
+                    result: Some(wire_ipc_response::Result::Body(
+                        WireIpcResponseBody {
+                            inner: Some(wire_ipc_response_body::Inner::Pong(
+                                WireVoidBody {},
+                            )),
+                        },
+                    )),
+                },
                 IpcResponseBody::OpenUrl(result) => Self {
                     message_id,
                     result: Some(wire_ipc_response::Result::Body(
@@ -212,11 +226,20 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
         match value.result {
             Some(wire_ipc_response::Result::Body(body)) => {
                 Ok(match body.inner {
+                    Some(wire_ipc_response_body::Inner::Pong(_)) => {
+                        (message_id, IpcResponse::Body(IpcResponseBody::Pong))
+                    }
+                    Some(wire_ipc_response_body::Inner::OpenUrl(inner)) => (
+                        message_id,
+                        IpcResponse::Body(IpcResponseBody::OpenUrl(
+                            inner.is_ok,
+                        )),
+                    ),
                     Some(wire_ipc_response_body::Inner::ListAccounts(
-                        list,
+                        inner,
                     )) => {
                         let mut data = Vec::new();
-                        for item in list.accounts {
+                        for item in inner.accounts {
                             let public_id = item.public_id.unwrap();
                             data.push((
                                 PublicIdentity::new(
@@ -234,10 +257,9 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
                         )
                     }
                     Some(wire_ipc_response_body::Inner::Authenticate(
-                        outcome,
+                        inner,
                     )) => {
-                        let outcome: WireCommandOutcome =
-                            outcome.try_into()?;
+                        let outcome: WireCommandOutcome = inner.try_into()?;
                         (
                             message_id,
                             IpcResponse::Body(IpcResponseBody::Authenticate(
@@ -245,9 +267,8 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
                             )),
                         )
                     }
-                    Some(wire_ipc_response_body::Inner::Lock(outcome)) => {
-                        let outcome: WireCommandOutcome =
-                            outcome.try_into()?;
+                    Some(wire_ipc_response_body::Inner::Lock(inner)) => {
+                        let outcome: WireCommandOutcome = inner.try_into()?;
                         (
                             message_id,
                             IpcResponse::Body(IpcResponseBody::Lock(
