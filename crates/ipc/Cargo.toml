@@ -27,6 +27,7 @@ tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["codec"] }
 futures-util = { version = "0.3", features = ["sink"] }
 interprocess = { version = "2", features = ["tokio"], optional = true }
+open = "5"
 
 [build-dependencies]
 rustc_version = "0.4.1"

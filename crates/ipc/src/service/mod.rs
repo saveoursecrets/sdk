@@ -108,6 +108,11 @@ where
         request: IpcRequest,
     ) -> std::result::Result<IpcResponse, E> {
         match request {
+            IpcRequest::OpenUrl(_) => {
+                // Open is a noop as we let the native bridge
+                // handle it
+                Ok(IpcResponse::Body(IpcResponseBody::OpenUrl(true)))
+            }
             IpcRequest::ListAccounts => {
                 let data = self.list_accounts().await?;
                 Ok(IpcResponse::Body(IpcResponseBody::Accounts(data)))

@@ -4,7 +4,9 @@
 //! Used to support the native messaging API provided
 //! by browser extensions.
 
-use crate::{Error, IpcResponse, Result, SocketClient};
+use crate::{
+    Error, IpcRequest, IpcResponse, IpcResponseBody, Result, SocketClient,
+};
 use futures_util::{SinkExt, StreamExt};
 use sos_net::sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME};
 use tokio_util::codec::LengthDelimitedCodec;
@@ -78,7 +80,7 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
                     request = ?request,
                     "sos_native_bridge::request",
                 );
-                match client.send_request(request).await {
+                match handle_request(&mut client, request).await {
                     Ok(response) => response,
                     Err(e) => IpcResponse::Error(
                         Error::NativeBridgeClientProxy(e.to_string()).into(),
@@ -100,6 +102,19 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
     }
 
     Ok(())
+}
+
+async fn handle_request(
+    client: &mut SocketClient,
+    request: IpcRequest,
+) -> Result<IpcResponse> {
+    match &request {
+        IpcRequest::OpenUrl(url) => {
+            let result = open::that_detached(&url);
+            Ok(IpcResponse::Body(IpcResponseBody::OpenUrl(result.is_ok())))
+        }
+        _ => client.send_request(request).await,
+    }
 }
 
 #[cfg(feature = "native-send")]

@@ -1,6 +1,6 @@
 use crate::{
     wire_ipc_request_body, Error, Result, WireIpcRequest, WireIpcRequestBody,
-    WireVoidBody,
+    WireOpenUrlBody, WireVoidBody,
 };
 use serde::{Deserialize, Serialize};
 use sos_net::sdk::prelude::Address;
@@ -10,8 +10,10 @@ use super::{WireAuthenticateBody, WireLockBody};
 
 /// IPC request information.
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", tag = "type")]
+#[serde(rename_all = "camelCase", tag = "kind", content = "content")]
 pub enum IpcRequest {
+    /// Request to open a URL.
+    OpenUrl(String),
     /// Request the accounts list.
     ListAccounts,
     /// Request authentication for an account.
@@ -43,6 +45,14 @@ impl From<(u64, IpcRequest)> for WireIpcRequest {
     fn from(value: (u64, IpcRequest)) -> Self {
         let (message_id, req) = value;
         match req {
+            IpcRequest::OpenUrl(url) => WireIpcRequest {
+                message_id,
+                body: Some(WireIpcRequestBody {
+                    inner: Some(wire_ipc_request_body::Inner::OpenUrl(
+                        WireOpenUrlBody { url },
+                    )),
+                }),
+            },
             IpcRequest::ListAccounts => WireIpcRequest {
                 message_id,
                 body: Some(WireIpcRequestBody {
@@ -82,6 +92,9 @@ impl TryFrom<WireIpcRequest> for (u64, IpcRequest) {
         let message_id = value.message_id;
         let body = value.body.ok_or(Error::DecodeRequest)?;
         Ok(match body.inner {
+            Some(wire_ipc_request_body::Inner::OpenUrl(body)) => {
+                (message_id, IpcRequest::OpenUrl(body.url))
+            }
             Some(wire_ipc_request_body::Inner::ListAccounts(_)) => {
                 (message_id, IpcRequest::ListAccounts)
             }

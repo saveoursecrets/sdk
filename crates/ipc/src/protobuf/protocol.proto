@@ -14,19 +14,29 @@ message WireIpcRequest {
 message WireIpcRequestBody {
   // Inner values.
   oneof inner {
+
+    // Request to open a program.
+    WireOpenUrlBody open_url = 1;
+
     // Request a list of accounts.
-    WireVoidBody list_accounts = 1;
+    WireVoidBody list_accounts = 2;
 
     // Request to authenticate to an account.
-    WireAuthenticateBody authenticate  = 2;
+    WireAuthenticateBody authenticate  = 3;
 
     // Request to lock an account.
-    WireLockBody lock  = 3;
+    WireLockBody lock  = 4;
   }
 }
 
 // Void request body.
 message WireVoidBody {}
+
+// Request body to open a URL.
+message WireOpenUrlBody {
+  // URL to open.
+  string url = 1;
+}
 
 // Authenticate request body.
 message WireAuthenticateBody {
@@ -57,12 +67,14 @@ message WireIpcResponse {
 message WireIpcResponseBody {
   // Inner values.
   oneof inner {
+    // Request to open a URL.
+    WireOpenUrl open_url = 1;
     // List accounts body.
-    WireAccountList list_accounts = 1;
+    WireAccountList list_accounts = 2;
     // Authenticate body.
-    WireCommandOutcome authenticate = 2;
+    WireCommandOutcome authenticate = 3;
     // Lock body.
-    WireCommandOutcome lock = 3;
+    WireCommandOutcome lock = 4;
   }
 }
 
@@ -72,6 +84,12 @@ message WireIpcResponseError {
   int32 code = 1;
   // Error message.
   string message = 2;
+}
+
+// Result of an open command.
+message WireOpenUrl {
+  // Whether the open command was successful.
+  bool is_ok = 1;
 }
 
 // List of accounts.

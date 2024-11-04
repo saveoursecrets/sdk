@@ -1,13 +1,11 @@
 use serde::{Deserialize, Serialize};
 use sos_net::sdk::prelude::PublicIdentity;
 
-use super::{
-    wire_ipc_response, WireCommandOutcome, WireIpcResponseError,
-    WirePublicIdentity,
-};
 use crate::{
-    wire_ipc_response_body, AccountsList, Error, Result, WireAccountInfo,
-    WireAccountList, WireIpcResponse, WireIpcResponseBody,
+    wire_ipc_response, wire_ipc_response_body, AccountsList, Error, Result,
+    WireAccountInfo, WireAccountList, WireCommandOutcome, WireIpcResponse,
+    WireIpcResponseBody, WireIpcResponseError, WireOpenUrl,
+    WirePublicIdentity,
 };
 
 /// IPC response information.
@@ -22,8 +20,10 @@ pub enum IpcResponse {
 
 /// IPC response body.
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", tag = "kind", content = "content")]
 pub enum IpcResponseBody {
+    /// Result of opening a URL.
+    OpenUrl(bool),
     /// List of accounts.
     Accounts(AccountsList),
     /// Authenticate response.
@@ -126,6 +126,19 @@ impl From<(u64, IpcResponse)> for WireIpcResponse {
 
         match res {
             IpcResponse::Body(body) => match body {
+                IpcResponseBody::OpenUrl(result) => Self {
+                    message_id,
+                    result: Some(wire_ipc_response::Result::Body(
+                        WireIpcResponseBody {
+                            inner: Some(
+                                wire_ipc_response_body::Inner::OpenUrl(
+                                    WireOpenUrl { is_ok: result },
+                                ),
+                            ),
+                        },
+                    )),
+                },
+
                 IpcResponseBody::Accounts(data) => {
                     let list = WireAccountList {
                         accounts: data
