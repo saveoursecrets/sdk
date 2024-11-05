@@ -684,7 +684,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                 views = vec![DocumentView::Favorites];
             }
 
-            let documents = owner.query_view(views, archive_filter).await?;
+            let documents =
+                owner.query_view(views, archive_filter.as_ref()).await?;
             let docs: Vec<&Document> = documents.iter().collect();
             print_documents(&docs, verbose)?;
         }

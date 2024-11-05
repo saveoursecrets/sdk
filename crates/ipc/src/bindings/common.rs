@@ -12,14 +12,139 @@ use sos_net::sdk::{
 
 impl From<DocumentView> for WireDocumentView {
     fn from(value: DocumentView) -> Self {
-        todo!();
+        match value {
+            DocumentView::All { ignored_types } => WireDocumentView {
+                inner: Some(wire_document_view::Inner::All(
+                    WireDocumentViewAll {
+                        ignored_types: ignored_types
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|t| WireSecretType::from(t) as i32)
+                            .collect(),
+                    },
+                )),
+            },
+            DocumentView::Vault(vault_id) => WireDocumentView {
+                inner: Some(wire_document_view::Inner::Vault(
+                    WireDocumentViewVault {
+                        vault_id: vault_id.to_string(),
+                    },
+                )),
+            },
+            DocumentView::TypeId(secret_type) => {
+                let secret_type = WireSecretType::from(secret_type) as i32;
+                WireDocumentView {
+                    inner: Some(wire_document_view::Inner::TypeId(
+                        secret_type,
+                    )),
+                }
+            }
+            DocumentView::Favorites => WireDocumentView {
+                inner: Some(wire_document_view::Inner::Favorites(
+                    WireVoidBody {},
+                )),
+            },
+            DocumentView::Tags(tags) => WireDocumentView {
+                inner: Some(wire_document_view::Inner::Tags(
+                    WireDocumentViewTags { list: tags },
+                )),
+            },
+            DocumentView::Contact { include_types } => WireDocumentView {
+                inner: Some(wire_document_view::Inner::Contact(
+                    WireDocumentViewContact {
+                        include_types: include_types
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|t| WireContactKind::from(t) as i32)
+                            .collect(),
+                    },
+                )),
+            },
+            DocumentView::Documents {
+                vault_id,
+                identifiers,
+            } => WireDocumentView {
+                inner: Some(wire_document_view::Inner::Documents(
+                    WireDocumentViewDocuments {
+                        vault_id: vault_id.to_string(),
+                        identifiers: identifiers
+                            .into_iter()
+                            .map(|i| i.to_string())
+                            .collect(),
+                    },
+                )),
+            },
+        }
     }
 }
 
 impl TryFrom<WireDocumentView> for DocumentView {
     type Error = Error;
     fn try_from(value: WireDocumentView) -> Result<Self> {
-        todo!();
+        Ok(match value.inner {
+            Some(wire_document_view::Inner::All(body)) => {
+                let ignored_types = if !body.ignored_types.is_empty() {
+                    let mut ignored_types =
+                        Vec::with_capacity(body.ignored_types.len());
+                    for secret_type in body.ignored_types {
+                        let secret_type: WireSecretType =
+                            secret_type.try_into()?;
+                        ignored_types.push(secret_type.try_into()?);
+                    }
+                    Some(ignored_types)
+                } else {
+                    None
+                };
+                DocumentView::All { ignored_types }
+            }
+            Some(wire_document_view::Inner::Vault(body)) => {
+                DocumentView::Vault(
+                    body.vault_id.parse().map_err(SdkError::from)?,
+                )
+            }
+            Some(wire_document_view::Inner::TypeId(body)) => {
+                let secret_type: WireSecretType = body.try_into()?;
+                let secret_type: SecretType = secret_type.try_into()?;
+                DocumentView::TypeId(secret_type)
+            }
+            Some(wire_document_view::Inner::Favorites(_)) => {
+                DocumentView::Favorites
+            }
+            Some(wire_document_view::Inner::Tags(body)) => {
+                DocumentView::Tags(body.list)
+            }
+            Some(wire_document_view::Inner::Contact(body)) => {
+                let include_types = if !body.include_types.is_empty() {
+                    let mut include_types =
+                        Vec::with_capacity(body.include_types.len());
+                    for contact_type in body.include_types {
+                        let contact_type: WireContactKind =
+                            contact_type.try_into()?;
+                        include_types.push(contact_type.try_into()?);
+                    }
+                    Some(include_types)
+                } else {
+                    None
+                };
+                DocumentView::Contact { include_types }
+            }
+            Some(wire_document_view::Inner::Documents(body)) => {
+                let mut identifiers =
+                    Vec::with_capacity(body.identifiers.len());
+                for id in body.identifiers {
+                    identifiers.push(id.parse().map_err(SdkError::from)?);
+                }
+
+                DocumentView::Documents {
+                    vault_id: body
+                        .vault_id
+                        .parse()
+                        .map_err(SdkError::from)?,
+                    identifiers,
+                }
+            }
+            _ => unreachable!("unknown document view variant"),
+        })
     }
 }
 
@@ -91,7 +216,7 @@ impl TryFrom<WireSecretType> for SecretType {
             "Password" => SecretType::Password,
             "Identity" => SecretType::Identity,
             "Age" => SecretType::Age,
-            _ => unreachable!(),
+            _ => unreachable!("unknown secret type variant"),
         })
     }
 }
@@ -124,7 +249,7 @@ impl TryFrom<WireContactKind> for ContactKind {
             "Group" => ContactKind::Group,
             "Org" => ContactKind::Org,
             "Location" => ContactKind::Location,
-            _ => unreachable!(),
+            _ => unreachable!("unknown contact type variant"),
         })
     }
 }

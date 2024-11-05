@@ -1,9 +1,12 @@
-use crate::{io_err, AccountsList, IpcRequest, IpcResponse, IpcResponseBody};
+use crate::{
+    io_err, AccountsList, IpcRequest, IpcResponse, IpcResponseBody,
+    SearchList,
+};
 use async_trait::async_trait;
 use sos_net::{
     sdk::{
         account::{Account, AccountSwitcher, LocalAccount},
-        prelude::Identity,
+        prelude::{ArchiveFilter, DocumentView, Identity, QueryFilter},
         Paths,
     },
     NetworkAccount,
@@ -91,6 +94,48 @@ where
         }
         Ok(out)
     }
+
+    async fn search(
+        &self,
+        needle: String,
+        filter: QueryFilter,
+    ) -> std::result::Result<SearchList, E> {
+        let mut out = Vec::new();
+        let accounts = self.accounts.read().await;
+        for account in accounts.iter() {
+            if account.is_authenticated().await {
+                let identity = account.public_identity().await?;
+                let results =
+                    account.query_map(&needle, filter.clone()).await?;
+                out.push((identity, results));
+            }
+        }
+        Ok(out)
+    }
+
+    async fn query_view(
+        &self,
+        views: Vec<DocumentView>,
+        archive_filter: Option<ArchiveFilter>,
+    ) -> std::result::Result<SearchList, E> {
+        let mut out = Vec::new();
+        /*
+        let disc_accounts =
+            Identity::list_accounts(accounts.data_dir()).await?;
+        for account in disc_accounts {
+            let authenticated = if let Some(memory_account) =
+                accounts.iter().find(|a| a.address() == account.address())
+            {
+                memory_account.is_authenticated().await
+            } else {
+                false
+            };
+
+            out.push((account, authenticated));
+        }
+        */
+        Ok(out)
+    }
 }
 
 #[async_trait]
@@ -159,13 +204,15 @@ where
                 }
             }
             IpcRequest::Search { needle, filter } => {
-                todo!();
+                let data = self.search(needle, filter).await?;
+                Ok(IpcResponse::Value(IpcResponseBody::Search(data)))
             }
             IpcRequest::QueryView {
                 views,
                 archive_filter,
             } => {
-                todo!();
+                let data = self.query_view(views, archive_filter).await?;
+                Ok(IpcResponse::Value(IpcResponseBody::QueryView(data)))
             }
         }
     }

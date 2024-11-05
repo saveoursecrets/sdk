@@ -1163,7 +1163,7 @@ impl Account for NetworkAccount {
     async fn query_view(
         &self,
         views: Vec<DocumentView>,
-        archive: Option<ArchiveFilter>,
+        archive: Option<&ArchiveFilter>,
     ) -> Result<Vec<Document>> {
         let account = self.account.lock().await;
         Ok(account.query_view(views, archive).await?)

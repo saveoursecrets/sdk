@@ -7,9 +7,8 @@ use crate::CommandOutcome;
 /// List of accounts with authenticated status flag.
 pub type AccountsList = Vec<(PublicIdentity, bool)>;
 
-/// List of search results grouped by account
-/// identity and authenticated status.
-pub type SearchList = Vec<(PublicIdentity, bool, Vec<Document>)>;
+/// List of search results grouped by account identity.
+pub type SearchList = Vec<(PublicIdentity, Vec<Document>)>;
 
 /// Contract for types that expose an API to
 /// app integrations such as browser extensions.

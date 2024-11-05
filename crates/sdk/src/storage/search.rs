@@ -773,13 +773,13 @@ impl AccountSearch {
     pub async fn query_view(
         &self,
         views: Vec<DocumentView>,
-        archive: Option<ArchiveFilter>,
+        archive: Option<&ArchiveFilter>,
     ) -> Result<Vec<Document>> {
         let index_reader = self.search_index.read().await;
         let mut docs = Vec::with_capacity(index_reader.len());
         for doc in index_reader.values_iter() {
             for view in &views {
-                if view.test(doc, archive.as_ref()) {
+                if view.test(doc, archive) {
                     docs.push(doc.clone());
                 }
             }
@@ -931,7 +931,7 @@ impl DocumentView {
 }
 
 /// Filter for a search query.
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct QueryFilter {
     /// List of tags.
     pub tags: Vec<String>,

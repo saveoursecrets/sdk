@@ -95,7 +95,7 @@ impl TryFrom<WireCommandOutcome> for CommandOutcome {
             "TimedOut" => CommandOutcome::TimedOut,
             "Exhausted" => CommandOutcome::Exhausted,
             "InputError" => CommandOutcome::InputError,
-            _ => unreachable!(),
+            _ => unreachable!("unknown command outcome variant"),
         })
     }
 }

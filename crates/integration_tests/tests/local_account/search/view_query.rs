@@ -162,7 +162,7 @@ async fn local_search_view_query() -> Result<()> {
     let documents = account
         .query_view(
             vec![Default::default()],
-            Some(ArchiveFilter {
+            Some(&ArchiveFilter {
                 id: *archive_folder.id(),
                 include_documents: false,
             }),
@@ -175,7 +175,7 @@ async fn local_search_view_query() -> Result<()> {
     let documents = account
         .query_view(
             vec![Default::default()],
-            Some(ArchiveFilter {
+            Some(&ArchiveFilter {
                 id: *archive_folder.id(),
                 include_documents: true,
             }),

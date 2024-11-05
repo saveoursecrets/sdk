@@ -178,13 +178,31 @@ impl TryFrom<WireIpcRequest> for (u64, IpcRequest) {
                 };
                 (message_id, IpcRequest::Lock { address })
             }
-            Some(wire_ipc_request_body::Inner::Search(body)) => {
-                todo!();
-                // (message_id, IpcRequest::Lock { address })
-            }
+            Some(wire_ipc_request_body::Inner::Search(body)) => (
+                message_id,
+                IpcRequest::Search {
+                    needle: body.needle,
+                    filter: body.filter.unwrap().try_into()?,
+                },
+            ),
             Some(wire_ipc_request_body::Inner::QueryView(body)) => {
-                todo!();
-                // (message_id, IpcRequest::Lock { address })
+                let mut views = Vec::with_capacity(body.views.len());
+                for view in body.views {
+                    views.push(view.try_into()?);
+                }
+                let archive_filter =
+                    if let Some(archive_filter) = body.archive_filter {
+                        Some(archive_filter.try_into()?)
+                    } else {
+                        None
+                    };
+                (
+                    message_id,
+                    IpcRequest::QueryView {
+                        views,
+                        archive_filter,
+                    },
+                )
             }
             _ => return Err(Error::DecodeRequest),
         })
