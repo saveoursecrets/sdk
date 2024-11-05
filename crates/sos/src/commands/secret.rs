@@ -756,7 +756,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             )
             .await?;
             if resolved.verified {
-                let mut owner = resolved.user.write().await;
+                let owner = resolved.user.read().await;
                 let (data, _) =
                     owner.read_secret(&resolved.secret_id, None).await?;
                 print_secret(data.meta(), data.secret())?;
@@ -774,7 +774,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             )
             .await?;
             if resolved.verified {
-                let mut owner = resolved.user.write().await;
+                let owner = resolved.user.read().await;
                 let (data, _) =
                     owner.read_secret(&resolved.secret_id, None).await?;
                 let copied = copy_secret_text(data.secret())?;
@@ -1088,7 +1088,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             .await?;
             if resolved.verified {
                 let mut data = {
-                    let mut owner = resolved.user.write().await;
+                    let owner = resolved.user.read().await;
                     let (data, _) =
                         owner.read_secret(&resolved.secret_id, None).await?;
                     data
@@ -1145,7 +1145,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 }
 
                 let data = {
-                    let mut owner = resolved.user.write().await;
+                    let owner = resolved.user.read().await;
                     let (data, _) =
                         owner.read_secret(&resolved.secret_id, None).await?;
                     data
@@ -1286,7 +1286,7 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
     .await?;
     if resolved.verified {
         let mut data = {
-            let mut owner = resolved.user.write().await;
+            let owner = resolved.user.read().await;
             let (data, _) =
                 owner.read_secret(&resolved.secret_id, None).await?;
             data

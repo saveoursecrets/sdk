@@ -584,7 +584,7 @@ pub trait Account {
 
     /// Read a secret in the current open folder.
     async fn read_secret(
-        &mut self,
+        &self,
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> std::result::Result<(SecretRow, ReadEvent), Self::Error>;
@@ -1201,7 +1201,7 @@ impl LocalAccount {
     /// Some internal operations needn't generate extra
     /// audit log records.
     pub(crate) async fn get_secret(
-        &mut self,
+        &self,
         secret_id: &SecretId,
         folder: Option<Summary>,
         audit: bool,
@@ -2306,7 +2306,7 @@ impl Account for LocalAccount {
     }
 
     async fn read_secret(
-        &mut self,
+        &self,
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<(SecretRow, ReadEvent)> {

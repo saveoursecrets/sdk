@@ -1343,11 +1343,11 @@ impl Account for NetworkAccount {
     }
 
     async fn read_secret(
-        &mut self,
+        &self,
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<(SecretRow, ReadEvent)> {
-        let mut account = self.account.lock().await;
+        let account = self.account.lock().await;
         Ok(account.read_secret(secret_id, folder).await?)
     }
 
