@@ -33,6 +33,10 @@ message WireIpcResponseBody {
     WireCommandOutcome authenticate = 5;
     // Lock body.
     WireCommandOutcome lock = 6;
+    // Search query body.
+    WireSearchResults search = 7;
+    // View query body.
+    WireSearchResults query_view = 8;
   }
 }
 
@@ -100,4 +104,10 @@ message WirePublicIdentity {
   string address = 1;
   // Account label.
   string label = 2;
+}
+
+// Search results.
+message WireSearchResults {
+  // Document list.
+  repeated common.WireDocument documents = 1;
 }

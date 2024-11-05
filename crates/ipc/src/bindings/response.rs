@@ -1,9 +1,9 @@
 include!(concat!(env!("OUT_DIR"), "/response.rs"));
 
 use serde::{Deserialize, Serialize};
-use sos_net::sdk::prelude::PublicIdentity;
+use sos_net::sdk::prelude::{Document, PublicIdentity};
 
-use crate::{AccountsList, Error, Result};
+use crate::{AccountsList, Error, Result, SearchList};
 
 use super::WireVoidBody;
 
@@ -41,6 +41,10 @@ pub enum IpcResponseBody {
     Authenticate(CommandOutcome),
     /// Lock response.
     Lock(CommandOutcome),
+    /// Search query response.
+    Search(SearchList),
+    /// Query view response.
+    QueryView(SearchList),
 }
 
 /// IPC response error.
@@ -223,6 +227,45 @@ impl From<(u64, IpcResponse)> for WireIpcResponse {
                         },
                     )),
                 },
+                IpcResponseBody::Search(documents) => Self {
+                    message_id,
+                    result: Some(wire_ipc_response::Result::Body(
+                        WireIpcResponseBody {
+                            inner: Some(
+                                wire_ipc_response_body::Inner::Search(
+                                    todo!(), /*
+                                             WireSearchResults {
+                                                 documents: documents
+                                                     .into_iter()
+                                                     .map(|d| d.into())
+                                                     .collect(),
+                                             },
+                                             */
+                                ),
+                            ),
+                        },
+                    )),
+                },
+                IpcResponseBody::QueryView(documents) => Self {
+                    message_id,
+                    result: Some(wire_ipc_response::Result::Body(
+                        WireIpcResponseBody {
+                            inner: Some(
+                                wire_ipc_response_body::Inner::QueryView(
+                                    todo!(),
+                                    /*
+                                    WireSearchResults {
+                                        documents: documents
+                                            .into_iter()
+                                            .map(|d| d.into())
+                                            .collect(),
+                                    },
+                                    */
+                                ),
+                            ),
+                        },
+                    )),
+                },
             },
             IpcResponse::Error(err) => Self {
                 message_id,
@@ -305,6 +348,32 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
                                 outcome.try_into()?,
                             )),
                         )
+                    }
+                    Some(wire_ipc_response_body::Inner::Search(inner)) => {
+                        todo!();
+
+                        /*
+                        let outcome: WireCommandOutcome = inner.try_into()?;
+                        (
+                            message_id,
+                            IpcResponse::Value(IpcResponseBody::Lock(
+                                outcome.try_into()?,
+                            )),
+                        )
+                        */
+                    }
+                    Some(wire_ipc_response_body::Inner::QueryView(inner)) => {
+                        todo!();
+
+                        /*
+                        let outcome: WireCommandOutcome = inner.try_into()?;
+                        (
+                            message_id,
+                            IpcResponse::Value(IpcResponseBody::Lock(
+                                outcome.try_into()?,
+                            )),
+                        )
+                        */
                     }
                     _ => return Err(Error::DecodeResponse),
                 })

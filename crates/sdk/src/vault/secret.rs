@@ -402,7 +402,7 @@ impl SecretMeta {
         }
     }
 
-    /// The label for the secret.
+    /// Label for the secret.
     pub fn label(&self) -> &str {
         &self.label
     }
@@ -412,14 +412,19 @@ impl SecretMeta {
         self.label = label;
     }
 
-    /// The kind of the secret.
+    /// Kind of the secret.
     pub fn kind(&self) -> &SecretType {
         &self.kind
     }
 
-    /// The created date and time.
+    /// Created date and time.
     pub fn date_created(&self) -> &UtcDateTime {
         &self.date_created
+    }
+
+    /// Set the created date and time.
+    pub fn set_date_created(&mut self, date_created: UtcDateTime) {
+        self.date_created = date_created;
     }
 
     /// Update the last updated timestamp to now.
@@ -427,12 +432,17 @@ impl SecretMeta {
         self.last_updated = Default::default();
     }
 
-    /// The last updated date and time.
+    /// Last updated date and time.
     pub fn last_updated(&self) -> &UtcDateTime {
         &self.last_updated
     }
 
-    /// Get the tags.
+    /// Set the updated date and time.
+    pub fn set_last_updated(&mut self, last_updated: UtcDateTime) {
+        self.last_updated = last_updated;
+    }
+
+    /// Secret tags.
     pub fn tags(&self) -> &HashSet<String> {
         &self.tags
     }

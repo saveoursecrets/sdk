@@ -14,7 +14,7 @@ use std::{
 };
 
 /// Public account identity information.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct PublicIdentity {
     /// Address identifier for the account.
     ///

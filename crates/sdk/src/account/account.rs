@@ -1319,6 +1319,7 @@ impl LocalAccount {
 
     /// Build the search index for all folders.
     #[cfg(feature = "search")]
+    #[allow(dead_code)]
     pub(crate) async fn build_search_index(
         &mut self,
     ) -> Result<DocumentCount> {

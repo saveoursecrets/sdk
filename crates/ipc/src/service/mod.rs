@@ -158,6 +158,15 @@ where
                     Err(err) => Err(io_err(err).into()),
                 }
             }
+            IpcRequest::Search { needle, filter } => {
+                todo!();
+            }
+            IpcRequest::QueryView {
+                views,
+                archive_filter,
+            } => {
+                todo!();
+            }
         }
     }
 }

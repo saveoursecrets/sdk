@@ -4,3 +4,152 @@ package common;
 
 // Void body.
 message WireVoidBody {}
+
+message WireDocumentView {
+  oneof inner {
+    WireDocumentViewAll all = 1;
+    WireDocumentViewVault vault = 2;
+    WireSecretType type_id = 3;
+    WireVoidBody favorites = 4;
+    WireDocumentViewTags tags = 5;
+    WireDocumentViewContact contact = 6;
+    WireDocumentViewDocuments documents = 7;
+  }
+}
+
+// Variant to query all documents.
+message WireDocumentViewAll {
+  repeated WireSecretType ignored_types = 1;
+}
+
+// Secret types.
+enum WireSecretType {
+  // Note type.
+  Note = 0;
+  // File type.
+  File = 1;
+  // Account type.
+  Account = 2;
+  // List type.
+  List = 3;
+  // Pem type.
+  Pem = 4;
+  // Page type.
+  Page = 5;
+  // Signer type.
+  Signer = 6;
+  // Contact type.
+  Contact = 7;
+  // TOTP type.
+  Totp = 8;
+  // Credit card type.
+  Card = 9;
+  // Bank acount type.
+  Bank = 10;
+  // Link type.
+  Link = 11;
+  // Password type.
+  Password = 12;
+  // Identity type.
+  Identity = 13;
+  // AGE type.
+  Age = 14;
+}
+
+// Variant to query all documents in a vault.
+message WireDocumentViewVault {
+  // Vault identifier.
+  string vault_id = 1;
+}
+
+// Variant to query documents with the given tags.
+message WireDocumentViewTags {
+  // List of tags.
+  repeated string list = 1;
+}
+
+// Variant to query documents by contact type.
+message WireDocumentViewContact {
+  // Contact types to include.
+  repeated WireContactKind include_types = 1;
+}
+
+// Kinds of contacts.
+enum WireContactKind {
+  // Individual contact.
+  Individual = 0;
+  // Group contact.
+  Group = 1;
+  // Organization contact.
+  Org = 2;
+  // Location contact.
+  Location = 3;
+}
+
+// Variant to query for specific documents.
+message WireDocumentViewDocuments {
+  // Vault identifier.
+  string vault_id = 1;
+  // Secret identifiers.
+  repeated string identifiers = 2;
+}
+
+// Filter for search queries.
+message WireQueryFilter {
+  // Filter a query by tags.
+  repeated string tags = 1;
+  // Filter a query by folder identifiers.
+  repeated string folders = 2;
+  // Filter a query by secret type.
+  repeated WireSecretType types = 3;
+}
+
+// Archive filter for document view queries.
+message WireArchiveFilter {
+  // Folder identifier of the archive.
+  string id = 1;
+  // Whether to include archived documents.
+  bool include_documents = 2;
+}
+
+// Extra fields for a search document.
+message WireExtraFields {
+  // Comment information.
+  optional string comment = 1;
+  // Contact type.
+  optional WireContactKind contact_type = 2;
+}
+
+// Secret meta data.
+message WireSecretMeta {
+  // Secret type.
+  WireSecretType kind = 1;
+  // Secret flags.
+  uint32 flags = 2;
+  // Secret label.
+  string label = 3;
+  // Collection of tags.
+  repeated string tags = 4;
+  // Whether this is a favorite.
+  bool favorite = 5;
+  // URN identifier for this secret.
+  optional string urn = 6;
+  // An optional owner identifier.
+  optional string owner_id = 7;
+  // Date created timestamp.
+  string date_created = 8;
+  // Last updated timestamp.
+  string last_updated = 9;
+}
+
+// Search result document.
+message WireDocument {
+  // Vault identifier.
+  string vault_id = 1;
+  // Secret identifier.
+  string secret_id = 2;
+  // Secret meta data.
+  WireSecretMeta meta = 3;
+  // Extra field information.
+  WireExtraFields extra = 4;
+}

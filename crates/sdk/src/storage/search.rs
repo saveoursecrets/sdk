@@ -267,7 +267,7 @@ impl IndexStatistics {
 /// Additional fields that can exposed via search results
 /// that are extracted from the secret data but safe to
 /// be exposed.
-#[derive(Default, Debug, Serialize, Clone)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct ExtraFields {
     /// Comment about a secret.
     pub comment: Option<String>,
@@ -300,7 +300,7 @@ impl ExtraFields {
 }
 
 /// Document that can be indexed.
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Document {
     /// The vault identifier.
     pub vault_id: VaultId,
@@ -837,7 +837,7 @@ impl AccountSearch {
 }
 
 /// View of documents in the search index.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum DocumentView {
     /// View all documents in the search index.
     All {
@@ -931,7 +931,7 @@ impl DocumentView {
 }
 
 /// Filter for a search query.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct QueryFilter {
     /// List of tags.
     pub tags: Vec<String>,
@@ -942,7 +942,7 @@ pub struct QueryFilter {
 }
 
 /// Filter for archived documents.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ArchiveFilter {
     /// Identifier of the archive vault.
     pub id: VaultId,

@@ -34,6 +34,12 @@ message WireIpcRequestBody {
 
     // Request to lock an account.
     WireLockBody lock  = 6;
+
+    // Request to search an account.
+    WireSearchBody search  = 7;
+
+    // Request to query a view.
+    WireQueryViewBody query_view  = 8;
   }
 }
 
@@ -53,4 +59,20 @@ message WireAuthenticateBody {
 message WireLockBody {
   // Account address.
   optional string address = 1;
+}
+
+// Query request body.
+message WireSearchBody {
+  // Search needle.
+  string needle = 1;
+  // Filter for the query.
+  common.WireQueryFilter filter = 2;
+}
+
+// Query view request body.
+message WireQueryViewBody {
+  // Document views.
+  repeated common.WireDocumentView views = 1;
+  // Archive filter.
+  optional common.WireArchiveFilter archive_filter = 2;
 }
