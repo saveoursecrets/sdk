@@ -93,21 +93,21 @@ enum WireCommandOutcome {
 // Information about an account.
 message WireAccountInfo {
   // Public identity information.
-  WirePublicIdentity public_id = 1;
+  common.WirePublicIdentity public_id = 1;
   // Whether the account is currently authenticated.
   bool authenticated = 2;
 }
 
-// Public identity for an account.
-message WirePublicIdentity {
-  // Account address.
-  string address = 1;
-  // Account label.
-  string label = 2;
+// Search results for authenticated accounts.
+message WireSearchResults {
+  // Collection of account search results.
+  repeated WireAccountSearchResults accounts = 1;
 }
 
-// Search results.
-message WireSearchResults {
-  // Document list.
-  repeated common.WireDocument documents = 1;
+// Search results for an account.
+message WireAccountSearchResults {
+  // Account identity.
+  common.WirePublicIdentity identity = 1;
+  // Result documents.
+  repeated common.WireDocument documents = 2;
 }

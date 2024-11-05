@@ -3,8 +3,8 @@ include!(concat!(env!("OUT_DIR"), "/common.rs"));
 use crate::{Error, Result};
 use sos_net::sdk::{
     prelude::{
-        ArchiveFilter, Document, DocumentView, ExtraFields, QueryFilter,
-        SecretFlags, SecretMeta, SecretType,
+        Address, ArchiveFilter, Document, DocumentView, ExtraFields,
+        PublicIdentity, QueryFilter, SecretFlags, SecretMeta, SecretType,
     },
     vcard4::property::Kind as ContactKind,
     Error as SdkError, UtcDateTime,
@@ -428,5 +428,22 @@ impl TryFrom<WireDocument> for Document {
             meta: meta.try_into()?,
             extra: extra.try_into()?,
         })
+    }
+}
+
+impl From<PublicIdentity> for WirePublicIdentity {
+    fn from(value: PublicIdentity) -> Self {
+        WirePublicIdentity {
+            address: value.address().to_string(),
+            label: value.label().to_owned(),
+        }
+    }
+}
+
+impl TryFrom<WirePublicIdentity> for PublicIdentity {
+    type Error = Error;
+    fn try_from(value: WirePublicIdentity) -> Result<Self> {
+        let address: Address = value.address.parse()?;
+        Ok(PublicIdentity::new(value.label, address))
     }
 }

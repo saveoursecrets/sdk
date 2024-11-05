@@ -1,9 +1,7 @@
 include!(concat!(env!("OUT_DIR"), "/response.rs"));
 
+use crate::{AccountsList, Error, Result, SearchResults};
 use serde::{Deserialize, Serialize};
-use sos_net::sdk::prelude::{Document, PublicIdentity};
-
-use crate::{AccountsList, Error, Result, SearchList};
 
 use super::WireVoidBody;
 
@@ -42,9 +40,9 @@ pub enum IpcResponseBody {
     /// Lock response.
     Lock(CommandOutcome),
     /// Search query response.
-    Search(SearchList),
+    Search(SearchResults),
     /// Query view response.
-    QueryView(SearchList),
+    QueryView(SearchResults),
 }
 
 /// IPC response error.
@@ -54,85 +52,6 @@ pub struct IpcResponseError {
     pub code: i32,
     /// Error message.
     pub message: String,
-}
-
-/// Generic command outcome.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum CommandOutcome {
-    /// Account not found.
-    NotFound,
-    /// Already authenticated.
-    AlreadyAuthenticated,
-    /// Not authenticated.
-    NotAuthenticated,
-    /// Account was authenticated.
-    Success,
-    /// Authentication failed.
-    Failed,
-    /// User canceled.
-    Canceled,
-    /// Timed out waiting for user input.
-    TimedOut,
-    /// Too many attempts to authenticate.
-    Exhausted,
-    /// Error attempting to get user input.
-    InputError,
-}
-
-impl TryFrom<WireCommandOutcome> for CommandOutcome {
-    type Error = Error;
-
-    fn try_from(value: WireCommandOutcome) -> Result<Self> {
-        let name = value.as_str_name();
-        Ok(match name {
-            "NotFound" => CommandOutcome::NotFound,
-            "AlreadyAuthenticated" => CommandOutcome::AlreadyAuthenticated,
-            "NotAuthenticated" => CommandOutcome::NotAuthenticated,
-            "Success" => CommandOutcome::Success,
-            "Failed" => CommandOutcome::Failed,
-            "Canceled" => CommandOutcome::Canceled,
-            "TimedOut" => CommandOutcome::TimedOut,
-            "Exhausted" => CommandOutcome::Exhausted,
-            "InputError" => CommandOutcome::InputError,
-            _ => unreachable!("unknown command outcome variant"),
-        })
-    }
-}
-
-impl From<CommandOutcome> for WireCommandOutcome {
-    fn from(value: CommandOutcome) -> Self {
-        match value {
-            CommandOutcome::NotFound => {
-                WireCommandOutcome::from_str_name("NotFound").unwrap()
-            }
-            CommandOutcome::AlreadyAuthenticated => {
-                WireCommandOutcome::from_str_name("AlreadyAuthenticated")
-                    .unwrap()
-            }
-            CommandOutcome::NotAuthenticated => {
-                WireCommandOutcome::from_str_name("NotAuthenticated").unwrap()
-            }
-            CommandOutcome::Success => {
-                WireCommandOutcome::from_str_name("Success").unwrap()
-            }
-            CommandOutcome::Failed => {
-                WireCommandOutcome::from_str_name("Failed").unwrap()
-            }
-            CommandOutcome::Canceled => {
-                WireCommandOutcome::from_str_name("Canceled").unwrap()
-            }
-            CommandOutcome::TimedOut => {
-                WireCommandOutcome::from_str_name("TimedOut").unwrap()
-            }
-            CommandOutcome::Exhausted => {
-                WireCommandOutcome::from_str_name("Exhausted").unwrap()
-            }
-            CommandOutcome::InputError => {
-                WireCommandOutcome::from_str_name("InputError").unwrap()
-            }
-        }
-    }
 }
 
 impl From<(u64, IpcResponse)> for WireIpcResponse {
@@ -182,10 +101,7 @@ impl From<(u64, IpcResponse)> for WireIpcResponse {
                         accounts: data
                             .into_iter()
                             .map(|(public_id, val)| WireAccountInfo {
-                                public_id: Some(WirePublicIdentity {
-                                    address: public_id.address().to_string(),
-                                    label: public_id.label().to_string(),
-                                }),
+                                public_id: Some(public_id.into()),
                                 authenticated: val,
                             })
                             .collect(),
@@ -227,40 +143,25 @@ impl From<(u64, IpcResponse)> for WireIpcResponse {
                         },
                     )),
                 },
-                IpcResponseBody::Search(documents) => Self {
+                IpcResponseBody::Search(accounts) => Self {
                     message_id,
                     result: Some(wire_ipc_response::Result::Body(
                         WireIpcResponseBody {
                             inner: Some(
                                 wire_ipc_response_body::Inner::Search(
-                                    todo!(), /*
-                                             WireSearchResults {
-                                                 documents: documents
-                                                     .into_iter()
-                                                     .map(|d| d.into())
-                                                     .collect(),
-                                             },
-                                             */
+                                    accounts.into(),
                                 ),
                             ),
                         },
                     )),
                 },
-                IpcResponseBody::QueryView(documents) => Self {
+                IpcResponseBody::QueryView(accounts) => Self {
                     message_id,
                     result: Some(wire_ipc_response::Result::Body(
                         WireIpcResponseBody {
                             inner: Some(
                                 wire_ipc_response_body::Inner::QueryView(
-                                    todo!(),
-                                    /*
-                                    WireSearchResults {
-                                        documents: documents
-                                            .into_iter()
-                                            .map(|d| d.into())
-                                            .collect(),
-                                    },
-                                    */
+                                    accounts.into(),
                                 ),
                             ),
                         },
@@ -313,10 +214,7 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
                         for item in inner.accounts {
                             let public_id = item.public_id.unwrap();
                             data.push((
-                                PublicIdentity::new(
-                                    public_id.label,
-                                    public_id.address.parse()?,
-                                ),
+                                public_id.try_into()?,
                                 item.authenticated,
                             ));
                         }
@@ -349,31 +247,19 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
                             )),
                         )
                     }
-                    Some(wire_ipc_response_body::Inner::Search(inner)) => {
-                        todo!();
-
-                        /*
-                        let outcome: WireCommandOutcome = inner.try_into()?;
-                        (
-                            message_id,
-                            IpcResponse::Value(IpcResponseBody::Lock(
-                                outcome.try_into()?,
-                            )),
-                        )
-                        */
-                    }
+                    Some(wire_ipc_response_body::Inner::Search(inner)) => (
+                        message_id,
+                        IpcResponse::Value(IpcResponseBody::Search(
+                            inner.try_into()?,
+                        )),
+                    ),
                     Some(wire_ipc_response_body::Inner::QueryView(inner)) => {
-                        todo!();
-
-                        /*
-                        let outcome: WireCommandOutcome = inner.try_into()?;
                         (
                             message_id,
-                            IpcResponse::Value(IpcResponseBody::Lock(
-                                outcome.try_into()?,
+                            IpcResponse::Value(IpcResponseBody::QueryView(
+                                inner.try_into()?,
                             )),
                         )
-                        */
                     }
                     _ => return Err(Error::DecodeResponse),
                 })
@@ -387,5 +273,118 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
             )),
             _ => return Err(Error::DecodeResponse),
         }
+    }
+}
+
+/// Generic command outcome.
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum CommandOutcome {
+    /// Account not found.
+    NotFound,
+    /// Already authenticated.
+    AlreadyAuthenticated,
+    /// Not authenticated.
+    NotAuthenticated,
+    /// Account was authenticated.
+    Success,
+    /// Authentication failed.
+    Failed,
+    /// User canceled.
+    Canceled,
+    /// Timed out waiting for user input.
+    TimedOut,
+    /// Too many attempts to authenticate.
+    Exhausted,
+    /// Error attempting to get user input.
+    InputError,
+}
+
+impl From<CommandOutcome> for WireCommandOutcome {
+    fn from(value: CommandOutcome) -> Self {
+        match value {
+            CommandOutcome::NotFound => {
+                WireCommandOutcome::from_str_name("NotFound").unwrap()
+            }
+            CommandOutcome::AlreadyAuthenticated => {
+                WireCommandOutcome::from_str_name("AlreadyAuthenticated")
+                    .unwrap()
+            }
+            CommandOutcome::NotAuthenticated => {
+                WireCommandOutcome::from_str_name("NotAuthenticated").unwrap()
+            }
+            CommandOutcome::Success => {
+                WireCommandOutcome::from_str_name("Success").unwrap()
+            }
+            CommandOutcome::Failed => {
+                WireCommandOutcome::from_str_name("Failed").unwrap()
+            }
+            CommandOutcome::Canceled => {
+                WireCommandOutcome::from_str_name("Canceled").unwrap()
+            }
+            CommandOutcome::TimedOut => {
+                WireCommandOutcome::from_str_name("TimedOut").unwrap()
+            }
+            CommandOutcome::Exhausted => {
+                WireCommandOutcome::from_str_name("Exhausted").unwrap()
+            }
+            CommandOutcome::InputError => {
+                WireCommandOutcome::from_str_name("InputError").unwrap()
+            }
+        }
+    }
+}
+
+impl TryFrom<WireCommandOutcome> for CommandOutcome {
+    type Error = Error;
+
+    fn try_from(value: WireCommandOutcome) -> Result<Self> {
+        let name = value.as_str_name();
+        Ok(match name {
+            "NotFound" => CommandOutcome::NotFound,
+            "AlreadyAuthenticated" => CommandOutcome::AlreadyAuthenticated,
+            "NotAuthenticated" => CommandOutcome::NotAuthenticated,
+            "Success" => CommandOutcome::Success,
+            "Failed" => CommandOutcome::Failed,
+            "Canceled" => CommandOutcome::Canceled,
+            "TimedOut" => CommandOutcome::TimedOut,
+            "Exhausted" => CommandOutcome::Exhausted,
+            "InputError" => CommandOutcome::InputError,
+            _ => unreachable!("unknown command outcome variant"),
+        })
+    }
+}
+
+impl From<SearchResults> for WireSearchResults {
+    fn from(value: SearchResults) -> Self {
+        WireSearchResults {
+            accounts: value
+                .into_iter()
+                .map(|(identity, documents)| WireAccountSearchResults {
+                    identity: Some(identity.into()),
+                    documents: documents
+                        .into_iter()
+                        .map(|d| d.into())
+                        .collect(),
+                })
+                .collect(),
+        }
+    }
+}
+
+impl TryFrom<WireSearchResults> for SearchResults {
+    type Error = Error;
+
+    fn try_from(value: WireSearchResults) -> Result<Self> {
+        let mut results = Vec::with_capacity(value.accounts.len());
+        for account in value.accounts {
+            let identity = account.identity.unwrap();
+            let mut documents = Vec::with_capacity(account.documents.len());
+            for doc in account.documents {
+                documents.push(doc.try_into()?);
+            }
+            results.push((identity.try_into()?, documents));
+        }
+        Ok(results)
     }
 }

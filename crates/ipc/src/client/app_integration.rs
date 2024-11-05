@@ -8,7 +8,7 @@ use crate::CommandOutcome;
 pub type AccountsList = Vec<(PublicIdentity, bool)>;
 
 /// List of search results grouped by account identity.
-pub type SearchList = Vec<(PublicIdentity, Vec<Document>)>;
+pub type SearchResults = Vec<(PublicIdentity, Vec<Document>)>;
 
 /// Contract for types that expose an API to
 /// app integrations such as browser extensions.

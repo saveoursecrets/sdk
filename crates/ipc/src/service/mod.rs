@@ -1,6 +1,6 @@
 use crate::{
     io_err, AccountsList, IpcRequest, IpcResponse, IpcResponseBody,
-    SearchList,
+    SearchResults,
 };
 use async_trait::async_trait;
 use sos_net::{
@@ -99,7 +99,7 @@ where
         &self,
         needle: String,
         filter: QueryFilter,
-    ) -> std::result::Result<SearchList, E> {
+    ) -> std::result::Result<SearchResults, E> {
         let mut out = Vec::new();
         let accounts = self.accounts.read().await;
         for account in accounts.iter() {
@@ -117,7 +117,7 @@ where
         &self,
         views: &[DocumentView],
         archive_filter: Option<&ArchiveFilter>,
-    ) -> std::result::Result<SearchList, E> {
+    ) -> std::result::Result<SearchResults, E> {
         let mut out = Vec::new();
         let accounts = self.accounts.read().await;
         for account in accounts.iter() {

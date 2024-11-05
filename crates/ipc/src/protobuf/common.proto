@@ -2,6 +2,14 @@ syntax = "proto3";
 
 package common;
 
+// Public identity for an account.
+message WirePublicIdentity {
+  // Account address.
+  string address = 1;
+  // Account label.
+  string label = 2;
+}
+
 // Void body.
 message WireVoidBody {}
 
