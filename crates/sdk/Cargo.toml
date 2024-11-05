@@ -77,7 +77,7 @@ zxcvbn = { version = "3.0.1", features = ["ser"] }
 totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
 vcard4 = { version = "0.5", features = ["serde"] }
 async-once-cell = "0.5"
-age = { version = "0.10", features = ["async"], git = "https://github.com/tmpfs/rage", branch = "secrecy-0.10" }
+age = { version = "0.11", features = ["async"] }
 ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
 urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"

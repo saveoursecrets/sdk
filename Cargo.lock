@@ -54,8 +54,9 @@ dependencies = [
 
 [[package]]
 name = "age"
-version = "0.10.0"
-source = "git+https://github.com/tmpfs/rage?branch=secrecy-0.10#766a3ed1f8769060afe63c4e3a30c1a356b0832e"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2020562e68d7a02c2743707b262c62484b340a296924a5e4146d5a0a96ca8103"
 dependencies = [
  "age-core",
  "base64 0.21.7",
@@ -81,8 +82,9 @@ dependencies = [
 
 [[package]]
 name = "age-core"
-version = "0.10.0"
-source = "git+https://github.com/tmpfs/rage?branch=secrecy-0.10#766a3ed1f8769060afe63c4e3a30c1a356b0832e"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2bf6a89c984ca9d850913ece2da39e1d200563b0a94b002b253beee4c5acf99"
 dependencies = [
  "base64 0.21.7",
  "chacha20poly1305",
