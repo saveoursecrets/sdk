@@ -860,8 +860,8 @@ impl Account for NetworkAccount {
         account.verify(key).await
     }
 
-    async fn open_folder(&mut self, summary: &Summary) -> Result<()> {
-        let mut account = self.account.lock().await;
+    async fn open_folder(&self, summary: &Summary) -> Result<()> {
+        let account = self.account.lock().await;
         Ok(account.open_folder(summary).await?)
     }
 

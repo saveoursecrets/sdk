@@ -246,7 +246,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             // Get the current folder so that the shell client
             // does not lose context when importing and exporting contacts
             let original_folder = {
-                let mut owner = user.write().await;
+                let owner = user.read().await;
 
                 let current = {
                     let storage = owner.storage().await?;
@@ -267,7 +267,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     contacts_export(Arc::clone(&user), output, force).await?;
                     success("Contacts exported");
                     if let Some(folder) = original_folder {
-                        let mut owner = user.write().await;
+                        let owner = user.read().await;
                         owner.open_folder(&folder).await?;
                     }
                 }
@@ -275,7 +275,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     contacts_import(Arc::clone(&user), input).await?;
                     success("Contacts imported");
                     if let Some(folder) = original_folder {
-                        let mut owner = user.write().await;
+                        let owner = user.read().await;
                         owner.open_folder(&folder).await?;
                     }
                 }

@@ -346,7 +346,7 @@ pub trait Account {
 
     /// Open a folder.
     async fn open_folder(
-        &mut self,
+        &self,
         summary: &Summary,
     ) -> std::result::Result<(), Self::Error>;
 
@@ -1053,7 +1053,7 @@ impl LocalAccount {
     }
 
     pub(crate) async fn open_vault(
-        &mut self,
+        &self,
         summary: &Summary,
         audit: bool,
     ) -> Result<()> {
@@ -1760,7 +1760,7 @@ impl Account for LocalAccount {
         }
     }
 
-    async fn open_folder(&mut self, summary: &Summary) -> Result<()> {
+    async fn open_folder(&self, summary: &Summary) -> Result<()> {
         self.open_vault(summary, true).await
     }
 

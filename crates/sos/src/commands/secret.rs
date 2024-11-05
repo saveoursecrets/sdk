@@ -618,7 +618,7 @@ async fn resolve_verify<'a>(
     };
 
     if !is_shell || should_open {
-        let mut owner = user.write().await;
+        let owner = user.read().await;
         owner.open_folder(&summary).await?;
     }
 
@@ -716,7 +716,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .ok_or_else(|| Error::NoFolderFound)?;
 
             if !is_shell || folder.is_some() {
-                let mut owner = user.write().await;
+                let owner = user.read().await;
                 owner.open_folder(&summary).await?;
             }
 

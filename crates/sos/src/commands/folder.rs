@@ -243,7 +243,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
 
-            let mut owner = user.write().await;
+            let owner = user.read().await;
 
             if !is_shell {
                 owner.open_folder(&summary).await?;
@@ -313,9 +313,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .ok_or_else(|| Error::NoFolderFound)?;
 
             {
-                let mut writer = user.write().await;
+                let reader = user.read().await;
                 if !is_shell {
-                    writer.open_folder(&summary).await?;
+                    reader.open_folder(&summary).await?;
                 }
             }
 

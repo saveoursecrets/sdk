@@ -218,7 +218,7 @@ pub async fn cd_folder(
 
         summary.ok_or(Error::NoFolderFound)?
     };
-    let mut owner = user.write().await;
+    let owner = user.read().await;
     owner.open_folder(&summary).await?;
     Ok(())
 }
