@@ -3,10 +3,12 @@ use std::time::{Duration, SystemTime};
 
 use crate::{
     AccountsList, AppIntegration, CommandOutcome, Error, IpcRequest,
-    IpcResponse, IpcResponseBody, Result,
+    IpcResponse, IpcResponseBody, Result, SearchResults,
 };
 
-use sos_net::sdk::prelude::Address;
+use sos_net::sdk::prelude::{
+    Address, ArchiveFilter, DocumentView, QueryFilter,
+};
 
 pub(crate) mod app_integration;
 
@@ -78,6 +80,44 @@ macro_rules! app_integration_impl {
                     IpcResponse::Value(IpcResponseBody::Lock(outcome)) => {
                         Ok(outcome)
                     }
+                    _ => Err(Error::ResponseType),
+                }
+            }
+
+            async fn search(
+                &mut self,
+                needle: &str,
+                filter: QueryFilter,
+            ) -> Result<SearchResults> {
+                let request = IpcRequest::Search {
+                    needle: needle.to_owned(),
+                    filter,
+                };
+                let response = self.send_request(request).await?;
+                match response {
+                    IpcResponse::Error(err) => Err(Error::ResponseError(err)),
+                    IpcResponse::Value(IpcResponseBody::Search(results)) => {
+                        Ok(results)
+                    }
+                    _ => Err(Error::ResponseType),
+                }
+            }
+
+            async fn query_view(
+                &mut self,
+                views: Vec<DocumentView>,
+                archive_filter: Option<ArchiveFilter>,
+            ) -> Result<SearchResults> {
+                let request = IpcRequest::QueryView {
+                    views,
+                    archive_filter,
+                };
+                let response = self.send_request(request).await?;
+                match response {
+                    IpcResponse::Error(err) => Err(Error::ResponseError(err)),
+                    IpcResponse::Value(IpcResponseBody::QueryView(
+                        results,
+                    )) => Ok(results),
                     _ => Err(Error::ResponseType),
                 }
             }

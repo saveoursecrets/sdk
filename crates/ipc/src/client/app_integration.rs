@@ -1,5 +1,8 @@
 use async_trait::async_trait;
-use sos_net::sdk::prelude::{Address, Document, PublicIdentity};
+use sos_net::sdk::prelude::{
+    Address, ArchiveFilter, Document, DocumentView, PublicIdentity,
+    QueryFilter,
+};
 use std::time::Duration;
 
 use crate::CommandOutcome;
@@ -33,4 +36,18 @@ pub trait AppIntegration<E: From<sos_net::sdk::Error>> {
         &mut self,
         address: Option<Address>,
     ) -> Result<CommandOutcome, E>;
+
+    /// Search authenticated accounts.
+    async fn search(
+        &mut self,
+        needle: &str,
+        filter: QueryFilter,
+    ) -> Result<SearchResults, E>;
+
+    /// Query search index views.
+    async fn query_view(
+        &mut self,
+        views: Vec<DocumentView>,
+        archive_filter: Option<ArchiveFilter>,
+    ) -> Result<SearchResults, E>;
 }
