@@ -72,7 +72,10 @@ pub enum CommandOptions {
     /// Options to lock an account.
     Lock {
         /// Account address.
-        address: Address,
+        ///
+        /// When no account address is given the delegate should
+        /// lock all authenticated accounts.
+        address: Option<Address>,
         /// Result channel for the outcome.
         result: oneshot::Sender<CommandOutcome>,
     },

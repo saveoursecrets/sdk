@@ -52,5 +52,5 @@ message WireAuthenticateBody {
 // Lock request body.
 message WireLockBody {
   // Account address.
-  string address = 1;
+  optional string address = 1;
 }

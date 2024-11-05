@@ -69,7 +69,7 @@ macro_rules! app_integration_impl {
 
             async fn lock(
                 &mut self,
-                address: Address,
+                address: Option<Address>,
             ) -> Result<CommandOutcome> {
                 let request = IpcRequest::Lock { address };
                 let response = self.send_request(request).await?;

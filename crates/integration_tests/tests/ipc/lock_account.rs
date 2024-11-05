@@ -51,6 +51,7 @@ async fn integration_ipc_lock_account() -> Result<()> {
     // Add the accounts
     let mut accounts = LocalAccountSwitcher::new_with_options(Some(paths));
     accounts.add_account(auth_account);
+    accounts.switch_account(&auth_address);
 
     let ipc_accounts = Arc::new(RwLock::new(accounts));
     let assert_accounts = ipc_accounts.clone();
@@ -62,12 +63,21 @@ async fn integration_ipc_lock_account() -> Result<()> {
             let Command { accounts, options } = command;
             if let CommandOptions::Lock { address, result } = options {
                 let mut accounts = accounts.write().await;
-                let account = accounts
-                    .iter_mut()
-                    .find(|a| a.address() == &address)
-                    .unwrap();
-                account.sign_out().await.unwrap();
-                result.send(CommandOutcome::Success).unwrap();
+                if let Some(address) = address {
+                    let account = accounts
+                        .iter_mut()
+                        .find(|a| a.address() == &address)
+                        .unwrap();
+                    account.sign_out().await.unwrap();
+                    result.send(CommandOutcome::Success).unwrap();
+                } else {
+                    for account in accounts.iter_mut() {
+                        if account.is_authenticated().await {
+                            account.sign_out().await.unwrap();
+                        }
+                    }
+                    result.send(CommandOutcome::Success).unwrap();
+                }
             }
         }
     });
@@ -88,13 +98,35 @@ async fn integration_ipc_lock_account() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(250)).await;
 
     let mut client = SocketClient::connect(&socket_name).await?;
-    let outcome = client.lock(auth_address).await?;
+
+    // Lock a specific account
+    let outcome = client.lock(Some(auth_address)).await?;
     assert_eq!(CommandOutcome::Success, outcome);
 
-    let accounts = assert_accounts.write().await;
-    let mut it = accounts.iter();
-    let account = it.next().unwrap();
-    assert!(!account.is_authenticated().await);
+    {
+        let accounts = assert_accounts.write().await;
+        let mut it = accounts.iter();
+        let account = it.next().unwrap();
+        assert!(!account.is_authenticated().await);
+    }
+
+    // Sign in again
+    {
+        let mut accounts = assert_accounts.write().await;
+        let account = accounts.selected_account_mut().unwrap();
+        account.sign_in(&key).await?;
+    }
+
+    // Lock all authenticated accounts
+    let outcome = client.lock(None).await?;
+    assert_eq!(CommandOutcome::Success, outcome);
+
+    {
+        let accounts = assert_accounts.write().await;
+        let mut it = accounts.iter();
+        let account = it.next().unwrap();
+        assert!(!account.is_authenticated().await);
+    }
 
     Ok(())
 }

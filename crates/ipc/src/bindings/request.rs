@@ -25,7 +25,7 @@ pub enum IpcRequest {
     /// Request to lock an account.
     Lock {
         /// Account address.
-        address: Address,
+        address: Option<Address>,
     },
 }
 
@@ -93,7 +93,7 @@ impl From<(u64, IpcRequest)> for WireIpcRequest {
                 body: Some(WireIpcRequestBody {
                     inner: Some(wire_ipc_request_body::Inner::Lock(
                         WireLockBody {
-                            address: address.to_string(),
+                            address: address.map(|a| a.to_string()),
                         },
                     )),
                 }),
@@ -126,7 +126,12 @@ impl TryFrom<WireIpcRequest> for (u64, IpcRequest) {
                 (message_id, IpcRequest::Authenticate { address })
             }
             Some(wire_ipc_request_body::Inner::Lock(body)) => {
-                let address: Address = body.address.parse()?;
+                let address = if let Some(address) = body.address {
+                    let address: Address = address.parse()?;
+                    Some(address)
+                } else {
+                    None
+                };
                 (message_id, IpcRequest::Lock { address })
             }
             _ => return Err(Error::DecodeRequest),

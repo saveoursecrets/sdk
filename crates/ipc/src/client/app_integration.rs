@@ -26,5 +26,8 @@ pub trait AppIntegration<E: From<sos_net::sdk::Error>> {
     ) -> Result<CommandOutcome, E>;
 
     /// Attempt to lock an account.
-    async fn lock(&mut self, address: Address) -> Result<CommandOutcome, E>;
+    async fn lock(
+        &mut self,
+        address: Option<Address>,
+    ) -> Result<CommandOutcome, E>;
 }
