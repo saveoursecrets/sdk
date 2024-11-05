@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+package common;
+
+// Void body.
+message WireVoidBody {}

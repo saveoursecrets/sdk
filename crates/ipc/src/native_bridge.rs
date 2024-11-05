@@ -8,7 +8,7 @@ use crate::{
     Error, IpcRequest, IpcResponse, IpcResponseBody, Result, SocketClient,
 };
 use futures_util::{SinkExt, StreamExt};
-use sos_net::sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME};
+use sos_net::sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME, Paths};
 use tokio_util::codec::LengthDelimitedCodec;
 
 /// Extension id used by the CLI.
@@ -109,9 +109,18 @@ async fn handle_request(
     request: IpcRequest,
 ) -> Result<IpcResponse> {
     match &request {
+        IpcRequest::Status => {
+            let paths = Paths::new_global(Paths::data_dir()?);
+            let app = paths.has_app_lock()?;
+            let ipc = match client.send_request(IpcRequest::Ping).await {
+                Ok(_) => true,
+                _ => false,
+            };
+            Ok(IpcResponse::Value(IpcResponseBody::Status { app, ipc }))
+        }
         IpcRequest::OpenUrl(url) => {
             let result = open::that_detached(&url);
-            Ok(IpcResponse::Body(IpcResponseBody::OpenUrl(result.is_ok())))
+            Ok(IpcResponse::Value(IpcResponseBody::OpenUrl(result.is_ok())))
         }
         _ => client.send_request(request).await,
     }

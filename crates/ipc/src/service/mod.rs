@@ -4,6 +4,7 @@ use sos_net::{
     sdk::{
         account::{Account, AccountSwitcher, LocalAccount},
         prelude::Identity,
+        Paths,
     },
     NetworkAccount,
 };
@@ -109,20 +110,21 @@ where
     ) -> std::result::Result<IpcResponse, E> {
         match request {
             IpcRequest::Status => {
-                // Status is a noop as we let the native bridge handle it
-                Ok(IpcResponse::Body(IpcResponseBody::Status {
-                    app: false,
+                let paths = Paths::new_global(Paths::data_dir()?);
+                let app = paths.has_app_lock()?;
+                Ok(IpcResponse::Value(IpcResponseBody::Status {
+                    app,
                     ipc: true,
                 }))
             }
-            IpcRequest::Ping => Ok(IpcResponse::Body(IpcResponseBody::Pong)),
+            IpcRequest::Ping => Ok(IpcResponse::Value(IpcResponseBody::Pong)),
             IpcRequest::OpenUrl(_) => {
                 // Open is a noop as we let the native bridge handle it
-                Ok(IpcResponse::Body(IpcResponseBody::OpenUrl(false)))
+                Ok(IpcResponse::Value(IpcResponseBody::OpenUrl(false)))
             }
             IpcRequest::ListAccounts => {
                 let data = self.list_accounts().await?;
-                Ok(IpcResponse::Body(IpcResponseBody::Accounts(data)))
+                Ok(IpcResponse::Value(IpcResponseBody::Accounts(data)))
             }
             IpcRequest::Authenticate { address } => {
                 let (result, result_rx) = tokio::sync::oneshot::channel();
@@ -132,7 +134,7 @@ where
                 };
                 match self.delegate.send(command).await {
                     Ok(_) => match result_rx.await {
-                        Ok(outcome) => Ok(IpcResponse::Body(
+                        Ok(outcome) => Ok(IpcResponse::Value(
                             IpcResponseBody::Authenticate(outcome),
                         )),
                         Err(err) => Err(io_err(err).into()),
@@ -148,7 +150,7 @@ where
                 };
                 match self.delegate.send(command).await {
                     Ok(_) => match result_rx.await {
-                        Ok(outcome) => Ok(IpcResponse::Body(
+                        Ok(outcome) => Ok(IpcResponse::Value(
                             IpcResponseBody::Lock(outcome),
                         )),
                         Err(err) => Err(io_err(err).into()),

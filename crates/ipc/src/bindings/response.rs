@@ -1,12 +1,9 @@
+include!(concat!(env!("OUT_DIR"), "/response.rs"));
+
 use serde::{Deserialize, Serialize};
 use sos_net::sdk::prelude::PublicIdentity;
 
-use crate::{
-    wire_ipc_response, wire_ipc_response_body, AccountsList, Error, Result,
-    WireAccountInfo, WireAccountList, WireCommandOutcome, WireIpcResponse,
-    WireIpcResponseBody, WireIpcResponseError, WireOpenUrl,
-    WirePublicIdentity, WireStatusBody,
-};
+use crate::{AccountsList, Error, Result};
 
 use super::WireVoidBody;
 
@@ -15,9 +12,11 @@ use super::WireVoidBody;
 #[serde(rename_all = "camelCase")]
 pub enum IpcResponse {
     /// Error response.
+    #[serde(rename = "err")]
     Error(IpcResponseError),
-    /// Response body.
-    Body(IpcResponseBody),
+    /// Response value.
+    #[serde(rename = "ok")]
+    Value(IpcResponseBody),
 }
 
 /// IPC response body.
@@ -137,7 +136,7 @@ impl From<(u64, IpcResponse)> for WireIpcResponse {
         let (message_id, res) = value;
 
         match res {
-            IpcResponse::Body(body) => match body {
+            IpcResponse::Value(body) => match body {
                 IpcResponseBody::Status { app, ipc } => Self {
                     message_id,
                     result: Some(wire_ipc_response::Result::Body(
@@ -249,17 +248,18 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
                 Ok(match body.inner {
                     Some(wire_ipc_response_body::Inner::Status(inner)) => (
                         message_id,
-                        IpcResponse::Body(IpcResponseBody::Status {
+                        IpcResponse::Value(IpcResponseBody::Status {
                             app: inner.app,
                             ipc: inner.ipc,
                         }),
                     ),
-                    Some(wire_ipc_response_body::Inner::Pong(_)) => {
-                        (message_id, IpcResponse::Body(IpcResponseBody::Pong))
-                    }
+                    Some(wire_ipc_response_body::Inner::Pong(_)) => (
+                        message_id,
+                        IpcResponse::Value(IpcResponseBody::Pong),
+                    ),
                     Some(wire_ipc_response_body::Inner::OpenUrl(inner)) => (
                         message_id,
-                        IpcResponse::Body(IpcResponseBody::OpenUrl(
+                        IpcResponse::Value(IpcResponseBody::OpenUrl(
                             inner.is_ok,
                         )),
                     ),
@@ -279,7 +279,7 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
                         }
                         (
                             message_id,
-                            IpcResponse::Body(IpcResponseBody::Accounts(
+                            IpcResponse::Value(IpcResponseBody::Accounts(
                                 data,
                             )),
                         )
@@ -290,16 +290,18 @@ impl TryFrom<WireIpcResponse> for (u64, IpcResponse) {
                         let outcome: WireCommandOutcome = inner.try_into()?;
                         (
                             message_id,
-                            IpcResponse::Body(IpcResponseBody::Authenticate(
-                                outcome.try_into()?,
-                            )),
+                            IpcResponse::Value(
+                                IpcResponseBody::Authenticate(
+                                    outcome.try_into()?,
+                                ),
+                            ),
                         )
                     }
                     Some(wire_ipc_response_body::Inner::Lock(inner)) => {
                         let outcome: WireCommandOutcome = inner.try_into()?;
                         (
                             message_id,
-                            IpcResponse::Body(IpcResponseBody::Lock(
+                            IpcResponse::Value(IpcResponseBody::Lock(
                                 outcome.try_into()?,
                             )),
                         )

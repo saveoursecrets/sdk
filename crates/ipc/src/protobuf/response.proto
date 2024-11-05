@@ -1,60 +1,8 @@
 syntax = "proto3";
 
-package protocol;
+package response;
 
-// IPC request packet.
-message WireIpcRequest {
-  // Message identifier.
-  uint64 message_id = 1;
-  // Request body.
-  WireIpcRequestBody body = 2;
-}
-
-// IPC request body.
-message WireIpcRequestBody {
-  // Inner values.
-  oneof inner {
-
-    // Query app status.
-    WireVoidBody status = 1;
-
-    // Ping the server.
-    WireVoidBody ping = 2;
-
-    // Request to open a program.
-    WireOpenUrlBody open_url = 3;
-
-    // Request a list of accounts.
-    WireVoidBody list_accounts = 4;
-
-    // Request to authenticate to an account.
-    WireAuthenticateBody authenticate  = 5;
-
-    // Request to lock an account.
-    WireLockBody lock  = 6;
-  }
-}
-
-// Void request body.
-message WireVoidBody {}
-
-// Request body to open a URL.
-message WireOpenUrlBody {
-  // URL to open.
-  string url = 1;
-}
-
-// Authenticate request body.
-message WireAuthenticateBody {
-  // Account address.
-  string address = 1;
-}
-
-// Lock request body.
-message WireLockBody {
-  // Account address.
-  string address = 1;
-}
+import "protobuf/common.proto";
 
 // IPC response packet.
 message WireIpcResponse {
@@ -76,7 +24,7 @@ message WireIpcResponseBody {
     // App status.
     WireStatusBody status = 1;
     // Reply to a ping.
-    WireVoidBody pong = 2;
+    common.WireVoidBody pong = 2;
     // Request to open a URL.
     WireOpenUrl open_url = 3;
     // List accounts body.

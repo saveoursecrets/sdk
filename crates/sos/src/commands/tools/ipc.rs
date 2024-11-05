@@ -5,7 +5,7 @@ use sos_ipc::{
     native_bridge::{self, NativeBridgeOptions, CLI_EXTENSION_ID},
     remove_socket_file, Command as IpcCommand, CommandOptions,
     CommandOutcome, IpcRequest, LocalAccountCommand, LocalAccountIpcService,
-    LocalAccountServiceDelegate, LocalAccountSocketServer, SocketClient,
+    LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{
     crypto::AccessKey,

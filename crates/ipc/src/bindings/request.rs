@@ -1,12 +1,9 @@
-use crate::{
-    wire_ipc_request_body, Error, Result, WireIpcRequest, WireIpcRequestBody,
-    WireOpenUrlBody, WireVoidBody,
-};
+include!(concat!(env!("OUT_DIR"), "/request.rs"));
+
+use crate::{Error, Result, WireVoidBody};
 use serde::{Deserialize, Serialize};
 use sos_net::sdk::prelude::Address;
 use tokio::time::Duration;
-
-use super::{WireAuthenticateBody, WireLockBody};
 
 /// IPC request information.
 #[derive(Debug, Serialize, Deserialize)]

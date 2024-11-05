@@ -89,14 +89,16 @@ impl Server {
     /// block until the lock is released.
     pub async fn new(path: impl AsRef<Path>) -> Result<Self> {
         let lock_path = path.as_ref().join("server.lock");
-        let guard = FileLock::acquire(lock_path, || async {
-            println!(
-                "Blocking waiting for lock on {} ...",
-                path.as_ref().display()
-            );
-            Ok(())
-        })
-        .await?;
+        let mut guard = FileLock::new(lock_path)?;
+        guard
+            .acquire(|| async {
+                println!(
+                    "Blocking waiting for lock on {} ...",
+                    path.as_ref().display()
+                );
+                Ok(())
+            })
+            .await?;
         Ok(Self { guard })
     }
 

@@ -33,7 +33,7 @@ macro_rules! app_integration_impl {
                 let response = self.send_request(request).await?;
                 match response {
                     IpcResponse::Error(err) => Err(Error::ResponseError(err)),
-                    IpcResponse::Body(IpcResponseBody::Pong) => {
+                    IpcResponse::Value(IpcResponseBody::Pong) => {
                         Ok(now.elapsed()?)
                     }
                     _ => Err(Error::ResponseType),
@@ -45,7 +45,7 @@ macro_rules! app_integration_impl {
                 let response = self.send_request(request).await?;
                 match response {
                     IpcResponse::Error(err) => Err(Error::ResponseError(err)),
-                    IpcResponse::Body(IpcResponseBody::Accounts(list)) => {
+                    IpcResponse::Value(IpcResponseBody::Accounts(list)) => {
                         Ok(list)
                     }
                     _ => Err(Error::ResponseType),
@@ -60,7 +60,7 @@ macro_rules! app_integration_impl {
                 let response = self.send_request(request).await?;
                 match response {
                     IpcResponse::Error(err) => Err(Error::ResponseError(err)),
-                    IpcResponse::Body(IpcResponseBody::Authenticate(
+                    IpcResponse::Value(IpcResponseBody::Authenticate(
                         outcome,
                     )) => Ok(outcome),
                     _ => Err(Error::ResponseType),
@@ -75,7 +75,7 @@ macro_rules! app_integration_impl {
                 let response = self.send_request(request).await?;
                 match response {
                     IpcResponse::Error(err) => Err(Error::ResponseError(err)),
-                    IpcResponse::Body(IpcResponseBody::Lock(outcome)) => {
+                    IpcResponse::Value(IpcResponseBody::Lock(outcome)) => {
                         Ok(outcome)
                     }
                     _ => Err(Error::ResponseType),

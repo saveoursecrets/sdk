@@ -142,6 +142,9 @@ mod folders {
 
     /// Lock file for an account.
     pub const LOCK_FILE: &str = "account.lock";
+
+    /// Lock file for an app.
+    pub const APP_LOCK_FILE: &str = "app.lock";
 }
 
 /// File names.
