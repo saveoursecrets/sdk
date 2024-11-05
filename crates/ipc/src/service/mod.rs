@@ -115,25 +115,19 @@ where
 
     async fn query_view(
         &self,
-        views: Vec<DocumentView>,
-        archive_filter: Option<ArchiveFilter>,
+        views: &[DocumentView],
+        archive_filter: Option<&ArchiveFilter>,
     ) -> std::result::Result<SearchList, E> {
         let mut out = Vec::new();
-        /*
-        let disc_accounts =
-            Identity::list_accounts(accounts.data_dir()).await?;
-        for account in disc_accounts {
-            let authenticated = if let Some(memory_account) =
-                accounts.iter().find(|a| a.address() == account.address())
-            {
-                memory_account.is_authenticated().await
-            } else {
-                false
-            };
-
-            out.push((account, authenticated));
+        let accounts = self.accounts.read().await;
+        for account in accounts.iter() {
+            if account.is_authenticated().await {
+                let identity = account.public_identity().await?;
+                let results =
+                    account.query_view(views, archive_filter).await?;
+                out.push((identity, results));
+            }
         }
-        */
         Ok(out)
     }
 }
@@ -211,7 +205,9 @@ where
                 views,
                 archive_filter,
             } => {
-                let data = self.query_view(views, archive_filter).await?;
+                let data = self
+                    .query_view(views.as_slice(), archive_filter.as_ref())
+                    .await?;
                 Ok(IpcResponse::Value(IpcResponseBody::QueryView(data)))
             }
         }

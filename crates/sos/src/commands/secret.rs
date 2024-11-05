@@ -685,7 +685,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             }
 
             let documents =
-                owner.query_view(views, archive_filter.as_ref()).await?;
+                owner.query_view(&views, archive_filter.as_ref()).await?;
             let docs: Vec<&Document> = documents.iter().collect();
             print_documents(&docs, verbose)?;
         }

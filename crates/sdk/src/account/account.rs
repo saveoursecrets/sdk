@@ -510,7 +510,7 @@ pub trait Account {
     #[cfg(feature = "search")]
     async fn query_view(
         &self,
-        views: Vec<DocumentView>,
+        views: &[DocumentView],
         archive: Option<&ArchiveFilter>,
     ) -> std::result::Result<Vec<Document>, Self::Error>;
 
@@ -2130,7 +2130,7 @@ impl Account for LocalAccount {
     #[cfg(feature = "search")]
     async fn query_view(
         &self,
-        views: Vec<DocumentView>,
+        views: &[DocumentView],
         archive: Option<&ArchiveFilter>,
     ) -> Result<Vec<Document>> {
         let storage = self.storage().await?;

@@ -772,13 +772,13 @@ impl AccountSearch {
     /// Query with document views.
     pub async fn query_view(
         &self,
-        views: Vec<DocumentView>,
+        views: &[DocumentView],
         archive: Option<&ArchiveFilter>,
     ) -> Result<Vec<Document>> {
         let index_reader = self.search_index.read().await;
         let mut docs = Vec::with_capacity(index_reader.len());
         for doc in index_reader.values_iter() {
-            for view in &views {
+            for view in views {
                 if view.test(doc, archive) {
                     docs.push(doc.clone());
                 }

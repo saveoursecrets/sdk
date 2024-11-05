@@ -32,9 +32,8 @@ async fn local_search_favorites() -> Result<()> {
         .await?;
 
     // No favorites yet
-    let documents = account
-        .query_view(vec![DocumentView::Favorites], None)
-        .await?;
+    let documents =
+        account.query_view(&[DocumentView::Favorites], None).await?;
     assert_eq!(0, documents.len());
 
     // Mark a secret as favorite
@@ -45,9 +44,8 @@ async fn local_search_favorites() -> Result<()> {
         .await?;
 
     // Should have a favorite now
-    let documents = account
-        .query_view(vec![DocumentView::Favorites], None)
-        .await?;
+    let documents =
+        account.query_view(&[DocumentView::Favorites], None).await?;
     assert_eq!(1, documents.len());
 
     // No longer a favorite
@@ -58,9 +56,8 @@ async fn local_search_favorites() -> Result<()> {
         .await?;
 
     // Not in the favorites view anymore
-    let documents = account
-        .query_view(vec![DocumentView::Favorites], None)
-        .await?;
+    let documents =
+        account.query_view(&[DocumentView::Favorites], None).await?;
     assert_eq!(0, documents.len());
 
     teardown(TEST_ID).await;
