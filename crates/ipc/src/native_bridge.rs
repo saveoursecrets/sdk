@@ -84,16 +84,19 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
                 let message_id = request.message_id;
                 match handle_request(&mut client, request).await {
                     Ok(response) => response,
-                    Err(e) => IpcResponse::Error(
+                    Err(e) => IpcResponse::Error {
                         message_id,
-                        Error::NativeBridgeClientProxy(e.to_string()).into(),
-                    ),
+                        payload: Error::NativeBridgeClientProxy(
+                            e.to_string(),
+                        )
+                        .into(),
+                    },
                 }
             }
-            Err(e) => IpcResponse::Error(
-                0,
-                Error::NativeBridgeJsonParse(e.to_string()).into(),
-            ),
+            Err(e) => IpcResponse::Error {
+                message_id: 0,
+                payload: Error::NativeBridgeJsonParse(e.to_string()).into(),
+            },
         };
 
         tracing::debug!(
@@ -125,17 +128,17 @@ async fn handle_request(
                 Ok(_) => true,
                 _ => false,
             };
-            Ok(IpcResponse::Value(
+            Ok(IpcResponse::Value {
                 message_id,
-                IpcResponseBody::Status { app, ipc },
-            ))
+                payload: IpcResponseBody::Status { app, ipc },
+            })
         }
         IpcRequestBody::OpenUrl(url) => {
             let result = open::that_detached(&url);
-            Ok(IpcResponse::Value(
+            Ok(IpcResponse::Value {
                 message_id,
-                IpcResponseBody::OpenUrl(result.is_ok()),
-            ))
+                payload: IpcResponseBody::OpenUrl(result.is_ok()),
+            })
         }
         _ => client.send_request(request).await,
     }

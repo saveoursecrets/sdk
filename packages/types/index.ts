@@ -214,6 +214,23 @@ export enum CommandOutcome {
 	InputError = "inputError",
 }
 
+/** IPC response information. */
+export type IpcResponse = 
+	/** Error response. */
+	| { kind: "err", body: {
+	/** Message identifier. */
+	id: number;
+	/** Message payload. */
+	payload: IpcResponseError;
+}}
+	/** Response value. */
+	| { kind: "ok", body: {
+	/** Message identifier. */
+	id: number;
+	/** Message payload. */
+	payload: IpcResponseBody;
+}};
+
 /** IPC response body. */
 export type IpcResponseBody = 
 	/** Status information. */

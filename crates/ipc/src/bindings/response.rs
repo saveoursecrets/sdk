@@ -7,23 +7,36 @@ use typeshare::typeshare;
 use super::WireVoidBody;
 
 /// IPC response information.
+#[typeshare]
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum IpcResponse {
     /// Error response.
     #[serde(rename = "err")]
-    Error(u32, IpcResponseError),
+    Error {
+        /// Message identifier.
+        #[serde(rename = "id")]
+        message_id: u32,
+        /// Message payload.
+        payload: IpcResponseError,
+    },
     /// Response value.
     #[serde(rename = "ok")]
-    Value(u32, IpcResponseBody),
+    Value {
+        /// Message identifier.
+        #[serde(rename = "id")]
+        message_id: u32,
+        /// Message payload.
+        payload: IpcResponseBody,
+    },
 }
 
 impl IpcResponse {
     /// Message identifier.
     pub fn message_id(&self) -> u32 {
         match self {
-            Self::Error(id, _) => *id,
-            Self::Value(id, _) => *id,
+            Self::Error { message_id, .. } => *message_id,
+            Self::Value { message_id, .. } => *message_id,
         }
     }
 }
@@ -70,7 +83,10 @@ pub struct IpcResponseError {
 impl From<IpcResponse> for WireIpcResponse {
     fn from(value: IpcResponse) -> Self {
         match value {
-            IpcResponse::Value(message_id, body) => match body {
+            IpcResponse::Value {
+                message_id,
+                payload: body,
+            } => match body {
                 IpcResponseBody::Status { app, ipc } => Self {
                     message_id,
                     result: Some(wire_ipc_response::Result::Body(
@@ -179,7 +195,10 @@ impl From<IpcResponse> for WireIpcResponse {
                     )),
                 },
             },
-            IpcResponse::Error(message_id, err) => Self {
+            IpcResponse::Error {
+                message_id,
+                payload: err,
+            } => Self {
                 message_id,
                 result: Some(wire_ipc_response::Result::Error(
                     WireIpcResponseError {
@@ -201,22 +220,25 @@ impl TryFrom<WireIpcResponse> for IpcResponse {
             Some(wire_ipc_response::Result::Body(body)) => {
                 Ok(match body.inner {
                     Some(wire_ipc_response_body::Inner::Status(inner)) => {
-                        IpcResponse::Value(
+                        IpcResponse::Value {
                             message_id,
-                            IpcResponseBody::Status {
+                            payload: IpcResponseBody::Status {
                                 app: inner.app,
                                 ipc: inner.ipc,
                             },
-                        )
+                        }
                     }
                     Some(wire_ipc_response_body::Inner::Pong(_)) => {
-                        IpcResponse::Value(message_id, IpcResponseBody::Pong)
+                        IpcResponse::Value {
+                            message_id,
+                            payload: IpcResponseBody::Pong,
+                        }
                     }
                     Some(wire_ipc_response_body::Inner::OpenUrl(inner)) => {
-                        IpcResponse::Value(
+                        IpcResponse::Value {
                             message_id,
-                            IpcResponseBody::OpenUrl(inner.is_ok),
-                        )
+                            payload: IpcResponseBody::OpenUrl(inner.is_ok),
+                        }
                     }
                     Some(wire_ipc_response_body::Inner::ListAccounts(
                         inner,
@@ -229,52 +251,58 @@ impl TryFrom<WireIpcResponse> for IpcResponse {
                                 item.authenticated,
                             ));
                         }
-                        IpcResponse::Value(
+                        IpcResponse::Value {
                             message_id,
-                            IpcResponseBody::Accounts(data),
-                        )
+                            payload: IpcResponseBody::Accounts(data),
+                        }
                     }
                     Some(wire_ipc_response_body::Inner::Authenticate(
                         inner,
                     )) => {
                         let outcome: WireCommandOutcome = inner.try_into()?;
-                        IpcResponse::Value(
+                        IpcResponse::Value {
                             message_id,
-                            IpcResponseBody::Authenticate(
+                            payload: IpcResponseBody::Authenticate(
                                 outcome.try_into()?,
                             ),
-                        )
+                        }
                     }
                     Some(wire_ipc_response_body::Inner::Lock(inner)) => {
                         let outcome: WireCommandOutcome = inner.try_into()?;
-                        IpcResponse::Value(
+                        IpcResponse::Value {
                             message_id,
-                            IpcResponseBody::Lock(outcome.try_into()?),
-                        )
+                            payload: IpcResponseBody::Lock(
+                                outcome.try_into()?,
+                            ),
+                        }
                     }
                     Some(wire_ipc_response_body::Inner::Search(inner)) => {
-                        IpcResponse::Value(
+                        IpcResponse::Value {
                             message_id,
-                            IpcResponseBody::Search(inner.try_into()?),
-                        )
+                            payload: IpcResponseBody::Search(
+                                inner.try_into()?,
+                            ),
+                        }
                     }
                     Some(wire_ipc_response_body::Inner::QueryView(inner)) => {
-                        IpcResponse::Value(
+                        IpcResponse::Value {
                             message_id,
-                            IpcResponseBody::QueryView(inner.try_into()?),
-                        )
+                            payload: IpcResponseBody::QueryView(
+                                inner.try_into()?,
+                            ),
+                        }
                     }
                     _ => return Err(Error::DecodeResponse),
                 })
             }
             Some(wire_ipc_response::Result::Error(error)) => {
-                Ok(IpcResponse::Error(
+                Ok(IpcResponse::Error {
                     message_id,
-                    IpcResponseError {
+                    payload: IpcResponseError {
                         code: error.code,
                         message: error.message,
                     },
-                ))
+                })
             }
             _ => return Err(Error::DecodeResponse),
         }

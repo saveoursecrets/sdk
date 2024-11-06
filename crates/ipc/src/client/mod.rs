@@ -39,12 +39,14 @@ macro_rules! app_integration_impl {
 
                 let response = self.send_request(request).await?;
                 match response {
-                    IpcResponse::Error(id, err) => {
-                        Err(Error::ResponseError(id, err))
-                    }
-                    IpcResponse::Value(_id, IpcResponseBody::Pong) => {
-                        Ok(now.elapsed()?)
-                    }
+                    IpcResponse::Error {
+                        message_id,
+                        payload: err,
+                    } => Err(Error::ResponseError(message_id, err)),
+                    IpcResponse::Value {
+                        payload: IpcResponseBody::Pong,
+                        ..
+                    } => Ok(now.elapsed()?),
                     _ => Err(Error::ResponseType),
                 }
             }
@@ -56,13 +58,14 @@ macro_rules! app_integration_impl {
                 };
                 let response = self.send_request(request).await?;
                 match response {
-                    IpcResponse::Error(id, err) => {
-                        Err(Error::ResponseError(id, err))
-                    }
-                    IpcResponse::Value(
-                        _id,
-                        IpcResponseBody::Accounts(list),
-                    ) => Ok(list),
+                    IpcResponse::Error {
+                        message_id,
+                        payload: err,
+                    } => Err(Error::ResponseError(message_id, err)),
+                    IpcResponse::Value {
+                        payload: IpcResponseBody::Accounts(list),
+                        ..
+                    } => Ok(list),
                     _ => Err(Error::ResponseType),
                 }
             }
@@ -77,13 +80,14 @@ macro_rules! app_integration_impl {
                 };
                 let response = self.send_request(request).await?;
                 match response {
-                    IpcResponse::Error(id, err) => {
-                        Err(Error::ResponseError(id, err))
-                    }
-                    IpcResponse::Value(
-                        _id,
-                        IpcResponseBody::Authenticate(outcome),
-                    ) => Ok(outcome),
+                    IpcResponse::Error {
+                        message_id,
+                        payload: err,
+                    } => Err(Error::ResponseError(message_id, err)),
+                    IpcResponse::Value {
+                        payload: IpcResponseBody::Authenticate(outcome),
+                        ..
+                    } => Ok(outcome),
                     _ => Err(Error::ResponseType),
                 }
             }
@@ -98,13 +102,14 @@ macro_rules! app_integration_impl {
                 };
                 let response = self.send_request(request).await?;
                 match response {
-                    IpcResponse::Error(id, err) => {
-                        Err(Error::ResponseError(id, err))
-                    }
-                    IpcResponse::Value(
-                        _id,
-                        IpcResponseBody::Lock(outcome),
-                    ) => Ok(outcome),
+                    IpcResponse::Error {
+                        message_id,
+                        payload: err,
+                    } => Err(Error::ResponseError(message_id, err)),
+                    IpcResponse::Value {
+                        payload: IpcResponseBody::Lock(outcome),
+                        ..
+                    } => Ok(outcome),
                     _ => Err(Error::ResponseType),
                 }
             }
@@ -123,13 +128,14 @@ macro_rules! app_integration_impl {
                 };
                 let response = self.send_request(request).await?;
                 match response {
-                    IpcResponse::Error(id, err) => {
-                        Err(Error::ResponseError(id, err))
-                    }
-                    IpcResponse::Value(
-                        _id,
-                        IpcResponseBody::Search(results),
-                    ) => Ok(results),
+                    IpcResponse::Error {
+                        message_id,
+                        payload: err,
+                    } => Err(Error::ResponseError(message_id, err)),
+                    IpcResponse::Value {
+                        payload: IpcResponseBody::Search(results),
+                        ..
+                    } => Ok(results),
                     _ => Err(Error::ResponseType),
                 }
             }
@@ -148,13 +154,14 @@ macro_rules! app_integration_impl {
                 };
                 let response = self.send_request(request).await?;
                 match response {
-                    IpcResponse::Error(id, err) => {
-                        Err(Error::ResponseError(id, err))
-                    }
-                    IpcResponse::Value(
-                        _id,
-                        IpcResponseBody::QueryView(results),
-                    ) => Ok(results),
+                    IpcResponse::Error {
+                        message_id,
+                        payload: err,
+                    } => Err(Error::ResponseError(message_id, err)),
+                    IpcResponse::Value {
+                        payload: IpcResponseBody::QueryView(results),
+                        ..
+                    } => Ok(results),
                     _ => Err(Error::ResponseType),
                 }
             }
