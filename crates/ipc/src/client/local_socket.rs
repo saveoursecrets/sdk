@@ -4,14 +4,14 @@ use crate::{
 };
 use futures_util::sink::SinkExt;
 use interprocess::local_socket::{tokio::prelude::*, GenericNamespaced};
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::AtomicU32;
 use tokio_stream::StreamExt;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
 /// Socket client for inter-process communication.
 pub struct SocketClient {
     socket: Framed<LocalSocketStream, LengthDelimitedCodec>,
-    pub(super) id: AtomicU64,
+    pub(super) id: AtomicU32,
 }
 
 impl SocketClient {
@@ -21,7 +21,7 @@ impl SocketClient {
         let io = LocalSocketStream::connect(name).await?;
         Ok(Self {
             socket: codec::framed(io),
-            id: AtomicU64::new(1),
+            id: AtomicU32::new(1),
         })
     }
 

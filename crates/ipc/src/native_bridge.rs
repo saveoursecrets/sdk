@@ -75,20 +75,23 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
     let mut client = SocketClient::connect(&socket_name).await?;
 
     while let Some(Ok(buffer)) = stdin.next().await {
-        let response = match serde_json::from_slice(&buffer) {
+        let response = match serde_json::from_slice::<IpcRequest>(&buffer) {
             Ok(request) => {
                 tracing::debug!(
                     request = ?request,
                     "sos_native_bridge::request",
                 );
+                let message_id = request.message_id;
                 match handle_request(&mut client, request).await {
                     Ok(response) => response,
                     Err(e) => IpcResponse::Error(
+                        message_id,
                         Error::NativeBridgeClientProxy(e.to_string()).into(),
                     ),
                 }
             }
             Err(e) => IpcResponse::Error(
+                0,
                 Error::NativeBridgeJsonParse(e.to_string()).into(),
             ),
         };
@@ -109,23 +112,30 @@ async fn handle_request(
     client: &mut SocketClient,
     request: IpcRequest,
 ) -> Result<IpcResponse> {
+    let message_id = request.message_id;
     match &request.payload {
         IpcRequestBody::Status => {
             let paths = Paths::new_global(Paths::data_dir()?);
             let app = paths.has_app_lock()?;
             let request = IpcRequest {
-                message_id: request.message_id,
+                message_id,
                 payload: IpcRequestBody::Ping,
             };
             let ipc = match client.send_request(request).await {
                 Ok(_) => true,
                 _ => false,
             };
-            Ok(IpcResponse::Value(IpcResponseBody::Status { app, ipc }))
+            Ok(IpcResponse::Value(
+                message_id,
+                IpcResponseBody::Status { app, ipc },
+            ))
         }
         IpcRequestBody::OpenUrl(url) => {
             let result = open::that_detached(&url);
-            Ok(IpcResponse::Value(IpcResponseBody::OpenUrl(result.is_ok())))
+            Ok(IpcResponse::Value(
+                message_id,
+                IpcResponseBody::OpenUrl(result.is_ok()),
+            ))
         }
         _ => client.send_request(request).await,
     }

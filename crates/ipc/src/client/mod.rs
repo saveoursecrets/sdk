@@ -39,8 +39,10 @@ macro_rules! app_integration_impl {
 
                 let response = self.send_request(request).await?;
                 match response {
-                    IpcResponse::Error(err) => Err(Error::ResponseError(err)),
-                    IpcResponse::Value(IpcResponseBody::Pong) => {
+                    IpcResponse::Error(id, err) => {
+                        Err(Error::ResponseError(id, err))
+                    }
+                    IpcResponse::Value(_id, IpcResponseBody::Pong) => {
                         Ok(now.elapsed()?)
                     }
                     _ => Err(Error::ResponseType),
@@ -54,10 +56,13 @@ macro_rules! app_integration_impl {
                 };
                 let response = self.send_request(request).await?;
                 match response {
-                    IpcResponse::Error(err) => Err(Error::ResponseError(err)),
-                    IpcResponse::Value(IpcResponseBody::Accounts(list)) => {
-                        Ok(list)
+                    IpcResponse::Error(id, err) => {
+                        Err(Error::ResponseError(id, err))
                     }
+                    IpcResponse::Value(
+                        _id,
+                        IpcResponseBody::Accounts(list),
+                    ) => Ok(list),
                     _ => Err(Error::ResponseType),
                 }
             }
@@ -72,10 +77,13 @@ macro_rules! app_integration_impl {
                 };
                 let response = self.send_request(request).await?;
                 match response {
-                    IpcResponse::Error(err) => Err(Error::ResponseError(err)),
-                    IpcResponse::Value(IpcResponseBody::Authenticate(
-                        outcome,
-                    )) => Ok(outcome),
+                    IpcResponse::Error(id, err) => {
+                        Err(Error::ResponseError(id, err))
+                    }
+                    IpcResponse::Value(
+                        _id,
+                        IpcResponseBody::Authenticate(outcome),
+                    ) => Ok(outcome),
                     _ => Err(Error::ResponseType),
                 }
             }
@@ -90,10 +98,13 @@ macro_rules! app_integration_impl {
                 };
                 let response = self.send_request(request).await?;
                 match response {
-                    IpcResponse::Error(err) => Err(Error::ResponseError(err)),
-                    IpcResponse::Value(IpcResponseBody::Lock(outcome)) => {
-                        Ok(outcome)
+                    IpcResponse::Error(id, err) => {
+                        Err(Error::ResponseError(id, err))
                     }
+                    IpcResponse::Value(
+                        _id,
+                        IpcResponseBody::Lock(outcome),
+                    ) => Ok(outcome),
                     _ => Err(Error::ResponseType),
                 }
             }
@@ -112,10 +123,13 @@ macro_rules! app_integration_impl {
                 };
                 let response = self.send_request(request).await?;
                 match response {
-                    IpcResponse::Error(err) => Err(Error::ResponseError(err)),
-                    IpcResponse::Value(IpcResponseBody::Search(results)) => {
-                        Ok(results)
+                    IpcResponse::Error(id, err) => {
+                        Err(Error::ResponseError(id, err))
                     }
+                    IpcResponse::Value(
+                        _id,
+                        IpcResponseBody::Search(results),
+                    ) => Ok(results),
                     _ => Err(Error::ResponseType),
                 }
             }
@@ -134,10 +148,13 @@ macro_rules! app_integration_impl {
                 };
                 let response = self.send_request(request).await?;
                 match response {
-                    IpcResponse::Error(err) => Err(Error::ResponseError(err)),
-                    IpcResponse::Value(IpcResponseBody::QueryView(
-                        results,
-                    )) => Ok(results),
+                    IpcResponse::Error(id, err) => {
+                        Err(Error::ResponseError(id, err))
+                    }
+                    IpcResponse::Value(
+                        _id,
+                        IpcResponseBody::QueryView(results),
+                    ) => Ok(results),
                     _ => Err(Error::ResponseType),
                 }
             }
@@ -148,7 +165,7 @@ macro_rules! app_integration_impl {
 /// Shared functions for the TCP and local socket clients.
 macro_rules! client_impl {
     () => {
-        pub(super) fn next_id(&self) -> u64 {
+        pub(super) fn next_id(&self) -> u32 {
             use std::sync::atomic::Ordering;
             self.id.fetch_add(1, Ordering::SeqCst)
         }
@@ -162,20 +179,25 @@ macro_rules! client_impl {
             let request: crate::WireIpcRequest = request.into();
             let buf = encode_proto(&request)?;
             self.socket.send(buf.into()).await?;
-            let (response_id, response) = self.read_response().await?;
+            let response = self.read_response().await?;
 
             // Response id will be zero if an error occurs
             // before a message_id could be parsed from the request
-            if response_id > 0 && request_id != response_id {
-                return Err(Error::MessageId(request_id, response_id));
+            if response.message_id() > 0
+                && request_id != response.message_id()
+            {
+                return Err(Error::MessageId(
+                    request_id,
+                    response.message_id(),
+                ));
             }
 
             Ok(response)
         }
 
         /// Read response from the server.
-        async fn read_response(&mut self) -> Result<(u64, IpcResponse)> {
-            let mut reply: Option<(u64, IpcResponse)> = None;
+        async fn read_response(&mut self) -> Result<IpcResponse> {
+            let mut reply: Option<IpcResponse> = None;
             while let Some(message) = self.socket.next().await {
                 match message {
                     Ok(bytes) => {

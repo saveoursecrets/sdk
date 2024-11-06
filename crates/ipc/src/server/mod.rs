@@ -51,11 +51,14 @@ where
                 {
                     // Internal error, try to send a response and close
                     // the connection if we error here
-                    let response = IpcResponse::Error(IpcResponseError {
-                        code: -1,
-                        message: err.to_string(),
-                    });
-                    let response: WireIpcResponse = (0, response).into();
+                    let response = IpcResponse::Error(
+                        0,
+                        IpcResponseError {
+                            code: -1,
+                            message: err.to_string(),
+                        },
+                    );
+                    let response: WireIpcResponse = response.into();
                     match encode_proto(&response) {
                         Ok(buffer) => {
                             match framed.send(buffer.into()).await {
@@ -115,11 +118,14 @@ where
             tracing::debug!(
                 duration = ?duration,
                 "socket_server::request_timeout");
-            IpcResponse::Error(Error::ServiceTimeout(duration).into())
+            IpcResponse::Error(
+                message_id,
+                Error::ServiceTimeout(duration).into(),
+            )
         }
     };
 
-    let response: WireIpcResponse = (message_id, response).into();
+    let response: WireIpcResponse = response.into();
     let buffer = encode_proto(&response).map_err(io_err)?;
     channel.send(buffer.into()).await?;
     Ok(())

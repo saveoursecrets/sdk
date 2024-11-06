@@ -12,7 +12,7 @@ use tokio::time::Duration;
 pub struct IpcRequest {
     /// Request identifier.
     #[serde(rename = "id")]
-    pub message_id: u64,
+    pub message_id: u32,
     /// Request payload.
     pub payload: IpcRequestBody,
 }

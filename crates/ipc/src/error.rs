@@ -20,15 +20,15 @@ pub enum Error {
 
     /// Error when a response message id does not match the request id.
     #[error("response id {1} does not match request id {0}")]
-    MessageId(u64, u64),
+    MessageId(u32, u32),
 
     /// Error when a response type does not match the request type.
     #[error("response type does not match the request type")]
     ResponseType,
 
     /// Error response received from a server.
-    #[error("{0:?}")]
-    ResponseError(IpcResponseError),
+    #[error("{1:?} (id={0})")]
+    ResponseError(u32, IpcResponseError),
 
     /// Service request timed out.
     #[error("service request timed out, exceeded duration {0:?}")]

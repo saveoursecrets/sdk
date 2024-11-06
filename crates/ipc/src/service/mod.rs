@@ -147,25 +147,32 @@ where
         &self,
         request: IpcRequest,
     ) -> std::result::Result<IpcResponse, E> {
+        let message_id = request.message_id;
         match request.payload {
             IpcRequestBody::Status => {
                 let paths = Paths::new_global(Paths::data_dir()?);
                 let app = paths.has_app_lock()?;
-                Ok(IpcResponse::Value(IpcResponseBody::Status {
-                    app,
-                    ipc: true,
-                }))
+                Ok(IpcResponse::Value(
+                    message_id,
+                    IpcResponseBody::Status { app, ipc: true },
+                ))
             }
             IpcRequestBody::Ping => {
-                Ok(IpcResponse::Value(IpcResponseBody::Pong))
+                Ok(IpcResponse::Value(message_id, IpcResponseBody::Pong))
             }
             IpcRequestBody::OpenUrl(_) => {
                 // Open is a noop as we let the native bridge handle it
-                Ok(IpcResponse::Value(IpcResponseBody::OpenUrl(false)))
+                Ok(IpcResponse::Value(
+                    message_id,
+                    IpcResponseBody::OpenUrl(false),
+                ))
             }
             IpcRequestBody::ListAccounts => {
                 let data = self.list_accounts().await?;
-                Ok(IpcResponse::Value(IpcResponseBody::Accounts(data)))
+                Ok(IpcResponse::Value(
+                    message_id,
+                    IpcResponseBody::Accounts(data),
+                ))
             }
             IpcRequestBody::Authenticate { address } => {
                 let (result, result_rx) = tokio::sync::oneshot::channel();
@@ -176,6 +183,7 @@ where
                 match self.delegate.send(command).await {
                     Ok(_) => match result_rx.await {
                         Ok(outcome) => Ok(IpcResponse::Value(
+                            message_id,
                             IpcResponseBody::Authenticate(outcome),
                         )),
                         Err(err) => Err(io_err(err).into()),
@@ -192,6 +200,7 @@ where
                 match self.delegate.send(command).await {
                     Ok(_) => match result_rx.await {
                         Ok(outcome) => Ok(IpcResponse::Value(
+                            message_id,
                             IpcResponseBody::Lock(outcome),
                         )),
                         Err(err) => Err(io_err(err).into()),
@@ -201,7 +210,10 @@ where
             }
             IpcRequestBody::Search { needle, filter } => {
                 let data = self.search(needle, filter).await?;
-                Ok(IpcResponse::Value(IpcResponseBody::Search(data)))
+                Ok(IpcResponse::Value(
+                    message_id,
+                    IpcResponseBody::Search(data),
+                ))
             }
             IpcRequestBody::QueryView {
                 views,
@@ -210,7 +222,10 @@ where
                 let data = self
                     .query_view(views.as_slice(), archive_filter.as_ref())
                     .await?;
-                Ok(IpcResponse::Value(IpcResponseBody::QueryView(data)))
+                Ok(IpcResponse::Value(
+                    message_id,
+                    IpcResponseBody::QueryView(data),
+                ))
             }
         }
     }

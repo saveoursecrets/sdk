@@ -4,7 +4,7 @@ use crate::{
 };
 
 use futures_util::sink::SinkExt;
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::AtomicU32;
 use tokio::net::{TcpStream, ToSocketAddrs};
 use tokio_stream::StreamExt;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
@@ -12,7 +12,7 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 /// TCP client for inter-process communication.
 pub struct TcpClient {
     socket: Framed<TcpStream, LengthDelimitedCodec>,
-    pub(super) id: AtomicU64,
+    pub(super) id: AtomicU32,
 }
 
 impl TcpClient {
@@ -21,7 +21,7 @@ impl TcpClient {
         let io = TcpStream::connect(&addr).await?;
         Ok(Self {
             socket: codec::framed(io),
-            id: AtomicU64::new(1),
+            id: AtomicU32::new(1),
         })
     }
 
