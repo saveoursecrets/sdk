@@ -199,6 +199,11 @@ impl ServerConfig {
 
         let dir = config.directory();
 
+        if config.log.directory.is_relative() {
+            config.log.directory = dir.join(&config.log.directory);
+            config.log.directory = config.log.directory.canonicalize()?;
+        }
+
         if let Some(SslConfig::Tls(tls)) = &mut config.net.ssl {
             if tls.cert.is_relative() {
                 tls.cert = dir.join(&tls.cert);
