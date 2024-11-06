@@ -268,6 +268,7 @@ impl IndexStatistics {
 /// that are extracted from the secret data but safe to
 /// be exposed.
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ExtraFields {
     /// Comment about a secret.
     pub comment: Option<String>,
@@ -301,6 +302,7 @@ impl ExtraFields {
 
 /// Document that can be indexed.
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Document {
     /// The vault identifier.
     pub vault_id: VaultId,

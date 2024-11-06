@@ -226,6 +226,7 @@ async fn try_authenticate(account: &mut LocalAccount) -> CommandOutcome {
             attempts += 1;
             let key: AccessKey = password.into();
             if let Ok(_) = account.sign_in(&key).await {
+                let _ = account.initialize_search_index().await;
                 return CommandOutcome::Success;
             } else {
                 tracing::warn!("incorrect password");
