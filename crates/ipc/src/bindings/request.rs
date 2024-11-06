@@ -6,8 +6,10 @@ use sos_net::sdk::prelude::{
     Address, ArchiveFilter, DocumentView, QueryFilter,
 };
 use tokio::time::Duration;
+use typeshare::typeshare;
 
 /// IPC request information.
+#[typeshare]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IpcRequest {
     /// Request identifier.
@@ -18,6 +20,7 @@ pub struct IpcRequest {
 }
 
 /// IPC request information.
+#[typeshare]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum IpcRequestBody {

@@ -15,6 +15,7 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::RwLock;
+use typeshare::typeshare;
 use unicode_segmentation::UnicodeSegmentation;
 
 /// Create a set of ngrams of the given size.
@@ -267,6 +268,7 @@ impl IndexStatistics {
 /// Additional fields that can exposed via search results
 /// that are extracted from the secret data but safe to
 /// be exposed.
+#[typeshare]
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ExtraFields {
@@ -301,6 +303,7 @@ impl ExtraFields {
 }
 
 /// Document that can be indexed.
+#[typeshare]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Document {
@@ -933,6 +936,7 @@ impl DocumentView {
 }
 
 /// Filter for a search query.
+#[typeshare]
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct QueryFilter {
     /// List of tags.
@@ -944,7 +948,9 @@ pub struct QueryFilter {
 }
 
 /// Filter for archived documents.
+#[typeshare]
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ArchiveFilter {
     /// Identifier of the archive vault.
     pub id: VaultId,

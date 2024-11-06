@@ -21,6 +21,7 @@ tracing.workspace = true
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+typeshare.workspace = true
 sos-net = { version = "0.15", path = "../net", features = ["account", "search"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "macros", "io-util", "io-std", "sync"] }
 tokio-stream = "0.1"

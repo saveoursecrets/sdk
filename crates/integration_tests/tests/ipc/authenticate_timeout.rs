@@ -72,7 +72,7 @@ async fn integration_ipc_authenticate_timeout() -> Result<()> {
             // Must wait longer than the timeout (5s) otherwise
             // the returned error will be "channel closed"
             // when the command.result is dropped
-            tokio::time::sleep(Duration::from_secs(10)).await;
+            tokio::time::sleep(Duration::from_secs(20)).await;
         }
     });
 
@@ -94,7 +94,9 @@ async fn integration_ipc_authenticate_timeout() -> Result<()> {
     let mut client = SocketClient::connect(&socket_name).await?;
     let result = client.authenticate(unauth_address).await;
 
-    if let Err(Error::ResponseError(IpcResponseError { code, .. })) = result {
+    if let Err(Error::ResponseError(_, IpcResponseError { code, .. })) =
+        result
+    {
         assert_eq!(504, code);
     } else {
         panic!("expecting timeout error");

@@ -61,6 +61,7 @@ bitflags.workspace = true
 enum-iterator.workspace = true
 tempfile.workspace = true
 rs_merkle.workspace = true
+typeshare.workspace = true
 subtle = { version = "2.5" }
 ethereum-types = "0.15"
 async_zip = { version = "0.0.17", default-features = false, features = ["deflate", "tokio"], optional = true }

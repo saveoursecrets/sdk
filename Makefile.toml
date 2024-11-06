@@ -13,6 +13,12 @@ BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
 # tests take a while due to so many exec calls
 RUST_TEST_TIME_INTEGRATION = "120000,240000"
 
+[tasks.typegen]
+script = '''
+typeshare crates/sdk --lang=typescript --output-file=packages/types/sdk.ts
+typeshare crates/ipc --lang=typescript --output-file=packages/types/ipc.ts
+'''
+
 [tasks.format]
 workspace = true
 command = "cargo"

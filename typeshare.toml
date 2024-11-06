@@ -1,0 +1,9 @@
+[typescript.type_mappings]
+"Address" = "string"
+"VaultId" = "string"
+"SecretId" = "string"
+"SecretFlags" = "number"
+"UtcDateTime" = "string"
+"HashSet" = "Set"
+"Urn" = "string"
+

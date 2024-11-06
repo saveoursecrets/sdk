@@ -30,6 +30,7 @@ serde_with = { version = "3", features = ["base64"] }
 tokio-util = { version = "0.7", default-features = false, features = ["io", "compat"] }
 async-trait = "0.1"
 async-recursion = "1"
+typeshare = "1"
 http = "1"
 uuid = { version = "1", features = ["serde", "v4"] }
 hex = { version = "0.4", features = ["serde"] }

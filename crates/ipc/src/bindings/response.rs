@@ -2,6 +2,7 @@ include!(concat!(env!("OUT_DIR"), "/response.rs"));
 
 use crate::{AccountsList, Error, Result, SearchResults};
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 
 use super::WireVoidBody;
 
@@ -28,6 +29,7 @@ impl IpcResponse {
 }
 
 /// IPC response body.
+#[typeshare]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum IpcResponseBody {
@@ -56,6 +58,7 @@ pub enum IpcResponseBody {
 }
 
 /// IPC response error.
+#[typeshare]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IpcResponseError {
     /// Error code.
@@ -279,6 +282,7 @@ impl TryFrom<WireIpcResponse> for IpcResponse {
 }
 
 /// Generic command outcome.
+#[typeshare]
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum CommandOutcome {

@@ -31,6 +31,7 @@ use crate::{
     vault::VaultId,
     Error, Result, UtcDateTime,
 };
+use typeshare::typeshare;
 
 use std::path::PathBuf;
 
@@ -164,6 +165,7 @@ impl FromStr for SecretRef {
 /// Matches the enum variants for a secret and is used
 /// so we can know the type of secret from the meta data
 /// before secret data has been decrypted.
+#[typeshare]
 #[derive(
     Default, Clone, Debug, Copy, Serialize, Deserialize, Eq, PartialEq, Hash,
 )]
@@ -305,6 +307,7 @@ impl TryFrom<u8> for SecretType {
 }
 
 /// Encapsulates the meta data for a secret.
+#[typeshare]
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SecretMeta {

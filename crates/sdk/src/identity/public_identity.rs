@@ -12,8 +12,10 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
 };
+use typeshare::typeshare;
 
 /// Public account identity information.
+#[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct PublicIdentity {
     /// Address identifier for the account.
