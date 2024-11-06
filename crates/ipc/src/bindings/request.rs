@@ -50,10 +50,10 @@ impl IpcRequest {
     pub fn timeout_duration(&self) -> Duration {
         match self {
             #[cfg(debug_assertions)]
-            IpcRequest::Authenticate { .. } => Duration::from_secs(5),
+            IpcRequest::Authenticate { .. } => Duration::from_secs(15),
             #[cfg(not(debug_assertions))]
             IpcRequest::Authenticate { .. } => Duration::from_secs(60),
-            _ => Duration::from_secs(5),
+            _ => Duration::from_secs(15),
         }
     }
 }

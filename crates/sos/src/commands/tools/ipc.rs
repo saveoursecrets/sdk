@@ -186,7 +186,26 @@ async fn handle_command(command: LocalAccountCommand) {
             }
         }
         CommandOptions::Lock { address, result } => {
-            todo!("implement lock handling");
+            let mut accounts = accounts.write().await;
+            if let Some(address) = address {
+                let account = accounts
+                    .iter_mut()
+                    .find(|a| a.address() == &address)
+                    .unwrap();
+                if account.is_authenticated().await {
+                    account.sign_out().await.unwrap();
+                    result.send(CommandOutcome::Success).unwrap();
+                } else {
+                    result.send(CommandOutcome::NotAuthenticated).unwrap();
+                }
+            } else {
+                for account in accounts.iter_mut() {
+                    if account.is_authenticated().await {
+                        account.sign_out().await.unwrap();
+                    }
+                }
+                result.send(CommandOutcome::Success).unwrap();
+            }
         }
     }
 }
