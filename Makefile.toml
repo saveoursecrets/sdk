@@ -15,8 +15,7 @@ RUST_TEST_TIME_INTEGRATION = "120000,240000"
 
 [tasks.typegen]
 script = '''
-typeshare crates/sdk --lang=typescript --output-file=packages/types/sdk.ts
-typeshare crates/ipc --lang=typescript --output-file=packages/types/ipc.ts
+RUST_LOG=debug typeshare crates/sdk crates/ipc --lang=typescript --output-file=packages/types/types.ts && cat packages/types/preamble.ts packages/types/types.ts > packages/types/index.ts
 '''
 
 [tasks.format]

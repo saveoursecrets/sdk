@@ -4,7 +4,10 @@
   "description": "Type definitions for the Save Our Secrets SDK.",
   "main": "index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "compile": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2"
   },
   "author": "dev@saveoursecrets.com",
   "license": "ISC"

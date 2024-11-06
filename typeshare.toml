@@ -4,6 +4,5 @@
 "SecretId" = "string"
 "SecretFlags" = "number"
 "UtcDateTime" = "string"
-"HashSet" = "Set"
 "Urn" = "string"
 
