@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [dependencies]
-thiserror = "1"
+thiserror = "2"
 logos = { version = "0.14", features = ["export_derive"] }
 plist = "1.6.1"
 
