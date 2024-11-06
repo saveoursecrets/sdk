@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime};
 
 use crate::{
     AccountsList, AppIntegration, CommandOutcome, Error, IpcRequest,
-    IpcResponse, IpcResponseBody, Result, SearchResults,
+    IpcRequestBody, IpcResponse, IpcResponseBody, Result, SearchResults,
 };
 
 use sos_net::sdk::prelude::{
@@ -31,7 +31,12 @@ macro_rules! app_integration_impl {
         impl AppIntegration<crate::Error> for $impl {
             async fn ping(&mut self) -> Result<Duration> {
                 let now = SystemTime::now();
-                let request = IpcRequest::Ping;
+
+                let request = IpcRequest {
+                    message_id: self.next_id(),
+                    payload: IpcRequestBody::Ping,
+                };
+
                 let response = self.send_request(request).await?;
                 match response {
                     IpcResponse::Error(err) => Err(Error::ResponseError(err)),
@@ -43,7 +48,10 @@ macro_rules! app_integration_impl {
             }
 
             async fn list_accounts(&mut self) -> Result<AccountsList> {
-                let request = IpcRequest::ListAccounts;
+                let request = IpcRequest {
+                    message_id: self.next_id(),
+                    payload: IpcRequestBody::ListAccounts,
+                };
                 let response = self.send_request(request).await?;
                 match response {
                     IpcResponse::Error(err) => Err(Error::ResponseError(err)),
@@ -58,7 +66,10 @@ macro_rules! app_integration_impl {
                 &mut self,
                 address: Address,
             ) -> Result<CommandOutcome> {
-                let request = IpcRequest::Authenticate { address };
+                let request = IpcRequest {
+                    message_id: self.next_id(),
+                    payload: IpcRequestBody::Authenticate { address },
+                };
                 let response = self.send_request(request).await?;
                 match response {
                     IpcResponse::Error(err) => Err(Error::ResponseError(err)),
@@ -73,7 +84,10 @@ macro_rules! app_integration_impl {
                 &mut self,
                 address: Option<Address>,
             ) -> Result<CommandOutcome> {
-                let request = IpcRequest::Lock { address };
+                let request = IpcRequest {
+                    message_id: self.next_id(),
+                    payload: IpcRequestBody::Lock { address },
+                };
                 let response = self.send_request(request).await?;
                 match response {
                     IpcResponse::Error(err) => Err(Error::ResponseError(err)),
@@ -89,9 +103,12 @@ macro_rules! app_integration_impl {
                 needle: &str,
                 filter: QueryFilter,
             ) -> Result<SearchResults> {
-                let request = IpcRequest::Search {
-                    needle: needle.to_owned(),
-                    filter,
+                let request = IpcRequest {
+                    message_id: self.next_id(),
+                    payload: IpcRequestBody::Search {
+                        needle: needle.to_owned(),
+                        filter,
+                    },
                 };
                 let response = self.send_request(request).await?;
                 match response {
@@ -108,9 +125,12 @@ macro_rules! app_integration_impl {
                 views: Vec<DocumentView>,
                 archive_filter: Option<ArchiveFilter>,
             ) -> Result<SearchResults> {
-                let request = IpcRequest::QueryView {
-                    views,
-                    archive_filter,
+                let request = IpcRequest {
+                    message_id: self.next_id(),
+                    payload: IpcRequestBody::QueryView {
+                        views,
+                        archive_filter,
+                    },
                 };
                 let response = self.send_request(request).await?;
                 match response {
@@ -128,14 +148,18 @@ macro_rules! app_integration_impl {
 /// Shared functions for the TCP and local socket clients.
 macro_rules! client_impl {
     () => {
+        pub(super) fn next_id(&self) -> u64 {
+            use std::sync::atomic::Ordering;
+            self.id.fetch_add(1, Ordering::SeqCst)
+        }
+
         /// Send a request.
         pub async fn send_request(
             &mut self,
             request: IpcRequest,
         ) -> Result<IpcResponse> {
-            use std::sync::atomic::Ordering;
-            let request_id = self.id.fetch_add(1, Ordering::SeqCst);
-            let request: crate::WireIpcRequest = (request_id, request).into();
+            let request_id = request.message_id;
+            let request: crate::WireIpcRequest = request.into();
             let buf = encode_proto(&request)?;
             self.socket.send(buf.into()).await?;
             let (response_id, response) = self.read_response().await?;

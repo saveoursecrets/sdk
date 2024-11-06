@@ -1,6 +1,6 @@
 use crate::{
-    io_err, AccountsList, IpcRequest, IpcResponse, IpcResponseBody,
-    SearchResults,
+    io_err, AccountsList, IpcRequest, IpcRequestBody, IpcResponse,
+    IpcResponseBody, SearchResults,
 };
 use async_trait::async_trait;
 use sos_net::{
@@ -147,8 +147,8 @@ where
         &self,
         request: IpcRequest,
     ) -> std::result::Result<IpcResponse, E> {
-        match request {
-            IpcRequest::Status => {
+        match request.payload {
+            IpcRequestBody::Status => {
                 let paths = Paths::new_global(Paths::data_dir()?);
                 let app = paths.has_app_lock()?;
                 Ok(IpcResponse::Value(IpcResponseBody::Status {
@@ -156,16 +156,18 @@ where
                     ipc: true,
                 }))
             }
-            IpcRequest::Ping => Ok(IpcResponse::Value(IpcResponseBody::Pong)),
-            IpcRequest::OpenUrl(_) => {
+            IpcRequestBody::Ping => {
+                Ok(IpcResponse::Value(IpcResponseBody::Pong))
+            }
+            IpcRequestBody::OpenUrl(_) => {
                 // Open is a noop as we let the native bridge handle it
                 Ok(IpcResponse::Value(IpcResponseBody::OpenUrl(false)))
             }
-            IpcRequest::ListAccounts => {
+            IpcRequestBody::ListAccounts => {
                 let data = self.list_accounts().await?;
                 Ok(IpcResponse::Value(IpcResponseBody::Accounts(data)))
             }
-            IpcRequest::Authenticate { address } => {
+            IpcRequestBody::Authenticate { address } => {
                 let (result, result_rx) = tokio::sync::oneshot::channel();
                 let command = Command {
                     accounts: self.accounts.clone(),
@@ -181,7 +183,7 @@ where
                     Err(err) => Err(io_err(err).into()),
                 }
             }
-            IpcRequest::Lock { address } => {
+            IpcRequestBody::Lock { address } => {
                 let (result, result_rx) = tokio::sync::oneshot::channel();
                 let command = Command {
                     accounts: self.accounts.clone(),
@@ -197,11 +199,11 @@ where
                     Err(err) => Err(io_err(err).into()),
                 }
             }
-            IpcRequest::Search { needle, filter } => {
+            IpcRequestBody::Search { needle, filter } => {
                 let data = self.search(needle, filter).await?;
                 Ok(IpcResponse::Value(IpcResponseBody::Search(data)))
             }
-            IpcRequest::QueryView {
+            IpcRequestBody::QueryView {
                 views,
                 archive_filter,
             } => {

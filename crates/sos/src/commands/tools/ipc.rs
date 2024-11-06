@@ -4,8 +4,8 @@ use sos_ipc::{
     local_account_delegate,
     native_bridge::{self, NativeBridgeOptions, CLI_EXTENSION_ID},
     remove_socket_file, Command as IpcCommand, CommandOptions,
-    CommandOutcome, IpcRequest, LocalAccountCommand, LocalAccountIpcService,
-    LocalAccountSocketServer, SocketClient,
+    CommandOutcome, IpcRequest, IpcRequestBody, LocalAccountCommand,
+    LocalAccountIpcService, LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{
     crypto::AccessKey,
@@ -65,12 +65,12 @@ pub enum SendCommand {
     },
 }
 
-impl From<SendCommand> for IpcRequest {
+impl From<SendCommand> for IpcRequestBody {
     fn from(value: SendCommand) -> Self {
         match value {
-            SendCommand::ListAccounts => IpcRequest::ListAccounts,
+            SendCommand::ListAccounts => IpcRequestBody::ListAccounts,
             SendCommand::Authenticate { address } => {
-                IpcRequest::Authenticate { address }
+                IpcRequestBody::Authenticate { address }
             }
         }
     }
@@ -142,7 +142,10 @@ async fn send_ipc(socket: Option<String>, cmd: SendCommand) -> Result<()> {
         .unwrap_or(IPC_CLI_SOCKET_NAME);
 
     let mut client = SocketClient::connect(&socket_name).await?;
-    let request = cmd.into();
+    let request = IpcRequest {
+        message_id: 1,
+        payload: cmd.into(),
+    };
     let response = client.send_request(request).await?;
     serde_json::to_writer_pretty(std::io::stdout(), &response)?;
     Ok(())
@@ -153,7 +156,10 @@ async fn send_bridge(
     arguments: Vec<String>,
     cmd: SendCommand,
 ) -> Result<()> {
-    let request = cmd.into();
+    let request = IpcRequest {
+        message_id: 1,
+        payload: cmd.into(),
+    };
     let response = native_bridge::send(command, arguments, &request).await?;
     serde_json::to_writer_pretty(std::io::stdout(), &response)?;
     Ok(())

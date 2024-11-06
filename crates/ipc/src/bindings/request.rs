@@ -9,8 +9,18 @@ use tokio::time::Duration;
 
 /// IPC request information.
 #[derive(Debug, Serialize, Deserialize)]
+pub struct IpcRequest {
+    /// Request identifier.
+    #[serde(rename = "id")]
+    pub message_id: u64,
+    /// Request payload.
+    pub payload: IpcRequestBody,
+}
+
+/// IPC request information.
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "kind", content = "body")]
-pub enum IpcRequest {
+pub enum IpcRequestBody {
     /// Query app status.
     Status,
     /// Ping the server.
@@ -48,54 +58,53 @@ pub enum IpcRequest {
 impl IpcRequest {
     /// Duration allowed for a request.
     pub fn timeout_duration(&self) -> Duration {
-        match self {
+        match &self.payload {
             #[cfg(debug_assertions)]
-            IpcRequest::Authenticate { .. } => Duration::from_secs(15),
+            IpcRequestBody::Authenticate { .. } => Duration::from_secs(15),
             #[cfg(not(debug_assertions))]
-            IpcRequest::Authenticate { .. } => Duration::from_secs(60),
+            IpcRequestBody::Authenticate { .. } => Duration::from_secs(60),
             _ => Duration::from_secs(15),
         }
     }
 }
 
-impl From<(u64, IpcRequest)> for WireIpcRequest {
-    fn from(value: (u64, IpcRequest)) -> Self {
-        let (message_id, req) = value;
-        match req {
-            IpcRequest::Status => WireIpcRequest {
-                message_id,
+impl From<IpcRequest> for WireIpcRequest {
+    fn from(value: IpcRequest) -> Self {
+        match value.payload {
+            IpcRequestBody::Status => WireIpcRequest {
+                message_id: value.message_id,
                 body: Some(WireIpcRequestBody {
                     inner: Some(wire_ipc_request_body::Inner::Status(
                         WireVoidBody {},
                     )),
                 }),
             },
-            IpcRequest::Ping => WireIpcRequest {
-                message_id,
+            IpcRequestBody::Ping => WireIpcRequest {
+                message_id: value.message_id,
                 body: Some(WireIpcRequestBody {
                     inner: Some(wire_ipc_request_body::Inner::Ping(
                         WireVoidBody {},
                     )),
                 }),
             },
-            IpcRequest::OpenUrl(url) => WireIpcRequest {
-                message_id,
+            IpcRequestBody::OpenUrl(url) => WireIpcRequest {
+                message_id: value.message_id,
                 body: Some(WireIpcRequestBody {
                     inner: Some(wire_ipc_request_body::Inner::OpenUrl(
                         WireOpenUrlBody { url },
                     )),
                 }),
             },
-            IpcRequest::ListAccounts => WireIpcRequest {
-                message_id,
+            IpcRequestBody::ListAccounts => WireIpcRequest {
+                message_id: value.message_id,
                 body: Some(WireIpcRequestBody {
                     inner: Some(wire_ipc_request_body::Inner::ListAccounts(
                         WireVoidBody {},
                     )),
                 }),
             },
-            IpcRequest::Authenticate { address } => WireIpcRequest {
-                message_id,
+            IpcRequestBody::Authenticate { address } => WireIpcRequest {
+                message_id: value.message_id,
                 body: Some(WireIpcRequestBody {
                     inner: Some(wire_ipc_request_body::Inner::Authenticate(
                         WireAuthenticateBody {
@@ -104,8 +113,8 @@ impl From<(u64, IpcRequest)> for WireIpcRequest {
                     )),
                 }),
             },
-            IpcRequest::Lock { address } => WireIpcRequest {
-                message_id,
+            IpcRequestBody::Lock { address } => WireIpcRequest {
+                message_id: value.message_id,
                 body: Some(WireIpcRequestBody {
                     inner: Some(wire_ipc_request_body::Inner::Lock(
                         WireLockBody {
@@ -114,8 +123,8 @@ impl From<(u64, IpcRequest)> for WireIpcRequest {
                     )),
                 }),
             },
-            IpcRequest::Search { needle, filter } => WireIpcRequest {
-                message_id,
+            IpcRequestBody::Search { needle, filter } => WireIpcRequest {
+                message_id: value.message_id,
                 body: Some(WireIpcRequestBody {
                     inner: Some(wire_ipc_request_body::Inner::Search(
                         WireSearchBody {
@@ -125,11 +134,11 @@ impl From<(u64, IpcRequest)> for WireIpcRequest {
                     )),
                 }),
             },
-            IpcRequest::QueryView {
+            IpcRequestBody::QueryView {
                 views,
                 archive_filter,
             } => WireIpcRequest {
-                message_id,
+                message_id: value.message_id,
                 body: Some(WireIpcRequestBody {
                     inner: Some(wire_ipc_request_body::Inner::QueryView(
                         WireQueryViewBody {
@@ -146,28 +155,37 @@ impl From<(u64, IpcRequest)> for WireIpcRequest {
     }
 }
 
-impl TryFrom<WireIpcRequest> for (u64, IpcRequest) {
+impl TryFrom<WireIpcRequest> for IpcRequest {
     type Error = Error;
 
     fn try_from(value: WireIpcRequest) -> Result<Self> {
         let message_id = value.message_id;
         let body = value.body.ok_or(Error::DecodeRequest)?;
         Ok(match body.inner {
-            Some(wire_ipc_request_body::Inner::Status(_)) => {
-                (message_id, IpcRequest::Status)
-            }
-            Some(wire_ipc_request_body::Inner::Ping(_)) => {
-                (message_id, IpcRequest::Ping)
-            }
-            Some(wire_ipc_request_body::Inner::OpenUrl(body)) => {
-                (message_id, IpcRequest::OpenUrl(body.url))
-            }
+            Some(wire_ipc_request_body::Inner::Status(_)) => IpcRequest {
+                message_id,
+                payload: IpcRequestBody::Status,
+            },
+            Some(wire_ipc_request_body::Inner::Ping(_)) => IpcRequest {
+                message_id,
+                payload: IpcRequestBody::Ping,
+            },
+            Some(wire_ipc_request_body::Inner::OpenUrl(body)) => IpcRequest {
+                message_id,
+                payload: IpcRequestBody::OpenUrl(body.url),
+            },
             Some(wire_ipc_request_body::Inner::ListAccounts(_)) => {
-                (message_id, IpcRequest::ListAccounts)
+                IpcRequest {
+                    message_id,
+                    payload: IpcRequestBody::ListAccounts,
+                }
             }
             Some(wire_ipc_request_body::Inner::Authenticate(body)) => {
                 let address: Address = body.address.parse()?;
-                (message_id, IpcRequest::Authenticate { address })
+                IpcRequest {
+                    message_id,
+                    payload: IpcRequestBody::Authenticate { address },
+                }
             }
             Some(wire_ipc_request_body::Inner::Lock(body)) => {
                 let address = if let Some(address) = body.address {
@@ -176,15 +194,18 @@ impl TryFrom<WireIpcRequest> for (u64, IpcRequest) {
                 } else {
                     None
                 };
-                (message_id, IpcRequest::Lock { address })
+                IpcRequest {
+                    message_id,
+                    payload: IpcRequestBody::Lock { address },
+                }
             }
-            Some(wire_ipc_request_body::Inner::Search(body)) => (
+            Some(wire_ipc_request_body::Inner::Search(body)) => IpcRequest {
                 message_id,
-                IpcRequest::Search {
+                payload: IpcRequestBody::Search {
                     needle: body.needle,
                     filter: body.filter.unwrap().try_into()?,
                 },
-            ),
+            },
             Some(wire_ipc_request_body::Inner::QueryView(body)) => {
                 let mut views = Vec::with_capacity(body.views.len());
                 for view in body.views {
@@ -196,13 +217,13 @@ impl TryFrom<WireIpcRequest> for (u64, IpcRequest) {
                     } else {
                         None
                     };
-                (
+                IpcRequest {
                     message_id,
-                    IpcRequest::QueryView {
+                    payload: IpcRequestBody::QueryView {
                         views,
                         archive_filter,
                     },
-                )
+                }
             }
             _ => return Err(Error::DecodeRequest),
         })

@@ -101,12 +101,12 @@ where
     T: AsyncRead + AsyncWrite + Sized,
 {
     let request: WireIpcRequest = decode_proto(&bytes).map_err(io_err)?;
-    let request: (u64, IpcRequest) = request.try_into().map_err(io_err)?;
+    let request: IpcRequest = request.try_into().map_err(io_err)?;
     tracing::debug!(
         request = ?request,
         "socket_server::socket_request"
     );
-    let (message_id, request) = request;
+    let message_id = request.message_id;
     let handler = service.read().await;
     let duration = request.timeout_duration();
     let response = match timeout(duration, handler.handle(request)).await {
