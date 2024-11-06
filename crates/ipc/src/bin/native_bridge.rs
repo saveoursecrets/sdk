@@ -21,6 +21,9 @@ pub async fn main() {
     let options = NativeBridgeOptions::new(extension_id);
     match run(options).await {
         Ok(_) => exit(0),
-        Err(_) => exit(1),
+        Err(e) => {
+            eprintln!("{:#?}", e);
+            exit(1);
+        }
     }
 }
