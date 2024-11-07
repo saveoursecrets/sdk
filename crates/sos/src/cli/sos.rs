@@ -133,6 +133,7 @@ pub async fn run() -> Result<()> {
         }
     })?;
 
+    #[allow(unused_mut)]
     let mut args = Sos::parse();
 
     if let Some(storage) = &args.storage {
