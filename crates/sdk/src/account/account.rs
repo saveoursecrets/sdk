@@ -724,7 +724,7 @@ pub trait Account {
     /// Export a contact secret to a vCard file.
     #[cfg(feature = "contacts")]
     async fn export_contact(
-        &mut self,
+        &self,
         path: impl AsRef<Path> + Send + Sync,
         secret_id: &SecretId,
         folder: Option<Summary>,
@@ -733,7 +733,7 @@ pub trait Account {
     /// Export all contacts to a single vCard.
     #[cfg(feature = "contacts")]
     async fn export_all_contacts(
-        &mut self,
+        &self,
         path: impl AsRef<Path> + Send + Sync,
     ) -> std::result::Result<(), Self::Error>;
 
@@ -2796,7 +2796,7 @@ impl Account for LocalAccount {
 
     #[cfg(feature = "contacts")]
     async fn export_contact(
-        &mut self,
+        &self,
         path: impl AsRef<Path> + Send + Sync,
         secret_id: &SecretId,
         folder: Option<Summary>,
@@ -2833,7 +2833,7 @@ impl Account for LocalAccount {
 
     #[cfg(feature = "contacts")]
     async fn export_all_contacts(
-        &mut self,
+        &self,
         path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
         let contacts = self

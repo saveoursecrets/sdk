@@ -1624,21 +1624,21 @@ impl Account for NetworkAccount {
 
     #[cfg(feature = "contacts")]
     async fn export_contact(
-        &mut self,
+        &self,
         path: impl AsRef<Path> + Send + Sync,
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<()> {
-        let mut account = self.account.lock().await;
+        let account = self.account.lock().await;
         Ok(account.export_contact(path, secret_id, folder).await?)
     }
 
     #[cfg(feature = "contacts")]
     async fn export_all_contacts(
-        &mut self,
+        &self,
         path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
-        let mut account = self.account.lock().await;
+        let account = self.account.lock().await;
         Ok(account.export_all_contacts(path).await?)
     }
 

@@ -552,7 +552,7 @@ async fn contacts_export(
     if !force && vfs::try_exists(&output).await? {
         return Err(Error::FileExists(output));
     }
-    let mut owner = user.write().await;
+    let owner = user.read().await;
     owner.export_all_contacts(output).await?;
     Ok(())
 }
