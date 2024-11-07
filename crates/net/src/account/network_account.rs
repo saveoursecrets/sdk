@@ -1614,11 +1614,11 @@ impl Account for NetworkAccount {
 
     #[cfg(feature = "contacts")]
     async fn load_avatar(
-        &mut self,
+        &self,
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<Option<Vec<u8>>> {
-        let mut account = self.account.lock().await;
+        let account = self.account.lock().await;
         Ok(account.load_avatar(secret_id, folder).await?)
     }
 

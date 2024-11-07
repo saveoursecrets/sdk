@@ -716,7 +716,7 @@ pub trait Account {
     /// Looks in the current open folder if no specified folder is given.
     #[cfg(feature = "contacts")]
     async fn load_avatar(
-        &mut self,
+        &self,
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> std::result::Result<Option<Vec<u8>>, Self::Error>;
@@ -2774,7 +2774,7 @@ impl Account for LocalAccount {
 
     #[cfg(feature = "contacts")]
     async fn load_avatar(
-        &mut self,
+        &self,
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<Option<Vec<u8>>> {
