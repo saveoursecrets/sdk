@@ -1861,13 +1861,17 @@ impl Account for LocalAccount {
         tracing::debug!("load folders");
         let storage = self.storage().await?;
         let mut writer = storage.write().await;
-        Ok(writer.load_folders().await?.to_vec())
+        let mut folders = writer.load_folders().await?.to_vec();
+        folders.sort_by(|a, b| a.name().cmp(b.name()));
+        Ok(folders)
     }
 
     async fn list_folders(&self) -> Result<Vec<Summary>> {
         let storage = self.storage().await?;
         let reader = storage.read().await;
-        Ok(reader.list_folders().to_vec())
+        let mut folders = reader.list_folders().to_vec();
+        folders.sort_by(|a, b| a.name().cmp(b.name()));
+        Ok(folders)
     }
 
     async fn account_data(&self) -> Result<AccountData> {
@@ -2075,7 +2079,10 @@ impl Account for LocalAccount {
         let keys = self.folder_keys().await?;
         let storage = self.storage().await?;
         let mut writer = storage.write().await;
-        writer.initialize_search_index(&keys).await
+        let (count, mut folders) =
+            writer.initialize_search_index(&keys).await?;
+        folders.sort_by(|a, b| a.name().cmp(b.name()));
+        Ok((count, folders))
     }
 
     #[cfg(feature = "search")]
