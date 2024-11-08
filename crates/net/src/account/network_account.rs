@@ -159,21 +159,61 @@ impl NetworkAccount {
         }
 
         // Load origins from disc and create remote definitions
-        let mut clients = Vec::new();
         if let Some(origins) = self.load_servers().await? {
             let mut remotes: Remotes = Default::default();
 
             for origin in origins {
                 let remote = self.remote_bridge(&origin).await?;
-                clients.push(remote.client().clone());
                 remotes.insert(origin, remote);
             }
 
             self.remotes = Arc::new(RwLock::new(remotes));
         }
 
+        self.activate().await?;
+
+        Ok(folders)
+    }
+
+    /// Deactive this account by closing down long-running tasks.
+    ///
+    /// Does not sign out of the account so is similar to moving
+    /// this account to the background so the data is still accessible.
+    ///
+    /// This can be used when implementing quick account switching
+    /// to shutdown the websocket and file transfers.
+    ///
+    /// Server remotes are left intact so that making changes
+    /// will still sync with server(s).
+    pub async fn deactivate(&mut self) {
+        #[cfg(feature = "listen")]
+        {
+            tracing::debug!("net_sign_out::shutdown_websockets");
+            self.shutdown_websockets().await;
+        }
+
         #[cfg(feature = "files")]
         {
+            tracing::debug!("net_sign_out::stop_file_transfers");
+            self.stop_file_transfers().await;
+            self.file_transfers.take();
+        }
+    }
+
+    /// Activate this account by resuming websocket connections
+    /// and file transfers.
+    pub async fn activate(&mut self) -> Result<()> {
+        #[cfg(feature = "files")]
+        {
+            let clients = {
+                let mut clients = Vec::new();
+                let remotes = self.remotes.read().await;
+                for (_, remote) in &*remotes {
+                    clients.push(remote.client().clone());
+                }
+                clients
+            };
+
             let file_transfers = FileTransfers::new(
                 clients,
                 self.options.file_transfer_settings.clone(),
@@ -182,7 +222,7 @@ impl NetworkAccount {
             self.start_file_transfers().await?;
         }
 
-        Ok(folders)
+        Ok(())
     }
 
     /// Revoke a device.
@@ -866,19 +906,7 @@ impl Account for NetworkAccount {
     }
 
     async fn sign_out(&mut self) -> Result<()> {
-        #[cfg(feature = "listen")]
-        {
-            tracing::debug!("net_sign_out::shutdown_websockets");
-            self.shutdown_websockets().await;
-        }
-
-        #[cfg(feature = "files")]
-        {
-            tracing::debug!("net_sign_out::stop_file_transfers");
-            self.stop_file_transfers().await;
-            self.file_transfers.take();
-        }
-
+        self.deactivate().await;
         self.remotes = Default::default();
 
         let mut account = self.account.lock().await;
