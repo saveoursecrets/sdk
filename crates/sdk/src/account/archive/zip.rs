@@ -199,7 +199,7 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
                 self.archive_entry(&entry_name, checksum).await?;
             vaults.push(summary);
         }
-        vaults.sort_by(|a, b| a.name().partial_cmp(b.name()).unwrap());
+        vaults.sort_by(|a, b| a.name().cmp(b.name()));
         Ok(Inventory {
             manifest,
             identity,
