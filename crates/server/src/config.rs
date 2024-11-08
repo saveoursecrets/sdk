@@ -201,6 +201,9 @@ impl ServerConfig {
 
         if config.log.directory.is_relative() {
             config.log.directory = dir.join(&config.log.directory);
+            if !config.log.directory.exists() {
+                vfs::create_dir_all(&config.log.directory).await?;
+            }
             config.log.directory = config.log.directory.canonicalize()?;
         }
 
