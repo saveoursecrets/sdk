@@ -196,7 +196,6 @@ impl NetworkAccount {
         {
             tracing::debug!("net_sign_out::stop_file_transfers");
             self.stop_file_transfers().await;
-            self.file_transfers.take();
         }
     }
 
@@ -908,6 +907,11 @@ impl Account for NetworkAccount {
     async fn sign_out(&mut self) -> Result<()> {
         self.deactivate().await;
         self.remotes = Default::default();
+
+        #[cfg(feature = "files")]
+        {
+            self.file_transfers.take();
+        }
 
         let mut account = self.account.lock().await;
         Ok(account.sign_out().await?)
