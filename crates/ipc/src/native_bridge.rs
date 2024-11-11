@@ -74,7 +74,7 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
         .native_endian()
         .new_write(tokio::io::stdout());
 
-    let mut client = try_connect(&socket_name).await;
+    let mut client: Option<SocketClient> = None;
 
     while let Some(Ok(buffer)) = stdin.next().await {
         let response = match serde_json::from_slice::<IpcRequest>(&buffer) {
@@ -83,9 +83,30 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
                     request = ?request,
                     "sos_native_bridge::request",
                 );
+
                 let message_id = request.message_id;
-                match handle_request(&mut client, request, &socket_name).await
-                {
+
+                // Is this a command we handle internally?
+                let response = if is_native_request(&request) {
+                    handle_native_request(
+                        client.as_mut(),
+                        request,
+                        socket_name,
+                    )
+                    .await
+                } else {
+                    // Socket client is already connected
+                    let client = if let Some(client) = client.as_mut() {
+                        client
+                    // Lazily create connection
+                    } else {
+                        let socket_client = try_connect(&socket_name).await;
+                        client = Some(socket_client);
+                        client.as_mut().unwrap()
+                    };
+                    try_send_request(client, request, socket_name).await
+                };
+                match response {
                     Ok(response) => response,
                     Err(e) => IpcResponse::Error {
                         message_id,
@@ -114,11 +135,16 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
     Ok(())
 }
 
-/// Handle an incoming request intercepting some
-/// requests which can be handled without sending
-/// over the IPC channel.
-async fn handle_request(
-    client: &mut SocketClient,
+/// Native requests are those handled by this native bridge
+/// possibly calling over the IPC channel as well.
+fn is_native_request(request: &IpcRequest) -> bool {
+    let payload = &request.payload;
+    matches!(payload, IpcRequestBody::Status)
+        || matches!(payload, IpcRequestBody::OpenUrl(_))
+}
+
+async fn handle_native_request(
+    client: Option<&mut SocketClient>,
     request: IpcRequest,
     socket_name: &str,
 ) -> Result<IpcResponse> {
@@ -131,11 +157,15 @@ async fn handle_request(
                 message_id,
                 payload: IpcRequestBody::Ping,
             };
-            let ipc =
+
+            let ipc = if let Some(client) = client {
                 match try_send_request(client, request, socket_name).await {
                     Ok(_) => true,
                     _ => false,
-                };
+                }
+            } else {
+                false
+            };
             Ok(IpcResponse::Value {
                 message_id,
                 payload: IpcResponseBody::Status { app, ipc },
@@ -148,7 +178,7 @@ async fn handle_request(
                 payload: IpcResponseBody::OpenUrl(result.is_ok()),
             })
         }
-        _ => try_send_request(client, request, socket_name).await,
+        _ => unreachable!("handle native request for IPC packet"),
     }
 }
 
