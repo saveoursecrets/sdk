@@ -65,7 +65,7 @@ pub async fn run(options: NativeBridgeOptions) {
     // Always send log messages to disc as the browser
     // extension reads from stdout
     let logger = Logger::new(None);
-    if let Err(e) = logger.init_file_subscriber(Some("info".to_string())) {
+    if let Err(e) = logger.init_file_subscriber(Some("debug".to_string())) {
         tracing::error!(error = %e, "native_bridge::init_logs");
         std::process::exit(1);
     }
@@ -99,15 +99,12 @@ pub async fn run(options: NativeBridgeOptions) {
                         tokio::task::spawn(async move {
                             let tx = channel.clone();
 
-                            tracing::info!(
+                            tracing::debug!(
                                 request = ?request,
                                 "sos_native_bridge::request",
                             );
 
                             let message_id = request.message_id;
-
-                            tracing::info!(
-                                is_native_request = %is_native_request(&request));
 
                             // Is this a command we handle internally?
                             let response = if is_native_request(&request) {
@@ -116,10 +113,7 @@ pub async fn run(options: NativeBridgeOptions) {
                                 )
                                 .await
                             } else {
-                                let client = connect(&sock_name).await;
-                                let mut client = client.lock().await;
-                                let client = client.as_mut().unwrap();
-                                try_send_request(client, request, &sock_name).await
+                                try_send_request(request, &sock_name).await
                             };
 
                             let result = match response {
@@ -183,6 +177,22 @@ async fn connect(socket_name: &str) -> Arc<Mutex<Option<SocketClient>>> {
     return Arc::clone(&*CONN);
 }
 
+async fn try_connect(socket_name: &str) -> SocketClient {
+    let retry_delay = Duration::from_secs(1);
+    loop {
+        match SocketClient::connect(&socket_name).await {
+            Ok(client) => return client,
+            Err(e) => {
+                tracing::trace!(
+                    error = %e,
+                    "native_bridge::connect",
+                );
+                sleep(retry_delay).await;
+            }
+        }
+    }
+}
+
 /// Native requests are those handled by this native bridge
 /// possibly calling over the IPC channel as well.
 fn is_native_request(request: &IpcRequest) -> bool {
@@ -215,61 +225,24 @@ async fn handle_native_request(request: IpcRequest) -> Result<IpcResponse> {
     }
 }
 
-async fn try_connect(socket_name: &str) -> SocketClient {
-    let retry_delay = Duration::from_secs(1);
-    loop {
-        match SocketClient::connect(&socket_name).await {
-            Ok(client) => return client,
-            Err(e) => {
-                tracing::trace!(
-                    error = %e,
-                    "native_bridge::connect",
-                );
-                sleep(retry_delay).await;
-            }
-        }
-    }
-}
-
-/// Send an IPC request and retry for certain types of IO error.
+/// Send an IPC request and reconnect for certain types of IO error.
 async fn try_send_request(
-    client: &mut SocketClient,
     request: IpcRequest,
     socket_name: &str,
 ) -> Result<IpcResponse> {
-    // let mut attempts = 0;
-    // let max_retries = 120;
-    // let retry_delay = Duration::from_millis(500);
-
     loop {
+        let conn = connect(&socket_name).await;
+        let mut lock = conn.lock().await;
+        let client = lock.as_mut().unwrap();
         match client.send_request(request.clone()).await {
             Ok(response) => return Ok(response),
             Err(e) => match e {
                 Error::Io(io_err) => match io_err.kind() {
                     ErrorKind::BrokenPipe => {
-                        /*
-                        attempts += 1;
-                        tracing::warn!(
-                            kind = %io_err.kind(),
-                            attempts = %attempts,
-                            max_retries = %max_retries,
-                            "native_bridge::send_error",
-                        );
-
-                        if attempts >= max_retries {}
-                        sleep(retry_delay).await;
-                        match SocketClient::connect(&socket_name).await {
-                            Ok(conn) => {
-                                *client = conn;
-                            }
-                            Err(e) => {
-                                tracing::warn!(
-                                    error = %e,
-                                    "native_bridge::reconnect_failed",
-                                );
-                            }
-                        }
-                        */
+                        // Move the broken client out
+                        // so the next attempt to connect
+                        // will create a new client
+                        lock.take();
                     }
                     _ => return Err(Error::Io(io_err)),
                 },
