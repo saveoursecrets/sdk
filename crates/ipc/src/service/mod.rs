@@ -154,7 +154,7 @@ where
                 let app = paths.has_app_lock()?;
                 Ok(IpcResponse::Value {
                     message_id,
-                    payload: IpcResponseBody::Status { app, ipc: true },
+                    payload: IpcResponseBody::Status(app),
                 })
             }
             IpcRequestBody::Ping => Ok(IpcResponse::Value {

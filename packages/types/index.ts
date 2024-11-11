@@ -233,16 +233,13 @@ export type IpcResponse =
 
 /** IPC response body. */
 export type IpcResponseBody = 
-	/** Status information. */
-	| { kind: "status", body: {
 	/**
+	 * App status.
+	 * 
 	 * Whether the app is running as determined
-	 * by an active account file lock.
+	 * by an active app file lock.
 	 */
-	app: boolean;
-	/** Whether the IPC channel is responding to a ping. */
-	ipc: boolean;
-}}
+	| { kind: "status", body: boolean }
 	/** Reply to a ping. */
 	| { kind: "pong", body?: undefined }
 	/** Result of opening a URL. */

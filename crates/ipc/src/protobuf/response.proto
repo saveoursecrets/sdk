@@ -52,8 +52,6 @@ message WireIpcResponseError {
 message WireStatusBody {
   // Whether the app is running.
   bool app = 1;
-  // Whether the IPC channel is responding.
-  bool ipc = 2;
 }
 
 // Result of an open command.

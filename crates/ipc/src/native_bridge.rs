@@ -9,9 +9,13 @@ use crate::{
     SocketClient,
 };
 use futures_util::{SinkExt, StreamExt};
+use once_cell::sync::Lazy;
 use sos_net::sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME, Paths};
-use std::{io::ErrorKind, time::Duration};
-use tokio::{sync::mpsc, time::sleep};
+use std::{io::ErrorKind, sync::Arc, time::Duration};
+use tokio::{
+    sync::{mpsc, Mutex},
+    time::sleep,
+};
 use tokio_util::codec::LengthDelimitedCodec;
 
 /// Extension id used by the CLI.
@@ -27,6 +31,9 @@ pub const FIREFOX_EXTENSION_ID: &str =
 
 const ALLOWED_EXTENSIONS: [&str; 3] =
     [CLI_EXTENSION_ID, CHROME_EXTENSION_ID, FIREFOX_EXTENSION_ID];
+
+static CONN: Lazy<Arc<Mutex<Option<SocketClient>>>> =
+    Lazy::new(|| Arc::new(Mutex::new(None)));
 
 /// Options for a native bridge.
 #[derive(Debug, Default)]
@@ -92,9 +99,6 @@ pub async fn run(options: NativeBridgeOptions) {
                         tokio::task::spawn(async move {
                             let tx = channel.clone();
 
-                            // TODO: cache this and share between requests!
-                            let mut client: Option<SocketClient> = None;
-
                             tracing::info!(
                                 request = ?request,
                                 "sos_native_bridge::request",
@@ -107,23 +111,18 @@ pub async fn run(options: NativeBridgeOptions) {
 
                             // Is this a command we handle internally?
                             let response = if is_native_request(&request) {
-
+                                // let mut client = CONN.lock().await;
                                 handle_native_request(
-                                    client.as_mut(),
+                                    // client.as_mut(),
+                                    None,
                                     request,
                                     &sock_name,
                                 )
                                 .await
                             } else {
-                                // Socket client is already connected
-                                let client = if let Some(client) = client.as_mut() {
-                                    client
-                                // Lazily create connection
-                                } else {
-                                    let socket_client = try_connect(&sock_name).await;
-                                    client = Some(socket_client);
-                                    client.as_mut().unwrap()
-                                };
+                                let client = connect(&sock_name).await;
+                                let mut client = client.lock().await;
+                                let client = client.as_mut().unwrap();
                                 try_send_request(client, request, &sock_name).await
                             };
 
@@ -176,69 +175,16 @@ pub async fn run(options: NativeBridgeOptions) {
             }
         }
     }
+}
 
-    /*
-    while let Some(Ok(buffer)) = stdin.next().await {
-        let response = match serde_json::from_slice::<IpcRequest>(&buffer) {
-            Ok(request) => {
-                tracing::info!(
-                    request = ?request,
-                    "sos_native_bridge::request",
-                );
-
-                let message_id = request.message_id;
-
-                tracing::info!(
-                    is_native_request = %is_native_request(&request));
-
-                // Is this a command we handle internally?
-                let response = if is_native_request(&request) {
-                    tracing::info!("HANDLING NATIVE REQUEST!!!");
-
-                    handle_native_request(
-                        client.as_mut(),
-                        request,
-                        socket_name,
-                    )
-                    .await
-                } else {
-                    // Socket client is already connected
-                    let client = if let Some(client) = client.as_mut() {
-                        client
-                    // Lazily create connection
-                    } else {
-                        let socket_client = try_connect(&socket_name).await;
-                        client = Some(socket_client);
-                        client.as_mut().unwrap()
-                    };
-                    try_send_request(client, request, socket_name).await
-                };
-                match response {
-                    Ok(response) => response,
-                    Err(e) => IpcResponse::Error {
-                        message_id,
-                        payload: Error::NativeBridgeClientProxy(
-                            e.to_string(),
-                        )
-                        .into(),
-                    },
-                }
-            }
-            Err(e) => IpcResponse::Error {
-                message_id: 0,
-                payload: Error::NativeBridgeJsonParse(e.to_string()).into(),
-            },
-        };
-
-        tracing::debug!(
-            response = ?response,
-            "sos_native_bridge::response",
-        );
-
-        let output = serde_json::to_vec(&response)?;
-        stdout.send(output.into()).await?;
+async fn connect(socket_name: &str) -> Arc<Mutex<Option<SocketClient>>> {
+    let mut conn = CONN.lock().await;
+    if conn.is_some() {
+        return Arc::clone(&*CONN);
     }
-    */
+    let socket_client = try_connect(&socket_name).await;
+    *conn = Some(socket_client);
+    return Arc::clone(&*CONN);
 }
 
 /// Native requests are those handled by this native bridge
@@ -276,7 +222,7 @@ async fn handle_native_request(
             };
             Ok(IpcResponse::Value {
                 message_id,
-                payload: IpcResponseBody::Status { app, ipc },
+                payload: IpcResponseBody::Status(app),
             })
         }
         IpcRequestBody::OpenUrl(url) => {
@@ -296,12 +242,10 @@ async fn try_connect(socket_name: &str) -> SocketClient {
         match SocketClient::connect(&socket_name).await {
             Ok(client) => return client,
             Err(e) => {
-                /*
-                tracing::warn!(
+                tracing::trace!(
                     error = %e,
                     "native_bridge::connect",
                 );
-                */
                 sleep(retry_delay).await;
             }
         }
@@ -314,9 +258,9 @@ async fn try_send_request(
     request: IpcRequest,
     socket_name: &str,
 ) -> Result<IpcResponse> {
-    let mut attempts = 0;
-    let max_retries = 60;
-    let retry_delay = Duration::from_millis(500);
+    // let mut attempts = 0;
+    // let max_retries = 120;
+    // let retry_delay = Duration::from_millis(500);
 
     loop {
         match client.send_request(request.clone()).await {
@@ -324,7 +268,6 @@ async fn try_send_request(
             Err(e) => match e {
                 Error::Io(io_err) => match io_err.kind() {
                     ErrorKind::BrokenPipe => {
-
                         /*
                         attempts += 1;
                         tracing::warn!(
@@ -333,8 +276,9 @@ async fn try_send_request(
                             max_retries = %max_retries,
                             "native_bridge::send_error",
                         );
-                        sleep(retry_delay).await;
 
+                        if attempts >= max_retries {}
+                        sleep(retry_delay).await;
                         match SocketClient::connect(&socket_name).await {
                             Ok(conn) => {
                                 *client = conn;

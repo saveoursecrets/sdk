@@ -4563,6 +4563,7 @@ dependencies = [
  "async-trait",
  "futures-util",
  "interprocess",
+ "once_cell",
  "open",
  "prost",
  "prost-build",

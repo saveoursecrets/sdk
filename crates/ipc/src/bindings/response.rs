@@ -46,14 +46,11 @@ impl IpcResponse {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum IpcResponseBody {
-    /// Status information.
-    Status {
-        /// Whether the app is running as determined
-        /// by an active account file lock.
-        app: bool,
-        /// Whether the IPC channel is responding to a ping.
-        ipc: bool,
-    },
+    /// App status.
+    ///
+    /// Whether the app is running as determined
+    /// by an active app file lock.
+    Status(bool),
     /// Reply to a ping.
     Pong,
     /// Result of opening a URL.
@@ -87,13 +84,13 @@ impl From<IpcResponse> for WireIpcResponse {
                 message_id,
                 payload: body,
             } => match body {
-                IpcResponseBody::Status { app, ipc } => Self {
+                IpcResponseBody::Status(app) => Self {
                     message_id,
                     result: Some(wire_ipc_response::Result::Body(
                         WireIpcResponseBody {
                             inner: Some(
                                 wire_ipc_response_body::Inner::Status(
-                                    WireStatusBody { app, ipc },
+                                    WireStatusBody { app },
                                 ),
                             ),
                         },
@@ -222,10 +219,7 @@ impl TryFrom<WireIpcResponse> for IpcResponse {
                     Some(wire_ipc_response_body::Inner::Status(inner)) => {
                         IpcResponse::Value {
                             message_id,
-                            payload: IpcResponseBody::Status {
-                                app: inner.app,
-                                ipc: inner.ipc,
-                            },
+                            payload: IpcResponseBody::Status(inner.app),
                         }
                     }
                     Some(wire_ipc_response_body::Inner::Pong(_)) => {
