@@ -129,7 +129,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let mut options =
                 NativeBridgeOptions::new(CLI_EXTENSION_ID.to_string());
             options.socket_name = Some(socket_name.to_string());
-            native_bridge::run(options).await?;
+            native_bridge::run(options).await;
         }
     }
     Ok(())

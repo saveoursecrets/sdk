@@ -11,7 +11,7 @@ use crate::{
 use futures_util::{SinkExt, StreamExt};
 use sos_net::sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME, Paths};
 use std::{io::ErrorKind, time::Duration};
-use tokio::time::sleep;
+use tokio::{sync::mpsc, time::sleep};
 use tokio_util::codec::LengthDelimitedCodec;
 
 /// Extension id used by the CLI.
@@ -48,21 +48,27 @@ impl NativeBridgeOptions {
 }
 
 /// Run a native bridge.
-pub async fn run(options: NativeBridgeOptions) -> Result<()> {
+pub async fn run(options: NativeBridgeOptions) {
     if !ALLOWED_EXTENSIONS.contains(&&options.extension_id[..]) {
-        return Err(Error::NativeBridgeDenied(options.extension_id));
+        let err = Error::NativeBridgeDenied(options.extension_id);
+        tracing::error!(error = %err, "native_bridge::denied");
+        std::process::exit(1);
     }
 
     // Always send log messages to disc as the browser
     // extension reads from stdout
     let logger = Logger::new(None);
-    logger.init_file_subscriber(Some("info".to_string()))?;
+    if let Err(e) = logger.init_file_subscriber(Some("info".to_string())) {
+        tracing::error!(error = %e, "native_bridge::init_logs");
+        std::process::exit(1);
+    }
 
     let socket_name = options
         .socket_name
         .as_ref()
         .map(|s| &s[..])
-        .unwrap_or(IPC_GUI_SOCKET_NAME);
+        .unwrap_or(IPC_GUI_SOCKET_NAME)
+        .to_string();
 
     tracing::info!(options = ?options, "native_bridge");
 
@@ -74,20 +80,121 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
         .native_endian()
         .new_write(tokio::io::stdout());
 
-    let mut client: Option<SocketClient> = None;
+    let (tx, mut rx) = mpsc::unbounded_channel::<IpcResponse>();
 
+    loop {
+        let channel = tx.clone();
+        let sock_name = socket_name.clone();
+        tokio::select! {
+            Some(Ok(buffer)) = stdin.next() => {
+                match serde_json::from_slice::<IpcRequest>(&buffer) {
+                    Ok(request) => {
+                        tokio::task::spawn(async move {
+                            let tx = channel.clone();
+
+                            // TODO: cache this and share between requests!
+                            let mut client: Option<SocketClient> = None;
+
+                            tracing::info!(
+                                request = ?request,
+                                "sos_native_bridge::request",
+                            );
+
+                            let message_id = request.message_id;
+
+                            tracing::info!(
+                                is_native_request = %is_native_request(&request));
+
+                            // Is this a command we handle internally?
+                            let response = if is_native_request(&request) {
+
+                                handle_native_request(
+                                    client.as_mut(),
+                                    request,
+                                    &sock_name,
+                                )
+                                .await
+                            } else {
+                                // Socket client is already connected
+                                let client = if let Some(client) = client.as_mut() {
+                                    client
+                                // Lazily create connection
+                                } else {
+                                    let socket_client = try_connect(&sock_name).await;
+                                    client = Some(socket_client);
+                                    client.as_mut().unwrap()
+                                };
+                                try_send_request(client, request, &sock_name).await
+                            };
+
+                            let result = match response {
+                                Ok(response) => response,
+                                Err(e) => IpcResponse::Error {
+                                    message_id,
+                                    payload: Error::NativeBridgeClientProxy(
+                                        e.to_string(),
+                                    )
+                                    .into(),
+                                },
+                            };
+
+                            if let Err(e) = tx.send(result) {
+                                tracing::warn!(error = %e, "native_bridge::response_channel");
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        let response = IpcResponse::Error {
+                            message_id: 0,
+                            payload: Error::NativeBridgeJsonParse(e.to_string()).into(),
+                        };
+                        let tx = channel.clone();
+                        if let Err(e) = tx.send(response.into()) {
+                            tracing::warn!(error = %e, "native_bridge::response_channel");
+                        }
+                    }
+                }
+            }
+            Some(response) = rx.recv() => {
+                tracing::debug!(
+                    response = ?response,
+                    "sos_native_bridge::response",
+                );
+
+                match serde_json::to_vec(&response) {
+                    Ok(output) => {
+                        if let Err(e) = stdout.send(output.into()).await {
+                            tracing::error!(error = %e, "native_bridge::stdout_write");
+                            std::process::exit(1);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!(error = %e, "native_bridge::serde_json");
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+    }
+
+    /*
     while let Some(Ok(buffer)) = stdin.next().await {
         let response = match serde_json::from_slice::<IpcRequest>(&buffer) {
             Ok(request) => {
-                tracing::debug!(
+                tracing::info!(
                     request = ?request,
                     "sos_native_bridge::request",
                 );
 
                 let message_id = request.message_id;
 
+                tracing::info!(
+                    is_native_request = %is_native_request(&request));
+
                 // Is this a command we handle internally?
                 let response = if is_native_request(&request) {
+                    tracing::info!("HANDLING NATIVE REQUEST!!!");
+
                     handle_native_request(
                         client.as_mut(),
                         request,
@@ -131,16 +238,17 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
         let output = serde_json::to_vec(&response)?;
         stdout.send(output.into()).await?;
     }
-
-    Ok(())
+    */
 }
 
 /// Native requests are those handled by this native bridge
 /// possibly calling over the IPC channel as well.
 fn is_native_request(request: &IpcRequest) -> bool {
-    let payload = &request.payload;
-    matches!(payload, IpcRequestBody::Status)
-        || matches!(payload, IpcRequestBody::OpenUrl(_))
+    match &request.payload {
+        IpcRequestBody::Status => true,
+        IpcRequestBody::OpenUrl(_) => true,
+        _ => false,
+    }
 }
 
 async fn handle_native_request(
@@ -188,10 +296,12 @@ async fn try_connect(socket_name: &str) -> SocketClient {
         match SocketClient::connect(&socket_name).await {
             Ok(client) => return client,
             Err(e) => {
+                /*
                 tracing::warn!(
                     error = %e,
                     "native_bridge::connect",
                 );
+                */
                 sleep(retry_delay).await;
             }
         }
@@ -214,6 +324,8 @@ async fn try_send_request(
             Err(e) => match e {
                 Error::Io(io_err) => match io_err.kind() {
                     ErrorKind::BrokenPipe => {
+
+                        /*
                         attempts += 1;
                         tracing::warn!(
                             kind = %io_err.kind(),
@@ -234,6 +346,7 @@ async fn try_send_request(
                                 );
                             }
                         }
+                        */
                     }
                     _ => return Err(Error::Io(io_err)),
                 },
