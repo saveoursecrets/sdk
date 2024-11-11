@@ -62,10 +62,15 @@ pub async fn run(options: NativeBridgeOptions) {
         std::process::exit(1);
     }
 
+    let log_level = std::env::var("SOS_NATIVE_BRIDGE_LOG_LEVEL")
+        .map(|s| s.to_string())
+        .ok()
+        .unwrap_or("debug".to_string());
+
     // Always send log messages to disc as the browser
     // extension reads from stdout
     let logger = Logger::new(None);
-    if let Err(e) = logger.init_file_subscriber(Some("debug".to_string())) {
+    if let Err(e) = logger.init_file_subscriber(Some(log_level)) {
         tracing::error!(error = %e, "native_bridge::init_logs");
         std::process::exit(1);
     }
@@ -99,7 +104,7 @@ pub async fn run(options: NativeBridgeOptions) {
                         tokio::task::spawn(async move {
                             let tx = channel.clone();
 
-                            tracing::debug!(
+                            tracing::trace!(
                                 request = ?request,
                                 "sos_native_bridge::request",
                             );
@@ -145,7 +150,7 @@ pub async fn run(options: NativeBridgeOptions) {
                 }
             }
             Some(response) = rx.recv() => {
-                tracing::debug!(
+                tracing::trace!(
                     response = ?response,
                     "sos_native_bridge::response",
                 );
