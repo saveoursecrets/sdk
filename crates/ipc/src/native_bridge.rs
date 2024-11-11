@@ -74,7 +74,7 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
         .native_endian()
         .new_write(tokio::io::stdout());
 
-    let mut client = SocketClient::connect(&socket_name).await?;
+    let mut client = try_connect(&socket_name).await;
 
     while let Some(Ok(buffer)) = stdin.next().await {
         let response = match serde_json::from_slice::<IpcRequest>(&buffer) {
@@ -149,6 +149,22 @@ async fn handle_request(
             })
         }
         _ => try_send_request(client, request, socket_name).await,
+    }
+}
+
+async fn try_connect(socket_name: &str) -> SocketClient {
+    let retry_delay = Duration::from_secs(1);
+    loop {
+        match SocketClient::connect(&socket_name).await {
+            Ok(client) => return client,
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "native_bridge::connect",
+                );
+                sleep(retry_delay).await;
+            }
+        }
     }
 }
 
