@@ -10,6 +10,7 @@ use crate::{
 };
 use futures_util::{SinkExt, StreamExt};
 use sos_net::sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME, Paths};
+use std::io::ErrorKind;
 use tokio_util::codec::LengthDelimitedCodec;
 
 /// Extension id used by the CLI.
@@ -111,6 +112,9 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
     Ok(())
 }
 
+/// Handle an incoming request intercepting some
+/// requests which can be handled without sending
+/// over the IPC channel.
 async fn handle_request(
     client: &mut SocketClient,
     request: IpcRequest,
@@ -124,7 +128,7 @@ async fn handle_request(
                 message_id,
                 payload: IpcRequestBody::Ping,
             };
-            let ipc = match client.send_request(request).await {
+            let ipc = match try_send_request(client, request).await {
                 Ok(_) => true,
                 _ => false,
             };
@@ -140,7 +144,26 @@ async fn handle_request(
                 payload: IpcResponseBody::OpenUrl(result.is_ok()),
             })
         }
-        _ => client.send_request(request).await,
+        _ => try_send_request(client, request).await,
+    }
+}
+
+/// Send an IPC request and retry for certain types of IO error.
+async fn try_send_request(
+    client: &mut SocketClient,
+    request: IpcRequest,
+) -> Result<IpcResponse> {
+    match client.send_request(request).await {
+        Ok(response) => Ok(response),
+        Err(e) => match e {
+            Error::Io(io_err) => match io_err.kind() {
+                ErrorKind::BrokenPipe => {
+                    todo!("try to reconnect on broken pipe...");
+                }
+                _ => Err(Error::Io(io_err)),
+            },
+            _ => Err(e),
+        },
     }
 }
 
