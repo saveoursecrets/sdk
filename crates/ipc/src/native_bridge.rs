@@ -10,7 +10,8 @@ use crate::{
 };
 use futures_util::{SinkExt, StreamExt};
 use sos_net::sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME, Paths};
-use std::io::ErrorKind;
+use std::{io::ErrorKind, time::Duration};
+use tokio::time::sleep;
 use tokio_util::codec::LengthDelimitedCodec;
 
 /// Extension id used by the CLI.
@@ -83,7 +84,8 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
                     "sos_native_bridge::request",
                 );
                 let message_id = request.message_id;
-                match handle_request(&mut client, request).await {
+                match handle_request(&mut client, request, &socket_name).await
+                {
                     Ok(response) => response,
                     Err(e) => IpcResponse::Error {
                         message_id,
@@ -118,6 +120,7 @@ pub async fn run(options: NativeBridgeOptions) -> Result<()> {
 async fn handle_request(
     client: &mut SocketClient,
     request: IpcRequest,
+    socket_name: &str,
 ) -> Result<IpcResponse> {
     let message_id = request.message_id;
     match &request.payload {
@@ -128,10 +131,11 @@ async fn handle_request(
                 message_id,
                 payload: IpcRequestBody::Ping,
             };
-            let ipc = match try_send_request(client, request).await {
-                Ok(_) => true,
-                _ => false,
-            };
+            let ipc =
+                match try_send_request(client, request, socket_name).await {
+                    Ok(_) => true,
+                    _ => false,
+                };
             Ok(IpcResponse::Value {
                 message_id,
                 payload: IpcResponseBody::Status { app, ipc },
@@ -144,7 +148,7 @@ async fn handle_request(
                 payload: IpcResponseBody::OpenUrl(result.is_ok()),
             })
         }
-        _ => try_send_request(client, request).await,
+        _ => try_send_request(client, request, socket_name).await,
     }
 }
 
@@ -152,18 +156,44 @@ async fn handle_request(
 async fn try_send_request(
     client: &mut SocketClient,
     request: IpcRequest,
+    socket_name: &str,
 ) -> Result<IpcResponse> {
-    match client.send_request(request).await {
-        Ok(response) => Ok(response),
-        Err(e) => match e {
-            Error::Io(io_err) => match io_err.kind() {
-                ErrorKind::BrokenPipe => {
-                    todo!("try to reconnect on broken pipe...");
-                }
-                _ => Err(Error::Io(io_err)),
+    let mut attempts = 0;
+    let max_retries = 60;
+    let retry_delay = Duration::from_millis(500);
+
+    loop {
+        match client.send_request(request.clone()).await {
+            Ok(response) => return Ok(response),
+            Err(e) => match e {
+                Error::Io(io_err) => match io_err.kind() {
+                    ErrorKind::BrokenPipe => {
+                        attempts += 1;
+                        tracing::warn!(
+                            kind = %io_err.kind(),
+                            attempts = %attempts,
+                            max_retries = %max_retries,
+                            "native_bridge::send_error",
+                        );
+                        sleep(retry_delay).await;
+
+                        match SocketClient::connect(&socket_name).await {
+                            Ok(conn) => {
+                                *client = conn;
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    error = %e,
+                                    "native_bridge::reconnect_failed",
+                                );
+                            }
+                        }
+                    }
+                    _ => return Err(Error::Io(io_err)),
+                },
+                _ => return Err(e),
             },
-            _ => Err(e),
-        },
+        }
     }
 }
 
