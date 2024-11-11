@@ -842,7 +842,7 @@ impl AccountSearch {
 }
 
 /// View of documents in the search index.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DocumentView {
     /// View all documents in the search index.
     All {
@@ -949,7 +949,7 @@ pub struct QueryFilter {
 
 /// Filter for archived documents.
 #[typeshare]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArchiveFilter {
     /// Identifier of the archive vault.

@@ -10,7 +10,7 @@ use typeshare::typeshare;
 
 /// IPC request information.
 #[typeshare]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IpcRequest {
     /// Request identifier.
     #[serde(rename = "id")]
@@ -21,7 +21,7 @@ pub struct IpcRequest {
 
 /// IPC request information.
 #[typeshare]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum IpcRequestBody {
     /// Query app status.
