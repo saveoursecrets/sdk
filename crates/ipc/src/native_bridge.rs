@@ -111,12 +111,8 @@ pub async fn run(options: NativeBridgeOptions) {
 
                             // Is this a command we handle internally?
                             let response = if is_native_request(&request) {
-                                // let mut client = CONN.lock().await;
                                 handle_native_request(
-                                    // client.as_mut(),
-                                    None,
                                     request,
-                                    &sock_name,
                                 )
                                 .await
                             } else {
@@ -197,29 +193,12 @@ fn is_native_request(request: &IpcRequest) -> bool {
     }
 }
 
-async fn handle_native_request(
-    client: Option<&mut SocketClient>,
-    request: IpcRequest,
-    socket_name: &str,
-) -> Result<IpcResponse> {
+async fn handle_native_request(request: IpcRequest) -> Result<IpcResponse> {
     let message_id = request.message_id;
     match &request.payload {
         IpcRequestBody::Status => {
             let paths = Paths::new_global(Paths::data_dir()?);
             let app = paths.has_app_lock()?;
-            let request = IpcRequest {
-                message_id,
-                payload: IpcRequestBody::Ping,
-            };
-
-            let ipc = if let Some(client) = client {
-                match try_send_request(client, request, socket_name).await {
-                    Ok(_) => true,
-                    _ => false,
-                }
-            } else {
-                false
-            };
             Ok(IpcResponse::Value {
                 message_id,
                 payload: IpcResponseBody::Status(app),
