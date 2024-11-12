@@ -19,6 +19,7 @@ mod error;
 mod bindings;
 mod client;
 pub(crate) mod codec;
+#[cfg(feature = "native-bridge")]
 pub mod native_bridge;
 mod server;
 mod service;

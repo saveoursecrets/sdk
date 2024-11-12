@@ -6,12 +6,12 @@ description = "Inter-process communication for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
-default-run = "sos-native-bridge"
 
 [features]
 default = ["local-socket"]
 tcp = []
 local-socket = ["interprocess"]
+native-bridge = ["open", "once_cell"]
 native-send = ["tokio/process"]
 
 [dependencies]
@@ -22,20 +22,18 @@ async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 typeshare.workspace = true
-once_cell.workspace = true
 sos-net = { version = "0.15", path = "../net", features = ["account", "search"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "macros", "io-util", "io-std", "sync"] }
 tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["codec"] }
 futures-util = { version = "0.3", features = ["sink"] }
 interprocess = { version = "2", features = ["tokio"], optional = true }
-open = "5"
+
+open = { version = "5", optional = true }
+once_cell = { workspace = true, optional = true }
 
 [build-dependencies]
 rustc_version = "0.4.1"
 prost-build = "0.13"
 protoc-bin-vendored = "3"
 
-[[bin]]
-name = "sos-native-bridge"
-path = "src/bin/native_bridge.rs"
