@@ -1,6 +1,6 @@
 use crate::{
     io_err, AccountsList, IpcRequest, IpcRequestBody, IpcResponse,
-    IpcResponseBody, SearchResults,
+    IpcResponseBody, SearchResults, ServiceAppInfo,
 };
 use async_trait::async_trait;
 use sos_net::{
@@ -57,6 +57,7 @@ where
 {
     accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
     delegate: mpsc::Sender<Command<E, R, A>>,
+    app_info: ServiceAppInfo,
 }
 
 impl<E, R, A> IpcServiceHandler<E, R, A>
@@ -73,7 +74,24 @@ where
         accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
         delegate: mpsc::Sender<Command<E, R, A>>,
     ) -> Self {
-        Self { accounts, delegate }
+        Self {
+            accounts,
+            delegate,
+            app_info: Default::default(),
+        }
+    }
+
+    /// Create a new service handler with app info.
+    pub fn new_with_info(
+        accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
+        delegate: mpsc::Sender<Command<E, R, A>>,
+        app_info: ServiceAppInfo,
+    ) -> Self {
+        Self {
+            accounts,
+            delegate,
+            app_info,
+        }
     }
 
     async fn list_accounts(&self) -> std::result::Result<AccountsList, E> {
@@ -149,6 +167,10 @@ where
     ) -> std::result::Result<IpcResponse, E> {
         let message_id = request.message_id;
         match request.payload {
+            IpcRequestBody::Info => Ok(IpcResponse::Value {
+                message_id,
+                payload: IpcResponseBody::Info(self.app_info.clone()),
+            }),
             IpcRequestBody::Status => {
                 let paths = Paths::new_global(Paths::data_dir()?);
                 let app = paths.has_app_lock()?;

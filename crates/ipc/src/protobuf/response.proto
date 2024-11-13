@@ -21,22 +21,24 @@ message WireIpcResponse {
 message WireIpcResponseBody {
   // Inner values.
   oneof inner {
+    // App info.
+    WireInfoBody info = 1;
     // App status.
-    WireStatusBody status = 1;
+    WireStatusBody status = 2;
     // Reply to a ping.
-    common.WireVoidBody pong = 2;
+    common.WireVoidBody pong = 3;
     // Request to open a URL.
-    WireOpenUrl open_url = 3;
+    WireOpenUrl open_url = 4;
     // List accounts body.
-    WireAccountList list_accounts = 4;
+    WireAccountList list_accounts = 5;
     // Authenticate body.
-    WireCommandOutcome authenticate = 5;
+    WireCommandOutcome authenticate = 6;
     // Lock body.
-    WireCommandOutcome lock = 6;
+    WireCommandOutcome lock = 7;
     // Search query body.
-    WireSearchResults search = 7;
+    WireSearchResults search = 8;
     // View query body.
-    WireSearchResults query_view = 8;
+    WireSearchResults query_view = 9;
   }
 }
 
@@ -46,6 +48,16 @@ message WireIpcResponseError {
   int32 code = 1;
   // Error message.
   string message = 2;
+}
+
+// Result of a info query.
+message WireInfoBody {
+  // App name.
+  string name = 1;
+  // App version.
+  string version = 2;
+  // App build number.
+  uint64 build_number = 3;
 }
 
 // Result of a status query.

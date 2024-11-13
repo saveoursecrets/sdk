@@ -5,7 +5,7 @@ use sos_net::sdk::prelude::{
 };
 use std::time::Duration;
 
-use crate::CommandOutcome;
+use crate::{CommandOutcome, ServiceAppInfo};
 
 /// List of accounts with authenticated status flag.
 pub type AccountsList = Vec<(PublicIdentity, bool)>;
@@ -17,6 +17,9 @@ pub type SearchResults = Vec<(PublicIdentity, Vec<Document>)>;
 /// app integrations such as browser extensions.
 #[async_trait]
 pub trait AppIntegration<E: From<sos_net::sdk::Error>> {
+    /// App info.
+    async fn info(&mut self) -> Result<ServiceAppInfo, E>;
+
     /// Ping the server.
     async fn ping(&mut self) -> Result<Duration, E>;
 

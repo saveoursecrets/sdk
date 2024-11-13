@@ -17,29 +17,32 @@ message WireIpcRequestBody {
   // Inner values.
   oneof inner {
 
+    // Get app info.
+    common.WireVoidBody info = 1;
+
     // Query app status.
-    common.WireVoidBody status = 1;
+    common.WireVoidBody status = 2;
 
     // Ping the server.
-    common.WireVoidBody ping = 2;
+    common.WireVoidBody ping = 3;
 
     // Request to open a program.
-    WireOpenUrlBody open_url = 3;
+    WireOpenUrlBody open_url = 4;
 
     // Request a list of accounts.
-    common.WireVoidBody list_accounts = 4;
+    common.WireVoidBody list_accounts = 5;
 
     // Request to authenticate to an account.
-    WireAuthenticateBody authenticate  = 5;
+    WireAuthenticateBody authenticate  = 6;
 
     // Request to lock an account.
-    WireLockBody lock  = 6;
+    WireLockBody lock  = 7;
 
     // Request to search an account.
-    WireSearchBody search  = 7;
+    WireSearchBody search  = 8;
 
     // Request to query a view.
-    WireQueryViewBody query_view  = 8;
+    WireQueryViewBody query_view  = 9;
   }
 }
 

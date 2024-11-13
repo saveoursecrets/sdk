@@ -1,3 +1,4 @@
+mod app_info;
 mod authenticate_success;
 mod authenticate_timeout;
 mod list_accounts;

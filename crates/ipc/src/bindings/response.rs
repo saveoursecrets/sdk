@@ -46,6 +46,8 @@ impl IpcResponse {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum IpcResponseBody {
+    /// App info.
+    Info(ServiceAppInfo),
     /// App status.
     ///
     /// Whether the app is running as determined
@@ -84,6 +86,20 @@ impl From<IpcResponse> for WireIpcResponse {
                 message_id,
                 payload: body,
             } => match body {
+                IpcResponseBody::Info(app) => Self {
+                    message_id,
+                    result: Some(wire_ipc_response::Result::Body(
+                        WireIpcResponseBody {
+                            inner: Some(wire_ipc_response_body::Inner::Info(
+                                WireInfoBody {
+                                    name: app.name,
+                                    version: app.version,
+                                    build_number: app.build_number,
+                                },
+                            )),
+                        },
+                    )),
+                },
                 IpcResponseBody::Status(app) => Self {
                     message_id,
                     result: Some(wire_ipc_response::Result::Body(
@@ -216,6 +232,16 @@ impl TryFrom<WireIpcResponse> for IpcResponse {
         match value.result {
             Some(wire_ipc_response::Result::Body(body)) => {
                 Ok(match body.inner {
+                    Some(wire_ipc_response_body::Inner::Info(inner)) => {
+                        IpcResponse::Value {
+                            message_id,
+                            payload: IpcResponseBody::Info(ServiceAppInfo {
+                                name: inner.name,
+                                version: inner.version,
+                                build_number: inner.build_number,
+                            }),
+                        }
+                    }
                     Some(wire_ipc_response_body::Inner::Status(inner)) => {
                         IpcResponse::Value {
                             message_id,
@@ -414,5 +440,26 @@ impl TryFrom<WireSearchResults> for SearchResults {
             results.push((identity.try_into()?, documents));
         }
         Ok(results)
+    }
+}
+
+/// Information about the service.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceAppInfo {
+    /// App name.
+    pub name: String,
+    /// App version.
+    pub version: String,
+    /// App build number.
+    pub build_number: u64,
+}
+
+impl Default for ServiceAppInfo {
+    fn default() -> Self {
+        Self {
+            name: env!("CARGO_PKG_NAME").to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            build_number: 0,
+        }
     }
 }

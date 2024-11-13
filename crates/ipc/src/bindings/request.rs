@@ -24,6 +24,8 @@ pub struct IpcRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum IpcRequestBody {
+    /// Query app info.
+    Info,
     /// Query app status.
     Status,
     /// Ping the server.
@@ -74,6 +76,14 @@ impl IpcRequest {
 impl From<IpcRequest> for WireIpcRequest {
     fn from(value: IpcRequest) -> Self {
         match value.payload {
+            IpcRequestBody::Info => WireIpcRequest {
+                message_id: value.message_id,
+                body: Some(WireIpcRequestBody {
+                    inner: Some(wire_ipc_request_body::Inner::Info(
+                        WireVoidBody {},
+                    )),
+                }),
+            },
             IpcRequestBody::Status => WireIpcRequest {
                 message_id: value.message_id,
                 body: Some(WireIpcRequestBody {
@@ -165,6 +175,10 @@ impl TryFrom<WireIpcRequest> for IpcRequest {
         let message_id = value.message_id;
         let body = value.body.ok_or(Error::DecodeRequest)?;
         Ok(match body.inner {
+            Some(wire_ipc_request_body::Inner::Info(_)) => IpcRequest {
+                message_id,
+                payload: IpcRequestBody::Info,
+            },
             Some(wire_ipc_request_body::Inner::Status(_)) => IpcRequest {
                 message_id,
                 payload: IpcRequestBody::Status,

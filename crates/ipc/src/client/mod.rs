@@ -4,6 +4,7 @@ use std::time::{Duration, SystemTime};
 use crate::{
     AccountsList, AppIntegration, CommandOutcome, Error, IpcRequest,
     IpcRequestBody, IpcResponse, IpcResponseBody, Result, SearchResults,
+    ServiceAppInfo,
 };
 
 use sos_net::sdk::prelude::{
@@ -29,6 +30,26 @@ macro_rules! app_integration_impl {
     ($impl:ident) => {
         #[async_trait]
         impl AppIntegration<crate::Error> for $impl {
+            async fn info(&mut self) -> Result<ServiceAppInfo> {
+                let request = IpcRequest {
+                    message_id: self.next_id(),
+                    payload: IpcRequestBody::Info,
+                };
+
+                let response = self.send_request(request).await?;
+                match response {
+                    IpcResponse::Error {
+                        message_id,
+                        payload: err,
+                    } => Err(Error::ResponseError(message_id, err)),
+                    IpcResponse::Value {
+                        payload: IpcResponseBody::Info(app),
+                        ..
+                    } => Ok(app),
+                    _ => Err(Error::ResponseType),
+                }
+            }
+
             async fn ping(&mut self) -> Result<Duration> {
                 let now = SystemTime::now();
 
