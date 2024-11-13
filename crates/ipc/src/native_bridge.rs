@@ -58,7 +58,7 @@ impl NativeBridgeOptions {
 pub async fn run(options: NativeBridgeOptions) {
     if !ALLOWED_EXTENSIONS.contains(&&options.extension_id[..]) {
         let err = Error::NativeBridgeDenied(options.extension_id);
-        tracing::error!(error = %err, "native_bridge::denied");
+        eprintln!("{}", err);
         std::process::exit(1);
     }
 
@@ -70,8 +70,8 @@ pub async fn run(options: NativeBridgeOptions) {
     // Always send log messages to disc as the browser
     // extension reads from stdout
     let logger = Logger::new(None);
-    if let Err(e) = logger.init_file_subscriber(Some(log_level)) {
-        tracing::error!(error = %e, "native_bridge::init_logs");
+    if let Err(err) = logger.init_file_subscriber(Some(log_level)) {
+        eprintln!("{}", err);
         std::process::exit(1);
     }
 

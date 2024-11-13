@@ -1,7 +1,6 @@
+use crate::IpcResponseError;
 use thiserror::Error;
 use tokio::time::Duration;
-
-use crate::IpcResponseError;
 
 /// Error type for the library.
 #[derive(Error, Debug)]
@@ -36,16 +35,19 @@ pub enum Error {
 
     /// Error when the native bridge denies proxying due to an
     /// invalid extension identifier.
-    #[error("permission denied: {0}")]
+    #[cfg(feature = "native-bridge")]
+    #[error("extension denied: {0}")]
     NativeBridgeDenied(String),
 
     /// Error when the native bridge fails to send a proxy
     /// request via the IPC client socket.
+    #[cfg(feature = "native-bridge")]
     #[error("native bridge failed to send IPC proxy request, reason: {0}")]
     NativeBridgeClientProxy(String),
 
     /// Error when the native bridge fails to parse the incoming
     /// request JSON.
+    #[cfg(feature = "native-bridge")]
     #[error("native bridge failed to parse JSON, reason: {0}")]
     NativeBridgeJsonParse(String),
 
@@ -86,8 +88,11 @@ impl From<Error> for IpcResponseError {
     fn from(value: Error) -> Self {
         let code = match &value {
             Error::ServiceTimeout(_) => 504, // Gateway timeout
+            #[cfg(feature = "native-bridge")]
             Error::NativeBridgeDenied(_) => 403, // Forbidden
+            #[cfg(feature = "native-bridge")]
             Error::NativeBridgeClientProxy(_) => 502, // Bad gateway
+            #[cfg(feature = "native-bridge")]
             Error::NativeBridgeJsonParse(_) => 400, // Bad request
             _ => -1,
         };
