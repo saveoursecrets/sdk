@@ -32,17 +32,20 @@ message WireIpcRequestBody {
     // Request a list of accounts.
     common.WireVoidBody list_accounts = 5;
 
+    // Request to copy to the clipboard.
+    WireClipboardTarget copy = 6;
+
     // Request to authenticate to an account.
-    WireAuthenticateBody authenticate  = 6;
+    WireAuthenticateBody authenticate  = 7;
 
     // Request to lock an account.
-    WireLockBody lock  = 7;
+    WireLockBody lock  = 8;
 
     // Request to search an account.
-    WireSearchBody search  = 8;
+    WireSearchBody search  = 9;
 
     // Request to query a view.
-    WireQueryViewBody query_view  = 9;
+    WireQueryViewBody query_view  = 10;
   }
 }
 
@@ -70,6 +73,16 @@ message WireSearchBody {
   string needle = 1;
   // Filter for the query.
   common.WireQueryFilter filter = 2;
+}
+
+// Clipboard target.
+message WireClipboardTarget {
+  // Account address.
+  string address = 1;
+  // Folder identifier.
+  string folder_id = 2;
+  // Secret identifier.
+  string secret_id = 3;
 }
 
 // Query view request body.

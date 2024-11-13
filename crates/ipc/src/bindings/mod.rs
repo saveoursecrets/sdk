@@ -1,7 +1,7 @@
 mod common;
 mod request;
 mod response;
-pub use request::{IpcRequest, IpcRequestBody};
+pub use request::{ClipboardTarget, IpcRequest, IpcRequestBody};
 pub use response::{
     CommandOutcome, IpcResponse, IpcResponseBody, IpcResponseError,
     ServiceAppInfo,

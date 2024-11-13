@@ -56,7 +56,6 @@ where
         loop {
             let socket = listener.accept().await?;
             let service = service.clone();
-
             tokio::spawn(async move {
                 super::handle_conn(service, socket).await;
             });

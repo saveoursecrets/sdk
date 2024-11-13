@@ -59,6 +59,8 @@ pub enum IpcResponseBody {
     OpenUrl(bool),
     /// List of accounts.
     Accounts(AccountsList),
+    /// Copy to clipboard result.
+    Copy(CommandOutcome),
     /// Authenticate response.
     Authenticate(CommandOutcome),
     /// Lock response.
@@ -161,6 +163,16 @@ impl From<IpcResponse> for WireIpcResponse {
                         )),
                     }
                 }
+                IpcResponseBody::Copy(outcome) => Self {
+                    message_id,
+                    result: Some(wire_ipc_response::Result::Body(
+                        WireIpcResponseBody {
+                            inner: Some(wire_ipc_response_body::Inner::Copy(
+                                WireCommandOutcome::from(outcome) as i32,
+                            )),
+                        },
+                    )),
+                },
                 IpcResponseBody::Authenticate(outcome) => Self {
                     message_id,
                     result: Some(wire_ipc_response::Result::Body(
@@ -274,6 +286,15 @@ impl TryFrom<WireIpcResponse> for IpcResponse {
                         IpcResponse::Value {
                             message_id,
                             payload: IpcResponseBody::Accounts(data),
+                        }
+                    }
+                    Some(wire_ipc_response_body::Inner::Copy(inner)) => {
+                        let outcome: WireCommandOutcome = inner.try_into()?;
+                        IpcResponse::Value {
+                            message_id,
+                            payload: IpcResponseBody::Copy(
+                                outcome.try_into()?,
+                            ),
                         }
                     }
                     Some(wire_ipc_response_body::Inner::Authenticate(

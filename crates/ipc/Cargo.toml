@@ -31,6 +31,7 @@ interprocess = { version = "2", features = ["tokio"], optional = true }
 
 open = { version = "5", optional = true }
 once_cell = { workspace = true, optional = true }
+sos-account-extras = { version = "0.15", path = "../account_extras/", features = ["clipboard"] }
 
 [build-dependencies]
 rustc_version = "0.4.1"

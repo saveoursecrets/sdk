@@ -1,6 +1,7 @@
 //! Access to the native system clipboard.
 use crate::Result;
 use arboard::Clipboard;
+use sos_sdk::prelude::Secret;
 use std::{borrow::Cow, sync::Arc};
 use tokio::{
     sync::Mutex,
@@ -122,5 +123,10 @@ impl NativeClipboard {
         });
 
         Ok(())
+    }
+
+    /// Copy the default value for a secret to the clipboard.
+    pub async fn copy_secret_value(&mut self, secret: &Secret) -> Result<()> {
+        todo!();
     }
 }

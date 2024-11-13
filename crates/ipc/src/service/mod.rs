@@ -1,8 +1,10 @@
 use crate::{
-    io_err, AccountsList, IpcRequest, IpcRequestBody, IpcResponse,
-    IpcResponseBody, SearchResults, ServiceAppInfo,
+    io_err, AccountsList, ClipboardTarget, CommandOutcome, IpcRequest,
+    IpcRequestBody, IpcResponse, IpcResponseBody, SearchResults,
+    ServiceAppInfo,
 };
 use async_trait::async_trait;
+use sos_account_extras::clipboard::NativeClipboard;
 use sos_net::{
     sdk::{
         account::{Account, AccountSwitcher, LocalAccount},
@@ -40,7 +42,7 @@ pub type NetworkAccountIpcService = IpcServiceHandler<
 pub trait IpcService<E> {
     /// Handle a request and reply with a response.
     async fn handle(
-        &self,
+        &mut self,
         request: IpcRequest,
     ) -> std::result::Result<IpcResponse, E>;
 }
@@ -57,6 +59,7 @@ where
 {
     accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
     delegate: mpsc::Sender<Command<E, R, A>>,
+    clipboard: NativeClipboard,
     app_info: ServiceAppInfo,
 }
 
@@ -77,6 +80,7 @@ where
         Self {
             accounts,
             delegate,
+            clipboard: NativeClipboard::new().unwrap(),
             app_info: Default::default(),
         }
     }
@@ -90,6 +94,7 @@ where
         Self {
             accounts,
             delegate,
+            clipboard: NativeClipboard::new().unwrap(),
             app_info,
         }
     }
@@ -148,6 +153,46 @@ where
         }
         Ok(out)
     }
+
+    /// Copy to the clipboard.
+    async fn copy_clipboard(
+        &mut self,
+        target: ClipboardTarget,
+    ) -> Result<CommandOutcome, E> {
+        let accounts = self.accounts.read().await;
+        let account =
+            accounts.iter().find(|a| a.address() == &target.address);
+        Ok(if let Some(account) = account {
+            if account.is_authenticated().await {
+                let target_folder =
+                    account.find(|f| f.id() == &target.folder_id).await;
+                if let Some(folder) = target_folder {
+                    let current_folder = account.current_folder().await?;
+                    let (data, _) = account
+                        .read_secret(&target.secret_id, Some(folder))
+                        .await?;
+                    if let Some(current) = &current_folder {
+                        account.open_folder(current).await?;
+                    }
+                    let secret = data.secret();
+                    match self.clipboard.copy_secret_value(secret).await {
+                        Ok(_) => CommandOutcome::Success,
+                        Err(e) => {
+                            tracing::error!(
+                                error = %e, "clipboard::copy_secret");
+                            CommandOutcome::Failed
+                        }
+                    }
+                } else {
+                    CommandOutcome::NotFound
+                }
+            } else {
+                CommandOutcome::NotAuthenticated
+            }
+        } else {
+            CommandOutcome::NotFound
+        })
+    }
 }
 
 #[async_trait]
@@ -162,7 +207,7 @@ where
 {
     /// Handle an incoming request.
     async fn handle(
-        &self,
+        &mut self,
         request: IpcRequest,
     ) -> std::result::Result<IpcResponse, E> {
         let message_id = request.message_id;
@@ -195,6 +240,13 @@ where
                 Ok(IpcResponse::Value {
                     message_id,
                     payload: IpcResponseBody::Accounts(data),
+                })
+            }
+            IpcRequestBody::Copy(target) => {
+                let outcome = self.copy_clipboard(target).await?;
+                Ok(IpcResponse::Value {
+                    message_id,
+                    payload: IpcResponseBody::Copy(outcome),
                 })
             }
             IpcRequestBody::Authenticate { address } => {

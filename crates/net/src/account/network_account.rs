@@ -904,6 +904,11 @@ impl Account for NetworkAccount {
         Ok(account.open_folder(summary).await?)
     }
 
+    async fn current_folder(&self) -> Result<Option<Summary>> {
+        let account = self.account.lock().await;
+        Ok(account.current_folder().await?)
+    }
+
     async fn sign_out(&mut self) -> Result<()> {
         self.deactivate().await;
         self.remotes = Default::default();

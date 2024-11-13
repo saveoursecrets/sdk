@@ -350,6 +350,11 @@ pub trait Account {
         summary: &Summary,
     ) -> std::result::Result<(), Self::Error>;
 
+    /// Current open folder.
+    async fn current_folder(
+        &self,
+    ) -> std::result::Result<Option<Summary>, Self::Error>;
+
     /// Try to find a folder using a predicate.
     async fn find<P>(&self, predicate: P) -> Option<Summary>
     where
@@ -1762,6 +1767,12 @@ impl Account for LocalAccount {
 
     async fn open_folder(&self, summary: &Summary) -> Result<()> {
         self.open_vault(summary, true).await
+    }
+
+    async fn current_folder(&self) -> Result<Option<Summary>> {
+        let storage = self.storage().await?;
+        let storage = storage.read().await;
+        Ok(storage.current_folder())
     }
 
     async fn sign_out(&mut self) -> Result<()> {

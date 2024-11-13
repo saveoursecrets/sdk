@@ -4571,6 +4571,7 @@ dependencies = [
  "rustc_version",
  "serde",
  "serde_json",
+ "sos-account-extras",
  "sos-net",
  "thiserror",
  "tokio",
