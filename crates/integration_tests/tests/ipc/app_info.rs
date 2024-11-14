@@ -1,8 +1,8 @@
 use anyhow::Result;
 use sos_ipc::{
     local_account_delegate, remove_socket_file, AppIntegration, Error,
-    LocalAccountIpcService, LocalAccountSocketServer, ServiceAppInfo,
-    SocketClient,
+    IpcServiceOptions, LocalAccountIpcService, LocalAccountSocketServer,
+    ServiceAppInfo, SocketClient,
 };
 use sos_net::sdk::{prelude::LocalAccountSwitcher, Paths};
 use std::{sync::Arc, time::Duration};
@@ -36,16 +36,18 @@ async fn integration_ipc_app_info() -> Result<()> {
     let build_number = 1u32;
 
     // Start the IPC service
-    let service =
-        Arc::new(RwLock::new(LocalAccountIpcService::new_with_info(
-            ipc_accounts,
-            delegate,
-            ServiceAppInfo {
+    let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
+        ipc_accounts,
+        delegate,
+        IpcServiceOptions {
+            app_info: Some(ServiceAppInfo {
                 name: name.to_string(),
                 version: version.to_string(),
                 build_number,
-            },
-        )));
+            }),
+            ..Default::default()
+        },
+    )));
 
     let server_socket_name = socket_name.clone();
     tokio::task::spawn(async move {

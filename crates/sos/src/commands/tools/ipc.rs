@@ -99,6 +99,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
                 Arc::new(RwLock::new(accounts)),
                 delegate,
+                Default::default(),
             )));
 
             let socket_name = socket

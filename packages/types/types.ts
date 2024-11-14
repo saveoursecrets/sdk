@@ -14,10 +14,8 @@ export interface ArchiveFilter {
 export interface ClipboardTarget {
 	/** Account address. */
 	address: string;
-	/** Folder identifier. */
-	folderId: string;
-	/** Secret identifier. */
-	secretId: string;
+	/** Secret folder and identifier. */
+	path: SecretPath;
 }
 
 /**
@@ -230,6 +228,8 @@ export enum CommandOutcome {
 	Exhausted = "exhausted",
 	/** Error attempting to get user input. */
 	InputError = "inputError",
+	/** Operation is not supported. */
+	Unsupported = "unsupported",
 }
 
 /** IPC response information. */

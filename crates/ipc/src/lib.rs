@@ -32,8 +32,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub use bindings::*;
 pub use service::{
     local_account_delegate, network_account_delegate, Command,
-    CommandOptions, IpcService, IpcServiceHandler, LocalAccountCommand,
-    LocalAccountIpcService, LocalAccountServiceDelegate,
+    CommandOptions, IpcService, IpcServiceHandler, IpcServiceOptions,
+    LocalAccountCommand, LocalAccountIpcService, LocalAccountServiceDelegate,
     NetworkAccountCommand, NetworkAccountIpcService,
     NetworkAccountServiceDelegate,
 };

@@ -68,6 +68,7 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
         Arc::new(RwLock::new(accounts)),
         delegate,
+        Default::default(),
     )));
 
     let server_socket_name = socket_name.clone();

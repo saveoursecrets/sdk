@@ -80,6 +80,7 @@ async fn integration_ipc_authenticate_timeout() -> Result<()> {
     let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
         ipc_accounts,
         delegate,
+        Default::default(),
     )));
 
     let server_socket_name = socket_name.clone();

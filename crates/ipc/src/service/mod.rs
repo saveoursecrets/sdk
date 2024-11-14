@@ -33,6 +33,15 @@ pub type NetworkAccountIpcService = IpcServiceHandler<
     NetworkAccount,
 >;
 
+/// Options for an IPC service.
+#[derive(Default)]
+pub struct IpcServiceOptions {
+    /// Application info.
+    pub app_info: Option<ServiceAppInfo>,
+    /// Native clipboard.
+    pub clipboard: Option<NativeClipboard>,
+}
+
 /// Service handler called by servers.
 ///
 /// Some requests are delegated to a service delegate as they
@@ -59,8 +68,7 @@ where
 {
     accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
     delegate: mpsc::Sender<Command<E, R, A>>,
-    clipboard: NativeClipboard,
-    app_info: ServiceAppInfo,
+    options: IpcServiceOptions,
 }
 
 impl<E, R, A> IpcServiceHandler<E, R, A>
@@ -76,26 +84,12 @@ where
     pub fn new(
         accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
         delegate: mpsc::Sender<Command<E, R, A>>,
+        options: IpcServiceOptions,
     ) -> Self {
         Self {
             accounts,
             delegate,
-            clipboard: NativeClipboard::new().unwrap(),
-            app_info: Default::default(),
-        }
-    }
-
-    /// Create a new service handler with app info.
-    pub fn new_with_info(
-        accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
-        delegate: mpsc::Sender<Command<E, R, A>>,
-        app_info: ServiceAppInfo,
-    ) -> Self {
-        Self {
-            accounts,
-            delegate,
-            clipboard: NativeClipboard::new().unwrap(),
-            app_info,
+            options,
         }
     }
 
@@ -159,6 +153,12 @@ where
         &self,
         target: ClipboardTarget,
     ) -> Result<CommandOutcome, E> {
+        if self.options.clipboard.is_none() {
+            return Ok(CommandOutcome::Unsupported);
+        }
+
+        let clipboard = self.options.clipboard.as_ref().unwrap();
+
         let accounts = self.accounts.read().await;
         let account =
             accounts.iter().find(|a| a.address() == &target.address);
@@ -175,7 +175,7 @@ where
                         account.open_folder(current).await?;
                     }
                     let secret = data.secret();
-                    match self.clipboard.copy_secret_value(secret).await {
+                    match clipboard.copy_secret_value(secret).await {
                         Ok(_) => CommandOutcome::Success,
                         Err(e) => {
                             tracing::error!(
@@ -212,10 +212,14 @@ where
     ) -> std::result::Result<IpcResponse, E> {
         let message_id = request.message_id;
         match request.payload {
-            IpcRequestBody::Info => Ok(IpcResponse::Value {
-                message_id,
-                payload: IpcResponseBody::Info(self.app_info.clone()),
-            }),
+            IpcRequestBody::Info => {
+                let app_info =
+                    self.options.app_info.clone().unwrap_or_default();
+                Ok(IpcResponse::Value {
+                    message_id,
+                    payload: IpcResponseBody::Info(app_info),
+                })
+            }
             IpcRequestBody::Status => {
                 let paths = Paths::new_global(Paths::data_dir()?);
                 let app = paths.has_app_lock()?;

@@ -373,6 +373,8 @@ pub enum CommandOutcome {
     Exhausted,
     /// Error attempting to get user input.
     InputError,
+    /// Operation is not supported.
+    Unsupported,
 }
 
 impl From<CommandOutcome> for WireCommandOutcome {
@@ -406,6 +408,9 @@ impl From<CommandOutcome> for WireCommandOutcome {
             CommandOutcome::InputError => {
                 WireCommandOutcome::from_str_name("InputError").unwrap()
             }
+            CommandOutcome::Unsupported => {
+                WireCommandOutcome::from_str_name("Unsupported").unwrap()
+            }
         }
     }
 }
@@ -425,6 +430,7 @@ impl TryFrom<WireCommandOutcome> for CommandOutcome {
             "TimedOut" => CommandOutcome::TimedOut,
             "Exhausted" => CommandOutcome::Exhausted,
             "InputError" => CommandOutcome::InputError,
+            "Unsupported" => CommandOutcome::Unsupported,
             _ => unreachable!("unknown command outcome variant"),
         })
     }

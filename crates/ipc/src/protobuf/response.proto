@@ -100,6 +100,8 @@ enum WireCommandOutcome {
   Exhausted = 7;
   // Error getting user input.
   InputError = 8;
+  // Operation is not supported.
+  Unsupported = 9;
 }
 
 // Information about an account.
