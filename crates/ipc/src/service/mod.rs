@@ -14,6 +14,7 @@ use sos_net::{
     NetworkAccount,
 };
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use tokio::sync::{mpsc, RwLock};
 
 mod delegate;
@@ -39,7 +40,7 @@ pub struct IpcServiceOptions {
     /// Application info.
     pub app_info: Option<ServiceAppInfo>,
     /// Native clipboard.
-    pub clipboard: Option<NativeClipboard>,
+    pub clipboard: Option<Arc<Mutex<NativeClipboard>>>,
 }
 
 /// Service handler called by servers.
@@ -157,8 +158,6 @@ where
             return Ok(CommandOutcome::Unsupported);
         }
 
-        let clipboard = self.options.clipboard.as_ref().unwrap();
-
         let accounts = self.accounts.read().await;
         let account =
             accounts.iter().find(|a| a.address() == &target.address);
@@ -175,6 +174,10 @@ where
                         account.open_folder(current).await?;
                     }
                     let secret = data.secret();
+
+                    let clipboard = self.options.clipboard.as_ref().unwrap();
+                    let clipboard = clipboard.lock().await;
+
                     match clipboard.copy_secret_value(secret).await {
                         Ok(_) => CommandOutcome::Success,
                         Err(e) => {
