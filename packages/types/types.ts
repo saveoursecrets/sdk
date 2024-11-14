@@ -10,6 +10,16 @@ export interface ArchiveFilter {
 	includeDocuments: boolean;
 }
 
+/** Target for a clipboard copy operation. */
+export interface ClipboardTarget {
+	/** Account address. */
+	address: string;
+	/** Folder identifier. */
+	folderId: string;
+	/** Secret identifier. */
+	secretId: string;
+}
+
 /**
  * Type of secret assigned to the secret meta data.
  * 
@@ -98,13 +108,13 @@ export interface ExtraFields {
 
 /** Document that can be indexed. */
 export interface Document {
-	/** The vault identifier. */
-	vaultId: string;
-	/** The secret identifier. */
+	/** Folder identifier. */
+	folderId: string;
+	/** Secret identifier. */
 	secretId: string;
-	/** The secret meta data. */
+	/** Secret meta data. */
 	meta: SecretMeta;
-	/** The extra fields for the document. */
+	/** Extra fields for the document. */
 	extra: ExtraFields;
 }
 

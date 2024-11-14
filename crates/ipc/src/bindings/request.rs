@@ -264,6 +264,7 @@ impl TryFrom<WireIpcRequest> for IpcRequest {
 }
 
 /// Target for a clipboard copy operation.
+#[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClipboardTarget {
