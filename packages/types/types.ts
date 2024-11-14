@@ -110,6 +110,8 @@ export interface Document {
 
 /** IPC request information. */
 export type IpcRequestBody = 
+	/** Query app info. */
+	| { kind: "info", body?: undefined }
 	/** Query app status. */
 	| { kind: "status", body?: undefined }
 	/** Ping the server. */
@@ -118,6 +120,8 @@ export type IpcRequestBody =
 	| { kind: "openUrl", body: string }
 	/** Request the accounts list. */
 	| { kind: "listAccounts", body?: undefined }
+	/** Request to copy to the clipboard. */
+	| { kind: "copy", body: ClipboardTarget }
 	/** Request authentication for an account. */
 	| { kind: "authenticate", body: {
 	/** Account address. */
@@ -227,6 +231,8 @@ export type IpcResponse =
 
 /** IPC response body. */
 export type IpcResponseBody = 
+	/** App info. */
+	| { kind: "info", body: ServiceAppInfo }
 	/**
 	 * App status.
 	 * 
@@ -240,6 +246,8 @@ export type IpcResponseBody =
 	| { kind: "openUrl", body: boolean }
 	/** List of accounts. */
 	| { kind: "accounts", body: AccountsList }
+	/** Copy to clipboard result. */
+	| { kind: "copy", body: CommandOutcome }
 	/** Authenticate response. */
 	| { kind: "authenticate", body: CommandOutcome }
 	/** Lock response. */
