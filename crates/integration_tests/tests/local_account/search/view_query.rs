@@ -110,7 +110,7 @@ async fn local_search_view_query() -> Result<()> {
     let documents = account
         .query_view(
             &[DocumentView::Documents {
-                vault_id: *default_folder.id(),
+                folder_id: *default_folder.id(),
                 identifiers,
             }],
             None,

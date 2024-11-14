@@ -150,9 +150,9 @@ impl DocumentCount {
 
     /// Determine if a document vault identifier matches
     /// an archive vault.
-    fn is_archived(&self, vault_id: &VaultId) -> bool {
+    fn is_archived(&self, folder_id: &VaultId) -> bool {
         if let Some(archive) = &self.archive {
-            return vault_id == archive;
+            return folder_id == archive;
         }
         false
     }
@@ -160,11 +160,11 @@ impl DocumentCount {
     /// Document was removed, update the count.
     fn remove(
         &mut self,
-        vault_id: VaultId,
+        folder_id: VaultId,
         mut options: Option<(u8, HashSet<String>, bool)>,
     ) {
         self.vaults
-            .entry(vault_id)
+            .entry(folder_id)
             .and_modify(|counter| {
                 if *counter > 0 {
                     *counter -= 1;
@@ -173,7 +173,7 @@ impl DocumentCount {
             .or_insert(0);
 
         if let Some((kind, tags, favorite)) = options.take() {
-            if !self.is_archived(&vault_id) {
+            if !self.is_archived(&folder_id) {
                 self.kinds
                     .entry(kind)
                     .and_modify(|counter| {
@@ -210,17 +210,17 @@ impl DocumentCount {
     /// Document was added, update the count.
     fn add(
         &mut self,
-        vault_id: VaultId,
+        folder_id: VaultId,
         kind: u8,
         tags: &HashSet<String>,
         favorite: bool,
     ) {
         self.vaults
-            .entry(vault_id)
+            .entry(folder_id)
             .and_modify(|counter| *counter += 1)
             .or_insert(1);
 
-        if !self.is_archived(&vault_id) {
+        if !self.is_archived(&folder_id) {
             self.kinds
                 .entry(kind)
                 .and_modify(|counter| *counter += 1)
@@ -307,20 +307,20 @@ impl ExtraFields {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Document {
-    /// The vault identifier.
-    pub vault_id: VaultId,
-    /// The secret identifier.
+    /// Folder identifier.
+    pub folder_id: VaultId,
+    /// Secret identifier.
     pub secret_id: SecretId,
-    /// The secret meta data.
+    /// Secret meta data.
     pub meta: SecretMeta,
-    /// The extra fields for the document.
+    /// Extra fields for the document.
     pub extra: ExtraFields,
 }
 
 impl Document {
     /// Get the vault identifier.
-    pub fn vault_id(&self) -> &VaultId {
-        &self.vault_id
+    pub fn folder_id(&self) -> &VaultId {
+        &self.folder_id
     }
 
     /// Get the secret identifier.
@@ -404,7 +404,7 @@ impl SearchIndex {
     // FIXME: use _name suffix to be consistent with attachment handling
     pub fn find_by_label<'a>(
         &'a self,
-        vault_id: &VaultId,
+        folder_id: &VaultId,
         label: &str,
         id: Option<&SecretId>,
     ) -> Option<&'a Document> {
@@ -417,7 +417,7 @@ impl SearchIndex {
                     true
                 }
             })
-            .find(|d| d.vault_id() == vault_id && d.meta().label() == label)
+            .find(|d| d.folder_id() == folder_id && d.meta().label() == label)
     }
 
     /// Find document by label in any vault.
@@ -474,12 +474,12 @@ impl SearchIndex {
     /// Find document by id.
     pub fn find_by_id<'a>(
         &'a self,
-        vault_id: &VaultId,
+        folder_id: &VaultId,
         id: &SecretId,
     ) -> Option<&'a Document> {
         self.documents
             .values()
-            .find(|d| d.vault_id() == vault_id && d.id() == id)
+            .find(|d| d.folder_id() == folder_id && d.id() == id)
     }
 
     /// Find secret meta by uuid or label.
@@ -487,12 +487,14 @@ impl SearchIndex {
     // FIXME: use _name suffix to be consistent with attachment handling
     pub fn find_by_uuid_or_label<'a>(
         &'a self,
-        vault_id: &VaultId,
+        folder_id: &VaultId,
         target: &SecretRef,
     ) -> Option<&'a Document> {
         match target {
-            SecretRef::Id(id) => self.find_by_id(vault_id, id),
-            SecretRef::Name(name) => self.find_by_label(vault_id, name, None),
+            SecretRef::Id(id) => self.find_by_id(folder_id, id),
+            SecretRef::Name(name) => {
+                self.find_by_label(folder_id, name, None)
+            }
         }
     }
 
@@ -502,15 +504,15 @@ impl SearchIndex {
     /// then no document is created.
     pub fn prepare(
         &self,
-        vault_id: &VaultId,
+        folder_id: &VaultId,
         id: &SecretId,
         meta: &SecretMeta,
         secret: &Secret,
     ) -> Option<(DocumentKey, Document)> {
         // Prevent duplicates
-        if self.find_by_id(vault_id, id).is_none() {
+        if self.find_by_id(folder_id, id).is_none() {
             let doc = Document {
-                vault_id: *vault_id,
+                folder_id: *folder_id,
                 secret_id: *id,
                 meta: meta.clone(),
                 extra: secret.into(),
@@ -520,7 +522,7 @@ impl SearchIndex {
             // secrets with the same label do not overwrite each other
             let key = DocumentKey(
                 doc.meta().label().to_lowercase(),
-                *vault_id,
+                *folder_id,
                 *id,
             );
 
@@ -540,12 +542,12 @@ impl SearchIndex {
                 self.index.add_document(
                     &[label_extract, tags_extract, comment_extract],
                     tokenizer,
-                    (doc.vault_id, doc.secret_id),
+                    (doc.folder_id, doc.secret_id),
                     doc,
                 );
 
                 self.statistics.count.add(
-                    doc.vault_id,
+                    doc.folder_id,
                     doc.meta().kind().into(),
                     doc.meta().tags(),
                     doc.meta().favorite(),
@@ -557,24 +559,24 @@ impl SearchIndex {
     /// Add a document to the index.
     pub fn add(
         &mut self,
-        vault_id: &VaultId,
+        folder_id: &VaultId,
         id: &SecretId,
         meta: &SecretMeta,
         secret: &Secret,
     ) {
-        self.commit(self.prepare(vault_id, id, meta, secret));
+        self.commit(self.prepare(folder_id, id, meta, secret));
     }
 
     /// Update a document in the index.
     pub fn update(
         &mut self,
-        vault_id: &VaultId,
+        folder_id: &VaultId,
         id: &SecretId,
         meta: &SecretMeta,
         secret: &Secret,
     ) {
-        self.remove(vault_id, id);
-        self.add(vault_id, id, meta, secret);
+        self.remove(folder_id, id);
+        self.add(folder_id, id, meta, secret);
     }
 
     /// Add the meta data from the entries in a folder
@@ -601,11 +603,11 @@ impl SearchIndex {
     }
 
     /// Remove and vacuum a document from the index.
-    pub fn remove(&mut self, vault_id: &VaultId, id: &SecretId) {
+    pub fn remove(&mut self, folder_id: &VaultId, id: &SecretId) {
         let key = self
             .documents
             .keys()
-            .find(|key| &key.1 == vault_id && &key.2 == id)
+            .find(|key| &key.1 == folder_id && &key.2 == id)
             .cloned();
         let doc_info = if let Some(key) = &key {
             let doc = self.documents.remove(key);
@@ -617,19 +619,19 @@ impl SearchIndex {
             None
         };
 
-        self.index.remove_document((*vault_id, *id));
+        self.index.remove_document((*folder_id, *id));
         // Vacuum to remove completely
         self.index.vacuum();
 
-        self.statistics.count.remove(*vault_id, doc_info);
+        self.statistics.count.remove(*folder_id, doc_info);
     }
 
     /// Remove all the documents for a given vault identifier from the index.
-    pub fn remove_vault(&mut self, vault_id: &VaultId) {
+    pub fn remove_vault(&mut self, folder_id: &VaultId) {
         let keys: Vec<DocumentKey> = self
             .documents
             .keys()
-            .filter(|k| &k.1 == vault_id)
+            .filter(|k| &k.1 == folder_id)
             .cloned()
             .collect();
         for key in keys {
@@ -737,10 +739,10 @@ impl AccountSearch {
     }
 
     /// Remove a folder from the search index.
-    pub async fn remove_folder(&self, vault_id: &VaultId) {
+    pub async fn remove_folder(&self, folder_id: &VaultId) {
         // Clean entries from the search index
         let mut writer = self.search_index.write().await;
-        writer.remove_vault(vault_id);
+        writer.remove_vault(folder_id);
     }
 
     /// Add a vault to the search index.
@@ -766,12 +768,12 @@ impl AccountSearch {
     /// Determine if a document exists in a folder.
     pub async fn document_exists(
         &self,
-        vault_id: &VaultId,
+        folder_id: &VaultId,
         label: &str,
         id: Option<&SecretId>,
     ) -> bool {
         let reader = self.search_index.read().await;
-        reader.find_by_label(vault_id, label, id).is_some()
+        reader.find_by_label(folder_id, label, id).is_some()
     }
 
     /// Query with document views.
@@ -829,9 +831,9 @@ impl AccountSearch {
                     .is_empty()
             };
 
-            let vault_id = doc.vault_id();
+            let folder_id = doc.folder_id();
             let folder_match = filter.folders.is_empty()
-                || filter.folders.contains(vault_id);
+                || filter.folders.contains(folder_id);
 
             let type_match = filter.types.is_empty()
                 || filter.types.contains(doc.meta().kind());
@@ -867,7 +869,7 @@ pub enum DocumentView {
     /// Documents with the specific identifiers.
     Documents {
         /// Vault identifier.
-        vault_id: VaultId,
+        folder_id: VaultId,
         /// Secret identifiers.
         identifiers: Vec<SecretId>,
     },
@@ -889,7 +891,7 @@ impl DocumentView {
         archive: Option<&ArchiveFilter>,
     ) -> bool {
         if let Some(filter) = archive {
-            if !filter.include_documents && doc.vault_id() == &filter.id {
+            if !filter.include_documents && doc.folder_id() == &filter.id {
                 return false;
             }
         }
@@ -901,7 +903,7 @@ impl DocumentView {
                 }
                 true
             }
-            DocumentView::Vault(vault_id) => doc.vault_id() == vault_id,
+            DocumentView::Vault(folder_id) => doc.folder_id() == folder_id,
             DocumentView::TypeId(type_id) => doc.meta().kind() == type_id,
             DocumentView::Favorites => doc.meta().favorite(),
             DocumentView::Tags(tags) => {
@@ -928,9 +930,11 @@ impl DocumentView {
                 false
             }
             DocumentView::Documents {
-                vault_id,
+                folder_id,
                 identifiers,
-            } => doc.vault_id() == vault_id && identifiers.contains(doc.id()),
+            } => {
+                doc.folder_id() == folder_id && identifiers.contains(doc.id())
+            }
         }
     }
 }
@@ -977,7 +981,7 @@ mod test {
 
     #[test]
     fn search_index() {
-        let vault_id = Uuid::new_v4();
+        let folder_id = Uuid::new_v4();
 
         let mut idx = SearchIndex::new();
 
@@ -1003,12 +1007,12 @@ mod test {
             user_data: Default::default(),
         };
 
-        idx.add(&vault_id, &id1, &meta1, &secret1);
+        idx.add(&folder_id, &id1, &meta1, &secret1);
         assert_eq!(1, idx.documents().len());
-        idx.add(&vault_id, &id2, &meta2, &secret2);
+        idx.add(&folder_id, &id2, &meta2, &secret2);
         assert_eq!(2, idx.documents().len());
 
-        assert_eq!(2, *idx.statistics.count.vaults.get(&vault_id).unwrap());
+        assert_eq!(2, *idx.statistics.count.vaults.get(&folder_id).unwrap());
         assert_eq!(
             2,
             *idx.statistics
@@ -1024,9 +1028,9 @@ mod test {
         let docs = idx.query("secret");
         assert_eq!(2, docs.len());
 
-        idx.remove(&vault_id, &id1);
+        idx.remove(&folder_id, &id1);
 
-        assert_eq!(1, *idx.statistics.count.vaults.get(&vault_id).unwrap());
+        assert_eq!(1, *idx.statistics.count.vaults.get(&folder_id).unwrap());
         assert_eq!(
             1,
             *idx.statistics
@@ -1046,10 +1050,10 @@ mod test {
         assert_eq!(1, docs.len());
         assert_eq!(&id2, docs.get(0).unwrap().id());
 
-        idx.remove(&vault_id, &id2);
+        idx.remove(&folder_id, &id2);
         assert_eq!(0, idx.documents.len());
 
-        assert_eq!(0, *idx.statistics.count.vaults.get(&vault_id).unwrap());
+        assert_eq!(0, *idx.statistics.count.vaults.get(&folder_id).unwrap());
         assert_eq!(
             0,
             *idx.statistics
@@ -1061,6 +1065,6 @@ mod test {
 
         // Duplicate removal when no more documents
         // to ensure it does not panic
-        idx.remove(&vault_id, &id2);
+        idx.remove(&folder_id, &id2);
     }
 }

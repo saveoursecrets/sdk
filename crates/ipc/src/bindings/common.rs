@@ -24,10 +24,10 @@ impl From<DocumentView> for WireDocumentView {
                     },
                 )),
             },
-            DocumentView::Vault(vault_id) => WireDocumentView {
+            DocumentView::Vault(folder_id) => WireDocumentView {
                 inner: Some(wire_document_view::Inner::Vault(
                     WireDocumentViewVault {
-                        vault_id: vault_id.to_string(),
+                        folder_id: folder_id.to_string(),
                     },
                 )),
             },
@@ -61,12 +61,12 @@ impl From<DocumentView> for WireDocumentView {
                 )),
             },
             DocumentView::Documents {
-                vault_id,
+                folder_id,
                 identifiers,
             } => WireDocumentView {
                 inner: Some(wire_document_view::Inner::Documents(
                     WireDocumentViewDocuments {
-                        vault_id: vault_id.to_string(),
+                        folder_id: folder_id.to_string(),
                         identifiers: identifiers
                             .into_iter()
                             .map(|i| i.to_string())
@@ -99,7 +99,7 @@ impl TryFrom<WireDocumentView> for DocumentView {
             }
             Some(wire_document_view::Inner::Vault(body)) => {
                 DocumentView::Vault(
-                    body.vault_id.parse().map_err(SdkError::from)?,
+                    body.folder_id.parse().map_err(SdkError::from)?,
                 )
             }
             Some(wire_document_view::Inner::TypeId(body)) => {
@@ -136,8 +136,8 @@ impl TryFrom<WireDocumentView> for DocumentView {
                 }
 
                 DocumentView::Documents {
-                    vault_id: body
-                        .vault_id
+                    folder_id: body
+                        .folder_id
                         .parse()
                         .map_err(SdkError::from)?,
                     identifiers,
@@ -409,7 +409,7 @@ impl TryFrom<WireSecretMeta> for SecretMeta {
 impl From<Document> for WireDocument {
     fn from(value: Document) -> Self {
         WireDocument {
-            vault_id: value.vault_id.to_string(),
+            folder_id: value.folder_id.to_string(),
             secret_id: value.secret_id.to_string(),
             meta: Some(value.meta.into()),
             extra: Some(value.extra.into()),
@@ -423,7 +423,7 @@ impl TryFrom<WireDocument> for Document {
         let meta = value.meta.unwrap();
         let extra = value.extra.unwrap();
         Ok(Document {
-            vault_id: value.vault_id.parse().map_err(SdkError::from)?,
+            folder_id: value.folder_id.parse().map_err(SdkError::from)?,
             secret_id: value.secret_id.parse().map_err(SdkError::from)?,
             meta: meta.try_into()?,
             extra: extra.try_into()?,

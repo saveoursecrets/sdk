@@ -67,7 +67,7 @@ enum WireSecretType {
 // Variant to query all documents in a vault.
 message WireDocumentViewVault {
   // Vault identifier.
-  string vault_id = 1;
+  string folder_id = 1;
 }
 
 // Variant to query documents with the given tags.
@@ -97,7 +97,7 @@ enum WireContactKind {
 // Variant to query for specific documents.
 message WireDocumentViewDocuments {
   // Vault identifier.
-  string vault_id = 1;
+  string folder_id = 1;
   // Secret identifiers.
   repeated string identifiers = 2;
 }
@@ -152,8 +152,8 @@ message WireSecretMeta {
 
 // Search result document.
 message WireDocument {
-  // Vault identifier.
-  string vault_id = 1;
+  // Folder identifier.
+  string folder_id = 1;
   // Secret identifier.
   string secret_id = 2;
   // Secret meta data.
