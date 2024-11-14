@@ -110,7 +110,7 @@ where
         "socket_server::socket_request"
     );
     let message_id = request.message_id;
-    let mut handler = service.write().await;
+    let handler = service.read().await;
     let duration = request.timeout_duration();
     let response = match timeout(duration, handler.handle(request)).await {
         Ok(res) => res?,

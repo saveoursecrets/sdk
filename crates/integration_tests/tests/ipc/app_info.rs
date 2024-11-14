@@ -33,7 +33,7 @@ async fn integration_ipc_app_info() -> Result<()> {
 
     let name = "mock-service";
     let version = "1.0.0";
-    let build_number = 1u64;
+    let build_number = 1u32;
 
     // Start the IPC service
     let service =

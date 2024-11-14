@@ -42,7 +42,7 @@ pub type NetworkAccountIpcService = IpcServiceHandler<
 pub trait IpcService<E> {
     /// Handle a request and reply with a response.
     async fn handle(
-        &mut self,
+        &self,
         request: IpcRequest,
     ) -> std::result::Result<IpcResponse, E>;
 }
@@ -156,7 +156,7 @@ where
 
     /// Copy to the clipboard.
     async fn copy_clipboard(
-        &mut self,
+        &self,
         target: ClipboardTarget,
     ) -> Result<CommandOutcome, E> {
         let accounts = self.accounts.read().await;
@@ -207,7 +207,7 @@ where
 {
     /// Handle an incoming request.
     async fn handle(
-        &mut self,
+        &self,
         request: IpcRequest,
     ) -> std::result::Result<IpcResponse, E> {
         let message_id = request.message_id;
