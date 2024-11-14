@@ -3,8 +3,9 @@ include!(concat!(env!("OUT_DIR"), "/request.rs"));
 use crate::{Error, Result, WireVoidBody};
 use serde::{Deserialize, Serialize};
 use sos_net::sdk::{
-    prelude::{Address, ArchiveFilter, DocumentView, QueryFilter, SecretId},
-    vault::VaultId,
+    prelude::{
+        Address, ArchiveFilter, DocumentView, QueryFilter, SecretPath,
+    },
     Error as SdkError,
 };
 use tokio::time::Duration;
@@ -270,18 +271,16 @@ impl TryFrom<WireIpcRequest> for IpcRequest {
 pub struct ClipboardTarget {
     /// Account address.
     pub address: Address,
-    /// Folder identifier.
-    pub folder_id: VaultId,
-    /// Secret identifier.
-    pub secret_id: SecretId,
+    /// Secret folder and identifier.
+    pub path: SecretPath,
 }
 
 impl From<ClipboardTarget> for WireClipboardTarget {
     fn from(value: ClipboardTarget) -> Self {
         WireClipboardTarget {
             address: value.address.to_string(),
-            folder_id: value.folder_id.to_string(),
-            secret_id: value.secret_id.to_string(),
+            folder_id: value.path.folder_id().to_string(),
+            secret_id: value.path.secret_id().to_string(),
         }
     }
 }
@@ -292,8 +291,10 @@ impl TryFrom<WireClipboardTarget> for ClipboardTarget {
     fn try_from(value: WireClipboardTarget) -> Result<Self> {
         Ok(ClipboardTarget {
             address: value.address.parse()?,
-            folder_id: value.folder_id.parse().map_err(SdkError::from)?,
-            secret_id: value.secret_id.parse().map_err(SdkError::from)?,
+            path: SecretPath(
+                value.folder_id.parse().map_err(SdkError::from)?,
+                value.secret_id.parse().map_err(SdkError::from)?,
+            ),
         })
     }
 }

@@ -165,11 +165,11 @@ where
         Ok(if let Some(account) = account {
             if account.is_authenticated().await {
                 let target_folder =
-                    account.find(|f| f.id() == &target.folder_id).await;
+                    account.find(|f| f.id() == target.path.folder_id()).await;
                 if let Some(folder) = target_folder {
                     let current_folder = account.current_folder().await?;
                     let (data, _) = account
-                        .read_secret(&target.secret_id, Some(folder))
+                        .read_secret(target.path.secret_id(), Some(folder))
                         .await?;
                     if let Some(current) = &current_folder {
                         account.open_folder(current).await?;
