@@ -59,7 +59,7 @@ message WireInfoBody {
   // App version.
   string version = 2;
   // App build number.
-  uint64 build_number = 3;
+  uint32 build_number = 3;
 }
 
 // Result of a status query.

@@ -465,6 +465,7 @@ impl TryFrom<WireSearchResults> for SearchResults {
 }
 
 /// Information about the service.
+#[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceAppInfo {
     /// App name.
@@ -472,7 +473,7 @@ pub struct ServiceAppInfo {
     /// App version.
     pub version: String,
     /// App build number.
-    pub build_number: u64,
+    pub build_number: u32,
 }
 
 impl Default for ServiceAppInfo {

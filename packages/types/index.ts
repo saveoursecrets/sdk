@@ -206,6 +206,16 @@ export interface QueryFilter {
 	types: SecretType[];
 }
 
+/** Information about the service. */
+export interface ServiceAppInfo {
+	/** App name. */
+	name: string;
+	/** App version. */
+	version: string;
+	/** App build number. */
+	build_number: number;
+}
+
 /** Generic command outcome. */
 export enum CommandOutcome {
 	/** Account not found. */
