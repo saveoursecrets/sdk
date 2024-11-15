@@ -2,6 +2,7 @@ include!(concat!(env!("OUT_DIR"), "/response.rs"));
 
 use crate::{AccountsList, Error, Result, SearchResults};
 use serde::{Deserialize, Serialize};
+use sos_net::sdk::vault::{Summary, VaultId};
 use typeshare::typeshare;
 
 use super::WireVoidBody;
@@ -488,6 +489,25 @@ impl Default for ServiceAppInfo {
             name: env!("CARGO_PKG_NAME").to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             build_number: 0,
+        }
+    }
+}
+
+/// Information about a folder.
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FolderInfo {
+    /// Name of the folder.
+    pub name: String,
+    /// Folder identifier.
+    pub folder_id: VaultId,
+}
+
+impl From<&Summary> for FolderInfo {
+    fn from(value: &Summary) -> Self {
+        Self {
+            name: value.name().to_string(),
+            folder_id: *value.id(),
         }
     }
 }

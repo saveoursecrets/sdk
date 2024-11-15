@@ -124,6 +124,14 @@ export interface Document {
 	extra: ExtraFields;
 }
 
+/** Information about a folder. */
+export interface FolderInfo {
+	/** Name of the folder. */
+	name: string;
+	/** Folder identifier. */
+	folder_id: string;
+}
+
 /** IPC request information. */
 export type IpcRequestBody = 
 	/** Query app info. */
