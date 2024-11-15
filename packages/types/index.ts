@@ -240,6 +240,38 @@ export enum CommandOutcome {
 	Unsupported = "unsupported",
 }
 
+/** View of documents in the search index. */
+export type DocumentView = 
+	/** View all documents in the search index. */
+	| { kind: "all", body: {
+	/** List of secret types to ignore. */
+	ignoredTypes?: SecretType[];
+}}
+	/** View all the documents for a folder. */
+	| { kind: "vault", body: string }
+	/** View documents across all vaults by type identifier. */
+	| { kind: "typeId", body: SecretType }
+	/** View for all favorites. */
+	| { kind: "favorites", body?: undefined }
+	/** View documents that have one or more tags. */
+	| { kind: "tags", body: string[] }
+	/** Contacts of the given types. */
+	| { kind: "contact", body: {
+	/**
+	 * Contact types to include in the results.
+	 * 
+	 * If no types are specified all types are included.
+	 */
+	include_types?: Kind[];
+}}
+	/** Documents with the specific identifiers. */
+	| { kind: "documents", body: {
+	/** Vault identifier. */
+	folderId: string;
+	/** Secret identifiers. */
+	identifiers: string[];
+}};
+
 /** IPC response information. */
 export type IpcResponse = 
 	/** Error response. */

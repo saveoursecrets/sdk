@@ -15,7 +15,6 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::RwLock;
-use typeshare::typeshare;
 use unicode_segmentation::UnicodeSegmentation;
 
 /// Create a set of ngrams of the given size.
@@ -268,7 +267,7 @@ impl IndexStatistics {
 /// Additional fields that can exposed via search results
 /// that are extracted from the secret data but safe to
 /// be exposed.
-#[typeshare]
+#[typeshare::typeshare]
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ExtraFields {
@@ -303,7 +302,7 @@ impl ExtraFields {
 }
 
 /// Document that can be indexed.
-#[typeshare]
+#[typeshare::typeshare]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Document {
@@ -844,11 +843,14 @@ impl AccountSearch {
 }
 
 /// View of documents in the search index.
+#[typeshare::typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum DocumentView {
     /// View all documents in the search index.
     All {
         /// List of secret types to ignore.
+        #[serde(rename = "ignoredTypes")]
         ignored_types: Option<Vec<SecretType>>,
     },
     /// View all the documents for a folder.
@@ -869,6 +871,7 @@ pub enum DocumentView {
     /// Documents with the specific identifiers.
     Documents {
         /// Vault identifier.
+        #[serde(rename = "folderId")]
         folder_id: VaultId,
         /// Secret identifiers.
         identifiers: Vec<SecretId>,
@@ -940,7 +943,7 @@ impl DocumentView {
 }
 
 /// Filter for a search query.
-#[typeshare]
+#[typeshare::typeshare]
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct QueryFilter {
     /// List of tags.
@@ -952,7 +955,7 @@ pub struct QueryFilter {
 }
 
 /// Filter for archived documents.
-#[typeshare]
+#[typeshare::typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArchiveFilter {

@@ -5,5 +5,4 @@
 "SecretFlags" = "number"
 "UtcDateTime" = "string"
 "Urn" = "string"
-"u64" = "number"
 

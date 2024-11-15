@@ -177,7 +177,6 @@ where
 
                     let clipboard = self.options.clipboard.as_ref().unwrap();
                     let clipboard = clipboard.lock().await;
-
                     match clipboard.copy_secret_value(secret).await {
                         Ok(_) => CommandOutcome::Success,
                         Err(e) => {
