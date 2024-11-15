@@ -5,10 +5,10 @@ use sos_net::sdk::prelude::{
 };
 use std::time::Duration;
 
-use crate::{CommandOutcome, ServiceAppInfo};
+use crate::{CommandOutcome, FolderInfo, ServiceAppInfo};
 
 /// List of accounts with authenticated status flag.
-pub type AccountsList = Vec<(PublicIdentity, bool)>;
+pub type AccountsList = Vec<(PublicIdentity, bool, Vec<FolderInfo>)>;
 
 /// List of search results grouped by account identity.
 pub type SearchResults = Vec<(PublicIdentity, Vec<Document>)>;
@@ -24,9 +24,7 @@ pub trait AppIntegration<E: From<sos_net::sdk::Error>> {
     async fn ping(&mut self) -> Result<Duration, E>;
 
     /// List the accounts on disc and include authentication state.
-    async fn list_accounts(
-        &mut self,
-    ) -> Result<Vec<(PublicIdentity, bool)>, E>;
+    async fn list_accounts(&mut self) -> Result<AccountsList, E>;
 
     /// Attempt to authenticate an account.
     async fn authenticate(

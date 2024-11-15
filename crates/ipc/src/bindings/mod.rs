@@ -3,8 +3,8 @@ mod request;
 mod response;
 pub use request::{ClipboardTarget, IpcRequest, IpcRequestBody};
 pub use response::{
-    CommandOutcome, IpcResponse, IpcResponseBody, IpcResponseError,
-    ServiceAppInfo,
+    CommandOutcome, FolderInfo, IpcResponse, IpcResponseBody,
+    IpcResponseError, ServiceAppInfo,
 };
 
 pub(crate) use common::*;

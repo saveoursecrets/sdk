@@ -110,7 +110,10 @@ message WireAccountInfo {
   common.WirePublicIdentity public_id = 1;
   // Whether the account is currently authenticated.
   bool authenticated = 2;
+  // Folder list.
+  repeated WireFolderInfo folders = 3;
 }
+
 
 // Search results for authenticated accounts.
 message WireSearchResults {
@@ -124,4 +127,12 @@ message WireAccountSearchResults {
   common.WirePublicIdentity identity = 1;
   // Result documents.
   repeated common.WireDocument documents = 2;
+}
+
+// Folder information.
+message WireFolderInfo {
+  // Folder name.
+  string name = 1;
+  // Folder identifier.
+  string folder_id = 2;
 }

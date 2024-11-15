@@ -87,16 +87,16 @@ async fn integration_ipc_list_accounts() -> Result<()> {
 
     let authenticated = accounts
         .iter()
-        .filter(|(a, _)| a.address() == &auth_address)
-        .map(|(_, v)| *v)
+        .filter(|(a, _, _)| a.address() == &auth_address)
+        .map(|(_, v, _)| *v)
         .collect::<Vec<_>>();
     let authenticated = authenticated.first().unwrap();
     assert!(*authenticated);
 
     let authenticated = accounts
         .iter()
-        .filter(|(a, _)| a.address() == &unauth_address)
-        .map(|(_, v)| *v)
+        .filter(|(a, _, _)| a.address() == &unauth_address)
+        .map(|(_, v, _)| *v)
         .collect::<Vec<_>>();
     let authenticated = authenticated.first().unwrap();
     assert!(!*authenticated);

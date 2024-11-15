@@ -2,7 +2,10 @@ include!(concat!(env!("OUT_DIR"), "/response.rs"));
 
 use crate::{AccountsList, Error, Result, SearchResults};
 use serde::{Deserialize, Serialize};
-use sos_net::sdk::vault::{Summary, VaultId};
+use sos_net::sdk::{
+    vault::{Summary, VaultId},
+    Error as SdkError,
+};
 use typeshare::typeshare;
 
 use super::WireVoidBody;
@@ -143,9 +146,13 @@ impl From<IpcResponse> for WireIpcResponse {
                     let list = WireAccountList {
                         accounts: data
                             .into_iter()
-                            .map(|(public_id, val)| WireAccountInfo {
+                            .map(|(public_id, val, info)| WireAccountInfo {
                                 public_id: Some(public_id.into()),
                                 authenticated: val,
+                                folders: info
+                                    .into_iter()
+                                    .map(|f| f.into())
+                                    .collect(),
                             })
                             .collect(),
                     };
@@ -279,9 +286,15 @@ impl TryFrom<WireIpcResponse> for IpcResponse {
                         let mut data = Vec::new();
                         for item in inner.accounts {
                             let public_id = item.public_id.unwrap();
+                            let mut folders =
+                                Vec::with_capacity(item.folders.len());
+                            for folder in item.folders {
+                                folders.push(folder.try_into()?);
+                            }
                             data.push((
                                 public_id.try_into()?,
                                 item.authenticated,
+                                folders,
                             ));
                         }
                         IpcResponse::Value {
@@ -509,5 +522,25 @@ impl From<&Summary> for FolderInfo {
             name: value.name().to_string(),
             folder_id: *value.id(),
         }
+    }
+}
+
+impl From<FolderInfo> for WireFolderInfo {
+    fn from(value: FolderInfo) -> Self {
+        WireFolderInfo {
+            name: value.name,
+            folder_id: value.folder_id.to_string(),
+        }
+    }
+}
+
+impl TryFrom<WireFolderInfo> for FolderInfo {
+    type Error = Error;
+
+    fn try_from(value: WireFolderInfo) -> Result<Self> {
+        Ok(Self {
+            name: value.name,
+            folder_id: value.folder_id.parse().map_err(SdkError::from)?,
+        })
     }
 }

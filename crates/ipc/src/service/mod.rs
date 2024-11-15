@@ -100,15 +100,25 @@ where
         let disc_accounts =
             Identity::list_accounts(accounts.data_dir()).await?;
         for account in disc_accounts {
-            let authenticated = if let Some(memory_account) =
+            let (authenticated, folders) = if let Some(memory_account) =
                 accounts.iter().find(|a| a.address() == account.address())
             {
-                memory_account.is_authenticated().await
+                let authenticated = memory_account.is_authenticated().await;
+
+                if authenticated {
+                    (authenticated, memory_account.list_folders().await?)
+                } else {
+                    (authenticated, Vec::new())
+                }
             } else {
-                false
+                (false, Vec::new())
             };
 
-            out.push((account, authenticated));
+            out.push((
+                account,
+                authenticated,
+                folders.iter().map(|f| f.into()).collect(),
+            ));
         }
         Ok(out)
     }
