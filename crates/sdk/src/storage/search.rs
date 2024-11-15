@@ -790,6 +790,7 @@ impl AccountSearch {
                 }
             }
         }
+        docs.sort_by(|a, b| a.meta().label().cmp(b.meta().label()));
         Ok(docs)
     }
 
