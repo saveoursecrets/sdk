@@ -16,7 +16,6 @@ use std::{
 };
 use tokio::sync::RwLock;
 use unicode_segmentation::UnicodeSegmentation;
-use url::Url;
 
 /// Create a set of ngrams of the given size.
 fn ngram_slice(s: &str, n: usize) -> HashSet<&str> {
@@ -89,6 +88,16 @@ fn comment_extract(d: &Document) -> Vec<&str> {
         vec![comment]
     } else {
         vec![""]
+    }
+}
+
+// Website
+fn website_extract(d: &Document) -> Vec<&str> {
+    if let Some(websites) = d.extra().websites() {
+        websites
+        // vec![]
+    } else {
+        vec![]
     }
 }
 
@@ -277,7 +286,7 @@ pub struct ExtraFields {
     /// Contact type for contact secrets.
     pub contact_type: Option<vcard4::property::Kind>,
     /// Collection of websites.
-    pub websites: Option<Vec<Url>>,
+    pub websites: Option<Vec<String>>,
 }
 
 impl From<&Secret> for ExtraFields {
@@ -286,7 +295,7 @@ impl From<&Secret> for ExtraFields {
             comment: value.user_data().comment().map(|c| c.to_owned()),
             websites: value
                 .websites()
-                .map(|w| w.into_iter().cloned().collect()),
+                .map(|w| w.into_iter().map(|u| u.to_string()).collect()),
             ..Default::default()
         };
         if let Secret::Contact { vcard, .. } = value {
@@ -304,6 +313,13 @@ impl ExtraFields {
     /// Optional comment.
     pub fn comment(&self) -> Option<&str> {
         self.comment.as_ref().map(|c| &c[..])
+    }
+
+    /// Optional websites.
+    pub fn websites(&self) -> Option<Vec<&str>> {
+        self.websites
+            .as_ref()
+            .map(|u| u.into_iter().map(|u| &u[..]).collect())
     }
 }
 
@@ -361,7 +377,7 @@ impl SearchIndex {
     /// Create a new search index.
     pub fn new() -> Self {
         // Create index with N fields
-        let index = Index::<(VaultId, SecretId)>::new(3);
+        let index = Index::<(VaultId, SecretId)>::new(4);
         Self {
             index,
             documents: Default::default(),
@@ -545,7 +561,12 @@ impl SearchIndex {
             let doc = self.documents.entry(key).or_insert(doc);
             if !exists {
                 self.index.add_document(
-                    &[label_extract, tags_extract, comment_extract],
+                    &[
+                        label_extract,
+                        tags_extract,
+                        comment_extract,
+                        website_extract,
+                    ],
                     tokenizer,
                     (doc.folder_id, doc.secret_id),
                     doc,
