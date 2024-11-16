@@ -126,6 +126,8 @@ message WireExtraFields {
   optional string comment = 1;
   // Contact type.
   optional WireContactKind contact_type = 2;
+  // Website URLs.
+  repeated string websites = 3;
 }
 
 // Secret meta data.

@@ -315,8 +315,14 @@ impl TryFrom<WireArchiveFilter> for ArchiveFilter {
 
 impl From<ExtraFields> for WireExtraFields {
     fn from(value: ExtraFields) -> Self {
+        let websites = if let Some(websites) = value.websites {
+            websites.into_iter().map(|u| u.to_string()).collect()
+        } else {
+            Vec::new()
+        };
         WireExtraFields {
             comment: value.comment,
+            websites,
             contact_type: value
                 .contact_type
                 .map(|v| WireContactKind::from(v) as i32),
@@ -333,8 +339,17 @@ impl TryFrom<WireExtraFields> for ExtraFields {
         } else {
             None
         };
+        let mut websites = Vec::with_capacity(value.websites.len());
+        for url in value.websites {
+            websites.push(url.parse().map_err(SdkError::from)?);
+        }
         Ok(ExtraFields {
             comment: value.comment,
+            websites: if websites.is_empty() {
+                None
+            } else {
+                Some(websites)
+            },
             contact_type,
         })
     }

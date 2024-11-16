@@ -1534,6 +1534,55 @@ impl Secret {
         }
     }
 
+    /// Value formatted to copy to the clipboard.
+    pub fn copy_value_unsafe(&self) -> Option<String> {
+        match self {
+            Secret::Account { password, .. } => {
+                Some(password.expose_secret().to_owned())
+            }
+            Secret::Note { text, .. } => {
+                Some(text.expose_secret().to_owned())
+            }
+            Secret::File { content, .. } => Some(content.name().to_string()),
+            Secret::List { items, .. } => {
+                let mut s = String::new();
+                for (name, value) in items {
+                    s.push_str(name);
+                    s.push('=');
+                    s.push_str(value.expose_secret());
+                    s.push('\n');
+                }
+                Some(s)
+            }
+            Secret::Pem { certificates, .. } => {
+                let text: Vec<String> =
+                    certificates.iter().map(|s| s.to_string()).collect::<_>();
+                Some(text.join("\n"))
+            }
+            Secret::Page { document, .. } => {
+                Some(document.expose_secret().to_owned())
+            }
+            Secret::Contact { vcard, .. } => Some(vcard.to_string()),
+            Secret::Totp { totp, .. } => Some(totp.get_url()),
+            Secret::Card { number, .. } => {
+                Some(number.expose_secret().to_string())
+            }
+            // TODO: concatenate fields
+            Secret::Bank { number, .. } => {
+                Some(number.expose_secret().to_string())
+            }
+            Secret::Link { url, .. } => Some(url.expose_secret().to_string()),
+            Secret::Password { password, .. } => {
+                Some(password.expose_secret().to_string())
+            }
+            Secret::Identity { number, .. } => {
+                Some(number.expose_secret().to_string())
+            }
+            Secret::Age { .. } => None,
+            Secret::Signer { .. } => None,
+        }
+    }
+
     /// Plain text unencrypted display for secrets
     /// that can be represented as UTF-8 text.
     ///
@@ -1598,6 +1647,18 @@ impl Secret {
             }
         }
         Ok(credentials)
+    }
+
+    /// Collection of website URLs associated with
+    /// this secret.
+    ///
+    /// Used by the search index to locate secrets by
+    /// associated URL.
+    pub fn websites(&self) -> Option<Vec<&Url>> {
+        match self {
+            Self::Account { url, .. } => Some(url.iter().collect()),
+            _ => None,
+        }
     }
 
     /// Encode a map into key value pairs.

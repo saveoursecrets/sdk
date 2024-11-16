@@ -1,7 +1,7 @@
 //! Access to the native system clipboard.
 use crate::Result;
 use arboard::Clipboard;
-use sos_sdk::{prelude::Secret, secrecy::ExposeSecret};
+use sos_sdk::prelude::Secret;
 use std::{borrow::Cow, sync::Arc};
 use tokio::{
     sync::Mutex,
@@ -130,45 +130,7 @@ impl NativeClipboard {
 
     /// Copy the default value for a secret to the clipboard.
     pub async fn copy_secret_value(&self, secret: &Secret) -> Result<()> {
-        let text = match secret {
-            Secret::Account { password, .. } => {
-                password.expose_secret().to_owned()
-            }
-            Secret::Note { text, .. } => text.expose_secret().to_owned(),
-            Secret::File { content, .. } => content.name().to_string(),
-            Secret::List { items, .. } => {
-                let mut s = String::new();
-                for (name, value) in items {
-                    s.push_str(name);
-                    s.push('=');
-                    s.push_str(value.expose_secret());
-                    s.push('\n');
-                }
-                s
-            }
-            Secret::Pem { certificates, .. } => {
-                let text: Vec<String> =
-                    certificates.iter().map(|s| s.to_string()).collect::<_>();
-                text.join("\n")
-            }
-            Secret::Page { document, .. } => {
-                document.expose_secret().to_owned()
-            }
-            Secret::Contact { vcard, .. } => vcard.to_string(),
-            Secret::Signer { .. } => String::new(),
-            Secret::Totp { totp, .. } => totp.get_url(),
-            Secret::Card { number, .. } => number.expose_secret().to_string(),
-            // TODO: concatenate fields
-            Secret::Bank { number, .. } => number.expose_secret().to_string(),
-            Secret::Link { url, .. } => url.expose_secret().to_string(),
-            Secret::Password { password, .. } => {
-                password.expose_secret().to_string()
-            }
-            Secret::Identity { number, .. } => {
-                number.expose_secret().to_string()
-            }
-            Secret::Age { .. } => String::new(),
-        };
+        let text = secret.copy_value_unsafe().unwrap_or_default();
         self.set_text_timeout(text).await
     }
 }

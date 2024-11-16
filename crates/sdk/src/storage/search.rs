@@ -16,6 +16,7 @@ use std::{
 };
 use tokio::sync::RwLock;
 use unicode_segmentation::UnicodeSegmentation;
+use url::Url;
 
 /// Create a set of ngrams of the given size.
 fn ngram_slice(s: &str, n: usize) -> HashSet<&str> {
@@ -275,12 +276,17 @@ pub struct ExtraFields {
     pub comment: Option<String>,
     /// Contact type for contact secrets.
     pub contact_type: Option<vcard4::property::Kind>,
+    /// Collection of websites.
+    pub websites: Option<Vec<Url>>,
 }
 
 impl From<&Secret> for ExtraFields {
     fn from(value: &Secret) -> Self {
         let mut extra = ExtraFields {
             comment: value.user_data().comment().map(|c| c.to_owned()),
+            websites: value
+                .websites()
+                .map(|w| w.into_iter().cloned().collect()),
             ..Default::default()
         };
         if let Secret::Contact { vcard, .. } = value {
