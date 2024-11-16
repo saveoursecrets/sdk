@@ -17,35 +17,38 @@ message WireIpcRequestBody {
   // Inner values.
   oneof inner {
 
+    // Probe the native bridge.
+    common.WireVoidBody probe = 1;
+
     // Get app info.
-    common.WireVoidBody info = 1;
+    common.WireVoidBody info = 2;
 
     // Query app status.
-    common.WireVoidBody status = 2;
+    common.WireVoidBody status = 3;
 
     // Ping the server.
-    common.WireVoidBody ping = 3;
+    common.WireVoidBody ping = 4;
 
     // Request to open a program.
-    WireOpenUrlBody open_url = 4;
+    WireOpenUrlBody open_url = 5;
 
     // Request a list of accounts.
-    common.WireVoidBody list_accounts = 5;
+    common.WireVoidBody list_accounts = 6;
 
     // Request to copy to the clipboard.
-    WireClipboardTarget copy = 6;
+    WireClipboardTarget copy = 7;
 
     // Request to authenticate to an account.
-    WireAuthenticateBody authenticate  = 7;
+    WireAuthenticateBody authenticate  = 8;
 
     // Request to lock an account.
-    WireLockBody lock  = 8;
+    WireLockBody lock  = 9;
 
     // Request to search an account.
-    WireSearchBody search  = 9;
+    WireSearchBody search  = 10;
 
     // Request to query a view.
-    WireQueryViewBody query_view  = 10;
+    WireQueryViewBody query_view  = 11;
   }
 }
 

@@ -1,7 +1,9 @@
 export type TupleOfTwo<T, U> = [T, U];
-export type AccountState = TupleOfTwo<PublicIdentity, boolean>;
+export type TupleOfThree<T, U, V> = [T, U, V];
+export type AccountState = TupleOfThree<PublicIdentity, boolean, FoldersList>;
 export type AccountsList = AccountState[];
 export type DocumentsList = Document[];
+export type FoldersList = FolderInfo[];
 export type SearchResultEntry = TupleOfTwo<PublicIdentity, DocumentsList>;
 export type SearchResults = SearchResultEntry[];
 export type SecretPath = TupleOfTwo<string, string>;

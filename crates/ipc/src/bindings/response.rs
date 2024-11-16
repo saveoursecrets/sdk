@@ -50,6 +50,8 @@ impl IpcResponse {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum IpcResponseBody {
+    /// Response to a probe request.
+    Probe,
     /// App info.
     Info(ServiceAppInfo),
     /// App status.
@@ -92,6 +94,18 @@ impl From<IpcResponse> for WireIpcResponse {
                 message_id,
                 payload: body,
             } => match body {
+                IpcResponseBody::Probe => Self {
+                    message_id,
+                    result: Some(wire_ipc_response::Result::Body(
+                        WireIpcResponseBody {
+                            inner: Some(
+                                wire_ipc_response_body::Inner::Probe(
+                                    WireVoidBody {},
+                                ),
+                            ),
+                        },
+                    )),
+                },
                 IpcResponseBody::Info(app) => Self {
                     message_id,
                     result: Some(wire_ipc_response::Result::Body(
@@ -252,6 +266,12 @@ impl TryFrom<WireIpcResponse> for IpcResponse {
         match value.result {
             Some(wire_ipc_response::Result::Body(body)) => {
                 Ok(match body.inner {
+                    Some(wire_ipc_response_body::Inner::Probe(_)) => {
+                        IpcResponse::Value {
+                            message_id,
+                            payload: IpcResponseBody::Probe,
+                        }
+                    }
                     Some(wire_ipc_response_body::Inner::Info(inner)) => {
                         IpcResponse::Value {
                             message_id,

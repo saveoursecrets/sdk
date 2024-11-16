@@ -224,6 +224,10 @@ where
     ) -> std::result::Result<IpcResponse, E> {
         let message_id = request.message_id;
         match request.payload {
+            IpcRequestBody::Probe => Ok(IpcResponse::Value {
+                message_id,
+                payload: IpcResponseBody::Probe,
+            }),
             IpcRequestBody::Info => {
                 let app_info =
                     self.options.app_info.clone().unwrap_or_default();

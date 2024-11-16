@@ -21,26 +21,28 @@ message WireIpcResponse {
 message WireIpcResponseBody {
   // Inner values.
   oneof inner {
+    // Probe response.
+    common.WireVoidBody probe = 1;
     // App info.
-    WireInfoBody info = 1;
+    WireInfoBody info = 2;
     // App status.
-    WireStatusBody status = 2;
+    WireStatusBody status = 3;
     // Reply to a ping.
-    common.WireVoidBody pong = 3;
+    common.WireVoidBody pong = 4;
     // Request to open a URL.
-    WireOpenUrl open_url = 4;
+    WireOpenUrl open_url = 5;
     // List accounts body.
-    WireAccountList list_accounts = 5;
+    WireAccountList list_accounts = 6;
     // Copy clipboard body.
-    WireCommandOutcome copy = 6;
+    WireCommandOutcome copy = 7;
     // Authenticate body.
-    WireCommandOutcome authenticate = 7;
+    WireCommandOutcome authenticate = 8;
     // Lock body.
-    WireCommandOutcome lock = 8;
+    WireCommandOutcome lock = 9;
     // Search query body.
-    WireSearchResults search = 9;
+    WireSearchResults search = 10;
     // View query body.
-    WireSearchResults query_view = 10;
+    WireSearchResults query_view = 11;
   }
 }
 

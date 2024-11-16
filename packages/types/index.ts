@@ -1,7 +1,9 @@
 export type TupleOfTwo<T, U> = [T, U];
-export type AccountState = TupleOfTwo<PublicIdentity, boolean>;
+export type TupleOfThree<T, U, V> = [T, U, V];
+export type AccountState = TupleOfThree<PublicIdentity, boolean, FoldersList>;
 export type AccountsList = AccountState[];
 export type DocumentsList = Document[];
+export type FoldersList = FolderInfo[];
 export type SearchResultEntry = TupleOfTwo<PublicIdentity, DocumentsList>;
 export type SearchResults = SearchResultEntry[];
 export type SecretPath = TupleOfTwo<string, string>;
@@ -134,6 +136,13 @@ export interface FolderInfo {
 
 /** IPC request information. */
 export type IpcRequestBody = 
+	/**
+	 * Probe the native bridge for aliveness.
+	 * 
+	 * Used to test whether the executable is running
+	 * and the native messaging API is connected.
+	 */
+	| { kind: "probe", body?: undefined }
 	/** Query app info. */
 	| { kind: "info", body?: undefined }
 	/** Query app status. */
@@ -299,6 +308,8 @@ export type IpcResponse =
 
 /** IPC response body. */
 export type IpcResponseBody = 
+	/** Response to a probe request. */
+	| { kind: "probe", body?: undefined }
 	/** App info. */
 	| { kind: "info", body: ServiceAppInfo }
 	/**

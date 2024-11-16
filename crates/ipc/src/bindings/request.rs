@@ -27,6 +27,11 @@ pub struct IpcRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum IpcRequestBody {
+    /// Probe the native bridge for aliveness.
+    ///
+    /// Used to test whether the executable is running
+    /// and the native messaging API is connected.
+    Probe,
     /// Query app info.
     Info,
     /// Query app status.
@@ -81,6 +86,14 @@ impl IpcRequest {
 impl From<IpcRequest> for WireIpcRequest {
     fn from(value: IpcRequest) -> Self {
         match value.payload {
+            IpcRequestBody::Probe => WireIpcRequest {
+                message_id: value.message_id,
+                body: Some(WireIpcRequestBody {
+                    inner: Some(wire_ipc_request_body::Inner::Probe(
+                        WireVoidBody {},
+                    )),
+                }),
+            },
             IpcRequestBody::Info => WireIpcRequest {
                 message_id: value.message_id,
                 body: Some(WireIpcRequestBody {
@@ -188,6 +201,10 @@ impl TryFrom<WireIpcRequest> for IpcRequest {
         let message_id = value.message_id;
         let body = value.body.ok_or(Error::DecodeRequest)?;
         Ok(match body.inner {
+            Some(wire_ipc_request_body::Inner::Probe(_)) => IpcRequest {
+                message_id,
+                payload: IpcRequestBody::Probe,
+            },
             Some(wire_ipc_request_body::Inner::Info(_)) => IpcRequest {
                 message_id,
                 payload: IpcRequestBody::Info,

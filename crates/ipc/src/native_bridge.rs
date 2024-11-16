@@ -202,6 +202,7 @@ async fn try_connect(socket_name: &str) -> SocketClient {
 /// possibly calling over the IPC channel as well.
 fn is_native_request(request: &IpcRequest) -> bool {
     match &request.payload {
+        IpcRequestBody::Probe => true,
         IpcRequestBody::Status => true,
         IpcRequestBody::OpenUrl(_) => true,
         _ => false,
@@ -211,6 +212,10 @@ fn is_native_request(request: &IpcRequest) -> bool {
 async fn handle_native_request(request: IpcRequest) -> Result<IpcResponse> {
     let message_id = request.message_id;
     match &request.payload {
+        IpcRequestBody::Probe => Ok(IpcResponse::Value {
+            message_id,
+            payload: IpcResponseBody::Probe,
+        }),
         IpcRequestBody::Status => {
             let paths = Paths::new_global(Paths::data_dir()?);
             let app = paths.has_app_lock()?;
