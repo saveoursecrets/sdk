@@ -129,7 +129,7 @@ export interface FolderInfo {
 	/** Name of the folder. */
 	name: string;
 	/** Folder identifier. */
-	folder_id: string;
+	folderId: string;
 }
 
 /** IPC request information. */

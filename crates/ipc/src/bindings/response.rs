@@ -509,6 +509,7 @@ impl Default for ServiceAppInfo {
 /// Information about a folder.
 #[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FolderInfo {
     /// Name of the folder.
     pub name: String,
