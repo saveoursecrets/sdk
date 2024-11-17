@@ -688,7 +688,7 @@ impl SearchIndex {
             needle,
             &mut bm25::new(),
             query_tokenizer,
-            &[1., 1., 1.],
+            &[1., 1., 1., 1.],
         )
     }
 

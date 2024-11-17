@@ -135,6 +135,10 @@ async fn local_search_view_query_websites() -> Result<()> {
         .await?;
     assert_eq!(1, documents.len());
 
+    // Check we can run queries as well as views
+    let documents = account.query_map("app", Default::default()).await?;
+    assert_eq!(1, documents.len());
+
     teardown(TEST_ID).await;
 
     Ok(())
