@@ -6,6 +6,7 @@ use sos_net::sdk::{
         Address, ArchiveFilter, Document, DocumentView, ExtraFields,
         PublicIdentity, QueryFilter, SecretFlags, SecretMeta, SecretType,
     },
+    url::Url,
     vcard4::property::Kind as ContactKind,
     Error as SdkError, UtcDateTime,
 };
@@ -71,6 +72,21 @@ impl From<DocumentView> for WireDocumentView {
                             .into_iter()
                             .map(|i| i.to_string())
                             .collect(),
+                    },
+                )),
+            },
+            DocumentView::Websites { matches, exact } => WireDocumentView {
+                inner: Some(wire_document_view::Inner::Websites(
+                    WireDocumentViewWebsites {
+                        matches: if let Some(matches) = matches {
+                            matches
+                                .into_iter()
+                                .map(|u| u.to_string())
+                                .collect()
+                        } else {
+                            vec![]
+                        },
+                        exact,
                     },
                 )),
             },
@@ -141,6 +157,23 @@ impl TryFrom<WireDocumentView> for DocumentView {
                         .parse()
                         .map_err(SdkError::from)?,
                     identifiers,
+                }
+            }
+            Some(wire_document_view::Inner::Websites(body)) => {
+                let matches = if !body.matches.is_empty() {
+                    let mut matches: Vec<Url> =
+                        Vec::with_capacity(body.matches.len());
+                    for target in body.matches {
+                        matches.push(target.parse().map_err(SdkError::from)?);
+                    }
+                    Some(matches)
+                } else {
+                    None
+                };
+
+                DocumentView::Websites {
+                    matches,
+                    exact: body.exact,
                 }
             }
             _ => unreachable!("unknown document view variant"),

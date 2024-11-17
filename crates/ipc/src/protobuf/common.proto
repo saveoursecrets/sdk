@@ -22,6 +22,7 @@ message WireDocumentView {
     WireDocumentViewTags tags = 5;
     WireDocumentViewContact contact = 6;
     WireDocumentViewDocuments documents = 7;
+    WireDocumentViewWebsites websites = 8;
   }
 }
 
@@ -100,6 +101,14 @@ message WireDocumentViewDocuments {
   string folder_id = 1;
   // Secret identifiers.
   repeated string identifiers = 2;
+}
+
+// Variant to query for specific website matches.
+message WireDocumentViewWebsites {
+  // Target matches.
+  repeated string matches = 1;
+  // Whether an exact match is required.
+  bool exact = 2;
 }
 
 // Filter for search queries.

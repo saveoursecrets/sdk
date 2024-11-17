@@ -112,6 +112,8 @@ export interface ExtraFields {
 	comment?: string;
 	/** Contact type for contact secrets. */
 	contactType?: Kind;
+	/** Collection of websites. */
+	websites?: string[];
 }
 
 /** Document that can be indexed. */
@@ -287,6 +289,17 @@ export type DocumentView =
 	folderId: string;
 	/** Secret identifiers. */
 	identifiers: string[];
+}}
+	/** Secrets with the associated websites. */
+	| { kind: "websites", body: {
+	/** Secrets that match the given target URLs. */
+	matches?: string[];
+	/**
+	 * Exact match requires that the match targets and
+	 * websites are exactly equal. Otherwise, comparison
+	 * is performed using the URL origin.
+	 */
+	exact: boolean;
 }};
 
 /** IPC response information. */

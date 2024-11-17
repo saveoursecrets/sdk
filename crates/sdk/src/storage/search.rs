@@ -16,6 +16,7 @@ use std::{
 };
 use tokio::sync::RwLock;
 use unicode_segmentation::UnicodeSegmentation;
+use url::Url;
 
 /// Create a set of ngrams of the given size.
 fn ngram_slice(s: &str, n: usize) -> HashSet<&str> {
@@ -903,6 +904,15 @@ pub enum DocumentView {
         /// Secret identifiers.
         identifiers: Vec<SecretId>,
     },
+    /// Secrets with the associated websites.
+    Websites {
+        /// Secrets that match the given target URLs.
+        matches: Option<Vec<Url>>,
+        /// Exact match requires that the match targets and
+        /// websites are exactly equal. Otherwise, comparison
+        /// is performed using the URL origin.
+        exact: bool,
+    },
 }
 
 impl Default for DocumentView {
@@ -925,7 +935,6 @@ impl DocumentView {
                 return false;
             }
         }
-
         match self {
             DocumentView::All { ignored_types } => {
                 if let Some(ignored_types) = ignored_types {
@@ -964,6 +973,54 @@ impl DocumentView {
                 identifiers,
             } => {
                 doc.folder_id() == folder_id && identifiers.contains(doc.id())
+            }
+            DocumentView::Websites { matches, exact } => {
+                if let Some(sites) = doc.extra().websites() {
+                    if sites.is_empty() {
+                        false
+                    } else {
+                        if let Some(targets) = matches {
+                            // Search index stores as string but
+                            // we need to compare as URLs
+                            let mut urls: Vec<Url> =
+                                Vec::with_capacity(sites.len());
+                            for site in sites {
+                                match site.parse() {
+                                    Ok(url) => urls.push(url),
+                                    Err(e) => {
+                                        tracing::warn!(
+                                            error = %e,
+                                            "search::url_parse");
+                                    }
+                                }
+                            }
+
+                            if *exact {
+                                for url in targets {
+                                    if urls.contains(url) {
+                                        return true;
+                                    }
+                                }
+                                false
+                            } else {
+                                for url in targets {
+                                    for site in &urls {
+                                        if url.origin() == site.origin() {
+                                            return true;
+                                        }
+                                    }
+                                }
+                                false
+                            }
+                        } else {
+                            // No target matches but has some
+                            // associated websites so include in the view
+                            true
+                        }
+                    }
+                } else {
+                    false
+                }
             }
         }
     }
