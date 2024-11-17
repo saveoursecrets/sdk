@@ -1869,7 +1869,6 @@ impl Account for LocalAccount {
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {
-        tracing::debug!("load folders");
         let storage = self.storage().await?;
         let mut writer = storage.write().await;
         let mut folders = writer.load_folders().await?.to_vec();
