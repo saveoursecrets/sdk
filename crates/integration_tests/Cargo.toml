@@ -33,7 +33,7 @@ sos_test_utils = { path = "../test_utils" }
 copy_dir = "0.1"
 maplit2 = "1"
 tempfile = "3.5"
-kdam = { version = "0.5", features = ["rich", "spinner"] }
+kdam = { version = "0.6", features = ["rich", "spinner"] }
 pretty_assertions = "1.4"
 anticipate-runner = { version = "0.5.1" }
 
