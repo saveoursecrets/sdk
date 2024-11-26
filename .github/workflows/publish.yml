@@ -68,7 +68,7 @@ jobs:
 
       # Install
       - name: Install release tools
-        uses: jaxxstorm/action-install-gh-release@v1.11.0
+        uses: jaxxstorm/action-install-gh-release@v1.14.0
         with:
           token: ${{ secrets.GH_RELEASE_DOWNLOAD }}
           repo: saveoursecrets/release-tools
