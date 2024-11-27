@@ -4480,7 +4480,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "arboard",
  "async-recursion",
@@ -4519,7 +4519,7 @@ dependencies = [
 
 [[package]]
 name = "sos-account-extras"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "anyhow",
  "arboard",
@@ -4592,7 +4592,7 @@ dependencies = [
 
 [[package]]
 name = "sos-ipc"
-version = "0.15.2"
+version = "0.16.0"
 dependencies = [
  "async-trait",
  "futures-util",
@@ -4617,7 +4617,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.15.2"
+version = "0.16.0"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -4657,7 +4657,7 @@ dependencies = [
 
 [[package]]
 name = "sos-protocol"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4679,7 +4679,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.15.2"
+version = "0.16.0"
 dependencies = [
  "aes-gcm",
  "age",
@@ -4755,7 +4755,7 @@ dependencies = [
 
 [[package]]
 name = "sos-server"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "async-trait",
  "axum",

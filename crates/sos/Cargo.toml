@@ -1,6 +1,6 @@
 [package]
 name = "sos"
-version = "0.15.1"
+version = "0.16.0"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
@@ -51,12 +51,12 @@ rustyline = "14"
 rustyline-derive = "0.10"
 
 [dependencies.sos-net]
-version = "0.15.1" 
+version = "0.16" 
 features = ["full"]
 path = "../net"
 
 [dependencies.sos-ipc]
-version = "0.15.1" 
+version = "0.16" 
 path = "../ipc"
 features = ["native-bridge", "native-send"]
 

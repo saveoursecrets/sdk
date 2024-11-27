@@ -1,6 +1,6 @@
 [package]
 name = "sos-ipc"
-version = "0.15.2"
+version = "0.16.0"
 edition = "2021"
 description = "Inter-process communication for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -22,7 +22,6 @@ async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 typeshare.workspace = true
-sos-net = { version = "0.15", path = "../net", features = ["account", "search"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "macros", "io-util", "io-std", "sync"] }
 tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["codec"] }
@@ -31,7 +30,9 @@ interprocess = { version = "2", features = ["tokio"], optional = true }
 
 open = { version = "5", optional = true }
 once_cell = { workspace = true, optional = true }
-sos-account-extras = { version = "0.15", path = "../account_extras/", features = ["clipboard"] }
+
+sos-net = { version = "0.16", path = "../net", features = ["account", "search"] }
+sos-account-extras = { version = "0.16", path = "../account_extras/", features = ["clipboard"] }
 
 [build-dependencies]
 rustc_version = "0.4.1"
