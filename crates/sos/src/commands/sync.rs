@@ -52,6 +52,8 @@ pub async fn run(cmd: Command) -> Result<()> {
         } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let servers = owner.servers().await;
             if servers.is_empty() {
                 return Err(Error::NoServers);
@@ -97,6 +99,8 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Status { account, url } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let servers = owner.servers().await;
             if servers.is_empty() {
                 return Err(Error::NoServers);

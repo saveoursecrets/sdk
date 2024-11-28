@@ -1,4 +1,4 @@
-use std::{ffi::OsString, sync::Arc};
+use std::ffi::OsString;
 
 use clap::{CommandFactory, Parser, Subcommand};
 
@@ -11,7 +11,8 @@ use crate::{
         AccountCommand, EnvironmentCommand, FolderCommand, PreferenceCommand,
         SecretCommand, ServerCommand, SyncCommand,
     },
-    helpers::account::{cd_folder, switch, Owner},
+    helpers::account::{cd_folder, switch, USER},
+    Error,
 };
 
 use crate::Result;
@@ -161,7 +162,7 @@ where
 */
 
 /// Execute the program command.
-async fn exec_program(program: Shell, user: Owner) -> Result<()> {
+async fn exec_program(program: Shell) -> Result<()> {
     match program.cmd {
         ShellCommand::Account { cmd } => {
             let mut new_name: Option<String> = None;
@@ -172,7 +173,10 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
             crate::commands::account::run(cmd).await?;
 
             if let Some(new_name) = new_name {
-                let mut owner = user.write().await;
+                let mut owner = USER.write().await;
+                let owner = owner
+                    .selected_account_mut()
+                    .ok_or(Error::NoSelectedAccount)?;
                 owner.rename_account(new_name).await?;
             }
 
@@ -194,7 +198,7 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
         ShellCommand::Environment { cmd } => {
             crate::commands::environment::run(cmd).await
         }
-        ShellCommand::Cd { folder } => cd_folder(user, folder.as_ref()).await,
+        ShellCommand::Cd { folder } => cd_folder(folder.as_ref()).await,
 
         /*
         ShellCommand::Password => {
@@ -267,52 +271,57 @@ async fn exec_program(program: Shell, user: Owner) -> Result<()> {
             // Try to select the default folder
             let default_folder = {
                 let owner = user.read().await;
+                let owner = owner
+                    .selected_account()
+                    .ok_or(Error::NoSelectedAccount)?;
                 owner.default_folder().await
             };
             if let Some(summary) = default_folder {
                 let folder = Some(FolderRef::Id(*summary.id()));
-                cd_folder(Arc::clone(&user), folder.as_ref()).await?;
+                cd_folder(folder.as_ref()).await?;
             }
 
             Ok(())
         }
         ShellCommand::Whoami => {
-            let owner = user.read().await;
+            let owner = USER.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             println!("{} {}", owner.account_label().await?, owner.address());
             Ok(())
         }
         ShellCommand::Pwd => {
-            let owner = user.read().await;
-            let storage = owner.storage().await?;
-            let reader = storage.read().await;
-            if let Some(current) = reader.current_folder() {
+            let owner = USER.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
+            if let Some(current) = owner.current_folder().await? {
                 println!("{} {}", current.name(), current.id(),);
             }
             Ok(())
         }
         ShellCommand::Quit => {
-            let mut owner = user.write().await;
-            owner.sign_out().await?;
+            let mut owner = USER.write().await;
+            owner.sign_out_all().await?;
             std::process::exit(0);
         }
     }
 }
 
 /// Intermediary to pretty print clap parse errors.
-async fn exec_args<I, T>(it: I, user: Owner) -> Result<()>
+async fn exec_args<I, T>(it: I) -> Result<()>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
     match Shell::try_parse_from(it) {
-        Ok(program) => exec_program(program, user).await?,
+        Ok(program) => exec_program(program).await?,
         Err(e) => e.print().expect("unable to write error output"),
     }
     Ok(())
 }
 
 /// Execute a line of input in the context of the shell program.
-pub async fn exec(line: &str, user: Owner) -> Result<()> {
+pub async fn exec(line: &str) -> Result<()> {
     // ignore comments
     if line.trim().starts_with('#') {
         return Ok(());
@@ -334,7 +343,7 @@ pub async fn exec(line: &str, user: Owner) -> Result<()> {
         } else if line == "help" || line == "--help" {
             cmd.print_long_help()?;
         } else {
-            exec_args(it, user).await?;
+            exec_args(it).await?;
         }
     }
     Ok(())

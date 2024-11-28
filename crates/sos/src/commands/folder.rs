@@ -11,7 +11,7 @@ use sos_net::sdk::{
 
 use crate::{
     helpers::{
-        account::{cd_folder, resolve_folder, resolve_user, USER},
+        account::{cd_folder, resolve_folder, resolve_user, SHELL},
         messages::success,
         readline::read_flag,
     },
@@ -152,25 +152,30 @@ pub enum History {
 }
 
 pub async fn run(cmd: Command) -> Result<()> {
-    let is_shell = USER.get().is_some();
+    let is_shell = *SHELL.lock();
 
     match cmd {
         Command::New { account, name, cwd } => {
             let user = resolve_user(account.as_ref(), false).await?;
-            let mut writer = user.write().await;
+            let folder = {
+                let mut owner = user.write().await;
+                let owner = owner
+                    .selected_account_mut()
+                    .ok_or(Error::NoSelectedAccount)?;
 
-            let existing = writer.find(|s| s.name() == name).await;
-            if existing.is_some() {
-                return Err(Error::FolderExists(name));
-            }
+                let existing = owner.find(|s| s.name() == name).await;
+                if existing.is_some() {
+                    return Err(Error::FolderExists(name));
+                }
 
-            let FolderCreate { folder, .. } =
-                writer.create_folder(name, Default::default()).await?;
-            success("Folder created");
-            drop(writer);
+                let FolderCreate { folder, .. } =
+                    owner.create_folder(name, Default::default()).await?;
+                success("Folder created");
+                folder
+            };
             if cwd {
                 let target = Some(FolderRef::Id(*folder.id()));
-                cd_folder(user, target.as_ref()).await?;
+                cd_folder(target.as_ref()).await?;
             }
         }
         Command::Remove { account, folder } => {
@@ -185,9 +190,11 @@ pub async fn run(cmd: Command) -> Result<()> {
 
             let is_current = {
                 let owner = user.read().await;
-                let storage = owner.storage().await?;
-                let reader = storage.read().await;
-                if let Some(current) = reader.current_folder() {
+                let owner = owner
+                    .selected_account()
+                    .ok_or(Error::NoSelectedAccount)?;
+
+                if let Some(current) = owner.current_folder().await? {
                     current.id() == summary.id()
                 } else {
                     false
@@ -198,20 +205,27 @@ pub async fn run(cmd: Command) -> Result<()> {
                 format!(r#"Delete folder "{}" (y/n)? "#, summary.name());
             if read_flag(Some(&prompt))? {
                 let mut owner = user.write().await;
-                owner.delete_folder(&summary).await?;
-                success("Folder deleted");
+                {
+                    let owner = owner
+                        .selected_account_mut()
+                        .ok_or(Error::NoSelectedAccount)?;
+                    owner.delete_folder(&summary).await?;
+                    success("Folder deleted");
+                }
                 drop(owner);
 
                 // Removing current folder so try to use
                 // the default folder
                 if is_current {
-                    cd_folder(user, None).await?;
+                    cd_folder(None).await?;
                 }
             }
         }
         Command::List { account, verbose } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let folders = owner.list_folders().await?;
             for summary in folders {
                 if verbose {
@@ -243,6 +257,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .ok_or_else(|| Error::NoFolderFound)?;
 
             let owner = user.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
 
             if !is_shell {
                 owner.open_folder(&summary).await?;
@@ -260,6 +276,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .ok_or_else(|| Error::NoFolderFound)?;
 
             let owner = user.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let storage = owner.storage().await?;
             let reader = storage.read().await;
             if let Some(folder) = reader.cache().get(summary.id()) {
@@ -288,8 +306,11 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .await?
                 .ok_or_else(|| Error::NoFolderFound)?;
 
-            let mut writer = user.write().await;
-            writer.rename_folder(&summary, name.clone()).await?;
+            let mut owner = user.write().await;
+            let owner = owner
+                .selected_account_mut()
+                .ok_or(Error::NoSelectedAccount)?;
+            owner.rename_folder(&summary, name.clone()).await?;
             success(format!("{} -> {}", summary.name(), name));
         }
 
@@ -312,9 +333,12 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .ok_or_else(|| Error::NoFolderFound)?;
 
             {
-                let reader = user.read().await;
+                let owner = user.read().await;
+                let owner = owner
+                    .selected_account()
+                    .ok_or(Error::NoSelectedAccount)?;
                 if !is_shell {
-                    reader.open_folder(&summary).await?;
+                    owner.open_folder(&summary).await?;
                 }
             }
 
@@ -322,10 +346,12 @@ pub async fn run(cmd: Command) -> Result<()> {
                 History::Compact { .. } => {
                     let summary = {
                         let owner = user.read().await;
-                        let storage = owner.storage().await?;
-                        let reader = storage.read().await;
-                        let summary = reader
+                        let owner = owner
+                            .selected_account()
+                            .ok_or(Error::NoSelectedAccount)?;
+                        let summary = owner
                             .current_folder()
+                            .await?
                             .ok_or(Error::NoVaultSelected)?;
                         summary.clone()
                     };
@@ -335,6 +361,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                     );
                     if read_flag(prompt)? {
                         let mut owner = user.write().await;
+                        let owner = owner
+                            .selected_account_mut()
+                            .ok_or(Error::NoSelectedAccount)?;
                         let (_, old_size, new_size) =
                             owner.compact_folder(&summary).await?;
                         println!("Old: {}", human_bytes(old_size as f64));
@@ -343,22 +372,30 @@ pub async fn run(cmd: Command) -> Result<()> {
                 }
                 History::Check { .. } => {
                     let owner = user.read().await;
-                    let storage = owner.storage().await?;
-                    let reader = storage.read().await;
-                    let summary = reader
+                    let owner = owner
+                        .selected_account()
+                        .ok_or(Error::NoSelectedAccount)?;
+                    let summary = owner
                         .current_folder()
+                        .await?
                         .ok_or(Error::NoVaultSelected)?;
-                    reader.verify(&summary).await?;
+                    let storage = owner.storage().await?;
+                    let owner = storage.read().await;
+                    owner.verify(&summary).await?;
                     success("Verified");
                 }
                 History::List { verbose, .. } => {
                     let owner = user.read().await;
-                    let storage = owner.storage().await?;
-                    let reader = storage.read().await;
-                    let summary = reader
+                    let owner = owner
+                        .selected_account()
+                        .ok_or(Error::NoSelectedAccount)?;
+                    let summary = owner
                         .current_folder()
+                        .await?
                         .ok_or(Error::NoVaultSelected)?;
-                    let records = reader.history(&summary).await?;
+                    let storage = owner.storage().await?;
+                    let owner = storage.read().await;
+                    let records = owner.history(&summary).await?;
                     for (commit, time, event) in records {
                         print!("{} {} ", event.event_kind(), time);
                         if verbose {

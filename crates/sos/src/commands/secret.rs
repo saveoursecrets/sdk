@@ -1,6 +1,6 @@
 use crate::{
     helpers::{
-        account::{resolve_folder, resolve_user, verify, Owner, USER},
+        account::{resolve_folder, resolve_user, verify, Owner, SHELL},
         editor,
         messages::success,
         readline::{read_flag, read_line},
@@ -600,7 +600,7 @@ async fn resolve_verify<'a>(
     predicate: FolderPredicate<'a>,
     secret: &SecretRef,
 ) -> Result<ResolvedSecret> {
-    let is_shell = USER.get().is_some();
+    let is_shell = *SHELL.lock();
 
     let mut user = resolve_user(account, true).await?;
 
@@ -619,6 +619,8 @@ async fn resolve_verify<'a>(
 
     if !is_shell || should_open {
         let owner = user.read().await;
+        let owner =
+            owner.selected_account().ok_or(Error::NoSelectedAccount)?;
         owner.open_folder(&summary).await?;
     }
 
@@ -643,7 +645,7 @@ async fn resolve_verify<'a>(
 }
 
 pub async fn run(cmd: Command) -> Result<()> {
-    let is_shell = USER.get().is_some();
+    let is_shell = *SHELL.lock();
 
     match cmd {
         Command::List {
@@ -655,6 +657,8 @@ pub async fn run(cmd: Command) -> Result<()> {
         } => {
             let user = resolve_user(account.as_ref(), true).await?;
             let owner = user.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let archive_folder = owner.archive_folder().await;
 
             let summary = resolve_folder(&user, folder.as_ref())
@@ -717,10 +721,17 @@ pub async fn run(cmd: Command) -> Result<()> {
 
             if !is_shell || folder.is_some() {
                 let owner = user.read().await;
+                let owner = owner
+                    .selected_account()
+                    .ok_or(Error::NoSelectedAccount)?;
                 owner.open_folder(&summary).await?;
             }
 
             let mut owner = user.write().await;
+            let owner = owner
+                .selected_account_mut()
+                .ok_or(Error::NoSelectedAccount)?;
+
             let result = match cmd {
                 AddCommand::Note { name, tags, .. } => add_note(name, tags)?,
                 AddCommand::List { name, tags, .. } => add_list(name, tags)?,
@@ -757,6 +768,9 @@ pub async fn run(cmd: Command) -> Result<()> {
             .await?;
             if resolved.verified {
                 let owner = resolved.user.read().await;
+                let owner = owner
+                    .selected_account()
+                    .ok_or(Error::NoSelectedAccount)?;
                 let (data, _) =
                     owner.read_secret(&resolved.secret_id, None).await?;
                 print_secret(data.meta(), data.secret())?;
@@ -775,6 +789,9 @@ pub async fn run(cmd: Command) -> Result<()> {
             .await?;
             if resolved.verified {
                 let owner = resolved.user.read().await;
+                let owner = owner
+                    .selected_account()
+                    .ok_or(Error::NoSelectedAccount)?;
                 let (data, _) =
                     owner.read_secret(&resolved.secret_id, None).await?;
                 let copied = copy_secret_text(data.secret())?;
@@ -892,6 +909,9 @@ pub async fn run(cmd: Command) -> Result<()> {
 
                 if save_updates {
                     let mut owner = resolved.user.write().await;
+                    let owner = owner
+                        .selected_account_mut()
+                        .ok_or(Error::NoSelectedAccount)?;
                     owner
                         .update_secret(
                             &resolved.secret_id,
@@ -917,6 +937,9 @@ pub async fn run(cmd: Command) -> Result<()> {
             .await?;
             if resolved.verified {
                 let mut owner = resolved.user.write().await;
+                let owner = owner
+                    .selected_account_mut()
+                    .ok_or(Error::NoSelectedAccount)?;
                 let (data, _) =
                     owner.read_secret(&resolved.secret_id, None).await?;
 
@@ -975,6 +998,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                 resolved.meta.set_favorite(value);
 
                 let mut owner = resolved.user.write().await;
+                let owner = owner
+                    .selected_account_mut()
+                    .ok_or(Error::NoSelectedAccount)?;
                 owner
                     .update_secret(
                         &resolved.secret_id,
@@ -1004,6 +1030,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                 resolved.meta.set_label(name);
 
                 let mut owner = resolved.user.write().await;
+                let owner = owner
+                    .selected_account_mut()
+                    .ok_or(Error::NoSelectedAccount)?;
                 owner
                     .update_secret(
                         &resolved.secret_id,
@@ -1035,6 +1064,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                 to.ok_or_else(|| Error::FolderNotFound(target.to_string()))?;
             if resolved.verified {
                 let mut owner = resolved.user.write().await;
+                let owner = owner
+                    .selected_account_mut()
+                    .ok_or(Error::NoSelectedAccount)?;
                 owner
                     .move_secret(
                         &resolved.secret_id,
@@ -1064,6 +1096,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                 );
                 if read_flag(Some(&prompt))? {
                     let mut owner = resolved.user.write().await;
+                    let owner = owner
+                        .selected_account_mut()
+                        .ok_or(Error::NoSelectedAccount)?;
                     owner
                         .delete_secret(
                             &resolved.secret_id,
@@ -1089,6 +1124,9 @@ pub async fn run(cmd: Command) -> Result<()> {
             if resolved.verified {
                 let mut data = {
                     let owner = resolved.user.read().await;
+                    let owner = owner
+                        .selected_account()
+                        .ok_or(Error::NoSelectedAccount)?;
                     let (data, _) =
                         owner.read_secret(&resolved.secret_id, None).await?;
                     data
@@ -1113,6 +1151,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let value = value.filter(|value| !value.is_empty());
                     data.secret_mut().user_data_mut().set_comment(value);
                     let mut owner = resolved.user.write().await;
+                    let owner = owner
+                        .selected_account_mut()
+                        .ok_or(Error::NoSelectedAccount)?;
                     owner
                         .update_secret(
                             &resolved.secret_id,
@@ -1146,6 +1187,9 @@ pub async fn run(cmd: Command) -> Result<()> {
 
                 let data = {
                     let owner = resolved.user.read().await;
+                    let owner = owner
+                        .selected_account()
+                        .ok_or(Error::NoSelectedAccount)?;
                     let (data, _) =
                         owner.read_secret(&resolved.secret_id, None).await?;
                     data
@@ -1167,6 +1211,9 @@ pub async fn run(cmd: Command) -> Result<()> {
             .await?;
             if resolved.verified {
                 let mut owner = resolved.user.write().await;
+                let owner = owner
+                    .selected_account_mut()
+                    .ok_or(Error::NoSelectedAccount)?;
                 owner
                     .archive(
                         &resolved.summary,
@@ -1181,9 +1228,10 @@ pub async fn run(cmd: Command) -> Result<()> {
             let original_folder = if is_shell {
                 let user = resolve_user(account.as_ref(), false).await?;
                 let owner = user.read().await;
-                let storage = owner.storage().await?;
-                let reader = storage.read().await;
-                reader.current_folder()
+                let owner = owner
+                    .selected_account()
+                    .ok_or(Error::NoSelectedAccount)?;
+                owner.current_folder().await?
             } else {
                 None
             };
@@ -1192,7 +1240,10 @@ pub async fn run(cmd: Command) -> Result<()> {
                 account.as_ref(),
                 FolderPredicate::Func(Box::new(|user| {
                     Box::pin(async {
-                        let owner = user.write().await;
+                        let owner = user.read().await;
+                        let owner = owner
+                            .selected_account()
+                            .ok_or(Error::NoSelectedAccount)?;
                         owner
                             .archive_folder()
                             .await
@@ -1205,6 +1256,9 @@ pub async fn run(cmd: Command) -> Result<()> {
 
             if resolved.verified {
                 let mut owner = resolved.user.write().await;
+                let owner = owner
+                    .selected_account_mut()
+                    .ok_or(Error::NoSelectedAccount)?;
                 owner
                     .unarchive(
                         &resolved.secret_id,
@@ -1287,6 +1341,8 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
     if resolved.verified {
         let mut data = {
             let owner = resolved.user.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let (data, _) =
                 owner.read_secret(&resolved.secret_id, None).await?;
             data
@@ -1423,6 +1479,9 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
 
         if let Some(new_secret) = new_secret {
             let mut owner = resolved.user.write().await;
+            let owner = owner
+                .selected_account_mut()
+                .ok_or(Error::NoSelectedAccount)?;
             let (options, shutdown_tx, closed_rx) = access_options();
             owner
                 .update_secret(

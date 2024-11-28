@@ -1,19 +1,12 @@
-use std::sync::Arc;
-
 use terminal_banner::{Banner, Padding};
 
-use sos_net::{
-    sdk::{
-        account::Account, identity::AccountRef, vault::FolderRef, vfs, Paths,
-    },
-    NetworkAccount,
+use sos_net::sdk::{
+    account::Account, identity::AccountRef, vault::FolderRef, vfs, Paths,
 };
-
-use tokio::sync::RwLock;
 
 use crate::{
     helpers::{
-        account::{cd_folder, choose_account, sign_in, USER},
+        account::{cd_folder, choose_account, sign_in, SHELL, USER},
         messages::fail,
         readline,
     },
@@ -38,10 +31,10 @@ Type "quit" or "q" to exit"#;
 }
 
 /// Loop sign in for shell authentication.
-async fn auth(account: &AccountRef) -> Result<NetworkAccount> {
+async fn auth(account: &AccountRef) -> Result<()> {
     loop {
         match sign_in(account).await {
-            Ok((owner, _)) => return Ok(owner),
+            Ok(_) => return Ok(()),
             Err(e) => {
                 fail(e.to_string());
                 if matches!(e, Error::NoAccount(_)) {
@@ -74,14 +67,23 @@ pub async fn run(
         account.into()
     };
 
-    let mut owner = auth(&account).await?;
-    owner.initialize_search_index().await?;
+    auth(&account).await?;
+    {
+        let mut owner = USER.write().await;
+        let user_account = owner
+            .selected_account_mut()
+            .ok_or(Error::NoSelectedAccount)?;
+        user_account.initialize_search_index().await?;
+    }
     welcome()?;
 
-    // Prepare state for shell execution
-    let user = USER.get_or_init(|| Arc::new(RwLock::new(owner)));
+    {
+        let mut is_shell = SHELL.lock();
+        *is_shell = true;
+    }
 
-    cd_folder(Arc::clone(user), folder.as_ref()).await?;
+    // Prepare state for shell execution
+    cd_folder(folder.as_ref()).await?;
 
     let mut rl = readline::basic_editor()?;
     loop {
@@ -89,11 +91,12 @@ pub async fn run(
             if let Ok(prompt) = std::env::var("SOS_PROMPT") {
                 prompt
             } else {
-                let owner = user.read().await;
+                let owner = USER.read().await;
+                let owner = owner
+                    .selected_account()
+                    .ok_or(Error::NoSelectedAccount)?;
                 let account_name = owner.account_label().await?;
-                let storage = owner.storage().await?;
-                let reader = storage.read().await;
-                if let Some(current) = reader.current_folder() {
+                if let Some(current) = owner.current_folder().await? {
                     format!("{}@{}> ", account_name, current.name())
                 } else {
                     format!("{}> ", account_name)
@@ -105,8 +108,7 @@ pub async fn run(
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str())?;
-                let provider = Arc::clone(user);
-                if let Err(e) = exec(&line, provider).await {
+                if let Err(e) = exec(&line).await {
                     fail(e.to_string());
                 }
             }

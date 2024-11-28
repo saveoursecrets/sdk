@@ -50,6 +50,8 @@ pub async fn run(cmd: Command) -> Result<()> {
         } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.write().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let authenticator = owner
                 .authenticator_folder()
                 .await
@@ -69,6 +71,9 @@ pub async fn run(cmd: Command) -> Result<()> {
         } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let mut owner = user.write().await;
+            let owner = owner
+                .selected_account_mut()
+                .ok_or(Error::NoSelectedAccount)?;
 
             let folder = if let Some(authenticator) =
                 owner.authenticator_folder().await

@@ -9,7 +9,7 @@ use crate::{
         EnvironmentCommand, FolderCommand, PreferenceCommand, SecretCommand,
         ServerCommand, SyncCommand, ToolsCommand,
     },
-    helpers::{PROGRESS_MONITOR, USER},
+    helpers::{account::SHELL, PROGRESS_MONITOR},
     CommandTree, Result,
 };
 
@@ -120,7 +120,7 @@ pub async fn run() -> Result<()> {
     }
 
     ctrlc::set_handler(move || {
-        let is_shell = USER.get().is_some();
+        let is_shell = *SHELL.lock();
         if is_shell {
             let tx = PROGRESS_MONITOR.lock();
             if let Some(tx) = &*tx {

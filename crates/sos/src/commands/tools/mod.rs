@@ -130,6 +130,9 @@ pub async fn run(cmd: Command) -> Result<()> {
             let (user, password) =
                 resolve_user_with_password(account.as_ref(), false).await?;
             let mut owner = user.write().await;
+            let owner = owner
+                .selected_account_mut()
+                .ok_or(Error::NoSelectedAccount)?;
 
             let banner = Banner::new()
                 .padding(Padding::one())

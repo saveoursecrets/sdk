@@ -1,6 +1,7 @@
 //! Helpers for creating and switching accounts.
 use std::{borrow::Cow, sync::Arc};
 
+use parking_lot::Mutex;
 use sos_net::{
     sdk::{
         account::{Account, AccountLocked, SigninOptions},
@@ -13,7 +14,7 @@ use sos_net::{
         vault::{FolderRef, Summary},
         Paths,
     },
-    NetworkAccount,
+    NetworkAccount, NetworkAccountSwitcher,
 };
 use terminal_banner::{Banner, Padding};
 use tokio::sync::{mpsc, RwLock};
@@ -24,15 +25,19 @@ use crate::helpers::{
     readline::{choose, choose_password, read_flag, read_password, Choice},
 };
 
-use once_cell::sync::OnceCell;
+use once_cell::sync::Lazy;
 
 use crate::{Error, Result};
 
 /// Account owner.
-pub type Owner = Arc<RwLock<NetworkAccount>>;
+pub type Owner = Arc<RwLock<NetworkAccountSwitcher>>;
 
 /// Current user for the shell REPL.
-pub static USER: OnceCell<Owner> = OnceCell::new();
+pub static USER: Lazy<Owner> =
+    Lazy::new(|| Arc::new(RwLock::new(NetworkAccountSwitcher::new())));
+
+/// Flag used to test is we are running a shell context.
+pub static SHELL: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
 
 #[derive(Copy, Clone)]
 enum AccountPasswordOption {
@@ -67,8 +72,9 @@ pub async fn resolve_user(
     account: Option<&AccountRef>,
     build_search_index: bool,
 ) -> Result<Owner> {
-    if let Some(owner) = USER.get() {
-        return Ok(Arc::clone(owner));
+    let is_shell = *SHELL.lock();
+    if is_shell {
+        return Ok(Arc::clone(&USER));
     }
 
     // let account = resolve_account(account)
@@ -102,21 +108,26 @@ pub async fn resolve_user_with_password(
     account: Option<&AccountRef>,
     build_search_index: bool,
 ) -> Result<(Owner, SecretString)> {
+    let is_shell = *SHELL.lock();
     let account = resolve_account(account)
         .await
         .ok_or_else(|| Error::NoAccountFound)?;
 
-    let (mut owner, password) = sign_in(&account).await?;
+    let password = sign_in(&account).await?;
 
     // For non-shell we need to initialize the search index
-    if USER.get().is_none() {
+    if !is_shell {
+        let mut owner = USER.write().await;
+        let owner = owner
+            .selected_account_mut()
+            .ok_or(Error::NoSelectedAccount)?;
         if build_search_index {
             owner.initialize_search_index().await?;
         }
         owner.list_folders().await?;
     }
 
-    Ok((Arc::new(RwLock::new(owner)), password))
+    Ok((Arc::clone(&USER), password))
 }
 
 /// Take the optional account reference and resolve it.
@@ -127,11 +138,14 @@ pub async fn resolve_user_with_password(
 pub async fn resolve_account(
     account: Option<&AccountRef>,
 ) -> Option<AccountRef> {
+    let is_shell = *SHELL.lock();
     if account.is_none() {
-        if let Some(owner) = USER.get() {
-            let reader = owner.read().await;
-            if reader.is_authenticated().await {
-                return Some((&*reader).into());
+        if is_shell {
+            let owner = USER.read().await;
+            if let Some(owner) = owner.selected_account() {
+                if owner.is_authenticated().await {
+                    return Some((&*owner).into());
+                }
             }
         }
 
@@ -173,7 +187,9 @@ pub async fn resolve_folder(
     user: &Owner,
     folder: Option<&FolderRef>,
 ) -> Result<Option<Summary>> {
+    let is_shell = *SHELL.lock();
     let owner = user.read().await;
+    let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
     if let Some(vault) = folder {
         let storage = owner.storage().await?;
         let reader = storage.read().await;
@@ -183,12 +199,14 @@ pub async fn resolve_folder(
                 .cloned()
                 .ok_or(Error::FolderNotFound(vault.to_string()))?,
         ))
-    } else if let Some(owner) = USER.get() {
-        let owner = owner.read().await;
-        let storage = owner.storage().await?;
-        let reader = storage.read().await;
-        let summary =
-            reader.current_folder().ok_or(Error::NoVaultSelected)?;
+    } else if is_shell {
+        let owner = USER.read().await;
+        let owner =
+            owner.selected_account().ok_or(Error::NoSelectedAccount)?;
+        let summary = owner
+            .current_folder()
+            .await?
+            .ok_or(Error::NoVaultSelected)?;
         Ok(Some(summary.clone()))
     } else {
         let storage = owner.storage().await?;
@@ -197,12 +215,11 @@ pub async fn resolve_folder(
     }
 }
 
-pub async fn cd_folder(
-    user: Owner,
-    folder: Option<&FolderRef>,
-) -> Result<()> {
+pub async fn cd_folder(folder: Option<&FolderRef>) -> Result<()> {
     let summary = {
-        let owner = user.read().await;
+        let owner = USER.read().await;
+        let owner =
+            owner.selected_account().ok_or(Error::NoSelectedAccount)?;
         let storage = owner.storage().await?;
         let reader = storage.read().await;
         let summary = if let Some(vault) = folder {
@@ -218,7 +235,8 @@ pub async fn cd_folder(
 
         summary.ok_or(Error::NoFolderFound)?
     };
-    let owner = user.read().await;
+    let owner = USER.read().await;
+    let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
     owner.open_folder(&summary).await?;
     Ok(())
 }
@@ -227,6 +245,7 @@ pub async fn cd_folder(
 pub async fn verify(user: Owner) -> Result<bool> {
     let passphrase = read_password(Some("Password: "))?;
     let owner = user.read().await;
+    let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
     Ok(owner.verify(&AccessKey::Password(passphrase)).await)
 }
 
@@ -261,60 +280,80 @@ pub async fn find_account(
 }
 
 /// Helper to sign in to an account.
-pub async fn sign_in(
-    account: &AccountRef,
-) -> Result<(NetworkAccount, SecretString)> {
+pub async fn sign_in(account: &AccountRef) -> Result<SecretString> {
     let account = find_account(account)
         .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
-    let passphrase = read_password(Some("Password: "))?;
 
-    let mut owner = NetworkAccount::new_unauthenticated(
-        *account.address(),
-        None,
-        Default::default(),
-    )
-    .await?;
+    let mut owner = USER.write().await;
 
-    let (tx, mut rx) = mpsc::channel::<()>(8);
-    tokio::task::spawn(async move {
-        while let Some(_) = rx.recv().await {
-            let banner = Banner::new()
-                .padding(Padding::one())
-                .text("Account locked".into())
-                .newline()
-                .text(
-                    "This account is locked because another program is already signed in; this may be another terminal or application window.".into())
-                .newline()
-                .text(
-                    "To continue sign out of the account in the other window.".into())
-                .render();
-            println!("{}", banner);
+    let is_authenticated = {
+        if let Some(current) =
+            owner.iter().find(|a| a.address() == account.address())
+        {
+            current.is_authenticated().await
+        } else {
+            false
         }
-    });
-
-    let options = SigninOptions {
-        locked: AccountLocked::Notify(tx),
     };
 
-    let key: AccessKey = passphrase.clone().into();
-    owner.sign_in_with_options(&key, options).await?;
+    let passphrase = if !is_authenticated {
+        let mut current_account = NetworkAccount::new_unauthenticated(
+            *account.address(),
+            None,
+            Default::default(),
+        )
+        .await?;
 
-    Ok((owner, passphrase))
+        let (tx, mut rx) = mpsc::channel::<()>(8);
+        tokio::task::spawn(async move {
+            while let Some(_) = rx.recv().await {
+                let banner = Banner::new()
+                    .padding(Padding::one())
+                    .text("Account locked".into())
+                    .newline()
+                    .text(
+                        "This account is locked because another program is already signed in; this may be another terminal or application window.".into())
+                    .newline()
+                    .text(
+                        "To continue sign out of the account in the other window.".into())
+                    .render();
+                println!("{}", banner);
+            }
+        });
+
+        let options = SigninOptions {
+            locked: AccountLocked::Notify(tx),
+        };
+
+        let passphrase = read_password(Some("Password: "))?;
+        let key: AccessKey = passphrase.clone().into();
+        current_account.sign_in_with_options(&key, options).await?;
+
+        owner.add_account(current_account);
+        passphrase
+    } else {
+        SecretString::new("".into())
+    };
+
+    owner.switch_account(account.address());
+
+    Ok(passphrase)
 }
 
 /// Switch to a different account.
-pub async fn switch(
-    account: &AccountRef,
-) -> Result<Arc<RwLock<NetworkAccount>>> {
-    let (mut owner, _) = sign_in(account).await?;
+pub async fn switch(account: &AccountRef) -> Result<Owner> {
+    sign_in(account).await?;
+    {
+        let mut owner = USER.write().await;
+        let owner = owner
+            .selected_account_mut()
+            .ok_or(Error::NoSelectedAccount)?;
 
-    owner.initialize_search_index().await?;
-    owner.list_folders().await?;
-
-    let mut writer = USER.get().unwrap().write().await;
-    *writer = owner;
-    Ok(Arc::clone(USER.get().unwrap()))
+        owner.initialize_search_index().await?;
+        owner.list_folders().await?;
+    }
+    Ok(Arc::clone(&USER))
 }
 
 /// Create a new local account.

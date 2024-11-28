@@ -61,6 +61,7 @@ pub async fn run(
 
     let user = resolve_user(account.as_ref(), false).await?;
     let owner = user.read().await;
+    let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
 
     let report_options = SecurityReportOptions {
         excludes: vec![],
@@ -78,7 +79,7 @@ pub async fn run(
         bool,
         _,
         _,
-    >(&*owner, report_options)
+    >(owner, report_options)
     .await?;
 
     let rows: Vec<SecurityReportRow<bool>> = report.into();

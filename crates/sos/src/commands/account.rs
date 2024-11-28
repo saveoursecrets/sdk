@@ -22,7 +22,7 @@ use crate::{
     helpers::{
         account::{
             find_account, list_accounts, new_account, resolve_account,
-            resolve_user, sign_in, verify, Owner, USER,
+            resolve_user, sign_in, verify, Owner, SHELL, USER,
         },
         messages::success,
         readline::read_flag,
@@ -185,7 +185,7 @@ pub enum ContactsCommand {
 }
 
 pub async fn run(cmd: Command) -> Result<()> {
-    let is_shell = USER.get().is_some();
+    let is_shell = *SHELL.lock();
     match cmd {
         Command::New { name, folder_name } => {
             new_account(name, folder_name).await?;
@@ -247,12 +247,11 @@ pub async fn run(cmd: Command) -> Result<()> {
             // does not lose context when importing and exporting contacts
             let original_folder = {
                 let owner = user.read().await;
+                let owner = owner
+                    .selected_account()
+                    .ok_or(Error::NoSelectedAccount)?;
 
-                let current = {
-                    let storage = owner.storage().await?;
-                    let reader = storage.read().await;
-                    reader.current_folder()
-                };
+                let current = owner.current_folder().await?;
 
                 let contacts = owner
                     .contacts_folder()
@@ -268,6 +267,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                     success("Contacts exported");
                     if let Some(folder) = original_folder {
                         let owner = user.read().await;
+                        let owner = owner
+                            .selected_account()
+                            .ok_or(Error::NoSelectedAccount)?;
                         owner.open_folder(&folder).await?;
                     }
                 }
@@ -276,6 +278,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                     success("Contacts imported");
                     if let Some(folder) = original_folder {
                         let owner = user.read().await;
+                        let owner = owner
+                            .selected_account()
+                            .ok_or(Error::NoSelectedAccount)?;
                         owner.open_folder(&folder).await?;
                     }
                 }
@@ -290,6 +295,8 @@ pub async fn run(cmd: Command) -> Result<()> {
         } => {
             let user = resolve_user(account.as_ref(), true).await?;
             let owner = user.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let statistics = owner.statistics().await;
 
             if json {
@@ -348,6 +355,7 @@ async fn account_info(
 ) -> Result<()> {
     let user = resolve_user(account.as_ref(), false).await?;
     let owner = user.read().await;
+    let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
     let data = owner.account_data().await?;
 
     if json {
@@ -405,7 +413,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
 
     let account = find_account(&account_ref).await?;
 
-    let mut owner = if let Some(account) = account {
+    let mut password = if let Some(account) = account {
         let confirmed = read_flag(Some(
             "Overwrite all account data from backup? (y/n) ",
         ))?;
@@ -414,13 +422,17 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
         }
 
         let account = AccountRef::Name(account.label().to_owned());
-        let (owner, password) = sign_in(&account).await?;
-        Some((owner, password))
+        let password = sign_in(&account).await?;
+        Some(password)
     } else {
         None
     };
 
-    let account = if let Some((mut owner, password)) = owner.take() {
+    let account = if let Some(password) = password.take() {
+        let mut owner = USER.write().await;
+        let owner = owner
+            .selected_account_mut()
+            .ok_or(Error::NoSelectedAccount)?;
         let paths = owner.paths();
         let files_dir = paths.files_dir();
         let options = RestoreOptions {
@@ -451,14 +463,16 @@ async fn account_rename(
 ) -> Result<()> {
     let user = resolve_user(account.as_ref(), false).await?;
     let mut owner = user.write().await;
+    let owner = owner
+        .selected_account_mut()
+        .ok_or(Error::NoSelectedAccount)?;
     owner.rename_account(name).await?;
     Ok(())
 }
 
 /// Delete an account.
 async fn account_delete(account: Option<AccountRef>) -> Result<bool> {
-    let is_shell = USER.get().is_some();
-
+    let is_shell = *SHELL.lock();
     let account = if !is_shell {
         // For deletion we don't accept account inference, it must
         // be specified explicitly
@@ -473,18 +487,21 @@ async fn account_delete(account: Option<AccountRef>) -> Result<bool> {
             return Err(Error::NotShellAccount);
         }
 
-        let user = USER.get().unwrap();
-
         // Verify the password for shell users
         // before deletion
-        verify(Arc::clone(user)).await?;
+        verify(Arc::clone(&USER)).await?;
 
-        let owner = user.read().await;
+        let owner = USER.read().await;
+        let owner =
+            owner.selected_account().ok_or(Error::NoSelectedAccount)?;
         (&*owner).into()
     };
 
     let user = resolve_user(Some(&account), false).await?;
     let mut owner = user.write().await;
+    let owner = owner
+        .selected_account_mut()
+        .ok_or(Error::NoSelectedAccount)?;
 
     let prompt = format!(
         r#"Delete account "{}" (y/n)? "#,
@@ -511,6 +528,8 @@ async fn migrate_export(
     }
 
     let owner = user.read().await;
+    let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
+
     let prompt = format!(
         r#"Export UNENCRYPTED account "{}" (y/n)? "#,
         owner.account_label().await?,
@@ -539,6 +558,9 @@ async fn migrate_import(
         format,
     };
     let mut owner = user.write().await;
+    let owner = owner
+        .selected_account_mut()
+        .ok_or(Error::NoSelectedAccount)?;
     let _ = owner.import_file(target).await?;
     Ok(())
 }
@@ -553,6 +575,7 @@ async fn contacts_export(
         return Err(Error::FileExists(output));
     }
     let owner = user.read().await;
+    let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
     owner.export_all_contacts(output).await?;
     Ok(())
 }
@@ -560,6 +583,9 @@ async fn contacts_export(
 /// Import contacts from a vCard.
 async fn contacts_import(user: Owner, input: PathBuf) -> Result<()> {
     let mut owner = user.write().await;
+    let owner = owner
+        .selected_account_mut()
+        .ok_or(Error::NoSelectedAccount)?;
     let content = vfs::read_to_string(&input).await?;
     owner.import_contacts(&content, |_| {}).await?;
     Ok(())
