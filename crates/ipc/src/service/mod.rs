@@ -233,9 +233,12 @@ where
                     {
                         Ok((mut data, _)) => {
                             let secret = data.secret_mut();
+
+                            /*
                             if redact_data {
                                 secret.redact();
                             }
+                            */
                             return Ok((
                                 CommandOutcome::Success,
                                 Some(secret.to_owned()),

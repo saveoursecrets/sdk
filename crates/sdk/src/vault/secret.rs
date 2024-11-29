@@ -1483,13 +1483,72 @@ impl fmt::Debug for Secret {
 }
 
 impl Secret {
+    /*
     /// Redact this secret clearing all sensitive information.
     ///
     /// Can be used to send an outline of a secret without exposing
     /// any actual private information.
     pub fn redact(&mut self) {
-        todo!("implement secret redaction");
+        match self {
+            Secret::Account { password, .. } => {
+                *password = SecretBox::new(String::new().into());
+            }
+            Secret::Note { text, .. } => {
+                *text = SecretBox::new(String::new().into());
+            }
+            Secret::File { content, .. } => {
+                if let FileContent::Embedded {
+                    name,
+                    mime,
+                    buffer,
+                    checksum,
+                } = content
+                {
+                    *buffer = SecretBox::new(Vec::with_capacity(0).into());
+                }
+            }
+            Secret::List { items, .. } => {
+                for (name, value) in items {
+                    *value = SecretBox::new(String::new().into());
+                }
+            }
+            Secret::Pem { certificates, .. } => {
+                // *text = SecretBox::new(String::new().into());
+                todo!();
+            }
+            Secret::Page { document, .. } => {
+                *document = SecretBox::new(String::new().into());
+            }
+            Secret::Contact { vcard, .. } => {
+                todo!();
+            }
+            Secret::Totp { totp, .. } => {
+                todo!();
+            }
+            Secret::Card { number, .. } => {
+                todo!();
+            }
+            Secret::Bank { number, .. } => {
+                *number = SecretBox::new(String::new().into());
+            }
+            Secret::Link { url, .. } => {
+                *url = SecretBox::new(String::new().into());
+            }
+            Secret::Password { password, .. } => {
+                *password = SecretBox::new(String::new().into());
+            }
+            Secret::Identity { number, .. } => {
+                *number = SecretBox::new(String::new().into());
+            }
+            Secret::Age { .. } => {
+                todo!();
+            }
+            Secret::Signer { .. } => {
+                todo!();
+            }
+        }
     }
+    */
 
     /// Measure entropy for a password and compute a SHA-1 checksum.
     ///

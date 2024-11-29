@@ -72,7 +72,6 @@ chacha20poly1305 = { version = "0.10.1", features = ["std"] }
 filetime = "0.2"
 argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
-etcetera = "0.8"
 pem = { version = "3", features = ["serde"] }
 zxcvbn = { version = "3.0.1", features = ["ser"] }
 totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
@@ -105,6 +104,7 @@ keychain_parser = { version = "0.1", path = "../keychain_parser", optional = tru
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
 file-guard.workspace = true
+etcetera = "0.8"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = {version = "0.2", features = ["js"]}

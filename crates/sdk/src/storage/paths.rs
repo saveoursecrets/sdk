@@ -3,6 +3,8 @@
 use crate::Result;
 #[cfg(feature = "audit")]
 use async_once_cell::OnceCell;
+
+#[cfg(not(target_arch = "wasm32"))]
 use etcetera::{
     app_strategy::choose_native_strategy, AppStrategy, AppStrategyArgs,
 };
