@@ -4,7 +4,8 @@ use crate::{Error, Result};
 use sos_net::sdk::{
     prelude::{
         Address, ArchiveFilter, Document, DocumentView, ExtraFields,
-        PublicIdentity, QueryFilter, SecretFlags, SecretMeta, SecretType,
+        PublicIdentity, QueryFilter, SecretFlags, SecretMeta, SecretPath,
+        SecretType,
     },
     url::Url,
     vcard4::property::Kind as ContactKind,
@@ -484,5 +485,26 @@ impl TryFrom<WirePublicIdentity> for PublicIdentity {
     fn try_from(value: WirePublicIdentity) -> Result<Self> {
         let address: Address = value.address.parse()?;
         Ok(PublicIdentity::new(value.label, address))
+    }
+}
+
+impl From<SecretPath> for WireSecretPath {
+    fn from(value: SecretPath) -> Self {
+        WireSecretPath {
+            folder_id: value.folder_id().to_string(),
+            secret_id: value.secret_id().to_string(),
+        }
+    }
+}
+
+impl TryFrom<WireSecretPath> for SecretPath {
+    type Error = sos_net::sdk::Error;
+    fn try_from(
+        value: WireSecretPath,
+    ) -> std::result::Result<Self, Self::Error> {
+        Ok(SecretPath(
+            value.folder_id.parse()?,
+            value.secret_id.parse()?,
+        ))
     }
 }

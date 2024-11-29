@@ -172,3 +172,11 @@ message WireDocument {
   // Extra field information.
   WireExtraFields extra = 4;
 }
+
+// Path to a secret.
+message WireSecretPath {
+  // Folder identifier.
+  string folder_id = 1;
+  // Secret identifier.
+  string secret_id = 2;
+}

@@ -322,6 +322,20 @@ where
                     payload: IpcResponseBody::QueryView(data),
                 })
             }
+
+            IpcRequestBody::ReadSecretOutline { address, path } => {
+                todo!("handle read secret outline request");
+
+                /*
+                let data = self
+                    .query_view(views.as_slice(), archive_filter.as_ref())
+                    .await?;
+                Ok(IpcResponse::Value {
+                    message_id,
+                    payload: IpcResponseBody::QueryView(data),
+                })
+                */
+            }
         }
     }
 }

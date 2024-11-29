@@ -68,6 +68,16 @@ pub enum IpcRequestBody {
         /// Archive filter.
         archive_filter: Option<ArchiveFilter>,
     },
+    /// Request to read a redacted secret outline.
+    ///
+    /// Allows integrations to see which fields of a
+    /// secret are set without revealing secret information.
+    ReadSecretOutline {
+        /// Account address.
+        address: Address,
+        /// Secret path.
+        path: SecretPath,
+    },
 }
 
 impl IpcRequest {
@@ -190,6 +200,21 @@ impl From<IpcRequest> for WireIpcRequest {
                     )),
                 }),
             },
+            IpcRequestBody::ReadSecretOutline { address, path } => {
+                WireIpcRequest {
+                    message_id: value.message_id,
+                    body: Some(WireIpcRequestBody {
+                        inner: Some(
+                            wire_ipc_request_body::Inner::ReadSecretOutline(
+                                WireReadSecretOutlineBody {
+                                    address: address.to_string(),
+                                    path: Some(path.into()),
+                                },
+                            ),
+                        ),
+                    }),
+                }
+            }
         }
     }
 }
@@ -273,6 +298,15 @@ impl TryFrom<WireIpcRequest> for IpcRequest {
                     payload: IpcRequestBody::QueryView {
                         views,
                         archive_filter,
+                    },
+                }
+            }
+            Some(wire_ipc_request_body::Inner::ReadSecretOutline(body)) => {
+                IpcRequest {
+                    message_id,
+                    payload: IpcRequestBody::ReadSecretOutline {
+                        address: body.address.parse()?,
+                        path: body.path.unwrap().try_into()?,
                     },
                 }
             }

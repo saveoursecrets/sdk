@@ -49,6 +49,9 @@ message WireIpcRequestBody {
 
     // Request to query a view.
     WireQueryViewBody query_view  = 11;
+
+    // Request to read secret outline.
+    WireReadSecretOutlineBody read_secret_outline = 12;
   }
 }
 
@@ -94,4 +97,12 @@ message WireQueryViewBody {
   repeated common.WireDocumentView views = 1;
   // Archive filter.
   optional common.WireArchiveFilter archive_filter = 2;
+}
+
+// Request secret outline body.
+message WireReadSecretOutlineBody {
+  // Account address.
+  string address = 1;
+  // Path to the secret. 
+  common.WireSecretPath path = 2;
 }
