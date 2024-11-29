@@ -83,12 +83,8 @@ message WireSearchBody {
 
 // Clipboard target.
 message WireClipboardTarget {
-  // Account address.
-  string address = 1;
-  // Folder identifier.
-  string folder_id = 2;
-  // Secret identifier.
-  string secret_id = 3;
+  // Qualified path to the secret. 
+  common.WireQualifiedPath path = 1;
 }
 
 // Query view request body.
@@ -101,8 +97,6 @@ message WireQueryViewBody {
 
 // Request secret outline body.
 message WireReadSecretOutlineBody {
-  // Account address.
-  string address = 1;
-  // Path to the secret. 
-  common.WireSecretPath path = 2;
+  // Qualified path to the secret. 
+  common.WireQualifiedPath path = 1;
 }

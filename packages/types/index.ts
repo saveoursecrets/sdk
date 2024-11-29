@@ -20,12 +20,18 @@ export interface ArchiveFilter {
 	includeDocuments: boolean;
 }
 
-/** Target for a clipboard copy operation. */
-export interface ClipboardTarget {
+/** Qualified path to a specific secret in a target account. */
+export interface QualifiedPath {
 	/** Account address. */
 	address: string;
-	/** Secret folder and identifier. */
+	/** Secret path. */
 	path: SecretPath;
+}
+
+/** Target for a clipboard copy operation. */
+export interface ClipboardTarget {
+	/** Qualified path to the secret. */
+	path: QualifiedPath;
 }
 
 /**
@@ -180,6 +186,16 @@ export type IpcRequestBody =
 	views: DocumentView[];
 	/** Archive filter. */
 	archive_filter?: ArchiveFilter;
+}}
+	/**
+	 * Request to read a redacted secret outline.
+	 * 
+	 * Allows integrations to see which fields of a
+	 * secret are set without revealing secret information.
+	 */
+	| { kind: "readSecretOutline", body: {
+	/** Qualified path to the secret. */
+	path: QualifiedPath;
 }};
 
 /** IPC request information. */

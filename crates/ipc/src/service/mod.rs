@@ -169,8 +169,9 @@ where
         }
 
         let accounts = self.accounts.read().await;
-        let account =
-            accounts.iter().find(|a| a.address() == &target.address);
+        let account = accounts
+            .iter()
+            .find(|a| a.address() == target.path.address());
         Ok(if let Some(account) = account {
             if account.is_authenticated().await {
                 let target_folder =
@@ -323,7 +324,7 @@ where
                 })
             }
 
-            IpcRequestBody::ReadSecretOutline { address, path } => {
+            IpcRequestBody::ReadSecretOutline { path } => {
                 todo!("handle read secret outline request");
 
                 /*

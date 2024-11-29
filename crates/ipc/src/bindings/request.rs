@@ -2,11 +2,8 @@ include!(concat!(env!("OUT_DIR"), "/request.rs"));
 
 use crate::{Error, Result, WireVoidBody};
 use serde::{Deserialize, Serialize};
-use sos_net::sdk::{
-    prelude::{
-        Address, ArchiveFilter, DocumentView, QueryFilter, SecretPath,
-    },
-    Error as SdkError,
+use sos_net::sdk::prelude::{
+    Address, ArchiveFilter, DocumentView, QualifiedPath, QueryFilter,
 };
 use tokio::time::Duration;
 use typeshare::typeshare;
@@ -73,10 +70,8 @@ pub enum IpcRequestBody {
     /// Allows integrations to see which fields of a
     /// secret are set without revealing secret information.
     ReadSecretOutline {
-        /// Account address.
-        address: Address,
-        /// Secret path.
-        path: SecretPath,
+        /// Qualified path to the secret.
+        path: QualifiedPath,
     },
 }
 
@@ -200,21 +195,18 @@ impl From<IpcRequest> for WireIpcRequest {
                     )),
                 }),
             },
-            IpcRequestBody::ReadSecretOutline { address, path } => {
-                WireIpcRequest {
-                    message_id: value.message_id,
-                    body: Some(WireIpcRequestBody {
-                        inner: Some(
-                            wire_ipc_request_body::Inner::ReadSecretOutline(
-                                WireReadSecretOutlineBody {
-                                    address: address.to_string(),
-                                    path: Some(path.into()),
-                                },
-                            ),
+            IpcRequestBody::ReadSecretOutline { path } => WireIpcRequest {
+                message_id: value.message_id,
+                body: Some(WireIpcRequestBody {
+                    inner: Some(
+                        wire_ipc_request_body::Inner::ReadSecretOutline(
+                            WireReadSecretOutlineBody {
+                                path: Some(path.into()),
+                            },
                         ),
-                    }),
-                }
-            }
+                    ),
+                }),
+            },
         }
     }
 }
@@ -305,7 +297,6 @@ impl TryFrom<WireIpcRequest> for IpcRequest {
                 IpcRequest {
                     message_id,
                     payload: IpcRequestBody::ReadSecretOutline {
-                        address: body.address.parse()?,
                         path: body.path.unwrap().try_into()?,
                     },
                 }
@@ -320,18 +311,14 @@ impl TryFrom<WireIpcRequest> for IpcRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClipboardTarget {
-    /// Account address.
-    pub address: Address,
-    /// Secret folder and identifier.
-    pub path: SecretPath,
+    /// Qualified path to the secret.
+    pub path: QualifiedPath,
 }
 
 impl From<ClipboardTarget> for WireClipboardTarget {
     fn from(value: ClipboardTarget) -> Self {
         WireClipboardTarget {
-            address: value.address.to_string(),
-            folder_id: value.path.folder_id().to_string(),
-            secret_id: value.path.secret_id().to_string(),
+            path: Some(value.path.into()),
         }
     }
 }
@@ -341,11 +328,7 @@ impl TryFrom<WireClipboardTarget> for ClipboardTarget {
 
     fn try_from(value: WireClipboardTarget) -> Result<Self> {
         Ok(ClipboardTarget {
-            address: value.address.parse()?,
-            path: SecretPath(
-                value.folder_id.parse().map_err(SdkError::from)?,
-                value.secret_id.parse().map_err(SdkError::from)?,
-            ),
+            path: value.path.unwrap().try_into()?,
         })
     }
 }

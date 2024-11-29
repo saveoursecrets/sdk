@@ -153,6 +153,24 @@ pub enum Error {
     #[error("unknown shared access kind {0}")]
     UnknownSharedAccessKind(u8),
 
+    /// Error generated when the namespace identifier for a URN is wrong.
+    #[error(
+        "invalid URN namespace identifier, expected '{0}' but got '{1}'"
+    )]
+    InvalidUrnNid(String, String),
+
+    /// Error generated when a URN expects an account address.
+    #[error("account address expected in URN '{0}'")]
+    NoUrnAddress(String),
+
+    /// Error generated when a URN expects a folder identifier.
+    #[error("folder identifier expected in URN '{0}'")]
+    NoUrnFolderId(String),
+
+    /// Error generated when a URN expects a secret identifier.
+    #[error("secret identifier expected in URN '{0}'")]
+    NoUrnSecretId(String),
+
     /// Error generated when an AeadPack contains a nonce that
     /// is invalid for the decryption cipher.
     #[error("invalid nonce")]

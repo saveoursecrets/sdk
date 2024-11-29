@@ -9,6 +9,7 @@ use std::{
 use crate::{
     account::{convert::CipherComparison, AccountBuilder},
     commit::{CommitHash, CommitState},
+    constants::URN_NID,
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
     events::{
@@ -22,12 +23,16 @@ use crate::{
         StorageEventLogs,
     },
     vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow, SecretType},
+        secret::{
+            Secret, SecretId, SecretMeta, SecretPath, SecretRow, SecretType,
+        },
         BuilderCredentials, Gatekeeper, Header, Summary, Vault, VaultBuilder,
         VaultFlags, VaultId,
     },
     vfs, Error, Paths, Result, UtcDateTime,
 };
+
+use urn::{percent, Urn, UrnBuilder};
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use crate::storage::paths::FileLock;
@@ -75,6 +80,88 @@ use tokio::sync::{mpsc, RwLock};
 
 #[cfg(feature = "archive")]
 use tokio::io::{AsyncRead, AsyncSeek, BufReader};
+
+/// Qualified path to a specific secret in a target account.
+#[typeshare::typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QualifiedPath {
+    /// Account address.
+    address: Address,
+    /// Secret path.
+    secret_path: SecretPath,
+}
+
+impl QualifiedPath {
+    /// Create a new qualified path.
+    pub fn new(address: Address, secret_path: SecretPath) -> Self {
+        Self {
+            address,
+            secret_path,
+        }
+    }
+
+    /// Account address.
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
+
+    /// Folder identifier.
+    pub fn folder_id(&self) -> &VaultId {
+        self.secret_path.folder_id()
+    }
+
+    /// Secret identifier.
+    pub fn secret_id(&self) -> &SecretId {
+        self.secret_path.secret_id()
+    }
+}
+
+impl TryFrom<QualifiedPath> for Urn {
+    type Error = Error;
+
+    fn try_from(value: QualifiedPath) -> Result<Self> {
+        let nss = format!(
+            "{}:{}:{}",
+            value.address().to_string(),
+            value.folder_id().to_string(),
+            value.secret_id().to_string()
+        );
+        let nss = percent::encode_nss(&nss)?;
+        let builder = UrnBuilder::new(URN_NID, &nss);
+        Ok(builder.build()?)
+    }
+}
+
+impl TryFrom<Urn> for QualifiedPath {
+    type Error = Error;
+
+    fn try_from(value: Urn) -> Result<Self> {
+        if value.nid() != URN_NID {
+            return Err(Error::InvalidUrnNid(
+                URN_NID.to_string(),
+                value.nid().to_owned(),
+            ));
+        }
+
+        let mut parts = value.nss().split(":");
+        let address: Address = parts
+            .next()
+            .ok_or(Error::NoUrnAddress(value.to_string()))?
+            .parse()?;
+        let folder_id: VaultId = parts
+            .next()
+            .ok_or(Error::NoUrnFolderId(value.to_string()))?
+            .parse()?;
+        let secret_id: SecretId = parts
+            .next()
+            .ok_or(Error::NoUrnSecretId(value.to_string()))?
+            .parse()?;
+        Ok(QualifiedPath::new(
+            address,
+            SecretPath(folder_id, secret_id),
+        ))
+    }
+}
 
 /// Determine how to handle a locked account.
 #[derive(Default, Clone)]

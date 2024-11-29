@@ -173,10 +173,8 @@ message WireDocument {
   WireExtraFields extra = 4;
 }
 
-// Path to a secret.
-message WireSecretPath {
-  // Folder identifier.
-  string folder_id = 1;
-  // Secret identifier.
-  string secret_id = 2;
+// Qualified path to a secret in an account.
+message WireQualifiedPath {
+  // URN representation of the qualified path.
+  string urn = 1;
 }

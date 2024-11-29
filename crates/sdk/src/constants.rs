@@ -77,6 +77,9 @@ mod vault {
 }
 
 mod urn {
+    /// URN namespace identifier.
+    pub const URN_NID: &str = "sos";
+
     /// Login vault signing key name.
     pub const LOGIN_SIGNING_KEY_URN: &str = "urn:sos:identity:signer";
 

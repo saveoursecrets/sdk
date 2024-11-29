@@ -4,10 +4,11 @@ use crate::{Error, Result};
 use sos_net::sdk::{
     prelude::{
         Address, ArchiveFilter, Document, DocumentView, ExtraFields,
-        PublicIdentity, QueryFilter, SecretFlags, SecretMeta, SecretPath,
+        PublicIdentity, QualifiedPath, QueryFilter, SecretFlags, SecretMeta,
         SecretType,
     },
     url::Url,
+    urn::Urn,
     vcard4::property::Kind as ContactKind,
     Error as SdkError, UtcDateTime,
 };
@@ -488,23 +489,21 @@ impl TryFrom<WirePublicIdentity> for PublicIdentity {
     }
 }
 
-impl From<SecretPath> for WireSecretPath {
-    fn from(value: SecretPath) -> Self {
-        WireSecretPath {
-            folder_id: value.folder_id().to_string(),
-            secret_id: value.secret_id().to_string(),
+impl From<QualifiedPath> for WireQualifiedPath {
+    fn from(value: QualifiedPath) -> Self {
+        let urn: Urn = value.try_into().unwrap();
+        WireQualifiedPath {
+            urn: urn.to_string(),
         }
     }
 }
 
-impl TryFrom<WireSecretPath> for SecretPath {
+impl TryFrom<WireQualifiedPath> for QualifiedPath {
     type Error = sos_net::sdk::Error;
     fn try_from(
-        value: WireSecretPath,
+        value: WireQualifiedPath,
     ) -> std::result::Result<Self, Self::Error> {
-        Ok(SecretPath(
-            value.folder_id.parse()?,
-            value.secret_id.parse()?,
-        ))
+        let urn: Urn = value.urn.parse()?;
+        Ok(urn.try_into()?)
     }
 }
