@@ -1483,6 +1483,14 @@ impl fmt::Debug for Secret {
 }
 
 impl Secret {
+    /// Redact this secret clearing all sensitive information.
+    ///
+    /// Can be used to send an outline of a secret without exposing
+    /// any actual private information.
+    pub fn redact(&mut self) {
+        todo!("implement secret redaction");
+    }
+
     /// Measure entropy for a password and compute a SHA-1 checksum.
     ///
     /// Only applies to account and password types, other

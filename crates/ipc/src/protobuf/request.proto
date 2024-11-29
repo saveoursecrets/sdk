@@ -50,8 +50,8 @@ message WireIpcRequestBody {
     // Request to query a view.
     WireQueryViewBody query_view  = 11;
 
-    // Request to read secret outline.
-    WireReadSecretOutlineBody read_secret_outline = 12;
+    // Request to read secret data.
+    WireReadSecretBody read_secret = 12;
   }
 }
 
@@ -95,8 +95,10 @@ message WireQueryViewBody {
   optional common.WireArchiveFilter archive_filter = 2;
 }
 
-// Request secret outline body.
-message WireReadSecretOutlineBody {
+// Request secret body.
+message WireReadSecretBody {
   // Qualified path to the secret. 
   common.WireQualifiedPath path = 1;
+  // Whether to redact the secret data.
+  bool redact = 2;
 }

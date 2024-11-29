@@ -8,7 +8,10 @@ use sos_account_extras::clipboard::NativeClipboard;
 use sos_net::{
     sdk::{
         account::{Account, AccountSwitcher, LocalAccount},
-        prelude::{ArchiveFilter, DocumentView, Identity, QueryFilter},
+        prelude::{
+            ArchiveFilter, DocumentView, Identity, QualifiedPath,
+            QueryFilter, Secret,
+        },
         Paths,
     },
     NetworkAccount,
@@ -74,7 +77,8 @@ where
 
 impl<E, R, A> IpcServiceHandler<E, R, A>
 where
-    E: std::fmt::Debug
+    E: std::error::Error
+        + std::fmt::Debug
         + From<sos_net::sdk::Error>
         + From<std::io::Error>
         + 'static,
@@ -206,12 +210,87 @@ where
             CommandOutcome::NotFound
         })
     }
+
+    /// Read secret.
+    async fn read_secret(
+        &self,
+        target: QualifiedPath,
+        redact_data: bool,
+    ) -> Result<(CommandOutcome, Option<Secret>), E> {
+        let accounts = self.accounts.read().await;
+        let account =
+            accounts.iter().find(|a| a.address() == target.address());
+        Ok(if let Some(account) = account {
+            if account.is_authenticated().await {
+                let target_folder =
+                    account.find(|f| f.id() == target.folder_id()).await;
+                if let Some(folder) = target_folder {
+                    let current_folder = account.current_folder().await?;
+
+                    let result = match account
+                        .read_secret(target.secret_id(), Some(folder))
+                        .await
+                    {
+                        Ok((mut data, _)) => {
+                            let secret = data.secret_mut();
+                            if redact_data {
+                                secret.redact();
+                            }
+                            return Ok((
+                                CommandOutcome::Success,
+                                Some(secret.to_owned()),
+                            ));
+                        }
+                        Err(e) => {
+                            if let Some(source) = e.source() {
+                                if let Some(net_err) =
+                                    source.downcast_ref::<sos_net::Error>()
+                                {
+                                    if net_err.is_secret_not_found() {
+                                        (CommandOutcome::NotFound, None)
+                                    } else {
+                                        return Err(e);
+                                    }
+                                } else if let Some(sdk_err) =
+                                    source
+                                        .downcast_ref::<sos_net::sdk::Error>()
+                                {
+                                    if sdk_err.is_secret_not_found() {
+                                        (CommandOutcome::NotFound, None)
+                                    } else {
+                                        return Err(e);
+                                    }
+                                } else {
+                                    return Err(e);
+                                }
+                            } else {
+                                return Err(e);
+                            }
+                        }
+                    };
+
+                    if let Some(current) = &current_folder {
+                        account.open_folder(current).await?;
+                    }
+
+                    result
+                } else {
+                    (CommandOutcome::NotFound, None)
+                }
+            } else {
+                (CommandOutcome::NotAuthenticated, None)
+            }
+        } else {
+            (CommandOutcome::NotFound, None)
+        })
+    }
 }
 
 #[async_trait]
 impl<E, R, A> IpcService<E> for IpcServiceHandler<E, R, A>
 where
-    E: std::fmt::Debug
+    E: std::error::Error
+        + std::fmt::Debug
         + From<sos_net::sdk::Error>
         + From<std::io::Error>
         + 'static,
@@ -324,16 +403,15 @@ where
                 })
             }
 
-            IpcRequestBody::ReadSecretOutline { path } => {
+            IpcRequestBody::ReadSecret { path, redact } => {
+                let (outcome, data) = self.read_secret(path, redact).await?;
+
                 todo!("handle read secret outline request");
 
                 /*
-                let data = self
-                    .query_view(views.as_slice(), archive_filter.as_ref())
-                    .await?;
                 Ok(IpcResponse::Value {
                     message_id,
-                    payload: IpcResponseBody::QueryView(data),
+                    payload: IpcResponseBody::ReadSecretOutline((outcome, data)),
                 })
                 */
             }

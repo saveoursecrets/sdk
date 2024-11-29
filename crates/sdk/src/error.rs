@@ -660,6 +660,13 @@ pub enum Error {
     TotpUrl(#[from] totp_rs::TotpUrlError),
 }
 
+impl Error {
+    /// Whether this is a secret not found error.
+    pub fn is_secret_not_found(&self) -> bool {
+        matches!(self, Error::SecretNotFound(_))
+    }
+}
+
 impl From<String> for Error {
     fn from(value: String) -> Self {
         Self::Message(value)
