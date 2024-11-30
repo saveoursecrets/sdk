@@ -1,33 +1,149 @@
-//! Local integration is a client used to connect to an
-//! app running locally.
+//! Local integration is a sync client used to connect to an
+//! app running on the same device.
 //!
-//! It's API operates on the encrypted representation of the
-//! underlying data sources so that it is able to communicate
+//! Like network-aware accounts it operates on the
+//! encrypted data sources so that it is able to communicate
 //! over potentially insecure unauthenticated communication
 //! channels such as named pipes.
 //!
-//! It is transport-agnostic and provides an API for syncing
-//! local account data. Typically, this would be used in
-//! the webassembly bindings for a browser extension.
+//! Typically, this would be used in the webassembly bindings
+//! for a browser extension or other local integration.
 
-use crate::{CreateSet, Result};
+use crate::{
+    CreateSet, DiffRequest, DiffResponse, Error, Origin, PatchRequest,
+    PatchResponse, ScanRequest, ScanResponse, SyncClient, SyncPacket,
+    SyncStatus, UpdateSet,
+};
+use async_trait::async_trait;
 use sos_sdk::prelude::LocalAccountSwitcher;
+use tokio::sync::RwLock;
 
 /// Local app integration.
 pub struct LocalIntegration {
-    accounts: LocalAccountSwitcher,
+    accounts: RwLock<LocalAccountSwitcher>,
 }
 
 impl LocalIntegration {
     /// Create a local app integration.
     pub fn new() -> Self {
         Self {
-            accounts: LocalAccountSwitcher::new(),
+            accounts: RwLock::new(LocalAccountSwitcher::new()),
         }
     }
+}
 
-    /// Create an account from the encrypted contents.
-    pub fn create_account(&mut self, account_data: CreateSet) -> Result<()> {
+#[async_trait]
+impl SyncClient for LocalIntegration {
+    type Error = Error;
+
+    fn origin(&self) -> &Origin {
+        unimplemented!(
+            "origin is not supported for local integration clients"
+        );
+    }
+
+    async fn account_exists(&self) -> Result<bool, Self::Error> {
+        todo!();
+    }
+
+    async fn create_account(
+        &self,
+        account: CreateSet,
+    ) -> Result<(), Self::Error> {
+        todo!();
+    }
+
+    async fn update_account(
+        &self,
+        account: UpdateSet,
+    ) -> Result<(), Self::Error> {
+        todo!();
+    }
+
+    async fn fetch_account(&self) -> Result<CreateSet, Self::Error> {
+        todo!();
+    }
+
+    async fn delete_account(&self) -> Result<(), Self::Error> {
+        todo!();
+    }
+
+    async fn sync_status(&self) -> Result<SyncStatus, Self::Error> {
+        todo!();
+    }
+
+    async fn sync(
+        &self,
+        packet: SyncPacket,
+    ) -> Result<SyncPacket, Self::Error> {
+        todo!();
+    }
+
+    async fn scan(
+        &self,
+        request: ScanRequest,
+    ) -> Result<ScanResponse, Self::Error> {
+        todo!();
+    }
+
+    async fn diff(
+        &self,
+        request: DiffRequest,
+    ) -> Result<DiffResponse, Self::Error> {
+        todo!();
+    }
+
+    async fn patch(
+        &self,
+        request: PatchRequest,
+    ) -> Result<PatchResponse, Self::Error> {
+        todo!();
+    }
+
+    #[cfg(feature = "files")]
+    async fn upload_file(
+        &self,
+        file_info: &sos_sdk::storage::files::ExternalFile,
+        path: &std::path::Path,
+        progress: crate::ProgressChannel,
+        cancel: tokio::sync::watch::Receiver<crate::CancelReason>,
+    ) -> Result<http::StatusCode, Self::Error> {
+        todo!();
+    }
+
+    #[cfg(feature = "files")]
+    async fn download_file(
+        &self,
+        file_info: &sos_sdk::storage::files::ExternalFile,
+        path: &std::path::Path,
+        progress: crate::ProgressChannel,
+        cancel: tokio::sync::watch::Receiver<crate::CancelReason>,
+    ) -> Result<http::StatusCode, Self::Error> {
+        todo!();
+    }
+
+    #[cfg(feature = "files")]
+    async fn delete_file(
+        &self,
+        file_info: &sos_sdk::storage::files::ExternalFile,
+    ) -> Result<http::StatusCode, Self::Error> {
+        todo!();
+    }
+
+    #[cfg(feature = "files")]
+    async fn move_file(
+        &self,
+        from: &sos_sdk::storage::files::ExternalFile,
+        to: &sos_sdk::storage::files::ExternalFile,
+    ) -> Result<http::StatusCode, Self::Error> {
+        todo!();
+    }
+
+    #[cfg(feature = "files")]
+    async fn compare_files(
+        &self,
+        local_files: crate::FileSet,
+    ) -> Result<crate::FileTransfersSet, Self::Error> {
         todo!();
     }
 }
