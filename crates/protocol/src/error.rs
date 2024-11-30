@@ -1,4 +1,5 @@
 //! Error type for the wire protocol.
+use http::StatusCode;
 use sos_sdk::time;
 use thiserror::Error;
 
@@ -8,6 +9,10 @@ pub enum Error {
     /// Reached EOF decoding a relay packet.
     #[error("relay packet end of file")]
     EndOfFile,
+
+    /// Error generated when an unexpected response code is received.
+    #[error("unexpected response status code {0}")]
+    ResponseCode(StatusCode),
 
     /// Error generated converting from a slice.
     #[error(transparent)]

@@ -7,7 +7,7 @@
 
 use crate::{
     CreateSet, DiffRequest, DiffResponse, Error, Origin, PatchRequest,
-    PatchResponse, ScanRequest, ScanResponse, SyncClient, SyncPacket,
+    PatchResponse, Result, ScanRequest, ScanResponse, SyncClient, SyncPacket,
     SyncStatus, UpdateSet,
 };
 use async_trait::async_trait;
@@ -15,19 +15,27 @@ use http::{Method, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use sos_sdk::{prelude::Address, url::Url};
+use std::sync::Arc;
+use tracing::instrument;
 
 type ClientTransport = Box<dyn LocalTransport + Send + Sync + 'static>;
 
 /// Linked account.
+#[derive(Clone)]
 pub struct LocalClient {
     origin: Origin,
-    transport: ClientTransport,
+    transport: Arc<ClientTransport>,
 }
 
 impl LocalClient {
     /// Create a local client.
-    pub fn new(origin: Origin, transport: ClientTransport) -> Self {
+    pub fn new(origin: Origin, transport: Arc<ClientTransport>) -> Self {
         Self { origin, transport }
+    }
+
+    /// Build a URL for the local client.
+    fn build_url(&self, route: &str) -> Result<Url> {
+        Ok(self.origin.url().join(route)?)
     }
 }
 
@@ -39,18 +47,37 @@ impl SyncClient for LocalClient {
         &self.origin
     }
 
-    async fn account_exists(
-        &self,
-        address: &Address,
-    ) -> Result<bool, Self::Error> {
-        todo!();
+    #[instrument(skip(self))]
+    async fn account_exists(&self, address: &Address) -> Result<bool> {
+        let url = self.build_url("api/v1/sync/account")?;
+
+        tracing::debug!(url = %url, "local_client::account_exists");
+
+        let request = TransportRequest {
+            method: Method::HEAD,
+            url,
+            body: None,
+        };
+
+        let response = self.transport.send(request).await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "local_client::account_exists");
+        let exists = match status {
+            StatusCode::OK => true,
+            StatusCode::NOT_FOUND => false,
+            _ => {
+                return Err(Error::ResponseCode(status));
+            }
+        };
+
+        Ok(exists)
     }
 
     async fn create_account(
         &self,
         address: &Address,
         account: CreateSet,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<()> {
         todo!();
     }
 
@@ -58,47 +85,35 @@ impl SyncClient for LocalClient {
         &self,
         address: &Address,
         account: UpdateSet,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<()> {
         todo!();
     }
 
-    async fn fetch_account(&self) -> Result<CreateSet, Self::Error> {
+    async fn fetch_account(&self) -> Result<CreateSet> {
         todo!();
     }
 
-    async fn delete_account(&self) -> Result<(), Self::Error> {
+    async fn delete_account(&self) -> Result<()> {
         todo!();
     }
 
-    async fn sync_status(&self) -> Result<SyncStatus, Self::Error> {
+    async fn sync_status(&self) -> Result<SyncStatus> {
         todo!();
     }
 
-    async fn sync(
-        &self,
-        packet: SyncPacket,
-    ) -> Result<SyncPacket, Self::Error> {
+    async fn sync(&self, packet: SyncPacket) -> Result<SyncPacket> {
         todo!();
     }
 
-    async fn scan(
-        &self,
-        request: ScanRequest,
-    ) -> Result<ScanResponse, Self::Error> {
+    async fn scan(&self, request: ScanRequest) -> Result<ScanResponse> {
         todo!();
     }
 
-    async fn diff(
-        &self,
-        request: DiffRequest,
-    ) -> Result<DiffResponse, Self::Error> {
+    async fn diff(&self, request: DiffRequest) -> Result<DiffResponse> {
         todo!();
     }
 
-    async fn patch(
-        &self,
-        request: PatchRequest,
-    ) -> Result<PatchResponse, Self::Error> {
+    async fn patch(&self, request: PatchRequest) -> Result<PatchResponse> {
         todo!();
     }
 }
@@ -114,7 +129,7 @@ pub struct TransportRequest {
     #[serde_as(as = "DisplayFromStr")]
     pub url: Url,
     /// Request body.
-    #[serde(skip_serializing = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<Vec<u8>>,
 }
 
@@ -124,15 +139,25 @@ pub struct TransportRequest {
 pub struct TransportResponse {
     /// Response status code.
     #[serde_as(as = "DisplayFromStr")]
-    pub status: StatusCode,
+    status: StatusCode,
     /// Response body.
-    #[serde(skip_serializing = "Option::is_none")]
-    pub body: Option<Vec<u8>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    body: Option<Vec<u8>>,
+}
+
+impl TransportResponse {
+    /// Status code.
+    pub fn status(&self) -> StatusCode {
+        self.status
+    }
 }
 
 /// Generic local transport.
 #[async_trait]
 pub trait LocalTransport {
     /// Send a request over the local transport.
-    async fn send(&self, request: TransportRequest) -> TransportResponse;
+    async fn send(
+        &self,
+        request: TransportRequest,
+    ) -> Result<TransportResponse>;
 }
