@@ -1,10 +1,7 @@
 use crate::{
-    protocol::{
-        CreateSet, DiffRequest, DiffResponse, MergeOutcome, Origin,
-        PatchRequest, PatchResponse, ScanRequest, ScanResponse, SyncOptions,
-        SyncPacket, SyncStatus, UpdateSet,
-    },
-    Result,
+    CreateSet, DiffRequest, DiffResponse, MergeOutcome, Origin, PatchRequest,
+    PatchResponse, Result, ScanRequest, ScanResponse, SyncOptions,
+    SyncPacket, SyncStatus, UpdateSet,
 };
 use async_trait::async_trait;
 
@@ -166,6 +163,7 @@ pub trait SyncClient {
     /// attempt to rewind to the commit before applying the patch.
     async fn patch(&self, request: PatchRequest) -> Result<PatchResponse>;
 
+    /*
     /// Send a file.
     #[cfg(feature = "files")]
     async fn upload_file(
@@ -200,6 +198,7 @@ pub trait SyncClient {
         from: &sos_sdk::storage::files::ExternalFile,
         to: &sos_sdk::storage::files::ExternalFile,
     ) -> Result<http::StatusCode>;
+    */
 
     /// Compare local files with a remote server.
     ///
@@ -212,6 +211,6 @@ pub trait SyncClient {
     #[cfg(feature = "files")]
     async fn compare_files(
         &self,
-        local_files: crate::protocol::FileSet,
-    ) -> Result<crate::protocol::FileTransfersSet>;
+        local_files: crate::FileSet,
+    ) -> Result<crate::FileTransfersSet>;
 }

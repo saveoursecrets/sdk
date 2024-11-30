@@ -22,11 +22,15 @@
 
 mod bindings;
 mod error;
+#[cfg(feature = "local-integration")]
+pub mod local_integration;
 mod sync;
+mod traits;
 
 pub use bindings::*;
 pub use error::Error;
 pub use sync::*;
+pub use traits::*;
 
 use prost::{bytes::Buf, Message};
 
