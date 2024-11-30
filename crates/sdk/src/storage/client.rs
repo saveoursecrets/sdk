@@ -16,14 +16,14 @@ use crate::{
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         BuilderCredentials, ChangePassword, FolderRef, Header, Summary,
-        Vault, VaultBuilder, VaultId,
+        Vault, VaultBuilder, VaultCommit, VaultId,
     },
     vfs, Error, Paths, Result, UtcDateTime,
 };
 
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "archive")]
@@ -1402,6 +1402,19 @@ impl ClientStorage {
         }
 
         Ok(result)
+    }
+
+    /// Read the encrypted contents of a secret.
+    pub(crate) async fn raw_secret(
+        &self,
+        folder_id: &VaultId,
+        secret_id: &SecretId,
+    ) -> Result<(Option<Cow<'_, VaultCommit>>, ReadEvent)> {
+        let folder = self
+            .cache
+            .get(folder_id)
+            .ok_or(Error::CacheNotAvailable(*folder_id))?;
+        folder.raw_secret(secret_id).await
     }
 
     /// Read a secret in the currently open folder.

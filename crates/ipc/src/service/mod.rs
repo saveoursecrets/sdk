@@ -8,9 +8,9 @@ use sos_account_extras::clipboard::NativeClipboard;
 use sos_net::{
     sdk::{
         account::{Account, AccountSwitcher, LocalAccount},
+        encode,
         prelude::{
-            ArchiveFilter, DocumentView, Identity, QualifiedPath,
-            QueryFilter, Secret,
+            ArchiveFilter, DocumentView, Identity, QualifiedPath, QueryFilter,
         },
         Paths,
     },
@@ -215,8 +215,7 @@ where
     async fn read_secret(
         &self,
         target: QualifiedPath,
-        redact_data: bool,
-    ) -> Result<(CommandOutcome, Option<Secret>), E> {
+    ) -> Result<(CommandOutcome, Option<Vec<u8>>), E> {
         let accounts = self.accounts.read().await;
         let account =
             accounts.iter().find(|a| a.address() == target.address());
@@ -225,58 +224,17 @@ where
                 let target_folder =
                     account.find(|f| f.id() == target.folder_id()).await;
                 if let Some(folder) = target_folder {
-                    let current_folder = account.current_folder().await?;
-
-                    let result = match account
-                        .read_secret(target.secret_id(), Some(folder))
-                        .await
-                    {
-                        Ok((mut data, _)) => {
-                            let secret = data.secret_mut();
-
-                            /*
-                            if redact_data {
-                                secret.redact();
-                            }
-                            */
-                            return Ok((
-                                CommandOutcome::Success,
-                                Some(secret.to_owned()),
-                            ));
-                        }
-                        Err(e) => {
-                            if let Some(source) = e.source() {
-                                if let Some(net_err) =
-                                    source.downcast_ref::<sos_net::Error>()
-                                {
-                                    if net_err.is_secret_not_found() {
-                                        (CommandOutcome::NotFound, None)
-                                    } else {
-                                        return Err(e);
-                                    }
-                                } else if let Some(sdk_err) =
-                                    source
-                                        .downcast_ref::<sos_net::sdk::Error>()
-                                {
-                                    if sdk_err.is_secret_not_found() {
-                                        (CommandOutcome::NotFound, None)
-                                    } else {
-                                        return Err(e);
-                                    }
-                                } else {
-                                    return Err(e);
-                                }
-                            } else {
-                                return Err(e);
-                            }
-                        }
+                    let (vault_commit, _) = account
+                        .raw_secret(folder.id(), target.secret_id())
+                        .await?;
+                    let result = if let Some(commit) = vault_commit {
+                        let buffer = encode(&commit).await?;
+                        Some(buffer)
+                    } else {
+                        None
                     };
 
-                    if let Some(current) = &current_folder {
-                        account.open_folder(current).await?;
-                    }
-
-                    result
+                    (CommandOutcome::Success, result)
                 } else {
                     (CommandOutcome::NotFound, None)
                 }
@@ -406,8 +364,8 @@ where
                 })
             }
 
-            IpcRequestBody::ReadSecret { path, redact } => {
-                let (outcome, data) = self.read_secret(path, redact).await?;
+            IpcRequestBody::ReadSecret { path } => {
+                let (outcome, data) = self.read_secret(path).await?;
 
                 todo!("handle read secret outline request");
 

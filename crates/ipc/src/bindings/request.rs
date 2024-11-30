@@ -66,15 +66,9 @@ pub enum IpcRequestBody {
         archive_filter: Option<ArchiveFilter>,
     },
     /// Request to read a secret.
-    ///
-    /// When the redact flag is set it allows integrations to
-    /// see which fields of a secret are set without revealing
-    /// secret information.
     ReadSecret {
         /// Qualified path to the secret.
         path: QualifiedPath,
-        /// Redact before returning the data.
-        redact: bool,
     },
 }
 
@@ -198,13 +192,12 @@ impl From<IpcRequest> for WireIpcRequest {
                     )),
                 }),
             },
-            IpcRequestBody::ReadSecret { path, redact } => WireIpcRequest {
+            IpcRequestBody::ReadSecret { path } => WireIpcRequest {
                 message_id: value.message_id,
                 body: Some(WireIpcRequestBody {
                     inner: Some(wire_ipc_request_body::Inner::ReadSecret(
                         WireReadSecretBody {
                             path: Some(path.into()),
-                            redact,
                         },
                     )),
                 }),
@@ -300,7 +293,6 @@ impl TryFrom<WireIpcRequest> for IpcRequest {
                     message_id,
                     payload: IpcRequestBody::ReadSecret {
                         path: body.path.unwrap().try_into()?,
-                        redact: body.redact,
                     },
                 }
             }

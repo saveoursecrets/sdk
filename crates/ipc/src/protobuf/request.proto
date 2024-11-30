@@ -99,6 +99,4 @@ message WireQueryViewBody {
 message WireReadSecretBody {
   // Qualified path to the secret. 
   common.WireQualifiedPath path = 1;
-  // Whether to redact the secret data.
-  bool redact = 2;
 }

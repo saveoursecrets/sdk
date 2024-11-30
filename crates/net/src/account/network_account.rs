@@ -22,7 +22,7 @@ use crate::{
         },
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow},
-            Summary, Vault, VaultId,
+            Summary, Vault, VaultCommit, VaultId,
         },
         vfs, Paths,
     },
@@ -1386,6 +1386,16 @@ impl Account for NetworkAccount {
     ) -> Result<(SecretRow, ReadEvent)> {
         let account = self.account.lock().await;
         Ok(account.read_secret(secret_id, folder).await?)
+    }
+
+    async fn raw_secret(
+        &self,
+        folder_id: &VaultId,
+        secret_id: &SecretId,
+    ) -> std::result::Result<(Option<VaultCommit>, ReadEvent), Self::Error>
+    {
+        let account = self.account.lock().await;
+        Ok(account.raw_secret(folder_id, secret_id).await?)
     }
 
     async fn delete_secret(

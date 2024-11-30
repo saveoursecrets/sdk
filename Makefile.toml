@@ -38,6 +38,12 @@ command = "cargo"
 args = ["build"]
 dependencies = ["clean"]
 
+[tasks.wasm-bindings]
+script = '''
+cd crates/bindings/wasm
+wasm-pack build --target web --scope saveoursecrets
+'''
+
 [tasks.release]
 command = "cargo"
 args = ["build", "--bins", "--all", "--release"]

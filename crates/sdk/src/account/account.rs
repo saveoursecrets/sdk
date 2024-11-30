@@ -27,7 +27,7 @@ use crate::{
             Secret, SecretId, SecretMeta, SecretPath, SecretRow, SecretType,
         },
         BuilderCredentials, Gatekeeper, Header, Summary, Vault, VaultBuilder,
-        VaultFlags, VaultId,
+        VaultCommit, VaultFlags, VaultId,
     },
     vfs, Error, Paths, Result, UtcDateTime,
 };
@@ -680,6 +680,16 @@ pub trait Account {
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> std::result::Result<(SecretRow, ReadEvent), Self::Error>;
+
+    /// Read the encrypted contents of a secret.
+    ///
+    /// Does not affect the currently open folder and
+    /// does not append any audit logs.
+    async fn raw_secret(
+        &self,
+        folder_id: &VaultId,
+        secret_id: &SecretId,
+    ) -> std::result::Result<(Option<VaultCommit>, ReadEvent), Self::Error>;
 
     /// Delete a secret and remove any external files.
     async fn delete_secret(
@@ -2415,6 +2425,20 @@ impl Account for LocalAccount {
         folder: Option<Summary>,
     ) -> Result<(SecretRow, ReadEvent)> {
         self.get_secret(secret_id, folder, true).await
+    }
+
+    async fn raw_secret(
+        &self,
+        folder_id: &VaultId,
+        secret_id: &SecretId,
+    ) -> std::result::Result<(Option<VaultCommit>, ReadEvent), Self::Error>
+    {
+        let storage = self.storage().await?;
+        let reader = storage.read().await;
+        Ok(match reader.raw_secret(folder_id, secret_id).await? {
+            (Some(commit), event) => (Some(commit.into_owned()), event),
+            (None, event) => (None, event),
+        })
     }
 
     async fn delete_secret(
