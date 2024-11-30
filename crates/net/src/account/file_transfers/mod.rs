@@ -16,7 +16,10 @@
 //! by a semaphore and notifications are sent via [InflightTransfers].
 use crate::{
     net::NetworkRetry,
-    protocol::{CancelReason, FileOperation, Origin, TransferOperation},
+    protocol::{
+        CancelReason, FileOperation, FileSyncClient, Origin,
+        TransferOperation,
+    },
     sdk::{storage::files::ExternalFile, vfs, Paths},
     Error, Result, SyncClient,
 };
@@ -222,7 +225,13 @@ impl FileTransfersHandle {
 /// when each operation has been completed on every client.
 pub struct FileTransfers<C>
 where
-    C: SyncClient<Error = Error> + Clone + Send + Sync + PartialEq + 'static,
+    C: SyncClient<Error = Error>
+        + FileSyncClient<Error = Error>
+        + Clone
+        + Send
+        + Sync
+        + PartialEq
+        + 'static,
 {
     clients: Arc<Mutex<Vec<C>>>,
     settings: Arc<FileTransferSettings>,
@@ -233,7 +242,13 @@ where
 
 impl<C> FileTransfers<C>
 where
-    C: SyncClient<Error = Error> + Clone + Send + Sync + PartialEq + 'static,
+    C: SyncClient<Error = Error>
+        + FileSyncClient<Error = Error>
+        + Clone
+        + Send
+        + Sync
+        + PartialEq
+        + 'static,
 {
     /// Create new file transfers manager.
     pub fn new(clients: Vec<C>, settings: FileTransferSettings) -> Self {

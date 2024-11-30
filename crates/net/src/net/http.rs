@@ -35,7 +35,7 @@ use crate::{
 
 #[cfg(feature = "files")]
 use crate::{
-    protocol::{FileSet, FileTransfersSet},
+    protocol::{FileSet, FileSyncClient, FileTransfersSet},
     sdk::storage::files::ExternalFile,
     ProgressChannel,
 };
@@ -482,8 +482,13 @@ impl SyncClient for HttpClient {
         let buffer = response.bytes().await?;
         Ok(PatchResponse::decode(buffer).await?)
     }
+}
 
-    #[cfg(feature = "files")]
+#[cfg(feature = "files")]
+#[async_trait]
+impl FileSyncClient for HttpClient {
+    type Error = crate::Error;
+
     #[instrument(skip(self, path, progress, cancel))]
     async fn upload_file(
         &self,
@@ -571,7 +576,6 @@ impl SyncClient for HttpClient {
         Ok(status)
     }
 
-    #[cfg(feature = "files")]
     #[instrument(skip(self, path, progress, cancel))]
     async fn download_file(
         &self,
@@ -675,7 +679,6 @@ impl SyncClient for HttpClient {
         Ok(status)
     }
 
-    #[cfg(feature = "files")]
     #[instrument(skip(self))]
     async fn delete_file(
         &self,
@@ -711,7 +714,6 @@ impl SyncClient for HttpClient {
         Ok(status)
     }
 
-    #[cfg(feature = "files")]
     #[instrument(skip(self))]
     async fn move_file(
         &self,
@@ -752,7 +754,6 @@ impl SyncClient for HttpClient {
         Ok(status)
     }
 
-    #[cfg(feature = "files")]
     #[instrument(skip_all)]
     async fn compare_files(
         &self,

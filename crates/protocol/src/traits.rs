@@ -212,53 +212,68 @@ pub trait SyncClient {
         &self,
         request: PatchRequest,
     ) -> Result<PatchResponse, Self::Error>;
-
-    /// Send a file.
-    #[cfg(feature = "files")]
-    async fn upload_file(
-        &self,
-        file_info: &sos_sdk::storage::files::ExternalFile,
-        path: &std::path::Path,
-        progress: crate::ProgressChannel,
-        cancel: tokio::sync::watch::Receiver<crate::CancelReason>,
-    ) -> Result<http::StatusCode, Self::Error>;
-
-    /// Receive a file.
-    #[cfg(feature = "files")]
-    async fn download_file(
-        &self,
-        file_info: &sos_sdk::storage::files::ExternalFile,
-        path: &std::path::Path,
-        progress: crate::ProgressChannel,
-        cancel: tokio::sync::watch::Receiver<crate::CancelReason>,
-    ) -> Result<http::StatusCode, Self::Error>;
-
-    /// Delete a file on the remote server.
-    #[cfg(feature = "files")]
-    async fn delete_file(
-        &self,
-        file_info: &sos_sdk::storage::files::ExternalFile,
-    ) -> Result<http::StatusCode, Self::Error>;
-
-    /// Move a file on the remote server.
-    #[cfg(feature = "files")]
-    async fn move_file(
-        &self,
-        from: &sos_sdk::storage::files::ExternalFile,
-        to: &sos_sdk::storage::files::ExternalFile,
-    ) -> Result<http::StatusCode, Self::Error>;
-
-    /// Compare local files with a remote server.
-    ///
-    /// Used to build a transfer queue that will eventually ensure
-    /// external files are in sync.
-    ///
-    /// Comparing sets of files is expensive as both local and remote
-    /// need to read the external files state from disc so only use this
-    /// when necessary.
-    #[cfg(feature = "files")]
-    async fn compare_files(
-        &self,
-        local_files: crate::FileSet,
-    ) -> Result<crate::FileTransfersSet, Self::Error>;
 }
+
+#[cfg(feature = "files")]
+mod file_sync {
+    use crate::{CancelReason, FileSet, FileTransfersSet, ProgressChannel};
+    use async_trait::async_trait;
+    use http::StatusCode;
+    use sos_sdk::storage::files::ExternalFile;
+    use std::path::Path;
+    use tokio::sync::watch;
+
+    /// Client that can synchronize files.
+    #[async_trait]
+    pub trait FileSyncClient {
+        /// Error type for file sync client.
+        type Error: std::error::Error + std::fmt::Debug;
+
+        /// Send a file.
+        async fn upload_file(
+            &self,
+            file_info: &ExternalFile,
+            path: &Path,
+            progress: ProgressChannel,
+            cancel: watch::Receiver<CancelReason>,
+        ) -> Result<StatusCode, Self::Error>;
+
+        /// Receive a file.
+        async fn download_file(
+            &self,
+            file_info: &ExternalFile,
+            path: &Path,
+            progress: ProgressChannel,
+            cancel: watch::Receiver<CancelReason>,
+        ) -> Result<StatusCode, Self::Error>;
+
+        /// Delete a file on the remote server.
+        async fn delete_file(
+            &self,
+            file_info: &ExternalFile,
+        ) -> Result<StatusCode, Self::Error>;
+
+        /// Move a file on the remote server.
+        async fn move_file(
+            &self,
+            from: &ExternalFile,
+            to: &ExternalFile,
+        ) -> Result<StatusCode, Self::Error>;
+
+        /// Compare local files with a remote server.
+        ///
+        /// Used to build a transfer queue that will eventually ensure
+        /// external files are in sync.
+        ///
+        /// Comparing sets of files is expensive as both local and remote
+        /// need to read the external files state from disc so only use this
+        /// when necessary.
+        async fn compare_files(
+            &self,
+            local_files: FileSet,
+        ) -> Result<FileTransfersSet, Self::Error>;
+    }
+}
+
+#[cfg(feature = "files")]
+pub use file_sync::FileSyncClient;
