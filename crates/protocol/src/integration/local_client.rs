@@ -12,6 +12,8 @@ use crate::{
 };
 use async_trait::async_trait;
 use http::{Method, StatusCode};
+use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use sos_sdk::{prelude::Address, url::Url};
 
 type ClientTransport = Box<dyn LocalTransport + Send + Sync + 'static>;
@@ -101,21 +103,30 @@ impl SyncClient for LocalClient {
     }
 }
 
-/// Request that can be sent over a local transport.
+/// Request that can be sent to a local data source.
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TransportRequest {
     /// Request method.
+    #[serde_as(as = "DisplayFromStr")]
     pub method: Method,
     /// Request URL.
+    #[serde_as(as = "DisplayFromStr")]
     pub url: Url,
     /// Request body.
+    #[serde(skip_serializing = "Option::is_none")]
     pub body: Option<Vec<u8>>,
 }
 
-/// Response received by a local transport.
+/// Response received from a local data source.
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TransportResponse {
     /// Response status code.
+    #[serde_as(as = "DisplayFromStr")]
     pub status: StatusCode,
     /// Response body.
+    #[serde(skip_serializing = "Option::is_none")]
     pub body: Option<Vec<u8>>,
 }
 
