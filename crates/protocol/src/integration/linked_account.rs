@@ -1,6 +1,6 @@
 //! Linked account supports syncing accounts on the
 //! same device using a local client.
-use crate::Origin;
+use crate::{Origin, RemoteResult, RemoteSync, SyncOptions, UpdateSet};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_sdk::{
@@ -593,5 +593,33 @@ impl Account for LinkedAccount {
         self.inner
             .restore_backup_archive(path, password, options, data_dir)
             .await
+    }
+}
+
+#[async_trait]
+impl RemoteSync for LinkedAccount {
+    type Error = crate::Error;
+
+    async fn sync(&self) -> RemoteResult<Self::Error> {
+        todo!();
+    }
+
+    async fn sync_with_options(
+        &self,
+        options: &SyncOptions,
+    ) -> RemoteResult<Self::Error> {
+        todo!();
+    }
+
+    #[cfg(feature = "files")]
+    async fn sync_file_transfers(&self) -> RemoteResult<Self::Error> {
+        todo!();
+    }
+
+    async fn force_update(
+        &self,
+        account_data: UpdateSet,
+    ) -> RemoteResult<Self::Error> {
+        todo!();
     }
 }
