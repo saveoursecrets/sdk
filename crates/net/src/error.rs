@@ -1,8 +1,7 @@
 //! Error type for the client module.
-use crate::CancelReason;
 use http::StatusCode;
 use serde_json::Value;
-use sos_protocol::{MaybeConflict, Origin, SyncStatus};
+use sos_protocol::{CancelReason, MaybeConflict, Origin, SyncStatus};
 use sos_sdk::vault::VaultId;
 use std::error::Error as StdError;
 use std::path::PathBuf;

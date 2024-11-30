@@ -16,7 +16,7 @@ pub mod hashcheck;
 mod net;
 #[cfg(feature = "pairing")]
 pub mod pairing;
-mod sync;
+// mod sync;
 
 pub use reqwest;
 pub use sos_sdk as sdk;
@@ -28,7 +28,8 @@ pub use error::Error;
 #[cfg(feature = "listen")]
 pub use net::{changes, connect, ListenOptions, WebSocketHandle};
 pub use net::{HttpClient, NetworkRetry};
-pub use sync::{
+
+pub use protocol::{
     AccountSync, RemoteResult, RemoteSync, SyncClient, SyncResult,
 };
 

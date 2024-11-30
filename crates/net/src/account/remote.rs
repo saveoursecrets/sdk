@@ -265,11 +265,16 @@ impl RemoteBridge {
 
 #[async_trait]
 impl RemoteSync for RemoteBridge {
-    async fn sync(&self) -> RemoteResult {
+    type Error = crate::Error;
+
+    async fn sync(&self) -> RemoteResult<Self::Error> {
         self.sync_with_options(&Default::default()).await
     }
 
-    async fn sync_with_options(&self, options: &SyncOptions) -> RemoteResult {
+    async fn sync_with_options(
+        &self,
+        options: &SyncOptions,
+    ) -> RemoteResult<Self::Error> {
         match self.execute_sync(options).await {
             Ok(outcome) => RemoteResult {
                 origin: self.origin.clone(),
@@ -283,7 +288,7 @@ impl RemoteSync for RemoteBridge {
     }
 
     #[cfg(feature = "files")]
-    async fn sync_file_transfers(&self) -> RemoteResult {
+    async fn sync_file_transfers(&self) -> RemoteResult<Self::Error> {
         match self.execute_sync_file_transfers().await {
             Ok(_) => RemoteResult {
                 origin: self.origin.clone(),
@@ -296,7 +301,10 @@ impl RemoteSync for RemoteBridge {
         }
     }
 
-    async fn force_update(&self, account_data: UpdateSet) -> RemoteResult {
+    async fn force_update(
+        &self,
+        account_data: UpdateSet,
+    ) -> RemoteResult<Self::Error> {
         match self.client.update_account(account_data).await {
             Ok(_) => RemoteResult {
                 origin: self.origin.clone(),

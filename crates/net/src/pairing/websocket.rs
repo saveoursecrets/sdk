@@ -2,7 +2,7 @@
 use super::{DeviceEnrollment, Error, Result, ServerPairUrl};
 use crate::{
     protocol::{
-        pairing_message, Origin, PairingConfirm, PairingMessage,
+        pairing_message, AccountSync, Origin, PairingConfirm, PairingMessage,
         PairingReady, PairingRequest, ProtoMessage, RelayHeader, RelayPacket,
         RelayPayload, SyncOptions,
     },
@@ -13,7 +13,6 @@ use crate::{
         signer::ecdsa::SingleParty,
         url::Url,
     },
-    sync::AccountSync,
     NetworkAccount, WebSocketRequest,
 };
 use futures::{

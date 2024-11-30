@@ -31,6 +31,7 @@ futures.workspace = true
 indexmap.workspace = true
 rs_merkle.workspace = true
 prost.workspace = true
+http.workspace = true
 tokio = { version = "1", features = ["rt",  "macros"] }
 
 [dependencies.sos-sdk]

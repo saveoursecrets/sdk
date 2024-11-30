@@ -42,6 +42,25 @@ pub use sos_sdk as sdk;
 /// Result type for the wire protocol.
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Information about a cancellation.
+#[derive(Default, Debug, Clone, Hash, Eq, PartialEq)]
+pub enum CancelReason {
+    /// Unknown reason.
+    #[default]
+    Unknown,
+    /// Event loop is being shutdown.
+    Shutdown,
+    /// Websocket connection was closed.
+    Closed,
+    /// Cancellation was from a user interaction.
+    UserCanceled,
+    /// Aborted due to conflict with a subsequent operation.
+    ///
+    /// For example, a move or delete transfer operation must abort
+    /// any existing upload or download.
+    Aborted,
+}
+
 /// Trait for encoding and decoding protobuf generated types.
 ///
 /// A blanket implementation adds this to any [prost::Message]

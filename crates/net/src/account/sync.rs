@@ -89,11 +89,16 @@ impl NetworkAccount {
 
 #[async_trait]
 impl AccountSync for NetworkAccount {
-    async fn sync(&self) -> SyncResult {
+    type Error = crate::Error;
+
+    async fn sync(&self) -> SyncResult<Self::Error> {
         self.sync_with_options(&Default::default()).await
     }
 
-    async fn sync_with_options(&self, options: &SyncOptions) -> SyncResult {
+    async fn sync_with_options(
+        &self,
+        options: &SyncOptions,
+    ) -> SyncResult<Self::Error> {
         let mut result = SyncResult::default();
         if self.offline {
             tracing::warn!("offline mode active, ignoring sync");
@@ -119,7 +124,10 @@ impl AccountSync for NetworkAccount {
     }
 
     #[cfg(feature = "files")]
-    async fn sync_file_transfers(&self, options: &SyncOptions) -> SyncResult {
+    async fn sync_file_transfers(
+        &self,
+        options: &SyncOptions,
+    ) -> SyncResult<Self::Error> {
         let mut result = SyncResult::default();
         if self.offline {
             tracing::warn!(
@@ -150,7 +158,7 @@ impl AccountSync for NetworkAccount {
         &self,
         account_data: UpdateSet,
         options: &SyncOptions,
-    ) -> SyncResult {
+    ) -> SyncResult<Self::Error> {
         let mut result = SyncResult::default();
         if self.offline {
             tracing::warn!("offline mode active, ignoring force update");

@@ -679,7 +679,7 @@ impl NetworkAccount {
 #[async_trait]
 impl Account for NetworkAccount {
     type Error = Error;
-    type NetworkResult = SyncResult;
+    type NetworkResult = SyncResult<Self::Error>;
 
     fn address(&self) -> &Address {
         &self.address

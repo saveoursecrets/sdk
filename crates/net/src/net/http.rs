@@ -196,6 +196,8 @@ impl HttpClient {
 
 #[async_trait]
 impl SyncClient for HttpClient {
+    type Error = crate::Error;
+
     fn origin(&self) -> &Origin {
         &self.origin
     }
@@ -488,7 +490,9 @@ impl SyncClient for HttpClient {
         file_info: &ExternalFile,
         path: &std::path::Path,
         progress: ProgressChannel,
-        mut cancel: tokio::sync::watch::Receiver<crate::CancelReason>,
+        mut cancel: tokio::sync::watch::Receiver<
+            crate::protocol::CancelReason,
+        >,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
         use reqwest::{
@@ -574,7 +578,9 @@ impl SyncClient for HttpClient {
         file_info: &ExternalFile,
         path: &std::path::Path,
         progress: ProgressChannel,
-        mut cancel: tokio::sync::watch::Receiver<crate::CancelReason>,
+        mut cancel: tokio::sync::watch::Receiver<
+            crate::protocol::CancelReason,
+        >,
     ) -> Result<http::StatusCode> {
         use crate::sdk::{
             sha2::{Digest, Sha256},
