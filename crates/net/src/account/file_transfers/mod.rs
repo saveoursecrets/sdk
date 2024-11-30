@@ -222,7 +222,7 @@ impl FileTransfersHandle {
 /// when each operation has been completed on every client.
 pub struct FileTransfers<C>
 where
-    C: SyncClient + Clone + Send + Sync + PartialEq + 'static,
+    C: SyncClient<Error = Error> + Clone + Send + Sync + PartialEq + 'static,
 {
     clients: Arc<Mutex<Vec<C>>>,
     settings: Arc<FileTransferSettings>,
@@ -233,7 +233,7 @@ where
 
 impl<C> FileTransfers<C>
 where
-    C: SyncClient + Clone + Send + Sync + PartialEq + 'static,
+    C: SyncClient<Error = Error> + Clone + Send + Sync + PartialEq + 'static,
 {
     /// Create new file transfers manager.
     pub fn new(clients: Vec<C>, settings: FileTransferSettings) -> Self {

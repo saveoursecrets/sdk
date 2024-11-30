@@ -21,7 +21,7 @@ use super::{
 
 pub struct UploadOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = Error> + Clone + Send + Sync + 'static,
 {
     client: C,
     paths: Arc<Paths>,
@@ -34,7 +34,7 @@ where
 
 impl<C> UploadOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = Error> + Clone + Send + Sync + 'static,
 {
     pub fn new(
         client: C,
@@ -121,7 +121,7 @@ where
 
 impl<C> TransferTask for UploadOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = Error> + Clone + Send + Sync + 'static,
 {
     fn request_id(&self) -> u64 {
         self.request_id
@@ -147,7 +147,7 @@ where
 
 pub struct DownloadOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = Error> + Clone + Send + Sync + 'static,
 {
     client: C,
     paths: Arc<Paths>,
@@ -160,7 +160,7 @@ where
 
 impl<C> DownloadOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = Error> + Clone + Send + Sync + 'static,
 {
     pub fn new(
         client: C,
@@ -263,7 +263,7 @@ where
 
 impl<C> TransferTask for DownloadOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = Error> + Clone + Send + Sync + 'static,
 {
     fn request_id(&self) -> u64 {
         self.request_id
@@ -301,7 +301,7 @@ where
 
 impl<C> DeleteOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = Error> + Clone + Send + Sync + 'static,
 {
     pub fn new(
         client: C,
@@ -402,7 +402,7 @@ where
 
 pub struct MoveOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = Error> + Clone + Send + Sync + 'static,
 {
     client: C,
     transfer_id: u64,
@@ -414,7 +414,7 @@ where
 
 impl<C> MoveOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = Error> + Clone + Send + Sync + 'static,
 {
     pub fn new(
         client: C,
@@ -493,7 +493,7 @@ where
 
 impl<C> TransferTask for MoveOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = Error> + Clone + Send + Sync + 'static,
 {
     fn request_id(&self) -> u64 {
         self.request_id

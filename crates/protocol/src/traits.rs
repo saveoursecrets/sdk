@@ -65,7 +65,7 @@ impl<E> SyncResult<E> {
 #[async_trait]
 pub trait RemoteSync {
     /// Error type for remote sync.
-    type Error;
+    type Error: std::error::Error + std::fmt::Debug;
 
     /// Perform a full sync of the account using
     /// the default options.
@@ -109,7 +109,7 @@ pub trait RemoteSync {
 #[async_trait]
 pub trait AccountSync {
     /// Error type for account sync.
-    type Error;
+    type Error: std::error::Error + std::fmt::Debug;
 
     /// Perform a full sync of the account using
     /// the default options.
@@ -157,7 +157,7 @@ pub trait AccountSync {
 #[async_trait]
 pub trait SyncClient {
     /// Error type for sync client.
-    type Error;
+    type Error: std::error::Error + std::fmt::Debug;
 
     /// Origin of the remote server.
     fn origin(&self) -> &Origin;
