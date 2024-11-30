@@ -13,6 +13,7 @@ use crate::{
     },
     sdk::{
         constants::MIME_TYPE_PROTOBUF,
+        prelude::Address,
         signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     },
     Error, Result, SyncClient,
@@ -203,7 +204,7 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn account_exists(&self) -> Result<bool> {
+    async fn account_exists(&self, _address: &Address) -> Result<bool> {
         let url = self.build_url("api/v1/sync/account")?;
 
         let sign_url = url.path();
@@ -257,7 +258,11 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn create_account(&self, account: CreateSet) -> Result<()> {
+    async fn create_account(
+        &self,
+        _address: &Address,
+        account: CreateSet,
+    ) -> Result<()> {
         let body = account.encode().await?;
         let url = self.build_url("api/v1/sync/account")?;
 
@@ -282,7 +287,11 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn update_account(&self, account: UpdateSet) -> Result<()> {
+    async fn update_account(
+        &self,
+        _address: &Address,
+        account: UpdateSet,
+    ) -> Result<()> {
         let body = account.encode().await?;
         let url = self.build_url("api/v1/sync/account")?;
 

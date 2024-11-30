@@ -15,20 +15,28 @@ use crate::{
     SyncStatus, UpdateSet,
 };
 use async_trait::async_trait;
-use sos_sdk::prelude::LocalAccountSwitcher;
+use sos_sdk::prelude::{Account, Address, LocalAccountSwitcher};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// Local app integration.
 pub struct LocalIntegration {
-    accounts: RwLock<LocalAccountSwitcher>,
+    origin: Origin,
+    accounts: Arc<RwLock<LocalAccountSwitcher>>,
 }
 
 impl LocalIntegration {
     /// Create a local app integration.
-    pub fn new() -> Self {
+    pub fn new(origin: Origin) -> Self {
         Self {
-            accounts: RwLock::new(LocalAccountSwitcher::new()),
+            origin,
+            accounts: Arc::new(RwLock::new(LocalAccountSwitcher::new())),
         }
+    }
+
+    /// Clone of the accounts.
+    pub fn accounts(&self) -> Arc<RwLock<LocalAccountSwitcher>> {
+        self.accounts.clone()
     }
 }
 
@@ -37,27 +45,32 @@ impl SyncClient for LocalIntegration {
     type Error = Error;
 
     fn origin(&self) -> &Origin {
-        unimplemented!(
-            "origin is not supported for local integration clients"
-        );
+        &self.origin
     }
 
-    async fn account_exists(&self) -> Result<bool, Self::Error> {
-        todo!();
+    async fn account_exists(
+        &self,
+        address: &Address,
+    ) -> Result<bool, Self::Error> {
+        let accounts = self.accounts.read().await;
+        let account = accounts.iter().find(|a| a.address() == address);
+        Ok(account.is_some())
     }
 
     async fn create_account(
         &self,
+        address: &Address,
         account: CreateSet,
     ) -> Result<(), Self::Error> {
-        todo!();
+        unimplemented!("local integrations cannot create accounts on remote");
     }
 
     async fn update_account(
         &self,
+        address: &Address,
         account: UpdateSet,
     ) -> Result<(), Self::Error> {
-        todo!();
+        unimplemented!("local integrations cannot update accounts on remote");
     }
 
     async fn fetch_account(&self) -> Result<CreateSet, Self::Error> {

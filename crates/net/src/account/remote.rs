@@ -7,6 +7,7 @@ use crate::{
     },
     sdk::{
         account::LocalAccount,
+        prelude::Address,
         signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     },
     Error, RemoteResult, RemoteSync, Result, SyncClient,
@@ -29,6 +30,8 @@ pub(crate) type Remotes = HashMap<Origin, RemoteBridge>;
 pub struct RemoteBridge {
     /// Origin for this remote.
     origin: Origin,
+    /// Address of the account.
+    address: Address,
     /// Account so we can replay events
     /// when a remote diff is merged.
     pub(super) account: Arc<Mutex<LocalAccount>>,
@@ -50,6 +53,7 @@ impl RemoteBridge {
         device: BoxedEd25519Signer,
         connection_id: String,
     ) -> Result<Self> {
+        let address = signer.address()?;
         let client =
             HttpClient::new(origin.clone(), signer, device, connection_id)?;
 
@@ -61,6 +65,7 @@ impl RemoteBridge {
             account,
             origin,
             client,
+            address,
             #[cfg(feature = "files")]
             file_transfer_queue,
         })
@@ -76,7 +81,9 @@ impl RemoteBridge {
         {
             let account = self.account.lock().await;
             let public_account = account.change_set().await?;
-            self.client.create_account(public_account).await?;
+            self.client
+                .create_account(&self.address, public_account)
+                .await?;
         }
 
         #[cfg(feature = "files")]
@@ -210,7 +217,7 @@ impl RemoteBridge {
         &self,
         options: &SyncOptions,
     ) -> Result<Option<MergeOutcome>> {
-        let exists = self.client.account_exists().await?;
+        let exists = self.client.account_exists(&self.address).await?;
         if exists {
             let sync_status = self.client.sync_status().await?;
             match self.sync_account(sync_status).await {
@@ -305,7 +312,11 @@ impl RemoteSync for RemoteBridge {
         &self,
         account_data: UpdateSet,
     ) -> RemoteResult<Self::Error> {
-        match self.client.update_account(account_data).await {
+        match self
+            .client
+            .update_account(&self.address, account_data)
+            .await
+        {
             Ok(_) => RemoteResult {
                 origin: self.origin.clone(),
                 result: Ok(None),

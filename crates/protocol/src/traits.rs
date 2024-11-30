@@ -4,6 +4,7 @@ use crate::{
     SyncStatus, UpdateSet,
 };
 use async_trait::async_trait;
+use sos_sdk::prelude::Address;
 
 /// Channel for upload and download progress notifications.
 pub type ProgressChannel = tokio::sync::mpsc::Sender<(u64, Option<u64>)>;
@@ -163,17 +164,22 @@ pub trait SyncClient {
     fn origin(&self) -> &Origin;
 
     /// Check if an account already exists.
-    async fn account_exists(&self) -> Result<bool, Self::Error>;
+    async fn account_exists(
+        &self,
+        address: &Address,
+    ) -> Result<bool, Self::Error>;
 
     /// Create a new account.
     async fn create_account(
         &self,
+        address: &Address,
         account: CreateSet,
     ) -> Result<(), Self::Error>;
 
     /// Update an account.
     async fn update_account(
         &self,
+        address: &Address,
         account: UpdateSet,
     ) -> Result<(), Self::Error>;
 
