@@ -9,14 +9,7 @@
 //! Typically, this would be used in the webassembly bindings
 //! for a browser extension or other local integration.
 
-use crate::{
-    CreateSet, DiffRequest, DiffResponse, Error, Origin, PatchRequest,
-    PatchResponse, ScanRequest, ScanResponse, SyncClient, SyncPacket,
-    SyncStatus, UpdateSet, WireEncodeDecode,
-};
-use async_trait::async_trait;
-use http::StatusCode;
-use sos_sdk::prelude::{Account, AccountSwitcher, Address};
+use sos_sdk::prelude::{Account, AccountSwitcher};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -35,24 +28,23 @@ pub type LinkedAccountSwitcher = AccountSwitcher<
 
 /// Local app integration.
 pub struct LocalIntegration {
-    origin: Origin,
     accounts: Arc<RwLock<LinkedAccountSwitcher>>,
 }
 
 impl LocalIntegration {
     /// Create a local app integration.
-    pub fn new(origin: Origin) -> Self {
+    pub fn new() -> Self {
         Self {
-            origin,
             accounts: Arc::new(RwLock::new(LinkedAccountSwitcher::new())),
         }
     }
 
     /// Clone of the accounts.
-    pub fn accounts(&self) -> Arc<RwLock<LocalAccountSwitcher>> {
+    pub fn accounts(&self) -> Arc<RwLock<LinkedAccountSwitcher>> {
         self.accounts.clone()
     }
 
+    /*
     /// Determine if a local account exists.
     pub async fn local_account_exists(
         &self,
@@ -62,4 +54,5 @@ impl LocalIntegration {
         let account = accounts.iter().find(|a| a.address() == address);
         Ok(account.is_some())
     }
+    */
 }

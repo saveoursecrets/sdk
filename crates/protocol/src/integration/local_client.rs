@@ -8,13 +8,11 @@
 use crate::{
     CreateSet, DiffRequest, DiffResponse, Error, Origin, PatchRequest,
     PatchResponse, ScanRequest, ScanResponse, SyncClient, SyncPacket,
-    SyncStatus, UpdateSet, WireEncodeDecode,
+    SyncStatus, UpdateSet,
 };
 use async_trait::async_trait;
 use http::StatusCode;
-use sos_sdk::prelude::{Account, Address, LocalAccountSwitcher};
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use sos_sdk::prelude::Address;
 
 /// Linked account.
 pub struct LocalClient {
