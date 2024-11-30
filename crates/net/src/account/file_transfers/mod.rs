@@ -17,11 +17,11 @@
 use crate::{
     net::NetworkRetry,
     protocol::{
-        CancelReason, FileOperation, FileSyncClient, Origin,
+        CancelReason, FileOperation, FileSyncClient, Origin, SyncClient,
         TransferOperation,
     },
     sdk::{storage::files::ExternalFile, vfs, Paths},
-    Error, Result, SyncClient,
+    Error, Result,
 };
 
 use futures::FutureExt;

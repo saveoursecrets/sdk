@@ -4,9 +4,9 @@
 //! download, upload, move and delete operations.
 use crate::{
     net::NetworkRetry,
-    protocol::{CancelReason, FileSyncClient},
+    protocol::{CancelReason, FileSyncClient, SyncClient},
     sdk::{storage::files::ExternalFile, vfs, Paths},
-    Error, Result, SyncClient,
+    Error, Result,
 };
 
 use async_recursion::async_recursion;

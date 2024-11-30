@@ -11,18 +11,21 @@ use crate::{
     SyncStatus, UpdateSet,
 };
 use async_trait::async_trait;
-use http::StatusCode;
-use sos_sdk::prelude::Address;
+use http::{Method, StatusCode};
+use sos_sdk::{prelude::Address, url::Url};
+
+type ClientTransport = Box<dyn LocalTransport + Send + Sync + 'static>;
 
 /// Linked account.
 pub struct LocalClient {
     origin: Origin,
+    transport: ClientTransport,
 }
 
 impl LocalClient {
     /// Create a local client.
-    pub fn new(origin: Origin) -> Self {
-        Self { origin }
+    pub fn new(origin: Origin, transport: ClientTransport) -> Self {
+        Self { origin, transport }
     }
 }
 
@@ -98,24 +101,22 @@ impl SyncClient for LocalClient {
     }
 }
 
-/*
 /// Request that can be sent over a local transport.
-pub enum TransportRequest {
-    /// Create an account on the remote.
-    CreateAccount {
-        /// Account address.
-        address: Address,
-        /// Account data.
-        account_data: CreateSet,
-    },
+pub struct TransportRequest {
+    /// Request method.
+    pub method: Method,
+    /// Request URL.
+    pub url: Url,
+    /// Request body.
+    pub body: Option<Vec<u8>>,
 }
 
 /// Response received by a local transport.
 pub struct TransportResponse {
     /// Response status code.
     pub status: StatusCode,
-    /// Response packet.
-    pub packet: (),
+    /// Response body.
+    pub body: Option<Vec<u8>>,
 }
 
 /// Generic local transport.
@@ -124,4 +125,3 @@ pub trait LocalTransport {
     /// Send a request over the local transport.
     async fn send(&self, request: TransportRequest) -> TransportResponse;
 }
-*/

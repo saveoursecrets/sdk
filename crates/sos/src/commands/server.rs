@@ -7,9 +7,8 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_net::{
-    protocol::{Origin, SyncOptions},
+    protocol::{AccountSync, Origin, SyncOptions},
     sdk::{identity::AccountRef, url::Url},
-    AccountSync,
 };
 
 #[derive(Subcommand, Debug)]

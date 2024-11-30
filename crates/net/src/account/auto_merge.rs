@@ -10,8 +10,8 @@ use crate::sdk::{
     vault::VaultId,
 };
 use crate::{
-    protocol::{DiffRequest, PatchRequest, ScanRequest},
-    Error, RemoteBridge, Result, SyncClient,
+    protocol::{DiffRequest, PatchRequest, ScanRequest, SyncClient},
+    Error, RemoteBridge, Result,
 };
 
 use async_recursion::async_recursion;

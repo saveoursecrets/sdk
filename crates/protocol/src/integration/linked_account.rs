@@ -25,12 +25,11 @@ impl LinkedAccount {
     /// Create a new unauthenticated linked account.
     pub async fn new_unauthenticated(
         address: Address,
-        origin: Origin,
+        client: LocalClient,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let inner =
             LocalAccount::new_unauthenticated(address, data_dir).await?;
-        let client = LocalClient::new(origin);
         Ok(Self { inner, client })
     }
 
@@ -38,13 +37,12 @@ impl LinkedAccount {
     pub async fn new_account(
         account_name: String,
         passphrase: SecretString,
-        origin: Origin,
+        client: LocalClient,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let inner =
             LocalAccount::new_account(account_name, passphrase, data_dir)
                 .await?;
-        let client = LocalClient::new(origin);
         Ok(Self { inner, client })
     }
 }

@@ -1,6 +1,6 @@
 use crate::test_utils::{mock, simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, AccountSync};
+use sos_net::{protocol::AccountSync, sdk::prelude::*};
 
 /// Tests syncing an authenticator folder after
 /// disabling the NO_SYNC flag.

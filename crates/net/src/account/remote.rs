@@ -2,15 +2,16 @@
 use crate::{
     net::HttpClient,
     protocol::{
-        MaybeDiff, Merge, MergeOutcome, Origin, SyncOptions, SyncPacket,
-        SyncStatus, SyncStorage, UpdateSet,
+        MaybeDiff, Merge, MergeOutcome, Origin, RemoteResult, RemoteSync,
+        SyncClient, SyncOptions, SyncPacket, SyncStatus, SyncStorage,
+        UpdateSet,
     },
     sdk::{
         account::LocalAccount,
         prelude::Address,
         signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     },
-    Error, RemoteResult, RemoteSync, Result, SyncClient,
+    Error, Result,
 };
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};

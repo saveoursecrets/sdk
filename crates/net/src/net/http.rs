@@ -8,15 +8,15 @@ use tracing::instrument;
 use crate::{
     protocol::{
         CreateSet, DiffRequest, DiffResponse, Origin, PatchRequest,
-        PatchResponse, ScanRequest, ScanResponse, SyncPacket, SyncStatus,
-        UpdateSet, WireEncodeDecode,
+        PatchResponse, ScanRequest, ScanResponse, SyncClient, SyncPacket,
+        SyncStatus, UpdateSet, WireEncodeDecode,
     },
     sdk::{
         constants::MIME_TYPE_PROTOBUF,
         prelude::Address,
         signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     },
-    Error, Result, SyncClient,
+    Error, Result,
 };
 use std::{fmt, time::Duration};
 use url::Url;

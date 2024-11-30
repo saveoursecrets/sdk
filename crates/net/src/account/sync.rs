@@ -1,13 +1,16 @@
 //! Adds sync capability to network account.
 use crate::{
-    protocol::{Origin, SyncOptions, SyncStatus, SyncStorage, UpdateSet},
+    protocol::{
+        AccountSync, Origin, RemoteSync, SyncClient, SyncOptions, SyncResult,
+        SyncStatus, SyncStorage, UpdateSet,
+    },
     sdk::{
         events::{AccountEventLog, FolderEventLog},
         storage::StorageEventLogs,
         vault::{Summary, VaultId},
         Result,
     },
-    AccountSync, NetworkAccount, RemoteSync, SyncClient, SyncResult,
+    NetworkAccount,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;

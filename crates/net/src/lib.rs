@@ -16,12 +16,10 @@ pub mod hashcheck;
 mod net;
 #[cfg(feature = "pairing")]
 pub mod pairing;
-// mod sync;
 
 pub use reqwest;
-pub use sos_sdk as sdk;
-// FIXME: remove this
 pub use sos_protocol as protocol;
+pub use sos_sdk as sdk;
 
 pub use account::*;
 pub use error::Error;
@@ -29,9 +27,11 @@ pub use error::Error;
 pub use net::{changes, connect, ListenOptions, WebSocketHandle};
 pub use net::{HttpClient, NetworkRetry};
 
-pub use protocol::{
-    AccountSync, RemoteResult, RemoteSync, SyncClient, SyncResult,
-};
+/// Remote result.
+pub type RemoteResult = protocol::RemoteResult<Error>;
+
+/// Sync result.
+pub type SyncResult = protocol::SyncResult<Error>;
 
 #[cfg(any(
     feature = "preferences",

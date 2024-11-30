@@ -1,8 +1,9 @@
 use crate::test_utils::{setup, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_net::{
-    protocol::SyncStorage, sdk::prelude::*, AccountSync, NetworkAccount,
-    SyncClient,
+    protocol::{AccountSync, SyncClient, SyncStorage},
+    sdk::prelude::*,
+    NetworkAccount,
 };
 
 /// Tests syncing with the NO_SYNC flag set before the account

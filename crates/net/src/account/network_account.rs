@@ -1,6 +1,9 @@
 //! Network aware account.
 use crate::{
-    protocol::{Origin, SyncOptions, UpdateSet},
+    protocol::{
+        AccountSync, DiffRequest, EventLogType, Origin, RemoteSync,
+        SyncClient, SyncOptions, SyncResult, UpdateSet,
+    },
     sdk::{
         account::{
             Account, AccountBuilder, AccountChange, AccountData,
@@ -13,7 +16,7 @@ use crate::{
         device::{
             DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice,
         },
-        events::{AccountEvent, EventLogExt, ReadEvent},
+        events::{AccountEvent, EventLogExt, EventRecord, ReadEvent},
         identity::{AccountRef, PublicIdentity},
         sha2::{Digest, Sha256},
         signer::ecdsa::{Address, BoxedEcdsaSigner},
@@ -22,16 +25,14 @@ use crate::{
         },
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow},
-            Summary, Vault, VaultCommit, VaultId,
+            Summary, Vault, VaultCommit, VaultFlags, VaultId,
         },
         vfs, Paths,
     },
-    SyncClient, SyncResult,
+    Error, RemoteBridge, Result,
 };
 use async_trait::async_trait;
 use secrecy::SecretString;
-use sos_protocol::{DiffRequest, EventLogType};
-use sos_sdk::{events::EventRecord, vault::VaultFlags};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -70,7 +71,6 @@ use crate::sdk::account::security_report::{
 use crate::sdk::migrate::import::ImportTarget;
 
 use super::remote::Remotes;
-use crate::{AccountSync, Error, RemoteBridge, RemoteSync, Result};
 
 #[cfg(feature = "files")]
 use crate::{

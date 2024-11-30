@@ -4,7 +4,7 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_net::{
-    protocol::{Origin, SyncOptions, SyncStatus, SyncStorage},
+    protocol::{AccountSync, Origin, SyncOptions, SyncStatus, SyncStorage},
     sdk::{
         account::Account,
         commit::{CommitState, CommitTree, Comparison},
@@ -13,7 +13,7 @@ use sos_net::{
         storage::StorageEventLogs,
         url::Url,
     },
-    AccountSync, NetworkAccount,
+    NetworkAccount,
 };
 
 #[derive(Subcommand, Debug)]

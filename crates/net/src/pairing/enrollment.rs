@@ -2,6 +2,7 @@
 use crate::{
     pairing::{Error, Result},
     protocol::Origin,
+    protocol::SyncClient,
     sdk::{
         account::Account,
         crypto::AccessKey,
@@ -19,7 +20,7 @@ use crate::{
         vault::{VaultAccess, VaultId, VaultWriter},
         vfs, Paths,
     },
-    HttpClient, NetworkAccount, SyncClient,
+    HttpClient, NetworkAccount,
 };
 use std::{
     collections::{HashMap, HashSet},

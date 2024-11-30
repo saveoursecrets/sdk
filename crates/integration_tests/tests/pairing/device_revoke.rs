@@ -4,7 +4,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use http::StatusCode;
-use sos_net::{sdk::prelude::*, AccountSync, Error as ClientError};
+use sos_net::{protocol::AccountSync, sdk::prelude::*, Error as ClientError};
 
 /// Tests pairing a new device and revoking trust in the device.
 #[tokio::test]

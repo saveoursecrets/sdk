@@ -1,9 +1,8 @@
 use crate::test_utils::{mock, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_net::{
-    protocol::{EventLogType, ScanRequest},
+    protocol::{EventLogType, ScanRequest, SyncClient},
     sdk::prelude::*,
-    SyncClient,
 };
 
 /// Tests scanning commit hashes on remote servers.

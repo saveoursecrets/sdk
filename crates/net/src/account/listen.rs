@@ -1,8 +1,10 @@
 //! Adds functions for listening to change notifications using
 //! a websocket connection.
 use crate::{
-    protocol::{ChangeNotification, Origin, RemoteSync, SyncStorage},
-    Error, ListenOptions, NetworkAccount, RemoteResult, Result,
+    protocol::{
+        ChangeNotification, Origin, RemoteResult, RemoteSync, SyncStorage,
+    },
+    Error, ListenOptions, NetworkAccount, Result,
 };
 use std::sync::Arc;
 use tokio::sync::mpsc;

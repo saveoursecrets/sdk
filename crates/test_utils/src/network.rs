@@ -3,7 +3,7 @@ use anyhow::Result;
 use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
-    protocol::{Origin, SyncStorage},
+    protocol::{AccountSync, Origin, SyncClient, SyncStorage},
     sdk::{
         account::{Account, AccountBuilder},
         constants::{FILES_DIR, VAULT_EXT},
@@ -16,8 +16,8 @@ use sos_net::{
         vault::{Summary, VaultId},
         vfs, Paths,
     },
-    AccountSync, InflightNotification, InflightTransfers, ListenOptions,
-    NetworkAccount, RemoteBridge, SyncClient,
+    InflightNotification, InflightTransfers, ListenOptions, NetworkAccount,
+    RemoteBridge,
 };
 use std::{
     path::PathBuf,
