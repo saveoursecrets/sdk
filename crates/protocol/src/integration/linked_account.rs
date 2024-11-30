@@ -190,393 +190,203 @@ impl Account for LinkedAccount {
         self.inner.account_data().await
     }
 
-    /// Root commit hash for a folder.
-    async fn root_commit(
-        &self,
-        summary: &Summary,
-    ) -> std::result::Result<CommitHash, Self::Error>;
+    async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
+        self.inner.root_commit(summary).await
+    }
 
-    /// Commit state of the identity vault.
-    ///
-    /// The folder must have at least one commit.
-    async fn identity_state(
-        &self,
-    ) -> std::result::Result<CommitState, Self::Error>;
+    async fn identity_state(&self) -> Result<CommitState> {
+        self.inner.identity_state().await
+    }
 
-    /// Get the commit state for a folder.
-    ///
-    /// The folder must have at least one commit.
-    async fn commit_state(
-        &self,
-        summary: &Summary,
-    ) -> std::result::Result<CommitState, Self::Error>;
+    async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
+        self.inner.commit_state(summary).await
+    }
 
-    /// Compact the identity folder and all user folders.
-    async fn compact_account(
-        &mut self,
-    ) -> std::result::Result<
-        HashMap<Summary, (AccountEvent, u64, u64)>,
-        Self::Error,
-    >;
+    async fn compact_account(&mut self) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
+        self.inner.compact_account().await
+    }
 
-    /// Compact the event log file for a folder.
-    async fn compact_folder(
-        &mut self,
-        summary: &Summary,
-    ) -> std::result::Result<(AccountEvent, u64, u64), Self::Error>;
+    async fn compact_folder(&mut self, summary: &Summary) -> Result<(AccountEvent, u64, u64)> {
+        self.inner.compact_folder(summary).await
+    }
 
-    /// Restore a folder from an event log.
-    async fn restore_folder(
-        &mut self,
-        folder_id: &VaultId,
-        records: Vec<EventRecord>,
-    ) -> std::result::Result<Summary, Self::Error>;
+    async fn restore_folder(&mut self, folder_id: &VaultId, records: Vec<EventRecord>) -> Result<Summary> {
+        self.inner.restore_folder(folder_id, records).await
+    }
 
-    /// Change the password for a folder.
-    ///
-    /// If this folder is part of a recovery pack it is
-    /// the caller's responsbility to ensure the recovery
-    /// pack is updated with the new folder password.
-    async fn change_folder_password(
-        &mut self,
-        folder: &Summary,
-        new_key: AccessKey,
-    ) -> std::result::Result<(), Self::Error>;
+    async fn change_folder_password(&mut self, folder: &Summary, new_key: AccessKey) -> Result<()> {
+        self.inner.change_folder_password(folder, new_key).await
+    }
 
-    /// Create a detached view of an event log until a
-    /// particular commit.
-    ///
-    /// This is useful for time travel; browsing the event
-    /// history at a particular point in time.
     #[cfg(feature = "search")]
-    async fn detached_view(
-        &self,
-        summary: &Summary,
-        commit: CommitHash,
-    ) -> std::result::Result<DetachedView, Self::Error>;
+    async fn detached_view(&self, summary: &Summary, commit: CommitHash) -> Result<DetachedView> {
+        self.inner.detached_view(summary, commit).await
+    }
 
-    /// Initialize the search index.
-    ///
-    /// This should be called after a user has signed in to
-    /// create the initial search index.
     #[cfg(feature = "search")]
-    async fn initialize_search_index(
-        &mut self,
-    ) -> std::result::Result<(DocumentCount, Vec<Summary>), Self::Error>;
+    async fn initialize_search_index(&mut self) -> Result<(DocumentCount, Vec<Summary>)> {
+        self.inner.initialize_search_index().await
+    }
 
-    /// Compute the account statistics.
-    ///
-    /// If the account is not authenticated returns
-    /// a default statistics object (all values will be zero).
     #[cfg(feature = "search")]
-    async fn statistics(&self) -> AccountStatistics;
+    async fn statistics(&self) -> AccountStatistics {
+        self.inner.statistics().await
+    }
 
-    /// Search index for the account.
     #[cfg(feature = "search")]
-    async fn index(
-        &self,
-    ) -> std::result::Result<Arc<RwLock<SearchIndex>>, Self::Error>;
+    async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
+        self.inner.index().await
+    }
 
-    /// Query with document views.
     #[cfg(feature = "search")]
-    async fn query_view(
-        &self,
-        views: &[DocumentView],
-        archive: Option<&ArchiveFilter>,
-    ) -> std::result::Result<Vec<Document>, Self::Error>;
+    async fn query_view(&self, views: &[DocumentView], archive: Option<&ArchiveFilter>) -> Result<Vec<Document>> {
+        self.inner.query_view(views, archive).await
+    }
 
-    /// Query the search index.
     #[cfg(feature = "search")]
-    async fn query_map(
-        &self,
-        query: &str,
-        filter: QueryFilter,
-    ) -> std::result::Result<Vec<Document>, Self::Error>;
+    async fn query_map(&self, query: &str, filter: QueryFilter) -> Result<Vec<Document>> {
+        self.inner.query_map(query, filter).await
+    }
 
-    /// Get the search index document count statistics.
     #[cfg(feature = "search")]
-    async fn document_count(
-        &self,
-    ) -> std::result::Result<DocumentCount, Self::Error>;
+    async fn document_count(&self) -> Result<DocumentCount> {
+        self.inner.document_count().await
+    }
 
-    /// Determine if a document exists in a folder.
     #[cfg(feature = "search")]
-    async fn document_exists(
-        &self,
-        vault_id: &VaultId,
-        label: &str,
-        id: Option<&SecretId>,
-    ) -> std::result::Result<bool, Self::Error>;
+    async fn document_exists(&self, vault_id: &VaultId, label: &str, id: Option<&SecretId>) -> Result<bool> {
+        self.inner.document_exists(vault_id, label, id).await
+    }
 
-    /// Decrypt a file and return the buffer.
     #[cfg(feature = "files")]
-    async fn download_file(
-        &self,
-        vault_id: &VaultId,
-        secret_id: &SecretId,
-        file_name: &str,
-    ) -> std::result::Result<Vec<u8>, Self::Error>;
+    async fn download_file(&self, vault_id: &VaultId, secret_id: &SecretId, file_name: &str) -> Result<Vec<u8>> {
+        self.inner.download_file(vault_id, secret_id, file_name).await
+    }
 
-    /// Create a secret in the current open folder or a specific folder.
-    async fn create_secret(
-        &mut self,
-        meta: SecretMeta,
-        secret: Secret,
-        options: AccessOptions,
-    ) -> std::result::Result<SecretChange<Self::NetworkResult>, Self::Error>;
+    async fn create_secret(&mut self, meta: SecretMeta, secret: Secret, options: AccessOptions) -> Result<SecretChange<Self::NetworkResult>> {
+        self.inner.create_secret(meta, secret, options).await
+    }
 
-    /// Bulk insert secrets into the currently open folder.
-    async fn insert_secrets(
-        &mut self,
-        secrets: Vec<(SecretMeta, Secret)>,
-    ) -> std::result::Result<SecretInsert<Self::NetworkResult>, Self::Error>;
+    async fn insert_secrets(&mut self, secrets: Vec<(SecretMeta, Secret)>) -> Result<SecretInsert<Self::NetworkResult>> {
+        self.inner.insert_secrets(secrets).await
+    }
 
-    /// Update a secret in the current open folder or a specific folder.
-    ///
-    /// If a `destination` is given the secret is also moved to the
-    /// target folder.
-    async fn update_secret(
-        &mut self,
-        secret_id: &SecretId,
-        meta: SecretMeta,
-        secret: Option<Secret>,
-        options: AccessOptions,
-        destination: Option<&Summary>,
-    ) -> std::result::Result<SecretChange<Self::NetworkResult>, Self::Error>;
+    async fn update_secret(&mut self, secret_id: &SecretId, meta: SecretMeta, secret: Option<Secret>, options: AccessOptions, destination: Option<&Summary>) -> Result<SecretChange<Self::NetworkResult>> {
+        self.inner.update_secret(secret_id, meta, secret, options, destination).await
+    }
 
-    /// Move a secret between folders.
-    async fn move_secret(
-        &mut self,
-        secret_id: &SecretId,
-        from: &Summary,
-        to: &Summary,
-        options: AccessOptions,
-    ) -> std::result::Result<SecretMove<Self::NetworkResult>, Self::Error>;
+    async fn move_secret(&mut self, secret_id: &SecretId, from: &Summary, to: &Summary, options: AccessOptions) -> Result<SecretMove<Self::NetworkResult>> {
+        self.inner.move_secret(secret_id, from, to, options).await
+    }
 
-    /// Read a secret in the current open folder.
-    async fn read_secret(
-        &self,
-        secret_id: &SecretId,
-        folder: Option<Summary>,
-    ) -> std::result::Result<(SecretRow, ReadEvent), Self::Error>;
+    async fn read_secret(&self, secret_id: &SecretId, folder: Option<Summary>) -> Result<(SecretRow, ReadEvent)> {
+        self.inner.read_secret(secret_id, folder).await
+    }
 
-    /// Read the encrypted contents of a secret.
-    ///
-    /// Does not affect the currently open folder and
-    /// does not append any audit logs.
-    async fn raw_secret(
-        &self,
-        folder_id: &VaultId,
-        secret_id: &SecretId,
-    ) -> std::result::Result<(Option<VaultCommit>, ReadEvent), Self::Error>;
+    async fn raw_secret(&self, folder_id: &VaultId, secret_id: &SecretId) -> Result<(Option<VaultCommit>, ReadEvent)> {
+        self.inner.raw_secret(folder_id, secret_id).await
+    }
 
-    /// Delete a secret and remove any external files.
-    async fn delete_secret(
-        &mut self,
-        secret_id: &SecretId,
-        options: AccessOptions,
-    ) -> std::result::Result<SecretDelete<Self::NetworkResult>, Self::Error>;
+    async fn delete_secret(&mut self, secret_id: &SecretId, options: AccessOptions) -> Result<SecretDelete<Self::NetworkResult>> {
+        self.inner.delete_secret(secret_id, options).await
+    }
 
-    /// Move a secret to the archive.
-    ///
-    /// An archive folder must exist.
-    async fn archive(
-        &mut self,
-        from: &Summary,
-        secret_id: &SecretId,
-        options: AccessOptions,
-    ) -> std::result::Result<SecretMove<Self::NetworkResult>, Self::Error>;
+    async fn archive(&mut self, from: &Summary, secret_id: &SecretId, options: AccessOptions) -> Result<SecretMove<Self::NetworkResult>> {
+        self.inner.archive(from, secret_id, options).await
+    }
 
-    /// Move a secret out of the archive.
-    ///
-    /// The secret must be inside a folder with the archive flag set.
-    ///
-    /// If the secret is a contact and a contacts folder exists
-    /// it is restored to the contacts folder.
-    ///
-    /// If the secret is a TOTP and an authenticator folder exists
-    /// it is restored to the authenticator folder.
-    ///
-    /// Otherwise the secret is restored to the default folder.
-    async fn unarchive(
-        &mut self,
-        secret_id: &SecretId,
-        secret_meta: &SecretMeta,
-        options: AccessOptions,
-    ) -> std::result::Result<
-        (SecretMove<Self::NetworkResult>, Summary),
-        Self::Error,
-    >;
+    async fn unarchive(&mut self, secret_id: &SecretId, secret_meta: &SecretMeta, options: AccessOptions) -> Result<(SecretMove<Self::NetworkResult>, Summary)> {
+        self.inner.unarchive(secret_id, secret_meta, options).await
+    }
 
-    /// Update a file secret.
-    ///
-    /// If the secret exists and is not a file secret it will be
-    /// converted to a file secret so take care to ensure you only
-    /// use this on file secrets.
     #[cfg(feature = "files")]
-    async fn update_file(
-        &mut self,
-        secret_id: &SecretId,
-        meta: SecretMeta,
-        path: impl AsRef<Path> + Send + Sync,
-        options: AccessOptions,
-        destination: Option<&Summary>,
-    ) -> std::result::Result<SecretChange<Self::NetworkResult>, Self::Error>;
+    async fn update_file(&mut self, secret_id: &SecretId, meta: SecretMeta, path: impl AsRef<Path> + Send + Sync, options: AccessOptions, destination: Option<&Summary>) -> Result<SecretChange<Self::NetworkResult>> {
+        self.inner.update_file(secret_id, meta, path, options, destination).await
+    }
 
-    /// Create a folder.
-    async fn create_folder(
-        &mut self,
-        name: String,
-        options: NewFolderOptions,
-    ) -> std::result::Result<FolderCreate<Self::NetworkResult>, Self::Error>;
+    async fn create_folder(&mut self, name: String, options: NewFolderOptions) -> Result<FolderCreate<Self::NetworkResult>> {
+        self.inner.create_folder(name, options).await
+    }
 
-    /// Rename a folder.
-    async fn rename_folder(
-        &mut self,
-        summary: &Summary,
-        name: String,
-    ) -> std::result::Result<FolderChange<Self::NetworkResult>, Self::Error>;
+    async fn rename_folder(&mut self, summary: &Summary, name: String) -> Result<FolderChange<Self::NetworkResult>> {
+        self.inner.rename_folder(summary, name).await
+    }
 
-    /// Update folder flags.
-    async fn update_folder_flags(
-        &mut self,
-        summary: &Summary,
-        flags: VaultFlags,
-    ) -> std::result::Result<FolderChange<Self::NetworkResult>, Self::Error>;
+    async fn update_folder_flags(&mut self, summary: &Summary, flags: VaultFlags) -> Result<FolderChange<Self::NetworkResult>> {
+        self.inner.update_folder_flags(summary, flags).await
+    }
 
-    /// Import a folder from a vault file.
-    async fn import_folder(
-        &mut self,
-        path: impl AsRef<Path> + Send + Sync,
-        key: AccessKey,
-        overwrite: bool,
-    ) -> std::result::Result<FolderCreate<Self::NetworkResult>, Self::Error>;
+    async fn import_folder(&mut self, path: impl AsRef<Path> + Send + Sync, key: AccessKey, overwrite: bool) -> Result<FolderCreate<Self::NetworkResult>> {
+        self.inner.import_folder(path, key, overwrite).await
+    }
 
-    /// Import a folder from a vault buffer.
-    async fn import_folder_buffer(
-        &mut self,
-        buffer: impl AsRef<[u8]> + Send + Sync,
-        key: AccessKey,
-        overwrite: bool,
-    ) -> std::result::Result<FolderCreate<Self::NetworkResult>, Self::Error>;
+    async fn import_folder_buffer(&mut self, buffer: impl AsRef<[u8]> + Send + Sync, key: AccessKey, overwrite: bool) -> Result<FolderCreate<Self::NetworkResult>> {
+        self.inner.import_folder_buffer(buffer, key, overwrite).await
+    }
 
-    /// Import and overwrite the identity folder from a vault.
-    ///
-    /// This is used for destructive operations that rewrite the identity
-    /// folder such as changing the cipher or account password.
-    async fn import_identity_folder(
-        &mut self,
-        vault: Vault,
-    ) -> std::result::Result<AccountEvent, Self::Error>;
+    async fn import_identity_folder(&mut self, vault: Vault) -> Result<AccountEvent> {
+        self.inner.import_identity_folder(vault).await
+    }
 
-    /// Export a folder as a vault file.
-    async fn export_folder(
-        &mut self,
-        path: impl AsRef<Path> + Send + Sync,
-        summary: &Summary,
-        new_key: AccessKey,
-        save_key: bool,
-    ) -> std::result::Result<(), Self::Error>;
+    async fn export_folder(&mut self, path: impl AsRef<Path> + Send + Sync, summary: &Summary, new_key: AccessKey, save_key: bool) -> Result<()> {
+        self.inner.export_folder(path, summary, new_key, save_key).await
+    }
 
-    /// Export a folder to a buffer.
-    async fn export_folder_buffer(
-        &mut self,
-        summary: &Summary,
-        new_key: AccessKey,
-        save_key: bool,
-    ) -> std::result::Result<Vec<u8>, Self::Error>;
+    async fn export_folder_buffer(&mut self, summary: &Summary, new_key: AccessKey, save_key: bool) -> Result<Vec<u8>> {
+        self.inner.export_folder_buffer(summary, new_key, save_key).await
+    }
 
-    /// Delete a folder.
-    async fn delete_folder(
-        &mut self,
-        summary: &Summary,
-    ) -> std::result::Result<FolderDelete<Self::NetworkResult>, Self::Error>;
+    async fn delete_folder(&mut self, summary: &Summary) -> Result<FolderDelete<Self::NetworkResult>> {
+        self.inner.delete_folder(summary).await
+    }
 
-    /// Try to load an avatar JPEG image for a contact.
-    ///
-    /// Looks in the current open folder if no specified folder is given.
     #[cfg(feature = "contacts")]
-    async fn load_avatar(
-        &self,
-        secret_id: &SecretId,
-        folder: Option<Summary>,
-    ) -> std::result::Result<Option<Vec<u8>>, Self::Error>;
+    async fn load_avatar(&self, secret_id: &SecretId, folder: Option<Summary>) -> Result<Option<Vec<u8>>> {
+        self.inner.load_avatar(secret_id, folder).await
+    }
 
-    /// Export a contact secret to a vCard file.
     #[cfg(feature = "contacts")]
-    async fn export_contact(
-        &self,
-        path: impl AsRef<Path> + Send + Sync,
-        secret_id: &SecretId,
-        folder: Option<Summary>,
-    ) -> std::result::Result<(), Self::Error>;
+    async fn export_contact(&self, path: impl AsRef<Path> + Send + Sync, secret_id: &SecretId, folder: Option<Summary>) -> Result<()> {
+        self.inner.export_contact(path, secret_id, folder).await
+    }
 
-    /// Export all contacts to a single vCard.
     #[cfg(feature = "contacts")]
-    async fn export_all_contacts(
-        &self,
-        path: impl AsRef<Path> + Send + Sync,
-    ) -> std::result::Result<(), Self::Error>;
+    async fn export_all_contacts(&self, path: impl AsRef<Path> + Send + Sync) -> Result<()> {
+        self.inner.export_all_contacts(path).await
+    }
 
-    /// Import contacts from a vCard string buffer.
-    ///
-    /// The account must have a folder with the contacts
-    /// flag.
     #[cfg(feature = "contacts")]
-    async fn import_contacts(
-        &mut self,
-        content: &str,
-        progress: impl Fn(ContactImportProgress) + Send + Sync,
-    ) -> std::result::Result<Vec<SecretId>, Self::Error>;
+    async fn import_contacts(&mut self, content: &str, progress: impl Fn(ContactImportProgress) + Send + Sync) -> Result<Vec<SecretId>> {
+        self.inner.import_contacts(content, progress).await
+    }
 
-    /// Write a zip archive containing all the secrets
-    /// for the account unencrypted.
-    ///
-    /// Used to migrate an account to another provider.
     #[cfg(feature = "migrate")]
-    async fn export_unsafe_archive(
-        &self,
-        path: impl AsRef<Path> + Send + Sync,
-    ) -> std::result::Result<(), Self::Error>;
+    async fn export_unsafe_archive(&self, path: impl AsRef<Path> + Send + Sync) -> Result<()> {
+        self.inner.export_unsafe_archive(path).await
+    }
 
-    /// Import secrets from another app.
     #[cfg(feature = "migrate")]
-    async fn import_file(
-        &mut self,
-        target: ImportTarget,
-    ) -> std::result::Result<FolderCreate<Self::NetworkResult>, Self::Error>;
+    async fn import_file(&mut self, target: ImportTarget) -> Result<FolderCreate<Self::NetworkResult>> {
+        self.inner.import_file(target).await
+    }
 
-    /// Create a backup archive containing the
-    /// encrypted data for the account.
     #[cfg(feature = "archive")]
-    async fn export_backup_archive(
-        &self,
-        path: impl AsRef<Path> + Send + Sync,
-    ) -> std::result::Result<(), Self::Error>;
+    async fn export_backup_archive(&self, path: impl AsRef<Path> + Send + Sync) -> Result<()> {
+        self.inner.export_backup_archive(path).await
+    }
 
-    /// Read the inventory from an archive.
     #[cfg(feature = "archive")]
-    async fn restore_archive_inventory<
-        R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
-    >(
-        buffer: R,
-    ) -> std::result::Result<Inventory, Self::Error>;
+    async fn restore_archive_inventory<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(buffer: R) -> Result<Inventory> {
+        Self::restore_archive_inventory(buffer).await
+    }
 
-    /// Restore from a backup archive file.
     #[cfg(feature = "archive")]
-    async fn import_backup_archive(
-        path: impl AsRef<Path> + Send + Sync,
-        options: RestoreOptions,
-        data_dir: Option<PathBuf>,
-    ) -> std::result::Result<PublicIdentity, Self::Error>;
+    async fn import_backup_archive(path: impl AsRef<Path> + Send + Sync, options: RestoreOptions, data_dir: Option<PathBuf>) -> Result<PublicIdentity> {
+        Self::import_backup_archive(path, options, data_dir).await
+    }
 
-    /// Restore from a backup archive file.
     #[cfg(feature = "archive")]
-    async fn restore_backup_archive(
-        &mut self,
-        path: impl AsRef<Path> + Send + Sync,
-        password: SecretString,
-        mut options: RestoreOptions,
-        data_dir: Option<PathBuf>,
-    ) -> std::result::Result<PublicIdentity, Self::Error>;
+    async fn restore_backup_archive(&mut self, path: impl AsRef<Path> + Send + Sync, password: SecretString, options: RestoreOptions, data_dir: Option<PathBuf>) -> Result<PublicIdentity> {
+        self.inner.restore_backup_archive(path, password, options, data_dir).await
+    }
 }
