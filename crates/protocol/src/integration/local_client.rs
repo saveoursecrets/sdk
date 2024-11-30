@@ -1,47 +1,35 @@
-//! Local integration is a sync client used to connect to an
-//! app running on the same device.
+//! Local client sends requests over a local,
+//! unauthenticated, insecure communication channel
+//! such as IPC.
 //!
-//! Like network-aware accounts it operates on the
-//! encrypted data sources so that it is able to communicate
-//! over potentially insecure unauthenticated communication
-//! channels such as named pipes.
-//!
-//! Typically, this would be used in the webassembly bindings
-//! for a browser extension or other local integration.
+//! It communicates in the same way as the network-aware
+//! client sending only encrypted data in the payloads.
 
 use crate::{
     CreateSet, DiffRequest, DiffResponse, Error, Origin, PatchRequest,
     PatchResponse, ScanRequest, ScanResponse, SyncClient, SyncPacket,
-    SyncStatus, UpdateSet,
+    SyncStatus, UpdateSet, WireEncodeDecode,
 };
 use async_trait::async_trait;
+use http::StatusCode;
 use sos_sdk::prelude::{Account, Address, LocalAccountSwitcher};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// Local app integration.
-pub struct LocalIntegration {
+/// Linked account.
+pub struct LocalClient {
     origin: Origin,
-    accounts: Arc<RwLock<LocalAccountSwitcher>>,
 }
 
-impl LocalIntegration {
-    /// Create a local app integration.
+impl LocalClient {
+    /// Create a local client.
     pub fn new(origin: Origin) -> Self {
-        Self {
-            origin,
-            accounts: Arc::new(RwLock::new(LocalAccountSwitcher::new())),
-        }
-    }
-
-    /// Clone of the accounts.
-    pub fn accounts(&self) -> Arc<RwLock<LocalAccountSwitcher>> {
-        self.accounts.clone()
+        Self { origin }
     }
 }
 
 #[async_trait]
-impl SyncClient for LocalIntegration {
+impl SyncClient for LocalClient {
     type Error = Error;
 
     fn origin(&self) -> &Origin {
@@ -52,9 +40,7 @@ impl SyncClient for LocalIntegration {
         &self,
         address: &Address,
     ) -> Result<bool, Self::Error> {
-        let accounts = self.accounts.read().await;
-        let account = accounts.iter().find(|a| a.address() == address);
-        Ok(account.is_some())
+        todo!();
     }
 
     async fn create_account(
@@ -62,7 +48,7 @@ impl SyncClient for LocalIntegration {
         address: &Address,
         account: CreateSet,
     ) -> Result<(), Self::Error> {
-        unimplemented!("local integrations cannot create accounts on remote");
+        todo!();
     }
 
     async fn update_account(
@@ -70,7 +56,7 @@ impl SyncClient for LocalIntegration {
         address: &Address,
         account: UpdateSet,
     ) -> Result<(), Self::Error> {
-        unimplemented!("local integrations cannot update accounts on remote");
+        todo!();
     }
 
     async fn fetch_account(&self) -> Result<CreateSet, Self::Error> {
@@ -113,3 +99,31 @@ impl SyncClient for LocalIntegration {
         todo!();
     }
 }
+
+/*
+/// Request that can be sent over a local transport.
+pub enum TransportRequest {
+    /// Create an account on the remote.
+    CreateAccount {
+        /// Account address.
+        address: Address,
+        /// Account data.
+        account_data: CreateSet,
+    },
+}
+
+/// Response received by a local transport.
+pub struct TransportResponse {
+    /// Response status code.
+    pub status: StatusCode,
+    /// Response packet.
+    pub packet: (),
+}
+
+/// Generic local transport.
+#[async_trait]
+pub trait LocalTransport {
+    /// Send a request over the local transport.
+    async fn send(&self, request: TransportRequest) -> TransportResponse;
+}
+*/

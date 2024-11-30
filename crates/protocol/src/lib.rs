@@ -23,14 +23,14 @@
 mod bindings;
 mod error;
 #[cfg(feature = "local-integration")]
-mod local_integration;
+mod integration;
 mod sync;
 mod traits;
 
 pub use bindings::*;
 pub use error::Error;
 #[cfg(feature = "local-integration")]
-pub use local_integration::LocalIntegration;
+pub use integration::*;
 pub use sync::*;
 pub use traits::*;
 
