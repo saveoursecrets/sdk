@@ -1,9 +1,21 @@
-//! Local client sends requests over a local,
-//! unauthenticated, insecure communication channel
-//! such as IPC.
+//! Local client implements the sync protocol for linked
+//! accounts.
 //!
-//! It communicates in the same way as the network-aware
+//! It sends requests over a local, unauthenticated,
+//! insecure communication channel such as a named pipe.
+//!
+//! Th client is transport-agnostic to support different
+//! communcation channels for different app integrations.
+//! For example, the browser extensions would communicate
+//! using the native messaging API which is proxied
+//! over the IPC channel using names pipes.
+//!
+//! Communication is performed the same way as the network-aware
 //! client sending only encrypted data in the payloads.
+//!
+//! However, unlike network-based syncing no authorization header
+//! is included as there is an inherent trust established when
+//! the app integration was installed on the device.
 
 use crate::{
     CreateSet, DiffRequest, DiffResponse, Error, Origin, PatchRequest,
@@ -11,10 +23,13 @@ use crate::{
     SyncStatus, UpdateSet, WireEncodeDecode,
 };
 use async_trait::async_trait;
-use http::{Method, Request, Response, StatusCode, Uri};
+use bytes::Bytes;
+use http::{
+    header::CONTENT_TYPE, Method, Request, Response, StatusCode, Uri,
+};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use sos_sdk::{prelude::Address, url::Url};
+use sos_sdk::{constants::MIME_TYPE_PROTOBUF, prelude::Address, url::Url};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
@@ -33,7 +48,7 @@ impl LocalClient {
         Self { origin, transport }
     }
 
-    /// Build a URL for the local client.
+    /// Build a URI for the local client.
     fn build_uri(&self, route: &str) -> Result<Uri> {
         Ok(Uri::builder()
             .scheme(self.origin.url().scheme())
@@ -89,7 +104,8 @@ impl SyncClient for LocalClient {
         let request = Request::builder()
             .method(Method::PUT)
             .uri(uri)
-            .body(Default::default())?;
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
+            .body(body)?;
 
         let response = self.transport.call(request.into()).await?;
         let status = response.status();
@@ -104,11 +120,40 @@ impl SyncClient for LocalClient {
         address: &Address,
         account: UpdateSet,
     ) -> Result<()> {
-        todo!();
+        let body = account.encode().await?;
+        let uri = self.build_uri("api/v1/sync/account")?;
+
+        tracing::debug!(uri = %uri, "local_client::update_account");
+
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri(uri)
+            .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
+            .body(body)?;
+        let response = self.transport.call(request.into()).await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "local_client::update_account");
+        // self.error_json(response).await?;
+        todo!("handle error status");
+        Ok(())
     }
 
     async fn fetch_account(&self) -> Result<CreateSet> {
-        todo!();
+        let uri = self.build_uri("api/v1/sync/account")?;
+
+        tracing::debug!(uri = %uri, "local_client::fetch_account");
+
+        let request = Request::builder()
+            .method(Method::GET)
+            .uri(uri)
+            .body(Default::default())?;
+
+        let response = self.transport.call(request.into()).await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "local_client::fetch_account");
+        // self.error_json(response).await?;
+        todo!("handle error status");
+        Ok(CreateSet::decode(response.bytes()).await?)
     }
 
     async fn delete_account(&self) -> Result<()> {
@@ -142,8 +187,7 @@ impl SyncClient for LocalClient {
 /// browser extension which transfers JSON via the
 /// native messaging API.
 ///
-/// The body will usually be protobuf-encoded
-/// binary data.
+/// The body will usually be protobuf-encoded binary data.
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TransportRequest {
@@ -186,8 +230,7 @@ impl From<Request<Vec<u8>>> for TransportRequest {
 /// browser extension which transfers JSON via the
 /// native messaging API.
 ///
-/// The body will usually be protobuf-encoded
-/// binary data.
+/// The body will usually be protobuf-encoded binary data.
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TransportResponse {
@@ -224,6 +267,11 @@ impl TransportResponse {
     /// Status code.
     pub fn status(&self) -> StatusCode {
         self.status
+    }
+
+    /// Convert the body to bytes.
+    pub fn bytes(self) -> Bytes {
+        self.body.into()
     }
 }
 

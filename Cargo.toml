@@ -60,6 +60,7 @@ clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
 colored = "2"
 arboard = { version = "3", default-features = false }
 zeroize = "1"
+bytes = "1.8"
 
 axum-server = { version = "0.7", features = ["tls-rustls-no-provider"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }

@@ -4661,6 +4661,7 @@ version = "0.16.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bytes",
  "futures",
  "http",
  "indexmap 2.6.0",
