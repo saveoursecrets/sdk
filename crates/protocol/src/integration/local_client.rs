@@ -348,7 +348,14 @@ impl TryFrom<TransportRequest> for Request<Vec<u8>> {
     type Error = Error;
 
     fn try_from(value: TransportRequest) -> Result<Self> {
-        todo!();
+        let mut request =
+            Request::builder().uri(&value.uri).method(&value.method);
+        for (k, values) in &value.headers {
+            for value in values {
+                request = request.header(k, value);
+            }
+        }
+        Ok(request.body(value.body)?)
     }
 }
 
