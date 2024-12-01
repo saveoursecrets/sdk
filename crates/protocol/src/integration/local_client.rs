@@ -8,10 +8,10 @@
 use crate::{
     CreateSet, DiffRequest, DiffResponse, Error, Origin, PatchRequest,
     PatchResponse, Result, ScanRequest, ScanResponse, SyncClient, SyncPacket,
-    SyncStatus, UpdateSet,
+    SyncStatus, UpdateSet, WireEncodeDecode,
 };
 use async_trait::async_trait;
-use http::{Method, StatusCode};
+use http::{Method, Request, Response, StatusCode, Uri};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use sos_sdk::{prelude::Address, url::Url};
@@ -34,8 +34,12 @@ impl LocalClient {
     }
 
     /// Build a URL for the local client.
-    fn build_url(&self, route: &str) -> Result<Url> {
-        Ok(self.origin.url().join(route)?)
+    fn build_uri(&self, route: &str) -> Result<Uri> {
+        Ok(Uri::builder()
+            .scheme(self.origin.url().scheme())
+            .authority(self.origin.url().authority())
+            .path_and_query(route)
+            .build()?)
     }
 }
 
@@ -49,17 +53,16 @@ impl SyncClient for LocalClient {
 
     #[instrument(skip(self))]
     async fn account_exists(&self, address: &Address) -> Result<bool> {
-        let url = self.build_url("api/v1/sync/account")?;
+        let uri = self.build_uri("api/v1/sync/account")?;
 
-        tracing::debug!(url = %url, "local_client::account_exists");
+        tracing::debug!(uri = %uri, "local_client::account_exists");
 
-        let request = TransportRequest {
-            method: Method::HEAD,
-            url,
-            body: None,
-        };
+        let request = Request::builder()
+            .method(Method::HEAD)
+            .uri(uri)
+            .body(Default::default())?;
 
-        let response = self.transport.send(request).await?;
+        let response = self.transport.call(request.into()).await?;
         let status = response.status();
         tracing::debug!(status = %status, "local_client::account_exists");
         let exists = match status {
@@ -78,7 +81,22 @@ impl SyncClient for LocalClient {
         address: &Address,
         account: CreateSet,
     ) -> Result<()> {
-        todo!();
+        let body = account.encode().await?;
+        let uri = self.build_uri("api/v1/sync/account")?;
+
+        tracing::debug!(uri = %uri, "local_client::create_account");
+
+        let request = Request::builder()
+            .method(Method::PUT)
+            .uri(uri)
+            .body(Default::default())?;
+
+        let response = self.transport.call(request.into()).await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "local_client::create_account");
+        // self.error_json(response).await?;
+        todo!("handle error status");
+        Ok(())
     }
 
     async fn update_account(
@@ -119,6 +137,13 @@ impl SyncClient for LocalClient {
 }
 
 /// Request that can be sent to a local data source.
+///
+/// Supports serde so this type is compatible with the
+/// browser extension which transfers JSON via the
+/// native messaging API.
+///
+/// The body will usually be protobuf-encoded
+/// binary data.
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TransportRequest {
@@ -127,13 +152,31 @@ pub struct TransportRequest {
     pub method: Method,
     /// Request URL.
     #[serde_as(as = "DisplayFromStr")]
-    pub url: Url,
+    pub uri: Uri,
     /// Request body.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub body: Option<Vec<u8>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub body: Vec<u8>,
+}
+
+impl From<Request<Vec<u8>>> for TransportRequest {
+    fn from(value: Request<Vec<u8>>) -> Self {
+        let (parts, body) = value.into_parts();
+        Self {
+            method: parts.method,
+            uri: parts.uri,
+            body,
+        }
+    }
 }
 
 /// Response received from a local data source.
+///
+/// Supports serde so this type is compatible with the
+/// browser extension which transfers JSON via the
+/// native messaging API.
+///
+/// The body will usually be protobuf-encoded
+/// binary data.
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TransportResponse {
@@ -141,8 +184,18 @@ pub struct TransportResponse {
     #[serde_as(as = "DisplayFromStr")]
     status: StatusCode,
     /// Response body.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    body: Option<Vec<u8>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    body: Vec<u8>,
+}
+
+impl From<Response<Vec<u8>>> for TransportResponse {
+    fn from(value: Response<Vec<u8>>) -> Self {
+        let (parts, body) = value.into_parts();
+        Self {
+            status: parts.status,
+            body,
+        }
+    }
 }
 
 impl TransportResponse {
@@ -156,7 +209,7 @@ impl TransportResponse {
 #[async_trait]
 pub trait LocalTransport {
     /// Send a request over the local transport.
-    async fn send(
+    async fn call(
         &self,
         request: TransportRequest,
     ) -> Result<TransportResponse>;

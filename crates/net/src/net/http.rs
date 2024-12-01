@@ -234,30 +234,6 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn delete_account(&self) -> Result<()> {
-        let url = self.build_url("api/v1/sync/account")?;
-
-        let sign_url = url.path();
-        let account_signature = encode_account_signature(
-            self.account_signer.sign(sign_url.as_bytes()).await?,
-        )
-        .await?;
-        let auth = bearer_prefix(&account_signature, None);
-
-        tracing::debug!(url = %url, "http::delete_account");
-        let response = self
-            .client
-            .delete(url)
-            .header(AUTHORIZATION, auth)
-            .send()
-            .await?;
-        let status = response.status();
-        tracing::debug!(status = %status, "http::delete_account");
-        self.error_json(response).await?;
-        Ok(())
-    }
-
-    #[instrument(skip_all)]
     async fn create_account(
         &self,
         _address: &Address,
@@ -345,6 +321,30 @@ impl SyncClient for HttpClient {
         let response = self.check_response(response).await?;
         let buffer = response.bytes().await?;
         Ok(CreateSet::decode(buffer).await?)
+    }
+
+    #[instrument(skip_all)]
+    async fn delete_account(&self) -> Result<()> {
+        let url = self.build_url("api/v1/sync/account")?;
+
+        let sign_url = url.path();
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, None);
+
+        tracing::debug!(url = %url, "http::delete_account");
+        let response = self
+            .client
+            .delete(url)
+            .header(AUTHORIZATION, auth)
+            .send()
+            .await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::delete_account");
+        self.error_json(response).await?;
+        Ok(())
     }
 
     #[instrument(skip_all)]
