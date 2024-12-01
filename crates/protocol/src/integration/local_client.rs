@@ -15,7 +15,7 @@ use http::{Method, Request, Response, StatusCode, Uri};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use sos_sdk::{prelude::Address, url::Url};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 type ClientTransport = Box<dyn LocalTransport + Send + Sync + 'static>;
@@ -153,6 +153,9 @@ pub struct TransportRequest {
     /// Request URL.
     #[serde_as(as = "DisplayFromStr")]
     pub uri: Uri,
+    /// Request headers.
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub headers: HashMap<String, Vec<String>>,
     /// Request body.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub body: Vec<u8>,
@@ -161,9 +164,17 @@ pub struct TransportRequest {
 impl From<Request<Vec<u8>>> for TransportRequest {
     fn from(value: Request<Vec<u8>>) -> Self {
         let (parts, body) = value.into_parts();
+
+        let mut headers = HashMap::new();
+        for (key, value) in parts.headers.iter() {
+            let entry = headers.entry(key.to_string()).or_insert(vec![]);
+            entry.push(value.to_str().unwrap().to_owned());
+        }
+
         Self {
             method: parts.method,
             uri: parts.uri,
+            headers,
             body,
         }
     }
@@ -183,6 +194,9 @@ pub struct TransportResponse {
     /// Response status code.
     #[serde_as(as = "DisplayFromStr")]
     status: StatusCode,
+    /// Response headers.
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub headers: HashMap<String, Vec<String>>,
     /// Response body.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     body: Vec<u8>,
@@ -191,8 +205,16 @@ pub struct TransportResponse {
 impl From<Response<Vec<u8>>> for TransportResponse {
     fn from(value: Response<Vec<u8>>) -> Self {
         let (parts, body) = value.into_parts();
+
+        let mut headers = HashMap::new();
+        for (key, value) in parts.headers.iter() {
+            let entry = headers.entry(key.to_string()).or_insert(vec![]);
+            entry.push(value.to_str().unwrap().to_owned());
+        }
+
         Self {
             status: parts.status,
+            headers,
             body,
         }
     }
