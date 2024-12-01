@@ -599,7 +599,7 @@ impl RemoteSync for LinkedAccount {
     type Error = crate::Error;
 
     async fn sync(&self) -> RemoteResult<Self::Error> {
-        todo!();
+        self.sync_with_options(&Default::default()).await
     }
 
     async fn sync_with_options(
@@ -611,7 +611,9 @@ impl RemoteSync for LinkedAccount {
 
     #[cfg(feature = "files")]
     async fn sync_file_transfers(&self) -> RemoteResult<Self::Error> {
-        todo!();
+        unimplemented!(
+            "sync file transfers not supported for linked accounts"
+        );
     }
 
     async fn force_update(
