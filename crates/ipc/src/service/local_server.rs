@@ -15,7 +15,7 @@ use tower::Service as _;
 type Incoming = Vec<u8>;
 type Body = Vec<u8>;
 
-// Need the Mutex as BoxCloneService does not implement Sync.
+// Need the Mutex as BoxCloneService does not implement Sync
 type Service =
     Mutex<BoxCloneService<Request<Incoming>, Response<Body>, hyper::Error>>;
 
@@ -112,7 +112,8 @@ where
             return not_found(req).await;
         };
 
-        // lock the service for a very short time, just to clone the service
+        // lock the service for a very short time,
+        // just to clone the service
         let mut service = found.value.lock().unwrap().clone();
         service.call(req).await
     }
