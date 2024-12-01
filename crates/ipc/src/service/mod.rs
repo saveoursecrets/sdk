@@ -302,10 +302,10 @@ where
                 })
             }
             IpcRequestBody::Http(req) => {
-                let res = self.server.call(req.try_into()?).await;
+                let res = self.server.handle(req).await;
                 Ok(IpcResponse::Value {
                     message_id,
-                    payload: IpcResponseBody::Http(res.into()),
+                    payload: IpcResponseBody::Http(res),
                 })
             }
             IpcRequestBody::ListAccounts => {

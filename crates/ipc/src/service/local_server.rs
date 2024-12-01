@@ -1,5 +1,8 @@
 use http::{Method, Request, Response, StatusCode};
-use sos_net::sdk::prelude::{Account, AccountSwitcher};
+use sos_net::{
+    protocol::{TransportRequest, TransportResponse},
+    sdk::prelude::{Account, AccountSwitcher},
+};
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -77,7 +80,18 @@ where
         }
     }
 
-    pub async fn call(&self, req: Request<Incoming>) -> Response<Body> {
+    pub async fn handle(&self, req: TransportRequest) -> TransportResponse {
+        let res = match req.try_into() {
+            Ok(req) => self.call(req).await,
+            Err(e) => Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(e.to_string().as_bytes().to_vec())
+                .unwrap(),
+        };
+        res.into()
+    }
+
+    async fn call(&self, req: Request<Incoming>) -> Response<Body> {
         let router = self.router.clone();
         let result = Self::route(router, req).await.unwrap();
         result
