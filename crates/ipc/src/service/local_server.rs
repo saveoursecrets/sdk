@@ -77,7 +77,7 @@ where
         }
     }
 
-    async fn call(&self, req: Request<Incoming>) -> Response<Body> {
+    pub async fn call(&self, req: Request<Incoming>) -> Response<Body> {
         let router = self.router.clone();
         let result = Self::route(router, req).await.unwrap();
         result

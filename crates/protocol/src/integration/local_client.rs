@@ -309,7 +309,7 @@ impl SyncClient for LocalClient {
 ///
 /// The body will usually be protobuf-encoded binary data.
 #[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransportRequest {
     /// Request method.
     #[serde_as(as = "DisplayFromStr")]
@@ -341,6 +341,14 @@ impl From<Request<Vec<u8>>> for TransportRequest {
             headers,
             body,
         }
+    }
+}
+
+impl TryFrom<TransportRequest> for Request<Vec<u8>> {
+    type Error = Error;
+
+    fn try_from(value: TransportRequest) -> Result<Self> {
+        todo!();
     }
 }
 

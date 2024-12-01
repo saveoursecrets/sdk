@@ -31,18 +31,20 @@ message WireIpcResponseBody {
     common.WireVoidBody pong = 4;
     // Request to open a URL.
     WireOpenUrl open_url = 5;
+    // Response to an HTTP request.
+    common.WireTransportResponse http = 6;
     // List accounts body.
-    WireAccountList list_accounts = 6;
+    WireAccountList list_accounts = 7;
     // Copy clipboard body.
-    WireCommandOutcome copy = 7;
+    WireCommandOutcome copy = 8;
     // Authenticate body.
-    WireCommandOutcome authenticate = 8;
+    WireCommandOutcome authenticate = 9;
     // Lock body.
-    WireCommandOutcome lock = 9;
+    WireCommandOutcome lock = 10;
     // Search query body.
-    WireSearchResults search = 10;
+    WireSearchResults search = 11;
     // View query body.
-    WireSearchResults query_view = 11;
+    WireSearchResults query_view = 12;
   }
 }
 

@@ -2,8 +2,11 @@ include!(concat!(env!("OUT_DIR"), "/request.rs"));
 
 use crate::{Error, Result, WireVoidBody};
 use serde::{Deserialize, Serialize};
-use sos_net::sdk::prelude::{
-    Address, ArchiveFilter, DocumentView, QualifiedPath, QueryFilter,
+use sos_net::{
+    protocol::TransportRequest,
+    sdk::prelude::{
+        Address, ArchiveFilter, DocumentView, QualifiedPath, QueryFilter,
+    },
 };
 use tokio::time::Duration;
 use typeshare::typeshare;
@@ -37,6 +40,8 @@ pub enum IpcRequestBody {
     Ping,
     /// Request to open a URL.
     OpenUrl(String),
+    /// HTTP request routed to the local server.
+    Http(TransportRequest),
     /// Request the accounts list.
     ListAccounts,
     /// Request to copy to the clipboard.
@@ -65,11 +70,13 @@ pub enum IpcRequestBody {
         /// Archive filter.
         archive_filter: Option<ArchiveFilter>,
     },
+    /*
     /// Request to read a secret.
     ReadSecret {
         /// Qualified path to the secret.
         path: QualifiedPath,
     },
+    */
 }
 
 impl IpcRequest {
@@ -125,6 +132,14 @@ impl From<IpcRequest> for WireIpcRequest {
                 body: Some(WireIpcRequestBody {
                     inner: Some(wire_ipc_request_body::Inner::OpenUrl(
                         WireOpenUrlBody { url },
+                    )),
+                }),
+            },
+            IpcRequestBody::Http(req) => WireIpcRequest {
+                message_id: value.message_id,
+                body: Some(WireIpcRequestBody {
+                    inner: Some(wire_ipc_request_body::Inner::Http(
+                        req.into(),
                     )),
                 }),
             },
@@ -192,6 +207,7 @@ impl From<IpcRequest> for WireIpcRequest {
                     )),
                 }),
             },
+            /*
             IpcRequestBody::ReadSecret { path } => WireIpcRequest {
                 message_id: value.message_id,
                 body: Some(WireIpcRequestBody {
@@ -202,6 +218,7 @@ impl From<IpcRequest> for WireIpcRequest {
                     )),
                 }),
             },
+            */
         }
     }
 }
@@ -232,6 +249,10 @@ impl TryFrom<WireIpcRequest> for IpcRequest {
             Some(wire_ipc_request_body::Inner::OpenUrl(body)) => IpcRequest {
                 message_id,
                 payload: IpcRequestBody::OpenUrl(body.url),
+            },
+            Some(wire_ipc_request_body::Inner::Http(body)) => IpcRequest {
+                message_id,
+                payload: IpcRequestBody::Http(body.try_into()?),
             },
             Some(wire_ipc_request_body::Inner::ListAccounts(_)) => {
                 IpcRequest {
@@ -288,6 +309,7 @@ impl TryFrom<WireIpcRequest> for IpcRequest {
                     },
                 }
             }
+            /*
             Some(wire_ipc_request_body::Inner::ReadSecret(body)) => {
                 IpcRequest {
                     message_id,
@@ -296,6 +318,7 @@ impl TryFrom<WireIpcRequest> for IpcRequest {
                     },
                 }
             }
+            */
             _ => return Err(Error::DecodeRequest),
         })
     }

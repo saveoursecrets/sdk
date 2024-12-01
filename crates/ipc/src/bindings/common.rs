@@ -1,16 +1,19 @@
 include!(concat!(env!("OUT_DIR"), "/common.rs"));
 
 use crate::{Error, Result};
-use sos_net::sdk::{
-    prelude::{
-        Address, ArchiveFilter, Document, DocumentView, ExtraFields,
-        PublicIdentity, QualifiedPath, QueryFilter, SecretFlags, SecretMeta,
-        SecretType,
+use sos_net::{
+    protocol::{TransportRequest, TransportResponse},
+    sdk::{
+        prelude::{
+            Address, ArchiveFilter, Document, DocumentView, ExtraFields,
+            PublicIdentity, QualifiedPath, QueryFilter, SecretFlags,
+            SecretMeta, SecretType,
+        },
+        url::Url,
+        urn::Urn,
+        vcard4::property::Kind as ContactKind,
+        Error as SdkError, UtcDateTime,
     },
-    url::Url,
-    urn::Urn,
-    vcard4::property::Kind as ContactKind,
-    Error as SdkError, UtcDateTime,
 };
 
 impl From<DocumentView> for WireDocumentView {
@@ -505,5 +508,51 @@ impl TryFrom<WireQualifiedPath> for QualifiedPath {
     ) -> std::result::Result<Self, Self::Error> {
         let urn: Urn = value.urn.parse()?;
         Ok(urn.try_into()?)
+    }
+}
+
+impl From<TransportRequest> for WireTransportRequest {
+    fn from(value: TransportRequest) -> Self {
+        todo!();
+
+        /*
+        WireTransportRequest {
+        }
+        */
+    }
+}
+
+impl TryFrom<WireTransportRequest> for TransportRequest {
+    type Error = Error;
+
+    fn try_from(value: WireTransportRequest) -> Result<Self> {
+        todo!();
+        /*
+        Ok(TransportRequest {
+        })
+        */
+    }
+}
+
+impl From<TransportResponse> for WireTransportResponse {
+    fn from(value: TransportResponse) -> Self {
+        todo!();
+
+        /*
+        WireTransportResponse {
+        }
+        */
+    }
+}
+
+impl TryFrom<WireTransportResponse> for TransportResponse {
+    type Error = Error;
+
+    fn try_from(value: WireTransportResponse) -> Result<Self> {
+        todo!();
+        /*
+        Ok(TransportResponse {
+        })
+        */
     }
 }

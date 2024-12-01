@@ -2,9 +2,12 @@ include!(concat!(env!("OUT_DIR"), "/response.rs"));
 
 use crate::{AccountsList, Error, Result, SearchResults};
 use serde::{Deserialize, Serialize};
-use sos_net::sdk::{
-    vault::{Summary, VaultId},
-    Error as SdkError,
+use sos_net::{
+    protocol::TransportResponse,
+    sdk::{
+        vault::{Summary, VaultId},
+        Error as SdkError,
+    },
 };
 use typeshare::typeshare;
 
@@ -63,6 +66,8 @@ pub enum IpcResponseBody {
     Pong,
     /// Result of opening a URL.
     OpenUrl(bool),
+    /// Result invoking the local server.
+    Http(TransportResponse),
     /// List of accounts.
     Accounts(AccountsList),
     /// Copy to clipboard result.
@@ -155,7 +160,16 @@ impl From<IpcResponse> for WireIpcResponse {
                         },
                     )),
                 },
-
+                IpcResponseBody::Http(res) => Self {
+                    message_id,
+                    result: Some(wire_ipc_response::Result::Body(
+                        WireIpcResponseBody {
+                            inner: Some(wire_ipc_response_body::Inner::Http(
+                                res.into(),
+                            )),
+                        },
+                    )),
+                },
                 IpcResponseBody::Accounts(data) => {
                     let list = WireAccountList {
                         accounts: data
@@ -298,6 +312,12 @@ impl TryFrom<WireIpcResponse> for IpcResponse {
                         IpcResponse::Value {
                             message_id,
                             payload: IpcResponseBody::OpenUrl(inner.is_ok),
+                        }
+                    }
+                    Some(wire_ipc_response_body::Inner::Http(res)) => {
+                        IpcResponse::Value {
+                            message_id,
+                            payload: IpcResponseBody::Http(res.try_into()?),
                         }
                     }
                     Some(wire_ipc_response_body::Inner::ListAccounts(

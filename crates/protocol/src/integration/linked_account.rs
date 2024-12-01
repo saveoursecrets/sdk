@@ -15,6 +15,9 @@ use tokio::sync::RwLock;
 
 use super::local_client::LocalClient;
 
+#[cfg(feature = "archive")]
+use tokio::io::{AsyncRead, AsyncSeek, BufReader};
+
 /// Linked account.
 pub struct LinkedAccount {
     inner: LocalAccount,

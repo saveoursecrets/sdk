@@ -32,26 +32,26 @@ message WireIpcRequestBody {
     // Request to open a program.
     WireOpenUrlBody open_url = 5;
 
+    // Request for the local server.
+    common.WireTransportRequest http = 6;
+
     // Request a list of accounts.
-    common.WireVoidBody list_accounts = 6;
+    common.WireVoidBody list_accounts = 7;
 
     // Request to copy to the clipboard.
-    WireClipboardTarget copy = 7;
+    WireClipboardTarget copy = 8;
 
     // Request to authenticate to an account.
-    WireAuthenticateBody authenticate  = 8;
+    WireAuthenticateBody authenticate  = 9;
 
     // Request to lock an account.
-    WireLockBody lock  = 9;
+    WireLockBody lock  = 10;
 
     // Request to search an account.
-    WireSearchBody search  = 10;
+    WireSearchBody search  = 11;
 
     // Request to query a view.
-    WireQueryViewBody query_view  = 11;
-
-    // Request to read secret data.
-    WireReadSecretBody read_secret = 12;
+    WireQueryViewBody query_view  = 12;
   }
 }
 
@@ -95,8 +95,10 @@ message WireQueryViewBody {
   optional common.WireArchiveFilter archive_filter = 2;
 }
 
+/*
 // Request secret body.
 message WireReadSecretBody {
   // Qualified path to the secret. 
   common.WireQualifiedPath path = 1;
 }
+*/

@@ -9,7 +9,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::{
-    IpcService, LocalAccountIpcService, NetworkAccountIpcService, Result,
+    Error, IpcService, LocalAccountIpcService, NetworkAccountIpcService,
+    Result,
 };
 
 /// Socket server for network-enabled accounts.
@@ -56,6 +57,7 @@ where
         loop {
             let socket = listener.accept().await?;
             let service = service.clone();
+
             tokio::spawn(async move {
                 super::handle_conn(service, socket).await;
             });

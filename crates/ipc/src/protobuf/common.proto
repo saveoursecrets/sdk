@@ -178,3 +178,16 @@ message WireQualifiedPath {
   // URN representation of the qualified path.
   string urn = 1;
 }
+
+message WireTransportRequest {
+  string method = 1;
+  string url = 2;
+  string headers = 3;
+  bytes body = 4;
+}
+
+message WireTransportResponse {
+  string status = 1;
+  string headers = 2;
+  bytes body = 3;
+}

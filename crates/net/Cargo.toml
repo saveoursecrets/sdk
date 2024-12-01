@@ -89,7 +89,7 @@ workspace = true
 [dependencies.sos-protocol]
 version = "0.16"
 path = "../protocol"
-features = ["account"]
+features = ["account", "local-integration"]
 
 [dependencies.sos-account-extras]
 version = "0.16"

@@ -301,6 +301,13 @@ where
                     payload: IpcResponseBody::OpenUrl(false),
                 })
             }
+            IpcRequestBody::Http(req) => {
+                let res = self.server.call(req.try_into()?).await;
+                Ok(IpcResponse::Value {
+                    message_id,
+                    payload: IpcResponseBody::Http(res.into()),
+                })
+            }
             IpcRequestBody::ListAccounts => {
                 let data = self.list_accounts().await?;
                 Ok(IpcResponse::Value {
@@ -367,20 +374,12 @@ where
                     message_id,
                     payload: IpcResponseBody::QueryView(data),
                 })
-            }
-
-            IpcRequestBody::ReadSecret { path } => {
-                let (outcome, data) = self.read_secret(path).await?;
-
-                todo!("handle read secret outline request");
-
-                /*
-                Ok(IpcResponse::Value {
-                    message_id,
-                    payload: IpcResponseBody::ReadSecretOutline((outcome, data)),
-                })
-                */
-            }
+            } /*
+              IpcRequestBody::ReadSecret { path } => {
+                  let (outcome, data) = self.read_secret(path).await?;
+                  todo!("handle read secret outline request");
+              }
+              */
         }
     }
 }
