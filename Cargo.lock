@@ -4671,6 +4671,7 @@ dependencies = [
  "rs_merkle",
  "rustc_version",
  "serde",
+ "serde_json",
  "serde_with",
  "sos-sdk",
  "thiserror 1.0.69",

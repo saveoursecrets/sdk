@@ -107,6 +107,9 @@ mod urn {
 mod mime {
     /// Mime type for protocol buffers.
     pub const MIME_TYPE_PROTOBUF: &str = "application/x-protobuf";
+
+    /// Mime type for JSON.
+    pub const MIME_TYPE_JSON: &str = "application/json";
 }
 
 /// Constants for directory names.

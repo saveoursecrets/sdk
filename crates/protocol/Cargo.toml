@@ -29,6 +29,7 @@ tracing.workspace = true
 async-trait.workspace = true
 serde.workspace = true
 serde_with.workspace = true
+serde_json.workspace = true
 uuid.workspace = true
 url.workspace = true
 futures.workspace = true
