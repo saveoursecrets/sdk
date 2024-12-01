@@ -22,6 +22,10 @@ async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 typeshare.workspace = true
+
+sos-net = { version = "0.16", path = "../net", features = ["account", "search"] }
+sos-account-extras = { version = "0.16", path = "../account_extras/", features = ["clipboard"] }
+
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "macros", "io-util", "io-std", "sync"] }
 tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["codec"] }
@@ -31,8 +35,11 @@ interprocess = { version = "2", features = ["tokio"], optional = true }
 open = { version = "5", optional = true }
 once_cell = { workspace = true, optional = true }
 
-sos-net = { version = "0.16", path = "../net", features = ["account", "search"] }
-sos-account-extras = { version = "0.16", path = "../account_extras/", features = ["clipboard"] }
+# HTTP dependencies for local server
+http.workspace = true
+tower = "0.5"
+hyper = { version = "1", features = ["http1", "server"] }
+matchit = "0.7"
 
 [build-dependencies]
 rustc_version = "0.4.1"

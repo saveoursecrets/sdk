@@ -21,7 +21,10 @@ use tokio::sync::Mutex;
 use tokio::sync::{mpsc, RwLock};
 
 mod delegate;
+mod local_server;
+
 pub use delegate::*;
+use local_server::LocalServer;
 
 /// IPC service for local accounts.
 pub type LocalAccountIpcService = IpcServiceHandler<
@@ -73,6 +76,7 @@ where
     accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
     delegate: mpsc::Sender<Command<E, R, A>>,
     options: IpcServiceOptions,
+    server: LocalServer<E, R, A>,
 }
 
 impl<E, R, A> IpcServiceHandler<E, R, A>
@@ -92,6 +96,7 @@ where
         options: IpcServiceOptions,
     ) -> Self {
         Self {
+            server: LocalServer::new(accounts.clone()),
             accounts,
             delegate,
             options,
