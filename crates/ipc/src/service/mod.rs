@@ -25,16 +25,16 @@ use local_server::LocalServer;
 
 /// IPC service for local accounts.
 pub type LocalAccountIpcService = IpcServiceHandler<
-    <LocalAccount as Account>::Error,
-    <LocalAccount as Account>::NetworkResult,
     LocalAccount,
+    <LocalAccount as Account>::NetworkResult,
+    <LocalAccount as Account>::Error,
 >;
 
 /// IPC service for network-enabled accounts.
 pub type NetworkAccountIpcService = IpcServiceHandler<
-    <NetworkAccount as Account>::Error,
-    <NetworkAccount as Account>::NetworkResult,
     NetworkAccount,
+    <NetworkAccount as Account>::NetworkResult,
+    <NetworkAccount as Account>::Error,
 >;
 
 /// Options for an IPC service.
@@ -61,35 +61,35 @@ pub trait IpcService<E> {
 }
 
 /// Handler for IPC requests.
-pub struct IpcServiceHandler<E, R, A>
+pub struct IpcServiceHandler<A, R, E>
 where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
     E: std::fmt::Debug
         + From<sos_net::sdk::Error>
         + From<std::io::Error>
         + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
 {
     accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
-    delegate: mpsc::Sender<Command<E, R, A>>,
+    delegate: mpsc::Sender<Command<A, R, E>>,
     options: IpcServiceOptions,
     server: LocalServer,
 }
 
-impl<E, R, A> IpcServiceHandler<E, R, A>
+impl<A, R, E> IpcServiceHandler<A, R, E>
 where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
     E: std::error::Error
         + std::fmt::Debug
         + From<sos_net::sdk::Error>
         + From<std::io::Error>
         + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
 {
     /// Create a new service handler.
     pub fn new(
         accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
-        delegate: mpsc::Sender<Command<E, R, A>>,
+        delegate: mpsc::Sender<Command<A, R, E>>,
         options: IpcServiceOptions,
     ) -> Self {
         let app_info = options.app_info.clone().unwrap_or_default();
@@ -254,15 +254,15 @@ where
 }
 
 #[async_trait]
-impl<E, R, A> IpcService<E> for IpcServiceHandler<E, R, A>
+impl<A, R, E> IpcService<E> for IpcServiceHandler<A, R, E>
 where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
     E: std::error::Error
         + std::fmt::Debug
         + From<sos_net::sdk::Error>
         + From<std::io::Error>
         + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
 {
     /// Handle an incoming request.
     async fn handle(

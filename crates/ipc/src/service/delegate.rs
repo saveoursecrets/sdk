@@ -12,47 +12,47 @@ use tokio::sync::{mpsc, oneshot, RwLock};
 /// Service delegate for local accounts.
 pub type LocalAccountServiceDelegate = mpsc::Sender<
     Command<
-        <LocalAccount as Account>::Error,
-        <LocalAccount as Account>::NetworkResult,
         LocalAccount,
+        <LocalAccount as Account>::NetworkResult,
+        <LocalAccount as Account>::Error,
     >,
 >;
 
 /// Service delegate for network-enabled accounts.
 pub type NetworkAccountServiceDelegate = mpsc::Sender<
     Command<
-        <NetworkAccount as Account>::Error,
-        <NetworkAccount as Account>::NetworkResult,
         NetworkAccount,
+        <NetworkAccount as Account>::NetworkResult,
+        <NetworkAccount as Account>::Error,
     >,
 >;
 
 /// Command for local accounts.
 pub type LocalAccountCommand = Command<
-    <LocalAccount as Account>::Error,
-    <LocalAccount as Account>::NetworkResult,
     LocalAccount,
+    <LocalAccount as Account>::NetworkResult,
+    <LocalAccount as Account>::Error,
 >;
 
 /// Command for network-enabled accounts.
 pub type NetworkAccountCommand = Command<
-    <NetworkAccount as Account>::Error,
-    <NetworkAccount as Account>::NetworkResult,
     NetworkAccount,
+    <NetworkAccount as Account>::NetworkResult,
+    <NetworkAccount as Account>::Error,
 >;
 
 /// Command sent to delegates.
 ///
 /// When a delegate receives a command it MUST reply
 /// on the `result` channel in the command options.
-pub struct Command<E, R, A>
+pub struct Command<A, R, E>
 where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
     E: std::fmt::Debug
         + From<sos_net::sdk::Error>
         + From<std::io::Error>
         + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
 {
     /// Collection of accounts.
     pub accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
@@ -87,16 +87,16 @@ pub fn local_account_delegate(
 ) -> (
     mpsc::Sender<
         Command<
-            <LocalAccount as Account>::Error,
-            <LocalAccount as Account>::NetworkResult,
             LocalAccount,
+            <LocalAccount as Account>::NetworkResult,
+            <LocalAccount as Account>::Error,
         >,
     >,
     mpsc::Receiver<
         Command<
-            <LocalAccount as Account>::Error,
-            <LocalAccount as Account>::NetworkResult,
             LocalAccount,
+            <LocalAccount as Account>::NetworkResult,
+            <LocalAccount as Account>::Error,
         >,
     >,
 ) {
@@ -109,16 +109,16 @@ pub fn network_account_delegate(
 ) -> (
     mpsc::Sender<
         Command<
-            <NetworkAccount as Account>::Error,
-            <NetworkAccount as Account>::NetworkResult,
             NetworkAccount,
+            <NetworkAccount as Account>::NetworkResult,
+            <NetworkAccount as Account>::Error,
         >,
     >,
     mpsc::Receiver<
         Command<
-            <NetworkAccount as Account>::Error,
-            <NetworkAccount as Account>::NetworkResult,
             NetworkAccount,
+            <NetworkAccount as Account>::NetworkResult,
+            <NetworkAccount as Account>::Error,
         >,
     >,
 ) {
