@@ -105,7 +105,8 @@ pub trait RemoteSyncHandler {
                 diff: local_changes,
                 compare: None,
             };
-            let remote_changes = self.client().sync(packet.clone()).await?;
+            let remote_changes =
+                self.client().sync(self.address(), packet.clone()).await?;
 
             let maybe_conflict = remote_changes
                 .compare

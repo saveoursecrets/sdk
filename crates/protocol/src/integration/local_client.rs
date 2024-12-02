@@ -241,7 +241,11 @@ impl SyncClient for LocalClient {
         Ok(SyncStatus::decode(response.bytes()).await?)
     }
 
-    async fn sync(&self, packet: SyncPacket) -> Result<SyncPacket> {
+    async fn sync(
+        &self,
+        address: &Address,
+        packet: SyncPacket,
+    ) -> Result<SyncPacket> {
         let body = packet.encode().await?;
         let uri = self.build_uri(SYNC_ACCOUNT)?;
         tracing::debug!(uri = %uri, "local_client::sync");
@@ -249,6 +253,7 @@ impl SyncClient for LocalClient {
         let request = Request::builder()
             .method(Method::PATCH)
             .uri(uri)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .body(body)?;
 
@@ -259,7 +264,11 @@ impl SyncClient for LocalClient {
         Ok(SyncPacket::decode(response.bytes()).await?)
     }
 
-    async fn scan(&self, request: ScanRequest) -> Result<ScanResponse> {
+    async fn scan(
+        &self,
+        address: &Address,
+        request: ScanRequest,
+    ) -> Result<ScanResponse> {
         let body = request.encode().await?;
         let uri = self.build_uri(SYNC_ACCOUNT_EVENTS)?;
         tracing::debug!(uri = %uri, "local_client::scan");
@@ -267,6 +276,7 @@ impl SyncClient for LocalClient {
         let request = Request::builder()
             .method(Method::GET)
             .uri(uri)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .body(body)?;
         let response = self.transport.call(request.into()).await?;
@@ -276,7 +286,11 @@ impl SyncClient for LocalClient {
         Ok(ScanResponse::decode(response.bytes()).await?)
     }
 
-    async fn diff(&self, request: DiffRequest) -> Result<DiffResponse> {
+    async fn diff(
+        &self,
+        address: &Address,
+        request: DiffRequest,
+    ) -> Result<DiffResponse> {
         let body = request.encode().await?;
         let uri = self.build_uri(SYNC_ACCOUNT_EVENTS)?;
         tracing::debug!(uri = %uri, "local_client::diff");
@@ -284,6 +298,7 @@ impl SyncClient for LocalClient {
         let request = Request::builder()
             .method(Method::POST)
             .uri(uri)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .body(body)?;
         let response = self.transport.call(request.into()).await?;
@@ -293,7 +308,11 @@ impl SyncClient for LocalClient {
         Ok(DiffResponse::decode(response.bytes()).await?)
     }
 
-    async fn patch(&self, request: PatchRequest) -> Result<PatchResponse> {
+    async fn patch(
+        &self,
+        address: &Address,
+        request: PatchRequest,
+    ) -> Result<PatchResponse> {
         let body = request.encode().await?;
         let uri = self.build_uri(SYNC_ACCOUNT_EVENTS)?;
         tracing::debug!(uri = %uri, "local_client::patch");
@@ -301,6 +320,7 @@ impl SyncClient for LocalClient {
         let request = Request::builder()
             .method(Method::PATCH)
             .uri(uri)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .body(body)?;
         let response = self.transport.call(request.into()).await?;

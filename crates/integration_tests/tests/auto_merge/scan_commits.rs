@@ -17,6 +17,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
     // Prepare a mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
     let origin = device.origin.clone();
+    let address = device.owner.address().clone();
     let default_folder = device.default_folder.clone();
 
     // Create some commits to a folder so it has 4 total
@@ -59,7 +60,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
         limit: 1,
         offset: 0,
     };
-    let res = client.scan(req).await?;
+    let res = client.scan(&address, req).await?;
     assert_eq!(1, res.proofs.len());
 
     // Get commit proofs of the account event log
@@ -68,7 +69,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
         limit: 256,
         offset: 0,
     };
-    let res = client.scan(req).await?;
+    let res = client.scan(&address, req).await?;
     assert!(!res.proofs.is_empty());
 
     // Get commit proofs of the device event log
@@ -77,7 +78,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
         limit: 256,
         offset: 0,
     };
-    let res = client.scan(req).await?;
+    let res = client.scan(&address, req).await?;
     assert!(!res.proofs.is_empty());
 
     // Get commit proofs of the files event log
@@ -86,7 +87,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
         limit: 256,
         offset: 0,
     };
-    let res = client.scan(req).await?;
+    let res = client.scan(&address, req).await?;
     // No files yet!
     assert!(res.proofs.is_empty());
 
@@ -101,7 +102,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
         limit: 256,
         offset: 0,
     };
-    let folder_desc = client.scan(req).await?;
+    let folder_desc = client.scan(&address, req).await?;
     assert_eq!(4, folder_desc.proofs.len());
     for proof in &folder_desc.proofs {
         let comparison = event_log.tree().compare(proof)?;
@@ -118,7 +119,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
         limit: 256,
         offset: 0,
     };
-    let folder_asc = client.scan(req).await?;
+    let folder_asc = client.scan(&address, req).await?;
     assert_eq!(4, folder_asc.proofs.len());
 
     // Scan in chunks of 2 from the end
@@ -127,11 +128,11 @@ async fn auto_merge_scan_commits() -> Result<()> {
         limit: 2,
         offset: 0,
     };
-    let folder_chunk_1 = client.scan(req.clone()).await?;
+    let folder_chunk_1 = client.scan(&address, req.clone()).await?;
     assert_eq!(2, folder_chunk_1.offset);
     // Scan next chunk
     req.offset = folder_chunk_1.offset;
-    let folder_chunk_2 = client.scan(req).await?;
+    let folder_chunk_2 = client.scan(&address, req).await?;
     assert_eq!(4, folder_chunk_2.offset);
 
     // Collect all the server proofs scanned
@@ -155,7 +156,7 @@ async fn auto_merge_scan_commits() -> Result<()> {
         limit: 256,
         offset: 64,
     };
-    let res = client.scan(req).await?;
+    let res = client.scan(&address, req).await?;
     assert!(res.proofs.is_empty());
 
     device.owner.sign_out().await?;

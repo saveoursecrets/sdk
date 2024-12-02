@@ -16,7 +16,7 @@ use crate::{
             routes::v1::{
                 SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
             },
-            MIME_TYPE_JSON, MIME_TYPE_PROTOBUF,
+            MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
         },
         prelude::Address,
         signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
@@ -211,7 +211,7 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn account_exists(&self, _address: &Address) -> Result<bool> {
+    async fn account_exists(&self, address: &Address) -> Result<bool> {
         let url = self.build_url(SYNC_ACCOUNT)?;
 
         let sign_url = url.path();
@@ -225,6 +225,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .head(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
@@ -243,7 +244,7 @@ impl SyncClient for HttpClient {
     #[instrument(skip_all)]
     async fn create_account(
         &self,
-        _address: &Address,
+        address: &Address,
         account: CreateSet,
     ) -> Result<()> {
         let body = account.encode().await?;
@@ -258,6 +259,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .put(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -272,7 +274,7 @@ impl SyncClient for HttpClient {
     #[instrument(skip_all)]
     async fn update_account(
         &self,
-        _address: &Address,
+        address: &Address,
         account: UpdateSet,
     ) -> Result<()> {
         let body = account.encode().await?;
@@ -290,6 +292,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .post(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -320,6 +323,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .get(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
@@ -345,6 +349,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .delete(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
@@ -373,6 +378,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .get(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
@@ -384,7 +390,12 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn sync(&self, packet: SyncPacket) -> Result<SyncPacket> {
+    async fn sync(
+        &self,
+
+        address: &Address,
+        packet: SyncPacket,
+    ) -> Result<SyncPacket> {
         let body = packet.encode().await?;
         let url = self.build_url(SYNC_ACCOUNT)?;
 
@@ -400,6 +411,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .patch(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -413,7 +425,11 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn scan(&self, request: ScanRequest) -> Result<ScanResponse> {
+    async fn scan(
+        &self,
+        address: &Address,
+        request: ScanRequest,
+    ) -> Result<ScanResponse> {
         let body = request.encode().await?;
         let url = self.build_url(SYNC_ACCOUNT_EVENTS)?;
 
@@ -429,6 +445,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .get(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -442,7 +459,11 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn diff(&self, request: DiffRequest) -> Result<DiffResponse> {
+    async fn diff(
+        &self,
+        address: &Address,
+        request: DiffRequest,
+    ) -> Result<DiffResponse> {
         let body = request.encode().await?;
         let url = self.build_url(SYNC_ACCOUNT_EVENTS)?;
 
@@ -458,6 +479,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .post(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -471,7 +493,11 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn patch(&self, request: PatchRequest) -> Result<PatchResponse> {
+    async fn patch(
+        &self,
+        address: &Address,
+        request: PatchRequest,
+    ) -> Result<PatchResponse> {
         let body = request.encode().await?;
         let url = self.build_url(SYNC_ACCOUNT_EVENTS)?;
 
@@ -487,6 +513,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .patch(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -512,7 +539,7 @@ impl FileSyncClient for HttpClient {
         path: &std::path::Path,
         progress: ProgressChannel,
         mut cancel: tokio::sync::watch::Receiver<
-            crate::protocol::CancelReason,
+            crate::protocol::transfer::CancelReason,
         >,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
@@ -599,7 +626,7 @@ impl FileSyncClient for HttpClient {
         path: &std::path::Path,
         progress: ProgressChannel,
         mut cancel: tokio::sync::watch::Receiver<
-            crate::protocol::CancelReason,
+            crate::protocol::transfer::CancelReason,
         >,
     ) -> Result<http::StatusCode> {
         use crate::sdk::{

@@ -762,17 +762,17 @@ impl RemoteSync for LinkedAccount {
         todo!();
     }
 
-    #[cfg(feature = "files")]
-    async fn sync_file_transfers(&self) -> RemoteResult<Self::Error> {
-        unimplemented!(
-            "sync file transfers not supported for linked accounts"
-        );
-    }
-
     async fn force_update(
         &self,
         account_data: UpdateSet,
     ) -> RemoteResult<Self::Error> {
         todo!();
+    }
+
+    #[cfg(feature = "files")]
+    async fn sync_file_transfers(&self) -> RemoteResult<Self::Error> {
+        unimplemented!(
+            "sync file transfers not supported for linked accounts"
+        );
     }
 }

@@ -201,18 +201,21 @@ pub trait SyncClient {
     /// Sync with a remote.
     async fn sync(
         &self,
+        address: &Address,
         packet: SyncPacket,
     ) -> Result<SyncPacket, Self::Error>;
 
     /// Scan commits in an event log.
     async fn scan(
         &self,
+        address: &Address,
         request: ScanRequest,
     ) -> Result<ScanResponse, Self::Error>;
 
     /// Fetch a collection of event records since a given commit hash.
     async fn diff(
         &self,
+        address: &Address,
         request: DiffRequest,
     ) -> Result<DiffResponse, Self::Error>;
 
@@ -222,15 +225,15 @@ pub trait SyncClient {
     /// attempt to rewind to the commit before applying the patch.
     async fn patch(
         &self,
+        address: &Address,
         request: PatchRequest,
     ) -> Result<PatchResponse, Self::Error>;
 }
 
 #[cfg(feature = "files")]
 mod file_sync {
-    use crate::{
-        transfer::{FileSet, FileTransfersSet, ProgressChannel},
-        CancelReason,
+    use crate::transfer::{
+        CancelReason, FileSet, FileTransfersSet, ProgressChannel,
     };
     use async_trait::async_trait;
     use http::StatusCode;

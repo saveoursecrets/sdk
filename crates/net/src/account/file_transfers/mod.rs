@@ -18,10 +18,10 @@ use crate::{
     net::NetworkRetry,
     protocol::{
         transfer::{
-            FileOperation, FileTransferQueueRequest, ProgressChannel,
-            TransferOperation,
+            CancelReason, FileOperation, FileTransferQueueRequest,
+            ProgressChannel, TransferOperation,
         },
-        CancelReason, FileSyncClient, Origin, SyncClient,
+        FileSyncClient, Origin, SyncClient,
     },
     sdk::{storage::files::ExternalFile, vfs, Paths},
     Error, Result,

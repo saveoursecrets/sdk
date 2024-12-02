@@ -8,10 +8,7 @@ use sos_account_extras::clipboard::NativeClipboard;
 use sos_net::{
     sdk::{
         account::{Account, AccountSwitcher, LocalAccount},
-        encode,
-        prelude::{
-            ArchiveFilter, DocumentView, Identity, QualifiedPath, QueryFilter,
-        },
+        prelude::{ArchiveFilter, DocumentView, Identity, QueryFilter},
         Paths,
     },
     NetworkAccount,

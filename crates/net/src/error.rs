@@ -1,7 +1,9 @@
 //! Error type for the client module.
 use http::StatusCode;
 use serde_json::Value;
-use sos_protocol::{AsConflict, CancelReason, ConflictError, Origin};
+use sos_protocol::{
+    transfer::CancelReason, AsConflict, ConflictError, Origin,
+};
 use sos_sdk::vault::VaultId;
 use std::error::Error as StdError;
 use std::path::PathBuf;

@@ -452,7 +452,7 @@ impl NetworkAccount {
             log_type: EventLogType::Folder(*folder_id),
             from_hash: None,
         };
-        let response = remote.client().diff(request).await?;
+        let response = remote.client().diff(self.address(), request).await?;
         self.restore_folder(folder_id, response.patch).await
     }
 
