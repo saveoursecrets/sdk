@@ -271,29 +271,29 @@ impl Account for LinkedAccount {
 
     async fn account_data(&self) -> Result<AccountData> {
         let account = self.account.lock().await;
-        account.account_data().await
+        Ok(account.account_data().await?)
     }
 
     async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
         let account = self.account.lock().await;
-        account.root_commit(summary).await
+        Ok(account.root_commit(summary).await?)
     }
 
     async fn identity_state(&self) -> Result<CommitState> {
         let account = self.account.lock().await;
-        account.identity_state().await
+        Ok(account.identity_state().await?)
     }
 
     async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
         let account = self.account.lock().await;
-        account.commit_state(summary).await
+        Ok(account.commit_state(summary).await?)
     }
 
     async fn compact_account(
         &mut self,
     ) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
         let mut account = self.account.lock().await;
-        account.compact_account().await
+        Ok(account.compact_account().await?)
     }
 
     async fn compact_folder(
@@ -301,7 +301,7 @@ impl Account for LinkedAccount {
         summary: &Summary,
     ) -> Result<(AccountEvent, u64, u64)> {
         let mut account = self.account.lock().await;
-        account.compact_folder(summary).await
+        Ok(account.compact_folder(summary).await?)
     }
 
     async fn restore_folder(
@@ -310,7 +310,7 @@ impl Account for LinkedAccount {
         records: Vec<EventRecord>,
     ) -> Result<Summary> {
         let mut account = self.account.lock().await;
-        account.restore_folder(folder_id, records).await
+        Ok(account.restore_folder(folder_id, records).await?)
     }
 
     async fn change_folder_password(
@@ -319,7 +319,7 @@ impl Account for LinkedAccount {
         new_key: AccessKey,
     ) -> Result<()> {
         let mut account = self.account.lock().await;
-        account.change_folder_password(folder, new_key).await
+        Ok(account.change_folder_password(folder, new_key).await?)
     }
 
     #[cfg(feature = "search")]
