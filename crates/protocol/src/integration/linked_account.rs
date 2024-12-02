@@ -607,7 +607,7 @@ impl Account for LinkedAccount {
         folder: Option<Summary>,
     ) -> Result<Option<Vec<u8>>> {
         let account = self.account.lock().await;
-        account.load_avatar(secret_id, folder).await
+        Ok(account.load_avatar(secret_id, folder).await?)
     }
 
     #[cfg(feature = "contacts")]
@@ -618,7 +618,7 @@ impl Account for LinkedAccount {
         folder: Option<Summary>,
     ) -> Result<()> {
         let account = self.account.lock().await;
-        account.export_contact(path, secret_id, folder).await
+        Ok(account.export_contact(path, secret_id, folder).await?)
     }
 
     #[cfg(feature = "contacts")]
@@ -627,7 +627,7 @@ impl Account for LinkedAccount {
         path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
         let account = self.account.lock().await;
-        account.export_all_contacts(path).await
+        Ok(account.export_all_contacts(path).await?)
     }
 
     #[cfg(feature = "contacts")]
@@ -637,7 +637,7 @@ impl Account for LinkedAccount {
         progress: impl Fn(ContactImportProgress) + Send + Sync,
     ) -> Result<Vec<SecretId>> {
         let mut account = self.account.lock().await;
-        account.import_contacts(content, progress).await
+        Ok(account.import_contacts(content, progress).await?)
     }
 
     #[cfg(feature = "migrate")]
