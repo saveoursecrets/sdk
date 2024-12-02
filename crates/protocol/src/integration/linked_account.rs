@@ -76,48 +76,48 @@ impl Account for LinkedAccount {
     }
 
     async fn is_authenticated(&self) -> bool {
-        self.inner.read().await.is_authenticated().await
+        self.inner.is_authenticated().await
     }
 
     async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
-        self.inner.read().await.account_signer().await
+        self.inner.account_signer().await
     }
 
     async fn new_device_vault(
         &mut self,
     ) -> Result<(DeviceSigner, DeviceManager)> {
-        self.inner.write().await.new_device_vault().await
+        self.inner.new_device_vault().await
     }
 
     async fn device_signer(&self) -> Result<DeviceSigner> {
-        self.inner.read().await.device_signer().await
+        self.inner.device_signer().await
     }
 
     async fn device_public_key(&self) -> Result<DevicePublicKey> {
-        self.inner.read().await.device_public_key().await
+        self.inner.device_public_key().await
     }
 
     async fn current_device(&self) -> Result<TrustedDevice> {
-        self.inner.read().await.current_device().await
+        self.inner.current_device().await
     }
 
     async fn trusted_devices(&self) -> Result<IndexSet<TrustedDevice>> {
-        self.inner.read().await.trusted_devices().await
+        self.inner.trusted_devices().await
     }
 
     async fn public_identity(&self) -> Result<PublicIdentity> {
-        self.inner.read().await.public_identity().await
+        self.inner.public_identity().await
     }
 
     async fn account_label(&self) -> Result<String> {
-        self.inner.read().await.account_label().await
+        self.inner.account_label().await
     }
 
     async fn folder_description(
         &mut self,
         folder: &Summary,
     ) -> Result<String> {
-        self.inner.write().await.folder_description(folder).await
+        self.inner.folder_description(folder).await
     }
 
     async fn set_folder_description(
@@ -125,26 +125,26 @@ impl Account for LinkedAccount {
         folder: &Summary,
         description: impl AsRef<str> + Send + Sync,
     ) -> Result<FolderChange<Self::NetworkResult>> {
-        self.inner.write().await.set_folder_description(folder, description).await
+        self.inner.set_folder_description(folder, description).await
     }
 
     async fn find_folder_password(
         &self,
         folder_id: &VaultId,
     ) -> Result<Option<AccessKey>> {
-        self.inner.read().await.find_folder_password(folder_id).await
+        self.inner.find_folder_password(folder_id).await
     }
 
     async fn generate_folder_password(&self) -> Result<SecretString> {
-        self.inner.read().await.generate_folder_password().await
+        self.inner.generate_folder_password().await
     }
 
     async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
-        self.inner.read().await.identity_vault_buffer().await
+        self.inner.identity_vault_buffer().await
     }
 
     async fn identity_folder_summary(&self) -> Result<Summary> {
-        self.inner.read().await.identity_folder_summary().await
+        self.inner.identity_folder_summary().await
     }
 
     async fn change_cipher(
@@ -153,18 +153,18 @@ impl Account for LinkedAccount {
         cipher: &Cipher,
         kdf: Option<KeyDerivation>,
     ) -> Result<CipherComparison> {
-        self.inner.write().await.change_cipher(account_key, cipher, kdf).await
+        self.inner.change_cipher(account_key, cipher, kdf).await
     }
 
     async fn change_account_password(
         &mut self,
         password: SecretString,
     ) -> Result<()> {
-        self.inner.write().await.change_account_password(password).await
+        self.change_account_password(password).await
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
-        self.inner.write().await.sign_in(key).await
+        self.inner.sign_in(key).await
     }
 
     async fn sign_in_with_options(
@@ -172,86 +172,86 @@ impl Account for LinkedAccount {
         key: &AccessKey,
         options: SigninOptions,
     ) -> Result<Vec<Summary>> {
-        self.inner.write().await.sign_in_with_options(key, options).await
+        self.inner.sign_in_with_options(key, options).await
     }
 
     async fn verify(&self, key: &AccessKey) -> bool {
-        self.inner.read().await.verify(key).await
+        self.inner.verify(key).await
     }
 
     async fn open_folder(&self, summary: &Summary) -> Result<()> {
-        self.inner.read().await.open_folder(summary).await
+        self.inner.open_folder(summary).await
     }
 
     async fn current_folder(&self) -> Result<Option<Summary>> {
-        self.inner.read().await.current_folder().await
+        self.inner.current_folder().await
     }
 
     async fn find<P>(&self, predicate: P) -> Option<Summary>
     where
         P: FnMut(&&Summary) -> bool + Send,
     {
-        self.inner.read().await.find(predicate).await
+        self.inner.find(predicate).await
     }
 
     async fn sign_out(&mut self) -> Result<()> {
-        self.inner.write().await.sign_out().await
+        self.inner.sign_out().await
     }
 
     async fn rename_account(
         &mut self,
         account_name: String,
     ) -> Result<AccountChange<Self::NetworkResult>> {
-        self.inner.write().await.rename_account(account_name).await
+        self.inner.rename_account(account_name).await
     }
 
     async fn delete_account(&mut self) -> Result<()> {
-        self.inner.write().await.delete_account().await
+        self.inner.delete_account().await
     }
 
     async fn storage(&self) -> Result<Arc<RwLock<ClientStorage>>> {
-        self.inner.read().await.storage().await
+        self.inner.storage().await
     }
 
     async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
-        self.inner.read().await.secret_ids(summary).await
+        self.inner.secret_ids(summary).await
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {
-        self.inner.write().await.load_folders().await
+        self.inner.load_folders().await
     }
 
     async fn list_folders(&self) -> Result<Vec<Summary>> {
-        self.inner.read().await.list_folders().await
+        self.inner.list_folders().await
     }
 
     async fn account_data(&self) -> Result<AccountData> {
-        self.inner.read().await.account_data().await
+        self.inner.account_data().await
     }
 
     async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
-        self.inner.read().await.root_commit(summary).await
+        self.inner.root_commit(summary).await
     }
 
     async fn identity_state(&self) -> Result<CommitState> {
-        self.inner.read().await.identity_state().await
+        self.inner.identity_state().await
     }
 
     async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
-        self.inner.read().await.commit_state(summary).await
+        self.inner.commit_state(summary).await
     }
 
     async fn compact_account(
         &mut self,
     ) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
-        self.inner.write().await.compact_account().await
+        self.inner.compact_account().await
     }
 
     async fn compact_folder(
         &mut self,
         summary: &Summary,
     ) -> Result<(AccountEvent, u64, u64)> {
-        self.inner.write().await.compact_folder(summary).await
+        self.inner.compact_folder(summary).await
     }
 
     async fn restore_folder(
@@ -259,7 +259,7 @@ impl Account for LinkedAccount {
         folder_id: &VaultId,
         records: Vec<EventRecord>,
     ) -> Result<Summary> {
-        self.inner.write().await.restore_folder(folder_id, records).await
+        self.inner.restore_folder(folder_id, records).await
     }
 
     async fn change_folder_password(
@@ -267,7 +267,7 @@ impl Account for LinkedAccount {
         folder: &Summary,
         new_key: AccessKey,
     ) -> Result<()> {
-        self.inner.write().await.change_folder_password(folder, new_key).await
+        self.inner.change_folder_password(folder, new_key).await
     }
 
     #[cfg(feature = "search")]
