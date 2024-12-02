@@ -1,8 +1,8 @@
 //! Linked account supports syncing accounts on the
 //! same device using a local client.
 use crate::{
-    Error, Origin, RemoteResult, RemoteSync, RemoteSyncHandler, Result,
-    SyncClient, SyncOptions, UpdateSet,
+    AutoMerge, Error, Origin, RemoteResult, RemoteSync, RemoteSyncHandler,
+    Result, SyncClient, SyncOptions, UpdateSet,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -746,6 +746,9 @@ impl RemoteSyncHandler for LinkedAccount {
         unimplemented!();
     }
 }
+
+#[async_trait]
+impl AutoMerge for LinkedAccount {}
 
 #[async_trait]
 impl RemoteSync for LinkedAccount {
