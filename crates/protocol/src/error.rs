@@ -14,9 +14,6 @@ pub trait AsConflict {
     /// Determine if this is a hard conflict error.
     fn is_hard_conflict(&self) -> bool;
 
-    /// Get an underlying conflict error.
-    fn as_conflict(&self) -> Option<&ConflictError>;
-
     /// Take an underlying conflict error.
     fn take_conflict(self) -> Option<ConflictError>;
 }
@@ -127,13 +124,6 @@ impl AsConflict for Error {
 
     fn is_hard_conflict(&self) -> bool {
         matches!(self, Error::Conflict(ConflictError::Hard))
-    }
-
-    fn as_conflict(&self) -> Option<&ConflictError> {
-        match self {
-            Self::Conflict(err) => Some(err),
-            _ => None,
-        }
     }
 
     fn take_conflict(self) -> Option<ConflictError> {

@@ -151,7 +151,7 @@ pub trait AccountSync {
     ) -> SyncResult<Self::Error>;
 }
 
-/// Client that can synchronize with a remote data source.
+/// Client that can communicate with a remote data source.
 #[async_trait]
 pub trait SyncClient {
     /// Error type for sync client.

@@ -203,13 +203,6 @@ impl AsConflict for Error {
         matches!(self, Error::Conflict(ConflictError::Hard))
     }
 
-    fn as_conflict(&self) -> Option<&ConflictError> {
-        match self {
-            Self::Conflict(err) => Some(err),
-            _ => None,
-        }
-    }
-
     fn take_conflict(self) -> Option<ConflictError> {
         match self {
             Self::Conflict(err) => Some(err),
