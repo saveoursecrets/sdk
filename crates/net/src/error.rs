@@ -92,31 +92,6 @@ pub enum Error {
     #[error("network retry was canceled")]
     RetryCanceled(CancelReason),
 
-    /// Error generated when a soft conflict was detected.
-    ///
-    /// A soft conflict may be resolved by searching for a
-    /// common ancestor commit and merging changes since
-    /// the common ancestor commit.
-    #[error("soft conflict")]
-    #[deprecated]
-    SoftConflict {
-        /// Conflict information.
-        conflict: MaybeConflict,
-        /// Local information sent to the remote.
-        local: SyncStatus,
-        /// Remote information in the server reply.
-        remote: SyncStatus,
-    },
-
-    /// Error generated when a hard conflict was detected.
-    ///
-    /// A hard conflict is triggered after a soft conflict
-    /// attempted to scan proofs on a remote and was unable
-    /// to find a common ancestor commit.
-    #[error("hard conflict")]
-    #[deprecated]
-    HardConflict,
-
     /// Error generated when a conflict is detected.
     #[error(transparent)]
     Conflict(#[from] ConflictError),
