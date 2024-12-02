@@ -29,8 +29,6 @@ pub(crate) type Remotes = HashMap<Origin, RemoteBridge>;
 /// Bridge between a local account and a remote.
 #[derive(Clone)]
 pub struct RemoteBridge {
-    /// Origin for this remote.
-    origin: Origin,
     /// Address of the account.
     address: Address,
     /// Account so we can replay events
@@ -54,8 +52,7 @@ impl RemoteBridge {
         connection_id: String,
     ) -> Result<Self> {
         let address = signer.address()?;
-        let client =
-            HttpClient::new(origin.clone(), signer, device, connection_id)?;
+        let client = HttpClient::new(origin, signer, device, connection_id)?;
 
         #[cfg(feature = "files")]
         let (file_transfer_queue, _) =
@@ -63,7 +60,6 @@ impl RemoteBridge {
 
         Ok(Self {
             account,
-            origin,
             client,
             address,
             #[cfg(feature = "files")]
@@ -83,7 +79,7 @@ impl RemoteSyncHandler for RemoteBridge {
     }
 
     fn origin(&self) -> &Origin {
-        &self.origin
+        self.client.origin()
     }
 
     fn address(&self) -> &Address {
@@ -145,11 +141,11 @@ impl RemoteSync for RemoteBridge {
     ) -> RemoteResult<Self::Error> {
         match self.execute_sync(options).await {
             Ok(outcome) => RemoteResult {
-                origin: self.origin.clone(),
+                origin: self.origin().clone(),
                 result: Ok(outcome),
             },
             Err(e) => RemoteResult {
-                origin: self.origin.clone(),
+                origin: self.origin().clone(),
                 result: Err(e),
             },
         }
@@ -159,11 +155,11 @@ impl RemoteSync for RemoteBridge {
     async fn sync_file_transfers(&self) -> RemoteResult<Self::Error> {
         match self.execute_sync_file_transfers().await {
             Ok(_) => RemoteResult {
-                origin: self.origin.clone(),
+                origin: self.origin().clone(),
                 result: Ok(None),
             },
             Err(e) => RemoteResult {
-                origin: self.origin.clone(),
+                origin: self.origin().clone(),
                 result: Err(e),
             },
         }
@@ -179,11 +175,11 @@ impl RemoteSync for RemoteBridge {
             .await
         {
             Ok(_) => RemoteResult {
-                origin: self.origin.clone(),
+                origin: self.origin().clone(),
                 result: Ok(None),
             },
             Err(e) => RemoteResult {
-                origin: self.origin.clone(),
+                origin: self.origin().clone(),
                 result: Err(e),
             },
         }

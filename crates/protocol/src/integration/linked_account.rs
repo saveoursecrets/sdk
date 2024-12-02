@@ -11,13 +11,14 @@ use sos_sdk::{
         AccessKey, AccessOptions, Account, AccountChange, AccountData,
         AccountEvent, AccountStatistics, Address, ArchiveFilter, Cipher,
         CipherComparison, ClientStorage, CommitHash, CommitState,
-        DetachedView, DeviceManager, DevicePublicKey, DeviceSigner, Document,
-        DocumentCount, DocumentView, EventRecord, FolderChange, FolderCreate,
+        ContactImportProgress, DetachedView, DeviceManager, DevicePublicKey,
+        DeviceSigner, Document, DocumentCount, DocumentView, EventRecord,
+        FolderChange, FolderCreate, FolderDelete, ImportTarget, Inventory,
         KeyDerivation, LocalAccount, NewFolderOptions, Paths, PublicIdentity,
-        QueryFilter, ReadEvent, SearchIndex, Secret, SecretChange,
-        SecretDelete, SecretId, SecretInsert, SecretMeta, SecretMove,
-        SecretRow, SigninOptions, Summary, TrustedDevice, VaultCommit,
-        VaultFlags, VaultId,
+        QueryFilter, ReadEvent, RestoreOptions, SearchIndex, Secret,
+        SecretChange, SecretDelete, SecretId, SecretInsert, SecretMeta,
+        SecretMove, SecretRow, SigninOptions, Summary, TrustedDevice, Vault,
+        VaultCommit, VaultFlags, VaultId,
     },
     secrecy::SecretString,
     signer::ecdsa::BoxedEcdsaSigner,
@@ -346,9 +347,9 @@ impl Account for LinkedAccount {
     }
 
     #[cfg(feature = "search")]
-    async fn statistics(&self) -> Result<AccountStatistics> {
+    async fn statistics(&self) -> AccountStatistics {
         let account = self.account.lock().await;
-        Ok(account.statistics().await)
+        account.statistics().await
     }
 
     #[cfg(feature = "search")]
@@ -646,7 +647,7 @@ impl Account for LinkedAccount {
         path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
         let account = self.account.lock().await;
-        account.export_unsafe_archive(path).await
+        Ok(account.export_unsafe_archive(path).await?)
     }
 
     #[cfg(feature = "migrate")]
@@ -655,7 +656,7 @@ impl Account for LinkedAccount {
         target: ImportTarget,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account.import_file(target).await
+        Ok(account.import_file(target).await?)
     }
 
     #[cfg(feature = "archive")]
@@ -664,7 +665,7 @@ impl Account for LinkedAccount {
         path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
         let account = self.account.lock().await;
-        account.export_backup_archive(path).await
+        Ok(account.export_backup_archive(path).await?)
     }
 
     #[cfg(feature = "archive")]
@@ -673,7 +674,7 @@ impl Account for LinkedAccount {
     >(
         buffer: R,
     ) -> Result<Inventory> {
-        Self::restore_archive_inventory(buffer).await
+        Ok(Self::restore_archive_inventory(buffer).await?)
     }
 
     #[cfg(feature = "archive")]
@@ -682,7 +683,7 @@ impl Account for LinkedAccount {
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
-        Self::import_backup_archive(path, options, data_dir).await
+        Ok(Self::import_backup_archive(path, options, data_dir).await?)
     }
 
     #[cfg(feature = "archive")]
@@ -694,9 +695,9 @@ impl Account for LinkedAccount {
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
         let mut account = self.account.lock().await;
-        account
+        Ok(account
             .restore_backup_archive(path, password, options, data_dir)
-            .await
+            .await?)
     }
 }
 
