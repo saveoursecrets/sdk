@@ -4,7 +4,10 @@
 //! download, upload, move and delete operations.
 use crate::{
     net::NetworkRetry,
-    protocol::{transfer::CancelReason, FileSyncClient, SyncClient},
+    protocol::{
+        transfer::{CancelReason, FileSyncClient},
+        SyncClient,
+    },
     sdk::{storage::files::ExternalFile, vfs, Paths},
     Error, Result,
 };

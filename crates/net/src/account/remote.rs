@@ -18,12 +18,9 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 #[cfg(feature = "files")]
-use crate::protocol::{
-    transfer::{
-        FileOperation, FileSet, FileTransferQueueRequest,
-        FileTransferQueueSender, TransferOperation,
-    },
-    FileSyncClient,
+use crate::protocol::transfer::{
+    FileOperation, FileSet, FileSyncClient, FileTransferQueueRequest,
+    FileTransferQueueSender, TransferOperation,
 };
 
 /// Collection of remote targets for synchronization.

@@ -22,10 +22,7 @@ use sos_sdk::events::DeviceEventLog;
 
 #[cfg(feature = "files")]
 use crate::{
-    protocol::{
-        transfer::{FileSet, FileTransfersSet},
-        FileSyncClient,
-    },
+    protocol::transfer::{FileSet, FileSyncClient, FileTransfersSet},
     sdk::events::FileEventLog,
 };
 
