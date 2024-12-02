@@ -20,7 +20,9 @@ use tokio::io::{AsyncRead, AsyncSeek};
 
 /// Linked account.
 pub struct LinkedAccount {
-    inner: LocalAccount,
+    inner: Arc<RwLock<LocalAccount>>,
+    address: Address,
+    paths: Arc<Paths>,
     client: LocalClient,
 }
 
@@ -33,7 +35,12 @@ impl LinkedAccount {
     ) -> Result<Self> {
         let inner =
             LocalAccount::new_unauthenticated(address, data_dir).await?;
-        Ok(Self { inner, client })
+        Ok(Self {
+            paths: inner.paths(),
+            inner: Arc::new(RwLock::new(inner)),
+            address,
+            client,
+        })
     }
 
     /// Create a new linked account.
@@ -46,7 +53,12 @@ impl LinkedAccount {
         let inner =
             LocalAccount::new_account(account_name, passphrase, data_dir)
                 .await?;
-        Ok(Self { inner, client })
+        Ok(Self {
+            address: *inner.address(),
+            paths: inner.paths(),
+            inner: Arc::new(RwLock::new(inner)),
+            client,
+        })
     }
 }
 
@@ -56,11 +68,11 @@ impl Account for LinkedAccount {
     type NetworkResult = ();
 
     fn address(&self) -> &Address {
-        self.inner.address()
+        &self.address
     }
 
     fn paths(&self) -> Arc<Paths> {
-        self.inner.paths()
+        self.paths.clone()
     }
 
     async fn is_authenticated(&self) -> bool {
