@@ -1,13 +1,12 @@
-use http::{header::CONTENT_TYPE, Method, Request, Response, StatusCode};
+use http::{Method, Request, Response, StatusCode};
 use parking_lot::Mutex;
-use serde::Serialize;
 use sos_net::{
     protocol::{TransportRequest, TransportResponse},
     sdk::prelude::{
         routes::v1::{
             SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
         },
-        Account, AccountSwitcher, MIME_TYPE_JSON,
+        Account, AccountSwitcher,
     },
 };
 use std::{collections::HashMap, sync::Arc};
@@ -27,103 +26,19 @@ type Service =
 
 type Router = HashMap<Method, matchit::Router<Service>>;
 
-async fn json<S: Serialize>(
-    req: Request<Incoming>,
-    value: &S,
-) -> hyper::Result<Response<Body>> {
-    let Ok(body) = serde_json::to_vec(value) else {
-        return internal_server_error(req).await;
-    };
-    let response = Response::builder()
-        .status(StatusCode::OK)
-        .header(CONTENT_TYPE, MIME_TYPE_JSON)
-        .body(body)
-        .unwrap();
-    Ok(response)
-}
+mod account;
+mod common;
+mod events;
+
+use account::*;
+use common::*;
+use events::*;
 
 async fn index(
     req: Request<Incoming>,
     app_info: Arc<ServiceAppInfo>,
 ) -> hyper::Result<Response<Body>> {
     json(req, &*app_info).await
-}
-
-async fn internal_server_error(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    Ok(Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(Body::default())
-        .unwrap())
-}
-
-async fn forbidden(_req: Request<Incoming>) -> hyper::Result<Response<Body>> {
-    Ok(Response::builder()
-        .status(StatusCode::FORBIDDEN)
-        .body(Body::default())
-        .unwrap())
-}
-
-async fn not_found(_req: Request<Incoming>) -> hyper::Result<Response<Body>> {
-    Ok(Response::builder()
-        .status(StatusCode::NOT_FOUND)
-        .body(Body::default())
-        .unwrap())
-}
-
-async fn account_exists(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    todo!();
-}
-
-async fn create_account(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    todo!();
-}
-
-async fn update_account(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    todo!();
-}
-
-async fn fetch_account(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    todo!();
-}
-
-async fn account_status(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    todo!();
-}
-
-async fn sync_account(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    todo!();
-}
-
-async fn events_scan(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    todo!();
-}
-
-async fn events_diff(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    todo!();
-}
-
-async fn events_patch(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    todo!();
 }
 
 /// Local server handles sync requests from app integrations
