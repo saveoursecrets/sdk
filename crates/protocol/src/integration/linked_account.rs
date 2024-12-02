@@ -8,13 +8,16 @@ use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_sdk::{
     prelude::{
-        AccessKey, Account, AccountChange, AccountData, AccountEvent,
-        AccountStatistics, Address, ArchiveFilter, Cipher, CipherComparison,
-        ClientStorage, CommitHash, CommitState, DetachedView, DeviceManager,
-        DevicePublicKey, DeviceSigner, Document, DocumentCount, DocumentView,
-        EventRecord, FolderChange, KeyDerivation, LocalAccount, Paths,
-        PublicIdentity, QueryFilter, SearchIndex, SecretChange, SecretId,
-        SigninOptions, Summary, TrustedDevice, VaultId,
+        AccessKey, AccessOptions, Account, AccountChange, AccountData,
+        AccountEvent, AccountStatistics, Address, ArchiveFilter, Cipher,
+        CipherComparison, ClientStorage, CommitHash, CommitState,
+        DetachedView, DeviceManager, DevicePublicKey, DeviceSigner, Document,
+        DocumentCount, DocumentView, EventRecord, FolderChange, FolderCreate,
+        KeyDerivation, LocalAccount, NewFolderOptions, Paths, PublicIdentity,
+        QueryFilter, ReadEvent, SearchIndex, Secret, SecretChange,
+        SecretDelete, SecretId, SecretInsert, SecretMeta, SecretMove,
+        SecretRow, SigninOptions, Summary, TrustedDevice, VaultCommit,
+        VaultFlags, VaultId,
     },
     secrecy::SecretString,
     signer::ecdsa::BoxedEcdsaSigner,
@@ -399,7 +402,9 @@ impl Account for LinkedAccount {
         file_name: &str,
     ) -> Result<Vec<u8>> {
         let account = self.account.lock().await;
-        account.download_file(vault_id, secret_id, file_name).await
+        Ok(account
+            .download_file(vault_id, secret_id, file_name)
+            .await?)
     }
 
     async fn create_secret(
@@ -502,9 +507,9 @@ impl Account for LinkedAccount {
         destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account
+        Ok(account
             .update_file(secret_id, meta, path, options, destination)
-            .await
+            .await?)
     }
 
     async fn create_folder(
@@ -513,7 +518,7 @@ impl Account for LinkedAccount {
         options: NewFolderOptions,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account.create_folder(name, options).await
+        Ok(account.create_folder(name, options).await?)
     }
 
     async fn rename_folder(
@@ -522,7 +527,7 @@ impl Account for LinkedAccount {
         name: String,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account.rename_folder(summary, name).await
+        Ok(account.rename_folder(summary, name).await?)
     }
 
     async fn update_folder_flags(
@@ -531,7 +536,7 @@ impl Account for LinkedAccount {
         flags: VaultFlags,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account.update_folder_flags(summary, flags).await
+        Ok(account.update_folder_flags(summary, flags).await?)
     }
 
     async fn import_folder(
@@ -541,7 +546,7 @@ impl Account for LinkedAccount {
         overwrite: bool,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account.import_folder(path, key, overwrite).await
+        Ok(account.import_folder(path, key, overwrite).await?)
     }
 
     async fn import_folder_buffer(
@@ -551,7 +556,7 @@ impl Account for LinkedAccount {
         overwrite: bool,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account.import_folder_buffer(buffer, key, overwrite).await
+        Ok(account.import_folder_buffer(buffer, key, overwrite).await?)
     }
 
     async fn import_identity_folder(
@@ -559,7 +564,7 @@ impl Account for LinkedAccount {
         vault: Vault,
     ) -> Result<AccountEvent> {
         let mut account = self.account.lock().await;
-        account.import_identity_folder(vault).await
+        Ok(account.import_identity_folder(vault).await?)
     }
 
     async fn export_folder(
@@ -570,9 +575,9 @@ impl Account for LinkedAccount {
         save_key: bool,
     ) -> Result<()> {
         let mut account = self.account.lock().await;
-        account
+        Ok(account
             .export_folder(path, summary, new_key, save_key)
-            .await
+            .await?)
     }
 
     async fn export_folder_buffer(
@@ -582,9 +587,9 @@ impl Account for LinkedAccount {
         save_key: bool,
     ) -> Result<Vec<u8>> {
         let mut account = self.account.lock().await;
-        account
+        Ok(account
             .export_folder_buffer(summary, new_key, save_key)
-            .await
+            .await?)
     }
 
     async fn delete_folder(
@@ -592,7 +597,7 @@ impl Account for LinkedAccount {
         summary: &Summary,
     ) -> Result<FolderDelete<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account.delete_folder(summary).await
+        Ok(account.delete_folder(summary).await?)
     }
 
     #[cfg(feature = "contacts")]
