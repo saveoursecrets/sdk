@@ -9,8 +9,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::{
-    Error, IpcService, LocalAccountIpcService, NetworkAccountIpcService,
-    Result,
+    IpcService, LocalAccountIpcService, NetworkAccountIpcService, Result,
 };
 
 /// Socket server for network-enabled accounts.
