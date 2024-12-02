@@ -368,7 +368,8 @@ mod handlers {
             storage::files::{list_external_files, ExternalFileName},
             vault::{secret::SecretId, VaultId},
         },
-        FileSet, FileTransfersSet, WireEncodeDecode,
+        transfer::{FileSet, FileTransfersSet},
+        WireEncodeDecode,
     };
 
     use crate::{

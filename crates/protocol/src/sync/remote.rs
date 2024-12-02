@@ -10,7 +10,9 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 #[cfg(feature = "files")]
-use crate::{FileOperation, FileTransferQueueSender, TransferOperation};
+use crate::transfer::{
+    FileOperation, FileTransferQueueSender, TransferOperation,
+};
 
 use super::ForceMerge;
 

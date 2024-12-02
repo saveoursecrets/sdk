@@ -222,7 +222,10 @@ pub trait SyncClient {
 
 #[cfg(feature = "files")]
 mod file_sync {
-    use crate::{CancelReason, FileSet, FileTransfersSet, ProgressChannel};
+    use crate::{
+        transfer::{FileSet, FileTransfersSet},
+        CancelReason, ProgressChannel,
+    };
     use async_trait::async_trait;
     use http::StatusCode;
     use sos_sdk::storage::files::ExternalFile;

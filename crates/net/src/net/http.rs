@@ -41,7 +41,10 @@ use crate::{
 
 #[cfg(feature = "files")]
 use crate::{
-    protocol::{FileSet, FileSyncClient, FileTransfersSet},
+    protocol::{
+        transfer::{FileSet, FileTransfersSet},
+        FileSyncClient,
+    },
     sdk::storage::files::ExternalFile,
     ProgressChannel,
 };

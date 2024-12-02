@@ -19,8 +19,11 @@ use tokio::sync::Mutex;
 
 #[cfg(feature = "files")]
 use crate::protocol::{
-    FileOperation, FileSet, FileSyncClient, FileTransferQueueRequest,
-    FileTransferQueueSender, TransferOperation,
+    transfer::{
+        FileOperation, FileSet, FileTransferQueueRequest,
+        FileTransferQueueSender, TransferOperation,
+    },
+    FileSyncClient,
 };
 
 /// Collection of remote targets for synchronization.

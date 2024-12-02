@@ -49,7 +49,7 @@ use tokio::io::{AsyncRead, AsyncSeek};
 use crate::sdk::prelude::ImportTarget;
 
 #[cfg(feature = "files")]
-use crate::FileTransferQueueSender;
+use crate::transfer::FileTransferQueueSender;
 
 /// Linked account.
 pub struct LinkedAccount {

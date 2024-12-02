@@ -78,7 +78,7 @@ use crate::{
         FileTransferSettings, FileTransfers, FileTransfersHandle,
         InflightTransfers,
     },
-    protocol::FileOperation,
+    protocol::transfer::FileOperation,
     sdk::storage::files::FileMutationEvent,
     HttpClient,
 };

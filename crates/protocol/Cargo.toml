@@ -26,7 +26,6 @@ search = ["sos-sdk/search"]
 thiserror.workspace = true
 tracing.workspace = true
 async-trait.workspace = true
-async-recursion.workspace = true
 serde.workspace = true
 serde_with.workspace = true
 serde_json.workspace = true
