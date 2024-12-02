@@ -70,7 +70,7 @@ where
         + From<std::io::Error>
         + 'static,
 {
-    accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
+    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
     delegate: mpsc::Sender<Command<A, R, E>>,
     options: IpcServiceOptions,
     server: LocalServer,
@@ -88,7 +88,7 @@ where
 {
     /// Create a new service handler.
     pub fn new(
-        accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
+        accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
         delegate: mpsc::Sender<Command<A, R, E>>,
         options: IpcServiceOptions,
     ) -> Self {

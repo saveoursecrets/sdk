@@ -5,92 +5,92 @@ use tokio::sync::RwLock;
 
 use super::{Body, Incoming};
 
-pub async fn account_exists<E, R, A>(
+pub async fn account_exists<A, R, E>(
     _req: Request<Incoming>,
-    _accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
+    _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
 ) -> hyper::Result<Response<Body>>
 where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
     E: std::fmt::Debug
         + From<sos_net::sdk::Error>
         + From<std::io::Error>
         + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
 {
     todo!();
 }
 
-pub async fn create_account<E, R, A>(
+pub async fn create_account<A, R, E>(
     _req: Request<Incoming>,
-    _accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
+    _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
 ) -> hyper::Result<Response<Body>>
 where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
     E: std::fmt::Debug
         + From<sos_net::sdk::Error>
         + From<std::io::Error>
         + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
 {
     todo!();
 }
 
-pub async fn update_account<E, R, A>(
+pub async fn update_account<A, R, E>(
     _req: Request<Incoming>,
-    _accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
+    _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
 ) -> hyper::Result<Response<Body>>
 where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
     E: std::fmt::Debug
         + From<sos_net::sdk::Error>
         + From<std::io::Error>
         + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
 {
     todo!();
 }
 
-pub async fn fetch_account<E, R, A>(
+pub async fn fetch_account<A, R, E>(
     _req: Request<Incoming>,
-    _accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
+    _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
 ) -> hyper::Result<Response<Body>>
 where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
     E: std::fmt::Debug
         + From<sos_net::sdk::Error>
         + From<std::io::Error>
         + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
 {
     todo!();
 }
 
-pub async fn account_status<E, R, A>(
+pub async fn account_status<A, R, E>(
     _req: Request<Incoming>,
-    _accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
+    _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
 ) -> hyper::Result<Response<Body>>
 where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
     E: std::fmt::Debug
         + From<sos_net::sdk::Error>
         + From<std::io::Error>
         + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
 {
     todo!();
 }
 
-pub async fn sync_account<E, R, A>(
+pub async fn sync_account<A, R, E>(
     _req: Request<Incoming>,
-    _accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
+    _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
 ) -> hyper::Result<Response<Body>>
 where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
     E: std::fmt::Debug
         + From<sos_net::sdk::Error>
         + From<std::io::Error>
         + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
 {
     todo!();
 }

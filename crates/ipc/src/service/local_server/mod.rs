@@ -53,17 +53,17 @@ pub(crate) struct LocalServer {
 
 impl LocalServer {
     /// Create a local server.
-    pub fn new<E, R, A>(
+    pub fn new<A, R, E>(
         app_info: ServiceAppInfo,
-        accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
+        accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
     ) -> Self
     where
+        A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+        R: 'static,
         E: std::fmt::Debug
             + From<sos_net::sdk::Error>
             + From<std::io::Error>
             + 'static,
-        R: 'static,
-        A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     {
         let mut router = Router::new();
         let info = Arc::new(app_info);

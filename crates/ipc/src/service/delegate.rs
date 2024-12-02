@@ -55,7 +55,7 @@ where
         + 'static,
 {
     /// Collection of accounts.
-    pub accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
+    pub accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
     /// Options for the command.
     pub options: CommandOptions,
 }

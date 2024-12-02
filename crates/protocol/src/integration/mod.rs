@@ -21,9 +21,9 @@ pub use local_client::*;
 
 /// Account switcher for linked accounts.
 pub type LinkedAccountSwitcher = AccountSwitcher<
-    <LinkedAccount as Account>::Error,
-    <LinkedAccount as Account>::NetworkResult,
     LinkedAccount,
+    <LinkedAccount as Account>::NetworkResult,
+    <LinkedAccount as Account>::Error,
 >;
 
 /// Local app integration.

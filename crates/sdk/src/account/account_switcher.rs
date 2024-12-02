@@ -6,9 +6,9 @@ use crate::{
 
 /// Account switcher for local accounts.
 pub type LocalAccountSwitcher = AccountSwitcher<
-    <LocalAccount as Account>::Error,
-    <LocalAccount as Account>::NetworkResult,
     LocalAccount,
+    <LocalAccount as Account>::NetworkResult,
+    <LocalAccount as Account>::Error,
 >;
 
 /// Collection of accounts with a currently selected account.
@@ -16,7 +16,7 @@ pub type LocalAccountSwitcher = AccountSwitcher<
 /// Allows multiple accounts to be authenticated concurrently
 /// so that integrations are able to operate on multiple accounts
 /// provided they are authenticated.
-pub struct AccountSwitcher<E, R, A>
+pub struct AccountSwitcher<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     E: From<crate::Error>,
@@ -27,7 +27,7 @@ where
     data_dir: Option<Paths>,
 }
 
-impl<E, R, A> AccountSwitcher<E, R, A>
+impl<A, R, E> AccountSwitcher<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     E: From<crate::Error>,

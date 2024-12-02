@@ -12,9 +12,9 @@ mod sync;
 
 /// Account switcher for network-enabled accounts.
 pub type NetworkAccountSwitcher = AccountSwitcher<
-    <NetworkAccount as Account>::Error,
-    <NetworkAccount as Account>::NetworkResult,
     NetworkAccount,
+    <NetworkAccount as Account>::NetworkResult,
+    <NetworkAccount as Account>::Error,
 >;
 
 #[cfg(feature = "files")]
