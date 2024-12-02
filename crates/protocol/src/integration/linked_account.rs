@@ -8,11 +8,13 @@ use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_sdk::{
     prelude::{
-        AccessKey, Account, AccountChange, Address, Cipher, CipherComparison,
-        ClientStorage, CommitHash, DeviceManager, DevicePublicKey,
-        DeviceSigner, FolderChange, KeyDerivation, LocalAccount, Paths,
-        PublicIdentity, SecretId, SigninOptions, Summary, TrustedDevice,
-        VaultId,
+        AccessKey, Account, AccountChange, AccountData, AccountEvent,
+        AccountStatistics, Address, ArchiveFilter, Cipher, CipherComparison,
+        ClientStorage, CommitHash, CommitState, DetachedView, DeviceManager,
+        DevicePublicKey, DeviceSigner, Document, DocumentCount, DocumentView,
+        EventRecord, FolderChange, KeyDerivation, LocalAccount, Paths,
+        PublicIdentity, QueryFilter, SearchIndex, SecretChange, SecretId,
+        SigninOptions, Summary, TrustedDevice, VaultId,
     },
     secrecy::SecretString,
     signer::ecdsa::BoxedEcdsaSigner,
