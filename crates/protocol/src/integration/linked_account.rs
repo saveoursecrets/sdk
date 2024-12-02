@@ -251,22 +251,22 @@ impl Account for LinkedAccount {
 
     async fn storage(&self) -> Result<Arc<RwLock<ClientStorage>>> {
         let account = self.account.lock().await;
-        account.storage().await
+        Ok(account.storage().await?)
     }
 
     async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
         let account = self.account.lock().await;
-        account.secret_ids(summary).await
+        Ok(account.secret_ids(summary).await?)
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {
         let mut account = self.account.lock().await;
-        account.load_folders().await
+        Ok(account.load_folders().await?)
     }
 
     async fn list_folders(&self) -> Result<Vec<Summary>> {
         let account = self.account.lock().await;
-        account.list_folders().await
+        Ok(account.list_folders().await?)
     }
 
     async fn account_data(&self) -> Result<AccountData> {
@@ -407,7 +407,7 @@ impl Account for LinkedAccount {
         options: AccessOptions,
     ) -> Result<SecretChange<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account.create_secret(meta, secret, options).await
+        Ok(account.create_secret(meta, secret, options).await?)
     }
 
     async fn insert_secrets(
@@ -415,7 +415,7 @@ impl Account for LinkedAccount {
         secrets: Vec<(SecretMeta, Secret)>,
     ) -> Result<SecretInsert<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account.insert_secrets(secrets).await
+        Ok(account.insert_secrets(secrets).await?)
     }
 
     async fn update_secret(
@@ -427,9 +427,9 @@ impl Account for LinkedAccount {
         destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account
+        Ok(account
             .update_secret(secret_id, meta, secret, options, destination)
-            .await
+            .await?)
     }
 
     async fn move_secret(
@@ -440,7 +440,7 @@ impl Account for LinkedAccount {
         options: AccessOptions,
     ) -> Result<SecretMove<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account.move_secret(secret_id, from, to, options).await
+        Ok(account.move_secret(secret_id, from, to, options).await?)
     }
 
     async fn read_secret(
@@ -449,7 +449,7 @@ impl Account for LinkedAccount {
         folder: Option<Summary>,
     ) -> Result<(SecretRow, ReadEvent)> {
         let account = self.account.lock().await;
-        account.read_secret(secret_id, folder).await
+        Ok(account.read_secret(secret_id, folder).await?)
     }
 
     async fn raw_secret(
@@ -458,7 +458,7 @@ impl Account for LinkedAccount {
         secret_id: &SecretId,
     ) -> Result<(Option<VaultCommit>, ReadEvent)> {
         let account = self.account.lock().await;
-        account.raw_secret(folder_id, secret_id).await
+        Ok(account.raw_secret(folder_id, secret_id).await?)
     }
 
     async fn delete_secret(
@@ -467,7 +467,7 @@ impl Account for LinkedAccount {
         options: AccessOptions,
     ) -> Result<SecretDelete<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account.delete_secret(secret_id, options).await
+        Ok(account.delete_secret(secret_id, options).await?)
     }
 
     async fn archive(
@@ -477,7 +477,7 @@ impl Account for LinkedAccount {
         options: AccessOptions,
     ) -> Result<SecretMove<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account.archive(from, secret_id, options).await
+        Ok(account.archive(from, secret_id, options).await?)
     }
 
     async fn unarchive(
@@ -487,7 +487,7 @@ impl Account for LinkedAccount {
         options: AccessOptions,
     ) -> Result<(SecretMove<Self::NetworkResult>, Summary)> {
         let mut account = self.account.lock().await;
-        account.unarchive(secret_id, secret_meta, options).await
+        Ok(account.unarchive(secret_id, secret_meta, options).await?)
     }
 
     #[cfg(feature = "files")]
