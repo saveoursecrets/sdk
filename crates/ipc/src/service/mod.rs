@@ -95,8 +95,10 @@ where
         delegate: mpsc::Sender<Command<E, R, A>>,
         options: IpcServiceOptions,
     ) -> Self {
+        let app_info = options.app_info.clone().unwrap_or_default();
+
         Self {
-            server: LocalServer::new(accounts.clone()),
+            server: LocalServer::new(app_info, accounts.clone()),
             accounts,
             delegate,
             options,
