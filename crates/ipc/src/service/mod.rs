@@ -375,12 +375,7 @@ where
                     message_id,
                     payload: IpcResponseBody::QueryView(data),
                 })
-            } /*
-              IpcRequestBody::ReadSecret { path } => {
-                  let (outcome, data) = self.read_secret(path).await?;
-                  todo!("handle read secret outline request");
-              }
-              */
+            }
         }
     }
 }

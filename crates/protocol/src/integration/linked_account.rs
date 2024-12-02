@@ -762,14 +762,36 @@ impl RemoteSync for LinkedAccount {
         &self,
         options: &SyncOptions,
     ) -> RemoteResult<Self::Error> {
-        todo!();
+        match self.execute_sync(options).await {
+            Ok(outcome) => RemoteResult {
+                origin: self.origin().clone(),
+                result: Ok(outcome),
+            },
+            Err(e) => RemoteResult {
+                origin: self.origin().clone(),
+                result: Err(e),
+            },
+        }
     }
 
     async fn force_update(
         &self,
         account_data: UpdateSet,
     ) -> RemoteResult<Self::Error> {
-        todo!();
+        match self
+            .client
+            .update_account(&self.address, account_data)
+            .await
+        {
+            Ok(_) => RemoteResult {
+                origin: self.origin().clone(),
+                result: Ok(None),
+            },
+            Err(e) => RemoteResult {
+                origin: self.origin().clone(),
+                result: Err(e),
+            },
+        }
     }
 
     #[cfg(feature = "files")]
