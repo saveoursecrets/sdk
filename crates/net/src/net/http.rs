@@ -42,11 +42,10 @@ use crate::{
 #[cfg(feature = "files")]
 use crate::{
     protocol::{
-        transfer::{FileSet, FileTransfersSet},
+        transfer::{FileSet, FileTransfersSet, ProgressChannel},
         FileSyncClient,
     },
     sdk::storage::files::ExternalFile,
-    ProgressChannel,
 };
 
 /// Client that can synchronize with a server over HTTP(S).

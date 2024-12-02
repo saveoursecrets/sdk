@@ -5,6 +5,9 @@ use crate::sdk::{
 };
 use indexmap::IndexSet;
 
+/// Channel for upload and download progress notifications.
+pub type ProgressChannel = tokio::sync::mpsc::Sender<(u64, Option<u64>)>;
+
 /// Request to queue a file transfer.
 pub type FileTransferQueueRequest = Vec<FileOperation>;
 

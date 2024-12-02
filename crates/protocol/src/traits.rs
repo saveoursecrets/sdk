@@ -6,9 +6,6 @@ use crate::{
 use async_trait::async_trait;
 use sos_sdk::prelude::Address;
 
-/// Channel for upload and download progress notifications.
-pub type ProgressChannel = tokio::sync::mpsc::Sender<(u64, Option<u64>)>;
-
 /// Result of a sync operation with a single remote.
 #[derive(Debug)]
 pub struct RemoteResult<E> {
@@ -232,8 +229,8 @@ pub trait SyncClient {
 #[cfg(feature = "files")]
 mod file_sync {
     use crate::{
-        transfer::{FileSet, FileTransfersSet},
-        CancelReason, ProgressChannel,
+        transfer::{FileSet, FileTransfersSet, ProgressChannel},
+        CancelReason,
     };
     use async_trait::async_trait;
     use http::StatusCode;

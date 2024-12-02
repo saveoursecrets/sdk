@@ -38,7 +38,7 @@ once_cell = { workspace = true, optional = true }
 
 # HTTP dependencies for local server
 http.workspace = true
-tower = "0.5"
+tower = { version = "0.5", features = ["util"]}
 hyper = { version = "1", features = ["http1", "server"] }
 matchit = "0.7"
 

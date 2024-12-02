@@ -218,6 +218,7 @@ where
         })
     }
 
+    /*
     /// Read secret.
     async fn read_secret(
         &self,
@@ -252,6 +253,7 @@ where
             (CommandOutcome::NotFound, None)
         })
     }
+    */
 }
 
 #[async_trait]
