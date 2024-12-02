@@ -8,8 +8,11 @@ use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_sdk::{
     prelude::{
-        Account, Address, DeviceManager, DevicePublicKey, DeviceSigner,
-        LocalAccount, Paths, Summary, TrustedDevice,
+        AccessKey, Account, AccountChange, Address, Cipher, CipherComparison,
+        ClientStorage, CommitHash, DeviceManager, DevicePublicKey,
+        DeviceSigner, FolderChange, KeyDerivation, LocalAccount, Paths,
+        PublicIdentity, SecretId, SigninOptions, Summary, TrustedDevice,
+        VaultId,
     },
     secrecy::SecretString,
     signer::ecdsa::BoxedEcdsaSigner,
