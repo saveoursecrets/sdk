@@ -9,9 +9,6 @@ mod primitives;
 mod remote;
 mod transport;
 
-#[cfg(feature = "files")]
-pub mod transfer;
-
 pub use auto_merge::*;
 pub use primitives::*;
 pub use remote::*;

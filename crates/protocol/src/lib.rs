@@ -31,7 +31,7 @@ mod sync;
 mod traits;
 
 #[cfg(feature = "files")]
-pub use sync::transfer;
+pub mod transfer;
 
 pub use bindings::*;
 pub use error::{AsConflict, ConflictError, Error};
