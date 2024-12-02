@@ -182,7 +182,7 @@ impl Account for LinkedAccount {
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
         let mut inner = self.inner.write().await;
-        inner.sign_in(key)
+        inner.sign_in(key).await
     }
 
     async fn sign_in_with_options(
@@ -191,22 +191,22 @@ impl Account for LinkedAccount {
         options: SigninOptions,
     ) -> Result<Vec<Summary>> {
         let mut inner = self.inner.write().await;
-        inner.sign_in_with_options(key, options)
+        inner.sign_in_with_options(key, options).await
     }
 
     async fn verify(&self, key: &AccessKey) -> bool {
         let inner = self.inner.read().await;
-        inner.verify(key)
+        inner.verify(key).await
     }
 
     async fn open_folder(&self, summary: &Summary) -> Result<()> {
         let inner = self.inner.read().await;
-        inner.open_folder(summary)
+        inner.open_folder(summary).await
     }
 
     async fn current_folder(&self) -> Result<Option<Summary>> {
         let inner = self.inner.read().await;
-        inner.current_folder()
+        inner.current_folder().await
     }
 
     async fn find<P>(&self, predicate: P) -> Option<Summary>
@@ -214,12 +214,12 @@ impl Account for LinkedAccount {
         P: FnMut(&&Summary) -> bool + Send,
     {
         let inner = self.inner.read().await;
-        inner.find(predicate)
+        inner.find(predicate).await
     }
 
     async fn sign_out(&mut self) -> Result<()> {
         let mut inner = self.inner.write().await;
-        inner.sign_out()
+        inner.sign_out().await
     }
 
     async fn rename_account(
@@ -227,59 +227,59 @@ impl Account for LinkedAccount {
         account_name: String,
     ) -> Result<AccountChange<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.rename_account(account_name)
+        inner.rename_account(account_name).await
     }
 
     async fn delete_account(&mut self) -> Result<()> {
         let mut inner = self.inner.write().await;
-        inner.delete_account()
+        inner.delete_account().await
     }
 
     async fn storage(&self) -> Result<Arc<RwLock<ClientStorage>>> {
         let inner = self.inner.read().await;
-        inner.storage()
+        inner.storage().await
     }
 
     async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
         let inner = self.inner.read().await;
-        inner.secret_ids(summary)
+        inner.secret_ids(summary).await
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {
         let mut inner = self.inner.write().await;
-        inner.load_folders()
+        inner.load_folders().await
     }
 
     async fn list_folders(&self) -> Result<Vec<Summary>> {
         let inner = self.inner.read().await;
-        inner.list_folders()
+        inner.list_folders().await
     }
 
     async fn account_data(&self) -> Result<AccountData> {
         let inner = self.inner.read().await;
-        inner.account_data()
+        inner.account_data().await
     }
 
     async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
         let inner = self.inner.read().await;
-        inner.root_commit(summary)
+        inner.root_commit(summary).await
     }
 
     async fn identity_state(&self) -> Result<CommitState> {
         let inner = self.inner.read().await;
-        inner.identity_state()
+        inner.identity_state().await
     }
 
     async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
         let inner = self.inner.read().await;
-        inner.commit_state(summary)
+        inner.commit_state(summary).await
     }
 
     async fn compact_account(
         &mut self,
     ) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
         let mut inner = self.inner.write().await;
-        inner.compact_account()
+        inner.compact_account().await
     }
 
     async fn compact_folder(
@@ -287,7 +287,7 @@ impl Account for LinkedAccount {
         summary: &Summary,
     ) -> Result<(AccountEvent, u64, u64)> {
         let mut inner = self.inner.write().await;
-        inner.compact_folder(summary)
+        inner.compact_folder(summary).await
     }
 
     async fn restore_folder(
@@ -296,7 +296,7 @@ impl Account for LinkedAccount {
         records: Vec<EventRecord>,
     ) -> Result<Summary> {
         let mut inner = self.inner.write().await;
-        inner.restore_folder(folder_id, records)
+        inner.restore_folder(folder_id, records).await
     }
 
     async fn change_folder_password(
@@ -305,7 +305,7 @@ impl Account for LinkedAccount {
         new_key: AccessKey,
     ) -> Result<()> {
         let mut inner = self.inner.write().await;
-        inner.change_folder_password(folder, new_key)
+        inner.change_folder_password(folder, new_key).await
     }
 
     #[cfg(feature = "search")]
