@@ -184,13 +184,22 @@ pub trait SyncClient {
     ) -> Result<(), Self::Error>;
 
     /// Fetch an account from a remote server.
-    async fn fetch_account(&self) -> Result<CreateSet, Self::Error>;
+    async fn fetch_account(
+        &self,
+        address: &Address,
+    ) -> Result<CreateSet, Self::Error>;
 
     /// Delete the account on the server.
-    async fn delete_account(&self) -> Result<(), Self::Error>;
+    async fn delete_account(
+        &self,
+        address: &Address,
+    ) -> Result<(), Self::Error>;
 
     /// Sync status on the server.
-    async fn sync_status(&self) -> Result<SyncStatus, Self::Error>;
+    async fn sync_status(
+        &self,
+        address: &Address,
+    ) -> Result<SyncStatus, Self::Error>;
 
     /// Sync with a remote.
     async fn sync(

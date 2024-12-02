@@ -303,7 +303,7 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn fetch_account(&self) -> Result<CreateSet> {
+    async fn fetch_account(&self, address: &Address) -> Result<CreateSet> {
         let url = self.build_url(SYNC_ACCOUNT)?;
 
         tracing::debug!(url = %url, "http::fetch_account");
@@ -332,7 +332,7 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn delete_account(&self) -> Result<()> {
+    async fn delete_account(&self, address: &Address) -> Result<()> {
         let url = self.build_url(SYNC_ACCOUNT)?;
 
         let sign_url = url.path();
@@ -356,7 +356,7 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn sync_status(&self) -> Result<SyncStatus> {
+    async fn sync_status(&self, address: &Address) -> Result<SyncStatus> {
         let url = self.build_url(SYNC_ACCOUNT_STATUS)?;
 
         tracing::debug!(url = %url, "http::sync_status");

@@ -28,7 +28,7 @@ async fn network_sync_delete_account() -> Result<()> {
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
     let bridge = device.owner.remove_server(&origin).await?.unwrap();
-    bridge.client().delete_account().await?;
+    bridge.client().delete_account(&address).await?;
 
     // All the local data still exists
     let local_paths = device.owner.paths();

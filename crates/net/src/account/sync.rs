@@ -6,6 +6,7 @@ use crate::{
     },
     sdk::{
         events::{AccountEventLog, FolderEventLog},
+        prelude::Account,
         storage::StorageEventLogs,
         vault::{Summary, VaultId},
         Result,
@@ -50,7 +51,7 @@ impl NetworkAccount {
                 || options.origins.contains(origin);
 
             if sync_remote {
-                match remote.client.sync_status().await {
+                match remote.client.sync_status(self.address()).await {
                     Ok(status) => {
                         server_status.insert(origin.clone(), Ok(status));
                     }

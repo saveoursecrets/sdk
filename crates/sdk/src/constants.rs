@@ -112,6 +112,12 @@ mod mime {
     pub const MIME_TYPE_JSON: &str = "application/json";
 }
 
+/// Constants for header names.
+mod header {
+    /// Header name used to specify an account address.
+    pub const X_SOS_ACCOUNT_ID: &str = "x-sos-account-id";
+}
+
 /// Constants for directory names.
 mod folders {
     /// Directory to store vaults.
@@ -199,6 +205,7 @@ pub use env_vars::*;
 pub use extensions::*;
 pub use files::*;
 pub use folders::*;
+pub use header::*;
 pub use identity::*;
 pub use mime::*;
 pub use vault::*;

@@ -62,7 +62,8 @@ pub trait AutoMerge: RemoteSyncHandler {
     ) -> Result<Option<MergeOutcome>, Self::Error> {
         let exists = self.client().account_exists(self.address()).await?;
         if exists {
-            let sync_status = self.client().sync_status().await?;
+            let sync_status =
+                self.client().sync_status(self.address()).await?;
             match self.sync_account(sync_status).await {
                 Ok(outcome) => Ok(Some(outcome)),
                 Err(e) => {

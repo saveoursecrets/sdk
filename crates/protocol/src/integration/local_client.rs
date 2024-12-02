@@ -35,7 +35,7 @@ use sos_sdk::{
         routes::v1::{
             SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
         },
-        MIME_TYPE_JSON, MIME_TYPE_PROTOBUF,
+        MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
     },
     prelude::Address,
 };
@@ -127,6 +127,7 @@ impl SyncClient for LocalClient {
         let request = Request::builder()
             .method(Method::HEAD)
             .uri(uri)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .body(Default::default())?;
 
         let response = self.transport.call(request.into()).await?;
@@ -155,6 +156,7 @@ impl SyncClient for LocalClient {
         let request = Request::builder()
             .method(Method::PUT)
             .uri(uri)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .body(body)?;
 
@@ -177,6 +179,7 @@ impl SyncClient for LocalClient {
         let request = Request::builder()
             .method(Method::POST)
             .uri(uri)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .body(body)?;
 
@@ -187,13 +190,14 @@ impl SyncClient for LocalClient {
         Ok(())
     }
 
-    async fn fetch_account(&self) -> Result<CreateSet> {
+    async fn fetch_account(&self, address: &Address) -> Result<CreateSet> {
         let uri = self.build_uri(SYNC_ACCOUNT)?;
         tracing::debug!(uri = %uri, "local_client::fetch_account");
 
         let request = Request::builder()
             .method(Method::GET)
             .uri(uri)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .body(Default::default())?;
 
         let response = self.transport.call(request.into()).await?;
@@ -203,13 +207,14 @@ impl SyncClient for LocalClient {
         Ok(CreateSet::decode(response.bytes()).await?)
     }
 
-    async fn delete_account(&self) -> Result<()> {
+    async fn delete_account(&self, address: &Address) -> Result<()> {
         let uri = self.build_uri(SYNC_ACCOUNT)?;
         tracing::debug!(uri = %uri, "local_client::delete_account");
 
         let request = Request::builder()
             .method(Method::DELETE)
             .uri(uri)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .body(Default::default())?;
 
         let response = self.transport.call(request.into()).await?;
@@ -219,13 +224,14 @@ impl SyncClient for LocalClient {
         Ok(())
     }
 
-    async fn sync_status(&self) -> Result<SyncStatus> {
+    async fn sync_status(&self, address: &Address) -> Result<SyncStatus> {
         let uri = self.build_uri(SYNC_ACCOUNT_STATUS)?;
         tracing::debug!(uri = %uri, "local_client::sync_status");
 
         let request = Request::builder()
             .method(Method::GET)
             .uri(uri)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .body(Default::default())?;
 
         let response = self.transport.call(request.into()).await?;

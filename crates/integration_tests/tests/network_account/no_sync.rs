@@ -77,6 +77,7 @@ async fn network_no_sync_update_account() -> Result<()> {
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 2, Some(&server)).await?;
+    let address = device.owner.address().clone();
 
     // Create folder with AUTHENTICATOR flag
     let options = NewFolderOptions {
@@ -111,7 +112,7 @@ async fn network_no_sync_update_account() -> Result<()> {
     // for redundancy.
     let local_status = device.owner.sync_status().await?;
     let bridge = device.owner.remove_server(&origin).await?.unwrap();
-    let remote_status = bridge.client().sync_status().await?;
+    let remote_status = bridge.client().sync_status(&address).await?;
 
     let local_folder = local_status.folders.get(folder.id()).unwrap();
     let remote_folder = remote_status.folders.get(folder.id()).unwrap();
