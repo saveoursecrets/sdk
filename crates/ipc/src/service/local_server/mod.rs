@@ -90,39 +90,63 @@ where
             )
             .unwrap();
 
+        let state = accounts.clone();
         router
             .entry(Method::HEAD)
             .or_default()
             .insert(
                 format!("/{}", SYNC_ACCOUNT),
-                BoxCloneService::new(service_fn(account_exists)).into(),
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        account_exists(req, state.clone())
+                    },
+                ))
+                .into(),
             )
             .unwrap();
 
+        let state = accounts.clone();
         router
             .entry(Method::PUT)
             .or_default()
             .insert(
                 format!("/{}", SYNC_ACCOUNT),
-                BoxCloneService::new(service_fn(create_account)).into(),
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        create_account(req, state.clone())
+                    },
+                ))
+                .into(),
             )
             .unwrap();
 
+        let state = accounts.clone();
         router
             .entry(Method::POST)
             .or_default()
             .insert(
                 format!("/{}", SYNC_ACCOUNT),
-                BoxCloneService::new(service_fn(update_account)).into(),
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        update_account(req, state.clone())
+                    },
+                ))
+                .into(),
             )
             .unwrap();
 
+        let state = accounts.clone();
         router
             .entry(Method::GET)
             .or_default()
             .insert(
                 format!("/{}", SYNC_ACCOUNT),
-                BoxCloneService::new(service_fn(fetch_account)).into(),
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        fetch_account(req, state.clone())
+                    },
+                ))
+                .into(),
             )
             .unwrap();
 
@@ -139,48 +163,78 @@ where
             )
             .unwrap();
 
+        let state = accounts.clone();
         router
             .entry(Method::GET)
             .or_default()
             .insert(
                 format!("/{}", SYNC_ACCOUNT_STATUS),
-                BoxCloneService::new(service_fn(account_status)).into(),
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        account_status(req, state.clone())
+                    },
+                ))
+                .into(),
             )
             .unwrap();
 
+        let state = accounts.clone();
         router
             .entry(Method::PATCH)
             .or_default()
             .insert(
                 format!("/{}", SYNC_ACCOUNT),
-                BoxCloneService::new(service_fn(sync_account)).into(),
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        sync_account(req, state.clone())
+                    },
+                ))
+                .into(),
             )
             .unwrap();
 
+        let state = accounts.clone();
         router
             .entry(Method::GET)
             .or_default()
             .insert(
                 format!("/{}", SYNC_ACCOUNT_EVENTS),
-                BoxCloneService::new(service_fn(events_scan)).into(),
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        events_scan(req, state.clone())
+                    },
+                ))
+                .into(),
             )
             .unwrap();
 
+        let state = accounts.clone();
         router
             .entry(Method::POST)
             .or_default()
             .insert(
                 format!("/{}", SYNC_ACCOUNT_EVENTS),
-                BoxCloneService::new(service_fn(events_diff)).into(),
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        events_diff(req, state.clone())
+                    },
+                ))
+                .into(),
             )
             .unwrap();
 
+        let state = accounts.clone();
         router
             .entry(Method::PATCH)
             .or_default()
             .insert(
                 format!("/{}", SYNC_ACCOUNT_EVENTS),
-                BoxCloneService::new(service_fn(events_patch)).into(),
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        events_patch(req, state.clone())
+                    },
+                ))
+                .into(),
             )
             .unwrap();
 
