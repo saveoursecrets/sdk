@@ -77,49 +77,49 @@ impl Account for LinkedAccount {
 
     async fn is_authenticated(&self) -> bool {
         let inner = self.inner.read().await;
-        inner.is_authenticated()
+        inner.is_authenticated().await
     }
 
     async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
         let inner = self.inner.read().await;
-        inner.account_signer()
+        inner.account_signer().await
     }
 
     async fn new_device_vault(
         &mut self,
     ) -> Result<(DeviceSigner, DeviceManager)> {
         let mut inner = self.inner.write().await;
-        inner.new_device_vault()
+        inner.new_device_vault().await
     }
 
     async fn device_signer(&self) -> Result<DeviceSigner> {
         let inner = self.inner.read().await;
-        inner.device_signer()
+        inner.device_signer().await
     }
 
     async fn device_public_key(&self) -> Result<DevicePublicKey> {
         let inner = self.inner.read().await;
-        inner.device_public_key()
+        inner.device_public_key().await
     }
 
     async fn current_device(&self) -> Result<TrustedDevice> {
         let inner = self.inner.read().await;
-        inner.current_device()
+        inner.current_device().await
     }
 
     async fn trusted_devices(&self) -> Result<IndexSet<TrustedDevice>> {
         let inner = self.inner.read().await;
-        inner.trusted_devices()
+        inner.trusted_devices().await
     }
 
     async fn public_identity(&self) -> Result<PublicIdentity> {
         let inner = self.inner.read().await;
-        inner.public_identity()
+        inner.public_identity().await
     }
 
     async fn account_label(&self) -> Result<String> {
         let inner = self.inner.read().await;
-        inner.account_label()
+        inner.account_label().await
     }
 
     async fn folder_description(
@@ -127,7 +127,7 @@ impl Account for LinkedAccount {
         folder: &Summary,
     ) -> Result<String> {
         let mut inner = self.inner.write().await;
-        inner.folder_description(folder)
+        inner.folder_description(folder).await
     }
 
     async fn set_folder_description(
@@ -136,7 +136,7 @@ impl Account for LinkedAccount {
         description: impl AsRef<str> + Send + Sync,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.set_folder_description(folder, description)
+        inner.set_folder_description(folder, description).await
     }
 
     async fn find_folder_password(
@@ -144,22 +144,22 @@ impl Account for LinkedAccount {
         folder_id: &VaultId,
     ) -> Result<Option<AccessKey>> {
         let inner = self.inner.read().await;
-        inner.find_folder_password(folder_id)
+        inner.find_folder_password(folder_id).await
     }
 
     async fn generate_folder_password(&self) -> Result<SecretString> {
         let inner = self.inner.read().await;
-        inner.generate_folder_password()
+        inner.generate_folder_password().await
     }
 
     async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
         let inner = self.inner.read().await;
-        inner.identity_vault_buffer()
+        inner.identity_vault_buffer().await
     }
 
     async fn identity_folder_summary(&self) -> Result<Summary> {
         let inner = self.inner.read().await;
-        inner.identity_folder_summary()
+        inner.identity_folder_summary().await
     }
 
     async fn change_cipher(
@@ -169,7 +169,7 @@ impl Account for LinkedAccount {
         kdf: Option<KeyDerivation>,
     ) -> Result<CipherComparison> {
         let mut inner = self.inner.write().await;
-        inner.change_cipher(account_key, cipher, kdf)
+        inner.change_cipher(account_key, cipher, kdf).await
     }
 
     async fn change_account_password(
@@ -177,7 +177,7 @@ impl Account for LinkedAccount {
         password: SecretString,
     ) -> Result<()> {
         let mut inner = self.inner.write().await;
-        inner.change_account_password(password)
+        inner.change_account_password(password).await
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
@@ -315,7 +315,7 @@ impl Account for LinkedAccount {
         commit: CommitHash,
     ) -> Result<DetachedView> {
         let inner = self.inner.read().await;
-        inner.detached_view(summary, commit)
+        inner.detached_view(summary, commit).await
     }
 
     #[cfg(feature = "search")]
@@ -323,19 +323,19 @@ impl Account for LinkedAccount {
         &mut self,
     ) -> Result<(DocumentCount, Vec<Summary>)> {
         let mut inner = self.inner.write().await;
-        inner.initialize_search_index()
+        inner.initialize_search_index().await
     }
 
     #[cfg(feature = "search")]
     async fn statistics(&self) -> AccountStatistics {
         let inner = self.inner.read().await;
-        inner.statistics()
+        inner.statistics().await
     }
 
     #[cfg(feature = "search")]
     async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
         let inner = self.inner.read().await;
-        inner.index()
+        inner.index().await
     }
 
     #[cfg(feature = "search")]
@@ -345,7 +345,7 @@ impl Account for LinkedAccount {
         archive: Option<&ArchiveFilter>,
     ) -> Result<Vec<Document>> {
         let inner = self.inner.read().await;
-        inner.query_view(views, archive)
+        inner.query_view(views, archive).await
     }
 
     #[cfg(feature = "search")]
@@ -355,13 +355,13 @@ impl Account for LinkedAccount {
         filter: QueryFilter,
     ) -> Result<Vec<Document>> {
         let inner = self.inner.read().await;
-        inner.query_map(query, filter)
+        inner.query_map(query, filter).await
     }
 
     #[cfg(feature = "search")]
     async fn document_count(&self) -> Result<DocumentCount> {
         let inner = self.inner.read().await;
-        inner.document_count()
+        inner.document_count().await
     }
 
     #[cfg(feature = "search")]
@@ -372,7 +372,7 @@ impl Account for LinkedAccount {
         id: Option<&SecretId>,
     ) -> Result<bool> {
         let inner = self.inner.read().await;
-        inner.document_exists(vault_id, label, id)
+        inner.document_exists(vault_id, label, id).await
     }
 
     #[cfg(feature = "files")]
@@ -383,7 +383,7 @@ impl Account for LinkedAccount {
         file_name: &str,
     ) -> Result<Vec<u8>> {
         let inner = self.inner.read().await;
-        inner.download_file(vault_id, secret_id, file_name)
+        inner.download_file(vault_id, secret_id, file_name).await
     }
 
     async fn create_secret(
@@ -393,7 +393,7 @@ impl Account for LinkedAccount {
         options: AccessOptions,
     ) -> Result<SecretChange<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.create_secret(meta, secret, options)
+        inner.create_secret(meta, secret, options).await
     }
 
     async fn insert_secrets(
@@ -401,7 +401,7 @@ impl Account for LinkedAccount {
         secrets: Vec<(SecretMeta, Secret)>,
     ) -> Result<SecretInsert<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.insert_secrets(secrets)
+        inner.insert_secrets(secrets).await
     }
 
     async fn update_secret(
@@ -413,7 +413,9 @@ impl Account for LinkedAccount {
         destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.update_secret(secret_id, meta, secret, options, destination)
+        inner
+            .update_secret(secret_id, meta, secret, options, destination)
+            .await
     }
 
     async fn move_secret(
@@ -424,7 +426,7 @@ impl Account for LinkedAccount {
         options: AccessOptions,
     ) -> Result<SecretMove<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.move_secret(secret_id, from, to, options)
+        inner.move_secret(secret_id, from, to, options).await
     }
 
     async fn read_secret(
@@ -433,7 +435,7 @@ impl Account for LinkedAccount {
         folder: Option<Summary>,
     ) -> Result<(SecretRow, ReadEvent)> {
         let inner = self.inner.read().await;
-        inner.read_secret(secret_id, folder)
+        inner.read_secret(secret_id, folder).await
     }
 
     async fn raw_secret(
@@ -442,7 +444,7 @@ impl Account for LinkedAccount {
         secret_id: &SecretId,
     ) -> Result<(Option<VaultCommit>, ReadEvent)> {
         let inner = self.inner.read().await;
-        inner.raw_secret(folder_id, secret_id)
+        inner.raw_secret(folder_id, secret_id).await
     }
 
     async fn delete_secret(
@@ -451,7 +453,7 @@ impl Account for LinkedAccount {
         options: AccessOptions,
     ) -> Result<SecretDelete<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.delete_secret(secret_id, options)
+        inner.delete_secret(secret_id, options).await
     }
 
     async fn archive(
@@ -461,7 +463,7 @@ impl Account for LinkedAccount {
         options: AccessOptions,
     ) -> Result<SecretMove<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.archive(from, secret_id, options)
+        inner.archive(from, secret_id, options).await
     }
 
     async fn unarchive(
@@ -471,7 +473,7 @@ impl Account for LinkedAccount {
         options: AccessOptions,
     ) -> Result<(SecretMove<Self::NetworkResult>, Summary)> {
         let mut inner = self.inner.write().await;
-        inner.unarchive(secret_id, secret_meta, options)
+        inner.unarchive(secret_id, secret_meta, options).await
     }
 
     #[cfg(feature = "files")]
@@ -484,7 +486,9 @@ impl Account for LinkedAccount {
         destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.update_file(secret_id, meta, path, options, destination)
+        inner
+            .update_file(secret_id, meta, path, options, destination)
+            .await
     }
 
     async fn create_folder(
@@ -493,7 +497,7 @@ impl Account for LinkedAccount {
         options: NewFolderOptions,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.create_folder(name, options)
+        inner.create_folder(name, options).await
     }
 
     async fn rename_folder(
@@ -502,7 +506,7 @@ impl Account for LinkedAccount {
         name: String,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.rename_folder(summary, name)
+        inner.rename_folder(summary, name).await
     }
 
     async fn update_folder_flags(
@@ -511,7 +515,7 @@ impl Account for LinkedAccount {
         flags: VaultFlags,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.update_folder_flags(summary, flags)
+        inner.update_folder_flags(summary, flags).await
     }
 
     async fn import_folder(
@@ -521,7 +525,7 @@ impl Account for LinkedAccount {
         overwrite: bool,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.import_folder(path, key, overwrite)
+        inner.import_folder(path, key, overwrite).await
     }
 
     async fn import_folder_buffer(
@@ -531,7 +535,7 @@ impl Account for LinkedAccount {
         overwrite: bool,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.import_folder_buffer(buffer, key, overwrite)
+        inner.import_folder_buffer(buffer, key, overwrite).await
     }
 
     async fn import_identity_folder(
@@ -539,7 +543,7 @@ impl Account for LinkedAccount {
         vault: Vault,
     ) -> Result<AccountEvent> {
         let mut inner = self.inner.write().await;
-        inner.import_identity_folder(vault)
+        inner.import_identity_folder(vault).await
     }
 
     async fn export_folder(
@@ -550,7 +554,7 @@ impl Account for LinkedAccount {
         save_key: bool,
     ) -> Result<()> {
         let mut inner = self.inner.write().await;
-        inner.export_folder(path, summary, new_key, save_key)
+        inner.export_folder(path, summary, new_key, save_key).await
     }
 
     async fn export_folder_buffer(
@@ -560,7 +564,7 @@ impl Account for LinkedAccount {
         save_key: bool,
     ) -> Result<Vec<u8>> {
         let mut inner = self.inner.write().await;
-        inner.export_folder_buffer(summary, new_key, save_key)
+        inner.export_folder_buffer(summary, new_key, save_key).await
     }
 
     async fn delete_folder(
@@ -568,7 +572,7 @@ impl Account for LinkedAccount {
         summary: &Summary,
     ) -> Result<FolderDelete<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.delete_folder(summary)
+        inner.delete_folder(summary).await
     }
 
     #[cfg(feature = "contacts")]
@@ -578,7 +582,7 @@ impl Account for LinkedAccount {
         folder: Option<Summary>,
     ) -> Result<Option<Vec<u8>>> {
         let inner = self.inner.read().await;
-        inner.load_avatar(secret_id, folder)
+        inner.load_avatar(secret_id, folder).await
     }
 
     #[cfg(feature = "contacts")]
@@ -589,7 +593,7 @@ impl Account for LinkedAccount {
         folder: Option<Summary>,
     ) -> Result<()> {
         let inner = self.inner.read().await;
-        inner.export_contact(path, secret_id, folder)
+        inner.export_contact(path, secret_id, folder).await
     }
 
     #[cfg(feature = "contacts")]
@@ -598,7 +602,7 @@ impl Account for LinkedAccount {
         path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
         let inner = self.inner.read().await;
-        inner.export_all_contacts(path)
+        inner.export_all_contacts(path).await
     }
 
     #[cfg(feature = "contacts")]
@@ -608,7 +612,7 @@ impl Account for LinkedAccount {
         progress: impl Fn(ContactImportProgress) + Send + Sync,
     ) -> Result<Vec<SecretId>> {
         let mut inner = self.inner.write().await;
-        inner.import_contacts(content, progress)
+        inner.import_contacts(content, progress).await
     }
 
     #[cfg(feature = "migrate")]
@@ -617,7 +621,7 @@ impl Account for LinkedAccount {
         path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
         let inner = self.inner.read().await;
-        inner.export_unsafe_archive(path)
+        inner.export_unsafe_archive(path).await
     }
 
     #[cfg(feature = "migrate")]
@@ -626,7 +630,7 @@ impl Account for LinkedAccount {
         target: ImportTarget,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
         let mut inner = self.inner.write().await;
-        inner.import_file(target)
+        inner.import_file(target).await
     }
 
     #[cfg(feature = "archive")]
@@ -635,7 +639,7 @@ impl Account for LinkedAccount {
         path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
         let inner = self.inner.read().await;
-        inner.export_backup_archive(path)
+        inner.export_backup_archive(path).await
     }
 
     #[cfg(feature = "archive")]
@@ -644,7 +648,7 @@ impl Account for LinkedAccount {
     >(
         buffer: R,
     ) -> Result<Inventory> {
-        Self::restore_archive_inventory(buffer)
+        Self::restore_archive_inventory(buffer).await
     }
 
     #[cfg(feature = "archive")]
@@ -653,7 +657,7 @@ impl Account for LinkedAccount {
         options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
-        Self::import_backup_archive(path, options, data_dir)
+        Self::import_backup_archive(path, options, data_dir).await
     }
 
     #[cfg(feature = "archive")]
@@ -665,7 +669,9 @@ impl Account for LinkedAccount {
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
         let mut inner = self.inner.write().await;
-        inner.restore_backup_archive(path, password, options, data_dir)
+        inner
+            .restore_backup_archive(path, password, options, data_dir)
+            .await
     }
 }
 
