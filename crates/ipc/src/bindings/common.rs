@@ -15,6 +15,7 @@ use sos_net::{
         Error as SdkError, UtcDateTime,
     },
 };
+use std::collections::HashMap;
 
 impl From<DocumentView> for WireDocumentView {
     fn from(value: DocumentView) -> Self {
@@ -513,12 +514,16 @@ impl TryFrom<WireQualifiedPath> for QualifiedPath {
 
 impl From<TransportRequest> for WireTransportRequest {
     fn from(value: TransportRequest) -> Self {
-        todo!();
-
-        /*
         WireTransportRequest {
+            uri: value.uri.to_string(),
+            method: value.method.to_string(),
+            headers: value
+                .headers
+                .into_iter()
+                .map(|(k, v)| WireTransportHeader { name: k, values: v })
+                .collect(),
+            body: value.body,
         }
-        */
     }
 }
 
@@ -526,22 +531,33 @@ impl TryFrom<WireTransportRequest> for TransportRequest {
     type Error = Error;
 
     fn try_from(value: WireTransportRequest) -> Result<Self> {
-        todo!();
-        /*
-        Ok(TransportRequest {
+        let mut headers = HashMap::new();
+        for mut header in value.headers {
+            let entry = headers.entry(header.name).or_insert(vec![]);
+            entry.append(&mut header.values);
+        }
+
+        Ok(Self {
+            uri: value.uri.parse()?,
+            method: value.method.parse()?,
+            headers,
+            body: value.body,
         })
-        */
     }
 }
 
 impl From<TransportResponse> for WireTransportResponse {
     fn from(value: TransportResponse) -> Self {
-        todo!();
-
-        /*
+        let status: u16 = value.status().into();
         WireTransportResponse {
+            status: status.into(),
+            headers: value
+                .headers
+                .into_iter()
+                .map(|(k, v)| WireTransportHeader { name: k, values: v })
+                .collect(),
+            body: value.body,
         }
-        */
     }
 }
 
@@ -549,10 +565,18 @@ impl TryFrom<WireTransportResponse> for TransportResponse {
     type Error = Error;
 
     fn try_from(value: WireTransportResponse) -> Result<Self> {
-        todo!();
-        /*
-        Ok(TransportResponse {
+        let status: u16 = value.status.try_into()?;
+
+        let mut headers = HashMap::new();
+        for mut header in value.headers {
+            let entry = headers.entry(header.name).or_insert(vec![]);
+            entry.append(&mut header.values);
+        }
+
+        Ok(Self {
+            status: status.try_into()?,
+            headers,
+            body: value.body,
         })
-        */
     }
 }

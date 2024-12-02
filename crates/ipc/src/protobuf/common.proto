@@ -181,13 +181,13 @@ message WireQualifiedPath {
 
 message WireTransportRequest {
   string method = 1;
-  string url = 2;
+  string uri = 2;
   repeated WireTransportHeader headers = 3; 
   bytes body = 4;
 }
 
 message WireTransportResponse {
-  string status = 1;
+  uint32 status = 1;
   repeated WireTransportHeader headers = 2; 
   bytes body = 3;
 }

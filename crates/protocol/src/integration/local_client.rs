@@ -375,13 +375,13 @@ impl TryFrom<TransportRequest> for Request<Vec<u8>> {
 pub struct TransportResponse {
     /// Response status code.
     #[serde_as(as = "DisplayFromStr")]
-    status: StatusCode,
+    pub status: StatusCode,
     /// Response headers.
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub headers: HashMap<String, Vec<String>>,
     /// Response body.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    body: Vec<u8>,
+    pub body: Vec<u8>,
 }
 
 impl From<Response<Vec<u8>>> for TransportResponse {
