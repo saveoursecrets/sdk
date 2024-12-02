@@ -4602,6 +4602,7 @@ dependencies = [
  "matchit",
  "once_cell",
  "open",
+ "parking_lot",
  "prost",
  "prost-build",
  "protoc-bin-vendored",

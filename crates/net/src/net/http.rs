@@ -12,7 +12,12 @@ use crate::{
         SyncStatus, UpdateSet, WireEncodeDecode,
     },
     sdk::{
-        constants::MIME_TYPE_PROTOBUF,
+        constants::{
+            routes::v1::{
+                SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
+            },
+            MIME_TYPE_JSON, MIME_TYPE_PROTOBUF,
+        },
         prelude::Address,
         signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     },
@@ -176,7 +181,7 @@ impl HttpClient {
         use reqwest::header::{self, HeaderValue};
 
         let status = response.status();
-        let json_type = HeaderValue::from_static("application/json");
+        let json_type = HeaderValue::from_static(MIME_TYPE_JSON);
         let content_type = response.headers().get(&header::CONTENT_TYPE);
         if !status.is_success() {
             if let Some(content_type) = content_type {
@@ -205,7 +210,7 @@ impl SyncClient for HttpClient {
 
     #[instrument(skip_all)]
     async fn account_exists(&self, _address: &Address) -> Result<bool> {
-        let url = self.build_url("api/v1/sync/account")?;
+        let url = self.build_url(SYNC_ACCOUNT)?;
 
         let sign_url = url.path();
         let account_signature = encode_account_signature(
@@ -240,7 +245,7 @@ impl SyncClient for HttpClient {
         account: CreateSet,
     ) -> Result<()> {
         let body = account.encode().await?;
-        let url = self.build_url("api/v1/sync/account")?;
+        let url = self.build_url(SYNC_ACCOUNT)?;
 
         tracing::debug!(url = %url, "http::create_account");
 
@@ -269,7 +274,7 @@ impl SyncClient for HttpClient {
         account: UpdateSet,
     ) -> Result<()> {
         let body = account.encode().await?;
-        let url = self.build_url("api/v1/sync/account")?;
+        let url = self.build_url(SYNC_ACCOUNT)?;
 
         tracing::debug!(url = %url, "http::update_account");
 
@@ -296,7 +301,7 @@ impl SyncClient for HttpClient {
 
     #[instrument(skip_all)]
     async fn fetch_account(&self) -> Result<CreateSet> {
-        let url = self.build_url("api/v1/sync/account")?;
+        let url = self.build_url(SYNC_ACCOUNT)?;
 
         tracing::debug!(url = %url, "http::fetch_account");
 
@@ -325,7 +330,7 @@ impl SyncClient for HttpClient {
 
     #[instrument(skip_all)]
     async fn delete_account(&self) -> Result<()> {
-        let url = self.build_url("api/v1/sync/account")?;
+        let url = self.build_url(SYNC_ACCOUNT)?;
 
         let sign_url = url.path();
         let account_signature = encode_account_signature(
@@ -349,7 +354,7 @@ impl SyncClient for HttpClient {
 
     #[instrument(skip_all)]
     async fn sync_status(&self) -> Result<SyncStatus> {
-        let url = self.build_url("api/v1/sync/account/status")?;
+        let url = self.build_url(SYNC_ACCOUNT_STATUS)?;
 
         tracing::debug!(url = %url, "http::sync_status");
 
@@ -379,7 +384,7 @@ impl SyncClient for HttpClient {
     #[instrument(skip_all)]
     async fn sync(&self, packet: SyncPacket) -> Result<SyncPacket> {
         let body = packet.encode().await?;
-        let url = self.build_url("api/v1/sync/account")?;
+        let url = self.build_url(SYNC_ACCOUNT)?;
 
         tracing::debug!(url = %url, "http::sync");
 
@@ -408,7 +413,7 @@ impl SyncClient for HttpClient {
     #[instrument(skip_all)]
     async fn scan(&self, request: ScanRequest) -> Result<ScanResponse> {
         let body = request.encode().await?;
-        let url = self.build_url("api/v1/sync/account/events")?;
+        let url = self.build_url(SYNC_ACCOUNT_EVENTS)?;
 
         tracing::debug!(url = %url, "http::scan");
 
@@ -437,7 +442,7 @@ impl SyncClient for HttpClient {
     #[instrument(skip_all)]
     async fn diff(&self, request: DiffRequest) -> Result<DiffResponse> {
         let body = request.encode().await?;
-        let url = self.build_url("api/v1/sync/account/events")?;
+        let url = self.build_url(SYNC_ACCOUNT_EVENTS)?;
 
         tracing::debug!(url = %url, "http::diff");
 
@@ -466,7 +471,7 @@ impl SyncClient for HttpClient {
     #[instrument(skip_all)]
     async fn patch(&self, request: PatchRequest) -> Result<PatchResponse> {
         let body = request.encode().await?;
-        let url = self.build_url("api/v1/sync/account/events")?;
+        let url = self.build_url(SYNC_ACCOUNT_EVENTS)?;
 
         tracing::debug!(url = %url, "http::patch");
 

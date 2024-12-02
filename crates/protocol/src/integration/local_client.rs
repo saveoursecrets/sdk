@@ -31,9 +31,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::{serde_as, DisplayFromStr};
 use sos_sdk::{
-    constants::{MIME_TYPE_JSON, MIME_TYPE_PROTOBUF},
+    constants::{
+        routes::v1::{
+            SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
+        },
+        MIME_TYPE_JSON, MIME_TYPE_PROTOBUF,
+    },
     prelude::Address,
-    url::Url,
 };
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
@@ -117,7 +121,7 @@ impl SyncClient for LocalClient {
 
     #[instrument(skip(self))]
     async fn account_exists(&self, address: &Address) -> Result<bool> {
-        let uri = self.build_uri("api/v1/sync/account")?;
+        let uri = self.build_uri(SYNC_ACCOUNT)?;
         tracing::debug!(uri = %uri, "local_client::account_exists");
 
         let request = Request::builder()
@@ -145,7 +149,7 @@ impl SyncClient for LocalClient {
         account: CreateSet,
     ) -> Result<()> {
         let body = account.encode().await?;
-        let uri = self.build_uri("api/v1/sync/account")?;
+        let uri = self.build_uri(SYNC_ACCOUNT)?;
         tracing::debug!(uri = %uri, "local_client::create_account");
 
         let request = Request::builder()
@@ -167,7 +171,7 @@ impl SyncClient for LocalClient {
         account: UpdateSet,
     ) -> Result<()> {
         let body = account.encode().await?;
-        let uri = self.build_uri("api/v1/sync/account")?;
+        let uri = self.build_uri(SYNC_ACCOUNT)?;
         tracing::debug!(uri = %uri, "local_client::update_account");
 
         let request = Request::builder()
@@ -184,7 +188,7 @@ impl SyncClient for LocalClient {
     }
 
     async fn fetch_account(&self) -> Result<CreateSet> {
-        let uri = self.build_uri("api/v1/sync/account")?;
+        let uri = self.build_uri(SYNC_ACCOUNT)?;
         tracing::debug!(uri = %uri, "local_client::fetch_account");
 
         let request = Request::builder()
@@ -200,7 +204,7 @@ impl SyncClient for LocalClient {
     }
 
     async fn delete_account(&self) -> Result<()> {
-        let uri = self.build_uri("api/v1/sync/account")?;
+        let uri = self.build_uri(SYNC_ACCOUNT)?;
         tracing::debug!(uri = %uri, "local_client::delete_account");
 
         let request = Request::builder()
@@ -216,7 +220,7 @@ impl SyncClient for LocalClient {
     }
 
     async fn sync_status(&self) -> Result<SyncStatus> {
-        let uri = self.build_uri("api/v1/sync/account/status")?;
+        let uri = self.build_uri(SYNC_ACCOUNT_STATUS)?;
         tracing::debug!(uri = %uri, "local_client::sync_status");
 
         let request = Request::builder()
@@ -233,7 +237,7 @@ impl SyncClient for LocalClient {
 
     async fn sync(&self, packet: SyncPacket) -> Result<SyncPacket> {
         let body = packet.encode().await?;
-        let uri = self.build_uri("api/v1/sync/account")?;
+        let uri = self.build_uri(SYNC_ACCOUNT)?;
         tracing::debug!(uri = %uri, "local_client::sync");
 
         let request = Request::builder()
@@ -251,7 +255,7 @@ impl SyncClient for LocalClient {
 
     async fn scan(&self, request: ScanRequest) -> Result<ScanResponse> {
         let body = request.encode().await?;
-        let uri = self.build_uri("api/v1/sync/account/events")?;
+        let uri = self.build_uri(SYNC_ACCOUNT_EVENTS)?;
         tracing::debug!(uri = %uri, "local_client::scan");
 
         let request = Request::builder()
@@ -268,7 +272,7 @@ impl SyncClient for LocalClient {
 
     async fn diff(&self, request: DiffRequest) -> Result<DiffResponse> {
         let body = request.encode().await?;
-        let uri = self.build_uri("api/v1/sync/account/events")?;
+        let uri = self.build_uri(SYNC_ACCOUNT_EVENTS)?;
         tracing::debug!(uri = %uri, "local_client::diff");
 
         let request = Request::builder()
@@ -285,7 +289,7 @@ impl SyncClient for LocalClient {
 
     async fn patch(&self, request: PatchRequest) -> Result<PatchResponse> {
         let body = request.encode().await?;
-        let uri = self.build_uri("api/v1/sync/account/events")?;
+        let uri = self.build_uri(SYNC_ACCOUNT_EVENTS)?;
         tracing::debug!(uri = %uri, "local_client::patch");
 
         let request = Request::builder()

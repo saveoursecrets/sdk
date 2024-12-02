@@ -1,12 +1,10 @@
 use http::{Method, Request, Response, StatusCode};
+use parking_lot::Mutex;
 use sos_net::{
     protocol::{TransportRequest, TransportResponse},
     sdk::prelude::{Account, AccountSwitcher},
 };
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 use tower::service_fn;
 use tower::util::BoxCloneService;
@@ -114,7 +112,7 @@ where
 
         // lock the service for a very short time,
         // just to clone the service
-        let mut service = found.value.lock().unwrap().clone();
+        let mut service = found.value.lock().clone();
         service.call(req).await
     }
 }
