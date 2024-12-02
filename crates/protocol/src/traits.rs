@@ -83,14 +83,6 @@ pub trait RemoteSync {
         options: &SyncOptions,
     ) -> RemoteResult<Self::Error>;
 
-    /// Sync file transfers.
-    ///
-    /// Updates the file transfers queue with any pending
-    /// uploads or downloads by comparing the local file
-    /// state with the file state on remote server(s).
-    #[cfg(feature = "files")]
-    async fn sync_file_transfers(&self) -> RemoteResult<Self::Error>;
-
     /// Force update an account on remote servers.
     ///
     /// Should be called after making destructive
@@ -101,6 +93,14 @@ pub trait RemoteSync {
         &self,
         account_data: UpdateSet,
     ) -> RemoteResult<Self::Error>;
+
+    /// Sync file transfers.
+    ///
+    /// Updates the file transfers queue with any pending
+    /// uploads or downloads by comparing the local file
+    /// state with the file state on remote server(s).
+    #[cfg(feature = "files")]
+    async fn sync_file_transfers(&self) -> RemoteResult<Self::Error>;
 }
 
 /// Trait for types that can sync with multiple remotes.
@@ -229,69 +229,3 @@ pub trait SyncClient {
         request: PatchRequest,
     ) -> Result<PatchResponse, Self::Error>;
 }
-
-#[cfg(feature = "files")]
-mod file_sync {
-    use crate::transfer::{
-        CancelReason, FileSet, FileTransfersSet, ProgressChannel,
-    };
-    use async_trait::async_trait;
-    use http::StatusCode;
-    use sos_sdk::storage::files::ExternalFile;
-    use std::path::Path;
-    use tokio::sync::watch;
-
-    /// Client that can synchronize files.
-    #[async_trait]
-    pub trait FileSyncClient {
-        /// Error type for file sync client.
-        type Error: std::error::Error + std::fmt::Debug;
-
-        /// Send a file.
-        async fn upload_file(
-            &self,
-            file_info: &ExternalFile,
-            path: &Path,
-            progress: ProgressChannel,
-            cancel: watch::Receiver<CancelReason>,
-        ) -> Result<StatusCode, Self::Error>;
-
-        /// Receive a file.
-        async fn download_file(
-            &self,
-            file_info: &ExternalFile,
-            path: &Path,
-            progress: ProgressChannel,
-            cancel: watch::Receiver<CancelReason>,
-        ) -> Result<StatusCode, Self::Error>;
-
-        /// Delete a file on the remote server.
-        async fn delete_file(
-            &self,
-            file_info: &ExternalFile,
-        ) -> Result<StatusCode, Self::Error>;
-
-        /// Move a file on the remote server.
-        async fn move_file(
-            &self,
-            from: &ExternalFile,
-            to: &ExternalFile,
-        ) -> Result<StatusCode, Self::Error>;
-
-        /// Compare local files with a remote server.
-        ///
-        /// Used to build a transfer queue that will eventually ensure
-        /// external files are in sync.
-        ///
-        /// Comparing sets of files is expensive as both local and remote
-        /// need to read the external files state from disc so only use this
-        /// when necessary.
-        async fn compare_files(
-            &self,
-            local_files: FileSet,
-        ) -> Result<FileTransfersSet, Self::Error>;
-    }
-}
-
-#[cfg(feature = "files")]
-pub use file_sync::FileSyncClient;
