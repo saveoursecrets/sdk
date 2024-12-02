@@ -331,7 +331,7 @@ impl Account for LinkedAccount {
         commit: CommitHash,
     ) -> Result<DetachedView> {
         let account = self.account.lock().await;
-        account.detached_view(summary, commit).await
+        Ok(account.detached_view(summary, commit).await?)
     }
 
     #[cfg(feature = "search")]
@@ -339,19 +339,19 @@ impl Account for LinkedAccount {
         &mut self,
     ) -> Result<(DocumentCount, Vec<Summary>)> {
         let mut account = self.account.lock().await;
-        account.initialize_search_index().await
+        Ok(account.initialize_search_index().await?)
     }
 
     #[cfg(feature = "search")]
-    async fn statistics(&self) -> AccountStatistics {
+    async fn statistics(&self) -> Result<AccountStatistics> {
         let account = self.account.lock().await;
-        account.statistics().await
+        Ok(account.statistics().await)
     }
 
     #[cfg(feature = "search")]
     async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
         let account = self.account.lock().await;
-        account.index().await
+        Ok(account.index().await?)
     }
 
     #[cfg(feature = "search")]
@@ -361,7 +361,7 @@ impl Account for LinkedAccount {
         archive: Option<&ArchiveFilter>,
     ) -> Result<Vec<Document>> {
         let account = self.account.lock().await;
-        account.query_view(views, archive).await
+        Ok(account.query_view(views, archive).await?)
     }
 
     #[cfg(feature = "search")]
@@ -371,13 +371,13 @@ impl Account for LinkedAccount {
         filter: QueryFilter,
     ) -> Result<Vec<Document>> {
         let account = self.account.lock().await;
-        account.query_map(query, filter).await
+        Ok(account.query_map(query, filter).await?)
     }
 
     #[cfg(feature = "search")]
     async fn document_count(&self) -> Result<DocumentCount> {
         let account = self.account.lock().await;
-        account.document_count().await
+        Ok(account.document_count().await?)
     }
 
     #[cfg(feature = "search")]
@@ -388,7 +388,7 @@ impl Account for LinkedAccount {
         id: Option<&SecretId>,
     ) -> Result<bool> {
         let account = self.account.lock().await;
-        account.document_exists(vault_id, label, id).await
+        Ok(account.document_exists(vault_id, label, id).await?)
     }
 
     #[cfg(feature = "files")]
