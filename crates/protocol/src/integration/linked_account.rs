@@ -1,6 +1,6 @@
 //! Linked account supports syncing accounts on the
 //! same device using a local client.
-use crate::{Origin, RemoteResult, RemoteSync, SyncOptions, UpdateSet};
+use crate::{RemoteResult, RemoteSync, SyncOptions, UpdateSet};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_sdk::{
@@ -16,7 +16,7 @@ use tokio::sync::RwLock;
 use super::local_client::LocalClient;
 
 #[cfg(feature = "archive")]
-use tokio::io::{AsyncRead, AsyncSeek, BufReader};
+use tokio::io::{AsyncRead, AsyncSeek};
 
 /// Linked account.
 pub struct LinkedAccount {
