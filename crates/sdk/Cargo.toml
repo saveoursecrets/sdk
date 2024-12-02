@@ -38,7 +38,6 @@ tokio-util.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 async-trait.workspace = true
-async-recursion.workspace = true
 http.workspace = true
 serde.workspace = true
 serde_json.workspace = true

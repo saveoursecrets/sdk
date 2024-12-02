@@ -4695,7 +4695,6 @@ dependencies = [
  "anyhow",
  "argon2",
  "async-once-cell",
- "async-recursion",
  "async-stream",
  "async-trait",
  "async_zip",
