@@ -1,7 +1,10 @@
 //! Error type for the client module.
 use http::StatusCode;
 use serde_json::Value;
-use sos_protocol::{CancelReason, MaybeConflict, Origin, SyncStatus};
+use sos_protocol::{
+    AsConflict, CancelReason, ConflictError, MaybeConflict, Origin,
+    SyncStatus,
+};
 use sos_sdk::vault::VaultId;
 use std::error::Error as StdError;
 use std::path::PathBuf;
@@ -95,6 +98,7 @@ pub enum Error {
     /// common ancestor commit and merging changes since
     /// the common ancestor commit.
     #[error("soft conflict")]
+    #[deprecated]
     SoftConflict {
         /// Conflict information.
         conflict: MaybeConflict,
@@ -110,7 +114,12 @@ pub enum Error {
     /// attempted to scan proofs on a remote and was unable
     /// to find a common ancestor commit.
     #[error("hard conflict")]
+    #[deprecated]
     HardConflict,
+
+    /// Error generated when a conflict is detected.
+    #[error(transparent)]
+    Conflict(#[from] ConflictError),
 
     /// Error generated parsing to an integer.
     #[error(transparent)]
@@ -214,4 +223,28 @@ pub(crate) fn source_error<'a>(
         source = next_source;
     }
     source
+}
+
+impl AsConflict for Error {
+    fn is_conflict(&self) -> bool {
+        matches!(self, Error::Conflict(_))
+    }
+
+    fn is_hard_conflict(&self) -> bool {
+        matches!(self, Error::Conflict(ConflictError::Hard))
+    }
+
+    fn as_conflict(&self) -> Option<&ConflictError> {
+        match self {
+            Self::Conflict(err) => Some(err),
+            _ => None,
+        }
+    }
+
+    fn take_conflict(self) -> Option<ConflictError> {
+        match self {
+            Self::Conflict(err) => Some(err),
+            _ => None,
+        }
+    }
 }

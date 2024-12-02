@@ -3,7 +3,9 @@ use anyhow::Result;
 use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
-    protocol::{AccountSync, Origin, SyncClient, SyncStorage},
+    protocol::{
+        AccountSync, Origin, RemoteSyncHandler, SyncClient, SyncStorage,
+    },
     sdk::{
         account::{Account, AccountBuilder},
         constants::{FILES_DIR, VAULT_EXT},

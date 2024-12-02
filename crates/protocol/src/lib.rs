@@ -28,7 +28,7 @@ mod sync;
 mod traits;
 
 pub use bindings::*;
-pub use error::Error;
+pub use error::{AsConflict, ConflictError, Error};
 #[cfg(feature = "local-integration")]
 pub use integration::*;
 pub use sync::*;

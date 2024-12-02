@@ -1,6 +1,9 @@
 use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::{protocol::SyncClient, sdk::prelude::*};
+use sos_net::{
+    protocol::{RemoteSyncHandler, SyncClient},
+    sdk::prelude::*,
+};
 
 /// Tests creating and then deleting all the account data
 /// on a remote server.

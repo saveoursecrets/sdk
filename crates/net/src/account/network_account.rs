@@ -2,7 +2,7 @@
 use crate::{
     protocol::{
         AccountSync, DiffRequest, EventLogType, Origin, RemoteSync,
-        SyncClient, SyncOptions, SyncResult, UpdateSet,
+        RemoteSyncHandler, SyncClient, SyncOptions, SyncResult, UpdateSet,
     },
     sdk::{
         account::{

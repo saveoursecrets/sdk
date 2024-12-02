@@ -1,7 +1,7 @@
 use crate::test_utils::{mock, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_net::{
-    protocol::{EventLogType, ScanRequest, SyncClient},
+    protocol::{EventLogType, RemoteSyncHandler, ScanRequest, SyncClient},
     sdk::prelude::*,
 };
 

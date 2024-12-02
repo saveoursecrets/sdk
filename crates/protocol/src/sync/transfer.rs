@@ -5,6 +5,13 @@ use crate::sdk::{
 };
 use indexmap::IndexSet;
 
+/// Request to queue a file transfer.
+pub type FileTransferQueueRequest = Vec<FileOperation>;
+
+/// Sender to queue a file transfer.
+pub type FileTransferQueueSender =
+    tokio::sync::broadcast::Sender<FileTransferQueueRequest>;
+
 /// Set of files built from the state on disc.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct FileSet(pub IndexSet<ExternalFile>);

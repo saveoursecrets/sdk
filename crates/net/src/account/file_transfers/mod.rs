@@ -17,8 +17,8 @@
 use crate::{
     net::NetworkRetry,
     protocol::{
-        CancelReason, FileOperation, FileSyncClient, Origin, SyncClient,
-        TransferOperation,
+        CancelReason, FileOperation, FileSyncClient,
+        FileTransferQueueRequest, Origin, SyncClient, TransferOperation,
     },
     sdk::{storage::files::ExternalFile, vfs, Paths},
     Error, Result,
@@ -44,8 +44,10 @@ pub use inflight::{
 };
 use std::collections::{HashSet, VecDeque};
 
+/*
 /// Request to queue a file transfer.
 pub type FileTransferQueueRequest = Vec<FileOperation>;
+*/
 
 /// Channel for upload and download progress notifications.
 pub type ProgressChannel = mpsc::Sender<(u64, Option<u64>)>;

@@ -1,38 +1,47 @@
 //! Handler that can synchronize account data between a
 //! remote data source and local account.
 use crate::{
-    MaybeDiff, Merge, MergeOutcome, Origin, RemoteResult, RemoteSync,
-    SyncClient, SyncOptions, SyncPacket, SyncStatus, SyncStorage, UpdateSet,
+    AsConflict, ConflictError, MaybeDiff, Merge, MergeOutcome, Origin,
+    SyncClient, SyncPacket, SyncStatus, SyncStorage,
 };
 use async_trait::async_trait;
 use sos_sdk::prelude::{Account, Address};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
-/*
 #[cfg(feature = "files")]
-use crate::{
-    account::file_transfers::FileTransferQueueRequest,
-    protocol::{FileOperation, FileSet, FileSyncClient, TransferOperation},
-};
-*/
+use crate::{FileOperation, FileTransferQueueSender, TransferOperation};
+
+use super::ForceMerge;
 
 /// Trait for types that bridge between a remote data source
 /// and a local account.
 #[async_trait]
 pub trait RemoteSyncHandler {
     /// Client used to fetch data from the data source.
-    type Client: SyncClient;
+    type Client: SyncClient + Send + Sync + 'static;
 
     /// Local account.
-    type Account: Account + SyncStorage + Merge + Send + Sync + 'static;
+    type Account: Account
+        + SyncStorage
+        + Merge
+        + ForceMerge
+        + Send
+        + Sync
+        + 'static;
 
     /// Error implementation.
     type Error: std::error::Error
         + std::fmt::Debug
+        + AsConflict
+        + From<ConflictError>
         + From<sos_sdk::Error>
         + From<std::io::Error>
-        + From<<Self::Client as SyncClient>::Error>;
+        + From<<Self::Account as Account>::Error>
+        + From<<Self::Client as SyncClient>::Error>
+        + Send
+        + Sync
+        + 'static;
 
     /// Client implementation.
     fn client(&self) -> &Self::Client;
@@ -46,6 +55,14 @@ pub trait RemoteSyncHandler {
     /// Local account.
     fn account(&self) -> Arc<Mutex<Self::Account>>;
 
+    /// Queue for file transfers.
+    #[cfg(feature = "files")]
+    fn file_transfer_queue(&self) -> &FileTransferQueueSender;
+
+    /// Sync file transfers.
+    #[cfg(feature = "files")]
+    async fn execute_sync_file_transfers(&self) -> Result<(), Self::Error>;
+
     /// Create an account on the remote.
     async fn create_remote_account(&self) -> Result<(), Self::Error> {
         {
@@ -57,10 +74,8 @@ pub trait RemoteSyncHandler {
                 .await?;
         }
 
-        /*
         #[cfg(feature = "files")]
         self.execute_sync_file_transfers().await?;
-        */
 
         Ok(())
     }
@@ -121,16 +136,16 @@ pub trait RemoteSyncHandler {
                                 "add file download to transfers",
                             );
 
-                            /*
-                            if self.file_transfer_queue.receiver_count() > 0 {
-                                let _ = self.file_transfer_queue.send(vec![
-                                    FileOperation(
-                                        file,
-                                        TransferOperation::Download,
-                                    ),
-                                ]);
+                            if self.file_transfer_queue().receiver_count() > 0
+                            {
+                                let _ =
+                                    self.file_transfer_queue().send(vec![
+                                        FileOperation(
+                                            file,
+                                            TransferOperation::Download,
+                                        ),
+                                    ]);
                             }
-                            */
                         }
                     }
                 }
@@ -180,151 +195,15 @@ pub trait RemoteSyncHandler {
                         account.merge_folder(&id, diff, &mut outcome).await?;
                     }
                 }
-
-                /*
-                return Err(Error::SoftConflict {
+                return Err(ConflictError::Soft {
                     conflict: maybe_conflict,
                     local: packet.status,
                     remote: remote_changes.status,
-                });
-                */
-
-                todo!();
+                }
+                .into());
             }
         }
 
         Ok(outcome)
     }
-
-    /// Execute the sync operation.
-    ///
-    /// If the account does not exist it is created
-    /// on the remote, otherwise the account is synced.
-    async fn execute_sync(
-        &self,
-        options: &SyncOptions,
-    ) -> Result<Option<MergeOutcome>, Self::Error> {
-        let exists = self.client().account_exists(self.address()).await?;
-        if exists {
-            let sync_status = self.client().sync_status().await?;
-
-            /*
-            match self.sync_account(sync_status).await {
-                Ok(outcome) => Ok(Some(outcome)),
-                Err(e) => match e {
-                    Error::SoftConflict {
-                        conflict,
-                        local,
-                        remote,
-                    } => {
-                        let outcome = self
-                            .auto_merge(options, conflict, local, remote)
-                            .await?;
-                        Ok(Some(outcome))
-                    }
-                    _ => Err(e),
-                },
-            }
-            */
-
-            todo!();
-        } else {
-            self.create_remote_account().await?;
-            Ok(None)
-        }
-    }
-
-    /*
-    #[cfg(feature = "files")]
-    async fn execute_sync_file_transfers(&self) -> Result<(), Self::Error> {
-        use sos_sdk::storage::StorageEventLogs;
-        let external_files = {
-            let account = self.account();
-            let account = account.lock().await;
-            account.canonical_files().await?
-        };
-
-        let file_set = FileSet(external_files);
-        let file_transfers = self.client().compare_files(file_set).await?;
-
-        let mut ops = Vec::new();
-        for file in file_transfers.uploads.0 {
-            ops.push(FileOperation(file, TransferOperation::Upload));
-        }
-
-        for file in file_transfers.downloads.0 {
-            ops.push(FileOperation(file, TransferOperation::Download));
-        }
-
-        if !ops.is_empty() && self.file_transfer_queue.receiver_count() > 0 {
-            let _ = self.file_transfer_queue.send(ops);
-        }
-
-        Ok(())
-    }
-    */
 }
-
-/*
-#[async_trait]
-impl<T> RemoteSync for T
-where
-    T: RemoteSyncHandler + Send + Sync + 'static,
-{
-    type Error = crate::Error;
-
-    async fn sync(&self) -> RemoteResult<Self::Error> {
-        self.sync_with_options(&Default::default()).await
-    }
-
-    async fn sync_with_options(
-        &self,
-        options: &SyncOptions,
-    ) -> RemoteResult<Self::Error> {
-        match self.execute_sync(options).await {
-            Ok(outcome) => RemoteResult {
-                origin: self.origin().clone(),
-                result: Ok(outcome),
-            },
-            Err(e) => RemoteResult {
-                origin: self.origin().clone(),
-                result: Err(e),
-            },
-        }
-    }
-
-    #[cfg(feature = "files")]
-    async fn sync_file_transfers(&self) -> RemoteResult<Self::Error> {
-        match self.execute_sync_file_transfers().await {
-            Ok(_) => RemoteResult {
-                origin: self.origin().clone(),
-                result: Ok(None),
-            },
-            Err(e) => RemoteResult {
-                origin: self.origin().clone(),
-                result: Err(e),
-            },
-        }
-    }
-
-    async fn force_update(
-        &self,
-        account_data: UpdateSet,
-    ) -> RemoteResult<Self::Error> {
-        match self
-            .client()
-            .update_account(self.address(), account_data)
-            .await
-        {
-            Ok(_) => RemoteResult {
-                origin: self.origin().clone(),
-                result: Ok(None),
-            },
-            Err(e) => RemoteResult {
-                origin: self.origin().clone(),
-                result: Err(e),
-            },
-        }
-    }
-}
-*/
