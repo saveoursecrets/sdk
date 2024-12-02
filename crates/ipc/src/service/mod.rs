@@ -76,7 +76,7 @@ where
     accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
     delegate: mpsc::Sender<Command<E, R, A>>,
     options: IpcServiceOptions,
-    server: LocalServer<E, R, A>,
+    server: LocalServer,
 }
 
 impl<E, R, A> IpcServiceHandler<E, R, A>

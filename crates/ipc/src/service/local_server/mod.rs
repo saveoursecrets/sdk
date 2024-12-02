@@ -1,7 +1,7 @@
 use http::{Method, Request, Response, StatusCode};
 use parking_lot::Mutex;
 use sos_net::{
-    protocol::{TransportRequest, TransportResponse},
+    protocol::integration::{TransportRequest, TransportResponse},
     sdk::prelude::{
         routes::v1::{
             SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
@@ -46,35 +46,25 @@ async fn index(
 ///
 /// We avoid using axum directly as we need the `Sync` bound
 /// but `axum::Body` is `!Sync`.
-pub(crate) struct LocalServer<E, R, A>
-where
-    E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-{
-    /// Collection of accounts.
-    accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
+pub(crate) struct LocalServer {
     /// Service router.
     router: Arc<Router>,
 }
 
-impl<E, R, A> LocalServer<E, R, A>
-where
-    E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-    R: 'static,
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-{
+impl LocalServer {
     /// Create a local server.
-    pub fn new(
+    pub fn new<E, R, A>(
         app_info: ServiceAppInfo,
         accounts: Arc<RwLock<AccountSwitcher<E, R, A>>>,
-    ) -> Self {
+    ) -> Self
+    where
+        E: std::fmt::Debug
+            + From<sos_net::sdk::Error>
+            + From<std::io::Error>
+            + 'static,
+        R: 'static,
+        A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    {
         let mut router = Router::new();
         let info = Arc::new(app_info);
 
@@ -239,7 +229,6 @@ where
             .unwrap();
 
         Self {
-            accounts,
             router: Arc::new(router),
         }
     }

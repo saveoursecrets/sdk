@@ -41,24 +41,27 @@ use std::{
 use tokio::sync::{Mutex, RwLock};
 
 #[cfg(feature = "search")]
-use crate::sdk::storage::search::{
+use crate::sdk::prelude::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
     QueryFilter, SearchIndex,
 };
 
 #[cfg(feature = "archive")]
-use crate::sdk::account::archive::{Inventory, RestoreOptions};
+use crate::sdk::prelude::{Inventory, RestoreOptions};
 
 use indexmap::IndexSet;
 
-#[cfg(feature = "listen")]
-use crate::WebSocketHandle;
-
 #[cfg(feature = "contacts")]
-use crate::sdk::account::ContactImportProgress;
+use crate::sdk::prelude::ContactImportProgress;
 
 #[cfg(feature = "archive")]
 use tokio::io::{AsyncRead, AsyncSeek};
+
+#[cfg(feature = "migrate")]
+use crate::sdk::prelude::ImportTarget;
+
+#[cfg(feature = "listen")]
+use crate::WebSocketHandle;
 
 /*
 #[cfg(feature = "security-report")]
@@ -66,9 +69,6 @@ use crate::sdk::account::security_report::{
     SecurityReport, SecurityReportOptions,
 };
 */
-
-#[cfg(feature = "migrate")]
-use crate::sdk::migrate::import::ImportTarget;
 
 use super::remote::Remotes;
 

@@ -9,13 +9,11 @@ use indexmap::IndexSet;
 use sos_sdk::{
     prelude::{
         AccessKey, AccessOptions, Account, AccountChange, AccountData,
-        AccountEvent, AccountStatistics, Address, ArchiveFilter, Cipher,
-        CipherComparison, ClientStorage, CommitHash, CommitState,
-        ContactImportProgress, DetachedView, DeviceManager, DevicePublicKey,
-        DeviceSigner, Document, DocumentCount, DocumentView, EventRecord,
-        FolderChange, FolderCreate, FolderDelete, ImportTarget, Inventory,
-        KeyDerivation, LocalAccount, NewFolderOptions, Paths, PublicIdentity,
-        QueryFilter, ReadEvent, RestoreOptions, SearchIndex, Secret,
+        AccountEvent, Address, Cipher, CipherComparison, ClientStorage,
+        CommitHash, CommitState, DetachedView, DeviceManager,
+        DevicePublicKey, DeviceSigner, EventRecord, FolderChange,
+        FolderCreate, FolderDelete, KeyDerivation, LocalAccount,
+        NewFolderOptions, Paths, PublicIdentity, ReadEvent, Secret,
         SecretChange, SecretDelete, SecretId, SecretInsert, SecretMeta,
         SecretMove, SecretRow, SigninOptions, Summary, TrustedDevice, Vault,
         VaultCommit, VaultFlags, VaultId,
@@ -32,8 +30,23 @@ use tokio::sync::{Mutex, RwLock};
 
 use super::local_client::LocalClient;
 
+#[cfg(feature = "search")]
+use crate::sdk::prelude::{
+    AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
+    QueryFilter, SearchIndex,
+};
+
+#[cfg(feature = "archive")]
+use crate::sdk::prelude::{Inventory, RestoreOptions};
+
+#[cfg(feature = "contacts")]
+use crate::sdk::prelude::ContactImportProgress;
+
 #[cfg(feature = "archive")]
 use tokio::io::{AsyncRead, AsyncSeek};
+
+#[cfg(feature = "migrate")]
+use crate::sdk::prelude::ImportTarget;
 
 #[cfg(feature = "files")]
 use crate::FileTransferQueueSender;

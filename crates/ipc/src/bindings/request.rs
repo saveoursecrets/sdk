@@ -3,7 +3,7 @@ include!(concat!(env!("OUT_DIR"), "/request.rs"));
 use crate::{Error, Result, WireVoidBody};
 use serde::{Deserialize, Serialize};
 use sos_net::{
-    protocol::TransportRequest,
+    protocol::integration::TransportRequest,
     sdk::prelude::{
         Address, ArchiveFilter, DocumentView, QualifiedPath, QueryFilter,
     },

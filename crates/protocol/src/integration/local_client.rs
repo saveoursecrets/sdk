@@ -44,7 +44,7 @@ use tracing::instrument;
 
 type ClientTransport = Box<dyn LocalTransport + Send + Sync + 'static>;
 
-/// Linked account.
+/// Local client.
 #[derive(Clone)]
 pub struct LocalClient {
     origin: Origin,
