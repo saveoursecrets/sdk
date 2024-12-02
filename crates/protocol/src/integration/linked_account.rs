@@ -93,44 +93,44 @@ impl Account for LinkedAccount {
 
     async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
         let account = self.account.lock().await;
-        account.account_signer().await
+        Ok(account.account_signer().await?)
     }
 
     async fn new_device_vault(
         &mut self,
     ) -> Result<(DeviceSigner, DeviceManager)> {
         let mut account = self.account.lock().await;
-        account.new_device_vault().await
+        Ok(account.new_device_vault().await?)
     }
 
     async fn device_signer(&self) -> Result<DeviceSigner> {
         let account = self.account.lock().await;
-        account.device_signer().await
+        Ok(account.device_signer().await?)
     }
 
     async fn device_public_key(&self) -> Result<DevicePublicKey> {
         let account = self.account.lock().await;
-        account.device_public_key().await
+        Ok(account.device_public_key().await?)
     }
 
     async fn current_device(&self) -> Result<TrustedDevice> {
         let account = self.account.lock().await;
-        account.current_device().await
+        Ok(account.current_device().await?)
     }
 
     async fn trusted_devices(&self) -> Result<IndexSet<TrustedDevice>> {
         let account = self.account.lock().await;
-        account.trusted_devices().await
+        Ok(account.trusted_devices().await?)
     }
 
     async fn public_identity(&self) -> Result<PublicIdentity> {
         let account = self.account.lock().await;
-        account.public_identity().await
+        Ok(account.public_identity().await?)
     }
 
     async fn account_label(&self) -> Result<String> {
         let account = self.account.lock().await;
-        account.account_label().await
+        Ok(account.account_label().await?)
     }
 
     async fn folder_description(
@@ -138,7 +138,7 @@ impl Account for LinkedAccount {
         folder: &Summary,
     ) -> Result<String> {
         let mut account = self.account.lock().await;
-        account.folder_description(folder).await
+        Ok(account.folder_description(folder).await?)
     }
 
     async fn set_folder_description(
@@ -147,7 +147,7 @@ impl Account for LinkedAccount {
         description: impl AsRef<str> + Send + Sync,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account.set_folder_description(folder, description).await
+        Ok(account.set_folder_description(folder, description).await?)
     }
 
     async fn find_folder_password(
@@ -155,22 +155,22 @@ impl Account for LinkedAccount {
         folder_id: &VaultId,
     ) -> Result<Option<AccessKey>> {
         let account = self.account.lock().await;
-        account.find_folder_password(folder_id).await
+        Ok(account.find_folder_password(folder_id).await?)
     }
 
     async fn generate_folder_password(&self) -> Result<SecretString> {
         let account = self.account.lock().await;
-        account.generate_folder_password().await
+        Ok(account.generate_folder_password().await?)
     }
 
     async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
         let account = self.account.lock().await;
-        account.identity_vault_buffer().await
+        Ok(account.identity_vault_buffer().await?)
     }
 
     async fn identity_folder_summary(&self) -> Result<Summary> {
         let account = self.account.lock().await;
-        account.identity_folder_summary().await
+        Ok(account.identity_folder_summary().await?)
     }
 
     async fn change_cipher(
@@ -180,7 +180,7 @@ impl Account for LinkedAccount {
         kdf: Option<KeyDerivation>,
     ) -> Result<CipherComparison> {
         let mut account = self.account.lock().await;
-        account.change_cipher(account_key, cipher, kdf).await
+        Ok(account.change_cipher(account_key, cipher, kdf).await?)
     }
 
     async fn change_account_password(
@@ -188,12 +188,12 @@ impl Account for LinkedAccount {
         password: SecretString,
     ) -> Result<()> {
         let mut account = self.account.lock().await;
-        account.change_account_password(password).await
+        Ok(account.change_account_password(password).await?)
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
         let mut account = self.account.lock().await;
-        account.sign_in(key).await
+        Ok(account.sign_in(key).await?)
     }
 
     async fn sign_in_with_options(
@@ -202,7 +202,7 @@ impl Account for LinkedAccount {
         options: SigninOptions,
     ) -> Result<Vec<Summary>> {
         let mut account = self.account.lock().await;
-        account.sign_in_with_options(key, options).await
+        Ok(account.sign_in_with_options(key, options).await?)
     }
 
     async fn verify(&self, key: &AccessKey) -> bool {
@@ -212,12 +212,12 @@ impl Account for LinkedAccount {
 
     async fn open_folder(&self, summary: &Summary) -> Result<()> {
         let account = self.account.lock().await;
-        account.open_folder(summary).await
+        Ok(account.open_folder(summary).await?)
     }
 
     async fn current_folder(&self) -> Result<Option<Summary>> {
         let account = self.account.lock().await;
-        account.current_folder().await
+        Ok(account.current_folder().await?)
     }
 
     async fn find<P>(&self, predicate: P) -> Option<Summary>
@@ -230,7 +230,7 @@ impl Account for LinkedAccount {
 
     async fn sign_out(&mut self) -> Result<()> {
         let mut account = self.account.lock().await;
-        account.sign_out().await
+        Ok(account.sign_out().await?)
     }
 
     async fn rename_account(
@@ -238,12 +238,12 @@ impl Account for LinkedAccount {
         account_name: String,
     ) -> Result<AccountChange<Self::NetworkResult>> {
         let mut account = self.account.lock().await;
-        account.rename_account(account_name).await
+        Ok(account.rename_account(account_name).await?)
     }
 
     async fn delete_account(&mut self) -> Result<()> {
         let mut account = self.account.lock().await;
-        account.delete_account().await
+        Ok(account.delete_account().await?)
     }
 
     async fn storage(&self) -> Result<Arc<RwLock<ClientStorage>>> {
