@@ -4,11 +4,10 @@ use sos_ipc::{
     LocalAccountIpcService, LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{prelude::LocalAccountSwitcher, Paths};
-use sos_test_utils::teardown;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
-use crate::test_utils::setup;
+use crate::test_utils::{setup, teardown};
 
 #[tokio::test]
 async fn integration_ipc_ping_pong() -> Result<()> {

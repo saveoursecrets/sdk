@@ -16,11 +16,13 @@ use sos_net::{
         Paths,
     },
 };
-use sos_test_utils::teardown;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::{Mutex, RwLock};
 
-use crate::{test_utils::setup, TestLocalTransport};
+use crate::{
+    test_utils::{setup, teardown},
+    TestLocalTransport,
+};
 
 /// Test for syncing between apps installed on the same
 /// device via the IPC communication channel.
@@ -108,7 +110,9 @@ async fn integration_ipc_local_sync() -> Result<()> {
     let account = accounts.selected_account().unwrap();
 
     // Sync the data from the other app
-    account.sync().await;
+    let result = account.sync().await;
+
+    println!("result: {:#?}", result);
 
     // teardown(TEST_ID).await;
 

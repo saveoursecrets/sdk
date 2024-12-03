@@ -11,11 +11,10 @@ use sos_net::sdk::{
     },
     Paths,
 };
-use sos_test_utils::teardown;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
-use crate::test_utils::setup;
+use crate::test_utils::{setup, teardown};
 
 #[tokio::test]
 async fn integration_ipc_lock_account() -> Result<()> {
