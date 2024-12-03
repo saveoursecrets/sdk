@@ -7,9 +7,8 @@ use crate::{
     ServiceAppInfo,
 };
 
-use sos_net::{
-    protocol::integration::{TransportRequest, TransportResponse},
-    sdk::prelude::{Address, ArchiveFilter, DocumentView, QueryFilter},
+use sos_net::sdk::prelude::{
+    Address, ArchiveFilter, DocumentView, QueryFilter,
 };
 
 pub(crate) mod app_integration;
@@ -25,6 +24,9 @@ pub use tcp::*;
 
 #[cfg(feature = "local-socket")]
 pub use local_socket::*;
+
+#[cfg(feature = "integration")]
+use sos_net::protocol::integration::{TransportRequest, TransportResponse};
 
 /// App integration functions for clients.
 macro_rules! app_integration_impl {
@@ -73,6 +75,7 @@ macro_rules! app_integration_impl {
                 }
             }
 
+            #[cfg(feature = "integration")]
             async fn request(
                 &mut self,
                 request: TransportRequest,

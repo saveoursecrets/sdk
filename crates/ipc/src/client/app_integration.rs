@@ -27,6 +27,7 @@ pub trait AppIntegration<E: From<sos_net::sdk::Error>> {
     async fn ping(&mut self) -> Result<Duration, E>;
 
     /// Send a request to the local server.
+    #[cfg(feature = "integration")]
     async fn request(
         &mut self,
         request: TransportRequest,

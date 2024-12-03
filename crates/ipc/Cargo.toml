@@ -11,6 +11,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 default = ["local-socket"]
 tcp = []
 local-socket = ["interprocess"]
+integration = []
 native-bridge = ["open", "once_cell"]
 native-send = ["tokio/process"]
 

@@ -42,7 +42,7 @@ features = ["full"]
 path = "../net"
 
 [dev-dependencies.sos-ipc]
-features = ["tcp"]
+features = ["tcp", "integration"]
 path = "../ipc"
 
 [dev-dependencies.sos-server]
