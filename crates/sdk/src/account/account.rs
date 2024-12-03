@@ -940,9 +940,6 @@ pub struct AccountData {
 pub(super) struct Authenticated {
     /// Authenticated user.
     pub(super) user: Identity,
-
-    /// Storage provider.
-    storage: Arc<RwLock<ClientStorage>>,
 }
 
 /// User account backed by the filesystem.
@@ -957,6 +954,9 @@ pub struct LocalAccount {
     /// Account information after a successful
     /// sign in.
     pub(super) authenticated: Option<Authenticated>,
+
+    /// Storage provider.
+    storage: Arc<RwLock<ClientStorage>>,
 
     /// Storage paths.
     paths: Arc<Paths>,
@@ -1041,10 +1041,8 @@ impl LocalAccount {
         )
         .await?;
 
-        self.authenticated = Some(Authenticated {
-            user,
-            storage: Arc::new(RwLock::new(storage)),
-        });
+        self.authenticated = Some(Authenticated { user });
+        self.storage = Arc::new(RwLock::new(storage));
 
         // Load vaults into memory and initialize folder
         // event log commit trees
@@ -1558,10 +1556,14 @@ impl LocalAccount {
             Paths::data_dir()?
         };
 
-        let paths = Paths::new_global(data_dir);
+        let paths = Paths::new(data_dir, address.to_string());
+        let storage = Arc::new(RwLock::new(
+            ClientStorage::empty(address, paths.clone()).await?,
+        ));
 
         Ok(Self {
             address,
+            storage,
             paths: Arc::new(paths),
             authenticated: None,
             #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
@@ -1632,6 +1634,7 @@ impl LocalAccount {
         let account = Self {
             address,
             paths: storage.paths(),
+            storage: Arc::new(RwLock::new(storage)),
             authenticated: None,
             #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
             account_lock: None,
@@ -1944,8 +1947,8 @@ impl Account for LocalAccount {
     where
         P: FnMut(&&Summary) -> bool + Send,
     {
-        if let Some(auth) = &self.authenticated {
-            let reader = auth.storage.read().await;
+        if let Some(_) = &self.authenticated {
+            let reader = self.storage.read().await;
             reader.find(predicate).cloned()
         } else {
             None
@@ -1953,9 +1956,7 @@ impl Account for LocalAccount {
     }
 
     async fn storage(&self) -> Result<Arc<RwLock<ClientStorage>>> {
-        let auth =
-            self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
-        Ok(Arc::clone(&auth.storage))
+        Ok(Arc::clone(&self.storage))
     }
 
     async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {

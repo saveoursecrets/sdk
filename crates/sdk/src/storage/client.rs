@@ -104,6 +104,45 @@ pub struct ClientStorage {
 }
 
 impl ClientStorage {
+    /// Create empty folder storage for client-side access.
+    pub async fn empty(address: Address, paths: Paths) -> Result<Self> {
+        paths.ensure().await?;
+
+        let identity_log = Arc::new(RwLock::new(
+            FolderEventLog::new(paths.identity_events()).await?,
+        ));
+
+        let account_log = Arc::new(RwLock::new(
+            AccountEventLog::new_account(paths.account_events()).await?,
+        ));
+
+        let device_log = Arc::new(RwLock::new(
+            DeviceEventLog::new_device(paths.device_events()).await?,
+        ));
+
+        let file_log = Arc::new(RwLock::new(
+            FileEventLog::new_file(paths.file_events()).await?,
+        ));
+
+        Ok(Self {
+            address,
+            summaries: Vec::new(),
+            current: None,
+            cache: Default::default(),
+            paths: Arc::new(paths),
+            identity_log,
+            account_log,
+            #[cfg(feature = "search")]
+            index: Some(AccountSearch::new()),
+            device_log,
+            devices: Default::default(),
+            #[cfg(feature = "files")]
+            file_log,
+            #[cfg(feature = "files")]
+            file_password: None,
+        })
+    }
+
     /// Create folder storage for client-side access.
     pub async fn new(
         address: Address,

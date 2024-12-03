@@ -1,7 +1,7 @@
 //! Implements auto merge logic for a remote.
 use crate::{
     AsConflict, ConflictError, DiffRequest, PatchRequest, ScanRequest,
-    SyncClient,
+    SyncClient, SyncDirection,
 };
 use async_trait::async_trait;
 use sos_sdk::{
@@ -60,38 +60,48 @@ pub trait AutoMerge: RemoteSyncHandler {
         &self,
         options: &SyncOptions,
     ) -> Result<Option<MergeOutcome>, Self::Error> {
-        let exists = self.client().account_exists(self.address()).await?;
-        if exists {
-            let sync_status =
-                self.client().sync_status(self.address()).await?;
-            match self.sync_account(sync_status).await {
-                Ok(outcome) => Ok(Some(outcome)),
-                Err(e) => {
-                    if e.is_conflict() {
-                        let conflict = e.take_conflict().unwrap();
-                        match conflict {
-                            ConflictError::Soft {
-                                conflict,
-                                local,
-                                remote,
-                            } => {
-                                let outcome = self
-                                    .auto_merge(
-                                        options, conflict, local, remote,
-                                    )
-                                    .await?;
-                                Ok(Some(outcome))
+        match self.direction() {
+            SyncDirection::Push => {
+                let exists =
+                    self.client().account_exists(self.address()).await?;
+                if exists {
+                    let sync_status =
+                        self.client().sync_status(self.address()).await?;
+                    match self.sync_account(sync_status).await {
+                        Ok(outcome) => Ok(Some(outcome)),
+                        Err(e) => {
+                            if e.is_conflict() {
+                                let conflict = e.take_conflict().unwrap();
+                                match conflict {
+                                    ConflictError::Soft {
+                                        conflict,
+                                        local,
+                                        remote,
+                                    } => {
+                                        let outcome = self
+                                            .auto_merge(
+                                                options, conflict, local,
+                                                remote,
+                                            )
+                                            .await?;
+                                        Ok(Some(outcome))
+                                    }
+                                    _ => Err(conflict.into()),
+                                }
+                            } else {
+                                Err(e)
                             }
-                            _ => Err(conflict.into()),
                         }
-                    } else {
-                        Err(e)
                     }
+                } else {
+                    self.create_account().await?;
+                    Ok(None)
                 }
             }
-        } else {
-            self.create_account().await?;
-            Ok(None)
+            SyncDirection::Pull => {
+                println!("Execute pull for sync...");
+                todo!();
+            }
         }
     }
 
