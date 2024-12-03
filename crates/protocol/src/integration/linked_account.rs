@@ -2,11 +2,13 @@
 //! same device using a local client.
 use crate::{
     AutoMerge, Error, Origin, RemoteResult, RemoteSync, RemoteSyncHandler,
-    Result, SyncClient, SyncDirection, SyncOptions, UpdateSet,
+    Result, SyncClient, SyncDirection, SyncOptions, SyncStatus, SyncStorage,
+    UpdateSet,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_sdk::{
+    events::{AccountEventLog, DeviceEventLog, FolderEventLog},
     prelude::{
         AccessKey, AccessOptions, Account, AccountChange, AccountData,
         AccountEvent, Address, Cipher, CipherComparison, ClientStorage,
@@ -15,8 +17,8 @@ use sos_sdk::{
         FolderCreate, FolderDelete, KeyDerivation, LocalAccount,
         NewFolderOptions, Paths, PublicIdentity, ReadEvent, Secret,
         SecretChange, SecretDelete, SecretId, SecretInsert, SecretMeta,
-        SecretMove, SecretRow, SigninOptions, Summary, TrustedDevice, Vault,
-        VaultCommit, VaultFlags, VaultId,
+        SecretMove, SecretRow, SigninOptions, StorageEventLogs, Summary,
+        TrustedDevice, Vault, VaultCommit, VaultFlags, VaultId,
     },
     secrecy::SecretString,
     signer::ecdsa::BoxedEcdsaSigner,
@@ -31,25 +33,28 @@ use tokio::sync::{Mutex, RwLock};
 use super::local_client::LocalClient;
 
 #[cfg(feature = "search")]
-use crate::sdk::prelude::{
+use sos_sdk::prelude::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
     QueryFilter, SearchIndex,
 };
 
 #[cfg(feature = "archive")]
-use crate::sdk::prelude::{Inventory, RestoreOptions};
+use sos_sdk::prelude::{Inventory, RestoreOptions};
 
 #[cfg(feature = "contacts")]
-use crate::sdk::prelude::ContactImportProgress;
+use sos_sdk::prelude::ContactImportProgress;
 
 #[cfg(feature = "archive")]
 use tokio::io::{AsyncRead, AsyncSeek};
 
 #[cfg(feature = "migrate")]
-use crate::sdk::prelude::ImportTarget;
+use sos_sdk::prelude::ImportTarget;
 
 #[cfg(feature = "files")]
 use crate::transfer::FileTransferQueueSender;
+
+#[cfg(feature = "files")]
+use sos_sdk::prelude::FileEventLog;
 
 /// Linked account.
 pub struct LinkedAccount {
@@ -711,6 +716,59 @@ impl Account for LinkedAccount {
         Ok(account
             .restore_backup_archive(path, password, options, data_dir)
             .await?)
+    }
+}
+
+#[async_trait]
+impl StorageEventLogs for LinkedAccount {
+    async fn identity_log(
+        &self,
+    ) -> sos_sdk::Result<Arc<RwLock<FolderEventLog>>> {
+        todo!();
+    }
+
+    async fn account_log(
+        &self,
+    ) -> sos_sdk::Result<Arc<RwLock<AccountEventLog>>> {
+        todo!();
+    }
+
+    async fn device_log(
+        &self,
+    ) -> sos_sdk::Result<Arc<RwLock<DeviceEventLog>>> {
+        todo!();
+    }
+
+    #[cfg(feature = "files")]
+    async fn file_log(&self) -> sos_sdk::Result<Arc<RwLock<FileEventLog>>> {
+        todo!();
+    }
+
+    async fn folder_identifiers(&self) -> sos_sdk::Result<IndexSet<VaultId>> {
+        todo!();
+    }
+
+    async fn folder_details(&self) -> sos_sdk::Result<IndexSet<Summary>> {
+        todo!();
+    }
+
+    async fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> sos_sdk::Result<Arc<RwLock<FolderEventLog>>> {
+        todo!();
+    }
+}
+
+#[async_trait]
+impl SyncStorage for LinkedAccount {
+    fn is_client_storage(&self) -> bool {
+        true
+    }
+
+    async fn sync_status(&self) -> sos_sdk::Result<SyncStatus> {
+        let account = self.account.lock().await;
+        account.sync_status().await
     }
 }
 

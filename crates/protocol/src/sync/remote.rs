@@ -89,6 +89,12 @@ pub trait RemoteSyncHandler {
     /// Pull an account from the remote.
     #[doc(hidden)]
     async fn create_pull_account(&self) -> Result<(), Self::Error> {
+        println!("create_pull_account...");
+
+        let change_set = self.client().fetch_account(self.address()).await?;
+
+        println!("Got change set...{:#?}", change_set);
+
         /*
         {
             let account = self.account();

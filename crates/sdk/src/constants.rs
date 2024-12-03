@@ -190,13 +190,13 @@ pub mod routes {
     /// Routes for v1.
     pub mod v1 {
         /// Route for syncing account data.
-        pub const SYNC_ACCOUNT: &str = "api/v1/sync/account";
+        pub const SYNC_ACCOUNT: &str = "/api/v1/sync/account";
 
         /// Route for sync account status.
-        pub const SYNC_ACCOUNT_STATUS: &str = "api/v1/sync/account/status";
+        pub const SYNC_ACCOUNT_STATUS: &str = "/api/v1/sync/account/status";
 
         /// Route for syncing account events.
-        pub const SYNC_ACCOUNT_EVENTS: &str = "api/v1/sync/account/events";
+        pub const SYNC_ACCOUNT_EVENTS: &str = "/api/v1/sync/account/events";
     }
 }
 

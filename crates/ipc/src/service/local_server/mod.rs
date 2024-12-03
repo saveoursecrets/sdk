@@ -1,7 +1,10 @@
 use http::{Method, Request, Response, StatusCode};
 use parking_lot::Mutex;
 use sos_net::{
-    protocol::local_transport::{TransportRequest, TransportResponse},
+    protocol::{
+        local_transport::{TransportRequest, TransportResponse},
+        SyncStorage,
+    },
     sdk::prelude::{
         routes::v1::{
             SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
@@ -58,7 +61,11 @@ impl LocalServer {
         accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
     ) -> Self
     where
-        A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+        A: Account<Error = E, NetworkResult = R>
+            + SyncStorage
+            + Sync
+            + Send
+            + 'static,
         R: 'static,
         E: std::fmt::Debug
             + From<sos_net::sdk::Error>
@@ -85,7 +92,7 @@ impl LocalServer {
             .entry(Method::HEAD)
             .or_default()
             .insert(
-                format!("/{}", SYNC_ACCOUNT),
+                SYNC_ACCOUNT,
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
                         account_exists(req, state.clone())
@@ -100,7 +107,7 @@ impl LocalServer {
             .entry(Method::PUT)
             .or_default()
             .insert(
-                format!("/{}", SYNC_ACCOUNT),
+                SYNC_ACCOUNT,
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
                         create_account(req, state.clone())
@@ -115,7 +122,7 @@ impl LocalServer {
             .entry(Method::POST)
             .or_default()
             .insert(
-                format!("/{}", SYNC_ACCOUNT),
+                SYNC_ACCOUNT,
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
                         update_account(req, state.clone())
@@ -130,7 +137,7 @@ impl LocalServer {
             .entry(Method::GET)
             .or_default()
             .insert(
-                format!("/{}", SYNC_ACCOUNT),
+                SYNC_ACCOUNT,
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
                         fetch_account(req, state.clone())
@@ -148,7 +155,7 @@ impl LocalServer {
             .entry(Method::DELETE)
             .or_default()
             .insert(
-                format!("/{}", SYNC_ACCOUNT),
+                SYNC_ACCOUNT,
                 BoxCloneService::new(service_fn(forbidden)).into(),
             )
             .unwrap();
@@ -158,7 +165,7 @@ impl LocalServer {
             .entry(Method::GET)
             .or_default()
             .insert(
-                format!("/{}", SYNC_ACCOUNT_STATUS),
+                SYNC_ACCOUNT_STATUS,
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
                         account_status(req, state.clone())
@@ -173,7 +180,7 @@ impl LocalServer {
             .entry(Method::PATCH)
             .or_default()
             .insert(
-                format!("/{}", SYNC_ACCOUNT),
+                SYNC_ACCOUNT,
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
                         sync_account(req, state.clone())
@@ -188,7 +195,7 @@ impl LocalServer {
             .entry(Method::GET)
             .or_default()
             .insert(
-                format!("/{}", SYNC_ACCOUNT_EVENTS),
+                SYNC_ACCOUNT_EVENTS,
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
                         events_scan(req, state.clone())
@@ -203,7 +210,7 @@ impl LocalServer {
             .entry(Method::POST)
             .or_default()
             .insert(
-                format!("/{}", SYNC_ACCOUNT_EVENTS),
+                SYNC_ACCOUNT_EVENTS,
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
                         events_diff(req, state.clone())
@@ -218,7 +225,7 @@ impl LocalServer {
             .entry(Method::PATCH)
             .or_default()
             .insert(
-                format!("/{}", SYNC_ACCOUNT_EVENTS),
+                SYNC_ACCOUNT_EVENTS,
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
                         events_patch(req, state.clone())
@@ -261,7 +268,10 @@ impl LocalServer {
                 .unwrap());
         };
 
+        println!("local_server {}", req.uri().path());
+
         let Ok(found) = router.at(req.uri().path()) else {
+            println!("returning not found...");
             return not_found(req).await;
         };
 

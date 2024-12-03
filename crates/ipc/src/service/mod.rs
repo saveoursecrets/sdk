@@ -6,6 +6,7 @@ use crate::{
 use async_trait::async_trait;
 use sos_account_extras::clipboard::NativeClipboard;
 use sos_net::{
+    protocol::SyncStorage,
     sdk::{
         account::{Account, AccountSwitcher, LocalAccount},
         prelude::{ArchiveFilter, DocumentView, Identity, QueryFilter},
@@ -63,7 +64,11 @@ pub trait IpcService<E> {
 /// Handler for IPC requests.
 pub struct IpcServiceHandler<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Sync
+        + Send
+        + 'static,
     R: 'static,
     E: std::fmt::Debug
         + From<sos_net::sdk::Error>
@@ -78,7 +83,11 @@ where
 
 impl<A, R, E> IpcServiceHandler<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Sync
+        + Send
+        + 'static,
     R: 'static,
     E: std::error::Error
         + std::fmt::Debug
@@ -256,7 +265,11 @@ where
 #[async_trait]
 impl<A, R, E> IpcService<E> for IpcServiceHandler<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Sync
+        + Send
+        + 'static,
     R: 'static,
     E: std::error::Error
         + std::fmt::Debug

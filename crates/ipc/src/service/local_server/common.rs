@@ -28,6 +28,15 @@ pub async fn internal_server_error(
         .unwrap())
 }
 
+pub async fn bad_request(
+    _req: Request<Incoming>,
+) -> hyper::Result<Response<Body>> {
+    Ok(Response::builder()
+        .status(StatusCode::BAD_REQUEST)
+        .body(Body::default())
+        .unwrap())
+}
+
 pub async fn forbidden(
     _req: Request<Incoming>,
 ) -> hyper::Result<Response<Body>> {
@@ -43,5 +52,15 @@ pub async fn not_found(
     Ok(Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body(Body::default())
+        .unwrap())
+}
+
+pub async fn ok(
+    _req: Request<Incoming>,
+    body: Body,
+) -> hyper::Result<Response<Body>> {
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .body(body)
         .unwrap())
 }
