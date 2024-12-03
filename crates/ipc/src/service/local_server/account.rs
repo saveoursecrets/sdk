@@ -74,7 +74,7 @@ where
 }
 
 pub async fn update_account<A, R, E>(
-    _req: Request<Incoming>,
+    req: Request<Incoming>,
     _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
 ) -> hyper::Result<Response<Body>>
 where
@@ -89,7 +89,7 @@ where
         + From<std::io::Error>
         + 'static,
 {
-    todo!();
+    forbidden(req).await
 }
 
 pub async fn fetch_account<A, R, E>(
