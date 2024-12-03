@@ -29,7 +29,7 @@ use sos_sdk::events::{DeviceDiff, DeviceEvent};
 #[cfg(feature = "files")]
 use sos_sdk::events::{FileDiff, FileEvent};
 
-use super::RemoteSyncHandler;
+use super::{RemoteSyncHandler, SyncStorage};
 
 /// State used while scanning commit proofs on a remote data source.
 #[doc(hidden)]
@@ -99,8 +99,18 @@ pub trait AutoMerge: RemoteSyncHandler {
                 }
             }
             SyncDirection::Pull => {
-                println!("Execute pull for sync...");
-                todo!();
+                let exists = {
+                    let account = self.account();
+                    let account = account.lock().await;
+                    account.storage().await.is_some()
+                };
+
+                if exists {
+                    todo!("sync(pull) existing account");
+                } else {
+                    self.create_account().await?;
+                    Ok(None)
+                }
             }
         }
     }

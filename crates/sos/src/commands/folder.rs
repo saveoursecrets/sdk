@@ -278,7 +278,10 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = user.read().await;
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-            let storage = owner.storage().await?;
+            let storage = owner
+                .storage()
+                .await
+                .ok_or(sos_net::sdk::Error::NoStorage)?;
             let reader = storage.read().await;
             if let Some(folder) = reader.cache().get(summary.id()) {
                 let event_log = folder.event_log();
@@ -379,7 +382,10 @@ pub async fn run(cmd: Command) -> Result<()> {
                         .current_folder()
                         .await?
                         .ok_or(Error::NoVaultSelected)?;
-                    let storage = owner.storage().await?;
+                    let storage = owner
+                        .storage()
+                        .await
+                        .ok_or(sos_net::sdk::Error::NoStorage)?;
                     let owner = storage.read().await;
                     owner.verify(&summary).await?;
                     success("Verified");
@@ -393,7 +399,10 @@ pub async fn run(cmd: Command) -> Result<()> {
                         .current_folder()
                         .await?
                         .ok_or(Error::NoVaultSelected)?;
-                    let storage = owner.storage().await?;
+                    let storage = owner
+                        .storage()
+                        .await
+                        .ok_or(sos_net::sdk::Error::NoStorage)?;
                     let owner = storage.read().await;
                     let records = owner.history(&summary).await?;
                     for (commit, time, event) in records {

@@ -237,7 +237,8 @@ impl NetworkAccount {
         // Update the local device event log
         {
             let account = self.account.lock().await;
-            let storage = account.storage().await?;
+            let storage =
+                account.storage().await.ok_or(sos_sdk::Error::NoStorage)?;
             let mut storage = storage.write().await;
             storage.revoke_device(device_key).await?;
         }
@@ -967,9 +968,9 @@ impl Account for NetworkAccount {
         account.find(predicate).await
     }
 
-    async fn storage(&self) -> Result<Arc<RwLock<ClientStorage>>> {
+    async fn storage(&self) -> Option<Arc<RwLock<ClientStorage>>> {
         let account = self.account.lock().await;
-        Ok(account.storage().await?)
+        account.storage().await
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {

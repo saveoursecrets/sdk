@@ -482,9 +482,7 @@ pub trait Account {
     ) -> std::result::Result<(), Self::Error>;
 
     /// Storage provider.
-    async fn storage(
-        &self,
-    ) -> std::result::Result<Arc<RwLock<ClientStorage>>, Self::Error>;
+    async fn storage(&self) -> Option<Arc<RwLock<ClientStorage>>>;
 
     /// Read the secret identifiers in a vault.
     async fn secret_ids(
@@ -1045,7 +1043,7 @@ impl LocalAccount {
         // Unlock all the storage vaults
         {
             let folder_keys = self.folder_keys().await?;
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut storage = storage.write().await;
             storage.unlock(&folder_keys).await?;
         }
@@ -1147,7 +1145,7 @@ impl LocalAccount {
     ) -> Result<()> {
         // Bail early if the folder is already open
         {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
             let reader = storage.read().await;
             if let Some(current) = reader.current_folder() {
                 if current.id() == summary.id() {
@@ -1157,7 +1155,7 @@ impl LocalAccount {
         }
 
         let event = {
-            let storage = self.storage().await?;
+            let storage = self.storage().await.ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer.open_folder(summary).await?
         };
@@ -1181,7 +1179,7 @@ impl LocalAccount {
         options: &AccessOptions,
     ) -> Result<(Summary, CommitState)> {
         let (folder, commit_state) = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
             let reader = storage.read().await;
             let folder = options
                 .folder
@@ -1244,7 +1242,7 @@ impl LocalAccount {
         #[cfg(feature = "files")] file_events: &mut Vec<FileMutationEvent>,
     ) -> Result<(SecretId, Event, Summary)> {
         let folder = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
             let reader = storage.read().await;
             options
                 .folder
@@ -1266,7 +1264,7 @@ impl LocalAccount {
 
         #[allow(unused_mut)]
         let mut result = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer.create_secret(secret_data, options).await?
         };
@@ -1295,7 +1293,7 @@ impl LocalAccount {
         audit: bool,
     ) -> Result<(SecretRow, ReadEvent)> {
         let folder = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
             let reader = storage.read().await;
             folder
                 .or_else(|| reader.current_folder())
@@ -1305,7 +1303,7 @@ impl LocalAccount {
         self.open_folder(&folder).await?;
 
         let (meta, secret, read_event) = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
             let reader = storage.read().await;
             reader.read_secret(secret_id).await?
         };
@@ -1353,14 +1351,14 @@ impl LocalAccount {
         // as we need the original external files for the
         // move_files operation.
         let delete_event = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer.remove_secret(secret_id).await?
         };
 
         #[cfg(feature = "files")]
         {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             let mut move_file_events = writer
                 .move_files(
@@ -1412,14 +1410,14 @@ impl LocalAccount {
         &mut self,
     ) -> Result<DocumentCount> {
         let keys = self.folder_keys().await?;
-        let storage = self.storage().await?;
+        let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
         let mut writer = storage.write().await;
         writer.build_search_index(&keys).await
     }
 
     /// Access keys for all folders.
     pub(super) async fn folder_keys(&self) -> Result<FolderKeys> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         let folders = reader.list_folders();
         let mut keys = HashMap::new();
@@ -1686,7 +1684,7 @@ impl Account for LocalAccount {
     }
 
     async fn trusted_devices(&self) -> Result<IndexSet<TrustedDevice>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         Ok(reader.devices().clone())
     }
@@ -1705,7 +1703,7 @@ impl Account for LocalAccount {
     ) -> Result<String> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
         self.open_folder(folder).await?;
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         Ok(reader.description().await?)
     }
@@ -1726,7 +1724,7 @@ impl Account for LocalAccount {
         let (_, commit_state) = self.compute_folder_state(&options).await?;
 
         let event = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer.set_description(description).await?
         };
@@ -1752,7 +1750,7 @@ impl Account for LocalAccount {
     }
 
     async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         let identity_path = reader.paths().identity_vault();
         Ok(vfs::read(identity_path).await?)
@@ -1859,7 +1857,7 @@ impl Account for LocalAccount {
     }
 
     async fn current_folder(&self) -> Result<Option<Summary>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let storage = storage.read().await;
         Ok(storage.current_folder())
     }
@@ -1874,15 +1872,17 @@ impl Account for LocalAccount {
 
         tracing::debug!("lock storage vaults");
         // Lock all the storage vaults
-        let storage = self.storage().await?;
-        let mut writer = storage.write().await;
-        writer.lock().await;
-
-        #[cfg(feature = "search")]
         {
-            tracing::debug!("clear search index");
-            // Remove the search index
-            writer.index_mut()?.clear().await;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
+            let mut writer = storage.write().await;
+            writer.lock().await;
+
+            #[cfg(feature = "search")]
+            {
+                tracing::debug!("clear search index");
+                // Remove the search index
+                writer.index_mut()?.clear().await;
+            }
         }
 
         tracing::debug!("sign out user identity");
@@ -1944,19 +1944,19 @@ impl Account for LocalAccount {
         }
     }
 
-    async fn storage(&self) -> Result<Arc<RwLock<ClientStorage>>> {
-        Ok(Arc::clone(self.storage.as_ref().unwrap()))
+    async fn storage(&self) -> Option<Arc<RwLock<ClientStorage>>> {
+        self.storage.as_ref().map(Arc::clone)
     }
 
     async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         let vault: Vault = reader.read_vault(summary.id()).await?;
         Ok(vault.keys().cloned().collect())
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
         let mut writer = storage.write().await;
         let mut folders = writer.load_folders().await?.to_vec();
         folders.sort_by(|a, b| a.name().cmp(b.name()));
@@ -1964,7 +1964,7 @@ impl Account for LocalAccount {
     }
 
     async fn list_folders(&self) -> Result<Vec<Summary>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         let mut folders = reader.list_folders().to_vec();
         folders.sort_by(|a, b| a.name().cmp(b.name()));
@@ -1972,7 +1972,7 @@ impl Account for LocalAccount {
     }
 
     async fn account_data(&self) -> Result<AccountData> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         let user = self.user()?;
         Ok(AccountData {
@@ -1988,7 +1988,7 @@ impl Account for LocalAccount {
     }
 
     async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         let cache = reader.cache();
         let folder = cache
@@ -2000,13 +2000,13 @@ impl Account for LocalAccount {
     }
 
     async fn identity_state(&self) -> Result<CommitState> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         Ok(reader.identity_state().await?)
     }
 
     async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         Ok(reader.commit_state(summary).await?)
     }
@@ -2067,7 +2067,7 @@ impl Account for LocalAccount {
             .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
         let (event, old_size, new_size) = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer.compact_folder(summary, &key).await?
         };
@@ -2086,7 +2086,7 @@ impl Account for LocalAccount {
             .await?
             .ok_or(Error::NoFolderPassword(*folder_id))?;
 
-        let storage = self.storage().await?;
+        let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
         let mut writer = storage.write().await;
         Ok(writer.restore_folder(folder_id, records, &key).await?)
     }
@@ -2105,13 +2105,13 @@ impl Account for LocalAccount {
             .ok_or(Error::NoFolderPassword(*folder.id()))?;
 
         let vault = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
             let reader = storage.read().await;
             reader.read_vault(folder.id()).await?
         };
 
         {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer
                 .change_password(&vault, current_key, new_key.clone())
@@ -2134,7 +2134,7 @@ impl Account for LocalAccount {
     ) -> Result<DetachedView> {
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
 
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         let cache = reader.cache();
         let folder = cache
@@ -2174,7 +2174,7 @@ impl Account for LocalAccount {
         &mut self,
     ) -> Result<(DocumentCount, Vec<Summary>)> {
         let keys = self.folder_keys().await?;
-        let storage = self.storage().await?;
+        let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
         let mut writer = storage.write().await;
         let (count, mut folders) =
             writer.initialize_search_index(&keys).await?;
@@ -2226,7 +2226,7 @@ impl Account for LocalAccount {
 
     #[cfg(feature = "search")]
     async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         Ok(reader.index()?.search())
     }
@@ -2237,7 +2237,7 @@ impl Account for LocalAccount {
         views: &[DocumentView],
         archive: Option<&ArchiveFilter>,
     ) -> Result<Vec<Document>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         reader.index()?.query_view(views, archive).await
     }
@@ -2248,14 +2248,14 @@ impl Account for LocalAccount {
         query: &str,
         filter: QueryFilter,
     ) -> Result<Vec<Document>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         reader.index()?.query_map(query, filter).await
     }
 
     #[cfg(feature = "search")]
     async fn document_count(&self) -> Result<DocumentCount> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         let search = reader.index()?.search();
         let index = search.read().await;
@@ -2269,7 +2269,7 @@ impl Account for LocalAccount {
         label: &str,
         id: Option<&SecretId>,
     ) -> Result<bool> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         let search = reader.index()?.search();
         let index = search.read().await;
@@ -2283,7 +2283,7 @@ impl Account for LocalAccount {
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<Vec<u8>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         reader.download_file(vault_id, secret_id, file_name).await
     }
@@ -2358,7 +2358,7 @@ impl Account for LocalAccount {
         }
 
         let result = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer
                 .update_secret(secret_id, meta, secret, options.clone())
@@ -2423,7 +2423,7 @@ impl Account for LocalAccount {
         secret_id: &SecretId,
     ) -> std::result::Result<(Option<VaultCommit>, ReadEvent), Self::Error>
     {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
         Ok(match reader.raw_secret(folder_id, secret_id).await? {
             (Some(commit), event) => (Some(commit.into_owned()), event),
@@ -2442,7 +2442,7 @@ impl Account for LocalAccount {
         self.open_folder(&folder).await?;
 
         let result = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer.delete_secret(secret_id, options).await?
         };
@@ -2561,7 +2561,7 @@ impl Account for LocalAccount {
         options.kdf = Some(kdf);
 
         let (buffer, _, summary, account_event) = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer.create_folder(name, options).await?
         };
@@ -2603,7 +2603,7 @@ impl Account for LocalAccount {
 
         // Update the provider
         let event = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer.rename_folder(&summary, &name).await?
         };
@@ -2629,7 +2629,7 @@ impl Account for LocalAccount {
 
         // Update the provider
         let event = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer.update_folder_flags(&summary, flags).await?
         };
@@ -2720,7 +2720,7 @@ impl Account for LocalAccount {
 
         // Import the vault
         let (event, summary) = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer
                 .import_folder(buffer.as_ref(), Some(&key), true, None)
@@ -2746,7 +2746,8 @@ impl Account for LocalAccount {
             // is loaded into memory we must close it so
             // the UI does not show stale in-memory data
             {
-                let storage = self.storage().await?;
+                let storage =
+                    self.storage.as_mut().ok_or(Error::NoStorage)?;
                 let mut writer = storage.write().await;
                 let is_current =
                     if let Some(current) = writer.current_folder() {
@@ -2875,7 +2876,7 @@ impl Account for LocalAccount {
             self.compute_folder_state(&options).await?;
 
         let events = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer.delete_folder(&summary, true).await?
         };
@@ -2920,7 +2921,7 @@ impl Account for LocalAccount {
         folder: Option<Summary>,
     ) -> Result<()> {
         let current_folder = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
             let reader = storage.read().await;
             folder
                 .clone()
@@ -3004,7 +3005,7 @@ impl Account for LocalAccount {
 
         let mut ids = Vec::new();
         let current = {
-            let storage = self.storage().await?;
+            let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
             let reader = storage.read().await;
             reader.current_folder()
         };
@@ -3253,11 +3254,7 @@ impl Account for LocalAccount {
     ) -> Result<PublicIdentity> {
         use super::archive::{AccountBackup, ExtractFilesLocation};
 
-        let current_folder = {
-            let storage = self.storage().await?;
-            let reader = storage.read().await;
-            reader.current_folder()
-        };
+        let current_folder = self.current_folder().await?;
 
         let files_dir =
             ExtractFilesLocation::Path(self.paths().files_dir().clone());
@@ -3275,7 +3272,7 @@ impl Account for LocalAccount {
 
         {
             let keys = self.folder_keys().await?;
-            let storage = self.storage().await?;
+            let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer.restore_archive(&targets, &keys).await?;
         }
@@ -3303,32 +3300,32 @@ impl Account for LocalAccount {
 #[async_trait]
 impl StorageEventLogs for LocalAccount {
     async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.identity_log))
     }
 
     async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.account_log))
     }
 
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.device_log))
     }
 
     #[cfg(feature = "files")]
     async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.file_log))
     }
 
     async fn folder_identifiers(&self) -> Result<IndexSet<VaultId>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let storage = storage.read().await;
         let summaries = storage.list_folders().to_vec();
         Ok(summaries.iter().map(|s| *s.id()).collect())
@@ -3343,7 +3340,7 @@ impl StorageEventLogs for LocalAccount {
         &self,
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let storage = self.storage().await?;
+        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let storage = storage.read().await;
         let folder = storage
             .cache()

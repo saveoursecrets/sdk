@@ -273,9 +273,9 @@ impl Account for LinkedAccount {
         Ok(account.delete_account().await?)
     }
 
-    async fn storage(&self) -> Result<Arc<RwLock<ClientStorage>>> {
+    async fn storage(&self) -> Option<Arc<RwLock<ClientStorage>>> {
         let account = self.account.lock().await;
-        Ok(account.storage().await?)
+        account.storage().await
     }
 
     async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {

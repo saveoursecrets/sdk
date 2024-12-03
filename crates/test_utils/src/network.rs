@@ -214,7 +214,10 @@ pub async fn assert_local_remote_vaults_eq(
     owner: &mut NetworkAccount,
     _provider: &mut RemoteBridge,
 ) -> Result<()> {
-    let storage = owner.storage().await?;
+    let storage = owner
+        .storage()
+        .await
+        .ok_or(sos_net::sdk::Error::NoStorage)?;
     let reader = storage.read().await;
 
     // Compare vault buffers

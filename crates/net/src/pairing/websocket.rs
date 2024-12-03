@@ -439,7 +439,11 @@ impl<'a> OfferPairing<'a> {
         let events: Vec<DeviceEvent> =
             vec![DeviceEvent::Trust(trusted_device)];
         {
-            let storage = self.account.storage().await?;
+            let storage = self
+                .account
+                .storage()
+                .await
+                .ok_or(sos_sdk::Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer.patch_devices_unchecked(events).await?;
         }

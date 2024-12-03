@@ -677,7 +677,10 @@ pub async fn run(cmd: Command) -> Result<()> {
                     ignored_types: None,
                 }];
             } else if let Some(folder) = &folder {
-                let storage = owner.storage().await?;
+                let storage = owner
+                    .storage()
+                    .await
+                    .ok_or(sos_net::sdk::Error::NoStorage)?;
                 let reader = storage.read().await;
                 let summary = reader
                     .find_folder(folder)

@@ -205,7 +205,10 @@ async fn print_status(
     let folders = owner.list_folders().await?;
     for folder in folders {
         let id = folder.id();
-        let storage = owner.storage().await?;
+        let storage = owner
+            .storage()
+            .await
+            .ok_or(sos_net::sdk::Error::NoStorage)?;
         let storage = storage.read().await;
         let disc_folder = storage.cache().get(id).unwrap();
         let log = disc_folder.event_log();
