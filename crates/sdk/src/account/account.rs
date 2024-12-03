@@ -936,12 +936,6 @@ pub struct AccountData {
     pub device_id: String,
 }
 
-/// Account information when signed in.
-pub(super) struct Authenticated {
-    /// Authenticated user.
-    pub(super) user: Identity,
-}
-
 /// User account backed by the filesystem.
 ///
 /// Many functions require that the account is authenticated and will
@@ -953,7 +947,7 @@ pub struct LocalAccount {
 
     /// Account information after a successful
     /// sign in.
-    pub(super) authenticated: Option<Authenticated>,
+    pub(super) authenticated: Option<Identity>,
 
     /// Storage provider.
     storage: Option<Arc<RwLock<ClientStorage>>>,
@@ -1041,7 +1035,7 @@ impl LocalAccount {
         )
         .await?;
 
-        self.authenticated = Some(Authenticated { user });
+        self.authenticated = Some(user);
         self.storage = Some(Arc::new(RwLock::new(storage)));
 
         // Load vaults into memory and initialize folder
@@ -1066,19 +1060,13 @@ impl LocalAccount {
     /// Authenticated user information.
     #[doc(hidden)]
     pub fn user(&self) -> Result<&Identity> {
-        self.authenticated
-            .as_ref()
-            .map(|a| &a.user)
-            .ok_or(Error::NotAuthenticated)
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)
     }
 
     /// Mutable authenticated user information.
     #[doc(hidden)]
     pub fn user_mut(&mut self) -> Result<&mut Identity> {
-        self.authenticated
-            .as_mut()
-            .map(|a| &mut a.user)
-            .ok_or(Error::NotAuthenticated)
+        self.authenticated.as_mut().ok_or(Error::NotAuthenticated)
     }
 
     async fn initialize_account_log(
@@ -1693,7 +1681,6 @@ impl Account for LocalAccount {
             .authenticated
             .as_ref()
             .ok_or(Error::NotAuthenticated)?
-            .user
             .devices()?
             .current_device(None))
     }
@@ -1861,7 +1848,7 @@ impl Account for LocalAccount {
 
     async fn verify(&self, key: &AccessKey) -> bool {
         if let Some(auth) = &self.authenticated {
-            auth.user.verify(key).await
+            auth.verify(key).await
         } else {
             false
         }
