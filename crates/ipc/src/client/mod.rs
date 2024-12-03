@@ -7,8 +7,9 @@ use crate::{
     ServiceAppInfo,
 };
 
-use sos_net::sdk::prelude::{
-    Address, ArchiveFilter, DocumentView, QueryFilter,
+use sos_net::{
+    protocol::integration::{TransportRequest, TransportResponse},
+    sdk::prelude::{Address, ArchiveFilter, DocumentView, QueryFilter},
 };
 
 pub(crate) mod app_integration;
@@ -68,6 +69,28 @@ macro_rules! app_integration_impl {
                         payload: IpcResponseBody::Pong,
                         ..
                     } => Ok(now.elapsed()?),
+                    _ => Err(Error::ResponseType),
+                }
+            }
+
+            async fn request(
+                &mut self,
+                request: TransportRequest,
+            ) -> Result<TransportResponse> {
+                let request = IpcRequest {
+                    message_id: self.next_id(),
+                    payload: IpcRequestBody::Http(request),
+                };
+                let response = self.send_request(request).await?;
+                match response {
+                    IpcResponse::Error {
+                        message_id,
+                        payload: err,
+                    } => Err(Error::ResponseError(message_id, err)),
+                    IpcResponse::Value {
+                        payload: IpcResponseBody::Http(response),
+                        ..
+                    } => Ok(response),
                     _ => Err(Error::ResponseType),
                 }
             }

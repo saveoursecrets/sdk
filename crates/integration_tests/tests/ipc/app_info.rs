@@ -5,6 +5,7 @@ use sos_ipc::{
     ServiceAppInfo, SocketClient,
 };
 use sos_net::sdk::{prelude::LocalAccountSwitcher, Paths};
+use sos_test_utils::teardown;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
@@ -63,6 +64,8 @@ async fn integration_ipc_app_info() -> Result<()> {
     assert_eq!(name, &info.name);
     assert_eq!(version, &info.version);
     assert_eq!(build_number, info.build_number);
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

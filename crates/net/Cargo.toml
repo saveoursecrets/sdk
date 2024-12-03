@@ -20,6 +20,7 @@ full = [
   "contacts",
   "files",
   "hashcheck",
+  "integration",
   "listen",
   "migrate",
   "pairing",
@@ -37,6 +38,7 @@ hashcheck = []
 audit = ["sos-sdk/audit"]
 archive = ["sos-sdk/archive", "sos-protocol/archive"]
 files = ["sos-sdk/files", "sos-protocol/files"]
+integration = ["sos-protocol/integration"]
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
 keychain-access = ["sos-sdk/keychain-access"]
@@ -89,7 +91,7 @@ workspace = true
 [dependencies.sos-protocol]
 version = "0.16"
 path = "../protocol"
-features = ["account", "local-integration"]
+features = ["account"]
 
 [dependencies.sos-account-extras]
 version = "0.16"

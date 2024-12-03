@@ -10,6 +10,7 @@ use sos_net::sdk::{
     },
     Paths,
 };
+use sos_test_utils::teardown;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
@@ -100,6 +101,8 @@ async fn integration_ipc_list_accounts() -> Result<()> {
         .collect::<Vec<_>>();
     let authenticated = authenticated.first().unwrap();
     assert!(!*authenticated);
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

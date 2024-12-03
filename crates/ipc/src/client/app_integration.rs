@@ -1,7 +1,10 @@
 use async_trait::async_trait;
-use sos_net::sdk::prelude::{
-    Address, ArchiveFilter, Document, DocumentView, PublicIdentity,
-    QueryFilter,
+use sos_net::{
+    protocol::integration::{TransportRequest, TransportResponse},
+    sdk::prelude::{
+        Address, ArchiveFilter, Document, DocumentView, PublicIdentity,
+        QueryFilter,
+    },
 };
 use std::time::Duration;
 
@@ -22,6 +25,12 @@ pub trait AppIntegration<E: From<sos_net::sdk::Error>> {
 
     /// Ping the server.
     async fn ping(&mut self) -> Result<Duration, E>;
+
+    /// Send a request to the local server.
+    async fn request(
+        &mut self,
+        request: TransportRequest,
+    ) -> Result<TransportResponse, E>;
 
     /// List the accounts on disc and include authentication state.
     async fn list_accounts(&mut self) -> Result<AccountsList, E>;

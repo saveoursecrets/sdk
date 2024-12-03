@@ -11,6 +11,7 @@ use sos_net::sdk::{
     },
     Paths,
 };
+use sos_test_utils::teardown;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
@@ -112,6 +113,8 @@ async fn integration_ipc_authenticate_success() -> Result<()> {
 
     assert!(first_account.is_authenticated().await);
     assert!(second_account.is_authenticated().await);
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

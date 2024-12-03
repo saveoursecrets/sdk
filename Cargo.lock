@@ -4565,6 +4565,7 @@ dependencies = [
  "anticipate-runner",
  "anyhow",
  "async-recursion",
+ "async-trait",
  "binary-stream",
  "clap",
  "copy_dir",

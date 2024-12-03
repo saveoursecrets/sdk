@@ -12,6 +12,7 @@ use sos_net::sdk::{
     },
     Paths,
 };
+use sos_test_utils::teardown;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
@@ -123,6 +124,8 @@ async fn integration_ipc_search() -> Result<()> {
     assert_eq!(1, results.len());
     let documents = results.remove(0).1;
     assert_eq!(total_docs, documents.len());
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

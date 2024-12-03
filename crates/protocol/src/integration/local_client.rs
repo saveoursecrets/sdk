@@ -40,6 +40,7 @@ use sos_sdk::{
     prelude::Address,
 };
 use std::{collections::HashMap, sync::Arc};
+use tokio::sync::Mutex;
 use tracing::instrument;
 
 type ClientTransport = Box<dyn LocalTransport + Send + Sync + 'static>;
@@ -48,12 +49,15 @@ type ClientTransport = Box<dyn LocalTransport + Send + Sync + 'static>;
 #[derive(Clone)]
 pub struct LocalClient {
     origin: Origin,
-    transport: Arc<ClientTransport>,
+    transport: Arc<Mutex<ClientTransport>>,
 }
 
 impl LocalClient {
     /// Create a local client.
-    pub fn new(origin: Origin, transport: Arc<ClientTransport>) -> Self {
+    pub fn new(
+        origin: Origin,
+        transport: Arc<Mutex<ClientTransport>>,
+    ) -> Self {
         Self { origin, transport }
     }
 
@@ -130,7 +134,11 @@ impl SyncClient for LocalClient {
             .header(X_SOS_ACCOUNT_ID, address.to_string())
             .body(Default::default())?;
 
-        let response = self.transport.call(request.into()).await?;
+        let response = {
+            let mut transport = self.transport.lock().await;
+            transport.call(request.into()).await?
+        };
+
         let status = response.status();
         tracing::debug!(status = %status, "local_client::account_exists");
         let exists = match status {
@@ -160,7 +168,11 @@ impl SyncClient for LocalClient {
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .body(body)?;
 
-        let response = self.transport.call(request.into()).await?;
+        let response = {
+            let mut transport = self.transport.lock().await;
+            transport.call(request.into()).await?
+        };
+
         let status = response.status();
         tracing::debug!(status = %status, "local_client::create_account");
         self.error_json(response).await?;
@@ -183,7 +195,10 @@ impl SyncClient for LocalClient {
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .body(body)?;
 
-        let response = self.transport.call(request.into()).await?;
+        let response = {
+            let mut transport = self.transport.lock().await;
+            transport.call(request.into()).await?
+        };
         let status = response.status();
         tracing::debug!(status = %status, "local_client::update_account");
         self.error_json(response).await?;
@@ -200,7 +215,10 @@ impl SyncClient for LocalClient {
             .header(X_SOS_ACCOUNT_ID, address.to_string())
             .body(Default::default())?;
 
-        let response = self.transport.call(request.into()).await?;
+        let response = {
+            let mut transport = self.transport.lock().await;
+            transport.call(request.into()).await?
+        };
         let status = response.status();
         tracing::debug!(status = %status, "local_client::fetch_account");
         let response = self.error_json(response).await?;
@@ -217,7 +235,10 @@ impl SyncClient for LocalClient {
             .header(X_SOS_ACCOUNT_ID, address.to_string())
             .body(Default::default())?;
 
-        let response = self.transport.call(request.into()).await?;
+        let response = {
+            let mut transport = self.transport.lock().await;
+            transport.call(request.into()).await?
+        };
         let status = response.status();
         tracing::debug!(status = %status, "local_client::delete_account");
         self.error_json(response).await?;
@@ -234,7 +255,10 @@ impl SyncClient for LocalClient {
             .header(X_SOS_ACCOUNT_ID, address.to_string())
             .body(Default::default())?;
 
-        let response = self.transport.call(request.into()).await?;
+        let response = {
+            let mut transport = self.transport.lock().await;
+            transport.call(request.into()).await?
+        };
         let status = response.status();
         tracing::debug!(status = %status, "local_client::sync_status");
         let response = self.check_response(response).await?;
@@ -257,7 +281,10 @@ impl SyncClient for LocalClient {
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .body(body)?;
 
-        let response = self.transport.call(request.into()).await?;
+        let response = {
+            let mut transport = self.transport.lock().await;
+            transport.call(request.into()).await?
+        };
         let status = response.status();
         tracing::debug!(status = %status, "local_client::sync");
         let response = self.check_response(response).await?;
@@ -279,7 +306,10 @@ impl SyncClient for LocalClient {
             .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .body(body)?;
-        let response = self.transport.call(request.into()).await?;
+        let response = {
+            let mut transport = self.transport.lock().await;
+            transport.call(request.into()).await?
+        };
         let status = response.status();
         tracing::debug!(status = %status, "local_client::scan");
         let response = self.check_response(response).await?;
@@ -301,7 +331,10 @@ impl SyncClient for LocalClient {
             .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .body(body)?;
-        let response = self.transport.call(request.into()).await?;
+        let response = {
+            let mut transport = self.transport.lock().await;
+            transport.call(request.into()).await?
+        };
         let status = response.status();
         tracing::debug!(status = %status, "local_client::diff");
         let response = self.check_response(response).await?;
@@ -323,7 +356,10 @@ impl SyncClient for LocalClient {
             .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .body(body)?;
-        let response = self.transport.call(request.into()).await?;
+        let response = {
+            let mut transport = self.transport.lock().await;
+            transport.call(request.into()).await?
+        };
         let status = response.status();
         tracing::debug!(status = %status, "local_client::patch");
         let response = self.check_response(response).await?;
@@ -466,7 +502,7 @@ impl TransportResponse {
 pub trait LocalTransport {
     /// Send a request over the local transport.
     async fn call(
-        &self,
+        &mut self,
         request: TransportRequest,
     ) -> Result<TransportResponse>;
 }

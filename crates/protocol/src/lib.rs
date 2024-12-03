@@ -25,7 +25,7 @@
 
 mod bindings;
 mod error;
-#[cfg(feature = "local-integration")]
+#[cfg(feature = "integration")]
 pub mod integration;
 mod sync;
 mod traits;

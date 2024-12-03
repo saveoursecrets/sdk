@@ -4,6 +4,7 @@ use sos_ipc::{
     LocalAccountIpcService, LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{prelude::LocalAccountSwitcher, Paths};
+use sos_test_utils::teardown;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 
@@ -49,6 +50,8 @@ async fn integration_ipc_ping_pong() -> Result<()> {
     let mut client = SocketClient::connect(&socket_name).await?;
     let time = client.ping().await;
     assert!(time.is_ok());
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }
