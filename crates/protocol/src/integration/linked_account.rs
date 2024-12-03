@@ -8,7 +8,10 @@ use crate::{
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_sdk::{
-    events::{AccountEventLog, DeviceEventLog, FolderEventLog},
+    events::{
+        AccountEventLog, AccountPatch, DeviceEventLog, DevicePatch,
+        FolderEventLog, FolderPatch,
+    },
     prelude::{
         AccessKey, AccessOptions, Account, AccountChange, AccountData,
         AccountEvent, Address, Cipher, CipherComparison, ClientStorage,
@@ -54,7 +57,7 @@ use sos_sdk::prelude::ImportTarget;
 use crate::transfer::FileTransferQueueSender;
 
 #[cfg(feature = "files")]
-use sos_sdk::prelude::FileEventLog;
+use sos_sdk::prelude::{FileEventLog, FilePatch};
 
 /// Linked account.
 pub struct LinkedAccount {
@@ -121,6 +124,27 @@ impl Account for LinkedAccount {
     async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
         let account = self.account.lock().await;
         Ok(account.account_signer().await?)
+    }
+
+    async fn import_account_events(
+        &mut self,
+        identity: FolderPatch,
+        account: AccountPatch,
+        device: DevicePatch,
+        folders: HashMap<VaultId, FolderPatch>,
+        #[cfg(feature = "files")] files: FilePatch,
+    ) -> Result<()> {
+        let mut inner = self.account.lock().await;
+        Ok(inner
+            .import_account_events(
+                identity,
+                account,
+                device,
+                folders,
+                #[cfg(feature = "files")]
+                files,
+            )
+            .await?)
     }
 
     async fn new_device_vault(
@@ -276,6 +300,14 @@ impl Account for LinkedAccount {
     async fn storage(&self) -> Option<Arc<RwLock<ClientStorage>>> {
         let account = self.account.lock().await;
         account.storage().await
+    }
+
+    async fn set_storage(
+        &mut self,
+        storage: Option<Arc<RwLock<ClientStorage>>>,
+    ) {
+        let mut account = self.account.lock().await;
+        account.set_storage(storage).await
     }
 
     async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {

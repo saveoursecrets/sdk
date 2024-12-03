@@ -6,7 +6,8 @@ use crate::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventLogExt, EventRecord,
-        FolderEventLog, FolderReducer, IntoRecord, ReadEvent, WriteEvent,
+        FolderEventLog, FolderPatch, FolderReducer, IntoRecord, ReadEvent,
+        WriteEvent,
     },
     identity::FolderKeys,
     passwd::diceware::generate_passphrase,
@@ -104,9 +105,8 @@ pub struct ClientStorage {
 }
 
 impl ClientStorage {
-    /*
     /// Create empty folder storage for client-side access.
-    pub async fn empty(address: Address, paths: Paths) -> Result<Self> {
+    pub async fn empty(address: Address, paths: Arc<Paths>) -> Result<Self> {
         paths.ensure().await?;
 
         let identity_log = Arc::new(RwLock::new(
@@ -130,7 +130,7 @@ impl ClientStorage {
             summaries: Vec::new(),
             current: None,
             cache: Default::default(),
-            paths: Arc::new(paths),
+            paths,
             identity_log,
             account_log,
             #[cfg(feature = "search")]
@@ -143,7 +143,6 @@ impl ClientStorage {
             file_password: None,
         })
     }
-    */
 
     /// Create folder storage for client-side access.
     pub async fn new(
@@ -428,13 +427,33 @@ impl ClientStorage {
         Ok(events)
     }
 
-    /// Restore a folder from an event log.
-    pub async fn restore_folder(
+    /// Create folders from a collection of folder patches.
+    ///
+    /// If the folders already exist they will be overwritten.
+    pub async fn import_folder_patches(
+        &mut self,
+        patches: HashMap<VaultId, FolderPatch>,
+    ) -> Result<()> {
+        for (folder_id, patch) in patches {
+            let records: Vec<EventRecord> = patch.into();
+            let (folder, vault) =
+                self.initialize_folder(&folder_id, records).await?;
+            self.cache.insert(folder_id, folder);
+            let summary = vault.summary().to_owned();
+            self.add_summary(summary.clone());
+        }
+        Ok(())
+    }
+
+    /// Initialize a folder from an event log.
+    ///
+    /// If an event log exists for the folder identifer
+    /// it is replaced with the new event records.
+    async fn initialize_folder(
         &mut self,
         folder_id: &VaultId,
         records: Vec<EventRecord>,
-        key: &AccessKey,
-    ) -> Result<Summary> {
+    ) -> Result<(DiscFolder, Vault)> {
         let vault_path = self.paths.vault_path(folder_id);
 
         // Prepare the vault file on disc
@@ -446,7 +465,6 @@ impl ClientStorage {
             self.write_vault_file(folder_id, buffer).await?;
 
             let folder = DiscFolder::new(&vault_path).await?;
-
             let event_log = folder.event_log();
             let mut event_log = event_log.write().await;
             event_log.clear().await?;
@@ -466,12 +484,25 @@ impl ClientStorage {
 
         // Setup the folder access to the latest vault information
         // and load the merkle tree
-        let mut folder = DiscFolder::new(&vault_path).await?;
+        let folder = DiscFolder::new(&vault_path).await?;
         let event_log = folder.event_log();
         let mut event_log = event_log.write().await;
         event_log.load_tree().await?;
 
-        // Unlock the folder and create the in-memory reference
+        Ok((folder, vault))
+    }
+
+    /// Restore a folder from an event log.
+    pub async fn restore_folder(
+        &mut self,
+        folder_id: &VaultId,
+        records: Vec<EventRecord>,
+        key: &AccessKey,
+    ) -> Result<Summary> {
+        let (mut folder, vault) =
+            self.initialize_folder(folder_id, records).await?;
+
+        // Unlock the folder
         folder.unlock(key).await?;
         self.cache.insert(*folder_id, folder);
 

@@ -33,6 +33,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use secrecy::SecretString;
+use sos_sdk::events::{AccountPatch, DevicePatch, FolderPatch};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -79,7 +80,7 @@ use crate::{
         InflightTransfers,
     },
     protocol::transfer::FileOperation,
-    sdk::storage::files::FileMutationEvent,
+    sdk::{prelude::FilePatch, storage::files::FileMutationEvent},
     HttpClient,
 };
 
@@ -700,6 +701,27 @@ impl Account for NetworkAccount {
         Ok(account.account_signer().await?)
     }
 
+    async fn import_account_events(
+        &mut self,
+        identity: FolderPatch,
+        account: AccountPatch,
+        device: DevicePatch,
+        folders: HashMap<VaultId, FolderPatch>,
+        #[cfg(feature = "files")] files: FilePatch,
+    ) -> Result<()> {
+        let mut inner = self.account.lock().await;
+        Ok(inner
+            .import_account_events(
+                identity,
+                account,
+                device,
+                folders,
+                #[cfg(feature = "files")]
+                files,
+            )
+            .await?)
+    }
+
     async fn new_device_vault(
         &mut self,
     ) -> Result<(DeviceSigner, DeviceManager)> {
@@ -971,6 +993,14 @@ impl Account for NetworkAccount {
     async fn storage(&self) -> Option<Arc<RwLock<ClientStorage>>> {
         let account = self.account.lock().await;
         account.storage().await
+    }
+
+    async fn set_storage(
+        &mut self,
+        storage: Option<Arc<RwLock<ClientStorage>>>,
+    ) {
+        let mut account = self.account.lock().await;
+        account.set_storage(storage).await
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {

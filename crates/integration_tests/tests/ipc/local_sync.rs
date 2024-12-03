@@ -11,7 +11,8 @@ use sos_net::{
     sdk::{
         crypto::AccessKey,
         prelude::{
-            generate_passphrase, Account, LocalAccount, LocalAccountSwitcher,
+            generate_passphrase, Account, Identity, LocalAccount,
+            LocalAccountSwitcher,
         },
         Paths,
     },
@@ -46,12 +47,11 @@ async fn integration_ipc_local_sync() -> Result<()> {
     Paths::scaffold(Some(linked_data_dir.clone())).await?;
     let paths = Paths::new_global(data_dir.clone());
 
-    let account_name = format!("{}_authenticated", TEST_ID);
     let (password, _) = generate_passphrase()?;
 
     // Create an account and authenticate
     let mut auth_account = LocalAccount::new_account(
-        account_name.clone(),
+        TEST_ID.to_string(),
         password.clone(),
         Some(data_dir.clone()),
     )
@@ -108,14 +108,21 @@ async fn integration_ipc_local_sync() -> Result<()> {
     accounts.add_account(linked_account);
     accounts.switch_account(&address);
 
-    let account = accounts.selected_account().unwrap();
+    let account = accounts.selected_account_mut().unwrap();
 
-    // Sync the data from the other app
-    let result = account.sync().await;
+    // Initial sync fetches the data from the other app
+    let sync_result = account.sync().await;
+    assert!(sync_result.result.is_ok());
 
-    println!("result: {:#?}", result);
+    // Make sure the account is recognized on disc
+    let accounts_list =
+        Identity::list_accounts(Some(&account.paths())).await?;
+    assert_eq!(1, accounts_list.len());
 
-    // teardown(TEST_ID).await;
+    // Should be able to sign in to the linked account
+    account.sign_in(&key).await?;
+
+    teardown(TEST_ID).await;
 
     Ok(())
 }

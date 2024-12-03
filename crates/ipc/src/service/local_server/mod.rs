@@ -147,16 +147,18 @@ impl LocalServer {
             )
             .unwrap();
 
-        // Don't allow deleting accounts on the local server.
-        //
-        // If the user really wants to do that they can use the
-        // primary app and not an app integration.
+        let state = accounts.clone();
         router
             .entry(Method::DELETE)
             .or_default()
             .insert(
                 SYNC_ACCOUNT,
-                BoxCloneService::new(service_fn(forbidden)).into(),
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        delete_account(req, state.clone())
+                    },
+                ))
+                .into(),
             )
             .unwrap();
 
@@ -268,10 +270,7 @@ impl LocalServer {
                 .unwrap());
         };
 
-        println!("local_server {}", req.uri().path());
-
         let Ok(found) = router.at(req.uri().path()) else {
-            println!("returning not found...");
             return not_found(req).await;
         };
 

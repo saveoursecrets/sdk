@@ -36,6 +36,11 @@ pub mod transfer;
 
 pub use bindings::*;
 pub use error::{AsConflict, ConflictError, Error};
+use sos_sdk::{
+    events::{EventLogExt, EventRecord, FolderReducer},
+    prelude::Account,
+    storage::ClientStorage,
+};
 pub use sync::*;
 pub use traits::*;
 
@@ -46,8 +51,67 @@ mod tests;
 
 pub use sos_sdk as sdk;
 
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
 /// Result type for the wire protocol.
 pub type Result<T> = std::result::Result<T, Error>;
+
+/*
+#[doc(hidden)]
+pub(crate) async fn import_account<E>(
+    account: &mut (impl Account<Error = E> + Send + Sync + 'static),
+    create_set: CreateSet,
+) -> std::result::Result<(), E>
+where
+    E: From<sos_sdk::Error>,
+{
+    let address = *account.address();
+    let paths = account.paths();
+    let mut storage = ClientStorage::empty(address, paths).await?;
+
+    {
+        let mut identity_log = storage.identity_log.write().await;
+        let records: Vec<EventRecord> = create_set.identity.into();
+        identity_log.apply_records(records).await?;
+        let vault = FolderReducer::new()
+            .reduce(&*identity_log)
+            .await?
+            .build(true)
+            .await?;
+        let buffer = encode(&vault).await?;
+        let identity_vault = paths.identity_vault();
+        vfs::write(identity_vault, &buffer).await?;
+    }
+
+    {
+        let mut account_log = storage.account_log.write().await;
+        let records: Vec<EventRecord> = create_set.account.into();
+        account_log.apply_records(records).await?;
+    }
+
+    {
+        let mut device_log = storage.device_log.write().await;
+        let records: Vec<EventRecord> = create_set.device.into();
+        device_log.apply_records(records).await?;
+    }
+
+    #[cfg(feature = "files")]
+    {
+        let mut file_log = storage.file_log.write().await;
+        let records: Vec<EventRecord> = create_set.files.into();
+        file_log.apply_records(records).await?;
+    }
+
+    storage.import_folder_patches(create_set.folders).await?;
+
+    account
+        .set_storage(Some(Arc::new(RwLock::new(storage))))
+        .await;
+
+    Ok(())
+}
+*/
 
 /// Trait for encoding and decoding protobuf generated types.
 ///

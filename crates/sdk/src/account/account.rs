@@ -13,8 +13,9 @@ use crate::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
     events::{
-        AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
-        EventRecord, FolderEventLog, FolderReducer, ReadEvent, WriteEvent,
+        AccountEvent, AccountEventLog, AccountPatch, DevicePatch, Event,
+        EventKind, EventLogExt, EventRecord, FilePatch, FolderEventLog,
+        FolderPatch, FolderReducer, ReadEvent, WriteEvent,
     },
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
@@ -297,7 +298,7 @@ pub enum ContactImportProgress {
 #[async_trait]
 pub trait Account {
     /// Errors for this account.
-    type Error: std::error::Error + std::fmt::Debug;
+    type Error: std::error::Error + std::fmt::Debug + From<crate::Error>;
 
     /// Result type for network-aware implementations.
     type NetworkResult: std::fmt::Debug;
@@ -315,6 +316,16 @@ pub trait Account {
     async fn account_signer(
         &self,
     ) -> std::result::Result<BoxedEcdsaSigner, Self::Error>;
+
+    /// Import encrypted account events into the client storage.
+    async fn import_account_events(
+        &mut self,
+        identity: FolderPatch,
+        account: AccountPatch,
+        device: DevicePatch,
+        folders: HashMap<VaultId, FolderPatch>,
+        #[cfg(feature = "files")] files: FilePatch,
+    ) -> std::result::Result<(), Self::Error>;
 
     /// Create a new in-memory device vault.
     ///
@@ -483,6 +494,12 @@ pub trait Account {
 
     /// Storage provider.
     async fn storage(&self) -> Option<Arc<RwLock<ClientStorage>>>;
+
+    /// Set the storage provider.
+    async fn set_storage(
+        &mut self,
+        storage: Option<Arc<RwLock<ClientStorage>>>,
+    ) -> ();
 
     /// Read the secret identifiers in a vault.
     async fn secret_ids(
@@ -1657,6 +1674,59 @@ impl Account for LocalAccount {
         Ok(self.user()?.identity()?.device().clone())
     }
 
+    async fn import_account_events(
+        &mut self,
+        identity: FolderPatch,
+        account: AccountPatch,
+        device: DevicePatch,
+        folders: HashMap<VaultId, FolderPatch>,
+        #[cfg(feature = "files")] files: FilePatch,
+    ) -> Result<()> {
+        let address = *self.address();
+        let paths = self.paths();
+        let mut storage =
+            ClientStorage::empty(address, paths.clone()).await?;
+
+        {
+            let mut identity_log = storage.identity_log.write().await;
+            let records: Vec<EventRecord> = identity.into();
+            identity_log.apply_records(records).await?;
+            let vault = FolderReducer::new()
+                .reduce(&*identity_log)
+                .await?
+                .build(true)
+                .await?;
+            let buffer = encode(&vault).await?;
+            let identity_vault = paths.identity_vault();
+            vfs::write(identity_vault, &buffer).await?;
+        }
+
+        {
+            let mut account_log = storage.account_log.write().await;
+            let records: Vec<EventRecord> = account.into();
+            account_log.apply_records(records).await?;
+        }
+
+        {
+            let mut device_log = storage.device_log.write().await;
+            let records: Vec<EventRecord> = device.into();
+            device_log.apply_records(records).await?;
+        }
+
+        storage.import_folder_patches(folders).await?;
+
+        #[cfg(feature = "files")]
+        {
+            let mut file_log = storage.file_log.write().await;
+            let records: Vec<EventRecord> = files.into();
+            file_log.apply_records(records).await?;
+        }
+
+        self.set_storage(Some(Arc::new(RwLock::new(storage)))).await;
+
+        Ok(())
+    }
+
     async fn new_device_vault(
         &mut self,
     ) -> Result<(DeviceSigner, DeviceManager)> {
@@ -1946,6 +2016,13 @@ impl Account for LocalAccount {
 
     async fn storage(&self) -> Option<Arc<RwLock<ClientStorage>>> {
         self.storage.as_ref().map(Arc::clone)
+    }
+
+    async fn set_storage(
+        &mut self,
+        storage: Option<Arc<RwLock<ClientStorage>>>,
+    ) {
+        self.storage = storage;
     }
 
     async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
