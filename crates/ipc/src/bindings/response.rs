@@ -3,7 +3,7 @@ include!(concat!(env!("OUT_DIR"), "/response.rs"));
 use crate::{AccountsList, Error, Result, SearchResults};
 use serde::{Deserialize, Serialize};
 use sos_net::{
-    protocol::integration::TransportResponse,
+    protocol::local_transport::TransportResponse,
     sdk::{
         vault::{Summary, VaultId},
         Error as SdkError,

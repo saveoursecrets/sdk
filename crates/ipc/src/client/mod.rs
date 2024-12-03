@@ -26,7 +26,9 @@ pub use tcp::*;
 pub use local_socket::*;
 
 #[cfg(feature = "integration")]
-use sos_net::protocol::integration::{TransportRequest, TransportResponse};
+use sos_net::protocol::local_transport::{
+    TransportRequest, TransportResponse,
+};
 
 /// App integration functions for clients.
 macro_rules! app_integration_impl {

@@ -9,7 +9,7 @@ mod search;
 pub use sos_test_utils as test_utils;
 
 use async_trait::async_trait;
-use sos_net::protocol::integration::{
+use sos_net::protocol::local_transport::{
     LocalTransport, TransportRequest, TransportResponse,
 };
 

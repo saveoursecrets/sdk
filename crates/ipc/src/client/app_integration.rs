@@ -1,10 +1,7 @@
 use async_trait::async_trait;
-use sos_net::{
-    protocol::integration::{TransportRequest, TransportResponse},
-    sdk::prelude::{
-        Address, ArchiveFilter, Document, DocumentView, PublicIdentity,
-        QueryFilter,
-    },
+use sos_net::sdk::prelude::{
+    Address, ArchiveFilter, Document, DocumentView, PublicIdentity,
+    QueryFilter,
 };
 use std::time::Duration;
 
@@ -15,6 +12,11 @@ pub type AccountsList = Vec<(PublicIdentity, bool, Vec<FolderInfo>)>;
 
 /// List of search results grouped by account identity.
 pub type SearchResults = Vec<(PublicIdentity, Vec<Document>)>;
+
+#[cfg(feature = "integration")]
+use sos_net::protocol::local_transport::{
+    TransportRequest, TransportResponse,
+};
 
 /// Contract for types that expose an API to
 /// app integrations such as browser extensions.

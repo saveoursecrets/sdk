@@ -1,7 +1,7 @@
 use http::{Method, Request, Response, StatusCode};
 use parking_lot::Mutex;
 use sos_net::{
-    protocol::integration::{TransportRequest, TransportResponse},
+    protocol::local_transport::{TransportRequest, TransportResponse},
     sdk::prelude::{
         routes::v1::{
             SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,

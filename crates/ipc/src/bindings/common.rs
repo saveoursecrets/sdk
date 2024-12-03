@@ -2,7 +2,7 @@ include!(concat!(env!("OUT_DIR"), "/common.rs"));
 
 use crate::{Error, Result};
 use sos_net::{
-    protocol::integration::{TransportRequest, TransportResponse},
+    protocol::local_transport::{TransportRequest, TransportResponse},
     sdk::{
         prelude::{
             Address, ArchiveFilter, Document, DocumentView, ExtraFields,
