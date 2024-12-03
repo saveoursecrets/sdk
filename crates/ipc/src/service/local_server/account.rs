@@ -93,8 +93,8 @@ where
 }
 
 pub async fn fetch_account<A, R, E>(
-    _req: Request<Incoming>,
-    _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    req: Request<Incoming>,
+    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
@@ -108,7 +108,25 @@ where
         + From<std::io::Error>
         + 'static,
 {
-    todo!();
+    let Some(account_id) = parse_account_id(&req) else {
+        return bad_request(req).await;
+    };
+
+    let accounts = accounts.read().await;
+    if let Some(account) =
+        accounts.iter().find(|a| a.address() == &account_id)
+    {
+        let Ok(change_set) = account.change_set().await else {
+            return internal_server_error(req).await;
+        };
+        let Ok(buffer) = change_set.encode().await else {
+            return internal_server_error(req).await;
+        };
+
+        ok(req, buffer).await
+    } else {
+        not_found(req).await
+    }
 }
 
 pub async fn account_status<A, R, E>(
