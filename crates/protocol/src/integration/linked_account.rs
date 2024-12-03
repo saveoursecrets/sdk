@@ -2,7 +2,7 @@
 //! same device using a local client.
 use crate::{
     AutoMerge, Error, Origin, RemoteResult, RemoteSync, RemoteSyncHandler,
-    Result, SyncClient, SyncOptions, UpdateSet,
+    Result, SyncClient, SyncDirection, SyncOptions, UpdateSet,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -719,6 +719,10 @@ impl RemoteSyncHandler for LinkedAccount {
     type Client = LocalClient;
     type Account = LocalAccount;
     type Error = Error;
+
+    fn direction(&self) -> SyncDirection {
+        SyncDirection::Pull
+    }
 
     fn client(&self) -> &Self::Client {
         &self.client

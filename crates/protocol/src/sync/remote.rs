@@ -2,7 +2,7 @@
 //! remote data source and local account.
 use crate::{
     AsConflict, ConflictError, MaybeDiff, Merge, MergeOutcome, Origin,
-    SyncClient, SyncPacket, SyncStatus, SyncStorage,
+    SyncClient, SyncDirection, SyncPacket, SyncStatus, SyncStorage,
 };
 use async_trait::async_trait;
 use sos_sdk::prelude::{Account, Address};
@@ -57,6 +57,9 @@ pub trait RemoteSyncHandler {
     /// Local account.
     fn account(&self) -> Arc<Mutex<Self::Account>>;
 
+    /// Direction for account creation and auto merge.
+    fn direction(&self) -> SyncDirection;
+
     /// Queue for file transfers.
     #[cfg(feature = "files")]
     fn file_transfer_queue(&self) -> &FileTransferQueueSender;
@@ -65,8 +68,9 @@ pub trait RemoteSyncHandler {
     #[cfg(feature = "files")]
     async fn execute_sync_file_transfers(&self) -> Result<(), Self::Error>;
 
-    /// Create an account on the remote.
-    async fn create_remote_account(&self) -> Result<(), Self::Error> {
+    /// Push an account to the remote.
+    #[doc(hidden)]
+    async fn create_push_account(&self) -> Result<(), Self::Error> {
         {
             let account = self.account();
             let account = account.lock().await;
@@ -80,6 +84,37 @@ pub trait RemoteSyncHandler {
         self.execute_sync_file_transfers().await?;
 
         Ok(())
+    }
+
+    /// Pull an account from the remote.
+    #[doc(hidden)]
+    async fn create_pull_account(&self) -> Result<(), Self::Error> {
+        /*
+        {
+            let account = self.account();
+            let account = account.lock().await;
+            let public_account = account.change_set().await?;
+            self.client()
+                .create_account(self.address(), public_account)
+                .await?;
+        }
+
+        #[cfg(feature = "files")]
+        self.execute_sync_file_transfers().await?;
+
+        Ok(())
+        */
+
+        todo!();
+    }
+
+    /// Create an account on local or remote depending
+    /// on the sync direction.
+    async fn create_account(&self) -> Result<(), Self::Error> {
+        match self.direction() {
+            SyncDirection::Push => self.create_push_account().await,
+            SyncDirection::Pull => self.create_pull_account().await,
+        }
     }
 
     /// Sync the account.

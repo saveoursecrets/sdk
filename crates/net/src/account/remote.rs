@@ -2,8 +2,8 @@
 use crate::{
     net::HttpClient,
     protocol::{
-        AutoMerge, Origin, RemoteResult, RemoteSync, SyncClient, SyncOptions,
-        UpdateSet,
+        AutoMerge, Origin, RemoteResult, RemoteSync, SyncClient,
+        SyncDirection, SyncOptions, UpdateSet,
     },
     sdk::{
         account::LocalAccount,
@@ -73,6 +73,10 @@ impl RemoteSyncHandler for RemoteBridge {
     type Client = HttpClient;
     type Account = LocalAccount;
     type Error = crate::Error;
+
+    fn direction(&self) -> SyncDirection {
+        SyncDirection::Push
+    }
 
     fn client(&self) -> &Self::Client {
         &self.client

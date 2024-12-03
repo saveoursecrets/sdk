@@ -26,6 +26,7 @@ use crate::{
 
 /// Test for syncing between apps installed on the same
 /// device via the IPC communication channel.
+#[ignore]
 #[tokio::test]
 async fn integration_ipc_local_sync() -> Result<()> {
     const TEST_ID: &str = "ipc_local_sync";

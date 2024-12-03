@@ -18,29 +18,24 @@
 //! the app integration was installed on the device.
 
 use crate::{
-    local_transport::{LocalTransport, TransportRequest, TransportResponse},
+    local_transport::{LocalTransport, TransportResponse},
     CreateSet, DiffRequest, DiffResponse, Error, Origin, PatchRequest,
     PatchResponse, Result, ScanRequest, ScanResponse, SyncClient, SyncPacket,
     SyncStatus, UpdateSet, WireEncodeDecode,
 };
 use async_trait::async_trait;
-use bytes::Bytes;
-use http::{
-    header::CONTENT_TYPE, Method, Request, Response, StatusCode, Uri,
-};
-use serde::{Deserialize, Serialize};
+use http::{header::CONTENT_TYPE, Method, Request, StatusCode, Uri};
 use serde_json::Value;
-use serde_with::{serde_as, DisplayFromStr};
 use sos_sdk::{
     constants::{
         routes::v1::{
             SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
         },
-        MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
+        MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
     },
     prelude::Address,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::instrument;
 

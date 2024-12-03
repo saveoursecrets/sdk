@@ -90,7 +90,7 @@ pub trait AutoMerge: RemoteSyncHandler {
                 }
             }
         } else {
-            self.create_remote_account().await?;
+            self.create_account().await?;
             Ok(None)
         }
     }
