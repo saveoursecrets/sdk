@@ -104,6 +104,7 @@ pub struct ClientStorage {
 }
 
 impl ClientStorage {
+    /*
     /// Create empty folder storage for client-side access.
     pub async fn empty(address: Address, paths: Paths) -> Result<Self> {
         paths.ensure().await?;
@@ -142,6 +143,7 @@ impl ClientStorage {
             file_password: None,
         })
     }
+    */
 
     /// Create folder storage for client-side access.
     pub async fn new(

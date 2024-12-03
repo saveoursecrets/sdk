@@ -956,7 +956,7 @@ pub struct LocalAccount {
     pub(super) authenticated: Option<Authenticated>,
 
     /// Storage provider.
-    storage: Arc<RwLock<ClientStorage>>,
+    storage: Option<Arc<RwLock<ClientStorage>>>,
 
     /// Storage paths.
     paths: Arc<Paths>,
@@ -1042,7 +1042,7 @@ impl LocalAccount {
         .await?;
 
         self.authenticated = Some(Authenticated { user });
-        self.storage = Arc::new(RwLock::new(storage));
+        self.storage = Some(Arc::new(RwLock::new(storage)));
 
         // Load vaults into memory and initialize folder
         // event log commit trees
@@ -1557,13 +1557,15 @@ impl LocalAccount {
         };
 
         let paths = Paths::new(data_dir, address.to_string());
+        /*
         let storage = Arc::new(RwLock::new(
             ClientStorage::empty(address, paths.clone()).await?,
         ));
+        */
 
         Ok(Self {
             address,
-            storage,
+            storage: None,
             paths: Arc::new(paths),
             authenticated: None,
             #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
@@ -1634,7 +1636,7 @@ impl LocalAccount {
         let account = Self {
             address,
             paths: storage.paths(),
-            storage: Arc::new(RwLock::new(storage)),
+            storage: Some(Arc::new(RwLock::new(storage))),
             authenticated: None,
             #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
             account_lock: None,
@@ -1948,7 +1950,7 @@ impl Account for LocalAccount {
         P: FnMut(&&Summary) -> bool + Send,
     {
         if let Some(_) = &self.authenticated {
-            let reader = self.storage.read().await;
+            let reader = self.storage.as_ref().unwrap().read().await;
             reader.find(predicate).cloned()
         } else {
             None
@@ -1956,7 +1958,7 @@ impl Account for LocalAccount {
     }
 
     async fn storage(&self) -> Result<Arc<RwLock<ClientStorage>>> {
-        Ok(Arc::clone(&self.storage))
+        Ok(Arc::clone(self.storage.as_ref().unwrap()))
     }
 
     async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
