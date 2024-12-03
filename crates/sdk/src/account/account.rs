@@ -14,8 +14,8 @@ use crate::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, AccountPatch, DevicePatch, Event,
-        EventKind, EventLogExt, EventRecord, FilePatch, FolderEventLog,
-        FolderPatch, FolderReducer, ReadEvent, WriteEvent,
+        EventKind, EventLogExt, EventRecord, FolderEventLog, FolderPatch,
+        FolderReducer, ReadEvent, WriteEvent,
     },
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
@@ -55,7 +55,10 @@ use crate::{
 use indexmap::IndexSet;
 
 #[cfg(feature = "files")]
-use crate::{events::FileEventLog, storage::files::FileMutationEvent};
+use crate::{
+    events::{FileEventLog, FilePatch},
+    storage::files::FileMutationEvent,
+};
 
 #[cfg(feature = "search")]
 use crate::storage::search::*;

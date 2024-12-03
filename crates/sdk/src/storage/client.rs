@@ -121,6 +121,7 @@ impl ClientStorage {
             DeviceEventLog::new_device(paths.device_events()).await?,
         ));
 
+        #[cfg(feature = "files")]
         let file_log = Arc::new(RwLock::new(
             FileEventLog::new_file(paths.file_events()).await?,
         ));
