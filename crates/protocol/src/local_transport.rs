@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use sos_sdk::constants::MIME_TYPE_JSON;
 use std::collections::HashMap;
+use typeshare::typeshare;
 
 /// Request that can be sent to a local data source.
 ///
@@ -18,6 +19,7 @@ use std::collections::HashMap;
 /// native messaging API.
 ///
 /// The body will usually be protobuf-encoded binary data.
+#[typeshare]
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransportRequest {
@@ -76,6 +78,7 @@ impl TryFrom<TransportRequest> for Request<Vec<u8>> {
 /// native messaging API.
 ///
 /// The body will usually be protobuf-encoded binary data.
+#[typeshare]
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TransportResponse {

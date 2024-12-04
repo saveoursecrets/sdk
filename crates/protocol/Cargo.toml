@@ -38,6 +38,7 @@ prost.workspace = true
 http.workspace = true
 bytes.workspace = true
 binary-stream.workspace = true
+typeshare.workspace = true
 tokio = { version = "1", features = ["rt",  "macros"] }
 
 [dependencies.sos-sdk]

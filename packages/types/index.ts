@@ -25,7 +25,7 @@ export interface QualifiedPath {
 	/** Account address. */
 	address: string;
 	/** Secret path. */
-	path: SecretPath;
+	secretPath: SecretPath;
 }
 
 /** Target for a clipboard copy operation. */
@@ -159,6 +159,8 @@ export type IpcRequestBody =
 	| { kind: "ping", body?: undefined }
 	/** Request to open a URL. */
 	| { kind: "openUrl", body: string }
+	/** HTTP request routed to the local server. */
+	| { kind: "http", body: TransportRequest }
 	/** Request the accounts list. */
 	| { kind: "listAccounts", body?: undefined }
 	/** Request to copy to the clipboard. */
@@ -186,16 +188,6 @@ export type IpcRequestBody =
 	views: DocumentView[];
 	/** Archive filter. */
 	archive_filter?: ArchiveFilter;
-}}
-	/**
-	 * Request to read a redacted secret outline.
-	 * 
-	 * Allows integrations to see which fields of a
-	 * secret are set without revealing secret information.
-	 */
-	| { kind: "readSecretOutline", body: {
-	/** Qualified path to the secret. */
-	path: QualifiedPath;
 }};
 
 /** IPC request information. */
@@ -249,6 +241,44 @@ export interface ServiceAppInfo {
 	version: string;
 	/** App build number. */
 	build_number: number;
+}
+
+/**
+ * Request that can be sent to a local data source.
+ * 
+ * Supports serde so this type is compatible with the
+ * browser extension which transfers JSON via the
+ * native messaging API.
+ * 
+ * The body will usually be protobuf-encoded binary data.
+ */
+export interface TransportRequest {
+	/** Request method. */
+	method: Method;
+	/** Request URL. */
+	uri: Uri;
+	/** Request headers. */
+	headers: Record<string, string[]>;
+	/** Request body. */
+	body: number[];
+}
+
+/**
+ * Response received from a local data source.
+ * 
+ * Supports serde so this type is compatible with the
+ * browser extension which transfers JSON via the
+ * native messaging API.
+ * 
+ * The body will usually be protobuf-encoded binary data.
+ */
+export interface TransportResponse {
+	/** Response status code. */
+	status: StatusCode;
+	/** Response headers. */
+	headers: Record<string, string[]>;
+	/** Response body. */
+	body: number[];
 }
 
 /** Generic command outcome. */
@@ -352,6 +382,8 @@ export type IpcResponseBody =
 	| { kind: "pong", body?: undefined }
 	/** Result of opening a URL. */
 	| { kind: "openUrl", body: boolean }
+	/** Result invoking the local server. */
+	| { kind: "http", body: TransportResponse }
 	/** List of accounts. */
 	| { kind: "accounts", body: AccountsList }
 	/** Copy to clipboard result. */

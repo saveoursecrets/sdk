@@ -88,6 +88,7 @@ use tokio::io::{AsyncRead, AsyncSeek, BufReader};
 /// Qualified path to a specific secret in a target account.
 #[typeshare::typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QualifiedPath {
     /// Account address.
     address: Address,
