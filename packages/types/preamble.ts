@@ -8,3 +8,5 @@ export type SearchResultEntry = TupleOfTwo<PublicIdentity, DocumentsList>;
 export type SearchResults = SearchResultEntry[];
 export type SecretPath = TupleOfTwo<string, string>;
 export type HashSet<T> = Set<T>;
+export type Uri = string;
+export type Method = string;
