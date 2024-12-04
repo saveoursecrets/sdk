@@ -26,10 +26,6 @@ pub enum Error {
     #[error("folder {0} already exists")]
     FolderExists(VaultId),
 
-    /// Error generated when an unexpected content type is returend.
-    #[error("unexpected content type {0}, expected: {1}")]
-    ContentType(String, String),
-
     /// Error generated when a return value is expected from a RPC call
     /// but the response did not have a result.
     #[error("method did not return a value")]

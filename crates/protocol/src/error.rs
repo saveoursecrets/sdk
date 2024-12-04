@@ -25,9 +25,9 @@ pub enum Error {
     #[error("relay packet end of file")]
     EndOfFile,
 
-    /// Error generated when an unexpected content type is returend.
-    #[error("unexpected content type {0}, expected: {1}")]
-    ContentType(String, String),
+    /// Generic boxed error.
+    #[error(transparent)]
+    Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
 
     /// Error generated when a conflict is detected.
     #[error(transparent)]
@@ -100,6 +100,10 @@ pub enum NetworkError {
     /// Error generated when an unexpected response code is received.
     #[error("unexpected response {1} (code: {0})")]
     ResponseJson(StatusCode, Value),
+
+    /// Error generated when an unexpected content type is returend.
+    #[error("unexpected content type {0}, expected: {1}")]
+    ContentType(String, String),
 }
 
 /// Error created whan a conflict is detected.

@@ -162,10 +162,11 @@ impl HttpClient {
                 if content_type == &protobuf_type {
                     Ok(response)
                 } else {
-                    Err(Error::ContentType(
+                    Err(NetworkError::ContentType(
                         content_type.to_str()?.to_owned(),
                         MIME_TYPE_PROTOBUF.to_string(),
-                    ))
+                    )
+                    .into())
                 }
             }
             // Otherwise exit out early

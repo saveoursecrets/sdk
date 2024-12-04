@@ -81,10 +81,11 @@ impl LocalClient {
                 if content_type == MIME_TYPE_PROTOBUF {
                     Ok(response)
                 } else {
-                    Err(Error::ContentType(
+                    Err(NetworkError::ContentType(
                         content_type.to_owned(),
                         MIME_TYPE_PROTOBUF.to_string(),
-                    ))
+                    )
+                    .into())
                 }
             }
             // Otherwise exit out early
