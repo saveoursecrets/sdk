@@ -167,6 +167,24 @@ impl Paths {
         Ok(())
     }
 
+    /// Try to determine if the account is ready to be used
+    /// by checking for the presence of required files on disc.
+    pub async fn is_usable(&self) -> Result<bool> {
+        if self.is_global() {
+            panic!("is_usable is not accessible for global paths");
+        }
+
+        let identity_vault = self.identity_vault();
+        let identity_events = self.identity_events();
+        let account_events = self.account_events();
+        let device_events = self.device_events();
+
+        Ok(vfs::try_exists(identity_vault).await?
+            && vfs::try_exists(identity_events).await?
+            && vfs::try_exists(account_events).await?
+            && vfs::try_exists(device_events).await?)
+    }
+
     /// User identifier.
     pub fn user_id(&self) -> &str {
         &self.user_id

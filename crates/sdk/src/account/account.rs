@@ -1565,15 +1565,19 @@ impl LocalAccount {
         };
 
         let paths = Paths::new(data_dir, address.to_string());
-        /*
-        let storage = Arc::new(RwLock::new(
-            ClientStorage::empty(address, paths.clone()).await?,
-        ));
-        */
+
+        let storage = if paths.is_usable().await? {
+            Some(Arc::new(RwLock::new(
+                ClientStorage::empty(address, Arc::new(paths.clone()))
+                    .await?,
+            )))
+        } else {
+            None
+        };
 
         Ok(Self {
             address,
-            storage: None,
+            storage,
             paths: Arc::new(paths),
             authenticated: None,
             #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
