@@ -25,10 +25,6 @@ pub enum Error {
     #[error("relay packet end of file")]
     EndOfFile,
 
-    /// Generic boxed error.
-    #[error(transparent)]
-    Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
-
     /// Error generated when a conflict is detected.
     #[error(transparent)]
     Conflict(#[from] ConflictError),
