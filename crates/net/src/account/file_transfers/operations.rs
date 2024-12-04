@@ -14,6 +14,7 @@ use crate::{
 
 use async_recursion::async_recursion;
 use http::StatusCode;
+use sos_protocol::NetworkError;
 use std::{io::ErrorKind, sync::Arc};
 use tokio::sync::watch;
 
@@ -572,9 +573,10 @@ where
     fn on_error(&self, error: Error) -> TransferResult {
         tracing::warn!(error = ?error, "move_file::error");
         match error {
-            Error::ResponseJson(StatusCode::NOT_FOUND, _) => {
-                TransferResult::Fatal(TransferError::MovedMissing)
-            }
+            Error::Network(NetworkError::ResponseJson(
+                StatusCode::NOT_FOUND,
+                _,
+            )) => TransferResult::Fatal(TransferError::MovedMissing),
             _ => on_error(error),
         }
     }

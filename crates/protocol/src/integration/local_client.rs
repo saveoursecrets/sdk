@@ -18,6 +18,7 @@
 //! the app integration was installed on the device.
 
 use crate::{
+    error::NetworkError,
     local_transport::{LocalResponse, LocalTransport},
     CreateSet, DiffRequest, DiffResponse, Error, Origin, PatchRequest,
     PatchResponse, Result, ScanRequest, ScanResponse, SyncClient, SyncPacket,
@@ -101,9 +102,9 @@ impl LocalClient {
         if !status.is_success() {
             if response.is_json() {
                 let value: Value = serde_json::from_slice(&response.body)?;
-                Err(Error::ResponseJson(status, value))
+                Err(NetworkError::ResponseJson(status, value).into())
             } else {
-                Err(Error::ResponseCode(status))
+                Err(NetworkError::ResponseCode(status).into())
             }
         } else {
             Ok(response)
@@ -142,7 +143,7 @@ impl SyncClient for LocalClient {
             StatusCode::OK => true,
             StatusCode::NOT_FOUND => false,
             _ => {
-                return Err(Error::ResponseCode(status));
+                return Err(NetworkError::ResponseCode(status).into());
             }
         };
 

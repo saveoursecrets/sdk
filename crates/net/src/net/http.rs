@@ -7,9 +7,9 @@ use tracing::instrument;
 
 use crate::{
     protocol::{
-        CreateSet, DiffRequest, DiffResponse, Origin, PatchRequest,
-        PatchResponse, ScanRequest, ScanResponse, SyncClient, SyncPacket,
-        SyncStatus, UpdateSet, WireEncodeDecode,
+        CreateSet, DiffRequest, DiffResponse, NetworkError, Origin,
+        PatchRequest, PatchResponse, ScanRequest, ScanResponse, SyncClient,
+        SyncPacket, SyncStatus, UpdateSet, WireEncodeDecode,
     },
     sdk::{
         constants::{
@@ -27,7 +27,7 @@ use std::{fmt, time::Duration};
 use url::Url;
 
 #[cfg(feature = "listen")]
-use futures::{Future, StreamExt};
+use futures::Future;
 
 use super::{
     bearer_prefix, encode_account_signature, encode_device_signature,
@@ -188,9 +188,9 @@ impl HttpClient {
             if let Some(content_type) = content_type {
                 if content_type == json_type {
                     let value: Value = response.json().await?;
-                    Err(Error::ResponseJson(status, value))
+                    Err(NetworkError::ResponseJson(status, value).into())
                 } else {
-                    Err(Error::ResponseCode(status))
+                    Err(NetworkError::ResponseCode(status).into())
                 }
             } else {
                 Ok(response)
@@ -234,7 +234,7 @@ impl SyncClient for HttpClient {
             StatusCode::OK => true,
             StatusCode::NOT_FOUND => false,
             _ => {
-                return Err(Error::ResponseCode(status));
+                return Err(NetworkError::ResponseCode(status).into());
             }
         };
         Ok(exists)

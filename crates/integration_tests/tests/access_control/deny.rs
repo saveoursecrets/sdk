@@ -6,8 +6,9 @@ use crate::test_utils::{
 };
 use http::StatusCode;
 use sos_net::{
-    protocol::AccountSync, sdk::prelude::*, Error as ClientError,
-    NetworkAccount,
+    protocol::{AccountSync, NetworkError},
+    sdk::prelude::*,
+    Error as ClientError, NetworkAccount,
 };
 
 use sos_server::AccessControlConfig;
@@ -56,7 +57,9 @@ async fn access_control_deny() -> Result<()> {
     if let Some(err) = sync_error.first_error() {
         assert!(matches!(
             err,
-            ClientError::ResponseCode(StatusCode::FORBIDDEN)
+            ClientError::Network(NetworkError::ResponseCode(
+                StatusCode::FORBIDDEN
+            ))
         ));
     } else {
         panic!("expecting multiple sync error (forbidden)");
