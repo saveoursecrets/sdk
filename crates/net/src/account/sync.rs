@@ -1,12 +1,12 @@
 //! Adds sync capability to network account.
 use crate::{
     protocol::{
-        AccountSync, Origin, RemoteSync, SyncClient, SyncOptions, SyncResult,
-        SyncStatus, SyncStorage, UpdateSet,
+        AccountSync, Merge, Origin, RemoteSync, SyncClient, SyncOptions,
+        SyncResult, SyncStatus, SyncStorage, UpdateSet,
     },
     sdk::{
         events::{AccountEventLog, FolderEventLog},
-        prelude::Account,
+        prelude::{Account, CommitState},
         storage::StorageEventLogs,
         vault::{Summary, VaultId},
         Result,
@@ -15,15 +15,25 @@ use crate::{
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
-use std::{collections::HashMap, sync::Arc};
+use sos_protocol::MergeOutcome;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 use tokio::sync::RwLock;
 
-use sos_sdk::events::DeviceEventLog;
+use sos_sdk::{
+    commit::Comparison,
+    events::{
+        AccountDiff, CheckedPatch, DeviceDiff, DeviceEventLog, FolderDiff,
+        WriteEvent,
+    },
+};
 
 #[cfg(feature = "files")]
 use crate::{
     protocol::transfer::{FileSet, FileSyncClient, FileTransfersSet},
-    sdk::events::FileEventLog,
+    sdk::events::{FileDiff, FileEventLog},
 };
 
 /// Server status for all remote origins.
@@ -240,5 +250,94 @@ impl SyncStorage for NetworkAccount {
     async fn sync_status(&self) -> Result<SyncStatus> {
         let account = self.account.lock().await;
         account.sync_status().await
+    }
+}
+
+#[async_trait]
+impl Merge for NetworkAccount {
+    async fn merge_identity(
+        &mut self,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<CheckedPatch> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_identity(diff, outcome).await?)
+    }
+
+    async fn compare_identity(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_identity(state).await?)
+    }
+
+    async fn merge_account(
+        &mut self,
+        diff: AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<(CheckedPatch, HashSet<VaultId>)> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_account(diff, outcome).await?)
+    }
+
+    async fn compare_account(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_account(state).await?)
+    }
+
+    async fn merge_device(
+        &mut self,
+        diff: DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<CheckedPatch> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_device(diff, outcome).await?)
+    }
+
+    async fn compare_device(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_device(state).await?)
+    }
+
+    #[cfg(feature = "files")]
+    async fn merge_files(
+        &mut self,
+        diff: FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<CheckedPatch> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_files(diff, outcome).await?)
+    }
+
+    #[cfg(feature = "files")]
+    async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_files(state).await?)
+    }
+
+    async fn merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_folder(folder_id, diff, outcome).await?)
+    }
+
+    async fn compare_folder(
+        &self,
+        folder_id: &VaultId,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_folder(folder_id, state).await?)
     }
 }
