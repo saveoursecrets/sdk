@@ -6,7 +6,7 @@ use crate::{
 use async_trait::async_trait;
 use sos_account_extras::clipboard::NativeClipboard;
 use sos_net::{
-    protocol::SyncStorage,
+    protocol::{Merge, SyncStorage},
     sdk::{
         account::{Account, AccountSwitcher, LocalAccount},
         prelude::{ArchiveFilter, DocumentView, Identity, QueryFilter},
@@ -66,6 +66,7 @@ pub struct IpcServiceHandler<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
+        + Merge
         + Sync
         + Send
         + 'static,
@@ -85,6 +86,7 @@ impl<A, R, E> IpcServiceHandler<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
+        + Merge
         + Sync
         + Send
         + 'static,
@@ -267,6 +269,7 @@ impl<A, R, E> IpcService<E> for IpcServiceHandler<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
+        + Merge
         + Sync
         + Send
         + 'static,

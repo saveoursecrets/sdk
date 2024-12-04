@@ -1,15 +1,60 @@
 use http::{header::CONTENT_TYPE, Request, Response, StatusCode};
 use serde::Serialize;
-use sos_net::sdk::prelude::MIME_TYPE_JSON;
+use sos_net::sdk::prelude::{
+    Address, MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
+};
 
 use super::{Body, Incoming};
 
-pub async fn json<S: Serialize>(
-    req: Request<Incoming>,
-    value: &S,
-) -> hyper::Result<Response<Body>> {
+pub fn parse_account_id(req: &Request<Incoming>) -> Option<Address> {
+    let Some(Ok(account_id)) =
+        req.headers().get(X_SOS_ACCOUNT_ID).map(|v| v.to_str())
+    else {
+        return None;
+    };
+    let Ok(account_id) = account_id.parse::<Address>() else {
+        return None;
+    };
+    Some(account_id)
+}
+
+fn status(status: StatusCode) -> hyper::Result<Response<Body>> {
+    Ok(Response::builder()
+        .status(status)
+        .body(Body::default())
+        .unwrap())
+}
+
+pub fn internal_server_error() -> hyper::Result<Response<Body>> {
+    status(StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+pub fn bad_request() -> hyper::Result<Response<Body>> {
+    status(StatusCode::BAD_REQUEST)
+}
+
+pub fn conflict() -> hyper::Result<Response<Body>> {
+    status(StatusCode::CONFLICT)
+}
+
+pub fn forbidden() -> hyper::Result<Response<Body>> {
+    status(StatusCode::FORBIDDEN)
+}
+
+pub fn not_found() -> hyper::Result<Response<Body>> {
+    status(StatusCode::NOT_FOUND)
+}
+
+pub fn ok(body: Body) -> hyper::Result<Response<Body>> {
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .body(body)
+        .unwrap())
+}
+
+pub fn json<S: Serialize>(value: &S) -> hyper::Result<Response<Body>> {
     let Ok(body) = serde_json::to_vec(value) else {
-        return internal_server_error(req).await;
+        return internal_server_error();
     };
     let response = Response::builder()
         .status(StatusCode::OK)
@@ -19,48 +64,10 @@ pub async fn json<S: Serialize>(
     Ok(response)
 }
 
-pub async fn internal_server_error(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    Ok(Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(Body::default())
-        .unwrap())
-}
-
-pub async fn bad_request(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    Ok(Response::builder()
-        .status(StatusCode::BAD_REQUEST)
-        .body(Body::default())
-        .unwrap())
-}
-
-pub async fn forbidden(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    Ok(Response::builder()
-        .status(StatusCode::FORBIDDEN)
-        .body(Body::default())
-        .unwrap())
-}
-
-pub async fn not_found(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    Ok(Response::builder()
-        .status(StatusCode::NOT_FOUND)
-        .body(Body::default())
-        .unwrap())
-}
-
-pub async fn ok(
-    _req: Request<Incoming>,
-    body: Body,
-) -> hyper::Result<Response<Body>> {
+pub fn protobuf(body: Body) -> hyper::Result<Response<Body>> {
     Ok(Response::builder()
         .status(StatusCode::OK)
+        .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
         .body(body)
         .unwrap())
 }

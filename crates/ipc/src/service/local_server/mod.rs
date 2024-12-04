@@ -3,7 +3,7 @@ use parking_lot::Mutex;
 use sos_net::{
     protocol::{
         local_transport::{TransportRequest, TransportResponse},
-        SyncStorage,
+        Merge, SyncStorage,
     },
     sdk::prelude::{
         routes::v1::{
@@ -38,10 +38,9 @@ use common::*;
 use events::*;
 
 async fn index(
-    req: Request<Incoming>,
     app_info: Arc<ServiceAppInfo>,
 ) -> hyper::Result<Response<Body>> {
-    json(req, &*app_info).await
+    json(&*app_info)
 }
 
 /// Local server handles sync requests from app integrations
@@ -63,6 +62,7 @@ impl LocalServer {
     where
         A: Account<Error = E, NetworkResult = R>
             + SyncStorage
+            + Merge
             + Sync
             + Send
             + 'static,
@@ -81,7 +81,7 @@ impl LocalServer {
             .insert(
                 "/",
                 BoxCloneService::new(service_fn(
-                    move |req: Request<Incoming>| index(req, info.clone()),
+                    move |_req: Request<Incoming>| index(info.clone()),
                 ))
                 .into(),
             )
@@ -170,7 +170,7 @@ impl LocalServer {
                 SYNC_ACCOUNT_STATUS,
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
-                        account_status(req, state.clone())
+                        sync_status(req, state.clone())
                     },
                 ))
                 .into(),
@@ -271,7 +271,7 @@ impl LocalServer {
         };
 
         let Ok(found) = router.at(req.uri().path()) else {
-            return not_found(req).await;
+            return not_found();
         };
 
         // lock the service for a very short time,

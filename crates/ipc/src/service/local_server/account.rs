@@ -1,26 +1,18 @@
 use http::{Request, Response};
+use hyper::body::Bytes;
 use sos_net::{
-    protocol::{SyncStorage, WireEncodeDecode},
-    sdk::prelude::{Account, AccountSwitcher, Address, X_SOS_ACCOUNT_ID},
+    protocol::{
+        Merge, MergeOutcome, SyncPacket, SyncStorage, WireEncodeDecode,
+    },
+    sdk::prelude::{Account, AccountSwitcher},
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::service::local_server::internal_server_error;
-
-use super::{bad_request, forbidden, not_found, ok, Body, Incoming};
-
-fn parse_account_id(req: &Request<Incoming>) -> Option<Address> {
-    let Some(Ok(account_id)) =
-        req.headers().get(X_SOS_ACCOUNT_ID).map(|v| v.to_str())
-    else {
-        return None;
-    };
-    let Ok(account_id) = account_id.parse::<Address>() else {
-        return None;
-    };
-    Some(account_id)
-}
+use super::{
+    bad_request, conflict, forbidden, internal_server_error, not_found, ok,
+    parse_account_id, protobuf, Body, Incoming,
+};
 
 pub async fn account_exists<A, R, E>(
     req: Request<Incoming>,
@@ -39,7 +31,7 @@ where
         + 'static,
 {
     let Some(account_id) = parse_account_id(&req) else {
-        return bad_request(req).await;
+        return bad_request();
     };
 
     let accounts = accounts.read().await;
@@ -48,9 +40,9 @@ where
         .find(|a| a.address() == &account_id)
         .is_some()
     {
-        ok(req, Body::default()).await
+        ok(Body::default())
     } else {
-        not_found(req).await
+        not_found()
     }
 }
 
@@ -70,7 +62,7 @@ where
         + From<std::io::Error>
         + 'static,
 {
-    forbidden(req).await
+    forbidden()
 }
 
 pub async fn update_account<A, R, E>(
@@ -89,7 +81,7 @@ where
         + From<std::io::Error>
         + 'static,
 {
-    forbidden(req).await
+    forbidden()
 }
 
 pub async fn fetch_account<A, R, E>(
@@ -109,7 +101,7 @@ where
         + 'static,
 {
     let Some(account_id) = parse_account_id(&req) else {
-        return bad_request(req).await;
+        return bad_request();
     };
 
     let accounts = accounts.read().await;
@@ -117,15 +109,15 @@ where
         accounts.iter().find(|a| a.address() == &account_id)
     {
         let Ok(change_set) = account.change_set().await else {
-            return internal_server_error(req).await;
+            return internal_server_error();
         };
         let Ok(buffer) = change_set.encode().await else {
-            return internal_server_error(req).await;
+            return internal_server_error();
         };
 
-        ok(req, buffer).await
+        protobuf(buffer)
     } else {
-        not_found(req).await
+        not_found()
     }
 }
 
@@ -145,10 +137,10 @@ where
         + From<std::io::Error>
         + 'static,
 {
-    forbidden(req).await
+    forbidden()
 }
 
-pub async fn account_status<A, R, E>(
+pub async fn sync_status<A, R, E>(
     req: Request<Incoming>,
     accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
 ) -> hyper::Result<Response<Body>>
@@ -165,7 +157,7 @@ where
         + 'static,
 {
     let Some(account_id) = parse_account_id(&req) else {
-        return bad_request(req).await;
+        return bad_request();
     };
 
     let accounts = accounts.read().await;
@@ -173,24 +165,25 @@ where
         accounts.iter().find(|a| a.address() == &account_id)
     {
         let Ok(status) = account.sync_status().await else {
-            return internal_server_error(req).await;
+            return internal_server_error();
         };
         let Ok(buffer) = status.encode().await else {
-            return internal_server_error(req).await;
+            return internal_server_error();
         };
-        ok(req, buffer).await
+        protobuf(buffer)
     } else {
-        not_found(req).await
+        not_found()
     }
 }
 
 pub async fn sync_account<A, R, E>(
-    _req: Request<Incoming>,
-    _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    req: Request<Incoming>,
+    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
+        + Merge
         + Sync
         + Send
         + 'static,
@@ -200,5 +193,63 @@ where
         + From<std::io::Error>
         + 'static,
 {
-    todo!();
+    let Some(account_id) = parse_account_id(&req) else {
+        return bad_request();
+    };
+
+    let mut accounts = accounts.write().await;
+    if let Some(account) =
+        accounts.iter_mut().find(|a| a.address() == &account_id)
+    {
+        let buf: Bytes = req.into_body().into();
+        let Ok(packet) = SyncPacket::decode(buf).await else {
+            return bad_request();
+        };
+        let (remote_status, mut diff) = (packet.status, packet.diff);
+
+        // Apply the diff to the storage
+        let mut outcome = MergeOutcome::default();
+        let compare = {
+            tracing::debug!("merge_local_server");
+            if account.storage().await.is_none() {
+                return conflict();
+            };
+
+            // Only try to merge folders that exist in storage
+            // otherwise after folder deletion sync will fail
+            {
+                let Ok(folders) = account.folder_identifiers().await else {
+                    return internal_server_error();
+                };
+                diff.folders.retain(|k, _| folders.contains(k));
+            }
+
+            let Ok(compare) = account.merge(diff, &mut outcome).await else {
+                return internal_server_error();
+            };
+
+            compare
+        };
+
+        // Generate a new diff so the client can apply changes
+        // that exist in remote but not in the local
+        let Ok((_, local_status, diff)) =
+            sos_net::protocol::diff(account, remote_status).await
+        else {
+            return internal_server_error();
+        };
+
+        let packet = SyncPacket {
+            status: local_status,
+            diff,
+            compare: Some(compare),
+        };
+
+        let Ok(buffer) = packet.encode().await else {
+            return internal_server_error();
+        };
+        protobuf(buffer)
+    } else {
+        not_found()
+    }
 }
