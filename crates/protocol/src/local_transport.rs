@@ -30,6 +30,7 @@ pub struct LocalRequest {
     #[serde_as(as = "DisplayFromStr")]
     pub uri: Uri,
     /// Request headers.
+    #[serde_as(as = "Vec<(_, _)>")]
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub headers: HashMap<String, Vec<String>>,
     /// Request body.
@@ -85,6 +86,7 @@ pub struct LocalResponse {
     /// Response status code.
     pub status: u16,
     /// Response headers.
+    #[serde_as(as = "Vec<(_, _)>")]
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub headers: HashMap<String, Vec<String>>,
     /// Response body.
