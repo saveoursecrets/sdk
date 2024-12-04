@@ -18,7 +18,8 @@ use super::ForceMerge;
 
 /// Trait for types that bridge between a remote data source
 /// and a local account.
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait RemoteSyncHandler {
     /// Client used to fetch data from the data source.
     type Client: SyncClient + Send + Sync + 'static;

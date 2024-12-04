@@ -116,7 +116,8 @@ pub fn guess_mime(path: impl AsRef<Path>) -> Result<String> {
 }
 
 /// References to the storage event logs.
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait StorageEventLogs {
     /// Clone of the identity log.
     async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>>;

@@ -144,7 +144,8 @@ impl LocalResponse {
 }
 
 /// Generic local transport.
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait LocalTransport {
     /// Send a request over the local transport.
     async fn call(&mut self, request: LocalRequest) -> Result<LocalResponse>;

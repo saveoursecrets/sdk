@@ -299,7 +299,8 @@ pub enum ContactImportProgress {
 }
 
 /// Trait for account implementations.
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait Account {
     /// Errors for this account.
     type Error: std::error::Error + std::fmt::Debug + From<crate::Error>;
@@ -1653,7 +1654,8 @@ impl LocalAccount {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Account for LocalAccount {
     type Error = Error;
     type NetworkResult = ();
@@ -3378,7 +3380,8 @@ impl Account for LocalAccount {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl StorageEventLogs for LocalAccount {
     async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
         let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;

@@ -109,7 +109,8 @@ impl LinkedAccount {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Account for LinkedAccount {
     type Error = Error;
     type NetworkResult = RemoteResult<Self::Error>;
@@ -1027,7 +1028,8 @@ impl Account for LinkedAccount {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl StorageEventLogs for LinkedAccount {
     async fn identity_log(
         &self,
@@ -1075,7 +1077,8 @@ impl StorageEventLogs for LinkedAccount {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl SyncStorage for LinkedAccount {
     fn is_client_storage(&self) -> bool {
         true
@@ -1087,7 +1090,8 @@ impl SyncStorage for LinkedAccount {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl RemoteSyncHandler for LinkedAccount {
     type Client = LocalClient;
     type Account = LocalAccount;
@@ -1124,10 +1128,12 @@ impl RemoteSyncHandler for LinkedAccount {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl AutoMerge for LinkedAccount {}
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl RemoteSync for LinkedAccount {
     type Error = Error;
 

@@ -60,7 +60,8 @@ impl<E> SyncResult<E> {
 }
 
 /// Trait for types that can sync with a single remote.
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait RemoteSync {
     /// Error type for remote sync.
     type Error: std::error::Error + std::fmt::Debug;
@@ -152,7 +153,8 @@ pub trait AccountSync {
 }
 
 /// Client that can communicate with a remote data source.
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait SyncClient {
     /// Error type for sync client.
     type Error: std::error::Error + std::fmt::Debug;

@@ -30,7 +30,8 @@ use crate::sdk::events::{DeviceDiff, DeviceReducer};
 #[cfg(feature = "files")]
 use crate::sdk::events::FileDiff;
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ForceMerge for LocalAccount {
     async fn force_merge_identity(
         &mut self,
@@ -161,7 +162,8 @@ impl ForceMerge for LocalAccount {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Merge for LocalAccount {
     async fn merge_identity(
         &mut self,
@@ -544,7 +546,8 @@ impl Merge for LocalAccount {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl SyncStorage for LocalAccount {
     fn is_client_storage(&self) -> bool {
         true

@@ -428,7 +428,8 @@ impl SyncComparison {
 }
 
 /// Storage implementations that can synchronize.
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait SyncStorage: StorageEventLogs {
     /// Determine if this is client-side storage.
     fn is_client_storage(&self) -> bool;
@@ -499,7 +500,8 @@ pub trait SyncStorage: StorageEventLogs {
 ///
 /// Use this when event logs have completely diverged
 /// and need to be rewritten.
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ForceMerge {
     /// Force merge changes to the identity folder.
     async fn force_merge_identity(
@@ -540,7 +542,8 @@ pub trait ForceMerge {
 }
 
 /// Types that can merge diffs.
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait Merge {
     /// Merge changes to the identity folder.
     async fn merge_identity(
