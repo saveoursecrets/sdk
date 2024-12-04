@@ -6,6 +6,12 @@ use sos_net::sdk::prelude::{
 
 use super::{Body, Incoming};
 
+#[derive(Serialize)]
+struct ErrorReply {
+    code: u16,
+    message: String,
+}
+
 pub fn parse_account_id(req: &Request<Incoming>) -> Option<Address> {
     let Some(Ok(account_id)) =
         req.headers().get(X_SOS_ACCOUNT_ID).map(|v| v.to_str())
@@ -23,10 +29,6 @@ fn status(status: StatusCode) -> hyper::Result<Response<Body>> {
         .status(status)
         .body(Body::default())
         .unwrap())
-}
-
-pub fn internal_server_error() -> hyper::Result<Response<Body>> {
-    status(StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 pub fn bad_request() -> hyper::Result<Response<Body>> {
@@ -48,12 +50,28 @@ pub fn ok(body: Body) -> hyper::Result<Response<Body>> {
         .unwrap())
 }
 
-pub fn json<S: Serialize>(value: &S) -> hyper::Result<Response<Body>> {
+pub fn internal_server_error(
+    e: impl std::fmt::Display,
+) -> hyper::Result<Response<Body>> {
+    let error = ErrorReply {
+        code: StatusCode::INTERNAL_SERVER_ERROR.into(),
+        message: e.to_string(),
+    };
+    json(StatusCode::INTERNAL_SERVER_ERROR, &error)
+}
+
+pub fn json<S: Serialize>(
+    status: StatusCode,
+    value: &S,
+) -> hyper::Result<Response<Body>> {
     let Ok(body) = serde_json::to_vec(value) else {
-        return internal_server_error();
+        return Ok(Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(Body::default())
+            .unwrap());
     };
     let response = Response::builder()
-        .status(StatusCode::OK)
+        .status(status)
         .header(CONTENT_TYPE, MIME_TYPE_JSON)
         .body(body)
         .unwrap();

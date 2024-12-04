@@ -40,7 +40,7 @@ use events::*;
 async fn index(
     app_info: Arc<ServiceAppInfo>,
 ) -> hyper::Result<Response<Body>> {
-    json(&*app_info)
+    json(StatusCode::OK, &*app_info)
 }
 
 /// Local server handles sync requests from app integrations
@@ -255,8 +255,10 @@ impl LocalServer {
 
     async fn call(&self, req: Request<Incoming>) -> Response<Body> {
         let router = self.router.clone();
-        let result = Self::route(router, req).await.unwrap();
-        result
+        match Self::route(router, req).await {
+            Ok(result) => result,
+            Err(e) => internal_server_error(e).unwrap(),
+        }
     }
 
     async fn route(
@@ -277,6 +279,9 @@ impl LocalServer {
         // lock the service for a very short time,
         // just to clone the service
         let mut service = found.value.lock().clone();
-        service.call(req).await
+        match service.call(req).await {
+            Ok(result) => Ok(result),
+            Err(e) => internal_server_error(e),
+        }
     }
 }

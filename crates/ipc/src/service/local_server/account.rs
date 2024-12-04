@@ -108,14 +108,16 @@ where
     if let Some(account) =
         accounts.iter().find(|a| a.address() == &account_id)
     {
-        let Ok(change_set) = account.change_set().await else {
-            return internal_server_error();
-        };
-        let Ok(buffer) = change_set.encode().await else {
-            return internal_server_error();
-        };
+        match account.change_set().await {
+            Ok(change_set) => {
+                let Ok(buffer) = change_set.encode().await else {
+                    return internal_server_error("fetch_account::encode");
+                };
 
-        protobuf(buffer)
+                protobuf(buffer)
+            }
+            Err(e) => internal_server_error(e),
+        }
     } else {
         not_found()
     }
@@ -164,13 +166,15 @@ where
     if let Some(account) =
         accounts.iter().find(|a| a.address() == &account_id)
     {
-        let Ok(status) = account.sync_status().await else {
-            return internal_server_error();
-        };
-        let Ok(buffer) = status.encode().await else {
-            return internal_server_error();
-        };
-        protobuf(buffer)
+        match account.sync_status().await {
+            Ok(status) => {
+                let Ok(buffer) = status.encode().await else {
+                    return internal_server_error("sync_status::encode");
+                };
+                protobuf(buffer)
+            }
+            Err(e) => internal_server_error(e),
+        }
     } else {
         not_found()
     }
@@ -206,17 +210,16 @@ where
             return bad_request();
         };
 
-        let Ok((packet, _)) =
-            server_helpers::sync_account(packet, account).await
-        else {
-            return internal_server_error();
-        };
+        match server_helpers::sync_account(packet, account).await {
+            Ok((packet, _)) => {
+                let Ok(response) = packet.encode().await else {
+                    return internal_server_error("sync_account::encode");
+                };
 
-        let Ok(response) = packet.encode().await else {
-            return internal_server_error();
-        };
-
-        protobuf(response)
+                protobuf(response)
+            }
+            Err(e) => internal_server_error(e),
+        }
     } else {
         not_found()
     }

@@ -49,16 +49,16 @@ where
             return bad_request();
         }
 
-        let Ok(response) = server_helpers::event_scan(&packet, account).await
-        else {
-            return internal_server_error();
-        };
+        match server_helpers::event_scan(&packet, account).await {
+            Ok(response) => {
+                let Ok(buffer) = response.encode().await else {
+                    return internal_server_error("event_scan::encode");
+                };
 
-        let Ok(buffer) = response.encode().await else {
-            return internal_server_error();
-        };
-
-        protobuf(buffer)
+                protobuf(buffer)
+            }
+            Err(e) => internal_server_error(e),
+        }
     } else {
         not_found()
     }
@@ -93,16 +93,16 @@ where
             return bad_request();
         };
 
-        let Ok(response) = server_helpers::event_diff(&packet, account).await
-        else {
-            return internal_server_error();
-        };
+        match server_helpers::event_diff(&packet, account).await {
+            Ok(response) => {
+                let Ok(buffer) = response.encode().await else {
+                    return internal_server_error("event_diff::encode");
+                };
 
-        let Ok(buffer) = response.encode().await else {
-            return internal_server_error();
-        };
-
-        protobuf(buffer)
+                protobuf(buffer)
+            }
+            Err(e) => internal_server_error(e),
+        }
     } else {
         not_found()
     }
@@ -138,17 +138,15 @@ where
             return bad_request();
         };
 
-        let Ok((response, _)) =
-            server_helpers::event_patch(packet, account).await
-        else {
-            return internal_server_error();
-        };
-
-        let Ok(buffer) = response.encode().await else {
-            return internal_server_error();
-        };
-
-        protobuf(buffer)
+        match server_helpers::event_patch(packet, account).await {
+            Ok((response, _)) => {
+                let Ok(buffer) = response.encode().await else {
+                    return internal_server_error("event_patch::encode");
+                };
+                protobuf(buffer)
+            }
+            Err(e) => internal_server_error(e),
+        }
     } else {
         not_found()
     }
