@@ -8,12 +8,14 @@ use binary_stream::futures::{Decodable, Encodable};
 use sos_sdk::{
     events::{
         AccountDiff, AccountEvent, CheckedPatch, DeviceDiff, DeviceEvent,
-        DiscEventLog, EventRecord, FileDiff, FileEvent, FolderDiff, Patch,
-        WriteEvent,
+        DiscEventLog, EventRecord, FolderDiff, Patch, WriteEvent,
     },
     prelude::EventLogExt,
     storage::StorageEventLogs,
 };
+
+#[cfg(feature = "files")]
+use sos_sdk::events::{FileDiff, FileEvent};
 
 /// Sync an account.
 pub async fn sync_account(
@@ -74,6 +76,7 @@ pub async fn event_diff(
             let event_log = log.read().await;
             diff_log(&req, &*event_log).await
         }
+        #[cfg(feature = "files")]
         EventLogType::Files => {
             let log = storage.file_log().await?;
             let event_log = log.read().await;
@@ -122,6 +125,7 @@ pub async fn event_scan(
             let event_log = log.read().await;
             scan_log(&req, &*event_log).await?
         }
+        #[cfg(feature = "files")]
         EventLogType::Files => {
             let log = storage.file_log().await?;
             let event_log = log.read().await;
@@ -279,6 +283,7 @@ pub async fn event_patch(
                 records,
             )
         }
+        #[cfg(feature = "files")]
         EventLogType::Files => {
             let patch = Patch::<FileEvent>::new(req.patch);
             let (last_commit, records) = if let Some(commit) = &req.commit {
@@ -362,6 +367,7 @@ async fn rollback_rewind(
             let mut event_log = log.write().await;
             event_log.apply_records(records).await?;
         }
+        #[cfg(feature = "files")]
         EventLogType::Files => {
             let log = storage.file_log().await?;
             let mut event_log = log.write().await;
