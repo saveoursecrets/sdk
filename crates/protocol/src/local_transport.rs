@@ -83,8 +83,7 @@ impl TryFrom<LocalRequest> for Request<Vec<u8>> {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LocalResponse {
     /// Response status code.
-    #[serde_as(as = "DisplayFromStr")]
-    pub status: StatusCode,
+    pub status: u16,
     /// Response headers.
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub headers: HashMap<String, Vec<String>>,
@@ -104,7 +103,7 @@ impl From<Response<Vec<u8>>> for LocalResponse {
         }
 
         Self {
-            status: parts.status,
+            status: parts.status.into(),
             headers,
             body,
         }
@@ -113,8 +112,8 @@ impl From<Response<Vec<u8>>> for LocalResponse {
 
 impl LocalResponse {
     /// Status code.
-    pub fn status(&self) -> StatusCode {
-        self.status
+    pub fn status(&self) -> Result<StatusCode> {
+        Ok(self.status.try_into()?)
     }
 
     /// Extract a content type header.
@@ -148,8 +147,5 @@ impl LocalResponse {
 #[async_trait]
 pub trait LocalTransport {
     /// Send a request over the local transport.
-    async fn call(
-        &mut self,
-        request: LocalRequest,
-    ) -> Result<LocalResponse>;
+    async fn call(&mut self, request: LocalRequest) -> Result<LocalResponse>;
 }

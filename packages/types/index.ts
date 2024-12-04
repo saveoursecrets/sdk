@@ -237,7 +237,7 @@ export interface LocalRequest {
  */
 export interface LocalResponse {
 	/** Response status code. */
-	status: StatusCode;
+	status: number;
 	/** Response headers. */
 	headers: Record<string, string[]>;
 	/** Response body. */

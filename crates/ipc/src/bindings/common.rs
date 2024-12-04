@@ -548,9 +548,8 @@ impl TryFrom<WireLocalRequest> for LocalRequest {
 
 impl From<LocalResponse> for WireLocalResponse {
     fn from(value: LocalResponse) -> Self {
-        let status: u16 = value.status().into();
         WireLocalResponse {
-            status: status.into(),
+            status: value.status.into(),
             headers: value
                 .headers
                 .into_iter()
@@ -565,8 +564,6 @@ impl TryFrom<WireLocalResponse> for LocalResponse {
     type Error = Error;
 
     fn try_from(value: WireLocalResponse) -> Result<Self> {
-        let status: u16 = value.status.try_into()?;
-
         let mut headers = HashMap::new();
         for mut header in value.headers {
             let entry = headers.entry(header.name).or_insert(vec![]);
@@ -574,7 +571,7 @@ impl TryFrom<WireLocalResponse> for LocalResponse {
         }
 
         Ok(Self {
-            status: status.try_into()?,
+            status: value.status as u16,
             headers,
             body: value.body,
         })
