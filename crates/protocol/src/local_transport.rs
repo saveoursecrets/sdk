@@ -9,7 +9,7 @@ use http::{
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use sos_sdk::constants::MIME_TYPE_JSON;
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 use typeshare::typeshare;
 
 /// Request that can be sent to a local data source.
@@ -21,7 +21,7 @@ use typeshare::typeshare;
 /// The body will usually be protobuf-encoded binary data.
 #[typeshare]
 #[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct LocalRequest {
     /// Request method.
     #[serde_as(as = "DisplayFromStr")]
@@ -36,6 +36,17 @@ pub struct LocalRequest {
     /// Request body.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub body: Vec<u8>,
+}
+
+impl fmt::Debug for LocalRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LocalRequest")
+            .field("method", &self.method.to_string())
+            .field("uri", &self.uri.to_string())
+            .field("headers", &format_args!("{:?}", self.headers))
+            .field("body", &self.body.len().to_string())
+            .finish()
+    }
 }
 
 impl From<Request<Vec<u8>>> for LocalRequest {
@@ -81,7 +92,7 @@ impl TryFrom<LocalRequest> for Request<Vec<u8>> {
 /// The body will usually be protobuf-encoded binary data.
 #[typeshare]
 #[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct LocalResponse {
     /// Response status code.
     pub status: u16,
@@ -92,6 +103,16 @@ pub struct LocalResponse {
     /// Response body.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub body: Vec<u8>,
+}
+
+impl fmt::Debug for LocalResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LocalResponse")
+            .field("status", &self.status.to_string())
+            .field("headers", &format_args!("{:?}", self.headers))
+            .field("body", &self.body.len().to_string())
+            .finish()
+    }
 }
 
 impl From<Response<Vec<u8>>> for LocalResponse {
