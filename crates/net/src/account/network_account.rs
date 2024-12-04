@@ -952,8 +952,7 @@ impl Account for NetworkAccount {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            let result = account.rename_account(account_name).await?;
-            result
+            account.rename_account(account_name).await?
         };
 
         let result = AccountChange {
@@ -1287,8 +1286,7 @@ impl Account for NetworkAccount {
 
         let result = {
             let mut account = self.account.lock().await;
-            let result = account.create_secret(meta, secret, options).await?;
-            result
+            account.create_secret(meta, secret, options).await?
         };
 
         let result = SecretChange {
@@ -1360,10 +1358,9 @@ impl Account for NetworkAccount {
 
         let result = {
             let mut account = self.account.lock().await;
-            let result = account
+            account
                 .update_secret(secret_id, meta, secret, options, destination)
-                .await?;
-            result
+                .await?
         };
 
         let result = SecretChange {

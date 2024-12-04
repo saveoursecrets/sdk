@@ -47,7 +47,7 @@ where
 }
 
 pub async fn create_account<A, R, E>(
-    req: Request<Incoming>,
+    _req: Request<Incoming>,
     _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
 ) -> hyper::Result<Response<Body>>
 where
@@ -66,7 +66,7 @@ where
 }
 
 pub async fn update_account<A, R, E>(
-    req: Request<Incoming>,
+    _req: Request<Incoming>,
     _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
 ) -> hyper::Result<Response<Body>>
 where
@@ -122,7 +122,7 @@ where
 }
 
 pub async fn delete_account<A, R, E>(
-    req: Request<Incoming>,
+    _req: Request<Incoming>,
     _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
 ) -> hyper::Result<Response<Body>>
 where

@@ -25,6 +25,7 @@ use sos_sdk::{
     },
     secrecy::SecretString,
     signer::ecdsa::BoxedEcdsaSigner,
+    vfs,
 };
 use std::{
     collections::HashMap,
@@ -65,6 +66,9 @@ pub struct LinkedAccount {
     address: Address,
     paths: Arc<Paths>,
     client: LocalClient,
+    /// Lock to prevent write to local storage
+    /// whilst a sync operation is in progress.
+    sync_lock: Arc<Mutex<()>>,
 }
 
 impl LinkedAccount {
@@ -81,6 +85,7 @@ impl LinkedAccount {
             account: Arc::new(Mutex::new(account)),
             address,
             client,
+            sync_lock: Arc::new(Mutex::new(())),
         })
     }
 
@@ -99,6 +104,7 @@ impl LinkedAccount {
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             client,
+            sync_lock: Arc::new(Mutex::new(())),
         })
     }
 }
@@ -106,7 +112,7 @@ impl LinkedAccount {
 #[async_trait]
 impl Account for LinkedAccount {
     type Error = Error;
-    type NetworkResult = ();
+    type NetworkResult = RemoteResult<Self::Error>;
 
     fn address(&self) -> &Address {
         &self.address
@@ -197,8 +203,20 @@ impl Account for LinkedAccount {
         folder: &Summary,
         description: impl AsRef<str> + Send + Sync,
     ) -> Result<FolderChange<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account.set_folder_description(folder, description).await?)
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.set_folder_description(folder, description).await?
+        };
+
+        let result = FolderChange {
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_result: self.sync().await,
+        };
+
+        Ok(result)
     }
 
     async fn find_folder_password(
@@ -288,8 +306,18 @@ impl Account for LinkedAccount {
         &mut self,
         account_name: String,
     ) -> Result<AccountChange<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account.rename_account(account_name).await?)
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            account.rename_account(account_name).await?
+        };
+
+        let result = AccountChange {
+            event: result.event,
+            sync_result: self.sync().await,
+        };
+
+        Ok(result)
     }
 
     async fn delete_account(&mut self) -> Result<()> {
@@ -464,16 +492,75 @@ impl Account for LinkedAccount {
         secret: Secret,
         options: AccessOptions,
     ) -> Result<SecretChange<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account.create_secret(meta, secret, options).await?)
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.create_secret(meta, secret, options).await?
+        };
+
+        let result = SecretChange {
+            id: result.id,
+            event: result.event,
+            commit_state: result.commit_state,
+            folder: result.folder,
+            sync_result: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
+        };
+
+        /*
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
+        */
+
+        Ok(result)
     }
 
     async fn insert_secrets(
         &mut self,
         secrets: Vec<(SecretMeta, Secret)>,
     ) -> Result<SecretInsert<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account.insert_secrets(secrets).await?)
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.insert_secrets(secrets).await?
+        };
+
+        #[cfg(feature = "files")]
+        let mut file_events = Vec::new();
+
+        let result = SecretInsert {
+            results: result
+                .results
+                .into_iter()
+                .map(|#[allow(unused_mut)] mut result| {
+                    #[cfg(feature = "files")]
+                    file_events.append(&mut result.file_events);
+                    SecretChange {
+                        id: result.id,
+                        event: result.event,
+                        commit_state: result.commit_state,
+                        folder: result.folder,
+                        sync_result: RemoteResult {
+                            origin: self.client.origin().clone(),
+                            result: Ok(None),
+                        },
+                        #[cfg(feature = "files")]
+                        file_events: result.file_events,
+                    }
+                })
+                .collect(),
+            sync_result: self.sync().await,
+        };
+
+        /*
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&file_events).await?;
+        */
+
+        Ok(result)
     }
 
     async fn update_secret(
@@ -484,10 +571,31 @@ impl Account for LinkedAccount {
         options: AccessOptions,
         destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account
-            .update_secret(secret_id, meta, secret, options, destination)
-            .await?)
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account
+                .update_secret(secret_id, meta, secret, options, destination)
+                .await?
+        };
+
+        let result = SecretChange {
+            id: result.id,
+            event: result.event,
+            commit_state: result.commit_state,
+            folder: result.folder,
+            sync_result: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
+        };
+
+        /*
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
+        */
+
+        Ok(result)
     }
 
     async fn move_secret(
@@ -497,8 +605,27 @@ impl Account for LinkedAccount {
         to: &Summary,
         options: AccessOptions,
     ) -> Result<SecretMove<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account.move_secret(secret_id, from, to, options).await?)
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.move_secret(secret_id, from, to, options).await?
+        };
+
+        let result = SecretMove {
+            id: result.id,
+            event: result.event,
+            sync_result: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
+        };
+
+        /*
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
+        */
+
+        Ok(result)
     }
 
     async fn read_secret(
@@ -524,8 +651,28 @@ impl Account for LinkedAccount {
         secret_id: &SecretId,
         options: AccessOptions,
     ) -> Result<SecretDelete<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account.delete_secret(secret_id, options).await?)
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.delete_secret(secret_id, options).await?
+        };
+
+        let result = SecretDelete {
+            event: result.event,
+            commit_state: result.commit_state,
+            folder: result.folder,
+            sync_result: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
+        };
+
+        /*
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
+        */
+
+        Ok(result)
     }
 
     async fn archive(
@@ -534,8 +681,26 @@ impl Account for LinkedAccount {
         secret_id: &SecretId,
         options: AccessOptions,
     ) -> Result<SecretMove<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account.archive(from, secret_id, options).await?)
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            account.archive(from, secret_id, options).await?
+        };
+
+        let result = SecretMove {
+            id: result.id,
+            event: result.event,
+            sync_result: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
+        };
+
+        /*
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
+        */
+
+        Ok(result)
     }
 
     async fn unarchive(
@@ -544,8 +709,27 @@ impl Account for LinkedAccount {
         secret_meta: &SecretMeta,
         options: AccessOptions,
     ) -> Result<(SecretMove<Self::NetworkResult>, Summary)> {
-        let mut account = self.account.lock().await;
-        Ok(account.unarchive(secret_id, secret_meta, options).await?)
+        let _ = self.sync_lock.lock().await;
+
+        let (result, to) = {
+            let mut account = self.account.lock().await;
+            account.unarchive(secret_id, secret_meta, options).await?
+        };
+
+        let result = SecretMove {
+            id: result.id,
+            event: result.event,
+            sync_result: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
+        };
+
+        /*
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
+        */
+
+        Ok((result, to))
     }
 
     #[cfg(feature = "files")]
@@ -557,10 +741,31 @@ impl Account for LinkedAccount {
         options: AccessOptions,
         destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account
-            .update_file(secret_id, meta, path, options, destination)
-            .await?)
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account
+                .update_file(secret_id, meta, path, options, destination)
+                .await?
+        };
+
+        let result = SecretChange {
+            id: result.id,
+            event: result.event,
+            commit_state: result.commit_state,
+            folder: result.folder,
+            sync_result: self.sync().await,
+            #[cfg(feature = "files")]
+            file_events: result.file_events,
+        };
+
+        /*
+        #[cfg(feature = "files")]
+        self.queue_file_mutation_events(&result.file_events).await?;
+        */
+
+        Ok(result)
     }
 
     async fn create_folder(
@@ -568,8 +773,20 @@ impl Account for LinkedAccount {
         name: String,
         options: NewFolderOptions,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account.create_folder(name, options).await?)
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            account.create_folder(name, options).await?
+        };
+
+        let result = FolderCreate {
+            folder: result.folder,
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_result: self.sync().await,
+        };
+
+        Ok(result)
     }
 
     async fn rename_folder(
@@ -577,8 +794,19 @@ impl Account for LinkedAccount {
         summary: &Summary,
         name: String,
     ) -> Result<FolderChange<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account.rename_folder(summary, name).await?)
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            account.rename_folder(summary, name).await?
+        };
+
+        let result = FolderChange {
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_result: self.sync().await,
+        };
+
+        Ok(result)
     }
 
     async fn update_folder_flags(
@@ -586,8 +814,19 @@ impl Account for LinkedAccount {
         summary: &Summary,
         flags: VaultFlags,
     ) -> Result<FolderChange<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account.update_folder_flags(summary, flags).await?)
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            account.update_folder_flags(summary, flags).await?
+        };
+
+        let result = FolderChange {
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_result: self.sync().await,
+        };
+
+        Ok(result)
     }
 
     async fn import_folder(
@@ -596,8 +835,8 @@ impl Account for LinkedAccount {
         key: AccessKey,
         overwrite: bool,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account.import_folder(path, key, overwrite).await?)
+        let buffer = vfs::read(path.as_ref()).await?;
+        self.import_folder_buffer(&buffer, key, overwrite).await
     }
 
     async fn import_folder_buffer(
@@ -606,8 +845,21 @@ impl Account for LinkedAccount {
         key: AccessKey,
         overwrite: bool,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account.import_folder_buffer(buffer, key, overwrite).await?)
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.import_folder_buffer(buffer, key, overwrite).await?
+        };
+
+        let result = FolderCreate {
+            folder: result.folder,
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_result: self.sync().await,
+        };
+
+        Ok(result)
     }
 
     async fn import_identity_folder(
@@ -647,8 +899,19 @@ impl Account for LinkedAccount {
         &mut self,
         summary: &Summary,
     ) -> Result<FolderDelete<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account.delete_folder(summary).await?)
+        let _ = self.sync_lock.lock().await;
+        let result = {
+            let mut account = self.account.lock().await;
+            account.delete_folder(summary).await?
+        };
+
+        let result = FolderDelete {
+            events: result.events,
+            commit_state: result.commit_state,
+            sync_result: self.sync().await,
+        };
+
+        Ok(result)
     }
 
     #[cfg(feature = "contacts")]
@@ -705,8 +968,21 @@ impl Account for LinkedAccount {
         &mut self,
         target: ImportTarget,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
-        let mut account = self.account.lock().await;
-        Ok(account.import_file(target).await?)
+        let _ = self.sync_lock.lock().await;
+
+        let result = {
+            let mut account = self.account.lock().await;
+            account.import_file(target).await?
+        };
+
+        let result = FolderCreate {
+            folder: result.folder,
+            event: result.event,
+            commit_state: result.commit_state,
+            sync_result: self.sync().await,
+        };
+
+        Ok(result)
     }
 
     #[cfg(feature = "archive")]
@@ -756,39 +1032,46 @@ impl StorageEventLogs for LinkedAccount {
     async fn identity_log(
         &self,
     ) -> sos_sdk::Result<Arc<RwLock<FolderEventLog>>> {
-        todo!();
+        let account = self.account.lock().await;
+        account.identity_log().await
     }
 
     async fn account_log(
         &self,
     ) -> sos_sdk::Result<Arc<RwLock<AccountEventLog>>> {
-        todo!();
+        let account = self.account.lock().await;
+        account.account_log().await
     }
 
     async fn device_log(
         &self,
     ) -> sos_sdk::Result<Arc<RwLock<DeviceEventLog>>> {
-        todo!();
+        let account = self.account.lock().await;
+        account.device_log().await
     }
 
     #[cfg(feature = "files")]
     async fn file_log(&self) -> sos_sdk::Result<Arc<RwLock<FileEventLog>>> {
-        todo!();
+        let account = self.account.lock().await;
+        account.file_log().await
     }
 
     async fn folder_identifiers(&self) -> sos_sdk::Result<IndexSet<VaultId>> {
-        todo!();
+        let account = self.account.lock().await;
+        account.folder_identifiers().await
     }
 
     async fn folder_details(&self) -> sos_sdk::Result<IndexSet<Summary>> {
-        todo!();
+        let account = self.account.lock().await;
+        account.folder_details().await
     }
 
     async fn folder_log(
         &self,
         id: &VaultId,
     ) -> sos_sdk::Result<Arc<RwLock<FolderEventLog>>> {
-        todo!();
+        let account = self.account.lock().await;
+        account.folder_log(id).await
     }
 }
 
