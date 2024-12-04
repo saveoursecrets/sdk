@@ -12,7 +12,7 @@ use sos_net::{
         crypto::AccessKey,
         prelude::{
             generate_passphrase, Account, Identity, LocalAccount,
-            LocalAccountSwitcher,
+            LocalAccountSwitcher, SecretChange,
         },
         Paths,
     },
@@ -21,7 +21,7 @@ use std::{sync::Arc, time::Duration};
 use tokio::sync::{Mutex, RwLock};
 
 use crate::{
-    test_utils::{setup, teardown},
+    test_utils::{mock, setup, teardown},
     TestLocalTransport,
 };
 
@@ -50,25 +50,28 @@ async fn integration_ipc_local_sync() -> Result<()> {
     let (password, _) = generate_passphrase()?;
 
     // Create an account and authenticate
-    let mut auth_account = LocalAccount::new_account(
+    let mut local_account = LocalAccount::new_account(
         TEST_ID.to_string(),
         password.clone(),
         Some(data_dir.clone()),
     )
     .await?;
     let key: AccessKey = password.into();
-    auth_account.sign_in(&key).await?;
+    local_account.sign_in(&key).await?;
 
-    let address = auth_account.address().clone();
+    let address = local_account.address().clone();
 
     // Add the accounts
-    let mut accounts = LocalAccountSwitcher::new_with_options(Some(paths));
-    accounts.add_account(auth_account);
+    let mut local_accounts =
+        LocalAccountSwitcher::new_with_options(Some(paths));
+    local_accounts.add_account(local_account);
+    local_accounts.switch_account(&address);
+    let local_accounts = Arc::new(RwLock::new(local_accounts));
 
     // Start the IPC service
     let (delegate, _commands) = local_account_delegate(16);
     let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
-        Arc::new(RwLock::new(accounts)),
+        local_accounts.clone(),
         delegate,
         Default::default(),
     )));
@@ -108,19 +111,43 @@ async fn integration_ipc_local_sync() -> Result<()> {
     accounts.add_account(linked_account);
     accounts.switch_account(&address);
 
-    let account = accounts.selected_account_mut().unwrap();
+    let linked_account = accounts.selected_account_mut().unwrap();
 
     // Initial sync fetches the data from the other app
-    let sync_result = account.sync().await;
+    let sync_result = linked_account.sync().await;
     assert!(sync_result.result.is_ok());
 
     // Make sure the account is recognized on disc
     let accounts_list =
-        Identity::list_accounts(Some(&account.paths())).await?;
+        Identity::list_accounts(Some(&linked_account.paths())).await?;
     assert_eq!(1, accounts_list.len());
 
     // Should be able to sign in to the linked account
-    account.sign_in(&key).await?;
+    linked_account.sign_in(&key).await?;
+
+    // Create secret in the linked account
+    let (meta, secret) = mock::note("note", TEST_ID);
+    let SecretChange { id, .. } = linked_account
+        .create_secret(meta, secret, Default::default())
+        .await?;
+
+    // Read from the linked account
+    let (linked_secret_data, _) =
+        linked_account.read_secret(&id, Default::default()).await?;
+
+    // Secret is immediately available on the local account
+    let local_secret_data = {
+        let accounts = local_accounts.read().await;
+        let local_account = accounts.selected_account().unwrap();
+        let (data, _) =
+            local_account.read_secret(&id, Default::default()).await?;
+        assert_eq!(&id, data.id());
+        assert_eq!("note", data.meta().label());
+        data
+    };
+
+    // Secrets must be identical
+    assert_eq!(linked_secret_data, local_secret_data);
 
     teardown(TEST_ID).await;
 

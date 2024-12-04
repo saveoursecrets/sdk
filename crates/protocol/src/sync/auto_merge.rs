@@ -65,34 +65,7 @@ pub trait AutoMerge: RemoteSyncHandler {
                 let exists =
                     self.client().account_exists(self.address()).await?;
                 if exists {
-                    let sync_status =
-                        self.client().sync_status(self.address()).await?;
-                    match self.sync_account(sync_status).await {
-                        Ok(outcome) => Ok(Some(outcome)),
-                        Err(e) => {
-                            if e.is_conflict() {
-                                let conflict = e.take_conflict().unwrap();
-                                match conflict {
-                                    ConflictError::Soft {
-                                        conflict,
-                                        local,
-                                        remote,
-                                    } => {
-                                        let outcome = self
-                                            .auto_merge(
-                                                options, conflict, local,
-                                                remote,
-                                            )
-                                            .await?;
-                                        Ok(Some(outcome))
-                                    }
-                                    _ => Err(conflict.into()),
-                                }
-                            } else {
-                                Err(e)
-                            }
-                        }
-                    }
+                    self.perform_sync(options).await
                 } else {
                     self.create_account().await?;
                     Ok(None)
@@ -104,12 +77,42 @@ pub trait AutoMerge: RemoteSyncHandler {
                     let account = account.lock().await;
                     account.storage().await.is_some()
                 };
-
                 if exists {
-                    todo!("sync(pull) existing account");
+                    self.perform_sync(options).await
                 } else {
                     self.create_account().await?;
                     Ok(None)
+                }
+            }
+        }
+    }
+
+    #[doc(hidden)]
+    async fn perform_sync(
+        &self,
+        options: &SyncOptions,
+    ) -> Result<Option<MergeOutcome>, Self::Error> {
+        let sync_status = self.client().sync_status(self.address()).await?;
+        match self.sync_account(sync_status).await {
+            Ok(outcome) => Ok(Some(outcome)),
+            Err(e) => {
+                if e.is_conflict() {
+                    let conflict = e.take_conflict().unwrap();
+                    match conflict {
+                        ConflictError::Soft {
+                            conflict,
+                            local,
+                            remote,
+                        } => {
+                            let outcome = self
+                                .auto_merge(options, conflict, local, remote)
+                                .await?;
+                            Ok(Some(outcome))
+                        }
+                        _ => Err(conflict.into()),
+                    }
+                } else {
+                    Err(e)
                 }
             }
         }
