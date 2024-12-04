@@ -542,6 +542,7 @@ impl FileSyncClient for HttpClient {
         >,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
+        use futures::StreamExt;
         use reqwest::{
             header::{CONTENT_LENGTH, CONTENT_TYPE},
             Body,
