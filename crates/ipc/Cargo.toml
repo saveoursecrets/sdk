@@ -24,8 +24,9 @@ serde.workspace = true
 serde_json.workspace = true
 typeshare.workspace = true
 parking_lot.workspace = true
+binary-stream.workspace = true
 
-sos-net = { version = "0.16", path = "../net", features = ["account", "search"] }
+sos-net = { version = "0.16", path = "../net", features = ["account", "search", "files"] }
 sos-account-extras = { version = "0.16", path = "../account_extras/", features = ["clipboard"] }
 
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "macros", "io-util", "io-std", "sync"] }

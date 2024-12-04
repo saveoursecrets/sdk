@@ -29,7 +29,7 @@ use sos_sdk::events::{DeviceDiff, DeviceEvent};
 #[cfg(feature = "files")]
 use sos_sdk::events::{FileDiff, FileEvent};
 
-use super::{RemoteSyncHandler, SyncStorage};
+use super::RemoteSyncHandler;
 
 /// State used while scanning commit proofs on a remote data source.
 #[doc(hidden)]

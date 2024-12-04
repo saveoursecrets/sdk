@@ -4596,6 +4596,7 @@ name = "sos-ipc"
 version = "0.16.0"
 dependencies = [
  "async-trait",
+ "binary-stream",
  "futures-util",
  "http",
  "hyper",
