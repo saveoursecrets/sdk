@@ -15,7 +15,7 @@ pub type SearchResults = Vec<(PublicIdentity, Vec<Document>)>;
 
 #[cfg(feature = "integration")]
 use sos_net::protocol::local_transport::{
-    TransportRequest, TransportResponse,
+    LocalRequest, LocalResponse,
 };
 
 /// Contract for types that expose an API to
@@ -32,8 +32,8 @@ pub trait AppIntegration<E: From<sos_net::sdk::Error>> {
     #[cfg(feature = "integration")]
     async fn request(
         &mut self,
-        request: TransportRequest,
-    ) -> Result<TransportResponse, E>;
+        request: LocalRequest,
+    ) -> Result<LocalResponse, E>;
 
     /// List the accounts on disc and include authentication state.
     async fn list_accounts(&mut self) -> Result<AccountsList, E>;

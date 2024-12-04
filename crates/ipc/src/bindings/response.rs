@@ -3,7 +3,7 @@ include!(concat!(env!("OUT_DIR"), "/response.rs"));
 use crate::{AccountsList, Error, Result, SearchResults};
 use serde::{Deserialize, Serialize};
 use sos_net::{
-    protocol::local_transport::TransportResponse,
+    protocol::local_transport::LocalResponse,
     sdk::{
         vault::{Summary, VaultId},
         Error as SdkError,
@@ -67,7 +67,7 @@ pub enum IpcResponseBody {
     /// Result of opening a URL.
     OpenUrl(bool),
     /// Result invoking the local server.
-    Http(TransportResponse),
+    Http(LocalResponse),
     /// List of accounts.
     Accounts(AccountsList),
     /// Copy to clipboard result.

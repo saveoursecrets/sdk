@@ -10,7 +10,7 @@ pub use sos_test_utils as test_utils;
 
 use async_trait::async_trait;
 use sos_net::protocol::local_transport::{
-    LocalTransport, TransportRequest, TransportResponse,
+    LocalTransport, LocalRequest, LocalResponse,
 };
 
 use sos_ipc::{AppIntegration, SocketClient};
@@ -38,8 +38,8 @@ impl TestLocalTransport {
 impl LocalTransport for TestLocalTransport {
     async fn call(
         &mut self,
-        request: TransportRequest,
-    ) -> sos_net::protocol::Result<TransportResponse> {
+        request: LocalRequest,
+    ) -> sos_net::protocol::Result<LocalResponse> {
         Ok(self.client.request(request).await.unwrap())
     }
 }

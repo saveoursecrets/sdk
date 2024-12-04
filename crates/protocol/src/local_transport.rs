@@ -22,7 +22,7 @@ use typeshare::typeshare;
 #[typeshare]
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TransportRequest {
+pub struct LocalRequest {
     /// Request method.
     #[serde_as(as = "DisplayFromStr")]
     pub method: Method,
@@ -37,7 +37,7 @@ pub struct TransportRequest {
     pub body: Vec<u8>,
 }
 
-impl From<Request<Vec<u8>>> for TransportRequest {
+impl From<Request<Vec<u8>>> for LocalRequest {
     fn from(value: Request<Vec<u8>>) -> Self {
         let (parts, body) = value.into_parts();
 
@@ -56,10 +56,10 @@ impl From<Request<Vec<u8>>> for TransportRequest {
     }
 }
 
-impl TryFrom<TransportRequest> for Request<Vec<u8>> {
+impl TryFrom<LocalRequest> for Request<Vec<u8>> {
     type Error = Error;
 
-    fn try_from(value: TransportRequest) -> Result<Self> {
+    fn try_from(value: LocalRequest) -> Result<Self> {
         let mut request =
             Request::builder().uri(&value.uri).method(&value.method);
         for (k, values) in &value.headers {
@@ -81,7 +81,7 @@ impl TryFrom<TransportRequest> for Request<Vec<u8>> {
 #[typeshare]
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TransportResponse {
+pub struct LocalResponse {
     /// Response status code.
     #[serde_as(as = "DisplayFromStr")]
     pub status: StatusCode,
@@ -93,7 +93,7 @@ pub struct TransportResponse {
     pub body: Vec<u8>,
 }
 
-impl From<Response<Vec<u8>>> for TransportResponse {
+impl From<Response<Vec<u8>>> for LocalResponse {
     fn from(value: Response<Vec<u8>>) -> Self {
         let (parts, body) = value.into_parts();
 
@@ -111,7 +111,7 @@ impl From<Response<Vec<u8>>> for TransportResponse {
     }
 }
 
-impl TransportResponse {
+impl LocalResponse {
     /// Status code.
     pub fn status(&self) -> StatusCode {
         self.status
@@ -150,6 +150,6 @@ pub trait LocalTransport {
     /// Send a request over the local transport.
     async fn call(
         &mut self,
-        request: TransportRequest,
-    ) -> Result<TransportResponse>;
+        request: LocalRequest,
+    ) -> Result<LocalResponse>;
 }

@@ -2,7 +2,7 @@ include!(concat!(env!("OUT_DIR"), "/common.rs"));
 
 use crate::{Error, Result};
 use sos_net::{
-    protocol::local_transport::{TransportRequest, TransportResponse},
+    protocol::local_transport::{LocalRequest, LocalResponse},
     sdk::{
         prelude::{
             Address, ArchiveFilter, Document, DocumentView, ExtraFields,
@@ -512,9 +512,9 @@ impl TryFrom<WireQualifiedPath> for QualifiedPath {
     }
 }
 
-impl From<TransportRequest> for WireTransportRequest {
-    fn from(value: TransportRequest) -> Self {
-        WireTransportRequest {
+impl From<LocalRequest> for WireLocalRequest {
+    fn from(value: LocalRequest) -> Self {
+        WireLocalRequest {
             uri: value.uri.to_string(),
             method: value.method.to_string(),
             headers: value
@@ -527,10 +527,10 @@ impl From<TransportRequest> for WireTransportRequest {
     }
 }
 
-impl TryFrom<WireTransportRequest> for TransportRequest {
+impl TryFrom<WireLocalRequest> for LocalRequest {
     type Error = Error;
 
-    fn try_from(value: WireTransportRequest) -> Result<Self> {
+    fn try_from(value: WireLocalRequest) -> Result<Self> {
         let mut headers = HashMap::new();
         for mut header in value.headers {
             let entry = headers.entry(header.name).or_insert(vec![]);
@@ -546,10 +546,10 @@ impl TryFrom<WireTransportRequest> for TransportRequest {
     }
 }
 
-impl From<TransportResponse> for WireTransportResponse {
-    fn from(value: TransportResponse) -> Self {
+impl From<LocalResponse> for WireLocalResponse {
+    fn from(value: LocalResponse) -> Self {
         let status: u16 = value.status().into();
-        WireTransportResponse {
+        WireLocalResponse {
             status: status.into(),
             headers: value
                 .headers
@@ -561,10 +561,10 @@ impl From<TransportResponse> for WireTransportResponse {
     }
 }
 
-impl TryFrom<WireTransportResponse> for TransportResponse {
+impl TryFrom<WireLocalResponse> for LocalResponse {
     type Error = Error;
 
-    fn try_from(value: WireTransportResponse) -> Result<Self> {
+    fn try_from(value: WireLocalResponse) -> Result<Self> {
         let status: u16 = value.status.try_into()?;
 
         let mut headers = HashMap::new();

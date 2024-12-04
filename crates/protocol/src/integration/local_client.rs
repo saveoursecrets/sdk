@@ -18,7 +18,7 @@
 //! the app integration was installed on the device.
 
 use crate::{
-    local_transport::{LocalTransport, TransportResponse},
+    local_transport::{LocalTransport, LocalResponse},
     CreateSet, DiffRequest, DiffResponse, Error, Origin, PatchRequest,
     PatchResponse, Result, ScanRequest, ScanResponse, SyncClient, SyncPacket,
     SyncStatus, UpdateSet, WireEncodeDecode,
@@ -70,8 +70,8 @@ impl LocalClient {
     /// and content type.
     async fn check_response(
         &self,
-        response: TransportResponse,
-    ) -> Result<TransportResponse> {
+        response: LocalResponse,
+    ) -> Result<LocalResponse> {
         let status = response.status();
         let content_type = response.content_type();
         match (status, content_type) {
@@ -95,8 +95,8 @@ impl LocalClient {
     /// into an error.
     async fn error_json(
         &self,
-        response: TransportResponse,
-    ) -> Result<TransportResponse> {
+        response: LocalResponse,
+    ) -> Result<LocalResponse> {
         let status = response.status();
         if !status.is_success() {
             if response.is_json() {

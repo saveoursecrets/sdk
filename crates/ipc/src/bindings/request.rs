@@ -3,7 +3,7 @@ include!(concat!(env!("OUT_DIR"), "/request.rs"));
 use crate::{Error, Result, WireVoidBody};
 use serde::{Deserialize, Serialize};
 use sos_net::{
-    protocol::local_transport::TransportRequest,
+    protocol::local_transport::LocalRequest,
     sdk::prelude::{
         Address, ArchiveFilter, DocumentView, QualifiedPath, QueryFilter,
     },
@@ -41,7 +41,7 @@ pub enum IpcRequestBody {
     /// Request to open a URL.
     OpenUrl(String),
     /// HTTP request routed to the local server.
-    Http(TransportRequest),
+    Http(LocalRequest),
     /// Request the accounts list.
     ListAccounts,
     /// Request to copy to the clipboard.

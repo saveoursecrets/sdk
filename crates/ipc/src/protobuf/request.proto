@@ -33,7 +33,7 @@ message WireIpcRequestBody {
     WireOpenUrlBody open_url = 5;
 
     // Request for the local server.
-    common.WireTransportRequest http = 6;
+    common.WireLocalRequest http = 6;
 
     // Request a list of accounts.
     common.WireVoidBody list_accounts = 7;

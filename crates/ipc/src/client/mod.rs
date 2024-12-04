@@ -27,7 +27,7 @@ pub use local_socket::*;
 
 #[cfg(feature = "integration")]
 use sos_net::protocol::local_transport::{
-    TransportRequest, TransportResponse,
+    LocalRequest, LocalResponse,
 };
 
 /// App integration functions for clients.
@@ -80,8 +80,8 @@ macro_rules! app_integration_impl {
             #[cfg(feature = "integration")]
             async fn request(
                 &mut self,
-                request: TransportRequest,
-            ) -> Result<TransportResponse> {
+                request: LocalRequest,
+            ) -> Result<LocalResponse> {
                 let request = IpcRequest {
                     message_id: self.next_id(),
                     payload: IpcRequestBody::Http(request),

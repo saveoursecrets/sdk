@@ -179,14 +179,14 @@ message WireQualifiedPath {
   string urn = 1;
 }
 
-message WireTransportRequest {
+message WireLocalRequest {
   string method = 1;
   string uri = 2;
   repeated WireTransportHeader headers = 3; 
   bytes body = 4;
 }
 
-message WireTransportResponse {
+message WireLocalResponse {
   uint32 status = 1;
   repeated WireTransportHeader headers = 2; 
   bytes body = 3;

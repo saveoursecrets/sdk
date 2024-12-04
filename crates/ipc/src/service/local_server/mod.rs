@@ -2,7 +2,7 @@ use http::{Method, Request, Response, StatusCode};
 use parking_lot::Mutex;
 use sos_net::{
     protocol::{
-        local_transport::{TransportRequest, TransportResponse},
+        local_transport::{LocalRequest, LocalResponse},
         Merge, SyncStorage,
     },
     sdk::prelude::{
@@ -242,7 +242,7 @@ impl LocalServer {
         }
     }
 
-    pub async fn handle(&self, req: TransportRequest) -> TransportResponse {
+    pub async fn handle(&self, req: LocalRequest) -> LocalResponse {
         let res = match req.try_into() {
             Ok(req) => self.call(req).await,
             Err(e) => Response::builder()

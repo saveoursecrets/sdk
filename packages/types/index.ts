@@ -160,7 +160,7 @@ export type IpcRequestBody =
 	/** Request to open a URL. */
 	| { kind: "openUrl", body: string }
 	/** HTTP request routed to the local server. */
-	| { kind: "http", body: TransportRequest }
+	| { kind: "http", body: LocalRequest }
 	/** Request the accounts list. */
 	| { kind: "listAccounts", body?: undefined }
 	/** Request to copy to the clipboard. */
@@ -206,6 +206,44 @@ export interface IpcResponseError {
 	message: string;
 }
 
+/**
+ * Request that can be sent to a local data source.
+ * 
+ * Supports serde so this type is compatible with the
+ * browser extension which transfers JSON via the
+ * native messaging API.
+ * 
+ * The body will usually be protobuf-encoded binary data.
+ */
+export interface LocalRequest {
+	/** Request method. */
+	method: Method;
+	/** Request URL. */
+	uri: Uri;
+	/** Request headers. */
+	headers: Record<string, string[]>;
+	/** Request body. */
+	body: number[];
+}
+
+/**
+ * Response received from a local data source.
+ * 
+ * Supports serde so this type is compatible with the
+ * browser extension which transfers JSON via the
+ * native messaging API.
+ * 
+ * The body will usually be protobuf-encoded binary data.
+ */
+export interface LocalResponse {
+	/** Response status code. */
+	status: StatusCode;
+	/** Response headers. */
+	headers: Record<string, string[]>;
+	/** Response body. */
+	body: number[];
+}
+
 /** Public account identity information. */
 export interface PublicIdentity {
 	/**
@@ -241,44 +279,6 @@ export interface ServiceAppInfo {
 	version: string;
 	/** App build number. */
 	build_number: number;
-}
-
-/**
- * Request that can be sent to a local data source.
- * 
- * Supports serde so this type is compatible with the
- * browser extension which transfers JSON via the
- * native messaging API.
- * 
- * The body will usually be protobuf-encoded binary data.
- */
-export interface TransportRequest {
-	/** Request method. */
-	method: Method;
-	/** Request URL. */
-	uri: Uri;
-	/** Request headers. */
-	headers: Record<string, string[]>;
-	/** Request body. */
-	body: number[];
-}
-
-/**
- * Response received from a local data source.
- * 
- * Supports serde so this type is compatible with the
- * browser extension which transfers JSON via the
- * native messaging API.
- * 
- * The body will usually be protobuf-encoded binary data.
- */
-export interface TransportResponse {
-	/** Response status code. */
-	status: StatusCode;
-	/** Response headers. */
-	headers: Record<string, string[]>;
-	/** Response body. */
-	body: number[];
 }
 
 /** Generic command outcome. */
@@ -383,7 +383,7 @@ export type IpcResponseBody =
 	/** Result of opening a URL. */
 	| { kind: "openUrl", body: boolean }
 	/** Result invoking the local server. */
-	| { kind: "http", body: TransportResponse }
+	| { kind: "http", body: LocalResponse }
 	/** List of accounts. */
 	| { kind: "accounts", body: AccountsList }
 	/** Copy to clipboard result. */
