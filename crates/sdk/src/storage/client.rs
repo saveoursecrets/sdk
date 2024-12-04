@@ -135,7 +135,7 @@ impl ClientStorage {
             identity_log,
             account_log,
             #[cfg(feature = "search")]
-            index: Some(AccountSearch::new()),
+            index: None,
             device_log,
             devices: Default::default(),
             #[cfg(feature = "files")]

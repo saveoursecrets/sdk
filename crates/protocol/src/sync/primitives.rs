@@ -442,18 +442,21 @@ pub trait SyncStorage: StorageEventLogs {
     /// Used by network aware implementations to transfer
     /// entire accounts.
     async fn change_set(&self) -> Result<CreateSet> {
+        tracing::debug!("change_set::read_identity");
         let identity = {
             let log = self.identity_log().await?;
             let reader = log.read().await;
             reader.diff_events(None).await?
         };
 
+        tracing::debug!("change_set::read_account");
         let account = {
             let log = self.account_log().await?;
             let reader = log.read().await;
             reader.diff_events(None).await?
         };
 
+        tracing::debug!("change_set::read_device");
         let device = {
             let log = self.device_log().await?;
             let reader = log.read().await;
@@ -467,6 +470,7 @@ pub trait SyncStorage: StorageEventLogs {
             reader.diff_events(None).await?
         };
 
+        tracing::debug!("change_set::read_folder_details");
         let mut folders = HashMap::new();
         let details = self.folder_details().await?;
 
@@ -474,9 +478,10 @@ pub trait SyncStorage: StorageEventLogs {
             if folder.flags().is_sync_disabled() {
                 tracing::debug!(
                     folder_id = %folder.id(),
-                    "create_set::ignore::no_sync_flag");
+                    "change_set::ignore::no_sync_flag");
                 continue;
             }
+            tracing::debug!(id = %folder.id(), "change_set::read_folder");
             let event_log = self.folder_log(folder.id()).await?;
             let log_file = event_log.read().await;
             folders.insert(*folder.id(), log_file.diff_events(None).await?);
