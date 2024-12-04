@@ -28,6 +28,7 @@ mod error;
 #[cfg(feature = "integration")]
 pub mod integration;
 pub mod local_transport;
+pub mod server_helpers;
 mod sync;
 mod traits;
 

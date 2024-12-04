@@ -25,7 +25,7 @@ use utoipa::{openapi::security::*, Modify, OpenApi};
         account::sync_status,
         account::sync_account,
         account::update_account,
-        account::event_proofs,
+        account::event_scan,
         account::event_diff,
         account::event_patch,
         account::delete_account,

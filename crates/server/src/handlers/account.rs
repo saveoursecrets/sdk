@@ -374,7 +374,7 @@ pub(crate) async fn sync_status(
         ),
     ),
 )]
-pub(crate) async fn event_proofs(
+pub(crate) async fn event_scan(
     Extension(state): Extension<ServerState>,
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
@@ -393,7 +393,7 @@ pub(crate) async fn event_proofs(
         .await
         {
             Ok(caller) => {
-                match handlers::event_proofs(state, backend, caller, bytes)
+                match handlers::event_scan(state, backend, caller, bytes)
                     .await
                 {
                     Ok(result) => result.into_response(),
@@ -591,36 +591,19 @@ pub(crate) async fn sync_account(
 
 mod handlers {
     use super::Caller;
-    use crate::{
-        backend::AccountStorage, Error, Result, ServerBackend, ServerState,
-    };
+    use crate::{Error, Result, ServerBackend, ServerState};
     use axum::body::Bytes;
-    use binary_stream::futures::{Decodable, Encodable};
     use http::{
         header::{self, HeaderMap, HeaderValue},
         StatusCode,
     };
     use sos_protocol::{
-        sdk::{
-            constants::MIME_TYPE_PROTOBUF,
-            events::{
-                AccountDiff, AccountEvent, CheckedPatch, DiscEventLog,
-                EventLogExt, EventRecord, FolderDiff, Patch, WriteEvent,
-            },
-            storage::StorageEventLogs,
-        },
-        CreateSet, DiffRequest, DiffResponse, EventLogType, Merge,
-        MergeOutcome, PatchRequest, PatchResponse, ScanRequest, ScanResponse,
-        SyncPacket, SyncStorage, UpdateSet, WireEncodeDecode,
+        sdk::constants::MIME_TYPE_PROTOBUF, server_helpers, CreateSet,
+        DiffRequest, PatchRequest, ScanRequest, SyncPacket, SyncStorage,
+        UpdateSet, WireEncodeDecode,
     };
 
-    use tokio::sync::RwLock;
-
     use std::sync::Arc;
-
-    use sos_protocol::sdk::events::{FileDiff, FileEvent};
-
-    use sos_protocol::sdk::events::{DeviceDiff, DeviceEvent};
 
     #[cfg(feature = "listen")]
     use sos_protocol::ChangeNotification;
@@ -719,7 +702,7 @@ mod handlers {
         Ok((headers, status.encode().await?))
     }
 
-    pub(super) async fn event_proofs(
+    pub(super) async fn event_scan(
         _state: ServerState,
         backend: ServerBackend,
         caller: Caller,
@@ -742,38 +725,9 @@ mod handlers {
             return Err(Error::BadRequest);
         }
 
-        let response = match &req.log_type {
-            EventLogType::Identity => {
-                let reader = account.read().await;
-                let log = reader.storage.identity_log();
-                let event_log = log.read().await;
-                scan_log(&req, &*event_log).await?
-            }
-            EventLogType::Account => {
-                let reader = account.read().await;
-                let log = reader.storage.account_log();
-                let event_log = log.read().await;
-                scan_log(&req, &*event_log).await?
-            }
-            EventLogType::Device => {
-                let reader = account.read().await;
-                let log = reader.storage.device_log().await?;
-                let event_log = log.read().await;
-                scan_log(&req, &*event_log).await?
-            }
-            EventLogType::Files => {
-                let reader = account.read().await;
-                let log = reader.storage.file_log().await?;
-                let event_log = log.read().await;
-                scan_log(&req, &*event_log).await?
-            }
-            EventLogType::Folder(id) => {
-                let reader = account.read().await;
-                let log = reader.storage.folder_log(&id).await?;
-                let event_log = log.read().await;
-                scan_log(&req, &*event_log).await?
-            }
-        };
+        let reader = account.read().await;
+        let response =
+            server_helpers::event_scan(&req, &reader.storage).await?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -782,68 +736,6 @@ mod handlers {
         );
 
         Ok((headers, response.encode().await?))
-    }
-
-    async fn scan_log<T>(
-        req: &ScanRequest,
-        event_log: &DiscEventLog<T>,
-    ) -> Result<ScanResponse>
-    where
-        T: Default + Encodable + Decodable + Send + Sync + 'static,
-    {
-        let mut res = ScanResponse {
-            first_proof: None,
-            proofs: vec![],
-            offset: 0,
-        };
-        let offset = req.offset;
-        let num_commits = event_log.tree().len() as u64;
-
-        let mut index = if event_log.tree().len() > 0 {
-            event_log.tree().len() - 1
-        } else {
-            0
-        };
-
-        if event_log.tree().len() > 0 {
-            res.first_proof = Some(event_log.tree().proof(&[0])?);
-        }
-
-        // Short circuit if the offset is clearly out of bounds
-        if offset >= num_commits {
-            res.offset = num_commits;
-            return Ok(res);
-        }
-
-        let mut it = event_log.iter(true).await?;
-        let mut skip = 0;
-
-        loop {
-            let event = it.next().await?;
-            if offset > 0 && skip < offset {
-                if index > 0 {
-                    index -= 1;
-                }
-                skip += 1;
-                continue;
-            }
-            if let Some(_event) = event {
-                let proof = event_log.tree().proof(&[index])?;
-                res.proofs.insert(0, proof);
-                res.offset = offset + res.proofs.len() as u64;
-
-                if index > 0 {
-                    index -= 1;
-                }
-
-                if res.proofs.len() == req.limit as usize {
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-        Ok(res)
     }
 
     pub(super) async fn event_diff(
@@ -864,38 +756,9 @@ mod handlers {
 
         let req = DiffRequest::decode(bytes).await?;
 
-        let response = match &req.log_type {
-            EventLogType::Identity => {
-                let reader = account.read().await;
-                let log = reader.storage.identity_log();
-                let event_log = log.read().await;
-                diff_log(&req, &*event_log).await?
-            }
-            EventLogType::Account => {
-                let reader = account.read().await;
-                let log = reader.storage.account_log();
-                let event_log = log.read().await;
-                diff_log(&req, &*event_log).await?
-            }
-            EventLogType::Device => {
-                let reader = account.read().await;
-                let log = reader.storage.device_log().await?;
-                let event_log = log.read().await;
-                diff_log(&req, &*event_log).await?
-            }
-            EventLogType::Files => {
-                let reader = account.read().await;
-                let log = reader.storage.file_log().await?;
-                let event_log = log.read().await;
-                diff_log(&req, &*event_log).await?
-            }
-            EventLogType::Folder(id) => {
-                let reader = account.read().await;
-                let log = reader.storage.folder_log(id).await?;
-                let event_log = log.read().await;
-                diff_log(&req, &*event_log).await?
-            }
-        };
+        let reader = account.read().await;
+        let response =
+            server_helpers::event_diff(&req, &reader.storage).await?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -903,21 +766,7 @@ mod handlers {
             HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        Ok((headers, response))
-    }
-
-    async fn diff_log<T>(
-        req: &DiffRequest,
-        event_log: &DiscEventLog<T>,
-    ) -> Result<Vec<u8>>
-    where
-        T: Default + Encodable + Decodable + Send + Sync + 'static,
-    {
-        let response = DiffResponse {
-            patch: event_log.diff_records(req.from_hash.as_ref()).await?,
-            checkpoint: event_log.tree().head()?,
-        };
-        Ok(response.encode().await?)
+        Ok((headers, response.encode().await?))
     }
 
     pub(super) async fn event_patch(
@@ -938,141 +787,9 @@ mod handlers {
 
         let req = PatchRequest::decode(bytes).await?;
 
-        let (checked_patch, outcome, records) = match &req.log_type {
-            EventLogType::Identity => {
-                let patch = Patch::<WriteEvent>::new(req.patch);
-                let mut writer = account.write().await;
-                let (last_commit, records) = if let Some(commit) = &req.commit
-                {
-                    let log = writer.storage.identity_log();
-                    let mut event_log = log.write().await;
-                    let records = event_log.rewind(commit).await?;
-                    (Some(*commit), records)
-                } else {
-                    (None, vec![])
-                };
-
-                let diff = FolderDiff {
-                    last_commit,
-                    checkpoint: req.proof,
-                    patch,
-                };
-
-                let mut outcome = MergeOutcome::default();
-                (
-                    writer.storage.merge_identity(diff, &mut outcome).await?,
-                    outcome,
-                    records,
-                )
-            }
-            EventLogType::Account => {
-                let patch = Patch::<AccountEvent>::new(req.patch);
-                let mut writer = account.write().await;
-                let (last_commit, records) = if let Some(commit) = &req.commit
-                {
-                    let log = writer.storage.account_log();
-                    let mut event_log = log.write().await;
-                    let records = event_log.rewind(commit).await?;
-                    (Some(*commit), records)
-                } else {
-                    (None, vec![])
-                };
-
-                let diff = AccountDiff {
-                    last_commit,
-                    checkpoint: req.proof,
-                    patch,
-                };
-
-                let mut outcome = MergeOutcome::default();
-                (
-                    writer.storage.merge_account(diff, &mut outcome).await?.0,
-                    outcome,
-                    records,
-                )
-            }
-            EventLogType::Device => {
-                let patch = Patch::<DeviceEvent>::new(req.patch);
-                let mut writer = account.write().await;
-                let (last_commit, records) = if let Some(commit) = &req.commit
-                {
-                    let log = writer.storage.device_log().await?;
-                    let mut event_log = log.write().await;
-                    let records = event_log.rewind(commit).await?;
-                    (Some(*commit), records)
-                } else {
-                    (None, vec![])
-                };
-
-                let diff = DeviceDiff {
-                    last_commit,
-                    checkpoint: req.proof,
-                    patch,
-                };
-
-                let mut outcome = MergeOutcome::default();
-                (
-                    writer.storage.merge_device(diff, &mut outcome).await?,
-                    outcome,
-                    records,
-                )
-            }
-            EventLogType::Files => {
-                let patch = Patch::<FileEvent>::new(req.patch);
-                let mut writer = account.write().await;
-                let (last_commit, records) = if let Some(commit) = &req.commit
-                {
-                    let log = writer.storage.file_log().await?;
-                    let mut event_log = log.write().await;
-                    let records = event_log.rewind(commit).await?;
-                    (Some(*commit), records)
-                } else {
-                    (None, vec![])
-                };
-
-                let diff = FileDiff {
-                    last_commit,
-                    checkpoint: req.proof,
-                    patch,
-                };
-
-                let mut outcome = MergeOutcome::default();
-                (
-                    writer.storage.merge_files(diff, &mut outcome).await?,
-                    outcome,
-                    records,
-                )
-            }
-            EventLogType::Folder(id) => {
-                let patch = Patch::<WriteEvent>::new(req.patch);
-                let mut writer = account.write().await;
-                let (last_commit, records) = if let Some(commit) = &req.commit
-                {
-                    let log = writer.storage.folder_log(&id).await?;
-                    let mut event_log = log.write().await;
-                    let records = event_log.rewind(commit).await?;
-                    (Some(*commit), records)
-                } else {
-                    (None, vec![])
-                };
-
-                let diff = FolderDiff {
-                    last_commit,
-                    checkpoint: req.proof,
-                    patch,
-                };
-
-                let mut outcome = MergeOutcome::default();
-                (
-                    writer
-                        .storage
-                        .merge_folder(&id, diff, &mut outcome)
-                        .await?
-                        .0,
-                    outcome,
-                    records,
-                )
-            }
+        let (response, outcome) = {
+            let mut writer = account.write().await;
+            server_helpers::event_patch(req, &mut writer.storage).await?
         };
 
         #[cfg(feature = "listen")]
@@ -1091,60 +808,13 @@ mod handlers {
             }
         }
 
-        // Rollback the rewind if the merge failed
-        if let CheckedPatch::Conflict { head, .. } = &checked_patch {
-            tracing::warn!(
-                head = ?head,
-                num_records = ?records.len(),
-                "events_patch::rollback_rewind");
-            rollback_rewind(&req.log_type, account, records).await?;
-        }
-
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
             HeaderValue::from_static(MIME_TYPE_PROTOBUF),
         );
 
-        let response = PatchResponse { checked_patch };
         Ok((headers, response.encode().await?))
-    }
-
-    async fn rollback_rewind(
-        log_type: &EventLogType,
-        account: Arc<RwLock<AccountStorage>>,
-        records: Vec<EventRecord>,
-    ) -> Result<()> {
-        let reader = account.read().await;
-        match log_type {
-            EventLogType::Identity => {
-                let log = reader.storage.identity_log();
-                let mut event_log = log.write().await;
-                event_log.apply_records(records).await?;
-            }
-            EventLogType::Account => {
-                let log = reader.storage.account_log();
-                let mut event_log = log.write().await;
-                event_log.apply_records(records).await?;
-            }
-            EventLogType::Device => {
-                let log = reader.storage.device_log().await?;
-                let mut event_log = log.write().await;
-                event_log.apply_records(records).await?;
-            }
-            EventLogType::Files => {
-                let log = reader.storage.file_log().await?;
-                let mut event_log = log.write().await;
-                event_log.apply_records(records).await?;
-            }
-            EventLogType::Folder(id) => {
-                let log = reader.storage.folder_log(id).await?;
-                let mut event_log = log.write().await;
-                event_log.apply_records(records).await?;
-            }
-        }
-
-        Ok(())
     }
 
     pub(super) async fn sync_account(
@@ -1164,29 +834,10 @@ mod handlers {
         };
 
         let packet = SyncPacket::decode(bytes).await?;
-        let (remote_status, mut diff) = (packet.status, packet.diff);
 
-        // Apply the diff to the storage
-        let mut outcome = MergeOutcome::default();
-        let compare = {
-            tracing::debug!("merge_server");
+        let (packet, outcome) = {
             let mut writer = account.write().await;
-
-            // Only try to merge folders that exist in storage
-            // otherwise after folder deletion sync will fail
-            let folders = writer.storage.folder_identifiers().await?;
-            diff.folders.retain(|k, _| folders.contains(k));
-
-            writer.storage.merge(diff, &mut outcome).await?
-        };
-
-        // Generate a new diff so the client can apply changes
-        // that exist in remote but not in the local
-        let (local_status, diff) = {
-            let reader = account.read().await;
-            let (_, local_status, diff) =
-                sos_protocol::diff(&reader.storage, remote_status).await?;
-            (local_status, diff)
+            server_helpers::sync_account(packet, &mut writer.storage).await?
         };
 
         #[cfg(feature = "listen")]
@@ -1195,19 +846,13 @@ mod handlers {
                 let notification = ChangeNotification::new(
                     caller.address(),
                     conn_id.to_string(),
-                    local_status.root,
+                    packet.status.root,
                     outcome,
                 );
                 let reader = state.read().await;
                 send_notification(&*reader, &caller, notification).await;
             }
         }
-
-        let packet = SyncPacket {
-            status: local_status,
-            diff,
-            compare: Some(compare),
-        };
 
         let mut headers = HeaderMap::new();
         headers.insert(

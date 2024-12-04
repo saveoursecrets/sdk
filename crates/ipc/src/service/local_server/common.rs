@@ -33,10 +33,6 @@ pub fn bad_request() -> hyper::Result<Response<Body>> {
     status(StatusCode::BAD_REQUEST)
 }
 
-pub fn conflict() -> hyper::Result<Response<Body>> {
-    status(StatusCode::CONFLICT)
-}
-
 pub fn forbidden() -> hyper::Result<Response<Body>> {
     status(StatusCode::FORBIDDEN)
 }

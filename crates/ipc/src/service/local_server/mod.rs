@@ -200,7 +200,7 @@ impl LocalServer {
                 SYNC_ACCOUNT_EVENTS,
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
-                        events_scan(req, state.clone())
+                        event_scan(req, state.clone())
                     },
                 ))
                 .into(),
@@ -215,7 +215,7 @@ impl LocalServer {
                 SYNC_ACCOUNT_EVENTS,
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
-                        events_diff(req, state.clone())
+                        event_diff(req, state.clone())
                     },
                 ))
                 .into(),
@@ -230,7 +230,7 @@ impl LocalServer {
                 SYNC_ACCOUNT_EVENTS,
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
-                        events_patch(req, state.clone())
+                        event_patch(req, state.clone())
                     },
                 ))
                 .into(),
