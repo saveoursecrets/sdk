@@ -3431,7 +3431,7 @@ impl StorageEventLogs for LocalAccount {
     async fn folder_identifiers(&self) -> Result<IndexSet<VaultId>> {
         let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let storage = storage.read().await;
-        let summaries = storage.list_folders().to_vec();
+        let summaries = storage.read_folders().await?;
         Ok(summaries.iter().map(|s| *s.id()).collect())
     }
 

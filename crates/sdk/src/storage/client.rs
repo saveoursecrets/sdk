@@ -1148,10 +1148,8 @@ impl ClientStorage {
             .await
     }
 
-    /// Load folders from the local disc.
-    ///
-    /// Creates the in-memory event logs for each folder on disc.
-    pub async fn load_folders(&mut self) -> Result<&[Summary]> {
+    /// Read folders from the local disc.
+    pub async fn read_folders(&self) -> Result<Vec<Summary>> {
         let storage = self.paths.vaults_dir();
         let mut summaries = Vec::new();
         let mut contents = vfs::read_dir(&storage).await?;
@@ -1167,7 +1165,13 @@ impl ClientStorage {
                 }
             }
         }
+        Ok(summaries)
+    }
 
+    /// Read folders from the local disc and create the in-memory
+    /// event logs for each folder on disc.
+    pub async fn load_folders(&mut self) -> Result<&[Summary]> {
+        let summaries = self.read_folders().await?;
         self.load_caches(&summaries).await?;
         self.summaries = summaries;
         Ok(self.list_folders())
