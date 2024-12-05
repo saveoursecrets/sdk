@@ -181,6 +181,9 @@ impl Decodable for WriteEvent {
     ) -> Result<()> {
         let mut op: EventKind = Default::default();
         op.decode(&mut *reader).await?;
+
+        tracing::info!("WriteEvent::decode: {:#?}", op);
+
         match op {
             EventKind::Noop => panic!("attempt to decode a noop"),
             EventKind::CreateVault => {

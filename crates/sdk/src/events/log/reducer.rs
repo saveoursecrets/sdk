@@ -72,9 +72,13 @@ impl FolderReducer {
         D: Clone + Send + Sync,
     {
         // TODO: use event_log.stream() !
+        //
+
+        tracing::info!("FolderReducer::reduce");
 
         let mut it = event_log.iter(false).await?;
         if let Some(log) = it.next().await? {
+            tracing::info!("read event log in reducer: {:#?}", log);
             let event = event_log.decode_event(&log).await?;
 
             if let WriteEvent::CreateVault(vault) = event {

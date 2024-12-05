@@ -1,15 +1,17 @@
 use anyhow::Result;
 
 use std::ffi::OsString;
+use std::io::SeekFrom;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
 use crate::memory::{self as vfs, File, OpenOptions, Permissions};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 #[tokio::test]
 async fn memory_vfs() -> Result<()> {
     file_write_read().await?;
     file_append().await?;
+    file_seek().await?;
     read_to_string().await?;
     metadata().await?;
     file_overwrite().await?;
@@ -61,6 +63,30 @@ async fn file_append() -> Result<()> {
         .await?;
     fd.write_all("two".as_bytes()).await?;
     fd.flush().await?;
+
+    let file_contents = vfs::read(path).await?;
+    assert_eq!("onetwo".as_bytes(), &file_contents);
+
+    vfs::remove_file(path).await?;
+
+    Ok(())
+}
+
+async fn file_seek() -> Result<()> {
+    let path = "test.txt";
+    vfs::write(path, "one".as_bytes()).await?;
+
+    let mut fd = OpenOptions::new().write(true).open(path).await?;
+    fd.seek(SeekFrom::End(0)).await?;
+    fd.write_all("two".as_bytes()).await?;
+    fd.flush().await?;
+
+    fd.seek(SeekFrom::Start(1)).await?;
+    let mut buf = [0; 2];
+    fd.read_exact(&mut buf).await?;
+
+    let val = std::str::from_utf8(&buf).unwrap();
+    assert_eq!("ne", val);
 
     let file_contents = vfs::read(path).await?;
     assert_eq!("onetwo".as_bytes(), &file_contents);

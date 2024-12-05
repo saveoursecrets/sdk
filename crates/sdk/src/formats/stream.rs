@@ -159,6 +159,8 @@ where
         offset: Range<u64>,
         is_prefix: bool,
     ) -> Result<T> {
+        tracing::info!("reading row from offset: {:?} {}", offset, is_prefix);
+
         let mut row: T = Default::default();
 
         row.decode(&mut *reader).await?;
@@ -186,6 +188,8 @@ where
             BinaryReader::new(&mut self.read_stream, encoding_options());
         reader.seek(SeekFrom::Start(row_pos)).await?;
         let row_len = reader.read_u32().await?;
+
+        tracing::info!("read row_len: {}", row_len);
 
         // Position of the end of the row
         let row_end = row_pos + (row_len as u64 + 8);

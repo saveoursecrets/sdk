@@ -1720,6 +1720,11 @@ impl Account for LocalAccount {
                 .await?
                 .build(true)
                 .await?;
+
+            tracing::info!(
+                "import_account_events::identity::reduced_vault::done"
+            );
+
             let buffer = encode(&vault).await?;
             let identity_vault = paths.identity_vault();
             vfs::write(identity_vault, &buffer).await?;
