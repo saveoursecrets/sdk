@@ -1,6 +1,5 @@
 use crate::ServiceAppInfo;
-use async_trait::async_trait;
-use sos_net::sdk::account::{Account, AccountSwitcher};
+use sos_sdk::account::{Account, AccountSwitcher};
 
 use sos_protocol::{
     local_transport::{LocalRequest, LocalResponse},
@@ -44,7 +43,7 @@ impl IpcService {
         R: 'static,
         E: std::error::Error
             + std::fmt::Debug
-            + From<sos_net::sdk::Error>
+            + From<sos_sdk::Error>
             + From<std::io::Error>
             + 'static,
     {

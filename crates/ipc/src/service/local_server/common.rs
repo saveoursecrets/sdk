@@ -3,12 +3,11 @@ use http::{
     Request, Response, StatusCode,
 };
 use serde::Serialize;
-use sos_net::sdk::prelude::Address;
-
-use sos_net::protocol::constants::{
+use sos_protocol::constants::{
     ENCODING_ZLIB, ENCODING_ZSTD, MIME_TYPE_JSON, MIME_TYPE_PROTOBUF,
     X_SOS_ACCOUNT_ID,
 };
+use sos_sdk::prelude::Address;
 
 use super::{Body, Incoming};
 
@@ -94,7 +93,7 @@ pub fn protobuf(body: Body) -> hyper::Result<Response<Body>> {
 }
 
 pub fn protobuf_compress(body: Body) -> hyper::Result<Response<Body>> {
-    use sos_net::protocol::compression::zlib;
+    use sos_protocol::compression::zlib;
     let Ok(buf) = zlib::encode_all(body.as_slice()) else {
         return internal_server_error("zlib::compress");
     };
@@ -108,7 +107,7 @@ pub fn protobuf_compress(body: Body) -> hyper::Result<Response<Body>> {
 
 /*
 pub fn protobuf_zstd(body: Body) -> hyper::Result<Response<Body>> {
-    use sos_net::protocol::compression::zstd;
+    use sos_protocol::compression::zstd;
     let Ok(buf) = zstd::encode_all(body.as_slice(), 20) else {
         return internal_server_error("zstd::compress");
     };

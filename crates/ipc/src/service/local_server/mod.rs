@@ -1,16 +1,13 @@
 use http::{Method, Request, Response, StatusCode};
 use parking_lot::Mutex;
-use sos_net::{
-    protocol::{
-        constants::routes::v1::{
-            ACCOUNTS_LIST, SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS,
-            SYNC_ACCOUNT_STATUS,
-        },
-        local_transport::{LocalRequest, LocalResponse},
-        Merge, SyncStorage,
+use sos_protocol::{
+    constants::routes::v1::{
+        ACCOUNTS_LIST, SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
     },
-    sdk::prelude::{Account, AccountSwitcher},
+    local_transport::{LocalRequest, LocalResponse},
+    Merge, SyncStorage,
 };
+use sos_sdk::prelude::{Account, AccountSwitcher};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 use tower::service_fn;
@@ -67,7 +64,7 @@ impl LocalServer {
             + 'static,
         R: 'static,
         E: std::fmt::Debug
-            + From<sos_net::sdk::Error>
+            + From<sos_sdk::Error>
             + From<std::io::Error>
             + 'static,
     {

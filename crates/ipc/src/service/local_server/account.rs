@@ -1,11 +1,9 @@
 use http::{Request, Response, StatusCode};
 use hyper::body::Bytes;
-use sos_net::{
-    protocol::{
-        server_helpers, Merge, SyncPacket, SyncStorage, WireEncodeDecode,
-    },
-    sdk::prelude::{Account, AccountSwitcher, Identity},
+use sos_protocol::{
+    server_helpers, Merge, SyncPacket, SyncStorage, WireEncodeDecode,
 };
+use sos_sdk::prelude::{Account, AccountSwitcher, Identity};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -23,7 +21,7 @@ where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     R: 'static,
     E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
+        + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {
@@ -47,7 +45,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
+        + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {
@@ -79,7 +77,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
+        + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {
@@ -98,7 +96,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
+        + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {
@@ -117,7 +115,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
+        + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {
@@ -156,7 +154,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
+        + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {
@@ -175,7 +173,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
+        + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {
@@ -214,7 +212,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
+        + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {

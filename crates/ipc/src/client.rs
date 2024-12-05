@@ -7,12 +7,12 @@ use interprocess::local_socket::{tokio::prelude::*, GenericNamespaced};
 use tokio_stream::StreamExt;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
-use sos_net::sdk::prelude::PublicIdentity;
 use sos_protocol::{
     constants::routes::v1::ACCOUNTS_LIST,
     local_transport::{LocalRequest, LocalResponse},
     NetworkError,
 };
+use sos_sdk::prelude::PublicIdentity;
 
 /// Socket client for inter-process communication.
 pub struct SocketClient {

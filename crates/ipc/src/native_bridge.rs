@@ -9,10 +9,8 @@ use crate::{Error, Result, SocketClient};
 use futures_util::{SinkExt, StreamExt};
 use http::StatusCode;
 use once_cell::sync::Lazy;
-use sos_net::sdk::{
-    logs::Logger, prelude::IPC_GUI_SOCKET_NAME, url::Url, Paths,
-};
 use sos_protocol::local_transport::{LocalRequest, LocalResponse};
+use sos_sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME, url::Url, Paths};
 use std::{io::ErrorKind, sync::Arc, time::Duration};
 use tokio::{
     sync::{mpsc, Mutex},

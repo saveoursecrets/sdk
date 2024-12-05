@@ -1,7 +1,7 @@
 include!(concat!(env!("OUT_DIR"), "/common.rs"));
 
 use crate::{Error, Result};
-use sos_net::protocol::local_transport::{LocalRequest, LocalResponse};
+use sos_protocol::local_transport::{LocalRequest, LocalResponse};
 use std::collections::HashMap;
 
 impl From<LocalRequest> for WireLocalRequest {

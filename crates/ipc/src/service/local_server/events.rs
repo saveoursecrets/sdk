@@ -1,12 +1,10 @@
 use http::{Request, Response};
 use hyper::body::Bytes;
-use sos_net::{
-    protocol::{
-        server_helpers, DiffRequest, Merge, PatchRequest, ScanRequest,
-        SyncStorage, WireEncodeDecode,
-    },
-    sdk::prelude::{Account, AccountSwitcher, StorageEventLogs},
+use sos_protocol::{
+    server_helpers, DiffRequest, Merge, PatchRequest, ScanRequest,
+    SyncStorage, WireEncodeDecode,
 };
+use sos_sdk::prelude::{Account, AccountSwitcher, StorageEventLogs};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -27,7 +25,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
+        + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {
@@ -76,7 +74,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
+        + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {
@@ -121,7 +119,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
-        + From<sos_net::sdk::Error>
+        + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {
