@@ -1704,7 +1704,17 @@ impl Account for LocalAccount {
         {
             let mut identity_log = storage.identity_log.write().await;
             let records: Vec<EventRecord> = identity.into();
+            /*
+            for record in &records {
+                tracing::info!(record = ?record);
+            }
+            */
             identity_log.apply_records(records).await?;
+
+            tracing::info!(
+                "import_account_events::identity::apply_records::done"
+            );
+
             let vault = FolderReducer::new()
                 .reduce(&*identity_log)
                 .await?

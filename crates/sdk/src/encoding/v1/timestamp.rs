@@ -30,6 +30,8 @@ impl Decodable for UtcDateTime {
         let seconds = reader.read_i64().await?;
         let nanos = reader.read_u32().await?;
 
+        tracing::info!("read seconds as: {:#?}", seconds);
+
         self.0 = OffsetDateTime::from_unix_timestamp(seconds)
             .map_err(encoding_error)?
             + Duration::nanoseconds(nanos as i64);
