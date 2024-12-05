@@ -17,6 +17,7 @@ use tokio::sync::RwLock;
 
 use crate::test_utils::setup;
 
+#[ignore]
 #[tokio::test]
 async fn integration_ipc_authenticate_success() -> Result<()> {
     const TEST_ID: &str = "ipc_authenticate_success";

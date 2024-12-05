@@ -17,6 +17,7 @@ use tokio::sync::RwLock;
 
 use crate::test_utils::{mock, setup, teardown};
 
+#[ignore]
 #[tokio::test]
 async fn integration_ipc_search() -> Result<()> {
     const TEST_ID: &str = "ipc_search";

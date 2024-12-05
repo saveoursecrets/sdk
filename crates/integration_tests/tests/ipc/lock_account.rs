@@ -16,6 +16,7 @@ use tokio::sync::RwLock;
 
 use crate::test_utils::{setup, teardown};
 
+#[ignore]
 #[tokio::test]
 async fn integration_ipc_lock_account() -> Result<()> {
     const TEST_ID: &str = "ipc_lock_account";

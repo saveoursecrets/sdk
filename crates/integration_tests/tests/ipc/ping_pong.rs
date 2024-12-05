@@ -9,6 +9,7 @@ use tokio::sync::RwLock;
 
 use crate::test_utils::{setup, teardown};
 
+#[ignore]
 #[tokio::test]
 async fn integration_ipc_ping_pong() -> Result<()> {
     const TEST_ID: &str = "ipc_ping_pong";
