@@ -105,8 +105,11 @@ pub struct ClientStorage {
 }
 
 impl ClientStorage {
-    /// Create empty folder storage for client-side access.
-    pub async fn empty(address: Address, paths: Arc<Paths>) -> Result<Self> {
+    /// Create unauthenticated folder storage for client-side access.
+    pub async fn new_unauthenticated(
+        address: Address,
+        paths: Arc<Paths>,
+    ) -> Result<Self> {
         paths.ensure().await?;
 
         let identity_log = Arc::new(RwLock::new(
@@ -150,7 +153,7 @@ impl ClientStorage {
     }
 
     /// Create folder storage for client-side access.
-    pub async fn new(
+    pub async fn new_authenticated(
         address: Address,
         data_dir: Option<PathBuf>,
         identity_log: Arc<RwLock<FolderEventLog>>,

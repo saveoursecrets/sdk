@@ -1013,7 +1013,7 @@ impl LocalAccount {
         let identity_log = user.identity().as_ref().unwrap().event_log();
 
         #[allow(unused_mut)]
-        let mut storage = ClientStorage::new(
+        let mut storage = ClientStorage::new_authenticated(
             signer.address()?,
             Some(data_dir),
             identity_log,
@@ -1568,8 +1568,11 @@ impl LocalAccount {
 
         let storage = if paths.is_usable().await? {
             Some(Arc::new(RwLock::new(
-                ClientStorage::empty(address, Arc::new(paths.clone()))
-                    .await?,
+                ClientStorage::new_unauthenticated(
+                    address,
+                    Arc::new(paths.clone()),
+                )
+                .await?,
             )))
         } else {
             None
@@ -1629,7 +1632,7 @@ impl LocalAccount {
         let address = new_account.address;
         let identity_log = new_account.user.identity()?.event_log();
 
-        let mut storage = ClientStorage::new(
+        let mut storage = ClientStorage::new_authenticated(
             address,
             data_dir.clone(),
             identity_log,
@@ -1696,7 +1699,8 @@ impl Account for LocalAccount {
         let paths = self.paths();
 
         let mut storage =
-            ClientStorage::empty(address, paths.clone()).await?;
+            ClientStorage::new_unauthenticated(address, paths.clone())
+                .await?;
 
         {
             let mut identity_log = storage.identity_log.write().await;
