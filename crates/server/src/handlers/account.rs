@@ -598,7 +598,7 @@ mod handlers {
         StatusCode,
     };
     use sos_protocol::{
-        sdk::constants::MIME_TYPE_PROTOBUF, server_helpers, CreateSet,
+        constants::MIME_TYPE_PROTOBUF, server_helpers, CreateSet,
         DiffRequest, PatchRequest, ScanRequest, SyncPacket, SyncStorage,
         UpdateSet, WireEncodeDecode,
     };

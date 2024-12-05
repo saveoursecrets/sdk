@@ -2,15 +2,13 @@ use http::{Method, Request, Response, StatusCode};
 use parking_lot::Mutex;
 use sos_net::{
     protocol::{
+        constants::routes::v1::{
+            SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
+        },
         local_transport::{LocalRequest, LocalResponse},
         Merge, SyncStorage,
     },
-    sdk::prelude::{
-        routes::v1::{
-            SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
-        },
-        Account, AccountSwitcher,
-    },
+    sdk::prelude::{Account, AccountSwitcher},
 };
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;

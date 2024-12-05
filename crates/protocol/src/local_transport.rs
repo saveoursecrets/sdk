@@ -1,6 +1,9 @@
 //! Types used for communicating between apps on the same device.
 
-use crate::{Error, Result};
+use crate::{
+    constants::{ENCODING_ZLIB, ENCODING_ZSTD, MIME_TYPE_JSON},
+    Error, Result,
+};
 use async_trait::async_trait;
 use bytes::Bytes;
 use http::{
@@ -9,10 +12,6 @@ use http::{
 };
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use sos_sdk::{
-    constants::MIME_TYPE_JSON,
-    prelude::{ENCODING_ZLIB, ENCODING_ZSTD},
-};
 use std::{collections::HashMap, fmt};
 use typeshare::typeshare;
 

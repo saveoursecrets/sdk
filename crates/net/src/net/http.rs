@@ -7,17 +7,17 @@ use tracing::instrument;
 
 use crate::{
     protocol::{
-        CreateSet, DiffRequest, DiffResponse, NetworkError, Origin,
-        PatchRequest, PatchResponse, ScanRequest, ScanResponse, SyncClient,
-        SyncPacket, SyncStatus, UpdateSet, WireEncodeDecode,
-    },
-    sdk::{
         constants::{
             routes::v1::{
                 SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
             },
             MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
         },
+        CreateSet, DiffRequest, DiffResponse, NetworkError, Origin,
+        PatchRequest, PatchResponse, ScanRequest, ScanResponse, SyncClient,
+        SyncPacket, SyncStatus, UpdateSet, WireEncodeDecode,
+    },
+    sdk::{
         prelude::Address,
         signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     },

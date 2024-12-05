@@ -25,6 +25,7 @@
 
 mod bindings;
 pub mod compression;
+pub mod constants;
 mod error;
 #[cfg(feature = "integration")]
 pub mod integration;

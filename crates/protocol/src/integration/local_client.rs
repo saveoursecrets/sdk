@@ -18,6 +18,12 @@
 //! the app integration was installed on the device.
 
 use crate::{
+    constants::{
+        routes::v1::{
+            SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
+        },
+        MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
+    },
     error::NetworkError,
     local_transport::{LocalResponse, LocalTransport},
     CreateSet, DiffRequest, DiffResponse, Error, Origin, PatchRequest,
@@ -27,15 +33,7 @@ use crate::{
 use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method, Request, StatusCode, Uri};
 use serde_json::Value;
-use sos_sdk::{
-    constants::{
-        routes::v1::{
-            SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
-        },
-        MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
-    },
-    prelude::Address,
-};
+use sos_sdk::prelude::Address;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::instrument;

@@ -3,9 +3,11 @@ use http::{
     Request, Response, StatusCode,
 };
 use serde::Serialize;
-use sos_net::sdk::prelude::{
-    Address, ENCODING_ZLIB, ENCODING_ZSTD, MIME_TYPE_JSON,
-    MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
+use sos_net::sdk::prelude::Address;
+
+use sos_net::protocol::constants::{
+    ENCODING_ZLIB, ENCODING_ZSTD, MIME_TYPE_JSON, MIME_TYPE_PROTOBUF,
+    X_SOS_ACCOUNT_ID,
 };
 
 use super::{Body, Incoming};
