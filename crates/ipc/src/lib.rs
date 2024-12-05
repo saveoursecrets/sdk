@@ -3,16 +3,15 @@
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Inter-process communcation library for [Save Our Secrets](https://saveoursecrets.com/).
 //!
-//! Supports a local socket transport using [interprocess](https://docs.rs/interprocess/latest/interprocess/) which is enabled by default and an alternative TCP transport which can be enabled using the `tcp` feature if required.
-//!
 //! Communication uses [protocol buffers](https://protobuf.dev/)
 //! however to facilitate browser extensions that need to use
 //! [native messaging](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging) all request and response types must
 //! also implement the [serde](https://docs.rs/serde/latest/serde/) traits.
 //!
 //! This crate also includes the source for the `sos-native-bridge`
-//! executable which translates JSON requests into the underlying protobuf
-//! messages and relay them over the IPC channel.
+//! helpers executable which translates length-delimited JSON requests
+//! into the underlying protobuf messages and relay them over the IPC
+//! channel.
 
 mod error;
 
@@ -26,31 +25,42 @@ mod service;
 
 pub use error::Error;
 
+pub(crate) use bindings::*;
+
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;
 
-pub use bindings::*;
 pub use service::{
-    local_account_delegate, network_account_delegate, Command,
-    CommandOptions, IpcService, IpcServiceHandler, IpcServiceOptions,
-    LocalAccountCommand, LocalAccountIpcService, LocalAccountServiceDelegate,
-    NetworkAccountCommand, NetworkAccountIpcService,
-    NetworkAccountServiceDelegate,
+    IpcService, IpcServiceHandler, IpcServiceOptions, LocalAccountIpcService,
+    NetworkAccountIpcService,
 };
 
-#[cfg(feature = "tcp")]
-pub use server::{LocalAccountTcpServer, NetworkAccountTcpServer};
-
-#[cfg(feature = "tcp")]
-pub use client::TcpClient;
-
-#[cfg(feature = "local-socket")]
+pub use client::SocketClient;
 pub use server::{LocalAccountSocketServer, NetworkAccountSocketServer};
 
-#[cfg(feature = "local-socket")]
-pub use client::SocketClient;
-
 pub use client::AppIntegration;
+
+/// Information about the service.
+#[typeshare::typeshare]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ServiceAppInfo {
+    /// App name.
+    pub name: String,
+    /// App version.
+    pub version: String,
+    /// App build number.
+    pub build_number: u32,
+}
+
+impl Default for ServiceAppInfo {
+    fn default() -> Self {
+        Self {
+            name: env!("CARGO_PKG_NAME").to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            build_number: 0,
+        }
+    }
+}
 
 /// Encode to protobuf.
 pub(crate) fn encode_proto<T: prost::Message>(value: &T) -> Result<Vec<u8>> {

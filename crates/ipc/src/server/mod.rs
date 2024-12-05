@@ -1,4 +1,5 @@
 use futures_util::sink::SinkExt;
+use http::StatusCode;
 use std::{pin::Pin, sync::Arc};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
@@ -12,27 +13,23 @@ use tokio_util::{
 };
 
 use crate::{
-    codec, decode_proto, encode_proto, io_err, Error, IpcRequest,
-    IpcResponse, IpcResponseError, IpcService, WireIpcRequest,
-    WireIpcResponse,
+    codec, decode_proto, encode_proto, io_err, Error, IpcService,
+    WireLocalRequest, WireLocalResponse,
 };
 
-#[cfg(feature = "tcp")]
-mod tcp;
+use sos_protocol::local_transport::{LocalRequest, LocalResponse};
 
-#[cfg(feature = "tcp")]
-pub use tcp::*;
-
-#[cfg(feature = "local-socket")]
 mod local_socket;
-
-#[cfg(feature = "local-socket")]
 pub use local_socket::*;
 
 async fn handle_conn<E, S, T>(service: Arc<RwLock<S>>, socket: T)
 where
     S: IpcService<E> + Send + Sync + 'static,
-    E: Send + From<std::io::Error> + std::fmt::Debug + std::fmt::Display,
+    E: std::error::Error
+        + Send
+        + From<std::io::Error>
+        + std::fmt::Debug
+        + std::fmt::Display,
     T: AsyncRead + AsyncWrite + Sized,
 {
     let io = Box::pin(socket);
@@ -51,14 +48,8 @@ where
                 {
                     // Internal error, try to send a response and close
                     // the connection if we error here
-                    let response = IpcResponse::Error {
-                        message_id: 0,
-                        payload: IpcResponseError {
-                            code: -1,
-                            message: err.to_string(),
-                        },
-                    };
-                    let response: WireIpcResponse = response.into();
+                    let response = LocalResponse::new_internal_error(err);
+                    let response: WireLocalResponse = response.into();
                     match encode_proto(&response) {
                         Ok(buffer) => {
                             match framed.send(buffer.into()).await {
@@ -100,32 +91,33 @@ async fn handle_request<E, S, T>(
 ) -> std::result::Result<(), E>
 where
     S: IpcService<E> + Send + Sync + 'static,
-    E: Send + From<std::io::Error> + std::fmt::Debug,
+    E: std::error::Error
+        + Send
+        + From<std::io::Error>
+        + std::fmt::Debug
+        + std::fmt::Display,
     T: AsyncRead + AsyncWrite + Sized,
 {
-    let request: WireIpcRequest = decode_proto(&bytes).map_err(io_err)?;
-    let request: IpcRequest = request.try_into().map_err(io_err)?;
+    let request: WireLocalRequest = decode_proto(&bytes).map_err(io_err)?;
+    let request: LocalRequest = request.try_into().map_err(io_err)?;
     tracing::debug!(
         request = ?request,
         "socket_server::socket_request"
     );
-    let message_id = request.message_id;
+    let message_id = request.request_id();
     let handler = service.read().await;
     let duration = request.timeout_duration();
     let response = match timeout(duration, handler.handle(request)).await {
-        Ok(res) => res?,
+        Ok(res) => res,
         Err(_) => {
             tracing::debug!(
                 duration = ?duration,
                 "socket_server::request_timeout");
-            IpcResponse::Error {
-                message_id,
-                payload: Error::ServiceTimeout(duration).into(),
-            }
+            LocalResponse::with_id(StatusCode::REQUEST_TIMEOUT, message_id)
         }
     };
 
-    let response: WireIpcResponse = response.into();
+    let response: WireLocalResponse = response.into();
     let buffer = encode_proto(&response).map_err(io_err)?;
     channel.send(buffer.into()).await?;
     Ok(())

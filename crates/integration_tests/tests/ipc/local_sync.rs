@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sos_ipc::{
-    local_account_delegate, remove_socket_file, Error,
-    LocalAccountIpcService, LocalAccountSocketServer,
+    remove_socket_file, Error, LocalAccountIpcService,
+    LocalAccountSocketServer,
 };
 use sos_net::{
     protocol::{
@@ -69,10 +69,8 @@ async fn integration_ipc_local_sync() -> Result<()> {
     let local_accounts = Arc::new(RwLock::new(local_accounts));
 
     // Start the IPC service
-    let (delegate, _commands) = local_account_delegate(16);
     let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
         local_accounts.clone(),
-        delegate,
         Default::default(),
     )));
 

@@ -20,6 +20,9 @@ mod header {
     /// Header name used to specify an account address.
     pub const X_SOS_ACCOUNT_ID: &str = "x-sos-account-id";
 
+    /// Header name used to specify a request id.
+    pub const X_SOS_REQUEST_ID: &str = "x-sos-request-id";
+
     /// Header value for zlib content encoding.
     pub const ENCODING_ZLIB: &str = "deflate";
 

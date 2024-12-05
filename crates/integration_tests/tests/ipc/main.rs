@@ -13,7 +13,7 @@ use sos_net::protocol::local_transport::{
     LocalRequest, LocalResponse, LocalTransport,
 };
 
-use sos_ipc::{AppIntegration, SocketClient};
+use sos_ipc::SocketClient;
 
 /// Local transport for the test specs.
 pub struct TestLocalTransport {
@@ -40,6 +40,6 @@ impl LocalTransport for TestLocalTransport {
         &mut self,
         request: LocalRequest,
     ) -> sos_net::protocol::Result<LocalResponse> {
-        Ok(self.client.request(request).await.unwrap())
+        Ok(self.client.send_request(request).await.unwrap())
     }
 }

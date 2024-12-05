@@ -1,8 +1,8 @@
 use anyhow::Result;
 use sos_ipc::{
-    local_account_delegate, remove_socket_file, AppIntegration, Error,
-    IpcServiceOptions, LocalAccountIpcService, LocalAccountSocketServer,
-    ServiceAppInfo, SocketClient,
+    remove_socket_file, AppIntegration, Error, IpcServiceOptions,
+    LocalAccountIpcService, LocalAccountSocketServer, ServiceAppInfo,
+    SocketClient,
 };
 use sos_net::sdk::{prelude::LocalAccountSwitcher, Paths};
 use sos_test_utils::teardown;
@@ -30,7 +30,6 @@ async fn integration_ipc_app_info() -> Result<()> {
     // Setup empty accounts
     let accounts = LocalAccountSwitcher::new_with_options(Some(paths));
     let ipc_accounts = Arc::new(RwLock::new(accounts));
-    let (delegate, _commands) = local_account_delegate(16);
 
     let name = "mock-service";
     let version = "1.0.0";
@@ -39,7 +38,6 @@ async fn integration_ipc_app_info() -> Result<()> {
     // Start the IPC service
     let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
         ipc_accounts,
-        delegate,
         IpcServiceOptions {
             app_info: Some(ServiceAppInfo {
                 name: name.to_string(),

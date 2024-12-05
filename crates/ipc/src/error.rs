@@ -1,4 +1,3 @@
-use crate::IpcResponseError;
 use thiserror::Error;
 use tokio::time::Duration;
 
@@ -19,15 +18,11 @@ pub enum Error {
 
     /// Error when a response message id does not match the request id.
     #[error("response id {1} does not match request id {0}")]
-    MessageId(u32, u32),
+    MessageId(u64, u64),
 
     /// Error when a response type does not match the request type.
     #[error("response type does not match the request type")]
     ResponseType,
-
-    /// Error response received from a server.
-    #[error("{1:?} (id={0})")]
-    ResponseError(u32, IpcResponseError),
 
     /// Service request timed out.
     #[error("service request timed out, exceeded duration {0:?}")]
@@ -110,23 +105,4 @@ pub enum Error {
     /// Errors generated from network responses.
     #[error(transparent)]
     Network(#[from] sos_protocol::NetworkError),
-}
-
-impl From<Error> for IpcResponseError {
-    fn from(value: Error) -> Self {
-        let code = match &value {
-            Error::ServiceTimeout(_) => 504, // Gateway timeout
-            #[cfg(feature = "native-bridge")]
-            Error::NativeBridgeDenied(_) => 403, // Forbidden
-            #[cfg(feature = "native-bridge")]
-            Error::NativeBridgeClientProxy(_) => 502, // Bad gateway
-            #[cfg(feature = "native-bridge")]
-            Error::NativeBridgeJsonParse(_) => 400, // Bad request
-            _ => -1,
-        };
-        IpcResponseError {
-            code,
-            message: value.to_string(),
-        }
-    }
 }

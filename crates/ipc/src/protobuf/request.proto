@@ -29,76 +29,8 @@ message WireIpcRequestBody {
     // Ping the server.
     common.WireVoidBody ping = 4;
 
-    // Request to open a program.
-    WireOpenUrlBody open_url = 5;
-
     // Request for the local server.
-    common.WireLocalRequest http = 6;
-
-    // Request a list of accounts.
-    common.WireVoidBody list_accounts = 7;
-
-    // Request to copy to the clipboard.
-    WireClipboardTarget copy = 8;
-
-    // Request to authenticate to an account.
-    WireAuthenticateBody authenticate  = 9;
-
-    // Request to lock an account.
-    WireLockBody lock  = 10;
-
-    // Request to search an account.
-    WireSearchBody search  = 11;
-
-    // Request to query a view.
-    WireQueryViewBody query_view  = 12;
+    common.WireLocalRequest http = 5;
   }
 }
 
-// Request body to open a URL.
-message WireOpenUrlBody {
-  // URL to open.
-  string url = 1;
-}
-
-// Authenticate request body.
-message WireAuthenticateBody {
-  // Account address.
-  string address = 1;
-}
-
-// Lock request body.
-message WireLockBody {
-  // Account address.
-  optional string address = 1;
-}
-
-// Query request body.
-message WireSearchBody {
-  // Search needle.
-  string needle = 1;
-  // Filter for the query.
-  common.WireQueryFilter filter = 2;
-}
-
-// Clipboard target.
-message WireClipboardTarget {
-  // Qualified path to the secret. 
-  common.WireQualifiedPath path = 1;
-}
-
-// Query view request body.
-message WireQueryViewBody {
-  // Document views.
-  repeated common.WireDocumentView views = 1;
-  // Archive filter.
-  optional common.WireArchiveFilter archive_filter = 2;
-}
-
-/*
-// Request secret body.
-message WireReadSecretBody {
-  // Qualified path to the secret. 
-  common.WireQualifiedPath path = 1;
-}
-*/

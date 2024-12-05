@@ -1,7 +1,9 @@
 //! Types used for communicating between apps on the same device.
 
 use crate::{
-    constants::{ENCODING_ZLIB, ENCODING_ZSTD, MIME_TYPE_JSON},
+    constants::{
+        ENCODING_ZLIB, ENCODING_ZSTD, MIME_TYPE_JSON, X_SOS_REQUEST_ID,
+    },
     Error, Result,
 };
 use async_trait::async_trait;
@@ -12,7 +14,7 @@ use http::{
 };
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, time::Duration};
 use typeshare::typeshare;
 
 /// Request that can be sent to a local data source.
@@ -49,6 +51,32 @@ impl Default for LocalRequest {
             headers: Default::default(),
             body: Default::default(),
         }
+    }
+}
+
+impl LocalRequest {
+    /// Extract a request id.
+    ///
+    /// If no header is present or the value is invalid zero
+    /// is returned.
+    pub fn request_id(&self) -> u64 {
+        if let Some(values) = self.headers.get(X_SOS_REQUEST_ID) {
+            if let Some(value) = values.first().map(|v| v.as_str()) {
+                let Ok(id) = value.parse::<u64>() else {
+                    return 0;
+                };
+                id
+            } else {
+                0
+            }
+        } else {
+            0
+        }
+    }
+
+    /// Duration allowed for a request.
+    pub fn timeout_duration(&self) -> Duration {
+        Duration::from_secs(15)
     }
 }
 
@@ -119,6 +147,18 @@ pub struct LocalResponse {
     pub body: Vec<u8>,
 }
 
+/*
+impl Default for LocalResponse {
+    fn default() -> Self {
+        Self {
+            status: StatusCode::OK.into(),
+            headers: Default::default(),
+            body: Default::default(),
+        }
+    }
+}
+*/
+
 impl fmt::Debug for LocalResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("LocalResponse")
@@ -148,9 +188,54 @@ impl From<Response<Vec<u8>>> for LocalResponse {
 }
 
 impl LocalResponse {
+    /// Internal error response.
+    pub fn new_internal_error(_e: impl std::error::Error) -> Self {
+        Self {
+            status: StatusCode::INTERNAL_SERVER_ERROR.into(),
+            headers: Default::default(),
+            body: Default::default(),
+        }
+    }
+
+    /// Create a response with a request id.
+    pub fn with_id(status: StatusCode, id: u64) -> Self {
+        let mut res = Self {
+            status: status.into(),
+            headers: Default::default(),
+            body: Default::default(),
+        };
+        res.set_request_id(id);
+        res
+    }
+
     /// Status code.
     pub fn status(&self) -> Result<StatusCode> {
         Ok(self.status.try_into()?)
+    }
+
+    /// Extract a request id.
+    ///
+    /// If no header is present or the value is invalid zero
+    /// is returned.
+    pub fn request_id(&self) -> u64 {
+        if let Some(values) = self.headers.get(X_SOS_REQUEST_ID) {
+            if let Some(value) = values.first().map(|v| v.as_str()) {
+                let Ok(id) = value.parse::<u64>() else {
+                    return 0;
+                };
+                id
+            } else {
+                0
+            }
+        } else {
+            0
+        }
+    }
+
+    /// Set a request id.
+    pub fn set_request_id(&mut self, id: u64) {
+        self.headers
+            .insert(X_SOS_REQUEST_ID.to_owned(), vec![id.to_string()]);
     }
 
     /// Extract a content type header.

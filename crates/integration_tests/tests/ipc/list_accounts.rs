@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sos_ipc::{
-    local_account_delegate, remove_socket_file, AppIntegration, Error,
-    LocalAccountIpcService, LocalAccountSocketServer, SocketClient,
+    remove_socket_file, AppIntegration, Error, LocalAccountIpcService,
+    LocalAccountSocketServer, SocketClient,
 };
 use sos_net::sdk::{
     crypto::AccessKey,
@@ -65,10 +65,8 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     accounts.add_account(unauth_account);
 
     // Start the IPC service
-    let (delegate, _commands) = local_account_delegate(16);
     let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
         Arc::new(RwLock::new(accounts)),
-        delegate,
         Default::default(),
     )));
 

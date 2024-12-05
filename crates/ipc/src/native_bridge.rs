@@ -4,13 +4,15 @@
 //! Used to support the native messaging API provided
 //! by browser extensions.
 
-use crate::{
-    Error, IpcRequest, IpcRequestBody, IpcResponse, IpcResponseBody, Result,
-    SocketClient,
-};
+use crate::{Error, Result, SocketClient};
+
 use futures_util::{SinkExt, StreamExt};
+use http::StatusCode;
 use once_cell::sync::Lazy;
-use sos_net::sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME, Paths};
+use sos_net::sdk::{
+    logs::Logger, prelude::IPC_GUI_SOCKET_NAME, url::Url, Paths,
+};
+use sos_protocol::local_transport::{LocalRequest, LocalResponse};
 use std::{io::ErrorKind, sync::Arc, time::Duration};
 use tokio::{
     sync::{mpsc, Mutex},
@@ -94,14 +96,14 @@ pub async fn run(options: NativeBridgeOptions) {
         .native_endian()
         .new_write(tokio::io::stdout());
 
-    let (tx, mut rx) = mpsc::unbounded_channel::<IpcResponse>();
+    let (tx, mut rx) = mpsc::unbounded_channel::<LocalResponse>();
 
     loop {
         let channel = tx.clone();
         let sock_name = socket_name.clone();
         tokio::select! {
             Some(Ok(buffer)) = stdin.next() => {
-                match serde_json::from_slice::<IpcRequest>(&buffer) {
+                match serde_json::from_slice::<LocalRequest>(&buffer) {
                     Ok(request) => {
                         tokio::task::spawn(async move {
                             let tx = channel.clone();
@@ -111,7 +113,7 @@ pub async fn run(options: NativeBridgeOptions) {
                                 "sos_native_bridge::request",
                             );
 
-                            let message_id = request.message_id;
+                            let message_id = request.request_id();
 
                             // Is this a command we handle internally?
                             let response = if is_native_request(&request) {
@@ -125,13 +127,15 @@ pub async fn run(options: NativeBridgeOptions) {
 
                             let result = match response {
                                 Ok(response) => response,
-                                Err(e) => IpcResponse::Error {
-                                    message_id,
-                                    payload: Error::NativeBridgeClientProxy(
-                                        e.to_string(),
+                                Err(e) => {
+                                  let mut response = LocalResponse::new_internal_error(
+                                    Error::NativeBridgeClientProxy(
+                                      e.to_string(),
                                     )
-                                    .into(),
-                                },
+                                  );
+                                  response.set_request_id(message_id);
+                                  response
+                                }
                             };
 
                             if let Err(e) = tx.send(result) {
@@ -140,13 +144,13 @@ pub async fn run(options: NativeBridgeOptions) {
                         });
                     }
                     Err(e) => {
-                        let response = IpcResponse::Error {
-                            message_id: 0,
-                            payload: Error::NativeBridgeJsonParse(e.to_string()).into(),
-                        };
+                        let response = LocalResponse::new_internal_error(
+                          Error::NativeBridgeJsonParse(e.to_string()));
                         let tx = channel.clone();
                         if let Err(e) = tx.send(response.into()) {
-                            tracing::warn!(error = %e, "native_bridge::response_channel");
+                            tracing::warn!(
+                              error = %e,
+                              "native_bridge::response_channel");
                         }
                     }
                 }
@@ -207,48 +211,60 @@ async fn try_connect(socket_name: &str) -> SocketClient {
     }
 }
 
-/// Native requests are those handled by this native bridge
-/// possibly calling over the IPC channel as well.
-fn is_native_request(request: &IpcRequest) -> bool {
-    match &request.payload {
-        IpcRequestBody::Probe => true,
-        IpcRequestBody::Status => true,
-        IpcRequestBody::OpenUrl(_) => true,
+/// Native requests are those handled by this native bridge.
+fn is_native_request(request: &LocalRequest) -> bool {
+    match request.uri.path() {
+        "/probe" => true,
+        "/status" => true,
+        "/open-url" => true,
         _ => false,
     }
 }
 
-async fn handle_native_request(request: IpcRequest) -> Result<IpcResponse> {
-    let message_id = request.message_id;
-    match &request.payload {
-        IpcRequestBody::Probe => Ok(IpcResponse::Value {
-            message_id,
-            payload: IpcResponseBody::Probe,
-        }),
-        IpcRequestBody::Status => {
+async fn handle_native_request(
+    request: LocalRequest,
+) -> Result<LocalResponse> {
+    let message_id = request.request_id();
+    match request.uri.path() {
+        "/probe" => Ok(LocalResponse::with_id(StatusCode::OK, message_id)),
+        "/status" => {
             let paths = Paths::new_global(Paths::data_dir()?);
             let app = paths.has_app_lock()?;
-            Ok(IpcResponse::Value {
-                message_id,
-                payload: IpcResponseBody::Status(app),
+            Ok(if app {
+                LocalResponse::with_id(StatusCode::OK, message_id)
+            } else {
+                LocalResponse::with_id(StatusCode::NOT_FOUND, message_id)
             })
         }
-        IpcRequestBody::OpenUrl(url) => {
-            let result = open::that_detached(&url);
-            Ok(IpcResponse::Value {
-                message_id,
-                payload: IpcResponseBody::OpenUrl(result.is_ok()),
+        "/open-url" => {
+            let url = Url::parse(&request.uri.to_string()).unwrap();
+
+            let Some(target) =
+                url.query_pairs().find(|(k, v)| k == "url").map(|(_, v)| v)
+            else {
+                return Ok(LocalResponse::with_id(
+                    StatusCode::BAD_REQUEST,
+                    message_id,
+                ));
+            };
+
+            Ok(match open::that_detached(&*target) {
+                Ok(_) => LocalResponse::with_id(StatusCode::OK, message_id),
+                Err(_) => LocalResponse::with_id(
+                    StatusCode::BAD_GATEWAY,
+                    message_id,
+                ),
             })
         }
-        _ => unreachable!("handle native request for IPC packet"),
+        _ => unreachable!("update to is_native_request() required"),
     }
 }
 
 /// Send an IPC request and reconnect for certain types of IO error.
 async fn try_send_request(
-    request: IpcRequest,
+    request: LocalRequest,
     socket_name: &str,
-) -> Result<IpcResponse> {
+) -> Result<LocalResponse> {
     loop {
         let conn = connect(&socket_name).await;
         let mut lock = conn.lock().await;
@@ -276,8 +292,8 @@ async fn try_send_request(
 pub async fn send<C, I, S>(
     command: C,
     arguments: I,
-    request: &crate::IpcRequest,
-) -> Result<IpcResponse>
+    request: &LocalRequest,
+) -> Result<LocalResponse>
 where
     C: AsRef<std::ffi::OsStr>,
     I: IntoIterator<Item = S>,
@@ -308,7 +324,7 @@ where
 
     while let Some(response) = stdout.next().await {
         let response = response?;
-        let response: IpcResponse = serde_json::from_slice(&response)?;
+        let response: LocalResponse = serde_json::from_slice(&response)?;
         return Ok(response);
     }
 
