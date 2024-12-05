@@ -102,10 +102,13 @@ mod mime {
     pub const MIME_TYPE_JSON: &str = "application/json";
 }
 
-/// Constants for header names.
+/// Constants for header names or values.
 mod header {
     /// Header name used to specify an account address.
     pub const X_SOS_ACCOUNT_ID: &str = "x-sos-account-id";
+
+    /// Header value for zstd content encoding.
+    pub const ENCODING_ZSTD: &str = "zstd";
 }
 
 /// Constants for directory names.

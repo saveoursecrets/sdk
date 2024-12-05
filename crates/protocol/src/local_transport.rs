@@ -161,10 +161,10 @@ impl LocalResponse {
         }
     }
 
-    /// Determine if this response is using XZ content encoding.
-    pub fn is_xz(&self) -> bool {
+    /// Determine if this response is using Zstd content encoding.
+    pub fn is_zstd(&self) -> bool {
         if let Some(values) = self.headers.get(CONTENT_ENCODING.as_str()) {
-            values.iter().find(|v| v.as_str() == "x-xz").is_some()
+            values.iter().find(|v| v.as_str() == "zstd").is_some()
         } else {
             false
         }

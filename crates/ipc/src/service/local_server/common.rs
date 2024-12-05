@@ -4,11 +4,9 @@ use http::{
 };
 use serde::Serialize;
 use sos_net::sdk::prelude::{
-    Address, MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
+    Address, ENCODING_ZSTD, MIME_TYPE_JSON, MIME_TYPE_PROTOBUF,
+    X_SOS_ACCOUNT_ID,
 };
-
-use std::io::Write;
-use xz::write::XzEncoder;
 
 use super::{Body, Incoming};
 
@@ -93,18 +91,13 @@ pub fn protobuf(body: Body) -> hyper::Result<Response<Body>> {
         .unwrap())
 }
 
-pub fn protobuf_xz(body: Body) -> hyper::Result<Response<Body>> {
-    let mut buf = Vec::new();
-    let mut compressor = XzEncoder::new(&mut buf, 9);
-    if compressor.write_all(body.as_slice()).is_err() {
-        return internal_server_error("xz::compress::write");
+pub fn protobuf_zstd(body: Body) -> hyper::Result<Response<Body>> {
+    let Ok(buf) = zstd::stream::encode_all(body.as_slice(), 20) else {
+        return internal_server_error("zstd::compress");
     };
-    if compressor.finish().is_err() {
-        return internal_server_error("xz::compress::finish");
-    }
     Ok(Response::builder()
         .status(StatusCode::OK)
-        .header(CONTENT_ENCODING, "x-xz")
+        .header(CONTENT_ENCODING, ENCODING_ZSTD)
         .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
         .body(buf)
         .unwrap())

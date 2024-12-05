@@ -39,7 +39,7 @@ http.workspace = true
 bytes.workspace = true
 binary-stream.workspace = true
 typeshare.workspace = true
-xz.workspace = true
+zstd.workspace = true
 tokio = { version = "1", features = ["rt",  "macros"] }
 
 [dependencies.sos-sdk]

@@ -41,8 +41,6 @@ use tokio::sync::Mutex;
 use tracing::instrument;
 
 use bytes::Bytes;
-use std::io::Read;
-use xz::read::XzDecoder;
 
 type ClientTransport = Box<dyn LocalTransport + Send + Sync + 'static>;
 
@@ -117,10 +115,8 @@ impl LocalClient {
     }
 
     fn read_response_body(&self, response: LocalResponse) -> Result<Bytes> {
-        if response.is_xz() {
-            let mut buffer = Vec::new();
-            let mut decompressor = XzDecoder::new(response.body.as_slice());
-            decompressor.read_to_end(&mut buffer)?;
+        if response.is_zstd() {
+            let buffer = zstd::stream::decode_all(response.body.as_slice())?;
             Ok(buffer.into())
         } else {
             Ok(response.body.into())

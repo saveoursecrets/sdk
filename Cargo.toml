@@ -23,7 +23,7 @@ sos-vfs = { version = "0.2.2", path = "crates/vfs" }
 csv-async = { version = "1", features = ["tokio", "with_serde"] }
 thiserror = "1"
 anyhow = "1"
-xz = "0.1"
+zstd = "0.13"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 secrecy = { version = "0.10", features = ["serde"] }

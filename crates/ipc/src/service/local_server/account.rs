@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 
 use super::{
     bad_request, forbidden, internal_server_error, not_found, ok,
-    parse_account_id, protobuf, protobuf_xz, Body, Incoming,
+    parse_account_id, protobuf, protobuf_zstd, Body, Incoming,
 };
 
 pub async fn account_exists<A, R, E>(
@@ -114,7 +114,7 @@ where
                     return internal_server_error("fetch_account::encode");
                 };
 
-                protobuf_xz(buffer)
+                protobuf_zstd(buffer)
             }
             Err(e) => internal_server_error(e),
         }
