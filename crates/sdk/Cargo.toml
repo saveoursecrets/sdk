@@ -61,11 +61,11 @@ enum-iterator.workspace = true
 tempfile.workspace = true
 rs_merkle.workspace = true
 typeshare.workspace = true
+sos-vfs.workspace = true
 subtle = { version = "2.5" }
 ethereum-types = "0.15"
 async_zip = { version = "0.0.17", default-features = false, features = ["deflate", "tokio"], optional = true }
 csv-async = { version = "1", features = ["tokio", "with_serde"], optional = true }
-sos-vfs = { version = "0.2.2" }
 aes-gcm = { version = "0.10.1", features = ["std"] }
 chacha20poly1305 = { version = "0.10.1", features = ["std"] }
 filetime = "0.2"
@@ -100,16 +100,15 @@ optional = true
 security-framework = { version = "2.8", optional = true }
 keychain_parser = { version = "0.1", path = "../keychain_parser", optional = true }
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = {version = "0.2", features = ["js"]}
-uuid = { version = "1", features = ["serde", "v4", "js"] }
-tokio = { version = "1", default-features = false, features = ["rt", "sync", "macros", "io-util"] }
-
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
 file-guard.workspace = true
 etcetera = "0.8"
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = {version = "0.2", features = ["js"]}
+uuid = { version = "1", features = ["serde", "v4", "js"] }
+tokio = { version = "1", default-features = false, features = ["rt", "sync", "macros", "io-util"] }
 
 [dependencies.chbs]
 version = "0.1.1"

@@ -6,8 +6,11 @@
 use self::State::*;
 use futures::ready;
 use std::future::Future;
-use std::io::{AsyncRead, AsyncSeek, AsyncWrite, ReadBuf};
-use std::sync::Mutex;
+
+use tokio::{
+    io::{AsyncRead, AsyncSeek, AsyncWrite, ReadBuf},
+    sync::Mutex,
+};
 
 use std::cmp;
 use std::fmt;
@@ -80,7 +83,6 @@ struct Inner {
     pos: u64,
 }
 
-#[derive(Debug)]
 enum State {
     Idle(Option<Buf>),
     Busy(Pin<Box<dyn Future<Output = (Operation, Buf)> + Send>>),
@@ -153,7 +155,7 @@ impl File {
         let std = self.std.clone();
 
         inner.state = Busy(Box::pin(async move {
-            let mut std = std.lock().await;
+            let mut std = std.lock();
             let len = std.get_ref().len() as u64;
 
             let extension = if size <= len {
@@ -189,7 +191,7 @@ impl File {
 
         let (op, buf) = match inner.state {
             Idle(_) => unreachable!(),
-            Busy(ref mut rx) => rx.await?,
+            Busy(ref mut rx) => rx.await,
         };
 
         inner.state = Idle(Some(buf));
@@ -248,14 +250,14 @@ impl AsyncRead for File {
                     buf.ensure_capacity_for(dst);
                     let std = me.std.clone();
 
-                    inner.state = Busy(spawn_blocking(move || {
+                    inner.state = Busy(Box::pin(async move {
                         let mut std = std.lock();
                         let res = buf.read_from(&mut *std);
                         (Operation::Read(res), buf)
                     }));
                 }
                 Busy(ref mut rx) => {
-                    let (op, mut buf) = ready!(Pin::new(rx).poll(cx))?;
+                    let (op, mut buf) = ready!(Pin::new(rx).poll(cx));
 
                     match op {
                         Operation::Read(Ok(_)) => {
@@ -318,7 +320,7 @@ impl AsyncSeek for File {
 
                 let std = me.std.clone();
 
-                inner.state = Busy(spawn_blocking(move || {
+                inner.state = Busy(Box::pin(async move {
                     let mut std = std.lock();
                     let res = std.seek(pos);
                     (Operation::Seek(res), buf)
@@ -338,7 +340,7 @@ impl AsyncSeek for File {
             match inner.state {
                 Idle(_) => return Poll::Ready(Ok(inner.pos)),
                 Busy(ref mut rx) => {
-                    let (op, buf) = ready!(Pin::new(rx).poll(cx))?;
+                    let (op, buf) = ready!(Pin::new(rx).poll(cx));
                     inner.state = Idle(Some(buf));
 
                     match op {
@@ -389,26 +391,25 @@ impl AsyncWrite for File {
 
                     let std = me.std.clone();
 
-                    let blocking_task_join_handle =
-                        spawn_blocking(move || {
-                            let mut std = std.lock();
+                    let blocking_task_join_handle = Box::pin(async move {
+                        let mut std = std.lock();
 
-                            let res = if let Some(seek) = seek {
-                                std.seek(seek)
-                                    .and_then(|_| buf.write_to(&mut *std))
-                            } else {
-                                buf.write_to(&mut *std)
-                            };
+                        let res = if let Some(seek) = seek {
+                            std.seek(seek)
+                                .and_then(|_| buf.write_to(&mut *std))
+                        } else {
+                            buf.write_to(&mut *std)
+                        };
 
-                            (Operation::Write(res), buf)
-                        });
+                        (Operation::Write(res), buf)
+                    });
 
                     inner.state = Busy(blocking_task_join_handle);
 
                     return Ready(Ok(n));
                 }
                 Busy(ref mut rx) => {
-                    let (op, buf) = ready!(Pin::new(rx).poll(cx))?;
+                    let (op, buf) = ready!(Pin::new(rx).poll(cx));
                     inner.state = Idle(Some(buf));
 
                     match op {
@@ -483,7 +484,7 @@ impl Inner {
 
         let (op, buf) = match self.state {
             Idle(_) => return Ready(Ok(())),
-            Busy(ref mut rx) => ready!(Pin::new(rx).poll(cx))?,
+            Busy(ref mut rx) => ready!(Pin::new(rx).poll(cx)),
         };
 
         // The buffer is not used here

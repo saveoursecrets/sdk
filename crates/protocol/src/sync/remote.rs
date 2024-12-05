@@ -95,6 +95,8 @@ pub trait RemoteSyncHandler {
             self.client().fetch_account(self.address()).await?;
 
         {
+            tracing::info!("create_pull_account");
+
             let account = self.account();
             let mut account = account.lock().await;
             account

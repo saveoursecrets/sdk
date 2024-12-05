@@ -582,7 +582,7 @@ fn default_storage_dir() -> Result<PathBuf> {
 
 #[cfg(target_arch = "wasm32")]
 fn default_storage_dir() -> Result<PathBuf> {
-    Ok(PathBuf::from(""))
+    Ok(PathBuf::from("/"))
 }
 
 /// Exclusive file lock.

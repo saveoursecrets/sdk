@@ -109,6 +109,10 @@ impl ClientStorage {
     pub async fn empty(address: Address, paths: Arc<Paths>) -> Result<Self> {
         paths.ensure().await?;
 
+        if let Err(e) = FolderEventLog::new(paths.identity_events()).await {
+            tracing::info!(error = %e);
+        }
+
         let identity_log = Arc::new(RwLock::new(
             FolderEventLog::new(paths.identity_events()).await?,
         ));
