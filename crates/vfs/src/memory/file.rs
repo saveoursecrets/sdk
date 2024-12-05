@@ -5,13 +5,12 @@
 //!
 use self::State::*;
 use futures::ready;
-use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite, ReadBuf};
-use tokio::sync::Mutex;
-use tokio::{runtime::Handle, task::JoinHandle};
+use std::future::Future;
+use std::io::{AsyncRead, AsyncSeek, AsyncWrite, ReadBuf};
+use std::sync::Mutex;
 
 use std::cmp;
 use std::fmt;
-use std::future::Future;
 use std::io::{self, prelude::*, ErrorKind, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -25,15 +24,6 @@ use super::{
     open_options::OpenFlags,
     Metadata, OpenOptions, Permissions,
 };
-
-pub(crate) fn spawn_blocking<F, R>(func: F) -> JoinHandle<R>
-where
-    F: FnOnce() -> R + Send + 'static,
-    R: Send + 'static,
-{
-    let rt = Handle::current();
-    rt.spawn_blocking(func)
-}
 
 /// A reference to an open file on the filesystem.
 pub struct File {
@@ -93,7 +83,7 @@ struct Inner {
 #[derive(Debug)]
 enum State {
     Idle(Option<Buf>),
-    Busy(JoinHandle<(Operation, Buf)>),
+    Busy(Pin<Box<dyn Future<Output = (Operation, Buf)> + Send>>),
 }
 
 #[derive(Debug)]
@@ -162,8 +152,8 @@ impl File {
 
         let std = self.std.clone();
 
-        inner.state = Busy(spawn_blocking(move || {
-            let mut std = std.lock();
+        inner.state = Busy(Box::pin(async move {
+            let mut std = std.lock().await;
             let len = std.get_ref().len() as u64;
 
             let extension = if size <= len {
