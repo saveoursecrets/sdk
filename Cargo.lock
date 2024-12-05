@@ -4636,7 +4636,6 @@ dependencies = [
  "tower 0.5.1",
  "tracing",
  "typeshare",
- "zstd",
 ]
 
 [[package]]
@@ -4687,6 +4686,7 @@ dependencies = [
  "async-trait",
  "binary-stream",
  "bytes",
+ "flate2",
  "futures",
  "http",
  "indexmap 2.7.0",

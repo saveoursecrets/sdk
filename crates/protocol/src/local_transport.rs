@@ -9,7 +9,10 @@ use http::{
 };
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use sos_sdk::constants::MIME_TYPE_JSON;
+use sos_sdk::{
+    constants::MIME_TYPE_JSON,
+    prelude::{ENCODING_ZLIB, ENCODING_ZSTD},
+};
 use std::{collections::HashMap, fmt};
 use typeshare::typeshare;
 
@@ -161,10 +164,25 @@ impl LocalResponse {
         }
     }
 
+    /// Determine if this response is using Zlib content encoding.
+    pub fn is_zlib(&self) -> bool {
+        if let Some(values) = self.headers.get(CONTENT_ENCODING.as_str()) {
+            values
+                .iter()
+                .find(|v| v.as_str() == ENCODING_ZLIB)
+                .is_some()
+        } else {
+            false
+        }
+    }
+
     /// Determine if this response is using Zstd content encoding.
     pub fn is_zstd(&self) -> bool {
         if let Some(values) = self.headers.get(CONTENT_ENCODING.as_str()) {
-            values.iter().find(|v| v.as_str() == "zstd").is_some()
+            values
+                .iter()
+                .find(|v| v.as_str() == ENCODING_ZSTD)
+                .is_some()
         } else {
             false
         }

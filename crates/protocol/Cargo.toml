@@ -12,9 +12,12 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
+default = ["compression-zlib"]
 listen = []
 pairing = []
 integration = []
+compression-zlib = ["flate2"]
+compression-zstd = ["zstd"]
 account = ["sos-sdk/account"]
 archive = ["sos-sdk/archive"]
 contacts = ["sos-sdk/contacts"]
@@ -39,7 +42,8 @@ http.workspace = true
 bytes.workspace = true
 binary-stream.workspace = true
 typeshare.workspace = true
-zstd.workspace = true
+zstd = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
 tokio = { version = "1", features = ["rt",  "macros"] }
 
 [dependencies.sos-sdk]

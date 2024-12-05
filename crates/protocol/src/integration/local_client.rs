@@ -115,8 +115,10 @@ impl LocalClient {
     }
 
     fn read_response_body(&self, response: LocalResponse) -> Result<Bytes> {
-        if response.is_zstd() {
-            let buffer = zstd::stream::decode_all(response.body.as_slice())?;
+        if response.is_zlib() {
+            let buffer = crate::compression::zlib::decode_all(
+                response.body.as_slice(),
+            )?;
             Ok(buffer.into())
         } else {
             Ok(response.body.into())

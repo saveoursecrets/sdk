@@ -107,6 +107,9 @@ mod header {
     /// Header name used to specify an account address.
     pub const X_SOS_ACCOUNT_ID: &str = "x-sos-account-id";
 
+    /// Header value for zlib content encoding.
+    pub const ENCODING_ZLIB: &str = "deflate";
+
     /// Header value for zstd content encoding.
     pub const ENCODING_ZSTD: &str = "zstd";
 }

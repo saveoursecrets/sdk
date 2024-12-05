@@ -24,6 +24,7 @@
 // for convenience, the code may panic on 32-bit machines.
 
 mod bindings;
+pub mod compression;
 mod error;
 #[cfg(feature = "integration")]
 pub mod integration;
