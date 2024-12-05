@@ -222,11 +222,6 @@ impl StorageEventLogs for NetworkAccount {
         account.file_log().await
     }
 
-    async fn folder_identifiers(&self) -> Result<IndexSet<VaultId>> {
-        let account = self.account.lock().await;
-        account.folder_identifiers().await
-    }
-
     async fn folder_details(&self) -> Result<IndexSet<Summary>> {
         let account = self.account.lock().await;
         account.folder_details().await

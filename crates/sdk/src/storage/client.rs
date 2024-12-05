@@ -109,10 +109,6 @@ impl ClientStorage {
     pub async fn empty(address: Address, paths: Arc<Paths>) -> Result<Self> {
         paths.ensure().await?;
 
-        if let Err(e) = FolderEventLog::new(paths.identity_events()).await {
-            tracing::info!(error = %e);
-        }
-
         let identity_log = Arc::new(RwLock::new(
             FolderEventLog::new(paths.identity_events()).await?,
         ));
@@ -130,7 +126,7 @@ impl ClientStorage {
             FileEventLog::new_file(paths.file_events()).await?,
         ));
 
-        Ok(Self {
+        let mut storage = Self {
             address,
             summaries: Vec::new(),
             current: None,
@@ -146,7 +142,11 @@ impl ClientStorage {
             file_log,
             #[cfg(feature = "files")]
             file_password: None,
-        })
+        };
+
+        storage.load_folders().await?;
+
+        Ok(storage)
     }
 
     /// Create folder storage for client-side access.
@@ -1149,7 +1149,7 @@ impl ClientStorage {
     }
 
     /// Read folders from the local disc.
-    pub async fn read_folders(&self) -> Result<Vec<Summary>> {
+    async fn read_folders(&self) -> Result<Vec<Summary>> {
         let storage = self.paths.vaults_dir();
         let mut summaries = Vec::new();
         let mut contents = vfs::read_dir(&storage).await?;

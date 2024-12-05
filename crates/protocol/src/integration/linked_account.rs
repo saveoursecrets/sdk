@@ -1058,11 +1058,6 @@ impl StorageEventLogs for LinkedAccount {
         account.file_log().await
     }
 
-    async fn folder_identifiers(&self) -> sos_sdk::Result<IndexSet<VaultId>> {
-        let account = self.account.lock().await;
-        account.folder_identifiers().await
-    }
-
     async fn folder_details(&self) -> sos_sdk::Result<IndexSet<Summary>> {
         let account = self.account.lock().await;
         account.folder_details().await

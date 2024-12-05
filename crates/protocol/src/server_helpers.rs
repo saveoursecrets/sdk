@@ -31,7 +31,12 @@ pub async fn sync_account(
 
         // Only try to merge folders that exist in storage
         // otherwise after folder deletion sync will fail
-        let folders = storage.folder_identifiers().await?;
+        let folders = storage
+            .folder_details()
+            .await?
+            .into_iter()
+            .map(|s| *s.id())
+            .collect::<Vec<_>>();
         diff.folders.retain(|k, _| folders.contains(k));
 
         storage.merge(diff, &mut outcome).await?

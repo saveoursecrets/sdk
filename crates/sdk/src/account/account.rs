@@ -3428,16 +3428,11 @@ impl StorageEventLogs for LocalAccount {
         Ok(Arc::clone(&storage.file_log))
     }
 
-    async fn folder_identifiers(&self) -> Result<IndexSet<VaultId>> {
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
         let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let storage = storage.read().await;
-        let summaries = storage.read_folders().await?;
-        Ok(summaries.iter().map(|s| *s.id()).collect())
-    }
-
-    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
-        let folders = self.list_folders().await?;
-        Ok(folders.into_iter().collect())
+        let folders = storage.list_folders();
+        Ok(folders.into_iter().cloned().collect())
     }
 
     async fn folder_log(

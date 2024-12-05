@@ -144,10 +144,9 @@ pub trait StorageEventLogs {
         Ok(reducer.reduce(None).await?)
     }
 
-    /// Folder identifiers managed by this storage.
-    async fn folder_identifiers(&self) -> Result<IndexSet<VaultId>>;
-
-    /// Folder information managed by this storage.
+    /// Folders managed by this storage.
+    ///
+    /// Built from the in-memory list of folders.
     async fn folder_details(&self) -> Result<IndexSet<Summary>>;
 
     /// Folder event log.

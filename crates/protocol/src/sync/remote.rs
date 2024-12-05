@@ -90,13 +90,15 @@ pub trait RemoteSyncHandler {
     /// Pull an account from the remote.
     #[doc(hidden)]
     async fn create_pull_account(&self) -> Result<(), Self::Error> {
+        tracing::info!("create_pull_account");
+
         // Get account data from the remote.
         let public_account =
             self.client().fetch_account(self.address()).await?;
 
-        {
-            tracing::info!("create_pull_account");
+        tracing::info!("create_pull_account::fetch_completed");
 
+        {
             let account = self.account();
             let mut account = account.lock().await;
             account
