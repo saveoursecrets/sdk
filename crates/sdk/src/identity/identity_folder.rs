@@ -57,7 +57,7 @@ pub struct IdentityFolder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
     D: Clone + Send + Sync,
 {
     /// Folder storage.
@@ -75,7 +75,7 @@ impl<T, R, W, D> IdentityFolder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
     D: Clone + Send + Sync,
 {
     /// Private identity.

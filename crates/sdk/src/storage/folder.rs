@@ -34,7 +34,7 @@ pub struct Folder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
     D: Clone + Send + Sync,
 {
     pub(crate) keeper: Gatekeeper,
@@ -46,7 +46,7 @@ impl<T, R, W, D> Folder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
     D: Clone + Send + Sync,
 {
     /// Create a new folder.

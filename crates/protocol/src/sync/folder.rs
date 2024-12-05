@@ -54,7 +54,7 @@ impl<T, R, W, D> IdentityFolderMerge for IdentityFolder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
-    W: AsyncWrite + Unpin + Send + Sync,
+    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync,
     D: Clone + Send + Sync,
 {
     async fn merge(
@@ -79,7 +79,7 @@ impl<T, R, W, D> FolderMerge for Folder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
-    W: AsyncWrite + Unpin + Send + Sync,
+    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync,
     D: Clone + Send + Sync,
 {
     async fn merge<'a>(

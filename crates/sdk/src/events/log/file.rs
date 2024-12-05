@@ -125,7 +125,7 @@ pub trait EventLogExt<E, R, W, D>: Send + Sync
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
     D: Clone,
 {
     /// Commit tree contains the in-memory merkle tree.
@@ -549,6 +549,13 @@ where
 
         let rw = self.file();
         let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.1);
+        // Workaround for bug in the vfs implementation on wasm32
+        // that is overwriting the file identity bytes when
+        // applying records.
+        #[cfg(target_arch = "wasm32")]
+        {
+            file.seek(SeekFrom::End(0)).await?;
+        }
         match file.write_all(&buffer).await {
             Ok(_) => {
                 file.flush().await?;
