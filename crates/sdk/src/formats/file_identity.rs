@@ -10,6 +10,10 @@ use crate::{vfs::File, Error, Result};
 fn format_identity_bytes(identity: &[u8]) -> String {
     let c =
         std::str::from_utf8(identity).expect("identity bytes to be UTF-8");
+    format!("{:04x?} ({})", identity, c)
+    /*
+    let c =
+        std::str::from_utf8(identity).expect("identity bytes to be UTF-8");
     let mut s = String::new();
     for (index, byte) in identity.iter().enumerate() {
         s.push_str(&format!("{:#04x}", byte));
@@ -19,6 +23,7 @@ fn format_identity_bytes(identity: &[u8]) -> String {
     }
     s.push_str(&format!(" ({})", c));
     s
+    */
 }
 
 /// Read and write the identity bytes for a file.
