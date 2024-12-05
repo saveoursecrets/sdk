@@ -1,6 +1,15 @@
-use futures_util::sink::SinkExt;
 use http::StatusCode;
+use interprocess::local_socket::{
+    tokio::prelude::*, GenericNamespaced, ListenerOptions,
+};
+use sos_net::{
+    sdk::prelude::{Account, LocalAccount},
+    NetworkAccount,
+};
+use sos_protocol::local_transport::{LocalRequest, LocalResponse};
 use std::{pin::Pin, sync::Arc};
+
+use futures_util::sink::SinkExt;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     sync::RwLock,
@@ -13,14 +22,67 @@ use tokio_util::{
 };
 
 use crate::{
-    codec, decode_proto, encode_proto, io_err, Error, IpcService,
-    WireLocalRequest, WireLocalResponse,
+    codec, decode_proto, encode_proto, io_err, IpcService, WireLocalRequest,
+    WireLocalResponse,
 };
 
-use sos_protocol::local_transport::{LocalRequest, LocalResponse};
+use crate::{LocalAccountIpcService, NetworkAccountIpcService, Result};
 
-mod local_socket;
-pub use local_socket::*;
+/// Socket server for network-enabled accounts.
+pub type NetworkAccountSocketServer = SocketServer<
+    NetworkAccountIpcService,
+    <NetworkAccount as Account>::Error,
+>;
+
+/// Socket server for local accounts.
+pub type LocalAccountSocketServer =
+    SocketServer<LocalAccountIpcService, <LocalAccount as Account>::Error>;
+
+/// Socket server for inter-process communication.
+pub struct SocketServer<S, E>
+where
+    S: IpcService<E> + Send + Sync + 'static,
+    E: Send,
+{
+    phantom: std::marker::PhantomData<(S, E)>,
+}
+
+impl<S, E> SocketServer<S, E>
+where
+    S: IpcService<E> + Send + Sync + 'static,
+    E: std::error::Error
+        + Send
+        + From<std::io::Error>
+        + std::fmt::Debug
+        + std::fmt::Display,
+{
+    /// Listen on a bind address.
+    pub async fn listen(
+        socket_name: &str,
+        service: Arc<RwLock<S>>,
+    ) -> Result<()> {
+        let name = socket_name.to_ns_name::<GenericNamespaced>()?;
+        let opts = ListenerOptions::new().name(name);
+        let listener = match opts.create_tokio() {
+            Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+                tracing::error!(
+                    "Error: could not start server because the socket file is occupied. Please check if {socket_name} is in use by another process and try again."
+                );
+                return Err(e.into());
+            }
+            x => x?,
+        };
+
+        loop {
+            let socket = listener.accept().await?;
+            let service = service.clone();
+
+            tokio::spawn(async move {
+                handle_conn(service, socket).await;
+            });
+        }
+    }
+}
 
 async fn handle_conn<E, S, T>(service: Arc<RwLock<S>>, socket: T)
 where
