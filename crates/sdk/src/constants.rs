@@ -10,20 +10,10 @@ pub const APP_AUTHOR: &str = "SaveOurSecrets";
 pub const AUDIT_FILE_NAME: &str = "audit.dat";
 
 /// Name for GUI IPC sockets.
-#[cfg(not(debug_assertions))]
 pub const IPC_GUI_SOCKET_NAME: &str = "com.saveoursecrets.gui.sock";
 
 /// Name for CLI IPC sockets.
-#[cfg(not(debug_assertions))]
 pub const IPC_CLI_SOCKET_NAME: &str = "com.saveoursecrets.cli.sock";
-
-/// Name for GUI IPC sockets.
-#[cfg(debug_assertions)]
-pub const IPC_GUI_SOCKET_NAME: &str = "com.saveoursecrets.gui-debug.sock";
-
-/// Name for CLI IPC sockets.
-#[cfg(debug_assertions)]
-pub const IPC_CLI_SOCKET_NAME: &str = "com.saveoursecrets.cli-debug.sock";
 
 /// Constants for file identity.
 mod identity {
