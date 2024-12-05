@@ -1,8 +1,14 @@
-use http::{header::CONTENT_TYPE, Request, Response, StatusCode};
+use http::{
+    header::{CONTENT_ENCODING, CONTENT_TYPE},
+    Request, Response, StatusCode,
+};
 use serde::Serialize;
 use sos_net::sdk::prelude::{
     Address, MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
 };
+
+use std::io::Write;
+use xz::write::XzEncoder;
 
 use super::{Body, Incoming};
 
@@ -78,10 +84,28 @@ pub fn json<S: Serialize>(
     Ok(response)
 }
 
+#[deprecated]
 pub fn protobuf(body: Body) -> hyper::Result<Response<Body>> {
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
         .body(body)
+        .unwrap())
+}
+
+pub fn protobuf_xz(body: Body) -> hyper::Result<Response<Body>> {
+    let mut buf = Vec::new();
+    let mut compressor = XzEncoder::new(&mut buf, 9);
+    if compressor.write_all(body.as_slice()).is_err() {
+        return internal_server_error("xz::compress::write");
+    };
+    if compressor.finish().is_err() {
+        return internal_server_error("xz::compress::finish");
+    }
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header(CONTENT_ENCODING, "x-xz")
+        .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
+        .body(buf)
         .unwrap())
 }

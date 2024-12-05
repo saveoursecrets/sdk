@@ -24,6 +24,7 @@ serde.workspace = true
 serde_json.workspace = true
 typeshare.workspace = true
 parking_lot.workspace = true
+xz.workspace = true
 
 sos-net = { version = "0.16", path = "../net", features = ["account", "search", "files"] }
 sos-account-extras = { version = "0.16", path = "../account_extras/", features = ["clipboard"] }

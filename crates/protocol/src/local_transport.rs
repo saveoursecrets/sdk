@@ -4,7 +4,8 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
 use http::{
-    header::CONTENT_TYPE, Method, Request, Response, StatusCode, Uri,
+    header::{CONTENT_ENCODING, CONTENT_TYPE},
+    Method, Request, Response, StatusCode, Uri,
 };
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
@@ -155,6 +156,15 @@ impl LocalResponse {
                 .iter()
                 .find(|v| v.as_str() == MIME_TYPE_JSON)
                 .is_some()
+        } else {
+            false
+        }
+    }
+
+    /// Determine if this response is using XZ content encoding.
+    pub fn is_xz(&self) -> bool {
+        if let Some(values) = self.headers.get(CONTENT_ENCODING.as_str()) {
+            values.iter().find(|v| v.as_str() == "x-xz").is_some()
         } else {
             false
         }

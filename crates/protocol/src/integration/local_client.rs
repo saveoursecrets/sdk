@@ -40,6 +40,10 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
+use bytes::Bytes;
+use std::io::Read;
+use xz::read::XzDecoder;
+
 type ClientTransport = Box<dyn LocalTransport + Send + Sync + 'static>;
 
 /// Local client.
@@ -109,6 +113,17 @@ impl LocalClient {
             }
         } else {
             Ok(response)
+        }
+    }
+
+    fn read_response_body(&self, response: LocalResponse) -> Result<Bytes> {
+        if response.is_xz() {
+            let mut buffer = Vec::new();
+            let mut decompressor = XzDecoder::new(response.body.as_slice());
+            decompressor.read_to_end(&mut buffer)?;
+            Ok(buffer.into())
+        } else {
+            Ok(response.body.into())
         }
     }
 }
@@ -221,7 +236,9 @@ impl SyncClient for LocalClient {
         let status = response.status()?;
         tracing::debug!(status = %status, "local_client::fetch_account");
         let response = self.error_json(response).await?;
-        Ok(CreateSet::decode(response.bytes()).await?)
+        let bytes = self.read_response_body(response)?;
+
+        Ok(CreateSet::decode(bytes).await?)
     }
 
     async fn delete_account(&self, address: &Address) -> Result<()> {

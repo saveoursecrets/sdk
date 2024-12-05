@@ -32,6 +32,8 @@ pub const FIREFOX_EXTENSION_ID: &str =
 const ALLOWED_EXTENSIONS: [&str; 3] =
     [CLI_EXTENSION_ID, CHROME_EXTENSION_ID, FIREFOX_EXTENSION_ID];
 
+const LIMIT: usize = 1024 * 1024;
+
 static CONN: Lazy<Arc<Mutex<Option<SocketClient>>>> =
     Lazy::new(|| Arc::new(Mutex::new(None)));
 
@@ -157,6 +159,13 @@ pub async fn run(options: NativeBridgeOptions) {
 
                 match serde_json::to_vec(&response) {
                     Ok(output) => {
+                        tracing::debug!(
+                            len = %output.len(),
+                            "native_bridge::stdout",
+                        );
+                        if output.len() > LIMIT {
+                            tracing::error!("native_bridge::exceeds_limit");
+                        }
                         if let Err(e) = stdout.send(output.into()).await {
                             tracing::error!(error = %e, "native_bridge::stdout_write");
                             std::process::exit(1);

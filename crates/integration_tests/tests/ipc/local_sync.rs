@@ -115,6 +115,7 @@ async fn integration_ipc_local_sync() -> Result<()> {
 
     // Initial sync fetches the data from the other app
     let sync_result = linked_account.sync().await;
+    // println!("{:#?}", sync_result);
     assert!(sync_result.result.is_ok());
 
     // Make sure the account is recognized on disc

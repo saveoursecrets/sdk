@@ -10,7 +10,7 @@ use crate::{vfs::File, Error, Result};
 fn format_identity_bytes(identity: &[u8]) -> String {
     let c =
         std::str::from_utf8(identity).expect("identity bytes to be UTF-8");
-    format!("{:04x?} ({})", identity, c)
+    format!("{:#04x?} ({})", identity, c)
     /*
     let c =
         std::str::from_utf8(identity).expect("identity bytes to be UTF-8");
