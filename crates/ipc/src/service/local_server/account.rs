@@ -1,18 +1,39 @@
-use http::{Request, Response};
+use http::{Request, Response, StatusCode};
 use hyper::body::Bytes;
 use sos_net::{
     protocol::{
         server_helpers, Merge, SyncPacket, SyncStorage, WireEncodeDecode,
     },
-    sdk::prelude::{Account, AccountSwitcher},
+    sdk::prelude::{Account, AccountSwitcher, Identity},
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use super::{
-    bad_request, forbidden, internal_server_error, not_found, ok,
+    bad_request, forbidden, internal_server_error, json, not_found, ok,
     parse_account_id, protobuf, protobuf_compress, Body, Incoming,
 };
+
+/// List of account public identities.
+pub async fn list_accounts<A, R, E>(
+    _req: Request<Incoming>,
+    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+) -> hyper::Result<Response<Body>>
+where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + From<sos_net::sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    let accounts = accounts.read().await;
+    let Ok(list) = Identity::list_accounts(accounts.data_dir()).await else {
+        return internal_server_error("list_accounts");
+    };
+
+    json(StatusCode::OK, &list)
+}
 
 pub async fn account_exists<A, R, E>(
     req: Request<Incoming>,

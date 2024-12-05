@@ -31,6 +31,10 @@ mod header {
 pub mod routes {
     /// Routes for v1.
     pub mod v1 {
+
+        /// List accounts; local IPC server only.
+        pub const ACCOUNTS_LIST: &str = "/api/v1/accounts";
+
         /// Route for syncing account data.
         pub const SYNC_ACCOUNT: &str = "/api/v1/sync/account";
 

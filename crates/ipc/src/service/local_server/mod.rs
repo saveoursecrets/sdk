@@ -3,7 +3,8 @@ use parking_lot::Mutex;
 use sos_net::{
     protocol::{
         constants::routes::v1::{
-            SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
+            ACCOUNTS_LIST, SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS,
+            SYNC_ACCOUNT_STATUS,
         },
         local_transport::{LocalRequest, LocalResponse},
         Merge, SyncStorage,
@@ -80,6 +81,21 @@ impl LocalServer {
                 "/",
                 BoxCloneService::new(service_fn(
                     move |_req: Request<Incoming>| index(info.clone()),
+                ))
+                .into(),
+            )
+            .unwrap();
+
+        let state = accounts.clone();
+        router
+            .entry(Method::GET)
+            .or_default()
+            .insert(
+                ACCOUNTS_LIST,
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        list_accounts(req, state.clone())
+                    },
                 ))
                 .into(),
             )
