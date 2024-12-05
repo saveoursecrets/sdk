@@ -1695,12 +1695,8 @@ impl Account for LocalAccount {
         let address = *self.address();
         let paths = self.paths();
 
-        tracing::info!("import_account_events");
-
         let mut storage =
             ClientStorage::empty(address, paths.clone()).await?;
-
-        tracing::info!("import_account_events::identity");
 
         {
             let mut identity_log = storage.identity_log.write().await;
@@ -1714,23 +1710,31 @@ impl Account for LocalAccount {
             let buffer = encode(&vault).await?;
             let identity_vault = paths.identity_vault();
             vfs::write(identity_vault, &buffer).await?;
+
+            tracing::info!(
+              root = ?identity_log.tree().root().map(|c| c.to_string()),
+              "import_account_events::identity");
         }
 
-        tracing::info!("import_account_events::account");
         {
             let mut account_log = storage.account_log.write().await;
             let records: Vec<EventRecord> = account.into();
             account_log.apply_records(records).await?;
+
+            tracing::info!(
+              root = ?account_log.tree().root().map(|c| c.to_string()),
+              "import_account_events::account");
         }
 
-        tracing::info!("import_account_events::device");
         {
             let mut device_log = storage.device_log.write().await;
             let records: Vec<EventRecord> = device.into();
             device_log.apply_records(records).await?;
+            tracing::info!(
+              root = ?device_log.tree().root().map(|c| c.to_string()),
+              "import_account_events::device");
         }
 
-        tracing::info!("import_account_events::import_folder_patches");
         storage.import_folder_patches(folders).await?;
 
         #[cfg(feature = "files")]
@@ -1739,6 +1743,9 @@ impl Account for LocalAccount {
             let mut file_log = storage.file_log.write().await;
             let records: Vec<EventRecord> = files.into();
             file_log.apply_records(records).await?;
+            tracing::info!(
+              root = ?file_log.tree().root().map(|c| c.to_string()),
+              "import_account_events::files");
         }
 
         self.set_storage(Some(Arc::new(RwLock::new(storage)))).await;
