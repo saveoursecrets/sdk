@@ -106,6 +106,10 @@ pub enum Error {
     /// Errors generated when a HTTP status code is invalid.
     #[error(transparent)]
     HttpStatus(#[from] http::status::InvalidStatusCode),
+
+    /// Errors generated from network responses.
+    #[error(transparent)]
+    Network(#[from] sos_protocol::NetworkError),
 }
 
 impl From<Error> for IpcResponseError {

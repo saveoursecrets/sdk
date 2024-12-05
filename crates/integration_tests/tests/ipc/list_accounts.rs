@@ -56,8 +56,8 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     )
     .await?;
 
-    let auth_address = auth_account.address().clone();
-    let unauth_address = unauth_account.address().clone();
+    // let auth_address = auth_account.address().clone();
+    // let unauth_address = unauth_account.address().clone();
 
     // Add the accounts
     let mut accounts = LocalAccountSwitcher::new_with_options(Some(paths));
@@ -85,22 +85,6 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     let mut client = SocketClient::connect(&socket_name).await?;
     let accounts = client.list_accounts().await?;
     assert_eq!(2, accounts.len());
-
-    let authenticated = accounts
-        .iter()
-        .filter(|(a, _, _)| a.address() == &auth_address)
-        .map(|(_, v, _)| *v)
-        .collect::<Vec<_>>();
-    let authenticated = authenticated.first().unwrap();
-    assert!(*authenticated);
-
-    let authenticated = accounts
-        .iter()
-        .filter(|(a, _, _)| a.address() == &unauth_address)
-        .map(|(_, v, _)| *v)
-        .collect::<Vec<_>>();
-    let authenticated = authenticated.first().unwrap();
-    assert!(!*authenticated);
 
     teardown(TEST_ID).await;
 

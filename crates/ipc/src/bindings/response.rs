@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/response.rs"));
 
-use crate::{AccountsList, Error, Result, SearchResults};
+use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use sos_net::{
     protocol::local_transport::LocalResponse,
@@ -68,6 +68,7 @@ pub enum IpcResponseBody {
     OpenUrl(bool),
     /// Result invoking the local server.
     Http(LocalResponse),
+    /*
     /// List of accounts.
     Accounts(AccountsList),
     /// Copy to clipboard result.
@@ -80,6 +81,7 @@ pub enum IpcResponseBody {
     Search(SearchResults),
     /// Query view response.
     QueryView(SearchResults),
+    */
 }
 
 /// IPC response error.
@@ -170,91 +172,6 @@ impl From<IpcResponse> for WireIpcResponse {
                         },
                     )),
                 },
-                IpcResponseBody::Accounts(data) => {
-                    let list = WireAccountList {
-                        accounts: data
-                            .into_iter()
-                            .map(|(public_id, val, info)| WireAccountInfo {
-                                public_id: Some(public_id.into()),
-                                authenticated: val,
-                                folders: info
-                                    .into_iter()
-                                    .map(|f| f.into())
-                                    .collect(),
-                            })
-                            .collect(),
-                    };
-
-                    Self {
-                        message_id,
-                        result: Some(wire_ipc_response::Result::Body(
-
-                        WireIpcResponseBody {
-                            inner: Some(
-                                wire_ipc_response_body::Inner::ListAccounts(
-                                    list,
-                                ),
-                            ),
-                        },
-                        )),
-                    }
-                }
-                IpcResponseBody::Copy(outcome) => Self {
-                    message_id,
-                    result: Some(wire_ipc_response::Result::Body(
-                        WireIpcResponseBody {
-                            inner: Some(wire_ipc_response_body::Inner::Copy(
-                                WireCommandOutcome::from(outcome) as i32,
-                            )),
-                        },
-                    )),
-                },
-                IpcResponseBody::Authenticate(outcome) => Self {
-                    message_id,
-                    result: Some(wire_ipc_response::Result::Body(
-                        WireIpcResponseBody {
-                            inner: Some(
-                                wire_ipc_response_body::Inner::Authenticate(
-                                    WireCommandOutcome::from(outcome) as i32,
-                                ),
-                            ),
-                        },
-                    )),
-                },
-                IpcResponseBody::Lock(outcome) => Self {
-                    message_id,
-                    result: Some(wire_ipc_response::Result::Body(
-                        WireIpcResponseBody {
-                            inner: Some(wire_ipc_response_body::Inner::Lock(
-                                WireCommandOutcome::from(outcome) as i32,
-                            )),
-                        },
-                    )),
-                },
-                IpcResponseBody::Search(accounts) => Self {
-                    message_id,
-                    result: Some(wire_ipc_response::Result::Body(
-                        WireIpcResponseBody {
-                            inner: Some(
-                                wire_ipc_response_body::Inner::Search(
-                                    accounts.into(),
-                                ),
-                            ),
-                        },
-                    )),
-                },
-                IpcResponseBody::QueryView(accounts) => Self {
-                    message_id,
-                    result: Some(wire_ipc_response::Result::Body(
-                        WireIpcResponseBody {
-                            inner: Some(
-                                wire_ipc_response_body::Inner::QueryView(
-                                    accounts.into(),
-                                ),
-                            ),
-                        },
-                    )),
-                },
             },
             IpcResponse::Error {
                 message_id,
@@ -318,73 +235,6 @@ impl TryFrom<WireIpcResponse> for IpcResponse {
                         IpcResponse::Value {
                             message_id,
                             payload: IpcResponseBody::Http(res.try_into()?),
-                        }
-                    }
-                    Some(wire_ipc_response_body::Inner::ListAccounts(
-                        inner,
-                    )) => {
-                        let mut data = Vec::new();
-                        for item in inner.accounts {
-                            let public_id = item.public_id.unwrap();
-                            let mut folders =
-                                Vec::with_capacity(item.folders.len());
-                            for folder in item.folders {
-                                folders.push(folder.try_into()?);
-                            }
-                            data.push((
-                                public_id.try_into()?,
-                                item.authenticated,
-                                folders,
-                            ));
-                        }
-                        IpcResponse::Value {
-                            message_id,
-                            payload: IpcResponseBody::Accounts(data),
-                        }
-                    }
-                    Some(wire_ipc_response_body::Inner::Copy(inner)) => {
-                        let outcome: WireCommandOutcome = inner.try_into()?;
-                        IpcResponse::Value {
-                            message_id,
-                            payload: IpcResponseBody::Copy(
-                                outcome.try_into()?,
-                            ),
-                        }
-                    }
-                    Some(wire_ipc_response_body::Inner::Authenticate(
-                        inner,
-                    )) => {
-                        let outcome: WireCommandOutcome = inner.try_into()?;
-                        IpcResponse::Value {
-                            message_id,
-                            payload: IpcResponseBody::Authenticate(
-                                outcome.try_into()?,
-                            ),
-                        }
-                    }
-                    Some(wire_ipc_response_body::Inner::Lock(inner)) => {
-                        let outcome: WireCommandOutcome = inner.try_into()?;
-                        IpcResponse::Value {
-                            message_id,
-                            payload: IpcResponseBody::Lock(
-                                outcome.try_into()?,
-                            ),
-                        }
-                    }
-                    Some(wire_ipc_response_body::Inner::Search(inner)) => {
-                        IpcResponse::Value {
-                            message_id,
-                            payload: IpcResponseBody::Search(
-                                inner.try_into()?,
-                            ),
-                        }
-                    }
-                    Some(wire_ipc_response_body::Inner::QueryView(inner)) => {
-                        IpcResponse::Value {
-                            message_id,
-                            payload: IpcResponseBody::QueryView(
-                                inner.try_into()?,
-                            ),
                         }
                     }
                     _ => return Err(Error::DecodeResponse),
@@ -487,40 +337,6 @@ impl TryFrom<WireCommandOutcome> for CommandOutcome {
             "Unsupported" => CommandOutcome::Unsupported,
             _ => unreachable!("unknown command outcome variant"),
         })
-    }
-}
-
-impl From<SearchResults> for WireSearchResults {
-    fn from(value: SearchResults) -> Self {
-        WireSearchResults {
-            accounts: value
-                .into_iter()
-                .map(|(identity, documents)| WireAccountSearchResults {
-                    identity: Some(identity.into()),
-                    documents: documents
-                        .into_iter()
-                        .map(|d| d.into())
-                        .collect(),
-                })
-                .collect(),
-        }
-    }
-}
-
-impl TryFrom<WireSearchResults> for SearchResults {
-    type Error = Error;
-
-    fn try_from(value: WireSearchResults) -> Result<Self> {
-        let mut results = Vec::with_capacity(value.accounts.len());
-        for account in value.accounts {
-            let identity = account.identity.unwrap();
-            let mut documents = Vec::with_capacity(account.documents.len());
-            for doc in account.documents {
-                documents.push(doc.try_into()?);
-            }
-            results.push((identity.try_into()?, documents));
-        }
-        Ok(results)
     }
 }
 

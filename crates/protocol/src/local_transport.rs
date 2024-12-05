@@ -41,6 +41,17 @@ pub struct LocalRequest {
     pub body: Vec<u8>,
 }
 
+impl Default for LocalRequest {
+    fn default() -> Self {
+        Self {
+            method: Method::GET,
+            uri: Uri::builder().path_and_query("/").build().unwrap(),
+            headers: Default::default(),
+            body: Default::default(),
+        }
+    }
+}
+
 impl fmt::Debug for LocalRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("LocalRequest")

@@ -2,16 +2,17 @@ use async_trait::async_trait;
 use std::time::{Duration, SystemTime};
 
 use crate::{
-    AccountsList, AppIntegration, CommandOutcome, Error, IpcRequest,
-    IpcRequestBody, IpcResponse, IpcResponseBody, Result, SearchResults,
-    ServiceAppInfo,
+    CommandOutcome, Error, IpcRequest, IpcRequestBody, IpcResponse,
+    IpcResponseBody, Result, ServiceAppInfo,
 };
 
 use sos_net::sdk::prelude::{
-    Address, ArchiveFilter, DocumentView, QueryFilter,
+    Address, ArchiveFilter, DocumentView, PublicIdentity, QueryFilter,
 };
 
-pub(crate) mod app_integration;
+use sos_protocol::NetworkError;
+
+// pub(crate) mod app_integration;
 
 #[cfg(feature = "tcp")]
 mod tcp;
@@ -26,9 +27,35 @@ pub use tcp::*;
 pub use local_socket::*;
 
 #[cfg(feature = "integration")]
-use sos_net::protocol::local_transport::{
-    LocalRequest, LocalResponse,
+use sos_protocol::{
+    constants::routes::v1::ACCOUNTS_LIST,
+    local_transport::{LocalRequest, LocalResponse},
 };
+
+/// Contract for types that expose an API to
+/// app integrations such as browser extensions.
+#[async_trait]
+pub trait AppIntegration<E: From<sos_net::sdk::Error>> {
+    /// App info.
+    async fn info(&mut self) -> std::result::Result<ServiceAppInfo, E>;
+
+    /*
+    /// Ping the server.
+    async fn ping(&mut self) -> std::result::Result<Duration, E>;
+    */
+
+    /// Send a request to the local server.
+    #[cfg(feature = "integration")]
+    async fn request(
+        &mut self,
+        request: LocalRequest,
+    ) -> std::result::Result<LocalResponse, E>;
+
+    /// List the accounts on disc and include authentication state.
+    async fn list_accounts(
+        &mut self,
+    ) -> std::result::Result<Vec<PublicIdentity>, E>;
+}
 
 /// App integration functions for clients.
 macro_rules! app_integration_impl {
@@ -38,7 +65,7 @@ macro_rules! app_integration_impl {
             async fn info(&mut self) -> Result<ServiceAppInfo> {
                 let request = IpcRequest {
                     message_id: self.next_id(),
-                    payload: IpcRequestBody::Info,
+                    payload: IpcRequestBody::Http(Default::default()),
                 };
 
                 let response = self.send_request(request).await?;
@@ -48,31 +75,18 @@ macro_rules! app_integration_impl {
                         payload: err,
                     } => Err(Error::ResponseError(message_id, err)),
                     IpcResponse::Value {
-                        payload: IpcResponseBody::Info(app),
+                        payload: IpcResponseBody::Http(response),
                         ..
-                    } => Ok(app),
-                    _ => Err(Error::ResponseType),
-                }
-            }
-
-            async fn ping(&mut self) -> Result<Duration> {
-                let now = SystemTime::now();
-
-                let request = IpcRequest {
-                    message_id: self.next_id(),
-                    payload: IpcRequestBody::Ping,
-                };
-
-                let response = self.send_request(request).await?;
-                match response {
-                    IpcResponse::Error {
-                        message_id,
-                        payload: err,
-                    } => Err(Error::ResponseError(message_id, err)),
-                    IpcResponse::Value {
-                        payload: IpcResponseBody::Pong,
-                        ..
-                    } => Ok(now.elapsed()?),
+                    } => {
+                        let status = response.status()?;
+                        if status.is_success() {
+                            let app_info: ServiceAppInfo =
+                                serde_json::from_slice(&response.body)?;
+                            Ok(app_info)
+                        } else {
+                            Err(NetworkError::ResponseCode(status).into())
+                        }
+                    }
                     _ => Err(Error::ResponseType),
                 }
             }
@@ -100,33 +114,15 @@ macro_rules! app_integration_impl {
                 }
             }
 
-            async fn list_accounts(&mut self) -> Result<AccountsList> {
+            async fn list_accounts(&mut self) -> Result<Vec<PublicIdentity>> {
                 let request = IpcRequest {
                     message_id: self.next_id(),
-                    payload: IpcRequestBody::ListAccounts,
+                    payload: IpcRequestBody::Http(LocalRequest {
+                        uri: ACCOUNTS_LIST.parse()?,
+                        ..Default::default()
+                    }),
                 };
-                let response = self.send_request(request).await?;
-                match response {
-                    IpcResponse::Error {
-                        message_id,
-                        payload: err,
-                    } => Err(Error::ResponseError(message_id, err)),
-                    IpcResponse::Value {
-                        payload: IpcResponseBody::Accounts(list),
-                        ..
-                    } => Ok(list),
-                    _ => Err(Error::ResponseType),
-                }
-            }
 
-            async fn authenticate(
-                &mut self,
-                address: Address,
-            ) -> Result<CommandOutcome> {
-                let request = IpcRequest {
-                    message_id: self.next_id(),
-                    payload: IpcRequestBody::Authenticate { address },
-                };
                 let response = self.send_request(request).await?;
                 match response {
                     IpcResponse::Error {
@@ -134,83 +130,18 @@ macro_rules! app_integration_impl {
                         payload: err,
                     } => Err(Error::ResponseError(message_id, err)),
                     IpcResponse::Value {
-                        payload: IpcResponseBody::Authenticate(outcome),
+                        payload: IpcResponseBody::Http(response),
                         ..
-                    } => Ok(outcome),
-                    _ => Err(Error::ResponseType),
-                }
-            }
-
-            async fn lock(
-                &mut self,
-                address: Option<Address>,
-            ) -> Result<CommandOutcome> {
-                let request = IpcRequest {
-                    message_id: self.next_id(),
-                    payload: IpcRequestBody::Lock { address },
-                };
-                let response = self.send_request(request).await?;
-                match response {
-                    IpcResponse::Error {
-                        message_id,
-                        payload: err,
-                    } => Err(Error::ResponseError(message_id, err)),
-                    IpcResponse::Value {
-                        payload: IpcResponseBody::Lock(outcome),
-                        ..
-                    } => Ok(outcome),
-                    _ => Err(Error::ResponseType),
-                }
-            }
-
-            async fn search(
-                &mut self,
-                needle: &str,
-                filter: QueryFilter,
-            ) -> Result<SearchResults> {
-                let request = IpcRequest {
-                    message_id: self.next_id(),
-                    payload: IpcRequestBody::Search {
-                        needle: needle.to_owned(),
-                        filter,
-                    },
-                };
-                let response = self.send_request(request).await?;
-                match response {
-                    IpcResponse::Error {
-                        message_id,
-                        payload: err,
-                    } => Err(Error::ResponseError(message_id, err)),
-                    IpcResponse::Value {
-                        payload: IpcResponseBody::Search(results),
-                        ..
-                    } => Ok(results),
-                    _ => Err(Error::ResponseType),
-                }
-            }
-
-            async fn query_view(
-                &mut self,
-                views: Vec<DocumentView>,
-                archive_filter: Option<ArchiveFilter>,
-            ) -> Result<SearchResults> {
-                let request = IpcRequest {
-                    message_id: self.next_id(),
-                    payload: IpcRequestBody::QueryView {
-                        views,
-                        archive_filter,
-                    },
-                };
-                let response = self.send_request(request).await?;
-                match response {
-                    IpcResponse::Error {
-                        message_id,
-                        payload: err,
-                    } => Err(Error::ResponseError(message_id, err)),
-                    IpcResponse::Value {
-                        payload: IpcResponseBody::QueryView(results),
-                        ..
-                    } => Ok(results),
+                    } => {
+                        let status = response.status()?;
+                        if status.is_success() {
+                            let accounts: Vec<PublicIdentity> =
+                                serde_json::from_slice(&response.body)?;
+                            Ok(accounts)
+                        } else {
+                            Err(NetworkError::ResponseCode(status).into())
+                        }
+                    }
                     _ => Err(Error::ResponseType),
                 }
             }

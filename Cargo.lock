@@ -4629,6 +4629,7 @@ dependencies = [
  "serde_json",
  "sos-account-extras",
  "sos-net",
+ "sos-protocol",
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",

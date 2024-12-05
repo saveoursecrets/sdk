@@ -1,7 +1,6 @@
 use crate::{
-    io_err, AccountsList, ClipboardTarget, CommandOutcome, IpcRequest,
-    IpcRequestBody, IpcResponse, IpcResponseBody, SearchResults,
-    ServiceAppInfo,
+    io_err, ClipboardTarget, CommandOutcome, IpcRequest, IpcRequestBody,
+    IpcResponse, IpcResponseBody, ServiceAppInfo,
 };
 use async_trait::async_trait;
 use sos_account_extras::clipboard::NativeClipboard;
@@ -113,6 +112,7 @@ where
         }
     }
 
+    /*
     async fn list_accounts(&self) -> std::result::Result<AccountsList, E> {
         let accounts = self.accounts.read().await;
         let mut out = Vec::new();
@@ -141,43 +141,9 @@ where
         }
         Ok(out)
     }
+    */
 
-    async fn search(
-        &self,
-        needle: String,
-        filter: QueryFilter,
-    ) -> std::result::Result<SearchResults, E> {
-        let mut out = Vec::new();
-        let accounts = self.accounts.read().await;
-        for account in accounts.iter() {
-            if account.is_authenticated().await {
-                let identity = account.public_identity().await?;
-                let results =
-                    account.query_map(&needle, filter.clone()).await?;
-                out.push((identity, results));
-            }
-        }
-        Ok(out)
-    }
-
-    async fn query_view(
-        &self,
-        views: &[DocumentView],
-        archive_filter: Option<&ArchiveFilter>,
-    ) -> std::result::Result<SearchResults, E> {
-        let mut out = Vec::new();
-        let accounts = self.accounts.read().await;
-        for account in accounts.iter() {
-            if account.is_authenticated().await {
-                let identity = account.public_identity().await?;
-                let results =
-                    account.query_view(views, archive_filter).await?;
-                out.push((identity, results));
-            }
-        }
-        Ok(out)
-    }
-
+    /*
     /// Copy to the clipboard.
     async fn copy_clipboard(
         &self,
@@ -223,42 +189,6 @@ where
             }
         } else {
             CommandOutcome::NotFound
-        })
-    }
-
-    /*
-    /// Read secret.
-    async fn read_secret(
-        &self,
-        target: QualifiedPath,
-    ) -> Result<(CommandOutcome, Option<Vec<u8>>), E> {
-        let accounts = self.accounts.read().await;
-        let account =
-            accounts.iter().find(|a| a.address() == target.address());
-        Ok(if let Some(account) = account {
-            if account.is_authenticated().await {
-                let target_folder =
-                    account.find(|f| f.id() == target.folder_id()).await;
-                if let Some(folder) = target_folder {
-                    let (vault_commit, _) = account
-                        .raw_secret(folder.id(), target.secret_id())
-                        .await?;
-                    let result = if let Some(commit) = vault_commit {
-                        let buffer = encode(&commit).await?;
-                        Some(buffer)
-                    } else {
-                        None
-                    };
-
-                    (CommandOutcome::Success, result)
-                } else {
-                    (CommandOutcome::NotFound, None)
-                }
-            } else {
-                (CommandOutcome::NotAuthenticated, None)
-            }
-        } else {
-            (CommandOutcome::NotFound, None)
         })
     }
     */
@@ -323,73 +253,6 @@ where
                 Ok(IpcResponse::Value {
                     message_id,
                     payload: IpcResponseBody::Http(res),
-                })
-            }
-            IpcRequestBody::ListAccounts => {
-                let data = self.list_accounts().await?;
-                Ok(IpcResponse::Value {
-                    message_id,
-                    payload: IpcResponseBody::Accounts(data),
-                })
-            }
-            IpcRequestBody::Copy(target) => {
-                let outcome = self.copy_clipboard(target).await?;
-                Ok(IpcResponse::Value {
-                    message_id,
-                    payload: IpcResponseBody::Copy(outcome),
-                })
-            }
-            IpcRequestBody::Authenticate { address } => {
-                let (result, result_rx) = tokio::sync::oneshot::channel();
-                let command = Command {
-                    accounts: self.accounts.clone(),
-                    options: CommandOptions::Authenticate { address, result },
-                };
-                match self.delegate.send(command).await {
-                    Ok(_) => match result_rx.await {
-                        Ok(outcome) => Ok(IpcResponse::Value {
-                            message_id,
-                            payload: IpcResponseBody::Authenticate(outcome),
-                        }),
-                        Err(err) => Err(io_err(err).into()),
-                    },
-                    Err(err) => Err(io_err(err).into()),
-                }
-            }
-            IpcRequestBody::Lock { address } => {
-                let (result, result_rx) = tokio::sync::oneshot::channel();
-                let command = Command {
-                    accounts: self.accounts.clone(),
-                    options: CommandOptions::Lock { address, result },
-                };
-                match self.delegate.send(command).await {
-                    Ok(_) => match result_rx.await {
-                        Ok(outcome) => Ok(IpcResponse::Value {
-                            message_id,
-                            payload: IpcResponseBody::Lock(outcome),
-                        }),
-                        Err(err) => Err(io_err(err).into()),
-                    },
-                    Err(err) => Err(io_err(err).into()),
-                }
-            }
-            IpcRequestBody::Search { needle, filter } => {
-                let data = self.search(needle, filter).await?;
-                Ok(IpcResponse::Value {
-                    message_id,
-                    payload: IpcResponseBody::Search(data),
-                })
-            }
-            IpcRequestBody::QueryView {
-                views,
-                archive_filter,
-            } => {
-                let data = self
-                    .query_view(views.as_slice(), archive_filter.as_ref())
-                    .await?;
-                Ok(IpcResponse::Value {
-                    message_id,
-                    payload: IpcResponseBody::QueryView(data),
                 })
             }
         }

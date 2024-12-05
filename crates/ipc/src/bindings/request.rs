@@ -42,6 +42,7 @@ pub enum IpcRequestBody {
     OpenUrl(String),
     /// HTTP request routed to the local server.
     Http(LocalRequest),
+    /*
     /// Request the accounts list.
     ListAccounts,
     /// Request to copy to the clipboard.
@@ -70,6 +71,7 @@ pub enum IpcRequestBody {
         /// Archive filter.
         archive_filter: Option<ArchiveFilter>,
     },
+    */
     /*
     /// Request to read a secret.
     ReadSecret {
@@ -82,13 +84,7 @@ pub enum IpcRequestBody {
 impl IpcRequest {
     /// Duration allowed for a request.
     pub fn timeout_duration(&self) -> Duration {
-        match &self.payload {
-            #[cfg(debug_assertions)]
-            IpcRequestBody::Authenticate { .. } => Duration::from_secs(15),
-            #[cfg(not(debug_assertions))]
-            IpcRequestBody::Authenticate { .. } => Duration::from_secs(60),
-            _ => Duration::from_secs(15),
-        }
+        Duration::from_secs(15)
     }
 }
 
@@ -143,82 +139,6 @@ impl From<IpcRequest> for WireIpcRequest {
                     )),
                 }),
             },
-            IpcRequestBody::ListAccounts => WireIpcRequest {
-                message_id: value.message_id,
-                body: Some(WireIpcRequestBody {
-                    inner: Some(wire_ipc_request_body::Inner::ListAccounts(
-                        WireVoidBody {},
-                    )),
-                }),
-            },
-            IpcRequestBody::Copy(target) => WireIpcRequest {
-                message_id: value.message_id,
-                body: Some(WireIpcRequestBody {
-                    inner: Some(wire_ipc_request_body::Inner::Copy(
-                        target.into(),
-                    )),
-                }),
-            },
-            IpcRequestBody::Authenticate { address } => WireIpcRequest {
-                message_id: value.message_id,
-                body: Some(WireIpcRequestBody {
-                    inner: Some(wire_ipc_request_body::Inner::Authenticate(
-                        WireAuthenticateBody {
-                            address: address.to_string(),
-                        },
-                    )),
-                }),
-            },
-            IpcRequestBody::Lock { address } => WireIpcRequest {
-                message_id: value.message_id,
-                body: Some(WireIpcRequestBody {
-                    inner: Some(wire_ipc_request_body::Inner::Lock(
-                        WireLockBody {
-                            address: address.map(|a| a.to_string()),
-                        },
-                    )),
-                }),
-            },
-            IpcRequestBody::Search { needle, filter } => WireIpcRequest {
-                message_id: value.message_id,
-                body: Some(WireIpcRequestBody {
-                    inner: Some(wire_ipc_request_body::Inner::Search(
-                        WireSearchBody {
-                            needle,
-                            filter: Some(filter.into()),
-                        },
-                    )),
-                }),
-            },
-            IpcRequestBody::QueryView {
-                views,
-                archive_filter,
-            } => WireIpcRequest {
-                message_id: value.message_id,
-                body: Some(WireIpcRequestBody {
-                    inner: Some(wire_ipc_request_body::Inner::QueryView(
-                        WireQueryViewBody {
-                            views: views
-                                .into_iter()
-                                .map(|v| v.into())
-                                .collect(),
-                            archive_filter: archive_filter.map(|f| f.into()),
-                        },
-                    )),
-                }),
-            },
-            /*
-            IpcRequestBody::ReadSecret { path } => WireIpcRequest {
-                message_id: value.message_id,
-                body: Some(WireIpcRequestBody {
-                    inner: Some(wire_ipc_request_body::Inner::ReadSecret(
-                        WireReadSecretBody {
-                            path: Some(path.into()),
-                        },
-                    )),
-                }),
-            },
-            */
         }
     }
 }
@@ -254,71 +174,6 @@ impl TryFrom<WireIpcRequest> for IpcRequest {
                 message_id,
                 payload: IpcRequestBody::Http(body.try_into()?),
             },
-            Some(wire_ipc_request_body::Inner::ListAccounts(_)) => {
-                IpcRequest {
-                    message_id,
-                    payload: IpcRequestBody::ListAccounts,
-                }
-            }
-            Some(wire_ipc_request_body::Inner::Copy(target)) => IpcRequest {
-                message_id,
-                payload: IpcRequestBody::Copy(target.try_into()?),
-            },
-            Some(wire_ipc_request_body::Inner::Authenticate(body)) => {
-                let address: Address = body.address.parse()?;
-                IpcRequest {
-                    message_id,
-                    payload: IpcRequestBody::Authenticate { address },
-                }
-            }
-            Some(wire_ipc_request_body::Inner::Lock(body)) => {
-                let address = if let Some(address) = body.address {
-                    let address: Address = address.parse()?;
-                    Some(address)
-                } else {
-                    None
-                };
-                IpcRequest {
-                    message_id,
-                    payload: IpcRequestBody::Lock { address },
-                }
-            }
-            Some(wire_ipc_request_body::Inner::Search(body)) => IpcRequest {
-                message_id,
-                payload: IpcRequestBody::Search {
-                    needle: body.needle,
-                    filter: body.filter.unwrap().try_into()?,
-                },
-            },
-            Some(wire_ipc_request_body::Inner::QueryView(body)) => {
-                let mut views = Vec::with_capacity(body.views.len());
-                for view in body.views {
-                    views.push(view.try_into()?);
-                }
-                let archive_filter =
-                    if let Some(archive_filter) = body.archive_filter {
-                        Some(archive_filter.try_into()?)
-                    } else {
-                        None
-                    };
-                IpcRequest {
-                    message_id,
-                    payload: IpcRequestBody::QueryView {
-                        views,
-                        archive_filter,
-                    },
-                }
-            }
-            /*
-            Some(wire_ipc_request_body::Inner::ReadSecret(body)) => {
-                IpcRequest {
-                    message_id,
-                    payload: IpcRequestBody::ReadSecret {
-                        path: body.path.unwrap().try_into()?,
-                    },
-                }
-            }
-            */
             _ => return Err(Error::DecodeRequest),
         })
     }
