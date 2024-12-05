@@ -16,11 +16,18 @@
 mod error;
 
 mod bindings;
+#[cfg(feature = "client")]
 mod client;
 pub(crate) mod codec;
 #[cfg(feature = "native-bridge")]
 pub mod native_bridge;
+
+#[cfg(any(feature = "client", feature = "server"))]
+pub(crate) mod io;
+
+#[cfg(feature = "server")]
 mod server;
+#[cfg(feature = "server")]
 mod service;
 
 pub use error::Error;
@@ -30,8 +37,12 @@ pub(crate) use bindings::*;
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;
 
+#[cfg(feature = "client")]
 pub use client::{AppIntegration, SocketClient};
+
+#[cfg(feature = "server")]
 pub use server::SocketServer;
+#[cfg(feature = "server")]
 pub use service::{IpcService, IpcServiceOptions};
 
 /// Information about the service.

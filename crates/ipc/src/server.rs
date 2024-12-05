@@ -6,6 +6,9 @@ use sos_protocol::local_transport::{LocalRequest, LocalResponse};
 use std::{pin::Pin, sync::Arc};
 
 use futures_util::sink::SinkExt;
+use hyper::{
+    body::Incoming, server::conn::http1::Builder, service::HttpService,
+};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     sync::RwLock,
@@ -18,8 +21,8 @@ use tokio_util::{
 };
 
 use crate::{
-    codec, decode_proto, encode_proto, io_err, IpcService, WireLocalRequest,
-    WireLocalResponse,
+    codec, decode_proto, encode_proto, io::TokioIo, io_err, IpcService,
+    WireLocalRequest, WireLocalResponse,
 };
 
 use crate::Result;
@@ -29,10 +32,11 @@ pub struct SocketServer;
 
 impl SocketServer {
     /// Listen on a bind address.
-    pub async fn listen(
-        socket_name: &str,
-        service: Arc<RwLock<IpcService>>,
-    ) -> Result<()> {
+    pub async fn listen<S>(socket_name: &str, service: S) -> Result<()>
+    where
+        S: HttpService<Incoming> + Send + 'static,
+        // B: Incoming + Send + Sync + 'static,
+    {
         let name = socket_name.to_ns_name::<GenericNamespaced>()?;
         let opts = ListenerOptions::new().name(name);
         let listener = match opts.create_tokio() {
@@ -47,15 +51,30 @@ impl SocketServer {
 
         loop {
             let socket = listener.accept().await?;
-            let service = service.clone();
+            // let service = service.clone();
+            //
+            // socket.foo();
 
             tokio::spawn(async move {
-                handle_conn(service, socket).await;
+                let socket = TokioIo::new(socket);
+                // handle_conn(service, socket).await;
+
+                let http = Builder::new();
+                let conn = http.serve_connection(socket, service);
+
+                /*
+                if let Err(e) = conn.await {
+                    eprintln!("server connection error: {}", e);
+                }
+                */
+
+                todo!();
             });
         }
     }
 }
 
+/*
 async fn handle_conn<T>(service: Arc<RwLock<IpcService>>, socket: T)
 where
     T: AsyncRead + AsyncWrite + Sized,
@@ -144,3 +163,4 @@ where
     channel.send(buffer.into()).await?;
     Ok(())
 }
+*/

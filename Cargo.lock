@@ -4621,6 +4621,7 @@ dependencies = [
  "once_cell",
  "open",
  "parking_lot",
+ "pin-project-lite",
  "prost",
  "prost-build",
  "protoc-bin-vendored",
