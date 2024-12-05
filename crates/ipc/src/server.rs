@@ -2,10 +2,6 @@ use http::StatusCode;
 use interprocess::local_socket::{
     tokio::prelude::*, GenericNamespaced, ListenerOptions,
 };
-use sos_net::{
-    sdk::prelude::{Account, LocalAccount},
-    NetworkAccount,
-};
 use sos_protocol::local_transport::{LocalRequest, LocalResponse};
 use std::{pin::Pin, sync::Arc};
 
@@ -26,40 +22,16 @@ use crate::{
     WireLocalResponse,
 };
 
-use crate::{LocalAccountIpcService, NetworkAccountIpcService, Result};
-
-/// Socket server for network-enabled accounts.
-pub type NetworkAccountSocketServer = SocketServer<
-    NetworkAccountIpcService,
-    <NetworkAccount as Account>::Error,
->;
-
-/// Socket server for local accounts.
-pub type LocalAccountSocketServer =
-    SocketServer<LocalAccountIpcService, <LocalAccount as Account>::Error>;
+use crate::Result;
 
 /// Socket server for inter-process communication.
-pub struct SocketServer<S, E>
-where
-    S: IpcService<E> + Send + Sync + 'static,
-    E: Send,
-{
-    phantom: std::marker::PhantomData<(S, E)>,
-}
+pub struct SocketServer;
 
-impl<S, E> SocketServer<S, E>
-where
-    S: IpcService<E> + Send + Sync + 'static,
-    E: std::error::Error
-        + Send
-        + From<std::io::Error>
-        + std::fmt::Debug
-        + std::fmt::Display,
-{
+impl SocketServer {
     /// Listen on a bind address.
     pub async fn listen(
         socket_name: &str,
-        service: Arc<RwLock<S>>,
+        service: Arc<RwLock<IpcService>>,
     ) -> Result<()> {
         let name = socket_name.to_ns_name::<GenericNamespaced>()?;
         let opts = ListenerOptions::new().name(name);
@@ -84,14 +56,8 @@ where
     }
 }
 
-async fn handle_conn<E, S, T>(service: Arc<RwLock<S>>, socket: T)
+async fn handle_conn<T>(service: Arc<RwLock<IpcService>>, socket: T)
 where
-    S: IpcService<E> + Send + Sync + 'static,
-    E: std::error::Error
-        + Send
-        + From<std::io::Error>
-        + std::fmt::Debug
-        + std::fmt::Display,
     T: AsyncRead + AsyncWrite + Sized,
 {
     let io = Box::pin(socket);
@@ -146,18 +112,12 @@ where
     tracing::debug!("socket_server::socket_closed");
 }
 
-async fn handle_request<E, S, T>(
-    service: Arc<RwLock<S>>,
+async fn handle_request<T>(
+    service: Arc<RwLock<IpcService>>,
     channel: &mut Framed<Pin<Box<T>>, LengthDelimitedCodec>,
     bytes: BytesMut,
-) -> std::result::Result<(), E>
+) -> Result<()>
 where
-    S: IpcService<E> + Send + Sync + 'static,
-    E: std::error::Error
-        + Send
-        + From<std::io::Error>
-        + std::fmt::Debug
-        + std::fmt::Display,
     T: AsyncRead + AsyncWrite + Sized,
 {
     let request: WireLocalRequest = decode_proto(&bytes).map_err(io_err)?;

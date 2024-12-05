@@ -240,7 +240,7 @@ async fn handle_native_request(
             let url = Url::parse(&request.uri.to_string()).unwrap();
 
             let Some(target) =
-                url.query_pairs().find(|(k, v)| k == "url").map(|(_, v)| v)
+                url.query_pairs().find(|(k, _)| k == "url").map(|(_, v)| v)
             else {
                 return Ok(LocalResponse::with_id(
                     StatusCode::BAD_REQUEST,

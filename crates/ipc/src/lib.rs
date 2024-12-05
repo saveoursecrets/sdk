@@ -30,15 +30,9 @@ pub(crate) use bindings::*;
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;
 
-pub use service::{
-    IpcService, IpcServiceHandler, IpcServiceOptions, LocalAccountIpcService,
-    NetworkAccountIpcService,
-};
-
-pub use client::SocketClient;
-pub use server::{LocalAccountSocketServer, NetworkAccountSocketServer};
-
-pub use client::AppIntegration;
+pub use client::{AppIntegration, SocketClient};
+pub use server::SocketServer;
+pub use service::{IpcService, IpcServiceOptions};
 
 /// Information about the service.
 #[typeshare::typeshare]

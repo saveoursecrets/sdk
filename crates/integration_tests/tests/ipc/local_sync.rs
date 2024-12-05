@@ -1,8 +1,5 @@
 use anyhow::Result;
-use sos_ipc::{
-    remove_socket_file, Error, LocalAccountIpcService,
-    LocalAccountSocketServer,
-};
+use sos_ipc::{remove_socket_file, Error, IpcService, SocketServer};
 use sos_net::{
     protocol::{
         integration::{LinkedAccount, LocalClient, LocalIntegration},
@@ -27,7 +24,6 @@ use crate::{
 
 /// Test for syncing between apps installed on the same
 /// device via the IPC communication channel.
-#[ignore]
 #[tokio::test]
 async fn integration_ipc_local_sync() -> Result<()> {
     const TEST_ID: &str = "ipc_local_sync";
@@ -69,15 +65,14 @@ async fn integration_ipc_local_sync() -> Result<()> {
     let local_accounts = Arc::new(RwLock::new(local_accounts));
 
     // Start the IPC service
-    let service = Arc::new(RwLock::new(LocalAccountIpcService::new(
+    let service = Arc::new(RwLock::new(IpcService::new(
         local_accounts.clone(),
         Default::default(),
     )));
 
     let server_socket_name = socket_name.clone();
     tokio::task::spawn(async move {
-        LocalAccountSocketServer::listen(&server_socket_name, service)
-            .await?;
+        SocketServer::listen(&server_socket_name, service).await?;
         Ok::<(), Error>(())
     });
 
