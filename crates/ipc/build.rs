@@ -18,13 +18,6 @@ fn main() {
         protoc_bin_vendored::protoc_bin_path().unwrap(),
     );
 
-    prost_build::compile_protos(
-        &[
-            "src/protobuf/common.proto",
-            "src/protobuf/request.proto",
-            "src/protobuf/response.proto",
-        ],
-        &["src"],
-    )
-    .unwrap();
+    prost_build::compile_protos(&["src/protobuf/common.proto"], &["src"])
+        .unwrap();
 }
