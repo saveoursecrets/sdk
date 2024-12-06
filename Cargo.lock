@@ -4426,6 +4426,7 @@ dependencies = [
  "async-trait",
  "bytes",
  "flate2",
+ "futures",
  "futures-util",
  "http",
  "http-body-util",

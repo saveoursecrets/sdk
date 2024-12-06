@@ -2,9 +2,8 @@ use anyhow::Result;
 use http::Method;
 use http::StatusCode;
 use sos_ipc::{
-    local_transport::LocalRequest,
-    native_bridge::client::send as send_native, remove_socket_file,
-    server::LocalSocketServer, Error,
+    local_transport::LocalRequest, native_bridge::client::NativeBridgeClient,
+    remove_socket_file, server::LocalSocketServer, Error,
 };
 use sos_net::protocol::constants::routes::v1::ACCOUNTS_LIST;
 use sos_net::sdk::{
@@ -89,9 +88,11 @@ async fn integration_ipc_native_bridge_list_accounts() -> Result<()> {
     request.set_request_id(1);
 
     let (command, arguments) = super::native_bridge_cmd(SOCKET_NAME);
-    let response = send_native(command, arguments, &request).await?;
+    let mut client = NativeBridgeClient::new(command, arguments).await?;
+    let response = client.send(&request).await?;
     assert_eq!(StatusCode::OK, response.status().unwrap());
 
+    client.kill().await?;
     teardown(TEST_ID).await;
 
     Ok(())

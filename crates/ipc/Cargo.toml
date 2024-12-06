@@ -52,7 +52,7 @@ files = ["sos-sdk/files", "sos-protocol/files"]
 migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
 search = ["sos-sdk/search", "sos-protocol/search"]
 native-bridge-server = ["client", "open", "tokio/io-std"]
-native-bridge-client = ["local-transport", "tokio/process", "tokio/io-std"]
+native-bridge-client = ["local-transport", "tokio/process", "tokio/io-std", "futures"]
 
 [dependencies]
 thiserror.workspace = true
@@ -63,6 +63,7 @@ typeshare.workspace = true
 parking_lot.workspace = true
 http.workspace = true
 bytes.workspace = true
+futures = { workspace = true, optional = true }
 
 indexmap = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }

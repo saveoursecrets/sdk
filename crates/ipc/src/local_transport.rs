@@ -153,7 +153,6 @@ pub struct LocalResponse {
     pub body: Vec<u8>,
 }
 
-/*
 impl Default for LocalResponse {
     fn default() -> Self {
         Self {
@@ -163,7 +162,6 @@ impl Default for LocalResponse {
         }
     }
 }
-*/
 
 impl fmt::Debug for LocalResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -189,6 +187,15 @@ impl From<Response<Vec<u8>>> for LocalResponse {
             status: parts.status.into(),
             headers,
             body,
+        }
+    }
+}
+
+impl From<StatusCode> for LocalResponse {
+    fn from(status: StatusCode) -> Self {
+        Self {
+            status: status.into(),
+            ..Default::default()
         }
     }
 }

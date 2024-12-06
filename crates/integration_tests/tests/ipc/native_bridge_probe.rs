@@ -2,7 +2,7 @@ use anyhow::Result;
 use http::Method;
 use http::StatusCode;
 use sos_ipc::{
-    local_transport::LocalRequest, native_bridge::client::send as send_native,
+    local_transport::LocalRequest, native_bridge::client::NativeBridgeClient,
 };
 
 const SOCKET_NAME: &str = "ipc_native_bridge_probe.sock";
@@ -22,8 +22,11 @@ async fn integration_ipc_native_bridge_probe() -> Result<()> {
     request.set_request_id(1);
 
     let (command, arguments) = super::native_bridge_cmd(SOCKET_NAME);
-    let response = send_native(command, arguments, &request).await?;
+    let mut client = NativeBridgeClient::new(command, arguments).await?;
+    let response = client.send(&request).await?;
     assert_eq!(StatusCode::OK, response.status().unwrap());
+
+    client.kill().await?;
 
     Ok(())
 }
