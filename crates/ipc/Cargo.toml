@@ -1,6 +1,6 @@
 [package]
 name = "sos-ipc"
-version = "0.16.4"
+version = "0.16.5"
 edition = "2021"
 description = "Inter-process communication for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -44,14 +44,14 @@ server = [
   "http-body-util",
   "hyper-util",
 ]
-integration = ["indexmap", "async-trait"]
+integration = ["account", "indexmap", "async-trait"]
 account = ["sos-sdk/account", "sos-protocol/account"]
 archive = ["sos-sdk/archive", "sos-protocol/archive"]
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = ["sos-sdk/files", "sos-protocol/files"]
 migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
 search = ["sos-sdk/search", "sos-protocol/search"]
-native-bridge-server = ["client", "open"]
+native-bridge-server = ["client", "open", "tokio/io-std"]
 native-bridge-client = ["local-transport", "tokio/process", "tokio/io-std"]
 
 [dependencies]
