@@ -4610,7 +4610,7 @@ dependencies = [
 
 [[package]]
 name = "sos-ipc"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "bytes",
  "futures-util",
@@ -4678,7 +4678,7 @@ dependencies = [
 
 [[package]]
 name = "sos-protocol"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4708,7 +4708,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "aes-gcm",
  "age",

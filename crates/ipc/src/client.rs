@@ -1,4 +1,4 @@
-use crate::{Error, Result, ServiceAppInfo};
+use crate::{Result, ServiceAppInfo};
 use bytes::Bytes;
 use http::{Request, Response};
 use http_body_util::{BodyExt, Full};

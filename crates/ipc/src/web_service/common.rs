@@ -6,8 +6,7 @@ use http::{
 use http_body_util::{BodyExt, Full};
 use serde::Serialize;
 use sos_protocol::constants::{
-    ENCODING_ZLIB, ENCODING_ZSTD, MIME_TYPE_JSON, MIME_TYPE_PROTOBUF,
-    X_SOS_ACCOUNT_ID,
+    ENCODING_ZLIB, MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
 };
 use sos_sdk::prelude::Address;
 

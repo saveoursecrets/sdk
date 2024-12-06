@@ -1,9 +1,7 @@
 //! Types used for communicating between apps on the same device.
 
 use crate::{
-    constants::{
-        ENCODING_ZLIB, ENCODING_ZSTD, MIME_TYPE_JSON, X_SOS_REQUEST_ID,
-    },
+    constants::{ENCODING_ZLIB, MIME_TYPE_JSON, X_SOS_REQUEST_ID},
     Error, Result,
 };
 use async_trait::async_trait;
