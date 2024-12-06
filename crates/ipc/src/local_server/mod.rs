@@ -1,14 +1,17 @@
+use bytes::Bytes;
 use http::{Method, Request, Response, StatusCode};
+use http_body_util::Full;
+use hyper::body::Incoming;
+use hyper::service::Service as HyperService;
 use parking_lot::Mutex;
 use sos_protocol::{
     constants::routes::v1::{
         ACCOUNTS_LIST, SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
     },
-    local_transport::{LocalRequest, LocalResponse},
     Merge, SyncStorage,
 };
 use sos_sdk::prelude::{Account, AccountSwitcher};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 use tokio::sync::RwLock;
 use tower::service_fn;
 use tower::util::BoxCloneService;
@@ -16,8 +19,8 @@ use tower::Service as _;
 
 use crate::ServiceAppInfo;
 
-type Incoming = Vec<u8>;
-type Body = Vec<u8>;
+// type Incoming = Vec<u8>;
+type Body = Full<Bytes>;
 
 // Need the Mutex as BoxCloneService does not implement Sync
 type Service =
@@ -44,6 +47,7 @@ async fn index(
 ///
 /// We avoid using axum directly as we need the `Sync` bound
 /// but `axum::Body` is `!Sync`.
+#[derive(Clone)]
 pub(crate) struct LocalServer {
     /// Service router.
     router: Arc<Router>,
@@ -253,6 +257,7 @@ impl LocalServer {
         }
     }
 
+    /*
     pub async fn handle(&self, req: LocalRequest) -> LocalResponse {
         let res = match req.try_into() {
             Ok(req) => self.call(req).await,
@@ -263,13 +268,17 @@ impl LocalServer {
         };
         res.into()
     }
+    */
 
-    async fn call(&self, req: Request<Incoming>) -> Response<Body> {
+    pub(crate) async fn call(
+        &self,
+        req: Request<Incoming>,
+    ) -> hyper::Result<Response<Body>> {
         let router = self.router.clone();
-        match Self::route(router, req).await {
+        Ok(match Self::route(router, req).await {
             Ok(result) => result,
             Err(e) => internal_server_error(e).unwrap(),
-        }
+        })
     }
 
     async fn route(
@@ -294,5 +303,22 @@ impl LocalServer {
             Ok(result) => Ok(result),
             Err(e) => internal_server_error(e),
         }
+    }
+}
+
+impl HyperService<Request<Incoming>> for LocalServer {
+    type Response = Response<Full<Bytes>>;
+    type Error = hyper::Error;
+    type Future = Pin<
+        Box<
+            dyn Future<
+                    Output = std::result::Result<Self::Response, Self::Error>,
+                > + Send,
+        >,
+    >;
+
+    fn call(&self, req: Request<Incoming>) -> Self::Future {
+        let router = self.router.clone();
+        Box::pin(async move { LocalServer::route(router, req).await })
     }
 }

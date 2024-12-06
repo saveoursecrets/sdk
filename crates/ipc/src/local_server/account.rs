@@ -1,4 +1,5 @@
 use http::{Request, Response, StatusCode};
+use http_body_util::Full;
 use hyper::body::Bytes;
 use sos_protocol::{
     server_helpers, Merge, SyncPacket, SyncStorage, WireEncodeDecode,
@@ -9,7 +10,8 @@ use tokio::sync::RwLock;
 
 use super::{
     bad_request, forbidden, internal_server_error, json, not_found, ok,
-    parse_account_id, protobuf, protobuf_compress, Body, Incoming,
+    parse_account_id, protobuf, protobuf_compress, read_bytes, Body,
+    Incoming,
 };
 
 /// List of account public identities.
@@ -133,7 +135,7 @@ where
                     return internal_server_error("fetch_account::encode");
                 };
 
-                protobuf_compress(buffer)
+                protobuf_compress(Full::new(Bytes::from(buffer)))
             }
             Err(e) => internal_server_error(e),
         }
@@ -190,7 +192,7 @@ where
                 let Ok(buffer) = status.encode().await else {
                     return internal_server_error("sync_status::encode");
                 };
-                protobuf(buffer)
+                protobuf(Full::new(Bytes::from(buffer)))
             }
             Err(e) => internal_server_error(e),
         }
@@ -224,7 +226,7 @@ where
     if let Some(account) =
         accounts.iter_mut().find(|a| a.address() == &account_id)
     {
-        let buf: Bytes = req.into_body().into();
+        let buf: Bytes = read_bytes(req).await?;
         let Ok(packet) = SyncPacket::decode(buf).await else {
             return bad_request();
         };
@@ -235,7 +237,7 @@ where
                     return internal_server_error("sync_account::encode");
                 };
 
-                protobuf(response)
+                protobuf(Full::new(Bytes::from(response)))
             }
             Err(e) => internal_server_error(e),
         }

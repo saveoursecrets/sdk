@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_ipc::{remove_socket_file, Error, IpcService, SocketServer};
+use sos_ipc::{remove_socket_file, Error, SocketServer};
 use sos_net::{
     protocol::{
         integration::{LinkedAccount, LocalClient, LocalIntegration},
@@ -64,15 +64,16 @@ async fn integration_ipc_local_sync() -> Result<()> {
     local_accounts.switch_account(&address);
     let local_accounts = Arc::new(RwLock::new(local_accounts));
 
-    // Start the IPC service
-    let service = Arc::new(RwLock::new(IpcService::new(
-        local_accounts.clone(),
-        Default::default(),
-    )));
+    let ipc_accounts = local_accounts.clone();
 
     let server_socket_name = socket_name.clone();
     tokio::task::spawn(async move {
-        SocketServer::listen(&server_socket_name, service).await?;
+        SocketServer::listen(
+            &server_socket_name,
+            ipc_accounts,
+            Default::default(),
+        )
+        .await?;
         Ok::<(), Error>(())
     });
 

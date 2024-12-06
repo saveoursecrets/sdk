@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sos_ipc::{
-    remove_socket_file, AppIntegration, Error, IpcService, IpcServiceOptions,
-    ServiceAppInfo, SocketClient, SocketServer,
+    remove_socket_file, AppIntegration, Error, ServiceAppInfo,
+    ServiceOptions, SocketClient, SocketServer,
 };
 use sos_net::sdk::{prelude::LocalAccountSwitcher, Paths};
 use sos_test_utils::teardown;
@@ -35,21 +35,25 @@ async fn integration_ipc_app_info() -> Result<()> {
     let build_number = 1u32;
 
     // Start the IPC service
+    /*
     let service = Arc::new(RwLock::new(IpcService::new(
         ipc_accounts,
-        IpcServiceOptions {
-            app_info: Some(ServiceAppInfo {
-                name: name.to_string(),
-                version: version.to_string(),
-                build_number,
-            }),
-            ..Default::default()
-        },
     )));
+    */
+
+    let options = ServiceOptions {
+        app_info: Some(ServiceAppInfo {
+            name: name.to_string(),
+            version: version.to_string(),
+            build_number,
+        }),
+        ..Default::default()
+    };
 
     let server_socket_name = socket_name.clone();
     tokio::task::spawn(async move {
-        SocketServer::listen(&server_socket_name, service).await?;
+        SocketServer::listen(&server_socket_name, ipc_accounts, options)
+            .await?;
         Ok::<(), Error>(())
     });
 

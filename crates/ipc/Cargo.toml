@@ -42,6 +42,8 @@ http.workspace = true
 tower = { version = "0.5", features = ["util"]}
 hyper = { version = "1" }
 matchit = "0.7"
+bytes.workspace = true
+http-body-util = "0.1"
 
 [build-dependencies]
 rustc_version = "0.4.1"

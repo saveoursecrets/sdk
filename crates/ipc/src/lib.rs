@@ -1,5 +1,4 @@
 #![deny(missing_docs)]
-#![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Inter-process communcation library for [Save Our Secrets](https://saveoursecrets.com/).
 //!
@@ -26,9 +25,11 @@ pub mod native_bridge;
 pub(crate) mod io;
 
 #[cfg(feature = "server")]
+mod local_server;
+#[cfg(feature = "server")]
 mod server;
 #[cfg(feature = "server")]
-mod service;
+pub(crate) use local_server::LocalServer;
 
 pub use error::Error;
 
@@ -41,9 +42,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub use client::{AppIntegration, SocketClient};
 
 #[cfg(feature = "server")]
-pub use server::SocketServer;
-#[cfg(feature = "server")]
-pub use service::{IpcService, IpcServiceOptions};
+pub use server::{ServiceOptions, SocketServer};
 
 /// Information about the service.
 #[typeshare::typeshare]

@@ -1,7 +1,9 @@
+use bytes::Bytes;
 use http::{
     header::{CONTENT_ENCODING, CONTENT_TYPE},
     Request, Response, StatusCode,
 };
+use http_body_util::{BodyExt, Full};
 use serde::Serialize;
 use sos_protocol::constants::{
     ENCODING_ZLIB, ENCODING_ZSTD, MIME_TYPE_JSON, MIME_TYPE_PROTOBUF,
@@ -15,6 +17,10 @@ use super::{Body, Incoming};
 struct ErrorReply {
     code: u16,
     message: String,
+}
+
+pub async fn read_bytes(req: Request<Incoming>) -> hyper::Result<Bytes> {
+    Ok(req.collect().await?.to_bytes())
 }
 
 pub fn parse_account_id(req: &Request<Incoming>) -> Option<Address> {
@@ -78,7 +84,7 @@ pub fn json<S: Serialize>(
     let response = Response::builder()
         .status(status)
         .header(CONTENT_TYPE, MIME_TYPE_JSON)
-        .body(body)
+        .body(Full::new(Bytes::from(body)))
         .unwrap();
     Ok(response)
 }
@@ -93,15 +99,17 @@ pub fn protobuf(body: Body) -> hyper::Result<Response<Body>> {
 }
 
 pub fn protobuf_compress(body: Body) -> hyper::Result<Response<Body>> {
+    /*
     use sos_protocol::compression::zlib;
     let Ok(buf) = zlib::encode_all(body.as_slice()) else {
         return internal_server_error("zlib::compress");
     };
+    */
     Ok(Response::builder()
         .status(StatusCode::OK)
-        .header(CONTENT_ENCODING, ENCODING_ZLIB)
+        // .header(CONTENT_ENCODING, ENCODING_ZLIB)
         .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
-        .body(buf)
+        .body(body)
         .unwrap())
 }
 

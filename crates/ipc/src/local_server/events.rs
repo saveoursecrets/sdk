@@ -1,5 +1,6 @@
+use bytes::Bytes;
 use http::{Request, Response};
-use hyper::body::Bytes;
+use http_body_util::Full;
 use sos_protocol::{
     server_helpers, DiffRequest, Merge, PatchRequest, ScanRequest,
     SyncStorage, WireEncodeDecode,
@@ -10,7 +11,7 @@ use tokio::sync::RwLock;
 
 use super::{
     bad_request, internal_server_error, not_found, parse_account_id,
-    protobuf, Body, Incoming,
+    protobuf, read_bytes, Body, Incoming,
 };
 
 pub async fn event_scan<A, R, E>(
@@ -37,7 +38,7 @@ where
     if let Some(account) =
         accounts.iter().find(|a| a.address() == &account_id)
     {
-        let buf: Bytes = req.into_body().into();
+        let buf: Bytes = read_bytes(req).await?;
         let Ok(packet) = ScanRequest::decode(buf).await else {
             return bad_request();
         };
@@ -53,7 +54,7 @@ where
                     return internal_server_error("event_scan::encode");
                 };
 
-                protobuf(buffer)
+                protobuf(Full::new(Bytes::from(buffer)))
             }
             Err(e) => internal_server_error(e),
         }
@@ -86,7 +87,7 @@ where
     if let Some(account) =
         accounts.iter().find(|a| a.address() == &account_id)
     {
-        let buf: Bytes = req.into_body().into();
+        let buf: Bytes = read_bytes(req).await?;
         let Ok(packet) = DiffRequest::decode(buf).await else {
             return bad_request();
         };
@@ -97,7 +98,7 @@ where
                     return internal_server_error("event_diff::encode");
                 };
 
-                protobuf(buffer)
+                protobuf(Full::new(Bytes::from(buffer)))
             }
             Err(e) => internal_server_error(e),
         }
@@ -131,7 +132,7 @@ where
     if let Some(account) =
         accounts.iter_mut().find(|a| a.address() == &account_id)
     {
-        let buf: Bytes = req.into_body().into();
+        let buf: Bytes = read_bytes(req).await?;
         let Ok(packet) = PatchRequest::decode(buf).await else {
             return bad_request();
         };
@@ -141,7 +142,7 @@ where
                 let Ok(buffer) = response.encode().await else {
                     return internal_server_error("event_patch::encode");
                 };
-                protobuf(buffer)
+                protobuf(Full::new(Bytes::from(buffer)))
             }
             Err(e) => internal_server_error(e),
         }
