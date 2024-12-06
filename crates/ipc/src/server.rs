@@ -8,13 +8,6 @@ use sos_sdk::prelude::{Account, AccountSwitcher};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// Options for an IPC service.
-#[derive(Default, Clone)]
-pub struct ServiceOptions {
-    /// Application info.
-    pub app_info: Option<ServiceAppInfo>,
-}
-
 /// Socket server for inter-process communication.
 pub struct SocketServer;
 
@@ -23,7 +16,7 @@ impl SocketServer {
     pub async fn listen<A, R, E>(
         socket_name: &str,
         accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
-        options: ServiceOptions,
+        app_info: ServiceAppInfo,
     ) -> Result<()>
     where
         A: Account<Error = E, NetworkResult = R>
@@ -50,8 +43,7 @@ impl SocketServer {
             x => x?,
         };
 
-        let service =
-            LocalServer::new(options.app_info.unwrap_or_default(), accounts);
+        let service = LocalServer::new(app_info, accounts);
         let svc = Arc::new(service);
 
         loop {

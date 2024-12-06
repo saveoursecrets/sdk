@@ -18,18 +18,20 @@ mod bindings;
 #[cfg(feature = "client")]
 mod client;
 pub(crate) mod codec;
-#[cfg(feature = "native-bridge")]
-pub mod native_bridge;
-
 #[cfg(any(feature = "client", feature = "server"))]
 pub(crate) mod io;
-
 #[cfg(feature = "server")]
 mod local_server;
+#[cfg(feature = "native-bridge")]
+pub mod native_bridge;
 #[cfg(feature = "server")]
 mod server;
+#[cfg(feature = "client")]
+pub use client::{AppIntegration, SocketClient};
 #[cfg(feature = "server")]
 pub(crate) use local_server::LocalServer;
+#[cfg(feature = "server")]
+pub use server::SocketServer;
 
 pub use error::Error;
 
@@ -37,12 +39,6 @@ pub(crate) use bindings::*;
 
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;
-
-#[cfg(feature = "client")]
-pub use client::{AppIntegration, SocketClient};
-
-#[cfg(feature = "server")]
-pub use server::{ServiceOptions, SocketServer};
 
 /// Information about the service.
 #[typeshare::typeshare]
@@ -79,13 +75,6 @@ pub(crate) fn decode_proto<T: prost::Message + Default>(
     buffer: &[u8],
 ) -> Result<T> {
     Ok(T::decode(buffer)?)
-}
-
-pub(crate) fn io_err<E>(err: E) -> std::io::Error
-where
-    E: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
-{
-    std::io::Error::new(std::io::ErrorKind::Other, err)
 }
 
 #[doc(hidden)]
