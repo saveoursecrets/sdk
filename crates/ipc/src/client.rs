@@ -1,12 +1,11 @@
-use crate::{
-    codec, decode_proto, encode_proto, Error, Result, ServiceAppInfo,
-};
-use async_trait::async_trait;
-use futures_util::sink::SinkExt;
+use crate::{Error, Result, ServiceAppInfo};
+use bytes::Bytes;
+use http::{Request, Response};
+use http_body_util::{BodyExt, Full};
+use hyper::client::conn::http1::handshake;
 use interprocess::local_socket::{tokio::prelude::*, GenericNamespaced};
-use tokio_stream::StreamExt;
-use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
+use hyper_util::rt::tokio::TokioIo;
 use sos_protocol::{
     constants::routes::v1::ACCOUNTS_LIST,
     local_transport::{LocalRequest, LocalResponse},
@@ -14,75 +13,65 @@ use sos_protocol::{
 };
 use sos_sdk::prelude::PublicIdentity;
 
+/// Send a local request.
+pub async fn send_local(
+    socket_name: impl Into<String>,
+    request: LocalRequest,
+) -> Result<LocalResponse> {
+    let request: Request<Vec<u8>> = request.try_into()?;
+    let (header, body) = request.into_parts();
+    let request = Request::from_parts(header, Full::new(Bytes::from(body)));
+    let response = send_http(socket_name, request).await?;
+    let (header, body) = response.into_parts();
+    let bytes = body.collect().await.unwrap().to_bytes();
+    let response = Response::from_parts(header, bytes.to_vec());
+    Ok(response.into())
+}
+
+/// Send a HTTP request.
+pub async fn send_http(
+    socket_name: impl Into<String>,
+    request: Request<Full<Bytes>>,
+) -> Result<Response<Full<Bytes>>> {
+    let name = socket_name.into().to_ns_name::<GenericNamespaced>()?;
+    let io = LocalSocketStream::connect(name).await?;
+    let socket = TokioIo::new(io);
+    let (mut sender, conn) = handshake(socket).await.unwrap();
+    tokio::task::spawn(async move {
+        if let Err(err) = conn.await {
+            tracing::error!(error = %err, "ipc::client::connection");
+        }
+    });
+    let response = sender.send_request(request).await.unwrap();
+    let (header, body) = response.into_parts();
+    let bytes = body.collect().await.unwrap().to_bytes();
+    Ok(Response::from_parts(header, Full::new(bytes)))
+}
+
 /// Socket client for inter-process communication.
 pub struct SocketClient {
-    socket: Framed<LocalSocketStream, LengthDelimitedCodec>,
+    // socket: TokioIo<LocalSocketStream>,
+    socket_name: String,
 }
 
 impl SocketClient {
     /// Create a client and connect the server.
-    pub async fn connect(socket_name: &str) -> Result<Self> {
-        let name = socket_name.to_ns_name::<GenericNamespaced>()?;
-        let io = LocalSocketStream::connect(name).await?;
+    pub async fn connect(socket_name: impl Into<String>) -> Result<Self> {
         Ok(Self {
-            socket: codec::framed(io),
+            socket_name: socket_name.into(),
         })
     }
 
-    /// Send a request.
+    /// Send a local request.
     pub async fn send_request(
-        &mut self,
+        &self,
         request: LocalRequest,
     ) -> Result<LocalResponse> {
-        let request_id = request.request_id();
-        let request: crate::WireLocalRequest = request.into();
-        let buf = encode_proto(&request)?;
-        self.socket.send(buf.into()).await?;
-        let response = self.read_response().await?;
-
-        // Response id will be zero if an error occurs
-        // before a message_id could be parsed from the request
-        if response.request_id() > 0 && request_id != response.request_id() {
-            return Err(Error::MessageId(request_id, response.request_id()));
-        }
-
-        Ok(response)
+        send_local(self.socket_name.clone(), request).await
     }
 
-    /// Read response from the server.
-    async fn read_response(&mut self) -> Result<LocalResponse> {
-        let mut reply: Option<LocalResponse> = None;
-        while let Some(message) = self.socket.next().await {
-            match message {
-                Ok(bytes) => {
-                    let response: crate::WireLocalResponse =
-                        decode_proto(&bytes)?;
-                    reply = Some(response.try_into()?);
-                    break;
-                }
-                Err(err) => {
-                    return Err(err.into());
-                }
-            }
-        }
-        reply.ok_or(Error::NoResponse)
-    }
-}
-
-/// Contract for types that expose an API to
-/// app integrations such as browser extensions.
-#[async_trait]
-pub trait AppIntegration {
-    /// App info.
-    async fn info(&mut self) -> Result<ServiceAppInfo>;
-
-    /// List the accounts on disc and include authentication state.
-    async fn list_accounts(&mut self) -> Result<Vec<PublicIdentity>>;
-}
-
-#[async_trait]
-impl AppIntegration for SocketClient {
-    async fn info(&mut self) -> Result<ServiceAppInfo> {
+    /// Get application information.
+    pub async fn info(&self) -> Result<ServiceAppInfo> {
         let response = self.send_request(Default::default()).await?;
         let status = response.status()?;
         if status.is_success() {
@@ -94,7 +83,8 @@ impl AppIntegration for SocketClient {
         }
     }
 
-    async fn list_accounts(&mut self) -> Result<Vec<PublicIdentity>> {
+    /// List accounts.
+    pub async fn list_accounts(&self) -> Result<Vec<PublicIdentity>> {
         let request = LocalRequest {
             uri: ACCOUNTS_LIST.parse()?,
             ..Default::default()

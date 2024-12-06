@@ -9,7 +9,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 
 [features]
 default = []
-client = []
+client = ["hyper/http1", "hyper/client"]
 server = ["hyper/http1", "hyper/server"]
 native-bridge = ["client","open", "once_cell"]
 native-send = ["tokio/process"]
@@ -18,7 +18,6 @@ native-send = ["tokio/process"]
 thiserror.workspace = true
 prost.workspace = true
 tracing.workspace = true
-async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 typeshare.workspace = true
@@ -44,6 +43,7 @@ hyper = { version = "1" }
 matchit = "0.7"
 bytes.workspace = true
 http-body-util = "0.1"
+hyper-util = "0.1"
 
 [build-dependencies]
 rustc_version = "0.4.1"

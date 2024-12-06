@@ -1,5 +1,6 @@
-use crate::{io::TokioAdapter, LocalServer, Result, ServiceAppInfo};
+use crate::{LocalServer, Result, ServiceAppInfo};
 use hyper::server::conn::http1::Builder;
+use hyper_util::rt::tokio::TokioIo;
 use interprocess::local_socket::{
     tokio::prelude::*, GenericNamespaced, ListenerOptions,
 };
@@ -12,7 +13,7 @@ use tokio::sync::RwLock;
 pub struct SocketServer;
 
 impl SocketServer {
-    /// Listen on a bind address.
+    /// Listen on a named pipe.
     pub async fn listen<A, R, E>(
         socket_name: &str,
         accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
@@ -50,11 +51,13 @@ impl SocketServer {
             let socket = listener.accept().await?;
             let svc = svc.clone();
             tokio::spawn(async move {
-                let socket = TokioAdapter::new(socket);
+                let socket = TokioIo::new(socket);
                 let http = Builder::new();
                 let conn = http.serve_connection(socket, svc);
-                if let Err(e) = conn.await {
-                    tracing::error!(error = %e);
+                if let Err(err) = conn.await {
+                    tracing::error!(
+                      error = %err,
+                      "ipc::server::connection");
                 }
             });
         }

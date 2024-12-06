@@ -1,7 +1,5 @@
 use anyhow::Result;
-use sos_ipc::{
-    remove_socket_file, AppIntegration, Error, SocketClient, SocketServer,
-};
+use sos_ipc::{remove_socket_file, Error, SocketClient, SocketServer};
 use sos_net::sdk::{
     crypto::AccessKey,
     prelude::{

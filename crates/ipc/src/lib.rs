@@ -18,8 +18,6 @@ mod bindings;
 #[cfg(feature = "client")]
 mod client;
 pub(crate) mod codec;
-#[cfg(any(feature = "client", feature = "server"))]
-pub(crate) mod io;
 #[cfg(feature = "server")]
 mod local_server;
 #[cfg(feature = "native-bridge")]
@@ -27,15 +25,13 @@ pub mod native_bridge;
 #[cfg(feature = "server")]
 mod server;
 #[cfg(feature = "client")]
-pub use client::{AppIntegration, SocketClient};
+pub use client::SocketClient;
 #[cfg(feature = "server")]
 pub(crate) use local_server::LocalServer;
 #[cfg(feature = "server")]
 pub use server::SocketServer;
 
 pub use error::Error;
-
-pub(crate) use bindings::*;
 
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;

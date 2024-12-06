@@ -4612,12 +4612,12 @@ dependencies = [
 name = "sos-ipc"
 version = "0.16.0"
 dependencies = [
- "async-trait",
  "bytes",
  "futures-util",
  "http",
  "http-body-util",
  "hyper",
+ "hyper-util",
  "interprocess",
  "matchit",
  "once_cell",

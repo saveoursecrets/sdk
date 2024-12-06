@@ -120,7 +120,7 @@ pub async fn run(options: NativeBridgeOptions) {
                                 )
                                 .await
                             } else {
-                                try_send_request(request, &sock_name).await
+                                try_send_request(request, sock_name.clone()).await
                             };
 
                             let result = match response {
@@ -183,20 +183,20 @@ pub async fn run(options: NativeBridgeOptions) {
     }
 }
 
-async fn connect(socket_name: &str) -> Arc<Mutex<Option<SocketClient>>> {
+async fn connect(socket_name: String) -> Arc<Mutex<Option<SocketClient>>> {
     let mut conn = CONN.lock().await;
     if conn.is_some() {
         return Arc::clone(&*CONN);
     }
-    let socket_client = try_connect(&socket_name).await;
+    let socket_client = try_connect(socket_name).await;
     *conn = Some(socket_client);
     return Arc::clone(&*CONN);
 }
 
-async fn try_connect(socket_name: &str) -> SocketClient {
+async fn try_connect(socket_name: String) -> SocketClient {
     let retry_delay = Duration::from_secs(1);
     loop {
-        match SocketClient::connect(&socket_name).await {
+        match SocketClient::connect(socket_name.clone()).await {
             Ok(client) => return client,
             Err(e) => {
                 tracing::trace!(
@@ -261,10 +261,10 @@ async fn handle_native_request(
 /// Send an IPC request and reconnect for certain types of IO error.
 async fn try_send_request(
     request: LocalRequest,
-    socket_name: &str,
+    socket_name: String,
 ) -> Result<LocalResponse> {
     loop {
-        let conn = connect(&socket_name).await;
+        let conn = connect(socket_name.clone()).await;
         let mut lock = conn.lock().await;
         let client = lock.as_mut().unwrap();
         match client.send_request(request.clone()).await {
