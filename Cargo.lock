@@ -4420,7 +4420,7 @@ dependencies = [
 
 [[package]]
 name = "sos-ipc"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4491,7 +4491,7 @@ dependencies = [
 
 [[package]]
 name = "sos-protocol"
-version = "0.16.1"
+version = "0.16.2"
 dependencies = [
  "anyhow",
  "async-trait",
