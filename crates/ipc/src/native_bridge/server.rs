@@ -102,13 +102,10 @@ pub async fn run(options: NativeBridgeOptions) {
                             let result = match response {
                                 Ok(response) => response,
                                 Err(e) => {
-                                  let mut response = LocalResponse::new_internal_error(
-                                    Error::NativeBridgeClientProxy(
-                                      e.to_string(),
-                                    )
-                                  );
-                                  response.set_request_id(message_id);
-                                  response
+                                  LocalResponse::with_id(
+                                    StatusCode::SERVICE_UNAVAILABLE,
+                                    message_id,
+                                  )
                                 }
                             };
 
@@ -118,8 +115,7 @@ pub async fn run(options: NativeBridgeOptions) {
                         });
                     }
                     Err(e) => {
-                        let response = LocalResponse::new_internal_error(
-                          Error::NativeBridgeJsonParse(e.to_string()));
+                        let response = LocalResponse::with_id(StatusCode::BAD_REQUEST, 0);
                         let tx = channel.clone();
                         if let Err(e) = tx.send(response.into()) {
                             tracing::warn!(

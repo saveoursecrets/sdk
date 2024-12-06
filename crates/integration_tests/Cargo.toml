@@ -42,7 +42,12 @@ features = ["full"]
 path = "../net"
 
 [dev-dependencies.sos-ipc]
-features = ["client", "server", "native-bridge-client"]
+features = [
+  "server",
+  "client",
+  "native-bridge-server",
+  "native-bridge-client",
+]
 path = "../ipc"
 
 [dev-dependencies.sos-server]

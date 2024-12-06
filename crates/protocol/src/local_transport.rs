@@ -187,9 +187,9 @@ impl From<Response<Vec<u8>>> for LocalResponse {
 
 impl LocalResponse {
     /// Internal error response.
-    pub fn new_internal_error(_e: impl std::error::Error) -> Self {
+    pub fn new_error(status: StatusCode, _e: impl std::error::Error) -> Self {
         Self {
-            status: StatusCode::INTERNAL_SERVER_ERROR.into(),
+            status: status.into(),
             headers: Default::default(),
             body: Default::default(),
         }
