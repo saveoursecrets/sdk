@@ -1,4 +1,3 @@
-extern crate prost_build;
 use rustc_version::{version_meta, Channel};
 
 fn main() {
@@ -12,12 +11,4 @@ fn main() {
         Channel::Dev => "CHANNEL_DEV",
     };
     println!("cargo:rustc-cfg={}", channel);
-
-    std::env::set_var(
-        "PROTOC",
-        protoc_bin_vendored::protoc_bin_path().unwrap(),
-    );
-
-    prost_build::compile_protos(&["src/protobuf/common.proto"], &["src"])
-        .unwrap();
 }

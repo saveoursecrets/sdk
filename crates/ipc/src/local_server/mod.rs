@@ -257,30 +257,6 @@ impl LocalServer {
         }
     }
 
-    /*
-    pub async fn handle(&self, req: LocalRequest) -> LocalResponse {
-        let res = match req.try_into() {
-            Ok(req) => self.call(req).await,
-            Err(e) => Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(e.to_string().as_bytes().to_vec())
-                .unwrap(),
-        };
-        res.into()
-    }
-    */
-
-    pub(crate) async fn call(
-        &self,
-        req: Request<Incoming>,
-    ) -> hyper::Result<Response<Body>> {
-        let router = self.router.clone();
-        Ok(match Self::route(router, req).await {
-            Ok(result) => result,
-            Err(e) => internal_server_error(e).unwrap(),
-        })
-    }
-
     async fn route(
         router: Arc<Router>,
         req: Request<Incoming>,
