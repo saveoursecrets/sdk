@@ -45,12 +45,12 @@ server = [
   "hyper-util",
 ]
 integration = ["indexmap", "async-trait"]
-account = ["sos-sdk/account"]
-archive = ["sos-sdk/archive"]
-contacts = ["sos-sdk/contacts"]
-files = ["sos-sdk/files"]
-migrate = ["sos-sdk/migrate"]
-search = ["sos-sdk/search"]
+account = ["sos-sdk/account", "sos-protocol/account"]
+archive = ["sos-sdk/archive", "sos-protocol/archive"]
+contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
+files = ["sos-sdk/files", "sos-protocol/files"]
+migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
+search = ["sos-sdk/search", "sos-protocol/search"]
 native-bridge-server = ["client", "open"]
 native-bridge-client = ["local-transport", "tokio/process", "tokio/io-std"]
 
