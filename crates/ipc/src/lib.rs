@@ -1,6 +1,8 @@
 #![deny(missing_docs)]
+#![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Inter-process communcation library for [Save Our Secrets](https://saveoursecrets.com/).
+//! Inter-process communcation library
+//! for [Save Our Secrets](https://saveoursecrets.com/).
 //!
 //! Communication uses [protocol buffers](https://protobuf.dev/)
 //! however to facilitate browser extensions that need to use
@@ -17,7 +19,6 @@ mod error;
 mod bindings;
 #[cfg(feature = "client")]
 mod client;
-pub(crate) mod codec;
 #[cfg(feature = "server")]
 mod local_server;
 #[cfg(feature = "native-bridge")]
