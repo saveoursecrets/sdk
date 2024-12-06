@@ -1,4 +1,9 @@
-//! Types used for communicating between apps on the same device.
+//! Types used for HTTP communication between apps
+//! on the same device.
+//!
+//! Wraps the `http` request and response types so we can
+//! serialize and deserialize from JSON for transfer via
+//! the browser native messaging API.
 
 use crate::{Error, Result};
 
@@ -39,8 +44,31 @@ pub trait HttpMessage {
     /// Message body.
     fn body(&self) -> &[u8];
 
+    /// Mutable message body.
+    fn body_mut(&mut self) -> &mut Vec<u8>;
+
     /// Consume the message body.
     fn into_body(self) -> Vec<u8>;
+
+    /// Number of chunks.
+    fn chunks_len(&self) -> u32;
+
+    /// Zero-based chunk index of this message.
+    fn chunk_index(&self) -> u32;
+
+    /// Convert this message into a collection of chunks.
+    ///
+    /// If the size of the body is less than limit then
+    /// only this message is included.
+    ///
+    /// Conversion is performed on the number of bytes in the
+    /// body but the native messaging API restricts the serialized
+    /// JSON to 1MB so it's wise to choose a value smaller
+    /// than the 1MB limit so there is some headroom for the JSON
+    /// serialization overhead.
+    fn into_chunks(self, limit: usize, chunk_size: usize) -> Vec<Self>
+    where
+        Self: Sized;
 
     /// Extract a request id.
     ///
@@ -125,12 +153,41 @@ pub trait HttpMessage {
     }
     */
 
+    /// Convert the message into parts.
+    fn into_parts(mut self) -> (Headers, Vec<u8>)
+    where
+        Self: Sized,
+    {
+        let headers =
+            std::mem::replace(self.headers_mut(), Default::default());
+        (headers, self.into_body())
+    }
+
     /// Convert the body to bytes.
     fn bytes(self) -> Bytes
     where
         Self: Sized,
     {
         self.into_body().into()
+    }
+
+    /// Convert from a collection of chunks into a response.
+    ///
+    /// # Panics
+    ///
+    /// If chunks is empty.
+    fn from_chunks(mut chunks: Vec<Self>) -> Self
+    where
+        Self: Sized,
+    {
+        chunks.sort_by(|a, b| a.chunk_index().cmp(&b.chunk_index()));
+        let mut it = chunks.into_iter();
+        let mut message = it.next().expect("to have one chunk");
+        for chunk in it {
+            let mut body = chunk.into_body();
+            message.body_mut().append(&mut body);
+        }
+        message
     }
 }
 
@@ -158,6 +215,8 @@ pub struct LocalRequest {
     /// Request body.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub body: Vec<u8>,
+    /// Chunk information; length and then index.
+    chunks: (u32, u32),
 }
 
 impl Default for LocalRequest {
@@ -167,11 +226,23 @@ impl Default for LocalRequest {
             uri: Uri::builder().path_and_query("/").build().unwrap(),
             headers: Default::default(),
             body: Default::default(),
+            chunks: (1, 0),
         }
     }
 }
 
 impl LocalRequest {
+    /// Create a GET request from a URI.
+    pub fn get(uri: Uri) -> Self {
+        Self {
+            method: Method::GET,
+            uri,
+            headers: Default::default(),
+            body: Default::default(),
+            chunks: (1, 0),
+        }
+    }
+
     /// Duration allowed for a request.
     pub fn timeout_duration(&self) -> Duration {
         Duration::from_secs(15)
@@ -191,8 +262,53 @@ impl HttpMessage for LocalRequest {
         self.body.as_slice()
     }
 
+    fn body_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.body
+    }
+
     fn into_body(self) -> Vec<u8> {
         self.body
+    }
+
+    fn chunks_len(&self) -> u32 {
+        self.chunks.0
+    }
+
+    fn chunk_index(&self) -> u32 {
+        self.chunks.1
+    }
+
+    fn into_chunks(self, limit: usize, chunk_size: usize) -> Vec<Self> {
+        if self.body.len() < limit {
+            vec![self]
+        } else {
+            let mut messages = Vec::new();
+            let uri = self.uri.clone();
+            let method = self.method.clone();
+            let (headers, body) = self.into_parts();
+            let len = if body.len() > chunk_size {
+                let mut len = body.len() / chunk_size;
+                if body.len() % chunk_size != 0 {
+                    len += 1;
+                }
+                len
+            } else {
+                1
+            };
+            for (index, window) in
+                body.as_slice().chunks(chunk_size).enumerate()
+            {
+                let message = Self {
+                    uri: uri.clone(),
+                    method: method.clone(),
+                    body: window.to_owned(),
+                    headers: headers.clone(),
+                    chunks: (len as u32, index as u32),
+                };
+                messages.push(message);
+            }
+            messages
+        }
     }
 }
 
@@ -222,6 +338,7 @@ impl From<Request<Vec<u8>>> for LocalRequest {
             uri: parts.uri,
             headers,
             body,
+            chunks: (1, 0),
         }
     }
 }
@@ -261,6 +378,8 @@ pub struct LocalResponse {
     /// Response body.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub body: Vec<u8>,
+    /// Chunk information; length and then index.
+    chunks: (u32, u32),
 }
 
 impl Default for LocalResponse {
@@ -269,6 +388,7 @@ impl Default for LocalResponse {
             status: StatusCode::OK.into(),
             headers: Default::default(),
             body: Default::default(),
+            chunks: (1, 0),
         }
     }
 }
@@ -297,6 +417,7 @@ impl From<Response<Vec<u8>>> for LocalResponse {
             status: parts.status.into(),
             headers,
             body,
+            chunks: (1, 0),
         }
     }
 }
@@ -317,6 +438,7 @@ impl LocalResponse {
             status: status.into(),
             headers: Default::default(),
             body: Default::default(),
+            chunks: (1, 0),
         };
         res.set_request_id(id);
         res
@@ -350,7 +472,51 @@ impl HttpMessage for LocalResponse {
         self.body.as_slice()
     }
 
+    fn body_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.body
+    }
+
     fn into_body(self) -> Vec<u8> {
         self.body
+    }
+
+    fn chunks_len(&self) -> u32 {
+        self.chunks.0
+    }
+
+    fn chunk_index(&self) -> u32 {
+        self.chunks.1
+    }
+
+    fn into_chunks(self, limit: usize, chunk_size: usize) -> Vec<Self> {
+        if self.body.len() < limit {
+            vec![self]
+        } else {
+            let mut messages = Vec::new();
+            let status = self.status.clone();
+            let (headers, body) = self.into_parts();
+            let len = if body.len() > chunk_size {
+                let mut len = body.len() / chunk_size;
+                if body.len() % chunk_size != 0 {
+                    len += 1;
+                }
+                len
+            } else {
+                1
+            };
+            for (index, window) in
+                body.as_slice().chunks(chunk_size).enumerate()
+            {
+                let message = Self {
+                    status,
+                    headers: headers.clone(),
+                    body: window.to_owned(),
+                    chunks: (len as u32, index as u32),
+                };
+                messages.push(message);
+            }
+            println!("split into chunks: {}", messages.len());
+            messages
+        }
     }
 }

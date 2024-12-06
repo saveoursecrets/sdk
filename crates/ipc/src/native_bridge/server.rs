@@ -14,9 +14,11 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, Mutex};
 use tokio::time::sleep;
-use tokio_util::codec::LengthDelimitedCodec;
+use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
-const LIMIT: usize = 1024 * 1024;
+use super::{CHUNK_LIMIT, CHUNK_SIZE};
+
+const HARD_LIMIT: usize = 1024 * 1024;
 
 static CONN: Lazy<Arc<Mutex<Option<LocalSocketClient>>>> =
     Lazy::new(|| Arc::new(Mutex::new(None)));
@@ -98,49 +100,88 @@ impl NativeBridgeServer {
 
         let (tx, mut rx) = mpsc::unbounded_channel::<LocalResponse>();
 
+        // Read request chunks into a single request
+        async fn read_chunked_request(
+            stdin: &mut FramedRead<tokio::io::Stdin, LengthDelimitedCodec>,
+        ) -> Result<LocalRequest> {
+            let mut chunks: Vec<LocalRequest> = Vec::new();
+            while let Some(Ok(buffer)) = stdin.next().await {
+                let req = serde_json::from_slice::<LocalRequest>(&buffer)?;
+                let chunks_len = req.chunks_len();
+                chunks.push(req);
+                if chunks.len() == chunks_len as usize {
+                    break;
+                }
+            }
+            Ok(LocalRequest::from_chunks(chunks))
+        }
+
         loop {
             let channel = tx.clone();
             let sock_name = socket_name.clone();
             tokio::select! {
-                Some(Ok(buffer)) = stdin.next() => {
+                result = read_chunked_request(&mut stdin) => {
+                    let Ok(request) = result else {
+                        let response = LocalResponse::with_id(
+                            StatusCode::BAD_REQUEST,
+                            0,
+                        );
+                        let tx = channel.clone();
+                        if let Err(e) = tx.send(response.into()) {
+                            tracing::warn!(
+                              error = %e,
+                              "native_bridge::response_channel");
+                        }
+                        continue;
+                    };
+                    tokio::task::spawn(async move {
+                        let tx = channel.clone();
+
+                        tracing::trace!(
+                            request = ?request,
+                            "sos_native_bridge::request",
+                        );
+
+                        let message_id = request.request_id();
+
+                        // Is this a command we handle internally?
+                        let response = if is_native_request(&request) {
+                            handle_native_request(
+                                request,
+                            )
+                            .await
+                        } else {
+                            try_send_request(&sock_name, request).await
+                        };
+
+                        let result = match response {
+                            Ok(response) => response,
+                            Err(_) => {
+                              LocalResponse::with_id(
+                                StatusCode::SERVICE_UNAVAILABLE,
+                                message_id,
+                              )
+                            }
+                        };
+
+                        // Send response in chunks to avoid the 1MB
+                        // hard limit
+                        let chunks = result.into_chunks(
+                            CHUNK_LIMIT,
+                            CHUNK_SIZE,
+                        );
+                        for chunk in chunks {
+                            if let Err(e) = tx.send(chunk) {
+                                tracing::warn!(
+                                  error = %e,
+                                  "native_bridge::response_channel");
+                            }
+                        }
+                    });
+
+                    /*
                     match serde_json::from_slice::<LocalRequest>(&buffer) {
                         Ok(request) => {
-                            tokio::task::spawn(async move {
-                                let tx = channel.clone();
-
-                                tracing::trace!(
-                                    request = ?request,
-                                    "sos_native_bridge::request",
-                                );
-
-                                let message_id = request.request_id();
-
-                                // Is this a command we handle internally?
-                                let response = if is_native_request(&request) {
-                                    handle_native_request(
-                                        request,
-                                    )
-                                    .await
-                                } else {
-                                    try_send_request(&sock_name, request).await
-                                };
-
-                                let result = match response {
-                                    Ok(response) => response,
-                                    Err(_) => {
-                                      LocalResponse::with_id(
-                                        StatusCode::SERVICE_UNAVAILABLE,
-                                        message_id,
-                                      )
-                                    }
-                                };
-
-                                if let Err(e) = tx.send(result) {
-                                    tracing::warn!(
-                                      error = %e,
-                                      "native_bridge::response_channel");
-                                }
-                            });
                         }
                         Err(_) => {
                             let response = LocalResponse::with_id(StatusCode::BAD_REQUEST, 0);
@@ -152,6 +193,7 @@ impl NativeBridgeServer {
                             }
                         }
                     }
+                    */
                 }
                 Some(response) = rx.recv() => {
                     tracing::trace!(
@@ -165,7 +207,7 @@ impl NativeBridgeServer {
                                 len = %output.len(),
                                 "native_bridge::stdout",
                             );
-                            if output.len() > LIMIT {
+                            if output.len() > HARD_LIMIT {
                                 tracing::error!("native_bridge::exceeds_limit");
                             }
                             if let Err(e) = stdout.send(output.into()).await {
@@ -178,6 +220,7 @@ impl NativeBridgeServer {
                             std::process::exit(1);
                         }
                     }
+
                 }
             }
         }

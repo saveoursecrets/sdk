@@ -3,13 +3,15 @@
 //!
 //! Used to test the browser native messaging API integration.
 
-use crate::local_transport::{LocalRequest, LocalResponse};
+use crate::local_transport::{HttpMessage, LocalRequest, LocalResponse};
 use crate::Result;
 use futures_util::{SinkExt, StreamExt};
-use http::StatusCode;
 use std::process::Stdio;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::process::{Child, Command};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
+
+use super::{CHUNK_LIMIT, CHUNK_SIZE};
 
 /// Client that spawns a native bridge and sends
 /// and receives messages from the spawned executable.
@@ -19,6 +21,7 @@ pub struct NativeBridgeClient {
     child: Child,
     stdin: FramedWrite<tokio::process::ChildStdin, LengthDelimitedCodec>,
     stdout: FramedRead<tokio::process::ChildStdout, LengthDelimitedCodec>,
+    id: AtomicU64,
 }
 
 impl NativeBridgeClient {
@@ -50,27 +53,35 @@ impl NativeBridgeClient {
             child,
             stdin,
             stdout,
+            id: AtomicU64::new(1),
         })
     }
 
     /// Send a request to the spawned native bridge.
     pub async fn send(
         &mut self,
-        request: &LocalRequest,
+        mut request: LocalRequest,
     ) -> Result<LocalResponse> {
-        let message = serde_json::to_vec(request)?;
-        self.stdin.send(message.into()).await?;
+        let message_id = self.id.fetch_add(1, Ordering::SeqCst);
+        request.set_request_id(message_id);
+        let chunks = request.into_chunks(CHUNK_LIMIT, CHUNK_SIZE);
+        for request in chunks {
+            let message = serde_json::to_vec(&request)?;
+            self.stdin.send(message.into()).await?;
+        }
 
-        let mut res: LocalResponse = StatusCode::IM_A_TEAPOT.into();
-
+        let mut chunks: Vec<LocalResponse> = Vec::new();
         while let Some(response) = self.stdout.next().await {
             let response = response?;
             let response: LocalResponse = serde_json::from_slice(&response)?;
-            res = response;
-            break;
+            let chunks_len = response.chunks_len();
+            chunks.push(response);
+            if chunks.len() == chunks_len as usize {
+                break;
+            }
         }
 
-        Ok(res)
+        Ok(LocalResponse::from_chunks(chunks))
     }
 
     /// Kill the child process.

@@ -82,10 +82,7 @@ impl LocalSocketClient {
 
     /// List accounts.
     pub async fn list_accounts(&mut self) -> Result<Vec<PublicIdentity>> {
-        let request = LocalRequest {
-            uri: ACCOUNTS_LIST.parse()?,
-            ..Default::default()
-        };
+        let request = LocalRequest::get(ACCOUNTS_LIST.parse()?);
 
         let response = self.send_request(request).await?;
         let status = response.status()?;
