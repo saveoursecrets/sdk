@@ -18,20 +18,6 @@ use tokio::{
 };
 use tokio_util::codec::LengthDelimitedCodec;
 
-/// Extension id used by the CLI.
-pub const CLI_EXTENSION_ID: &str = "com.saveoursecrets.sos";
-
-/// Extension id used by Chrome.
-pub const CHROME_EXTENSION_ID: &str =
-    "chrome-extension://fdgmkdbcpncojjipdjkaadcomcjcbhbi/";
-
-/// Extension id used by Firefox.
-pub const FIREFOX_EXTENSION_ID: &str =
-    "{86d5958d-dd72-47bc-8a7e-b62c3363752b}";
-
-const ALLOWED_EXTENSIONS: [&str; 3] =
-    [CLI_EXTENSION_ID, CHROME_EXTENSION_ID, FIREFOX_EXTENSION_ID];
-
 const LIMIT: usize = 1024 * 1024;
 
 static CONN: Lazy<Arc<Mutex<Option<LocalSocketClient>>>> =
@@ -58,12 +44,6 @@ impl NativeBridgeOptions {
 
 /// Run a native bridge.
 pub async fn run(options: NativeBridgeOptions) {
-    if !ALLOWED_EXTENSIONS.contains(&&options.extension_id[..]) {
-        let err = Error::NativeBridgeDenied(options.extension_id);
-        eprintln!("{}", err);
-        std::process::exit(1);
-    }
-
     let log_level = std::env::var("SOS_NATIVE_BRIDGE_LOG_LEVEL")
         .map(|s| s.to_string())
         .ok()

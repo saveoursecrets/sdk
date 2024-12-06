@@ -28,16 +28,10 @@ pub enum Error {
     #[error("service request timed out, exceeded duration {0:?}")]
     ServiceTimeout(Duration),
 
-    /// Error when the native bridge denies proxying due to an
-    /// invalid extension identifier.
-    #[cfg(feature = "native-bridge")]
-    #[error("extension denied: {0}")]
-    NativeBridgeDenied(String),
-
     /// Error when the native bridge fails to send a proxy
     /// request via the IPC client socket.
     #[cfg(feature = "native-bridge")]
-    #[error("native bridge failed to send IPC proxy request, reason: {0}")]
+    #[error("native bridge failed to send request, reason: {0}")]
     NativeBridgeClientProxy(String),
 
     /// Error when the native bridge fails to parse the incoming
