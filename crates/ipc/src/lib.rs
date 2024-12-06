@@ -29,7 +29,7 @@ pub use client::SocketClient;
 #[cfg(feature = "server")]
 pub use server::SocketServer;
 #[cfg(feature = "server")]
-pub(crate) use web_service::LocalServer;
+pub(crate) use web_service::LocalWebService;
 
 pub use error::Error;
 

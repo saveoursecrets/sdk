@@ -2,7 +2,7 @@ use bytes::Bytes;
 use http::{Method, Request, Response, StatusCode};
 use http_body_util::Full;
 use hyper::body::Incoming;
-use hyper::service::Service as HyperService;
+use hyper::service::Service;
 use parking_lot::Mutex;
 use sos_protocol::{
     constants::routes::v1::{
@@ -19,14 +19,13 @@ use tower::Service as _;
 
 use crate::ServiceAppInfo;
 
-// type Incoming = Vec<u8>;
 type Body = Full<Bytes>;
 
 // Need the Mutex as BoxCloneService does not implement Sync
-type Service =
+type MethodRoute =
     Mutex<BoxCloneService<Request<Incoming>, Response<Body>, hyper::Error>>;
 
-type Router = HashMap<Method, matchit::Router<Service>>;
+type Router = HashMap<Method, matchit::Router<MethodRoute>>;
 
 mod account;
 mod common;
@@ -48,12 +47,12 @@ async fn index(
 /// We avoid using axum directly as we need the `Sync` bound
 /// but `axum::Body` is `!Sync`.
 #[derive(Clone)]
-pub(crate) struct LocalServer {
+pub(crate) struct LocalWebService {
     /// Service router.
     router: Arc<Router>,
 }
 
-impl LocalServer {
+impl LocalWebService {
     /// Create a local server.
     pub fn new<A, R, E>(
         app_info: ServiceAppInfo,
@@ -282,7 +281,7 @@ impl LocalServer {
     }
 }
 
-impl HyperService<Request<Incoming>> for LocalServer {
+impl Service<Request<Incoming>> for LocalWebService {
     type Response = Response<Full<Bytes>>;
     type Error = hyper::Error;
     type Future = Pin<
@@ -295,6 +294,6 @@ impl HyperService<Request<Incoming>> for LocalServer {
 
     fn call(&self, req: Request<Incoming>) -> Self::Future {
         let router = self.router.clone();
-        Box::pin(async move { LocalServer::route(router, req).await })
+        Box::pin(async move { LocalWebService::route(router, req).await })
     }
 }

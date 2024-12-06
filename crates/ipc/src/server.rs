@@ -1,4 +1,4 @@
-use crate::{LocalServer, Result, ServiceAppInfo};
+use crate::{LocalWebService, Result, ServiceAppInfo};
 use hyper::server::conn::http1::Builder;
 use hyper_util::rt::tokio::TokioIo;
 use interprocess::local_socket::{
@@ -44,7 +44,7 @@ impl SocketServer {
             x => x?,
         };
 
-        let service = LocalServer::new(app_info, accounts);
+        let service = LocalWebService::new(app_info, accounts);
         let svc = Arc::new(service);
 
         loop {
