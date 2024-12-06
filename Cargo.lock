@@ -4610,7 +4610,7 @@ dependencies = [
 
 [[package]]
 name = "sos-ipc"
-version = "0.16.1"
+version = "0.16.2"
 dependencies = [
  "bytes",
  "futures-util",

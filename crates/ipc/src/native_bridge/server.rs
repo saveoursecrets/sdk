@@ -114,7 +114,7 @@ pub async fn run(options: NativeBridgeOptions) {
                             }
                         });
                     }
-                    Err(e) => {
+                    Err(_) => {
                         let response = LocalResponse::with_id(StatusCode::BAD_REQUEST, 0);
                         let tx = channel.clone();
                         if let Err(e) = tx.send(response.into()) {
