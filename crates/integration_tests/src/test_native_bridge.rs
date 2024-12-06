@@ -1,4 +1,6 @@
-use sos_ipc::native_bridge::server::{run, NativeBridgeOptions};
+use sos_ipc::native_bridge::server::{
+    NativeBridgeOptions, NativeBridgeServer,
+};
 
 /// Executable used to test the native bridge.
 #[doc(hidden)]
@@ -11,5 +13,6 @@ pub async fn main() {
 
     let options =
         NativeBridgeOptions::with_socket_name(extension_id, socket_name);
-    run(options).await
+    let server = NativeBridgeServer::new(options);
+    server.listen().await
 }

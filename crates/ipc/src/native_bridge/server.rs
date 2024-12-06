@@ -43,119 +43,133 @@ impl NativeBridgeOptions {
     }
 }
 
-/// Run a native bridge.
-pub async fn run(options: NativeBridgeOptions) {
-    let log_level = std::env::var("SOS_NATIVE_BRIDGE_LOG_LEVEL")
-        .map(|s| s.to_string())
-        .ok()
-        .unwrap_or("debug".to_string());
+/// Server for a native bridge proxy.
+#[derive(Debug, Default)]
+pub struct NativeBridgeServer {
+    options: NativeBridgeOptions,
+}
 
-    // Always send log messages to disc as the browser
-    // extension reads from stdout
-    let logger = Logger::new(None);
-    if let Err(err) = logger.init_file_subscriber(Some(log_level)) {
-        eprintln!("{}", err);
-        std::process::exit(1);
+impl NativeBridgeServer {
+    /// Create a server.
+    pub fn new(mut options: NativeBridgeOptions) -> Self {
+        let log_level = std::env::var("SOS_NATIVE_BRIDGE_LOG_LEVEL")
+            .map(|s| s.to_string())
+            .ok()
+            .unwrap_or("debug".to_string());
+
+        // Always send log messages to disc as the browser
+        // extension reads from stdout
+        let logger = Logger::new(None);
+        if let Err(err) = logger.init_file_subscriber(Some(log_level)) {
+            eprintln!("{}", err);
+            std::process::exit(1);
+        }
+
+        let socket_name = options
+            .socket_name
+            .as_ref()
+            .map(|s| &s[..])
+            .unwrap_or(IPC_GUI_SOCKET_NAME)
+            .to_string();
+
+        options.socket_name = Some(socket_name);
+        tracing::info!(options = ?options, "native_bridge");
+        Self { options }
     }
 
-    let socket_name = options
-        .socket_name
-        .as_ref()
-        .map(|s| &s[..])
-        .unwrap_or(IPC_GUI_SOCKET_NAME)
-        .to_string();
+    /// Start a native bridge server listening.
+    pub async fn listen(&self) {
+        let socket_name = self.options.socket_name.clone().unwrap();
+        let mut stdin = LengthDelimitedCodec::builder()
+            .native_endian()
+            .new_read(tokio::io::stdin());
 
-    tracing::info!(options = ?options, "native_bridge");
+        let mut stdout = LengthDelimitedCodec::builder()
+            .native_endian()
+            .new_write(tokio::io::stdout());
 
-    let mut stdin = LengthDelimitedCodec::builder()
-        .native_endian()
-        .new_read(tokio::io::stdin());
+        let (tx, mut rx) = mpsc::unbounded_channel::<LocalResponse>();
 
-    let mut stdout = LengthDelimitedCodec::builder()
-        .native_endian()
-        .new_write(tokio::io::stdout());
+        loop {
+            let channel = tx.clone();
+            let sock_name = socket_name.clone();
+            tokio::select! {
+                Some(Ok(buffer)) = stdin.next() => {
+                    match serde_json::from_slice::<LocalRequest>(&buffer) {
+                        Ok(request) => {
+                            tokio::task::spawn(async move {
+                                let tx = channel.clone();
 
-    let (tx, mut rx) = mpsc::unbounded_channel::<LocalResponse>();
+                                tracing::trace!(
+                                    request = ?request,
+                                    "sos_native_bridge::request",
+                                );
 
-    loop {
-        let channel = tx.clone();
-        let sock_name = socket_name.clone();
-        tokio::select! {
-            Some(Ok(buffer)) = stdin.next() => {
-                match serde_json::from_slice::<LocalRequest>(&buffer) {
-                    Ok(request) => {
-                        tokio::task::spawn(async move {
-                            let tx = channel.clone();
+                                let message_id = request.request_id();
 
-                            tracing::trace!(
-                                request = ?request,
-                                "sos_native_bridge::request",
-                            );
+                                // Is this a command we handle internally?
+                                let response = if is_native_request(&request) {
+                                    handle_native_request(
+                                        request,
+                                    )
+                                    .await
+                                } else {
+                                    send_local(
+                                      sock_name.clone(), request).await
+                                };
 
-                            let message_id = request.request_id();
+                                let result = match response {
+                                    Ok(response) => response,
+                                    Err(_) => {
+                                      LocalResponse::with_id(
+                                        StatusCode::SERVICE_UNAVAILABLE,
+                                        message_id,
+                                      )
+                                    }
+                                };
 
-                            // Is this a command we handle internally?
-                            let response = if is_native_request(&request) {
-                                handle_native_request(
-                                    request,
-                                )
-                                .await
-                            } else {
-                                send_local(
-                                  sock_name.clone(), request).await
-                            };
-
-                            let result = match response {
-                                Ok(response) => response,
-                                Err(_) => {
-                                  LocalResponse::with_id(
-                                    StatusCode::SERVICE_UNAVAILABLE,
-                                    message_id,
-                                  )
+                                if let Err(e) = tx.send(result) {
+                                    tracing::warn!(
+                                      error = %e,
+                                      "native_bridge::response_channel");
                                 }
-                            };
-
-                            if let Err(e) = tx.send(result) {
+                            });
+                        }
+                        Err(_) => {
+                            let response = LocalResponse::with_id(StatusCode::BAD_REQUEST, 0);
+                            let tx = channel.clone();
+                            if let Err(e) = tx.send(response.into()) {
                                 tracing::warn!(
                                   error = %e,
                                   "native_bridge::response_channel");
                             }
-                        });
-                    }
-                    Err(_) => {
-                        let response = LocalResponse::with_id(StatusCode::BAD_REQUEST, 0);
-                        let tx = channel.clone();
-                        if let Err(e) = tx.send(response.into()) {
-                            tracing::warn!(
-                              error = %e,
-                              "native_bridge::response_channel");
                         }
                     }
                 }
-            }
-            Some(response) = rx.recv() => {
-                tracing::trace!(
-                    response = ?response,
-                    "sos_native_bridge::response",
-                );
+                Some(response) = rx.recv() => {
+                    tracing::trace!(
+                        response = ?response,
+                        "sos_native_bridge::response",
+                    );
 
-                match serde_json::to_vec(&response) {
-                    Ok(output) => {
-                        tracing::debug!(
-                            len = %output.len(),
-                            "native_bridge::stdout",
-                        );
-                        if output.len() > LIMIT {
-                            tracing::error!("native_bridge::exceeds_limit");
+                    match serde_json::to_vec(&response) {
+                        Ok(output) => {
+                            tracing::debug!(
+                                len = %output.len(),
+                                "native_bridge::stdout",
+                            );
+                            if output.len() > LIMIT {
+                                tracing::error!("native_bridge::exceeds_limit");
+                            }
+                            if let Err(e) = stdout.send(output.into()).await {
+                                tracing::error!(error = %e, "native_bridge::stdout_write");
+                                std::process::exit(1);
+                            }
                         }
-                        if let Err(e) = stdout.send(output.into()).await {
-                            tracing::error!(error = %e, "native_bridge::stdout_write");
+                        Err(e) => {
+                            tracing::error!(error = %e, "native_bridge::serde_json");
                             std::process::exit(1);
                         }
-                    }
-                    Err(e) => {
-                        tracing::error!(error = %e, "native_bridge::serde_json");
-                        std::process::exit(1);
                     }
                 }
             }
