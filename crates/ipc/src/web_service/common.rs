@@ -90,12 +90,10 @@ pub fn json<S: Serialize>(
 }
 
 pub fn protobuf_compress(buf: Vec<u8>) -> hyper::Result<Response<Body>> {
-    println!("len: {}", buf.len());
     use sos_protocol::compression::zlib;
     let Ok(buf) = zlib::encode_all(buf.as_slice()) else {
         return internal_server_error("zlib::compress");
     };
-    println!("compressed len: {}", buf.len());
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header(CONTENT_ENCODING, ENCODING_ZLIB)
