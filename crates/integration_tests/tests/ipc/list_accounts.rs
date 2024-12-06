@@ -77,7 +77,7 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Create a client and list accounts
-    let mut client = SocketClient::connect(&socket_name).await?;
+    let client = SocketClient::connect(&socket_name).await?;
     let accounts = client.list_accounts().await?;
     assert_eq!(2, accounts.len());
 
