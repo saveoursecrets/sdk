@@ -262,10 +262,8 @@ impl LocalResponse {
     /// Decompress the response body.
     pub fn decompress(&mut self) -> Result<()> {
         if self.is_zlib() {
-            println!("decompress: {}", self.body.len());
             self.body =
                 crate::compression::zlib::decode_all(self.body.as_slice())?;
-            println!("inflated : {}", self.body.len());
         }
         Ok(())
     }

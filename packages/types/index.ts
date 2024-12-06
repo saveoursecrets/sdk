@@ -22,20 +22,6 @@ export interface ArchiveFilter {
 	includeDocuments: boolean;
 }
 
-/** Qualified path to a specific secret in a target account. */
-export interface QualifiedPath {
-	/** Account address. */
-	address: string;
-	/** Secret path. */
-	secretPath: SecretPath;
-}
-
-/** Target for a clipboard copy operation. */
-export interface ClipboardTarget {
-	/** Qualified path to the secret. */
-	path: QualifiedPath;
-}
-
 /**
  * Type of secret assigned to the secret meta data.
  * 
@@ -136,78 +122,6 @@ export interface Document {
 	extra: ExtraFields;
 }
 
-/** Information about a folder. */
-export interface FolderInfo {
-	/** Name of the folder. */
-	name: string;
-	/** Folder identifier. */
-	folderId: string;
-}
-
-/** IPC request information. */
-export type IpcRequestBody = 
-	/**
-	 * Probe the native bridge for aliveness.
-	 * 
-	 * Used to test whether the executable is running
-	 * and the native messaging API is connected.
-	 */
-	| { kind: "probe", body?: undefined }
-	/** Query app info. */
-	| { kind: "info", body?: undefined }
-	/** Query app status. */
-	| { kind: "status", body?: undefined }
-	/** Ping the server. */
-	| { kind: "ping", body?: undefined }
-	/** Request to open a URL. */
-	| { kind: "openUrl", body: string }
-	/** HTTP request routed to the local server. */
-	| { kind: "http", body: LocalRequest }
-	/** Request the accounts list. */
-	| { kind: "listAccounts", body?: undefined }
-	/** Request to copy to the clipboard. */
-	| { kind: "copy", body: ClipboardTarget }
-	/** Request authentication for an account. */
-	| { kind: "authenticate", body: {
-	/** Account address. */
-	address: string;
-}}
-	/** Request to lock an account. */
-	| { kind: "lock", body: {
-	/** Account address. */
-	address?: string;
-}}
-	/** Request to search the index. */
-	| { kind: "search", body: {
-	/** Query needle. */
-	needle: string;
-	/** Query filter. */
-	filter: QueryFilter;
-}}
-	/** Request to query views in the search index. */
-	| { kind: "queryView", body: {
-	/** Document views. */
-	views: DocumentView[];
-	/** Archive filter. */
-	archive_filter?: ArchiveFilter;
-}};
-
-/** IPC request information. */
-export interface IpcRequest {
-	/** Request identifier. */
-	id: number;
-	/** Request payload. */
-	payload: IpcRequestBody;
-}
-
-/** IPC response error. */
-export interface IpcResponseError {
-	/** Error code. */
-	code: number;
-	/** Error message. */
-	message: string;
-}
-
 /**
  * Request that can be sent to a local data source.
  * 
@@ -223,9 +137,9 @@ export interface LocalRequest {
 	/** Request URL. */
 	uri: Uri;
 	/** Request headers. */
-	headers: Record<string, string[]>;
+	headers?: Record<string, string[]>;
 	/** Request body. */
-	body: number[];
+	body?: number[];
 }
 
 /**
@@ -241,9 +155,9 @@ export interface LocalResponse {
 	/** Response status code. */
 	status: number;
 	/** Response headers. */
-	headers: Record<string, string[]>;
+	headers?: Record<string, string[]>;
 	/** Response body. */
-	body: number[];
+	body?: number[];
 }
 
 /** Public account identity information. */
@@ -261,6 +175,14 @@ export interface PublicIdentity {
 	 * This is the name given to the identity vault.
 	 */
 	label: string;
+}
+
+/** Qualified path to a specific secret in a target account. */
+export interface QualifiedPath {
+	/** Account address. */
+	address: string;
+	/** Secret path. */
+	secretPath: SecretPath;
 }
 
 /** Filter for a search query. */
@@ -281,30 +203,6 @@ export interface ServiceAppInfo {
 	version: string;
 	/** App build number. */
 	build_number: number;
-}
-
-/** Generic command outcome. */
-export enum CommandOutcome {
-	/** Account not found. */
-	NotFound = "notFound",
-	/** Already authenticated. */
-	AlreadyAuthenticated = "alreadyAuthenticated",
-	/** Not authenticated. */
-	NotAuthenticated = "notAuthenticated",
-	/** Account was authenticated. */
-	Success = "success",
-	/** Authentication failed. */
-	Failed = "failed",
-	/** User canceled. */
-	Canceled = "canceled",
-	/** Timed out waiting for user input. */
-	TimedOut = "timedOut",
-	/** Too many attempts to authenticate. */
-	Exhausted = "exhausted",
-	/** Error attempting to get user input. */
-	InputError = "inputError",
-	/** Operation is not supported. */
-	Unsupported = "unsupported",
 }
 
 /** View of documents in the search index. */
@@ -349,53 +247,4 @@ export type DocumentView =
 	 */
 	exact: boolean;
 }};
-
-/** IPC response information. */
-export type IpcResponse = 
-	/** Error response. */
-	| { kind: "err", body: {
-	/** Message identifier. */
-	id: number;
-	/** Message payload. */
-	payload: IpcResponseError;
-}}
-	/** Response value. */
-	| { kind: "ok", body: {
-	/** Message identifier. */
-	id: number;
-	/** Message payload. */
-	payload: IpcResponseBody;
-}};
-
-/** IPC response body. */
-export type IpcResponseBody = 
-	/** Response to a probe request. */
-	| { kind: "probe", body?: undefined }
-	/** App info. */
-	| { kind: "info", body: ServiceAppInfo }
-	/**
-	 * App status.
-	 * 
-	 * Whether the app is running as determined
-	 * by an active app file lock.
-	 */
-	| { kind: "status", body: boolean }
-	/** Reply to a ping. */
-	| { kind: "pong", body?: undefined }
-	/** Result of opening a URL. */
-	| { kind: "openUrl", body: boolean }
-	/** Result invoking the local server. */
-	| { kind: "http", body: LocalResponse }
-	/** List of accounts. */
-	| { kind: "accounts", body: AccountsList }
-	/** Copy to clipboard result. */
-	| { kind: "copy", body: CommandOutcome }
-	/** Authenticate response. */
-	| { kind: "authenticate", body: CommandOutcome }
-	/** Lock response. */
-	| { kind: "lock", body: CommandOutcome }
-	/** Search query response. */
-	| { kind: "search", body: SearchResults }
-	/** Query view response. */
-	| { kind: "queryView", body: SearchResults };
 

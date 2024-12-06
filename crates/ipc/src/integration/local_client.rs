@@ -41,7 +41,8 @@ use tracing::instrument;
 
 use bytes::Bytes;
 
-type ClientTransport = Box<dyn LocalTransport + Send + Sync + 'static>;
+pub(super) type ClientTransport =
+    Box<dyn LocalTransport + Send + Sync + 'static>;
 
 /// Local client communicates with another local account
 /// using a generic transport.
@@ -118,7 +119,6 @@ impl LocalClient {
         &self,
         mut response: LocalResponse,
     ) -> Result<Bytes> {
-        println!("response: {:#?}", response);
         response.decompress()?;
         Ok(response.body.into())
     }

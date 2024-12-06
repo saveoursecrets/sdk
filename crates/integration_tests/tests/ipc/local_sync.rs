@@ -77,19 +77,15 @@ async fn integration_ipc_local_sync() -> Result<()> {
 
     tokio::time::sleep(Duration::from_millis(250)).await;
 
-    // Integration mananges the accounts on the linked app
-    let integration = LocalIntegration::new();
-
     // Test transport creates a IPC socket client for communication
     let transport = TestLocalTransport::new(socket_name.clone()).await?;
 
+    // Integration mananges the accounts on the linked app
+    let integration =
+        LocalIntegration::new("sos-test-app", Box::new(transport));
+
     // Prepare the local client using our test transport
-    let origin = Origin::new(
-        socket_name.to_string(),
-        format!("sos+ipc://{}", socket_name).parse()?,
-    );
-    let local_client =
-        LocalClient::new(origin, Arc::new(Mutex::new(Box::new(transport))));
+    let local_client = integration.client().clone();
 
     // Prepare the linked account and add to the integration
     let linked_account = LinkedAccount::new_unauthenticated(

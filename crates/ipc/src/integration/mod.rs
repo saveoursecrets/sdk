@@ -9,9 +9,11 @@
 //! Typically, this would be used in the webassembly bindings
 //! for a browser extension or other local integration.
 
-use sos_sdk::prelude::{Account, AccountSwitcher};
+use crate::Result;
+use sos_protocol::{constants::IPC_GUI_SOCKET_NAME, Origin, RemoteSync};
+use sos_sdk::prelude::{Account, AccountSwitcher, Paths, PublicIdentity};
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 mod linked_account;
 mod local_client;
@@ -29,19 +31,81 @@ pub type LinkedAccountSwitcher = AccountSwitcher<
 /// Local app integration.
 pub struct LocalIntegration {
     accounts: Arc<RwLock<LinkedAccountSwitcher>>,
+    client: LocalClient,
 }
 
 impl LocalIntegration {
     /// Create a local app integration.
-    pub fn new() -> Self {
+    pub fn new(name: &str, transport: ClientTransport) -> Self {
+        let url = format!("sos+ipc://{}", IPC_GUI_SOCKET_NAME);
+        let origin = Origin::new(
+            name.to_string(),
+            url.parse().expect("valid URL for integration origin"),
+        );
+        let transport = Arc::new(Mutex::new(transport));
+        let client = LocalClient::new(origin, transport);
         Self {
             accounts: Arc::new(RwLock::new(LinkedAccountSwitcher::new())),
+            client,
         }
     }
 
-    /// Clone of the accounts.
+    /// Accounts managed by this integration.
     pub fn accounts(&self) -> Arc<RwLock<LinkedAccountSwitcher>> {
         self.accounts.clone()
+    }
+
+    /// Client used to communicate with the local account.
+    pub fn client(&self) -> &LocalClient {
+        &self.client
+    }
+
+    /// Initialize the accounts list.
+    pub async fn initialize_accounts(
+        &mut self,
+        accounts: Vec<PublicIdentity>,
+    ) -> Result<()> {
+        let managed_accounts = self.accounts();
+        let client = self.client.clone();
+
+        Paths::scaffold(None).await?;
+
+        let mut managed_accounts = managed_accounts.write().await;
+
+        for identity in accounts {
+            tracing::info!(address = %identity.address(), "add_account");
+            let account = LinkedAccount::new_unauthenticated(
+                *identity.address(),
+                client.clone(),
+                None,
+            )
+            .await?;
+
+            let paths = account.paths();
+            // tracing::info!(paths = ?paths);
+            paths.ensure().await?;
+
+            managed_accounts.add_account(account);
+        }
+        Ok(())
+    }
+
+    /// Sync the accounts data.
+    pub async fn sync_accounts(&mut self) -> Result<()> {
+        let mut accounts = self.accounts.write().await;
+        for account in accounts.iter_mut() {
+            tracing::info!(address = %account.address(), "sync_account");
+            let sync_result = account.sync().await;
+            if let Err(e) = sync_result.result {
+                tracing::error!(error = %e);
+            } else {
+                tracing::info!(
+                    address = %account.address(),
+                    "sync_account::done",
+                );
+            }
+        }
+        Ok(())
     }
 
     /*
