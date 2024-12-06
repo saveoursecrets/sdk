@@ -18,7 +18,10 @@ mod error;
 
 #[cfg(feature = "client")]
 mod client;
-#[cfg(feature = "native-bridge")]
+#[cfg(any(
+    feature = "native-bridge-server",
+    feature = "native-bridge-client"
+))]
 pub mod native_bridge;
 #[cfg(feature = "server")]
 mod server;

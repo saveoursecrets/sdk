@@ -30,13 +30,13 @@ pub enum Error {
 
     /// Error when the native bridge fails to send a proxy
     /// request via the IPC client socket.
-    #[cfg(feature = "native-bridge")]
+    #[cfg(feature = "native-bridge-server")]
     #[error("native bridge failed to send request, reason: {0}")]
     NativeBridgeClientProxy(String),
 
     /// Error when the native bridge fails to parse the incoming
     /// request JSON.
-    #[cfg(feature = "native-bridge")]
+    #[cfg(feature = "native-bridge-server")]
     #[error("native bridge failed to parse JSON, reason: {0}")]
     NativeBridgeJsonParse(String),
 

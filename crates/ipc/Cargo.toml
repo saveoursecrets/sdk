@@ -22,8 +22,8 @@ server = [
   "http-body-util",
   "hyper-util",
 ]
-native-bridge = ["client","open", "once_cell"]
-native-send = ["tokio/process", "tokio/io-std"]
+native-bridge-server = ["client","open", "once_cell"]
+native-bridge-client = ["tokio/process", "tokio/io-std"]
 
 [dependencies]
 thiserror.workspace = true

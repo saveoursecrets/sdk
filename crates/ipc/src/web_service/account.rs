@@ -1,5 +1,4 @@
 use http::{Request, Response, StatusCode};
-use http_body_util::Full;
 use hyper::body::Bytes;
 use sos_protocol::{
     server_helpers, Merge, SyncPacket, SyncStorage, WireEncodeDecode,
