@@ -74,6 +74,12 @@ impl LocalRequest {
         }
     }
 
+    /// Set a request id.
+    pub fn set_request_id(&mut self, id: u64) {
+        self.headers
+            .insert(X_SOS_REQUEST_ID.to_owned(), vec![id.to_string()]);
+    }
+
     /// Duration allowed for a request.
     pub fn timeout_duration(&self) -> Duration {
         Duration::from_secs(15)

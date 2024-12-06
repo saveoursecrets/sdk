@@ -30,6 +30,17 @@ impl NativeBridgeOptions {
             ..Default::default()
         }
     }
+
+    /// Create new options with a socket name.
+    pub fn with_socket_name(
+        extension_id: String,
+        socket_name: String,
+    ) -> Self {
+        Self {
+            extension_id,
+            socket_name: Some(socket_name),
+        }
+    }
 }
 
 /// Run a native bridge.

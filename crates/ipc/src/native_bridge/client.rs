@@ -1,7 +1,7 @@
 //! Proxy to an IPC server using length-prefixed JSON encoding
 //! read from stdin and written to stdout.
 //!
-//! Used to support the native messaging API provided
+//! Used to test the native messaging API provided
 //! by browser extensions.
 
 use crate::local_transport::{LocalRequest, LocalResponse};

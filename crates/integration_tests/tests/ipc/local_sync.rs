@@ -1,8 +1,8 @@
 use anyhow::Result;
-use sos_ipc::integration::{LinkedAccount, LocalClient, LocalIntegration};
+use sos_ipc::integration::{LinkedAccount, LocalIntegration};
 use sos_ipc::{remove_socket_file, server::LocalSocketServer, Error};
 use sos_net::{
-    protocol::{Origin, RemoteSync},
+    protocol::RemoteSync,
     sdk::{
         crypto::AccessKey,
         prelude::{
@@ -13,7 +13,7 @@ use sos_net::{
     },
 };
 use std::{sync::Arc, time::Duration};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
 use crate::{
     test_utils::{mock, setup, teardown},

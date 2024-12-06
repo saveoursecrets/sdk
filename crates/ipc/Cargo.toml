@@ -74,7 +74,7 @@ flate2 = { workspace = true, optional = true }
 sos-sdk = { version = "0.16", path = "../sdk", features = ["account"] }
 sos-protocol = { version = "0.16", path = "../protocol" }
 
-tokio = { version = "1", features = ["io-util", "sync"] }
+tokio = { version = "1", features = ["rt", "macros", "io-util", "sync"] }
 tokio-util = { version = "0.7", features = ["codec"] }
 futures-util = { version = "0.3", features = ["sink"] }
 interprocess = { version = "2", features = ["tokio"], optional = true }

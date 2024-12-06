@@ -9,35 +9,10 @@ publish = false
 default = []
 enable-cli-tests = []
 
-[dev-dependencies]
-binary-stream.workspace = true
-tracing.workspace = true
-tracing-subscriber.workspace = true
-serde_json.workspace = true
-async-trait.workspace = true
-thiserror.workspace = true
-async-recursion.workspace = true
-futures.workspace = true
-parking_lot.workspace = true
-once_cell.workspace = true
-serde.workspace = true
-indexmap.workspace = true
+[dependencies]
 tokio.workspace = true
-anyhow.workspace = true
-secrecy.workspace = true
-http.workspace = true
 
-copy_dir = "0.1"
-maplit2 = "1"
-tempfile = "3.5"
-pretty_assertions = "1.4"
-sos-test-utils = { path = "../test_utils" }
-
-[dev-dependencies.sos-net]
-features = ["full"]
-path = "../net"
-
-[dev-dependencies.sos-ipc]
+[dependencies.sos-ipc]
 features = [
   "server",
   "client",
@@ -53,8 +28,38 @@ features = [
 ]
 path = "../ipc"
 
+[dev-dependencies]
+binary-stream.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+async-recursion.workspace = true
+futures.workspace = true
+parking_lot.workspace = true
+once_cell.workspace = true
+serde.workspace = true
+indexmap.workspace = true
+anyhow.workspace = true
+secrecy.workspace = true
+http.workspace = true
+
+copy_dir = "0.1"
+maplit2 = "1"
+tempfile = "3.5"
+pretty_assertions = "1.4"
+sos-test-utils = { path = "../test_utils" }
+
+[dev-dependencies.sos-net]
+features = ["full"]
+path = "../net"
+
 [dev-dependencies.sos-server]
 default-features = false
 features = ["listen", "audit", "pairing"]
 path = "../server"
 
+[[bin]]
+name = "test-native-bridge"
+path = "src/test_native_bridge.rs"
