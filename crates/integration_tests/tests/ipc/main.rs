@@ -8,20 +8,20 @@ use sos_net::protocol::local_transport::{
     LocalRequest, LocalResponse, LocalTransport,
 };
 
-use sos_ipc::SocketClient;
+use sos_ipc::LocalSocketClient;
 
 /// Local transport for the test specs.
 pub struct TestLocalTransport {
     /// Socket name.
     pub socket_name: String,
     /// Socket client.
-    pub client: SocketClient,
+    pub client: LocalSocketClient,
 }
 
 impl TestLocalTransport {
     /// Create a test transport.
     pub async fn new(socket_name: String) -> anyhow::Result<Self> {
-        let client = SocketClient::connect(&socket_name).await?;
+        let client = LocalSocketClient::connect(&socket_name).await?;
         Ok(Self {
             socket_name,
             client,

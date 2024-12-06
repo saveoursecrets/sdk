@@ -1,5 +1,7 @@
 use anyhow::Result;
-use sos_ipc::{remove_socket_file, Error, SocketClient, SocketServer};
+use sos_ipc::{
+    remove_socket_file, Error, LocalSocketClient, LocalSocketServer,
+};
 use sos_net::sdk::{
     crypto::AccessKey,
     prelude::{
@@ -65,7 +67,7 @@ async fn integration_ipc_list_accounts() -> Result<()> {
 
     let server_socket_name = socket_name.clone();
     tokio::task::spawn(async move {
-        SocketServer::listen(
+        LocalSocketServer::listen(
             &server_socket_name,
             ipc_accounts,
             Default::default(),
@@ -77,7 +79,7 @@ async fn integration_ipc_list_accounts() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Create a client and list accounts
-    let client = SocketClient::connect(&socket_name).await?;
+    let client = LocalSocketClient::connect(&socket_name).await?;
     let accounts = client.list_accounts().await?;
     assert_eq!(2, accounts.len());
 

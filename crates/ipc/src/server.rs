@@ -10,9 +10,9 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// Socket server for inter-process communication.
-pub struct SocketServer;
+pub struct LocalSocketServer;
 
-impl SocketServer {
+impl LocalSocketServer {
     /// Listen on a named pipe.
     pub async fn listen<A, R, E>(
         socket_name: &str,

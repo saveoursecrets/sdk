@@ -4,7 +4,7 @@
 //! Used to support the native messaging API provided
 //! by browser extensions.
 
-use crate::{Error, Result, SocketClient};
+use crate::{Error, LocalSocketClient, Result};
 
 use futures_util::{SinkExt, StreamExt};
 use http::StatusCode;
@@ -34,7 +34,7 @@ const ALLOWED_EXTENSIONS: [&str; 3] =
 
 const LIMIT: usize = 1024 * 1024;
 
-static CONN: Lazy<Arc<Mutex<Option<SocketClient>>>> =
+static CONN: Lazy<Arc<Mutex<Option<LocalSocketClient>>>> =
     Lazy::new(|| Arc::new(Mutex::new(None)));
 
 /// Options for a native bridge.
@@ -183,7 +183,9 @@ pub async fn run(options: NativeBridgeOptions) {
     }
 }
 
-async fn connect(socket_name: String) -> Arc<Mutex<Option<SocketClient>>> {
+async fn connect(
+    socket_name: String,
+) -> Arc<Mutex<Option<LocalSocketClient>>> {
     let mut conn = CONN.lock().await;
     if conn.is_some() {
         return Arc::clone(&*CONN);
@@ -193,10 +195,10 @@ async fn connect(socket_name: String) -> Arc<Mutex<Option<SocketClient>>> {
     return Arc::clone(&*CONN);
 }
 
-async fn try_connect(socket_name: String) -> SocketClient {
+async fn try_connect(socket_name: String) -> LocalSocketClient {
     let retry_delay = Duration::from_secs(1);
     loop {
-        match SocketClient::connect(socket_name.clone()).await {
+        match LocalSocketClient::connect(socket_name.clone()).await {
             Ok(client) => return client,
             Err(e) => {
                 tracing::trace!(

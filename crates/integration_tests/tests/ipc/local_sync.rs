@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_ipc::{remove_socket_file, Error, SocketServer};
+use sos_ipc::{remove_socket_file, Error, LocalSocketServer};
 use sos_net::{
     protocol::{
         integration::{LinkedAccount, LocalClient, LocalIntegration},
@@ -68,7 +68,7 @@ async fn integration_ipc_local_sync() -> Result<()> {
 
     let server_socket_name = socket_name.clone();
     tokio::task::spawn(async move {
-        SocketServer::listen(
+        LocalSocketServer::listen(
             &server_socket_name,
             ipc_accounts,
             Default::default(),

@@ -36,25 +36,24 @@ pub async fn send_http(
     let name = socket_name.into().to_ns_name::<GenericNamespaced>()?;
     let io = LocalSocketStream::connect(name).await?;
     let socket = TokioIo::new(io);
-    let (mut sender, conn) = handshake(socket).await.unwrap();
+    let (mut sender, conn) = handshake(socket).await?;
     tokio::task::spawn(async move {
         if let Err(err) = conn.await {
             tracing::error!(error = %err, "ipc::client::connection");
         }
     });
-    let response = sender.send_request(request).await.unwrap();
+    let response = sender.send_request(request).await?;
     let (header, body) = response.into_parts();
     let bytes = body.collect().await.unwrap().to_bytes();
     Ok(Response::from_parts(header, Full::new(bytes)))
 }
 
 /// Socket client for inter-process communication.
-pub struct SocketClient {
-    // socket: TokioIo<LocalSocketStream>,
+pub struct LocalSocketClient {
     socket_name: String,
 }
 
-impl SocketClient {
+impl LocalSocketClient {
     /// Create a client and connect the server.
     pub async fn connect(socket_name: impl Into<String>) -> Result<Self> {
         Ok(Self {

@@ -25,9 +25,9 @@ mod server;
 #[cfg(feature = "server")]
 mod web_service;
 #[cfg(feature = "client")]
-pub use client::SocketClient;
+pub use client::LocalSocketClient;
 #[cfg(feature = "server")]
-pub use server::SocketServer;
+pub use server::LocalSocketServer;
 #[cfg(feature = "server")]
 pub(crate) use web_service::LocalWebService;
 

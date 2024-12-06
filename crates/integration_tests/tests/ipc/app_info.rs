@@ -1,6 +1,7 @@
 use anyhow::Result;
 use sos_ipc::{
-    remove_socket_file, Error, ServiceAppInfo, SocketClient, SocketServer,
+    remove_socket_file, Error, LocalSocketClient, LocalSocketServer,
+    ServiceAppInfo,
 };
 use sos_net::sdk::{prelude::LocalAccountSwitcher, Paths};
 use sos_test_utils::teardown;
@@ -41,14 +42,18 @@ async fn integration_ipc_app_info() -> Result<()> {
 
     let server_socket_name = socket_name.clone();
     tokio::task::spawn(async move {
-        SocketServer::listen(&server_socket_name, ipc_accounts, app_info)
-            .await?;
+        LocalSocketServer::listen(
+            &server_socket_name,
+            ipc_accounts,
+            app_info,
+        )
+        .await?;
         Ok::<(), Error>(())
     });
 
     tokio::time::sleep(Duration::from_millis(250)).await;
 
-    let client = SocketClient::connect(&socket_name).await?;
+    let client = LocalSocketClient::connect(&socket_name).await?;
     let info = client.info().await?;
     assert_eq!(name, &info.name);
     assert_eq!(version, &info.version);
