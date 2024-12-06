@@ -4,9 +4,9 @@
 //! Used to support the native messaging API provided
 //! by browser extensions.
 
+use crate::local_transport::{LocalRequest, LocalResponse};
 use crate::Result;
 use futures_util::{SinkExt, StreamExt};
-use sos_protocol::local_transport::{LocalRequest, LocalResponse};
 use tokio_util::codec::LengthDelimitedCodec;
 
 /// Send a request to a native bridge executable.

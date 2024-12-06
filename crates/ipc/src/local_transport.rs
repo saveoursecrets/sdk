@@ -1,9 +1,11 @@
 //! Types used for communicating between apps on the same device.
 
-use crate::{
-    constants::{ENCODING_ZLIB, MIME_TYPE_JSON, X_SOS_REQUEST_ID},
-    Error, Result,
+use crate::{Error, Result};
+
+use sos_protocol::constants::{
+    ENCODING_ZLIB, MIME_TYPE_JSON, X_SOS_REQUEST_ID,
 };
+
 use async_trait::async_trait;
 use bytes::Bytes;
 use http::{

@@ -21,7 +21,6 @@ futures.workspace = true
 parking_lot.workspace = true
 once_cell.workspace = true
 serde.workspace = true
-clap.workspace = true
 indexmap.workspace = true
 tokio.workspace = true
 anyhow.workspace = true
@@ -31,10 +30,7 @@ http.workspace = true
 copy_dir = "0.1"
 maplit2 = "1"
 tempfile = "3.5"
-kdam = { version = "0.5", features = ["rich", "spinner"] }
 pretty_assertions = "1.4"
-anticipate-runner = { version = "0.5.1" }
-
 sos-test-utils = { path = "../test_utils" }
 
 [dev-dependencies.sos-net]
@@ -47,6 +43,13 @@ features = [
   "client",
   "native-bridge-server",
   "native-bridge-client",
+  "integration",
+  "account",
+  "archive",
+  "contacts", 
+  "migrate",
+  "search",
+  "files",
 ]
 path = "../ipc"
 

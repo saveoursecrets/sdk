@@ -49,12 +49,21 @@ args = [
   "--doc",
 ]
 
+[tasks.unused]
+command = "cargo"
+toolchain = "nightly"
+args = [
+  "udeps",
+  "--all-targets",
+]
+
 [tasks.doc]
 toolchain = "nightly"
 command = "cargo"
 args = [
   "doc",
   "--workspace",
+  "--all-features",
   "--open",
   "--no-deps"
 ]

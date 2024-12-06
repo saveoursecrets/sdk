@@ -1,10 +1,12 @@
 //! Server for the native messaging API bridge.
 
-use crate::{client::send_local, Result};
-
+use crate::{
+    client::send_local,
+    local_transport::{LocalRequest, LocalResponse},
+    Result,
+};
 use futures_util::{SinkExt, StreamExt};
 use http::StatusCode;
-use sos_protocol::local_transport::{LocalRequest, LocalResponse};
 use sos_sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME, url::Url, Paths};
 use tokio::sync::mpsc;
 use tokio_util::codec::LengthDelimitedCodec;

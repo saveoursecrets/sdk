@@ -1,12 +1,13 @@
 //! Linked account supports syncing accounts on the
 //! same device using a local client.
-use crate::{
-    AutoMerge, Error, Origin, RemoteResult, RemoteSync, RemoteSyncHandler,
-    Result, SyncClient, SyncDirection, SyncOptions, SyncStatus, SyncStorage,
-    UpdateSet,
-};
+use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
+use sos_protocol::{
+    AutoMerge, Origin, RemoteResult, RemoteSync, RemoteSyncHandler,
+    SyncClient, SyncDirection, SyncOptions, SyncStatus, SyncStorage,
+    UpdateSet,
+};
 use sos_sdk::{
     events::{
         AccountEventLog, AccountPatch, DeviceEventLog, DevicePatch,
@@ -55,7 +56,7 @@ use tokio::io::{AsyncRead, AsyncSeek};
 use sos_sdk::prelude::ImportTarget;
 
 #[cfg(feature = "files")]
-use crate::transfer::FileTransferQueueSender;
+use sos_protocol::transfer::FileTransferQueueSender;
 
 #[cfg(feature = "files")]
 use sos_sdk::prelude::{FileEventLog, FilePatch};

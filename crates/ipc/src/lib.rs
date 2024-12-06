@@ -2,19 +2,20 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Inter-process communcation library
-//! for [Save Our Secrets](https://saveoursecrets.com/).
-//!
-//! Communication uses [protocol buffers](https://protobuf.dev/)
-//! however to facilitate browser extensions that need to use
-//! [native messaging](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging) all request and response types must
-//! also implement the [serde](https://docs.rs/serde/latest/serde/) traits.
+//! for [Save Our Secrets](https://saveoursecrets.com/) that listens and
+//! sends HTTP requests over a named pipe.
 //!
 //! This crate also includes the source for the `sos-native-bridge`
-//! helpers executable which translates length-delimited JSON requests
-//! into the underlying protobuf messages and relay them over the IPC
-//! channel.
+//! helper executable which forwards length-delimited JSON requests
+//! into HTTP requests sent to the named pipe.
 
 mod error;
+
+#[cfg(feature = "compression-zlib")]
+pub mod compression;
+
+#[cfg(feature = "integration")]
+pub mod integration;
 
 #[cfg(feature = "client")]
 pub mod client;
@@ -29,6 +30,8 @@ pub mod server;
 mod web_service;
 #[cfg(feature = "server")]
 pub(crate) use web_service::LocalWebService;
+#[cfg(feature = "local-transport")]
+pub mod local_transport;
 
 pub use error::Error;
 

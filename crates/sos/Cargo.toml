@@ -33,7 +33,6 @@ enum-iterator.workspace = true
 clap.workspace = true
 arboard.workspace = true
 
-axum-server.workspace = true
 tokio-rustls.workspace = true
 rustls.workspace = true
 
@@ -43,7 +42,6 @@ shell-words = "1"
 terminal-banner = { version = "0.4.1", features = ["color"] }
 unicode-width = "0.2"
 kdam = { version = "0.5", features = ["rich", "spinner"] }
-num_cpus = "1"
 crossterm = "0.28"
 ctrlc = "3"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }

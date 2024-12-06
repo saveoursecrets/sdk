@@ -20,7 +20,6 @@ full = [
   "contacts",
   "files",
   "hashcheck",
-  "integration",
   "listen",
   "migrate",
   "pairing",
@@ -38,7 +37,6 @@ hashcheck = []
 audit = ["sos-sdk/audit"]
 archive = ["sos-sdk/archive", "sos-protocol/archive"]
 files = ["sos-sdk/files", "sos-protocol/files"]
-integration = ["sos-protocol/integration"]
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
 keychain-access = ["sos-sdk/keychain-access"]
@@ -73,7 +71,6 @@ bs58.workspace = true
 urlencoding.workspace = true
 indexmap.workspace = true
 async-stream = "0.3"
-colored = "2"
 binary-stream.workspace = true
 rs_merkle.workspace = true
 prost.workspace = true

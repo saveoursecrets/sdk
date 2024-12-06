@@ -7,12 +7,9 @@ use http_body_util::{BodyExt, Full};
 use hyper::client::conn::http1::handshake;
 use interprocess::local_socket::{tokio::prelude::*, GenericNamespaced};
 
+use crate::local_transport::{LocalRequest, LocalResponse};
 use hyper_util::rt::tokio::TokioIo;
-use sos_protocol::{
-    constants::routes::v1::ACCOUNTS_LIST,
-    local_transport::{LocalRequest, LocalResponse},
-    NetworkError,
-};
+use sos_protocol::{constants::routes::v1::ACCOUNTS_LIST, NetworkError};
 use sos_sdk::prelude::PublicIdentity;
 
 /// Send a local request.

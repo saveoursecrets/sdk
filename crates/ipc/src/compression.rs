@@ -43,6 +43,7 @@ pub mod zlib {
     }
 }
 
+/*
 // Can't use zstd right now due to compilation error on MacOS
 // with wasm32-unknown-unknown.
 // See: https://github.com/gyscos/zstd-rs/issues/302
@@ -79,3 +80,4 @@ pub mod zstd {
         }
     }
 }
+*/

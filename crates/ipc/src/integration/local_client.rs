@@ -17,22 +17,23 @@
 //! is included as there is an inherent trust established when
 //! the app integration was installed on the device.
 
-use crate::{
+use crate::local_transport::{LocalResponse, LocalTransport};
+
+use crate::{Error, Result};
+use async_trait::async_trait;
+use http::{header::CONTENT_TYPE, Method, Request, StatusCode, Uri};
+use serde_json::Value;
+use sos_protocol::{
     constants::{
         routes::v1::{
             SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
         },
         MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
     },
-    error::NetworkError,
-    local_transport::{LocalResponse, LocalTransport},
-    CreateSet, DiffRequest, DiffResponse, Error, Origin, PatchRequest,
-    PatchResponse, Result, ScanRequest, ScanResponse, SyncClient, SyncPacket,
+    CreateSet, DiffRequest, DiffResponse, NetworkError, Origin, PatchRequest,
+    PatchResponse, ScanRequest, ScanResponse, SyncClient, SyncPacket,
     SyncStatus, UpdateSet, WireEncodeDecode,
 };
-use async_trait::async_trait;
-use http::{header::CONTENT_TYPE, Method, Request, StatusCode, Uri};
-use serde_json::Value;
 use sos_sdk::prelude::Address;
 use std::sync::Arc;
 use tokio::sync::Mutex;

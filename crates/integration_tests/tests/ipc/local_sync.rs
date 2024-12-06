@@ -1,10 +1,8 @@
 use anyhow::Result;
+use sos_ipc::integration::{LinkedAccount, LocalClient, LocalIntegration};
 use sos_ipc::{remove_socket_file, server::LocalSocketServer, Error};
 use sos_net::{
-    protocol::{
-        integration::{LinkedAccount, LocalClient, LocalIntegration},
-        Origin, RemoteSync,
-    },
+    protocol::{Origin, RemoteSync},
     sdk::{
         crypto::AccessKey,
         prelude::{

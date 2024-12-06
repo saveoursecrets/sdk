@@ -1,14 +1,10 @@
 mod app_info;
 mod list_accounts;
 mod local_sync;
-pub use sos_test_utils as test_utils;
-
 use async_trait::async_trait;
-use sos_net::protocol::local_transport::{
-    LocalRequest, LocalResponse, LocalTransport,
-};
-
 use sos_ipc::client::LocalSocketClient;
+use sos_ipc::local_transport::{LocalRequest, LocalResponse, LocalTransport};
+pub use sos_test_utils as test_utils;
 
 /// Local transport for the test specs.
 pub struct TestLocalTransport {

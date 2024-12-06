@@ -24,12 +24,8 @@
 // for convenience, the code may panic on 32-bit machines.
 
 mod bindings;
-pub mod compression;
 pub mod constants;
 mod error;
-#[cfg(feature = "integration")]
-pub mod integration;
-pub mod local_transport;
 pub mod server_helpers;
 mod sync;
 mod traits;
