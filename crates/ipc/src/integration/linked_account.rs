@@ -61,7 +61,7 @@ use sos_protocol::transfer::FileTransferQueueSender;
 #[cfg(feature = "files")]
 use sos_sdk::prelude::{FileEventLog, FilePatch};
 
-/// Linked account.
+/// Linked account syncs with a local account on the same device.
 pub struct LinkedAccount {
     account: Arc<Mutex<LocalAccount>>,
     address: Address,

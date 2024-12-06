@@ -43,7 +43,8 @@ use bytes::Bytes;
 
 type ClientTransport = Box<dyn LocalTransport + Send + Sync + 'static>;
 
-/// Local client.
+/// Local client communicates with another local account
+/// using a generic transport.
 #[derive(Clone)]
 pub struct LocalClient {
     origin: Origin,
