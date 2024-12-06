@@ -1,6 +1,6 @@
 [package]
 name = "sos-ipc"
-version = "0.16.3"
+version = "0.16.4"
 edition = "2021"
 description = "Inter-process communication for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -8,10 +8,20 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [package.metadata.docs.rs]
-all-features = true
+features = [
+  "local-transport",
+  "client",
+  "server",
+  "integration",
+  "native-bridge-server",
+]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
+local-transport = [
+  "serde_with",
+  "async-trait",
+]
 compression-zlib = ["flate2"]
 # compression-zstd = ["zstd"]
 client = [
@@ -43,10 +53,6 @@ migrate = ["sos-sdk/migrate"]
 search = ["sos-sdk/search"]
 native-bridge-server = ["client", "open"]
 native-bridge-client = ["local-transport", "tokio/process", "tokio/io-std"]
-local-transport = [
-  "serde_with",
-  "async-trait",
-]
 
 [dependencies]
 thiserror.workspace = true

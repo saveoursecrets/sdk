@@ -12,7 +12,7 @@
 mod error;
 
 #[cfg(feature = "compression-zlib")]
-pub mod compression;
+pub(crate) mod compression;
 
 #[cfg(feature = "integration")]
 pub mod integration;
