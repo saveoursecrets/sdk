@@ -51,7 +51,7 @@ contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = ["sos-sdk/files", "sos-protocol/files"]
 migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
 search = ["sos-sdk/search", "sos-protocol/search"]
-native-bridge-server = ["client", "open", "tokio/io-std"]
+native-bridge-server = ["client", "open", "tokio/io-std", "once_cell"]
 native-bridge-client = ["local-transport", "tokio/process", "tokio/io-std", "futures"]
 
 [dependencies]
@@ -64,7 +64,7 @@ parking_lot.workspace = true
 http.workspace = true
 bytes.workspace = true
 futures = { workspace = true, optional = true }
-
+once_cell = { workspace = true, optional = true }
 indexmap = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }

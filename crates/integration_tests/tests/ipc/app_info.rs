@@ -53,7 +53,7 @@ async fn integration_ipc_app_info() -> Result<()> {
 
     tokio::time::sleep(Duration::from_millis(250)).await;
 
-    let client = LocalSocketClient::connect(&socket_name).await?;
+    let mut client = LocalSocketClient::connect(&socket_name).await?;
     let info = client.info().await?;
     assert_eq!(name, &info.name);
     assert_eq!(version, &info.version);

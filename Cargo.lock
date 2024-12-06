@@ -4435,6 +4435,7 @@ dependencies = [
  "indexmap 2.7.0",
  "interprocess",
  "matchit",
+ "once_cell",
  "open",
  "parking_lot",
  "rustc_version",

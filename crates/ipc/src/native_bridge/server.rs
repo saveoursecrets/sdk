@@ -1,17 +1,25 @@
 //! Server for the native messaging API bridge.
 
 use crate::{
-    client::send_local,
+    client::LocalSocketClient,
     local_transport::{HttpMessage, LocalRequest, LocalResponse},
-    Result,
+    Error, Result,
 };
 use futures_util::{SinkExt, StreamExt};
 use http::StatusCode;
+use once_cell::sync::Lazy;
 use sos_sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME, url::Url, Paths};
-use tokio::sync::mpsc;
+use std::io::ErrorKind;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::{mpsc, Mutex};
+use tokio::time::sleep;
 use tokio_util::codec::LengthDelimitedCodec;
 
 const LIMIT: usize = 1024 * 1024;
+
+static CONN: Lazy<Arc<Mutex<Option<LocalSocketClient>>>> =
+    Lazy::new(|| Arc::new(Mutex::new(None)));
 
 /// Options for a native bridge.
 #[derive(Debug, Default)]
@@ -114,8 +122,7 @@ impl NativeBridgeServer {
                                     )
                                     .await
                                 } else {
-                                    send_local(
-                                      sock_name.clone(), request).await
+                                    try_send_request(&sock_name, request).await
                                 };
 
                                 let result = match response {
@@ -173,6 +180,59 @@ impl NativeBridgeServer {
                     }
                 }
             }
+        }
+    }
+}
+
+async fn connect(socket_name: &str) -> Arc<Mutex<Option<LocalSocketClient>>> {
+    let mut conn = CONN.lock().await;
+    if conn.is_some() {
+        return Arc::clone(&*CONN);
+    }
+    let socket_client = try_connect(socket_name).await;
+    *conn = Some(socket_client);
+    return Arc::clone(&*CONN);
+}
+
+async fn try_connect(socket_name: &str) -> LocalSocketClient {
+    let retry_delay = Duration::from_secs(1);
+    loop {
+        match LocalSocketClient::connect(socket_name).await {
+            Ok(client) => return client,
+            Err(e) => {
+                tracing::trace!(
+                    error = %e,
+                    "native_bridge::connect",
+                );
+                sleep(retry_delay).await;
+            }
+        }
+    }
+}
+
+/// Send an IPC request and reconnect for certain types of IO error.
+async fn try_send_request(
+    socket_name: &str,
+    request: LocalRequest,
+) -> Result<LocalResponse> {
+    loop {
+        let conn = connect(socket_name).await;
+        let mut lock = conn.lock().await;
+        let client = lock.as_mut().unwrap();
+        match client.send_request(request.clone()).await {
+            Ok(response) => return Ok(response),
+            Err(e) => match e {
+                Error::Io(io_err) => match io_err.kind() {
+                    ErrorKind::BrokenPipe => {
+                        // Move the broken client out
+                        // so the next attempt to connect
+                        // will create a new client
+                        lock.take();
+                    }
+                    _ => return Err(Error::Io(io_err)),
+                },
+                _ => return Err(e),
+            },
         }
     }
 }
