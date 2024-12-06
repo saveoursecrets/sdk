@@ -259,6 +259,17 @@ impl LocalResponse {
         }
     }
 
+    /// Decompress the response body.
+    pub fn decompress(&mut self) -> Result<()> {
+        if self.is_zlib() {
+            println!("decompress: {}", self.body.len());
+            self.body =
+                crate::compression::zlib::decode_all(self.body.as_slice())?;
+            println!("inflated : {}", self.body.len());
+        }
+        Ok(())
+    }
+
     /// Determine if this response is using Zlib content encoding.
     pub fn is_zlib(&self) -> bool {
         if let Some(values) = self.headers.get(CONTENT_ENCODING.as_str()) {
@@ -271,6 +282,7 @@ impl LocalResponse {
         }
     }
 
+    /*
     /// Determine if this response is using Zstd content encoding.
     pub fn is_zstd(&self) -> bool {
         if let Some(values) = self.headers.get(CONTENT_ENCODING.as_str()) {
@@ -282,6 +294,7 @@ impl LocalResponse {
             false
         }
     }
+    */
 
     /// Convert the body to bytes.
     pub fn bytes(self) -> Bytes {
@@ -294,5 +307,5 @@ impl LocalResponse {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait LocalTransport {
     /// Send a request over the local transport.
-    async fn call(&mut self, request: LocalRequest) -> Result<LocalResponse>;
+    async fn call(&mut self, request: LocalRequest) -> LocalResponse;
 }

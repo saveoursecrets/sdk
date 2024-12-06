@@ -89,41 +89,17 @@ pub fn json<S: Serialize>(
     Ok(response)
 }
 
-#[deprecated]
-pub fn protobuf(body: Body) -> hyper::Result<Response<Body>> {
-    Ok(Response::builder()
-        .status(StatusCode::OK)
-        .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
-        .body(body)
-        .unwrap())
-}
-
-pub fn protobuf_compress(body: Body) -> hyper::Result<Response<Body>> {
-    /*
+pub fn protobuf_compress(buf: Vec<u8>) -> hyper::Result<Response<Body>> {
+    println!("len: {}", buf.len());
     use sos_protocol::compression::zlib;
-    let Ok(buf) = zlib::encode_all(body.as_slice()) else {
+    let Ok(buf) = zlib::encode_all(buf.as_slice()) else {
         return internal_server_error("zlib::compress");
     };
-    */
+    println!("compressed len: {}", buf.len());
     Ok(Response::builder()
         .status(StatusCode::OK)
-        // .header(CONTENT_ENCODING, ENCODING_ZLIB)
+        .header(CONTENT_ENCODING, ENCODING_ZLIB)
         .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
-        .body(body)
+        .body(Full::new(Bytes::from(buf)))
         .unwrap())
 }
-
-/*
-pub fn protobuf_zstd(body: Body) -> hyper::Result<Response<Body>> {
-    use sos_protocol::compression::zstd;
-    let Ok(buf) = zstd::encode_all(body.as_slice(), 20) else {
-        return internal_server_error("zstd::compress");
-    };
-    Ok(Response::builder()
-        .status(StatusCode::OK)
-        .header(CONTENT_ENCODING, ENCODING_ZSTD)
-        .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
-        .body(buf)
-        .unwrap())
-}
-*/

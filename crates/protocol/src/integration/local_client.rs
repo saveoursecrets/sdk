@@ -112,15 +112,13 @@ impl LocalClient {
         }
     }
 
-    fn read_response_body(&self, response: LocalResponse) -> Result<Bytes> {
-        if response.is_zlib() {
-            let buffer = crate::compression::zlib::decode_all(
-                response.body.as_slice(),
-            )?;
-            Ok(buffer.into())
-        } else {
-            Ok(response.body.into())
-        }
+    fn read_response_body(
+        &self,
+        mut response: LocalResponse,
+    ) -> Result<Bytes> {
+        println!("response: {:#?}", response);
+        response.decompress()?;
+        Ok(response.body.into())
     }
 }
 
@@ -146,7 +144,7 @@ impl SyncClient for LocalClient {
 
         let response = {
             let mut transport = self.transport.lock().await;
-            transport.call(request.into()).await?
+            transport.call(request.into()).await
         };
 
         let status = response.status()?;
@@ -162,6 +160,7 @@ impl SyncClient for LocalClient {
         Ok(exists)
     }
 
+    #[instrument(skip(self, account))]
     async fn create_account(
         &self,
         address: &Address,
@@ -180,7 +179,7 @@ impl SyncClient for LocalClient {
 
         let response = {
             let mut transport = self.transport.lock().await;
-            transport.call(request.into()).await?
+            transport.call(request.into()).await
         };
 
         let status = response.status()?;
@@ -189,6 +188,7 @@ impl SyncClient for LocalClient {
         Ok(())
     }
 
+    #[instrument(skip(self, account))]
     async fn update_account(
         &self,
         address: &Address,
@@ -207,7 +207,7 @@ impl SyncClient for LocalClient {
 
         let response = {
             let mut transport = self.transport.lock().await;
-            transport.call(request.into()).await?
+            transport.call(request.into()).await
         };
         let status = response.status()?;
         tracing::debug!(status = %status, "local_client::update_account");
@@ -215,6 +215,7 @@ impl SyncClient for LocalClient {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     async fn fetch_account(&self, address: &Address) -> Result<CreateSet> {
         let uri = self.build_uri(SYNC_ACCOUNT)?;
         tracing::debug!(uri = %uri, "local_client::fetch_account");
@@ -227,16 +228,16 @@ impl SyncClient for LocalClient {
 
         let response = {
             let mut transport = self.transport.lock().await;
-            transport.call(request.into()).await?
+            transport.call(request.into()).await
         };
         let status = response.status()?;
         tracing::debug!(status = %status, "local_client::fetch_account");
         let response = self.error_json(response).await?;
         let bytes = self.read_response_body(response)?;
-
         Ok(CreateSet::decode(bytes).await?)
     }
 
+    #[instrument(skip(self))]
     async fn delete_account(&self, address: &Address) -> Result<()> {
         let uri = self.build_uri(SYNC_ACCOUNT)?;
         tracing::debug!(uri = %uri, "local_client::delete_account");
@@ -249,7 +250,7 @@ impl SyncClient for LocalClient {
 
         let response = {
             let mut transport = self.transport.lock().await;
-            transport.call(request.into()).await?
+            transport.call(request.into()).await
         };
         let status = response.status()?;
         tracing::debug!(status = %status, "local_client::delete_account");
@@ -257,6 +258,7 @@ impl SyncClient for LocalClient {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     async fn sync_status(&self, address: &Address) -> Result<SyncStatus> {
         let uri = self.build_uri(SYNC_ACCOUNT_STATUS)?;
         tracing::debug!(uri = %uri, "local_client::sync_status");
@@ -269,14 +271,16 @@ impl SyncClient for LocalClient {
 
         let response = {
             let mut transport = self.transport.lock().await;
-            transport.call(request.into()).await?
+            transport.call(request.into()).await
         };
         let status = response.status()?;
         tracing::debug!(status = %status, "local_client::sync_status");
         let response = self.check_response(response).await?;
-        Ok(SyncStatus::decode(response.bytes()).await?)
+        let bytes = self.read_response_body(response)?;
+        Ok(SyncStatus::decode(bytes).await?)
     }
 
+    #[instrument(skip(self, packet))]
     async fn sync(
         &self,
         address: &Address,
@@ -295,14 +299,16 @@ impl SyncClient for LocalClient {
 
         let response = {
             let mut transport = self.transport.lock().await;
-            transport.call(request.into()).await?
+            transport.call(request.into()).await
         };
         let status = response.status()?;
         tracing::debug!(status = %status, "local_client::sync");
         let response = self.check_response(response).await?;
-        Ok(SyncPacket::decode(response.bytes()).await?)
+        let bytes = self.read_response_body(response)?;
+        Ok(SyncPacket::decode(bytes).await?)
     }
 
+    #[instrument(skip(self, request))]
     async fn scan(
         &self,
         address: &Address,
@@ -320,14 +326,16 @@ impl SyncClient for LocalClient {
             .body(body)?;
         let response = {
             let mut transport = self.transport.lock().await;
-            transport.call(request.into()).await?
+            transport.call(request.into()).await
         };
         let status = response.status()?;
         tracing::debug!(status = %status, "local_client::scan");
         let response = self.check_response(response).await?;
-        Ok(ScanResponse::decode(response.bytes()).await?)
+        let bytes = self.read_response_body(response)?;
+        Ok(ScanResponse::decode(bytes).await?)
     }
 
+    #[instrument(skip(self, request))]
     async fn diff(
         &self,
         address: &Address,
@@ -345,14 +353,16 @@ impl SyncClient for LocalClient {
             .body(body)?;
         let response = {
             let mut transport = self.transport.lock().await;
-            transport.call(request.into()).await?
+            transport.call(request.into()).await
         };
         let status = response.status()?;
         tracing::debug!(status = %status, "local_client::diff");
         let response = self.check_response(response).await?;
-        Ok(DiffResponse::decode(response.bytes()).await?)
+        let bytes = self.read_response_body(response)?;
+        Ok(DiffResponse::decode(bytes).await?)
     }
 
+    #[instrument(skip(self, request))]
     async fn patch(
         &self,
         address: &Address,
@@ -370,11 +380,12 @@ impl SyncClient for LocalClient {
             .body(body)?;
         let response = {
             let mut transport = self.transport.lock().await;
-            transport.call(request.into()).await?
+            transport.call(request.into()).await
         };
         let status = response.status()?;
         tracing::debug!(status = %status, "local_client::patch");
         let response = self.check_response(response).await?;
-        Ok(PatchResponse::decode(response.bytes()).await?)
+        let bytes = self.read_response_body(response)?;
+        Ok(PatchResponse::decode(bytes).await?)
     }
 }

@@ -10,25 +10,36 @@ pub mod zlib {
     //! Compress and decompress with zlib.
     use crate::Result;
     use flate2::{
-        read::{ZlibDecoder, ZlibEncoder},
+        write::{ZlibDecoder, ZlibEncoder},
         Compression,
     };
-    use std::io::Read;
+    use std::io::Write;
 
     /// Compress bytes.
-    pub fn encode_all<R: Read>(read: R) -> Result<Vec<u8>> {
-        let mut buffer = Vec::new();
-        let mut encoder = ZlibEncoder::new(read, Compression::best());
-        encoder.read_to_end(&mut buffer)?;
-        Ok(buffer)
+    pub fn encode_all(buf: &[u8]) -> Result<Vec<u8>> {
+        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::fast());
+        encoder.write_all(buf)?;
+        Ok(encoder.finish()?)
     }
 
     /// Decompress bytes.
-    pub fn decode_all<R: Read>(read: R) -> Result<Vec<u8>> {
-        let mut buffer = Vec::new();
-        let mut decoder = ZlibDecoder::new(read);
-        decoder.read_to_end(&mut buffer)?;
-        Ok(buffer)
+    pub fn decode_all(buf: &[u8]) -> Result<Vec<u8>> {
+        let mut decoder = ZlibDecoder::new(Vec::new());
+        decoder.write_all(buf)?;
+        Ok(decoder.finish()?)
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::*;
+        #[test]
+        fn zlib_encode_decode() -> anyhow::Result<()> {
+            let bytes = "hello ooooooooooooooo world!".as_bytes();
+            let deflated = encode_all(bytes)?;
+            let inflated = decode_all(&deflated)?;
+            assert_eq!(bytes, &inflated);
+            Ok(())
+        }
     }
 }
 
@@ -53,5 +64,18 @@ pub mod zstd {
     /// Decompress bytes.
     pub fn decode_all<R: Read>(read: R) -> Result<Vec<u8>> {
         Ok(zstd::decode_all(read)?)
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::*;
+        #[test]
+        fn zstd_encode_decode() -> anyhow::Result<()> {
+            let bytes = "hello ooooooooooooooo world!".as_bytes();
+            let deflated = encode_all(bytes)?;
+            let inflated = decode_all(deflated.as_slice())?;
+            assert_eq!(bytes, &inflated);
+            Ok(())
+        }
     }
 }

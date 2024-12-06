@@ -10,8 +10,7 @@ use tokio::sync::RwLock;
 
 use super::{
     bad_request, forbidden, internal_server_error, json, not_found, ok,
-    parse_account_id, protobuf, protobuf_compress, read_bytes, Body,
-    Incoming,
+    parse_account_id, protobuf_compress, read_bytes, Body, Incoming,
 };
 
 /// List of account public identities.
@@ -130,12 +129,11 @@ where
         accounts.iter().find(|a| a.address() == &account_id)
     {
         match account.change_set().await {
-            Ok(change_set) => {
-                let Ok(buffer) = change_set.encode().await else {
+            Ok(create_set) => {
+                let Ok(buffer) = create_set.encode().await else {
                     return internal_server_error("fetch_account::encode");
                 };
-
-                protobuf_compress(Full::new(Bytes::from(buffer)))
+                protobuf_compress(buffer)
             }
             Err(e) => internal_server_error(e),
         }
@@ -192,7 +190,7 @@ where
                 let Ok(buffer) = status.encode().await else {
                     return internal_server_error("sync_status::encode");
                 };
-                protobuf(Full::new(Bytes::from(buffer)))
+                protobuf_compress(buffer)
             }
             Err(e) => internal_server_error(e),
         }
@@ -237,7 +235,7 @@ where
                     return internal_server_error("sync_account::encode");
                 };
 
-                protobuf(Full::new(Bytes::from(response)))
+                protobuf_compress(response)
             }
             Err(e) => internal_server_error(e),
         }

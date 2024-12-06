@@ -31,10 +31,10 @@ impl TestLocalTransport {
 
 #[async_trait]
 impl LocalTransport for TestLocalTransport {
-    async fn call(
-        &mut self,
-        request: LocalRequest,
-    ) -> sos_net::protocol::Result<LocalResponse> {
-        Ok(self.client.send_request(request).await.unwrap())
+    async fn call(&mut self, request: LocalRequest) -> LocalResponse {
+        let Ok(response) = self.client.send_request(request).await else {
+            panic!("unable to send request");
+        };
+        response
     }
 }

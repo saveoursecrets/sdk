@@ -1,6 +1,5 @@
 use bytes::Bytes;
 use http::{Request, Response};
-use http_body_util::Full;
 use sos_protocol::{
     server_helpers, DiffRequest, Merge, PatchRequest, ScanRequest,
     SyncStorage, WireEncodeDecode,
@@ -11,7 +10,7 @@ use tokio::sync::RwLock;
 
 use super::{
     bad_request, internal_server_error, not_found, parse_account_id,
-    protobuf, read_bytes, Body, Incoming,
+    protobuf_compress, read_bytes, Body, Incoming,
 };
 
 pub async fn event_scan<A, R, E>(
@@ -53,8 +52,7 @@ where
                 let Ok(buffer) = response.encode().await else {
                     return internal_server_error("event_scan::encode");
                 };
-
-                protobuf(Full::new(Bytes::from(buffer)))
+                protobuf_compress(buffer)
             }
             Err(e) => internal_server_error(e),
         }
@@ -98,7 +96,7 @@ where
                     return internal_server_error("event_diff::encode");
                 };
 
-                protobuf(Full::new(Bytes::from(buffer)))
+                protobuf_compress(buffer)
             }
             Err(e) => internal_server_error(e),
         }
@@ -142,7 +140,7 @@ where
                 let Ok(buffer) = response.encode().await else {
                     return internal_server_error("event_patch::encode");
                 };
-                protobuf(Full::new(Bytes::from(buffer)))
+                protobuf_compress(buffer)
             }
             Err(e) => internal_server_error(e),
         }
