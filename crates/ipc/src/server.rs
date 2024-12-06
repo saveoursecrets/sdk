@@ -1,3 +1,4 @@
+//! HTTP server that listens for connections on a named pipe.
 use crate::{LocalWebService, Result, ServiceAppInfo};
 use hyper::server::conn::http1::Builder;
 use hyper_util::rt::tokio::TokioIo;

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use sos_ipc::{
-    remove_socket_file, Error, LocalSocketClient, LocalSocketServer,
+    client::LocalSocketClient, remove_socket_file, server::LocalSocketServer,
+    Error,
 };
 use sos_net::sdk::{
     crypto::AccessKey,

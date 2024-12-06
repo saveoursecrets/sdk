@@ -17,20 +17,16 @@
 mod error;
 
 #[cfg(feature = "client")]
-mod client;
+pub mod client;
 #[cfg(any(
     feature = "native-bridge-server",
     feature = "native-bridge-client"
 ))]
 pub mod native_bridge;
 #[cfg(feature = "server")]
-mod server;
+pub mod server;
 #[cfg(feature = "server")]
 mod web_service;
-#[cfg(feature = "client")]
-pub use client::LocalSocketClient;
-#[cfg(feature = "server")]
-pub use server::LocalSocketServer;
 #[cfg(feature = "server")]
 pub(crate) use web_service::LocalWebService;
 

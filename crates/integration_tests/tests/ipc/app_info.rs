@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sos_ipc::{
-    remove_socket_file, Error, LocalSocketClient, LocalSocketServer,
-    ServiceAppInfo,
+    client::LocalSocketClient, remove_socket_file, server::LocalSocketServer,
+    Error, ServiceAppInfo,
 };
 use sos_net::sdk::{prelude::LocalAccountSwitcher, Paths};
 use sos_test_utils::teardown;

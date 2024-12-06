@@ -8,7 +8,7 @@ use sos_net::protocol::local_transport::{
     LocalRequest, LocalResponse, LocalTransport,
 };
 
-use sos_ipc::LocalSocketClient;
+use sos_ipc::client::LocalSocketClient;
 
 /// Local transport for the test specs.
 pub struct TestLocalTransport {

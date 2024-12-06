@@ -1,3 +1,5 @@
+//! Send HTTP requests to a named pipe.
+
 use crate::{Result, ServiceAppInfo};
 use bytes::Bytes;
 use http::{Request, Response};

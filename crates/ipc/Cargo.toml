@@ -26,7 +26,7 @@ server = [
   "http-body-util",
   "hyper-util",
 ]
-native-bridge-server = ["client","open", "once_cell"]
+native-bridge-server = ["client", "open"]
 native-bridge-client = ["tokio/process", "tokio/io-std"]
 
 [dependencies]
@@ -58,7 +58,6 @@ matchit = { version = "0.7", optional = true }
 
 # native bridge
 open = { version = "5", optional = true }
-once_cell = { workspace = true, optional = true }
 
 [build-dependencies]
 rustc_version = "0.4.1"

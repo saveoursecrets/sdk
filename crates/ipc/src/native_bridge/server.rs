@@ -1,23 +1,15 @@
 //! Server for the native messaging API bridge.
 
-use crate::{Error, LocalSocketClient, Result};
+use crate::{client::send_local, Result};
 
 use futures_util::{SinkExt, StreamExt};
 use http::StatusCode;
-use once_cell::sync::Lazy;
 use sos_protocol::local_transport::{LocalRequest, LocalResponse};
 use sos_sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME, url::Url, Paths};
-use std::{io::ErrorKind, sync::Arc, time::Duration};
-use tokio::{
-    sync::{mpsc, Mutex},
-    time::sleep,
-};
+use tokio::sync::mpsc;
 use tokio_util::codec::LengthDelimitedCodec;
 
 const LIMIT: usize = 1024 * 1024;
-
-static CONN: Lazy<Arc<Mutex<Option<LocalSocketClient>>>> =
-    Lazy::new(|| Arc::new(Mutex::new(None)));
 
 /// Options for a native bridge.
 #[derive(Debug, Default)]
@@ -96,12 +88,13 @@ pub async fn run(options: NativeBridgeOptions) {
                                 )
                                 .await
                             } else {
-                                try_send_request(request, sock_name.clone()).await
+                                send_local(
+                                  sock_name.clone(), request).await
                             };
 
                             let result = match response {
                                 Ok(response) => response,
-                                Err(e) => {
+                                Err(_) => {
                                   LocalResponse::with_id(
                                     StatusCode::SERVICE_UNAVAILABLE,
                                     message_id,
@@ -110,7 +103,9 @@ pub async fn run(options: NativeBridgeOptions) {
                             };
 
                             if let Err(e) = tx.send(result) {
-                                tracing::warn!(error = %e, "native_bridge::response_channel");
+                                tracing::warn!(
+                                  error = %e,
+                                  "native_bridge::response_channel");
                             }
                         });
                     }
@@ -150,34 +145,6 @@ pub async fn run(options: NativeBridgeOptions) {
                         std::process::exit(1);
                     }
                 }
-            }
-        }
-    }
-}
-
-async fn connect(
-    socket_name: String,
-) -> Arc<Mutex<Option<LocalSocketClient>>> {
-    let mut conn = CONN.lock().await;
-    if conn.is_some() {
-        return Arc::clone(&*CONN);
-    }
-    let socket_client = try_connect(socket_name).await;
-    *conn = Some(socket_client);
-    return Arc::clone(&*CONN);
-}
-
-async fn try_connect(socket_name: String) -> LocalSocketClient {
-    let retry_delay = Duration::from_secs(1);
-    loop {
-        match LocalSocketClient::connect(socket_name.clone()).await {
-            Ok(client) => return client,
-            Err(e) => {
-                tracing::trace!(
-                    error = %e,
-                    "native_bridge::connect",
-                );
-                sleep(retry_delay).await;
             }
         }
     }
@@ -229,32 +196,5 @@ async fn handle_native_request(
             })
         }
         _ => unreachable!("update to is_native_request() required"),
-    }
-}
-
-/// Send an IPC request and reconnect for certain types of IO error.
-async fn try_send_request(
-    request: LocalRequest,
-    socket_name: String,
-) -> Result<LocalResponse> {
-    loop {
-        let conn = connect(socket_name.clone()).await;
-        let mut lock = conn.lock().await;
-        let client = lock.as_mut().unwrap();
-        match client.send_request(request.clone()).await {
-            Ok(response) => return Ok(response),
-            Err(e) => match e {
-                Error::Io(io_err) => match io_err.kind() {
-                    ErrorKind::BrokenPipe => {
-                        // Move the broken client out
-                        // so the next attempt to connect
-                        // will create a new client
-                        lock.take();
-                    }
-                    _ => return Err(Error::Io(io_err)),
-                },
-                _ => return Err(e),
-            },
-        }
     }
 }

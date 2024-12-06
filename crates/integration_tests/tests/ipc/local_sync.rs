@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_ipc::{remove_socket_file, Error, LocalSocketServer};
+use sos_ipc::{remove_socket_file, server::LocalSocketServer, Error};
 use sos_net::{
     protocol::{
         integration::{LinkedAccount, LocalClient, LocalIntegration},

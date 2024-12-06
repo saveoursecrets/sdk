@@ -4620,7 +4620,6 @@ dependencies = [
  "hyper-util",
  "interprocess",
  "matchit",
- "once_cell",
  "open",
  "parking_lot",
  "rustc_version",
