@@ -17,7 +17,7 @@
 //! is included as there is an inherent trust established when
 //! the app integration was installed on the device.
 
-use crate::local_transport::{LocalResponse, LocalTransport};
+use crate::local_transport::{HttpMessage, LocalResponse, LocalTransport};
 
 use crate::{Error, Result};
 use async_trait::async_trait;

@@ -2,7 +2,8 @@ use anyhow::Result;
 use http::Method;
 use http::StatusCode;
 use sos_ipc::{
-    local_transport::LocalRequest, native_bridge::client::NativeBridgeClient,
+    local_transport::{HttpMessage, LocalRequest},
+    native_bridge::client::NativeBridgeClient,
 };
 
 const SOCKET_NAME: &str = "ipc_native_bridge_probe.sock";

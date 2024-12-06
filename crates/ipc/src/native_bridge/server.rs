@@ -2,7 +2,7 @@
 
 use crate::{
     client::send_local,
-    local_transport::{LocalRequest, LocalResponse},
+    local_transport::{HttpMessage, LocalRequest, LocalResponse},
     Result,
 };
 use futures_util::{SinkExt, StreamExt};

@@ -17,6 +17,123 @@ use serde_with::{serde_as, DisplayFromStr};
 use std::{collections::HashMap, fmt, time::Duration};
 use typeshare::typeshare;
 
+/// Generic local transport.
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait LocalTransport {
+    /// Send a request over the local transport.
+    async fn call(&mut self, request: LocalRequest) -> LocalResponse;
+}
+
+/// HTTP headers encoded as strings.
+pub type Headers = HashMap<String, Vec<String>>;
+
+/// Trait for requests and responses.
+pub trait HttpMessage {
+    /// Message headers.
+    fn headers(&self) -> &Headers;
+
+    /// Mutable message headers.
+    fn headers_mut(&mut self) -> &mut Headers;
+
+    /// Message body.
+    fn body(&self) -> &[u8];
+
+    /// Consume the message body.
+    fn into_body(self) -> Vec<u8>;
+
+    /// Extract a request id.
+    ///
+    /// If no header is present or the value is invalid zero
+    /// is returned.
+    fn request_id(&self) -> u64 {
+        if let Some(values) = self.headers().get(X_SOS_REQUEST_ID) {
+            if let Some(value) = values.first().map(|v| v.as_str()) {
+                let Ok(id) = value.parse::<u64>() else {
+                    return 0;
+                };
+                id
+            } else {
+                0
+            }
+        } else {
+            0
+        }
+    }
+
+    /// Set a request id.
+    fn set_request_id(&mut self, id: u64) {
+        self.headers_mut()
+            .insert(X_SOS_REQUEST_ID.to_owned(), vec![id.to_string()]);
+    }
+
+    /// Read a content type header.
+    fn content_type(&self) -> Option<&str> {
+        if let Some(values) = self.headers().get(CONTENT_TYPE.as_str()) {
+            values.first().map(|v| v.as_str())
+        } else {
+            None
+        }
+    }
+
+    /// Read a content encoding header.
+    fn content_encoding(&self) -> Option<&str> {
+        if let Some(values) = self.headers().get(CONTENT_ENCODING.as_str()) {
+            values.first().map(|v| v.as_str())
+        } else {
+            None
+        }
+    }
+
+    /// Determine if this message is JSON.
+    fn is_json(&self) -> bool {
+        let Some(value) = self.content_type() else {
+            return false;
+        };
+        value == MIME_TYPE_JSON
+    }
+
+    /// Determine if this message is Zlib content encoding.
+    fn is_zlib(&self) -> bool {
+        let Some(value) = self.content_encoding() else {
+            return false;
+        };
+        value == ENCODING_ZLIB
+    }
+
+    /*
+    /// Set JSON content type.
+    fn set_json(&mut self) {
+        self.headers_mut().insert(
+            CONTENT_TYPE.to_string(),
+            vec![MIME_TYPE_JSON.to_string()],
+        );
+    }
+    */
+
+    /*
+    /// Determine if this response is using Zstd content encoding.
+    pub fn is_zstd(&self) -> bool {
+        if let Some(values) = self.headers.get(CONTENT_ENCODING.as_str()) {
+            values
+                .iter()
+                .find(|v| v.as_str() == ENCODING_ZSTD)
+                .is_some()
+        } else {
+            false
+        }
+    }
+    */
+
+    /// Convert the body to bytes.
+    fn bytes(self) -> Bytes
+    where
+        Self: Sized,
+    {
+        self.into_body().into()
+    }
+}
+
 /// Request that can be sent to a local data source.
 ///
 /// Supports serde so this type is compatible with the
@@ -55,34 +172,27 @@ impl Default for LocalRequest {
 }
 
 impl LocalRequest {
-    /// Extract a request id.
-    ///
-    /// If no header is present or the value is invalid zero
-    /// is returned.
-    pub fn request_id(&self) -> u64 {
-        if let Some(values) = self.headers.get(X_SOS_REQUEST_ID) {
-            if let Some(value) = values.first().map(|v| v.as_str()) {
-                let Ok(id) = value.parse::<u64>() else {
-                    return 0;
-                };
-                id
-            } else {
-                0
-            }
-        } else {
-            0
-        }
-    }
-
-    /// Set a request id.
-    pub fn set_request_id(&mut self, id: u64) {
-        self.headers
-            .insert(X_SOS_REQUEST_ID.to_owned(), vec![id.to_string()]);
-    }
-
     /// Duration allowed for a request.
     pub fn timeout_duration(&self) -> Duration {
         Duration::from_secs(15)
+    }
+}
+
+impl HttpMessage for LocalRequest {
+    fn headers(&self) -> &Headers {
+        &self.headers
+    }
+
+    fn headers_mut(&mut self) -> &mut Headers {
+        &mut self.headers
+    }
+
+    fn body(&self) -> &[u8] {
+        self.body.as_slice()
+    }
+
+    fn into_body(self) -> Vec<u8> {
+        self.body
     }
 }
 
@@ -201,15 +311,6 @@ impl From<StatusCode> for LocalResponse {
 }
 
 impl LocalResponse {
-    /// Internal error response.
-    pub fn new_error(status: StatusCode, _e: impl std::error::Error) -> Self {
-        Self {
-            status: status.into(),
-            headers: Default::default(),
-            body: Default::default(),
-        }
-    }
-
     /// Create a response with a request id.
     pub fn with_id(status: StatusCode, id: u64) -> Self {
         let mut res = Self {
@@ -226,52 +327,6 @@ impl LocalResponse {
         Ok(self.status.try_into()?)
     }
 
-    /// Extract a request id.
-    ///
-    /// If no header is present or the value is invalid zero
-    /// is returned.
-    pub fn request_id(&self) -> u64 {
-        if let Some(values) = self.headers.get(X_SOS_REQUEST_ID) {
-            if let Some(value) = values.first().map(|v| v.as_str()) {
-                let Ok(id) = value.parse::<u64>() else {
-                    return 0;
-                };
-                id
-            } else {
-                0
-            }
-        } else {
-            0
-        }
-    }
-
-    /// Set a request id.
-    pub fn set_request_id(&mut self, id: u64) {
-        self.headers
-            .insert(X_SOS_REQUEST_ID.to_owned(), vec![id.to_string()]);
-    }
-
-    /// Extract a content type header.
-    pub fn content_type(&self) -> Option<&str> {
-        if let Some(values) = self.headers.get(CONTENT_TYPE.as_str()) {
-            values.first().map(|v| v.as_str())
-        } else {
-            None
-        }
-    }
-
-    /// Determine if this response is JSON.
-    pub fn is_json(&self) -> bool {
-        if let Some(values) = self.headers.get(CONTENT_TYPE.as_str()) {
-            values
-                .iter()
-                .find(|v| v.as_str() == MIME_TYPE_JSON)
-                .is_some()
-        } else {
-            false
-        }
-    }
-
     /// Decompress the response body.
     pub fn decompress(&mut self) -> Result<()> {
         if self.is_zlib() {
@@ -280,43 +335,22 @@ impl LocalResponse {
         }
         Ok(())
     }
-
-    /// Determine if this response is using Zlib content encoding.
-    pub fn is_zlib(&self) -> bool {
-        if let Some(values) = self.headers.get(CONTENT_ENCODING.as_str()) {
-            values
-                .iter()
-                .find(|v| v.as_str() == ENCODING_ZLIB)
-                .is_some()
-        } else {
-            false
-        }
-    }
-
-    /*
-    /// Determine if this response is using Zstd content encoding.
-    pub fn is_zstd(&self) -> bool {
-        if let Some(values) = self.headers.get(CONTENT_ENCODING.as_str()) {
-            values
-                .iter()
-                .find(|v| v.as_str() == ENCODING_ZSTD)
-                .is_some()
-        } else {
-            false
-        }
-    }
-    */
-
-    /// Convert the body to bytes.
-    pub fn bytes(self) -> Bytes {
-        self.body.into()
-    }
 }
 
-/// Generic local transport.
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait LocalTransport {
-    /// Send a request over the local transport.
-    async fn call(&mut self, request: LocalRequest) -> LocalResponse;
+impl HttpMessage for LocalResponse {
+    fn headers(&self) -> &Headers {
+        &self.headers
+    }
+
+    fn headers_mut(&mut self) -> &mut Headers {
+        &mut self.headers
+    }
+
+    fn body(&self) -> &[u8] {
+        self.body.as_slice()
+    }
+
+    fn into_body(self) -> Vec<u8> {
+        self.body
+    }
 }

@@ -2,8 +2,11 @@ use anyhow::Result;
 use http::Method;
 use http::StatusCode;
 use sos_ipc::{
-    local_transport::LocalRequest, native_bridge::client::NativeBridgeClient,
-    remove_socket_file, server::LocalSocketServer, Error,
+    local_transport::{HttpMessage, LocalRequest},
+    native_bridge::client::NativeBridgeClient,
+    remove_socket_file,
+    server::LocalSocketServer,
+    Error,
 };
 use sos_net::protocol::constants::routes::v1::ACCOUNTS_LIST;
 use sos_net::sdk::{
