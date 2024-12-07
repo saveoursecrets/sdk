@@ -9,7 +9,10 @@ use futures_util::{SinkExt, StreamExt};
 use http::StatusCode;
 use once_cell::sync::Lazy;
 use sos_sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME, url::Url, Paths};
+use std::collections::HashMap;
+use std::future::Future;
 use std::io::ErrorKind;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, Mutex};
@@ -23,6 +26,60 @@ const HARD_LIMIT: usize = 1024 * 1024;
 static CONN: Lazy<Arc<Mutex<Option<LocalSocketClient>>>> =
     Lazy::new(|| Arc::new(Mutex::new(None)));
 
+/// Future returned by an intercept route.
+pub type RouteFuture = Pin<
+    Box<dyn Future<Output = Result<LocalResponse>> + Send + Sync + 'static>,
+>;
+
+/// Route handled by the native bridge.
+pub type InterceptRoute = fn(LocalRequest) -> RouteFuture;
+
+/// Probe this executable for aliveness.
+fn probe(request: LocalRequest) -> RouteFuture {
+    Box::pin(async move {
+        let message_id = request.request_id();
+        Ok(LocalResponse::with_id(StatusCode::OK, message_id))
+    })
+}
+
+/// Check app status by detecting the presence of the app lock.
+fn status(request: LocalRequest) -> RouteFuture {
+    Box::pin(async move {
+        let message_id = request.request_id();
+        let paths = Paths::new_global(Paths::data_dir()?);
+        let app = paths.has_app_lock()?;
+        Ok(if app {
+            LocalResponse::with_id(StatusCode::OK, message_id)
+        } else {
+            LocalResponse::with_id(StatusCode::NOT_FOUND, message_id)
+        })
+    })
+}
+
+/// Open a URL.
+fn open_url(request: LocalRequest) -> RouteFuture {
+    Box::pin(async move {
+        let message_id = request.request_id();
+        let url = Url::parse(&request.uri.to_string()).unwrap();
+
+        let Some(target) =
+            url.query_pairs().find(|(k, _)| k == "url").map(|(_, v)| v)
+        else {
+            return Ok(LocalResponse::with_id(
+                StatusCode::BAD_REQUEST,
+                message_id,
+            ));
+        };
+
+        Ok(match open::that_detached(&*target) {
+            Ok(_) => LocalResponse::with_id(StatusCode::OK, message_id),
+            Err(_) => {
+                LocalResponse::with_id(StatusCode::BAD_GATEWAY, message_id)
+            }
+        })
+    })
+}
+
 /// Options for a native bridge.
 #[derive(Debug, Default)]
 pub struct NativeBridgeOptions {
@@ -35,10 +92,7 @@ pub struct NativeBridgeOptions {
 impl NativeBridgeOptions {
     /// Create new options.
     pub fn new(extension_id: String) -> Self {
-        Self {
-            extension_id,
-            ..Default::default()
-        }
+        Self::with_socket_name(extension_id, IPC_GUI_SOCKET_NAME.to_string())
     }
 
     /// Create new options with a socket name.
@@ -54,14 +108,21 @@ impl NativeBridgeOptions {
 }
 
 /// Server for a native bridge proxy.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct NativeBridgeServer {
     options: NativeBridgeOptions,
+    /// Routes for internal processing.
+    routes: HashMap<String, InterceptRoute>,
 }
 
 impl NativeBridgeServer {
     /// Create a server.
     pub fn new(mut options: NativeBridgeOptions) -> Self {
+        let mut routes = HashMap::new();
+        routes.insert("/probe".to_string(), probe as _);
+        routes.insert("/status".to_string(), status as _);
+        routes.insert("/open".to_string(), open_url as _);
+
         let log_level = std::env::var("SOS_NATIVE_BRIDGE_LOG_LEVEL")
             .map(|s| s.to_string())
             .ok()
@@ -84,7 +145,20 @@ impl NativeBridgeServer {
 
         options.socket_name = Some(socket_name);
         tracing::info!(options = ?options, "native_bridge");
-        Self { options }
+        Self { options, routes }
+    }
+
+    fn find_route(&self, request: &LocalRequest) -> Option<InterceptRoute> {
+        self.routes.get(request.uri.path()).copied()
+    }
+
+    /// Add an intercept route to this native proxy.
+    pub fn add_intercept_route(
+        &mut self,
+        path: String,
+        value: InterceptRoute,
+    ) {
+        self.routes.insert(path, value);
     }
 
     /// Start a native bridge server listening.
@@ -134,6 +208,7 @@ impl NativeBridgeServer {
                         }
                         continue;
                     };
+                    let route = self.find_route(&request);
                     tokio::task::spawn(async move {
                         let tx = channel.clone();
 
@@ -144,12 +219,10 @@ impl NativeBridgeServer {
 
                         let message_id = request.request_id();
 
-                        // Is this a command we handle internally?
-                        let response = if is_native_request(&request) {
-                            handle_native_request(
-                                request,
-                            )
-                            .await
+                        // Is this a route we intercept?
+                        let is_native_route = route.is_some();
+                        let response = if let Some(route) = route {
+                            route(request).await
                         } else {
                             try_send_request(&sock_name, request).await
                         };
@@ -158,7 +231,11 @@ impl NativeBridgeServer {
                             Ok(response) => response,
                             Err(_) => {
                               LocalResponse::with_id(
-                                StatusCode::SERVICE_UNAVAILABLE,
+                                if is_native_route {
+                                    StatusCode::INTERNAL_SERVER_ERROR
+                                } else {
+                                    StatusCode::SERVICE_UNAVAILABLE
+                                },
                                 message_id,
                               )
                             }
@@ -178,22 +255,6 @@ impl NativeBridgeServer {
                             }
                         }
                     });
-
-                    /*
-                    match serde_json::from_slice::<LocalRequest>(&buffer) {
-                        Ok(request) => {
-                        }
-                        Err(_) => {
-                            let response = LocalResponse::with_id(StatusCode::BAD_REQUEST, 0);
-                            let tx = channel.clone();
-                            if let Err(e) = tx.send(response.into()) {
-                                tracing::warn!(
-                                  error = %e,
-                                  "native_bridge::response_channel");
-                            }
-                        }
-                    }
-                    */
                 }
                 Some(response) = rx.recv() => {
                     tracing::trace!(
@@ -277,54 +338,5 @@ async fn try_send_request(
                 _ => return Err(e),
             },
         }
-    }
-}
-
-/// Native requests are those handled by this native bridge.
-fn is_native_request(request: &LocalRequest) -> bool {
-    match request.uri.path() {
-        "/probe" => true,
-        "/status" => true,
-        "/open-url" => true,
-        _ => false,
-    }
-}
-
-async fn handle_native_request(
-    request: LocalRequest,
-) -> Result<LocalResponse> {
-    let message_id = request.request_id();
-    match request.uri.path() {
-        "/probe" => Ok(LocalResponse::with_id(StatusCode::OK, message_id)),
-        "/status" => {
-            let paths = Paths::new_global(Paths::data_dir()?);
-            let app = paths.has_app_lock()?;
-            Ok(if app {
-                LocalResponse::with_id(StatusCode::OK, message_id)
-            } else {
-                LocalResponse::with_id(StatusCode::NOT_FOUND, message_id)
-            })
-        }
-        "/open-url" => {
-            let url = Url::parse(&request.uri.to_string()).unwrap();
-
-            let Some(target) =
-                url.query_pairs().find(|(k, _)| k == "url").map(|(_, v)| v)
-            else {
-                return Ok(LocalResponse::with_id(
-                    StatusCode::BAD_REQUEST,
-                    message_id,
-                ));
-            };
-
-            Ok(match open::that_detached(&*target) {
-                Ok(_) => LocalResponse::with_id(StatusCode::OK, message_id),
-                Err(_) => LocalResponse::with_id(
-                    StatusCode::BAD_GATEWAY,
-                    message_id,
-                ),
-            })
-        }
-        _ => unreachable!("update to is_native_request() required"),
     }
 }
