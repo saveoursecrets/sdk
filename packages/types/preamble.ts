@@ -9,3 +9,11 @@ export type SecretPath = TupleOfTwo<string, string>;
 export type HashSet<T> = Set<T>;
 export type Uri = string;
 export type Method = string;
+export type VaultId = string;
+export type VaultFlags = number;
+export type SecretId = string;
+export type Cipher = string;
+export type KeyDerivation = string;
+// Backwards compatible aliases
+export type AccountState = PublicIdentity;
+export type FolderInfo = Summary;

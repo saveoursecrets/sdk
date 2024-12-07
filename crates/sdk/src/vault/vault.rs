@@ -16,6 +16,7 @@ use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, path::Path,
     str::FromStr,
 };
+use typeshare::typeshare;
 use urn::Urn;
 use uuid::Uuid;
 
@@ -288,6 +289,7 @@ pub struct Auth {
 
 /// Summary holding basic file information such as version,
 /// unique identifier and name.
+#[typeshare]
 #[derive(Serialize, Deserialize, Debug, Hash, Eq, PartialEq, Clone)]
 pub struct Summary {
     /// Encoding version.
