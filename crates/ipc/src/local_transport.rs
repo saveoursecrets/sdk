@@ -216,7 +216,7 @@ pub struct LocalRequest {
     /// Request headers.
     #[serde_as(as = "Vec<(_, _)>")]
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub headers: HashMap<String, Vec<String>>,
+    pub headers: Headers,
     /// Request body.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub body: Vec<u8>,
@@ -386,7 +386,7 @@ pub struct LocalResponse {
     /// Response headers.
     #[serde_as(as = "Vec<(_, _)>")]
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub headers: HashMap<String, Vec<String>>,
+    pub headers: Headers,
     /// Response body.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub body: Vec<u8>,

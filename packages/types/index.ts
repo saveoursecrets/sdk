@@ -14,6 +14,9 @@ export type VaultFlags = number;
 export type SecretId = string;
 export type Cipher = string;
 export type KeyDerivation = string;
+// Internally this is a HashMap but we can't serialize 
+// that to JSON so for Javascript it's just an array
+export type Headers = [string, string[]][];
 // Backwards compatible aliases
 export type AccountState = PublicIdentity;
 export type FolderInfo = Summary;
@@ -144,7 +147,7 @@ export interface LocalRequest {
 	/** Request URL. */
 	uri: Uri;
 	/** Request headers. */
-	headers?: Record<string, string[]>;
+	headers?: Headers;
 	/** Request body. */
 	body?: number[];
 	/** Number of chunks for this message. */
@@ -166,7 +169,7 @@ export interface LocalResponse {
 	/** Response status code. */
 	status: number;
 	/** Response headers. */
-	headers?: Record<string, string[]>;
+	headers?: Headers;
 	/** Response body. */
 	body?: number[];
 	/** Number of chunks for this message. */
