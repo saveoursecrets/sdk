@@ -4,6 +4,10 @@
 //! Wraps the `http` request and response types so we can
 //! serialize and deserialize from JSON for transfer via
 //! the browser native messaging API.
+//!
+//! Browsers limit each length-prefixed JSON encoded message
+//! to 1MB so these types provide functions to split a message
+//! into chunks.
 
 use crate::{Error, Result};
 
