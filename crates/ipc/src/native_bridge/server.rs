@@ -208,6 +208,7 @@ impl NativeBridgeServer {
                         }
                         continue;
                     };
+
                     let route = self.find_route(&request);
                     tokio::task::spawn(async move {
                         let tx = channel.clone();

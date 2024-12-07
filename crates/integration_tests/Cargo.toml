@@ -11,6 +11,7 @@ enable-cli-tests = []
 
 [dependencies]
 tokio.workspace = true
+http.workspace = true
 
 [dependencies.sos-ipc]
 features = [

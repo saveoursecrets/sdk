@@ -11,6 +11,24 @@
 
 mod error;
 
+/// Forbid usage of println! macro.
+///
+/// The native bridge code writes to stdout and
+/// using println! in the wrong place will cause
+/// strange errors with the tokio FramedRead typically
+/// something like "frame size too big" because we have
+/// inadvertently written a bad length prefix to stdout.
+#[macro_export]
+#[allow(missing_fragment_specifier)]
+macro_rules! println {
+    ($($any:tt)*) => {
+        compile_error!("println! macro is forbidden, use eprintln! instead");
+    };
+}
+
+#[allow(unused)]
+mod forbidden {}
+
 #[cfg(feature = "compression-zlib")]
 pub(crate) mod compression;
 
