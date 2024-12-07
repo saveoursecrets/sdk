@@ -313,7 +313,6 @@ impl HttpMessage for LocalRequest {
                 };
                 messages.push(message);
             }
-            eprintln!("req:: split into chunks: {}", messages.len());
             messages
         }
     }
@@ -530,7 +529,6 @@ impl HttpMessage for LocalResponse {
                 };
                 messages.push(message);
             }
-            eprintln!("res:: split into chunks: {}", messages.len());
             messages
         }
     }
