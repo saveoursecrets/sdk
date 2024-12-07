@@ -1,7 +1,12 @@
+use std::future::Future;
+use std::path::PathBuf;
+use std::pin::Pin;
+
 use crate::{
     account::{Account, LocalAccount},
-    prelude::Address,
-    Paths,
+    identity::Identity,
+    prelude::{Address, PublicIdentity},
+    Paths, Result,
 };
 
 /// Account switcher for local accounts.
@@ -19,7 +24,7 @@ pub type LocalAccountSwitcher = AccountSwitcher<
 pub struct AccountSwitcher<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    E: From<crate::Error>,
+    E: From<crate::Error> + std::fmt::Debug,
 {
     #[doc(hidden)]
     pub accounts: Vec<A>,
@@ -30,7 +35,7 @@ where
 impl<A, R, E> AccountSwitcher<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    E: From<crate::Error>,
+    E: From<crate::Error> + std::fmt::Debug,
 {
     /// Create an account switcher.
     pub fn new() -> Self {
@@ -68,6 +73,34 @@ where
     /// Number of accounts.
     pub fn len(&self) -> usize {
         self.accounts.len()
+    }
+
+    /// Load accounts from disc and add them.
+    pub async fn load_accounts<B>(
+        &mut self,
+        builder: B,
+        data_dir: Option<PathBuf>,
+    ) -> Result<()>
+    where
+        B: Fn(
+            PublicIdentity,
+        )
+            -> Pin<Box<dyn Future<Output = std::result::Result<A, E>>>>,
+    {
+        Paths::scaffold(data_dir.clone()).await?;
+
+        let identities = Identity::list_accounts(self.data_dir()).await?;
+
+        for identity in identities {
+            tracing::info!(address = %identity.address(), "add_account");
+            let account = builder(identity).await.unwrap();
+
+            let paths = account.paths();
+            // tracing::info!(paths = ?paths);
+            paths.ensure().await?;
+            self.add_account(account);
+        }
+        Ok(())
     }
 
     /// Add an account if it does not already exist and make
@@ -148,7 +181,7 @@ where
     }
 
     /// Sign out of all authenticated accounts.
-    pub async fn sign_out_all(&mut self) -> Result<(), E> {
+    pub async fn sign_out_all(&mut self) -> std::result::Result<(), E> {
         for account in &mut self.accounts {
             if account.is_authenticated().await {
                 tracing::info!(account = %account.address(), "sign out");

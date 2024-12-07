@@ -78,7 +78,7 @@ async fn integration_ipc_local_sync() -> Result<()> {
     tokio::time::sleep(Duration::from_millis(250)).await;
 
     // Test transport creates a IPC socket client for communication
-    let transport = TestLocalTransport::new(socket_name.clone()).await?;
+    let transport = TestLocalTransport::new(socket_name.clone());
 
     // Integration mananges the accounts on the linked app
     let integration =

@@ -30,25 +30,21 @@ pub fn native_bridge_cmd(
 pub struct TestLocalTransport {
     /// Socket name.
     pub socket_name: String,
-    /// Socket client.
-    pub client: LocalSocketClient,
 }
 
 impl TestLocalTransport {
     /// Create a test transport.
-    pub async fn new(socket_name: String) -> anyhow::Result<Self> {
-        let client = LocalSocketClient::connect(&socket_name).await?;
-        Ok(Self {
-            socket_name,
-            client,
-        })
+    pub fn new(socket_name: String) -> Self {
+        Self { socket_name }
     }
 }
 
 #[async_trait]
 impl LocalTransport for TestLocalTransport {
     async fn call(&mut self, request: LocalRequest) -> LocalResponse {
-        let Ok(response) = self.client.send_request(request).await else {
+        let mut client =
+            LocalSocketClient::connect(&self.socket_name).await.unwrap();
+        let Ok(response) = client.send_request(request).await else {
             panic!("unable to send request");
         };
         response

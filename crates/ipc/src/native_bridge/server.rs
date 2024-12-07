@@ -3,28 +3,28 @@
 use crate::{
     client::LocalSocketClient,
     local_transport::{HttpMessage, LocalRequest, LocalResponse},
-    Error, Result,
+    server::LocalSocketServer,
+    LocalWebService, Result,
 };
 use futures_util::{SinkExt, StreamExt};
 use http::StatusCode;
-use once_cell::sync::Lazy;
-use sos_sdk::{logs::Logger, prelude::IPC_GUI_SOCKET_NAME, url::Url, Paths};
+use sos_protocol::{Merge, SyncStorage};
+use sos_sdk::{
+    logs::Logger,
+    prelude::{Account, AccountSwitcher, IPC_GUI_SOCKET_NAME},
+    url::Url,
+    Paths,
+};
 use std::collections::HashMap;
 use std::future::Future;
-use std::io::ErrorKind;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::{mpsc, Mutex};
-use tokio::time::sleep;
+use tokio::sync::{mpsc, RwLock};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
 use super::{CHUNK_LIMIT, CHUNK_SIZE};
 
 const HARD_LIMIT: usize = 1024 * 1024;
-
-static CONN: Lazy<Arc<Mutex<Option<LocalSocketClient>>>> =
-    Lazy::new(|| Arc::new(Mutex::new(None)));
 
 /// Future returned by an intercept route.
 pub type RouteFuture = Pin<
@@ -100,16 +100,35 @@ impl NativeBridgeOptions {
 }
 
 /// Server for a native bridge proxy.
-#[derive(Default)]
 pub struct NativeBridgeServer {
     options: NativeBridgeOptions,
     /// Routes for internal processing.
     routes: HashMap<String, InterceptRoute>,
+    /*
+    /// Server for syncing.
+    server: LocalWebService,
+    */
 }
 
 impl NativeBridgeServer {
     /// Create a server.
-    pub fn new(mut options: NativeBridgeOptions) -> Self {
+    pub async fn new<A, R, E>(
+        mut options: NativeBridgeOptions,
+        accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    ) -> Result<Self>
+    where
+        A: Account<Error = E, NetworkResult = R>
+            + SyncStorage
+            + Merge
+            + Sync
+            + Send
+            + 'static,
+        R: 'static,
+        E: std::fmt::Debug
+            + From<sos_sdk::Error>
+            + From<std::io::Error>
+            + 'static,
+    {
         let mut routes = HashMap::new();
         routes.insert("/probe".to_string(), probe as _);
         routes.insert("/status".to_string(), status as _);
@@ -137,7 +156,25 @@ impl NativeBridgeServer {
 
         options.socket_name = Some(socket_name);
         tracing::info!(options = ?options, "native_bridge");
-        Self { options, routes }
+
+        let (mut client_stream, server_stream) = tokio::io::duplex(64);
+
+        // let server = LocalWebService::new(Default::default(), accounts);
+        tokio::task::spawn(async move {
+            LocalSocketServer::listen_stream(
+                server_stream,
+                accounts,
+                Default::default(),
+            )
+            .await
+            .unwrap()
+        });
+
+        Ok(Self {
+            options,
+            routes,
+            // server,
+        })
     }
 
     fn find_route(&self, request: &LocalRequest) -> Option<InterceptRoute> {
@@ -202,6 +239,7 @@ impl NativeBridgeServer {
                     };
 
                     let route = self.find_route(&request);
+
                     tokio::task::spawn(async move {
                         let tx = channel.clone();
 
@@ -217,17 +255,19 @@ impl NativeBridgeServer {
                         let response = if let Some(route) = route {
                             route(request).await
                         } else {
-                            try_send_request(&sock_name, request).await
+                            // try_send_request(&service, request).await
+                            todo!();
                         };
 
                         let mut result = match response {
                             Ok(response) => response,
-                            Err(_) => {
-                            if is_native_route {
-                                StatusCode::INTERNAL_SERVER_ERROR.into()
-                            } else {
-                                StatusCode::SERVICE_UNAVAILABLE.into()
-                            }
+                            Err(e) => {
+                                tracing::error!(error = %e);
+                                if is_native_route {
+                                    StatusCode::INTERNAL_SERVER_ERROR.into()
+                                } else {
+                                    StatusCode::SERVICE_UNAVAILABLE.into()
+                                }
                             }
                         };
 
@@ -239,6 +279,18 @@ impl NativeBridgeServer {
                             CHUNK_LIMIT,
                             CHUNK_SIZE,
                         );
+
+                        if chunks.len() > 1 {
+                            tracing::debug!(
+                                len = %chunks.len(),
+                                "native_bridge::chunks");
+                            for (index, chunk) in chunks.iter().enumerate() {
+                            tracing::debug!(
+                                index = %index,
+                                len = %chunk.body.len(),
+                                "native_bridge::chunk");
+                            }
+                        }
                         for chunk in chunks {
                             if let Err(e) = tx.send(chunk) {
                                 tracing::warn!(
@@ -261,15 +313,20 @@ impl NativeBridgeServer {
                                 "native_bridge::stdout",
                             );
                             if output.len() > HARD_LIMIT {
-                                tracing::error!("native_bridge::exceeds_limit");
+                                tracing::error!(
+                                    "native_bridge::exceeds_limit");
                             }
                             if let Err(e) = stdout.send(output.into()).await {
-                                tracing::error!(error = %e, "native_bridge::stdout_write");
+                                tracing::error!(
+                                    error = %e,
+                                    "native_bridge::stdout_write",
+                                );
                                 std::process::exit(1);
                             }
                         }
                         Err(e) => {
-                            tracing::error!(error = %e, "native_bridge::serde_json");
+                            tracing::error!(
+                                error = %e, "native_bridge::serde_json");
                             std::process::exit(1);
                         }
                     }
@@ -280,55 +337,21 @@ impl NativeBridgeServer {
     }
 }
 
-async fn connect(socket_name: &str) -> Arc<Mutex<Option<LocalSocketClient>>> {
-    let mut conn = CONN.lock().await;
-    if conn.is_some() {
-        return Arc::clone(&*CONN);
-    }
-    let socket_client = try_connect(socket_name).await;
-    *conn = Some(socket_client);
-    return Arc::clone(&*CONN);
+/*
+async fn try_send_request(
+    service: &LocalWebService,
+    request: LocalRequest,
+) -> Result<LocalResponse> {
+    Ok(service.call_local(request).await?)
 }
+*/
 
-async fn try_connect(socket_name: &str) -> LocalSocketClient {
-    let retry_delay = Duration::from_secs(1);
-    loop {
-        match LocalSocketClient::connect(socket_name).await {
-            Ok(client) => return client,
-            Err(e) => {
-                tracing::trace!(
-                    error = %e,
-                    "native_bridge::connect",
-                );
-                sleep(retry_delay).await;
-            }
-        }
-    }
-}
-
-/// Send an IPC request and reconnect for certain types of IO error.
+/*
 async fn try_send_request(
     socket_name: &str,
     request: LocalRequest,
 ) -> Result<LocalResponse> {
-    loop {
-        let conn = connect(socket_name).await;
-        let mut lock = conn.lock().await;
-        let client = lock.as_mut().unwrap();
-        match client.send_request(request.clone()).await {
-            Ok(response) => return Ok(response),
-            Err(e) => match e {
-                Error::Io(io_err) => match io_err.kind() {
-                    ErrorKind::BrokenPipe => {
-                        // Move the broken client out
-                        // so the next attempt to connect
-                        // will create a new client
-                        lock.take();
-                    }
-                    _ => return Err(Error::Io(io_err)),
-                },
-                _ => return Err(e),
-            },
-        }
-    }
+    let mut client = LocalSocketClient::connect(socket_name).await?;
+    Ok(client.send_request(request.clone()).await?)
 }
+*/

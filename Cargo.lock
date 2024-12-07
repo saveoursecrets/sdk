@@ -4409,6 +4409,7 @@ dependencies = [
  "serde_json",
  "sos-ipc",
  "sos-net",
+ "sos-sdk",
  "sos-server",
  "sos-test-utils",
  "tempfile",

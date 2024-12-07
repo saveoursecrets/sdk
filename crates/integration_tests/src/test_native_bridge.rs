@@ -5,6 +5,9 @@ use sos_ipc::{
         NativeBridgeOptions, NativeBridgeServer, RouteFuture,
     },
 };
+use sos_sdk::prelude::{LocalAccount, LocalAccountSwitcher};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 #[macro_export]
 #[allow(missing_fragment_specifier)]
@@ -28,15 +31,37 @@ fn large_file(request: LocalRequest) -> RouteFuture {
 /// Executable used to test the native bridge.
 #[doc(hidden)]
 #[tokio::main]
-pub async fn main() {
+pub async fn main() -> anyhow::Result<()> {
     let mut args = std::env::args().into_iter().collect::<Vec<_>>();
 
     let socket_name = args.pop().unwrap_or_else(String::new).to_string();
     let extension_id = args.pop().unwrap_or_else(String::new).to_string();
 
+    let data_dir = None;
+
+    let mut accounts = LocalAccountSwitcher::new();
+    accounts
+        .load_accounts(
+            |identity| {
+                let app_dir = data_dir.clone();
+                Box::pin(async move {
+                    Ok(LocalAccount::new_unauthenticated(
+                        *identity.address(),
+                        app_dir,
+                    )
+                    .await?)
+                })
+            },
+            data_dir.clone(),
+        )
+        .await?;
+    let accounts = Arc::new(RwLock::new(accounts));
+
     let options =
         NativeBridgeOptions::with_socket_name(extension_id, socket_name);
-    let mut server = NativeBridgeServer::new(options);
+    let mut server = NativeBridgeServer::new(options, accounts).await?;
+    // Test chunking
     server.add_intercept_route("/large-file".to_string(), large_file as _);
-    server.listen().await
+    server.listen().await;
+    Ok(())
 }

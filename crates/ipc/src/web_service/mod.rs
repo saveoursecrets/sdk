@@ -3,6 +3,7 @@ use http::{Method, Request, Response, StatusCode};
 use http_body_util::Full;
 use hyper::body::Incoming;
 use hyper::service::Service;
+use hyper_util::rt::TokioIo;
 use parking_lot::Mutex;
 use sos_protocol::{
     constants::routes::v1::{
@@ -12,12 +13,15 @@ use sos_protocol::{
 };
 use sos_sdk::prelude::{Account, AccountSwitcher};
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
-use tokio::sync::RwLock;
+use tokio::{io::DuplexStream, sync::RwLock};
 use tower::service_fn;
 use tower::util::BoxCloneService;
 use tower::Service as _;
 
-use crate::ServiceAppInfo;
+use crate::{
+    local_transport::{LocalRequest, LocalResponse},
+    ServiceAppInfo,
+};
 
 type Body = Full<Bytes>;
 

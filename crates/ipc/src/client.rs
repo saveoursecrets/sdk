@@ -2,11 +2,13 @@
 
 use crate::{Result, ServiceAppInfo};
 use bytes::Bytes;
-use futures::pin_mut;
-use http::{Request, Response};
+use http::{header::CONNECTION, Request, Response};
 use http_body_util::{BodyExt, Full};
 use hyper::client::conn::http1::handshake;
 use interprocess::local_socket::{tokio::prelude::*, GenericNamespaced};
+use std::pin::Pin;
+use tokio::io::DuplexStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::local_transport::{LocalRequest, LocalResponse};
 use hyper_util::rt::tokio::TokioIo;
@@ -15,16 +17,23 @@ use sos_sdk::prelude::PublicIdentity;
 
 /// Socket client for inter-process communication.
 pub struct LocalSocketClient {
-    socket: TokioIo<LocalSocketStream>,
+    socket_name: String,
 }
 
 impl LocalSocketClient {
     /// Create a client and connect to the named pipe.
     pub async fn connect(socket_name: impl Into<String>) -> Result<Self> {
-        let name = socket_name.into().to_ns_name::<GenericNamespaced>()?;
-        let io = LocalSocketStream::connect(name).await?;
-        let socket = TokioIo::new(io);
-        Ok(Self { socket })
+        Ok(Self {
+            socket_name: socket_name.into(),
+        })
+    }
+
+    /// Send on a local duplex stream.
+    pub async fn send_local(
+        stream: DuplexStream,
+        request: LocalRequest,
+    ) -> Result<LocalResponse> {
+        todo!();
     }
 
     /// Send a local request.
@@ -32,11 +41,17 @@ impl LocalSocketClient {
         &mut self,
         request: LocalRequest,
     ) -> Result<LocalResponse> {
+        let name =
+            self.socket_name.clone().to_ns_name::<GenericNamespaced>()?;
+        let io = LocalSocketStream::connect(name).await?;
+
         let request: Request<Vec<u8>> = request.try_into()?;
-        let (header, body) = request.into_parts();
+        let (mut header, body) = request.into_parts();
+        header.headers.insert(CONNECTION, "close".parse().unwrap());
         let request =
             Request::from_parts(header, Full::new(Bytes::from(body)));
-        let response = self.send_http(request).await?;
+
+        let response = self.send_http(Box::pin(io), request).await?;
         let (header, body) = response.into_parts();
         let bytes = body.collect().await.unwrap().to_bytes();
         let response = Response::from_parts(header, bytes.to_vec());
@@ -44,28 +59,55 @@ impl LocalSocketClient {
     }
 
     /// Send a HTTP request.
-    pub async fn send_http(
+    async fn send_http<I>(
         &mut self,
+        io: Pin<Box<I>>,
         request: Request<Full<Bytes>>,
-    ) -> Result<Response<Full<Bytes>>> {
-        let (mut sender, conn) = handshake(&mut self.socket).await?;
+    ) -> Result<Response<Full<Bytes>>>
+    where
+        I: AsyncRead + AsyncWrite + Send + Sync + 'static,
+    {
+        let socket = TokioIo::new(io);
+        let (mut sender, conn) = handshake(socket).await?;
 
-        let conn = Box::pin(async move { conn.await });
-        let req = Box::pin(async move { sender.send_request(request).await });
-        pin_mut!(conn);
-        pin_mut!(req);
+        tokio::task::spawn(async move {
+            if let Err(err) = conn.await {
+                tracing::error!(error = %err, "ipc::client::connection");
+            }
+        });
 
-        let (conn, response) = futures::future::join(conn, req).await;
-        if let Err(err) = conn {
-            tracing::error!(error = %err, "ipc::client::connection");
-        }
-
-        let (header, body) = response?.into_parts();
+        let response = sender.send_request(request).await?;
+        let (header, body) = response.into_parts();
         let bytes = body.collect().await.unwrap().to_bytes();
         let response = Response::from_parts(header, Full::new(bytes));
-
         Ok(response)
     }
+
+    /*
+    /// Send a HTTP request.
+    async fn send_http2<T>(
+        &mut self,
+        socket: TokioIo<T>,
+        request: Request<Full<Bytes>>,
+    ) -> Result<Response<Full<Bytes>>>
+    where
+        T: Unpin + AsyncRead + AsyncWrite + Send + Sync + 'static,
+    {
+        let (mut sender, conn) = handshake(socket).await?;
+
+        tokio::task::spawn(async move {
+            if let Err(err) = conn.await {
+                tracing::error!(error = %err, "ipc::client::connection");
+            }
+        });
+
+        let response = sender.send_request(request).await?;
+        let (header, body) = response.into_parts();
+        let bytes = body.collect().await.unwrap().to_bytes();
+        let response = Response::from_parts(header, Full::new(bytes));
+        Ok(response)
+    }
+    */
 
     /// Get application information.
     pub async fn info(&mut self) -> Result<ServiceAppInfo> {

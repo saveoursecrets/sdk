@@ -328,7 +328,7 @@ impl fmt::Debug for LocalRequest {
             .field("method", &self.method.to_string())
             .field("uri", &self.uri.to_string())
             .field("headers", &format_args!("{:?}", self.headers))
-            .field("body", &self.body.len().to_string())
+            .field("body_length", &self.body.len().to_string())
             .finish()
     }
 }
@@ -413,7 +413,7 @@ impl fmt::Debug for LocalResponse {
         f.debug_struct("LocalResponse")
             .field("status", &self.status.to_string())
             .field("headers", &format_args!("{:?}", self.headers))
-            .field("body", &self.body.len().to_string())
+            .field("body_length", &self.body.len().to_string())
             .finish()
     }
 }

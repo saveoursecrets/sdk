@@ -61,6 +61,7 @@ impl LocalIntegration {
     }
 
     /// Initialize the accounts list.
+    #[deprecated]
     pub async fn initialize_accounts(
         &mut self,
         accounts: Vec<PublicIdentity>,
@@ -91,6 +92,7 @@ impl LocalIntegration {
     }
 
     /// Sync the accounts data.
+    #[deprecated]
     pub async fn sync_accounts(&mut self) -> Result<()> {
         let mut accounts = self.accounts.write().await;
         for account in accounts.iter_mut() {

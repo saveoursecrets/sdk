@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use http::{
-    header::{CONTENT_ENCODING, CONTENT_TYPE},
+    header::{CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE},
     Request, Response, StatusCode,
 };
 use http_body_util::{BodyExt, Full};
@@ -89,14 +89,17 @@ pub fn json<S: Serialize>(
 }
 
 pub fn protobuf_compress(buf: Vec<u8>) -> hyper::Result<Response<Body>> {
+    /*
     use crate::compression::zlib;
     let Ok(buf) = zlib::encode_all(buf.as_slice()) else {
         return internal_server_error("zlib::compress");
     };
+    */
     Ok(Response::builder()
         .status(StatusCode::OK)
-        .header(CONTENT_ENCODING, ENCODING_ZLIB)
+        // .header(CONTENT_ENCODING, ENCODING_ZLIB)
         .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
+        .header(CONNECTION, "close")
         .body(Full::new(Bytes::from(buf)))
         .unwrap())
 }

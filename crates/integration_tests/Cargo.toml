@@ -12,6 +12,7 @@ enable-cli-tests = []
 [dependencies]
 tokio.workspace = true
 http.workspace = true
+anyhow.workspace = true
 
 [dependencies.sos-ipc]
 features = [
@@ -28,6 +29,9 @@ features = [
   "files",
 ]
 path = "../ipc"
+
+[dependencies.sos-sdk]
+path = "../sdk"
 
 [dev-dependencies]
 binary-stream.workspace = true
