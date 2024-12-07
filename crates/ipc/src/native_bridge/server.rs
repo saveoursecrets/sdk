@@ -35,23 +35,19 @@ pub type RouteFuture = Pin<
 pub type InterceptRoute = fn(LocalRequest) -> RouteFuture;
 
 /// Probe this executable for aliveness.
-fn probe(request: LocalRequest) -> RouteFuture {
-    Box::pin(async move {
-        let message_id = request.request_id();
-        Ok(LocalResponse::with_id(StatusCode::OK, message_id))
-    })
+fn probe(_request: LocalRequest) -> RouteFuture {
+    Box::pin(async move { Ok(StatusCode::OK.into()) })
 }
 
 /// Check app status by detecting the presence of the app lock.
-fn status(request: LocalRequest) -> RouteFuture {
+fn status(_request: LocalRequest) -> RouteFuture {
     Box::pin(async move {
-        let message_id = request.request_id();
         let paths = Paths::new_global(Paths::data_dir()?);
         let app = paths.has_app_lock()?;
         Ok(if app {
-            LocalResponse::with_id(StatusCode::OK, message_id)
+            StatusCode::OK.into()
         } else {
-            LocalResponse::with_id(StatusCode::NOT_FOUND, message_id)
+            StatusCode::NOT_FOUND.into()
         })
     })
 }
@@ -59,23 +55,19 @@ fn status(request: LocalRequest) -> RouteFuture {
 /// Open a URL.
 fn open_url(request: LocalRequest) -> RouteFuture {
     Box::pin(async move {
-        let message_id = request.request_id();
-        let url = Url::parse(&request.uri.to_string()).unwrap();
+        let Ok(url) = Url::parse(&request.uri.to_string()) else {
+            return Ok(StatusCode::BAD_REQUEST.into());
+        };
 
         let Some(target) =
             url.query_pairs().find(|(k, _)| k == "url").map(|(_, v)| v)
         else {
-            return Ok(LocalResponse::with_id(
-                StatusCode::BAD_REQUEST,
-                message_id,
-            ));
+            return Ok(StatusCode::BAD_REQUEST.into());
         };
 
         Ok(match open::that_detached(&*target) {
-            Ok(_) => LocalResponse::with_id(StatusCode::OK, message_id),
-            Err(_) => {
-                LocalResponse::with_id(StatusCode::BAD_GATEWAY, message_id)
-            }
+            Ok(_) => StatusCode::OK.into(),
+            Err(_) => StatusCode::BAD_GATEWAY.into(),
         })
     })
 }
@@ -218,7 +210,7 @@ impl NativeBridgeServer {
                             "sos_native_bridge::request",
                         );
 
-                        let message_id = request.request_id();
+                        let request_id = request.request_id();
 
                         // Is this a route we intercept?
                         let is_native_route = route.is_some();
@@ -228,19 +220,18 @@ impl NativeBridgeServer {
                             try_send_request(&sock_name, request).await
                         };
 
-                        let result = match response {
+                        let mut result = match response {
                             Ok(response) => response,
                             Err(_) => {
-                              LocalResponse::with_id(
-                                if is_native_route {
-                                    StatusCode::INTERNAL_SERVER_ERROR
-                                } else {
-                                    StatusCode::SERVICE_UNAVAILABLE
-                                },
-                                message_id,
-                              )
+                            if is_native_route {
+                                StatusCode::INTERNAL_SERVER_ERROR.into()
+                            } else {
+                                StatusCode::SERVICE_UNAVAILABLE.into()
+                            }
                             }
                         };
+
+                        result.set_request_id(request_id);
 
                         // Send response in chunks to avoid the 1MB
                         // hard limit

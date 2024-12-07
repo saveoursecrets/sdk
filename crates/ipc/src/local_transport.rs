@@ -205,7 +205,7 @@ pub trait HttpMessage {
 #[typeshare]
 #[serde_as]
 #[derive(Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct LocalRequest {
     /// Request method.
     #[serde_as(as = "DisplayFromStr")]
