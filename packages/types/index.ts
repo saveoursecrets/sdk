@@ -1,7 +1,6 @@
 export type TupleOfTwo<T, U> = [T, U];
 export type TupleOfThree<T, U, V> = [T, U, V];
-export type AccountState = TupleOfThree<PublicIdentity, boolean, FoldersList>;
-export type AccountsList = AccountState[];
+export type AccountsList = PublicIdentity[];
 export type DocumentsList = Document[];
 export type FoldersList = FolderInfo[];
 export type SearchResultEntry = TupleOfTwo<PublicIdentity, DocumentsList>;
@@ -140,6 +139,10 @@ export interface LocalRequest {
 	headers?: Record<string, string[]>;
 	/** Request body. */
 	body?: number[];
+	/** Number of chunks for this message. */
+	chunksLength: number;
+	/** Chunk index for this message. */
+	chunkIndex: number;
 }
 
 /**
@@ -158,6 +161,10 @@ export interface LocalResponse {
 	headers?: Record<string, string[]>;
 	/** Response body. */
 	body?: number[];
+	/** Number of chunks for this message. */
+	chunksLength: number;
+	/** Chunk index for this message. */
+	chunkIndex: number;
 }
 
 /** Public account identity information. */

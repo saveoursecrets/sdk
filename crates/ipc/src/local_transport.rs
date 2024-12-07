@@ -201,6 +201,7 @@ pub trait HttpMessage {
 #[typeshare]
 #[serde_as]
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LocalRequest {
     /// Request method.
     #[serde_as(as = "DisplayFromStr")]
@@ -215,8 +216,10 @@ pub struct LocalRequest {
     /// Request body.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub body: Vec<u8>,
-    /// Chunk information; length and then index.
-    chunks: (u32, u32),
+    /// Number of chunks for this message.
+    pub chunks_length: u32,
+    /// Chunk index for this message.
+    pub chunk_index: u32,
 }
 
 impl Default for LocalRequest {
@@ -226,7 +229,8 @@ impl Default for LocalRequest {
             uri: Uri::builder().path_and_query("/").build().unwrap(),
             headers: Default::default(),
             body: Default::default(),
-            chunks: (1, 0),
+            chunks_length: 1,
+            chunk_index: 0,
         }
     }
 }
@@ -239,7 +243,8 @@ impl LocalRequest {
             uri,
             headers: Default::default(),
             body: Default::default(),
-            chunks: (1, 0),
+            chunks_length: 1,
+            chunk_index: 0,
         }
     }
 
@@ -271,11 +276,11 @@ impl HttpMessage for LocalRequest {
     }
 
     fn chunks_len(&self) -> u32 {
-        self.chunks.0
+        self.chunks_length
     }
 
     fn chunk_index(&self) -> u32 {
-        self.chunks.1
+        self.chunk_index
     }
 
     fn into_chunks(self, limit: usize, chunk_size: usize) -> Vec<Self> {
@@ -303,7 +308,8 @@ impl HttpMessage for LocalRequest {
                     method: method.clone(),
                     body: window.to_owned(),
                     headers: headers.clone(),
-                    chunks: (len as u32, index as u32),
+                    chunks_length: len as u32,
+                    chunk_index: index as u32,
                 };
                 messages.push(message);
             }
@@ -339,7 +345,8 @@ impl From<Request<Vec<u8>>> for LocalRequest {
             uri: parts.uri,
             headers,
             body,
-            chunks: (1, 0),
+            chunks_length: 1,
+            chunk_index: 0,
         }
     }
 }
@@ -369,6 +376,7 @@ impl TryFrom<LocalRequest> for Request<Vec<u8>> {
 #[typeshare]
 #[serde_as]
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LocalResponse {
     /// Response status code.
     pub status: u16,
@@ -379,8 +387,10 @@ pub struct LocalResponse {
     /// Response body.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub body: Vec<u8>,
-    /// Chunk information; length and then index.
-    chunks: (u32, u32),
+    /// Number of chunks for this message.
+    pub chunks_length: u32,
+    /// Chunk index for this message.
+    pub chunk_index: u32,
 }
 
 impl Default for LocalResponse {
@@ -389,7 +399,8 @@ impl Default for LocalResponse {
             status: StatusCode::OK.into(),
             headers: Default::default(),
             body: Default::default(),
-            chunks: (1, 0),
+            chunks_length: 1,
+            chunk_index: 0,
         }
     }
 }
@@ -418,7 +429,8 @@ impl From<Response<Vec<u8>>> for LocalResponse {
             status: parts.status.into(),
             headers,
             body,
-            chunks: (1, 0),
+            chunks_length: 1,
+            chunk_index: 0,
         }
     }
 }
@@ -439,7 +451,8 @@ impl LocalResponse {
             status: status.into(),
             headers: Default::default(),
             body: Default::default(),
-            chunks: (1, 0),
+            chunks_length: 1,
+            chunk_index: 0,
         };
         res.set_request_id(id);
         res
@@ -482,11 +495,11 @@ impl HttpMessage for LocalResponse {
     }
 
     fn chunks_len(&self) -> u32 {
-        self.chunks.0
+        self.chunks_length
     }
 
     fn chunk_index(&self) -> u32 {
-        self.chunks.1
+        self.chunk_index
     }
 
     fn into_chunks(self, limit: usize, chunk_size: usize) -> Vec<Self> {
@@ -512,7 +525,8 @@ impl HttpMessage for LocalResponse {
                     status,
                     headers: headers.clone(),
                     body: window.to_owned(),
-                    chunks: (len as u32, index as u32),
+                    chunks_length: len as u32,
+                    chunk_index: index as u32,
                 };
                 messages.push(message);
             }
