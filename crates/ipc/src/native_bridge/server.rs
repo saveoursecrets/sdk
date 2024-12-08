@@ -10,7 +10,7 @@ use http::StatusCode;
 use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::{
     logs::Logger,
-    prelude::{Account, AccountSwitcher},
+    prelude::{Account, AccountSwitcher, ErrorExt},
 };
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
@@ -57,6 +57,7 @@ impl NativeBridgeServer {
             + 'static,
         R: 'static,
         E: std::fmt::Debug
+            + ErrorExt
             + From<sos_sdk::Error>
             + From<std::io::Error>
             + 'static,
@@ -81,17 +82,6 @@ impl NativeBridgeServer {
 
         Ok(Self { options, client })
     }
-
-    /*
-    /// Add an intercept route to this native proxy.
-    pub fn add_intercept_route(
-        &mut self,
-        path: String,
-        value: InterceptRoute,
-    ) {
-        self.routes.insert(path, value);
-    }
-    */
 
     /// Start a native bridge server listening.
     pub async fn listen(&self) {

@@ -4,16 +4,11 @@ use http::{Request, Response, StatusCode};
 use secrecy::SecretString;
 use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::{
-    prelude::{AccessKey, Account, AccountSwitcher, Address},
+    prelude::{AccessKey, Account, Address, ErrorExt},
     url::form_urlencoded,
 };
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
-use super::{status, Body, Incoming};
-
-/// Collection of accounts.
-pub type Accounts<A, R, E> = Arc<RwLock<AccountSwitcher<A, R, E>>>;
+use super::{status, Accounts, Body, Incoming};
 
 /// Open a URL.
 pub async fn open_url(
@@ -56,6 +51,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
@@ -90,11 +86,16 @@ where
 
     let password = SecretString::new(password.into());
     let key: AccessKey = password.into();
-    if account.sign_in(&key).await.is_err() {
-        return status(StatusCode::INTERNAL_SERVER_ERROR);
-    };
-
-    status(StatusCode::OK)
+    match account.sign_in(&key).await {
+        Ok(_) => status(StatusCode::OK),
+        Err(e) => {
+            if e.is_permission_denied() {
+                status(StatusCode::FORBIDDEN)
+            } else {
+                status(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+    }
 }
 
 #[cfg(debug_assertions)]

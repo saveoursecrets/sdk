@@ -8,6 +8,8 @@
 //!
 //! Typically, this would be used in the webassembly bindings
 //! for a browser extension or other local integration.
+//!
+//! Experimental and may be removed at any time, do not use.
 
 use crate::Result;
 use sos_protocol::{constants::IPC_GUI_SOCKET_NAME, Origin, RemoteSync};
@@ -61,7 +63,6 @@ impl LocalIntegration {
     }
 
     /// Initialize the accounts list.
-    #[deprecated]
     pub async fn initialize_accounts(
         &mut self,
         accounts: Vec<PublicIdentity>,
@@ -92,7 +93,6 @@ impl LocalIntegration {
     }
 
     /// Sync the accounts data.
-    #[deprecated]
     pub async fn sync_accounts(&mut self) -> Result<()> {
         let mut accounts = self.accounts.write().await;
         for account in accounts.iter_mut() {
@@ -109,16 +109,4 @@ impl LocalIntegration {
         }
         Ok(())
     }
-
-    /*
-    /// Determine if a local account exists.
-    pub async fn local_account_exists(
-        &self,
-        address: &Address,
-    ) -> Result<bool, Error> {
-        let accounts = self.accounts.read().await;
-        let account = accounts.iter().find(|a| a.address() == address);
-        Ok(account.is_some())
-    }
-    */
 }

@@ -10,7 +10,7 @@ use sos_protocol::{
     },
     Merge, SyncStorage,
 };
-use sos_sdk::prelude::{Account, AccountSwitcher};
+use sos_sdk::prelude::{Account, AccountSwitcher, ErrorExt};
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 use tokio::sync::RwLock;
 use tower::service_fn;
@@ -26,6 +26,8 @@ type MethodRoute =
     Mutex<BoxCloneService<Request<Incoming>, Response<Body>, hyper::Error>>;
 
 type Router = HashMap<Method, matchit::Router<MethodRoute>>;
+
+type Accounts<A, R, E> = Arc<RwLock<AccountSwitcher<A, R, E>>>;
 
 mod account;
 mod common;
@@ -58,7 +60,7 @@ impl LocalWebService {
     /// Create a local server.
     pub fn new<A, R, E>(
         app_info: ServiceAppInfo,
-        accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+        accounts: Accounts<A, R, E>,
     ) -> Self
     where
         A: Account<Error = E, NetworkResult = R>
@@ -69,6 +71,7 @@ impl LocalWebService {
             + 'static,
         R: 'static,
         E: std::fmt::Debug
+            + ErrorExt
             + From<sos_sdk::Error>
             + From<std::io::Error>
             + 'static,

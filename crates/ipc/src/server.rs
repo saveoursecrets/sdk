@@ -6,7 +6,7 @@ use interprocess::local_socket::{
     tokio::prelude::*, GenericNamespaced, ListenerOptions,
 };
 use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{Account, AccountSwitcher};
+use sos_sdk::prelude::{Account, AccountSwitcher, ErrorExt};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -29,6 +29,7 @@ impl LocalSocketServer {
             + 'static,
         R: 'static,
         E: std::fmt::Debug
+            + ErrorExt
             + From<sos_sdk::Error>
             + From<std::io::Error>
             + 'static,

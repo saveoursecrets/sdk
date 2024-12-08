@@ -4,18 +4,16 @@ use sos_protocol::{
     server_helpers, DiffRequest, Merge, PatchRequest, ScanRequest,
     SyncStorage, WireEncodeDecode,
 };
-use sos_sdk::prelude::{Account, AccountSwitcher, StorageEventLogs};
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use sos_sdk::prelude::{Account, StorageEventLogs};
 
 use super::{
     bad_request, internal_server_error, not_found, parse_account_id,
-    protobuf_compress, read_bytes, Body, Incoming,
+    protobuf_compress, read_bytes, Accounts, Body, Incoming,
 };
 
 pub async fn event_scan<A, R, E>(
     req: Request<Incoming>,
-    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    accounts: Accounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
@@ -63,7 +61,7 @@ where
 
 pub async fn event_diff<A, R, E>(
     req: Request<Incoming>,
-    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    accounts: Accounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
@@ -107,7 +105,7 @@ where
 
 pub async fn event_patch<A, R, E>(
     req: Request<Incoming>,
-    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    accounts: Accounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>

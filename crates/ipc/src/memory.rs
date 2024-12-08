@@ -10,7 +10,7 @@ use hyper::client::conn::http1::handshake;
 use hyper::server::conn::http1::Builder;
 use hyper_util::rt::tokio::TokioIo;
 use sos_protocol::{Merge, NetworkError, SyncStorage};
-use sos_sdk::prelude::{Account, AccountSwitcher};
+use sos_sdk::prelude::{Account, AccountSwitcher, ErrorExt};
 use std::sync::Arc;
 use tokio::{
     io::DuplexStream,
@@ -105,6 +105,7 @@ impl LocalMemoryServer {
             + 'static,
         R: 'static,
         E: std::fmt::Debug
+            + ErrorExt
             + From<sos_sdk::Error>
             + From<std::io::Error>
             + 'static,

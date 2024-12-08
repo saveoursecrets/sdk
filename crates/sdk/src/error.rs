@@ -666,10 +666,22 @@ pub enum Error {
     TotpUrl(#[from] totp_rs::TotpUrlError),
 }
 
-impl Error {
+/// Extension functions for error types.
+pub trait ErrorExt {
     /// Whether this is a secret not found error.
-    pub fn is_secret_not_found(&self) -> bool {
+    fn is_secret_not_found(&self) -> bool;
+
+    /// Whether this is a permission denied error.
+    fn is_permission_denied(&self) -> bool;
+}
+
+impl ErrorExt for Error {
+    fn is_secret_not_found(&self) -> bool {
         matches!(self, Error::SecretNotFound(_))
+    }
+
+    fn is_permission_denied(&self) -> bool {
+        matches!(self, Error::PassphraseVerification)
     }
 }
 

@@ -2,7 +2,7 @@
 use sos_protocol::{
     transfer::CancelReason, AsConflict, ConflictError, Origin,
 };
-use sos_sdk::vault::VaultId;
+use sos_sdk::{prelude::ErrorExt, vault::VaultId};
 use std::error::Error as StdError;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -152,12 +152,17 @@ pub enum Error {
     Network(#[from] sos_protocol::NetworkError),
 }
 
-impl Error {
-    /// Determine if this error is a secret not found.
-    pub fn is_secret_not_found(&self) -> bool {
+impl ErrorExt for Error {
+    fn is_secret_not_found(&self) -> bool {
         matches!(self, Error::Sdk(crate::sdk::Error::SecretNotFound(_)))
     }
 
+    fn is_permission_denied(&self) -> bool {
+        matches!(self, Error::Sdk(crate::sdk::Error::PassphraseVerification))
+    }
+}
+
+impl Error {
     /// Determine if this is a canceled error and
     /// whether the cancellation was triggered by the user.
     pub fn cancellation_reason(&self) -> Option<&CancelReason> {

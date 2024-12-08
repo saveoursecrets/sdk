@@ -3,19 +3,18 @@ use hyper::body::Bytes;
 use sos_protocol::{
     server_helpers, Merge, SyncPacket, SyncStorage, WireEncodeDecode,
 };
-use sos_sdk::prelude::{Account, AccountSwitcher, Identity};
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use sos_sdk::prelude::{Account, Identity};
 
 use super::{
     bad_request, forbidden, internal_server_error, json, not_found, ok,
-    parse_account_id, protobuf_compress, read_bytes, Body, Incoming,
+    parse_account_id, protobuf_compress, read_bytes, Accounts, Body,
+    Incoming,
 };
 
 /// List of account public identities.
 pub async fn list_accounts<A, R, E>(
     _req: Request<Incoming>,
-    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    accounts: Accounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
@@ -35,7 +34,7 @@ where
 
 pub async fn account_exists<A, R, E>(
     req: Request<Incoming>,
-    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    accounts: Accounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
@@ -67,7 +66,7 @@ where
 
 pub async fn create_account<A, R, E>(
     _req: Request<Incoming>,
-    _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    _accounts: Accounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
@@ -86,7 +85,7 @@ where
 
 pub async fn update_account<A, R, E>(
     _req: Request<Incoming>,
-    _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    _accounts: Accounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
@@ -105,7 +104,7 @@ where
 
 pub async fn fetch_account<A, R, E>(
     req: Request<Incoming>,
-    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    accounts: Accounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
@@ -143,7 +142,7 @@ where
 
 pub async fn delete_account<A, R, E>(
     _req: Request<Incoming>,
-    _accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    _accounts: Accounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
@@ -162,7 +161,7 @@ where
 
 pub async fn sync_status<A, R, E>(
     req: Request<Incoming>,
-    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    accounts: Accounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
@@ -200,7 +199,7 @@ where
 
 pub async fn sync_account<A, R, E>(
     req: Request<Incoming>,
-    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    accounts: Accounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
