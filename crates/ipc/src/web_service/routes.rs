@@ -3,11 +3,34 @@
 use http::{Request, Response, StatusCode};
 use secrecy::SecretString;
 use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{AccessKey, Account, ErrorExt};
+use sos_sdk::prelude::{AccessKey, Account, ErrorExt, Identity};
 
-use crate::web_service::{parse_account_id, parse_query};
+use crate::web_service::{
+    internal_server_error, json, parse_account_id, parse_query,
+};
 
 use super::{status, Accounts, Body, Incoming};
+
+/// List account public identities.
+pub async fn list_accounts<A, R, E>(
+    _req: Request<Incoming>,
+    accounts: Accounts<A, R, E>,
+) -> hyper::Result<Response<Body>>
+where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    let accounts = accounts.read().await;
+    let Ok(list) = Identity::list_accounts(accounts.data_dir()).await else {
+        return internal_server_error("list_accounts");
+    };
+
+    json(StatusCode::OK, &list)
+}
 
 /// Open a URL.
 pub async fn open_url(

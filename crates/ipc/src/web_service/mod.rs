@@ -126,6 +126,21 @@ impl LocalWebService {
             .entry(Method::GET)
             .or_default()
             .insert(
+                "/accounts",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        list_accounts(req, state.clone())
+                    },
+                ))
+                .into(),
+            )
+            .unwrap();
+
+        let state = accounts.clone();
+        router
+            .entry(Method::GET)
+            .or_default()
+            .insert(
                 "/signin",
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| sign_in(req, state.clone()),
