@@ -108,6 +108,8 @@ impl LocalWebService {
             )
             .unwrap();
 
+        // Route used to test chunking logic for responses
+        // that exceed the 1MB native messaging API limit
         #[cfg(debug_assertions)]
         router
             .entry(Method::GET)
@@ -130,6 +132,21 @@ impl LocalWebService {
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
                         list_accounts(req, state.clone())
+                    },
+                ))
+                .into(),
+            )
+            .unwrap();
+
+        let state = accounts.clone();
+        router
+            .entry(Method::GET)
+            .or_default()
+            .insert(
+                "/accounts/authenticated",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        authenticated_accounts(req, state.clone())
                     },
                 ))
                 .into(),

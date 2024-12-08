@@ -14,6 +14,8 @@ export type VaultFlags = number;
 export type SecretId = string;
 export type Cipher = string;
 export type KeyDerivation = string;
+export type AuthenticatedList = [string, boolean][]
+
 // Internally this is a HashMap but we can't serialize 
 // that to JSON so for Javascript it's just an array
 export type Headers = [string, string[]][];

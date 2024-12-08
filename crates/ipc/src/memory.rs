@@ -125,7 +125,8 @@ impl LocalMemoryServer {
                 notify.send(client).unwrap();
 
                 let socket = TokioIo::new(server);
-                let http = Builder::new();
+                let mut http = Builder::new();
+                http.auto_date_header(false);
 
                 tracing::debug!("memory_server::new_connection");
                 let conn = http.serve_connection(socket, svc.clone());

@@ -32,6 +32,29 @@ where
     json(StatusCode::OK, &list)
 }
 
+/// List account authenticated status.
+pub async fn authenticated_accounts<A, R, E>(
+    _req: Request<Incoming>,
+    accounts: Accounts<A, R, E>,
+) -> hyper::Result<Response<Body>>
+where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    let accounts = accounts.read().await;
+    let mut list = Vec::new();
+    for account in accounts.iter() {
+        let address = account.address().to_string();
+        list.push((address, account.is_authenticated().await));
+    }
+
+    json(StatusCode::OK, &list)
+}
+
 /// Open a URL.
 pub async fn open_url(
     req: Request<Incoming>,
