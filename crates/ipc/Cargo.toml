@@ -49,7 +49,19 @@ contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = ["sos-sdk/files", "sos-protocol/files"]
 migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
 search = ["sos-sdk/search", "sos-protocol/search"]
-native-bridge-server = ["memory", "open", "tokio/io-std", "once_cell"]
+native-bridge-server = [
+  "memory",
+  "open",
+  "tokio/io-std",
+  "once_cell",
+  "local-transport",
+  "hyper/http1",
+  "hyper/server",
+  "tower",
+  "matchit",
+  "http-body-util",
+  "hyper-util",
+]
 native-bridge-client = [
   "local-transport",
   "tokio/process",

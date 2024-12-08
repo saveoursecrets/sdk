@@ -44,7 +44,7 @@ pub mod native_bridge;
 pub mod server;
 #[cfg(any(feature = "server", feature = "native-bridge-server"))]
 mod web_service;
-#[cfg(feature = "server")]
+#[cfg(any(feature = "server", feature = "native-bridge-server"))]
 pub(crate) use web_service::LocalWebService;
 #[cfg(feature = "local-transport")]
 pub mod local_transport;
