@@ -43,10 +43,19 @@ fn open_url(request: LocalRequest) -> RouteFuture {
         tracing::debug!(uri = %request.uri, "open_url");
 
         let uri = request.uri.to_string();
-        let mut it = form_urlencoded::parse(uri.as_bytes());
+        let parts = uri.splitn(2, "?");
+        let Some(query) = parts.last() else {
+            return Ok(StatusCode::BAD_REQUEST.into());
+        };
+
+        tracing::debug!(query = %query, "open_url");
+
+        let mut it = form_urlencoded::parse(query.as_bytes());
         let Some((_, value)) = it.find(|(name, _)| name == "url") else {
             return Ok(StatusCode::BAD_REQUEST.into());
         };
+
+        tracing::debug!(url = %value, "open_url");
 
         Ok(match open::that_detached(value.as_ref()) {
             Ok(_) => StatusCode::OK.into(),
