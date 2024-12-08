@@ -7,7 +7,6 @@ use http_body_util::{BodyExt, Full};
 use hyper::client::conn::http1::handshake;
 use interprocess::local_socket::{tokio::prelude::*, GenericNamespaced};
 use std::pin::Pin;
-use tokio::io::DuplexStream;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::local_transport::{LocalRequest, LocalResponse};
@@ -26,14 +25,6 @@ impl LocalSocketClient {
         Ok(Self {
             socket_name: socket_name.into(),
         })
-    }
-
-    /// Send on a local duplex stream.
-    pub async fn send_local(
-        stream: DuplexStream,
-        request: LocalRequest,
-    ) -> Result<LocalResponse> {
-        todo!();
     }
 
     /// Send a local request.

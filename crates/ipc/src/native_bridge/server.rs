@@ -1,10 +1,9 @@
 //! Server for the native messaging API bridge.
 
 use crate::{
-    client::LocalSocketClient,
     local_transport::{HttpMessage, LocalRequest, LocalResponse},
-    server::LocalSocketServer,
-    LocalWebService, Result,
+    memory::{LocalMemoryClient, LocalMemoryServer},
+    Result,
 };
 use futures_util::{SinkExt, StreamExt};
 use http::StatusCode;
@@ -104,10 +103,8 @@ pub struct NativeBridgeServer {
     options: NativeBridgeOptions,
     /// Routes for internal processing.
     routes: HashMap<String, InterceptRoute>,
-    /*
-    /// Server for syncing.
-    server: LocalWebService,
-    */
+    /// Client for the server.
+    client: LocalMemoryClient,
 }
 
 impl NativeBridgeServer {
@@ -157,23 +154,13 @@ impl NativeBridgeServer {
         options.socket_name = Some(socket_name);
         tracing::info!(options = ?options, "native_bridge");
 
-        let (mut client_stream, server_stream) = tokio::io::duplex(64);
-
-        // let server = LocalWebService::new(Default::default(), accounts);
-        tokio::task::spawn(async move {
-            LocalSocketServer::listen_stream(
-                server_stream,
-                accounts,
-                Default::default(),
-            )
-            .await
-            .unwrap()
-        });
+        let client =
+            LocalMemoryServer::listen(accounts, Default::default()).await?;
 
         Ok(Self {
             options,
             routes,
-            // server,
+            client,
         })
     }
 
@@ -221,7 +208,7 @@ impl NativeBridgeServer {
 
         loop {
             let channel = tx.clone();
-            let sock_name = socket_name.clone();
+            // let sock_name = socket_name.clone();
             tokio::select! {
                 result = read_chunked_request(&mut stdin) => {
                     let Ok(request) = result else {
@@ -239,6 +226,7 @@ impl NativeBridgeServer {
                     };
 
                     let route = self.find_route(&request);
+                    let client = self.client.clone();
 
                     tokio::task::spawn(async move {
                         let tx = channel.clone();
@@ -255,8 +243,7 @@ impl NativeBridgeServer {
                         let response = if let Some(route) = route {
                             route(request).await
                         } else {
-                            // try_send_request(&service, request).await
-                            todo!();
+                            client.send_request(request).await
                         };
 
                         let mut result = match response {

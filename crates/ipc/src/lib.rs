@@ -26,9 +26,6 @@ macro_rules! println {
     };
 }
 
-#[allow(unused)]
-mod forbidden {}
-
 #[cfg(feature = "compression-zlib")]
 pub(crate) mod compression;
 
@@ -37,6 +34,10 @@ pub mod integration;
 
 #[cfg(feature = "client")]
 pub mod client;
+
+#[cfg(feature = "memory")]
+pub mod memory;
+
 #[cfg(any(
     feature = "native-bridge-server",
     feature = "native-bridge-client"
@@ -56,9 +57,11 @@ pub use error::Error;
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;
 
+use serde::{Deserialize, Serialize};
+
 /// Information about the service.
 #[typeshare::typeshare]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ServiceAppInfo {
     /// App name.
     pub name: String,

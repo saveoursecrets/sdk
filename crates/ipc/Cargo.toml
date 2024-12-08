@@ -45,6 +45,7 @@ server = [
   "http-body-util",
   "hyper-util",
 ]
+memory = []
 integration = ["account", "indexmap", "async-trait"]
 account = ["sos-sdk/account", "sos-protocol/account"]
 archive = ["sos-sdk/archive", "sos-protocol/archive"]
@@ -52,7 +53,7 @@ contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = ["sos-sdk/files", "sos-protocol/files"]
 migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
 search = ["sos-sdk/search", "sos-protocol/search"]
-native-bridge-server = ["client", "open", "tokio/io-std", "once_cell"]
+native-bridge-server = ["memory", "open", "tokio/io-std", "once_cell"]
 native-bridge-client = [
   "local-transport",
   "tokio/process",
