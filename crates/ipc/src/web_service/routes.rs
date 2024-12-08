@@ -1,8 +1,6 @@
 //! Server for the native messaging API bridge.
 
-use bytes::Bytes;
 use http::{Request, Response, StatusCode};
-use http_body_util::Full;
 use secrecy::SecretString;
 use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::{
@@ -103,6 +101,8 @@ where
 pub async fn large_file(
     _req: Request<Incoming>,
 ) -> hyper::Result<Response<Body>> {
+    use bytes::Bytes;
+    use http_body_util::Full;
     const MB: usize = 1024 * 1024;
     let body = [255u8; MB].to_vec();
 
