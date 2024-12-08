@@ -11,7 +11,7 @@ use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::{
     logs::Logger,
     prelude::{Account, AccountSwitcher},
-    url::Url,
+    url::form_urlencoded,
 };
 use std::collections::HashMap;
 use std::future::Future;
@@ -40,17 +40,15 @@ fn probe(_request: LocalRequest) -> RouteFuture {
 /// Open a URL.
 fn open_url(request: LocalRequest) -> RouteFuture {
     Box::pin(async move {
-        let Ok(url) = Url::parse(&request.uri.to_string()) else {
+        tracing::debug!(uri = %request.uri, "open_url");
+
+        let uri = request.uri.to_string();
+        let mut it = form_urlencoded::parse(uri.as_bytes());
+        let Some((_, value)) = it.find(|(name, _)| name == "url") else {
             return Ok(StatusCode::BAD_REQUEST.into());
         };
 
-        let Some(target) =
-            url.query_pairs().find(|(k, _)| k == "url").map(|(_, v)| v)
-        else {
-            return Ok(StatusCode::BAD_REQUEST.into());
-        };
-
-        Ok(match open::that_detached(&*target) {
+        Ok(match open::that_detached(value.as_ref()) {
             Ok(_) => StatusCode::OK.into(),
             Err(_) => StatusCode::BAD_GATEWAY.into(),
         })
