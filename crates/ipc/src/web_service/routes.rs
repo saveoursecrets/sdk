@@ -3,9 +3,9 @@
 use http::{Request, Response, StatusCode};
 use secrecy::SecretString;
 use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{AccessKey, Account, Address, ErrorExt};
+use sos_sdk::prelude::{AccessKey, Account, ErrorExt};
 
-use crate::web_service::parse_query;
+use crate::web_service::{parse_account_id, parse_query};
 
 use super::{status, Accounts, Body, Incoming};
 
@@ -50,17 +50,15 @@ where
 {
     let query = parse_query(req.uri());
 
-    let Some(account) = query.get("account") else {
-        return status(StatusCode::BAD_REQUEST);
-    };
-    let Some(password) = query.get("password") else {
-        return status(StatusCode::BAD_REQUEST);
-    };
-    let Ok(account_id) = account.parse::<Address>() else {
+    let Some(account_id) = parse_account_id(&req) else {
         return status(StatusCode::BAD_REQUEST);
     };
 
-    tracing::debug!(account = %account, "sign_in");
+    let Some(password) = query.get("password") else {
+        return status(StatusCode::BAD_REQUEST);
+    };
+
+    tracing::debug!(account = %account_id, "sign_in");
 
     let mut accounts = accounts.write().await;
     let Some(account) =
@@ -89,13 +87,7 @@ pub async fn has_keyring_credentials(
     use keyring::{Entry, Error};
     use sos_sdk::constants::KEYRING_SERVICE;
 
-    let query = parse_query(req.uri());
-
-    let Some(account) = query.get("account") else {
-        return status(StatusCode::BAD_REQUEST);
-    };
-
-    let Ok(account_id) = account.parse::<Address>() else {
+    let Some(account_id) = parse_account_id(&req) else {
         return status(StatusCode::BAD_REQUEST);
     };
 
@@ -136,12 +128,7 @@ where
     use keyring::{Entry, Error};
     use sos_sdk::constants::KEYRING_SERVICE;
 
-    let query = parse_query(req.uri());
-    let Some(account) = query.get("account") else {
-        return status(StatusCode::BAD_REQUEST);
-    };
-
-    let Ok(account_id) = account.parse::<Address>() else {
+    let Some(account_id) = parse_account_id(&req) else {
         return status(StatusCode::BAD_REQUEST);
     };
 

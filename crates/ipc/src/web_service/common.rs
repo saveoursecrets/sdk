@@ -1,15 +1,10 @@
 use std::collections::HashMap;
 
 use bytes::Bytes;
-use http::{
-    header::{CONNECTION, CONTENT_TYPE},
-    Request, Response, StatusCode, Uri,
-};
+use http::{header::CONTENT_TYPE, Request, Response, StatusCode, Uri};
 use http_body_util::{BodyExt, Full};
 use serde::Serialize;
-use sos_protocol::constants::{
-    MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
-};
+use sos_protocol::constants::{MIME_TYPE_JSON, X_SOS_ACCOUNT_ID};
 use sos_sdk::{prelude::Address, url::form_urlencoded};
 
 use super::{Body, Incoming};
@@ -26,7 +21,6 @@ pub fn parse_query(uri: &Uri) -> HashMap<String, String> {
     let Some(query) = parts.last() else {
         return Default::default();
     };
-
     let it = form_urlencoded::parse(query.as_bytes());
     it.map(|(k, v)| (k.into_owned(), v.into_owned()))
         .collect::<HashMap<_, _>>()
@@ -55,23 +49,8 @@ pub fn status(status: StatusCode) -> hyper::Result<Response<Body>> {
         .unwrap())
 }
 
-pub fn bad_request() -> hyper::Result<Response<Body>> {
-    status(StatusCode::BAD_REQUEST)
-}
-
-pub fn forbidden() -> hyper::Result<Response<Body>> {
-    status(StatusCode::FORBIDDEN)
-}
-
 pub fn not_found() -> hyper::Result<Response<Body>> {
     status(StatusCode::NOT_FOUND)
-}
-
-pub fn ok(body: Body) -> hyper::Result<Response<Body>> {
-    Ok(Response::builder()
-        .status(StatusCode::OK)
-        .body(body)
-        .unwrap())
 }
 
 pub fn internal_server_error(
@@ -100,14 +79,4 @@ pub fn json<S: Serialize>(
         .body(Full::new(Bytes::from(body)))
         .unwrap();
     Ok(response)
-}
-
-pub fn protobuf_compress(buf: Vec<u8>) -> hyper::Result<Response<Body>> {
-    Ok(Response::builder()
-        .status(StatusCode::OK)
-        // .header(CONTENT_ENCODING, ENCODING_ZLIB)
-        .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
-        .header(CONNECTION, "close")
-        .body(Full::new(Bytes::from(buf)))
-        .unwrap())
 }
