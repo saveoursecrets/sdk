@@ -1,0 +1,115 @@
+[package]
+name = "sos-ipc"
+version = "0.16.5"
+edition = "2021"
+description = "Inter-process communication for the Save Our Secrets SDK."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+features = [
+  "local-transport",
+  "client",
+  "server",
+  "integration",
+  "native-bridge-server",
+]
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+local-transport = [
+  "serde_with",
+  "async-trait",
+]
+client = [
+  "futures",
+  "interprocess",
+  "local-transport",
+  "hyper/http1",
+  "hyper/client",
+  "http-body-util",
+  "hyper-util",
+]
+server = [
+  "interprocess",
+  "local-transport",
+  "hyper/http1",
+  "hyper/server",
+  "tower",
+  "matchit",
+  "http-body-util",
+  "hyper-util",
+]
+memory = []
+integration = ["account", "indexmap", "async-trait"]
+account = ["sos-sdk/account", "sos-protocol/account"]
+archive = ["sos-sdk/archive", "sos-protocol/archive"]
+contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
+files = ["sos-sdk/files", "sos-protocol/files"]
+migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
+search = ["sos-sdk/search", "sos-protocol/search"]
+native-bridge-server = [
+  "memory",
+  "open",
+  "tokio/io-std",
+  "once_cell",
+  "local-transport",
+  "hyper/http1",
+  "hyper/server",
+  "tower",
+  "matchit",
+  "http-body-util",
+  "hyper-util",
+  "keyring",
+]
+native-bridge-client = [
+  "local-transport",
+  "tokio/process",
+  "tokio/io-std",
+  "futures",
+]
+
+[dependencies]
+thiserror.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+typeshare.workspace = true
+parking_lot.workspace = true
+http.workspace = true
+bytes.workspace = true
+secrecy.workspace = true
+futures = { workspace = true, optional = true }
+once_cell = { workspace = true, optional = true }
+indexmap = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+serde_with = { workspace = true, optional = true }
+keyring = { workspace = true, optional = true }
+
+sos-sdk = { version = "0.16", path = "../sdk", features = ["account"] }
+sos-protocol = { version = "0.16", path = "../protocol" }
+
+tokio = { version = "1", features = ["rt", "macros", "io-util", "sync"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+futures-util = { version = "0.3", features = ["sink"] }
+interprocess = { version = "2", features = ["tokio"], optional = true }
+
+# server and client
+hyper = { version = "1", optional = true }
+http-body-util = { version = "0.1", optional = true }
+hyper-util = { version = "0.1", features = ["tokio"], optional = true }
+
+# server
+tower = { version = "0.5", features = ["util"], optional = true }
+matchit = { version = "0.7", optional = true }
+
+# native bridge
+open = { version = "5", optional = true }
+
+[dev-dependencies]
+anyhow = "1"
+
+[build-dependencies]
+rustc_version = "0.4.1"
+

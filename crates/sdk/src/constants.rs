@@ -9,6 +9,12 @@ pub const APP_AUTHOR: &str = "SaveOurSecrets";
 /// File name for audit logs.
 pub const AUDIT_FILE_NAME: &str = "audit.dat";
 
+/// Name for GUI IPC sockets.
+pub const IPC_GUI_SOCKET_NAME: &str = "com.saveoursecrets.gui.sock";
+
+/// Name for CLI IPC sockets.
+pub const IPC_CLI_SOCKET_NAME: &str = "com.saveoursecrets.cli.sock";
+
 /// Constants for file identity.
 mod identity {
     /// Audit log identity magic bytes (SOSA).
@@ -61,6 +67,9 @@ mod vault {
 }
 
 mod urn {
+    /// URN namespace identifier.
+    pub const URN_NID: &str = "sos";
+
     /// Login vault signing key name.
     pub const LOGIN_SIGNING_KEY_URN: &str = "urn:sos:identity:signer";
 
@@ -82,12 +91,6 @@ mod urn {
 
     /// Device signing key.
     pub const DEVICE_KEY_URN: &str = "urn:sos:device:key";
-}
-
-/// Constants for MIME types.
-mod mime {
-    /// Mime type for protocol buffers.
-    pub const MIME_TYPE_PROTOBUF: &str = "application/x-protobuf";
 }
 
 /// Constants for directory names.
@@ -136,6 +139,9 @@ mod folders {
 
     /// Lock file for an account.
     pub const LOCK_FILE: &str = "account.lock";
+
+    /// Lock file for an app.
+    pub const APP_LOCK_FILE: &str = "app.lock";
 }
 
 /// File names.
@@ -154,11 +160,13 @@ mod env_vars {
     pub const SOS_PROMPT: &str = "SOS_PROMPT";
 }
 
+/// Service name prefix for platform keyring entries.
+pub const KEYRING_SERVICE: &str = "Save Our Secrets";
+
 pub use self::urn::*;
 pub use env_vars::*;
 pub use extensions::*;
 pub use files::*;
 pub use folders::*;
 pub use identity::*;
-pub use mime::*;
 pub use vault::*;

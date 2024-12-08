@@ -114,16 +114,6 @@ impl ServerStorage {
         &self.address
     }
 
-    /// Access to the identity log.
-    pub fn identity_log(&self) -> Arc<RwLock<FolderEventLog>> {
-        Arc::clone(&self.identity_log)
-    }
-
-    /// Access to the account log.
-    pub fn account_log(&self) -> Arc<RwLock<AccountEventLog>> {
-        Arc::clone(&self.account_log)
-    }
-
     async fn initialize_device_log(
         paths: &Paths,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
@@ -165,13 +155,6 @@ impl ServerStorage {
     ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
         &mut self.cache
     }
-
-    /*
-    /// Set of folders identifiers.
-    pub fn folder_identifiers(&self) -> HashSet<VaultId> {
-        self.cache.keys().copied().collect::<HashSet<_>>()
-    }
-    */
 
     /// Get the computed storage directories for the provider.
     pub fn paths(&self) -> Arc<Paths> {
@@ -349,9 +332,7 @@ impl ServerStorage {
 
         Ok(())
     }
-}
 
-impl ServerStorage {
     /// List the public keys of trusted devices.
     pub fn list_device_keys(&self) -> HashSet<&DevicePublicKey> {
         self.devices.iter().map(|d| d.public_key()).collect()

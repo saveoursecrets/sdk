@@ -135,8 +135,8 @@ mod cli {
         use axum_server::Handle;
         use sos_protocol::sdk::vfs;
         use sos_server::{
-            AcmeConfig, Error, Result, Server, ServerConfig, SslConfig,
-            State, StorageConfig,
+            Error, Result, Server, ServerConfig, SslConfig, State,
+            StorageConfig,
         };
         use std::{net::SocketAddr, path::PathBuf, sync::Arc};
         use tokio::sync::RwLock;
@@ -163,13 +163,15 @@ mod cli {
                 config.set_bind_address(addr);
             }
 
+            #[cfg(feature = "acme")]
             if let (Some(cache), false) = (cache, domains.is_empty()) {
-                config.net.ssl = Some(SslConfig::Acme(AcmeConfig {
-                    cache,
-                    domains,
-                    email,
-                    production,
-                }))
+                config.net.ssl =
+                    Some(SslConfig::Acme(sos_server::AcmeConfig {
+                        cache,
+                        domains,
+                        email,
+                        production,
+                    }))
             }
 
             let content = toml::to_string_pretty(&config)?;

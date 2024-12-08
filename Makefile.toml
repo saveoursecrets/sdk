@@ -13,6 +13,11 @@ BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
 # tests take a while due to so many exec calls
 RUST_TEST_TIME_INTEGRATION = "120000,240000"
 
+[tasks.typegen]
+script = '''
+RUST_LOG=debug typeshare crates/sdk crates/ipc crates/protocol --lang=typescript --output-file=packages/types/types.ts && cat packages/types/preamble.ts packages/types/types.ts > packages/types/index.ts
+'''
+
 [tasks.format]
 workspace = true
 command = "cargo"
@@ -44,12 +49,21 @@ args = [
   "--doc",
 ]
 
+[tasks.unused]
+command = "cargo"
+toolchain = "nightly"
+args = [
+  "udeps",
+  "--all-targets",
+]
+
 [tasks.doc]
 toolchain = "nightly"
 command = "cargo"
 args = [
   "doc",
   "--workspace",
+  "--all-features",
   "--open",
   "--no-deps"
 ]

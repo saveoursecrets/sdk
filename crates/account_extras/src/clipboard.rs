@@ -1,6 +1,7 @@
 //! Access to the native system clipboard.
 use crate::Result;
 use arboard::Clipboard;
+use sos_sdk::prelude::Secret;
 use std::{borrow::Cow, sync::Arc};
 use tokio::{
     sync::Mutex,
@@ -15,7 +16,7 @@ use zeroize::Zeroize;
 /// content.
 ///
 pub struct NativeClipboard {
-    clipboard: Clipboard,
+    clipboard: Arc<Mutex<Clipboard>>,
     timeout_seconds: u16,
 }
 
@@ -29,7 +30,7 @@ impl NativeClipboard {
     /// Create a native clipboard with a timeout.
     pub fn new_timeout(timeout_seconds: u16) -> Result<Self> {
         Ok(Self {
-            clipboard: Clipboard::new()?,
+            clipboard: Arc::new(Mutex::new(Clipboard::new()?)),
             timeout_seconds,
         })
     }
@@ -39,8 +40,9 @@ impl NativeClipboard {
     /// # Errors
     ///
     /// Returns error if clipboard is empty or contents are not UTF-8 text.
-    pub fn get_text(&mut self) -> Result<String> {
-        Ok(self.clipboard.get_text()?)
+    pub async fn get_text(&self) -> Result<String> {
+        let mut clipboard = self.clipboard.lock().await;
+        Ok(clipboard.get_text()?)
     }
 
     /// Places the text onto the clipboard. Any valid UTF-8
@@ -49,11 +51,12 @@ impl NativeClipboard {
     /// # Errors
     ///
     /// Returns error if text failed to be stored on the clipboard.
-    pub fn set_text<'a, T: Into<Cow<'a, str>>>(
-        &mut self,
+    pub async fn set_text<'a, T: Into<Cow<'a, str>>>(
+        &self,
         text: T,
     ) -> Result<()> {
-        Ok(self.clipboard.set_text(text)?)
+        let mut clipboard = self.clipboard.lock().await;
+        Ok(clipboard.set_text(text)?)
     }
 
     /// Clears any contents that may be present from the
@@ -62,8 +65,9 @@ impl NativeClipboard {
     /// # Errors
     ///
     /// Returns error on Windows or Linux if clipboard cannot be cleared.
-    pub fn clear(&mut self) -> Result<()> {
-        Ok(self.clipboard.clear()?)
+    pub async fn clear(&self) -> Result<()> {
+        let mut clipboard = self.clipboard.lock().await;
+        Ok(clipboard.clear()?)
     }
 
     /// Places text on to the clipboard and sets a timeout to clear
@@ -73,7 +77,7 @@ impl NativeClipboard {
     /// initial value to allow for the user changing the clipboard
     /// content elsewhere whilst the the timeout is active.
     pub async fn set_text_timeout<'a, T: Into<Cow<'a, str>>>(
-        &mut self,
+        &self,
         text: T,
     ) -> Result<()> {
         let text: Cow<'a, str> = text.into();
@@ -82,7 +86,7 @@ impl NativeClipboard {
         let source_text: Arc<Mutex<String>> =
             Arc::new(Mutex::new(text.clone().into_owned()));
 
-        self.set_text(text)?;
+        self.set_text(text).await?;
 
         tokio::task::spawn(async move {
             sleep(Duration::from_secs(seconds.into())).await;
@@ -122,5 +126,11 @@ impl NativeClipboard {
         });
 
         Ok(())
+    }
+
+    /// Copy the default value for a secret to the clipboard.
+    pub async fn copy_secret_value(&self, secret: &Secret) -> Result<()> {
+        let text = secret.copy_value_unsafe().unwrap_or_default();
+        self.set_text_timeout(text).await
     }
 }

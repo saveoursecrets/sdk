@@ -2,6 +2,7 @@
 use crate::{
     pairing::{Error, Result},
     protocol::Origin,
+    protocol::SyncClient,
     sdk::{
         account::Account,
         crypto::AccessKey,
@@ -19,7 +20,7 @@ use crate::{
         vault::{VaultAccess, VaultId, VaultWriter},
         vfs, Paths,
     },
-    HttpClient, NetworkAccount, SyncClient,
+    HttpClient, NetworkAccount,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -119,7 +120,7 @@ impl DeviceEnrollment {
         Paths::scaffold(self.data_dir.clone()).await?;
         self.paths.ensure().await?;
 
-        let change_set = self.client.fetch_account().await?;
+        let change_set = self.client.fetch_account(self.address()).await?;
         self.create_folders(change_set.folders).await?;
         self.create_account(change_set.account).await?;
         self.create_device(change_set.device).await?;
