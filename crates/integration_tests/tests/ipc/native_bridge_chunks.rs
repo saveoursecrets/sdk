@@ -5,8 +5,6 @@ use sos_ipc::{
     native_bridge::client::NativeBridgeClient,
 };
 
-const SOCKET_NAME: &str = "ipc_native_bridge_chunks.sock";
-
 /// Test checking for aliveness by calling the /probe endpoint,
 /// this endpoint is handled by the native bridge itself and does
 /// not require a local server to be running.
@@ -17,7 +15,7 @@ async fn integration_ipc_native_bridge_chunks() -> Result<()> {
     let mut request = LocalRequest::get("/large-file".parse().unwrap());
     request.set_request_id(1);
 
-    let (command, arguments) = super::native_bridge_cmd(SOCKET_NAME);
+    let (command, arguments) = super::native_bridge_cmd();
     let mut client = NativeBridgeClient::new(command, arguments).await?;
     let response = client.send(request).await?;
     assert_eq!(StatusCode::OK, response.status().unwrap());

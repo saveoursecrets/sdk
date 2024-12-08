@@ -34,7 +34,6 @@ fn large_file(request: LocalRequest) -> RouteFuture {
 pub async fn main() -> anyhow::Result<()> {
     let mut args = std::env::args().into_iter().collect::<Vec<_>>();
 
-    let socket_name = args.pop().unwrap_or_else(String::new).to_string();
     let extension_id = args.pop().unwrap_or_else(String::new).to_string();
 
     let data_dir = None;
@@ -57,8 +56,7 @@ pub async fn main() -> anyhow::Result<()> {
         .await?;
     let accounts = Arc::new(RwLock::new(accounts));
 
-    let options =
-        NativeBridgeOptions::with_socket_name(extension_id, socket_name);
+    let options = NativeBridgeOptions::new(extension_id);
     let mut server = NativeBridgeServer::new(options, accounts).await?;
     // Test chunking
     server.add_intercept_route("/large-file".to_string(), large_file as _);

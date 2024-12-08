@@ -10,7 +10,7 @@ use http::StatusCode;
 use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::{
     logs::Logger,
-    prelude::{Account, AccountSwitcher, IPC_GUI_SOCKET_NAME},
+    prelude::{Account, AccountSwitcher},
     url::Url,
     Paths,
 };
@@ -76,30 +76,18 @@ fn open_url(request: LocalRequest) -> RouteFuture {
 pub struct NativeBridgeOptions {
     /// Identifier of the extension.
     pub extension_id: String,
-    /// Socket name for the IPC server.
-    pub socket_name: Option<String>,
 }
 
 impl NativeBridgeOptions {
     /// Create new options.
     pub fn new(extension_id: String) -> Self {
-        Self::with_socket_name(extension_id, IPC_GUI_SOCKET_NAME.to_string())
-    }
-
-    /// Create new options with a socket name.
-    pub fn with_socket_name(
-        extension_id: String,
-        socket_name: String,
-    ) -> Self {
-        Self {
-            extension_id,
-            socket_name: Some(socket_name),
-        }
+        Self { extension_id }
     }
 }
 
 /// Server for a native bridge proxy.
 pub struct NativeBridgeServer {
+    #[allow(dead_code)]
     options: NativeBridgeOptions,
     /// Routes for internal processing.
     routes: HashMap<String, InterceptRoute>,
@@ -110,7 +98,7 @@ pub struct NativeBridgeServer {
 impl NativeBridgeServer {
     /// Create a server.
     pub async fn new<A, R, E>(
-        mut options: NativeBridgeOptions,
+        options: NativeBridgeOptions,
         accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
     ) -> Result<Self>
     where
@@ -144,14 +132,6 @@ impl NativeBridgeServer {
             std::process::exit(1);
         }
 
-        let socket_name = options
-            .socket_name
-            .as_ref()
-            .map(|s| &s[..])
-            .unwrap_or(IPC_GUI_SOCKET_NAME)
-            .to_string();
-
-        options.socket_name = Some(socket_name);
         tracing::info!(options = ?options, "native_bridge");
 
         let client =
@@ -179,7 +159,6 @@ impl NativeBridgeServer {
 
     /// Start a native bridge server listening.
     pub async fn listen(&self) {
-        let socket_name = self.options.socket_name.clone().unwrap();
         let mut stdin = LengthDelimitedCodec::builder()
             .native_endian()
             .new_read(tokio::io::stdin());
@@ -323,22 +302,3 @@ impl NativeBridgeServer {
         }
     }
 }
-
-/*
-async fn try_send_request(
-    service: &LocalWebService,
-    request: LocalRequest,
-) -> Result<LocalResponse> {
-    Ok(service.call_local(request).await?)
-}
-*/
-
-/*
-async fn try_send_request(
-    socket_name: &str,
-    request: LocalRequest,
-) -> Result<LocalResponse> {
-    let mut client = LocalSocketClient::connect(socket_name).await?;
-    Ok(client.send_request(request.clone()).await?)
-}
-*/

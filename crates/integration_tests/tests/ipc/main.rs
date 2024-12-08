@@ -11,9 +11,7 @@ use sos_ipc::client::LocalSocketClient;
 use sos_ipc::local_transport::{LocalRequest, LocalResponse, LocalTransport};
 pub use sos_test_utils as test_utils;
 
-pub fn native_bridge_cmd(
-    socket_name: &'static str,
-) -> (&'static str, Vec<&'static str>) {
+pub fn native_bridge_cmd() -> (&'static str, Vec<&'static str>) {
     let command = "cargo";
     let arguments = vec![
         "run",
@@ -22,7 +20,6 @@ pub fn native_bridge_cmd(
         "test-native-bridge",
         "--",
         "sos-test-native-bridge", // mock extension name
-        socket_name,
     ];
     (command, arguments)
 }

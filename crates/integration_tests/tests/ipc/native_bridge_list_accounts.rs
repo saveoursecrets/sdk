@@ -29,8 +29,7 @@ const SOCKET_NAME: &str = "ipc_native_bridge_list_accounts.sock";
 async fn integration_ipc_native_bridge_list_accounts() -> Result<()> {
     // crate::test_utils::init_tracing();
     //
-
-    // Must clean up the tmp file on MacOS
+    //
     remove_socket_file(SOCKET_NAME);
 
     let mut dirs = setup(TEST_ID, 1).await?;
@@ -85,7 +84,7 @@ async fn integration_ipc_native_bridge_list_accounts() -> Result<()> {
     let mut request = LocalRequest::get(ACCOUNTS_LIST.parse().unwrap());
     request.set_request_id(1);
 
-    let (command, arguments) = super::native_bridge_cmd(SOCKET_NAME);
+    let (command, arguments) = super::native_bridge_cmd();
     let mut client = NativeBridgeClient::new(command, arguments).await?;
     let response = client.send(request).await?;
     assert_eq!(StatusCode::OK, response.status().unwrap());
