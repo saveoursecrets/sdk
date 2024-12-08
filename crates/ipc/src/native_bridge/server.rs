@@ -38,19 +38,6 @@ fn probe(_request: LocalRequest) -> RouteFuture {
     Box::pin(async move { Ok(StatusCode::OK.into()) })
 }
 
-/// Check app status by detecting the presence of the app lock.
-fn status(_request: LocalRequest) -> RouteFuture {
-    Box::pin(async move {
-        let paths = Paths::new_global(Paths::data_dir()?);
-        let app = paths.has_app_lock()?;
-        Ok(if app {
-            StatusCode::OK.into()
-        } else {
-            StatusCode::NOT_FOUND.into()
-        })
-    })
-}
-
 /// Open a URL.
 fn open_url(request: LocalRequest) -> RouteFuture {
     Box::pin(async move {
@@ -116,7 +103,6 @@ impl NativeBridgeServer {
     {
         let mut routes = HashMap::new();
         routes.insert("/probe".to_string(), probe as _);
-        routes.insert("/status".to_string(), status as _);
         routes.insert("/open".to_string(), open_url as _);
 
         let log_level = std::env::var("SOS_NATIVE_BRIDGE_LOG_LEVEL")
