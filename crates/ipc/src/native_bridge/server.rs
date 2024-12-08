@@ -12,7 +12,6 @@ use sos_sdk::{
     logs::Logger,
     prelude::{Account, AccountSwitcher},
     url::Url,
-    Paths,
 };
 use std::collections::HashMap;
 use std::future::Future;
