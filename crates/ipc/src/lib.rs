@@ -26,9 +26,6 @@ macro_rules! println {
     };
 }
 
-#[cfg(feature = "compression-zlib")]
-pub(crate) mod compression;
-
 #[cfg(feature = "integration")]
 pub mod integration;
 

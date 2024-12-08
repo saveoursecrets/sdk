@@ -11,9 +11,7 @@
 
 use crate::{Error, Result};
 
-use sos_protocol::constants::{
-    ENCODING_ZLIB, MIME_TYPE_JSON, X_SOS_REQUEST_ID,
-};
+use sos_protocol::constants::{MIME_TYPE_JSON, X_SOS_REQUEST_ID};
 
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -124,38 +122,6 @@ pub trait HttpMessage {
         };
         value == MIME_TYPE_JSON
     }
-
-    /// Determine if this message is Zlib content encoding.
-    fn is_zlib(&self) -> bool {
-        let Some(value) = self.content_encoding() else {
-            return false;
-        };
-        value == ENCODING_ZLIB
-    }
-
-    /*
-    /// Set JSON content type.
-    fn set_json(&mut self) {
-        self.headers_mut().insert(
-            CONTENT_TYPE.to_string(),
-            vec![MIME_TYPE_JSON.to_string()],
-        );
-    }
-    */
-
-    /*
-    /// Determine if this response is using Zstd content encoding.
-    pub fn is_zstd(&self) -> bool {
-        if let Some(values) = self.headers.get(CONTENT_ENCODING.as_str()) {
-            values
-                .iter()
-                .find(|v| v.as_str() == ENCODING_ZSTD)
-                .is_some()
-        } else {
-            false
-        }
-    }
-    */
 
     /// Convert the message into parts.
     fn into_parts(mut self) -> (Headers, Vec<u8>)
@@ -464,15 +430,6 @@ impl LocalResponse {
     /// Status code.
     pub fn status(&self) -> Result<StatusCode> {
         Ok(self.status.try_into()?)
-    }
-
-    /// Decompress the response body.
-    pub fn decompress(&mut self) -> Result<()> {
-        if self.is_zlib() {
-            self.body =
-                crate::compression::zlib::decode_all(self.body.as_slice())?;
-        }
-        Ok(())
     }
 }
 

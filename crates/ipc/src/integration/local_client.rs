@@ -115,11 +115,7 @@ impl LocalClient {
         }
     }
 
-    fn read_response_body(
-        &self,
-        mut response: LocalResponse,
-    ) -> Result<Bytes> {
-        response.decompress()?;
+    fn read_response_body(&self, response: LocalResponse) -> Result<Bytes> {
         Ok(response.body.into())
     }
 }

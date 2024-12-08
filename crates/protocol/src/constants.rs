@@ -22,12 +22,6 @@ mod header {
 
     /// Header name used to specify a request id.
     pub const X_SOS_REQUEST_ID: &str = "x-sos-request-id";
-
-    /// Header value for zlib content encoding.
-    pub const ENCODING_ZLIB: &str = "deflate";
-
-    /// Header value for zstd content encoding.
-    pub const ENCODING_ZSTD: &str = "zstd";
 }
 
 /// Route paths.
