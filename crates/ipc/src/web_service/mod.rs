@@ -30,10 +30,12 @@ type Router = HashMap<Method, matchit::Router<MethodRoute>>;
 mod account;
 mod common;
 mod events;
+mod routes;
 
 use account::*;
 use common::*;
 use events::*;
+use routes::*;
 
 async fn index(
     app_info: Arc<ServiceAppInfo>,
@@ -81,6 +83,58 @@ impl LocalWebService {
                 "/",
                 BoxCloneService::new(service_fn(
                     move |_req: Request<Incoming>| index(info.clone()),
+                ))
+                .into(),
+            )
+            .unwrap();
+
+        router
+            .entry(Method::HEAD)
+            .or_default()
+            .insert(
+                "/",
+                BoxCloneService::new(service_fn(
+                    move |_req: Request<Incoming>| async move {
+                        status(StatusCode::OK)
+                    },
+                ))
+                .into(),
+            )
+            .unwrap();
+
+        router
+            .entry(Method::GET)
+            .or_default()
+            .insert(
+                "/open",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| open_url(req),
+                ))
+                .into(),
+            )
+            .unwrap();
+
+        #[cfg(debug_assertions)]
+        router
+            .entry(Method::GET)
+            .or_default()
+            .insert(
+                "/large-file",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| large_file(req),
+                ))
+                .into(),
+            )
+            .unwrap();
+
+        let state = accounts.clone();
+        router
+            .entry(Method::GET)
+            .or_default()
+            .insert(
+                "/signin",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| sign_in(req, state.clone()),
                 ))
                 .into(),
             )

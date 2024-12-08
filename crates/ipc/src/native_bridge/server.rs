@@ -11,11 +11,7 @@ use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::{
     logs::Logger,
     prelude::{Account, AccountSwitcher},
-    url::form_urlencoded,
 };
-use std::collections::HashMap;
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
@@ -23,46 +19,6 @@ use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 use super::{CHUNK_LIMIT, CHUNK_SIZE};
 
 const HARD_LIMIT: usize = 1024 * 1024;
-
-/// Future returned by an intercept route.
-pub type RouteFuture = Pin<
-    Box<dyn Future<Output = Result<LocalResponse>> + Send + Sync + 'static>,
->;
-
-/// Route handled by the native bridge.
-pub type InterceptRoute = fn(LocalRequest) -> RouteFuture;
-
-/// Probe this executable for aliveness.
-fn probe(_request: LocalRequest) -> RouteFuture {
-    Box::pin(async move { Ok(StatusCode::OK.into()) })
-}
-
-/// Open a URL.
-fn open_url(request: LocalRequest) -> RouteFuture {
-    Box::pin(async move {
-        tracing::debug!(uri = %request.uri, "open_url");
-
-        let uri = request.uri.to_string();
-        let parts = uri.splitn(2, "?");
-        let Some(query) = parts.last() else {
-            return Ok(StatusCode::BAD_REQUEST.into());
-        };
-
-        tracing::debug!(query = %query, "open_url");
-
-        let mut it = form_urlencoded::parse(query.as_bytes());
-        let Some((_, value)) = it.find(|(name, _)| name == "url") else {
-            return Ok(StatusCode::BAD_REQUEST.into());
-        };
-
-        tracing::debug!(url = %value, "open_url");
-
-        Ok(match open::that_detached(value.as_ref()) {
-            Ok(_) => StatusCode::OK.into(),
-            Err(_) => StatusCode::BAD_GATEWAY.into(),
-        })
-    })
-}
 
 /// Options for a native bridge.
 #[derive(Debug, Default)]
@@ -82,8 +38,6 @@ impl NativeBridgeOptions {
 pub struct NativeBridgeServer {
     #[allow(dead_code)]
     options: NativeBridgeOptions,
-    /// Routes for internal processing.
-    routes: HashMap<String, InterceptRoute>,
     /// Client for the server.
     client: LocalMemoryClient,
 }
@@ -107,10 +61,6 @@ impl NativeBridgeServer {
             + From<std::io::Error>
             + 'static,
     {
-        let mut routes = HashMap::new();
-        routes.insert("/probe".to_string(), probe as _);
-        routes.insert("/open".to_string(), open_url as _);
-
         let log_level = std::env::var("SOS_NATIVE_BRIDGE_LOG_LEVEL")
             .map(|s| s.to_string())
             .ok()
@@ -129,17 +79,10 @@ impl NativeBridgeServer {
         let client =
             LocalMemoryServer::listen(accounts, Default::default()).await?;
 
-        Ok(Self {
-            options,
-            routes,
-            client,
-        })
+        Ok(Self { options, client })
     }
 
-    fn find_route(&self, request: &LocalRequest) -> Option<InterceptRoute> {
-        self.routes.get(request.uri.path()).copied()
-    }
-
+    /*
     /// Add an intercept route to this native proxy.
     pub fn add_intercept_route(
         &mut self,
@@ -148,6 +91,7 @@ impl NativeBridgeServer {
     ) {
         self.routes.insert(path, value);
     }
+    */
 
     /// Start a native bridge server listening.
     pub async fn listen(&self) {
@@ -196,7 +140,6 @@ impl NativeBridgeServer {
                         continue;
                     };
 
-                    let route = self.find_route(&request);
                     let client = self.client.clone();
 
                     tokio::task::spawn(async move {
@@ -209,23 +152,14 @@ impl NativeBridgeServer {
 
                         let request_id = request.request_id();
 
-                        // Is this a route we intercept?
-                        let is_native_route = route.is_some();
-                        let response = if let Some(route) = route {
-                            route(request).await
-                        } else {
-                            client.send_request(request).await
-                        };
+                        let response =
+                            client.send_request(request).await;
 
                         let mut result = match response {
                             Ok(response) => response,
                             Err(e) => {
                                 tracing::error!(error = %e);
-                                if is_native_route {
-                                    StatusCode::INTERNAL_SERVER_ERROR.into()
-                                } else {
-                                    StatusCode::SERVICE_UNAVAILABLE.into()
-                                }
+                                StatusCode::INTERNAL_SERVER_ERROR.into()
                             }
                         };
 

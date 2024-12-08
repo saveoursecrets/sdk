@@ -4439,6 +4439,7 @@ dependencies = [
  "open",
  "parking_lot",
  "rustc_version",
+ "secrecy",
  "serde",
  "serde_json",
  "serde_with",

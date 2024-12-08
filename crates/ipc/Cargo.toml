@@ -78,6 +78,7 @@ typeshare.workspace = true
 parking_lot.workspace = true
 http.workspace = true
 bytes.workspace = true
+secrecy.workspace = true
 futures = { workspace = true, optional = true }
 once_cell = { workspace = true, optional = true }
 indexmap = { workspace = true, optional = true }

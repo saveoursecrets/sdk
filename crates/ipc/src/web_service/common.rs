@@ -34,7 +34,7 @@ pub fn parse_account_id(req: &Request<Incoming>) -> Option<Address> {
     Some(account_id)
 }
 
-fn status(status: StatusCode) -> hyper::Result<Response<Body>> {
+pub fn status(status: StatusCode) -> hyper::Result<Response<Body>> {
     Ok(Response::builder()
         .status(status)
         .body(Body::default())

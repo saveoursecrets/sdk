@@ -218,6 +218,18 @@ impl LocalRequest {
         }
     }
 
+    /// Create a HEAD request from a URI.
+    pub fn head(uri: Uri) -> Self {
+        Self {
+            method: Method::HEAD,
+            uri,
+            headers: Default::default(),
+            body: Default::default(),
+            chunks_length: 1,
+            chunk_index: 0,
+        }
+    }
+
     /// Duration allowed for a request.
     pub fn timeout_duration(&self) -> Duration {
         Duration::from_secs(15)

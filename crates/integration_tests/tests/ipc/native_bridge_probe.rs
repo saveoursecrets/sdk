@@ -12,7 +12,7 @@ use sos_ipc::{
 async fn integration_ipc_native_bridge_probe() -> Result<()> {
     // crate::test_utils::init_tracing();
 
-    let mut request = LocalRequest::get("/probe".parse().unwrap());
+    let mut request = LocalRequest::head("/".parse().unwrap());
     request.set_request_id(1);
 
     let (command, arguments) = super::native_bridge_cmd();
