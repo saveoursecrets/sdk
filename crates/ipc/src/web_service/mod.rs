@@ -155,7 +155,7 @@ impl LocalWebService {
 
         let state = accounts.clone();
         router
-            .entry(Method::GET)
+            .entry(Method::POST)
             .or_default()
             .insert(
                 "/signin",
@@ -168,7 +168,7 @@ impl LocalWebService {
 
         let state = accounts.clone();
         router
-            .entry(Method::GET)
+            .entry(Method::POST)
             .or_default()
             .insert(
                 "/signin/keyring",

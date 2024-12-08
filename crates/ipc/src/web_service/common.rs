@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bytes::Bytes;
 use http::{header::CONTENT_TYPE, Request, Response, StatusCode, Uri};
 use http_body_util::{BodyExt, Full};
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 use sos_protocol::constants::{MIME_TYPE_JSON, X_SOS_ACCOUNT_ID};
 use sos_sdk::{prelude::Address, url::form_urlencoded};
 
@@ -13,6 +13,13 @@ use super::{Body, Incoming};
 struct ErrorReply {
     code: u16,
     message: String,
+}
+
+pub async fn parse_json_body<T: DeserializeOwned>(
+    req: Request<Incoming>,
+) -> crate::Result<T> {
+    let bytes = read_bytes(req).await?.to_vec();
+    Ok(serde_json::from_slice::<T>(&bytes)?)
 }
 
 pub fn parse_query(uri: &Uri) -> HashMap<String, String> {

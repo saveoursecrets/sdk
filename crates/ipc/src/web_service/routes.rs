@@ -2,14 +2,21 @@
 
 use http::{Request, Response, StatusCode};
 use secrecy::SecretString;
+use serde::Deserialize;
 use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::prelude::{AccessKey, Account, ErrorExt, Identity};
 
 use crate::web_service::{
-    internal_server_error, json, parse_account_id, parse_query,
+    internal_server_error, json, parse_account_id, parse_json_body,
+    parse_query,
 };
 
 use super::{status, Accounts, Body, Incoming};
+
+#[derive(Deserialize)]
+struct SigninRequest {
+    password: String,
+}
 
 /// List account public identities.
 pub async fn list_accounts<A, R, E>(
@@ -94,15 +101,14 @@ where
         + From<std::io::Error>
         + 'static,
 {
-    let query = parse_query(req.uri());
-
     let Some(account_id) = parse_account_id(&req) else {
         return status(StatusCode::BAD_REQUEST);
     };
 
-    let Some(password) = query.get("password") else {
+    let Ok(request) = parse_json_body::<SigninRequest>(req).await else {
         return status(StatusCode::BAD_REQUEST);
     };
+    let password = request.password;
 
     tracing::debug!(account = %account_id, "sign_in");
 
