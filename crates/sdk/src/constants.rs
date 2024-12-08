@@ -160,6 +160,9 @@ mod env_vars {
     pub const SOS_PROMPT: &str = "SOS_PROMPT";
 }
 
+/// Service name prefix for platform keyring entries.
+pub const KEYRING_SERVICE: &str = "Save Our Secrets";
+
 pub use self::urn::*;
 pub use env_vars::*;
 pub use extensions::*;

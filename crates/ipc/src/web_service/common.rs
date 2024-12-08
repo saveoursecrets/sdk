@@ -1,14 +1,16 @@
+use std::collections::HashMap;
+
 use bytes::Bytes;
 use http::{
     header::{CONNECTION, CONTENT_TYPE},
-    Request, Response, StatusCode,
+    Request, Response, StatusCode, Uri,
 };
 use http_body_util::{BodyExt, Full};
 use serde::Serialize;
 use sos_protocol::constants::{
     MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
 };
-use sos_sdk::prelude::Address;
+use sos_sdk::{prelude::Address, url::form_urlencoded};
 
 use super::{Body, Incoming};
 
@@ -16,6 +18,18 @@ use super::{Body, Incoming};
 struct ErrorReply {
     code: u16,
     message: String,
+}
+
+pub fn parse_query(uri: &Uri) -> HashMap<String, String> {
+    let uri = uri.to_string();
+    let parts = uri.splitn(2, "?");
+    let Some(query) = parts.last() else {
+        return Default::default();
+    };
+
+    let it = form_urlencoded::parse(query.as_bytes());
+    it.map(|(k, v)| (k.into_owned(), v.into_owned()))
+        .collect::<HashMap<_, _>>()
 }
 
 pub async fn read_bytes(req: Request<Incoming>) -> hyper::Result<Bytes> {

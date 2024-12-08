@@ -3,10 +3,9 @@
 use http::{Request, Response, StatusCode};
 use secrecy::SecretString;
 use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::{
-    prelude::{AccessKey, Account, Address, ErrorExt},
-    url::form_urlencoded,
-};
+use sos_sdk::prelude::{AccessKey, Account, Address, ErrorExt};
+
+use crate::web_service::parse_query;
 
 use super::{status, Accounts, Body, Incoming};
 
@@ -16,22 +15,15 @@ pub async fn open_url(
 ) -> hyper::Result<Response<Body>> {
     tracing::debug!(uri = %req.uri(), "open_url");
 
-    let uri = req.uri().to_string();
-    let parts = uri.splitn(2, "?");
-    let Some(query) = parts.last() else {
-        return status(StatusCode::BAD_REQUEST);
-    };
+    let query = parse_query(req.uri());
 
-    tracing::debug!(query = %query, "open_url");
-
-    let mut it = form_urlencoded::parse(query.as_bytes());
-    let Some((_, value)) = it.find(|(name, _)| name == "url") else {
+    let Some(value) = query.get("url") else {
         return status(StatusCode::BAD_REQUEST);
     };
 
     tracing::debug!(url = %value, "open_url");
 
-    match open::that_detached(value.as_ref()) {
+    match open::that_detached(value) {
         Ok(_) => status(StatusCode::OK),
         Err(_) => status(StatusCode::BAD_GATEWAY),
     }
@@ -56,21 +48,14 @@ where
         + From<std::io::Error>
         + 'static,
 {
-    let uri = req.uri().to_string();
-    let parts = uri.splitn(2, "?");
-    let Some(query) = parts.last() else {
+    let query = parse_query(req.uri());
+
+    let Some(account) = query.get("account") else {
         return status(StatusCode::BAD_REQUEST);
     };
-
-    let mut it = form_urlencoded::parse(query.as_bytes());
-    let Some((_, account)) = it.find(|(name, _)| name == "account") else {
+    let Some(password) = query.get("password") else {
         return status(StatusCode::BAD_REQUEST);
     };
-
-    let Some((_, password)) = it.find(|(name, _)| name == "password") else {
-        return status(StatusCode::BAD_REQUEST);
-    };
-
     let Ok(account_id) = account.parse::<Address>() else {
         return status(StatusCode::BAD_REQUEST);
     };
@@ -84,7 +69,7 @@ where
         return status(StatusCode::NOT_FOUND);
     };
 
-    let password = SecretString::new(password.into());
+    let password = SecretString::new(password.clone().into());
     let key: AccessKey = password.into();
     match account.sign_in(&key).await {
         Ok(_) => status(StatusCode::OK),
@@ -95,6 +80,103 @@ where
                 status(StatusCode::INTERNAL_SERVER_ERROR)
             }
         }
+    }
+}
+
+pub async fn has_keyring_credentials(
+    req: Request<Incoming>,
+) -> hyper::Result<Response<Body>> {
+    use keyring::{Entry, Error};
+    use sos_sdk::constants::KEYRING_SERVICE;
+
+    let query = parse_query(req.uri());
+
+    let Some(account) = query.get("account") else {
+        return status(StatusCode::BAD_REQUEST);
+    };
+
+    let Ok(account_id) = account.parse::<Address>() else {
+        return status(StatusCode::BAD_REQUEST);
+    };
+
+    let account_id = account_id.to_string();
+
+    let service = format!("{} ({})", KEYRING_SERVICE, account_id);
+    let Ok(entry) = Entry::new(&service, account_id.as_ref()) else {
+        return status(StatusCode::INTERNAL_SERVER_ERROR);
+    };
+
+    match entry.get_password() {
+        Ok(_) => status(StatusCode::OK),
+        Err(e) => match e {
+            Error::NoEntry => status(StatusCode::NOT_FOUND),
+            _ => status(StatusCode::INTERNAL_SERVER_ERROR),
+        },
+    }
+}
+
+pub async fn sign_in_keyring<A, R, E>(
+    req: Request<Incoming>,
+    accounts: Accounts<A, R, E>,
+) -> hyper::Result<Response<Body>>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + ErrorExt
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    use keyring::{Entry, Error};
+    use sos_sdk::constants::KEYRING_SERVICE;
+
+    let query = parse_query(req.uri());
+    let Some(account) = query.get("account") else {
+        return status(StatusCode::BAD_REQUEST);
+    };
+
+    let Ok(account_id) = account.parse::<Address>() else {
+        return status(StatusCode::BAD_REQUEST);
+    };
+
+    let entry_id = account_id.to_string();
+    let service = format!("{} ({})", KEYRING_SERVICE, entry_id);
+    let Ok(entry) = Entry::new(&service, entry_id.as_ref()) else {
+        return status(StatusCode::INTERNAL_SERVER_ERROR);
+    };
+
+    match entry.get_password() {
+        Ok(password) => {
+            let mut accounts = accounts.write().await;
+            let Some(account) =
+                accounts.iter_mut().find(|a| a.address() == &account_id)
+            else {
+                return status(StatusCode::NOT_FOUND);
+            };
+
+            let password = SecretString::new(password.into());
+            let key: AccessKey = password.into();
+            match account.sign_in(&key).await {
+                Ok(_) => status(StatusCode::OK),
+                Err(e) => {
+                    if e.is_permission_denied() {
+                        status(StatusCode::FORBIDDEN)
+                    } else {
+                        status(StatusCode::INTERNAL_SERVER_ERROR)
+                    }
+                }
+            }
+        }
+        Err(e) => match e {
+            Error::NoEntry => status(StatusCode::NOT_FOUND),
+            _ => status(StatusCode::INTERNAL_SERVER_ERROR),
+        },
     }
 }
 

@@ -61,6 +61,7 @@ native-bridge-server = [
   "matchit",
   "http-body-util",
   "hyper-util",
+  "keyring",
 ]
 native-bridge-client = [
   "local-transport",
@@ -84,6 +85,7 @@ once_cell = { workspace = true, optional = true }
 indexmap = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
+keyring = { workspace = true, optional = true }
 
 sos-sdk = { version = "0.16", path = "../sdk", features = ["account"] }
 sos-protocol = { version = "0.16", path = "../protocol" }

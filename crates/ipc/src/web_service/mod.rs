@@ -148,6 +148,35 @@ impl LocalWebService {
             .entry(Method::GET)
             .or_default()
             .insert(
+                "/signin/keyring",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        sign_in_keyring(req, state.clone())
+                    },
+                ))
+                .into(),
+            )
+            .unwrap();
+
+        router
+            .entry(Method::HEAD)
+            .or_default()
+            .insert(
+                "/signin",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        has_keyring_credentials(req)
+                    },
+                ))
+                .into(),
+            )
+            .unwrap();
+
+        let state = accounts.clone();
+        router
+            .entry(Method::GET)
+            .or_default()
+            .insert(
                 ACCOUNTS_LIST,
                 BoxCloneService::new(service_fn(
                     move |req: Request<Incoming>| {
