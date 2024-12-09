@@ -9,7 +9,7 @@ use crate::{
         Address, ArchiveFilter, Document, DocumentView, PublicIdentity,
         QueryFilter,
     },
-    Paths, Result,
+    Error, Paths, Result,
 };
 
 #[cfg(feature = "clipboard")]
@@ -258,7 +258,7 @@ where
         target: SecretPath,
     ) -> std::result::Result<bool, E> {
         let Some(clipboard) = self.clipboard.clone() else {
-            return Ok(false);
+            return Err(Error::NoClipboard.into());
         };
 
         let account = self.iter().find(|a| a.address() == account_id);
@@ -278,8 +278,8 @@ where
                 clipboard
                     .set_text_timeout(text)
                     .await
-                    .map_err(crate::Error::from)?;
-                return Ok(false);
+                    .map_err(Error::from)?;
+                return Ok(true);
             }
         }
 

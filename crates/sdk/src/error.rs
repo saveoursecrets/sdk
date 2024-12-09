@@ -504,6 +504,11 @@ pub enum Error {
     #[error("attempt to add an event in the past, this can happen if your clocks are out of sync, to fix this ensure that your device clock is using the correct date and time")]
     EventTimeBehind,
 
+    #[cfg(feature = "clipboard")]
+    /// Error when no clipboard is configured.
+    #[error("clipboard is not configured")]
+    NoClipboard,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
