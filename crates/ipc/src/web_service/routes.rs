@@ -6,7 +6,7 @@ use serde::Deserialize;
 use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::prelude::{
     AccessKey, Account, Address, ArchiveFilter, DocumentView, ErrorExt,
-    Identity, QueryFilter,
+    Identity, QueryFilter, SecretPath,
 };
 use std::collections::HashMap;
 
@@ -34,6 +34,11 @@ struct QueryViewRequest {
     archive_filter: Option<ArchiveFilter>,
 }
 
+#[derive(Deserialize)]
+struct CopyRequest {
+    path: SecretPath,
+}
+
 /// List account public identities.
 pub async fn list_accounts<A, R, E>(
     _req: Request<Incoming>,
@@ -43,12 +48,13 @@ where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {
     let accounts = accounts.read().await;
-    let Ok(list) = Identity::list_accounts(accounts.data_dir()).await else {
+    let Ok(list) = Identity::list_accounts(accounts.paths()).await else {
         return internal_server_error("list_accounts");
     };
 
@@ -64,6 +70,7 @@ where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
@@ -91,6 +98,7 @@ where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
@@ -113,7 +121,7 @@ where
     json(StatusCode::OK, &list)
 }
 
-/// Search authenticated accounts.
+/// Query a search index view for authenticated accounts.
 pub async fn query_view<A, R, E>(
     req: Request<Incoming>,
     accounts: Accounts<A, R, E>,
@@ -122,6 +130,7 @@ where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
@@ -146,6 +155,39 @@ where
     json(StatusCode::OK, &list)
 }
 
+/// Copy a secret to the clipboard.
+#[cfg(feature = "clipboard")]
+pub async fn copy_secret_clipboard<A, R, E>(
+    req: Request<Incoming>,
+    accounts: Accounts<A, R, E>,
+) -> hyper::Result<Response<Body>>
+where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + std::error::Error
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    let Some(account_id) = parse_account_id(&req) else {
+        return status(StatusCode::BAD_REQUEST);
+    };
+
+    let Ok(request) = parse_json_body::<CopyRequest>(req).await else {
+        return status(StatusCode::BAD_REQUEST);
+    };
+
+    let accounts = accounts.read().await;
+    match accounts.copy_clipboard(&account_id, request.path).await {
+        Ok(result) => json(StatusCode::OK, &result),
+        Err(e) => {
+            tracing::error!(error = %e, "copy_clipboard");
+            status(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
 /// List account authenticated status.
 pub async fn authenticated_accounts<A, R, E>(
     _req: Request<Incoming>,
@@ -155,6 +197,7 @@ where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
@@ -203,6 +246,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
@@ -261,6 +305,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
@@ -305,6 +350,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
@@ -348,6 +394,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
@@ -376,6 +423,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
@@ -399,6 +447,7 @@ where
         + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>

@@ -12,12 +12,28 @@ use crate::{
     Paths, Result,
 };
 
+#[cfg(feature = "clipboard")]
+use xclipboard::Clipboard;
+
+#[cfg(feature = "clipboard")]
+use crate::prelude::SecretPath;
+
 /// Account switcher for local accounts.
 pub type LocalAccountSwitcher = AccountSwitcher<
     LocalAccount,
     <LocalAccount as Account>::NetworkResult,
     <LocalAccount as Account>::Error,
 >;
+
+/// Options for an account switcher.
+#[derive(Default)]
+pub struct AccountSwitcherOptions {
+    /// Paths for data storage.
+    pub paths: Option<Paths>,
+    /// Clipboard backend.
+    #[cfg(feature = "clipboard")]
+    pub clipboard: Option<Clipboard>,
+}
 
 /// Collection of accounts with a currently selected account.
 ///
@@ -27,31 +43,46 @@ pub type LocalAccountSwitcher = AccountSwitcher<
 pub struct AccountSwitcher<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    E: From<crate::Error> + std::fmt::Debug,
+    E: From<crate::Error> + std::error::Error + std::fmt::Debug,
 {
     #[doc(hidden)]
     pub accounts: Vec<A>,
     selected: Option<Address>,
-    data_dir: Option<Paths>,
+    paths: Option<Paths>,
+    #[cfg(feature = "clipboard")]
+    clipboard: Option<xclipboard::Clipboard>,
 }
 
 impl<A, R, E> AccountSwitcher<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    E: From<crate::Error> + std::fmt::Debug,
+    E: From<crate::Error> + std::error::Error + std::fmt::Debug,
 {
     /// Create an account switcher.
     pub fn new() -> Self {
         Self {
             accounts: Default::default(),
             selected: None,
-            data_dir: None,
+            paths: None,
+            #[cfg(feature = "clipboard")]
+            clipboard: None,
+        }
+    }
+
+    /// Create an account switcher with a data directory.
+    pub fn new_with_options(options: AccountSwitcherOptions) -> Self {
+        Self {
+            accounts: Default::default(),
+            selected: None,
+            paths: options.paths,
+            #[cfg(feature = "clipboard")]
+            clipboard: options.clipboard,
         }
     }
 
     /// Data directory.
-    pub fn data_dir(&self) -> Option<&Paths> {
-        self.data_dir.as_ref()
+    pub fn paths(&self) -> Option<&Paths> {
+        self.paths.as_ref()
     }
 
     /// Accounts iterator.
@@ -64,15 +95,6 @@ where
         self.accounts.iter_mut()
     }
 
-    /// Create an account switcher with a data directory.
-    pub fn new_with_options(data_dir: Option<Paths>) -> Self {
-        Self {
-            accounts: Default::default(),
-            selected: None,
-            data_dir,
-        }
-    }
-
     /// Number of accounts.
     pub fn len(&self) -> usize {
         self.accounts.len()
@@ -82,7 +104,7 @@ where
     pub async fn load_accounts<B>(
         &mut self,
         builder: B,
-        data_dir: Option<PathBuf>,
+        paths: Option<PathBuf>,
     ) -> Result<()>
     where
         B: Fn(
@@ -90,9 +112,9 @@ where
         )
             -> Pin<Box<dyn Future<Output = std::result::Result<A, E>>>>,
     {
-        Paths::scaffold(data_dir.clone()).await?;
+        Paths::scaffold(paths.clone()).await?;
 
-        let identities = Identity::list_accounts(self.data_dir()).await?;
+        let identities = Identity::list_accounts(self.paths()).await?;
 
         for identity in identities {
             tracing::info!(address = %identity.address(), "add_account");
@@ -228,7 +250,56 @@ where
         Ok(())
     }
 
+    /// Copy a secret to the clipboard.
+    #[cfg(feature = "clipboard")]
+    pub async fn copy_clipboard(
+        &self,
+        account_id: &Address,
+        target: SecretPath,
+    ) -> std::result::Result<bool, E> {
+        let Some(clipboard) = self.clipboard.clone() else {
+            return Ok(false);
+        };
+
+        let account = self.iter().find(|a| a.address() == account_id);
+        if let Some(account) = account {
+            let target_folder =
+                account.find(|f| f.id() == target.folder_id()).await;
+            if let Some(folder) = target_folder {
+                let current_folder = account.current_folder().await?;
+                let (data, _) = account
+                    .read_secret(target.secret_id(), Some(folder))
+                    .await?;
+                if let Some(current) = &current_folder {
+                    account.open_folder(current).await?;
+                }
+                let secret = data.secret();
+                let text = secret.copy_value_unsafe().unwrap_or_default();
+                clipboard
+                    .set_text_timeout(text)
+                    .await
+                    .map_err(crate::Error::from)?;
+                return Ok(false);
+            }
+        }
+
+        Ok(false)
+    }
+
     fn position(&self, address: &Address) -> Option<usize> {
         self.accounts.iter().position(|a| a.address() == address)
+    }
+}
+
+impl<A, R, E> From<Paths> for AccountSwitcher<A, R, E>
+where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    E: From<crate::Error> + std::error::Error + std::fmt::Debug,
+{
+    fn from(paths: Paths) -> Self {
+        Self::new_with_options(AccountSwitcherOptions {
+            paths: Some(paths),
+            ..Default::default()
+        })
     }
 }

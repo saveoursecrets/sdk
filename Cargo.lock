@@ -4473,7 +4473,6 @@ name = "sos-account-extras"
 version = "0.16.0"
 dependencies = [
  "anyhow",
- "arboard",
  "once_cell",
  "rustc_version",
  "serde",
@@ -4483,7 +4482,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "zeroize",
 ]
 
 [[package]]
@@ -4712,6 +4710,7 @@ dependencies = [
  "vsss-rs",
  "walkdir",
  "whoami",
+ "xclipboard",
  "zxcvbn",
 ]
 
@@ -6206,6 +6205,19 @@ dependencies = [
  "rusticata-macros",
  "thiserror 1.0.69",
  "time",
+]
+
+[[package]]
+name = "xclipboard"
+version = "0.16.0"
+dependencies = [
+ "anyhow",
+ "arboard",
+ "rustc_version",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "zeroize",
 ]
 
 [[package]]

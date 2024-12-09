@@ -45,6 +45,7 @@ memory = []
 integration = ["account", "indexmap", "async-trait"]
 account = ["sos-sdk/account", "sos-protocol/account"]
 archive = ["sos-sdk/archive", "sos-protocol/archive"]
+clipboard = ["sos-sdk/clipboard"]
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = ["sos-sdk/files", "sos-protocol/files"]
 migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
@@ -62,6 +63,7 @@ native-bridge-server = [
   "http-body-util",
   "hyper-util",
   "keyring",
+  "clipboard",
 ]
 native-bridge-client = [
   "local-transport",

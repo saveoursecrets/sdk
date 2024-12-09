@@ -4,6 +4,7 @@ members = [
   "crates/account_extras",
   "crates/artifact",
   "crates/cli_helpers", 
+  "crates/clipboard", 
   "crates/keychain_parser",
   "crates/integration_tests",
   "crates/ipc",
@@ -19,6 +20,7 @@ members = [
 [workspace.dependencies]
 sos-sdk = { version = "0.16", path = "crates/sdk" }
 sos-vfs = { version = "0.2.2", path = "crates/vfs" }
+xclipboard  = { version = "0.16", path = "crates/clipboard" }
 
 csv-async = { version = "1", features = ["tokio", "with_serde"] }
 thiserror = "1"

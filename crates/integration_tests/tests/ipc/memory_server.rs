@@ -19,7 +19,7 @@ async fn integration_ipc_memory_server() -> Result<()> {
     let paths = Paths::new_global(data_dir.clone());
 
     // Setup empty accounts
-    let accounts = LocalAccountSwitcher::new_with_options(Some(paths));
+    let accounts = LocalAccountSwitcher::from(paths);
     let ipc_accounts = Arc::new(RwLock::new(accounts));
 
     let name = "mock-service";

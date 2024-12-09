@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-#[cfg(all(feature = "clipboard", NOT_CI))]
+#[cfg(NOT_CI)]
 #[tokio::test]
 async fn clipboard() -> Result<()> {
     // NOTE: we must run these tests in serial
@@ -12,12 +12,11 @@ async fn clipboard() -> Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "clipboard")]
 async fn clipboard_timeout() -> Result<()> {
-    use sos_account_extras::clipboard::NativeClipboard;
     use std::time::Duration;
+    use xclipboard::Clipboard;
 
-    let clipboard = NativeClipboard::new_timeout(1)?;
+    let clipboard = Clipboard::new_timeout(1)?;
     let text = "mock-secret";
 
     clipboard.set_text_timeout(text).await?;
@@ -33,12 +32,11 @@ async fn clipboard_timeout() -> Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "clipboard")]
 async fn clipboard_timeout_preserve() -> Result<()> {
-    use sos_account_extras::clipboard::NativeClipboard;
     use std::time::Duration;
+    use xclipboard::Clipboard;
 
-    let clipboard = NativeClipboard::new_timeout(1)?;
+    let clipboard = Clipboard::new_timeout(1)?;
     let text = "mock-secret";
     let other_value = "mock-value";
 

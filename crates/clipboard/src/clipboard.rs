@@ -1,7 +1,5 @@
 //! Access to the native system clipboard.
 use crate::Result;
-use arboard::Clipboard;
-use sos_sdk::prelude::Secret;
 use std::{borrow::Cow, sync::Arc};
 use tokio::{
     sync::Mutex,
@@ -15,12 +13,13 @@ use zeroize::Zeroize;
 /// setting clipboard text with a timeout to clear the clipboard
 /// content.
 ///
-pub struct NativeClipboard {
-    clipboard: Arc<Mutex<Clipboard>>,
+#[derive(Clone)]
+pub struct Clipboard {
+    clipboard: Arc<Mutex<arboard::Clipboard>>,
     timeout_seconds: u16,
 }
 
-impl NativeClipboard {
+impl Clipboard {
     /// Create a native clipboard using the default
     /// timeout of 90 seconds.
     pub fn new() -> Result<Self> {
@@ -30,7 +29,7 @@ impl NativeClipboard {
     /// Create a native clipboard with a timeout.
     pub fn new_timeout(timeout_seconds: u16) -> Result<Self> {
         Ok(Self {
-            clipboard: Arc::new(Mutex::new(Clipboard::new()?)),
+            clipboard: Arc::new(Mutex::new(arboard::Clipboard::new()?)),
             timeout_seconds,
         })
     }
@@ -91,7 +90,7 @@ impl NativeClipboard {
         tokio::task::spawn(async move {
             sleep(Duration::from_secs(seconds.into())).await;
 
-            match Clipboard::new() {
+            match arboard::Clipboard::new() {
                 Ok(mut clipboard) => match clipboard.get_text() {
                     Ok(text) => {
                         let mut reader = source_text.lock().await;
@@ -126,11 +125,5 @@ impl NativeClipboard {
         });
 
         Ok(())
-    }
-
-    /// Copy the default value for a secret to the clipboard.
-    pub async fn copy_secret_value(&self, secret: &Secret) -> Result<()> {
-        let text = secret.copy_value_unsafe().unwrap_or_default();
-        self.set_text_timeout(text).await
     }
 }

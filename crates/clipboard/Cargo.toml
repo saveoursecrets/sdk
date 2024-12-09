@@ -1,29 +1,18 @@
 [package]
-name = "sos-account-extras"
+name = "xclipboard"
 version = "0.16.0"
 edition = "2021"
-description = "Extra features for Save Our Secrets local accounts."
+description = "Cross-platform clipboard with extra features."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
-[features]
-preferences = []
-security-report = []
-system-messages = []
-
 [dependencies]
 thiserror.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-serde_with.workspace = true
 tokio.workspace = true
-once_cell.workspace = true
 tracing.workspace = true
-
-[dependencies.sos-sdk]
-version = "0.16"
-path = "../sdk"
+arboard = { workspace = true }
+zeroize = { workspace = true }
 
 [dev-dependencies]
 anyhow.workspace = true

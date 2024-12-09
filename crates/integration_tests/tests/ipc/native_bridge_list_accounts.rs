@@ -7,7 +7,6 @@ use sos_ipc::{
     server::LocalSocketServer,
     Error,
 };
-use sos_net::protocol::constants::routes::v1::ACCOUNTS_LIST;
 use sos_net::sdk::{
     crypto::AccessKey,
     prelude::{
@@ -62,7 +61,7 @@ async fn integration_ipc_native_bridge_list_accounts() -> Result<()> {
     .await?;
 
     // Add the accounts
-    let mut accounts = LocalAccountSwitcher::new_with_options(Some(paths));
+    let mut accounts = LocalAccountSwitcher::from(paths);
     accounts.add_account(auth_account);
     accounts.add_account(unauth_account);
 

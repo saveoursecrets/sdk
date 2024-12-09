@@ -62,6 +62,7 @@ impl LocalWebService {
             + 'static,
         R: 'static,
         E: std::fmt::Debug
+            + std::error::Error
             + ErrorExt
             + From<sos_sdk::Error>
             + From<std::io::Error>
@@ -210,6 +211,24 @@ impl LocalWebService {
                 .into(),
             )
             .unwrap();
+
+        #[cfg(feature = "clipboard")]
+        {
+            let state = accounts.clone();
+            router
+                .entry(Method::POST)
+                .or_default()
+                .insert(
+                    "/copy",
+                    BoxCloneService::new(service_fn(
+                        move |req: Request<Incoming>| {
+                            copy_secret_clipboard(req, state.clone())
+                        },
+                    ))
+                    .into(),
+                )
+                .unwrap();
+        }
 
         let state = accounts.clone();
         router

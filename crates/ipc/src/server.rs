@@ -29,6 +29,7 @@ impl LocalSocketServer {
             + 'static,
         R: 'static,
         E: std::fmt::Debug
+            + std::error::Error
             + ErrorExt
             + From<sos_sdk::Error>
             + From<std::io::Error>

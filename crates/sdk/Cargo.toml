@@ -20,6 +20,7 @@ default = ["account", "audit", "logs"]
 account = []
 archive = ["dep:async_zip"]
 audit = []
+clipboard = ["dep:xclipboard"]
 contacts = []
 files = []
 interactive-keychain-tests = []
@@ -61,6 +62,8 @@ tempfile.workspace = true
 rs_merkle.workspace = true
 typeshare.workspace = true
 sos-vfs.workspace = true
+xclipboard = { workspace = true, optional = true }
+
 subtle = { version = "2.5" }
 ethereum-types = "0.15"
 async_zip = { version = "0.0.17", default-features = false, features = ["deflate", "tokio"], optional = true }
