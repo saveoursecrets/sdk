@@ -195,6 +195,36 @@ impl LocalWebService {
             )
             .unwrap();
 
+        let state = accounts.clone();
+        router
+            .entry(Method::POST)
+            .or_default()
+            .insert(
+                "/signout",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        sign_out_account(req, state.clone())
+                    },
+                ))
+                .into(),
+            )
+            .unwrap();
+
+        let state = accounts.clone();
+        router
+            .entry(Method::PUT)
+            .or_default()
+            .insert(
+                "/signout",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        sign_out_all(req, state.clone())
+                    },
+                ))
+                .into(),
+            )
+            .unwrap();
+
         Self {
             router: Arc::new(router),
         }

@@ -4,7 +4,7 @@ use http::{Request, Response, StatusCode};
 use secrecy::SecretString;
 use serde::Deserialize;
 use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{AccessKey, Account, ErrorExt, Identity};
+use sos_sdk::prelude::{AccessKey, Account, Address, ErrorExt, Identity};
 
 use crate::web_service::{
     internal_server_error, json, parse_account_id, parse_json_body,
@@ -216,6 +216,97 @@ where
             Error::NoEntry => status(StatusCode::NOT_FOUND),
             _ => status(StatusCode::INTERNAL_SERVER_ERROR),
         },
+    }
+}
+
+/// Sign out of an account
+pub async fn sign_out_account<A, R, E>(
+    req: Request<Incoming>,
+    accounts: Accounts<A, R, E>,
+) -> hyper::Result<Response<Body>>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + ErrorExt
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    let Some(account_id) = parse_account_id(&req) else {
+        return status(StatusCode::BAD_REQUEST);
+    };
+
+    tracing::debug!(account = %account_id, "sign_out::account");
+
+    sign_out(accounts, Some(account_id)).await
+}
+
+/// Sign out of all accounts
+pub async fn sign_out_all<A, R, E>(
+    _req: Request<Incoming>,
+    accounts: Accounts<A, R, E>,
+) -> hyper::Result<Response<Body>>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + ErrorExt
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    tracing::debug!("sign_out::all");
+    sign_out(accounts, None).await
+}
+
+/// Sign out of an account
+pub async fn sign_out<A, R, E>(
+    accounts: Accounts<A, R, E>,
+    account_id: Option<Address>,
+) -> hyper::Result<Response<Body>>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + ErrorExt
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    let mut accounts = accounts.write().await;
+
+    if let Some(account_id) = account_id {
+        let Some(account) =
+            accounts.iter_mut().find(|a| a.address() == &account_id)
+        else {
+            return status(StatusCode::NOT_FOUND);
+        };
+
+        match account.sign_out().await {
+            Ok(_) => status(StatusCode::OK),
+            Err(_) => status(StatusCode::INTERNAL_SERVER_ERROR),
+        }
+    } else {
+        match accounts.sign_out_all().await {
+            Ok(_) => status(StatusCode::OK),
+            Err(_) => status(StatusCode::INTERNAL_SERVER_ERROR),
+        }
     }
 }
 
