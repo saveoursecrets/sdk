@@ -219,7 +219,7 @@ impl LocalWebService {
                 .entry(Method::POST)
                 .or_default()
                 .insert(
-                    "/copy",
+                    "/secret/copy",
                     BoxCloneService::new(service_fn(
                         move |req: Request<Incoming>| {
                             copy_secret_clipboard(req, state.clone())
