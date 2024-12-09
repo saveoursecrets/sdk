@@ -6,8 +6,13 @@ use crate::{
     Result,
 };
 use futures_util::{SinkExt, StreamExt};
-use http::StatusCode;
-use sos_protocol::{Merge, SyncStorage};
+use http::{
+    header::{CONTENT_LENGTH, CONTENT_TYPE},
+    StatusCode,
+};
+use sos_protocol::{
+    constants::MIME_TYPE_JSON, ErrorReply, Merge, SyncStorage,
+};
 use sos_sdk::{
     logs::Logger,
     prelude::{Account, AccountSwitcher, ErrorExt},
@@ -112,75 +117,26 @@ impl NativeBridgeServer {
         }
 
         loop {
-            let channel = tx.clone();
-            // let sock_name = socket_name.clone();
+            let mut channel = tx.clone();
             tokio::select! {
                 result = read_chunked_request(&mut stdin) => {
-                    let Ok(request) = result else {
-                        let response = LocalResponse::with_id(
+                    match result {
+                        Ok(request) => {
+                          if let Err(e) = self.handle_request(
+                            request, &mut channel).await {
+                            self.internal_error(
+                              StatusCode::INTERNAL_SERVER_ERROR,
+                              e,
+                              &mut channel);
+                          }
+                        }
+                        Err(e) => {
+                          self.internal_error(
                             StatusCode::BAD_REQUEST,
-                            0,
-                        );
-                        let tx = channel.clone();
-                        if let Err(e) = tx.send(response.into()) {
-                            tracing::warn!(
-                              error = %e,
-                              "native_bridge::response_channel");
+                            e,
+                            &mut channel);
                         }
-                        continue;
-                    };
-
-                    let client = self.client.clone();
-
-                    tokio::task::spawn(async move {
-                        let tx = channel.clone();
-
-                        tracing::trace!(
-                            request = ?request,
-                            "sos_native_bridge::request",
-                        );
-
-                        let request_id = request.request_id();
-
-                        let response =
-                            client.send_request(request).await;
-
-                        let mut result = match response {
-                            Ok(response) => response,
-                            Err(e) => {
-                                tracing::error!(error = %e);
-                                StatusCode::INTERNAL_SERVER_ERROR.into()
-                            }
-                        };
-
-                        result.set_request_id(request_id);
-
-                        // Send response in chunks to avoid the 1MB
-                        // hard limit
-                        let chunks = result.into_chunks(
-                            CHUNK_LIMIT,
-                            CHUNK_SIZE,
-                        );
-
-                        if chunks.len() > 1 {
-                            tracing::debug!(
-                                len = %chunks.len(),
-                                "native_bridge::chunks");
-                            for (index, chunk) in chunks.iter().enumerate() {
-                            tracing::debug!(
-                                index = %index,
-                                len = %chunk.body.len(),
-                                "native_bridge::chunk");
-                            }
-                        }
-                        for chunk in chunks {
-                            if let Err(e) = tx.send(chunk) {
-                                tracing::warn!(
-                                  error = %e,
-                                  "native_bridge::response_channel");
-                            }
-                        }
-                    });
+                    }
                 }
                 Some(response) = rx.recv() => {
                     tracing::trace!(
@@ -216,5 +172,84 @@ impl NativeBridgeServer {
                 }
             }
         }
+    }
+
+    fn internal_error(
+        &self,
+        status: StatusCode,
+        err: impl std::fmt::Display,
+        tx: &mut mpsc::UnboundedSender<LocalResponse>,
+    ) {
+        let mut response = LocalResponse::with_id(status, 0);
+        let error = ErrorReply::new_message(status, err);
+        let bytes = serde_json::to_vec(&error).unwrap();
+        response.headers_mut().insert(
+            CONTENT_TYPE.to_string(),
+            vec![MIME_TYPE_JSON.to_string()],
+        );
+        response.headers_mut().insert(
+            CONTENT_LENGTH.to_string(),
+            vec![bytes.len().to_string()],
+        );
+        response.body = bytes;
+
+        // let tx = channel.clone();
+        if let Err(e) = tx.send(response.into()) {
+            tracing::warn!(
+            error = %e,
+            "native_bridge::response_channel");
+        }
+    }
+
+    async fn handle_request(
+        &self,
+        request: LocalRequest,
+        tx: &mut mpsc::UnboundedSender<LocalResponse>,
+    ) -> Result<()> {
+        let client = self.client.clone();
+
+        tracing::trace!(
+            request = ?request,
+            "sos_native_bridge::request",
+        );
+
+        let request_id = request.request_id();
+
+        let response = client.send_request(request).await;
+
+        let mut result = match response {
+            Ok(response) => response,
+            Err(e) => {
+                tracing::error!(error = %e);
+                StatusCode::INTERNAL_SERVER_ERROR.into()
+            }
+        };
+
+        result.set_request_id(request_id);
+
+        // Send response in chunks to avoid the 1MB
+        // hard limit
+        let chunks = result.into_chunks(CHUNK_LIMIT, CHUNK_SIZE);
+
+        if chunks.len() > 1 {
+            tracing::debug!(
+                len = %chunks.len(),
+                "native_bridge::chunks");
+            for (index, chunk) in chunks.iter().enumerate() {
+                tracing::debug!(
+                index = %index,
+                len = %chunk.body.len(),
+                "native_bridge::chunk");
+            }
+        }
+        for chunk in chunks {
+            if let Err(e) = tx.send(chunk) {
+                tracing::warn!(
+                  error = %e,
+                  "native_bridge::response_channel");
+            }
+        }
+
+        Ok(())
     }
 }

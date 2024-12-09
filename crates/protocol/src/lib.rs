@@ -34,7 +34,7 @@ mod traits;
 pub mod transfer;
 
 pub use bindings::*;
-pub use error::{AsConflict, ConflictError, Error, NetworkError};
+pub use error::{AsConflict, ConflictError, Error, ErrorReply, NetworkError};
 pub use sync::*;
 pub use traits::*;
 

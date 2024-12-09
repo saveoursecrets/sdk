@@ -1,6 +1,7 @@
 //! Error type for the wire protocol.
 use crate::{MaybeConflict, SyncStatus};
 use http::StatusCode;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sos_sdk::time;
 use thiserror::Error;
@@ -100,6 +101,54 @@ pub enum NetworkError {
     /// Error generated when an unexpected content type is returend.
     #[error("unexpected content type {0}, expected: {1}")]
     ContentType(String, String),
+}
+
+/// Error reply.
+#[derive(Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ErrorReply {
+    /// Status code.
+    code: u16,
+    /// Data value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    value: Option<Value>,
+    /// Error message.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message: Option<String>,
+}
+
+impl ErrorReply {
+    /// New error reply with a message.
+    pub fn new_message(
+        status: StatusCode,
+        message: impl std::fmt::Display,
+    ) -> Self {
+        Self {
+            code: status.into(),
+            message: Some(message.to_string()),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<NetworkError> for ErrorReply {
+    fn from(value: NetworkError) -> Self {
+        match value {
+            NetworkError::ResponseCode(status) => ErrorReply {
+                code: status.into(),
+                ..Default::default()
+            },
+            NetworkError::ResponseJson(status, value) => ErrorReply {
+                code: status.into(),
+                value: Some(value),
+                ..Default::default()
+            },
+            NetworkError::ContentType(_, _) => ErrorReply {
+                code: StatusCode::BAD_REQUEST.into(),
+                ..Default::default()
+            },
+        }
+    }
 }
 
 /// Error created whan a conflict is detected.

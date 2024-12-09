@@ -4,16 +4,13 @@ use bytes::Bytes;
 use http::{header::CONTENT_TYPE, Request, Response, StatusCode, Uri};
 use http_body_util::{BodyExt, Full};
 use serde::{de::DeserializeOwned, Serialize};
-use sos_protocol::constants::{MIME_TYPE_JSON, X_SOS_ACCOUNT_ID};
+use sos_protocol::{
+    constants::{MIME_TYPE_JSON, X_SOS_ACCOUNT_ID},
+    ErrorReply,
+};
 use sos_sdk::{prelude::Address, url::form_urlencoded};
 
 use super::{Body, Incoming};
-
-#[derive(Serialize)]
-struct ErrorReply {
-    code: u16,
-    message: String,
-}
 
 pub async fn parse_json_body<T: DeserializeOwned>(
     req: Request<Incoming>,
@@ -63,10 +60,7 @@ pub fn not_found() -> hyper::Result<Response<Body>> {
 pub fn internal_server_error(
     e: impl std::fmt::Display,
 ) -> hyper::Result<Response<Body>> {
-    let error = ErrorReply {
-        code: StatusCode::INTERNAL_SERVER_ERROR.into(),
-        message: e.to_string(),
-    };
+    let error = ErrorReply::new_message(StatusCode::INTERNAL_SERVER_ERROR, e);
     json(StatusCode::INTERNAL_SERVER_ERROR, &error)
 }
 
