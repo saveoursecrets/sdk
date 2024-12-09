@@ -48,7 +48,7 @@ crossterm = "0.28"
 ctrlc = "3"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
 rustyline = "14"
-rustyline-derive = "0.10"
+rustyline-derive = "0.11"
 
 [dependencies.sos-net]
 version = "0.15.1" 
