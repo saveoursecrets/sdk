@@ -1,42 +1,20 @@
-//! Server for the native messaging API bridge.
+//! Account and folder routes.
 
 use http::{Request, Response, StatusCode};
 use secrecy::SecretString;
 use serde::Deserialize;
 use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{
-    AccessKey, Account, Address, ArchiveFilter, DocumentView, ErrorExt,
-    Identity, QueryFilter, SecretPath,
-};
+use sos_sdk::prelude::{AccessKey, Account, Address, ErrorExt, Identity};
 use std::collections::HashMap;
 
 use crate::web_service::{
-    internal_server_error, json, parse_account_id, parse_json_body,
-    parse_query,
+    internal_server_error, json, parse_account_id, parse_json_body, status,
+    Accounts, Body, Incoming,
 };
-
-use super::{status, Accounts, Body, Incoming};
 
 #[derive(Deserialize)]
 struct SigninRequest {
     password: String,
-}
-
-#[derive(Deserialize)]
-struct SearchRequest {
-    needle: String,
-    filter: QueryFilter,
-}
-
-#[derive(Deserialize)]
-struct QueryViewRequest {
-    views: Vec<DocumentView>,
-    archive_filter: Option<ArchiveFilter>,
-}
-
-#[derive(Deserialize)]
-struct CopyRequest {
-    path: SecretPath,
 }
 
 /// List account public identities.
@@ -89,105 +67,6 @@ where
     json(StatusCode::OK, &list)
 }
 
-/// Search authenticated accounts.
-pub async fn search<A, R, E>(
-    req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
-) -> hyper::Result<Response<Body>>
-where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    R: 'static,
-    E: std::fmt::Debug
-        + std::error::Error
-        + From<sos_sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-{
-    let Ok(request) = parse_json_body::<SearchRequest>(req).await else {
-        return status(StatusCode::BAD_REQUEST);
-    };
-
-    let accounts = accounts.read().await;
-    let Ok(results) = accounts.search(request.needle, request.filter).await
-    else {
-        return internal_server_error("search");
-    };
-
-    let list = results
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), v))
-        .collect::<HashMap<_, _>>();
-
-    json(StatusCode::OK, &list)
-}
-
-/// Query a search index view for authenticated accounts.
-pub async fn query_view<A, R, E>(
-    req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
-) -> hyper::Result<Response<Body>>
-where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    R: 'static,
-    E: std::fmt::Debug
-        + std::error::Error
-        + From<sos_sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-{
-    let Ok(request) = parse_json_body::<QueryViewRequest>(req).await else {
-        return status(StatusCode::BAD_REQUEST);
-    };
-
-    let accounts = accounts.read().await;
-    let Ok(results) = accounts
-        .query_view(request.views.as_slice(), request.archive_filter.as_ref())
-        .await
-    else {
-        return internal_server_error("search");
-    };
-
-    let list = results
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), v))
-        .collect::<HashMap<_, _>>();
-
-    json(StatusCode::OK, &list)
-}
-
-/// Copy a secret to the clipboard.
-#[cfg(feature = "clipboard")]
-pub async fn copy_secret_clipboard<A, R, E>(
-    req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
-) -> hyper::Result<Response<Body>>
-where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    R: 'static,
-    E: std::fmt::Debug
-        + std::error::Error
-        + From<sos_sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-{
-    let Some(account_id) = parse_account_id(&req) else {
-        return status(StatusCode::BAD_REQUEST);
-    };
-
-    let Ok(request) = parse_json_body::<CopyRequest>(req).await else {
-        return status(StatusCode::BAD_REQUEST);
-    };
-
-    let accounts = accounts.read().await;
-    match accounts.copy_clipboard(&account_id, request.path).await {
-        Ok(result) => json(StatusCode::OK, &result),
-        Err(e) => {
-            tracing::error!(error = %e, "copy_clipboard");
-            status(StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
-}
-
 /// List account authenticated status.
 pub async fn authenticated_accounts<A, R, E>(
     _req: Request<Incoming>,
@@ -210,26 +89,6 @@ where
     }
 
     json(StatusCode::OK, &list)
-}
-
-/// Open a URL.
-pub async fn open_url(
-    req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    tracing::debug!(uri = %req.uri(), "open_url");
-
-    let query = parse_query(req.uri());
-
-    let Some(value) = query.get("url") else {
-        return status(StatusCode::BAD_REQUEST);
-    };
-
-    tracing::debug!(url = %value, "open_url");
-
-    match open::that_detached(value) {
-        Ok(_) => status(StatusCode::OK),
-        Err(_) => status(StatusCode::BAD_GATEWAY),
-    }
 }
 
 /// Sign in to an account
@@ -472,19 +331,4 @@ where
             Err(_) => status(StatusCode::INTERNAL_SERVER_ERROR),
         }
     }
-}
-
-#[cfg(debug_assertions)]
-pub async fn large_file(
-    _req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    use bytes::Bytes;
-    use http_body_util::Full;
-    const MB: usize = 1024 * 1024;
-    let body = [255u8; MB].to_vec();
-
-    Ok(Response::builder()
-        .status(StatusCode::OK)
-        .body(Full::new(Bytes::from(body)))
-        .unwrap())
 }

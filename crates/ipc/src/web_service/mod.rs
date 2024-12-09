@@ -24,11 +24,17 @@ type Router = HashMap<Method, matchit::Router<MethodRoute>>;
 
 type Accounts<A, R, E> = Arc<RwLock<AccountSwitcher<A, R, E>>>;
 
+mod account;
 mod common;
-mod routes;
+mod helpers;
+mod search;
+mod secret;
 
+use account::*;
 use common::*;
-use routes::*;
+use helpers::*;
+use search::*;
+use secret::*;
 
 async fn index(
     app_info: Arc<ServiceAppInfo>,
@@ -211,6 +217,23 @@ impl LocalWebService {
                 .into(),
             )
             .unwrap();
+
+        {
+            let state = accounts.clone();
+            router
+                .entry(Method::GET)
+                .or_default()
+                .insert(
+                    "/secret",
+                    BoxCloneService::new(service_fn(
+                        move |req: Request<Incoming>| {
+                            read_secret(req, state.clone())
+                        },
+                    ))
+                    .into(),
+                )
+                .unwrap();
+        }
 
         #[cfg(feature = "clipboard")]
         {
