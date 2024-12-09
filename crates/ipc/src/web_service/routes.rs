@@ -1,12 +1,14 @@
 //! Server for the native messaging API bridge.
 
-use std::collections::HashMap;
-
 use http::{Request, Response, StatusCode};
 use secrecy::SecretString;
 use serde::Deserialize;
 use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{AccessKey, Account, Address, ErrorExt, Identity};
+use sos_sdk::prelude::{
+    AccessKey, Account, Address, ArchiveFilter, DocumentView, ErrorExt,
+    Identity, QueryFilter,
+};
+use std::collections::HashMap;
 
 use crate::web_service::{
     internal_server_error, json, parse_account_id, parse_json_body,
@@ -18,6 +20,18 @@ use super::{status, Accounts, Body, Incoming};
 #[derive(Deserialize)]
 struct SigninRequest {
     password: String,
+}
+
+#[derive(Deserialize)]
+struct SearchRequest {
+    needle: String,
+    filter: QueryFilter,
+}
+
+#[derive(Deserialize)]
+struct QueryViewRequest {
+    views: Vec<DocumentView>,
+    archive_filter: Option<ArchiveFilter>,
 }
 
 /// List account public identities.
@@ -68,6 +82,70 @@ where
     json(StatusCode::OK, &list)
 }
 
+/// Search authenticated accounts.
+pub async fn search<A, R, E>(
+    req: Request<Incoming>,
+    accounts: Accounts<A, R, E>,
+) -> hyper::Result<Response<Body>>
+where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    let Ok(request) = parse_json_body::<SearchRequest>(req).await else {
+        return status(StatusCode::BAD_REQUEST);
+    };
+
+    let accounts = accounts.read().await;
+    let Ok(results) = accounts.search(request.needle, request.filter).await
+    else {
+        return internal_server_error("search");
+    };
+
+    let list = results
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v))
+        .collect::<HashMap<_, _>>();
+
+    json(StatusCode::OK, &list)
+}
+
+/// Search authenticated accounts.
+pub async fn query_view<A, R, E>(
+    req: Request<Incoming>,
+    accounts: Accounts<A, R, E>,
+) -> hyper::Result<Response<Body>>
+where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    let Ok(request) = parse_json_body::<QueryViewRequest>(req).await else {
+        return status(StatusCode::BAD_REQUEST);
+    };
+
+    let accounts = accounts.read().await;
+    let Ok(results) = accounts
+        .query_view(request.views.as_slice(), request.archive_filter.as_ref())
+        .await
+    else {
+        return internal_server_error("search");
+    };
+
+    let list = results
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v))
+        .collect::<HashMap<_, _>>();
+
+    json(StatusCode::OK, &list)
+}
+
 /// List account authenticated status.
 pub async fn authenticated_accounts<A, R, E>(
     _req: Request<Incoming>,
@@ -112,7 +190,7 @@ pub async fn open_url(
 }
 
 /// Sign in to an account
-pub async fn sign_in<A, R, E>(
+pub async fn sign_in_account<A, R, E>(
     req: Request<Incoming>,
     accounts: Accounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
@@ -141,25 +219,7 @@ where
 
     tracing::debug!(account = %account_id, "sign_in");
 
-    let mut accounts = accounts.write().await;
-    let Some(account) =
-        accounts.iter_mut().find(|a| a.address() == &account_id)
-    else {
-        return status(StatusCode::NOT_FOUND);
-    };
-
-    let password = SecretString::new(password.clone().into());
-    let key: AccessKey = password.into();
-    match account.sign_in(&key).await {
-        Ok(_) => status(StatusCode::OK),
-        Err(e) => {
-            if e.is_permission_denied() {
-                status(StatusCode::FORBIDDEN)
-            } else {
-                status(StatusCode::INTERNAL_SERVER_ERROR)
-            }
-        }
-    }
+    sign_in_password(accounts, account_id, password).await
 }
 
 pub async fn has_keyring_credentials(
@@ -221,31 +281,57 @@ where
 
     match entry.get_password() {
         Ok(password) => {
-            let mut accounts = accounts.write().await;
-            let Some(account) =
-                accounts.iter_mut().find(|a| a.address() == &account_id)
-            else {
-                return status(StatusCode::NOT_FOUND);
-            };
-
-            let password = SecretString::new(password.into());
-            let key: AccessKey = password.into();
-            match account.sign_in(&key).await {
-                Ok(_) => status(StatusCode::OK),
-                Err(e) => {
-                    if e.is_permission_denied() {
-                        status(StatusCode::FORBIDDEN)
-                    } else {
-                        status(StatusCode::INTERNAL_SERVER_ERROR)
-                    }
-                }
-            }
+            sign_in_password(accounts, account_id, password).await
         }
         Err(e) => match e {
             Error::NoEntry => status(StatusCode::NOT_FOUND),
             _ => status(StatusCode::INTERNAL_SERVER_ERROR),
         },
     }
+}
+
+/// Sign in to an account
+pub async fn sign_in_password<A, R, E>(
+    accounts: Accounts<A, R, E>,
+    account_id: Address,
+    password: String,
+) -> hyper::Result<Response<Body>>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + ErrorExt
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    let mut accounts = accounts.write().await;
+    let Some(account) =
+        accounts.iter_mut().find(|a| a.address() == &account_id)
+    else {
+        return status(StatusCode::NOT_FOUND);
+    };
+
+    let password = SecretString::new(password.into());
+    let key: AccessKey = password.into();
+    if let Err(e) = account.sign_in(&key).await {
+        if e.is_permission_denied() {
+            return status(StatusCode::FORBIDDEN);
+        } else {
+            return status(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    if account.initialize_search_index().await.is_err() {
+        return internal_server_error("sign_in::search_index");
+    }
+
+    status(StatusCode::OK)
 }
 
 /// Sign out of an account

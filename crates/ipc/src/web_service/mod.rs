@@ -173,9 +173,39 @@ impl LocalWebService {
             .entry(Method::POST)
             .or_default()
             .insert(
+                "/search",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| search(req, state.clone()),
+                ))
+                .into(),
+            )
+            .unwrap();
+
+        let state = accounts.clone();
+        router
+            .entry(Method::POST)
+            .or_default()
+            .insert(
+                "/search/view",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        query_view(req, state.clone())
+                    },
+                ))
+                .into(),
+            )
+            .unwrap();
+
+        let state = accounts.clone();
+        router
+            .entry(Method::POST)
+            .or_default()
+            .insert(
                 "/signin",
                 BoxCloneService::new(service_fn(
-                    move |req: Request<Incoming>| sign_in(req, state.clone()),
+                    move |req: Request<Incoming>| {
+                        sign_in_account(req, state.clone())
+                    },
                 ))
                 .into(),
             )

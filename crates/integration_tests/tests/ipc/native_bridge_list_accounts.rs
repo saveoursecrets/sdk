@@ -81,7 +81,7 @@ async fn integration_ipc_native_bridge_list_accounts() -> Result<()> {
 
     tokio::time::sleep(Duration::from_millis(50)).await;
 
-    let mut request = LocalRequest::get(ACCOUNTS_LIST.parse().unwrap());
+    let mut request = LocalRequest::get("/accounts".parse().unwrap());
     request.set_request_id(1);
 
     let (command, arguments) = super::native_bridge_cmd();

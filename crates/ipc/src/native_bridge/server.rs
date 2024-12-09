@@ -122,8 +122,9 @@ impl NativeBridgeServer {
                 result = read_chunked_request(&mut stdin) => {
                     match result {
                         Ok(request) => {
-                          if let Err(e) = self.handle_request(
-                            request, &mut channel).await {
+                          let client = self.client.clone();
+                          if let Err(e) = handle_request(
+                            client, channel.clone(), request).await {
                             self.internal_error(
                               StatusCode::INTERNAL_SERVER_ERROR,
                               e,
@@ -200,21 +201,20 @@ impl NativeBridgeServer {
             "native_bridge::response_channel");
         }
     }
+}
 
-    async fn handle_request(
-        &self,
-        request: LocalRequest,
-        tx: &mut mpsc::UnboundedSender<LocalResponse>,
-    ) -> Result<()> {
-        let client = self.client.clone();
-
+async fn handle_request(
+    client: LocalMemoryClient,
+    tx: mpsc::UnboundedSender<LocalResponse>,
+    request: LocalRequest,
+) -> Result<()> {
+    let task = tokio::task::spawn(async move {
         tracing::trace!(
             request = ?request,
             "sos_native_bridge::request",
         );
 
         let request_id = request.request_id();
-
         let response = client.send_request(request).await;
 
         let mut result = match response {
@@ -233,23 +233,24 @@ impl NativeBridgeServer {
 
         if chunks.len() > 1 {
             tracing::debug!(
-                len = %chunks.len(),
-                "native_bridge::chunks");
+              len = %chunks.len(),
+              "native_bridge::chunks");
             for (index, chunk) in chunks.iter().enumerate() {
                 tracing::debug!(
-                index = %index,
-                len = %chunk.body.len(),
-                "native_bridge::chunk");
+              index = %index,
+              len = %chunk.body.len(),
+              "native_bridge::chunk");
             }
         }
         for chunk in chunks {
             if let Err(e) = tx.send(chunk) {
                 tracing::warn!(
-                  error = %e,
-                  "native_bridge::response_channel");
+                error = %e,
+                "native_bridge::response_channel");
             }
         }
 
         Ok(())
-    }
+    });
+    task.await.unwrap()
 }

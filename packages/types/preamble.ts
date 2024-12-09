@@ -2,8 +2,6 @@ export type TupleOfTwo<T, U> = [T, U];
 export type TupleOfThree<T, U, V> = [T, U, V];
 export type AccountsList = PublicIdentity[];
 export type DocumentsList = Document[];
-export type SearchResultEntry = TupleOfTwo<PublicIdentity, DocumentsList>;
-export type SearchResults = SearchResultEntry[];
 export type SecretPath = TupleOfTwo<string, string>;
 export type HashSet<T> = Set<T>;
 export type Uri = string;
@@ -20,7 +18,11 @@ export type AuthenticatedList = [string, boolean][]
 export type Headers = [string, string[]][];
 // Backwards compatible aliases
 export type AccountState = PublicIdentity;
+
 export type FolderInfo = Summary;
 export interface FoldersList {
-  [name: string]: FolderInfo;
+  [accountId: string]: FolderInfo;
+}
+export interface SearchResults {
+  [accountId: string]: DocumentsList;
 }

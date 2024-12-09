@@ -1,11 +1,14 @@
-use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
+use std::{collections::HashMap, future::Future};
 
 use crate::{
     account::{Account, LocalAccount},
     identity::Identity,
-    prelude::{Address, PublicIdentity},
+    prelude::{
+        Address, ArchiveFilter, Document, DocumentView, PublicIdentity,
+        QueryFilter,
+    },
     Paths, Result,
 };
 
@@ -178,6 +181,40 @@ where
         } else {
             None
         }
+    }
+
+    /// Search all authenticated accounts.
+    pub async fn search(
+        &self,
+        needle: String,
+        filter: QueryFilter,
+    ) -> std::result::Result<HashMap<Address, Vec<Document>>, E> {
+        let mut out = HashMap::new();
+        for account in self.iter() {
+            if account.is_authenticated().await {
+                let results =
+                    account.query_map(&needle, filter.clone()).await?;
+                out.insert(*account.address(), results);
+            }
+        }
+        Ok(out)
+    }
+
+    /// Query a search index view for all authenticated accounts.
+    pub async fn query_view(
+        &self,
+        views: &[DocumentView],
+        archive_filter: Option<&ArchiveFilter>,
+    ) -> std::result::Result<HashMap<Address, Vec<Document>>, E> {
+        let mut out = HashMap::new();
+        for account in self.iter() {
+            if account.is_authenticated().await {
+                let results =
+                    account.query_view(views, archive_filter).await?;
+                out.insert(*account.address(), results);
+            }
+        }
+        Ok(out)
     }
 
     /// Sign out of all authenticated accounts.
