@@ -155,6 +155,21 @@ impl LocalWebService {
 
         let state = accounts.clone();
         router
+            .entry(Method::GET)
+            .or_default()
+            .insert(
+                "/folders",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        list_folders(req, state.clone())
+                    },
+                ))
+                .into(),
+            )
+            .unwrap();
+
+        let state = accounts.clone();
+        router
             .entry(Method::POST)
             .or_default()
             .insert(

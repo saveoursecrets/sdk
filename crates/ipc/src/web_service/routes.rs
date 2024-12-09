@@ -1,5 +1,7 @@
 //! Server for the native messaging API bridge.
 
+use std::collections::HashMap;
+
 use http::{Request, Response, StatusCode};
 use secrecy::SecretString;
 use serde::Deserialize;
@@ -35,6 +37,33 @@ where
     let Ok(list) = Identity::list_accounts(accounts.data_dir()).await else {
         return internal_server_error("list_accounts");
     };
+
+    json(StatusCode::OK, &list)
+}
+
+/// List account folders.
+pub async fn list_folders<A, R, E>(
+    _req: Request<Incoming>,
+    accounts: Accounts<A, R, E>,
+) -> hyper::Result<Response<Body>>
+where
+    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    let accounts = accounts.read().await;
+    let mut list = HashMap::new();
+
+    for account in accounts.iter() {
+        let address = account.address().to_string();
+        let Ok(folders) = account.list_folders().await else {
+            return internal_server_error("list_folders");
+        };
+        list.insert(address, folders);
+    }
 
     json(StatusCode::OK, &list)
 }
