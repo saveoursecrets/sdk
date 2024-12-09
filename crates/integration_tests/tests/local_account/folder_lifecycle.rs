@@ -56,11 +56,7 @@ async fn local_folder_lifecycle() -> Result<()> {
 
     // Changed the currently open folder by reading
     // from an explicit folder
-    let current_folder = {
-        let storage = account.storage().await?;
-        let reader = storage.read().await;
-        reader.current_folder()
-    };
+    let current_folder = account.current_folder().await?;
     assert_eq!(Some(&folder), current_folder.as_ref());
 
     // Export the folder and save the password for the exported

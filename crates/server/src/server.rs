@@ -89,14 +89,16 @@ impl Server {
     /// block until the lock is released.
     pub async fn new(path: impl AsRef<Path>) -> Result<Self> {
         let lock_path = path.as_ref().join("server.lock");
-        let guard = FileLock::acquire(lock_path, || async {
-            println!(
-                "Blocking waiting for lock on {} ...",
-                path.as_ref().display()
-            );
-            Ok(())
-        })
-        .await?;
+        let mut guard = FileLock::new(lock_path)?;
+        guard
+            .acquire(|| async {
+                println!(
+                    "Blocking waiting for lock on {} ...",
+                    path.as_ref().display()
+                );
+                Ok(())
+            })
+            .await?;
         Ok(Self { guard })
     }
 
@@ -298,7 +300,7 @@ impl Server {
                 .route("/sync/account/status", get(account::sync_status))
                 .route(
                     "/sync/account/events",
-                    get(account::event_proofs)
+                    get(account::event_scan)
                         .post(account::event_diff)
                         .patch(account::event_patch),
                 );
@@ -355,9 +357,26 @@ impl Server {
             v1 = v1.layer(Extension(file_operations));
         }
 
-        let app = Router::new()
+        #[allow(unused_mut)]
+        let mut app = Router::new()
             .route("/", get(home))
             .nest_service("/api/v1", v1);
+
+        #[cfg(feature = "prometheus")]
+        {
+            let (prometheus_layer, metric_handle) =
+                axum_prometheus::PrometheusMetricLayerBuilder::new()
+                    .with_default_metrics()
+                    .enable_response_body_size(true)
+                    .build_pair();
+
+            app = app
+                .route(
+                    "/metrics",
+                    get(|| async move { metric_handle.render() }),
+                )
+                .layer(prometheus_layer);
+        }
 
         Ok(app)
     }

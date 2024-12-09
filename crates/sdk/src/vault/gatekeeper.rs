@@ -10,6 +10,7 @@ use crate::{
     },
     vfs, Error, Result,
 };
+use std::borrow::Cow;
 
 use super::VaultFlags;
 
@@ -248,13 +249,20 @@ impl Gatekeeper {
         Ok(result)
     }
 
+    /// Read the encrypted contents of a secret.
+    pub async fn raw_secret(
+        &self,
+        id: &SecretId,
+    ) -> Result<(Option<Cow<'_, VaultCommit>>, ReadEvent)> {
+        self.vault.read_secret(id).await
+    }
+
     /// Get a secret and it's meta data.
     pub async fn read_secret(
         &self,
         id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
-        let event = ReadEvent::ReadSecret(*id);
-        if let (Some(value), _payload) = self.vault.read_secret(id).await? {
+        if let (Some(value), event) = self.raw_secret(id).await? {
             let (meta, secret) = self
                 .decrypt_secret(value.as_ref(), self.private_key.as_ref())
                 .await?;

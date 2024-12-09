@@ -3,7 +3,9 @@ use anyhow::Result;
 use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
-    protocol::{Origin, SyncStorage},
+    protocol::{
+        AccountSync, Origin, RemoteSyncHandler, SyncClient, SyncStorage,
+    },
     sdk::{
         account::{Account, AccountBuilder},
         constants::{FILES_DIR, VAULT_EXT},
@@ -16,8 +18,8 @@ use sos_net::{
         vault::{Summary, VaultId},
         vfs, Paths,
     },
-    AccountSync, InflightNotification, InflightTransfers, ListenOptions,
-    NetworkAccount, RemoteBridge, SyncClient,
+    InflightNotification, InflightTransfers, ListenOptions, NetworkAccount,
+    RemoteBridge,
 };
 use std::{
     path::PathBuf,
@@ -212,7 +214,10 @@ pub async fn assert_local_remote_vaults_eq(
     owner: &mut NetworkAccount,
     _provider: &mut RemoteBridge,
 ) -> Result<()> {
-    let storage = owner.storage().await?;
+    let storage = owner
+        .storage()
+        .await
+        .ok_or(sos_net::sdk::Error::NoStorage)?;
     let reader = storage.read().await;
 
     // Compare vault buffers
@@ -245,7 +250,8 @@ pub async fn assert_local_remote_events_eq(
 
     // Compare event log status (commit proofs)
     let local_status = owner.sync_status().await?;
-    let remote_status = provider.client().sync_status().await?;
+    let remote_status =
+        provider.client().sync_status(owner.address()).await?;
 
     //println!(" local {:#?}", local_status);
     //println!("remote {:#?}", remote_status);

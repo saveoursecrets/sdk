@@ -35,8 +35,20 @@ use crate::{
 use std::path::PathBuf;
 
 /// Path to a secret.
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SecretPath(pub VaultId, pub SecretId);
+
+impl SecretPath {
+    /// Folder identifier.
+    pub fn folder_id(&self) -> &VaultId {
+        &self.0
+    }
+
+    /// Secret identifier.
+    pub fn secret_id(&self) -> &SecretId {
+        &self.1
+    }
+}
 
 bitflags! {
     /// Bit flags for a secret.
@@ -164,6 +176,7 @@ impl FromStr for SecretRef {
 /// Matches the enum variants for a secret and is used
 /// so we can know the type of secret from the meta data
 /// before secret data has been decrypted.
+#[typeshare::typeshare]
 #[derive(
     Default, Clone, Debug, Copy, Serialize, Deserialize, Eq, PartialEq, Hash,
 )]
@@ -305,6 +318,7 @@ impl TryFrom<u8> for SecretType {
 }
 
 /// Encapsulates the meta data for a secret.
+#[typeshare::typeshare]
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SecretMeta {
@@ -402,7 +416,7 @@ impl SecretMeta {
         }
     }
 
-    /// The label for the secret.
+    /// Label for the secret.
     pub fn label(&self) -> &str {
         &self.label
     }
@@ -412,14 +426,19 @@ impl SecretMeta {
         self.label = label;
     }
 
-    /// The kind of the secret.
+    /// Kind of the secret.
     pub fn kind(&self) -> &SecretType {
         &self.kind
     }
 
-    /// The created date and time.
+    /// Created date and time.
     pub fn date_created(&self) -> &UtcDateTime {
         &self.date_created
+    }
+
+    /// Set the created date and time.
+    pub fn set_date_created(&mut self, date_created: UtcDateTime) {
+        self.date_created = date_created;
     }
 
     /// Update the last updated timestamp to now.
@@ -427,12 +446,17 @@ impl SecretMeta {
         self.last_updated = Default::default();
     }
 
-    /// The last updated date and time.
+    /// Last updated date and time.
     pub fn last_updated(&self) -> &UtcDateTime {
         &self.last_updated
     }
 
-    /// Get the tags.
+    /// Set the updated date and time.
+    pub fn set_last_updated(&mut self, last_updated: UtcDateTime) {
+        self.last_updated = last_updated;
+    }
+
+    /// Secret tags.
     pub fn tags(&self) -> &HashSet<String> {
         &self.tags
     }
@@ -577,6 +601,7 @@ impl PartialEq for SecretSigner {
 }
 
 /// Secret with it's associated meta data and identifier.
+#[typeshare::typeshare]
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct SecretRow {
     /// Identifier for the secret.
@@ -1510,6 +1535,55 @@ impl Secret {
         }
     }
 
+    /// Value formatted to copy to the clipboard.
+    pub fn copy_value_unsafe(&self) -> Option<String> {
+        match self {
+            Secret::Account { password, .. } => {
+                Some(password.expose_secret().to_owned())
+            }
+            Secret::Note { text, .. } => {
+                Some(text.expose_secret().to_owned())
+            }
+            Secret::File { content, .. } => Some(content.name().to_string()),
+            Secret::List { items, .. } => {
+                let mut s = String::new();
+                for (name, value) in items {
+                    s.push_str(name);
+                    s.push('=');
+                    s.push_str(value.expose_secret());
+                    s.push('\n');
+                }
+                Some(s)
+            }
+            Secret::Pem { certificates, .. } => {
+                let text: Vec<String> =
+                    certificates.iter().map(|s| s.to_string()).collect::<_>();
+                Some(text.join("\n"))
+            }
+            Secret::Page { document, .. } => {
+                Some(document.expose_secret().to_owned())
+            }
+            Secret::Contact { vcard, .. } => Some(vcard.to_string()),
+            Secret::Totp { totp, .. } => Some(totp.get_url()),
+            Secret::Card { number, .. } => {
+                Some(number.expose_secret().to_string())
+            }
+            // TODO: concatenate fields
+            Secret::Bank { number, .. } => {
+                Some(number.expose_secret().to_string())
+            }
+            Secret::Link { url, .. } => Some(url.expose_secret().to_string()),
+            Secret::Password { password, .. } => {
+                Some(password.expose_secret().to_string())
+            }
+            Secret::Identity { number, .. } => {
+                Some(number.expose_secret().to_string())
+            }
+            Secret::Age { .. } => None,
+            Secret::Signer { .. } => None,
+        }
+    }
+
     /// Plain text unencrypted display for secrets
     /// that can be represented as UTF-8 text.
     ///
@@ -1574,6 +1648,18 @@ impl Secret {
             }
         }
         Ok(credentials)
+    }
+
+    /// Collection of website URLs associated with
+    /// this secret.
+    ///
+    /// Used by the search index to locate secrets by
+    /// associated URL.
+    pub fn websites(&self) -> Option<Vec<&Url>> {
+        match self {
+            Self::Account { url, .. } => Some(url.iter().collect()),
+            _ => None,
+        }
     }
 
     /// Encode a map into key value pairs.

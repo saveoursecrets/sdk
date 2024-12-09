@@ -1,6 +1,5 @@
 //! HTTP client implementation.
 use async_trait::async_trait;
-use futures::{Future, StreamExt};
 use http::StatusCode;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde_json::Value;
@@ -8,19 +7,27 @@ use tracing::instrument;
 
 use crate::{
     protocol::{
-        CreateSet, DiffRequest, DiffResponse, Origin, PatchRequest,
-        PatchResponse, ScanRequest, ScanResponse, SyncPacket, SyncStatus,
-        UpdateSet, WireEncodeDecode,
+        constants::{
+            routes::v1::{
+                SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
+            },
+            MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
+        },
+        CreateSet, DiffRequest, DiffResponse, NetworkError, Origin,
+        PatchRequest, PatchResponse, ScanRequest, ScanResponse, SyncClient,
+        SyncPacket, SyncStatus, UpdateSet, WireEncodeDecode,
     },
     sdk::{
-        constants::MIME_TYPE_PROTOBUF,
-        sha2::{Digest, Sha256},
+        prelude::Address,
         signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     },
-    CancelReason, Error, Result, SyncClient,
+    Error, Result,
 };
-use std::{fmt, path::Path, time::Duration};
+use std::{fmt, time::Duration};
 use url::Url;
+
+#[cfg(feature = "listen")]
+use futures::Future;
 
 use super::{
     bearer_prefix, encode_account_signature, encode_device_signature,
@@ -34,9 +41,10 @@ use crate::{
 
 #[cfg(feature = "files")]
 use crate::{
-    protocol::{FileSet, FileTransfersSet},
+    protocol::transfer::{
+        FileSet, FileSyncClient, FileTransfersSet, ProgressChannel,
+    },
     sdk::storage::files::ExternalFile,
-    ProgressChannel,
 };
 
 /// Client that can synchronize with a server over HTTP(S).
@@ -154,10 +162,11 @@ impl HttpClient {
                 if content_type == &protobuf_type {
                     Ok(response)
                 } else {
-                    Err(Error::ContentType(
+                    Err(NetworkError::ContentType(
                         content_type.to_str()?.to_owned(),
                         MIME_TYPE_PROTOBUF.to_string(),
-                    ))
+                    )
+                    .into())
                 }
             }
             // Otherwise exit out early
@@ -174,15 +183,15 @@ impl HttpClient {
         use reqwest::header::{self, HeaderValue};
 
         let status = response.status();
-        let json_type = HeaderValue::from_static("application/json");
+        let json_type = HeaderValue::from_static(MIME_TYPE_JSON);
         let content_type = response.headers().get(&header::CONTENT_TYPE);
         if !status.is_success() {
             if let Some(content_type) = content_type {
                 if content_type == json_type {
                     let value: Value = response.json().await?;
-                    Err(Error::ResponseJson(status, value))
+                    Err(NetworkError::ResponseJson(status, value).into())
                 } else {
-                    Err(Error::ResponseCode(status))
+                    Err(NetworkError::ResponseCode(status).into())
                 }
             } else {
                 Ok(response)
@@ -195,13 +204,15 @@ impl HttpClient {
 
 #[async_trait]
 impl SyncClient for HttpClient {
+    type Error = crate::Error;
+
     fn origin(&self) -> &Origin {
         &self.origin
     }
 
     #[instrument(skip_all)]
-    async fn account_exists(&self) -> Result<bool> {
-        let url = self.build_url("api/v1/sync/account")?;
+    async fn account_exists(&self, address: &Address) -> Result<bool> {
+        let url = self.build_url(SYNC_ACCOUNT)?;
 
         let sign_url = url.path();
         let account_signature = encode_account_signature(
@@ -214,6 +225,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .head(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
@@ -223,40 +235,20 @@ impl SyncClient for HttpClient {
             StatusCode::OK => true,
             StatusCode::NOT_FOUND => false,
             _ => {
-                return Err(Error::ResponseCode(status));
+                return Err(NetworkError::ResponseCode(status).into());
             }
         };
         Ok(exists)
     }
 
     #[instrument(skip_all)]
-    async fn delete_account(&self) -> Result<()> {
-        let url = self.build_url("api/v1/sync/account")?;
-
-        let sign_url = url.path();
-        let account_signature = encode_account_signature(
-            self.account_signer.sign(sign_url.as_bytes()).await?,
-        )
-        .await?;
-        let auth = bearer_prefix(&account_signature, None);
-
-        tracing::debug!(url = %url, "http::delete_account");
-        let response = self
-            .client
-            .delete(url)
-            .header(AUTHORIZATION, auth)
-            .send()
-            .await?;
-        let status = response.status();
-        tracing::debug!(status = %status, "http::delete_account");
-        self.error_json(response).await?;
-        Ok(())
-    }
-
-    #[instrument(skip_all)]
-    async fn create_account(&self, account: CreateSet) -> Result<()> {
+    async fn create_account(
+        &self,
+        address: &Address,
+        account: CreateSet,
+    ) -> Result<()> {
         let body = account.encode().await?;
-        let url = self.build_url("api/v1/sync/account")?;
+        let url = self.build_url(SYNC_ACCOUNT)?;
 
         tracing::debug!(url = %url, "http::create_account");
 
@@ -267,6 +259,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .put(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -279,9 +272,13 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn update_account(&self, account: UpdateSet) -> Result<()> {
+    async fn update_account(
+        &self,
+        address: &Address,
+        account: UpdateSet,
+    ) -> Result<()> {
         let body = account.encode().await?;
-        let url = self.build_url("api/v1/sync/account")?;
+        let url = self.build_url(SYNC_ACCOUNT)?;
 
         tracing::debug!(url = %url, "http::update_account");
 
@@ -295,6 +292,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .post(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -307,8 +305,8 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn fetch_account(&self) -> Result<CreateSet> {
-        let url = self.build_url("api/v1/sync/account")?;
+    async fn fetch_account(&self, address: &Address) -> Result<CreateSet> {
+        let url = self.build_url(SYNC_ACCOUNT)?;
 
         tracing::debug!(url = %url, "http::fetch_account");
 
@@ -325,6 +323,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .get(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
@@ -336,8 +335,33 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn sync_status(&self) -> Result<SyncStatus> {
-        let url = self.build_url("api/v1/sync/account/status")?;
+    async fn delete_account(&self, address: &Address) -> Result<()> {
+        let url = self.build_url(SYNC_ACCOUNT)?;
+
+        let sign_url = url.path();
+        let account_signature = encode_account_signature(
+            self.account_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, None);
+
+        tracing::debug!(url = %url, "http::delete_account");
+        let response = self
+            .client
+            .delete(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
+            .header(AUTHORIZATION, auth)
+            .send()
+            .await?;
+        let status = response.status();
+        tracing::debug!(status = %status, "http::delete_account");
+        self.error_json(response).await?;
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
+    async fn sync_status(&self, address: &Address) -> Result<SyncStatus> {
+        let url = self.build_url(SYNC_ACCOUNT_STATUS)?;
 
         tracing::debug!(url = %url, "http::sync_status");
 
@@ -354,6 +378,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .get(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
@@ -365,9 +390,14 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn sync(&self, packet: SyncPacket) -> Result<SyncPacket> {
+    async fn sync(
+        &self,
+
+        address: &Address,
+        packet: SyncPacket,
+    ) -> Result<SyncPacket> {
         let body = packet.encode().await?;
-        let url = self.build_url("api/v1/sync/account")?;
+        let url = self.build_url(SYNC_ACCOUNT)?;
 
         tracing::debug!(url = %url, "http::sync");
 
@@ -381,6 +411,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .patch(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -394,9 +425,13 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn scan(&self, request: ScanRequest) -> Result<ScanResponse> {
+    async fn scan(
+        &self,
+        address: &Address,
+        request: ScanRequest,
+    ) -> Result<ScanResponse> {
         let body = request.encode().await?;
-        let url = self.build_url("api/v1/sync/account/events")?;
+        let url = self.build_url(SYNC_ACCOUNT_EVENTS)?;
 
         tracing::debug!(url = %url, "http::scan");
 
@@ -410,6 +445,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .get(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -423,9 +459,13 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn diff(&self, request: DiffRequest) -> Result<DiffResponse> {
+    async fn diff(
+        &self,
+        address: &Address,
+        request: DiffRequest,
+    ) -> Result<DiffResponse> {
         let body = request.encode().await?;
-        let url = self.build_url("api/v1/sync/account/events")?;
+        let url = self.build_url(SYNC_ACCOUNT_EVENTS)?;
 
         tracing::debug!(url = %url, "http::diff");
 
@@ -439,6 +479,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .post(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -452,9 +493,13 @@ impl SyncClient for HttpClient {
     }
 
     #[instrument(skip_all)]
-    async fn patch(&self, request: PatchRequest) -> Result<PatchResponse> {
+    async fn patch(
+        &self,
+        address: &Address,
+        request: PatchRequest,
+    ) -> Result<PatchResponse> {
         let body = request.encode().await?;
-        let url = self.build_url("api/v1/sync/account/events")?;
+        let url = self.build_url(SYNC_ACCOUNT_EVENTS)?;
 
         tracing::debug!(url = %url, "http::patch");
 
@@ -468,6 +513,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .patch(url)
+            .header(X_SOS_ACCOUNT_ID, address.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -479,17 +525,25 @@ impl SyncClient for HttpClient {
         let buffer = response.bytes().await?;
         Ok(PatchResponse::decode(buffer).await?)
     }
+}
 
-    #[cfg(feature = "files")]
+#[cfg(feature = "files")]
+#[async_trait]
+impl FileSyncClient for HttpClient {
+    type Error = crate::Error;
+
     #[instrument(skip(self, path, progress, cancel))]
     async fn upload_file(
         &self,
         file_info: &ExternalFile,
-        path: &Path,
+        path: &std::path::Path,
         progress: ProgressChannel,
-        mut cancel: tokio::sync::watch::Receiver<CancelReason>,
+        mut cancel: tokio::sync::watch::Receiver<
+            crate::protocol::transfer::CancelReason,
+        >,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
+        use futures::StreamExt;
         use reqwest::{
             header::{CONTENT_LENGTH, CONTENT_TYPE},
             Body,
@@ -566,16 +620,20 @@ impl SyncClient for HttpClient {
         Ok(status)
     }
 
-    #[cfg(feature = "files")]
     #[instrument(skip(self, path, progress, cancel))]
     async fn download_file(
         &self,
         file_info: &ExternalFile,
-        path: &Path,
+        path: &std::path::Path,
         progress: ProgressChannel,
-        mut cancel: tokio::sync::watch::Receiver<CancelReason>,
+        mut cancel: tokio::sync::watch::Receiver<
+            crate::protocol::transfer::CancelReason,
+        >,
     ) -> Result<http::StatusCode> {
-        use crate::sdk::vfs;
+        use crate::sdk::{
+            sha2::{Digest, Sha256},
+            vfs,
+        };
         use tokio::io::AsyncWriteExt;
 
         let url_path = format!("api/v1/sync/file/{}", file_info);
@@ -665,7 +723,6 @@ impl SyncClient for HttpClient {
         Ok(status)
     }
 
-    #[cfg(feature = "files")]
     #[instrument(skip(self))]
     async fn delete_file(
         &self,
@@ -701,7 +758,6 @@ impl SyncClient for HttpClient {
         Ok(status)
     }
 
-    #[cfg(feature = "files")]
     #[instrument(skip(self))]
     async fn move_file(
         &self,
@@ -742,7 +798,6 @@ impl SyncClient for HttpClient {
         Ok(status)
     }
 
-    #[cfg(feature = "files")]
     #[instrument(skip_all)]
     async fn compare_files(
         &self,
