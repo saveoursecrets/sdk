@@ -52,7 +52,7 @@ impl PublicIdentity {
     pub async fn list_accounts(
         paths: Option<&Paths>,
     ) -> Result<Vec<PublicIdentity>> {
-        let mut keys = Vec::new();
+        let mut identities = Vec::new();
         let paths = if let Some(paths) = paths {
             paths.clone()
         } else {
@@ -64,11 +64,11 @@ impl PublicIdentity {
             if let Some(ident) =
                 Self::read_public_identity(entry.path()).await?
             {
-                keys.push(ident);
+                identities.push(ident);
             }
         }
-        keys.sort_by(|a, b| a.label().cmp(b.label()));
-        Ok(keys)
+        identities.sort_by(|a, b| b.label().cmp(a.label()));
+        Ok(identities)
     }
 
     /// Read the public identity from an identity vault file.

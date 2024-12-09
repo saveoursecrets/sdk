@@ -55,7 +55,7 @@ where
     json(StatusCode::OK, &list)
 }
 
-/// List account folders.
+/// List folders for authenticated accounts.
 pub async fn list_folders<A, R, E>(
     _req: Request<Incoming>,
     accounts: Accounts<A, R, E>,
@@ -70,15 +70,15 @@ where
 {
     let accounts = accounts.read().await;
     let mut list = HashMap::new();
-
     for account in accounts.iter() {
         let address = account.address().to_string();
-        let Ok(folders) = account.list_folders().await else {
-            return internal_server_error("list_folders");
-        };
-        list.insert(address, folders);
+        if account.is_authenticated().await {
+            let Ok(folders) = account.list_folders().await else {
+                return internal_server_error("list_folders");
+            };
+            list.insert(address, folders);
+        }
     }
-
     json(StatusCode::OK, &list)
 }
 
