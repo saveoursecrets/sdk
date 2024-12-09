@@ -601,6 +601,7 @@ impl PartialEq for SecretSigner {
 }
 
 /// Secret with it's associated meta data and identifier.
+#[typeshare::typeshare]
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct SecretRow {
     /// Identifier for the secret.

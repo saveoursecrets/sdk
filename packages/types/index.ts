@@ -219,6 +219,16 @@ export interface QueryFilter {
 	types: SecretType[];
 }
 
+/** Secret with it's associated meta data and identifier. */
+export interface SecretRow {
+	/** Identifier for the secret. */
+	id: string;
+	/** Meta data for the secret. */
+	meta: SecretMeta;
+	/** The data for the secret. */
+	secret: Secret;
+}
+
 /** Information about the service. */
 export interface ServiceAppInfo {
 	/** App name. */

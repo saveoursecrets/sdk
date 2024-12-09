@@ -1,17 +1,11 @@
 //! Server for the native messaging API bridge.
 
 use http::{Request, Response, StatusCode};
-use serde::Deserialize;
 use sos_sdk::prelude::{Account, SecretPath};
 
 use crate::web_service::{
     json, parse_account_id, parse_json_body, status, Accounts, Body, Incoming,
 };
-
-#[derive(Deserialize)]
-struct SecretRequest {
-    path: SecretPath,
-}
 
 /// Copy a secret to the clipboard.
 #[cfg(feature = "clipboard")]
@@ -32,12 +26,12 @@ where
         return status(StatusCode::BAD_REQUEST);
     };
 
-    let Ok(request) = parse_json_body::<SecretRequest>(req).await else {
+    let Ok(request) = parse_json_body::<SecretPath>(req).await else {
         return status(StatusCode::BAD_REQUEST);
     };
 
     let accounts = accounts.read().await;
-    match accounts.copy_clipboard(&account_id, request.path).await {
+    match accounts.copy_clipboard(&account_id, request).await {
         Ok(result) => json(StatusCode::OK, &result),
         Err(e) => {
             tracing::error!(error = %e, "copy_clipboard");
@@ -64,15 +58,25 @@ where
         return status(StatusCode::BAD_REQUEST);
     };
 
-    let Ok(request) = parse_json_body::<SecretRequest>(req).await else {
+    let accounts = accounts.read().await;
+    let Some(account) = accounts.iter().find(|a| a.address() == &account_id)
+    else {
+        return status(StatusCode::NOT_FOUND);
+    };
+
+    let Ok(request) = parse_json_body::<SecretPath>(req).await else {
         return status(StatusCode::BAD_REQUEST);
     };
 
-    let accounts = accounts.read().await;
-    match accounts.copy_clipboard(&account_id, request.path).await {
-        Ok(result) => json(StatusCode::OK, &result),
+    let Some(folder) = account.find(|f| f.id() == request.folder_id()).await
+    else {
+        return status(StatusCode::NOT_FOUND);
+    };
+
+    match account.read_secret(request.secret_id(), Some(folder)).await {
+        Ok(result) => json(StatusCode::OK, &result.0),
         Err(e) => {
-            tracing::error!(error = %e, "copy_clipboard");
+            tracing::error!(error = %e, "read_secret");
             status(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
