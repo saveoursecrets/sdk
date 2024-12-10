@@ -745,7 +745,9 @@ impl UserData {
 }
 
 /// Enumeration of types of identification.
-#[derive(PartialEq, Eq, Clone)]
+#[typeshare::typeshare]
+#[derive(PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum IdentityKind {
     /// Personal identification number (PIN).
     PersonalIdNumber,
@@ -815,48 +817,6 @@ impl TryFrom<u8> for IdentityKind {
             7 => Ok(IdentityKind::MedicalCard),
             _ => Err(Error::UnknownIdentityKind(value)),
         }
-    }
-}
-
-impl Serialize for IdentityKind {
-    fn serialize<S>(
-        &self,
-        serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_u8(self.into())
-    }
-}
-
-impl<'de> Deserialize<'de> for IdentityKind {
-    fn deserialize<D>(
-        deserializer: D,
-    ) -> std::result::Result<IdentityKind, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_u8(IdentityKindVisitor)
-    }
-}
-
-struct IdentityKindVisitor;
-
-impl<'de> Visitor<'de> for IdentityKindVisitor {
-    type Value = IdentityKind;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter
-            .write_str("an integer between 0 and 255 for identification kind")
-    }
-
-    fn visit_u8<E>(self, value: u8) -> std::result::Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        let value: IdentityKind = value.try_into().unwrap();
-        Ok(value)
     }
 }
 
@@ -1075,8 +1035,9 @@ impl Clone for FileContent {
 /// * `PathBuf`                             -> `Secret::File`
 /// * `Url`                                 -> `Secret::Link`
 ///
+#[typeshare::typeshare]
 #[derive(Serialize, Deserialize)]
-#[serde(untagged, rename_all = "lowercase")]
+#[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum Secret {
     /// A UTF-8 encoded note.
     #[serde(rename_all = "camelCase")]

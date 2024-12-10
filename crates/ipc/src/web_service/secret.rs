@@ -1,11 +1,18 @@
 //! Server for the native messaging API bridge.
 
 use http::{Request, Response, StatusCode};
+use serde::Deserialize;
 use sos_sdk::prelude::{Account, SecretPath};
 
 use crate::web_service::{
     json, parse_account_id, parse_json_body, status, Accounts, Body, Incoming,
 };
+
+#[derive(Deserialize)]
+struct CopyRequest {
+    target: SecretPath,
+    path: Option<String>,
+}
 
 /// Copy a secret to the clipboard.
 #[cfg(feature = "clipboard")]
@@ -22,19 +29,30 @@ where
         + From<std::io::Error>
         + 'static,
 {
+    use sos_sdk::json_path::JsonPath;
+
+    use crate::web_service::internal_server_error;
+
     let Some(account_id) = parse_account_id(&req) else {
         return status(StatusCode::BAD_REQUEST);
     };
 
-    let Ok(request) = parse_json_body::<SecretPath>(req).await else {
+    let Ok(request) = parse_json_body::<CopyRequest>(req).await else {
         return status(StatusCode::BAD_REQUEST);
     };
 
-    let path = None;
+    let path = if let Some(path) = &request.path {
+        let Ok(path) = JsonPath::parse(path) else {
+            return internal_server_error("json_path::parse");
+        };
+        Some(path)
+    } else {
+        None
+    };
 
     let accounts = accounts.read().await;
     match accounts
-        .copy_clipboard(&account_id, &request, path.as_ref())
+        .copy_clipboard(&account_id, &request.target, path.as_ref())
         .await
     {
         Ok(result) => json(StatusCode::OK, &result),
