@@ -82,12 +82,11 @@ where
         + 'static,
 {
     let accounts = accounts.read().await;
-    let mut list = Vec::new();
+    let mut list = HashMap::new();
     for account in accounts.iter() {
         let address = account.address().to_string();
-        list.push((address, account.is_authenticated().await));
+        list.insert(address.to_string(), account.is_authenticated().await);
     }
-
     json(StatusCode::OK, &list)
 }
 
