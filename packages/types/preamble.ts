@@ -43,6 +43,23 @@ export enum Kind {
   Location = "location",
 }
 
+export type EmbeddedFileContent = {
+    name: string,
+    mime: string,
+    buffer: number[],
+    checksum: never,
+}
+
+export type ExternalFileContent = {
+  name: String;
+  mime: String;
+  checksum: never;
+  size: number;
+  path?: string;
+}
+
+export type FileContent = EmbeddedFileContent | ExternalFileContent;
+
 // Define secret enum variants manually as we 
 // want to use untagged enum representation which 
 // is not supported by typesafe
