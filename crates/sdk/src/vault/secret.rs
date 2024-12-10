@@ -1034,9 +1034,8 @@ impl Clone for FileContent {
 /// * `PathBuf`                             -> `Secret::File`
 /// * `Url`                                 -> `Secret::Link`
 ///
-#[typeshare::typeshare]
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", tag = "kind", content = "body")]
+#[serde(untagged)]
 pub enum Secret {
     /// A UTF-8 encoded note.
     #[serde(rename_all = "camelCase")]

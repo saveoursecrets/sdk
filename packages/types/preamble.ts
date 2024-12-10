@@ -14,11 +14,9 @@ export type KeyDerivation = string;
 export type SecretBox<T> = T;
 export type Set<T> = T[];
 export type SecretString = SecretBox<string>;
-export type Pem = string;
 export type Vcard = never;
-export type SecretSigner = never;
+export type Totp = never;
 export type AgeVersion = never;
-export type TOTP = never;
 
 // Internally this is a HashMap but we can't serialize 
 // that to JSON so for Javascript it's just an array
@@ -45,22 +43,101 @@ export enum Kind {
   Location = "location",
 }
 
-type BodyOf<T extends { kind: string; body: unknown }, K extends T["kind"]> =
-  T extends { kind: K } ? T["body"] : never;
+// Define secret enum variants manually as we 
+// want to use untagged enum representation which 
+// is not supported by typesafe
 
-export type NoteSecret = BodyOf<Secret, "note">;
-export type FileSecret = BodyOf<Secret, "file">;
-export type LoginSecret = BodyOf<Secret, "account">;
-export type ListSecret = BodyOf<Secret, "list">;
-export type PemSecret = BodyOf<Secret, "pem">;
-export type PageSecret = BodyOf<Secret, "page">;
-export type SignerSecret = BodyOf<Secret, "signer">;
-export type ContactSecret = BodyOf<Secret, "contact">;
-export type TotpSecret = BodyOf<Secret, "totp">;
-export type CardSecret = BodyOf<Secret, "card">;
-export type BankSecret = BodyOf<Secret, "bank">;
-export type LinkSecret = BodyOf<Secret, "link">;
-export type PasswordSecret = BodyOf<Secret, "password">;
-export type IdentitySecret = BodyOf<Secret, "identity">;
-export type AgeSecret = BodyOf<Secret, "age">;
+export type NoteSecret = {
+  text: string;
+  userData: UserData;
+}
 
+export type FileSecret = {
+  content: FileContent;
+  userData: UserData;
+}
+
+export type LoginSecret = {
+  account: string;
+  password: string;
+  url: string[];
+  userData: UserData;
+}
+
+export type ListSecret = {
+  items: [name: string]: string;
+  userData: UserData;
+}
+
+export type PemSecret = {
+  certificates: string[];
+  userData: UserData;
+}
+
+export type PageSecret = {
+  title: string;
+  mime: string;
+  document: string;
+  userData: UserData;
+}
+
+export type SignerSecret = {
+  privateKey: string;
+  userData: UserData;
+}
+
+export type ContactSecret = {
+  vcard: Vcard;
+  userData: UserData;
+}
+
+export type TotpSecret = {
+  totp: Totp;
+  userData: UserData;
+}
+
+export type CardSecret = {
+  number: string;
+  cvv: string;
+  name?: string;
+  expiry?: string;
+  atmPin?: string;
+  userData: UserData;
+}
+
+export type BankSecret = {
+  number?: string;
+  routing?: string;
+  iban?: string;
+  bic?: string;
+  swift?: string;
+  userData: UserData;
+}
+
+export type LinkSecret = {
+  url: string;
+  label?: string;
+  title?: string;
+  userData: UserData;
+}
+
+export type PasswordSecret = {
+  password: string;
+  name?: string;
+  userData: UserData;
+}
+
+export type IdentitySecret = {
+  idKind: IdentityKind;
+  number: string;
+  issuePlace?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  userData: UserData;
+}
+
+export type AgeSecret = {
+  ageVersion: AgeVersion;
+  key: string;
+  userData: UserData;
+}

@@ -50,6 +50,11 @@ where
         None
     };
 
+    tracing::debug!(
+      target = ?request.target,
+      path = ?path,
+      "copy_clipboard");
+
     let accounts = accounts.read().await;
     match accounts
         .copy_clipboard(&account_id, &request.target, path.as_ref())
