@@ -20,7 +20,7 @@ default = ["account", "audit", "logs"]
 account = []
 archive = ["dep:async_zip"]
 audit = []
-clipboard = ["dep:xclipboard"]
+clipboard = ["dep:xclipboard", "dep:serde_json_path"]
 contacts = []
 files = []
 interactive-keychain-tests = []
@@ -63,6 +63,7 @@ rs_merkle.workspace = true
 typeshare.workspace = true
 sos-vfs.workspace = true
 xclipboard = { workspace = true, optional = true }
+serde_json_path = { workspace = true, optional = true }
 
 subtle = { version = "2.5" }
 ethereum-types = "0.15"

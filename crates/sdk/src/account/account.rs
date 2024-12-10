@@ -927,6 +927,7 @@ pub trait Account {
         &self,
         clipboard: &xclipboard::Clipboard,
         target: &SecretPath,
+        path: Option<&serde_json_path::JsonPath>,
     ) -> std::result::Result<bool, Self::Error>;
 }
 
@@ -3417,7 +3418,9 @@ impl Account for LocalAccount {
         &self,
         clipboard: &xclipboard::Clipboard,
         target: &SecretPath,
+        path: Option<&serde_json_path::JsonPath>,
     ) -> Result<bool> {
+        use serde_json::Value;
         let target_folder = self.find(|f| f.id() == target.folder_id()).await;
         if let Some(folder) = target_folder {
             let current_folder = self.current_folder().await?;
@@ -3427,7 +3430,16 @@ impl Account for LocalAccount {
                 self.open_folder(current).await?;
             }
             let secret = data.secret();
-            let text = secret.copy_value_unsafe().unwrap_or_default();
+            let text = if let Some(path) = path {
+                let value: Value = serde_json::to_value(&secret)?;
+                let node = path.query(&value).exactly_one()?;
+                match node {
+                    Value::String(s) => s.to_string(),
+                    _ => return Err(Error::InvalidJsonPathType),
+                }
+            } else {
+                secret.copy_value_unsafe().unwrap_or_default()
+            };
             clipboard
                 .set_text_timeout(text)
                 .await

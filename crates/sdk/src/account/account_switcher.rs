@@ -256,6 +256,7 @@ where
         &self,
         account_id: &Address,
         target: &SecretPath,
+        path: Option<&serde_json_path::JsonPath>,
     ) -> std::result::Result<bool, E> {
         let Some(clipboard) = self.clipboard.clone() else {
             return Err(Error::NoClipboard.into());
@@ -263,7 +264,7 @@ where
 
         let account = self.iter().find(|a| a.address() == account_id);
         if let Some(account) = account {
-            account.copy_clipboard(&clipboard, target).await
+            account.copy_clipboard(&clipboard, target, path).await
         } else {
             Ok(false)
         }

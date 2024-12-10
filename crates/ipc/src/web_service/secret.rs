@@ -30,8 +30,13 @@ where
         return status(StatusCode::BAD_REQUEST);
     };
 
+    let path = None;
+
     let accounts = accounts.read().await;
-    match accounts.copy_clipboard(&account_id, &request).await {
+    match accounts
+        .copy_clipboard(&account_id, &request, path.as_ref())
+        .await
+    {
         Ok(result) => json(StatusCode::OK, &result),
         Err(e) => {
             tracing::error!(error = %e, "copy_clipboard");

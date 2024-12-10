@@ -1823,8 +1823,9 @@ impl Account for NetworkAccount {
         &self,
         clipboard: &xclipboard::Clipboard,
         target: &SecretPath,
+        path: Option<&sos_sdk::json_path::JsonPath>,
     ) -> Result<bool> {
         let account = self.account.lock().await;
-        Ok(account.copy_clipboard(clipboard, target).await?)
+        Ok(account.copy_clipboard(clipboard, target, path).await?)
     }
 }
