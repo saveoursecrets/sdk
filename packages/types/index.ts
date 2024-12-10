@@ -44,16 +44,16 @@ export enum Kind {
 }
 
 export type EmbeddedFileContent = {
-    name: string,
-    mime: string,
-    buffer: number[],
-    checksum: never,
+  name: string;
+  mime: string;
+  buffer: number[];
+  checksum: string;
 }
 
 export type ExternalFileContent = {
   name: String;
   mime: String;
-  checksum: never;
+  checksum: string;
   size: number;
   path?: string;
 }

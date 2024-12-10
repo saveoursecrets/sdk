@@ -42,6 +42,10 @@ where
     };
 
     let path = if let Some(path) = &request.path {
+        tracing::debug!(
+          path = %path,
+          "copy_clipboard::json_path");
+
         let Ok(path) = JsonPath::parse(path) else {
             return internal_server_error("json_path::parse");
         };
@@ -49,11 +53,6 @@ where
     } else {
         None
     };
-
-    tracing::debug!(
-      target = ?request.target,
-      path = ?path,
-      "copy_clipboard");
 
     let accounts = accounts.read().await;
     match accounts
