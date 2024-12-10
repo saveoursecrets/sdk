@@ -3345,12 +3345,34 @@ impl Account for LocalAccount {
             }
             let secret = data.secret();
             let text = if let Some(path) = path {
+                fn value_to_string(node: &Value) -> String {
+                    match node {
+                        Value::Null => node.to_string(),
+                        Value::Bool(val) => val.to_string(),
+                        Value::Number(num) => num.to_string(),
+                        Value::String(s) => s.to_string(),
+                        Value::Array(list) => {
+                            let mut s = String::new();
+                            for node in list {
+                                s.push_str(&value_to_string(node));
+                            }
+                            s
+                        }
+                        Value::Object(map) => {
+                            let mut s = String::new();
+                            for (k, v) in map {
+                                s.push_str(&k);
+                                s.push('=');
+                                s.push_str(&value_to_string(v));
+                            }
+                            s
+                        }
+                    }
+                }
+
                 let value: Value = serde_json::to_value(&secret)?;
                 let node = path.query(&value).exactly_one()?;
-                match node {
-                    Value::String(s) => s.to_string(),
-                    _ => return Err(Error::InvalidJsonPathType),
-                }
+                value_to_string(node)
             } else {
                 secret.copy_value_unsafe().unwrap_or_default()
             };

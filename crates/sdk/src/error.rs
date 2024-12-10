@@ -679,11 +679,6 @@ pub enum Error {
     #[cfg(feature = "clipboard")]
     #[error(transparent)]
     JsonPath(#[from] serde_json_path::ExactlyOneError),
-
-    /// Error generated matching a JSON path when a string node is expected.
-    #[cfg(feature = "clipboard")]
-    #[error("invalid type in JSON path match, must be a string node")]
-    InvalidJsonPathType,
 }
 
 /// Extension functions for error types.
