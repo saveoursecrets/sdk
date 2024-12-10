@@ -24,12 +24,10 @@ async fn integration_ipc_memory_server() -> Result<()> {
 
     let name = "mock-service";
     let version = "1.0.0";
-    let build_number = 1u32;
 
     let app_info = ServiceAppInfo {
         name: name.to_string(),
         version: version.to_string(),
-        build_number,
     };
 
     let mut client =

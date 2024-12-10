@@ -59,13 +59,12 @@ use serde::{Deserialize, Serialize};
 /// Information about the service.
 #[typeshare::typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct ServiceAppInfo {
     /// App name.
     pub name: String,
     /// App version.
     pub version: String,
-    /// App build number.
-    pub build_number: u32,
 }
 
 impl Default for ServiceAppInfo {
@@ -73,7 +72,6 @@ impl Default for ServiceAppInfo {
         Self {
             name: env!("CARGO_PKG_NAME").to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
-            build_number: 0,
         }
     }
 }

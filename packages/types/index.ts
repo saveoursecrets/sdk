@@ -430,8 +430,6 @@ export interface ServiceAppInfo {
 	name: string;
 	/** App version. */
 	version: string;
-	/** App build number. */
-	build_number: number;
 }
 
 /**

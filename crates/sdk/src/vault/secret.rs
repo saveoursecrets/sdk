@@ -666,7 +666,7 @@ impl From<SecretRow> for Secret {
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct UserData {
-    /// Collection of custom user_data.
+    /// Collection of custom user fields.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) fields: Vec<SecretRow>,
     /// Comment for the secret.
