@@ -258,6 +258,23 @@ export interface Summary {
 	flags: VaultFlags;
 }
 
+/** Collection of custom user data. */
+export interface UserData {
+	/** Collection of custom user_data. */
+	fields: SecretRow[];
+	/** Comment for the secret. */
+	comment?: string;
+	/**
+	 * Recovery notes.
+	 * 
+	 * These are notes specific for a person that might recover
+	 * the vault information and is intended to provide additional
+	 * information on how to use this secret in the event of an
+	 * emergency.
+	 */
+	recoveryNote?: string;
+}
+
 /** View of documents in the search index. */
 export type DocumentView = 
 	/** View all documents in the search index. */
@@ -299,5 +316,56 @@ export type DocumentView =
 	 * is performed using the URL origin.
 	 */
 	exact: boolean;
+}};
+
+/** Variants for embedded and external file secrets. */
+export type FileContent = 
+	/** Embedded file buffer. */
+	| { kind: "embedded", body: {
+	/** File name. */
+	name: string;
+	/**
+	 * Mime type for the data.
+	 * 
+	 * Use application/octet-stream if no mime-type is available.
+	 */
+	mime: string;
+	/** The binary data. */
+	buffer: SecretBox<number[]>;
+	/**
+	 * The SHA-256 digest of the buffer.
+	 * 
+	 * Using the SHA-256 digest allows the checksum to be computed
+	 * using the Javascript SubtleCrypto API and in Dart using the
+	 * crypto package.
+	 * 
+	 * This is used primarily during the public migration export
+	 * to identify files that have been extracted to another location
+	 * in the archive rather than embedding the binary data.
+	 */
+	checksum: [number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number];
+}}
+	/** Encrypted data is stored in an external file. */
+	| { kind: "external", body: {
+	/** File name. */
+	name: string;
+	/**
+	 * Mime type for the data.
+	 * 
+	 * Use application/octet-stream if no mime-type is available.
+	 */
+	mime: string;
+	/**
+	 * The SHA-256 digest of the buffer.
+	 * 
+	 * Using the SHA-256 digest allows the checksum to be computed
+	 * using the Javascript SubtleCrypto API and in Dart using the
+	 * crypto package.
+	 * 
+	 * This is used primarily during the public migration export
+	 * to identify files that have been extracted to another location
+	 * in the archive rather than embedding the binary data.
+	 */
+	checksum: [number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number];
 }};
 

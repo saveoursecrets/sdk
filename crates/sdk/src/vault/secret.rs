@@ -663,7 +663,9 @@ impl From<SecretRow> for Secret {
 }
 
 /// Collection of custom user data.
+#[typeshare::typeshare]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct UserData {
     /// Collection of custom user_data.
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -867,7 +869,9 @@ pub enum AgeVersion {
 }
 
 /// Variants for embedded and external file secrets.
+#[typeshare::typeshare]
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "kind", content = "body")]
 pub enum FileContent {
     /// Embedded file buffer.
     Embedded {
@@ -922,6 +926,7 @@ pub enum FileContent {
         checksum: [u8; 32],
 
         /// Size of the encrypted file content.
+        #[typeshare(skip)]
         size: u64,
 
         /// Optional path to a source file; never encoded or serialized.
