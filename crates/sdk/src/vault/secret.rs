@@ -5,7 +5,6 @@ use ed25519_dalek::SECRET_KEY_LENGTH;
 use pem::Pem;
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use serde::{
-    de::{self, Deserializer, Visitor},
     ser::{SerializeMap, SerializeSeq},
     Deserialize, Serialize, Serializer,
 };
