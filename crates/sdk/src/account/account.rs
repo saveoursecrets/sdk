@@ -920,6 +920,14 @@ pub trait Account {
         mut options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> std::result::Result<PublicIdentity, Self::Error>;
+
+    /// Copy a secret to the clipboard.
+    #[cfg(feature = "clipboard")]
+    async fn copy_clipboard(
+        &self,
+        clipboard: &xclipboard::Clipboard,
+        target: &SecretPath,
+    ) -> std::result::Result<bool, Self::Error>;
 }
 
 /// Read-only view created from a specific event log commit.
@@ -3401,6 +3409,32 @@ impl Account for LocalAccount {
         self.paths.append_audit_events(vec![audit_event]).await?;
 
         Ok(account)
+    }
+
+    /// Copy a secret to the clipboard.
+    #[cfg(feature = "clipboard")]
+    async fn copy_clipboard(
+        &self,
+        clipboard: &xclipboard::Clipboard,
+        target: &SecretPath,
+    ) -> Result<bool> {
+        let target_folder = self.find(|f| f.id() == target.folder_id()).await;
+        if let Some(folder) = target_folder {
+            let current_folder = self.current_folder().await?;
+            let (data, _) =
+                self.read_secret(target.secret_id(), Some(folder)).await?;
+            if let Some(current) = &current_folder {
+                self.open_folder(current).await?;
+            }
+            let secret = data.secret();
+            let text = secret.copy_value_unsafe().unwrap_or_default();
+            clipboard
+                .set_text_timeout(text)
+                .await
+                .map_err(Error::from)?;
+            return Ok(true);
+        }
+        Ok(false)
     }
 }
 

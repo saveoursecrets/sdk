@@ -104,6 +104,8 @@ pub use url;
 pub use urn;
 pub use uuid;
 pub use vcard4;
+#[cfg(feature = "clipboard")]
+pub use xclipboard;
 pub use zxcvbn;
 
 /// Result type for the core library.

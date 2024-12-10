@@ -41,6 +41,9 @@ use std::{
 };
 use tokio::sync::{Mutex, RwLock};
 
+#[cfg(feature = "clipboard")]
+use sos_sdk::{prelude::SecretPath, xclipboard};
+
 #[cfg(feature = "search")]
 use crate::sdk::prelude::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
@@ -1813,5 +1816,15 @@ impl Account for NetworkAccount {
         Ok(account
             .restore_backup_archive(path, password, options, data_dir)
             .await?)
+    }
+
+    #[cfg(feature = "clipboard")]
+    async fn copy_clipboard(
+        &self,
+        clipboard: &xclipboard::Clipboard,
+        target: &SecretPath,
+    ) -> Result<bool> {
+        let account = self.account.lock().await;
+        Ok(account.copy_clipboard(clipboard, target).await?)
     }
 }

@@ -31,7 +31,7 @@ where
     };
 
     let accounts = accounts.read().await;
-    match accounts.copy_clipboard(&account_id, request).await {
+    match accounts.copy_clipboard(&account_id, &request).await {
         Ok(result) => json(StatusCode::OK, &result),
         Err(e) => {
             tracing::error!(error = %e, "copy_clipboard");

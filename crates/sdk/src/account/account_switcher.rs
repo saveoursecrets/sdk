@@ -255,7 +255,7 @@ where
     pub async fn copy_clipboard(
         &self,
         account_id: &Address,
-        target: SecretPath,
+        target: &SecretPath,
     ) -> std::result::Result<bool, E> {
         let Some(clipboard) = self.clipboard.clone() else {
             return Err(Error::NoClipboard.into());
@@ -263,27 +263,10 @@ where
 
         let account = self.iter().find(|a| a.address() == account_id);
         if let Some(account) = account {
-            let target_folder =
-                account.find(|f| f.id() == target.folder_id()).await;
-            if let Some(folder) = target_folder {
-                let current_folder = account.current_folder().await?;
-                let (data, _) = account
-                    .read_secret(target.secret_id(), Some(folder))
-                    .await?;
-                if let Some(current) = &current_folder {
-                    account.open_folder(current).await?;
-                }
-                let secret = data.secret();
-                let text = secret.copy_value_unsafe().unwrap_or_default();
-                clipboard
-                    .set_text_timeout(text)
-                    .await
-                    .map_err(Error::from)?;
-                return Ok(true);
-            }
+            account.copy_clipboard(&clipboard, target).await
+        } else {
+            Ok(false)
         }
-
-        Ok(false)
     }
 
     fn position(&self, address: &Address) -> Option<usize> {
