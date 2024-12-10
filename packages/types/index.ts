@@ -50,7 +50,7 @@ type BodyOf<T extends { kind: string; body: unknown }, K extends T["kind"]> =
 
 type NoteSecret = BodyOf<Secret, "note">;
 type FileSecret = BodyOf<Secret, "file">;
-type AccountSecret = BodyOf<Secret, "account">;
+type LoginSecret = BodyOf<Secret, "account">;
 type ListSecret = BodyOf<Secret, "list">;
 type PemSecret = BodyOf<Secret, "pem">;
 type PageSecret = BodyOf<Secret, "page">;
