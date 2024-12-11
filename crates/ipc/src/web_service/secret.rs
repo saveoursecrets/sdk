@@ -101,7 +101,15 @@ where
     };
 
     match account.read_secret(request.secret_id(), Some(folder)).await {
-        Ok(result) => json(StatusCode::OK, &result.0),
+        Ok(result) => {
+            let mut secret_row = result.0;
+            let redacted = secret_row.secret_mut().redact(true, 12);
+            tracing::debug!(
+              kind = %secret_row.meta().kind(),
+              redacted = %redacted,
+              "read_secret");
+            json(StatusCode::OK, &secret_row)
+        }
         Err(e) => {
             tracing::error!(error = %e, "read_secret");
             status(StatusCode::INTERNAL_SERVER_ERROR)
