@@ -86,14 +86,13 @@ async fn local_search_view_query() -> Result<()> {
     account.insert_secrets(new_folder_docs).await?;
 
     // Get all documents in the index.
-    let documents =
-        account.query_view(vec![Default::default()], None).await?;
+    let documents = account.query_view(&[Default::default()], None).await?;
     assert_eq!(total_docs, documents.len());
 
     // Get all documents ignoring some types
     let documents = account
         .query_view(
-            vec![DocumentView::All {
+            &[DocumentView::All {
                 ignored_types: Some(vec![SecretType::Account]),
             }],
             None,
@@ -102,17 +101,16 @@ async fn local_search_view_query() -> Result<()> {
     assert_eq!(15, documents.len());
 
     // Find favorites
-    let documents = account
-        .query_view(vec![DocumentView::Favorites], None)
-        .await?;
+    let documents =
+        account.query_view(&[DocumentView::Favorites], None).await?;
     assert_eq!(1, documents.len());
 
     // Query by specific document identifiers
     let identifiers = (&ids[0..4]).into_iter().map(|id| *id).collect();
     let documents = account
         .query_view(
-            vec![DocumentView::Documents {
-                vault_id: *default_folder.id(),
+            &[DocumentView::Documents {
+                folder_id: *default_folder.id(),
                 identifiers,
             }],
             None,
@@ -123,7 +121,7 @@ async fn local_search_view_query() -> Result<()> {
     // Find contacts
     let documents = account
         .query_view(
-            vec![DocumentView::Contact {
+            &[DocumentView::Contact {
                 include_types: None,
             }],
             None,
@@ -133,20 +131,20 @@ async fn local_search_view_query() -> Result<()> {
 
     // Find by type
     let documents = account
-        .query_view(vec![DocumentView::TypeId(SecretType::Account)], None)
+        .query_view(&[DocumentView::TypeId(SecretType::Account)], None)
         .await?;
     assert_eq!(2, documents.len());
 
     // Find all in a specific folder
     let documents = account
-        .query_view(vec![DocumentView::Vault(*default_folder.id())], None)
+        .query_view(&[DocumentView::Vault(*default_folder.id())], None)
         .await?;
     assert_eq!(14, documents.len());
 
     // Find by tags
     let documents = account
         .query_view(
-            vec![DocumentView::Tags(vec!["new_folder".to_owned()])],
+            &[DocumentView::Tags(vec!["new_folder".to_owned()])],
             None,
         )
         .await?;
@@ -161,8 +159,8 @@ async fn local_search_view_query() -> Result<()> {
     // in the archive
     let documents = account
         .query_view(
-            vec![Default::default()],
-            Some(ArchiveFilter {
+            &[Default::default()],
+            Some(&ArchiveFilter {
                 id: *archive_folder.id(),
                 include_documents: false,
             }),
@@ -174,8 +172,8 @@ async fn local_search_view_query() -> Result<()> {
     // in the archive
     let documents = account
         .query_view(
-            vec![Default::default()],
-            Some(ArchiveFilter {
+            &[Default::default()],
+            Some(&ArchiveFilter {
                 id: *archive_folder.id(),
                 include_documents: true,
             }),

@@ -274,7 +274,11 @@ async fn account_integrity_cancel() -> Result<()> {
         match event {
             FolderIntegrityEvent::OpenFolder(_) => {
                 canceled = true;
-                cancel_tx.send(()).unwrap();
+                // The process may have already completed
+                // and the cancel receiver may have already
+                // been dropped which would cause the send()
+                // to fail
+                let _ = cancel_tx.send(());
             }
             _ => {}
         }

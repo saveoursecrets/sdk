@@ -20,8 +20,10 @@ use sos_sdk::signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 
 use crate::{
     net::NetworkRetry,
-    protocol::{ChangeNotification, Origin, WireEncodeDecode},
-    CancelReason, Error, Result, WebSocketRequest,
+    protocol::{
+        transfer::CancelReason, ChangeNotification, Origin, WireEncodeDecode,
+    },
+    Error, Result, WebSocketRequest,
 };
 
 use super::{

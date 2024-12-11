@@ -292,7 +292,7 @@ impl SystemMessages {
     /// Sorted list of system messages.
     pub fn sorted_list(&self) -> Vec<(&Urn, &SysMessage)> {
         let mut messages: Vec<_> = self.messages.iter().collect();
-        messages.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
+        messages.sort_by(|a, b| a.1.cmp(b.1));
         messages
     }
 

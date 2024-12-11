@@ -165,11 +165,13 @@ impl AccountBuilder {
             create_archive,
             create_authenticator,
             create_contacts,
+            #[cfg(feature = "files")]
             create_file_password,
             mut default_folder_name,
             archive_folder_name,
             authenticator_folder_name,
             contacts_folder_name,
+            ..
         } = self;
 
         Paths::scaffold(data_dir.clone()).await?;

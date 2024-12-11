@@ -1,6 +1,9 @@
 use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, SyncClient};
+use sos_net::{
+    protocol::{RemoteSyncHandler, SyncClient},
+    sdk::prelude::*,
+};
 
 /// Tests creating and then deleting all the account data
 /// on a remote server.
@@ -25,7 +28,7 @@ async fn network_sync_delete_account() -> Result<()> {
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
     let bridge = device.owner.remove_server(&origin).await?.unwrap();
-    bridge.client().delete_account().await?;
+    bridge.client().delete_account(&address).await?;
 
     // All the local data still exists
     let local_paths = device.owner.paths();

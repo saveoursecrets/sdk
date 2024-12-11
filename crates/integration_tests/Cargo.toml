@@ -9,35 +9,62 @@ publish = false
 default = []
 enable-cli-tests = []
 
+[dependencies]
+tokio.workspace = true
+http.workspace = true
+anyhow.workspace = true
+
+[dependencies.sos-ipc]
+features = [
+  "server",
+  "client",
+  "native-bridge-server",
+  "native-bridge-client",
+  "integration",
+  "account",
+  "archive",
+  "contacts", 
+  "migrate",
+  "search",
+  "files",
+]
+path = "../ipc"
+
+[dependencies.sos-sdk]
+path = "../sdk"
+
 [dev-dependencies]
 binary-stream.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 serde_json.workspace = true
+async-trait.workspace = true
 thiserror.workspace = true
 async-recursion.workspace = true
 futures.workspace = true
 parking_lot.workspace = true
 once_cell.workspace = true
 serde.workspace = true
-clap.workspace = true
 indexmap.workspace = true
-tokio.workspace = true
 anyhow.workspace = true
 secrecy.workspace = true
 http.workspace = true
 
-sos-server = { path = "../server" }
-sos_test_utils = { path = "../test_utils" }
-
 copy_dir = "0.1"
 maplit2 = "1"
 tempfile = "3.5"
-kdam = { version = "0.5", features = ["rich", "spinner"] }
 pretty_assertions = "1.4"
-anticipate-runner = { version = "0.5.1" }
+sos-test-utils = { path = "../test_utils" }
 
 [dev-dependencies.sos-net]
 features = ["full"]
 path = "../net"
 
+[dev-dependencies.sos-server]
+default-features = false
+features = ["listen", "audit", "pairing"]
+path = "../server"
+
+[[bin]]
+name = "test-native-bridge"
+path = "src/test_native_bridge.rs"

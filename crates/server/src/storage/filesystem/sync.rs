@@ -194,8 +194,7 @@ impl ForceMerge for ServerStorage {
             "force_merge::account",
         );
 
-        let event_log = self.account_log();
-        let mut event_log = event_log.write().await;
+        let mut event_log = self.account_log.write().await;
         event_log.patch_replace(&diff).await?;
 
         outcome.changes += len;
@@ -579,13 +578,9 @@ impl StorageEventLogs for ServerStorage {
         Ok(Arc::clone(&self.file_log))
     }
 
-    async fn folder_identifiers(&self) -> Result<IndexSet<VaultId>> {
-        Ok(self.cache.keys().copied().collect())
-    }
-
     async fn folder_details(&self) -> Result<IndexSet<Summary>> {
+        let ids = self.cache.keys().copied().collect::<Vec<_>>();
         let mut output = IndexSet::new();
-        let ids = self.folder_identifiers().await?;
         for id in &ids {
             let path = self.paths.vault_path(id);
             let summary = Header::read_summary_file(path).await?;
