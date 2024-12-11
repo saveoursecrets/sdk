@@ -4736,7 +4736,7 @@ dependencies = [
  "rustc_version",
  "sanitize-filename",
  "secrecy",
- "security-framework 2.11.1",
+ "security-framework 3.0.1",
  "serde",
  "serde_json",
  "serde_json_path",
