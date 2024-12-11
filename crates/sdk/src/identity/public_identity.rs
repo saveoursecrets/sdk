@@ -67,7 +67,7 @@ impl PublicIdentity {
                 identities.push(ident);
             }
         }
-        identities.sort_by(|a, b| b.label().cmp(a.label()));
+        identities.sort_by(|a, b| a.label().cmp(b.label()));
         Ok(identities)
     }
 
