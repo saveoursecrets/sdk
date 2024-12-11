@@ -16,7 +16,7 @@ use crate::{
 use xclipboard::Clipboard;
 
 #[cfg(feature = "clipboard")]
-use crate::prelude::SecretPath;
+use crate::prelude::{ClipboardCopyRequest, SecretPath};
 
 /// Account switcher for local accounts.
 pub type LocalAccountSwitcher = AccountSwitcher<
@@ -256,7 +256,7 @@ where
         &self,
         account_id: &Address,
         target: &SecretPath,
-        path: Option<&serde_json_path::JsonPath>,
+        request: &ClipboardCopyRequest,
     ) -> std::result::Result<bool, E> {
         let Some(clipboard) = self.clipboard.clone() else {
             return Err(Error::NoClipboard.into());
@@ -264,7 +264,7 @@ where
 
         let account = self.iter().find(|a| a.address() == account_id);
         if let Some(account) = account {
-            account.copy_clipboard(&clipboard, target, path).await
+            account.copy_clipboard(&clipboard, target, request).await
         } else {
             Ok(false)
         }

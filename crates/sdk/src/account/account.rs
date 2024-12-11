@@ -82,6 +82,20 @@ use tokio::sync::{mpsc, RwLock};
 #[cfg(feature = "archive")]
 use tokio::io::{AsyncRead, AsyncSeek, BufReader};
 
+#[cfg(feature = "clipboard")]
+use serde_json_path::JsonPath;
+#[cfg(feature = "clipboard")]
+use xclipboard::Clipboard;
+
+/// Request a clipboard copy operation.
+#[cfg(feature = "clipboard")]
+#[typeshare::typeshare]
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct ClipboardCopyRequest {
+    /// Target paths.
+    pub paths: Option<Vec<JsonPath>>,
+}
+
 /// Determine how to handle a locked account.
 #[derive(Default, Clone)]
 pub enum AccountLocked {
@@ -839,9 +853,9 @@ pub trait Account {
     #[cfg(feature = "clipboard")]
     async fn copy_clipboard(
         &self,
-        clipboard: &xclipboard::Clipboard,
+        clipboard: &Clipboard,
         target: &SecretPath,
-        path: Option<&serde_json_path::JsonPath>,
+        request: &ClipboardCopyRequest,
     ) -> std::result::Result<bool, Self::Error>;
 }
 
@@ -3330,9 +3344,9 @@ impl Account for LocalAccount {
     #[cfg(feature = "clipboard")]
     async fn copy_clipboard(
         &self,
-        clipboard: &xclipboard::Clipboard,
+        clipboard: &Clipboard,
         target: &SecretPath,
-        path: Option<&serde_json_path::JsonPath>,
+        request: &ClipboardCopyRequest,
     ) -> Result<bool> {
         use serde_json::Value;
         let target_folder = self.find(|f| f.id() == target.folder_id()).await;
@@ -3344,7 +3358,7 @@ impl Account for LocalAccount {
                 self.open_folder(current).await?;
             }
             let secret = data.secret();
-            let text = if let Some(path) = path {
+            let text = if let Some(paths) = &request.paths {
                 fn value_to_string(node: &Value) -> String {
                     match node {
                         Value::Null => node.to_string(),
@@ -3371,8 +3385,25 @@ impl Account for LocalAccount {
                 }
 
                 let value: Value = serde_json::to_value(&secret)?;
-                let node = path.query(&value).exactly_one()?;
-                value_to_string(node)
+                let mut s = String::new();
+                let mut nodes = Vec::new();
+                for path in paths {
+                    let mut matches = path.query(&value).all();
+                    nodes.append(&mut matches);
+                }
+
+                if nodes.is_empty() {
+                    return Err(Error::JsonPathQueryEmpty(paths.clone()));
+                }
+
+                let len = nodes.len();
+                for (index, node) in nodes.into_iter().enumerate() {
+                    s.push_str(&value_to_string(node));
+                    if index < len - 1 {
+                        s.push('\n');
+                    }
+                }
+                s
             } else {
                 secret.copy_value_unsafe().unwrap_or_default()
             };

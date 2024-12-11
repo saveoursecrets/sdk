@@ -11,6 +11,7 @@ export type VaultFlags = number;
 export type SecretId = string;
 export type Cipher = string;
 export type KeyDerivation = string;
+export type JsonPath = string;
 export type SecretBox<T> = T;
 export type Set<T> = T[];
 export type SecretString = SecretBox<string>;
@@ -174,6 +175,12 @@ export interface ArchiveFilter {
 	id: string;
 	/** Whether to include archived documents. */
 	includeDocuments: boolean;
+}
+
+/** Request a clipboard copy operation. */
+export interface ClipboardCopyRequest {
+	/** Target paths. */
+	paths?: JsonPath[];
 }
 
 /**

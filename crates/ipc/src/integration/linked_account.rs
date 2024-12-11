@@ -38,7 +38,10 @@ use tokio::sync::{Mutex, RwLock};
 use super::local_client::LocalClient;
 
 #[cfg(feature = "clipboard")]
-use sos_sdk::{prelude::SecretPath, xclipboard};
+use sos_sdk::{
+    prelude::{ClipboardCopyRequest, SecretPath},
+    xclipboard::Clipboard,
+};
 
 #[cfg(feature = "search")]
 use sos_sdk::prelude::{
@@ -1034,12 +1037,12 @@ impl Account for LinkedAccount {
     #[cfg(feature = "clipboard")]
     async fn copy_clipboard(
         &self,
-        clipboard: &xclipboard::Clipboard,
+        clipboard: &Clipboard,
         target: &SecretPath,
-        path: Option<&sos_sdk::json_path::JsonPath>,
+        request: &ClipboardCopyRequest,
     ) -> Result<bool> {
         let account = self.account.lock().await;
-        Ok(account.copy_clipboard(clipboard, target, path).await?)
+        Ok(account.copy_clipboard(clipboard, target, request).await?)
     }
 }
 
