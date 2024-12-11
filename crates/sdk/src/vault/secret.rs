@@ -1497,6 +1497,105 @@ impl Secret {
         }
     }
 
+    /// Try to redact a secret.
+    ///
+    /// When `preserve_length` is set fields that are redacted preserve the
+    /// original byte length so UIs that show the field will leak the
+    /// secret length. Otherwise the value of `default_length` will be used.
+    ///
+    /// Not all secret types may be redacted; unsupported types are:
+    ///
+    /// * File
+    /// * Contact
+    /// * Totp
+    /// * Link
+    /// * Age
+    /// * Signer
+    ///
+    /// Attempting to redact a secret for these types will return `false`;
+    /// this may change in the future.
+    ///
+    pub fn redact(
+        &mut self,
+        preserve_length: bool,
+        default_length: usize,
+    ) -> bool {
+        let redact_string = |s: &mut SecretString| {
+            let value = s.expose_secret();
+            let len = if preserve_length {
+                value.len()
+            } else {
+                default_length
+            };
+            let redacted = "0".repeat(len);
+            *s = SecretString::new(redacted.into());
+        };
+
+        let redact_buffer = |s: &mut SecretBox<Vec<u8>>| {
+            let value = s.expose_secret();
+            let len = if preserve_length {
+                value.len()
+            } else {
+                default_length
+            };
+            let redacted = "0".repeat(len);
+            *s = SecretBox::new(redacted.as_bytes().to_vec().into());
+        };
+
+        match self {
+            Secret::Account { password, .. } => {
+                redact_string(password);
+                true
+            }
+            Secret::Note { text, .. } => {
+                redact_string(text);
+                true
+            }
+            Secret::File { .. } => false,
+            Secret::List { items, .. } => {
+                for (_, value) in items {
+                    redact_string(value);
+                }
+                true
+            }
+            Secret::Pem { certificates, .. } => {
+                for cert in certificates {
+                    let tag = cert.tag().to_owned();
+                    let mut pem =
+                        SecretBox::new(cert.contents().to_vec().into());
+                    redact_buffer(&mut pem);
+                    *cert = Pem::new(tag, pem.expose_secret().to_vec());
+                }
+                true
+            }
+            Secret::Page { document, .. } => {
+                redact_string(document);
+                true
+            }
+            Secret::Contact { .. } => false,
+            Secret::Totp { .. } => false,
+            Secret::Card { number, .. } => {
+                redact_string(number);
+                true
+            }
+            Secret::Bank { number, .. } => {
+                redact_string(number);
+                true
+            }
+            Secret::Link { .. } => false,
+            Secret::Password { password, .. } => {
+                redact_string(password);
+                true
+            }
+            Secret::Identity { number, .. } => {
+                redact_string(number);
+                true
+            }
+            Secret::Age { .. } => false,
+            Secret::Signer { .. } => false,
+        }
+    }
+
     /// Value formatted to copy to the clipboard.
     pub fn copy_value_unsafe(&self) -> Option<String> {
         match self {
