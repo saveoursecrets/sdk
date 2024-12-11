@@ -731,6 +731,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
+name = "cfg_eval"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45565fc9416b9896014f5732ac776f810ee53a66730c17e4020c3ec064a8f88f"
+dependencies = [
+ "proc-macro2 1.0.92",
+ "quote 1.0.37",
+ "syn 2.0.90",
+]
+
+[[package]]
 name = "chacha20"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5662,7 +5673,6 @@ checksum = "0200d0fc04d809396c2ad43f3c95da3582a2556eba8d453c1087f4120ee352ff"
 dependencies = [
  "fnv",
  "lazy_static",
- "serde",
 ]
 
 [[package]]
@@ -5771,15 +5781,17 @@ checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
 
 [[package]]
 name = "vcard4"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca8849254432484045d249613a21009547a762b12826224b34d372a4a8c89fc6"
+checksum = "4e861c8e70c6712bcbe6d593d20fb8e2c33499b1e537f261b3aa0b0c2ce54e9b"
 dependencies = [
  "aho-corasick 0.7.20",
  "base64 0.21.7",
+ "cfg_eval",
  "language-tags",
  "logos",
  "serde",
+ "serde_with",
  "thiserror 1.0.69",
  "time",
  "unicode-segmentation",
