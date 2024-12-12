@@ -93,13 +93,13 @@ impl UtcDateTime {
         Ok(datetime.format(&Rfc2822)?)
     }
 
-    /// Convert this timestamp to a RFC3339 formatted string.
+    /// Convert this date and time to a RFC3339 formatted string.
     pub fn to_rfc3339(&self) -> Result<String> {
         UtcDateTime::rfc3339(&self.0)
     }
 
     /// Convert an offset date time to a RFC3339 formatted string.
-    pub fn rfc3339(datetime: &OffsetDateTime) -> Result<String> {
+    fn rfc3339(datetime: &OffsetDateTime) -> Result<String> {
         Ok(datetime.format(&Rfc3339)?)
     }
 

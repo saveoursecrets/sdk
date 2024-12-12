@@ -533,7 +533,7 @@ impl From<DashlaneContactRecord> for GenericContactRecord {
             builder = builder.title(value.job_title);
         }
         if let Some(date) = date_of_birth {
-            builder = builder.birthday(date);
+            builder = builder.birthday(date.into());
         }
         let vcard = builder.finish();
         Self {

@@ -77,7 +77,7 @@ balloon-hash = { version = "0.4", features = ["std"]}
 pem = { version = "3", features = ["serde"] }
 zxcvbn = { version = "3.0.1", features = ["ser"] }
 totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
-vcard4 = { version = "0.6.2", features = ["serde"] }
+vcard4 = { version = "0.7", features = ["serde"] }
 async-once-cell = "0.5"
 age = { version = "0.11", features = ["async"] }
 ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
