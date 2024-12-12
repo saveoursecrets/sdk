@@ -2551,9 +2551,9 @@ name = "keychain_parser"
 version = "0.1.1"
 dependencies = [
  "anyhow",
- "logos",
+ "logos 0.15.0",
  "plist",
- "thiserror 1.0.69",
+ "thiserror 2.0.6",
 ]
 
 [[package]]
@@ -2651,7 +2651,16 @@ version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7251356ef8cb7aec833ddf598c6cb24d17b689d20b993f9d11a3d764e34e6458"
 dependencies = [
- "logos-derive",
+ "logos-derive 0.14.4",
+]
+
+[[package]]
+name = "logos"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab6f536c1af4c7cc81edf73da1f8029896e7e1e16a219ef09b184e76a296f3db"
+dependencies = [
+ "logos-derive 0.15.0",
 ]
 
 [[package]]
@@ -2670,12 +2679,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "logos-codegen"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "189bbfd0b61330abea797e5e9276408f2edbe4f822d7ad08685d67419aafb34e"
+dependencies = [
+ "beef",
+ "fnv",
+ "lazy_static",
+ "proc-macro2 1.0.92",
+ "quote 1.0.37",
+ "regex-syntax 0.8.5",
+ "rustc_version",
+ "syn 2.0.90",
+]
+
+[[package]]
 name = "logos-derive"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24fb722b06a9dc12adb0963ed585f19fc61dc5413e6a9be9422ef92c091e731d"
 dependencies = [
- "logos-codegen",
+ "logos-codegen 0.14.4",
+]
+
+[[package]]
+name = "logos-derive"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ebfe8e1a19049ddbfccbd14ac834b215e11b85b90bab0c2dba7c7b92fb5d5cba"
+dependencies = [
+ "logos-codegen 0.15.0",
 ]
 
 [[package]]
@@ -4524,7 +4558,7 @@ dependencies = [
  "sos-net",
  "tempfile",
  "terminal-banner",
- "thiserror 1.0.69",
+ "thiserror 2.0.6",
  "tokio",
  "tokio-rustls",
  "toml 0.8.19",
@@ -4544,7 +4578,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "sos-sdk",
- "thiserror 1.0.69",
+ "thiserror 2.0.6",
  "tokio",
  "tracing",
 ]
@@ -4558,7 +4592,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.6",
  "time",
  "url",
 ]
@@ -4597,7 +4631,7 @@ dependencies = [
  "sos-server",
  "sos-test-utils",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.6",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -4630,7 +4664,7 @@ dependencies = [
  "serde_with",
  "sos-protocol",
  "sos-sdk",
- "thiserror 1.0.69",
+ "thiserror 2.0.6",
  "tokio",
  "tokio-util",
  "tower 0.5.1",
@@ -4666,7 +4700,7 @@ dependencies = [
  "sos-account-extras",
  "sos-protocol",
  "sos-sdk",
- "thiserror 1.0.69",
+ "thiserror 2.0.6",
  "tokio",
  "tokio-tungstenite",
  "tokio-util",
@@ -4696,7 +4730,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sos-sdk",
- "thiserror 1.0.69",
+ "thiserror 2.0.6",
  "tokio",
  "tracing",
  "typeshare",
@@ -4759,7 +4793,7 @@ dependencies = [
  "sos-vfs",
  "subtle",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.6",
  "time",
  "tokio",
  "tokio-util",
@@ -4803,7 +4837,7 @@ dependencies = [
  "serde_json",
  "sos-cli-helpers",
  "sos-protocol",
- "thiserror 1.0.69",
+ "thiserror 2.0.6",
  "tokio",
  "tokio-rustls",
  "tokio-rustls-acme",
@@ -5789,7 +5823,7 @@ dependencies = [
  "base64 0.21.7",
  "cfg_eval",
  "language-tags",
- "logos",
+ "logos 0.14.4",
  "serde",
  "serde_with",
  "thiserror 1.0.69",
@@ -6279,7 +6313,7 @@ dependencies = [
  "anyhow",
  "arboard",
  "rustc_version",
- "thiserror 1.0.69",
+ "thiserror 2.0.6",
  "tokio",
  "tracing",
  "zeroize",
