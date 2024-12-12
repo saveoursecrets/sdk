@@ -73,17 +73,18 @@ where
     };
 
     let accounts = accounts.read().await;
-    let Ok(results) = accounts
+    match accounts
         .query_view(request.views.as_slice(), request.archive_filter.as_ref())
         .await
-    else {
-        return internal_server_error("search");
-    };
+    {
+        Ok(results) => {
+            let list = results
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v))
+                .collect::<HashMap<_, _>>();
 
-    let list = results
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), v))
-        .collect::<HashMap<_, _>>();
-
-    json(StatusCode::OK, &list)
+            json(StatusCode::OK, &list)
+        }
+        Err(e) => internal_server_error(e),
+    }
 }

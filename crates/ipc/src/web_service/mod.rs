@@ -235,6 +235,24 @@ impl LocalWebService {
                 .unwrap();
         }
 
+        #[cfg(feature = "contacts")]
+        {
+            let state = accounts.clone();
+            router
+                .entry(Method::GET)
+                .or_default()
+                .insert(
+                    "/avatar",
+                    BoxCloneService::new(service_fn(
+                        move |req: Request<Incoming>| {
+                            read_secret(req, state.clone())
+                        },
+                    ))
+                    .into(),
+                )
+                .unwrap();
+        }
+
         #[cfg(feature = "clipboard")]
         {
             let state = accounts.clone();

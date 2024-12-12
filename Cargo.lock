@@ -4601,6 +4601,7 @@ version = "0.16.5"
 dependencies = [
  "anyhow",
  "async-trait",
+ "base64 0.22.1",
  "bytes",
  "futures",
  "futures-util",

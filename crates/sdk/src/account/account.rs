@@ -3393,7 +3393,9 @@ impl Account for LocalAccount {
                 }
 
                 if nodes.is_empty() {
-                    return Err(Error::JsonPathQueryEmpty(paths.clone()));
+                    return Err(Error::JsonPathQueryEmpty(
+                        paths.iter().map(|p| p.to_string()).collect(),
+                    ));
                 }
 
                 let len = nodes.len();

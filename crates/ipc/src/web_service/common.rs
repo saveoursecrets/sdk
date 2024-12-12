@@ -81,3 +81,15 @@ pub fn json<S: Serialize>(
         .unwrap();
     Ok(response)
 }
+
+pub fn text(
+    status: StatusCode,
+    body: String,
+) -> hyper::Result<Response<Body>> {
+    let response = Response::builder()
+        .status(status)
+        .header(CONTENT_TYPE, "text/plain")
+        .body(Full::new(Bytes::from(body.as_bytes().to_vec())))
+        .unwrap();
+    Ok(response)
+}
