@@ -68,18 +68,17 @@ pub fn json<S: Serialize>(
     status: StatusCode,
     value: &S,
 ) -> hyper::Result<Response<Body>> {
-    let Ok(body) = serde_json::to_vec(value) else {
-        return Ok(Response::builder()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .body(Body::default())
-            .unwrap());
-    };
-    let response = Response::builder()
-        .status(status)
-        .header(CONTENT_TYPE, MIME_TYPE_JSON)
-        .body(Full::new(Bytes::from(body)))
-        .unwrap();
-    Ok(response)
+    match serde_json::to_vec(value) {
+        Ok(body) => {
+            let response = Response::builder()
+                .status(status)
+                .header(CONTENT_TYPE, MIME_TYPE_JSON)
+                .body(Full::new(Bytes::from(body)))
+                .unwrap();
+            Ok(response)
+        }
+        Err(e) => internal_server_error(e),
+    }
 }
 
 pub fn text(
