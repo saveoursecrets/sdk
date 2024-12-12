@@ -99,7 +99,7 @@ where
         }
         Err(e) => {
             tracing::error!(error = %e, "read_secret");
-            status(StatusCode::INTERNAL_SERVER_ERROR)
+            internal_server_error(e)
         }
     }
 }

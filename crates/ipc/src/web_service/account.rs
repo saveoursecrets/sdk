@@ -32,11 +32,10 @@ where
         + 'static,
 {
     let accounts = accounts.read().await;
-    let Ok(list) = Identity::list_accounts(accounts.paths()).await else {
-        return internal_server_error("list_accounts");
-    };
-
-    json(StatusCode::OK, &list)
+    match Identity::list_accounts(accounts.paths()).await {
+        Ok(list) => json(StatusCode::OK, &list),
+        Err(e) => internal_server_error(e),
+    }
 }
 
 /// List folders for authenticated accounts.
@@ -58,10 +57,14 @@ where
     for account in accounts.iter() {
         let address = account.address().to_string();
         if account.is_authenticated().await {
-            let Ok(folders) = account.list_folders().await else {
-                return internal_server_error("list_folders");
-            };
-            list.insert(address, folders);
+            match account.list_folders().await {
+                Ok(folders) => {
+                    list.insert(address, folders);
+                }
+                Err(e) => {
+                    return internal_server_error(e);
+                }
+            }
         }
     }
     json(StatusCode::OK, &list)
@@ -137,16 +140,15 @@ pub async fn has_keyring_credentials(
     let account_id = account_id.to_string();
 
     let service = format!("{} ({})", KEYRING_SERVICE, account_id);
-    let Ok(entry) = Entry::new(&service, account_id.as_ref()) else {
-        return status(StatusCode::INTERNAL_SERVER_ERROR);
-    };
-
-    match entry.get_password() {
-        Ok(_) => status(StatusCode::OK),
-        Err(e) => match e {
-            Error::NoEntry => status(StatusCode::NOT_FOUND),
-            _ => status(StatusCode::INTERNAL_SERVER_ERROR),
+    match Entry::new(&service, account_id.as_ref()) {
+        Ok(entry) => match entry.get_password() {
+            Ok(_) => status(StatusCode::OK),
+            Err(e) => match e {
+                Error::NoEntry => status(StatusCode::NOT_FOUND),
+                _ => internal_server_error(e),
+            },
         },
+        Err(e) => internal_server_error(e),
     }
 }
 
@@ -178,18 +180,17 @@ where
 
     let entry_id = account_id.to_string();
     let service = format!("{} ({})", KEYRING_SERVICE, entry_id);
-    let Ok(entry) = Entry::new(&service, entry_id.as_ref()) else {
-        return status(StatusCode::INTERNAL_SERVER_ERROR);
-    };
-
-    match entry.get_password() {
-        Ok(password) => {
-            sign_in_password(accounts, account_id, password).await
-        }
-        Err(e) => match e {
-            Error::NoEntry => status(StatusCode::NOT_FOUND),
-            _ => status(StatusCode::INTERNAL_SERVER_ERROR),
+    match Entry::new(&service, entry_id.as_ref()) {
+        Ok(entry) => match entry.get_password() {
+            Ok(password) => {
+                sign_in_password(accounts, account_id, password).await
+            }
+            Err(e) => match e {
+                Error::NoEntry => status(StatusCode::NOT_FOUND),
+                _ => internal_server_error(e),
+            },
         },
+        Err(e) => internal_server_error(e),
     }
 }
 
@@ -227,12 +228,12 @@ where
         if e.is_permission_denied() {
             return status(StatusCode::FORBIDDEN);
         } else {
-            return status(StatusCode::INTERNAL_SERVER_ERROR);
+            return internal_server_error(e);
         }
     }
 
-    if account.initialize_search_index().await.is_err() {
-        return internal_server_error("sign_in::search_index");
+    if let Err(e) = account.initialize_search_index().await {
+        return internal_server_error(e);
     }
 
     status(StatusCode::OK)
@@ -312,7 +313,6 @@ where
         + 'static,
 {
     let mut accounts = accounts.write().await;
-
     if let Some(account_id) = account_id {
         let Some(account) =
             accounts.iter_mut().find(|a| a.address() == &account_id)
@@ -322,12 +322,12 @@ where
 
         match account.sign_out().await {
             Ok(_) => status(StatusCode::OK),
-            Err(_) => status(StatusCode::INTERNAL_SERVER_ERROR),
+            Err(e) => internal_server_error(e),
         }
     } else {
         match accounts.sign_out_all().await {
             Ok(_) => status(StatusCode::OK),
-            Err(_) => status(StatusCode::INTERNAL_SERVER_ERROR),
+            Err(e) => internal_server_error(e),
         }
     }
 }

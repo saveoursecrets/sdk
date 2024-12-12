@@ -41,17 +41,16 @@ where
     };
 
     let accounts = accounts.read().await;
-    let Ok(results) = accounts.search(request.needle, request.filter).await
-    else {
-        return internal_server_error("search");
-    };
-
-    let list = results
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), v))
-        .collect::<HashMap<_, _>>();
-
-    json(StatusCode::OK, &list)
+    match accounts.search(request.needle, request.filter).await {
+        Ok(results) => {
+            let list = results
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v))
+                .collect::<HashMap<_, _>>();
+            json(StatusCode::OK, &list)
+        }
+        Err(e) => internal_server_error(e),
+    }
 }
 
 /// Query a search index view for authenticated accounts.
