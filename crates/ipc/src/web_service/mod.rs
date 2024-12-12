@@ -245,7 +245,7 @@ impl LocalWebService {
                     "/avatar",
                     BoxCloneService::new(service_fn(
                         move |req: Request<Incoming>| {
-                            read_secret(req, state.clone())
+                            load_avatar(req, state.clone())
                         },
                     ))
                     .into(),

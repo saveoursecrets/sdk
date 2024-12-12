@@ -6,7 +6,7 @@ use sos_sdk::prelude::{Account, ClipboardCopyRequest, SecretPath};
 
 use crate::web_service::{
     internal_server_error, json, parse_account_id, parse_json_body, status,
-    text, Accounts, Body, Incoming,
+    Accounts, Body, Incoming,
 };
 
 #[derive(Deserialize)]
@@ -118,6 +118,7 @@ where
         + From<std::io::Error>
         + 'static,
 {
+    use crate::web_service::text;
     use base64::prelude::*;
 
     let Some(account_id) = parse_account_id(&req) else {
