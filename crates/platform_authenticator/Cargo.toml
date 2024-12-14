@@ -1,0 +1,7 @@
+[package]
+name = "sos-platform-authenticator"
+version = "0.1.0"
+edition = "2021"
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+robius-authentication = "0.1"

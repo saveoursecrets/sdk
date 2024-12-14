@@ -152,6 +152,43 @@ pub async fn has_keyring_credentials(
     }
 }
 
+#[cfg(target_os = "macos")]
+pub async fn sign_in_device_auth<A, R, E>(
+    req: Request<Incoming>,
+    accounts: Accounts<A, R, E>,
+) -> hyper::Result<Response<Body>>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + std::error::Error
+        + ErrorExt
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    use security_framework::passwords::get_generic_password;
+
+    let service_name = "com.saveoursecrets";
+
+    let Some(account_id) = parse_account_id(&req) else {
+        return status(StatusCode::BAD_REQUEST);
+    };
+
+    match get_generic_password(service_name, &account_id.to_string()) {
+        Ok(bytes) => {
+            tracing::debug!("got password bytes!!!!");
+            status(StatusCode::OK)
+        }
+        Err(e) => internal_server_error(e),
+    }
+}
+
 pub async fn sign_in_keyring<A, R, E>(
     req: Request<Incoming>,
     accounts: Accounts<A, R, E>,

@@ -111,6 +111,9 @@ matchit = { version = "0.7", optional = true }
 # native bridge
 open = { version = "5", optional = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "3"
+
 [dev-dependencies]
 anyhow = "1"
 

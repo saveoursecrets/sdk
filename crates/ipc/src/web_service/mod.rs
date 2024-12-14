@@ -286,6 +286,24 @@ impl LocalWebService {
             )
             .unwrap();
 
+        #[cfg(target_os = "macos")]
+        {
+            let state = accounts.clone();
+            router
+                .entry(Method::POST)
+                .or_default()
+                .insert(
+                    "/signin/device",
+                    BoxCloneService::new(service_fn(
+                        move |req: Request<Incoming>| {
+                            sign_in_device_auth(req, state.clone())
+                        },
+                    ))
+                    .into(),
+                )
+                .unwrap();
+        }
+
         router
             .entry(Method::HEAD)
             .or_default()

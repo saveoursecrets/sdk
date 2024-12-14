@@ -9,6 +9,7 @@ members = [
   "crates/integration_tests",
   "crates/ipc",
   "crates/net",
+  "crates/platform_authenticator",
   "crates/protocol",
   "crates/sdk",
   "crates/server",
