@@ -93,7 +93,7 @@ where
     json(StatusCode::OK, &list)
 }
 
-/// Sign in to an account
+/// Sign in to an account with a user-supplied password.
 pub async fn sign_in_account<A, R, E>(
     req: Request<Incoming>,
     accounts: Accounts<A, R, E>,
@@ -127,6 +127,7 @@ where
     sign_in_password(accounts, account_id, password).await
 }
 
+#[deprecated]
 pub async fn has_keyring_credentials(
     req: Request<Incoming>,
 ) -> hyper::Result<Response<Body>> {
@@ -172,23 +173,38 @@ where
         + From<std::io::Error>
         + 'static,
 {
-    use security_framework::passwords::get_generic_password;
+    use sos_platform_authenticator::{keyring_password, local_auth};
 
-    let service_name = "com.saveoursecrets";
+    tracing::debug!(
+        local_auth_supported = %local_auth::supported(),
+    );
 
-    let Some(account_id) = parse_account_id(&req) else {
-        return status(StatusCode::BAD_REQUEST);
-    };
+    if local_auth::supported() {
+        if local_auth::authenticate(Default::default()) {
+            let Some(account_id) = parse_account_id(&req) else {
+                return status(StatusCode::BAD_REQUEST);
+            };
 
-    match get_generic_password(service_name, &account_id.to_string()) {
-        Ok(bytes) => {
-            tracing::debug!("got password bytes!!!!");
-            status(StatusCode::OK)
+            match keyring_password::find_account_password(
+                &account_id.to_string(),
+            ) {
+                Ok(password) => {
+                    tracing::debug!(
+                        "got password from keyring, do authentication!!!!"
+                    );
+                    sign_in_password(accounts, account_id, password).await
+                }
+                Err(e) => internal_server_error(e),
+            }
+        } else {
+            status(StatusCode::FORBIDDEN)
         }
-        Err(e) => internal_server_error(e),
+    } else {
+        status(StatusCode::NETWORK_AUTHENTICATION_REQUIRED)
     }
 }
 
+#[deprecated]
 pub async fn sign_in_keyring<A, R, E>(
     req: Request<Incoming>,
     accounts: Accounts<A, R, E>,

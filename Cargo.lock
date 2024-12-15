@@ -4894,6 +4894,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "sos-platform-authenticator",
  "sos-protocol",
  "sos-sdk",
  "thiserror 2.0.6",
@@ -4947,7 +4948,11 @@ dependencies = [
 name = "sos-platform-authenticator"
 version = "0.1.0"
 dependencies = [
+ "keyring",
  "robius-authentication",
+ "security-framework 3.0.1",
+ "thiserror 2.0.6",
+ "tracing",
 ]
 
 [[package]]

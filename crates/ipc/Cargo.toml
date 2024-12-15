@@ -65,6 +65,7 @@ native-bridge-server = [
   "keyring",
   "clipboard",
   "base64",
+  "sos-platform-authenticator",
 ]
 native-bridge-client = [
   "local-transport",
@@ -93,6 +94,7 @@ base64 = { workspace = true, optional = true }
 
 sos-sdk = { version = "0.16", path = "../sdk", features = ["account"] }
 sos-protocol = { version = "0.16", path = "../protocol" }
+sos-platform-authenticator = { version = "0.1", path = "../platform_authenticator", optional = true }
 
 tokio = { version = "1", features = ["rt", "macros", "io-util", "sync"] }
 tokio-util = { version = "0.7", features = ["codec"] }
