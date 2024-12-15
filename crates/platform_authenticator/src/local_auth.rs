@@ -65,6 +65,7 @@ pub use supported::*;
 #[cfg(target_os = "linux")]
 mod unsupported {
     /// Options for platform authentication.
+    #[derive(Default)]
     pub struct AuthenticateOptions {}
 
     pub fn authenticate(options: AuthenticateOptions) -> bool {
