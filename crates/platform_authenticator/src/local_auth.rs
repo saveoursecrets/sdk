@@ -30,7 +30,7 @@ mod supported {
                     description: None,
                 },
                 apple: "authenticate",
-                windows: WindowsText::new("Title", "Description").unwrap(),
+                windows: WindowsText::new("Save Our Secrets", "Verify your identity to authenticate").unwrap(),
             }
         }
     }
