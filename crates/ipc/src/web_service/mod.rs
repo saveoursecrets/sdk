@@ -203,9 +203,26 @@ impl LocalWebService {
             )
             .unwrap();
 
+        {
+            let state = accounts.clone();
+            router
+                .entry(Method::POST)
+                .or_default()
+                .insert(
+                    "/signin",
+                    BoxCloneService::new(service_fn(
+                        move |req: Request<Incoming>| {
+                            sign_in(req, state.clone())
+                        },
+                    ))
+                    .into(),
+                )
+                .unwrap();
+        }
+
         let state = accounts.clone();
         router
-            .entry(Method::POST)
+            .entry(Method::PUT)
             .or_default()
             .insert(
                 "/signin",
@@ -271,6 +288,7 @@ impl LocalWebService {
                 .unwrap();
         }
 
+        /*
         let state = accounts.clone();
         router
             .entry(Method::POST)
@@ -285,38 +303,23 @@ impl LocalWebService {
                 .into(),
             )
             .unwrap();
+        */
 
-        #[cfg(target_os = "macos")]
-        {
-            let state = accounts.clone();
+        /*
             router
-                .entry(Method::POST)
+                .entry(Method::HEAD)
                 .or_default()
                 .insert(
-                    "/signin/device",
+                    "/signin",
                     BoxCloneService::new(service_fn(
                         move |req: Request<Incoming>| {
-                            sign_in_device_auth(req, state.clone())
+                            has_keyring_credentials(req)
                         },
                     ))
                     .into(),
                 )
                 .unwrap();
-        }
-
-        router
-            .entry(Method::HEAD)
-            .or_default()
-            .insert(
-                "/signin",
-                BoxCloneService::new(service_fn(
-                    move |req: Request<Incoming>| {
-                        has_keyring_credentials(req)
-                    },
-                ))
-                .into(),
-            )
-            .unwrap();
+        */
 
         let state = accounts.clone();
         router

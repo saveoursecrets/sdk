@@ -127,6 +127,7 @@ where
     sign_in_password(accounts, account_id, password).await
 }
 
+/*
 #[deprecated]
 pub async fn has_keyring_credentials(
     req: Request<Incoming>,
@@ -152,9 +153,15 @@ pub async fn has_keyring_credentials(
         Err(e) => internal_server_error(e),
     }
 }
+*/
 
-#[cfg(target_os = "macos")]
-pub async fn sign_in_device_auth<A, R, E>(
+/// Sign in to an account attempting to retrieve the account
+/// password from the platform keyring.
+///
+/// If a platform authenticator or platform keyring is not supported
+/// this will return `StatusCode::UNAUTHORIZED` and the user will
+/// need to supply their password and
+pub async fn sign_in<A, R, E>(
     req: Request<Incoming>,
     accounts: Accounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
@@ -175,35 +182,45 @@ where
 {
     use sos_platform_authenticator::{keyring_password, local_auth};
 
+    let Some(account_id) = parse_account_id(&req) else {
+        return status(StatusCode::BAD_REQUEST);
+    };
+
     tracing::debug!(
+        account_id = %account_id,
         local_auth_supported = %local_auth::supported(),
+        keyring_password_supported = %keyring_password::supported(),
     );
 
     if local_auth::supported() {
         if local_auth::authenticate(Default::default()) {
-            let Some(account_id) = parse_account_id(&req) else {
-                return status(StatusCode::BAD_REQUEST);
-            };
-
-            match keyring_password::find_account_password(
-                &account_id.to_string(),
-            ) {
-                Ok(password) => {
-                    tracing::debug!(
-                        "got password from keyring, do authentication!!!!"
-                    );
-                    sign_in_password(accounts, account_id, password).await
+            if keyring_password::supported() {
+                match keyring_password::find_account_password(
+                    &account_id.to_string(),
+                ) {
+                    Ok(password) => {
+                        sign_in_password(accounts, account_id, password).await
+                    }
+                    Err(e) => {
+                        if e.is_no_keyring_entry() {
+                            status(StatusCode::UNAUTHORIZED)
+                        } else {
+                            internal_server_error(e)
+                        }
+                    }
                 }
-                Err(e) => internal_server_error(e),
+            } else {
+                status(StatusCode::UNAUTHORIZED)
             }
         } else {
             status(StatusCode::FORBIDDEN)
         }
     } else {
-        status(StatusCode::NETWORK_AUTHENTICATION_REQUIRED)
+        status(StatusCode::UNAUTHORIZED)
     }
 }
 
+/*
 #[deprecated]
 pub async fn sign_in_keyring<A, R, E>(
     req: Request<Incoming>,
@@ -246,6 +263,7 @@ where
         Err(e) => internal_server_error(e),
     }
 }
+*/
 
 /// Sign in to an account
 pub async fn sign_in_password<A, R, E>(

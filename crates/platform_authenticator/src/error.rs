@@ -16,3 +16,10 @@ pub enum Error {
     #[error(transparent)]
     SecurityFramework(#[from] security_framework::base::Error),
 }
+
+impl Error {
+    /// Determine if this error is a no keyring entry error.
+    pub fn is_no_keyring_entry(&self) -> bool {
+        matches!(self, Error::NoKeyringEntry)
+    }
+}

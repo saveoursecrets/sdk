@@ -8,8 +8,10 @@ pub const SERVICE_NAME: &str = "com.saveoursecrets";
 #[cfg(target_os = "macos")]
 mod macos {
     use super::SERVICE_NAME;
-    use crate::Result;
+    use crate::{Error, Result};
     use security_framework::passwords::get_generic_password;
+
+    const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
 
     /// Find the password for an account.
     pub fn find_account_password(account_id: &str) -> Result<String> {
@@ -17,8 +19,11 @@ mod macos {
             Ok(bytes) => Ok(std::str::from_utf8(&bytes)?.to_owned()),
             Err(e) => {
                 let code = e.code();
-                tracing::info!(code = %code, "MACOS ERR code");
-                Err(e.into())
+                if code == ERR_SEC_ITEM_NOT_FOUND {
+                    Err(Error::NoKeyringEntry)
+                } else {
+                    Err(e.into())
+                }
             }
         }
     }
@@ -33,7 +38,7 @@ mod macos {
 #[cfg(all(not(target_os = "macos"), not(target_os = "android")))]
 mod platform_keyring {
     use super::SERVICE_NAME;
-    use crate::Result;
+    use crate::{Error, Result};
     use keyring::{Entry, Error as KeyringError};
 
     /// Find the password for an account.
