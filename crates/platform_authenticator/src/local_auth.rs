@@ -1,3 +1,5 @@
+//! Interface to the platform authenticator.
+
 #[cfg(not(target_os = "linux"))]
 mod supported {
     use robius_authentication::{

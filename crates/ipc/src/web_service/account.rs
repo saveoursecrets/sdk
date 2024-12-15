@@ -13,8 +13,10 @@ use crate::web_service::{
 };
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct SigninRequest {
     password: String,
+    save_password: bool,
 }
 
 /// List account public identities.
@@ -124,7 +126,8 @@ where
 
     tracing::debug!(account = %account_id, "sign_in");
 
-    sign_in_password(accounts, account_id, password).await
+    sign_in_password(accounts, account_id, password, request.save_password)
+        .await
 }
 
 /*
@@ -199,7 +202,10 @@ where
                     &account_id.to_string(),
                 ) {
                     Ok(password) => {
-                        sign_in_password(accounts, account_id, password).await
+                        sign_in_password(
+                            accounts, account_id, password, false,
+                        )
+                        .await
                     }
                     Err(e) => {
                         if e.is_no_keyring_entry() {
@@ -270,6 +276,7 @@ pub async fn sign_in_password<A, R, E>(
     accounts: Accounts<A, R, E>,
     account_id: Address,
     password: String,
+    save_password: bool,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
@@ -286,6 +293,8 @@ where
         + From<std::io::Error>
         + 'static,
 {
+    use sos_platform_authenticator::keyring_password;
+
     let mut accounts = accounts.write().await;
     let Some(account) =
         accounts.iter_mut().find(|a| a.address() == &account_id)
@@ -294,7 +303,7 @@ where
     };
 
     let password = SecretString::new(password.into());
-    let key: AccessKey = password.into();
+    let key: AccessKey = password.clone().into();
     if let Err(e) = account.sign_in(&key).await {
         if e.is_permission_denied() {
             return status(StatusCode::FORBIDDEN);
@@ -305,6 +314,15 @@ where
 
     if let Err(e) = account.initialize_search_index().await {
         return internal_server_error(e);
+    }
+
+    if save_password && keyring_password::supported() {
+        if let Err(e) = keyring_password::save_account_password(
+            &account_id.to_string(),
+            password,
+        ) {
+            return internal_server_error(e);
+        }
     }
 
     status(StatusCode::OK)

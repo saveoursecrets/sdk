@@ -2712,7 +2712,7 @@ dependencies = [
  "dbus-secret-service",
  "log",
  "security-framework 2.11.1",
- "security-framework 3.0.1",
+ "security-framework 3.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "windows-sys 0.59.0",
 ]
 
@@ -4415,7 +4415,18 @@ dependencies = [
  "core-foundation 0.9.4",
  "core-foundation-sys",
  "libc",
- "security-framework-sys",
+ "security-framework-sys 2.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "security-framework"
+version = "3.0.1"
+dependencies = [
+ "bitflags 2.6.0",
+ "core-foundation 0.10.0",
+ "core-foundation-sys",
+ "libc",
+ "security-framework-sys 2.12.1",
 ]
 
 [[package]]
@@ -4428,7 +4439,15 @@ dependencies = [
  "core-foundation 0.10.0",
  "core-foundation-sys",
  "libc",
- "security-framework-sys",
+ "security-framework-sys 2.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "security-framework-sys"
+version = "2.12.1"
+dependencies = [
+ "core-foundation-sys",
+ "libc",
 ]
 
 [[package]]
@@ -4890,7 +4909,7 @@ dependencies = [
  "parking_lot",
  "rustc_version",
  "secrecy",
- "security-framework 3.0.1",
+ "security-framework 3.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "serde_with",
@@ -4950,6 +4969,8 @@ version = "0.1.0"
 dependencies = [
  "keyring",
  "robius-authentication",
+ "rustc_version",
+ "secrecy",
  "security-framework 3.0.1",
  "thiserror 2.0.6",
  "tracing",
@@ -5025,7 +5046,7 @@ dependencies = [
  "rustc_version",
  "sanitize-filename",
  "secrecy",
- "security-framework 3.0.1",
+ "security-framework 3.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "serde_json_path",

@@ -9,7 +9,14 @@ pub const SERVICE_NAME: &str = "com.saveoursecrets";
 mod macos {
     use super::SERVICE_NAME;
     use crate::{Error, Result};
-    use security_framework::passwords::get_generic_password;
+    use secrecy::{ExposeSecret, SecretString};
+    use security_framework::{
+        passwords::{
+            get_generic_password, set_generic_password,
+            set_generic_password_options,
+        },
+        passwords_options::PasswordOptions,
+    };
 
     const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
 
@@ -28,6 +35,34 @@ mod macos {
         }
     }
 
+    /// Save the password for an account in the platform keyring.
+    pub fn save_account_password(
+        account_id: &str,
+        password: SecretString,
+    ) -> Result<()> {
+        if let Some(access_group) = option_env!("SOS_ACCESS_GROUP") {
+            let mut options = PasswordOptions::new_generic_password(
+                SERVICE_NAME,
+                account_id,
+            );
+
+            options.set_access_group(access_group);
+
+            set_generic_password_options(
+                password.expose_secret().as_bytes(),
+                options,
+            )?;
+        } else {
+            set_generic_password(
+                SERVICE_NAME,
+                account_id,
+                password.expose_secret().as_bytes(),
+            )?;
+        }
+
+        Ok(())
+    }
+
     /// Whether platform keyring storage is supported.
     pub fn supported() -> bool {
         true
@@ -40,6 +75,7 @@ mod platform_keyring {
     use super::SERVICE_NAME;
     use crate::{Error, Result};
     use keyring::{Entry, Error as KeyringError};
+    use secrecy::{ExposeSecret, SecretString};
 
     /// Find the password for an account.
     pub fn find_account_password(account_id: &str) -> Result<String> {
@@ -51,6 +87,16 @@ mod platform_keyring {
                 _ => Err(e.into()),
             },
         }
+    }
+
+    /// Save the password for an account in the platform keyring.
+    pub fn save_account_password(
+        account_id: &str,
+        password: SecretString,
+    ) -> Result<()> {
+        let entry = Entry::new(SERVICE_NAME, account_id)?;
+        entry.set_password(password.expose_secret())?;
+        Ok(())
     }
 
     /// Whether platform keyring storage is supported.

@@ -2,10 +2,16 @@
 name = "sos-platform-authenticator"
 version = "0.1.0"
 edition = "2021"
+description = "Platform authenticator and keyring suppport for the Save Our Secrets SDK."
+publish = false
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
 
 [dependencies]
 thiserror.workspace = true
 tracing.workspace = true
+secrecy.workspace = true
 
 [target.'cfg(all(not(target_os = "android"), not(target_os = "macos")))'.dependencies]
 keyring.workspace = true
@@ -13,5 +19,9 @@ keyring.workspace = true
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 robius-authentication = "0.1"
 
-[target.'cfg(target_os = "macos")'.dependencies]
-security-framework = "3"
+[target.'cfg(target_os = "macos")'.dependencies.security-framework]
+version = "3"
+path = "../../../../forks/rust-security-framework/security-framework"
+
+[build-dependencies]
+rustc_version = "0.4.1"
