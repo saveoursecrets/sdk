@@ -74,10 +74,12 @@ mod unsupported {
     #[derive(Default)]
     pub struct AuthenticateOptions {}
 
+    /// Authenticate using the platform authenticator.
     pub fn authenticate(options: AuthenticateOptions) -> bool {
         false
     }
 
+    /// Determine if local platform authentication is supported.
     pub fn supported() -> bool {
         false
     }
