@@ -8,6 +8,11 @@ pub enum Error {
     NoKeyringEntry,
 
     /// Error generated converting to UTF-8.
+    #[cfg(all(not(target_os = "android"), not(target_os = "macos")))]
+    #[error(transparent)]
+    Keyring(#[from] keyring::Error),
+
+    /// Error generated converting to UTF-8.
     #[error(transparent)]
     Utf8(#[from] std::str::Utf8Error),
 
