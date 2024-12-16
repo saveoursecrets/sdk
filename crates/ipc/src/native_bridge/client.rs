@@ -65,6 +65,7 @@ impl NativeBridgeClient {
         let message_id = self.id.fetch_add(1, Ordering::SeqCst);
         request.set_request_id(message_id);
         let chunks = request.into_chunks(CHUNK_LIMIT, CHUNK_SIZE);
+
         for request in chunks {
             let message = serde_json::to_vec(&request)?;
             self.stdin.send(message.into()).await?;

@@ -11,7 +11,7 @@ use hyper::client::conn::http1::handshake;
 use hyper::server::conn::http1::Builder;
 use hyper_util::rt::tokio::TokioIo;
 use sos_protocol::{Merge, NetworkError, SyncStorage};
-use sos_sdk::prelude::{Account, AccountSwitcher, ErrorExt};
+use sos_sdk::prelude::{Account, AccountSwitcher, ErrorExt, PublicIdentity};
 use std::sync::Arc;
 use tokio::{
     io::DuplexStream,
@@ -82,6 +82,20 @@ impl LocalMemoryClient {
             let app_info: ServiceAppInfo =
                 serde_json::from_slice(&response.body)?;
             Ok(app_info)
+        } else {
+            Err(NetworkError::ResponseCode(status).into())
+        }
+    }
+
+    /// List accounts.
+    pub async fn list_accounts(&mut self) -> Result<Vec<PublicIdentity>> {
+        let request = LocalRequest::get("/accounts".parse()?);
+        let response = self.send_request(request).await?;
+        let status = response.status()?;
+        if status.is_success() {
+            let accounts: Vec<PublicIdentity> =
+                serde_json::from_slice(&response.body)?;
+            Ok(accounts)
         } else {
             Err(NetworkError::ResponseCode(status).into())
         }

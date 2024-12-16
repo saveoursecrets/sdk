@@ -1,8 +1,10 @@
 use sos_ipc::native_bridge::server::{
     NativeBridgeOptions, NativeBridgeServer,
 };
-use sos_sdk::prelude::{LocalAccount, LocalAccountSwitcher};
-use std::sync::Arc;
+use sos_sdk::prelude::{
+    AccountSwitcherOptions, LocalAccount, LocalAccountSwitcher, Paths,
+};
+use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 #[macro_export]
@@ -19,10 +21,20 @@ macro_rules! println {
 pub async fn main() -> anyhow::Result<()> {
     let mut args = std::env::args().into_iter().collect::<Vec<_>>();
 
+    // Callers must pass a data directory so that each
+    // test is isolated
+    let data_dir = args.pop().map(PathBuf::from);
+    // Extension identifier is a mock value but mimics the argument
+    // that browser's will pass
     let extension_id = args.pop().unwrap_or_else(String::new).to_string();
-    let data_dir = None;
 
-    let mut accounts = LocalAccountSwitcher::new();
+    // Load any accounts on disc
+    let paths = Paths::new_global(data_dir.as_ref().unwrap());
+    let options = AccountSwitcherOptions {
+        paths: Some(paths),
+        ..Default::default()
+    };
+    let mut accounts = LocalAccountSwitcher::new_with_options(options);
     accounts
         .load_accounts(
             |identity| {
@@ -38,8 +50,9 @@ pub async fn main() -> anyhow::Result<()> {
             data_dir.clone(),
         )
         .await?;
-    let accounts = Arc::new(RwLock::new(accounts));
 
+    // Start the server
+    let accounts = Arc::new(RwLock::new(accounts));
     let options = NativeBridgeOptions::new(extension_id);
     let server = NativeBridgeServer::new(options, accounts).await?;
     server.listen().await;

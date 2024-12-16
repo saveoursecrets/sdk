@@ -114,6 +114,7 @@ impl NativeBridgeServer {
                     break;
                 }
             }
+
             Ok(LocalRequest::from_chunks(chunks))
         }
 
