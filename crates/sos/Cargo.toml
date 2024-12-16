@@ -53,11 +53,6 @@ version = "0.16"
 features = ["full"]
 path = "../net"
 
-[dependencies.sos-ipc]
-version = "0.16" 
-path = "../ipc"
-features = ["server"]
-
 [dependencies.sos-cli-helpers]
 version = "0.1.0" 
 path = "../cli_helpers"

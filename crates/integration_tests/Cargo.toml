@@ -16,8 +16,6 @@ anyhow.workspace = true
 
 [dependencies.sos-ipc]
 features = [
-  "server",
-  "client",
   "native-bridge-server",
   "native-bridge-client",
   "integration",
