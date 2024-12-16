@@ -29,8 +29,8 @@ macro_rules! println {
 #[cfg(feature = "integration")]
 pub mod integration;
 
-#[cfg(feature = "memory")]
-pub mod memory;
+#[cfg(feature = "memory-http-server")]
+pub mod memory_server;
 
 #[cfg(any(
     feature = "native-bridge-server",

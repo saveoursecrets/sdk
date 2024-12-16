@@ -20,7 +20,7 @@ local-transport = [
   "serde_with",
   "async-trait",
 ]
-memory = []
+memory-http-server = []
 integration = ["account", "indexmap", "async-trait"]
 account = ["sos-sdk/account", "sos-protocol/account"]
 archive = ["sos-sdk/archive", "sos-protocol/archive"]
@@ -30,7 +30,7 @@ files = ["sos-sdk/files", "sos-protocol/files"]
 migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
 search = ["sos-sdk/search", "sos-protocol/search"]
 native-bridge-server = [
-  "memory",
+  "memory-http-server",
   "open",
   "tokio/io-std",
   "once_cell",

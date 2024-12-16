@@ -1,4 +1,5 @@
-//! HTTP server that listens for connections using in-memory duplex streams.
+//! HTTP server that listens for connections
+//! using in-memory duplex streams.
 use crate::{
     local_transport::{LocalRequest, LocalResponse},
     LocalWebService, Result, ServiceAppInfo,

@@ -2,7 +2,7 @@
 
 use crate::{
     local_transport::{HttpMessage, LocalRequest, LocalResponse},
-    memory::{LocalMemoryClient, LocalMemoryServer},
+    memory_server::{LocalMemoryClient, LocalMemoryServer},
     Result,
 };
 use futures_util::{SinkExt, StreamExt};

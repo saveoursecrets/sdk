@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_ipc::{memory::LocalMemoryServer, ServiceAppInfo};
+use sos_ipc::{memory_server::LocalMemoryServer, ServiceAppInfo};
 use sos_net::sdk::{prelude::LocalAccountSwitcher, Paths};
 use sos_test_utils::teardown;
 use std::sync::Arc;
