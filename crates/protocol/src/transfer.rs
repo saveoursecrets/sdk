@@ -106,7 +106,8 @@ mod files {
     }
 
     /// Client that can synchronize files.
-    #[async_trait]
+    #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+    #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
     pub trait FileSyncClient {
         /// Error type for file sync client.
         type Error: std::error::Error + std::fmt::Debug;

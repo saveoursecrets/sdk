@@ -4792,7 +4792,6 @@ dependencies = [
 name = "sos-account-extras"
 version = "0.16.0"
 dependencies = [
- "anyhow",
  "once_cell",
  "rustc_version",
  "serde",
@@ -4862,7 +4861,6 @@ dependencies = [
 name = "sos-ipc"
 version = "0.16.5"
 dependencies = [
- "anyhow",
  "async-trait",
  "base64 0.22.1",
  "bytes",
@@ -4872,14 +4870,12 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
- "keyring",
  "matchit",
  "once_cell",
  "open",
  "parking_lot",
  "rustc_version",
  "secrecy",
- "security-framework 3.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "serde_with",
@@ -5122,6 +5118,20 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "tokio",
+]
+
+[[package]]
+name = "sos-web"
+version = "0.16.5"
+dependencies = [
+ "async-trait",
+ "indexmap 2.7.0",
+ "rustc_version",
+ "sos-protocol",
+ "sos-sdk",
+ "thiserror 2.0.6",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

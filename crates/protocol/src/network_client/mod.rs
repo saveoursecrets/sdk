@@ -17,7 +17,7 @@ use std::{
     },
     time::Duration,
 };
-use tokio::{sync::watch, time::sleep};
+use tokio::sync::watch;
 
 mod http;
 #[cfg(feature = "listen")]
@@ -29,6 +29,7 @@ pub use self::http::HttpClient;
 pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};
 
 /// Network retry state and logic for exponential backoff.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone)]
 pub struct NetworkRetry {
     retries: Arc<AtomicU32>,
@@ -38,12 +39,14 @@ pub struct NetworkRetry {
     pub maximum_retries: u32,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Default for NetworkRetry {
     fn default() -> Self {
         Self::new(4, 1000)
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl NetworkRetry {
     /// Create a new network retry.
     ///
@@ -118,6 +121,7 @@ impl NetworkRetry {
             maximum_retries = %self.maximum_retries,
             "retry",
         );
+
         loop {
             tokio::select! {
                 _ = cancel.changed() => {
@@ -125,7 +129,7 @@ impl NetworkRetry {
                     tracing::debug!(id = %id, "retry::canceled");
                     return Err(Error::RetryCanceled(reason.clone()));
                 }
-                _ = sleep(Duration::from_millis(delay)) => {
+                _ = tokio::time::sleep(Duration::from_millis(delay)) => {
                     return Ok(callback.await)
                 }
             };

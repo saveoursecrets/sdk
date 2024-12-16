@@ -1,5 +1,5 @@
 [package]
-name = "sos-web-account"
+name = "sos-web"
 version = "0.16.5"
 edition = "2021"
 description = "Thin client for webassembly bindings to the Save Our Secrets SDK."
@@ -12,35 +12,33 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["account"]
+default = [
+  "account",
+  "archive",
+  "clipboard",
+  "contacts",
+  "files",
+  "migrate",
+  "search", 
+]
 account = ["sos-sdk/account", "sos-protocol/account"]
-archive = ["sos-sdk/archive", "sos-protocol/archive"]
-clipboard = ["sos-sdk/clipboard"]
+archive = []
+clipboard = []
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
-files = ["sos-sdk/files", "sos-protocol/files"]
-migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
+files = []
+migrate = []
 search = ["sos-sdk/search", "sos-protocol/search"]
 
 [dependencies]
 thiserror.workspace = true
 tracing.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-http.workspace = true
-bytes.workspace = true
-secrecy.workspace = true
 indexmap.workspace = true
 async-trait.workspace = true
 
 sos-sdk = { version = "0.16", path = "../sdk", features = ["account"] }
-sos-protocol = { version = "0.16", path = "../protocol" }
+sos-protocol = { version = "0.16", path = "../protocol", features = ["network-client"] }
 
-tokio = { version = "1", features = ["rt", "macros", "io-util", "sync"] }
-tokio-util = { version = "0.7", features = ["codec"] }
-futures-util = { version = "0.3", features = ["sink"] }
-
-[dev-dependencies]
-anyhow = "1"
+tokio = { version = "1", features = ["rt", "io-util", "sync"] }
 
 [build-dependencies]
 rustc_version = "0.4.1"

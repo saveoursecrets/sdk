@@ -3,9 +3,9 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_protocol::{
-    AutoMerge, Origin, RemoteResult, RemoteSync, RemoteSyncHandler,
-    SyncClient, SyncDirection, SyncOptions, SyncStatus, SyncStorage,
-    UpdateSet,
+    network_client::HttpClient, AutoMerge, Origin, RemoteResult, RemoteSync,
+    RemoteSyncHandler, SyncClient, SyncDirection, SyncOptions, SyncStatus,
+    SyncStorage, UpdateSet,
 };
 use sos_sdk::{
     events::{
@@ -33,8 +33,6 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::{Mutex, RwLock};
-
-use super::local_client::LocalClient;
 
 #[cfg(feature = "clipboard")]
 use sos_sdk::{
@@ -71,7 +69,7 @@ pub struct LinkedAccount {
     account: Arc<Mutex<LocalAccount>>,
     address: Address,
     paths: Arc<Paths>,
-    client: LocalClient,
+    client: HttpClient,
     /// Lock to prevent write to local storage
     /// whilst a sync operation is in progress.
     sync_lock: Arc<Mutex<()>>,
@@ -81,7 +79,7 @@ impl LinkedAccount {
     /// Create a new unauthenticated linked account.
     pub async fn new_unauthenticated(
         address: Address,
-        client: LocalClient,
+        client: HttpClient,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let account =
@@ -99,7 +97,7 @@ impl LinkedAccount {
     pub async fn new_account(
         account_name: String,
         passphrase: SecretString,
-        client: LocalClient,
+        client: HttpClient,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let account =
@@ -964,84 +962,64 @@ impl Account for LinkedAccount {
     #[cfg(feature = "migrate")]
     async fn export_unsafe_archive(
         &self,
-        path: impl AsRef<Path> + Send + Sync,
+        _path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
-        let account = self.account.lock().await;
-        Ok(account.export_unsafe_archive(path).await?)
+        unimplemented!();
     }
 
     #[cfg(feature = "migrate")]
     async fn import_file(
         &mut self,
-        target: ImportTarget,
+        _target: ImportTarget,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
-        let _ = self.sync_lock.lock().await;
-
-        let result = {
-            let mut account = self.account.lock().await;
-            account.import_file(target).await?
-        };
-
-        let result = FolderCreate {
-            folder: result.folder,
-            event: result.event,
-            commit_state: result.commit_state,
-            sync_result: self.sync().await,
-        };
-
-        Ok(result)
+        unimplemented!();
     }
 
     #[cfg(feature = "archive")]
     async fn export_backup_archive(
         &self,
-        path: impl AsRef<Path> + Send + Sync,
+        _path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
-        let account = self.account.lock().await;
-        Ok(account.export_backup_archive(path).await?)
+        unimplemented!();
     }
 
     #[cfg(feature = "archive")]
     async fn restore_archive_inventory<
         R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
     >(
-        buffer: R,
+        _buffer: R,
     ) -> Result<Inventory> {
-        Ok(Self::restore_archive_inventory(buffer).await?)
+        unimplemented!();
     }
 
     #[cfg(feature = "archive")]
     async fn import_backup_archive(
-        path: impl AsRef<Path> + Send + Sync,
-        options: RestoreOptions,
-        data_dir: Option<PathBuf>,
+        _path: impl AsRef<Path> + Send + Sync,
+        _options: RestoreOptions,
+        _data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
-        Ok(Self::import_backup_archive(path, options, data_dir).await?)
+        unimplemented!();
     }
 
     #[cfg(feature = "archive")]
     async fn restore_backup_archive(
         &mut self,
-        path: impl AsRef<Path> + Send + Sync,
-        password: SecretString,
-        options: RestoreOptions,
-        data_dir: Option<PathBuf>,
+        _path: impl AsRef<Path> + Send + Sync,
+        _password: SecretString,
+        _options: RestoreOptions,
+        _data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
-        let mut account = self.account.lock().await;
-        Ok(account
-            .restore_backup_archive(path, password, options, data_dir)
-            .await?)
+        unimplemented!();
     }
 
     #[cfg(feature = "clipboard")]
     async fn copy_clipboard(
         &self,
-        clipboard: &Clipboard,
-        target: &SecretPath,
-        request: &ClipboardCopyRequest,
+        _clipboard: &Clipboard,
+        _target: &SecretPath,
+        _request: &ClipboardCopyRequest,
     ) -> Result<bool> {
-        let account = self.account.lock().await;
-        Ok(account.copy_clipboard(clipboard, target, request).await?)
+        unimplemented!();
     }
 }
 
@@ -1105,7 +1083,7 @@ impl SyncStorage for LinkedAccount {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl RemoteSyncHandler for LinkedAccount {
-    type Client = LocalClient;
+    type Client = HttpClient;
     type Account = LocalAccount;
     type Error = Error;
 
@@ -1184,7 +1162,7 @@ impl RemoteSync for LinkedAccount {
             },
             Err(e) => RemoteResult {
                 origin: self.origin().clone(),
-                result: Err(e),
+                result: Err(e.into()),
             },
         }
     }

@@ -16,9 +16,7 @@ members = [
   "crates/sos",
   "crates/test_utils",
   "crates/vfs", 
-]
-exclude = [
-  "crates/web-account", 
+  "crates/web", 
 ]
 
 [workspace.dependencies]

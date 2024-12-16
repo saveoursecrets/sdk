@@ -42,7 +42,7 @@ typeshare.workspace = true
 tokio = { version = "1", features = ["rt",  "macros"] }
 
 # network-client
-reqwest = { workspace = true, optional = true }
+# reqwest = { workspace = true, optional = true }
 tokio-tungstenite = { workspace = true, optional = true }
 bs58 = { workspace = true, optional = true }
 async-stream = { workspace = true, optional = true }
@@ -51,6 +51,18 @@ tokio-util = { workspace = true, optional = true }
 [dependencies.sos-sdk]
 version = "0.16"
 path = "../sdk"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.reqwest]
+version = "0.12.5"
+default-features = false
+features = ["json", "rustls-tls", "stream"]
+optional = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.reqwest]
+version = "0.12.5"
+default-features = false
+features = ["json", "stream"]
+optional = true
 
 [dev-dependencies]
 anyhow = "1"

@@ -82,10 +82,14 @@ impl HttpClient {
         device_signer: BoxedEd25519Signer,
         connection_id: String,
     ) -> Result<Self> {
+        #[cfg(not(target_arch = "wasm32"))]
         let client = reqwest::ClientBuilder::new()
             .read_timeout(Duration::from_millis(15000))
             .connect_timeout(Duration::from_millis(5000))
             .build()?;
+
+        #[cfg(target_arch = "wasm32")]
+        let client = reqwest::ClientBuilder::new().build()?;
 
         Ok(Self {
             origin,
@@ -201,7 +205,8 @@ impl HttpClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl SyncClient for HttpClient {
     type Error = crate::Error;
 
@@ -209,7 +214,7 @@ impl SyncClient for HttpClient {
         &self.origin
     }
 
-    #[instrument(skip_all)]
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
     async fn account_exists(&self, address: &Address) -> Result<bool> {
         let url = self.build_url(SYNC_ACCOUNT)?;
 
@@ -240,7 +245,7 @@ impl SyncClient for HttpClient {
         Ok(exists)
     }
 
-    #[instrument(skip_all)]
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
     async fn create_account(
         &self,
         address: &Address,
@@ -270,7 +275,7 @@ impl SyncClient for HttpClient {
         Ok(())
     }
 
-    #[instrument(skip_all)]
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
     async fn update_account(
         &self,
         address: &Address,
@@ -303,7 +308,7 @@ impl SyncClient for HttpClient {
         Ok(())
     }
 
-    #[instrument(skip_all)]
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
     async fn fetch_account(&self, address: &Address) -> Result<CreateSet> {
         let url = self.build_url(SYNC_ACCOUNT)?;
 
@@ -333,7 +338,7 @@ impl SyncClient for HttpClient {
         Ok(CreateSet::decode(buffer).await?)
     }
 
-    #[instrument(skip_all)]
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
     async fn delete_account(&self, address: &Address) -> Result<()> {
         let url = self.build_url(SYNC_ACCOUNT)?;
 
@@ -358,7 +363,7 @@ impl SyncClient for HttpClient {
         Ok(())
     }
 
-    #[instrument(skip_all)]
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
     async fn sync_status(&self, address: &Address) -> Result<SyncStatus> {
         let url = self.build_url(SYNC_ACCOUNT_STATUS)?;
 
@@ -388,7 +393,7 @@ impl SyncClient for HttpClient {
         Ok(SyncStatus::decode(buffer).await?)
     }
 
-    #[instrument(skip_all)]
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
     async fn sync(
         &self,
 
@@ -423,7 +428,7 @@ impl SyncClient for HttpClient {
         Ok(SyncPacket::decode(buffer).await?)
     }
 
-    #[instrument(skip_all)]
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
     async fn scan(
         &self,
         address: &Address,
@@ -457,7 +462,7 @@ impl SyncClient for HttpClient {
         Ok(ScanResponse::decode(buffer).await?)
     }
 
-    #[instrument(skip_all)]
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
     async fn diff(
         &self,
         address: &Address,
@@ -491,7 +496,7 @@ impl SyncClient for HttpClient {
         Ok(DiffResponse::decode(buffer).await?)
     }
 
-    #[instrument(skip_all)]
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
     async fn patch(
         &self,
         address: &Address,
@@ -527,11 +532,15 @@ impl SyncClient for HttpClient {
 }
 
 #[cfg(feature = "files")]
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl FileSyncClient for HttpClient {
     type Error = crate::Error;
 
-    #[instrument(skip(self, path, progress, cancel))]
+    #[cfg_attr(
+        not(target_arch = "wasm32"),
+        instrument(skip(self, path, progress, cancel))
+    )]
     async fn upload_file(
         &self,
         file_info: &ExternalFile,
@@ -619,7 +628,10 @@ impl FileSyncClient for HttpClient {
         Ok(status)
     }
 
-    #[instrument(skip(self, path, progress, cancel))]
+    #[cfg_attr(
+        not(target_arch = "wasm32"),
+        instrument(skip(self, path, progress, cancel))
+    )]
     async fn download_file(
         &self,
         file_info: &ExternalFile,
@@ -702,7 +714,7 @@ impl FileSyncClient for HttpClient {
         let digest_valid =
             digest.as_slice() == file_info.file_name().as_ref();
         if !digest_valid {
-            tokio::fs::remove_file(download_path).await?;
+            vfs::remove_file(download_path).await?;
             return Err(Error::FileChecksumMismatch(
                 file_info.file_name().to_string(),
                 sos_sdk::hex::encode(digest.as_slice()),
@@ -722,7 +734,7 @@ impl FileSyncClient for HttpClient {
         Ok(status)
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip(self)))]
     async fn delete_file(
         &self,
         file_info: &ExternalFile,
@@ -757,7 +769,7 @@ impl FileSyncClient for HttpClient {
         Ok(status)
     }
 
-    #[instrument(skip(self))]
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip(self)))]
     async fn move_file(
         &self,
         from: &ExternalFile,
@@ -797,7 +809,7 @@ impl FileSyncClient for HttpClient {
         Ok(status)
     }
 
-    #[instrument(skip_all)]
+    #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
     async fn compare_files(
         &self,
         local_files: FileSet,

@@ -26,7 +26,6 @@ version = "0.16"
 path = "../sdk"
 
 [dev-dependencies]
-anyhow.workspace = true
 tokio = { version = "1", features = ["full"] }
 
 [build-dependencies]
