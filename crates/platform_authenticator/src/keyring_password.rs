@@ -1,7 +1,12 @@
 //! Interface to the platform keyring.
 
 /// Service name used to store keyring passwords.
+#[cfg(not(debug_assertions))]
 pub const SERVICE_NAME: &str = "com.saveoursecrets.accounts.local";
+
+/// Service name used to store keyring passwords.
+#[cfg(debug_assertions)]
+pub const SERVICE_NAME: &str = "com.saveoursecrets.accounts.local.debug";
 
 /// Legacy service name used to store keyring passwords.
 ///
