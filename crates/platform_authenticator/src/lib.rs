@@ -15,12 +15,14 @@ pub use error::Error;
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Attempt to sign in to an account.
+/// Attempt to find authentication credentials for an account.
 ///
 /// First verify user presence via the platform
 /// authenticator and then attempt to retrieve the account
 /// password from the platform keyring.
-pub async fn sign_in(account_id: &str) -> Result<SecretString> {
+pub async fn find_account_credential(
+    account_id: &str,
+) -> Result<SecretString> {
     if local_auth::supported() {
         if local_auth::authenticate(Default::default()) {
             if keyring_password::supported() {

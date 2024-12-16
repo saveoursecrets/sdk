@@ -155,7 +155,9 @@ where
         + From<std::io::Error>
         + 'static,
 {
-    use sos_platform_authenticator::{keyring_password, local_auth, sign_in};
+    use sos_platform_authenticator::{
+        find_account_credential, keyring_password, local_auth,
+    };
 
     let Some(account_id) = parse_account_id(&req) else {
         return status(StatusCode::BAD_REQUEST);
@@ -167,7 +169,7 @@ where
         keyring_password_supported = %keyring_password::supported(),
     );
 
-    match sign_in(&account_id.to_string()).await {
+    match find_account_credential(&account_id.to_string()).await {
         Ok(password) => {
             sign_in_password(accounts, account_id, password, false).await
         }
