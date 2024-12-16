@@ -1,4 +1,3 @@
-// mod app_info;
 // mod local_sync;
 mod memory_server;
 mod native_bridge_chunks;

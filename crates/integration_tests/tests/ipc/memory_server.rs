@@ -1,5 +1,9 @@
 use anyhow::Result;
-use sos_ipc::{memory_server::LocalMemoryServer, ServiceAppInfo};
+use sos_ipc::{
+    local_transport::{HttpMessage, LocalRequest},
+    memory_server::LocalMemoryServer,
+    ServiceAppInfo,
+};
 use sos_net::sdk::{prelude::LocalAccountSwitcher, Paths};
 use sos_test_utils::teardown;
 use std::sync::Arc;
@@ -7,6 +11,11 @@ use tokio::sync::RwLock;
 
 use crate::test_utils::setup;
 
+/// Test the in-memory HTTP server in isolation outside
+/// of the context of the native bridge code.
+///
+/// Runs a simple GET request and basic concurrency test
+/// making multiple simultaneous requests.
 #[tokio::test]
 async fn integration_ipc_memory_server() -> Result<()> {
     const TEST_ID: &str = "ipc_memory_server";
@@ -30,16 +39,23 @@ async fn integration_ipc_memory_server() -> Result<()> {
         version: version.to_string(),
     };
 
-    let mut client =
+    let client =
         LocalMemoryServer::listen(ipc_accounts, app_info.clone()).await?;
-
-    let result = client.info().await?;
+    let request = LocalRequest::get("/".parse().unwrap());
+    let response = client.send(request).await?;
+    let result: ServiceAppInfo = serde_json::from_slice(response.body())?;
     assert_eq!(app_info, result);
 
     let mut futures = Vec::new();
     for _ in 0..100 {
-        let mut client = client.clone();
-        futures.push(Box::pin(async move { client.info().await }));
+        let client = client.clone();
+        futures.push(Box::pin(async move {
+            let request = LocalRequest::get("/".parse().unwrap());
+            let response = client.send(request).await?;
+            let result: ServiceAppInfo =
+                serde_json::from_slice(response.body())?;
+            Ok::<_, anyhow::Error>(result)
+        }));
     }
 
     let results = futures::future::try_join_all(futures).await?;

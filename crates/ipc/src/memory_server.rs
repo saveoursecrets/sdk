@@ -10,8 +10,8 @@ use http_body_util::{BodyExt, Full};
 use hyper::client::conn::http1::handshake;
 use hyper::server::conn::http1::Builder;
 use hyper_util::rt::tokio::TokioIo;
-use sos_protocol::{Merge, NetworkError, SyncStorage};
-use sos_sdk::prelude::{Account, AccountSwitcher, ErrorExt, PublicIdentity};
+use sos_protocol::{Merge, SyncStorage};
+use sos_sdk::prelude::{Account, AccountSwitcher, ErrorExt};
 use std::sync::Arc;
 use tokio::{
     io::DuplexStream,
@@ -26,10 +26,7 @@ pub struct LocalMemoryClient {
 
 impl LocalMemoryClient {
     /// Send a request.
-    pub async fn send_request(
-        &self,
-        request: LocalRequest,
-    ) -> Result<LocalResponse> {
+    pub async fn send(&self, request: LocalRequest) -> Result<LocalResponse> {
         let stream = self.connect().await?;
 
         let request: Request<Vec<u8>> = request.try_into()?;
@@ -74,6 +71,7 @@ impl LocalMemoryClient {
         Ok(response)
     }
 
+    /*
     /// Get application information.
     pub async fn info(&mut self) -> Result<ServiceAppInfo> {
         let response = self.send_request(Default::default()).await?;
@@ -100,6 +98,7 @@ impl LocalMemoryClient {
             Err(NetworkError::ResponseCode(status).into())
         }
     }
+    */
 }
 
 /// Server for in-memory communication.

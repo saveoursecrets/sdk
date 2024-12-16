@@ -223,7 +223,7 @@ async fn handle_request(
         );
 
         let request_id = request.request_id();
-        let response = client.send_request(request).await;
+        let response = client.send(request).await;
 
         let mut result = match response {
             Ok(response) => response,
