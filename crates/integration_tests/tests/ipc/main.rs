@@ -2,6 +2,7 @@
 // mod local_sync;
 mod memory_server;
 mod native_bridge_chunks;
+mod native_bridge_info;
 mod native_bridge_list_accounts;
 mod native_bridge_probe;
 
@@ -18,7 +19,7 @@ pub fn native_bridge_cmd<'a>(
         "test-native-bridge",
         "--",
         "sos-test-native-bridge", // mock extension name
-        data_dir,
+        data_dir,                 // data directory for isolated tests
     ];
     (command, arguments)
 }

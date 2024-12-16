@@ -3,7 +3,7 @@
 use crate::{
     local_transport::{HttpMessage, LocalRequest, LocalResponse},
     memory_server::{LocalMemoryClient, LocalMemoryServer},
-    Result,
+    Result, ServiceAppInfo,
 };
 use futures_util::{SinkExt, StreamExt};
 use http::{
@@ -30,12 +30,17 @@ const HARD_LIMIT: usize = 1024 * 1024;
 pub struct NativeBridgeOptions {
     /// Identifier of the extension.
     pub extension_id: String,
+    /// Service information.
+    pub service_info: ServiceAppInfo,
 }
 
 impl NativeBridgeOptions {
     /// Create new options.
-    pub fn new(extension_id: String) -> Self {
-        Self { extension_id }
+    pub fn new(extension_id: String, service_info: ServiceAppInfo) -> Self {
+        Self {
+            extension_id,
+            service_info,
+        }
     }
 }
 
@@ -84,7 +89,8 @@ impl NativeBridgeServer {
         tracing::info!(options = ?options, "native_bridge");
 
         let client =
-            LocalMemoryServer::listen(accounts, Default::default()).await?;
+            LocalMemoryServer::listen(accounts, options.service_info.clone())
+                .await?;
 
         Ok(Self { options, client })
     }

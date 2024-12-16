@@ -1,5 +1,6 @@
-use sos_ipc::native_bridge::server::{
-    NativeBridgeOptions, NativeBridgeServer,
+use sos_ipc::{
+    native_bridge::server::{NativeBridgeOptions, NativeBridgeServer},
+    ServiceAppInfo,
 };
 use sos_sdk::prelude::{
     AccountSwitcherOptions, LocalAccount, LocalAccountSwitcher, Paths,
@@ -52,8 +53,12 @@ pub async fn main() -> anyhow::Result<()> {
         .await?;
 
     // Start the server
+    let info = ServiceAppInfo {
+        name: "test_native_bridge".to_string(),
+        version: "0.0.0".to_string(),
+    };
     let accounts = Arc::new(RwLock::new(accounts));
-    let options = NativeBridgeOptions::new(extension_id);
+    let options = NativeBridgeOptions::new(extension_id, info);
     let server = NativeBridgeServer::new(options, accounts).await?;
     server.listen().await;
     Ok(())
