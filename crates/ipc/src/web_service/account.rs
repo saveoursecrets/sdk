@@ -130,34 +130,6 @@ where
         .await
 }
 
-/*
-#[deprecated]
-pub async fn has_keyring_credentials(
-    req: Request<Incoming>,
-) -> hyper::Result<Response<Body>> {
-    use keyring::{Entry, Error};
-    use sos_sdk::constants::KEYRING_SERVICE;
-
-    let Some(account_id) = parse_account_id(&req) else {
-        return status(StatusCode::BAD_REQUEST);
-    };
-
-    let account_id = account_id.to_string();
-
-    let service = format!("{} ({})", KEYRING_SERVICE, account_id);
-    match Entry::new(&service, account_id.as_ref()) {
-        Ok(entry) => match entry.get_password() {
-            Ok(_) => status(StatusCode::OK),
-            Err(e) => match e {
-                Error::NoEntry => status(StatusCode::NOT_FOUND),
-                _ => internal_server_error(e),
-            },
-        },
-        Err(e) => internal_server_error(e),
-    }
-}
-*/
-
 /// Sign in to an account attempting to retrieve the account
 /// password from the platform keyring.
 ///
@@ -208,51 +180,6 @@ where
         }
     }
 }
-
-/*
-#[deprecated]
-pub async fn sign_in_keyring<A, R, E>(
-    req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
-) -> hyper::Result<Response<Body>>
-where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
-    R: 'static,
-    E: std::fmt::Debug
-        + std::error::Error
-        + ErrorExt
-        + From<sos_sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-{
-    use keyring::{Entry, Error};
-    use sos_sdk::constants::KEYRING_SERVICE;
-
-    let Some(account_id) = parse_account_id(&req) else {
-        return status(StatusCode::BAD_REQUEST);
-    };
-
-    let entry_id = account_id.to_string();
-    let service = format!("{} ({})", KEYRING_SERVICE, entry_id);
-    match Entry::new(&service, entry_id.as_ref()) {
-        Ok(entry) => match entry.get_password() {
-            Ok(password) => {
-                sign_in_password(accounts, account_id, password).await
-            }
-            Err(e) => match e {
-                Error::NoEntry => status(StatusCode::NOT_FOUND),
-                _ => internal_server_error(e),
-            },
-        },
-        Err(e) => internal_server_error(e),
-    }
-}
-*/
 
 /// Sign in to an account
 pub async fn sign_in_password<A, R, E>(
