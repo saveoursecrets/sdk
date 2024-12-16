@@ -4967,6 +4967,7 @@ dependencies = [
 name = "sos-platform-authenticator"
 version = "0.1.0"
 dependencies = [
+ "http",
  "keyring",
  "robius-authentication",
  "rustc_version",

@@ -12,6 +12,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 thiserror.workspace = true
 tracing.workspace = true
 secrecy.workspace = true
+http.workspace = true
 
 [target.'cfg(all(not(target_os = "android"), not(target_os = "macos")))'.dependencies]
 keyring.workspace = true

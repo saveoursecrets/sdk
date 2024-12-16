@@ -122,10 +122,10 @@ where
     let Ok(request) = parse_json_body::<SigninRequest>(req).await else {
         return status(StatusCode::BAD_REQUEST);
     };
-    let password = request.password;
 
     tracing::debug!(account = %account_id, "sign_in");
 
+    let password = SecretString::new(request.password.into());
     sign_in_password(accounts, account_id, password, request.save_password)
         .await
 }
@@ -183,7 +183,7 @@ where
         + From<std::io::Error>
         + 'static,
 {
-    use sos_platform_authenticator::{keyring_password, local_auth};
+    use sos_platform_authenticator::{keyring_password, local_auth, sign_in};
 
     let Some(account_id) = parse_account_id(&req) else {
         return status(StatusCode::BAD_REQUEST);
@@ -195,34 +195,17 @@ where
         keyring_password_supported = %keyring_password::supported(),
     );
 
-    if local_auth::supported() {
-        if local_auth::authenticate(Default::default()) {
-            if keyring_password::supported() {
-                match keyring_password::find_account_password(
-                    &account_id.to_string(),
-                ) {
-                    Ok(password) => {
-                        sign_in_password(
-                            accounts, account_id, password, false,
-                        )
-                        .await
-                    }
-                    Err(e) => {
-                        if e.is_no_keyring_entry() {
-                            status(StatusCode::UNAUTHORIZED)
-                        } else {
-                            internal_server_error(e)
-                        }
-                    }
-                }
-            } else {
-                status(StatusCode::UNAUTHORIZED)
-            }
-        } else {
-            status(StatusCode::FORBIDDEN)
+    match sign_in(&account_id.to_string()).await {
+        Ok(password) => {
+            sign_in_password(accounts, account_id, password, false).await
         }
-    } else {
-        status(StatusCode::UNAUTHORIZED)
+        Err(e) => {
+            let code: StatusCode = (&e).into();
+            match code {
+                StatusCode::INTERNAL_SERVER_ERROR => internal_server_error(e),
+                _ => status(code),
+            }
+        }
     }
 }
 
@@ -275,7 +258,7 @@ where
 pub async fn sign_in_password<A, R, E>(
     accounts: Accounts<A, R, E>,
     account_id: Address,
-    password: String,
+    password: SecretString,
     save_password: bool,
 ) -> hyper::Result<Response<Body>>
 where
@@ -302,7 +285,6 @@ where
         return status(StatusCode::NOT_FOUND);
     };
 
-    let password = SecretString::new(password.into());
     let key: AccessKey = password.clone().into();
     if let Err(e) = account.sign_in(&key).await {
         if e.is_permission_denied() {
