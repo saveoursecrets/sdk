@@ -37,11 +37,12 @@ use crate::{
 };
 
 /// Server status for all remote origins.
-pub type ServerStatus = HashMap<Origin, crate::Result<SyncStatus>>;
+pub type ServerStatus = HashMap<Origin, sos_protocol::Result<SyncStatus>>;
 
 /// Transfer status for all remote origins.
 #[cfg(feature = "files")]
-pub type TransferStatus = HashMap<Origin, crate::Result<FileTransfersSet>>;
+pub type TransferStatus =
+    HashMap<Origin, sos_protocol::Result<FileTransfersSet>>;
 
 impl NetworkAccount {
     /// Sync status for remote servers.

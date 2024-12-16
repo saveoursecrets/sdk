@@ -3,13 +3,13 @@
 //! Tasks that handle retry until exhaustion for
 //! download, upload, move and delete operations.
 use crate::{
-    net::NetworkRetry,
     protocol::{
+        network_client::NetworkRetry,
         transfer::{CancelReason, FileSyncClient},
-        SyncClient,
+        Error, SyncClient,
     },
     sdk::{storage::files::ExternalFile, vfs, Paths},
-    Error, Result,
+    Result,
 };
 
 use async_recursion::async_recursion;
@@ -25,8 +25,8 @@ use super::{
 
 pub struct UploadOperation<C>
 where
-    C: SyncClient<Error = Error>
-        + FileSyncClient<Error = Error>
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
         + Clone
         + Send
         + Sync
@@ -43,8 +43,8 @@ where
 
 impl<C> UploadOperation<C>
 where
-    C: SyncClient<Error = Error>
-        + FileSyncClient<Error = Error>
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
         + Clone
         + Send
         + Sync
@@ -120,10 +120,10 @@ where
                 Ok(res) => res,
                 Err(e) => {
                     match e {
-                        Error::RetryCanceled(user_canceled) => {
+                        sos_protocol::Error::RetryCanceled(user_canceled) => {
                             Ok(TransferResult::Fatal(TransferError::Canceled(user_canceled)))
                         }
-                        _ => Err(e),
+                        _ => Err(e.into()),
                     }
                 }
             }
@@ -135,8 +135,8 @@ where
 
 impl<C> TransferTask for UploadOperation<C>
 where
-    C: SyncClient<Error = Error>
-        + FileSyncClient<Error = Error>
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
         + Clone
         + Send
         + Sync
@@ -166,8 +166,8 @@ where
 
 pub struct DownloadOperation<C>
 where
-    C: SyncClient<Error = Error>
-        + FileSyncClient<Error = Error>
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
         + Clone
         + Send
         + Sync
@@ -184,8 +184,8 @@ where
 
 impl<C> DownloadOperation<C>
 where
-    C: SyncClient<Error = Error>
-        + FileSyncClient<Error = Error>
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
         + Clone
         + Send
         + Sync
@@ -277,10 +277,10 @@ where
                 Ok(res) => res,
                 Err(e) => {
                     match e {
-                        Error::RetryCanceled(user_canceled) => {
+                        sos_protocol::Error::RetryCanceled(user_canceled) => {
                             Ok(TransferResult::Fatal(TransferError::Canceled(user_canceled)))
                         }
-                        _ => Err(e),
+                        _ => Err(e.into()),
                     }
                 }
             }
@@ -292,8 +292,8 @@ where
 
 impl<C> TransferTask for DownloadOperation<C>
 where
-    C: SyncClient<Error = Error>
-        + FileSyncClient<Error = Error>
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
         + Clone
         + Send
         + Sync
@@ -335,8 +335,8 @@ where
 
 impl<C> DeleteOperation<C>
 where
-    C: SyncClient<Error = Error>
-        + FileSyncClient<Error = Error>
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
         + Clone
         + Send
         + Sync
@@ -399,12 +399,12 @@ where
             {
                 Ok(res) => res,
                 Err(e) => match e {
-                    Error::RetryCanceled(user_canceled) => {
+                    sos_protocol::Error::RetryCanceled(user_canceled) => {
                         Ok(TransferResult::Fatal(TransferError::Canceled(
                             user_canceled,
                         )))
                     }
-                    _ => Err(e),
+                    _ => Err(e.into()),
                 },
             }
         } else {
@@ -415,8 +415,8 @@ where
 
 impl<C> TransferTask for DeleteOperation<C>
 where
-    C: SyncClient<Error = Error>
-        + FileSyncClient<Error = Error>
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
         + Clone
         + Send
         + Sync
@@ -446,8 +446,8 @@ where
 
 pub struct MoveOperation<C>
 where
-    C: SyncClient<Error = Error>
-        + FileSyncClient<Error = Error>
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
         + Clone
         + Send
         + Sync
@@ -463,8 +463,8 @@ where
 
 impl<C> MoveOperation<C>
 where
-    C: SyncClient<Error = Error>
-        + FileSyncClient<Error = Error>
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
         + Clone
         + Send
         + Sync
@@ -531,12 +531,12 @@ where
             {
                 Ok(res) => res,
                 Err(e) => match e {
-                    Error::RetryCanceled(user_canceled) => {
+                    sos_protocol::Error::RetryCanceled(user_canceled) => {
                         Ok(TransferResult::Fatal(TransferError::Canceled(
                             user_canceled,
                         )))
                     }
-                    _ => Err(e),
+                    _ => Err(e.into()),
                 },
             }
         } else {
@@ -547,8 +547,8 @@ where
 
 impl<C> TransferTask for MoveOperation<C>
 where
-    C: SyncClient<Error = Error>
-        + FileSyncClient<Error = Error>
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
         + Clone
         + Send
         + Sync

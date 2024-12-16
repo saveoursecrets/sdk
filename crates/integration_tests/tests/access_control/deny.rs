@@ -6,7 +6,7 @@ use crate::test_utils::{
 };
 use http::StatusCode;
 use sos_net::{
-    protocol::{AccountSync, NetworkError},
+    protocol::{AccountSync, Error as ProtocolError, NetworkError},
     sdk::prelude::*,
     Error as ClientError, NetworkAccount,
 };
@@ -57,8 +57,8 @@ async fn access_control_deny() -> Result<()> {
     if let Some(err) = sync_error.first_error() {
         assert!(matches!(
             err,
-            ClientError::Network(NetworkError::ResponseCode(
-                StatusCode::FORBIDDEN
+            ClientError::Protocol(ProtocolError::Network(
+                NetworkError::ResponseCode(StatusCode::FORBIDDEN)
             ))
         ));
     } else {

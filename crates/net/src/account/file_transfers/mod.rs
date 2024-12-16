@@ -15,8 +15,8 @@
 //! Requests are limited to the `concurrent_requests` setting guarded
 //! by a semaphore and notifications are sent via [InflightTransfers].
 use crate::{
-    net::NetworkRetry,
     protocol::{
+        network_client::NetworkRetry,
         transfer::{
             CancelReason, FileOperation, FileSyncClient,
             FileTransferQueueRequest, ProgressChannel, TransferOperation,
@@ -222,8 +222,8 @@ impl FileTransfersHandle {
 /// when each operation has been completed on every client.
 pub struct FileTransfers<C>
 where
-    C: SyncClient<Error = Error>
-        + FileSyncClient<Error = Error>
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
         + Clone
         + Send
         + Sync
@@ -239,8 +239,8 @@ where
 
 impl<C> FileTransfers<C>
 where
-    C: SyncClient<Error = Error>
-        + FileSyncClient<Error = Error>
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
         + Clone
         + Send
         + Sync

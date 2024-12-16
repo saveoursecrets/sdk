@@ -4,7 +4,8 @@ use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
     protocol::{
-        AccountSync, Origin, RemoteSyncHandler, SyncClient, SyncStorage,
+        network_client::ListenOptions, AccountSync, Origin,
+        RemoteSyncHandler, SyncClient, SyncStorage,
     },
     sdk::{
         account::{Account, AccountBuilder},
@@ -18,8 +19,7 @@ use sos_net::{
         vault::{Summary, VaultId},
         vfs, Paths,
     },
-    InflightNotification, InflightTransfers, ListenOptions, NetworkAccount,
-    RemoteBridge,
+    InflightNotification, InflightTransfers, NetworkAccount, RemoteBridge,
 };
 use std::{
     path::PathBuf,

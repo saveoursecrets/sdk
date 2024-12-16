@@ -6,23 +6,22 @@ use serde_json::Value;
 use tracing::instrument;
 
 use crate::{
-    protocol::{
-        constants::{
-            routes::v1::{
-                SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
-            },
-            MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
+    constants::{
+        routes::v1::{
+            SYNC_ACCOUNT, SYNC_ACCOUNT_EVENTS, SYNC_ACCOUNT_STATUS,
         },
-        CreateSet, DiffRequest, DiffResponse, NetworkError, Origin,
-        PatchRequest, PatchResponse, ScanRequest, ScanResponse, SyncClient,
-        SyncPacket, SyncStatus, UpdateSet, WireEncodeDecode,
+        MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
     },
-    sdk::{
-        prelude::Address,
-        signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    },
-    Error, Result,
+    CreateSet, DiffRequest, DiffResponse, Error, NetworkError, Origin,
+    PatchRequest, PatchResponse, Result, ScanRequest, ScanResponse,
+    SyncClient, SyncPacket, SyncStatus, UpdateSet, WireEncodeDecode,
 };
+
+use sos_sdk::{
+    prelude::Address,
+    signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
+};
+
 use std::{fmt, time::Duration};
 use url::Url;
 
@@ -35,16 +34,16 @@ use super::{
 
 #[cfg(feature = "listen")]
 use crate::{
-    net::websocket::WebSocketChangeListener, protocol::ChangeNotification,
-    ListenOptions, WebSocketHandle,
+    network_client::websocket::{
+        ListenOptions, WebSocketChangeListener, WebSocketHandle,
+    },
+    ChangeNotification,
 };
 
 #[cfg(feature = "files")]
 use crate::{
-    protocol::transfer::{
-        FileSet, FileSyncClient, FileTransfersSet, ProgressChannel,
-    },
     sdk::storage::files::ExternalFile,
+    transfer::{FileSet, FileSyncClient, FileTransfersSet, ProgressChannel},
 };
 
 /// Client that can synchronize with a server over HTTP(S).
@@ -111,7 +110,7 @@ impl HttpClient {
     /// from the remote server using a websocket
     /// that performs automatic re-connection.
     #[cfg(feature = "listen")]
-    pub(crate) fn listen<F>(
+    pub fn listen<F>(
         &self,
         options: ListenOptions,
         handler: impl Fn(ChangeNotification) -> F + Send + Sync + 'static,
@@ -539,7 +538,7 @@ impl FileSyncClient for HttpClient {
         path: &std::path::Path,
         progress: ProgressChannel,
         mut cancel: tokio::sync::watch::Receiver<
-            crate::protocol::transfer::CancelReason,
+            crate::transfer::CancelReason,
         >,
     ) -> Result<http::StatusCode> {
         use crate::sdk::vfs;
@@ -627,7 +626,7 @@ impl FileSyncClient for HttpClient {
         path: &std::path::Path,
         progress: ProgressChannel,
         mut cancel: tokio::sync::watch::Receiver<
-            crate::protocol::transfer::CancelReason,
+            crate::transfer::CancelReason,
         >,
     ) -> Result<http::StatusCode> {
         use crate::sdk::{
@@ -706,7 +705,7 @@ impl FileSyncClient for HttpClient {
             tokio::fs::remove_file(download_path).await?;
             return Err(Error::FileChecksumMismatch(
                 file_info.file_name().to_string(),
-                hex::encode(digest.as_slice()),
+                sos_sdk::hex::encode(digest.as_slice()),
             ));
         }
 

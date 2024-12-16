@@ -5,7 +5,7 @@ use crate::test_utils::{
 use anyhow::Result;
 use http::StatusCode;
 use sos_net::{
-    protocol::{AccountSync, NetworkError},
+    protocol::{AccountSync, Error as ProtocolError, NetworkError},
     sdk::prelude::*,
     Error as ClientError,
 };
@@ -63,9 +63,8 @@ async fn pairing_device_revoke() -> Result<()> {
     if let Err(ClientError::RevokeDeviceSync(err)) = revoke_error {
         assert!(matches!(
             &*err,
-            ClientError::Network(NetworkError::ResponseJson(
-                StatusCode::FORBIDDEN,
-                _
+            ClientError::Protocol(ProtocolError::Network(
+                NetworkError::ResponseJson(StatusCode::FORBIDDEN, _)
             ))
         ));
     } else {
@@ -78,9 +77,8 @@ async fn pairing_device_revoke() -> Result<()> {
     if let Some(err) = sync_result.first_error() {
         assert!(matches!(
             err,
-            ClientError::Network(NetworkError::ResponseJson(
-                StatusCode::FORBIDDEN,
-                _
+            ClientError::Protocol(ProtocolError::Network(
+                NetworkError::ResponseJson(StatusCode::FORBIDDEN, _)
             ))
         ));
     } else {

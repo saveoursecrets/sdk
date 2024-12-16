@@ -26,12 +26,21 @@
 mod bindings;
 pub mod constants;
 mod error;
+#[cfg(feature = "network-client")]
+pub mod network_client;
 pub mod server_helpers;
 mod sync;
 mod traits;
 
-#[cfg(any(feature = "files", feature = "listen"))]
+#[cfg(any(
+    feature = "files",
+    feature = "listen",
+    feature = "network-client"
+))]
 pub mod transfer;
+
+#[cfg(feature = "hashcheck")]
+pub mod hashcheck;
 
 pub use bindings::*;
 pub use error::{AsConflict, ConflictError, Error, ErrorReply, NetworkError};
@@ -39,6 +48,12 @@ pub use sync::*;
 pub use traits::*;
 
 use prost::{bytes::Buf, Message};
+
+#[cfg(feature = "network-client")]
+pub use reqwest;
+
+#[cfg(any(feature = "listen", feature = "pairing"))]
+pub use tokio_tungstenite;
 
 #[cfg(test)]
 mod tests;
@@ -168,4 +183,10 @@ fn decode_uuid(id: &[u8]) -> Result<uuid::Uuid> {
 
 fn encode_uuid(id: &uuid::Uuid) -> Vec<u8> {
     id.as_bytes().to_vec()
+}
+
+/// Determine if the offline environment variable is set.
+pub fn is_offline() -> bool {
+    use crate::sdk::constants::SOS_OFFLINE;
+    std::env::var(SOS_OFFLINE).ok().is_some()
 }

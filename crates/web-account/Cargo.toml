@@ -8,11 +8,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [package.metadata.docs.rs]
-features = [
-  "local-transport",
-  "integration",
-  "native-bridge-server",
-]
+all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -30,19 +26,14 @@ thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-typeshare.workspace = true
-parking_lot.workspace = true
 http.workspace = true
 bytes.workspace = true
 secrecy.workspace = true
-# futures = { workspace = true, optional = true }
-# once_cell = { workspace = true, optional = true }
 indexmap.workspace = true
 async-trait.workspace = true
 
 sos-sdk = { version = "0.16", path = "../sdk", features = ["account"] }
 sos-protocol = { version = "0.16", path = "../protocol" }
-sos-platform-authenticator = { version = "0.1", path = "../platform_authenticator", optional = true }
 
 tokio = { version = "1", features = ["rt", "macros", "io-util", "sync"] }
 tokio-util = { version = "0.7", features = ["codec"] }

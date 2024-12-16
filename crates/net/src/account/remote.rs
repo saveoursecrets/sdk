@@ -1,9 +1,8 @@
 //! Connect a remote data source with a local account.
 use crate::{
-    net::HttpClient,
     protocol::{
-        AutoMerge, Origin, RemoteResult, RemoteSync, SyncClient,
-        SyncDirection, SyncOptions, UpdateSet,
+        network_client::HttpClient, AutoMerge, Origin, RemoteResult,
+        RemoteSync, SyncClient, SyncDirection, SyncOptions, UpdateSet,
     },
     sdk::{
         account::LocalAccount,
@@ -170,7 +169,7 @@ impl RemoteSync for RemoteBridge {
             },
             Err(e) => RemoteResult {
                 origin: self.origin().clone(),
-                result: Err(e),
+                result: Err(e.into()),
             },
         }
     }
@@ -193,8 +192,11 @@ impl RemoteSync for RemoteBridge {
 #[cfg(feature = "listen")]
 mod listen {
     use crate::{
-        protocol::ChangeNotification, ListenOptions, RemoteBridge,
-        WebSocketHandle,
+        protocol::{
+            network_client::{ListenOptions, WebSocketHandle},
+            ChangeNotification,
+        },
+        RemoteBridge,
     };
     use tokio::sync::mpsc;
 

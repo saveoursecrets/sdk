@@ -1,8 +1,7 @@
 //! Enroll a device to an account on a remote server.
 use crate::{
     pairing::{Error, Result},
-    protocol::Origin,
-    protocol::SyncClient,
+    protocol::{network_client::HttpClient, Origin, SyncClient},
     sdk::{
         account::Account,
         crypto::AccessKey,
@@ -20,7 +19,7 @@ use crate::{
         vault::{VaultAccess, VaultId, VaultWriter},
         vfs, Paths,
     },
-    HttpClient, NetworkAccount,
+    NetworkAccount,
 };
 use std::{
     collections::{HashMap, HashSet},

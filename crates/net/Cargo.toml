@@ -32,8 +32,8 @@ full = [
 ]
 
 account = ["sos-sdk/account"]
-listen = ["dep:tokio-tungstenite", "sos-protocol/listen"]
-hashcheck = []
+listen = ["sos-protocol/listen"]
+hashcheck = ["sos-protocol/hashcheck"]
 audit = ["sos-sdk/audit"]
 archive = ["sos-sdk/archive", "sos-protocol/archive"]
 files = ["sos-sdk/files", "sos-protocol/files"]
@@ -67,10 +67,8 @@ serde_with.workspace = true
 rand.workspace = true
 url.workspace = true
 futures.workspace = true
-bs58.workspace = true
 urlencoding.workspace = true
 indexmap.workspace = true
-async-stream = "0.3"
 binary-stream.workspace = true
 rs_merkle.workspace = true
 prost.workspace = true
@@ -78,9 +76,7 @@ prost.workspace = true
 # pairing
 snow = { version = "0.9", optional = true }
 
-reqwest = { version = "0.12.5", default-features = false, features = ["json", "rustls-tls", "stream"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync"] }
-tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] , optional = true}
 
 [dependencies.sos-sdk]
 workspace = true
@@ -88,7 +84,7 @@ workspace = true
 [dependencies.sos-protocol]
 version = "0.16"
 path = "../protocol"
-features = ["account"]
+features = ["account", "network-client"]
 
 [dependencies.sos-account-extras]
 version = "0.16"

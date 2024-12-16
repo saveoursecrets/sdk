@@ -12,7 +12,9 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-listen = []
+listen = ["tokio-tungstenite"]
+hashcheck = ["reqwest"]
+network-client = ["reqwest", "bs58", "async-stream", "tokio-util"]
 pairing = []
 account = ["sos-sdk/account"]
 archive = ["sos-sdk/archive"]
@@ -38,6 +40,13 @@ bytes.workspace = true
 binary-stream.workspace = true
 typeshare.workspace = true
 tokio = { version = "1", features = ["rt",  "macros"] }
+
+# network-client
+reqwest = { workspace = true, optional = true }
+tokio-tungstenite = { workspace = true, optional = true }
+bs58 = { workspace = true, optional = true }
+async-stream = { workspace = true, optional = true }
+tokio-util = { workspace = true, optional = true }
 
 [dependencies.sos-sdk]
 version = "0.16"

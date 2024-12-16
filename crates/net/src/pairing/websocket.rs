@@ -2,9 +2,18 @@
 use super::{DeviceEnrollment, Error, Result, ServerPairUrl};
 use crate::{
     protocol::{
-        pairing_message, AccountSync, Origin, PairingConfirm, PairingMessage,
-        PairingReady, PairingRequest, ProtoMessage, RelayHeader, RelayPacket,
-        RelayPayload, SyncOptions,
+        network_client::WebSocketRequest,
+        pairing_message,
+        tokio_tungstenite::{
+            connect_async,
+            tungstenite::protocol::{
+                frame::coding::CloseCode, CloseFrame, Message,
+            },
+            MaybeTlsStream, WebSocketStream,
+        },
+        AccountSync, Origin, PairingConfirm, PairingMessage, PairingReady,
+        PairingRequest, ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
+        SyncOptions,
     },
     sdk::{
         account::Account,
@@ -13,7 +22,7 @@ use crate::{
         signer::ecdsa::SingleParty,
         url::Url,
     },
-    NetworkAccount, WebSocketRequest,
+    NetworkAccount,
 };
 use futures::{
     select,
@@ -25,11 +34,6 @@ use snow::{Builder, HandshakeState, Keypair, TransportState};
 use std::collections::HashSet;
 use std::{borrow::Cow, path::PathBuf};
 use tokio::{net::TcpStream, sync::mpsc};
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::protocol::{frame::coding::CloseCode, CloseFrame, Message},
-    MaybeTlsStream, WebSocketStream,
-};
 
 const PATTERN: &str = "Noise_XXpsk3_25519_ChaChaPoly_BLAKE2s";
 const RELAY_PATH: &str = "api/v1/relay";

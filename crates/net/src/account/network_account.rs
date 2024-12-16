@@ -68,7 +68,7 @@ use tokio::io::{AsyncRead, AsyncSeek};
 use crate::sdk::prelude::ImportTarget;
 
 #[cfg(feature = "listen")]
-use crate::WebSocketHandle;
+use sos_protocol::network_client::WebSocketHandle;
 
 /*
 #[cfg(feature = "security-report")]
@@ -85,9 +85,8 @@ use crate::{
         FileTransferSettings, FileTransfers, FileTransfersHandle,
         InflightTransfers,
     },
-    protocol::transfer::FileOperation,
+    protocol::{network_client::HttpClient, transfer::FileOperation},
     sdk::{prelude::FilePatch, storage::files::FileMutationEvent},
-    HttpClient,
 };
 
 /// Options for network account creation.
@@ -182,6 +181,7 @@ impl NetworkAccount {
         Ok(folders)
     }
 
+    /*
     /// Copy of the HTTP client for a remote.
     ///
     /// This is an internal function used for testing
@@ -191,6 +191,7 @@ impl NetworkAccount {
         let remotes = self.remotes.read().await;
         remotes.get(origin).map(|r| r.client().clone())
     }
+    */
 
     /// Deactive this account by closing down long-running tasks.
     ///
