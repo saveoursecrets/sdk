@@ -175,6 +175,7 @@ where
             let code: StatusCode = (&e).into();
             match code {
                 StatusCode::INTERNAL_SERVER_ERROR => internal_server_error(e),
+                StatusCode::NOT_FOUND => status(StatusCode::UNAUTHORIZED),
                 _ => status(code),
             }
         }
