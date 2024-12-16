@@ -18,7 +18,6 @@ anyhow.workspace = true
 features = [
   "native-bridge-server",
   "native-bridge-client",
-  "integration",
   "account",
   "archive",
   "contacts", 
@@ -27,6 +26,9 @@ features = [
   "files",
 ]
 path = "../ipc"
+
+# [dependencies.sos-web-account]
+# path = "../web-account"
 
 [dependencies.sos-sdk]
 path = "../sdk"

@@ -5,12 +5,12 @@ use std::{collections::HashMap, future::Future};
 use crate::{
     account::{Account, LocalAccount},
     identity::Identity,
-    prelude::{
-        Address, ArchiveFilter, Document, DocumentView, PublicIdentity,
-        QueryFilter,
-    },
+    prelude::{Address, PublicIdentity},
     Error, Paths, Result,
 };
+
+#[cfg(feature = "search")]
+use crate::prelude::{ArchiveFilter, Document, DocumentView, QueryFilter};
 
 #[cfg(feature = "clipboard")]
 use xclipboard::Clipboard;
@@ -206,6 +206,7 @@ where
     }
 
     /// Search all authenticated accounts.
+    #[cfg(feature = "search")]
     pub async fn search(
         &self,
         needle: String,
@@ -223,6 +224,7 @@ where
     }
 
     /// Query a search index view for all authenticated accounts.
+    #[cfg(feature = "search")]
     pub async fn query_view(
         &self,
         views: &[DocumentView],

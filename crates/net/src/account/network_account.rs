@@ -182,6 +182,16 @@ impl NetworkAccount {
         Ok(folders)
     }
 
+    /// Copy of the HTTP client for a remote.
+    ///
+    /// This is an internal function used for testing
+    /// only, do not use.
+    #[doc(hidden)]
+    pub async fn remote_client(&self, origin: &Origin) -> Option<HttpClient> {
+        let remotes = self.remotes.read().await;
+        remotes.get(origin).map(|r| r.client().clone())
+    }
+
     /// Deactive this account by closing down long-running tasks.
     ///
     /// Does not sign out of the account so is similar to moving

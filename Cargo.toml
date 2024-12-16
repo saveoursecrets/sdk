@@ -17,6 +17,9 @@ members = [
   "crates/test_utils",
   "crates/vfs", 
 ]
+exclude = [
+  "crates/web-account", 
+]
 
 [workspace.dependencies]
 sos-sdk = { version = "0.16", path = "crates/sdk" }

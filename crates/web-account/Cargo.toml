@@ -1,8 +1,8 @@
 [package]
-name = "sos-ipc"
+name = "sos-web-account"
 version = "0.16.5"
 edition = "2021"
-description = "Inter-process communication for the Save Our Secrets SDK."
+description = "Thin client for webassembly bindings to the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
@@ -16,11 +16,7 @@ features = [
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-local-transport = [
-  "serde_with",
-  "async-trait",
-]
-memory-http-server = []
+default = ["account"]
 account = ["sos-sdk/account", "sos-protocol/account"]
 archive = ["sos-sdk/archive", "sos-protocol/archive"]
 clipboard = ["sos-sdk/clipboard"]
@@ -28,30 +24,6 @@ contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = ["sos-sdk/files", "sos-protocol/files"]
 migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
 search = ["sos-sdk/search", "sos-protocol/search"]
-native-bridge-server = [
-  "memory-http-server",
-  "open",
-  "tokio/io-std",
-  "once_cell",
-  "local-transport",
-  "hyper/http1",
-  "hyper/client",
-  "hyper/server",
-  "tower",
-  "matchit",
-  "http-body-util",
-  "hyper-util",
-  "keyring",
-  "clipboard",
-  "base64",
-  "sos-platform-authenticator",
-]
-native-bridge-client = [
-  "local-transport",
-  "tokio/process",
-  "tokio/io-std",
-  "futures",
-]
 
 [dependencies]
 thiserror.workspace = true
@@ -63,12 +35,10 @@ parking_lot.workspace = true
 http.workspace = true
 bytes.workspace = true
 secrecy.workspace = true
-futures = { workspace = true, optional = true }
-once_cell = { workspace = true, optional = true }
-async-trait = { workspace = true, optional = true }
-serde_with = { workspace = true, optional = true }
-keyring = { workspace = true, optional = true }
-base64 = { workspace = true, optional = true }
+# futures = { workspace = true, optional = true }
+# once_cell = { workspace = true, optional = true }
+indexmap.workspace = true
+async-trait.workspace = true
 
 sos-sdk = { version = "0.16", path = "../sdk", features = ["account"] }
 sos-protocol = { version = "0.16", path = "../protocol" }
@@ -77,21 +47,6 @@ sos-platform-authenticator = { version = "0.1", path = "../platform_authenticato
 tokio = { version = "1", features = ["rt", "macros", "io-util", "sync"] }
 tokio-util = { version = "0.7", features = ["codec"] }
 futures-util = { version = "0.3", features = ["sink"] }
-
-# server and client
-hyper = { version = "1", optional = true }
-http-body-util = { version = "0.1", optional = true }
-hyper-util = { version = "0.1", features = ["tokio"], optional = true }
-
-# server
-tower = { version = "0.5", features = ["util"], optional = true }
-matchit = { version = "0.7", optional = true }
-
-# native bridge
-open = { version = "5", optional = true }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-security-framework = "3"
 
 [dev-dependencies]
 anyhow = "1"

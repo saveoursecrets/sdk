@@ -18,10 +18,10 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
 mod linked_account;
-mod local_client;
+// mod local_client;
 
 pub use linked_account::*;
-pub use local_client::*;
+// pub use local_client::*;
 
 /// Account switcher for linked accounts.
 pub type LinkedAccountSwitcher = AccountSwitcher<
@@ -33,7 +33,7 @@ pub type LinkedAccountSwitcher = AccountSwitcher<
 /// Local app integration.
 pub struct LocalIntegration {
     accounts: Arc<RwLock<LinkedAccountSwitcher>>,
-    client: LocalClient,
+    client: HttpClient,
 }
 
 impl LocalIntegration {

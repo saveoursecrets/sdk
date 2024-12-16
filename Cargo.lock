@@ -4872,7 +4872,6 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
- "indexmap 2.7.0",
  "keyring",
  "matchit",
  "once_cell",

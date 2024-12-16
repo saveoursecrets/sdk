@@ -1,5 +1,4 @@
-//! Linked account supports syncing accounts on the
-//! same device using a local client.
+//! Linked account supports syncing with a single remote.
 use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
