@@ -75,7 +75,7 @@ mod unsupported {
     pub struct AuthenticateOptions {}
 
     /// Authenticate using the platform authenticator.
-    pub fn authenticate(options: AuthenticateOptions) -> bool {
+    pub fn authenticate(_options: AuthenticateOptions) -> bool {
         false
     }
 

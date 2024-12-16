@@ -1,7 +1,14 @@
 //! Interface to the platform keyring.
 
 /// Service name used to store keyring passwords.
-pub const SERVICE_NAME: &str = "com.saveoursecrets";
+pub const SERVICE_NAME: &str = "com.saveoursecrets.accounts.local";
+
+/// Legacy service name used to store keyring passwords.
+///
+/// This was used for the account passwords stored
+/// by the GUI app before sharing the platform keyring
+/// between applications.
+pub const LEGACY_SERVICE_NAME: &str = "com.saveoursecrets";
 
 // MacOS implementation uses the security framework
 // directly instead of the `keyring` crate.
