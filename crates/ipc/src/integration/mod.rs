@@ -12,7 +12,7 @@
 //! Experimental and may be removed at any time, do not use.
 
 use crate::Result;
-use sos_protocol::{constants::IPC_GUI_SOCKET_NAME, Origin, RemoteSync};
+use sos_protocol::{Origin, RemoteSync};
 use sos_sdk::prelude::{Account, AccountSwitcher, Paths, PublicIdentity};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
@@ -38,12 +38,7 @@ pub struct LocalIntegration {
 
 impl LocalIntegration {
     /// Create a local app integration.
-    pub fn new(name: &str, transport: ClientTransport) -> Self {
-        let url = format!("sos+ipc://{}", IPC_GUI_SOCKET_NAME);
-        let origin = Origin::new(
-            name.to_string(),
-            url.parse().expect("valid URL for integration origin"),
-        );
+    pub fn new(origin: Origin, transport: ClientTransport) -> Self {
         let transport = Arc::new(Mutex::new(transport));
         let client = LocalClient::new(origin, transport);
         Self {

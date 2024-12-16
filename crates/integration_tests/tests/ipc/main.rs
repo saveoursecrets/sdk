@@ -1,4 +1,4 @@
-// mod local_sync;
+mod linked_account;
 mod memory_server;
 mod native_bridge_chunks;
 mod native_bridge_info;

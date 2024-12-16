@@ -1,37 +1,55 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use sos_ipc::integration::{LinkedAccount, LocalIntegration};
-use sos_ipc::{remove_socket_file, server::LocalSocketServer, Error};
+use sos_ipc::local_transport::{LocalRequest, LocalResponse, LocalTransport};
 use sos_net::{
     protocol::RemoteSync,
     sdk::{
         crypto::AccessKey,
-        prelude::{
-            generate_passphrase, Account, Identity, LocalAccount,
-            LocalAccountSwitcher, SecretChange,
-        },
+        prelude::{generate_passphrase, Account, Identity, SecretChange},
         Paths,
     },
+    NetworkAccount, NetworkAccountSwitcher,
 };
-use std::{sync::Arc, time::Duration};
+use sos_sdk::prelude::AccountSwitcherOptions;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::{
-    test_utils::{mock, setup, teardown},
-    TestLocalTransport,
-};
+use crate::test_utils::{mock, setup, spawn, teardown};
 
-/// Test for syncing between apps installed on the same
-/// device via the IPC communication channel.
+/// Local transport for the test specs.
+pub struct TestLocalTransport;
+
+#[async_trait]
+impl LocalTransport for TestLocalTransport {
+    async fn call(&mut self, request: LocalRequest) -> LocalResponse {
+        /*
+        let mut client =
+            LocalSocketClient::connect(&self.socket_name).await.unwrap();
+        let Ok(response) = client.send(request).await else {
+            panic!("unable to send request");
+        };
+        response
+        */
+        println!("{:#?}", request);
+        todo!();
+    }
+}
+
+/// Test for syncing between a linked account and another
+/// account.
 #[tokio::test]
-async fn integration_ipc_local_sync() -> Result<()> {
-    const TEST_ID: &str = "ipc_local_sync";
+async fn integration_ipc_linked_account() -> Result<()> {
+    const TEST_ID: &str = "ipc_linked_account";
     // crate::test_utils::init_tracing();
     //
 
-    let socket_name = format!("{}.sock", TEST_ID);
+    // Spawn a backend server and wait for it to be listening
+    let server = spawn(TEST_ID, None, None).await?;
+    let origin = server.origin.clone();
+    let url = server.origin.url().clone();
 
-    // Must clean up the tmp file on MacOS
-    remove_socket_file(&socket_name);
+    println!("url: {:#?}", url);
 
     let mut dirs = setup(TEST_ID, 2).await?;
     let data_dir = dirs.clients.remove(0);
@@ -44,10 +62,11 @@ async fn integration_ipc_local_sync() -> Result<()> {
     let (password, _) = generate_passphrase()?;
 
     // Create an account and authenticate
-    let mut local_account = LocalAccount::new_account(
+    let mut local_account = NetworkAccount::new_account(
         TEST_ID.to_string(),
         password.clone(),
         Some(data_dir.clone()),
+        Default::default(),
     )
     .await?;
     let key: AccessKey = password.into();
@@ -56,14 +75,19 @@ async fn integration_ipc_local_sync() -> Result<()> {
     let address = local_account.address().clone();
 
     // Add the accounts
+    let options = AccountSwitcherOptions {
+        paths: Some(paths),
+        ..Default::default()
+    };
     let mut local_accounts =
-        LocalAccountSwitcher::new_with_options(Some(paths));
+        NetworkAccountSwitcher::new_with_options(options);
     local_accounts.add_account(local_account);
     local_accounts.switch_account(&address);
     let local_accounts = Arc::new(RwLock::new(local_accounts));
 
     let ipc_accounts = local_accounts.clone();
 
+    /*
     let server_socket_name = socket_name.clone();
     tokio::task::spawn(async move {
         LocalSocketServer::listen(
@@ -76,13 +100,13 @@ async fn integration_ipc_local_sync() -> Result<()> {
     });
 
     tokio::time::sleep(Duration::from_millis(250)).await;
+    */
 
     // Test transport creates a IPC socket client for communication
-    let transport = TestLocalTransport::new(socket_name.clone());
+    let transport = TestLocalTransport;
 
     // Integration mananges the accounts on the linked app
-    let integration =
-        LocalIntegration::new("sos-test-app", Box::new(transport));
+    let integration = LocalIntegration::new(origin, Box::new(transport));
 
     // Prepare the local client using our test transport
     let local_client = integration.client().clone();
