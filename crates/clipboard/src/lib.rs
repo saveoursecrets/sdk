@@ -12,6 +12,20 @@ pub use error::Error;
 /// Result type for the clipboard library.
 pub type Result<T> = std::result::Result<T, Error>;
 
-mod clipboard;
+#[cfg(all(not(target_os = "android"), not(target_os = "ios")))]
+mod desktop;
 
-pub use clipboard::*;
+#[cfg(all(not(target_os = "android"), not(target_os = "ios")))]
+pub use desktop::*;
+
+#[cfg(target_os = "android")]
+mod android;
+
+#[cfg(target_os = "android")]
+pub use android::*;
+
+#[cfg(target_os = "ios")]
+mod ios;
+
+#[cfg(target_os = "ios")]
+pub use ios::*;

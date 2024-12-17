@@ -11,8 +11,10 @@ repository = "https://github.com/saveoursecrets/sdk"
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-arboard = { workspace = true }
 zeroize = { workspace = true }
+
+[target.'cfg(all(not(target_os = "android"), not(target_os = "ios")))'.dependencies.arboard]
+workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true
