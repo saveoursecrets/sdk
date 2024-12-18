@@ -52,8 +52,6 @@ compile_error!("account feature must be enabled to use migrate");
 
 #[cfg(feature = "account")]
 pub mod account;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-pub mod advisory_lock;
 #[cfg(feature = "audit")]
 pub mod audit;
 pub mod commit;
