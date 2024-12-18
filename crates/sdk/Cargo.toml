@@ -86,7 +86,7 @@ urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"
 unicode-segmentation = "1.10"
 mime_guess = { version = "2" }
-sanitize-filename = "0.5"
+sanitize-filename = "0.6"
 futures-util = "0.3"
 async-stream = "0.3"
 whoami = { version = "1.5" }
