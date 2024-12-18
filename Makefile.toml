@@ -113,10 +113,14 @@ command = "cargo"
 args = ["test", "--all", "--features", "enable-cli-tests"]
 dependencies = ["clean-cli"]
 
+[tasks.build-test-extension-helper]
+command = "cargo"
+args = ["build", "--bin", "test-extension-helper"]
+
 [tasks.test-lite]
 command = "cargo"
 args = ["nextest", "run"]
-dependencies = ["clean-cli"]
+dependencies = ["clean-cli", "build-test-extension-helper"]
 
 [tasks.genhtml]
 script = '''
