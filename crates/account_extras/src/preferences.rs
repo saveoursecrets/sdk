@@ -14,6 +14,9 @@ use sos_sdk::{
 use std::{collections::HashMap, fmt, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use sos_sdk::advisory_lock::FileLock;
+
 /// File thats stores account-level preferences.
 pub const PREFERENCES_FILE: &str = "preferences";
 
@@ -217,6 +220,8 @@ impl Preferences {
     /// If the file does not exist this is a noop.
     pub async fn load(&mut self) -> Result<()> {
         if vfs::try_exists(&self.path).await? {
+            #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+            let _guard = FileLock::lock_exclusive(&self.path).await?;
             let content = vfs::read(&self.path).await?;
             let prefs: Preferences = serde_json::from_slice(&content)?;
             self.values = prefs.values;
@@ -349,6 +354,8 @@ impl Preferences {
     /// Save these preferences to disc.
     async fn save(&self) -> Result<()> {
         let buf = serde_json::to_vec_pretty(self)?;
+        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+        let _guard = FileLock::lock_exclusive(&self.path).await?;
         vfs::write(&self.path, buf).await?;
         Ok(())
     }
