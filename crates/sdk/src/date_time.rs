@@ -6,6 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use time_tz::{OffsetDateTimeExt, TimeZone};
 
 use filetime::FileTime;
 
@@ -37,6 +38,11 @@ impl UtcDateTime {
     /// Create a UTC date time for now.
     pub fn now() -> Self {
         Default::default()
+    }
+
+    /// Convert this date time to the given timezone.
+    pub fn to_timezone<T: TimeZone>(&self, tz: &T) -> Self {
+        Self(self.clone().0.to_timezone(tz))
     }
 
     /// Create from a calendar date.

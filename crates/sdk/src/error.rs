@@ -558,6 +558,10 @@ pub enum Error {
     #[error(transparent)]
     Merkle(#[from] rs_merkle::Error),
 
+    /// Error generated attempting to detect the system time zone.
+    #[error(transparent)]
+    TimeZone(#[from] time_tz::system::Error),
+
     /// Error generated converting time types.
     #[error(transparent)]
     Time(#[from] time::error::ComponentRange),

@@ -52,6 +52,7 @@ once_cell.workspace = true
 rand.workspace = true
 url.workspace = true
 time.workspace = true
+time-tz.workspace = true
 futures.workspace = true
 parking_lot.workspace = true
 bs58.workspace = true

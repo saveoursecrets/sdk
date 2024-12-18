@@ -3441,6 +3441,8 @@ impl Account for LocalAccount {
                 match format {
                     ClipboardTextFormat::Date { format_description } => {
                         let dt = UtcDateTime::parse_rfc3339(&text)?;
+                        let tz = time_tz::system::get_timezone()?;
+                        let dt = dt.to_timezone(tz);
                         dt.format(format_description)?
                     }
                 }
