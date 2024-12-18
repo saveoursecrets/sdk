@@ -1,4 +1,5 @@
-//! Preferences for each account.
+//! Global preferences and account-specific preferences
+//! cached in-memory.
 //!
 //! Preference are stored as a JSON map
 //! of named keys to typed data similar to
@@ -16,48 +17,75 @@ use tokio::sync::Mutex;
 /// File thats stores account-level preferences.
 pub const PREFERENCES_FILE: &str = "preferences";
 
-/// Path to the file used to store account-level preferences.
-///
-/// # Panics
-///
-/// If this set of paths are global (no user identifier).
-pub fn preferences_path(paths: &Paths) -> PathBuf {
-    if paths.is_global() {
-        panic!("preferences are not accessible for global paths");
-    }
-    let mut vault_path = paths.user_dir().join(PREFERENCES_FILE);
-    vault_path.set_extension(JSON_EXT);
-    vault_path
+/// Path to the file used to store global or
+/// account-level preferences.
+fn preferences_path(paths: &Paths) -> PathBuf {
+    let mut preferences_path = if paths.is_global() {
+        paths.documents_dir().join(PREFERENCES_FILE)
+    } else {
+        paths.user_dir().join(PREFERENCES_FILE)
+    };
+    preferences_path.set_extension(JSON_EXT);
+    preferences_path
 }
 
-// static CACHE: Lazy<Mutex<HashMap<Address, Arc<Mutex<Preferences>>>>> =
-//     Lazy::new(|| Mutex::new(HashMap::new()));
-
-/// Cache of preferences stored by account address.
+/// Global preferences and account preferences loaded into memory.
 pub struct CachedPreferences {
-    /// Accounts stored by address.
+    data_dir: Option<PathBuf>,
+    globals: Arc<Mutex<Preferences>>,
     accounts: Mutex<HashMap<Address, Arc<Mutex<Preferences>>>>,
 }
 
 impl CachedPreferences {
     /// Create new cached preferences.
-    pub fn new() -> Self {
-        Self {
+    pub fn new(data_dir: Option<PathBuf>) -> Result<Self> {
+        let global_dir = if let Some(data_dir) = data_dir.clone() {
+            data_dir
+        } else {
+            Paths::data_dir()?
+        };
+        let paths = Paths::new_global(&global_dir);
+        Ok(Self {
+            data_dir,
+            globals: Arc::new(Mutex::new(Preferences::new(&paths))),
             accounts: Mutex::new(HashMap::new()),
-        }
+        })
     }
 
-    /// Initialize preferences for each referenced identity.
-    pub async fn initialize(
+    /// Load global preferences.
+    pub async fn load_global_preferences(&mut self) -> Result<()> {
+        let global_dir = if let Some(data_dir) = self.data_dir.clone() {
+            data_dir
+        } else {
+            Paths::data_dir()?
+        };
+        let paths = Paths::new_global(&global_dir);
+        let file = preferences_path(&paths);
+        let globals = if vfs::try_exists(&file).await? {
+            let mut prefs = Preferences::new(&paths);
+            prefs.load().await?;
+            prefs
+        } else {
+            Preferences::new(&paths)
+        };
+        self.globals = Arc::new(Mutex::new(globals));
+        Ok(())
+    }
+
+    /// Load and initialize account preferences from disc.
+    pub async fn load_account_preferences(
         &self,
         accounts: &[PublicIdentity],
-        data_dir: Option<PathBuf>,
     ) -> Result<()> {
         for account in accounts {
-            self.new_account(account.address(), data_dir.clone())
-                .await?;
+            self.new_account(account.address()).await?;
         }
         Ok(())
+    }
+
+    /// Global preferences for all accounts.
+    pub fn global_preferences(&self) -> Arc<Mutex<Preferences>> {
+        self.globals.clone()
     }
 
     /// Preferences for an account.
@@ -73,12 +101,8 @@ impl CachedPreferences {
     ///
     /// If a preferences file exists for an account it is loaded
     /// into memory otherwise empty preferences are used.
-    pub async fn new_account(
-        &self,
-        address: &Address,
-        data_dir: Option<PathBuf>,
-    ) -> Result<()> {
-        let data_dir = if let Some(data_dir) = data_dir {
+    pub async fn new_account(&self, address: &Address) -> Result<()> {
+        let data_dir = if let Some(data_dir) = self.data_dir.clone() {
             data_dir
         } else {
             Paths::data_dir()?

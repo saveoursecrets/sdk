@@ -28,9 +28,9 @@ async fn preferences_no_account() -> Result<()> {
 
     // Prepare the preferences
     let accounts = vec![identity];
-    let preferences = CachedPreferences::new();
+    let preferences = CachedPreferences::new(Some(data_dir.clone()))?;
     preferences
-        .initialize(accounts.as_slice(), Some(data_dir))
+        .load_account_preferences(accounts.as_slice())
         .await?;
 
     let prefs = preferences.account_preferences(&address).await;
