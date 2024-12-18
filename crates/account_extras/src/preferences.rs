@@ -5,7 +5,6 @@
 //! the shared preferences provided by an operating
 //! system library.
 use crate::{Error, Result};
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use sos_sdk::{
     constants::JSON_EXT, identity::PublicIdentity, signer::ecdsa::Address,
@@ -31,29 +30,42 @@ pub fn preferences_path(paths: &Paths) -> PathBuf {
     vault_path
 }
 
-static CACHE: Lazy<Mutex<HashMap<Address, Arc<Mutex<Preferences>>>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+// static CACHE: Lazy<Mutex<HashMap<Address, Arc<Mutex<Preferences>>>>> =
+//     Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// Cache of preferences stored by account address.
-pub struct CachedPreferences;
+pub struct CachedPreferences {
+    /// Accounts stored by address.
+    accounts: Mutex<HashMap<Address, Arc<Mutex<Preferences>>>>,
+}
 
 impl CachedPreferences {
+    /// Create new cached preferences.
+    pub fn new() -> Self {
+        Self {
+            accounts: Mutex::new(HashMap::new()),
+        }
+    }
+
     /// Initialize preferences for each referenced identity.
     pub async fn initialize(
+        &self,
         accounts: &[PublicIdentity],
         data_dir: Option<PathBuf>,
     ) -> Result<()> {
         for account in accounts {
-            Self::new_account(account.address(), data_dir.clone()).await?;
+            self.new_account(account.address(), data_dir.clone())
+                .await?;
         }
         Ok(())
     }
 
     /// Preferences for an account.
     pub async fn account_preferences(
+        &self,
         address: &Address,
     ) -> Option<Arc<Mutex<Preferences>>> {
-        let cache = CACHE.lock().await;
+        let cache = self.accounts.lock().await;
         cache.get(address).map(Arc::clone)
     }
 
@@ -62,6 +74,7 @@ impl CachedPreferences {
     /// If a preferences file exists for an account it is loaded
     /// into memory otherwise empty preferences are used.
     pub async fn new_account(
+        &self,
         address: &Address,
         data_dir: Option<PathBuf>,
     ) -> Result<()> {
@@ -71,7 +84,7 @@ impl CachedPreferences {
             Paths::data_dir()?
         };
 
-        let mut cache = CACHE.lock().await;
+        let mut cache = self.accounts.lock().await;
         let paths = Paths::new(&data_dir, address.to_string());
         let file = preferences_path(&paths);
         let prefs = if vfs::try_exists(&file).await? {

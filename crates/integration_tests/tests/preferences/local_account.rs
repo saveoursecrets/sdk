@@ -27,11 +27,12 @@ async fn preferences_local_account() -> Result<()> {
     let identity = account.public_identity().await?.clone();
     let identities = vec![identity];
 
-    CachedPreferences::initialize(&identities, Some(data_dir.clone()))
+    let preferences = CachedPreferences::new();
+    preferences
+        .initialize(&identities, Some(data_dir.clone()))
         .await?;
 
-    let prefs =
-        CachedPreferences::account_preferences(account.address()).await;
+    let prefs = preferences.account_preferences(account.address()).await;
     assert!(prefs.is_some());
     let prefs = prefs.unwrap();
     let mut prefs = prefs.lock().await;

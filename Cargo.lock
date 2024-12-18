@@ -4763,7 +4763,6 @@ dependencies = [
 name = "sos-account-extras"
 version = "0.16.0"
 dependencies = [
- "once_cell",
  "rustc_version",
  "serde",
  "serde_json",
