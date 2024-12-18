@@ -1,3 +1,4 @@
+mod concurrent_write;
 mod global_preferences;
 mod local_account;
 mod no_account;
