@@ -2,7 +2,7 @@ use anyhow::Result;
 use http::StatusCode;
 use sos_ipc::{
     local_transport::{HttpMessage, LocalRequest},
-    native_bridge::client::NativeBridgeClient,
+    extension_helper::client::NativeBridgeClient,
 };
 use sos_sdk::prelude::Paths;
 use sos_test_utils::{setup, teardown};
@@ -10,8 +10,8 @@ use sos_test_utils::{setup, teardown};
 /// Test to verify the chunking logic for large responses
 /// from the server.
 #[tokio::test]
-async fn integration_ipc_native_bridge_chunks() -> Result<()> {
-    const TEST_ID: &str = "ipc_native_bridge_chunks";
+async fn integration_ipc_extension_helper_chunks() -> Result<()> {
+    const TEST_ID: &str = "ipc_extension_helper_chunks";
     // crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
@@ -21,7 +21,7 @@ async fn integration_ipc_native_bridge_chunks() -> Result<()> {
 
     let request = LocalRequest::get("/large-file".parse().unwrap());
 
-    let (command, arguments) = super::native_bridge_cmd(&data_dir);
+    let (command, arguments) = super::extension_helper_cmd(&data_dir);
     let mut client = NativeBridgeClient::new(command, arguments).await?;
     let response = client.send(request).await?;
     assert_eq!(StatusCode::OK, response.status().unwrap());

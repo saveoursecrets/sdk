@@ -1,12 +1,12 @@
 mod memory_server;
-mod native_bridge_chunks;
-mod native_bridge_info;
-mod native_bridge_list_accounts;
-mod native_bridge_probe;
+mod extension_helper_chunks;
+mod extension_helper_info;
+mod extension_helper_list_accounts;
+mod extension_helper_probe;
 
 pub use sos_test_utils as test_utils;
 
-pub fn native_bridge_cmd<'a>(
+pub fn extension_helper_cmd<'a>(
     data_dir: &'a str,
 ) -> (&'static str, Vec<&'a str>) {
     let command = "cargo";
@@ -14,9 +14,9 @@ pub fn native_bridge_cmd<'a>(
         "run",
         "-q",
         "--bin",
-        "test-native-bridge",
+        "test-extension-helper",
         "--",
-        "sos-test-native-bridge", // mock extension name
+        "sos-test-extension-helper", // mock extension name
         data_dir,                 // data directory for isolated tests
     ];
     (command, arguments)

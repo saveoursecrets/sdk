@@ -25,13 +25,13 @@ macro_rules! println {
 pub mod memory_server;
 
 #[cfg(any(
-    feature = "native-bridge-server",
-    feature = "native-bridge-client"
+    feature = "extension-helper-server",
+    feature = "extension-helper-client"
 ))]
-pub mod native_bridge;
-#[cfg(feature = "native-bridge-server")]
+pub mod extension_helper;
+#[cfg(feature = "extension-helper-server")]
 mod web_service;
-#[cfg(feature = "native-bridge-server")]
+#[cfg(feature = "extension-helper-server")]
 pub(crate) use web_service::LocalWebService;
 #[cfg(feature = "local-transport")]
 pub mod local_transport;

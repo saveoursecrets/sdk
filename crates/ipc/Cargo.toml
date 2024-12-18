@@ -11,7 +11,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 features = [
   "local-transport",
   "integration",
-  "native-bridge-server",
+  "extension-helper-server",
 ]
 rustdoc-args = ["--cfg", "docsrs"]
 
@@ -28,7 +28,7 @@ contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = ["sos-sdk/files", "sos-protocol/files"]
 migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
 search = ["sos-sdk/search", "sos-protocol/search"]
-native-bridge-server = [
+extension-helper-server = [
   "memory-http-server",
   "open",
   "tokio/io-std",
@@ -45,7 +45,7 @@ native-bridge-server = [
   "base64",
   "sos-platform-authenticator",
 ]
-native-bridge-client = [
+extension-helper-client = [
   "local-transport",
   "tokio/process",
   "tokio/io-std",

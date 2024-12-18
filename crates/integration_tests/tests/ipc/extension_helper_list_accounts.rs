@@ -2,7 +2,7 @@ use anyhow::Result;
 use http::StatusCode;
 use sos_ipc::{
     local_transport::{HttpMessage, LocalRequest},
-    native_bridge::client::NativeBridgeClient,
+    extension_helper::client::NativeBridgeClient,
 };
 use sos_sdk::prelude::{
     generate_passphrase, LocalAccount, Paths, PublicIdentity,
@@ -13,8 +13,8 @@ use sos_test_utils::{setup, teardown};
 /// Test listing accounts via the native bridge when there
 /// are no accounts present.
 #[tokio::test]
-async fn integration_ipc_native_bridge_list_accounts_empty() -> Result<()> {
-    const TEST_ID: &str = "ipc_native_bridge_list_accounts_empty";
+async fn integration_ipc_extension_helper_list_accounts_empty() -> Result<()> {
+    const TEST_ID: &str = "ipc_extension_helper_list_accounts_empty";
     // crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
@@ -24,7 +24,7 @@ async fn integration_ipc_native_bridge_list_accounts_empty() -> Result<()> {
 
     let request = LocalRequest::get("/accounts".parse().unwrap());
 
-    let (command, arguments) = super::native_bridge_cmd(&data_dir);
+    let (command, arguments) = super::extension_helper_cmd(&data_dir);
     let mut client = NativeBridgeClient::new(command, arguments).await?;
     let response = client.send(request).await?;
     assert_eq!(StatusCode::OK, response.status().unwrap());
@@ -45,8 +45,8 @@ async fn integration_ipc_native_bridge_list_accounts_empty() -> Result<()> {
 
 /// Test listing accounts via the native bridge.
 #[tokio::test]
-async fn integration_ipc_native_bridge_list_accounts() -> Result<()> {
-    const TEST_ID: &str = "ipc_native_bridge_list_accounts";
+async fn integration_ipc_extension_helper_list_accounts() -> Result<()> {
+    const TEST_ID: &str = "ipc_extension_helper_list_accounts";
     // crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
@@ -64,7 +64,7 @@ async fn integration_ipc_native_bridge_list_accounts() -> Result<()> {
     let request = LocalRequest::get("/accounts".parse().unwrap());
 
     let data_dir = data_dir.display().to_string();
-    let (command, arguments) = super::native_bridge_cmd(&data_dir);
+    let (command, arguments) = super::extension_helper_cmd(&data_dir);
     let mut client = NativeBridgeClient::new(command, arguments).await?;
     let response = client.send(request).await?;
     assert_eq!(StatusCode::OK, response.status().unwrap());

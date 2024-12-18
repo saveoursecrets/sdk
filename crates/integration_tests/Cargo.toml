@@ -16,8 +16,8 @@ anyhow.workspace = true
 
 [dependencies.sos-ipc]
 features = [
-  "native-bridge-server",
-  "native-bridge-client",
+  "extension-helper-server",
+  "extension-helper-client",
   "account",
   "archive",
   "contacts", 
@@ -79,5 +79,5 @@ features = ["listen", "audit", "pairing"]
 path = "../server"
 
 [[bin]]
-name = "test-native-bridge"
-path = "src/test_native_bridge.rs"
+name = "test-extension-helper"
+path = "src/test_extension_helper.rs"

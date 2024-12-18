@@ -2,18 +2,16 @@ use anyhow::Result;
 use http::StatusCode;
 use sos_ipc::{
     local_transport::{HttpMessage, LocalRequest},
-    native_bridge::client::NativeBridgeClient,
+    extension_helper::client::NativeBridgeClient,
+    ServiceAppInfo,
 };
 use sos_sdk::prelude::Paths;
 use sos_test_utils::{setup, teardown};
 
-/// Test checking for aliveness with a HEAD request to the / endpoint.
-///
-/// The extension can use this to check if it is currently connected
-/// to the executable serving native messaging API requests.
+/// Tests getting app info using a GET request to the / endpoint.
 #[tokio::test]
-async fn integration_ipc_native_bridge_probe() -> Result<()> {
-    const TEST_ID: &str = "ipc_native_bridge_probe";
+async fn integration_ipc_extension_helper_info() -> Result<()> {
+    const TEST_ID: &str = "ipc_extension_helper_info";
     // crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
@@ -21,12 +19,15 @@ async fn integration_ipc_native_bridge_probe() -> Result<()> {
     Paths::scaffold(Some(data_dir.clone())).await?;
     let data_dir = data_dir.display().to_string();
 
-    let request = LocalRequest::head("/".parse().unwrap());
-    let (command, arguments) = super::native_bridge_cmd(&data_dir);
+    let request = LocalRequest::get("/".parse().unwrap());
+    let (command, arguments) = super::extension_helper_cmd(&data_dir);
     let mut client = NativeBridgeClient::new(command, arguments).await?;
     let response = client.send(request).await?;
     assert_eq!(StatusCode::OK, response.status().unwrap());
     assert_eq!(1, response.request_id());
+
+    let info: ServiceAppInfo = serde_json::from_slice(response.body())?;
+    assert_eq!("test_extension_helper", info.name);
 
     client.kill().await?;
 

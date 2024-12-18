@@ -86,7 +86,7 @@ impl NativeBridgeServer {
             std::process::exit(1);
         }
 
-        tracing::info!(options = ?options, "native_bridge");
+        tracing::info!(options = ?options, "extension_helper");
 
         let client =
             LocalMemoryServer::listen(accounts, options.service_info.clone())
@@ -150,30 +150,30 @@ impl NativeBridgeServer {
                 Some(response) = rx.recv() => {
                     tracing::trace!(
                         response = ?response,
-                        "sos_native_bridge::response",
+                        "sos_extension_helper::response",
                     );
 
                     match serde_json::to_vec(&response) {
                         Ok(output) => {
                             tracing::debug!(
                                 len = %output.len(),
-                                "native_bridge::stdout",
+                                "extension_helper::stdout",
                             );
                             if output.len() > HARD_LIMIT {
                                 tracing::error!(
-                                    "native_bridge::exceeds_limit");
+                                    "extension_helper::exceeds_limit");
                             }
                             if let Err(e) = stdout.send(output.into()).await {
                                 tracing::error!(
                                     error = %e,
-                                    "native_bridge::stdout_write",
+                                    "extension_helper::stdout_write",
                                 );
                                 std::process::exit(1);
                             }
                         }
                         Err(e) => {
                             tracing::error!(
-                                error = %e, "native_bridge::serde_json");
+                                error = %e, "extension_helper::serde_json");
                             std::process::exit(1);
                         }
                     }
@@ -206,7 +206,7 @@ impl NativeBridgeServer {
         if let Err(e) = tx.send(response.into()) {
             tracing::warn!(
             error = %e,
-            "native_bridge::response_channel");
+            "extension_helper::response_channel");
         }
     }
 }
@@ -219,7 +219,7 @@ async fn handle_request(
     let task = tokio::task::spawn(async move {
         tracing::trace!(
             request = ?request,
-            "sos_native_bridge::request",
+            "sos_extension_helper::request",
         );
 
         let request_id = request.request_id();
@@ -242,19 +242,19 @@ async fn handle_request(
         if chunks.len() > 1 {
             tracing::debug!(
               len = %chunks.len(),
-              "native_bridge::chunks");
+              "extension_helper::chunks");
             for (index, chunk) in chunks.iter().enumerate() {
                 tracing::debug!(
               index = %index,
               len = %chunk.body.len(),
-              "native_bridge::chunk");
+              "extension_helper::chunk");
             }
         }
         for chunk in chunks {
             if let Err(e) = tx.send(chunk) {
                 tracing::warn!(
                 error = %e,
-                "native_bridge::response_channel");
+                "extension_helper::response_channel");
             }
         }
 
