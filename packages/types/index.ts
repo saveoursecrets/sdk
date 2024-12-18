@@ -177,10 +177,23 @@ export interface ArchiveFilter {
 	includeDocuments: boolean;
 }
 
+/** Clipboard text formatter. */
+export type ClipboardTextFormat = 
+	/**
+	 * Parse as a RFC3339 date string and
+	 * format according to the given format string.
+	 */
+	| { kind: "date", body: {
+	/** Format string. */
+	formatDescription: string;
+}};
+
 /** Request a clipboard copy operation. */
 export interface ClipboardCopyRequest {
 	/** Target paths. */
 	paths?: JsonPath[];
+	/** Format option. */
+	format?: ClipboardTextFormat;
 }
 
 /**

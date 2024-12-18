@@ -12,15 +12,6 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = [
-  "account",
-  "archive",
-  "clipboard",
-  "contacts",
-  "files",
-  "migrate",
-  "search", 
-]
 account = ["sos-sdk/account", "sos-protocol/account"]
 archive = []
 clipboard = []

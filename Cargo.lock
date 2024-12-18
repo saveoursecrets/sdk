@@ -4820,6 +4820,7 @@ dependencies = [
  "sos-sdk",
  "sos-server",
  "sos-test-utils",
+ "sos-web",
  "tempfile",
  "thiserror 2.0.7",
  "tokio",

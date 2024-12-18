@@ -33,6 +33,19 @@ path = "../ipc"
 [dependencies.sos-sdk]
 path = "../sdk"
 
+# must enable matching features here
+[dependencies.sos-web]
+path = "../web"
+features = [
+  "account",
+  "archive",
+  "clipboard",
+  "contacts",
+  "files",
+  "migrate",
+  "search", 
+]
+
 [dev-dependencies]
 binary-stream.workspace = true
 tracing.workspace = true

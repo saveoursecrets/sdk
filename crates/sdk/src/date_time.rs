@@ -69,6 +69,12 @@ impl UtcDateTime {
         Ok(self.0.format(&format)?)
     }
 
+    /// Format according to a format description.
+    pub fn format(&self, description: &str) -> Result<String> {
+        let format = format_description::parse(description)?;
+        Ok(self.0.format(&format)?)
+    }
+
     /// Parse as RFC3339.
     pub fn parse_rfc3339(value: &str) -> Result<Self> {
         Ok(Self(OffsetDateTime::parse(value, &Rfc3339)?))

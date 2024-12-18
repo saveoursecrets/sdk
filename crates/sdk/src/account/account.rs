@@ -87,13 +87,40 @@ use serde_json_path::JsonPath;
 #[cfg(feature = "clipboard")]
 use xclipboard::Clipboard;
 
+/// Clipboard text formatter.
+#[cfg(feature = "clipboard")]
+#[typeshare::typeshare]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    tag = "kind",
+    content = "body"
+)]
+pub enum ClipboardTextFormat {
+    /// Parse as a RFC3339 date string and
+    /// format according to the given format string.
+    Date {
+        /// Format string.
+
+        // Typeshare doesn't respect rename_all_fields
+        #[serde(rename = "formatDescription")]
+        format_description: String,
+    },
+}
+
 /// Request a clipboard copy operation.
 #[cfg(feature = "clipboard")]
 #[typeshare::typeshare]
 #[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ClipboardCopyRequest {
     /// Target paths.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub paths: Option<Vec<JsonPath>>,
+    /// Format option.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<ClipboardTextFormat>,
 }
 
 /// Determine how to handle a locked account.
@@ -3409,6 +3436,18 @@ impl Account for LocalAccount {
             } else {
                 secret.copy_value_unsafe().unwrap_or_default()
             };
+
+            let text = if let Some(format) = &request.format {
+                match format {
+                    ClipboardTextFormat::Date { format_description } => {
+                        let dt = UtcDateTime::parse_rfc3339(&text)?;
+                        dt.format(format_description)?
+                    }
+                }
+            } else {
+                text
+            };
+
             clipboard
                 .set_text_timeout(text)
                 .await
