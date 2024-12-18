@@ -295,6 +295,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-fd-lock"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7569377d7062165f6f7834d9cb3051974a2d141433cc201c2f94c149e993cccf"
+dependencies = [
+ "async-trait",
+ "cfg-if 1.0.0",
+ "pin-project",
+ "rustix 0.38.42",
+ "thiserror 1.0.69",
+ "tokio",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
 name = "async-once-cell"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5148,6 +5163,7 @@ name = "sos-vfs"
 version = "0.2.4"
 dependencies = [
  "anyhow",
+ "async-fd-lock",
  "async-recursion",
  "bitflags 2.6.0",
  "futures",
