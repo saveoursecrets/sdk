@@ -27,7 +27,11 @@ async fn clipboard_timeout() -> Result<()> {
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     // Should error when the clipboard is empty
+    #[cfg(not(target_os = "linux"))]
     assert!(clipboard.get_text().await.is_err());
+
+    #[cfg(target_os = "linux")]
+    assert_eq!(String::new(), clipboard.get_text().await?);
 
     Ok(())
 }
