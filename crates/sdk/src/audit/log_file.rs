@@ -102,10 +102,11 @@ impl AuditProvider for AuditLogFile {
             buffer
         };
 
-        let mut file = Self::create(&self.file_path).await?;
-        // let mut guard = vfs::lock_write(file).await?;
-        file.write_all(&buffer).await?;
-        file.flush().await?;
+        let file = Self::create(&self.file_path).await?;
+        let mut guard = vfs::lock_write(file).await?;
+        guard.write_all(&buffer).await?;
+        guard.flush().await?;
+
         Ok(())
     }
 }
