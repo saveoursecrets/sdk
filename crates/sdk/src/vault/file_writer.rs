@@ -33,7 +33,7 @@ use crate::{
         secret::SecretId, Contents, Header, Summary, VaultAccess,
         VaultCommit, VaultEntry, VaultFlags,
     },
-    vfs::{File, OpenOptions},
+    vfs::{self, File, OpenOptions},
     Result,
 };
 
@@ -96,13 +96,15 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
         file.rewind().await?;
         file.set_len(0).await?;
 
+        let mut guard = vfs::lock_write(file).await?;
+
         // Write out the header
-        file.write_all(&head).await?;
+        guard.write_all(&head).await?;
 
         // Write out the content
-        file.write_all(&content).await?;
+        guard.write_all(&content).await?;
 
-        file.flush().await?;
+        guard.flush().await?;
 
         Ok(())
     }
@@ -137,15 +139,17 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
         // Must seek to the end before writing out the content or tail
         file.seek(SeekFrom::End(0)).await?;
 
+        let mut guard = vfs::lock_write(file).await?;
+
         // Inject the content if necessary
         if let Some(content) = content {
-            file.write_all(content).await?;
+            guard.write_all(content).await?;
         }
 
         // Write out the end portion
-        file.write_all(&end).await?;
+        guard.write_all(&end).await?;
 
-        file.flush().await?;
+        guard.flush().await?;
 
         Ok(())
     }
@@ -248,17 +252,26 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         secret: VaultEntry,
     ) -> Result<WriteEvent> {
         let _summary = self.summary().await?;
-        let mut stream = self.stream.lock().await;
+        let _stream = self.stream.lock().await;
 
-        let mut writer = BinaryWriter::new(&mut *stream, encoding_options());
+        // Encode the row into a buffer
+        let mut buffer = Vec::new();
+        let mut writer =
+            BinaryWriter::new(Cursor::new(&mut buffer), encoding_options());
         let row = VaultCommit(commit, secret);
-
-        // Seek to the end of the file and append the row
-        writer.seek(SeekFrom::End(0)).await?;
-
         Contents::encode_row(&mut writer, &id, &row).await?;
-
         writer.flush().await?;
+
+        // Append to the file
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .append(true)
+            .open(&self.file_path)
+            .await?;
+        let mut guard = vfs::lock_write(file).await?;
+        guard.write_all(&buffer).await?;
+        guard.flush().await?;
 
         Ok(WriteEvent::CreateSecret(id, row))
     }

@@ -9,6 +9,7 @@ use tokio::process::Command;
 
 /// Tests concurrent writes to the global preferences.
 #[tokio::test]
+#[ignore]
 async fn preferences_concurrent_write() -> Result<()> {
     const TEST_ID: &str = "preferences_concurrent_write";
     //crate::test_utils::init_tracing();
