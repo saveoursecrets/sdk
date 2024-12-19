@@ -3,6 +3,7 @@
     not(test),
     not(all(target_arch = "wasm32", target_os = "unknown")),
     not(feature = "mem-fs"),
+    not(target_os = "windows"),
     not(target_os = "ios"),
     not(target_os = "android"),
 ))]
@@ -55,6 +56,7 @@ mod sys {
     not(test),
     not(all(target_arch = "wasm32", target_os = "unknown")),
     not(feature = "mem-fs"),
+    not(target_os = "windows"),
     not(target_os = "ios"),
     not(target_os = "android"),
 ))]
@@ -63,6 +65,7 @@ pub use sys::*;
 #[cfg(any(
     feature = "mem-fs",
     all(target_arch = "wasm32", target_os = "unknown"),
+    target_os = "windows",
     target_os = "ios",
     target_os = "android",
 ))]
@@ -98,6 +101,7 @@ mod noop {
 #[cfg(any(
     feature = "mem-fs",
     all(target_arch = "wasm32", target_os = "unknown"),
+    target_os = "windows",
     target_os = "ios",
     target_os = "android",
 ))]
