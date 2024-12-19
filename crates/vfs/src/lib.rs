@@ -46,7 +46,6 @@
 mod advisory_locks;
 
 #[cfg(any(
-    test,
     feature = "mem-fs",
     all(target_arch = "wasm32", target_os = "unknown")
 ))]
@@ -59,17 +58,16 @@ mod memory;
 pub use {advisory_locks::*, memory::*};
 
 #[cfg(all(
-    not(test),
     not(all(target_arch = "wasm32", target_os = "unknown")),
     not(feature = "mem-fs")
 ))]
 mod os;
 
 #[cfg(all(
-    not(test),
     not(all(target_arch = "wasm32", target_os = "unknown")),
     not(feature = "mem-fs")
 ))]
+#[allow(unused_imports)]
 pub use {advisory_locks::*, os::*};
 
 #[cfg(test)]
