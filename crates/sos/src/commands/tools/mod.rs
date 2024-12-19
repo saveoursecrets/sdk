@@ -25,12 +25,14 @@ mod audit;
 mod authenticator;
 mod check;
 mod events;
+// mod ipc;
 mod security_report;
 
 use audit::Command as AuditCommand;
 use authenticator::Command as AuthenticatorCommand;
 use check::{verify_events, Command as CheckCommand};
 use events::Command as EventsCommand;
+// use ipc::Command as IpcCommand;
 use security_report::SecurityReportFormat;
 
 #[derive(Subcommand, Debug)]
@@ -70,6 +72,13 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: EventsCommand,
     },
+    /*
+    /// Inter-process communication utilities.
+    Ipc {
+        #[clap(subcommand)]
+        cmd: IpcCommand,
+    },
+    */
     /// Repair a vault from a corresponding events file.
     RepairVault {
         /// Account name or address.
@@ -123,6 +132,9 @@ pub async fn run(cmd: Command) -> Result<()> {
             let (user, password) =
                 resolve_user_with_password(account.as_ref(), false).await?;
             let mut owner = user.write().await;
+            let owner = owner
+                .selected_account_mut()
+                .ok_or(Error::NoSelectedAccount)?;
 
             let banner = Banner::new()
                 .padding(Padding::one())
@@ -160,6 +172,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             }
         }
         Command::Events { cmd } => events::run(cmd).await?,
+        // Command::Ipc { cmd } => ipc::run(cmd).await?,
         Command::RepairVault { account, folder } => {
             let account = resolve_account(Some(&account))
                 .await

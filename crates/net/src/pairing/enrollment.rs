@@ -1,7 +1,7 @@
 //! Enroll a device to an account on a remote server.
 use crate::{
     pairing::{Error, Result},
-    protocol::Origin,
+    protocol::{network_client::HttpClient, Origin, SyncClient},
     sdk::{
         account::Account,
         crypto::AccessKey,
@@ -19,7 +19,7 @@ use crate::{
         vault::{VaultAccess, VaultId, VaultWriter},
         vfs, Paths,
     },
-    HttpClient, NetworkAccount, SyncClient,
+    NetworkAccount,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -119,7 +119,7 @@ impl DeviceEnrollment {
         Paths::scaffold(self.data_dir.clone()).await?;
         self.paths.ensure().await?;
 
-        let change_set = self.client.fetch_account().await?;
+        let change_set = self.client.fetch_account(self.address()).await?;
         self.create_folders(change_set.folders).await?;
         self.create_account(change_set.account).await?;
         self.create_device(change_set.device).await?;
@@ -135,7 +135,8 @@ impl DeviceEnrollment {
         }
 
         // Write the vault containing the device signing key
-        vfs::write(self.paths.device_file(), &self.device_vault).await?;
+        vfs::write_exclusive(self.paths.device_file(), &self.device_vault)
+            .await?;
 
         // Add origin servers early so that they will be registered
         // as remotes when the enrollment is finished and the account
@@ -168,7 +169,7 @@ impl DeviceEnrollment {
     async fn add_origin_servers(&self) -> Result<()> {
         let remotes_file = self.paths.remote_origins();
         let data = serde_json::to_vec_pretty(&self.servers)?;
-        vfs::write(remotes_file, data).await?;
+        vfs::write_exclusive(remotes_file, data).await?;
         Ok(())
     }
 
@@ -239,7 +240,7 @@ impl DeviceEnrollment {
             .await?;
 
         let buffer = encode(&vault).await?;
-        vfs::write(vault_path.as_ref(), buffer).await?;
+        vfs::write_exclusive(vault_path.as_ref(), buffer).await?;
 
         Ok(())
     }

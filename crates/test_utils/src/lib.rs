@@ -99,7 +99,7 @@ impl MockServer {
         let backend = config.backend().await?;
         let state = Arc::new(RwLock::new(State::new(config)));
 
-        let server = Server::new(backend.directory()).await?;
+        let server = Server::new().await?;
         server
             .start(state, Arc::new(RwLock::new(backend)), self.handle.clone())
             .await?;

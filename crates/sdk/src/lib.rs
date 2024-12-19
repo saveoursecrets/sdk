@@ -106,5 +106,10 @@ pub use uuid;
 pub use vcard4;
 pub use zxcvbn;
 
+#[cfg(feature = "clipboard")]
+pub use serde_json_path as json_path;
+#[cfg(feature = "clipboard")]
+pub use xclipboard;
+
 /// Result type for the core library.
 pub type Result<T> = std::result::Result<T, Error>;

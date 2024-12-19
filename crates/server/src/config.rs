@@ -199,6 +199,14 @@ impl ServerConfig {
 
         let dir = config.directory();
 
+        if config.log.directory.is_relative() {
+            config.log.directory = dir.join(&config.log.directory);
+            if !config.log.directory.exists() {
+                vfs::create_dir_all(&config.log.directory).await?;
+            }
+            config.log.directory = config.log.directory.canonicalize()?;
+        }
+
         if let Some(SslConfig::Tls(tls)) = &mut config.net.ssl {
             if tls.cert.is_relative() {
                 tls.cert = dir.join(&tls.cert);

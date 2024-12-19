@@ -125,7 +125,7 @@ pub trait EventLogExt<E, R, W, D>: Send + Sync
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
     D: Clone,
 {
     /// Commit tree contains the in-memory merkle tree.
@@ -547,19 +547,66 @@ where
             commits.push(*record.commit());
         }
 
-        let rw = self.file();
-        let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.1);
-        match file.write_all(&buffer).await {
-            Ok(_) => {
-                file.flush().await?;
-                let mut hashes =
-                    commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
-                let tree = self.tree_mut();
-                tree.append(&mut hashes);
-                tree.commit();
-                Ok(())
+        // File based implementations should attempt to
+        // acquire an advisory lock
+        if let Some(path) = self.data_any().downcast_ref::<PathBuf>() {
+            use tokio::io::AsyncWriteExt as TokioAsyncWriteExt;
+
+            let rw = self.file();
+            let _lock = rw.lock().await;
+
+            let file = OpenOptions::new()
+                .write(true)
+                .append(true)
+                .open(path)
+                .await?;
+
+            let mut guard = vfs::lock_write(file).await?;
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                file.seek(SeekFrom::End(0)).await?;
             }
-            Err(e) => Err(e.into()),
+            match guard.write_all(&buffer).await {
+                Ok(_) => {
+                    guard.flush().await?;
+                    let mut hashes = commits
+                        .iter()
+                        .map(|c| *c.as_ref())
+                        .collect::<Vec<_>>();
+                    let tree = self.tree_mut();
+                    tree.append(&mut hashes);
+                    tree.commit();
+                    Ok(())
+                }
+                Err(e) => Err(e.into()),
+            }
+        // In-memory implementations can just write
+        // without acquiring an advisory lock
+        } else {
+            let rw = self.file();
+            let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.1);
+            // Workaround for bug in the vfs implementation on wasm32
+            // that is overwriting the file identity bytes when
+            // applying records.
+            #[cfg(target_arch = "wasm32")]
+            {
+                file.seek(SeekFrom::End(0)).await?;
+            }
+            match file.write_all(&buffer).await {
+                Ok(_) => {
+                    file.flush().await?;
+                    let mut hashes = commits
+                        .iter()
+                        .map(|c| *c.as_ref())
+                        .collect::<Vec<_>>();
+                    let tree = self.tree_mut();
+                    tree.append(&mut hashes);
+                    tree.commit();
+                    Ok(())
+                }
+                Err(e) => Err(e.into()),
+            }
         }
     }
 
@@ -654,6 +701,10 @@ where
     }
 
     async fn truncate(&mut self) -> Result<()> {
+        use tokio::io::{
+            AsyncSeekExt as TokioAsyncSeekExt,
+            AsyncWriteExt as TokioAsyncWriteExt,
+        };
         let _ = self.file.lock().await;
 
         // Workaround for set_len(0) failing with "Access Denied" on Windows
@@ -662,15 +713,17 @@ where
             .write(true)
             .truncate(true)
             .open(&self.data)
-            .await?
-            .compat_write();
+            .await?;
 
         file.seek(SeekFrom::Start(0)).await?;
-        file.write_all(self.identity).await?;
+
+        let mut guard = vfs::lock_write(file).await?;
+        guard.write_all(self.identity).await?;
         if let Some(version) = self.version() {
-            file.write_all(&version.to_le_bytes()).await?;
+            guard.write_all(&version.to_le_bytes()).await?;
         }
-        file.flush().await?;
+        guard.flush().await?;
+
         Ok(())
     }
 
@@ -712,6 +765,11 @@ where
                     OpenOptions::new().write(true).open(&self.data).await?;
                 file.set_len(length).await?;
 
+                /*
+                let mut guard = vfs::lock_write(file).await?;
+                guard.inner_mut().set_len(length).await?;
+                */
+
                 return Ok(records);
             }
 
@@ -749,23 +807,30 @@ where
         identity: &'static [u8],
         encoding_version: Option<u16>,
     ) -> Result<DiscLog> {
-        let mut file = OpenOptions::new()
+        let file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(path.as_ref())
-            .await?
-            .compat_write();
+            .await?;
 
         let size = vfs::metadata(path.as_ref()).await?.len();
         if size == 0 {
+            use tokio::io::AsyncWriteExt as TokioAsyncWriteExt;
+            let file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path.as_ref())
+                .await?;
+            let mut guard = vfs::lock_write(file).await?;
             let mut header = identity.to_vec();
             if let Some(version) = encoding_version {
                 header.extend_from_slice(&version.to_le_bytes());
             }
-            file.write_all(&header).await?;
-            file.flush().await?;
+            guard.write_all(&header).await?;
+            guard.flush().await?;
         }
-        Ok(file)
+
+        Ok(file.compat_write())
     }
 
     /// Create the reader for an event log file.

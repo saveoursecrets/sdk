@@ -1,6 +1,8 @@
 //! File system backed by in-memory buffers.
 #![allow(unused_imports)]
 
+use std::path::Path;
+
 mod dir_builder;
 mod file;
 mod fs;

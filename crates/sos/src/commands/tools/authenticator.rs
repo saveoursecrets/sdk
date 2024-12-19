@@ -50,12 +50,17 @@ pub async fn run(cmd: Command) -> Result<()> {
         } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.write().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let authenticator = owner
                 .authenticator_folder()
                 .await
                 .ok_or(Error::NoAuthenticatorFolder)?;
 
-            let storage = owner.storage().await?;
+            let storage = owner
+                .storage()
+                .await
+                .ok_or(sos_net::sdk::Error::NoStorage)?;
             let storage = storage.read().await;
             let folder = storage.cache().get(authenticator.id()).unwrap();
 
@@ -69,6 +74,9 @@ pub async fn run(cmd: Command) -> Result<()> {
         } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let mut owner = user.write().await;
+            let owner = owner
+                .selected_account_mut()
+                .ok_or(Error::NoSelectedAccount)?;
 
             let folder = if let Some(authenticator) =
                 owner.authenticator_folder().await
@@ -100,7 +108,10 @@ pub async fn run(cmd: Command) -> Result<()> {
             };
 
             if let Some(folder) = folder {
-                let storage = owner.storage().await?;
+                let storage = owner
+                    .storage()
+                    .await
+                    .ok_or(sos_net::sdk::Error::NoStorage)?;
                 let mut storage = storage.write().await;
                 let folder =
                     storage.cache_mut().get_mut(folder.id()).unwrap();

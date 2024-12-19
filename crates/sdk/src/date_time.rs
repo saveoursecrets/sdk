@@ -6,6 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use time_tz::{OffsetDateTimeExt, TimeZone};
 
 use filetime::FileTime;
 
@@ -39,6 +40,11 @@ impl UtcDateTime {
         Default::default()
     }
 
+    /// Convert this date time to the given timezone.
+    pub fn to_timezone<T: TimeZone>(&self, tz: &T) -> Self {
+        Self(self.clone().0.to_timezone(tz))
+    }
+
     /// Create from a calendar date.
     pub fn from_calendar_date(
         year: i32,
@@ -69,6 +75,12 @@ impl UtcDateTime {
         Ok(self.0.format(&format)?)
     }
 
+    /// Format according to a format description.
+    pub fn format(&self, description: &str) -> Result<String> {
+        let format = format_description::parse(description)?;
+        Ok(self.0.format(&format)?)
+    }
+
     /// Parse as RFC3339.
     pub fn parse_rfc3339(value: &str) -> Result<Self> {
         Ok(Self(OffsetDateTime::parse(value, &Rfc3339)?))
@@ -93,7 +105,7 @@ impl UtcDateTime {
         Ok(datetime.format(&Rfc2822)?)
     }
 
-    /// Convert this timestamp to a RFC3339 formatted string.
+    /// Convert this date and time to a RFC3339 formatted string.
     pub fn to_rfc3339(&self) -> Result<String> {
         UtcDateTime::rfc3339(&self.0)
     }

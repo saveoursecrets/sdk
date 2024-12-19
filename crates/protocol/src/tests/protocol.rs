@@ -358,7 +358,7 @@ async fn encode_decode_update_set() -> Result<()> {
 async fn encode_decode_change_files() -> Result<()> {
     use crate::{
         sdk::{storage::files::ExternalFile, vault::secret::SecretId},
-        sync::{FileSet, FileTransfersSet},
+        transfer::{FileSet, FileTransfersSet},
     };
     use indexmap::IndexSet;
 

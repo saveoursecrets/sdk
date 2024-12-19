@@ -37,6 +37,10 @@ pub enum Error {
     #[error("could not find an authenticator folder")]
     NoAuthenticatorFolder,
 
+    /// Account is not authenticated.
+    #[error("no selected account available")]
+    NoSelectedAccount,
+
     /// Sync failed.
     #[error(r#"sync failed"#)]
     SyncFail,

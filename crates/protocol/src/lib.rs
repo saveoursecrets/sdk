@@ -2,6 +2,9 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Networking and sync protocol types for [Save Our Secrets](https://saveoursecrets.com).
+//!
+//! When the `account` feature is enabled [SyncStorage] will be
+//! implemented for `LocalAccount`.
 
 // There are two layers to the types in this module; the wire
 // types which are defined in the protobuf files are prefixed
@@ -21,14 +24,36 @@
 // for convenience, the code may panic on 32-bit machines.
 
 mod bindings;
+pub mod constants;
 mod error;
+#[cfg(feature = "network-client")]
+pub mod network_client;
+pub mod server_helpers;
 mod sync;
+mod traits;
+
+#[cfg(any(
+    feature = "files",
+    feature = "listen",
+    feature = "network-client"
+))]
+pub mod transfer;
+
+#[cfg(feature = "hashcheck")]
+pub mod hashcheck;
 
 pub use bindings::*;
-pub use error::Error;
+pub use error::{AsConflict, ConflictError, Error, ErrorReply, NetworkError};
 pub use sync::*;
+pub use traits::*;
 
 use prost::{bytes::Buf, Message};
+
+#[cfg(feature = "network-client")]
+pub use reqwest;
+
+#[cfg(any(feature = "listen", feature = "pairing"))]
+pub use tokio_tungstenite;
 
 #[cfg(test)]
 mod tests;
@@ -106,6 +131,7 @@ where
     <T as ProtoBinding>::Inner: From<T> + 'static,
     T: TryFrom<<T as ProtoBinding>::Inner, Error = Error>,
 {
+    #[cfg(not(target_arch = "wasm32"))]
     async fn encode(self) -> Result<Vec<u8>> {
         tokio::task::spawn_blocking(move || {
             let value: <Self as ProtoBinding>::Inner = self.into();
@@ -117,6 +143,7 @@ where
         .await?
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     async fn decode<B>(buffer: B) -> Result<Self>
     where
         B: Buf + Send + 'static,
@@ -128,6 +155,25 @@ where
         })
         .await?
     }
+
+    #[cfg(target_arch = "wasm32")]
+    async fn encode(self) -> Result<Vec<u8>> {
+        let value: <Self as ProtoBinding>::Inner = self.into();
+        let mut buf = Vec::new();
+        buf.reserve(value.encoded_len());
+        value.encode(&mut buf)?;
+        Ok(buf)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    async fn decode<B>(buffer: B) -> Result<Self>
+    where
+        B: Buf + Send + 'static,
+        Self: Sized,
+    {
+        let result = <<Self as ProtoBinding>::Inner>::decode(buffer)?;
+        Ok(result.try_into()?)
+    }
 }
 
 fn decode_uuid(id: &[u8]) -> Result<uuid::Uuid> {
@@ -137,4 +183,10 @@ fn decode_uuid(id: &[u8]) -> Result<uuid::Uuid> {
 
 fn encode_uuid(id: &uuid::Uuid) -> Vec<u8> {
     id.as_bytes().to_vec()
+}
+
+/// Determine if the offline environment variable is set.
+pub fn is_offline() -> bool {
+    use crate::sdk::constants::SOS_OFFLINE;
+    std::env::var(SOS_OFFLINE).ok().is_some()
 }
