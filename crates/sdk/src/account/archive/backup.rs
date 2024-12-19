@@ -346,7 +346,7 @@ impl AccountBackup {
         paths: &Paths,
     ) -> Result<()> {
         let buffer = Self::export_archive_buffer(address, paths).await?;
-        vfs::write_exclusive(path.as_ref(), buffer).await?;
+        vfs::write(path.as_ref(), buffer).await?;
         Ok(())
     }
 
@@ -414,11 +414,7 @@ impl AccountBackup {
 
         // Write out the identity vault
         let identity_vault_file = paths.identity_vault();
-        vfs::write_exclusive(
-            identity_vault_file,
-            &restore_targets.identity.1,
-        )
-        .await?;
+        vfs::write(identity_vault_file, &restore_targets.identity.1).await?;
 
         // Check if the identity name already exists
         // and rename the identity being imported if necessary
