@@ -23,6 +23,18 @@ workspace = true
 command = "cargo"
 args = ["fmt"]
 
+[tasks.wasm]
+command = "cargo"
+args = [
+  "check",
+  "-p",
+  "sos-web",
+  "--features",
+  "account,contacts,search",
+  "--target",
+  "wasm32-unknown-unknown",
+]
+
 [tasks.format-check]
 command = "cargo"
 args = ["fmt", "--all", "--", "--check"]
