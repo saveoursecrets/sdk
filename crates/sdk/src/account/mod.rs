@@ -7,9 +7,9 @@ mod builder;
 mod convert;
 
 pub use account::{
-    Account, AccountChange, AccountData, AccountLocked, DetachedView,
-    FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
-    SecretDelete, SecretInsert, SecretMove, SigninOptions,
+    Account, AccountChange, AccountData, DetachedView, FolderChange,
+    FolderCreate, FolderDelete, LocalAccount, SecretChange, SecretDelete,
+    SecretInsert, SecretMove,
 };
 pub use account_switcher::{
     AccountSwitcher, AccountSwitcherOptions, LocalAccountSwitcher,

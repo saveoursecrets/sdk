@@ -4,7 +4,7 @@ use std::{borrow::Cow, sync::Arc};
 use parking_lot::Mutex;
 use sos_net::{
     sdk::{
-        account::{Account, AccountLocked, SigninOptions},
+        account::Account,
         constants::DEFAULT_VAULT_NAME,
         crypto::AccessKey,
         identity::{AccountRef, Identity, PublicIdentity},
@@ -17,7 +17,7 @@ use sos_net::{
     NetworkAccount, NetworkAccountSwitcher,
 };
 use terminal_banner::{Banner, Padding};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::RwLock;
 
 use crate::helpers::{
     display_passphrase,
@@ -314,30 +314,9 @@ pub async fn sign_in(account: &AccountRef) -> Result<SecretString> {
         )
         .await?;
 
-        let (tx, mut rx) = mpsc::channel::<()>(8);
-        tokio::task::spawn(async move {
-            while let Some(_) = rx.recv().await {
-                let banner = Banner::new()
-                    .padding(Padding::one())
-                    .text("Account locked".into())
-                    .newline()
-                    .text(
-                        "This account is locked because another program is already signed in; this may be another terminal or application window.".into())
-                    .newline()
-                    .text(
-                        "To continue sign out of the account in the other window.".into())
-                    .render();
-                println!("{}", banner);
-            }
-        });
-
-        let options = SigninOptions {
-            locked: AccountLocked::Notify(tx),
-        };
-
         let passphrase = read_password(Some("Password: "))?;
         let key: AccessKey = passphrase.clone().into();
-        current_account.sign_in_with_options(&key, options).await?;
+        current_account.sign_in(&key).await?;
 
         owner.add_account(current_account);
         passphrase

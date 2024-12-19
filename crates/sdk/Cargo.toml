@@ -106,7 +106,6 @@ keychain_parser = { version = "0.1", path = "../keychain_parser", optional = tru
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
-file-guard.workspace = true
 etcetera = "0.8"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

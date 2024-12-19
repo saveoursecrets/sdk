@@ -20,8 +20,8 @@ use sos_sdk::{
         FolderCreate, FolderDelete, KeyDerivation, LocalAccount,
         NewFolderOptions, Paths, PublicIdentity, ReadEvent, Secret,
         SecretChange, SecretDelete, SecretId, SecretInsert, SecretMeta,
-        SecretMove, SecretRow, SigninOptions, StorageEventLogs, Summary,
-        TrustedDevice, Vault, VaultCommit, VaultFlags, VaultId,
+        SecretMove, SecretRow, StorageEventLogs, Summary, TrustedDevice,
+        Vault, VaultCommit, VaultFlags, VaultId,
     },
     secrecy::SecretString,
     signer::ecdsa::BoxedEcdsaSigner,
@@ -268,15 +268,6 @@ impl Account for LinkedAccount {
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
         let mut account = self.account.lock().await;
         Ok(account.sign_in(key).await?)
-    }
-
-    async fn sign_in_with_options(
-        &mut self,
-        key: &AccessKey,
-        options: SigninOptions,
-    ) -> Result<Vec<Summary>> {
-        let mut account = self.account.lock().await;
-        Ok(account.sign_in_with_options(key, options).await?)
     }
 
     async fn verify(&self, key: &AccessKey) -> bool {

@@ -22,9 +22,6 @@ pub mod search;
 pub use client::ClientStorage;
 pub use folder::{DiscFolder, Folder, MemoryFolder};
 
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-pub use paths::FileLock;
-
 use crate::events::DeviceEventLog;
 
 #[cfg(feature = "files")]

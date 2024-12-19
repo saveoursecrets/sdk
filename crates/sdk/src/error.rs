@@ -478,10 +478,6 @@ pub enum Error {
     #[error("recovery identifier is expected")]
     RecoveryId,
 
-    /// Account is already locked.
-    #[error("account locked")]
-    AccountLocked,
-
     /// Error generated when replacing events in an event log
     /// does not compute the same root hash as the expected
     /// checkpoint.

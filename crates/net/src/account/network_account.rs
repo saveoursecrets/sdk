@@ -9,7 +9,7 @@ use crate::{
             Account, AccountBuilder, AccountChange, AccountData,
             CipherComparison, FolderChange, FolderCreate, FolderDelete,
             LocalAccount, SecretChange, SecretDelete, SecretInsert,
-            SecretMove, SigninOptions,
+            SecretMove,
         },
         commit::{CommitHash, CommitState},
         crypto::{AccessKey, Cipher, KeyDerivation},
@@ -145,14 +145,10 @@ pub struct NetworkAccount {
 }
 
 impl NetworkAccount {
-    async fn login(
-        &mut self,
-        key: &AccessKey,
-        options: SigninOptions,
-    ) -> Result<Vec<Summary>> {
+    async fn login(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
         let folders = {
             let mut account = self.account.lock().await;
-            let folders = account.sign_in_with_options(key, options).await?;
+            let folders = account.sign_in(key).await?;
             self.paths = account.paths();
             self.address = account.address().clone();
             folders
@@ -923,15 +919,7 @@ impl Account for NetworkAccount {
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
-        self.login(key, Default::default()).await
-    }
-
-    async fn sign_in_with_options(
-        &mut self,
-        key: &AccessKey,
-        options: SigninOptions,
-    ) -> Result<Vec<Summary>> {
-        self.login(key, options).await
+        self.login(key).await
     }
 
     async fn verify(&self, key: &AccessKey) -> bool {

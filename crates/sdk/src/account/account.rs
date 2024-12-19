@@ -32,9 +32,6 @@ use crate::{
     vfs, Error, Paths, Result, UtcDateTime,
 };
 
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use crate::storage::paths::FileLock;
-
 #[cfg(feature = "search")]
 use crate::storage::search::{DocumentCount, SearchIndex};
 
@@ -77,7 +74,7 @@ use crate::migrate::{
 use async_trait::async_trait;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::RwLock;
 
 #[cfg(feature = "archive")]
 use tokio::io::{AsyncRead, AsyncSeek, BufReader};
@@ -121,24 +118,6 @@ pub struct ClipboardCopyRequest {
     /// Format option.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<ClipboardTextFormat>,
-}
-
-/// Determine how to handle a locked account.
-#[derive(Default, Clone)]
-pub enum AccountLocked {
-    /// Error on sign in when the account
-    /// is already locked.
-    #[default]
-    Error,
-    /// Send a notification over a channel.
-    Notify(mpsc::Sender<()>),
-}
-
-/// Options for sign in.
-#[derive(Default, Clone)]
-pub struct SigninOptions {
-    /// How to handle a locked account.
-    pub locked: AccountLocked,
 }
 
 /// Result information for a change to an account.
@@ -386,15 +365,6 @@ pub trait Account {
     async fn sign_in(
         &mut self,
         key: &AccessKey,
-    ) -> std::result::Result<Vec<Summary>, Self::Error>;
-
-    /// Access an account by signing in with the given options.
-    ///
-    /// If a default folder exists for the account it is opened.
-    async fn sign_in_with_options(
-        &mut self,
-        key: &AccessKey,
-        options: SigninOptions,
     ) -> std::result::Result<Vec<Summary>, Self::Error>;
 
     /// Verify an access key for this account.
@@ -938,24 +908,12 @@ pub struct LocalAccount {
 
     /// Storage paths.
     paths: Arc<Paths>,
-
-    /// Lock for the account.
-    ///
-    /// Prevents multiple client implementations trying to
-    /// access the same account simultaneously which could
-    /// lead to data corruption.
-    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    account_lock: Option<FileLock>,
 }
 
 impl LocalAccount {
     /// Private login implementation so we can support the backwards
     /// compatible sign_in() and also the newer sign_in_with_options().
-    async fn login(
-        &mut self,
-        key: &AccessKey,
-        options: SigninOptions,
-    ) -> Result<Vec<Summary>> {
+    async fn login(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
         let address = &self.address;
         let data_dir = self.paths().documents_dir().clone();
 
@@ -986,26 +944,6 @@ impl LocalAccount {
         .await?;
 
         self.paths = storage.paths();
-
-        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-        {
-            self.account_lock = Some(
-                self.paths
-                    .acquire_account_lock(|| async {
-                        let locked = options.locked.clone();
-                        match locked {
-                            AccountLocked::Error => {
-                                return Err(Error::AccountLocked);
-                            }
-                            AccountLocked::Notify(tx) => {
-                                tx.send(()).await?;
-                                Ok(())
-                            }
-                        }
-                    })
-                    .await?,
-            );
-        }
 
         #[cfg(feature = "files")]
         {
@@ -1547,8 +1485,6 @@ impl LocalAccount {
             storage,
             paths: Arc::new(paths),
             authenticated: None,
-            #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-            account_lock: None,
         })
     }
 
@@ -1617,8 +1553,6 @@ impl LocalAccount {
             paths: storage.paths(),
             storage: Some(Arc::new(RwLock::new(storage))),
             authenticated: None,
-            #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-            account_lock: None,
         };
 
         Ok(account)
@@ -1897,15 +1831,7 @@ impl Account for LocalAccount {
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
-        self.login(key, Default::default()).await
-    }
-
-    async fn sign_in_with_options(
-        &mut self,
-        key: &AccessKey,
-        options: SigninOptions,
-    ) -> Result<Vec<Summary>> {
-        self.login(key, options).await
+        self.login(key).await
     }
 
     async fn verify(&self, key: &AccessKey) -> bool {
@@ -1928,11 +1854,6 @@ impl Account for LocalAccount {
 
     async fn sign_out(&mut self) -> Result<()> {
         tracing::debug!(address = %self.address(), "sign_out");
-
-        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-        {
-            self.account_lock.take();
-        }
 
         tracing::debug!("lock storage vaults");
         // Lock all the storage vaults

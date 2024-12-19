@@ -130,12 +130,6 @@ mod folders {
     /// Name of the vault file that stores the device
     /// signing key.
     pub const DEVICE_FILE: &str = "device";
-
-    /// Lock file for an account.
-    pub const LOCK_FILE: &str = "account.lock";
-
-    /// Lock file for an app.
-    pub const APP_LOCK_FILE: &str = "app.lock";
 }
 
 /// File names.

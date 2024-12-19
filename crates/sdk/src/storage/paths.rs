@@ -9,25 +9,19 @@ use etcetera::{
     app_strategy::choose_native_strategy, AppStrategy, AppStrategyArgs,
 };
 
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use file_guard::{try_lock, FileGuard, Lock};
-
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{File, OpenOptions},
-    future::Future,
-    io::ErrorKind,
     path::{Path, PathBuf},
-    sync::{Arc, RwLock},
+    sync::RwLock,
 };
 
 use crate::{
     constants::{
-        ACCOUNT_EVENTS, APP_AUTHOR, APP_LOCK_FILE, APP_NAME, AUDIT_FILE_NAME,
-        DEVICE_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS,
-        IDENTITY_DIR, JSON_EXT, LOCAL_DIR, LOCK_FILE, LOGS_DIR, PENDING_DIR,
-        REMOTES_FILE, REMOTE_DIR, VAULTS_DIR, VAULT_EXT,
+        ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICE_EVENTS,
+        DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS, IDENTITY_DIR,
+        JSON_EXT, LOCAL_DIR, LOGS_DIR, PENDING_DIR, REMOTES_FILE, REMOTE_DIR,
+        VAULTS_DIR, VAULT_EXT,
     },
     vault::{secret::SecretId, VaultId},
     vfs,
@@ -516,45 +510,6 @@ impl Paths {
         writer.append_audit_events(events).await?;
         Ok(())
     }
-
-    /// Attempt to acquire an account lock.
-    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    pub(crate) async fn acquire_account_lock<F>(
-        &self,
-        on_message: impl Fn() -> F,
-    ) -> Result<FileLock>
-    where
-        F: Future<Output = Result<()>>,
-    {
-        if self.is_global() {
-            panic!("account lock is not accessible for global paths");
-        }
-        let lock_path = self.user_dir.join(LOCK_FILE);
-        let mut lock = FileLock::new(&lock_path)?;
-        lock.acquire(on_message).await?;
-        Ok(lock)
-    }
-
-    /// Attempt to acquire an app lock.
-    #[doc(hidden)]
-    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    pub fn acquire_app_lock(&self) -> Result<Option<FileLock>> {
-        let lock_path = self.documents_dir.join(APP_LOCK_FILE);
-        let mut lock = FileLock::new(&lock_path)?;
-        Ok(match lock.try_acquire() {
-            Ok(_) => Some(lock),
-            _ => None,
-        })
-    }
-
-    /// Query if an app lock is active.
-    #[doc(hidden)]
-    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    pub fn has_app_lock(&self) -> Result<bool> {
-        let lock_path = self.documents_dir.join(APP_LOCK_FILE);
-        let lock = FileLock::new(&lock_path)?;
-        Ok(lock.is_lock_active()?)
-    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -583,95 +538,4 @@ fn default_storage_dir() -> Result<PathBuf> {
 #[cfg(target_arch = "wasm32")]
 fn default_storage_dir() -> Result<PathBuf> {
     Ok(PathBuf::from("/"))
-}
-
-/// Exclusive file lock.
-///
-/// Used to prevent multiple applications from accessing
-/// the same account simultaneously which could lead to
-/// data corruption.
-#[doc(hidden)]
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-pub struct FileLock {
-    file: Arc<File>,
-    #[allow(dead_code)]
-    guard: Option<FileGuard<Arc<File>>>,
-}
-
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-impl FileLock {
-    /// New file lock.
-    pub fn new(path: impl AsRef<Path>) -> Result<Self> {
-        Ok(Self {
-            file: Arc::new(
-                OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .create(true)
-                    .open(path.as_ref())?,
-            ),
-            guard: None,
-        })
-    }
-
-    /// Determine if the file lock is being held by any process.
-    pub fn is_lock_active(&self) -> Result<bool> {
-        Ok(match try_lock(self.file.clone(), Lock::Exclusive, 0, 1) {
-            Ok(_) => false,
-            Err(e) => match e.kind() {
-                ErrorKind::WouldBlock => true,
-                _ => return Err(e.into()),
-            },
-        })
-    }
-
-    /// Determine if this file lock has acquired the lock.
-    pub fn is_acquired(&self) -> bool {
-        self.guard.is_some()
-    }
-
-    /// Try to acquire the file lock for a path.
-    pub fn try_acquire(&mut self) -> Result<()> {
-        match try_lock(self.file.clone(), Lock::Exclusive, 0, 1) {
-            Ok(guard) => {
-                self.guard = Some(guard);
-                return Ok(());
-            }
-            Err(e) => Err(e.into()),
-        }
-    }
-
-    /// Try to acquire a file lock for a path, waiting until the
-    /// lock becomes available.
-    pub async fn acquire<F>(
-        &mut self,
-        on_message: impl Fn() -> F,
-    ) -> Result<()>
-    where
-        F: Future<Output = Result<()>>,
-    {
-        let mut message_printed = false;
-
-        loop {
-            match try_lock(self.file.clone(), Lock::Exclusive, 0, 1) {
-                Ok(guard) => {
-                    self.guard = Some(guard);
-                    return Ok(());
-                }
-                Err(e) => match e.kind() {
-                    ErrorKind::WouldBlock => {
-                        if !message_printed {
-                            on_message().await?;
-                            message_printed = true;
-                        }
-                        std::thread::sleep(std::time::Duration::from_millis(
-                            50,
-                        ));
-                        continue;
-                    }
-                    _ => return Err(e.into()),
-                },
-            }
-        }
-    }
 }

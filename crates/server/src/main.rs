@@ -184,7 +184,7 @@ mod cli {
             let backend = config.backend().await?;
             let state = Arc::new(RwLock::new(State::new(config)));
             let handle = Handle::new();
-            let server = Server::new(backend.directory()).await?;
+            let server = Server::new().await?;
             server
                 .start(state, Arc::new(RwLock::new(backend)), handle)
                 .await?;
