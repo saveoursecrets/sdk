@@ -763,8 +763,12 @@ where
                 // Truncate the file to the new length
                 let file =
                     OpenOptions::new().write(true).open(&self.data).await?;
+                file.set_len(length).await?;
+
+                /*
                 let mut guard = vfs::lock_write(file).await?;
                 guard.inner_mut().set_len(length).await?;
+                */
 
                 return Ok(records);
             }
