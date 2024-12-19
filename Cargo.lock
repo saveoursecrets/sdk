@@ -4894,6 +4894,7 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
+ "sos-account-extras",
  "sos-ipc",
  "sos-net",
  "sos-sdk",

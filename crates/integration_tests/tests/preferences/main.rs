@@ -6,6 +6,23 @@ pub use sos_test_utils as test_utils;
 
 use sos_net::extras::preferences::{Preference, Preferences};
 
+pub fn test_preferences_concurrency<'a>(
+    data_dir: &'a str,
+    value: &'a str,
+) -> (&'static str, Vec<&'a str>) {
+    let command = "cargo";
+    let arguments = vec![
+        "run",
+        "-q",
+        "--bin",
+        "test-preferences-concurrency",
+        "--",
+        value,
+        data_dir, // data directory for isolated tests
+    ];
+    (command, arguments)
+}
+
 pub(crate) async fn assert_preferences(
     prefs: &mut Preferences,
 ) -> anyhow::Result<()> {

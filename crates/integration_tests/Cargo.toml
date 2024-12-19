@@ -27,8 +27,9 @@ features = [
 ]
 path = "../ipc"
 
-# [dependencies.sos-web-account]
-# path = "../web-account"
+[dependencies.sos-account-extras]
+features = ["preferences"]
+path = "../account_extras/"
 
 [dependencies.sos-sdk]
 path = "../sdk"
@@ -81,3 +82,7 @@ path = "../server"
 [[bin]]
 name = "test-extension-helper"
 path = "src/test_extension_helper.rs"
+
+[[bin]]
+name = "test-preferences-concurrency"
+path = "src/test_preferences_concurrency.rs"
