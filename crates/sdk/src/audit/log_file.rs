@@ -89,9 +89,7 @@ impl AuditProvider for AuditLogFile {
         &mut self,
         events: Vec<AuditEvent>,
     ) -> Result<()> {
-        let file = Self::create(&self.file_path).await?;
-        let mut guard = vfs::lock_write(file).await?;
-
+        // Make a single buffer of all audit events
         let buffer: Vec<u8> = {
             let mut buffer = Vec::new();
             let mut stream = BufWriter::new(Cursor::new(&mut buffer));
@@ -104,6 +102,8 @@ impl AuditProvider for AuditLogFile {
             buffer
         };
 
+        let file = Self::create(&self.file_path).await?;
+        let mut guard = vfs::lock_write(file).await?;
         guard.write_all(&buffer).await?;
         guard.flush().await?;
         Ok(())

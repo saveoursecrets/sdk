@@ -19,29 +19,3 @@ pub use fs::{
 pub use meta_data::{FileType, Metadata, Permissions};
 pub use open_options::OpenOptions;
 pub use read_dir::{read_dir, DirEntry};
-
-/// Write acquiring an exclusive lock.
-///
-/// Currently a NOOP for the in-memory implementation.
-pub async fn write_exclusive(
-    path: impl AsRef<Path>,
-    buf: impl AsRef<[u8]>,
-) -> std::io::Result<()> {
-    write(path, buf).await
-}
-
-/// Read acquiring an exclusive lock.
-///
-/// Currently a NOOP for the in-memory implementation.
-pub async fn read_exclusive(
-    path: impl AsRef<Path>,
-) -> std::io::Result<Vec<u8>> {
-    read(path).await
-}
-
-/// Read acquiring a shared read lock.
-///
-/// Currently a NOOP for the in-memory implementation.
-pub async fn read_shared(path: impl AsRef<Path>) -> std::io::Result<Vec<u8>> {
-    read(path).await
-}

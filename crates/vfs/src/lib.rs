@@ -42,7 +42,7 @@
 //! `symlink()`, `symlink_metadata()`, `symlink_file()` and
 //! `symlink_dir()` functions are not available.
 //!
-#![allow(dead_code)]
+mod advisory_locks;
 
 #[cfg(any(
     test,
@@ -62,14 +62,14 @@ mod os;
     feature = "mem-fs",
     all(target_arch = "wasm32", target_os = "unknown")
 ))]
-pub use memory::*;
+pub use {advisory_locks::*, memory::*};
 
 #[cfg(all(
     not(test),
     not(all(target_arch = "wasm32", target_os = "unknown")),
     not(feature = "mem-fs")
 ))]
-pub use os::*;
+pub use {advisory_locks::*, os::*};
 
 #[cfg(test)]
 mod tests;

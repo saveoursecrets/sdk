@@ -10,19 +10,21 @@ repository = "https://github.com/saveoursecrets/sdk"
 [features]
 mem-fs = []
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-tokio = { version = "1", default-features = false, features = ["rt", "sync"] }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "1", default-features = false, features = ["rt", "fs", "sync", "io-util", "macros"] }
-async-fd-lock.workspace = true
-
 [dependencies]
 bitflags.workspace = true
 futures.workspace = true
 once_cell.workspace = true
 parking_lot.workspace = true
 async-recursion.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+tokio = { version = "1", default-features = false, features = ["rt", "sync"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1", default-features = false, features = ["rt", "fs", "sync", "io-util", "macros"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "ios"), not(target_os = "android")))'.dependencies]
+async-fd-lock.workspace = true
 
 [dev-dependencies]
 anyhow = "1"
