@@ -120,7 +120,7 @@ args = ["build", "-p", "sos-integration-tests"]
 [tasks.test-lite]
 command = "cargo"
 args = ["nextest", "run"]
-dependencies = ["clean-cli", "build-test-extension-helper"]
+dependencies = ["clean-cli", "build-tests"]
 
 [tasks.genhtml]
 script = '''
