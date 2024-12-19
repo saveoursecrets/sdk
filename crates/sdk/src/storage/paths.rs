@@ -512,7 +512,12 @@ impl Paths {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(target_os = "android")]
+fn default_storage_dir() -> Result<PathBuf> {
+    Ok(PathBuf::from(""))
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
 fn default_storage_dir() -> Result<PathBuf> {
     let strategy = choose_native_strategy(AppStrategyArgs {
         top_level_domain: "com".to_string(),

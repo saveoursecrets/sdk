@@ -39,15 +39,9 @@ pub struct CachedPreferences {
 impl CachedPreferences {
     /// Create new cached preferences.
     pub fn new(data_dir: Option<PathBuf>) -> Result<Self> {
-        let global_dir = if let Some(data_dir) = data_dir.clone() {
-            data_dir
-        } else {
-            Paths::data_dir()?
-        };
-        let paths = Paths::new_global(&global_dir);
         Ok(Self {
             data_dir,
-            globals: Arc::new(Mutex::new(Preferences::new(&paths))),
+            globals: Arc::new(Mutex::new(Default::default())),
             accounts: Mutex::new(HashMap::new()),
         })
     }
