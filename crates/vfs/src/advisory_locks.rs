@@ -7,7 +7,7 @@
     not(target_os = "android"),
 ))]
 mod sys {
-    use async_fd_lock::{LockRead, LockWrite, RwLockWriteGuard};
+    use async_fd_lock::{LockWrite, RwLockWriteGuard};
     use std::path::Path;
     use tokio::fs::{File, OpenOptions};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -45,16 +45,6 @@ mod sys {
         path: impl AsRef<Path>,
     ) -> std::io::Result<Vec<u8>> {
         let mut guard = File::open(path.as_ref()).await?.lock_write().await?;
-        let mut out = Vec::new();
-        guard.read_to_end(&mut out).await?;
-        Ok(out)
-    }
-
-    /// Read acquiring a shared read lock.
-    pub async fn read_shared(
-        path: impl AsRef<Path>,
-    ) -> std::io::Result<Vec<u8>> {
-        let mut guard = File::open(path.as_ref()).await?.lock_read().await?;
         let mut out = Vec::new();
         guard.read_to_end(&mut out).await?;
         Ok(out)
@@ -99,15 +89,6 @@ mod noop {
     ///
     /// Currently a NOOP for the in-memory implementation.
     pub async fn read_exclusive(
-        path: impl AsRef<Path>,
-    ) -> std::io::Result<Vec<u8>> {
-        read(path).await
-    }
-
-    /// Read acquiring a shared read lock.
-    ///
-    /// Currently a NOOP for the in-memory implementation.
-    pub async fn read_shared(
         path: impl AsRef<Path>,
     ) -> std::io::Result<Vec<u8>> {
         read(path).await

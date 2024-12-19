@@ -1204,7 +1204,7 @@ impl LocalAccount {
         // Update the identity vault
         let buffer = encode(&vault).await?;
         let identity_vault_path = self.paths().identity_vault();
-        vfs::write(&identity_vault_path, &buffer).await?;
+        vfs::write_exclusive(&identity_vault_path, &buffer).await?;
 
         // Update the events for the identity vault
         let user = self.user()?;
@@ -1677,7 +1677,7 @@ impl Account for LocalAccount {
                 .await?;
             let buffer = encode(&vault).await?;
             let identity_vault = paths.identity_vault();
-            vfs::write(identity_vault, &buffer).await?;
+            vfs::write_exclusive(identity_vault, &buffer).await?;
 
             tracing::info!(
               root = ?identity_log.tree().root().map(|c| c.to_string()),
@@ -2869,7 +2869,7 @@ impl Account for LocalAccount {
         let buffer = self
             .export_folder_buffer(summary, new_key, save_key)
             .await?;
-        vfs::write(path, buffer).await?;
+        vfs::write_exclusive(path, buffer).await?;
         Ok(())
     }
 
@@ -3003,7 +3003,7 @@ impl Account for LocalAccount {
         let (data, _) = self.get_secret(secret_id, folder, false).await?;
         if let Secret::Contact { vcard, .. } = &data.secret {
             let content = vcard.to_string();
-            vfs::write(&path, content).await?;
+            vfs::write_exclusive(&path, content).await?;
         } else {
             return Err(Error::NotContact);
         }
@@ -3051,7 +3051,7 @@ impl Account for LocalAccount {
                 vcf.push_str(&vcard.to_string());
             }
         }
-        vfs::write(path, vcf.as_bytes()).await?;
+        vfs::write_exclusive(path, vcf.as_bytes()).await?;
 
         #[cfg(feature = "audit")]
         {
@@ -3170,7 +3170,7 @@ impl Account for LocalAccount {
         migration.append_files(files).await?;
         migration.finish().await?;
 
-        vfs::write(path.as_ref(), &archive).await?;
+        vfs::write_exclusive(path.as_ref(), &archive).await?;
 
         #[cfg(feature = "audit")]
         {

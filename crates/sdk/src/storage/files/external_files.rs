@@ -54,7 +54,7 @@ impl FileStorage {
         let dest = PathBuf::from(target.as_ref()).join(file_name);
         let size = encrypted.len() as u64;
 
-        vfs::write(dest, encrypted).await?;
+        vfs::write_exclusive(dest, encrypted).await?;
 
         Ok((digest.to_vec(), size))
     }

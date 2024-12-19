@@ -745,7 +745,7 @@ impl ClientStorage {
         buffer: impl AsRef<[u8]>,
     ) -> Result<()> {
         let vault_path = self.paths.vault_path(vault_id);
-        vfs::write(vault_path, buffer.as_ref()).await?;
+        vfs::write_exclusive(vault_path, buffer.as_ref()).await?;
         Ok(())
     }
 
@@ -756,7 +756,7 @@ impl ClientStorage {
         buffer: impl AsRef<[u8]>,
     ) -> Result<()> {
         let vault_path = self.paths.pending_vault_path(vault_id);
-        vfs::write(vault_path, buffer.as_ref()).await?;
+        vfs::write_exclusive(vault_path, buffer.as_ref()).await?;
         Ok(())
     }
 

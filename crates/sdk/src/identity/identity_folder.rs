@@ -252,7 +252,7 @@ where
         let key: AccessKey = device_password.into();
         let mut device_keeper = if mirror {
             let buffer = encode(&vault).await?;
-            vfs::write(&device_vault_path, &buffer).await?;
+            vfs::write_exclusive(&device_vault_path, &buffer).await?;
             let vault_file = VaultWriter::open(&device_vault_path).await?;
             let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
             Gatekeeper::new_mirror(vault, mirror)
@@ -571,7 +571,7 @@ impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
             .await?;
 
         let buffer = encode(&vault).await?;
-        vfs::write(paths.identity_vault(), buffer).await?;
+        vfs::write_exclusive(paths.identity_vault(), buffer).await?;
 
         let mut folder = DiscFolder::new(paths.identity_vault()).await?;
         let key: AccessKey = password.into();

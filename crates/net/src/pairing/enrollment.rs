@@ -135,7 +135,8 @@ impl DeviceEnrollment {
         }
 
         // Write the vault containing the device signing key
-        vfs::write(self.paths.device_file(), &self.device_vault).await?;
+        vfs::write_exclusive(self.paths.device_file(), &self.device_vault)
+            .await?;
 
         // Add origin servers early so that they will be registered
         // as remotes when the enrollment is finished and the account
@@ -168,7 +169,7 @@ impl DeviceEnrollment {
     async fn add_origin_servers(&self) -> Result<()> {
         let remotes_file = self.paths.remote_origins();
         let data = serde_json::to_vec_pretty(&self.servers)?;
-        vfs::write(remotes_file, data).await?;
+        vfs::write_exclusive(remotes_file, data).await?;
         Ok(())
     }
 
@@ -239,7 +240,7 @@ impl DeviceEnrollment {
             .await?;
 
         let buffer = encode(&vault).await?;
-        vfs::write(vault_path.as_ref(), buffer).await?;
+        vfs::write_exclusive(vault_path.as_ref(), buffer).await?;
 
         Ok(())
     }

@@ -492,7 +492,7 @@ impl NetworkAccount {
         let origins = remotes.keys().collect::<Vec<_>>();
         let data = serde_json::to_vec_pretty(&origins)?;
         let file = self.paths().remote_origins();
-        vfs::write(file, data).await?;
+        vfs::write_exclusive(file, data).await?;
         Ok(())
     }
 

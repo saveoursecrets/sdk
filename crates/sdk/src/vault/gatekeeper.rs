@@ -89,7 +89,7 @@ impl Gatekeeper {
     ) -> Result<()> {
         if let (true, Some(mirror)) = (write_disc, &self.mirror) {
             let buffer = encode(&vault).await?;
-            vfs::write(&mirror.file_path, &buffer).await?;
+            vfs::write_exclusive(&mirror.file_path, &buffer).await?;
         }
         self.vault = vault;
         Ok(())
