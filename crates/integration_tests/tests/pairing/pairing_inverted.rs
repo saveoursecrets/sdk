@@ -3,7 +3,7 @@ use crate::test_utils::{
     simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, AccountSync};
+use sos_net::{protocol::AccountSync, sdk::prelude::*};
 
 /// Tests the protocol for pairing devices using the inverted flow.
 #[tokio::test]

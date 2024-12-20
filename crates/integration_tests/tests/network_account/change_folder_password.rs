@@ -2,12 +2,11 @@ use crate::test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, AccountSync};
+use sos_net::{protocol::AccountSync, sdk::prelude::*};
 
 /// Tests changing a folder password and force syncing
 /// the updated folder events log.
 #[tokio::test]
-#[cfg_attr(windows, ignore = "fix auto lock bug on windows (#451)")]
 async fn network_sync_change_folder_password() -> Result<()> {
     const TEST_ID: &str = "sync_change_folder_password";
     // crate::test_utils::init_tracing();

@@ -3,29 +3,25 @@
 use crate::Result;
 #[cfg(feature = "audit")]
 use async_once_cell::OnceCell;
+
+#[cfg(not(target_arch = "wasm32"))]
 use etcetera::{
     app_strategy::choose_native_strategy, AppStrategy, AppStrategyArgs,
 };
 
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use file_guard::{try_lock, FileGuard, Lock};
-
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{File, OpenOptions},
-    future::Future,
-    io::ErrorKind,
     path::{Path, PathBuf},
-    sync::{Arc, RwLock},
+    sync::RwLock,
 };
 
 use crate::{
     constants::{
         ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICE_EVENTS,
         DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS, IDENTITY_DIR,
-        JSON_EXT, LOCAL_DIR, LOCK_FILE, LOGS_DIR, PENDING_DIR, REMOTES_FILE,
-        REMOTE_DIR, VAULTS_DIR, VAULT_EXT,
+        JSON_EXT, LOCAL_DIR, LOGS_DIR, PENDING_DIR, REMOTES_FILE, REMOTE_DIR,
+        VAULTS_DIR, VAULT_EXT,
     },
     vault::{secret::SecretId, VaultId},
     vfs,
@@ -163,6 +159,24 @@ impl Paths {
             vfs::create_dir_all(&self.pending_dir).await?;
         }
         Ok(())
+    }
+
+    /// Try to determine if the account is ready to be used
+    /// by checking for the presence of required files on disc.
+    pub async fn is_usable(&self) -> Result<bool> {
+        if self.is_global() {
+            panic!("is_usable is not accessible for global paths");
+        }
+
+        let identity_vault = self.identity_vault();
+        let identity_events = self.identity_events();
+        let account_events = self.account_events();
+        let device_events = self.device_events();
+
+        Ok(vfs::try_exists(identity_vault).await?
+            && vfs::try_exists(identity_events).await?
+            && vfs::try_exists(account_events).await?
+            && vfs::try_exists(device_events).await?)
     }
 
     /// User identifier.
@@ -496,25 +510,14 @@ impl Paths {
         writer.append_audit_events(events).await?;
         Ok(())
     }
-
-    /// Attempt to acquire an account lock.
-    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    pub(crate) async fn acquire_account_lock<F>(
-        &self,
-        on_message: impl Fn() -> F,
-    ) -> Result<FileLock>
-    where
-        F: Future<Output = Result<()>>,
-    {
-        if self.is_global() {
-            panic!("account lock is not accessible for global paths");
-        }
-        let lock_path = self.user_dir.join(LOCK_FILE);
-        FileLock::acquire(&lock_path, on_message).await
-    }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(target_os = "android")]
+fn default_storage_dir() -> Result<PathBuf> {
+    Ok(PathBuf::from(""))
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
 fn default_storage_dir() -> Result<PathBuf> {
     let strategy = choose_native_strategy(AppStrategyArgs {
         top_level_domain: "com".to_string(),
@@ -539,60 +542,5 @@ fn default_storage_dir() -> Result<PathBuf> {
 
 #[cfg(target_arch = "wasm32")]
 fn default_storage_dir() -> Result<PathBuf> {
-    Ok(PathBuf::from(""))
-}
-
-/// Exclusive file lock.
-///
-/// Used to prevent multiple applications from accessing
-/// the same account simultaneously which could lead to
-/// data corruption.
-#[doc(hidden)]
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-pub struct FileLock {
-    #[allow(dead_code)]
-    guard: FileGuard<Arc<File>>,
-}
-
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-impl FileLock {
-    /// Try to acquire a file lock for a path.
-    pub async fn acquire<F>(
-        path: impl AsRef<Path>,
-        on_message: impl Fn() -> F,
-    ) -> Result<Self>
-    where
-        F: Future<Output = Result<()>>,
-    {
-        let file = Arc::new(
-            OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .open(path.as_ref())?,
-        );
-
-        let mut message_printed = false;
-
-        loop {
-            match try_lock(file.clone(), Lock::Exclusive, 0, 1) {
-                Ok(guard) => {
-                    return Ok(Self { guard });
-                }
-                Err(e) => match e.kind() {
-                    ErrorKind::WouldBlock => {
-                        if !message_printed {
-                            on_message().await?;
-                            message_printed = true;
-                        }
-                        std::thread::sleep(std::time::Duration::from_millis(
-                            50,
-                        ));
-                        continue;
-                    }
-                    _ => return Err(e.into()),
-                },
-            }
-        }
-    }
+    Ok(PathBuf::from("/"))
 }

@@ -3,13 +3,18 @@
 //! Tasks that handle retry until exhaustion for
 //! download, upload, move and delete operations.
 use crate::{
-    net::NetworkRetry,
+    protocol::{
+        network_client::NetworkRetry,
+        transfer::{CancelReason, FileSyncClient},
+        Error, SyncClient,
+    },
     sdk::{storage::files::ExternalFile, vfs, Paths},
-    CancelReason, Error, Result, SyncClient,
+    Result,
 };
 
 use async_recursion::async_recursion;
 use http::StatusCode;
+use sos_protocol::NetworkError;
 use std::{io::ErrorKind, sync::Arc};
 use tokio::sync::watch;
 
@@ -20,7 +25,12 @@ use super::{
 
 pub struct UploadOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     client: C,
     paths: Arc<Paths>,
@@ -33,7 +43,12 @@ where
 
 impl<C> UploadOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     pub fn new(
         client: C,
@@ -105,10 +120,10 @@ where
                 Ok(res) => res,
                 Err(e) => {
                     match e {
-                        Error::RetryCanceled(user_canceled) => {
+                        sos_protocol::Error::RetryCanceled(user_canceled) => {
                             Ok(TransferResult::Fatal(TransferError::Canceled(user_canceled)))
                         }
-                        _ => Err(e),
+                        _ => Err(e.into()),
                     }
                 }
             }
@@ -120,7 +135,12 @@ where
 
 impl<C> TransferTask for UploadOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     fn request_id(&self) -> u64 {
         self.request_id
@@ -146,7 +166,12 @@ where
 
 pub struct DownloadOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     client: C,
     paths: Arc<Paths>,
@@ -159,7 +184,12 @@ where
 
 impl<C> DownloadOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     pub fn new(
         client: C,
@@ -247,10 +277,10 @@ where
                 Ok(res) => res,
                 Err(e) => {
                     match e {
-                        Error::RetryCanceled(user_canceled) => {
+                        sos_protocol::Error::RetryCanceled(user_canceled) => {
                             Ok(TransferResult::Fatal(TransferError::Canceled(user_canceled)))
                         }
-                        _ => Err(e),
+                        _ => Err(e.into()),
                     }
                 }
             }
@@ -262,7 +292,12 @@ where
 
 impl<C> TransferTask for DownloadOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     fn request_id(&self) -> u64 {
         self.request_id
@@ -300,7 +335,12 @@ where
 
 impl<C> DeleteOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     pub fn new(
         client: C,
@@ -359,12 +399,12 @@ where
             {
                 Ok(res) => res,
                 Err(e) => match e {
-                    Error::RetryCanceled(user_canceled) => {
+                    sos_protocol::Error::RetryCanceled(user_canceled) => {
                         Ok(TransferResult::Fatal(TransferError::Canceled(
                             user_canceled,
                         )))
                     }
-                    _ => Err(e),
+                    _ => Err(e.into()),
                 },
             }
         } else {
@@ -375,7 +415,12 @@ where
 
 impl<C> TransferTask for DeleteOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     fn request_id(&self) -> u64 {
         self.request_id
@@ -401,7 +446,12 @@ where
 
 pub struct MoveOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     client: C,
     transfer_id: u64,
@@ -413,7 +463,12 @@ where
 
 impl<C> MoveOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     pub fn new(
         client: C,
@@ -476,12 +531,12 @@ where
             {
                 Ok(res) => res,
                 Err(e) => match e {
-                    Error::RetryCanceled(user_canceled) => {
+                    sos_protocol::Error::RetryCanceled(user_canceled) => {
                         Ok(TransferResult::Fatal(TransferError::Canceled(
                             user_canceled,
                         )))
                     }
-                    _ => Err(e),
+                    _ => Err(e.into()),
                 },
             }
         } else {
@@ -492,7 +547,12 @@ where
 
 impl<C> TransferTask for MoveOperation<C>
 where
-    C: SyncClient + Clone + Send + Sync + 'static,
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     fn request_id(&self) -> u64 {
         self.request_id
@@ -513,9 +573,10 @@ where
     fn on_error(&self, error: Error) -> TransferResult {
         tracing::warn!(error = ?error, "move_file::error");
         match error {
-            Error::ResponseJson(StatusCode::NOT_FOUND, _) => {
-                TransferResult::Fatal(TransferError::MovedMissing)
-            }
+            Error::Network(NetworkError::ResponseJson(
+                StatusCode::NOT_FOUND,
+                _,
+            )) => TransferResult::Fatal(TransferError::MovedMissing),
             _ => on_error(error),
         }
     }

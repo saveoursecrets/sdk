@@ -4,7 +4,11 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use http::StatusCode;
-use sos_net::{sdk::prelude::*, AccountSync, Error as ClientError};
+use sos_net::{
+    protocol::{AccountSync, Error as ProtocolError, NetworkError},
+    sdk::prelude::*,
+    Error as ClientError,
+};
 
 /// Tests pairing a new device and revoking trust in the device.
 #[tokio::test]
@@ -59,7 +63,9 @@ async fn pairing_device_revoke() -> Result<()> {
     if let Err(ClientError::RevokeDeviceSync(err)) = revoke_error {
         assert!(matches!(
             &*err,
-            ClientError::ResponseJson(StatusCode::FORBIDDEN, _)
+            ClientError::Protocol(ProtocolError::Network(
+                NetworkError::ResponseJson(StatusCode::FORBIDDEN, _)
+            ))
         ));
     } else {
         panic!("expecting revoke device sync error");
@@ -71,7 +77,9 @@ async fn pairing_device_revoke() -> Result<()> {
     if let Some(err) = sync_result.first_error() {
         assert!(matches!(
             err,
-            ClientError::ResponseJson(StatusCode::FORBIDDEN, _)
+            ClientError::Protocol(ProtocolError::Network(
+                NetworkError::ResponseJson(StatusCode::FORBIDDEN, _)
+            ))
         ));
     } else {
         panic!("expecting multiple sync error (forbidden)");

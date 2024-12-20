@@ -1,11 +1,11 @@
-//! Preferences for each account.
+//! Global preferences and account-specific preferences
+//! cached in-memory.
 //!
 //! Preference are stored as a JSON map
 //! of named keys to typed data similar to
 //! the shared preferences provided by an operating
 //! system library.
 use crate::{Error, Result};
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use sos_sdk::{
     constants::JSON_EXT, identity::PublicIdentity, signer::ecdsa::Address,
@@ -17,43 +17,77 @@ use tokio::sync::Mutex;
 /// File thats stores account-level preferences.
 pub const PREFERENCES_FILE: &str = "preferences";
 
-/// Path to the file used to store account-level preferences.
-///
-/// # Panics
-///
-/// If this set of paths are global (no user identifier).
-pub fn preferences_path(paths: &Paths) -> PathBuf {
-    if paths.is_global() {
-        panic!("preferences are not accessible for global paths");
-    }
-    let mut vault_path = paths.user_dir().join(PREFERENCES_FILE);
-    vault_path.set_extension(JSON_EXT);
-    vault_path
+/// Path to the file used to store global or
+/// account-level preferences.
+fn preferences_path(paths: &Paths) -> PathBuf {
+    let mut preferences_path = if paths.is_global() {
+        paths.documents_dir().join(PREFERENCES_FILE)
+    } else {
+        paths.user_dir().join(PREFERENCES_FILE)
+    };
+    preferences_path.set_extension(JSON_EXT);
+    preferences_path
 }
 
-static CACHE: Lazy<Mutex<HashMap<Address, Arc<Mutex<Preferences>>>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
-
-/// Cache of preferences stored by account address.
-pub struct CachedPreferences;
+/// Global preferences and account preferences loaded into memory.
+pub struct CachedPreferences {
+    data_dir: Option<PathBuf>,
+    globals: Arc<Mutex<Preferences>>,
+    accounts: Mutex<HashMap<Address, Arc<Mutex<Preferences>>>>,
+}
 
 impl CachedPreferences {
-    /// Initialize preferences for each referenced identity.
-    pub async fn initialize(
+    /// Create new cached preferences.
+    pub fn new(data_dir: Option<PathBuf>) -> Result<Self> {
+        Ok(Self {
+            data_dir,
+            globals: Arc::new(Mutex::new(Default::default())),
+            accounts: Mutex::new(HashMap::new()),
+        })
+    }
+
+    /// Load global preferences.
+    pub async fn load_global_preferences(&mut self) -> Result<()> {
+        let global_dir = if let Some(data_dir) = self.data_dir.clone() {
+            data_dir
+        } else {
+            Paths::data_dir()?
+        };
+        let paths = Paths::new_global(&global_dir);
+        let file = preferences_path(&paths);
+        let globals = if vfs::try_exists(&file).await? {
+            let mut prefs = Preferences::new(&paths);
+            prefs.load().await?;
+            prefs
+        } else {
+            Preferences::new(&paths)
+        };
+        self.globals = Arc::new(Mutex::new(globals));
+        Ok(())
+    }
+
+    /// Load and initialize account preferences from disc.
+    pub async fn load_account_preferences(
+        &self,
         accounts: &[PublicIdentity],
-        data_dir: Option<PathBuf>,
     ) -> Result<()> {
         for account in accounts {
-            Self::new_account(account.address(), data_dir.clone()).await?;
+            self.new_account(account.address()).await?;
         }
         Ok(())
     }
 
+    /// Global preferences for all accounts.
+    pub fn global_preferences(&self) -> Arc<Mutex<Preferences>> {
+        self.globals.clone()
+    }
+
     /// Preferences for an account.
     pub async fn account_preferences(
+        &self,
         address: &Address,
     ) -> Option<Arc<Mutex<Preferences>>> {
-        let cache = CACHE.lock().await;
+        let cache = self.accounts.lock().await;
         cache.get(address).map(Arc::clone)
     }
 
@@ -61,17 +95,14 @@ impl CachedPreferences {
     ///
     /// If a preferences file exists for an account it is loaded
     /// into memory otherwise empty preferences are used.
-    pub async fn new_account(
-        address: &Address,
-        data_dir: Option<PathBuf>,
-    ) -> Result<()> {
-        let data_dir = if let Some(data_dir) = data_dir {
+    pub async fn new_account(&self, address: &Address) -> Result<()> {
+        let data_dir = if let Some(data_dir) = self.data_dir.clone() {
             data_dir
         } else {
             Paths::data_dir()?
         };
 
-        let mut cache = CACHE.lock().await;
+        let mut cache = self.accounts.lock().await;
         let paths = Paths::new(&data_dir, address.to_string());
         let file = preferences_path(&paths);
         let prefs = if vfs::try_exists(&file).await? {
@@ -151,7 +182,7 @@ impl From<Vec<String>> for Preference {
 }
 
 /// Preferences for an account.
-#[derive(Default, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Preferences {
     /// Preference values.
     #[serde(flatten)]
@@ -180,7 +211,7 @@ impl Preferences {
     /// If the file does not exist this is a noop.
     pub async fn load(&mut self) -> Result<()> {
         if vfs::try_exists(&self.path).await? {
-            let content = vfs::read(&self.path).await?;
+            let content = vfs::read_exclusive(&self.path).await?;
             let prefs: Preferences = serde_json::from_slice(&content)?;
             self.values = prefs.values;
         }
@@ -312,7 +343,7 @@ impl Preferences {
     /// Save these preferences to disc.
     async fn save(&self) -> Result<()> {
         let buf = serde_json::to_vec_pretty(self)?;
-        vfs::write(&self.path, buf).await?;
+        vfs::write_exclusive(&self.path, buf).await?;
         Ok(())
     }
 }

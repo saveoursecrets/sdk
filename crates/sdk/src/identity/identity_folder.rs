@@ -7,10 +7,7 @@
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single primary password.
 use crate::{
-    constants::{
-        FILE_PASSWORD_URN, LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN,
-        VAULT_NSS,
-    },
+    constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN, VAULT_NSS},
     crypto::{AccessKey, KeyDerivation},
     decode, encode,
     events::{
@@ -25,9 +22,7 @@ use crate::{
     },
     storage::{DiscFolder, Folder, MemoryFolder},
     vault::{
-        secret::{
-            Secret, SecretId, SecretMeta, SecretRow, SecretSigner, UserData,
-        },
+        secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
         BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
         VaultId, VaultWriter,
     },
@@ -62,7 +57,7 @@ pub struct IdentityFolder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
     D: Clone + Send + Sync,
 {
     /// Folder storage.
@@ -80,7 +75,7 @@ impl<T, R, W, D> IdentityFolder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
     D: Clone + Send + Sync,
 {
     /// Private identity.
@@ -257,7 +252,7 @@ where
         let key: AccessKey = device_password.into();
         let mut device_keeper = if mirror {
             let buffer = encode(&vault).await?;
-            vfs::write(&device_vault_path, &buffer).await?;
+            vfs::write_exclusive(&device_vault_path, &buffer).await?;
             let vault_file = VaultWriter::open(&device_vault_path).await?;
             let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
             Gatekeeper::new_mirror(vault, mirror)
@@ -397,6 +392,7 @@ where
     pub(crate) async fn create_file_encryption_password(
         &mut self,
     ) -> Result<()> {
+        use crate::{constants::FILE_PASSWORD_URN, vault::secret::UserData};
         let file_passphrase = self.generate_folder_password()?;
         let secret = Secret::Password {
             password: file_passphrase,
@@ -421,6 +417,7 @@ where
     pub(crate) async fn find_file_encryption_password(
         &self,
     ) -> Result<SecretString> {
+        use crate::constants::FILE_PASSWORD_URN;
         let urn: Urn = FILE_PASSWORD_URN.parse()?;
 
         let id = self
@@ -574,7 +571,7 @@ impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
             .await?;
 
         let buffer = encode(&vault).await?;
-        vfs::write(paths.identity_vault(), buffer).await?;
+        vfs::write_exclusive(paths.identity_vault(), buffer).await?;
 
         let mut folder = DiscFolder::new(paths.identity_vault()).await?;
         let key: AccessKey = password.into();

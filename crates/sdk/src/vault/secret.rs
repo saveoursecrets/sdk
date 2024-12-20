@@ -5,7 +5,6 @@ use ed25519_dalek::SECRET_KEY_LENGTH;
 use pem::Pem;
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use serde::{
-    de::{self, Deserializer, Visitor},
     ser::{SerializeMap, SerializeSeq},
     Deserialize, Serialize, Serializer,
 };
@@ -35,8 +34,20 @@ use crate::{
 use std::path::PathBuf;
 
 /// Path to a secret.
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SecretPath(pub VaultId, pub SecretId);
+
+impl SecretPath {
+    /// Folder identifier.
+    pub fn folder_id(&self) -> &VaultId {
+        &self.0
+    }
+
+    /// Secret identifier.
+    pub fn secret_id(&self) -> &SecretId {
+        &self.1
+    }
+}
 
 bitflags! {
     /// Bit flags for a secret.
@@ -164,6 +175,7 @@ impl FromStr for SecretRef {
 /// Matches the enum variants for a secret and is used
 /// so we can know the type of secret from the meta data
 /// before secret data has been decrypted.
+#[typeshare::typeshare]
 #[derive(
     Default, Clone, Debug, Copy, Serialize, Deserialize, Eq, PartialEq, Hash,
 )]
@@ -305,6 +317,7 @@ impl TryFrom<u8> for SecretType {
 }
 
 /// Encapsulates the meta data for a secret.
+#[typeshare::typeshare]
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SecretMeta {
@@ -402,7 +415,7 @@ impl SecretMeta {
         }
     }
 
-    /// The label for the secret.
+    /// Label for the secret.
     pub fn label(&self) -> &str {
         &self.label
     }
@@ -412,14 +425,19 @@ impl SecretMeta {
         self.label = label;
     }
 
-    /// The kind of the secret.
+    /// Kind of the secret.
     pub fn kind(&self) -> &SecretType {
         &self.kind
     }
 
-    /// The created date and time.
+    /// Created date and time.
     pub fn date_created(&self) -> &UtcDateTime {
         &self.date_created
+    }
+
+    /// Set the created date and time.
+    pub fn set_date_created(&mut self, date_created: UtcDateTime) {
+        self.date_created = date_created;
     }
 
     /// Update the last updated timestamp to now.
@@ -427,12 +445,17 @@ impl SecretMeta {
         self.last_updated = Default::default();
     }
 
-    /// The last updated date and time.
+    /// Last updated date and time.
     pub fn last_updated(&self) -> &UtcDateTime {
         &self.last_updated
     }
 
-    /// Get the tags.
+    /// Set the updated date and time.
+    pub fn set_last_updated(&mut self, last_updated: UtcDateTime) {
+        self.last_updated = last_updated;
+    }
+
+    /// Secret tags.
     pub fn tags(&self) -> &HashSet<String> {
         &self.tags
     }
@@ -577,6 +600,7 @@ impl PartialEq for SecretSigner {
 }
 
 /// Secret with it's associated meta data and identifier.
+#[typeshare::typeshare]
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct SecretRow {
     /// Identifier for the secret.
@@ -638,9 +662,11 @@ impl From<SecretRow> for Secret {
 }
 
 /// Collection of custom user data.
+#[typeshare::typeshare]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct UserData {
-    /// Collection of custom user_data.
+    /// Collection of custom user fields.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) fields: Vec<SecretRow>,
     /// Comment for the secret.
@@ -718,7 +744,9 @@ impl UserData {
 }
 
 /// Enumeration of types of identification.
-#[derive(PartialEq, Eq, Clone)]
+#[typeshare::typeshare]
+#[derive(PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum IdentityKind {
     /// Personal identification number (PIN).
     PersonalIdNumber,
@@ -791,48 +819,6 @@ impl TryFrom<u8> for IdentityKind {
     }
 }
 
-impl Serialize for IdentityKind {
-    fn serialize<S>(
-        &self,
-        serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_u8(self.into())
-    }
-}
-
-impl<'de> Deserialize<'de> for IdentityKind {
-    fn deserialize<D>(
-        deserializer: D,
-    ) -> std::result::Result<IdentityKind, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_u8(IdentityKindVisitor)
-    }
-}
-
-struct IdentityKindVisitor;
-
-impl<'de> Visitor<'de> for IdentityKindVisitor {
-    type Value = IdentityKind;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter
-            .write_str("an integer between 0 and 255 for identification kind")
-    }
-
-    fn visit_u8<E>(self, value: u8) -> std::result::Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        let value: IdentityKind = value.try_into().unwrap();
-        Ok(value)
-    }
-}
-
 /// Enumeration of AGE versions.
 #[derive(Default, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum AgeVersion {
@@ -843,6 +829,7 @@ pub enum AgeVersion {
 
 /// Variants for embedded and external file secrets.
 #[derive(Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum FileContent {
     /// Embedded file buffer.
     Embedded {
@@ -1046,7 +1033,7 @@ impl Clone for FileContent {
 /// * `Url`                                 -> `Secret::Link`
 ///
 #[derive(Serialize, Deserialize)]
-#[serde(untagged, rename_all = "lowercase")]
+#[serde(untagged)]
 pub enum Secret {
     /// A UTF-8 encoded note.
     #[serde(rename_all = "camelCase")]
@@ -1510,6 +1497,154 @@ impl Secret {
         }
     }
 
+    /// Try to redact a secret.
+    ///
+    /// When `preserve_length` is set fields that are redacted preserve the
+    /// original byte length so UIs that show the field will leak the
+    /// secret length. Otherwise the value of `default_length` will be used.
+    ///
+    /// Not all secret types may be redacted; unsupported types are:
+    ///
+    /// * File
+    /// * Contact
+    /// * Totp
+    /// * Link
+    /// * Age
+    /// * Signer
+    ///
+    /// Attempting to redact a secret for these types will return `false`;
+    /// this may change in the future.
+    ///
+    pub fn redact(
+        &mut self,
+        preserve_length: bool,
+        default_length: usize,
+    ) -> bool {
+        let redact_string = |s: &mut SecretString| {
+            let value = s.expose_secret();
+            let len = if preserve_length {
+                value.len()
+            } else {
+                default_length
+            };
+            let redacted = "0".repeat(len);
+            *s = SecretString::new(redacted.into());
+        };
+
+        let redact_buffer = |s: &mut SecretBox<Vec<u8>>| {
+            let value = s.expose_secret();
+            let len = if preserve_length {
+                value.len()
+            } else {
+                default_length
+            };
+            let redacted = "0".repeat(len);
+            *s = SecretBox::new(redacted.as_bytes().to_vec().into());
+        };
+
+        match self {
+            Secret::Account { password, .. } => {
+                redact_string(password);
+                true
+            }
+            Secret::Note { text, .. } => {
+                redact_string(text);
+                true
+            }
+            Secret::File { .. } => false,
+            Secret::List { items, .. } => {
+                for (_, value) in items {
+                    redact_string(value);
+                }
+                true
+            }
+            Secret::Pem { certificates, .. } => {
+                for cert in certificates {
+                    let tag = cert.tag().to_owned();
+                    let mut pem =
+                        SecretBox::new(cert.contents().to_vec().into());
+                    redact_buffer(&mut pem);
+                    *cert = Pem::new(tag, pem.expose_secret().to_vec());
+                }
+                true
+            }
+            Secret::Page { document, .. } => {
+                redact_string(document);
+                true
+            }
+            Secret::Contact { .. } => false,
+            Secret::Totp { .. } => false,
+            Secret::Card { number, .. } => {
+                redact_string(number);
+                true
+            }
+            Secret::Bank { number, .. } => {
+                redact_string(number);
+                true
+            }
+            Secret::Link { .. } => false,
+            Secret::Password { password, .. } => {
+                redact_string(password);
+                true
+            }
+            Secret::Identity { number, .. } => {
+                redact_string(number);
+                true
+            }
+            Secret::Age { .. } => false,
+            Secret::Signer { .. } => false,
+        }
+    }
+
+    /// Value formatted to copy to the clipboard.
+    pub fn copy_value_unsafe(&self) -> Option<String> {
+        match self {
+            Secret::Account { password, .. } => {
+                Some(password.expose_secret().to_owned())
+            }
+            Secret::Note { text, .. } => {
+                Some(text.expose_secret().to_owned())
+            }
+            Secret::File { content, .. } => Some(content.name().to_string()),
+            Secret::List { items, .. } => {
+                let mut s = String::new();
+                for (name, value) in items {
+                    s.push_str(name);
+                    s.push('=');
+                    s.push_str(value.expose_secret());
+                    s.push('\n');
+                }
+                Some(s)
+            }
+            Secret::Pem { certificates, .. } => {
+                let text: Vec<String> =
+                    certificates.iter().map(|s| s.to_string()).collect::<_>();
+                Some(text.join("\n"))
+            }
+            Secret::Page { document, .. } => {
+                Some(document.expose_secret().to_owned())
+            }
+            Secret::Contact { vcard, .. } => Some(vcard.to_string()),
+            Secret::Totp { totp, .. } => Some(totp.get_url()),
+            Secret::Card { number, .. } => {
+                Some(number.expose_secret().to_string())
+            }
+            // TODO: concatenate fields
+            Secret::Bank { number, .. } => {
+                Some(number.expose_secret().to_string())
+            }
+            Secret::Link { url, .. } => Some(url.expose_secret().to_string()),
+            Secret::Password { password, .. } => {
+                Some(password.expose_secret().to_string())
+            }
+            Secret::Identity { number, .. } => {
+                Some(number.expose_secret().to_string())
+            }
+            Secret::Age { .. } => None,
+            Secret::Signer { .. } => None,
+        }
+    }
+
     /// Plain text unencrypted display for secrets
     /// that can be represented as UTF-8 text.
     ///
@@ -1574,6 +1709,18 @@ impl Secret {
             }
         }
         Ok(credentials)
+    }
+
+    /// Collection of website URLs associated with
+    /// this secret.
+    ///
+    /// Used by the search index to locate secrets by
+    /// associated URL.
+    pub fn websites(&self) -> Option<Vec<&Url>> {
+        match self {
+            Self::Account { url, .. } => Some(url.iter().collect()),
+            _ => None,
+        }
     }
 
     /// Encode a map into key value pairs.

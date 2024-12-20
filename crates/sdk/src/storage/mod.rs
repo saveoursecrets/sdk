@@ -9,7 +9,7 @@ use crate::{
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use std::{path::Path, sync::Arc};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::RwLock;
 
 mod client;
 #[cfg(feature = "files")]
@@ -21,9 +21,6 @@ pub mod search;
 
 pub use client::ClientStorage;
 pub use folder::{DiscFolder, Folder, MemoryFolder};
-
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-pub use paths::FileLock;
 
 use crate::events::DeviceEventLog;
 
@@ -66,7 +63,7 @@ pub struct AccessOptions {
     pub folder: Option<Summary>,
     /// Channel for file progress operations.
     #[cfg(feature = "files")]
-    pub file_progress: Option<mpsc::Sender<files::FileProgress>>,
+    pub file_progress: Option<tokio::sync::mpsc::Sender<files::FileProgress>>,
 }
 
 impl From<Summary> for AccessOptions {
@@ -116,7 +113,8 @@ pub fn guess_mime(path: impl AsRef<Path>) -> Result<String> {
 }
 
 /// References to the storage event logs.
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait StorageEventLogs {
     /// Clone of the identity log.
     async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>>;
@@ -143,10 +141,9 @@ pub trait StorageEventLogs {
         Ok(reducer.reduce(None).await?)
     }
 
-    /// Folder identifiers managed by this storage.
-    async fn folder_identifiers(&self) -> Result<IndexSet<VaultId>>;
-
-    /// Folder information managed by this storage.
+    /// Folders managed by this storage.
+    ///
+    /// Built from the in-memory list of folders.
     async fn folder_details(&self) -> Result<IndexSet<Summary>>;
 
     /// Folder event log.

@@ -15,10 +15,16 @@
 //! Requests are limited to the `concurrent_requests` setting guarded
 //! by a semaphore and notifications are sent via [InflightTransfers].
 use crate::{
-    net::NetworkRetry,
-    protocol::{FileOperation, Origin, TransferOperation},
+    protocol::{
+        network_client::NetworkRetry,
+        transfer::{
+            CancelReason, FileOperation, FileSyncClient,
+            FileTransferQueueRequest, ProgressChannel, TransferOperation,
+        },
+        Origin, SyncClient,
+    },
     sdk::{storage::files::ExternalFile, vfs, Paths},
-    CancelReason, Error, Result, SyncClient,
+    Error, Result,
 };
 
 use futures::FutureExt;
@@ -40,12 +46,6 @@ pub use inflight::{
     InflightNotification, InflightRequest, InflightTransfers,
 };
 use std::collections::{HashSet, VecDeque};
-
-/// Request to queue a file transfer.
-pub type FileTransferQueueRequest = Vec<FileOperation>;
-
-/// Channel for upload and download progress notifications.
-pub type ProgressChannel = mpsc::Sender<(u64, Option<u64>)>;
 
 /// Channel used to cancel uploads and downloads.
 ///
@@ -222,7 +222,13 @@ impl FileTransfersHandle {
 /// when each operation has been completed on every client.
 pub struct FileTransfers<C>
 where
-    C: SyncClient + Clone + Send + Sync + PartialEq + 'static,
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
+        + Clone
+        + Send
+        + Sync
+        + PartialEq
+        + 'static,
 {
     clients: Arc<Mutex<Vec<C>>>,
     settings: Arc<FileTransferSettings>,
@@ -233,7 +239,13 @@ where
 
 impl<C> FileTransfers<C>
 where
-    C: SyncClient + Clone + Send + Sync + PartialEq + 'static,
+    C: SyncClient<Error = sos_protocol::Error>
+        + FileSyncClient<Error = sos_protocol::Error>
+        + Clone
+        + Send
+        + Sync
+        + PartialEq
+        + 'static,
 {
     /// Create new file transfers manager.
     pub fn new(clients: Vec<C>, settings: FileTransferSettings) -> Self {

@@ -68,10 +68,11 @@ impl FolderReducer {
     where
         T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
         R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-        W: AsyncWrite + Unpin + Send + Sync + 'static,
+        W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
         D: Clone + Send + Sync,
     {
         // TODO: use event_log.stream() !
+        //
 
         let mut it = event_log.iter(false).await?;
         if let Some(log) = it.next().await? {

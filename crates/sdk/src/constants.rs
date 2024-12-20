@@ -61,6 +61,9 @@ mod vault {
 }
 
 mod urn {
+    /// URN namespace identifier.
+    pub const URN_NID: &str = "sos";
+
     /// Login vault signing key name.
     pub const LOGIN_SIGNING_KEY_URN: &str = "urn:sos:identity:signer";
 
@@ -82,12 +85,6 @@ mod urn {
 
     /// Device signing key.
     pub const DEVICE_KEY_URN: &str = "urn:sos:device:key";
-}
-
-/// Constants for MIME types.
-mod mime {
-    /// Mime type for protocol buffers.
-    pub const MIME_TYPE_PROTOBUF: &str = "application/x-protobuf";
 }
 
 /// Constants for directory names.
@@ -133,9 +130,6 @@ mod folders {
     /// Name of the vault file that stores the device
     /// signing key.
     pub const DEVICE_FILE: &str = "device";
-
-    /// Lock file for an account.
-    pub const LOCK_FILE: &str = "account.lock";
 }
 
 /// File names.
@@ -154,11 +148,13 @@ mod env_vars {
     pub const SOS_PROMPT: &str = "SOS_PROMPT";
 }
 
+/// Service name prefix for platform keyring entries.
+pub const KEYRING_SERVICE: &str = "Save Our Secrets";
+
 pub use self::urn::*;
 pub use env_vars::*;
 pub use extensions::*;
 pub use files::*;
 pub use folders::*;
 pub use identity::*;
-pub use mime::*;
 pub use vault::*;
