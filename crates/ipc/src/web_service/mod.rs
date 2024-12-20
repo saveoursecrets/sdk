@@ -130,13 +130,10 @@ where
             let id = account_id.clone();
             tokio::task::spawn(async move {
                 while let Ok(event) = rx.recv().await {
-                    eprintln!("got watch event...{} : {:#?}", id, event);
-
                     let evt = AccountFileSystemChangeEvent {
                         account_id: id.clone(),
                         event,
                     };
-
                     if let Err(e) = channel.send(evt) {
                         tracing::error!(error = ?e);
                     }
@@ -156,7 +153,7 @@ where
                         }
                     }
                 })?;
-            watcher.watch(paths.user_dir(), RecursiveMode::Recursive)?;
+            watcher.watch(paths.vaults_dir(), RecursiveMode::Recursive)?;
             watchers.insert(account_id, watcher);
         }
         Ok(())
@@ -170,7 +167,7 @@ where
     ) -> Result<bool> {
         let mut watchers = self.watchers.lock();
         if let Some(mut watcher) = watchers.remove(account_id) {
-            watcher.unwatch(paths.user_dir())?;
+            watcher.unwatch(paths.vaults_dir())?;
             Ok(true)
         } else {
             Ok(false)
