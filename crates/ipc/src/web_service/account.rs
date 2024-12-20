@@ -235,9 +235,18 @@ where
     };
 
     let key: AccessKey = password.clone().into();
+
+    let folder_ids = if let Ok(folders) = account.list_folders().await {
+        folders.into_iter().map(|f| *f.id()).collect::<Vec<_>>()
+    } else {
+        vec![]
+    };
+
     match account.sign_in(&key).await {
         Ok(_) => {
-            if let Err(e) = accounts.watch(account_id, account.paths()) {
+            if let Err(e) =
+                accounts.watch(account_id, account.paths(), folder_ids)
+            {
                 tracing::error!(error = ?e);
             }
         }
@@ -348,26 +357,47 @@ where
             return status(StatusCode::NOT_FOUND);
         };
 
+        let folder_ids = if let Ok(folders) = account.list_folders().await {
+            folders.into_iter().map(|f| *f.id()).collect::<Vec<_>>()
+        } else {
+            vec![]
+        };
+
         match account.sign_out().await {
             Ok(_) => {
-                if let Err(e) = accounts.unwatch(&account_id, account.paths())
+                if let Err(e) =
+                    accounts.unwatch(&account_id, account.paths(), folder_ids)
                 {
-                    tracing::error!(error = ?e);
+                    return internal_server_error(e);
                 }
                 status(StatusCode::OK)
             }
             Err(e) => internal_server_error(e),
         }
     } else {
-        let watch_info = user_accounts
-            .iter()
-            .map(|a| (a.address().clone(), a.paths()))
-            .collect::<Vec<_>>();
+        let mut account_info = Vec::new();
+        for account in user_accounts.iter() {
+            let folder_ids = if let Ok(folders) = account.list_folders().await
+            {
+                folders.into_iter().map(|f| *f.id()).collect::<Vec<_>>()
+            } else {
+                vec![]
+            };
+
+            account_info.push((
+                *account.address(),
+                account.paths(),
+                folder_ids,
+            ));
+        }
+
         match user_accounts.sign_out_all().await {
             Ok(_) => {
-                for (account_id, paths) in watch_info {
-                    if let Err(e) = accounts.unwatch(&account_id, paths) {
-                        tracing::error!(error = ?e);
+                for (account_id, paths, folder_ids) in account_info {
+                    if let Err(e) =
+                        accounts.unwatch(&account_id, paths, folder_ids)
+                    {
+                        return internal_server_error(e);
                     }
                 }
                 status(StatusCode::OK)

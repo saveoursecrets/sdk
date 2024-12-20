@@ -9,7 +9,10 @@ use notify::{
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{Account, AccountSwitcher, Address, ErrorExt, Paths};
+use sos_sdk::{
+    prelude::{Account, AccountSwitcher, Address, ErrorExt, Paths},
+    vault::VaultId,
+};
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 use tokio::sync::{broadcast, RwLock};
 use tower::service_fn;
@@ -121,6 +124,7 @@ where
         &self,
         account_id: Address,
         paths: Arc<Paths>,
+        folder_ids: Vec<VaultId>,
     ) -> Result<()> {
         let mut watchers = self.watchers.lock();
         let has_watcher = watchers.get(&account_id).is_some();
@@ -153,7 +157,13 @@ where
                         }
                     }
                 })?;
-            watcher.watch(paths.vaults_dir(), RecursiveMode::Recursive)?;
+
+            for id in &folder_ids {
+                watcher.watch(
+                    &paths.event_log_path(id),
+                    RecursiveMode::NonRecursive,
+                )?;
+            }
             watchers.insert(account_id, watcher);
         }
         Ok(())
@@ -164,10 +174,13 @@ where
         &self,
         account_id: &Address,
         paths: Arc<Paths>,
+        folder_ids: Vec<VaultId>,
     ) -> Result<bool> {
         let mut watchers = self.watchers.lock();
         if let Some(mut watcher) = watchers.remove(account_id) {
-            watcher.unwatch(paths.vaults_dir())?;
+            for id in &folder_ids {
+                watcher.unwatch(&paths.event_log_path(id))?;
+            }
             Ok(true)
         } else {
             Ok(false)
