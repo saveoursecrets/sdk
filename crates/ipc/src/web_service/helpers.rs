@@ -17,6 +17,20 @@ pub async fn open_url(
 
     tracing::debug!(url = %value, "open_url");
 
+    #[cfg(debug_assertions)]
+    if let Some(app) = option_env!("SOS_DEBUG_APP") {
+        match open::with_detached(value, app) {
+            Ok(_) => status(StatusCode::OK),
+            Err(_) => status(StatusCode::BAD_GATEWAY),
+        }
+    } else {
+        match open::that_detached(value) {
+            Ok(_) => status(StatusCode::OK),
+            Err(_) => status(StatusCode::BAD_GATEWAY),
+        }
+    }
+
+    #[cfg(not(debug_assertions))]
     match open::that_detached(value) {
         Ok(_) => status(StatusCode::OK),
         Err(_) => status(StatusCode::BAD_GATEWAY),
