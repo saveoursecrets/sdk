@@ -3,11 +3,13 @@ use crate::{
     crypto::AeadPack,
     vault::{secret::SecretId, VaultCommit, VaultFlags},
 };
+use serde::{Deserialize, Serialize};
 
 use super::{EventKind, LogEvent};
 
 /// Write operations.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub enum WriteEvent {
     /// Default variant, should never be used.
     ///
@@ -23,7 +25,7 @@ pub enum WriteEvent {
     /// if the vault contains secrets they should be
     /// separated using an [FolderReducer::split]() beforehand
     /// and appended to the event log as create secret events.
-    CreateVault(Vec<u8>),
+    CreateVault(#[serde(skip)] Vec<u8>),
 
     /// Event used to indicate the vault name was set.
     SetVaultName(String),
@@ -32,13 +34,13 @@ pub enum WriteEvent {
     SetVaultFlags(VaultFlags),
 
     /// Event used to indicate the vault meta data was set.
-    SetVaultMeta(AeadPack),
+    SetVaultMeta(#[serde(skip)] AeadPack),
 
     /// Event used to indicate a secret was created.
-    CreateSecret(SecretId, VaultCommit),
+    CreateSecret(SecretId, #[serde(skip)] VaultCommit),
 
     /// Event used to indicate a secret was updated.
-    UpdateSecret(SecretId, VaultCommit),
+    UpdateSecret(SecretId, #[serde(skip)] VaultCommit),
 
     /// Event used to indicate a secret was deleted.
     DeleteSecret(SecretId),

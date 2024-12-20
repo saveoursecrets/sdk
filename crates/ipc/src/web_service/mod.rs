@@ -10,7 +10,10 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::{
-    prelude::{Account, AccountSwitcher, Address, ErrorExt, Paths},
+    events::{AccountEvent, EventLogExt, WriteEvent},
+    prelude::{
+        Account, AccountSwitcher, Address, Error as SdkError, ErrorExt, Paths,
+    },
     vault::VaultId,
 };
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
@@ -19,7 +22,7 @@ use tower::service_fn;
 use tower::util::BoxCloneService;
 use tower::Service as _;
 
-use crate::{Result, ServiceAppInfo};
+use crate::{Error, FileEventError, Result, ServiceAppInfo};
 
 type Body = Full<Bytes>;
 
@@ -30,13 +33,24 @@ type MethodRoute =
 type Router = HashMap<Method, matchit::Router<MethodRoute>>;
 
 /// Event broadcast when an account changes on disc.
+#[typeshare::typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountFileSystemChangeEvent {
     /// Account identifier.
     pub account_id: Address,
-    /// Notify event.
-    pub event: Event,
+    /// Event records with information about the changes.
+    pub records: ChangeRecords,
+}
+
+#[typeshare::typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "kind", content = "body")]
+pub enum ChangeRecords {
+    /// Account level events.
+    Account(Vec<AccountEvent>),
+    /// Folder level events.
+    Folder(Vec<WriteEvent>),
 }
 
 /// User accounts for the web service.
@@ -132,16 +146,79 @@ where
             let (tx, mut rx) = broadcast::channel::<Event>(32);
             let channel = self.channel.clone();
             let id = account_id.clone();
+            let task_accounts = self.accounts.clone();
             tokio::task::spawn(async move {
                 while let Ok(event) = rx.recv().await {
+                    let path = event
+                        .paths
+                        .get(0)
+                        .ok_or(FileEventError::NoEventPath)?;
+                    let name = path.file_stem().ok_or(
+                        FileEventError::EventPathStem(path.to_owned()),
+                    )?;
+
+                    // Get a diff of the events either for the
+                    // account log or for a specific folder
+                    let records = if name == "account" {
+                        let accounts = task_accounts.read().await;
+                        let account = accounts
+                            .iter()
+                            .find(|a| a.address() == &id)
+                            .ok_or(FileEventError::NoAccount(id))?;
+
+                        let storage = account.storage().await.unwrap();
+                        let storage = storage.read().await;
+
+                        let event_log = storage.account_log.read().await;
+                        let commit = event_log.tree().last_commit();
+
+                        let patch =
+                            event_log.diff_events(commit.as_ref()).await?;
+                        let records =
+                            patch.into_events::<AccountEvent>().await?;
+
+                        ChangeRecords::Account(records)
+                    } else {
+                        let folder_id: VaultId = name
+                            .to_string_lossy()
+                            .into_owned()
+                            .parse()
+                            .map_err(SdkError::from)?;
+
+                        let accounts = task_accounts.read().await;
+                        let account = accounts
+                            .iter()
+                            .find(|a| a.address() == &id)
+                            .ok_or(FileEventError::NoAccount(id))?;
+
+                        let storage = account.storage().await.unwrap();
+                        let storage = storage.read().await;
+                        let folder = storage
+                            .cache()
+                            .get(&folder_id)
+                            .ok_or(FileEventError::NoFolder(folder_id))?;
+
+                        let event_log = folder.event_log();
+                        let event_log = event_log.read().await;
+                        let commit = event_log.tree().last_commit();
+                        let patch =
+                            event_log.diff_events(commit.as_ref()).await?;
+                        let records =
+                            patch.into_events::<WriteEvent>().await?;
+
+                        ChangeRecords::Folder(records)
+                    };
+
                     let evt = AccountFileSystemChangeEvent {
                         account_id: id.clone(),
-                        event,
+                        records,
                     };
                     if let Err(e) = channel.send(evt) {
                         tracing::error!(error = ?e);
                     }
                 }
+
+                Ok::<_, Error>(())
             });
 
             let mut watcher =
@@ -157,6 +234,11 @@ where
                         }
                     }
                 })?;
+
+            watcher.watch(
+                &paths.account_events(),
+                RecursiveMode::NonRecursive,
+            )?;
 
             for id in &folder_ids {
                 watcher.watch(
@@ -178,6 +260,7 @@ where
     ) -> Result<bool> {
         let mut watchers = self.watchers.lock();
         if let Some(mut watcher) = watchers.remove(account_id) {
+            watcher.unwatch(&paths.account_events())?;
             for id in &folder_ids {
                 watcher.unwatch(&paths.event_log_path(id))?;
             }

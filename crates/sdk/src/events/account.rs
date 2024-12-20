@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 /// Events generated in the context of an account.
 #[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum AccountEvent {
     #[default]
     #[doc(hidden)]
@@ -23,12 +24,12 @@ pub enum AccountEvent {
     /// the folder event log.
     ///
     /// Buffer is a vault.
-    UpdateIdentity(Vec<u8>),
+    UpdateIdentity(#[serde(skip)] Vec<u8>),
 
     /// Create folder.
     ///
     /// Buffer is a head-only vault.
-    CreateFolder(VaultId, Vec<u8>),
+    CreateFolder(VaultId, #[serde(skip)] Vec<u8>),
 
     /// Rename a folder.
     RenameFolder(VaultId, String),
@@ -42,7 +43,7 @@ pub enum AccountEvent {
     /// the folder event log.
     ///
     /// Buffer is a vault.
-    UpdateFolder(VaultId, Vec<u8>),
+    UpdateFolder(VaultId, #[serde(skip)] Vec<u8>),
 
     /// Folder events were compacted.
     ///
@@ -50,7 +51,7 @@ pub enum AccountEvent {
     /// the folder event log.
     ///
     /// Buffer is a vault.
-    CompactFolder(VaultId, Vec<u8>),
+    CompactFolder(VaultId, #[serde(skip)] Vec<u8>),
 
     /// Change folder password.
     ///
@@ -58,7 +59,7 @@ pub enum AccountEvent {
     /// the folder event log.
     ///
     /// Buffer is a vault.
-    ChangeFolderPassword(VaultId, Vec<u8>),
+    ChangeFolderPassword(VaultId, #[serde(skip)] Vec<u8>),
 
     /// Delete folder.
     DeleteFolder(VaultId),
