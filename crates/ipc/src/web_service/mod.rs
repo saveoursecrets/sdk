@@ -36,7 +36,7 @@ type Router = HashMap<Method, matchit::Router<MethodRoute>>;
 #[typeshare::typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AccountFileSystemChangeEvent {
+pub struct AccountChangeEvent {
     /// Account identifier.
     pub account_id: Address,
     /// Event records with information about the changes.
@@ -72,7 +72,7 @@ where
 {
     accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
     watchers: Arc<Mutex<HashMap<Address, RecommendedWatcher>>>,
-    channel: broadcast::Sender<AccountFileSystemChangeEvent>,
+    channel: broadcast::Sender<AccountChangeEvent>,
 }
 
 impl<A, R, E> Clone for WebAccounts<A, R, E>
@@ -118,7 +118,7 @@ where
 {
     /// Create new accounts.
     pub fn new(accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>) -> Self {
-        let (tx, _) = broadcast::channel::<AccountFileSystemChangeEvent>(64);
+        let (tx, _) = broadcast::channel::<AccountChangeEvent>(64);
         Self {
             accounts,
             watchers: Arc::new(Mutex::new(HashMap::new())),
@@ -127,9 +127,7 @@ where
     }
 
     /// Subscribe to change events.
-    pub fn subscribe(
-        &self,
-    ) -> broadcast::Receiver<AccountFileSystemChangeEvent> {
+    pub fn subscribe(&self) -> broadcast::Receiver<AccountChangeEvent> {
         self.channel.subscribe()
     }
 
@@ -209,7 +207,7 @@ where
                         ChangeRecords::Folder(records)
                     };
 
-                    let evt = AccountFileSystemChangeEvent {
+                    let evt = AccountChangeEvent {
                         account_id: id.clone(),
                         records,
                     };

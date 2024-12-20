@@ -176,7 +176,7 @@ export type ChangeRecords =
 	| { kind: "folder", body: WriteEvent[] };
 
 /** Event broadcast when an account changes on disc. */
-export interface AccountFileSystemChangeEvent {
+export interface AccountChangeEvent {
 	/** Account identifier. */
 	accountId: string;
 	/** Event records with information about the changes. */
