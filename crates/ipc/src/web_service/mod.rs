@@ -3,16 +3,20 @@ use http::{Method, Request, Response, StatusCode};
 use http_body_util::Full;
 use hyper::body::Incoming;
 use hyper::service::Service;
+use notify::{
+    recommended_watcher, Event, RecommendedWatcher, RecursiveMode, Watcher,
+};
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{Account, AccountSwitcher, ErrorExt};
+use sos_sdk::prelude::{Account, AccountSwitcher, Address, ErrorExt, Paths};
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, RwLock};
 use tower::service_fn;
 use tower::util::BoxCloneService;
 use tower::Service as _;
 
-use crate::ServiceAppInfo;
+use crate::{Result, ServiceAppInfo};
 
 type Body = Full<Bytes>;
 
@@ -22,7 +26,179 @@ type MethodRoute =
 
 type Router = HashMap<Method, matchit::Router<MethodRoute>>;
 
-type Accounts<A, R, E> = Arc<RwLock<AccountSwitcher<A, R, E>>>;
+/// Event broadcast when an account changes on disc.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountFileSystemChangeEvent {
+    /// Account identifier.
+    pub account_id: Address,
+    /// Notify event.
+    pub event: Event,
+}
+
+/// User accounts for the web service.
+pub struct WebAccounts<A, R, E>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + std::error::Error
+        + ErrorExt
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+    watchers: Arc<Mutex<HashMap<Address, RecommendedWatcher>>>,
+    channel: broadcast::Sender<AccountFileSystemChangeEvent>,
+}
+
+impl<A, R, E> Clone for WebAccounts<A, R, E>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + std::error::Error
+        + ErrorExt
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    fn clone(&self) -> Self {
+        Self {
+            accounts: self.accounts.clone(),
+            watchers: self.watchers.clone(),
+            channel: self.channel.clone(),
+        }
+    }
+}
+
+impl<A, R, E> WebAccounts<A, R, E>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + std::error::Error
+        + ErrorExt
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    /// Create new accounts.
+    pub fn new(accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>) -> Self {
+        let (tx, _) = broadcast::channel::<AccountFileSystemChangeEvent>(64);
+        Self {
+            accounts,
+            watchers: Arc::new(Mutex::new(HashMap::new())),
+            channel: tx,
+        }
+    }
+
+    /// Subscribe to change events.
+    pub fn subscribe(
+        &self,
+    ) -> broadcast::Receiver<AccountFileSystemChangeEvent> {
+        self.channel.subscribe()
+    }
+
+    /// Start watching an account for changes.
+    pub fn watch(
+        &self,
+        account_id: Address,
+        paths: Arc<Paths>,
+    ) -> Result<()> {
+        let mut watchers = self.watchers.lock();
+        let has_watcher = watchers.get(&account_id).is_some();
+        if !has_watcher {
+            let (tx, mut rx) = broadcast::channel::<Event>(32);
+            let channel = self.channel.clone();
+            let id = account_id.clone();
+            tokio::task::spawn(async move {
+                while let Ok(event) = rx.recv().await {
+                    eprintln!("got watch event...{} : {:#?}", id, event);
+
+                    let evt = AccountFileSystemChangeEvent {
+                        account_id: id.clone(),
+                        event,
+                    };
+
+                    if let Err(e) = channel.send(evt) {
+                        tracing::error!(error = ?e);
+                    }
+                }
+            });
+
+            let mut watcher =
+                recommended_watcher(move |res: notify::Result<Event>| {
+                    match res {
+                        Ok(event) => {
+                            if let Err(e) = tx.send(event) {
+                                tracing::error!(error = %e);
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!(error = %e);
+                        }
+                    }
+                })?;
+            watcher.watch(paths.user_dir(), RecursiveMode::Recursive)?;
+            watchers.insert(account_id, watcher);
+        }
+        Ok(())
+    }
+
+    /// Stop watching an account for changes.
+    pub fn unwatch(
+        &self,
+        account_id: &Address,
+        paths: Arc<Paths>,
+    ) -> Result<bool> {
+        let mut watchers = self.watchers.lock();
+        if let Some(mut watcher) = watchers.remove(account_id) {
+            watcher.unwatch(paths.user_dir())?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl<A, R, E> AsRef<Arc<RwLock<AccountSwitcher<A, R, E>>>>
+    for WebAccounts<A, R, E>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + std::error::Error
+        + ErrorExt
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    fn as_ref(&self) -> &Arc<RwLock<AccountSwitcher<A, R, E>>> {
+        &self.accounts
+    }
+}
 
 mod account;
 mod common;
@@ -57,7 +233,7 @@ impl LocalWebService {
     /// Create a local server.
     pub fn new<A, R, E>(
         app_info: ServiceAppInfo,
-        accounts: Accounts<A, R, E>,
+        accounts: WebAccounts<A, R, E>,
     ) -> Self
     where
         A: Account<Error = E, NetworkResult = R>

@@ -2,11 +2,12 @@
 
 use http::{Request, Response, StatusCode};
 use serde::Deserialize;
-use sos_sdk::prelude::{Account, ClipboardCopyRequest, SecretPath};
+use sos_protocol::{Merge, SyncStorage};
+use sos_sdk::prelude::{Account, ClipboardCopyRequest, ErrorExt, SecretPath};
 
 use crate::web_service::{
     internal_server_error, json, parse_account_id, parse_json_body, status,
-    Accounts, Body, Incoming,
+    Body, Incoming, WebAccounts,
 };
 
 #[derive(Deserialize)]
@@ -19,12 +20,18 @@ struct CopyRequest {
 #[cfg(feature = "clipboard")]
 pub async fn copy_secret_clipboard<A, R, E>(
     req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
+    accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
@@ -41,7 +48,7 @@ where
     };
 
     let request = payload.request.take().unwrap_or_default();
-    let accounts = accounts.read().await;
+    let accounts = accounts.as_ref().read().await;
     match accounts
         .copy_clipboard(&account_id, &payload.target, &request)
         .await
@@ -57,12 +64,18 @@ where
 /// Read a secret.
 pub async fn read_secret<A, R, E>(
     req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
+    accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
@@ -72,7 +85,7 @@ where
         return status(StatusCode::BAD_REQUEST);
     };
 
-    let accounts = accounts.read().await;
+    let accounts = accounts.as_ref().read().await;
     let Some(account) = accounts.iter().find(|a| a.address() == &account_id)
     else {
         return status(StatusCode::NOT_FOUND);
@@ -107,12 +120,18 @@ where
 #[cfg(feature = "contacts")]
 pub async fn load_avatar<A, R, E>(
     req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
+    accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
@@ -125,7 +144,7 @@ where
         return status(StatusCode::BAD_REQUEST);
     };
 
-    let accounts = accounts.read().await;
+    let accounts = accounts.as_ref().read().await;
     let Some(account) = accounts.iter().find(|a| a.address() == &account_id)
     else {
         return status(StatusCode::NOT_FOUND);

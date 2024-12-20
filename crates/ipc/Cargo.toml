@@ -43,6 +43,7 @@ extension-helper-server = [
   "hyper-util",
   "clipboard",
   "base64",
+  "notify",
   "sos-platform-authenticator",
 ]
 extension-helper-client = [
@@ -67,6 +68,7 @@ once_cell = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
+notify = { workspace = true, optional = true }
 
 sos-sdk = { version = "0.16", path = "../sdk", features = ["account"] }
 sos-protocol = { version = "0.16", path = "../protocol" }

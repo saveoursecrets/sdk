@@ -2,12 +2,15 @@
 
 use http::{Request, Response, StatusCode};
 use serde::Deserialize;
-use sos_sdk::prelude::{Account, ArchiveFilter, DocumentView, QueryFilter};
+use sos_protocol::{Merge, SyncStorage};
+use sos_sdk::prelude::{
+    Account, ArchiveFilter, DocumentView, ErrorExt, QueryFilter,
+};
 use std::collections::HashMap;
 
 use crate::web_service::{
-    internal_server_error, json, parse_json_body, status, Accounts, Body,
-    Incoming,
+    internal_server_error, json, parse_json_body, status, Body, Incoming,
+    WebAccounts,
 };
 
 #[derive(Deserialize)]
@@ -25,12 +28,18 @@ struct QueryViewRequest {
 /// Search authenticated accounts.
 pub async fn search<A, R, E>(
     req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
+    accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
@@ -40,7 +49,7 @@ where
         return status(StatusCode::BAD_REQUEST);
     };
 
-    let accounts = accounts.read().await;
+    let accounts = accounts.as_ref().read().await;
     match accounts.search(request.needle, request.filter).await {
         Ok(results) => {
             let list = results
@@ -56,12 +65,18 @@ where
 /// Query a search index view for authenticated accounts.
 pub async fn query_view<A, R, E>(
     req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
+    accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
@@ -71,7 +86,7 @@ where
         return status(StatusCode::BAD_REQUEST);
     };
 
-    let accounts = accounts.read().await;
+    let accounts = accounts.as_ref().read().await;
     match accounts
         .query_view(request.views.as_slice(), request.archive_filter.as_ref())
         .await

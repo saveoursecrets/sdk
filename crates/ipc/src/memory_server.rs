@@ -2,7 +2,7 @@
 //! using in-memory duplex streams.
 use crate::{
     local_transport::{LocalRequest, LocalResponse},
-    LocalWebService, Result, ServiceAppInfo,
+    LocalWebService, Result, ServiceAppInfo, WebAccounts,
 };
 use bytes::Bytes;
 use http::{header::CONNECTION, Request, Response};
@@ -11,11 +11,11 @@ use hyper::client::conn::http1::handshake;
 use hyper::server::conn::http1::Builder;
 use hyper_util::rt::tokio::TokioIo;
 use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{Account, AccountSwitcher, ErrorExt};
+use sos_sdk::prelude::{Account, ErrorExt};
 use std::sync::Arc;
 use tokio::{
     io::DuplexStream,
-    sync::{mpsc, oneshot, RwLock},
+    sync::{mpsc, oneshot},
 };
 
 /// Client for the in-memory HTTP server.
@@ -107,7 +107,7 @@ pub struct LocalMemoryServer;
 impl LocalMemoryServer {
     /// Listen to an in-memory stream.
     pub async fn listen<A, R, E>(
-        accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
+        accounts: WebAccounts<A, R, E>,
         app_info: ServiceAppInfo,
     ) -> Result<LocalMemoryClient>
     where

@@ -33,6 +33,8 @@ pub mod extension_helper;
 mod web_service;
 #[cfg(feature = "extension-helper-server")]
 pub(crate) use web_service::LocalWebService;
+#[cfg(feature = "extension-helper-server")]
+pub use web_service::WebAccounts;
 #[cfg(feature = "local-transport")]
 pub mod local_transport;
 

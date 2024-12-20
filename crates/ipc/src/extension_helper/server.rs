@@ -3,6 +3,7 @@
 use crate::{
     local_transport::{HttpMessage, LocalRequest, LocalResponse},
     memory_server::{LocalMemoryClient, LocalMemoryServer},
+    web_service::WebAccounts,
     Result, ServiceAppInfo,
 };
 use futures_util::{SinkExt, StreamExt};
@@ -45,34 +46,51 @@ impl NativeBridgeOptions {
 }
 
 /// Server for a native bridge proxy.
-pub struct NativeBridgeServer {
+pub struct NativeBridgeServer<A, R, E>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + std::error::Error
+        + ErrorExt
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
     #[allow(dead_code)]
     options: NativeBridgeOptions,
     /// Client for the server.
     client: LocalMemoryClient,
+    /// User accounts.
+    accounts: WebAccounts<A, R, E>,
 }
 
-impl NativeBridgeServer {
+impl<A, R, E> NativeBridgeServer<A, R, E>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + std::error::Error
+        + ErrorExt
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
     /// Create a server.
-    pub async fn new<A, R, E>(
+    pub async fn new(
         options: NativeBridgeOptions,
         accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
-    ) -> Result<Self>
-    where
-        A: Account<Error = E, NetworkResult = R>
-            + SyncStorage
-            + Merge
-            + Sync
-            + Send
-            + 'static,
-        R: 'static,
-        E: std::fmt::Debug
-            + std::error::Error
-            + ErrorExt
-            + From<sos_sdk::Error>
-            + From<std::io::Error>
-            + 'static,
-    {
+    ) -> Result<Self> {
         let log_level = std::env::var("SOS_NATIVE_BRIDGE_LOG_LEVEL")
             .map(|s| s.to_string())
             .ok()
@@ -88,11 +106,18 @@ impl NativeBridgeServer {
 
         tracing::info!(options = ?options, "extension_helper");
 
-        let client =
-            LocalMemoryServer::listen(accounts, options.service_info.clone())
-                .await?;
+        let accounts = WebAccounts::new(accounts);
+        let client = LocalMemoryServer::listen(
+            accounts.clone(),
+            options.service_info.clone(),
+        )
+        .await?;
 
-        Ok(Self { options, client })
+        Ok(Self {
+            options,
+            client,
+            accounts,
+        })
     }
 
     /// Start a native bridge server listening.
@@ -106,6 +131,24 @@ impl NativeBridgeServer {
             .new_write(tokio::io::stdout());
 
         let (tx, mut rx) = mpsc::unbounded_channel::<LocalResponse>();
+
+        // Send account file system change notifications
+        // over stdout using the RESET_CONTENT status code
+        let mut notifications = self.accounts.subscribe();
+        let notifications_tx = tx.clone();
+        tokio::task::spawn(async move {
+            while let Ok(event) = notifications.recv().await {
+                let body = serde_json::to_vec(&event)
+                    .expect("to convert event to JSON");
+                let mut response = LocalResponse::default();
+                response.status = StatusCode::RESET_CONTENT.into();
+                response.set_json_content_type();
+                response.body = body;
+                if let Err(e) = notifications_tx.send(response) {
+                    tracing::error!(error = %e);
+                }
+            }
+        });
 
         // Read request chunks into a single request
         async fn read_chunked_request(

@@ -115,6 +115,14 @@ pub trait HttpMessage {
         }
     }
 
+    /// Set an `application/json` content type header.
+    fn set_json_content_type(&mut self) {
+        self.headers_mut().insert(
+            CONTENT_TYPE.as_str().to_owned(),
+            vec![MIME_TYPE_JSON.to_string()],
+        );
+    }
+
     /// Determine if this message is JSON.
     fn is_json(&self) -> bool {
         let Some(value) = self.content_type() else {

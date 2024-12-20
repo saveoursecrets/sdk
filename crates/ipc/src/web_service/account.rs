@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use crate::web_service::{
     internal_server_error, json, parse_account_id, parse_json_body, status,
-    Accounts, Body, Incoming,
+    Body, Incoming, WebAccounts,
 };
 
 #[derive(Deserialize)]
@@ -22,18 +22,24 @@ struct SigninRequest {
 /// List account public identities.
 pub async fn list_accounts<A, R, E>(
     _req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
+    accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {
-    let accounts = accounts.read().await;
+    let accounts = accounts.as_ref().read().await;
     match Identity::list_accounts(accounts.paths()).await {
         Ok(list) => json(StatusCode::OK, &list),
         Err(e) => internal_server_error(e),
@@ -43,18 +49,24 @@ where
 /// List folders for authenticated accounts.
 pub async fn list_folders<A, R, E>(
     _req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
+    accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {
-    let accounts = accounts.read().await;
+    let accounts = accounts.as_ref().read().await;
     let mut list = HashMap::new();
     for account in accounts.iter() {
         let address = account.address().to_string();
@@ -75,18 +87,24 @@ where
 /// List account authenticated status.
 pub async fn authenticated_accounts<A, R, E>(
     _req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
+    accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
     R: 'static,
     E: std::fmt::Debug
+        + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
         + 'static,
 {
-    let accounts = accounts.read().await;
+    let accounts = accounts.as_ref().read().await;
     let mut list = HashMap::new();
     for account in accounts.iter() {
         let address = account.address().to_string();
@@ -98,7 +116,7 @@ where
 /// Sign in to an account with a user-supplied password.
 pub async fn sign_in_account<A, R, E>(
     req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
+    accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
@@ -138,7 +156,7 @@ where
 /// need to supply their password and
 pub async fn sign_in<A, R, E>(
     req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
+    accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
@@ -186,7 +204,7 @@ where
 
 /// Sign in to an account
 pub async fn sign_in_password<A, R, E>(
-    accounts: Accounts<A, R, E>,
+    accounts: WebAccounts<A, R, E>,
     account_id: Address,
     password: SecretString,
     save_password: bool,
@@ -208,19 +226,27 @@ where
 {
     use sos_platform_authenticator::keyring_password;
 
-    let mut accounts = accounts.write().await;
-    let Some(account) =
-        accounts.iter_mut().find(|a| a.address() == &account_id)
+    let mut user_accounts = accounts.as_ref().write().await;
+    let Some(account) = user_accounts
+        .iter_mut()
+        .find(|a| a.address() == &account_id)
     else {
         return status(StatusCode::NOT_FOUND);
     };
 
     let key: AccessKey = password.clone().into();
-    if let Err(e) = account.sign_in(&key).await {
-        if e.is_permission_denied() {
-            return status(StatusCode::FORBIDDEN);
-        } else {
-            return internal_server_error(e);
+    match account.sign_in(&key).await {
+        Ok(_) => {
+            if let Err(e) = accounts.watch(account_id, account.paths()) {
+                tracing::error!(error = ?e);
+            }
+        }
+        Err(e) => {
+            if e.is_permission_denied() {
+                return status(StatusCode::FORBIDDEN);
+            } else {
+                return internal_server_error(e);
+            }
         }
     }
 
@@ -243,7 +269,7 @@ where
 /// Sign out of an account
 pub async fn sign_out_account<A, R, E>(
     req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
+    accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
@@ -272,7 +298,7 @@ where
 /// Sign out of all accounts
 pub async fn sign_out_all<A, R, E>(
     _req: Request<Incoming>,
-    accounts: Accounts<A, R, E>,
+    accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
@@ -295,7 +321,7 @@ where
 
 /// Sign out of an account
 pub async fn sign_out<A, R, E>(
-    accounts: Accounts<A, R, E>,
+    accounts: WebAccounts<A, R, E>,
     account_id: Option<Address>,
 ) -> hyper::Result<Response<Body>>
 where
@@ -313,21 +339,39 @@ where
         + From<std::io::Error>
         + 'static,
 {
-    let mut accounts = accounts.write().await;
+    let mut user_accounts = accounts.as_ref().write().await;
     if let Some(account_id) = account_id {
-        let Some(account) =
-            accounts.iter_mut().find(|a| a.address() == &account_id)
+        let Some(account) = user_accounts
+            .iter_mut()
+            .find(|a| a.address() == &account_id)
         else {
             return status(StatusCode::NOT_FOUND);
         };
 
         match account.sign_out().await {
-            Ok(_) => status(StatusCode::OK),
+            Ok(_) => {
+                if let Err(e) = accounts.unwatch(&account_id, account.paths())
+                {
+                    tracing::error!(error = ?e);
+                }
+                status(StatusCode::OK)
+            }
             Err(e) => internal_server_error(e),
         }
     } else {
-        match accounts.sign_out_all().await {
-            Ok(_) => status(StatusCode::OK),
+        let watch_info = user_accounts
+            .iter()
+            .map(|a| (a.address().clone(), a.paths()))
+            .collect::<Vec<_>>();
+        match user_accounts.sign_out_all().await {
+            Ok(_) => {
+                for (account_id, paths) in watch_info {
+                    if let Err(e) = accounts.unwatch(&account_id, paths) {
+                        tracing::error!(error = ?e);
+                    }
+                }
+                status(StatusCode::OK)
+            }
             Err(e) => internal_server_error(e),
         }
     }

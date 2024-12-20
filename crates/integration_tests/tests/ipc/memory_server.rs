@@ -2,7 +2,7 @@ use anyhow::Result;
 use sos_ipc::{
     local_transport::{HttpMessage, LocalRequest},
     memory_server::LocalMemoryServer,
-    ServiceAppInfo,
+    ServiceAppInfo, WebAccounts,
 };
 use sos_net::sdk::{prelude::LocalAccountSwitcher, Paths};
 use sos_test_utils::teardown;
@@ -39,8 +39,11 @@ async fn integration_ipc_memory_server() -> Result<()> {
         version: version.to_string(),
     };
 
-    let client =
-        LocalMemoryServer::listen(ipc_accounts, app_info.clone()).await?;
+    let client = LocalMemoryServer::listen(
+        WebAccounts::new(ipc_accounts),
+        app_info.clone(),
+    )
+    .await?;
     let request = LocalRequest::get("/".parse().unwrap());
     let response = client.send(request).await?;
     let result: ServiceAppInfo = serde_json::from_slice(response.body())?;
