@@ -1,8 +1,8 @@
 use anyhow::Result;
 use http::StatusCode;
 use sos_ipc::{
+    extension_helper::client::ExtensionHelperClient,
     local_transport::{HttpMessage, LocalRequest},
-    extension_helper::client::NativeBridgeClient,
     ServiceAppInfo,
 };
 use sos_sdk::prelude::Paths;
@@ -21,7 +21,7 @@ async fn integration_ipc_extension_helper_info() -> Result<()> {
 
     let request = LocalRequest::get("/".parse().unwrap());
     let (command, arguments) = super::extension_helper_cmd(&data_dir);
-    let mut client = NativeBridgeClient::new(command, arguments).await?;
+    let mut client = ExtensionHelperClient::new(command, arguments).await?;
     let response = client.send(request).await?;
     assert_eq!(StatusCode::OK, response.status().unwrap());
     assert_eq!(1, response.request_id());

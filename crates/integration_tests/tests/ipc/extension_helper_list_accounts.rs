@@ -1,8 +1,8 @@
 use anyhow::Result;
 use http::StatusCode;
 use sos_ipc::{
+    extension_helper::client::ExtensionHelperClient,
     local_transport::{HttpMessage, LocalRequest},
-    extension_helper::client::NativeBridgeClient,
 };
 use sos_sdk::prelude::{
     generate_passphrase, LocalAccount, Paths, PublicIdentity,
@@ -13,7 +13,8 @@ use sos_test_utils::{setup, teardown};
 /// Test listing accounts via the native bridge when there
 /// are no accounts present.
 #[tokio::test]
-async fn integration_ipc_extension_helper_list_accounts_empty() -> Result<()> {
+async fn integration_ipc_extension_helper_list_accounts_empty() -> Result<()>
+{
     const TEST_ID: &str = "ipc_extension_helper_list_accounts_empty";
     // crate::test_utils::init_tracing();
 
@@ -25,7 +26,7 @@ async fn integration_ipc_extension_helper_list_accounts_empty() -> Result<()> {
     let request = LocalRequest::get("/accounts".parse().unwrap());
 
     let (command, arguments) = super::extension_helper_cmd(&data_dir);
-    let mut client = NativeBridgeClient::new(command, arguments).await?;
+    let mut client = ExtensionHelperClient::new(command, arguments).await?;
     let response = client.send(request).await?;
     assert_eq!(StatusCode::OK, response.status().unwrap());
     assert_eq!(1, response.request_id());
@@ -65,7 +66,7 @@ async fn integration_ipc_extension_helper_list_accounts() -> Result<()> {
 
     let data_dir = data_dir.display().to_string();
     let (command, arguments) = super::extension_helper_cmd(&data_dir);
-    let mut client = NativeBridgeClient::new(command, arguments).await?;
+    let mut client = ExtensionHelperClient::new(command, arguments).await?;
     let response = client.send(request).await?;
     assert_eq!(StatusCode::OK, response.status().unwrap());
     assert_eq!(1, response.request_id());

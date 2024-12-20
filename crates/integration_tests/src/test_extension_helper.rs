@@ -1,5 +1,7 @@
 use sos_ipc::{
-    extension_helper::server::{NativeBridgeOptions, NativeBridgeServer},
+    extension_helper::server::{
+        ExtensionHelperOptions, ExtensionHelperServer,
+    },
     ServiceAppInfo,
 };
 use sos_sdk::prelude::{
@@ -58,8 +60,8 @@ pub async fn main() -> anyhow::Result<()> {
         version: "0.0.0".to_string(),
     };
     let accounts = Arc::new(RwLock::new(accounts));
-    let options = NativeBridgeOptions::new(extension_id, info);
-    let server = NativeBridgeServer::new(options, accounts).await?;
+    let options = ExtensionHelperOptions::new(extension_id, info);
+    let server = ExtensionHelperServer::new(options, accounts).await?;
     server.listen().await;
     Ok(())
 }

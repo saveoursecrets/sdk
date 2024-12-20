@@ -1,4 +1,4 @@
-//! Server for the native messaging API bridge.
+//! Server for the native messaging API extension helper.
 
 use crate::{
     local_transport::{HttpMessage, LocalRequest, LocalResponse},
@@ -28,14 +28,14 @@ const HARD_LIMIT: usize = 1024 * 1024;
 
 /// Options for a native bridge.
 #[derive(Debug, Default)]
-pub struct NativeBridgeOptions {
+pub struct ExtensionHelperOptions {
     /// Identifier of the extension.
     pub extension_id: String,
     /// Service information.
     pub service_info: ServiceAppInfo,
 }
 
-impl NativeBridgeOptions {
+impl ExtensionHelperOptions {
     /// Create new options.
     pub fn new(extension_id: String, service_info: ServiceAppInfo) -> Self {
         Self {
@@ -46,7 +46,7 @@ impl NativeBridgeOptions {
 }
 
 /// Server for a native bridge proxy.
-pub struct NativeBridgeServer<A, R, E>
+pub struct ExtensionHelperServer<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
@@ -63,14 +63,14 @@ where
         + 'static,
 {
     #[allow(dead_code)]
-    options: NativeBridgeOptions,
+    options: ExtensionHelperOptions,
     /// Client for the server.
     client: LocalMemoryClient,
     /// User accounts.
     accounts: WebAccounts<A, R, E>,
 }
 
-impl<A, R, E> NativeBridgeServer<A, R, E>
+impl<A, R, E> ExtensionHelperServer<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
@@ -88,7 +88,7 @@ where
 {
     /// Create a server.
     pub async fn new(
-        options: NativeBridgeOptions,
+        options: ExtensionHelperOptions,
         accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
     ) -> Result<Self> {
         let log_level = std::env::var("SOS_NATIVE_BRIDGE_LOG_LEVEL")

@@ -17,14 +17,14 @@ use super::{CHUNK_LIMIT, CHUNK_SIZE};
 /// and receives messages from the spawned executable.
 ///
 /// Used to test the native bridge server.
-pub struct NativeBridgeClient {
+pub struct ExtensionHelperClient {
     child: Child,
     stdin: FramedWrite<tokio::process::ChildStdin, LengthDelimitedCodec>,
     stdout: FramedRead<tokio::process::ChildStdout, LengthDelimitedCodec>,
     id: AtomicU64,
 }
 
-impl NativeBridgeClient {
+impl ExtensionHelperClient {
     /// Create a native bridge client.
     pub async fn new<C, I, S>(command: C, arguments: I) -> Result<Self>
     where
