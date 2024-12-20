@@ -53,7 +53,7 @@ utoipa = { version = "5", features = ["uuid"] }
 utoipa-rapidoc = { version = "5", features = ["axum"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros"] }
 
-tokio-rustls-acme = { version = "0.4", features = ["axum"], optional = true }
+tokio-rustls-acme = { version = "0.6", features = ["axum"], optional = true }
 
 [dependencies.sos-protocol]
 version = "0.16"
