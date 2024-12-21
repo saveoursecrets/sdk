@@ -141,24 +141,46 @@ where
                     // Get a diff of the events either for the
                     // account log or for a specific folder
                     let records = if name == "account" {
-                        let accounts = task_accounts.read().await;
-                        let account = accounts
-                            .iter()
-                            .find(|a| a.address() == &id)
-                            .ok_or(FileEventError::NoAccount(id))?;
+                        tracing::debug!(
+                          account_id = %id,
+                          "account_change");
 
-                        let storage = account.storage().await.unwrap();
-                        let storage = storage.read().await;
+                        let records = {
+                            let accounts = task_accounts.read().await;
+                            let account = accounts
+                                .iter()
+                                .find(|a| a.address() == &id)
+                                .ok_or(FileEventError::NoAccount(id))?;
 
-                        let mut event_log = storage.account_log.write().await;
-                        let commit = event_log.tree().last_commit();
+                            let storage = account.storage().await.unwrap();
+                            let storage = storage.read().await;
 
-                        let patch =
-                            event_log.diff_events(commit.as_ref()).await?;
-                        let records =
-                            patch.into_events::<AccountEvent>().await?;
+                            let mut event_log =
+                                storage.account_log.write().await;
+                            let commit = event_log.tree().last_commit();
 
-                        event_log.load_tree().await?;
+                            let patch = event_log
+                                .diff_events(commit.as_ref())
+                                .await?;
+                            let records =
+                                patch.into_events::<AccountEvent>().await?;
+
+                            event_log.load_tree().await?;
+                            records
+                        };
+
+                        // Update folders in memory
+                        {
+                            let mut accounts = task_accounts.write().await;
+                            let account = accounts
+                                .iter_mut()
+                                .find(|a| a.address() == &id)
+                                .ok_or(FileEventError::NoAccount(id))?;
+                            tracing::debug!("account_change::load_folders");
+                            if let Err(e) = account.load_folders().await {
+                                tracing::error!(error = %e);
+                            }
+                        }
 
                         ChangeRecords::Account(records)
                     } else {
@@ -215,26 +237,27 @@ where
                     };
 
                     if let Err(e) = channel.send(evt) {
-                        tracing::error!(error = ?e);
+                        tracing::error!(
+                          error = ?e,
+                          "account_channel::send");
                     }
                 }
 
                 Ok::<_, Error>(())
             });
 
-            let mut watcher =
-                recommended_watcher(move |res: notify::Result<Event>| {
-                    match res {
-                        Ok(event) => {
-                            if let Err(e) = tx.send(event) {
-                                tracing::error!(error = %e);
-                            }
-                        }
-                        Err(e) => {
-                            tracing::error!(error = %e);
+            let mut watcher = recommended_watcher(
+                move |res: notify::Result<Event>| match res {
+                    Ok(event) => {
+                        if let Err(e) = tx.send(event) {
+                            tracing::error!(error = %e, "file_system_notify_channel::send");
                         }
                     }
-                })?;
+                    Err(e) => {
+                        tracing::error!(error = %e, "notify::error");
+                    }
+                },
+            )?;
 
             watcher.watch(
                 &paths.account_events(),
