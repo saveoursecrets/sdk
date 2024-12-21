@@ -182,29 +182,29 @@ export type Secret =
 	| IdentitySecret
 	| AgeSecret;
 
-export type CreateVault = never;
-export type SetVaultName = TupleOfOne<string>;
-export type SetVaultFlags = TupleOfOne<VaultFlags>;
-export type SetVaultMeta = never;
-export type CreateSecret = TupleOfOne<string>;
-export type UpdateSecret = TupleOfOne<string>;
-export type DeleteSecret = TupleOfOne<string>;
+export type CreateVault = { createVault: never };
+export type SetVaultName = { setVaultName: TupleOfOne<string> };
+export type SetVaultFlags = { setVaultFlags: TupleOfOne<VaultFlags> };
+export type SetVaultMeta = { setVaultMeta: never };
+export type CreateSecret = { createSecret: TupleOfOne<string> };
+export type UpdateSecret = { updateSecret: TupleOfOne<string> };
+export type DeleteSecret = { deleteSecret: TupleOfOne<string> };
 export type WriteEvent =
-	| { createVault: CreateVault }
-	| { setVaultName: SetVaultName }
-	| { setVaultFlags: SetVaultFlags }
-	| { setVaultMeta: SetVaultMeta }
-	| { createSecret: CreateSecret }
-	| { updateSecret: UpdateSecret }
-	| { deleteSecret: DeleteSecret };
+	| CreateVault
+	| SetVaultName
+	| SetVaultFlags
+	| SetVaultMeta
+	| CreateSecret
+	| UpdateSecret
+	| DeleteSecret;
 
-export type RenameAccount = TupleOfOne<string>;
-export type UpdateIdentity = never;
-export type CreateFolder = TupleOfOne<string>;
-export type RenameFolder = TupleOfTwo<string, string>;
-export type UpdateFolder = TupleOfOne<string>;
-export type ChangeFolderPassword = TupleOfOne<string>;
-export type DeleteFolder = TupleOfOne<string>;
+export type RenameAccount = { renameAccount: TupleOfOne<string> };
+export type UpdateIdentity = { updateIdentity: never };
+export type CreateFolder = { createFolder: TupleOfOne<string> };
+export type RenameFolder = { renameFolder: TupleOfTwo<string, string> };
+export type UpdateFolder = { updateFolder: TupleOfOne<string> };
+export type ChangeFolderPassword = { changeFolderPassword: TupleOfOne<string> };
+export type DeleteFolder = { deleteFolder: TupleOfOne<string> };
 export type AccountEvent =
 	| RenameAccount
 	| UpdateIdentity
