@@ -314,6 +314,7 @@ where
         + From<std::io::Error>
         + 'static,
 {
+    let paths = account.paths();
     let index = account.index().await?;
     let mut index = index.write().await;
 
@@ -338,15 +339,18 @@ where
 
     for folder_id in folder_ids {
         let storage = account.storage().await.unwrap();
-        let storage = storage.read().await;
-        if let Some(folder) = storage.cache().get(&folder_id) {
-            let keeper = folder.keeper();
+        let mut storage = storage.write().await;
+        if let Some(folder) = storage.cache_mut().get_mut(&folder_id) {
+            let keeper = folder.keeper_mut();
             match records {
                 ChangeRecords::Account(events) => {
                     for event in events {
                         match event {
                             AccountEvent::CreateFolder(_, _) => {
                                 index.add_folder(keeper).await?;
+
+                                let path = paths.vault_path(&folder_id);
+                                keeper.reload_vault(path).await?;
                             }
                             AccountEvent::DeleteFolder(_) => {
                                 index.remove_folder(keeper).await?;
@@ -382,6 +386,9 @@ where
                             _ => {}
                         }
                     }
+
+                    let path = paths.vault_path(folder_id);
+                    keeper.reload_vault(path).await?;
                 }
             }
         }

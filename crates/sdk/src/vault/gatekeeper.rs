@@ -10,7 +10,7 @@ use crate::{
     },
     vfs, Error, Result,
 };
-use std::borrow::Cow;
+use std::{borrow::Cow, path::Path};
 
 use super::VaultFlags;
 
@@ -92,6 +92,31 @@ impl Gatekeeper {
             vfs::write_exclusive(&mirror.file_path, &buffer).await?;
         }
         self.vault = vault;
+        Ok(())
+    }
+
+    /// Reload the vault from disc.
+    ///
+    /// Replaces the in-memory vault and updates the vault writer
+    /// mirror when mirroring to disc is enabled.
+    ///
+    /// Use this to update the in-memory representation when a vault
+    /// has been modified in a different process.
+    ///
+    /// Assumes the private key for the folder has not changed.
+    pub async fn reload_vault(
+        &mut self,
+        path: impl AsRef<Path>,
+    ) -> Result<()> {
+        let buffer = vfs::read(path.as_ref()).await?;
+        self.vault = decode(&buffer).await?;
+
+        if self.mirror.is_some() {
+            let vault_file = VaultWriter::open(path.as_ref()).await?;
+            let mirror = VaultWriter::new(path.as_ref(), vault_file)?;
+            self.mirror = Some(mirror);
+        }
+
         Ok(())
     }
 
