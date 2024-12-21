@@ -347,10 +347,10 @@ where
                     for event in events {
                         match event {
                             AccountEvent::CreateFolder(_, _) => {
-                                index.add_folder(keeper).await?;
-
                                 let path = paths.vault_path(&folder_id);
                                 keeper.reload_vault(path).await?;
+
+                                index.add_folder(keeper).await?;
                             }
                             AccountEvent::DeleteFolder(_) => {
                                 index.remove_folder(keeper).await?;
@@ -360,6 +360,11 @@ where
                     }
                 }
                 ChangeRecords::Folder(folder_id, events) => {
+                    // Must reload the vault before updating the
+                    // search index
+                    let path = paths.vault_path(folder_id);
+                    keeper.reload_vault(path).await?;
+
                     for event in events {
                         match event {
                             WriteEvent::CreateSecret(secret_id, _) => {
@@ -386,9 +391,6 @@ where
                             _ => {}
                         }
                     }
-
-                    let path = paths.vault_path(folder_id);
-                    keeper.reload_vault(path).await?;
                 }
             }
         }
