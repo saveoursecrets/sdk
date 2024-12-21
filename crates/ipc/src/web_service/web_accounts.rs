@@ -151,13 +151,15 @@ where
                         let storage = account.storage().await.unwrap();
                         let storage = storage.read().await;
 
-                        let event_log = storage.account_log.read().await;
+                        let mut event_log = storage.account_log.write().await;
                         let commit = event_log.tree().last_commit();
 
                         let patch =
                             event_log.diff_events(commit.as_ref()).await?;
                         let records =
                             patch.into_events::<AccountEvent>().await?;
+
+                        event_log.load_tree().await?;
 
                         ChangeRecords::Account(records)
                     } else {
@@ -181,12 +183,14 @@ where
                             .ok_or(FileEventError::NoFolder(folder_id))?;
 
                         let event_log = folder.event_log();
-                        let event_log = event_log.read().await;
+                        let mut event_log = event_log.write().await;
                         let commit = event_log.tree().last_commit();
                         let patch =
                             event_log.diff_events(commit.as_ref()).await?;
                         let records =
                             patch.into_events::<WriteEvent>().await?;
+
+                        event_log.load_tree().await?;
 
                         ChangeRecords::Folder(folder_id, records)
                     };

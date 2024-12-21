@@ -165,3 +165,5 @@ export type AgeSecret = {
 }
 
 export type Secret = NoteSecret | FileSecret | LoginSecret | ListSecret | PemSecret | PageSecret | SignerSecret | ContactSecret | TotpSecret | CardSecret | BankSecret | LinkSecret | PasswordSecret | IdentitySecret | AgeSecret;
+
+// export type WriteEvent = CreateVaultEvent | SetVaultName | SetVaultFlags | SetVaultMeta | CreateSecret 
