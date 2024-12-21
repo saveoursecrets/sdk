@@ -27,9 +27,8 @@ pub struct AccountChangeEvent {
     pub records: ChangeRecords,
 }
 
-#[typeshare::typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", tag = "kind", content = "body")]
+#[serde(rename_all = "camelCase")]
 pub enum ChangeRecords {
     /// Account level events.
     Account(Vec<AccountEvent>),

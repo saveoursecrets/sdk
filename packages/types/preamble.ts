@@ -1,3 +1,4 @@
+export type TupleOfOne<T> = [T];
 export type TupleOfTwo<T, U> = [T, U];
 export type TupleOfThree<T, U, V> = [T, U, V];
 export type AccountsList = PublicIdentity[];
@@ -166,4 +167,25 @@ export type AgeSecret = {
 
 export type Secret = NoteSecret | FileSecret | LoginSecret | ListSecret | PemSecret | PageSecret | SignerSecret | ContactSecret | TotpSecret | CardSecret | BankSecret | LinkSecret | PasswordSecret | IdentitySecret | AgeSecret;
 
-// export type WriteEvent = CreateVaultEvent | SetVaultName | SetVaultFlags | SetVaultMeta | CreateSecret 
+export type CreateVault = {};
+export type SetVaultName = TupleOfOne<string>;
+export type SetVaultFlags = TupleOfOne<VaultFlags>;
+export type SetVaultMeta = {};
+export type CreateSecret = TupleOfOne<string>;
+export type UpdateSecret = TupleOfOne<string>;
+export type DeleteSecret = TupleOfOne<string>;
+export type WriteEvent = CreateVault | SetVaultName | SetVaultFlags | SetVaultMeta | CreateSecret | UpdateSecret | DeleteSecret;
+
+export type RenameAccount = TupleOfOne<string>;
+export type UpdateIdentity = {};
+export type CreateFolder = TupleOfOne<string>;
+export type RenameFolder = TupleOfTwo<string, string>;
+export type UpdateFolder = TupleOfOne<string>;
+export type ChangeFolderPassword = TupleOfOne<string>;
+export type DeleteFolder = TupleOfOne<string>;
+export type AccountEvent = RenameAccount | UpdateIdentity | CreateFolder | RenameFolder | UpdateFolder | ChangeFolderPassword | DeleteFolder;
+
+export type AccountChangeRecords = TupleOfOne<AccountEvent[]>;
+export type FolderChangeRecords = TupleOfTwo<string, WriteEvent[]>;
+export type ChangeRecords = AccountChangeRecords | FolderChangeRecords;
+
