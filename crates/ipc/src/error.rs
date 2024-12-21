@@ -92,6 +92,10 @@ pub enum FileEventError {
     NoAccount(Address),
 
     /// Error generated when a file system event does not have a path.
-    #[error("no account for {0}")]
+    #[error("no folder for {0}")]
     NoFolder(VaultId),
+
+    /// Error generated updating the search index.
+    #[error("failed to update search index, reason: {0}")]
+    UpdateSearchIndex(String),
 }

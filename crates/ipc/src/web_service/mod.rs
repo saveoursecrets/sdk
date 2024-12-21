@@ -3,26 +3,15 @@ use http::{Method, Request, Response, StatusCode};
 use http_body_util::Full;
 use hyper::body::Incoming;
 use hyper::service::Service;
-use notify::{
-    recommended_watcher, Event, RecommendedWatcher, RecursiveMode, Watcher,
-};
 use parking_lot::Mutex;
-use serde::{Deserialize, Serialize};
 use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::{
-    events::{AccountEvent, EventLogExt, WriteEvent},
-    prelude::{
-        Account, AccountSwitcher, Address, Error as SdkError, ErrorExt, Paths,
-    },
-    vault::VaultId,
-};
+use sos_sdk::prelude::{Account, ErrorExt};
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
-use tokio::sync::{broadcast, RwLock};
 use tower::service_fn;
 use tower::util::BoxCloneService;
 use tower::Service as _;
 
-use crate::{Error, FileEventError, Result, ServiceAppInfo};
+use crate::ServiceAppInfo;
 
 type Body = Full<Bytes>;
 
@@ -32,276 +21,19 @@ type MethodRoute =
 
 type Router = HashMap<Method, matchit::Router<MethodRoute>>;
 
-/// Event broadcast when an account changes on disc.
-#[typeshare::typeshare]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AccountChangeEvent {
-    /// Account identifier.
-    pub account_id: Address,
-    /// Event records with information about the changes.
-    pub records: ChangeRecords,
-}
-
-#[typeshare::typeshare]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", tag = "kind", content = "body")]
-pub enum ChangeRecords {
-    /// Account level events.
-    Account(Vec<AccountEvent>),
-    /// Folder level events.
-    Folder(Vec<WriteEvent>),
-}
-
-/// User accounts for the web service.
-pub struct WebAccounts<A, R, E>
-where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
-    R: 'static,
-    E: std::fmt::Debug
-        + std::error::Error
-        + ErrorExt
-        + From<sos_sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-{
-    accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
-    watchers: Arc<Mutex<HashMap<Address, RecommendedWatcher>>>,
-    channel: broadcast::Sender<AccountChangeEvent>,
-}
-
-impl<A, R, E> Clone for WebAccounts<A, R, E>
-where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
-    R: 'static,
-    E: std::fmt::Debug
-        + std::error::Error
-        + ErrorExt
-        + From<sos_sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-{
-    fn clone(&self) -> Self {
-        Self {
-            accounts: self.accounts.clone(),
-            watchers: self.watchers.clone(),
-            channel: self.channel.clone(),
-        }
-    }
-}
-
-impl<A, R, E> WebAccounts<A, R, E>
-where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
-    R: 'static,
-    E: std::fmt::Debug
-        + std::error::Error
-        + ErrorExt
-        + From<sos_sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-{
-    /// Create new accounts.
-    pub fn new(accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>) -> Self {
-        let (tx, _) = broadcast::channel::<AccountChangeEvent>(64);
-        Self {
-            accounts,
-            watchers: Arc::new(Mutex::new(HashMap::new())),
-            channel: tx,
-        }
-    }
-
-    /// Subscribe to change events.
-    pub fn subscribe(&self) -> broadcast::Receiver<AccountChangeEvent> {
-        self.channel.subscribe()
-    }
-
-    /// Start watching an account for changes.
-    pub fn watch(
-        &self,
-        account_id: Address,
-        paths: Arc<Paths>,
-        folder_ids: Vec<VaultId>,
-    ) -> Result<()> {
-        let mut watchers = self.watchers.lock();
-        let has_watcher = watchers.get(&account_id).is_some();
-        if !has_watcher {
-            let (tx, mut rx) = broadcast::channel::<Event>(32);
-            let channel = self.channel.clone();
-            let id = account_id.clone();
-            let task_accounts = self.accounts.clone();
-            tokio::task::spawn(async move {
-                while let Ok(event) = rx.recv().await {
-                    let path = event
-                        .paths
-                        .get(0)
-                        .ok_or(FileEventError::NoEventPath)?;
-                    let name = path.file_stem().ok_or(
-                        FileEventError::EventPathStem(path.to_owned()),
-                    )?;
-
-                    // Get a diff of the events either for the
-                    // account log or for a specific folder
-                    let records = if name == "account" {
-                        let accounts = task_accounts.read().await;
-                        let account = accounts
-                            .iter()
-                            .find(|a| a.address() == &id)
-                            .ok_or(FileEventError::NoAccount(id))?;
-
-                        let storage = account.storage().await.unwrap();
-                        let storage = storage.read().await;
-
-                        let event_log = storage.account_log.read().await;
-                        let commit = event_log.tree().last_commit();
-
-                        let patch =
-                            event_log.diff_events(commit.as_ref()).await?;
-                        let records =
-                            patch.into_events::<AccountEvent>().await?;
-
-                        ChangeRecords::Account(records)
-                    } else {
-                        let folder_id: VaultId = name
-                            .to_string_lossy()
-                            .into_owned()
-                            .parse()
-                            .map_err(SdkError::from)?;
-
-                        let accounts = task_accounts.read().await;
-                        let account = accounts
-                            .iter()
-                            .find(|a| a.address() == &id)
-                            .ok_or(FileEventError::NoAccount(id))?;
-
-                        let storage = account.storage().await.unwrap();
-                        let storage = storage.read().await;
-                        let folder = storage
-                            .cache()
-                            .get(&folder_id)
-                            .ok_or(FileEventError::NoFolder(folder_id))?;
-
-                        let event_log = folder.event_log();
-                        let event_log = event_log.read().await;
-                        let commit = event_log.tree().last_commit();
-                        let patch =
-                            event_log.diff_events(commit.as_ref()).await?;
-                        let records =
-                            patch.into_events::<WriteEvent>().await?;
-
-                        ChangeRecords::Folder(records)
-                    };
-
-                    let evt = AccountChangeEvent {
-                        account_id: id.clone(),
-                        records,
-                    };
-                    if let Err(e) = channel.send(evt) {
-                        tracing::error!(error = ?e);
-                    }
-                }
-
-                Ok::<_, Error>(())
-            });
-
-            let mut watcher =
-                recommended_watcher(move |res: notify::Result<Event>| {
-                    match res {
-                        Ok(event) => {
-                            if let Err(e) = tx.send(event) {
-                                tracing::error!(error = %e);
-                            }
-                        }
-                        Err(e) => {
-                            tracing::error!(error = %e);
-                        }
-                    }
-                })?;
-
-            watcher.watch(
-                &paths.account_events(),
-                RecursiveMode::NonRecursive,
-            )?;
-
-            for id in &folder_ids {
-                watcher.watch(
-                    &paths.event_log_path(id),
-                    RecursiveMode::NonRecursive,
-                )?;
-            }
-            watchers.insert(account_id, watcher);
-        }
-        Ok(())
-    }
-
-    /// Stop watching an account for changes.
-    pub fn unwatch(
-        &self,
-        account_id: &Address,
-        paths: Arc<Paths>,
-        folder_ids: Vec<VaultId>,
-    ) -> Result<bool> {
-        let mut watchers = self.watchers.lock();
-        if let Some(mut watcher) = watchers.remove(account_id) {
-            watcher.unwatch(&paths.account_events())?;
-            for id in &folder_ids {
-                watcher.unwatch(&paths.event_log_path(id))?;
-            }
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-}
-
-impl<A, R, E> AsRef<Arc<RwLock<AccountSwitcher<A, R, E>>>>
-    for WebAccounts<A, R, E>
-where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
-    R: 'static,
-    E: std::fmt::Debug
-        + std::error::Error
-        + ErrorExt
-        + From<sos_sdk::Error>
-        + From<std::io::Error>
-        + 'static,
-{
-    fn as_ref(&self) -> &Arc<RwLock<AccountSwitcher<A, R, E>>> {
-        &self.accounts
-    }
-}
-
 mod account;
 mod common;
 mod helpers;
 mod search;
 mod secret;
+mod web_accounts;
 
 use account::*;
 use common::*;
 use helpers::*;
 use search::*;
 use secret::*;
+pub use web_accounts::*;
 
 async fn index(
     app_info: Arc<ServiceAppInfo>,
