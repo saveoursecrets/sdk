@@ -20,7 +20,7 @@ export type Vcard = never;
 export type Totp = never;
 export type AgeVersion = never;
 
-// Internally this is a HashMap but we can't serialize 
+// Internally this is a HashMap but we can't serialize
 // that to JSON so for Javascript it's just an array
 export type Headers = [string, string[]][];
 // Backwards compatible aliases
@@ -28,164 +28,198 @@ export type AccountState = PublicIdentity;
 
 export type FolderInfo = Summary;
 export interface FoldersList {
-  [accountId: string]: FolderInfo[];
+	[accountId: string]: FolderInfo[];
 }
 export interface SearchResults {
-  [accountId: string]: DocumentsList;
+	[accountId: string]: DocumentsList;
 }
 
-export interface AuthenticatedList{
-  [accountId: string]: boolean;
+export interface AuthenticatedList {
+	[accountId: string]: boolean;
 }
 
 export enum Kind {
-  Individual = "individual",
-  Group = "group",
-  Org = "org",
-  Location = "location",
+	Individual = "individual",
+	Group = "group",
+	Org = "org",
+	Location = "location",
 }
 
 export type EmbeddedFileContent = {
-  name: string;
-  mime: string;
-  buffer: number[];
-  checksum: string;
-}
+	name: string;
+	mime: string;
+	buffer: number[];
+	checksum: string;
+};
 
 export type ExternalFileContent = {
-  name: String;
-  mime: String;
-  checksum: string;
-  size: number;
-  path?: string;
-}
+	name: string;
+	mime: string;
+	checksum: string;
+	size: number;
+	path?: string;
+};
 
 export type FileContent = EmbeddedFileContent | ExternalFileContent;
 
-// Define secret enum variants manually as we 
-// want to use untagged enum representation which 
+// Define secret enum variants manually as we
+// want to use untagged enum representation which
 // is not supported by typesafe
 
 export type NoteSecret = {
-  text: string;
-  userData: UserData;
-}
+	text: string;
+	userData: UserData;
+};
 
 export type FileSecret = {
-  content: FileContent;
-  userData: UserData;
-}
+	content: FileContent;
+	userData: UserData;
+};
 
 export type LoginSecret = {
-  account: string;
-  password: string;
-  url: string[];
-  userData: UserData;
-}
+	account: string;
+	password: string;
+	url: string[];
+	userData: UserData;
+};
 
 export type ListItems = {
-  [key: string]: string;
+	[key: string]: string;
 };
 
 export type ListSecret = {
-  items: ListItems;
-  userData: UserData;
-}
+	items: ListItems;
+	userData: UserData;
+};
 
 export type PemSecret = {
-  certificates: string[];
-  userData: UserData;
-}
+	certificates: string[];
+	userData: UserData;
+};
 
 export type PageSecret = {
-  title: string;
-  mime: string;
-  document: string;
-  userData: UserData;
-}
+	title: string;
+	mime: string;
+	document: string;
+	userData: UserData;
+};
 
 export type SignerSecret = {
-  privateKey: string;
-  userData: UserData;
-}
+	privateKey: string;
+	userData: UserData;
+};
 
 export type ContactSecret = {
-  vcard: Vcard;
-  userData: UserData;
-}
+	vcard: Vcard;
+	userData: UserData;
+};
 
 export type TotpSecret = {
-  totp: Totp;
-  userData: UserData;
-}
+	totp: Totp;
+	userData: UserData;
+};
 
 export type CardSecret = {
-  number: string;
-  cvv: string;
-  name?: string;
-  expiry?: string;
-  atmPin?: string;
-  userData: UserData;
-}
+	number: string;
+	cvv: string;
+	name?: string;
+	expiry?: string;
+	atmPin?: string;
+	userData: UserData;
+};
 
 export type BankSecret = {
-  number?: string;
-  routing?: string;
-  iban?: string;
-  bic?: string;
-  swift?: string;
-  userData: UserData;
-}
+	number?: string;
+	routing?: string;
+	iban?: string;
+	bic?: string;
+	swift?: string;
+	userData: UserData;
+};
 
 export type LinkSecret = {
-  url: string;
-  label?: string;
-  title?: string;
-  userData: UserData;
-}
+	url: string;
+	label?: string;
+	title?: string;
+	userData: UserData;
+};
 
 export type PasswordSecret = {
-  password: string;
-  name?: string;
-  userData: UserData;
-}
+	password: string;
+	name?: string;
+	userData: UserData;
+};
 
 export type IdentitySecret = {
-  idKind: IdentityKind;
-  number: string;
-  issuePlace?: string;
-  issueDate?: string;
-  expiryDate?: string;
-  userData: UserData;
-}
+	idKind: IdentityKind;
+	number: string;
+	issuePlace?: string;
+	issueDate?: string;
+	expiryDate?: string;
+	userData: UserData;
+};
 
 export type AgeSecret = {
-  ageVersion: AgeVersion;
-  key: string;
-  userData: UserData;
-}
+	ageVersion: AgeVersion;
+	key: string;
+	userData: UserData;
+};
 
-export type Secret = NoteSecret | FileSecret | LoginSecret | ListSecret | PemSecret | PageSecret | SignerSecret | ContactSecret | TotpSecret | CardSecret | BankSecret | LinkSecret | PasswordSecret | IdentitySecret | AgeSecret;
+export type Secret =
+	| NoteSecret
+	| FileSecret
+	| LoginSecret
+	| ListSecret
+	| PemSecret
+	| PageSecret
+	| SignerSecret
+	| ContactSecret
+	| TotpSecret
+	| CardSecret
+	| BankSecret
+	| LinkSecret
+	| PasswordSecret
+	| IdentitySecret
+	| AgeSecret;
 
-export type CreateVault = {};
+export type CreateVault = never;
 export type SetVaultName = TupleOfOne<string>;
 export type SetVaultFlags = TupleOfOne<VaultFlags>;
-export type SetVaultMeta = {};
+export type SetVaultMeta = never;
 export type CreateSecret = TupleOfOne<string>;
 export type UpdateSecret = TupleOfOne<string>;
 export type DeleteSecret = TupleOfOne<string>;
-export type WriteEvent = CreateVault | SetVaultName | SetVaultFlags | SetVaultMeta | CreateSecret | UpdateSecret | DeleteSecret;
+export type WriteEvent =
+	| { createVault: CreateVault }
+	| { setVaultName: SetVaultName }
+	| { setVaultFlags: SetVaultFlags }
+	| { setVaultMeta: SetVaultMeta }
+	| { createSecret: CreateSecret }
+	| { updateSecret: UpdateSecret }
+	| { deleteSecret: DeleteSecret };
 
 export type RenameAccount = TupleOfOne<string>;
-export type UpdateIdentity = {};
+export type UpdateIdentity = never;
 export type CreateFolder = TupleOfOne<string>;
 export type RenameFolder = TupleOfTwo<string, string>;
 export type UpdateFolder = TupleOfOne<string>;
 export type ChangeFolderPassword = TupleOfOne<string>;
 export type DeleteFolder = TupleOfOne<string>;
-export type AccountEvent = RenameAccount | UpdateIdentity | CreateFolder | RenameFolder | UpdateFolder | ChangeFolderPassword | DeleteFolder;
+export type AccountEvent =
+	| RenameAccount
+	| UpdateIdentity
+	| CreateFolder
+	| RenameFolder
+	| UpdateFolder
+	| ChangeFolderPassword
+	| DeleteFolder;
 
-export type AccountChangeRecords = TupleOfOne<AccountEvent[]>;
-export type FolderChangeRecords = TupleOfTwo<string, WriteEvent[]>;
+export type AccountChangeRecords = {
+	account: TupleOfOne<AccountEvent[]>;
+};
+
+export type FolderChangeRecords = {
+	folder: TupleOfTwo<string, WriteEvent[]>;
+};
+
 export type ChangeRecords = AccountChangeRecords | FolderChangeRecords;
-
