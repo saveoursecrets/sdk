@@ -188,7 +188,7 @@ export type SetVaultFlags = { setVaultFlags: TupleOfOne<VaultFlags> };
 export type SetVaultMeta = { setVaultMeta: never };
 export type CreateSecret = { createSecret: TupleOfOne<string> };
 export type UpdateSecret = { updateSecret: TupleOfOne<string> };
-export type DeleteSecret = { deleteSecret: TupleOfOne<string> };
+export type DeleteSecret = { deleteSecret: string };
 export type WriteEvent =
 	| CreateVault
 	| SetVaultName
