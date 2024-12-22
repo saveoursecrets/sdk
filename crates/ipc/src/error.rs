@@ -98,4 +98,8 @@ pub enum FileEventError {
     /// Error generated updating the search index.
     #[error("failed to update search index, reason: {0}")]
     UpdateSearchIndex(String),
+
+    /// Error reloading the identity folder.
+    #[error("failed to reload identity folder, reason: {0}")]
+    ReloadIdentityFolder(String),
 }

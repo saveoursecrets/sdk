@@ -823,6 +823,11 @@ impl Account for NetworkAccount {
         Ok(account.identity_folder_summary().await?)
     }
 
+    async fn reload_identity_folder(&mut self) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.reload_identity_folder().await?)
+    }
+
     async fn change_cipher(
         &mut self,
         account_key: &AccessKey,

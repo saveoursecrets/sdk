@@ -172,9 +172,10 @@ where
             )?;
 
             watcher.watch(
-                &paths.account_events(),
+                &paths.identity_events(),
                 RecursiveMode::NonRecursive,
             )?;
+
             for id in &folder_ids {
                 watch_folder(id, &*paths, &mut watcher)?;
             }
@@ -194,7 +195,10 @@ where
     ) -> Result<bool> {
         let mut watchers = self.watchers.lock();
         if let Some(mut watcher) = watchers.remove(account_id) {
-            watcher.unwatch(&paths.account_events())?;
+            watcher.watch(
+                &paths.identity_events(),
+                RecursiveMode::NonRecursive,
+            )?;
             for id in &folder_ids {
                 unwatch_folder(id, &*paths, &mut watcher)?;
             }
@@ -249,9 +253,6 @@ where
 {
     let paths = account.paths();
     let index = account.index().await?;
-    let mut index = index.write().await;
-
-    // {"timestamp":"2024-12-22T02:27:25.999834Z","level":"ERROR","fields":{"message":"notify_listener","error":"failed to update search index, reason: vault must be unlocked"},"target":"sos_ipc::web_service::web_accounts"}
 
     let folder_ids = match records {
         ChangeRecords::Account(events) => {
@@ -273,28 +274,56 @@ where
     };
 
     for folder_id in folder_ids {
-        let storage = account.storage().await.unwrap();
-        let mut storage = storage.write().await;
-        if let Some(folder) = storage.cache_mut().get_mut(&folder_id) {
-            let keeper = folder.keeper_mut();
-            match records {
-                ChangeRecords::Account(events) => {
-                    for event in events {
-                        match event {
-                            AccountEvent::CreateFolder(_, _) => {
-                                let path = paths.vault_path(&folder_id);
-                                keeper.reload_vault(path).await?;
+        match records {
+            ChangeRecords::Account(events) => {
+                for event in events {
+                    match event {
+                        AccountEvent::CreateFolder(_, _) => {
+                            // Find the folder password which should be available
+                            // as the identity folder has been reloaded already
+                            let key = account
+                                .find_folder_password(&folder_id)
+                                .await?
+                                .ok_or(SdkError::NoFolderPassword(
+                                    folder_id,
+                                ))?;
+                            // Import the vault into the account
+                            account
+                                .import_folder(
+                                    paths.vault_path(&folder_id),
+                                    key,
+                                    true,
+                                )
+                                .await?;
 
+                            // Now the storage should have the folder so
+                            // we can access the gatekeeper and add it to
+                            // the search index
+                            let storage = account.storage().await.unwrap();
+                            let storage = storage.read().await;
+                            if let Some(folder) =
+                                storage.cache().get(&folder_id)
+                            {
+                                let keeper = folder.keeper();
+                                let mut index = index.write().await;
                                 index.add_folder(keeper).await?;
                             }
-                            AccountEvent::DeleteFolder(_) => {
-                                index.remove_folder(keeper).await?;
-                            }
-                            _ => {}
                         }
+                        AccountEvent::DeleteFolder(_) => {
+                            let mut index = index.write().await;
+                            index.remove_vault(&folder_id);
+                        }
+                        _ => {}
                     }
                 }
-                ChangeRecords::Folder(folder_id, events) => {
+            }
+            ChangeRecords::Folder(folder_id, events) => {
+                let storage = account.storage().await.unwrap();
+                let mut storage = storage.write().await;
+                if let Some(folder) = storage.cache_mut().get_mut(&folder_id)
+                {
+                    let keeper = folder.keeper_mut();
+
                     // Must reload the vault before updating the
                     // search index
                     let path = paths.vault_path(folder_id);
@@ -306,6 +335,7 @@ where
                                 if let Some((meta, secret, _)) =
                                     keeper.read_secret(secret_id).await?
                                 {
+                                    let mut index = index.write().await;
                                     index.add(
                                         folder_id, secret_id, &meta, &secret,
                                     );
@@ -315,12 +345,14 @@ where
                                 if let Some((meta, secret, _)) =
                                     keeper.read_secret(secret_id).await?
                                 {
+                                    let mut index = index.write().await;
                                     index.update(
                                         folder_id, secret_id, &meta, &secret,
                                     );
                                 }
                             }
                             WriteEvent::DeleteSecret(secret_id) => {
+                                let mut index = index.write().await;
                                 index.remove(folder_id, secret_id);
                             }
                             _ => {}
@@ -357,38 +389,37 @@ where
         + From<std::io::Error>
         + 'static,
 {
+    let account_name = account_id.to_string();
+
     while let Ok(event) = rx.recv().await {
         let path = event.paths.get(0).ok_or(FileEventError::NoEventPath)?;
         let name = path
             .file_stem()
-            .ok_or(FileEventError::EventPathStem(path.to_owned()))?;
+            .ok_or(FileEventError::EventPathStem(path.to_owned()))?
+            .to_string_lossy()
+            .into_owned();
 
-        // Get a diff of the events either for the
-        // account log or for a specific folder
-        let records = if name == "account" {
-            tracing::debug!(
-              account_id = %account_id,
-              "account_change");
+        tracing::debug!(
+          file_stem = %name,
+          account_name = %account_name,
+          "notify_listener::change_event");
 
-            let records = {
-                let accounts = accounts.read().await;
-                let account = accounts
-                    .iter()
-                    .find(|a| a.address() == &account_id)
-                    .ok_or(FileEventError::NoAccount(account_id))?;
+        // Identity folder event log changes
+        let records = if name == account_name {
+            let mut accounts = accounts.write().await;
+            let account = accounts
+                .iter_mut()
+                .find(|a| a.address() == &account_id)
+                .ok_or(FileEventError::NoAccount(account_id))?;
 
-                let storage = account.storage().await.unwrap();
-                let storage = storage.read().await;
+            // Reload the identity folder
+            {
+                account.reload_identity_folder().await.map_err(|e| {
+                    FileEventError::ReloadIdentityFolder(e.to_string())
+                })?;
+            }
 
-                let mut event_log = storage.account_log.write().await;
-                let commit = event_log.tree().last_commit();
-
-                let patch = event_log.diff_events(commit.as_ref()).await?;
-                let records = patch.into_events::<AccountEvent>().await?;
-
-                event_log.load_tree().await?;
-                records
-            };
+            let records = load_account_records(account).await?;
 
             // Check for folder create events and start watching new
             // folder as they are created.
@@ -407,11 +438,6 @@ where
 
             // Update folders in memory
             {
-                let mut accounts = accounts.write().await;
-                let account = accounts
-                    .iter_mut()
-                    .find(|a| a.address() == &account_id)
-                    .ok_or(FileEventError::NoAccount(account_id))?;
                 tracing::debug!("account_change::load_folders");
                 if let Err(e) = account.load_folders().await {
                     tracing::error!(error = %e);
@@ -420,11 +446,7 @@ where
 
             ChangeRecords::Account(records)
         } else {
-            let folder_id: VaultId = name
-                .to_string_lossy()
-                .into_owned()
-                .parse()
-                .map_err(SdkError::from)?;
+            let folder_id: VaultId = name.parse().map_err(SdkError::from)?;
 
             // Event log was removed so we can treat
             // as a folder delete event, we should
@@ -478,6 +500,7 @@ where
         // Update the search index
         {
             let mut accounts = accounts.write().await;
+
             if let Some(account) =
                 accounts.iter_mut().find(|a| a.address() == &account_id)
             {
@@ -504,6 +527,37 @@ where
     }
 
     Ok::<_, Error>(())
+}
+
+async fn load_account_records<A, R, E>(
+    account: &A,
+) -> Result<Vec<AccountEvent>>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + std::error::Error
+        + ErrorExt
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + 'static,
+{
+    let storage = account.storage().await.unwrap();
+    let storage = storage.read().await;
+
+    let mut event_log = storage.account_log.write().await;
+    let commit = event_log.tree().last_commit();
+
+    let patch = event_log.diff_events(commit.as_ref()).await?;
+    let records = patch.into_events::<AccountEvent>().await?;
+
+    event_log.load_tree().await?;
+    Ok(records)
 }
 
 /// Start watching folder event log.

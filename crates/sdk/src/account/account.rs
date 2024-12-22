@@ -345,6 +345,14 @@ pub trait Account {
         &self,
     ) -> std::result::Result<Summary, Self::Error>;
 
+    /// Reload the identity folder into memory.
+    ///
+    /// Can be used when changes to the identity folder
+    /// have been made by external processes.
+    async fn reload_identity_folder(
+        &mut self,
+    ) -> std::result::Result<(), Self::Error>;
+
     /// Change the cipher for an account.
     async fn change_cipher(
         &mut self,
@@ -1757,6 +1765,33 @@ impl Account for LocalAccount {
     async fn identity_folder_summary(&self) -> Result<Summary> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
         Ok(self.user()?.identity()?.vault().summary().clone())
+    }
+
+    async fn reload_identity_folder(&mut self) -> Result<()> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
+        // Reload the vault on disc
+        let path = self.paths.identity_vault();
+        self.user_mut()?
+            .identity_mut()?
+            .folder
+            .keeper_mut()
+            .reload_vault(path)
+            .await?;
+
+        // Reload the event log merkle tree
+        // TODO: we could only load commits from HEAD here
+        let event_log = self.user_mut()?.identity_mut()?.folder.event_log();
+        let mut event_log = event_log.write().await;
+        event_log.load_tree().await?;
+
+        // Rebuild the folder password lookup index
+        self.user_mut()?
+            .identity_mut()?
+            .rebuild_lookup_index()
+            .await?;
+
+        Ok(())
     }
 
     async fn change_cipher(

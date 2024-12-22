@@ -7,7 +7,7 @@
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single primary password.
 use crate::{
-    constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN, VAULT_NSS},
+    constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     crypto::{AccessKey, KeyDerivation},
     decode, encode,
     events::{
@@ -31,7 +31,6 @@ use crate::{
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use std::{
-    collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -388,6 +387,14 @@ where
         Ok(())
     }
 
+    //// Rebuild the index lookup for folder passwords.
+    pub(crate) async fn rebuild_lookup_index(&mut self) -> Result<()> {
+        let keeper = self.folder.keeper();
+        let (index, _, _) = Self::lookup_identity_secrets(keeper).await?;
+        self.index = index;
+        Ok(())
+    }
+
     #[cfg(feature = "files")]
     pub(crate) async fn create_file_encryption_password(
         &mut self,
@@ -452,9 +459,12 @@ where
         Ok(())
     }
 
-    async fn login_private_identity(
+    /// Lookup secrets in the identity folder and prepare
+    /// the URN lookup index which maps URNs to the
+    /// corresponding secret identifiers.
+    async fn lookup_identity_secrets(
         keeper: &Gatekeeper,
-    ) -> Result<(UrnLookup, PrivateIdentity)> {
+    ) -> Result<(UrnLookup, Option<Secret>, Option<Secret>)> {
         let mut index: UrnLookup = Default::default();
 
         let signer_urn: Urn = LOGIN_SIGNING_KEY_URN.parse()?;
@@ -462,22 +472,12 @@ where
 
         let mut signer_secret: Option<Secret> = None;
         let mut identity_secret: Option<Secret> = None;
-        let mut folder_secrets = HashMap::new();
 
-        for id in keeper.vault().keys() {
-            if let Some((meta, secret, _)) = keeper.read_secret(id).await? {
+        for secret_id in keeper.vault().keys() {
+            if let Some((meta, secret, _)) =
+                keeper.read_secret(secret_id).await?
+            {
                 if let Some(urn) = meta.urn() {
-                    if urn.nss().starts_with(VAULT_NSS) {
-                        let id: VaultId = urn
-                            .nss()
-                            .trim_start_matches(VAULT_NSS)
-                            .parse()?;
-                        if let Secret::Password { password, .. } = &secret {
-                            let key: AccessKey = password.clone().into();
-                            folder_secrets.insert(id, key);
-                        }
-                    }
-
                     if urn == &signer_urn {
                         signer_secret = Some(secret);
                     } else if urn == &identity_urn {
@@ -485,10 +485,18 @@ where
                     }
 
                     // Add to the URN lookup index
-                    index.insert((*keeper.id(), urn.clone()), *id);
+                    index.insert((*keeper.id(), urn.clone()), *secret_id);
                 }
             }
         }
+        Ok((index, signer_secret, identity_secret))
+    }
+
+    async fn login_private_identity(
+        keeper: &Gatekeeper,
+    ) -> Result<(UrnLookup, PrivateIdentity)> {
+        let (index, signer_secret, identity_secret) =
+            Self::lookup_identity_secrets(keeper).await?;
 
         let signer = signer_secret.ok_or(Error::NoSigningKey)?;
         let identity = identity_secret.ok_or(Error::NoIdentityKey)?;
