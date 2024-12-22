@@ -1230,6 +1230,20 @@ impl ClientStorage {
         Ok(events)
     }
 
+    /// Remove a folder from the cache.
+    pub async fn remove_folder(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<bool> {
+        let summary = self.find(|s| s.id() == folder_id).cloned();
+        if let Some(summary) = summary {
+            self.remove_local_cache(&summary)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     /// Update the in-memory name for a folder.
     pub fn set_folder_name(
         &mut self,
