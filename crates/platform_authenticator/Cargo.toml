@@ -3,7 +3,6 @@ name = "sos-platform-authenticator"
 version = "0.1.0"
 edition = "2021"
 description = "Platform authenticator and keyring suppport for the Save Our Secrets SDK."
-publish = false
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"

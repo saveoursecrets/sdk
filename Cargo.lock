@@ -4863,7 +4863,7 @@ dependencies = [
 
 [[package]]
 name = "sos"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "arboard",
  "async-recursion",
@@ -4899,7 +4899,7 @@ dependencies = [
 
 [[package]]
 name = "sos-account-extras"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "rustc_version",
  "serde",
@@ -4969,7 +4969,7 @@ dependencies = [
 
 [[package]]
 name = "sos-ipc"
-version = "0.16.5"
+version = "0.16.6"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -5003,7 +5003,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -5052,7 +5052,7 @@ dependencies = [
 
 [[package]]
 name = "sos-protocol"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -5084,7 +5084,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.16.1"
+version = "0.16.2"
 dependencies = [
  "aes-gcm",
  "age",
@@ -5160,7 +5160,7 @@ dependencies = [
 
 [[package]]
 name = "sos-server"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "async-trait",
  "axum",
@@ -5220,7 +5220,7 @@ dependencies = [
 
 [[package]]
 name = "sos-vfs"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
  "anyhow",
  "async-fd-lock",

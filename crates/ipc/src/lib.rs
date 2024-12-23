@@ -38,7 +38,10 @@ pub use web_service::WebAccounts;
 #[cfg(feature = "local-transport")]
 pub mod local_transport;
 
-pub use error::{Error, FileEventError};
+pub use error::Error;
+
+#[cfg(feature = "extension-helper-server")]
+pub use error::FileEventError;
 
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;
