@@ -190,7 +190,7 @@ impl SystemMessages {
     /// If the file does not exist this is a noop.
     pub async fn load(&mut self) -> Result<()> {
         if vfs::try_exists(&self.path).await? {
-            let content = vfs::read(&self.path).await?;
+            let content = vfs::read_exclusive(&self.path).await?;
             let sys: SystemMessages = serde_json::from_slice(&content)?;
             self.messages = sys.messages;
         }
@@ -292,14 +292,14 @@ impl SystemMessages {
     /// Sorted list of system messages.
     pub fn sorted_list(&self) -> Vec<(&Urn, &SysMessage)> {
         let mut messages: Vec<_> = self.messages.iter().collect();
-        messages.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
+        messages.sort_by(|a, b| a.1.cmp(b.1));
         messages
     }
 
     /// Save system messages to disc.
     async fn save(&self) -> Result<()> {
         let buf = serde_json::to_vec_pretty(self)?;
-        vfs::write(&self.path, buf).await?;
+        vfs::write_exclusive(&self.path, buf).await?;
         let _ = self.channel.send(self.counts());
         Ok(())
     }

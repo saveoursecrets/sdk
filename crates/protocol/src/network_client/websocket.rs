@@ -19,9 +19,9 @@ use tokio::{net::TcpStream, sync::watch, time::Duration};
 use sos_sdk::signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 
 use crate::{
-    net::NetworkRetry,
-    protocol::{ChangeNotification, Origin, WireEncodeDecode},
-    CancelReason, Error, Result, WebSocketRequest,
+    network_client::{NetworkRetry, WebSocketRequest},
+    transfer::CancelReason,
+    ChangeNotification, Error, Origin, Result, WireEncodeDecode,
 };
 
 use super::{

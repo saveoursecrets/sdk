@@ -6,7 +6,8 @@ use crate::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventLogExt, EventRecord,
-        FolderEventLog, FolderReducer, IntoRecord, ReadEvent, WriteEvent,
+        FolderEventLog, FolderPatch, FolderReducer, IntoRecord, ReadEvent,
+        WriteEvent,
     },
     identity::FolderKeys,
     passwd::diceware::generate_passphrase,
@@ -16,15 +17,14 @@ use crate::{
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         BuilderCredentials, ChangePassword, FolderRef, Header, Summary,
-        Vault, VaultBuilder, VaultId,
+        Vault, VaultBuilder, VaultCommit, VaultId,
     },
     vfs, Error, Paths, Result, UtcDateTime,
 };
 
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
-use secrecy::SecretString;
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "archive")]
@@ -101,12 +101,59 @@ pub struct ClientStorage {
 
     /// Password for file encryption.
     #[cfg(feature = "files")]
-    pub(super) file_password: Option<SecretString>,
+    pub(super) file_password: Option<secrecy::SecretString>,
 }
 
 impl ClientStorage {
+    /// Create unauthenticated folder storage for client-side access.
+    pub async fn new_unauthenticated(
+        address: Address,
+        paths: Arc<Paths>,
+    ) -> Result<Self> {
+        paths.ensure().await?;
+
+        let identity_log = Arc::new(RwLock::new(
+            FolderEventLog::new(paths.identity_events()).await?,
+        ));
+
+        let account_log = Arc::new(RwLock::new(
+            AccountEventLog::new_account(paths.account_events()).await?,
+        ));
+
+        let device_log = Arc::new(RwLock::new(
+            DeviceEventLog::new_device(paths.device_events()).await?,
+        ));
+
+        #[cfg(feature = "files")]
+        let file_log = Arc::new(RwLock::new(
+            FileEventLog::new_file(paths.file_events()).await?,
+        ));
+
+        let mut storage = Self {
+            address,
+            summaries: Vec::new(),
+            current: None,
+            cache: Default::default(),
+            paths,
+            identity_log,
+            account_log,
+            #[cfg(feature = "search")]
+            index: None,
+            device_log,
+            devices: Default::default(),
+            #[cfg(feature = "files")]
+            file_log,
+            #[cfg(feature = "files")]
+            file_password: None,
+        };
+
+        storage.load_folders().await?;
+
+        Ok(storage)
+    }
+
     /// Create folder storage for client-side access.
-    pub async fn new(
+    pub async fn new_authenticated(
         address: Address,
         data_dir: Option<PathBuf>,
         identity_log: Arc<RwLock<FolderEventLog>>,
@@ -207,7 +254,10 @@ impl ClientStorage {
 
     /// Set the password for file encryption.
     #[cfg(feature = "files")]
-    pub fn set_file_password(&mut self, file_password: Option<SecretString>) {
+    pub fn set_file_password(
+        &mut self,
+        file_password: Option<secrecy::SecretString>,
+    ) {
         self.file_password = file_password;
     }
 
@@ -385,13 +435,43 @@ impl ClientStorage {
         Ok(events)
     }
 
-    /// Restore a folder from an event log.
-    pub async fn restore_folder(
+    /// Create folders from a collection of folder patches.
+    ///
+    /// If the folders already exist they will be overwritten.
+    pub async fn import_folder_patches(
+        &mut self,
+        patches: HashMap<VaultId, FolderPatch>,
+    ) -> Result<()> {
+        for (folder_id, patch) in patches {
+            let records: Vec<EventRecord> = patch.into();
+            let (folder, vault) =
+                self.initialize_folder(&folder_id, records).await?;
+
+            {
+                let event_log = folder.event_log();
+                let event_log = event_log.read().await;
+                tracing::info!(
+                  folder_id = %folder_id,
+                  root = ?event_log.tree().root().map(|c| c.to_string()),
+                  "import_folder_patch");
+            }
+
+            self.cache.insert(folder_id, folder);
+            let summary = vault.summary().to_owned();
+            self.add_summary(summary.clone());
+        }
+        Ok(())
+    }
+
+    /// Initialize a folder from an event log.
+    ///
+    /// If an event log exists for the folder identifer
+    /// it is replaced with the new event records.
+    async fn initialize_folder(
         &mut self,
         folder_id: &VaultId,
         records: Vec<EventRecord>,
-        key: &AccessKey,
-    ) -> Result<Summary> {
+    ) -> Result<(DiscFolder, Vault)> {
         let vault_path = self.paths.vault_path(folder_id);
 
         // Prepare the vault file on disc
@@ -403,7 +483,6 @@ impl ClientStorage {
             self.write_vault_file(folder_id, buffer).await?;
 
             let folder = DiscFolder::new(&vault_path).await?;
-
             let event_log = folder.event_log();
             let mut event_log = event_log.write().await;
             event_log.clear().await?;
@@ -423,12 +502,25 @@ impl ClientStorage {
 
         // Setup the folder access to the latest vault information
         // and load the merkle tree
-        let mut folder = DiscFolder::new(&vault_path).await?;
+        let folder = DiscFolder::new(&vault_path).await?;
         let event_log = folder.event_log();
         let mut event_log = event_log.write().await;
         event_log.load_tree().await?;
 
-        // Unlock the folder and create the in-memory reference
+        Ok((folder, vault))
+    }
+
+    /// Restore a folder from an event log.
+    pub async fn restore_folder(
+        &mut self,
+        folder_id: &VaultId,
+        records: Vec<EventRecord>,
+        key: &AccessKey,
+    ) -> Result<Summary> {
+        let (mut folder, vault) =
+            self.initialize_folder(folder_id, records).await?;
+
+        // Unlock the folder
         folder.unlock(key).await?;
         self.cache.insert(*folder_id, folder);
 
@@ -653,7 +745,7 @@ impl ClientStorage {
         buffer: impl AsRef<[u8]>,
     ) -> Result<()> {
         let vault_path = self.paths.vault_path(vault_id);
-        vfs::write(vault_path, buffer.as_ref()).await?;
+        vfs::write_exclusive(vault_path, buffer.as_ref()).await?;
         Ok(())
     }
 
@@ -664,7 +756,7 @@ impl ClientStorage {
         buffer: impl AsRef<[u8]>,
     ) -> Result<()> {
         let vault_path = self.paths.pending_vault_path(vault_id);
-        vfs::write(vault_path, buffer.as_ref()).await?;
+        vfs::write_exclusive(vault_path, buffer.as_ref()).await?;
         Ok(())
     }
 
@@ -1059,10 +1151,8 @@ impl ClientStorage {
             .await
     }
 
-    /// Load folders from the local disc.
-    ///
-    /// Creates the in-memory event logs for each folder on disc.
-    pub async fn load_folders(&mut self) -> Result<&[Summary]> {
+    /// Read folders from the local disc.
+    async fn read_folders(&self) -> Result<Vec<Summary>> {
         let storage = self.paths.vaults_dir();
         let mut summaries = Vec::new();
         let mut contents = vfs::read_dir(&storage).await?;
@@ -1078,7 +1168,13 @@ impl ClientStorage {
                 }
             }
         }
+        Ok(summaries)
+    }
 
+    /// Read folders from the local disc and create the in-memory
+    /// event logs for each folder on disc.
+    pub async fn load_folders(&mut self) -> Result<&[Summary]> {
+        let summaries = self.read_folders().await?;
         self.load_caches(&summaries).await?;
         self.summaries = summaries;
         Ok(self.list_folders())
@@ -1132,6 +1228,20 @@ impl ClientStorage {
         events.insert(0, Event::Account(account_event));
 
         Ok(events)
+    }
+
+    /// Remove a folder from the cache.
+    pub async fn remove_folder(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<bool> {
+        let summary = self.find(|s| s.id() == folder_id).cloned();
+        if let Some(summary) = summary {
+            self.remove_local_cache(&summary)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     /// Update the in-memory name for a folder.
@@ -1350,7 +1460,7 @@ impl ClientStorage {
     pub(crate) async fn create_secret(
         &mut self,
         secret_data: SecretRow,
-        mut options: AccessOptions,
+        #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
 
@@ -1402,6 +1512,19 @@ impl ClientStorage {
         Ok(result)
     }
 
+    /// Read the encrypted contents of a secret.
+    pub(crate) async fn raw_secret(
+        &self,
+        folder_id: &VaultId,
+        secret_id: &SecretId,
+    ) -> Result<(Option<Cow<'_, VaultCommit>>, ReadEvent)> {
+        let folder = self
+            .cache
+            .get(folder_id)
+            .ok_or(Error::CacheNotAvailable(*folder_id))?;
+        folder.raw_secret(secret_id).await
+    }
+
     /// Read a secret in the currently open folder.
     pub(crate) async fn read_secret(
         &self,
@@ -1425,7 +1548,7 @@ impl ClientStorage {
         secret_id: &SecretId,
         meta: SecretMeta,
         secret: Option<Secret>,
-        mut options: AccessOptions,
+        #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
         let (old_meta, old_secret, _) = self.read_secret(secret_id).await?;
         let old_secret_data =
@@ -1478,7 +1601,7 @@ impl ClientStorage {
         &mut self,
         id: &SecretId,
         mut secret_data: SecretRow,
-        is_update: bool,
+        #[allow(unused_variables)] is_update: bool,
     ) -> Result<WriteEvent> {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
 
@@ -1508,7 +1631,6 @@ impl ClientStorage {
         };
 
         let event = {
-            let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
             let folder = self
                 .cache
                 .get_mut(summary.id())
@@ -1533,10 +1655,13 @@ impl ClientStorage {
     pub(crate) async fn delete_secret(
         &mut self,
         secret_id: &SecretId,
-        mut options: AccessOptions,
+        #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
-        let (meta, secret, _) = self.read_secret(secret_id).await?;
-        let secret_data = SecretRow::new(*secret_id, meta, secret);
+        #[cfg(feature = "files")]
+        let secret_data = {
+            let (meta, secret, _) = self.read_secret(secret_id).await?;
+            SecretRow::new(*secret_id, meta, secret)
+        };
 
         let event = self.remove_secret(secret_id).await?;
 
@@ -1574,7 +1699,6 @@ impl ClientStorage {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
 
         let event = {
-            let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
             let folder = self
                 .cache
                 .get_mut(summary.id())

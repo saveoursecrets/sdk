@@ -3,11 +3,11 @@ use crate::{
         account::resolve_user,
         messages::{fail, success},
     },
-    Result,
+    Error, Result,
 };
 use clap::Subcommand;
 use sos_net::extras::preferences::*;
-use sos_net::sdk::prelude::*;
+use sos_net::sdk::prelude::{Account, AccountRef};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -102,6 +102,8 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::List { account } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let paths = owner.paths();
             let mut prefs = Preferences::new(&paths);
             prefs.load().await?;
@@ -116,6 +118,8 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Get { account, key } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let paths = owner.paths();
             let mut prefs = Preferences::new(&paths);
             prefs.load().await?;
@@ -128,6 +132,8 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Remove { account, key } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let paths = owner.paths();
             let mut prefs = Preferences::new(&paths);
             prefs.load().await?;
@@ -170,6 +176,8 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Clear { account } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let paths = owner.paths();
             let mut prefs = Preferences::new(&paths);
             prefs.clear().await?;
@@ -186,6 +194,7 @@ async fn set_pref(
 ) -> Result<()> {
     let user = resolve_user(account.as_ref(), false).await?;
     let owner = user.read().await;
+    let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
     let paths = owner.paths();
     let mut prefs = Preferences::new(&paths);
     prefs.load().await?;

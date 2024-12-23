@@ -10,6 +10,7 @@ use crate::{
     },
     vfs, Error, Result,
 };
+use std::{borrow::Cow, path::Path};
 
 use super::VaultFlags;
 
@@ -88,9 +89,34 @@ impl Gatekeeper {
     ) -> Result<()> {
         if let (true, Some(mirror)) = (write_disc, &self.mirror) {
             let buffer = encode(&vault).await?;
-            vfs::write(&mirror.file_path, &buffer).await?;
+            vfs::write_exclusive(&mirror.file_path, &buffer).await?;
         }
         self.vault = vault;
+        Ok(())
+    }
+
+    /// Reload the vault from disc.
+    ///
+    /// Replaces the in-memory vault and updates the vault writer
+    /// mirror when mirroring to disc is enabled.
+    ///
+    /// Use this to update the in-memory representation when a vault
+    /// has been modified in a different process.
+    ///
+    /// Assumes the private key for the folder has not changed.
+    pub async fn reload_vault(
+        &mut self,
+        path: impl AsRef<Path>,
+    ) -> Result<()> {
+        let buffer = vfs::read(path.as_ref()).await?;
+        self.vault = decode(&buffer).await?;
+
+        if self.mirror.is_some() {
+            let vault_file = VaultWriter::open(path.as_ref()).await?;
+            let mirror = VaultWriter::new(path.as_ref(), vault_file)?;
+            self.mirror = Some(mirror);
+        }
+
         Ok(())
     }
 
@@ -248,13 +274,20 @@ impl Gatekeeper {
         Ok(result)
     }
 
+    /// Read the encrypted contents of a secret.
+    pub async fn raw_secret(
+        &self,
+        id: &SecretId,
+    ) -> Result<(Option<Cow<'_, VaultCommit>>, ReadEvent)> {
+        self.vault.read_secret(id).await
+    }
+
     /// Get a secret and it's meta data.
     pub async fn read_secret(
         &self,
         id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
-        let event = ReadEvent::ReadSecret(*id);
-        if let (Some(value), _payload) = self.vault.read_secret(id).await? {
+        if let (Some(value), event) = self.raw_secret(id).await? {
             let (meta, secret) = self
                 .decrypt_secret(value.as_ref(), self.private_key.as_ref())
                 .await?;

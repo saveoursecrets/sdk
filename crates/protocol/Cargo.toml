@@ -1,6 +1,6 @@
 [package]
 name = "sos-protocol"
-version = "0.15.1"
+version = "0.16.3"
 edition = "2021"
 description = "Networking and sync protocol types for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -12,11 +12,15 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = []
-listen = []
+listen = ["tokio-tungstenite"]
+hashcheck = ["reqwest"]
+network-client = ["reqwest", "bs58", "async-stream", "tokio-util"]
 pairing = []
 account = ["sos-sdk/account"]
+archive = ["sos-sdk/archive"]
+contacts = ["sos-sdk/contacts"]
 files = ["sos-sdk/files"]
+migrate = ["sos-sdk/migrate"]
 search = ["sos-sdk/search"]
 
 [dependencies]
@@ -24,17 +28,41 @@ thiserror.workspace = true
 tracing.workspace = true
 async-trait.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 uuid.workspace = true
 url.workspace = true
 futures.workspace = true
 indexmap.workspace = true
 rs_merkle.workspace = true
 prost.workspace = true
+http.workspace = true
+bytes.workspace = true
+binary-stream.workspace = true
+typeshare.workspace = true
 tokio = { version = "1", features = ["rt",  "macros"] }
 
+# network-client
+# reqwest = { workspace = true, optional = true }
+tokio-tungstenite = { workspace = true, optional = true }
+bs58 = { workspace = true, optional = true }
+async-stream = { workspace = true, optional = true }
+tokio-util = { workspace = true, optional = true }
+
 [dependencies.sos-sdk]
-version = "0.15.1"
+version = "0.16"
 path = "../sdk"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.reqwest]
+version = "0.12.5"
+default-features = false
+features = ["json", "rustls-tls", "stream"]
+optional = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.reqwest]
+version = "0.12.5"
+default-features = false
+features = ["json", "stream"]
+optional = true
 
 [dev-dependencies]
 anyhow = "1"

@@ -15,7 +15,7 @@ use std::{
 };
 use time::{Date, Month};
 use url::Url;
-use vcard4::{property::DeliveryAddress, uriparse::URI as Uri, VcardBuilder};
+use vcard4::{property::DeliveryAddress, Uri, VcardBuilder};
 
 use async_zip::tokio::read::seek::ZipFileReader;
 use tokio::io::{AsyncBufRead, AsyncSeek, BufReader};
@@ -456,8 +456,8 @@ impl From<DashlaneContactRecord> for GenericContactRecord {
             None
         };
 
-        let url: Option<Uri<'static>> = if !value.url.is_empty() {
-            Uri::try_from(&value.url[..]).ok().map(|u| u.into_owned())
+        let url: Option<Uri> = if !value.url.is_empty() {
+            value.url.parse().ok()
         } else {
             None
         };
@@ -533,7 +533,7 @@ impl From<DashlaneContactRecord> for GenericContactRecord {
             builder = builder.title(value.job_title);
         }
         if let Some(date) = date_of_birth {
-            builder = builder.birthday(date);
+            builder = builder.birthday(date.into());
         }
         let vcard = builder.finish();
         Self {

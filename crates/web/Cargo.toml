@@ -1,0 +1,36 @@
+[package]
+name = "sos-web"
+version = "0.16.5"
+edition = "2021"
+description = "Thin client for webassembly bindings to the Save Our Secrets SDK."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+account = ["sos-sdk/account", "sos-protocol/account"]
+archive = []
+clipboard = []
+contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
+files = []
+migrate = []
+search = ["sos-sdk/search", "sos-protocol/search"]
+
+[dependencies]
+thiserror.workspace = true
+tracing.workspace = true
+indexmap.workspace = true
+async-trait.workspace = true
+
+sos-sdk = { version = "0.16", path = "../sdk", features = ["account"] }
+sos-protocol = { version = "0.16", path = "../protocol", features = ["network-client"] }
+
+tokio = { version = "1", features = ["rt", "io-util", "sync"] }
+
+[build-dependencies]
+rustc_version = "0.4.1"
+

@@ -453,7 +453,7 @@ impl AccountBackup {
             event_log_path.set_extension(EVENT_LOG_EXT);
 
             // Write out the vault buffer
-            vfs::write(&vault_path, buffer).await?;
+            vfs::write_exclusive(&vault_path, buffer).await?;
 
             let (_, events) = FolderReducer::split(vault.clone()).await?;
 

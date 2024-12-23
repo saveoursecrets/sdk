@@ -12,12 +12,12 @@ use crate::{
     prelude::VaultFlags,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
-        Gatekeeper, Vault, VaultId, VaultMeta, VaultWriter,
+        Gatekeeper, Vault, VaultCommit, VaultId, VaultMeta, VaultWriter,
     },
     vfs, Error, Paths, Result,
 };
 
-use std::{path::Path, sync::Arc};
+use std::{borrow::Cow, path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
@@ -34,7 +34,7 @@ pub struct Folder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
     D: Clone + Send + Sync,
 {
     pub(crate) keeper: Gatekeeper,
@@ -46,7 +46,7 @@ impl<T, R, W, D> Folder<T, R, W, D>
 where
     T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-    W: AsyncWrite + Unpin + Send + Sync + 'static,
+    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
     D: Clone + Send + Sync,
 {
     /// Create a new folder.
@@ -105,6 +105,14 @@ where
         id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
         self.keeper.read_secret(id).await
+    }
+
+    /// Read the encrypted contents of a secret.
+    pub async fn raw_secret(
+        &self,
+        id: &SecretId,
+    ) -> Result<(Option<Cow<'_, VaultCommit>>, ReadEvent)> {
+        self.keeper.raw_secret(id).await
     }
 
     /// Update a secret.

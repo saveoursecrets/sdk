@@ -90,16 +90,6 @@ pub enum CheckedPatch {
 /// Diff between local and remote.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Diff<T> {
-    /// Last commit hash before the patch was created.
-    ///
-    /// This can be used to determine if the patch is to
-    /// be used to initialize a new set of events when
-    /// no last commit is available.
-    ///
-    /// For example, for file event logs which are
-    /// lazily instantiated once external files are created.
-    pub last_commit: Option<CommitHash>,
-
     /// Contents of the patch.
     pub patch: Patch<T>,
     /// Checkpoint for the diff patch.
@@ -111,6 +101,30 @@ pub struct Diff<T> {
     /// references the commit proof of HEAD after
     /// applying the patch.
     pub checkpoint: CommitProof,
+    /// Last commit hash before the patch was created.
+    ///
+    /// This can be used to determine if the patch is to
+    /// be used to initialize a new set of events when
+    /// no last commit is available.
+    ///
+    /// For example, for file event logs which are
+    /// lazily instantiated once external files are created.
+    pub last_commit: Option<CommitHash>,
+}
+
+impl<T> Diff<T> {
+    /// Create a diff.
+    pub fn new(
+        patch: Patch<T>,
+        checkpoint: CommitProof,
+        last_commit: Option<CommitHash>,
+    ) -> Self {
+        Self {
+            patch,
+            checkpoint,
+            last_commit,
+        }
+    }
 }
 
 /// Diff between account events logs.

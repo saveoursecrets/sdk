@@ -3,7 +3,7 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, AccountSync};
+use sos_net::{protocol::AccountSync, sdk::prelude::*};
 
 /// Tests making deletes to a folder whilst
 /// a server is offline and resolving the conflicts with

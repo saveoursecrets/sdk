@@ -1,7 +1,6 @@
-use crate::test_utils::{simulate_device, spawn, teardown};
+use crate::test_utils::{simulate_device, spawn, teardown, wait_num_websocket_connections};
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, HttpClient};
-use std::time::Duration;
+use sos_net::sdk::prelude::*;
 
 /// Tests websocket shutdown logic.
 #[tokio::test]
@@ -20,20 +19,12 @@ async fn network_websocket_shutdown_explicit() -> Result<()> {
     // Start the websocket connection
     device.listen().await?;
 
-    // Wait a moment for the connection to complete
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
-    let num_conns = HttpClient::num_connections(server.origin.url()).await?;
-    assert_eq!(1, num_conns);
+    wait_num_websocket_connections(&server.origin, 1).await?;
 
     // Close the websocket connection
     device.owner.stop_listening(&origin).await;
 
-    // Wait a moment for the connection to close
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
-    let num_conns = HttpClient::num_connections(server.origin.url()).await?;
-    assert_eq!(0, num_conns);
+    wait_num_websocket_connections(&server.origin, 0).await?;
 
     device.owner.sign_out().await?;
 

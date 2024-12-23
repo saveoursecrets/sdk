@@ -9,7 +9,10 @@ db-urls = ["https://github.com/rustsec/advisory-db"]
 yanked = "warn"
 ignore = [
     # we need "age" to update i18n-embed-fl to fix this 
-    "RUSTSEC-2024-0370"
+    "RUSTSEC-2024-0370",
+    # need an update to notify -> notify-types to remove 
+    # the dependency in the unmaintained `instant` crate
+    "RUSTSEC-2024-0384"
 ]
 # Threshold for security vulnerabilities, any vulnerability with a CVSS score
 # lower than the range specified will be ignored. Note that ignored advisories

@@ -9,7 +9,8 @@ mod files {
             storage::files::{ExternalFile, ExternalFileName},
             vault::secret::SecretPath,
         },
-        Error, FileSet, FileTransfersSet, ProtoBinding, Result,
+        transfer::{FileSet, FileTransfersSet},
+        Error, ProtoBinding, Result,
     };
     use indexmap::IndexSet;
 

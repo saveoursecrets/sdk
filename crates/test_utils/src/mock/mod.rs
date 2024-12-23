@@ -7,6 +7,7 @@ use sos_net::sdk::{
     device::TrustedDevice,
     pem,
     sha2::{Digest, Sha256},
+    url::Url,
     vault::secret::{FileContent, IdentityKind, Secret, SecretMeta},
 };
 use std::collections::HashMap;
@@ -26,6 +27,23 @@ pub fn login(
         account: account.to_owned(),
         password,
         url: Default::default(),
+        user_data: Default::default(),
+    };
+    let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());
+    (secret_meta, secret_value)
+}
+
+/// Create a login secret with website urls.
+pub fn login_websites(
+    label: &str,
+    account: &str,
+    password: SecretString,
+    url: Vec<Url>,
+) -> (SecretMeta, Secret) {
+    let secret_value = Secret::Account {
+        account: account.to_owned(),
+        password,
+        url,
         user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());

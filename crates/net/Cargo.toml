@@ -1,6 +1,6 @@
 [package]
 name = "sos-net"
-version = "0.15.1"
+version = "0.16.1"
 edition = "2021"
 description = "Networking library for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -14,6 +14,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 full = [
+  "account",
   "audit",
   "archive",
   "contacts",
@@ -29,13 +30,16 @@ full = [
   "system-messages",
   "clipboard",
 ]
-listen = ["dep:tokio-tungstenite", "sos-protocol/listen"]
-hashcheck = []
+
+account = ["sos-sdk/account"]
+listen = ["sos-protocol/listen"]
+hashcheck = ["sos-protocol/hashcheck"]
 audit = ["sos-sdk/audit"]
-archive = ["sos-sdk/archive"]
+archive = ["sos-sdk/archive", "sos-protocol/archive"]
 files = ["sos-sdk/files", "sos-protocol/files"]
-contacts = ["sos-sdk/contacts"]
-migrate = ["sos-sdk/migrate"]
+clipboard = ["sos-sdk/clipboard"]
+contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
+migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
 keychain-access = ["sos-sdk/keychain-access"]
 recovery = ["sos-sdk/recovery"]
 pairing = ["dep:snow", "sos-protocol/pairing"]
@@ -44,7 +48,6 @@ search = ["sos-sdk/search", "sos-protocol/search"]
 preferences = ["sos-account-extras/preferences"]
 security-report = ["sos-account-extras/security-report"]
 system-messages = ["sos-account-extras/system-messages"]
-clipboard = ["sos-account-extras/clipboard"]
 
 [dependencies]
 tokio-util.workspace = true
@@ -64,11 +67,8 @@ serde_with.workspace = true
 rand.workspace = true
 url.workspace = true
 futures.workspace = true
-bs58.workspace = true
 urlencoding.workspace = true
 indexmap.workspace = true
-async-stream = "0.3"
-colored = "2"
 binary-stream.workspace = true
 rs_merkle.workspace = true
 prost.workspace = true
@@ -76,21 +76,18 @@ prost.workspace = true
 # pairing
 snow = { version = "0.9", optional = true }
 
-reqwest = { version = "0.12.5", default-features = false, features = ["json", "rustls-tls", "stream"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync"] }
-tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] , optional = true}
 
 [dependencies.sos-sdk]
-version = "0.15.1"
-path = "../sdk"
+workspace = true
 
 [dependencies.sos-protocol]
-version = "0.15.1"
+version = "0.16"
 path = "../protocol"
-features = ["account"]
+features = ["account", "network-client"]
 
 [dependencies.sos-account-extras]
-version = "0.15.1"
+version = "0.16"
 path = "../account_extras/"
 optional = true
 

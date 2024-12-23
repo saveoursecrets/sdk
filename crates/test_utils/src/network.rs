@@ -3,7 +3,10 @@ use anyhow::Result;
 use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
-    protocol::{Origin, SyncStorage},
+    protocol::{
+        network_client::{ListenOptions, HttpClient}, AccountSync, Origin,
+        RemoteSyncHandler, SyncClient, SyncStorage,
+    },
     sdk::{
         account::{Account, AccountBuilder},
         constants::{FILES_DIR, VAULT_EXT},
@@ -16,8 +19,7 @@ use sos_net::{
         vault::{Summary, VaultId},
         vfs, Paths,
     },
-    AccountSync, InflightNotification, InflightTransfers, ListenOptions,
-    NetworkAccount, RemoteBridge, SyncClient,
+    InflightNotification, InflightTransfers, NetworkAccount, RemoteBridge,
 };
 use std::{
     path::PathBuf,
@@ -25,6 +27,22 @@ use std::{
     time::{Duration, SystemTime},
 };
 use tokio::sync::Mutex;
+
+/// Wait for a number of websocket connections to be reported 
+/// by a server.
+pub async fn wait_num_websocket_connections(origin: &Origin, target: usize) -> anyhow::Result<()> {
+    #[allow(unused_assignments)]
+    let mut num_conns = 0;
+    loop {
+        num_conns = HttpClient::num_connections(origin.url()).await?;
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        if num_conns == target {
+            break;
+        }
+    }
+    Ok(())
+}
+
 
 /// Simulated device information.
 pub struct SimulatedDevice {
@@ -212,7 +230,10 @@ pub async fn assert_local_remote_vaults_eq(
     owner: &mut NetworkAccount,
     _provider: &mut RemoteBridge,
 ) -> Result<()> {
-    let storage = owner.storage().await?;
+    let storage = owner
+        .storage()
+        .await
+        .ok_or(sos_net::sdk::Error::NoStorage)?;
     let reader = storage.read().await;
 
     // Compare vault buffers
@@ -245,7 +266,8 @@ pub async fn assert_local_remote_events_eq(
 
     // Compare event log status (commit proofs)
     let local_status = owner.sync_status().await?;
-    let remote_status = provider.client().sync_status().await?;
+    let remote_status =
+        provider.client().sync_status(owner.address()).await?;
 
     //println!(" local {:#?}", local_status);
     //println!("remote {:#?}", remote_status);

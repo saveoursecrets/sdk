@@ -13,10 +13,28 @@ BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
 # tests take a while due to so many exec calls
 RUST_TEST_TIME_INTEGRATION = "120000,240000"
 
+[tasks.typegen]
+script = '''
+RUST_LOG=debug typeshare crates/sdk crates/ipc crates/protocol --lang=typescript --output-file=packages/types/types.ts && cat packages/types/preamble.ts packages/types/types.ts > packages/types/index.ts
+cd packages/types && npm run fmt && npm run lint
+'''
+
 [tasks.format]
 workspace = true
 command = "cargo"
 args = ["fmt"]
+
+[tasks.wasm]
+command = "cargo"
+args = [
+  "check",
+  "-p",
+  "sos-web",
+  "--features",
+  "account,contacts,search",
+  "--target",
+  "wasm32-unknown-unknown",
+]
 
 [tasks.format-check]
 command = "cargo"
@@ -44,12 +62,21 @@ args = [
   "--doc",
 ]
 
+[tasks.unused]
+command = "cargo"
+toolchain = "nightly"
+args = [
+  "udeps",
+  "--all-targets",
+]
+
 [tasks.doc]
 toolchain = "nightly"
 command = "cargo"
 args = [
   "doc",
   "--workspace",
+  "--all-features",
   "--open",
   "--no-deps"
 ]
@@ -99,10 +126,15 @@ command = "cargo"
 args = ["test", "--all", "--features", "enable-cli-tests"]
 dependencies = ["clean-cli"]
 
+# build test helper executables
+[tasks.build-test]
+command = "cargo"
+args = ["build", "-p", "sos-integration-tests"]
+
 [tasks.test-lite]
 command = "cargo"
 args = ["nextest", "run"]
-dependencies = ["clean-cli"]
+dependencies = ["clean-cli", "build-test"]
 
 [tasks.genhtml]
 script = '''

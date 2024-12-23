@@ -7,9 +7,8 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_net::{
-    protocol::{Origin, SyncOptions},
+    protocol::{AccountSync, Origin, SyncOptions},
     sdk::{identity::AccountRef, url::Url},
-    AccountSync,
 };
 
 #[derive(Subcommand, Debug)]
@@ -46,6 +45,9 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Add { account, url } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let mut owner = user.write().await;
+            let owner = owner
+                .selected_account_mut()
+                .ok_or(Error::NoSelectedAccount)?;
             let origin: Origin = url.into();
             owner.add_server(origin.clone()).await?;
             let options = SyncOptions {
@@ -64,6 +66,8 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::List { account } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let owner = user.read().await;
+            let owner =
+                owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let servers = owner.servers().await;
             if servers.is_empty() {
                 println!("No servers yet");
@@ -77,6 +81,9 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Remove { account, url } => {
             let user = resolve_user(account.as_ref(), false).await?;
             let mut owner = user.write().await;
+            let owner = owner
+                .selected_account_mut()
+                .ok_or(Error::NoSelectedAccount)?;
             let origin: Origin = url.into();
             let remote = owner.remove_server(&origin).await?;
 

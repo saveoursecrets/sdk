@@ -1,0 +1,24 @@
+[package]
+name = "xclipboard"
+version = "0.16.0"
+edition = "2021"
+description = "Cross-platform clipboard with extra features."
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[dependencies]
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+zeroize = { workspace = true }
+
+[target.'cfg(all(not(target_os = "android"), not(target_os = "ios")))'.dependencies.arboard]
+workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+tokio = { version = "1", features = ["full"] }
+
+[build-dependencies]
+rustc_version = "0.4.1"

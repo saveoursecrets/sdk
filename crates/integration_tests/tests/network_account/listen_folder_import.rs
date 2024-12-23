@@ -41,7 +41,7 @@ async fn network_sync_listen_folder_import() -> Result<()> {
     // path when sync happens
     device1.owner.open_folder(&new_folder).await?;
     let mut vault = {
-        let storage = device1.owner.storage().await?;
+        let storage = device1.owner.storage().await.unwrap();
         let reader = storage.read().await;
         let folder = reader.cache().get(new_folder.id()).unwrap();
         folder.keeper().vault().clone()
@@ -85,7 +85,7 @@ async fn network_sync_listen_folder_import() -> Result<()> {
     // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions
     let expected_summaries: Vec<Summary> = {
-        let storage = device1.owner.storage().await?;
+        let storage = device1.owner.storage().await.unwrap();
         let reader = storage.read().await;
         reader.list_folders().to_vec()
     };

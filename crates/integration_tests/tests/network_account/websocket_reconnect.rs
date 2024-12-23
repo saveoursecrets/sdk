@@ -1,8 +1,12 @@
-use crate::test_utils::{simulate_device, spawn, teardown};
+use crate::test_utils::{simulate_device, spawn, teardown, wait_num_websocket_connections};
 use anyhow::Result;
-use sos_net::{sdk::prelude::*, HttpClient, ListenOptions, NetworkRetry};
-use std::{sync::Arc, time::Duration};
+use sos_net::{
+    protocol::network_client::{ListenOptions, NetworkRetry},
+    sdk::prelude::*,
+};
+use std::sync::Arc;
 use tokio::sync::Mutex;
+use std::time::Duration;
 
 /// Tests websocket reconnect logic.
 #[tokio::test]
@@ -41,11 +45,8 @@ async fn network_websocket_reconnect() -> Result<()> {
             .unwrap();
     });
 
-    // Wait a little to give the websocket time to connect
-    tokio::time::sleep(Duration::from_millis(100)).await;
-
-    let num_conns = HttpClient::num_connections(server.origin.url()).await?;
-    assert_eq!(1, num_conns);
+    // Wait for the connection
+    wait_num_websocket_connections(&server.origin, 1).await?;
 
     // Drop the server handle to shutdown the server
     drop(server);
@@ -61,8 +62,8 @@ async fn network_websocket_reconnect() -> Result<()> {
     // connection
     tokio::time::sleep(Duration::from_millis(5000)).await;
 
-    let num_conns = HttpClient::num_connections(server.origin.url()).await?;
-    assert_eq!(1, num_conns);
+    // Wait for the connection
+    wait_num_websocket_connections(&server.origin, 1).await?;
 
     let mut writer = main_device.lock().await;
     writer.owner.sign_out().await?;

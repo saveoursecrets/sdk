@@ -48,6 +48,7 @@ pub async fn resolve_secret(
     secret: &SecretRef,
 ) -> Result<Option<(SecretId, SecretMeta)>> {
     let owner = user.read().await;
+    let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
     let search = owner.index().await?;
     let index_reader = search.read().await;
     if let Some(Document {
@@ -447,6 +448,7 @@ pub(crate) async fn download_file_secret(
     secret: Secret,
 ) -> Result<()> {
     let owner = resolved.user.read().await;
+    let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
     if let Secret::File { content, .. } = secret {
         match content {
             FileContent::External { checksum, .. } => {

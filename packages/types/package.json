@@ -1,0 +1,18 @@
+{
+  "name": "@saveoursecrets/types",
+  "version": "0.0.1",
+  "description": "Type definitions for the Save Our Secrets SDK.",
+  "main": "index.ts",
+  "scripts": {
+    "compile": "tsc --noEmit",
+    "lint": "biome check index.ts preamble.ts",
+    "fix": "biome check --write index.ts preamble.ts",
+    "fmt": "biome format --write index.ts preamble.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "typescript": "^5.6.2"
+  },
+  "author": "dev@saveoursecrets.com",
+  "license": "ISC"
+}

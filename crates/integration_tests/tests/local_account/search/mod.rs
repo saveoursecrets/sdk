@@ -6,3 +6,4 @@ mod sign_in;
 mod statistics;
 mod update_secret;
 mod view_query;
+mod view_query_websites;

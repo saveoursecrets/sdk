@@ -26,3 +26,29 @@ pub use error::Error;
 /// Result type for the executable library.
 #[doc(hidden)]
 pub type Result<T> = std::result::Result<T, error::Error>;
+
+/// Run the command line tool.
+pub async fn run() -> Result<()> {
+    use kdam::term;
+    use sos_cli_helpers::messages::{fail, warn};
+    use sos_net::sdk::logs::Logger;
+
+    let logger: Logger = Default::default();
+    logger.init_subscriber(None)?;
+
+    if let Err(e) = crate::cli::sos::run().await {
+        if !e.is_interrupted() {
+            fail(e.to_string());
+        }
+
+        let mut owner = USER.write().await;
+        if let Err(e) = owner.sign_out_all().await {
+            warn(format!("sign out {e}"));
+        }
+
+        let _ = term::show_cursor();
+        std::process::exit(1);
+    }
+
+    Ok(())
+}

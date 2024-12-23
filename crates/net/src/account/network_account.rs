@@ -1,19 +1,22 @@
 //! Network aware account.
 use crate::{
-    protocol::{Origin, SyncOptions, UpdateSet},
+    protocol::{
+        AccountSync, DiffRequest, EventLogType, Origin, RemoteSync,
+        RemoteSyncHandler, SyncClient, SyncOptions, SyncResult, UpdateSet,
+    },
     sdk::{
         account::{
             Account, AccountBuilder, AccountChange, AccountData,
-            CipherComparison, DetachedView, FolderChange, FolderCreate,
-            FolderDelete, LocalAccount, SecretChange, SecretDelete,
-            SecretInsert, SecretMove, SigninOptions,
+            CipherComparison, FolderChange, FolderCreate, FolderDelete,
+            LocalAccount, SecretChange, SecretDelete, SecretInsert,
+            SecretMove,
         },
         commit::{CommitHash, CommitState},
         crypto::{AccessKey, Cipher, KeyDerivation},
         device::{
             DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice,
         },
-        events::{AccountEvent, EventLogExt, ReadEvent},
+        events::{AccountEvent, EventLogExt, EventRecord, ReadEvent},
         identity::{AccountRef, PublicIdentity},
         sha2::{Digest, Sha256},
         signer::ecdsa::{Address, BoxedEcdsaSigner},
@@ -22,42 +25,50 @@ use crate::{
         },
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow},
-            Summary, Vault, VaultId,
+            Summary, Vault, VaultCommit, VaultFlags, VaultId,
         },
         vfs, Paths,
     },
-    SyncClient, SyncResult,
+    Error, RemoteBridge, Result,
 };
 use async_trait::async_trait;
 use secrecy::SecretString;
-use sos_protocol::{DiffRequest, EventLogType};
-use sos_sdk::{events::EventRecord, vault::VaultFlags};
+use sos_sdk::events::{AccountPatch, DevicePatch, FolderPatch};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::{
-    io::{AsyncRead, AsyncSeek},
-    sync::{Mutex, RwLock},
+use tokio::sync::{Mutex, RwLock};
+
+#[cfg(feature = "clipboard")]
+use sos_sdk::{
+    prelude::{ClipboardCopyRequest, SecretPath},
+    xclipboard::Clipboard,
 };
 
 #[cfg(feature = "search")]
-use crate::sdk::storage::search::{
+use crate::sdk::prelude::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
     QueryFilter, SearchIndex,
 };
 
 #[cfg(feature = "archive")]
-use crate::sdk::account::archive::{Inventory, RestoreOptions};
+use crate::sdk::prelude::{Inventory, RestoreOptions};
 
 use indexmap::IndexSet;
 
-#[cfg(feature = "listen")]
-use crate::WebSocketHandle;
-
 #[cfg(feature = "contacts")]
-use crate::sdk::account::ContactImportProgress;
+use crate::sdk::prelude::ContactImportProgress;
+
+#[cfg(feature = "archive")]
+use tokio::io::{AsyncRead, AsyncSeek};
+
+#[cfg(feature = "migrate")]
+use crate::sdk::prelude::ImportTarget;
+
+#[cfg(feature = "listen")]
+use sos_protocol::network_client::WebSocketHandle;
 
 /*
 #[cfg(feature = "security-report")]
@@ -66,11 +77,7 @@ use crate::sdk::account::security_report::{
 };
 */
 
-#[cfg(feature = "migrate")]
-use crate::sdk::migrate::import::ImportTarget;
-
 use super::remote::Remotes;
-use crate::{AccountSync, Error, RemoteBridge, RemoteSync, Result};
 
 #[cfg(feature = "files")]
 use crate::{
@@ -78,9 +85,8 @@ use crate::{
         FileTransferSettings, FileTransfers, FileTransfersHandle,
         InflightTransfers,
     },
-    protocol::FileOperation,
-    sdk::storage::files::FileMutationEvent,
-    HttpClient,
+    protocol::{network_client::HttpClient, transfer::FileOperation},
+    sdk::{prelude::FilePatch, storage::files::FileMutationEvent},
 };
 
 /// Options for network account creation.
@@ -134,18 +140,15 @@ pub struct NetworkAccount {
     pub(crate) offline: bool,
 
     /// Options for the network account.
+    #[allow(dead_code)]
     options: NetworkAccountOptions,
 }
 
 impl NetworkAccount {
-    async fn login(
-        &mut self,
-        key: &AccessKey,
-        options: SigninOptions,
-    ) -> Result<Vec<Summary>> {
+    async fn login(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
         let folders = {
             let mut account = self.account.lock().await;
-            let folders = account.sign_in_with_options(key, options).await?;
+            let folders = account.sign_in(key).await?;
             self.paths = account.paths();
             self.address = account.address().clone();
             folders
@@ -158,21 +161,72 @@ impl NetworkAccount {
         }
 
         // Load origins from disc and create remote definitions
-        let mut clients = Vec::new();
         if let Some(origins) = self.load_servers().await? {
             let mut remotes: Remotes = Default::default();
 
             for origin in origins {
                 let remote = self.remote_bridge(&origin).await?;
-                clients.push(remote.client().clone());
                 remotes.insert(origin, remote);
             }
 
             self.remotes = Arc::new(RwLock::new(remotes));
         }
 
+        self.activate().await?;
+
+        Ok(folders)
+    }
+
+    /*
+    /// Copy of the HTTP client for a remote.
+    ///
+    /// This is an internal function used for testing
+    /// only, do not use.
+    #[doc(hidden)]
+    pub async fn remote_client(&self, origin: &Origin) -> Option<HttpClient> {
+        let remotes = self.remotes.read().await;
+        remotes.get(origin).map(|r| r.client().clone())
+    }
+    */
+
+    /// Deactive this account by closing down long-running tasks.
+    ///
+    /// Does not sign out of the account so is similar to moving
+    /// this account to the background so the data is still accessible.
+    ///
+    /// This can be used when implementing quick account switching
+    /// to shutdown the websocket and file transfers.
+    ///
+    /// Server remotes are left intact so that making changes
+    /// will still sync with server(s).
+    pub async fn deactivate(&mut self) {
+        #[cfg(feature = "listen")]
+        {
+            tracing::debug!("net_sign_out::shutdown_websockets");
+            self.shutdown_websockets().await;
+        }
+
         #[cfg(feature = "files")]
         {
+            tracing::debug!("net_sign_out::stop_file_transfers");
+            self.stop_file_transfers().await;
+        }
+    }
+
+    /// Activate this account by resuming websocket connections
+    /// and file transfers.
+    pub async fn activate(&mut self) -> Result<()> {
+        #[cfg(feature = "files")]
+        {
+            let clients = {
+                let mut clients = Vec::new();
+                let remotes = self.remotes.read().await;
+                for (_, remote) in &*remotes {
+                    clients.push(remote.client().clone());
+                }
+                clients
+            };
+
             let file_transfers = FileTransfers::new(
                 clients,
                 self.options.file_transfer_settings.clone(),
@@ -181,7 +235,7 @@ impl NetworkAccount {
             self.start_file_transfers().await?;
         }
 
-        Ok(folders)
+        Ok(())
     }
 
     /// Revoke a device.
@@ -197,7 +251,8 @@ impl NetworkAccount {
         // Update the local device event log
         {
             let account = self.account.lock().await;
-            let storage = account.storage().await?;
+            let storage =
+                account.storage().await.ok_or(sos_sdk::Error::NoStorage)?;
             let mut storage = storage.write().await;
             storage.revoke_device(device_key).await?;
         }
@@ -264,15 +319,14 @@ impl NetworkAccount {
         &mut self,
         origin: Origin,
     ) -> Result<Option<Error>> {
-        let remote = self.remote_bridge(&origin).await?;
-
-        #[cfg(feature = "files")]
-        if let Some(file_transfers) = self.file_transfers.as_mut() {
-            file_transfers.add_client(remote.client().clone()).await;
-        };
-
         #[cfg(feature = "files")]
         {
+            let remote = self.remote_bridge(&origin).await?;
+
+            if let Some(file_transfers) = self.file_transfers.as_mut() {
+                file_transfers.add_client(remote.client().clone()).await;
+            };
+
             let mut remotes = self.remotes.write().await;
             if let Some(handle) = &self.file_transfer_handle {
                 self.proxy_remote_file_queue(handle, &remote).await;
@@ -329,6 +383,7 @@ impl NetworkAccount {
         let remote = {
             let mut remotes = self.remotes.write().await;
             let remote = remotes.remove(origin);
+            #[allow(unused_variables)]
             if let Some(remote) = &remote {
                 #[cfg(feature = "files")]
                 if let Some(file_transfers) = self.file_transfers.as_mut() {
@@ -412,7 +467,7 @@ impl NetworkAccount {
             log_type: EventLogType::Folder(*folder_id),
             from_hash: None,
         };
-        let response = remote.client().diff(request).await?;
+        let response = remote.client().diff(self.address(), request).await?;
         self.restore_folder(folder_id, response.patch).await
     }
 
@@ -433,7 +488,7 @@ impl NetworkAccount {
         let origins = remotes.keys().collect::<Vec<_>>();
         let data = serde_json::to_vec_pretty(&origins)?;
         let file = self.paths().remote_origins();
-        vfs::write(file, data).await?;
+        vfs::write_exclusive(file, data).await?;
         Ok(())
     }
 
@@ -639,7 +694,7 @@ impl NetworkAccount {
 #[async_trait]
 impl Account for NetworkAccount {
     type Error = Error;
-    type NetworkResult = SyncResult;
+    type NetworkResult = SyncResult<Self::Error>;
 
     fn address(&self) -> &Address {
         &self.address
@@ -657,6 +712,27 @@ impl Account for NetworkAccount {
     async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
         let account = self.account.lock().await;
         Ok(account.account_signer().await?)
+    }
+
+    async fn import_account_events(
+        &mut self,
+        identity: FolderPatch,
+        account: AccountPatch,
+        device: DevicePatch,
+        folders: HashMap<VaultId, FolderPatch>,
+        #[cfg(feature = "files")] files: FilePatch,
+    ) -> Result<()> {
+        let mut inner = self.account.lock().await;
+        Ok(inner
+            .import_account_events(
+                identity,
+                account,
+                device,
+                folders,
+                #[cfg(feature = "files")]
+                files,
+            )
+            .await?)
     }
 
     async fn new_device_vault(
@@ -745,6 +821,11 @@ impl Account for NetworkAccount {
     async fn identity_folder_summary(&self) -> Result<Summary> {
         let account = self.account.lock().await;
         Ok(account.identity_folder_summary().await?)
+    }
+
+    async fn reload_identity_folder(&mut self) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.reload_identity_folder().await?)
     }
 
     async fn change_cipher(
@@ -843,15 +924,7 @@ impl Account for NetworkAccount {
     }
 
     async fn sign_in(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
-        self.login(key, Default::default()).await
-    }
-
-    async fn sign_in_with_options(
-        &mut self,
-        key: &AccessKey,
-        options: SigninOptions,
-    ) -> Result<Vec<Summary>> {
-        self.login(key, options).await
+        self.login(key).await
     }
 
     async fn verify(&self, key: &AccessKey) -> bool {
@@ -859,26 +932,24 @@ impl Account for NetworkAccount {
         account.verify(key).await
     }
 
-    async fn open_folder(&mut self, summary: &Summary) -> Result<()> {
-        let mut account = self.account.lock().await;
+    async fn open_folder(&self, summary: &Summary) -> Result<()> {
+        let account = self.account.lock().await;
         Ok(account.open_folder(summary).await?)
     }
 
+    async fn current_folder(&self) -> Result<Option<Summary>> {
+        let account = self.account.lock().await;
+        Ok(account.current_folder().await?)
+    }
+
     async fn sign_out(&mut self) -> Result<()> {
-        #[cfg(feature = "listen")]
-        {
-            tracing::debug!("net_sign_out::shutdown_websockets");
-            self.shutdown_websockets().await;
-        }
+        self.deactivate().await;
+        self.remotes = Default::default();
 
         #[cfg(feature = "files")]
         {
-            tracing::debug!("net_sign_out::stop_file_transfers");
-            self.stop_file_transfers().await;
             self.file_transfers.take();
         }
-
-        self.remotes = Default::default();
 
         let mut account = self.account.lock().await;
         Ok(account.sign_out().await?)
@@ -891,8 +962,7 @@ impl Account for NetworkAccount {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            let result = account.rename_account(account_name).await?;
-            result
+            account.rename_account(account_name).await?
         };
 
         let result = AccountChange {
@@ -929,9 +999,17 @@ impl Account for NetworkAccount {
         account.find(predicate).await
     }
 
-    async fn storage(&self) -> Result<Arc<RwLock<ClientStorage>>> {
+    async fn storage(&self) -> Option<Arc<RwLock<ClientStorage>>> {
         let account = self.account.lock().await;
-        Ok(account.storage().await?)
+        account.storage().await
+    }
+
+    async fn set_storage(
+        &mut self,
+        storage: Option<Arc<RwLock<ClientStorage>>>,
+    ) {
+        let mut account = self.account.lock().await;
+        account.set_storage(storage).await
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {
@@ -1133,7 +1211,7 @@ impl Account for NetworkAccount {
         &self,
         summary: &Summary,
         commit: CommitHash,
-    ) -> Result<DetachedView> {
+    ) -> Result<crate::sdk::account::DetachedView> {
         let account = self.account.lock().await;
         Ok(account.detached_view(summary, commit).await?)
     }
@@ -1161,8 +1239,8 @@ impl Account for NetworkAccount {
     #[cfg(feature = "search")]
     async fn query_view(
         &self,
-        views: Vec<DocumentView>,
-        archive: Option<ArchiveFilter>,
+        views: &[DocumentView],
+        archive: Option<&ArchiveFilter>,
     ) -> Result<Vec<Document>> {
         let account = self.account.lock().await;
         Ok(account.query_view(views, archive).await?)
@@ -1218,8 +1296,7 @@ impl Account for NetworkAccount {
 
         let result = {
             let mut account = self.account.lock().await;
-            let result = account.create_secret(meta, secret, options).await?;
-            result
+            account.create_secret(meta, secret, options).await?
         };
 
         let result = SecretChange {
@@ -1256,7 +1333,7 @@ impl Account for NetworkAccount {
             results: result
                 .results
                 .into_iter()
-                .map(|mut result| {
+                .map(|#[allow(unused_mut)] mut result| {
                     #[cfg(feature = "files")]
                     file_events.append(&mut result.file_events);
                     SecretChange {
@@ -1291,10 +1368,9 @@ impl Account for NetworkAccount {
 
         let result = {
             let mut account = self.account.lock().await;
-            let result = account
+            account
                 .update_secret(secret_id, meta, secret, options, destination)
-                .await?;
-            result
+                .await?
         };
 
         let result = SecretChange {
@@ -1342,12 +1418,22 @@ impl Account for NetworkAccount {
     }
 
     async fn read_secret(
-        &mut self,
+        &self,
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<(SecretRow, ReadEvent)> {
-        let mut account = self.account.lock().await;
+        let account = self.account.lock().await;
         Ok(account.read_secret(secret_id, folder).await?)
+    }
+
+    async fn raw_secret(
+        &self,
+        folder_id: &VaultId,
+        secret_id: &SecretId,
+    ) -> std::result::Result<(Option<VaultCommit>, ReadEvent), Self::Error>
+    {
+        let account = self.account.lock().await;
+        Ok(account.raw_secret(folder_id, secret_id).await?)
     }
 
     async fn delete_secret(
@@ -1613,31 +1699,31 @@ impl Account for NetworkAccount {
 
     #[cfg(feature = "contacts")]
     async fn load_avatar(
-        &mut self,
+        &self,
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<Option<Vec<u8>>> {
-        let mut account = self.account.lock().await;
+        let account = self.account.lock().await;
         Ok(account.load_avatar(secret_id, folder).await?)
     }
 
     #[cfg(feature = "contacts")]
     async fn export_contact(
-        &mut self,
+        &self,
         path: impl AsRef<Path> + Send + Sync,
         secret_id: &SecretId,
         folder: Option<Summary>,
     ) -> Result<()> {
-        let mut account = self.account.lock().await;
+        let account = self.account.lock().await;
         Ok(account.export_contact(path, secret_id, folder).await?)
     }
 
     #[cfg(feature = "contacts")]
     async fn export_all_contacts(
-        &mut self,
+        &self,
         path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
-        let mut account = self.account.lock().await;
+        let account = self.account.lock().await;
         Ok(account.export_all_contacts(path).await?)
     }
 
@@ -1737,5 +1823,16 @@ impl Account for NetworkAccount {
         Ok(account
             .restore_backup_archive(path, password, options, data_dir)
             .await?)
+    }
+
+    #[cfg(feature = "clipboard")]
+    async fn copy_clipboard(
+        &self,
+        clipboard: &Clipboard,
+        target: &SecretPath,
+        request: &ClipboardCopyRequest,
+    ) -> Result<bool> {
+        let account = self.account.lock().await;
+        Ok(account.copy_clipboard(clipboard, target, request).await?)
     }
 }

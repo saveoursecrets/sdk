@@ -38,7 +38,7 @@ async fn network_sync_folder_create() -> Result<()> {
     // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions
     let folders: Vec<Summary> = {
-        let storage = device.owner.storage().await?;
+        let storage = device.owner.storage().await.unwrap();
         let reader = storage.read().await;
         reader.list_folders().to_vec()
     };

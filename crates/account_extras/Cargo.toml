@@ -1,6 +1,6 @@
 [package]
 name = "sos-account-extras"
-version = "0.15.1"
+version = "0.16.1"
 edition = "2021"
 description = "Extra features for Save Our Secrets local accounts."
 homepage = "https://saveoursecrets.com"
@@ -11,7 +11,6 @@ repository = "https://github.com/saveoursecrets/sdk"
 preferences = []
 security-report = []
 system-messages = []
-clipboard = ["dep:arboard", "dep:zeroize"]
 
 [dependencies]
 thiserror.workspace = true
@@ -19,17 +18,13 @@ serde.workspace = true
 serde_json.workspace = true
 serde_with.workspace = true
 tokio.workspace = true
-once_cell.workspace = true
 tracing.workspace = true
-arboard = { workspace = true, optional = true }
-zeroize = { workspace = true, optional = true }
 
 [dependencies.sos-sdk]
-version = "0.15.1"
+version = "0.16"
 path = "../sdk"
 
 [dev-dependencies]
-anyhow.workspace = true
 tokio = { version = "1", features = ["full"] }
 
 [build-dependencies]

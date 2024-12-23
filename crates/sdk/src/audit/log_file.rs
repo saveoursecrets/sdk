@@ -4,11 +4,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use futures::io::{
-    AsyncWriteExt as FuturesAsyncWriteExt, BufReader, BufWriter, Cursor,
-};
+use futures::io::{BufReader, BufWriter, Cursor};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
-use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
+use tokio_util::compat::Compat;
 
 use crate::{
     constants::AUDIT_IDENTITY,
@@ -24,7 +22,6 @@ use binary_stream::futures::{BinaryReader, BinaryWriter};
 
 /// Represents an audit log file.
 pub struct AuditLogFile {
-    file: Compat<File>,
     file_path: PathBuf,
 }
 
@@ -32,8 +29,7 @@ impl AuditLogFile {
     /// Create an audit log file.
     pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
-        let file = AuditLogFile::create(path.as_ref()).await?.compat_write();
-        Ok(Self { file, file_path })
+        Ok(Self { file_path })
     }
 
     /// Log file path.
@@ -61,6 +57,7 @@ impl AuditLogFile {
         let size = file.metadata().await?.len();
         if size == 0 {
             file.write_all(&AUDIT_IDENTITY).await?;
+            file.flush().await?;
         }
 
         Ok(file)
@@ -92,6 +89,7 @@ impl AuditProvider for AuditLogFile {
         &mut self,
         events: Vec<AuditEvent>,
     ) -> Result<()> {
+        // Make a single buffer of all audit events
         let buffer: Vec<u8> = {
             let mut buffer = Vec::new();
             let mut stream = BufWriter::new(Cursor::new(&mut buffer));
@@ -103,8 +101,12 @@ impl AuditProvider for AuditLogFile {
             }
             buffer
         };
-        self.file.write_all(&buffer).await?;
-        self.file.flush().await?;
+
+        let file = Self::create(&self.file_path).await?;
+        let mut guard = vfs::lock_write(file).await?;
+        guard.write_all(&buffer).await?;
+        guard.flush().await?;
+
         Ok(())
     }
 }

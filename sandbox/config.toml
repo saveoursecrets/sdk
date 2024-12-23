@@ -4,6 +4,11 @@ path = "./accounts"
 [net]
 bind = "0.0.0.0:5053"
 
+[log]
+directory = "./accounts/logs"
+name = "sos-server.log"
+level = "sos_server=info"
+
 #[access]
 #allow = [
   #"0x6f4e977644ca8f21d335ab13271616b615ea28cb"

@@ -362,13 +362,14 @@ pub(crate) async fn compare_files(
 mod handlers {
     use super::MoveFileQuery;
     use sos_protocol::{
+        constants::MIME_TYPE_PROTOBUF,
         sdk::{
-            constants::MIME_TYPE_PROTOBUF,
             sha2::{Digest, Sha256},
             storage::files::{list_external_files, ExternalFileName},
             vault::{secret::SecretId, VaultId},
         },
-        FileSet, FileTransfersSet, WireEncodeDecode,
+        transfer::{FileSet, FileTransfersSet},
+        WireEncodeDecode,
     };
 
     use crate::{
