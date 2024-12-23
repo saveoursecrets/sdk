@@ -1,11 +1,15 @@
 [package]
 name = "sos-account-extras"
-version = "0.16.1"
+version = "0.16.2"
 edition = "2021"
 description = "Extra features for Save Our Secrets local accounts."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 preferences = []

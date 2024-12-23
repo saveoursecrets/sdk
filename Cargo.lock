@@ -4899,7 +4899,7 @@ dependencies = [
 
 [[package]]
 name = "sos-account-extras"
-version = "0.16.1"
+version = "0.16.2"
 dependencies = [
  "rustc_version",
  "serde",
@@ -5003,7 +5003,7 @@ dependencies = [
 
 [[package]]
 name = "sos-net"
-version = "0.16.1"
+version = "0.16.2"
 dependencies = [
  "anyhow",
  "async-recursion",
