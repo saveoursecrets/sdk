@@ -37,6 +37,8 @@ where
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     let accounts = accounts.as_ref().read().await;
@@ -64,6 +66,8 @@ where
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     let accounts = accounts.as_ref().read().await;
@@ -102,6 +106,8 @@ where
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     let accounts = accounts.as_ref().read().await;
@@ -131,6 +137,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     let Some(account_id) = parse_account_id(&req) else {
@@ -171,6 +179,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     use sos_platform_authenticator::{
@@ -222,6 +232,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     use sos_platform_authenticator::keyring_password;
@@ -293,6 +305,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     let Some(account_id) = parse_account_id(&req) else {
@@ -322,6 +336,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     tracing::debug!("sign_out::all");
@@ -346,6 +362,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     let mut user_accounts = accounts.as_ref().write().await;

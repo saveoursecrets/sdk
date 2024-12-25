@@ -123,6 +123,8 @@ impl LocalMemoryServer {
             + ErrorExt
             + From<sos_sdk::Error>
             + From<std::io::Error>
+            + Send
+            + Sync
             + 'static,
     {
         let service = LocalWebService::new(app_info, accounts);

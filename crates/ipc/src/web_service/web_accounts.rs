@@ -61,6 +61,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
@@ -82,6 +84,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     fn clone(&self) -> Self {
@@ -107,6 +111,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     /// Create new accounts.
@@ -224,6 +230,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     fn as_ref(&self) -> &Arc<RwLock<AccountSwitcher<A, R, E>>> {
@@ -249,6 +257,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     let paths = account.paths();
@@ -387,6 +397,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     let account_name = account_id.to_string();
@@ -545,6 +557,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     let storage = account.storage().await.unwrap();
