@@ -127,6 +127,7 @@ where
     }
 }
 
+/*
 /// Set favorite flag.
 pub async fn set_favorite<A, R, E>(
     req: Request<Incoming>,
@@ -203,6 +204,7 @@ where
         }
     }
 }
+*/
 
 #[cfg(feature = "contacts")]
 pub async fn load_avatar<A, R, E>(

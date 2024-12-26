@@ -246,7 +246,8 @@ impl LocalWebService {
                 .into(),
             )
             .unwrap();
-
+        
+        /*
         let state = accounts.clone();
         router
             .entry(Method::POST)
@@ -261,6 +262,7 @@ impl LocalWebService {
                 .into(),
             )
             .unwrap();
+        */
 
         #[cfg(feature = "contacts")]
         {
