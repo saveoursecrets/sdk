@@ -16,11 +16,13 @@ struct CopyRequest {
     request: Option<ClipboardCopyRequest>,
 }
 
+/*
 #[derive(Deserialize)]
 struct FavoriteRequest {
     target: SecretPath,
     value: bool,
 }
+*/
 
 /// Copy a secret to the clipboard.
 #[cfg(feature = "clipboard")]
