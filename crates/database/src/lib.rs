@@ -1,4 +1,5 @@
 mod error;
+pub mod importer;
 pub mod migrations;
 
 pub use error::Error;
