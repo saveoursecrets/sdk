@@ -5049,6 +5049,7 @@ dependencies = [
  "anyhow",
  "async-sqlite",
  "refinery",
+ "sos-sdk",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
