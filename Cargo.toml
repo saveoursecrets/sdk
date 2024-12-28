@@ -5,6 +5,7 @@ members = [
   "crates/artifact",
   "crates/cli_helpers", 
   "crates/clipboard", 
+  "crates/database",
   "crates/keychain_parser",
   "crates/integration_tests",
   "crates/ipc",

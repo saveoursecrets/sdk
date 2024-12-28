@@ -1,0 +1,16 @@
+[package]
+name = "sos-database"
+version = "0.1.0"
+edition = "2021"
+description = "Database storage layer for the Save Our Secrets SDK"
+
+[dependencies]
+thiserror = "1"
+async-sqlite = { version = "0.3", features = ["hooks"]}
+refinery = {version = "0.8", git = "https://github.com/rust-db/refinery", features = ["rusqlite"]}
+tokio = {version = "1", features = ["sync", "macros"]}
+
+[dev-dependencies]
+anyhow.workspace = true
+tempfile.workspace = true
+
