@@ -16,6 +16,14 @@ struct CopyRequest {
     request: Option<ClipboardCopyRequest>,
 }
 
+/*
+#[derive(Deserialize)]
+struct FavoriteRequest {
+    target: SecretPath,
+    value: bool,
+}
+*/
+
 /// Copy a secret to the clipboard.
 #[cfg(feature = "clipboard")]
 pub async fn copy_secret_clipboard<A, R, E>(
@@ -35,6 +43,8 @@ where
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     use crate::web_service::internal_server_error;
@@ -79,6 +89,8 @@ where
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     let Some(account_id) = parse_account_id(&req) else {
@@ -117,6 +129,85 @@ where
     }
 }
 
+/*
+/// Set favorite flag.
+pub async fn set_favorite<A, R, E>(
+    req: Request<Incoming>,
+    accounts: WebAccounts<A, R, E>,
+) -> hyper::Result<Response<Body>>
+where
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + Merge
+        + Sync
+        + Send
+        + 'static,
+    R: 'static,
+    E: std::fmt::Debug
+        + ErrorExt
+        + std::error::Error
+        + From<sos_sdk::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    let Some(account_id) = parse_account_id(&req) else {
+        return status(StatusCode::BAD_REQUEST);
+    };
+
+    let mut accounts = accounts.as_ref().write().await;
+    let Some(account) =
+        accounts.iter_mut().find(|a| a.address() == &account_id)
+    else {
+        return status(StatusCode::NOT_FOUND);
+    };
+
+    let Ok(request) = parse_json_body::<FavoriteRequest>(req).await else {
+        return status(StatusCode::BAD_REQUEST);
+    };
+
+    let Some(folder) =
+        account.find(|f| f.id() == request.target.folder_id()).await
+    else {
+        return status(StatusCode::NOT_FOUND);
+    };
+
+    let result = account
+        .read_secret(request.target.secret_id(), Some(folder))
+        .await;
+    match result {
+        Ok(result) => {
+            let mut secret_row = result.0;
+            secret_row.meta_mut().set_favorite(request.value);
+
+            let (id, meta, secret) = secret_row.into();
+            if let Err(e) = account
+                .update_secret(
+                    &id,
+                    meta,
+                    Some(secret),
+                    Default::default(),
+                    None,
+                )
+                .await
+            {
+                return internal_server_error(e);
+            }
+
+            status(StatusCode::OK)
+        }
+        Err(e) => {
+            if e.is_secret_not_found() {
+                return status(StatusCode::NOT_FOUND);
+            }
+            tracing::error!(error = %e, "read_secret");
+            internal_server_error(e)
+        }
+    }
+}
+*/
+
 #[cfg(feature = "contacts")]
 pub async fn load_avatar<A, R, E>(
     req: Request<Incoming>,
@@ -135,6 +226,8 @@ where
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     use crate::web_service::text;

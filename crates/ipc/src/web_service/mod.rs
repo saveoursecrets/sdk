@@ -71,6 +71,8 @@ impl LocalWebService {
             + ErrorExt
             + From<sos_sdk::Error>
             + From<std::io::Error>
+            + Send
+            + Sync
             + 'static,
     {
         let mut router = Router::new();
@@ -202,22 +204,18 @@ impl LocalWebService {
             )
             .unwrap();
 
-        {
-            let state = accounts.clone();
-            router
-                .entry(Method::POST)
-                .or_default()
-                .insert(
-                    "/signin",
-                    BoxCloneService::new(service_fn(
-                        move |req: Request<Incoming>| {
-                            sign_in(req, state.clone())
-                        },
-                    ))
-                    .into(),
-                )
-                .unwrap();
-        }
+        let state = accounts.clone();
+        router
+            .entry(Method::POST)
+            .or_default()
+            .insert(
+                "/signin",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| sign_in(req, state.clone()),
+                ))
+                .into(),
+            )
+            .unwrap();
 
         let state = accounts.clone();
         router
@@ -234,22 +232,37 @@ impl LocalWebService {
             )
             .unwrap();
 
-        {
-            let state = accounts.clone();
-            router
-                .entry(Method::GET)
-                .or_default()
-                .insert(
-                    "/secret",
-                    BoxCloneService::new(service_fn(
-                        move |req: Request<Incoming>| {
-                            read_secret(req, state.clone())
-                        },
-                    ))
-                    .into(),
-                )
-                .unwrap();
-        }
+        let state = accounts.clone();
+        router
+            .entry(Method::GET)
+            .or_default()
+            .insert(
+                "/secret",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        read_secret(req, state.clone())
+                    },
+                ))
+                .into(),
+            )
+            .unwrap();
+        
+        /*
+        let state = accounts.clone();
+        router
+            .entry(Method::POST)
+            .or_default()
+            .insert(
+                "/secret/favorite",
+                BoxCloneService::new(service_fn(
+                    move |req: Request<Incoming>| {
+                        set_favorite(req, state.clone())
+                    },
+                ))
+                .into(),
+            )
+            .unwrap();
+        */
 
         #[cfg(feature = "contacts")]
         {

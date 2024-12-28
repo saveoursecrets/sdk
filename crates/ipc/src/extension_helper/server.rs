@@ -60,6 +60,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     #[allow(dead_code)]
@@ -84,6 +86,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     /// Create a server.

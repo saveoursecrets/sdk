@@ -43,6 +43,8 @@ where
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     let Ok(request) = parse_json_body::<SearchRequest>(req).await else {
@@ -80,6 +82,8 @@ where
         + std::error::Error
         + From<sos_sdk::Error>
         + From<std::io::Error>
+        + Send
+        + Sync
         + 'static,
 {
     let Ok(request) = parse_json_body::<QueryViewRequest>(req).await else {
