@@ -1,3 +1,4 @@
+pub mod db;
 mod error;
 pub mod importer;
 pub mod migrations;

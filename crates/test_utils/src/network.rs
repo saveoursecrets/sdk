@@ -4,8 +4,8 @@ use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sos_net::{
     protocol::{
-        network_client::{ListenOptions, HttpClient}, AccountSync, Origin,
-        RemoteSyncHandler, SyncClient, SyncStorage,
+        network_client::{HttpClient, ListenOptions},
+        AccountSync, Origin, RemoteSyncHandler, SyncClient, SyncStorage,
     },
     sdk::{
         account::{Account, AccountBuilder},
@@ -28,9 +28,12 @@ use std::{
 };
 use tokio::sync::Mutex;
 
-/// Wait for a number of websocket connections to be reported 
+/// Wait for a number of websocket connections to be reported
 /// by a server.
-pub async fn wait_num_websocket_connections(origin: &Origin, target: usize) -> anyhow::Result<()> {
+pub async fn wait_num_websocket_connections(
+    origin: &Origin,
+    target: usize,
+) -> anyhow::Result<()> {
     #[allow(unused_assignments)]
     let mut num_conns = 0;
     loop {
@@ -42,7 +45,6 @@ pub async fn wait_num_websocket_connections(origin: &Origin, target: usize) -> a
     }
     Ok(())
 }
-
 
 /// Simulated device information.
 pub struct SimulatedDevice {

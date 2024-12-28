@@ -1,12 +1,14 @@
-use crate::test_utils::{simulate_device, spawn, teardown, wait_num_websocket_connections};
+use crate::test_utils::{
+    simulate_device, spawn, teardown, wait_num_websocket_connections,
+};
 use anyhow::Result;
 use sos_net::{
     protocol::network_client::{ListenOptions, NetworkRetry},
     sdk::prelude::*,
 };
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use std::time::Duration;
+use tokio::sync::Mutex;
 
 /// Tests websocket reconnect logic.
 #[tokio::test]

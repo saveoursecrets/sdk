@@ -246,7 +246,7 @@ impl LocalWebService {
                 .into(),
             )
             .unwrap();
-        
+
         /*
         let state = accounts.clone();
         router

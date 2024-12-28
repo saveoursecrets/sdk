@@ -5,10 +5,9 @@ CREATE TABLE IF NOT EXISTS accounts
     modified_at           DATETIME            DEFAULT CURRENT_TIMESTAMP,
 
     identifier            TEXT                NOT NULL UNIQUE,
-    name                  TEXT                NOT NULL,
+    name                  TEXT                NOT NULL
 
-    identity_folder_id    INTEGER             NOT NULL
-
+    -- identity_folder_id    INTEGER             NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS accounts_identifier_idx  ON accounts (identifier);
@@ -32,6 +31,7 @@ CREATE TABLE IF NOT EXISTS folders
 
     -- UUID
     identifier            TEXT                NOT NULL UNIQUE,
+
     -- name
     name                  TEXT                NOT NULL,
 

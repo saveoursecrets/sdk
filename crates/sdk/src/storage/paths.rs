@@ -179,6 +179,20 @@ impl Paths {
             && vfs::try_exists(device_events).await?)
     }
 
+    /// Path to the database file for an account.
+    ///
+    /// # Panics
+    ///
+    /// If the paths are global.
+    pub fn database_file(&self) -> PathBuf {
+        if self.is_global() {
+            panic!("database_file is not accessible for global paths");
+        }
+        let mut path = self.documents_dir.join(&self.user_id);
+        path.set_extension("db");
+        path
+    }
+
     /// User identifier.
     pub fn user_id(&self) -> &str {
         &self.user_id

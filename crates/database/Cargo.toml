@@ -7,6 +7,7 @@ description = "Database storage layer for the Save Our Secrets SDK"
 [dependencies]
 thiserror = "1"
 sos-sdk.workspace = true
+futures.workspace = true
 
 async-sqlite = { version = "0.3", features = ["hooks"]}
 refinery = {version = "0.8", git = "https://github.com/rust-db/refinery", features = ["rusqlite"]}
