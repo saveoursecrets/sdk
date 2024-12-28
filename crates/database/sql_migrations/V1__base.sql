@@ -11,6 +11,15 @@ CREATE TABLE IF NOT EXISTS accounts
 CREATE INDEX IF NOT EXISTS accounts_identifier_idx  ON accounts (identifier);
 CREATE INDEX IF NOT EXISTS accounts_name_idx        ON accounts (name);
 
+CREATE TRIGGER
+  update_account_modified_at
+AFTER UPDATE OF name ON accounts
+FOR EACH ROW
+BEGIN UPDATE accounts
+  SET modified_at = datetime('now')
+  WHERE account_id = NEW.account_id;
+END;
+
 CREATE TABLE IF NOT EXISTS folders
 (
     folder_id             INTEGER             PRIMARY KEY NOT NULL,
@@ -28,7 +37,7 @@ CREATE TABLE IF NOT EXISTS folders
     cipher                TEXT                NOT NULL,
     -- key derivation function
     kdf                   TEXT                NOT NULL,
-    -- bit flags
+    -- bit flags (little endian)
     flags                 BLOB(8)             NOT NULL,
 
     FOREIGN KEY (account_id) REFERENCES accounts (account_id) ON DELETE CASCADE
