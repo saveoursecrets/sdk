@@ -70,6 +70,9 @@ tempfile = "3.5"
 pretty_assertions = "1.4"
 sos-test-utils = { path = "../test_utils" }
 
+[dev-dependencies.sos-database]
+path = "../database"
+
 [dev-dependencies.sos-net]
 features = ["full"]
 path = "../net"

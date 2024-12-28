@@ -5076,6 +5076,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sos-account-extras",
+ "sos-database",
  "sos-ipc",
  "sos-net",
  "sos-sdk",
