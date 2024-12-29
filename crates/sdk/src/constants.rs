@@ -130,6 +130,9 @@ mod folders {
     /// Name of the vault file that stores the device
     /// signing key.
     pub const DEVICE_FILE: &str = "device";
+
+    /// Name of the file for preferences.
+    pub const PREFERENCES_FILE: &str = "preferences";
 }
 
 /// File names.

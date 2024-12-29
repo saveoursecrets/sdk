@@ -70,6 +70,10 @@ pub struct RestoreTargets {
     pub account: Option<Vec<u8>>,
     /// Device vault and events.
     pub devices: Option<(Vec<u8>, Vec<u8>)>,
+    /// File events.
+    pub files: Option<Vec<u8>>,
+    /// Account-specific preferences.
+    pub preferences: Option<Vec<u8>>,
 }
 
 /// Options to use when building an account manifest.
@@ -346,6 +350,16 @@ impl AccountBackup {
             writer = writer.add_account_events(buffer.as_slice()).await?;
         }
 
+        if vfs::try_exists(paths.file_events()).await? {
+            let buffer = vfs::read(paths.file_events()).await?;
+            writer = writer.add_file_events(buffer.as_slice()).await?;
+        }
+
+        if vfs::try_exists(paths.preferences_file()).await? {
+            let buffer = vfs::read(paths.preferences_file()).await?;
+            writer = writer.add_preferences(buffer.as_slice()).await?;
+        }
+
         // TODO: use list_external_files() rather than
         // TODO: walking the directory
         let files = paths.files_dir();
@@ -526,6 +540,8 @@ impl AccountBackup {
             vaults,
             devices,
             account: account_events,
+            files,
+            preferences,
         } = &targets;
 
         // The app should check the identity already exists
@@ -568,14 +584,24 @@ impl AccountBackup {
         }
 
         // Restore account events
-        if let Some(events) = account_events {
-            vfs::write_exclusive(paths.account_events(), events).await?;
+        if let Some(buffer) = account_events {
+            vfs::write_exclusive(paths.account_events(), buffer).await?;
         }
 
         // Restore device events and vault
         if let Some((events, vault)) = devices {
             vfs::write_exclusive(paths.device_events(), events).await?;
             vfs::write_exclusive(paths.device_file(), vault).await?;
+        }
+
+        // Restore file events
+        if let Some(buffer) = files {
+            vfs::write_exclusive(paths.file_events(), buffer).await?;
+        }
+
+        // Restore account preferences
+        if let Some(buffer) = preferences {
+            vfs::write_exclusive(paths.preferences_file(), buffer).await?;
         }
 
         Ok((targets, account))
@@ -613,7 +639,7 @@ impl AccountBackup {
             }
         }
 
-        let (manifest, identity, vaults, devices, account) =
+        let (manifest, identity, vaults, devices, account, files, prefs) =
             reader.finish().await?;
 
         // Filter extracted vaults to those selected by the user
@@ -645,8 +671,8 @@ impl AccountBackup {
             }
         }
 
-        let account = if let Some(events) = account {
-            Some(events)
+        let account = if let Some(buffer) = account {
+            Some(buffer)
         } else {
             None
         };
@@ -657,12 +683,26 @@ impl AccountBackup {
             None
         };
 
+        let files = if let Some(buffer) = files {
+            Some(buffer)
+        } else {
+            None
+        };
+
+        let preferences = if let Some(buffer) = prefs {
+            Some(buffer)
+        } else {
+            None
+        };
+
         Ok(RestoreTargets {
             manifest,
             identity,
             vaults: decoded,
             account,
             devices,
+            files,
+            preferences,
         })
     }
 }

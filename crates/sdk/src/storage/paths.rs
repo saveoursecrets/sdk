@@ -1,6 +1,6 @@
 //! File system paths for application level folders
 //! and user-specific account folders.
-use crate::Result;
+use crate::{prelude::PREFERENCES_FILE, Result};
 #[cfg(feature = "audit")]
 use async_once_cell::OnceCell;
 
@@ -231,6 +231,18 @@ impl Paths {
     /// Path to the audit file.
     pub fn audit_file(&self) -> &PathBuf {
         &self.audit_file
+    }
+
+    /// Path to the file used to store global or
+    /// account-level preferences.
+    pub fn preferences_file(&self) -> PathBuf {
+        let mut preferences_path = if self.is_global() {
+            self.documents_dir().join(PREFERENCES_FILE)
+        } else {
+            self.user_dir().join(PREFERENCES_FILE)
+        };
+        preferences_path.set_extension(JSON_EXT);
+        preferences_path
     }
 
     /// User specific storage directory.

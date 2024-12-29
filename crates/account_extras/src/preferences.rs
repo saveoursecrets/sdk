@@ -7,27 +7,9 @@
 //! system library.
 use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
-use sos_sdk::{
-    constants::JSON_EXT, identity::PublicIdentity, signer::ecdsa::Address,
-    vfs, Paths,
-};
+use sos_sdk::{identity::PublicIdentity, signer::ecdsa::Address, vfs, Paths};
 use std::{collections::HashMap, fmt, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
-
-/// File thats stores account-level preferences.
-pub const PREFERENCES_FILE: &str = "preferences";
-
-/// Path to the file used to store global or
-/// account-level preferences.
-fn preferences_path(paths: &Paths) -> PathBuf {
-    let mut preferences_path = if paths.is_global() {
-        paths.documents_dir().join(PREFERENCES_FILE)
-    } else {
-        paths.user_dir().join(PREFERENCES_FILE)
-    };
-    preferences_path.set_extension(JSON_EXT);
-    preferences_path
-}
 
 /// Global preferences and account preferences loaded into memory.
 pub struct CachedPreferences {
@@ -54,7 +36,7 @@ impl CachedPreferences {
             Paths::data_dir()?
         };
         let paths = Paths::new_global(&global_dir);
-        let file = preferences_path(&paths);
+        let file = paths.preferences_file();
         let globals = if vfs::try_exists(&file).await? {
             let mut prefs = Preferences::new(&paths);
             prefs.load().await?;
@@ -104,7 +86,7 @@ impl CachedPreferences {
 
         let mut cache = self.accounts.lock().await;
         let paths = Paths::new(&data_dir, address.to_string());
-        let file = preferences_path(&paths);
+        let file = paths.preferences_file();
         let prefs = if vfs::try_exists(&file).await? {
             let mut prefs = Preferences::new(&paths);
             prefs.load().await?;
@@ -201,7 +183,7 @@ impl Preferences {
     ///
     pub fn new(paths: &Paths) -> Self {
         Self {
-            path: preferences_path(paths),
+            path: paths.preferences_file(),
             values: Default::default(),
         }
     }
