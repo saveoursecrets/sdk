@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS events
 (
     event_id              INTEGER             PRIMARY KEY NOT NULL,
     folder_id             INTEGER             NOT NULL,
-    event_type            TEXT                CHECK(event_type IN ('device', 'account', 'folder', 'file')) NOT NULL,
+    event_type            TEXT                CHECK(event_type IN ('account', 'device', 'folder', 'file')) NOT NULL,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
     -- SHA256 hash of the encoded data
     commit_hash           TEXT                NOT NULL,
@@ -82,6 +82,8 @@ CREATE TABLE IF NOT EXISTS vaults
     modified_at           DATETIME            DEFAULT CURRENT_TIMESTAMP,
     -- UUID
     identifier            TEXT                NOT NULL UNIQUE,
+    -- SHA256 hash of the encoded data
+    commit_hash           TEXT                NOT NULL,
     -- AEAD encrypted meta data
     meta                  BLOB                NOT NULL,
     -- AEAD encrypted secret data

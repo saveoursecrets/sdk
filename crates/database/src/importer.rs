@@ -18,7 +18,7 @@ pub async fn import_account(
 
     let db_file = paths.database_file();
     if db_file.exists() {
-        return Err(Error::DatabaseExists(db_file));
+        return Err(Error::DatabaseExists(db_file.to_owned()));
     }
 
     migrate_db_file(&db_file).await?;

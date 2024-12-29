@@ -62,10 +62,13 @@ pub struct Paths {
     user_id: String,
     /// Top-level documents folder.
     documents_dir: PathBuf,
+
     /// Directory for identity vaults.
     identity_dir: PathBuf,
     /// Directory for local storage.
     local_dir: PathBuf,
+    /// Database file.
+    database_file: PathBuf,
     /// Directory for application logs.
     logs_dir: PathBuf,
     /// File for local audit logs.
@@ -131,9 +134,13 @@ impl Paths {
         let pending_dir = user_dir.join(PENDING_DIR);
         let device_file =
             user_dir.join(format!("{}.{}", DEVICE_FILE, VAULT_EXT));
+
+        let database_file = local_dir.join("accounts.db");
+
         Self {
             user_id: user_id.as_ref().to_owned(),
             documents_dir,
+            database_file,
             identity_dir,
             local_dir,
             logs_dir,
@@ -184,13 +191,8 @@ impl Paths {
     /// # Panics
     ///
     /// If the paths are global.
-    pub fn database_file(&self) -> PathBuf {
-        if self.is_global() {
-            panic!("database_file is not accessible for global paths");
-        }
-        let mut path = self.documents_dir.join(&self.user_id);
-        path.set_extension("db");
-        path
+    pub fn database_file(&self) -> &PathBuf {
+        &self.database_file
     }
 
     /// User identifier.

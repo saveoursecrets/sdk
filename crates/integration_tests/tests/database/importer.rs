@@ -1,5 +1,6 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
+use sos_database::importer::import_accounts;
 use sos_sdk::prelude::{
     vfs, Account, AccountBackup, Inventory, LocalAccount, Paths,
     RestoreOptions,
@@ -32,6 +33,9 @@ async fn database_importer() -> Result<()> {
         Some(data_dir.clone()),
     )
     .await?;
+
+    // Import the file system accounts into the db
+    import_accounts(data_dir).await?;
 
     teardown(TEST_ID).await;
 

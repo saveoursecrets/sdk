@@ -66,19 +66,19 @@ pub async fn import_account(
         })
         .await?;
 
-    todo!();
+    Ok(())
 }
 
 async fn collect_vault_rows(
     vault: &Vault,
-) -> Result<Vec<(SecretId, Vec<u8>, Vec<u8>)>> {
+) -> Result<Vec<(SecretId, CommitHash, Vec<u8>, Vec<u8>)>> {
     let mut rows = Vec::new();
     for (identifier, commit) in vault.iter() {
-        let VaultCommit(_hash, entry) = commit;
+        let VaultCommit(hash, entry) = commit;
         let VaultEntry(meta, secret) = entry;
         let meta = encode(meta).await?;
         let secret = encode(secret).await?;
-        rows.push((*identifier, meta, secret));
+        rows.push((*identifier, *hash, meta, secret));
     }
     Ok(rows)
 }
@@ -106,7 +106,7 @@ async fn create_folder(
     tx: &mut Transaction<'_>,
     account_id: i64,
     vault: Vault,
-    rows: Vec<(SecretId, Vec<u8>, Vec<u8>)>,
+    rows: Vec<(SecretId, CommitHash, Vec<u8>, Vec<u8>)>,
     events: Vec<(String, CommitHash, EventRecord)>,
 ) -> std::result::Result<(), SqlError> {
     // Insert folder meta data and get folder_id
@@ -137,12 +137,13 @@ async fn create_folder(
     // Insert the vault rows
     {
         let mut stmt = tx.prepare_cached(
-            "INSERT INTO vaults (folder_id, identifier, meta, secret) VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO vaults (folder_id, identifier, commit_hash, meta, secret) VALUES (?1, ?2, ?3, ?4, ?5)",
         )?;
-        for (identifier, meta, secret) in rows {
+        for (identifier, commit_hash, meta, secret) in rows {
             stmt.execute((
                 &folder_id,
                 &identifier.to_string(),
+                commit_hash.to_string(),
                 &meta,
                 &secret,
             ))?;
