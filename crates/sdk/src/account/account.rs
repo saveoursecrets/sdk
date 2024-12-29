@@ -1434,13 +1434,16 @@ impl LocalAccount {
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
         use super::archive::{AccountBackup, ExtractFilesLocation};
-        let files_dir = ExtractFilesLocation::Builder(Box::new(|address| {
-            let data_dir = Paths::data_dir().unwrap();
-            let paths = Paths::new(data_dir, address);
-            Some(paths.files_dir().to_owned())
-        }));
 
-        options.files_dir = Some(files_dir);
+        if options.files_dir.is_none() {
+            let files_dir =
+                ExtractFilesLocation::Builder(Box::new(|address| {
+                    let data_dir = Paths::data_dir().unwrap();
+                    let paths = Paths::new(data_dir, address);
+                    Some(paths.files_dir().to_owned())
+                }));
+            options.files_dir = Some(files_dir);
+        }
 
         let (_, account) = AccountBackup::import_archive_reader(
             BufReader::new(buffer),

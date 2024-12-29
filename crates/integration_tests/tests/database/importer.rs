@@ -2,14 +2,15 @@ use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_database::importer::import_accounts;
 use sos_sdk::prelude::{
-    vfs, Account, AccountBackup, Inventory, LocalAccount, Paths,
-    RestoreOptions,
+    vfs, Account, AccountBackup, ExtractFilesLocation, Inventory,
+    LocalAccount, Paths, RestoreOptions,
 };
 use tokio::io::BufReader;
 
 #[tokio::test]
 async fn database_importer() -> Result<()> {
     const TEST_ID: &str = "database_importer";
+    //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -23,10 +24,18 @@ async fn database_importer() -> Result<()> {
     let inventory: Inventory =
         AccountBackup::restore_archive_inventory(BufReader::new(reader))
             .await?;
+
+    let user_paths =
+        Paths::new(data_dir.clone(), inventory.manifest.address.to_string());
+    user_paths.ensure().await?;
+
     let options = RestoreOptions {
         selected: inventory.vaults,
-        ..Default::default()
+        files_dir: Some(ExtractFilesLocation::Path(
+            user_paths.files_dir().to_owned(),
+        )),
     };
+
     LocalAccount::import_backup_archive(
         &archive,
         options,
