@@ -5,7 +5,7 @@ use async_sqlite::{
 };
 use futures::{pin_mut, StreamExt};
 use sos_sdk::{
-    events::{AccountEventLog, FileEventLog},
+    events::{AccountEventLog, DeviceEventLog, FileEventLog},
     prelude::{
         decode, encode, vfs, CommitHash, Error as SdkError, EventLogExt,
         EventRecord, FolderEventLog, Paths, PublicIdentity, SecretId, Vault,
@@ -35,6 +35,10 @@ pub async fn import_account(
     // Account events
     let account_events =
         collect_account_events(paths.account_events()).await?;
+
+    // Device events
+    let device_events =
+        collect_device_events(paths.device_events()).await?;
 
     // File events
     let file_events = collect_file_events(paths.file_events()).await?;
@@ -73,6 +77,13 @@ pub async fn import_account(
                   &mut tx,
                   account_id,
                   account_events,
+                ).await?;
+
+                // Create the device events
+                create_device_events(
+                  &mut tx,
+                  account_id,
+                  device_events,
                 ).await?;
 
                 // Create the file events
@@ -130,6 +141,19 @@ async fn collect_folder_events(
 ) -> Result<Vec<(String, CommitHash, EventRecord)>> {
     let mut events = Vec::new();
     let event_log = FolderEventLog::new(path).await?;
+    let stream = event_log.stream(false).await;
+    pin_mut!(stream);
+    while let Some(record) = stream.next().await {
+        events.push(convert_event_row(record?.0)?);
+    }
+    Ok(events)
+}
+
+async fn collect_device_events(
+    path: impl AsRef<Path>,
+) -> Result<Vec<(String, CommitHash, EventRecord)>> {
+    let mut events = Vec::new();
+    let event_log = DeviceEventLog::new_device(path).await?;
     let stream = event_log.stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {
@@ -230,6 +254,29 @@ async fn create_account_events(
 ) -> std::result::Result<(), SqlError> {
     let mut stmt = tx.prepare_cached(
         r#"INSERT INTO account_events
+          (account_id, created_at, commit_hash, event)
+          VALUES (?1, ?2, ?3, ?4)
+        "#,
+    )?;
+    for (time, commit, record) in events {
+        stmt.execute((
+            &account_id,
+            time,
+            commit.to_string(),
+            record.event_bytes(),
+        ))?;
+    }
+
+    Ok(())
+}
+
+async fn create_device_events(
+    tx: &mut Transaction<'_>,
+    account_id: i64,
+    events: Vec<(String, CommitHash, EventRecord)>,
+) -> std::result::Result<(), SqlError> {
+    let mut stmt = tx.prepare_cached(
+        r#"INSERT INTO device_events
           (account_id, created_at, commit_hash, event)
           VALUES (?1, ?2, ?3, ?4)
         "#,

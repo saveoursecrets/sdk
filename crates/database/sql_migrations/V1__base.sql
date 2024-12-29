@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS folders
     cipher                TEXT                NOT NULL,
     -- key derivation function
     kdf                   TEXT                NOT NULL,
-    -- bit flags (little endian)
+    -- bit flags u64 (little endian)
     flags                 BLOB(8)             NOT NULL,
 
     FOREIGN KEY (account_id) REFERENCES accounts (account_id)
@@ -131,6 +131,23 @@ CREATE TABLE IF NOT EXISTS account_events
 );
 CREATE INDEX IF NOT EXISTS account_events_commit_hash_idx
   ON account_events (commit_hash);
+
+-- Device level events
+CREATE TABLE IF NOT EXISTS device_events 
+(
+    event_id              INTEGER             PRIMARY KEY NOT NULL,
+    account_id            INTEGER             NOT NULL,
+    created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
+    -- SHA256 hash of the encoded data
+    commit_hash           TEXT                NOT NULL,
+    -- Encoded event data (DeviceEvent)
+    event                 BLOB                NOT NULL,
+
+    FOREIGN KEY (account_id) REFERENCES accounts (account_id)
+      ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS device_events_commit_hash_idx
+  ON device_events (commit_hash);
 
 -- Events indicating changes to encrypted files
 CREATE TABLE IF NOT EXISTS file_events 
