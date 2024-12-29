@@ -1,8 +1,11 @@
 -- Audit log
-CREATE TABLE IF NOT EXISTS audit_log
+CREATE TABLE IF NOT EXISTS audit_logs
 (
+    log_id                INTEGER             PRIMARY KEY NOT NULL,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
-    event_data            BLOB                NOT NULL
+    account_identifier    TEXT                NOT NULL,
+    event_kind            TEXT                NOT NULL,
+    event_data            TEXT
 );
 
 -- Accounts

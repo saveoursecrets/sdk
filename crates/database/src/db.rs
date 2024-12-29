@@ -6,6 +6,7 @@ use async_sqlite::{
 use futures::{pin_mut, StreamExt};
 use sos_sdk::prelude::{
     AuditLogFile,
+    AuditEvent,
     AccountEventLog, DeviceEventLog, FileEventLog,
     decode, encode, list_external_files, vfs, CommitHash,
     Error as SdkError, EventLogExt, EventRecord, ExternalFile,
@@ -38,30 +39,34 @@ pub(crate) async fn import_globals(
         None
     };
 
-    let mut audit_event_buffers = Vec::new();
+    let mut audit_events = Vec::new();
     if vfs::try_exists(paths.audit_file()).await.map_err(SdkError::from)? {
         let log_file = AuditLogFile::new(paths.audit_file()).await?;
         let mut file = vfs::File::open(paths.audit_file()).await.map_err(SdkError::from)?;
         let mut it = log_file.iter(false).await?;
         while let Some(record) = it.next().await? {
-            let buffer = log_file.read_event_buffer(&mut file, &record).await?;
-            audit_event_buffers.push(buffer);
+            let event = log_file.read_event(&mut file, &record).await?;
+            let data = if let Some(data) = event.data() {
+                Some(serde_json::to_string(data).map_err(SdkError::from)?)
+            } else { None };
+            audit_events.push((event.time().to_rfc3339()?, event, data));
         }
     }
 
     client
         .conn_mut(move |conn| {
+            let mut tx = conn.transaction()?;
             futures::executor::block_on(async {
-                let mut tx = conn.transaction()?;
+                create_audit_logs(&mut tx, audit_events).await?;
                 if let Some(json_data) = global_preferences {
                     create_preferences(&mut tx, None, json_data).await?;
                 }
-                create_audit_logs(&mut tx, audit_event_buffers).await?;
                 Ok::<_, SqlError>(())
             })?;
+            tx.commit()?;
             Ok(())
         }).await?;
-
+    
     Ok(())
 
 }
@@ -537,17 +542,17 @@ async fn create_servers(
 
 async fn create_audit_logs(
     tx: &mut Transaction<'_>,
-    buffers: Vec<Vec<u8>>,
+    events: Vec<(String, AuditEvent, Option<String>)>,
 ) -> std::result::Result<(), SqlError> {
     let mut stmt = tx.prepare_cached(
         r#"
-          INSERT INTO audit_log
-            (event_data)
-            VALUES (?1)
+          INSERT INTO audit_logs
+            (created_at, account_identifier, event_kind, event_data)
+            VALUES (?1, ?2, ?3, ?4)
         "#,
     )?;
-    for buf in buffers {
-        stmt.execute((buf, ))?;
+    for (time, event, data) in events {
+        stmt.execute((time, event.address().to_string(), event.event_kind().to_string(), data))?;
     }
     Ok(())
 }

@@ -46,7 +46,7 @@ async fn database_importer() -> Result<()> {
     // Import the file system accounts into the db
     import_accounts(data_dir).await?;
 
-    teardown(TEST_ID).await;
+    // teardown(TEST_ID).await;
 
     Ok(())
 }
