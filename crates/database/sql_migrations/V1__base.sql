@@ -1,3 +1,10 @@
+-- Audit log
+CREATE TABLE IF NOT EXISTS audit_log
+(
+    created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
+    event_data            BLOB                NOT NULL
+);
+
 -- Accounts
 CREATE TABLE IF NOT EXISTS accounts
 (

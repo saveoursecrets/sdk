@@ -4,15 +4,15 @@ use async_sqlite::{
     Client,
 };
 use futures::{pin_mut, StreamExt};
-use sos_sdk::{
-    events::{AccountEventLog, DeviceEventLog, FileEventLog},
-    prelude::{
-        decode, encode, list_external_files, vfs, CommitHash,
-        Error as SdkError, EventLogExt, EventRecord, ExternalFile,
-        FolderEventLog, Identity, Paths, PublicIdentity, SecretId, Vault,
-        VaultCommit, VaultEntry,
-    },
-    vault::VaultId,
+use sos_sdk::prelude::{
+    AuditLogFile,
+    AccountEventLog, DeviceEventLog, FileEventLog,
+    decode, encode, list_external_files, vfs, CommitHash,
+    Error as SdkError, EventLogExt, EventRecord, ExternalFile,
+    FolderEventLog, Identity, Paths, PublicIdentity, SecretId, Vault,
+    VaultCommit, VaultEntry,
+    FormatStreamIterator,
+    VaultId,
 };
 use sos_protocol::Origin;
 use std::{collections::HashMap, path::Path};
@@ -38,6 +38,17 @@ pub(crate) async fn import_globals(
         None
     };
 
+    let mut audit_event_buffers = Vec::new();
+    if vfs::try_exists(paths.audit_file()).await.map_err(SdkError::from)? {
+        let log_file = AuditLogFile::new(paths.audit_file()).await?;
+        let mut file = vfs::File::open(paths.audit_file()).await.map_err(SdkError::from)?;
+        let mut it = log_file.iter(false).await?;
+        while let Some(record) = it.next().await? {
+            let buffer = log_file.read_event_buffer(&mut file, &record).await?;
+            audit_event_buffers.push(buffer);
+        }
+    }
+
     client
         .conn_mut(move |conn| {
             futures::executor::block_on(async {
@@ -45,9 +56,7 @@ pub(crate) async fn import_globals(
                 if let Some(json_data) = global_preferences {
                     create_preferences(&mut tx, None, json_data).await?;
                 }
-
-                // TODO: audit logs 
-                
+                create_audit_logs(&mut tx, audit_event_buffers).await?;
                 Ok::<_, SqlError>(())
             })?;
             Ok(())
@@ -523,5 +532,22 @@ async fn create_servers(
         stmt.execute((account_id, server.name(), server.url().to_string()))?;
     }
 
+    Ok(())
+}
+
+async fn create_audit_logs(
+    tx: &mut Transaction<'_>,
+    buffers: Vec<Vec<u8>>,
+) -> std::result::Result<(), SqlError> {
+    let mut stmt = tx.prepare_cached(
+        r#"
+          INSERT INTO audit_log
+            (event_data)
+            VALUES (?1)
+        "#,
+    )?;
+    for buf in buffers {
+        stmt.execute((buf, ))?;
+    }
     Ok(())
 }

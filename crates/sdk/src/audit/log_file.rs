@@ -69,15 +69,24 @@ impl AuditLogFile {
         file: &mut vfs::File,
         record: &FileRecord,
     ) -> Result<AuditEvent> {
+        let buf = self.read_event_buffer(file, record).await?;
+        let mut stream = BufReader::new(Cursor::new(&buf));
+        let mut reader = BinaryReader::new(&mut stream, encoding_options());
+        Ok(AuditLogFile::decode_row(&mut reader).await?)
+    }
+
+    /// Read the event buffer from a file.
+    pub async fn read_event_buffer(
+        &self,
+        file: &mut vfs::File,
+        record: &FileRecord,
+    ) -> Result<Vec<u8>> {
         let offset = record.offset();
         let row_len = offset.end - offset.start;
         file.seek(SeekFrom::Start(offset.start)).await?;
         let mut buf = vec![0u8; row_len as usize];
         file.read_exact(&mut buf).await?;
-
-        let mut stream = BufReader::new(Cursor::new(&buf));
-        let mut reader = BinaryReader::new(&mut stream, encoding_options());
-        Ok(AuditLogFile::decode_row(&mut reader).await?)
+        Ok(buf)
     }
 }
 
