@@ -14,10 +14,51 @@ use sos_sdk::{
     },
     vault::VaultId,
 };
+use sos_protocol::Origin;
 use std::{collections::HashMap, path::Path};
 
+/// Create global values in the database.
+pub(crate) async fn import_globals(
+    client: &mut Client,
+    paths: &Paths,
+) -> Result<()> {
+    let global_preferences =
+        Paths::new_global(paths.documents_dir().to_owned())
+            .preferences_file();
+    let global_preferences = if vfs::try_exists(&global_preferences)
+        .await
+        .map_err(SdkError::from)?
+    {
+        Some(
+            vfs::read_to_string(global_preferences)
+                .await
+                .map_err(SdkError::from)?,
+        )
+    } else {
+        None
+    };
+
+    client
+        .conn_mut(move |conn| {
+            futures::executor::block_on(async {
+                let mut tx = conn.transaction()?;
+                if let Some(json_data) = global_preferences {
+                    create_preferences(&mut tx, None, json_data).await?;
+                }
+
+                // TODO: audit logs 
+                
+                Ok::<_, SqlError>(())
+            })?;
+            Ok(())
+        }).await?;
+
+    Ok(())
+
+}
+
 /// Create an account in the database.
-pub async fn import_account(
+pub(crate) async fn import_account(
     client: &mut Client,
     paths: &Paths,
     account: &PublicIdentity,
@@ -75,11 +116,37 @@ pub async fn import_account(
         user_files.push((file, buffer));
     }
 
+    let account_preferences = if vfs::try_exists(paths.preferences_file())
+        .await
+        .map_err(SdkError::from)?
+    {
+        Some(
+            vfs::read_to_string(paths.preferences_file())
+                .await
+                .map_err(SdkError::from)?,
+        )
+    } else {
+        None
+    };
+
+    let remote_servers = if vfs::try_exists(paths.remote_origins())
+        .await
+        .map_err(SdkError::from)?
+    {
+        let buffer = vfs::read(paths.remote_origins())
+                .await
+                .map_err(SdkError::from)?;
+        Some(serde_json::from_slice::<Vec<Origin>>(&buffer).map_err(SdkError::from)?)
+    } else {
+        None
+    };
+
     client
         .conn_mut(move |conn| {
             let mut tx = conn.transaction()?;
 
             futures::executor::block_on(async {
+                    
                 // Create the account
                 let account_id = {
                     tx.execute(
@@ -157,10 +224,15 @@ pub async fn import_account(
 
                 create_files(&mut tx, &folder_ids, user_files).await?;
 
-                // TODO: file blobs
-                // TODO: preferences
+                if let Some(json_data) = account_preferences {
+                    create_preferences(&mut tx, Some(account_id), json_data).await?;
+                }
+
+                if let Some(servers) = remote_servers {
+                    create_servers(&mut tx, account_id, servers).await?;
+                }
+
                 // TODO: server origins 
-                // TODO: audit logs 
 
                 Ok::<_, SqlError>(())
             })?;
@@ -415,5 +487,41 @@ async fn create_files(
             );
         }
     }
+    Ok(())
+}
+
+async fn create_preferences(
+    tx: &mut Transaction<'_>,
+    account_id: Option<i64>,
+    json_data: String,
+) -> std::result::Result<(), SqlError> {
+    let mut stmt = tx.prepare_cached(
+        r#"
+          INSERT INTO preferences
+            (account_id, json_data)
+            VALUES (?1, ?2)
+        "#,
+    )?;
+    stmt.execute((account_id, json_data))?;
+    Ok(())
+}
+
+async fn create_servers(
+    tx: &mut Transaction<'_>,
+    account_id: i64,
+    servers: Vec<Origin>,
+) -> std::result::Result<(), SqlError> {
+    let mut stmt = tx.prepare_cached(
+        r#"
+          INSERT INTO servers
+            (account_id, name, url)
+            VALUES (?1, ?2, ?3)
+        "#,
+    )?;
+        
+    for server in servers {
+        stmt.execute((account_id, server.name(), server.url().to_string()))?;
+    }
+
     Ok(())
 }

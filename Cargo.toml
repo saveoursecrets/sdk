@@ -22,6 +22,7 @@ members = [
 
 [workspace.dependencies]
 sos-sdk = { version = "0.16", path = "crates/sdk" }
+sos-protocol = { version = "0.16", path = "crates/protocol" }
 sos-vfs = { version = "0.2.2", path = "crates/vfs" }
 xclipboard  = { version = "0.16", path = "crates/clipboard" }
 

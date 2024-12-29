@@ -5050,6 +5050,8 @@ dependencies = [
  "async-sqlite",
  "futures",
  "refinery",
+ "serde_json",
+ "sos-protocol",
  "sos-sdk",
  "tempfile",
  "thiserror 1.0.69",
