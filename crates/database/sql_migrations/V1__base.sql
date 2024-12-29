@@ -69,13 +69,13 @@ BEGIN UPDATE folders
   WHERE folder_id = NEW.folder_id;
 END;
 
-CREATE TABLE IF NOT EXISTS folder_vaults 
+CREATE TABLE IF NOT EXISTS folder_secrets 
 (
-    vault_id              INTEGER             PRIMARY KEY NOT NULL,
+    secret_id             INTEGER             PRIMARY KEY NOT NULL,
     folder_id             INTEGER             NOT NULL,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
     modified_at           DATETIME            DEFAULT CURRENT_TIMESTAMP,
-    -- UUID (secret_id)
+    -- UUID
     identifier            TEXT                NOT NULL UNIQUE,
     -- SHA256 hash of the encoded data
     commit_hash           TEXT                NOT NULL,
@@ -87,13 +87,14 @@ CREATE TABLE IF NOT EXISTS folder_vaults
     FOREIGN KEY (folder_id) REFERENCES folders (folder_id)
       ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS vaults_identifier_idx ON folder_vaults (identifier);
+CREATE INDEX IF NOT EXISTS folder_secrets_identifier_idx
+  ON folder_secrets (identifier);
 
 CREATE TRIGGER
   update_vault_modified_at
-AFTER UPDATE OF meta, secret ON folder_vaults 
+AFTER UPDATE OF meta, secret ON folder_secrets
 FOR EACH ROW
-BEGIN UPDATE folder_vaults
+BEGIN UPDATE folder_secrets
   SET modified_at = datetime('now')
   WHERE vault_id = NEW.vault_id;
 END;

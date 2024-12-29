@@ -189,10 +189,10 @@ async fn create_folder(
         tx.last_insert_rowid()
     };
 
-    // Insert the vault rows
+    // Insert the vault secret rows
     {
         let mut stmt = tx.prepare_cached(
-            "INSERT INTO folder_vaults (folder_id, identifier, commit_hash, meta, secret) VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO folder_secrets (folder_id, identifier, commit_hash, meta, secret) VALUES (?1, ?2, ?3, ?4, ?5)",
         )?;
         for (identifier, commit_hash, meta, secret) in rows {
             stmt.execute((
