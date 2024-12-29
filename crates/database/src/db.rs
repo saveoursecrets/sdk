@@ -1,6 +1,6 @@
 use crate::Result;
 use async_sqlite::{
-    rusqlite::{Error as SqlError, Transaction},
+    rusqlite::{CachedStatement, Error as SqlError, Transaction},
     Client,
 };
 use futures::{pin_mut, StreamExt};
@@ -281,20 +281,13 @@ async fn create_folder(
 
     // Insert the event rows
     if let Some(events) = events {
-        let mut stmt = tx.prepare_cached(
+        let stmt = tx.prepare_cached(
             r#"
               INSERT INTO folder_events
               (folder_id, created_at, commit_hash, event)
               VALUES (?1, ?2, ?3, ?4)"#,
         )?;
-        for (time, commit, record) in events {
-            stmt.execute((
-                &folder_id,
-                time,
-                commit.to_string(),
-                record.event_bytes(),
-            ))?;
-        }
+        create_events(stmt, folder_id, events).await?;
     }
 
     Ok(folder_id)
@@ -305,23 +298,14 @@ async fn create_account_events(
     account_id: i64,
     events: Vec<(String, CommitHash, EventRecord)>,
 ) -> std::result::Result<(), SqlError> {
-    let mut stmt = tx.prepare_cached(
+    let stmt = tx.prepare_cached(
         r#"
           INSERT INTO account_events
             (account_id, created_at, commit_hash, event)
             VALUES (?1, ?2, ?3, ?4)
         "#,
     )?;
-    for (time, commit, record) in events {
-        stmt.execute((
-            &account_id,
-            time,
-            commit.to_string(),
-            record.event_bytes(),
-        ))?;
-    }
-
-    Ok(())
+    create_events(stmt, account_id, events).await
 }
 
 async fn create_device_events(
@@ -329,23 +313,14 @@ async fn create_device_events(
     account_id: i64,
     events: Vec<(String, CommitHash, EventRecord)>,
 ) -> std::result::Result<(), SqlError> {
-    let mut stmt = tx.prepare_cached(
+    let stmt = tx.prepare_cached(
         r#"
           INSERT INTO device_events
             (account_id, created_at, commit_hash, event)
             VALUES (?1, ?2, ?3, ?4)
         "#,
     )?;
-    for (time, commit, record) in events {
-        stmt.execute((
-            &account_id,
-            time,
-            commit.to_string(),
-            record.event_bytes(),
-        ))?;
-    }
-
-    Ok(())
+    create_events(stmt, account_id, events).await
 }
 
 async fn create_file_events(
@@ -353,21 +328,23 @@ async fn create_file_events(
     account_id: i64,
     events: Vec<(String, CommitHash, EventRecord)>,
 ) -> std::result::Result<(), SqlError> {
-    let mut stmt = tx.prepare_cached(
+    let stmt = tx.prepare_cached(
         r#"
           INSERT INTO file_events
             (account_id, created_at, commit_hash, event)
             VALUES (?1, ?2, ?3, ?4)
         "#,
     )?;
-    for (time, commit, record) in events {
-        stmt.execute((
-            &account_id,
-            time,
-            commit.to_string(),
-            record.event_bytes(),
-        ))?;
-    }
+    create_events(stmt, account_id, events).await
+}
 
+async fn create_events(
+    mut stmt: CachedStatement<'_>,
+    id: i64,
+    events: Vec<(String, CommitHash, EventRecord)>,
+) -> std::result::Result<(), SqlError> {
+    for (time, commit, record) in events {
+        stmt.execute((&id, time, commit.to_string(), record.event_bytes()))?;
+    }
     Ok(())
 }
