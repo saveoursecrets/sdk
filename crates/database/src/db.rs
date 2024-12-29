@@ -8,8 +8,8 @@ use sos_sdk::{
     events::{AccountEventLog, DeviceEventLog, FileEventLog},
     prelude::{
         decode, encode, vfs, CommitHash, Error as SdkError, EventLogExt,
-        EventRecord, FolderEventLog, Paths, PublicIdentity, SecretId, Vault,
-        VaultCommit, VaultEntry,
+        EventRecord, FolderEventLog, Identity, Paths, PublicIdentity,
+        SecretId, Vault, VaultCommit, VaultEntry,
     },
 };
 use std::path::Path;
@@ -48,6 +48,18 @@ pub async fn import_account(
 
     // File events
     let file_events = collect_file_events(paths.file_events()).await?;
+
+    // User folders
+    let mut folders = Vec::new();
+    let user_folders = Identity::list_local_folders(paths).await?;
+    for (summary, path) in user_folders {
+        let buffer = vfs::read(path).await.map_err(SdkError::from)?;
+        let vault: Vault = decode(&buffer).await?;
+        let rows = collect_vault_rows(&vault).await?;
+        let events =
+            collect_folder_events(paths.event_log_path(summary.id())).await?;
+        folders.push((vault, rows, events));
+    }
 
     client
         .conn_mut(move |conn| {
@@ -114,7 +126,18 @@ pub async fn import_account(
                 // Create the file events
                 create_file_events(&mut tx, account_id, file_events).await?;
 
-                // TODO: user folders
+                // Create user folders
+                for (vault, rows, events) in folders {
+                  create_folder(
+                      &mut tx,
+                      account_id,
+                      vault,
+                      rows,
+                      Some(events),
+                  )
+                  .await?;
+                }
+
                 // TODO: file blobs
 
                 Ok::<_, SqlError>(())

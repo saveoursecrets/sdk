@@ -67,7 +67,7 @@ impl Identity {
 
     /// List the folders in an account by inspecting
     /// the vault files in the vaults directory.
-    pub(crate) async fn list_local_folders(
+    pub async fn list_local_folders(
         paths: &Paths,
     ) -> Result<Vec<(Summary, PathBuf)>> {
         PublicIdentity::list_local_folders(paths).await
