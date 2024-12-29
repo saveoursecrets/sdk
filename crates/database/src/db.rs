@@ -139,6 +139,9 @@ pub async fn import_account(
                 }
 
                 // TODO: file blobs
+                // TODO: preferences
+                // TODO: server origins 
+                // TODO: audit logs 
 
                 Ok::<_, SqlError>(())
             })?;
