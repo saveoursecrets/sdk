@@ -22,7 +22,18 @@ BEGIN UPDATE accounts
 END;
 
 -- Account identity login folder
-CREATE TABLE IF NOT EXISTS account_logins 
+CREATE TABLE IF NOT EXISTS account_login_folder
+(
+    account_id          INTEGER             NOT NULL,
+    folder_id           INTEGER             NOT NULL,
+
+    FOREIGN KEY (account_id)
+      REFERENCES accounts (account_id) ON DELETE CASCADE,
+    FOREIGN KEY (folder_id) REFERENCES folders (folder_id)
+);
+
+-- Account device folder
+CREATE TABLE IF NOT EXISTS account_device_folder
 (
     account_id          INTEGER             NOT NULL,
     folder_id           INTEGER             NOT NULL,

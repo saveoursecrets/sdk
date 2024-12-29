@@ -36,9 +36,15 @@ pub async fn import_account(
     let account_events =
         collect_account_events(paths.account_events()).await?;
 
+    // Device vault
+    let buffer = vfs::read(paths.device_file())
+        .await
+        .map_err(SdkError::from)?;
+    let device_vault: Vault = decode(&buffer).await?;
+    let device_rows = collect_vault_rows(&device_vault).await?;
+
     // Device events
-    let device_events =
-        collect_device_events(paths.device_events()).await?;
+    let device_events = collect_device_events(paths.device_events()).await?;
 
     // File events
     let file_events = collect_file_events(paths.file_events()).await?;
@@ -51,51 +57,64 @@ pub async fn import_account(
                 // Create the account
                 let account_id = {
                     tx.execute(
-                      "INSERT INTO accounts (identifier, name) VALUES (?1, ?2)",
-                      (&account_identifier, &account_name),
+                        r#"
+                          INSERT INTO accounts (identifier, name)
+                          VALUES (?1, ?2)
+                        "#,
+                        (&account_identifier, &account_name),
                     )?;
                     tx.last_insert_rowid()
                 };
 
                 // Create the identity folder
                 let identity_folder_id = create_folder(
-                  &mut tx,
-                  account_id,
-                  identity_vault,
-                  identity_rows,
-                  identity_events,
-                ).await?;
-                
+                    &mut tx,
+                    account_id,
+                    identity_vault,
+                    identity_rows,
+                    Some(identity_events),
+                )
+                .await?;
                 // Create the join entry for the account login folder
                 tx.execute(
-                  "INSERT INTO account_logins (account_id, folder_id) VALUES (?1, ?2)",
-                  (&account_id, &identity_folder_id),
+                    r#"
+                      INSERT INTO account_login_folder (account_id, folder_id) 
+                      VALUES (?1, ?2)
+                    "#,
+                    (&account_id, &identity_folder_id),
+                )?;
+
+                // Create the device folder without events
+                // as it is configured for SYSTEM | DEVICE | NO_SYNC
+                let device_folder_id = create_folder(
+                    &mut tx,
+                    account_id,
+                    device_vault,
+                    device_rows,
+                    None,
+                )
+                .await?;
+                // Create the join entry for the device folder
+                tx.execute(
+                    r#"
+                      INSERT INTO account_device_folder (account_id, folder_id) 
+                      VALUES (?1, ?2)
+                    "#,
+                    (&account_id, &device_folder_id),
                 )?;
 
                 // Create the account events
-                create_account_events(
-                  &mut tx,
-                  account_id,
-                  account_events,
-                ).await?;
+                create_account_events(&mut tx, account_id, account_events)
+                    .await?;
 
                 // Create the device events
-                create_device_events(
-                  &mut tx,
-                  account_id,
-                  device_events,
-                ).await?;
+                create_device_events(&mut tx, account_id, device_events)
+                    .await?;
 
                 // Create the file events
-                create_file_events(
-                  &mut tx,
-                  account_id,
-                  file_events,
-                ).await?;
+                create_file_events(&mut tx, account_id, file_events).await?;
 
                 // TODO: user folders
-
-                // TODO: devices folder
                 // TODO: file blobs
 
                 Ok::<_, SqlError>(())
@@ -186,7 +205,7 @@ async fn create_folder(
     account_id: i64,
     vault: Vault,
     rows: Vec<(SecretId, CommitHash, Vec<u8>, Vec<u8>)>,
-    events: Vec<(String, CommitHash, EventRecord)>,
+    events: Option<Vec<(String, CommitHash, EventRecord)>>,
 ) -> std::result::Result<i64, SqlError> {
     // Insert folder meta data and get folder_id
     let folder_id = {
@@ -198,7 +217,11 @@ async fn create_folder(
         let flags = vault.summary().flags().bits().to_le_bytes();
 
         let mut stmt = tx.prepare_cached(
-            "INSERT INTO folders (account_id, identifier, name, version, cipher, kdf, flags) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            r#"
+              INSERT INTO folders
+                (account_id, identifier, name, version, cipher, kdf, flags)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            "#,
         )?;
         stmt.execute((
             &account_id,
@@ -216,7 +239,11 @@ async fn create_folder(
     // Insert the vault secret rows
     {
         let mut stmt = tx.prepare_cached(
-            "INSERT INTO folder_secrets (folder_id, identifier, commit_hash, meta, secret) VALUES (?1, ?2, ?3, ?4, ?5)",
+            r#"
+              INSERT INTO folder_secrets
+                (folder_id, identifier, commit_hash, meta, secret)
+                VALUES (?1, ?2, ?3, ?4, ?5)
+            "#,
         )?;
         for (identifier, commit_hash, meta, secret) in rows {
             stmt.execute((
@@ -230,9 +257,12 @@ async fn create_folder(
     }
 
     // Insert the event rows
-    {
+    if let Some(events) = events {
         let mut stmt = tx.prepare_cached(
-            "INSERT INTO folder_events (folder_id, created_at, commit_hash, event) VALUES (?1, ?2, ?3, ?4)",
+            r#"
+              INSERT INTO folder_events
+              (folder_id, created_at, commit_hash, event)
+              VALUES (?1, ?2, ?3, ?4)"#,
         )?;
         for (time, commit, record) in events {
             stmt.execute((
@@ -253,9 +283,10 @@ async fn create_account_events(
     events: Vec<(String, CommitHash, EventRecord)>,
 ) -> std::result::Result<(), SqlError> {
     let mut stmt = tx.prepare_cached(
-        r#"INSERT INTO account_events
-          (account_id, created_at, commit_hash, event)
-          VALUES (?1, ?2, ?3, ?4)
+        r#"
+          INSERT INTO account_events
+            (account_id, created_at, commit_hash, event)
+            VALUES (?1, ?2, ?3, ?4)
         "#,
     )?;
     for (time, commit, record) in events {
@@ -276,9 +307,10 @@ async fn create_device_events(
     events: Vec<(String, CommitHash, EventRecord)>,
 ) -> std::result::Result<(), SqlError> {
     let mut stmt = tx.prepare_cached(
-        r#"INSERT INTO device_events
-          (account_id, created_at, commit_hash, event)
-          VALUES (?1, ?2, ?3, ?4)
+        r#"
+          INSERT INTO device_events
+            (account_id, created_at, commit_hash, event)
+            VALUES (?1, ?2, ?3, ?4)
         "#,
     )?;
     for (time, commit, record) in events {
@@ -299,9 +331,10 @@ async fn create_file_events(
     events: Vec<(String, CommitHash, EventRecord)>,
 ) -> std::result::Result<(), SqlError> {
     let mut stmt = tx.prepare_cached(
-        r#"INSERT INTO file_events
-          (account_id, created_at, commit_hash, event)
-          VALUES (?1, ?2, ?3, ?4)
+        r#"
+          INSERT INTO file_events
+            (account_id, created_at, commit_hash, event)
+            VALUES (?1, ?2, ?3, ?4)
         "#,
     )?;
     for (time, commit, record) in events {

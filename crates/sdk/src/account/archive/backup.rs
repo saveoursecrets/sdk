@@ -13,7 +13,7 @@ use walkdir::WalkDir;
 
 use crate::{
     account::archive::{ArchiveItem, Inventory, Manifest, Reader, Writer},
-    constants::{EVENT_LOG_EXT, VAULT_EXT},
+    constants::VAULT_EXT,
     crypto::AccessKey,
     decode,
     events::{EventLogExt, FolderEventLog, FolderReducer},
@@ -491,12 +491,22 @@ impl AccountBackup {
         let vaults_dir = paths.vaults_dir();
         vfs::create_dir_all(&vaults_dir).await?;
 
+        Self::restore_system(&paths, &restore_targets).await?;
+        Self::restore_user_folders(&paths, &restore_targets.vaults).await?;
+
+        let account =
+            PublicIdentity::new(label, restore_targets.manifest.address);
+        Ok((restore_targets, account))
+    }
+
+    async fn restore_user_folders(
+        paths: &Paths,
+        vaults: &Vec<(Vec<u8>, Vault)>,
+    ) -> Result<()> {
         // Write out each vault and the event log
-        for (buffer, vault) in &restore_targets.vaults {
-            let mut vault_path = vaults_dir.join(vault.id().to_string());
-            let mut event_log_path = vault_path.clone();
-            vault_path.set_extension(VAULT_EXT);
-            event_log_path.set_extension(EVENT_LOG_EXT);
+        for (buffer, vault) in vaults {
+            let vault_path = paths.vault_path(vault.id());
+            let event_log_path = paths.event_log_path(vault.id());
 
             // Write out the vault buffer
             vfs::write_exclusive(&vault_path, buffer).await?;
@@ -508,10 +518,50 @@ impl AccountBackup {
             event_log.apply(events.iter().collect()).await?;
         }
 
-        let account =
-            PublicIdentity::new(label, restore_targets.manifest.address);
+        Ok(())
+    }
 
-        Ok((restore_targets, account))
+    /// Restore system files from the restore targets.
+    async fn restore_system(
+        paths: &Paths,
+        targets: &RestoreTargets,
+    ) -> Result<()> {
+        let RestoreTargets {
+            devices,
+            account: account_events,
+            files,
+            preferences,
+            remotes,
+            ..
+        } = targets;
+
+        // Restore account events
+        if let Some(buffer) = account_events {
+            vfs::write_exclusive(paths.account_events(), buffer).await?;
+        }
+
+        // Restore device events and vault
+        if let Some((vault, events)) = devices {
+            vfs::write_exclusive(paths.device_file(), vault).await?;
+            vfs::write_exclusive(paths.device_events(), events).await?;
+        }
+
+        // Restore file events
+        if let Some(buffer) = files {
+            vfs::write_exclusive(paths.file_events(), buffer).await?;
+        }
+
+        // Restore account preferences
+        if let Some(buffer) = preferences {
+            vfs::write_exclusive(paths.preferences_file(), buffer).await?;
+        }
+
+        // Restore remote server origins
+        if let Some(buffer) = remotes {
+            vfs::write_exclusive(paths.remote_origins(), buffer).await?;
+        }
+
+        Ok(())
     }
 
     /// Restore from an archive.
@@ -545,11 +595,7 @@ impl AccountBackup {
             manifest,
             identity,
             vaults,
-            devices,
-            account: account_events,
-            files,
-            preferences,
-            remotes,
+            ..
         } = &targets;
 
         // The app should check the identity already exists
@@ -591,31 +637,8 @@ impl AccountBackup {
                 .await?;
         }
 
-        // Restore account events
-        if let Some(buffer) = account_events {
-            vfs::write_exclusive(paths.account_events(), buffer).await?;
-        }
-
-        // Restore device events and vault
-        if let Some((events, vault)) = devices {
-            vfs::write_exclusive(paths.device_events(), events).await?;
-            vfs::write_exclusive(paths.device_file(), vault).await?;
-        }
-
-        // Restore file events
-        if let Some(buffer) = files {
-            vfs::write_exclusive(paths.file_events(), buffer).await?;
-        }
-
-        // Restore account preferences
-        if let Some(buffer) = preferences {
-            vfs::write_exclusive(paths.preferences_file(), buffer).await?;
-        }
-
-        // Restore remote server origins
-        if let Some(buffer) = remotes {
-            vfs::write_exclusive(paths.remote_origins(), buffer).await?;
-        }
+        Self::restore_system(&paths, &targets).await?;
+        Self::restore_user_folders(&paths, &targets.vaults).await?;
 
         Ok((targets, account))
     }
