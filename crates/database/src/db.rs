@@ -246,8 +246,6 @@ pub(crate) async fn import_account(
                     create_servers(&mut tx, account_id, servers).await?;
                 }
 
-                // TODO: server origins 
-
                 Ok::<_, SqlError>(())
             })?;
 
