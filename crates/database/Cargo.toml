@@ -9,7 +9,7 @@ thiserror = "1"
 sos-sdk.workspace = true
 futures.workspace = true
 
-async-sqlite = { version = "0.3", features = ["hooks"]}
+async-sqlite = "0.3"
 refinery = {version = "0.8", git = "https://github.com/rust-db/refinery", features = ["rusqlite"]}
 tokio = {version = "1", features = ["sync", "macros"]}
 
