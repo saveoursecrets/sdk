@@ -74,6 +74,8 @@ pub struct RestoreTargets {
     pub files: Option<Vec<u8>>,
     /// Account-specific preferences.
     pub preferences: Option<Vec<u8>>,
+    /// Remote server origins.
+    pub remotes: Option<Vec<u8>>,
 }
 
 /// Options to use when building an account manifest.
@@ -360,6 +362,11 @@ impl AccountBackup {
             writer = writer.add_preferences(buffer.as_slice()).await?;
         }
 
+        if vfs::try_exists(paths.remote_origins()).await? {
+            let buffer = vfs::read(paths.remote_origins()).await?;
+            writer = writer.add_remote_servers(buffer.as_slice()).await?;
+        }
+
         // TODO: use list_external_files() rather than
         // TODO: walking the directory
         let files = paths.files_dir();
@@ -542,6 +549,7 @@ impl AccountBackup {
             account: account_events,
             files,
             preferences,
+            remotes,
         } = &targets;
 
         // The app should check the identity already exists
@@ -604,6 +612,11 @@ impl AccountBackup {
             vfs::write_exclusive(paths.preferences_file(), buffer).await?;
         }
 
+        // Restore remote server origins
+        if let Some(buffer) = remotes {
+            vfs::write_exclusive(paths.remote_origins(), buffer).await?;
+        }
+
         Ok((targets, account))
     }
 
@@ -639,8 +652,16 @@ impl AccountBackup {
             }
         }
 
-        let (manifest, identity, vaults, devices, account, files, prefs) =
-            reader.finish().await?;
+        let (
+            manifest,
+            identity,
+            vaults,
+            devices,
+            account,
+            files,
+            preferences,
+            remotes,
+        ) = reader.finish().await?;
 
         // Filter extracted vaults to those selected by the user
         let vaults = vaults
@@ -671,26 +692,8 @@ impl AccountBackup {
             }
         }
 
-        let account = if let Some(buffer) = account {
-            Some(buffer)
-        } else {
-            None
-        };
-
         let devices = if let Some((vault_item, event_item)) = devices {
             Some((vault_item.1, event_item))
-        } else {
-            None
-        };
-
-        let files = if let Some(buffer) = files {
-            Some(buffer)
-        } else {
-            None
-        };
-
-        let preferences = if let Some(buffer) = prefs {
-            Some(buffer)
         } else {
             None
         };
@@ -703,6 +706,7 @@ impl AccountBackup {
             devices,
             files,
             preferences,
+            remotes,
         })
     }
 }

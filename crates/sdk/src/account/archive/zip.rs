@@ -18,7 +18,7 @@ use crate::{
     constants::{ARCHIVE_MANIFEST, FILES_DIR, VAULT_EXT},
     prelude::{
         ACCOUNT_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILE_EVENTS, JSON_EXT,
-        PREFERENCES_FILE,
+        PREFERENCES_FILE, REMOTES_FILE,
     },
     signer::ecdsa::Address,
     vault::{Header as VaultHeader, Summary, VaultId},
@@ -54,6 +54,10 @@ pub struct Manifest {
     /// Account-specific preferences.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preferences: Option<String>,
+
+    /// Remote server settings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remotes: Option<String>,
 }
 
 /// Write to an archive.
@@ -217,6 +221,27 @@ impl<W: AsyncWrite + Unpin> Writer<W> {
         self.append_file_buffer(
             path.to_string_lossy().into_owned().as_ref(),
             prefs,
+        )
+        .await?;
+
+        Ok(self)
+    }
+
+    /// Add remote server settings.
+    pub async fn add_remote_servers(
+        mut self,
+        remotes: &[u8],
+    ) -> Result<Self> {
+        let checksum = hex::encode(Sha256::digest(remotes).as_slice());
+        self.manifest.remotes = Some(checksum);
+
+        // Create the file events file
+        let mut path = PathBuf::from(REMOTES_FILE);
+        path.set_extension(JSON_EXT);
+
+        self.append_file_buffer(
+            path.to_string_lossy().into_owned().as_ref(),
+            remotes,
         )
         .await?;
 
@@ -445,6 +470,7 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
         Option<Vec<u8>>,
         Option<Vec<u8>>,
         Option<Vec<u8>>,
+        Option<Vec<u8>>,
     )> {
         let manifest =
             self.manifest.take().ok_or(Error::NoArchiveManifest)?;
@@ -509,7 +535,19 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
             None
         };
 
-        Ok((manifest, identity, vaults, devices, account, files, prefs))
+        let remotes = if let Some(checksum) = &manifest.remotes {
+            let name = format!("{}.{}", REMOTES_FILE, JSON_EXT);
+            let events =
+                self.archive_buffer(&name, hex::decode(checksum)?).await?;
+            Some(events)
+        } else {
+            None
+        };
+
+        Ok((
+            manifest, identity, vaults, devices, account, files, prefs,
+            remotes,
+        ))
     }
 }
 
@@ -573,7 +611,7 @@ mod test {
         assert_eq!("Mock", inventory.identity.name());
         assert_eq!(1, inventory.vaults.len());
 
-        let (manifest_decoded, identity_entry, vault_entries, _, _, _, _) =
+        let (manifest_decoded, identity_entry, vault_entries, _, _, _, _, _) =
             reader.prepare().await?.finish().await?;
 
         assert_eq!(address, manifest_decoded.address);
