@@ -8,7 +8,7 @@ const TEST_ID: &str = "backup_export_restore";
 /// Tests creating a backup and restoring from the
 /// backup archive then asserting on the restored data.
 #[tokio::test]
-async fn export_restore() -> Result<()> {
+async fn backup_export_restore() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

@@ -16,6 +16,7 @@ use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
 use crate::{
     constants::{ARCHIVE_MANIFEST, FILES_DIR, VAULT_EXT},
+    prelude::{ACCOUNT_EVENTS, DEVICE_FILE, EVENT_LOG_EXT},
     signer::ecdsa::Address,
     vault::{Header as VaultHeader, Summary, VaultId},
     vfs::{self, File},
@@ -34,6 +35,14 @@ pub struct Manifest {
 
     /// Map of vault identifiers to checksums.
     pub vaults: HashMap<VaultId, String>,
+
+    /// Account events checksum.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<String>,
+
+    /// Device vault and events checksums.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub devices: Option<(String, String)>,
 }
 
 /// Write to an archive.
@@ -120,6 +129,54 @@ impl<W: AsyncWrite + Unpin> Writer<W> {
         Ok(self)
     }
 
+    /// Add a devices vault to the archive.
+    pub async fn add_devices(
+        mut self,
+        vault: &[u8],
+        events: &[u8],
+    ) -> Result<Self> {
+        let vault_checksum = hex::encode(Sha256::digest(vault).as_slice());
+        let event_checksum = hex::encode(Sha256::digest(events).as_slice());
+        self.manifest.devices = Some((vault_checksum, event_checksum));
+
+        // Create the device vault file
+        let mut path = PathBuf::from(DEVICE_FILE);
+        path.set_extension(VAULT_EXT);
+        self.append_file_buffer(
+            path.to_string_lossy().into_owned().as_ref(),
+            vault,
+        )
+        .await?;
+
+        // Create the device events file
+        let mut path = PathBuf::from(DEVICE_FILE);
+        path.set_extension(EVENT_LOG_EXT);
+        self.append_file_buffer(
+            path.to_string_lossy().into_owned().as_ref(),
+            events,
+        )
+        .await?;
+
+        Ok(self)
+    }
+
+    /// Add account events to the archive.
+    pub async fn add_account_events(mut self, events: &[u8]) -> Result<Self> {
+        let event_checksum = hex::encode(Sha256::digest(events).as_slice());
+        self.manifest.account = Some(event_checksum);
+
+        // Create the account events file
+        let mut path = PathBuf::from(ACCOUNT_EVENTS);
+        path.set_extension(EVENT_LOG_EXT);
+        self.append_file_buffer(
+            path.to_string_lossy().into_owned().as_ref(),
+            events,
+        )
+        .await?;
+
+        Ok(self)
+    }
+
     /// Add a file to the archive.
     pub async fn add_file(
         mut self,
@@ -189,14 +246,15 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
             .ok_or(Error::NoArchiveManifest)?;
         let entry_name = format!("{}.{}", manifest.address, VAULT_EXT);
         let checksum = hex::decode(&manifest.checksum)?;
-        let (identity, _) = self.archive_entry(&entry_name, checksum).await?;
+        let (identity, _) =
+            self.archive_folder(&entry_name, checksum).await?;
 
         let mut vaults = Vec::with_capacity(manifest.vaults.len());
         for (k, v) in &manifest.vaults {
             let entry_name = format!("{}.{}", k, VAULT_EXT);
             let checksum = hex::decode(v)?;
             let (summary, _) =
-                self.archive_entry(&entry_name, checksum).await?;
+                self.archive_folder(&entry_name, checksum).await?;
             vaults.push(summary);
         }
         vaults.sort_by(|a, b| a.name().cmp(b.name()));
@@ -239,7 +297,7 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
         Ok(None)
     }
 
-    async fn archive_entry(
+    async fn archive_folder(
         &mut self,
         name: &str,
         checksum: Vec<u8>,
@@ -251,6 +309,19 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
         }
         let summary = VaultHeader::read_summary_slice(&data).await?;
         Ok((summary, data))
+    }
+
+    async fn archive_buffer(
+        &mut self,
+        name: &str,
+        checksum: Vec<u8>,
+    ) -> Result<Vec<u8>> {
+        let data = self.by_name(name).await?.unwrap();
+        let digest = Sha256::digest(&data);
+        if checksum != digest.to_vec() {
+            return Err(Error::ArchiveChecksumMismatch(name.to_string()));
+        }
+        Ok(data)
     }
 
     /// Extract files to a destination.
@@ -320,20 +391,60 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
     /// each buffer is a valid vault.
     pub async fn finish(
         mut self,
-    ) -> Result<(Address, ArchiveItem, Vec<ArchiveItem>)> {
+    ) -> Result<(
+        Manifest,
+        ArchiveItem,
+        Vec<ArchiveItem>,
+        Option<(ArchiveItem, Vec<u8>)>,
+        Option<Vec<u8>>,
+    )> {
         let manifest =
             self.manifest.take().ok_or(Error::NoArchiveManifest)?;
         let entry_name = format!("{}.{}", manifest.address, VAULT_EXT);
-        let checksum = hex::decode(manifest.checksum)?;
-        let identity = self.archive_entry(&entry_name, checksum).await?;
+        let checksum = hex::decode(&manifest.checksum)?;
+        let identity = self.archive_folder(&entry_name, checksum).await?;
         let mut vaults = Vec::new();
 
-        for (k, v) in manifest.vaults {
+        for (k, v) in &manifest.vaults {
             let entry_name = format!("{}.{}", k, VAULT_EXT);
             let checksum = hex::decode(v)?;
-            vaults.push(self.archive_entry(&entry_name, checksum).await?);
+            vaults.push(self.archive_folder(&entry_name, checksum).await?);
         }
-        Ok((manifest.address, identity, vaults))
+
+        let devices = if let Some((vault_checksum, event_checksum)) =
+            &manifest.devices
+        {
+            let devices_vault_name = format!("{}.{}", DEVICE_FILE, VAULT_EXT);
+            let devices_event_name =
+                format!("{}.{}", DEVICE_FILE, EVENT_LOG_EXT);
+            let devices_vault = self
+                .archive_folder(
+                    &devices_vault_name,
+                    hex::decode(&vault_checksum)?,
+                )
+                .await?;
+            let devices_event = self
+                .archive_buffer(
+                    &devices_event_name,
+                    hex::decode(event_checksum)?,
+                )
+                .await?;
+            Some((devices_vault, devices_event))
+        } else {
+            None
+        };
+
+        let account = if let Some(event_checksum) = &manifest.account {
+            let name = format!("{}.{}", ACCOUNT_EVENTS, EVENT_LOG_EXT);
+            let events = self
+                .archive_buffer(&name, hex::decode(event_checksum)?)
+                .await?;
+            Some(events)
+        } else {
+            None
+        };
+
+        Ok((manifest, identity, vaults, devices, account))
     }
 }
 
@@ -397,10 +508,10 @@ mod test {
         assert_eq!("Mock", inventory.identity.name());
         assert_eq!(1, inventory.vaults.len());
 
-        let (address_decoded, identity_entry, vault_entries) =
+        let (manifest_decoded, identity_entry, vault_entries, _, _) =
             reader.prepare().await?.finish().await?;
 
-        assert_eq!(address, address_decoded);
+        assert_eq!(address, manifest_decoded.address);
 
         let (identity_summary, identity_buffer) = identity_entry;
         assert_eq!(identity_vault.summary(), &identity_summary);

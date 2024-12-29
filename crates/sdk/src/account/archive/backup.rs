@@ -12,7 +12,7 @@ use uuid::Uuid;
 use walkdir::WalkDir;
 
 use crate::{
-    account::archive::{ArchiveItem, Inventory, Reader, Writer},
+    account::archive::{ArchiveItem, Inventory, Manifest, Reader, Writer},
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
     decode,
@@ -60,12 +60,16 @@ pub struct RestoreOptions {
 /// Buffers of data to restore after selected options
 /// have been applied to the data in an archive.
 pub struct RestoreTargets {
-    /// The address for the identity.
-    pub address: Address,
+    /// The manifest extracted from the archive.
+    pub manifest: Manifest,
     /// Archive item for the identity vault.
     pub identity: ArchiveItem,
     /// List of vaults to restore.
     pub vaults: Vec<(Vec<u8>, Vault)>,
+    /// Account events.
+    pub account: Option<Vec<u8>>,
+    /// Device vault and events.
+    pub devices: Option<(Vec<u8>, Vec<u8>)>,
 }
 
 /// Options to use when building an account manifest.
@@ -321,6 +325,27 @@ impl AccountBackup {
             writer = writer.add_vault(*summary.id(), &buffer).await?;
         }
 
+        let device_info = if vfs::try_exists(paths.device_file()).await?
+            && vfs::try_exists(paths.device_events()).await?
+        {
+            let vault_buffer = vfs::read(paths.device_file()).await?;
+            let events_buffer = vfs::read(paths.device_events()).await?;
+            Some((vault_buffer, events_buffer))
+        } else {
+            None
+        };
+
+        if let Some((vault, events)) = device_info {
+            writer = writer
+                .add_devices(vault.as_slice(), events.as_slice())
+                .await?;
+        }
+
+        if vfs::try_exists(paths.account_events()).await? {
+            let buffer = vfs::read(paths.account_events()).await?;
+            writer = writer.add_account_events(buffer.as_slice()).await?;
+        }
+
         // TODO: use list_external_files() rather than
         // TODO: walking the directory
         let files = paths.files_dir();
@@ -401,15 +426,15 @@ impl AccountBackup {
         let keys = Identity::list_accounts(Some(&paths)).await?;
         let existing_account = keys
             .iter()
-            .find(|k| k.address() == &restore_targets.address);
+            .find(|k| k.address() == &restore_targets.manifest.address);
 
         if existing_account.is_some() {
             return Err(Error::ArchiveAccountAlreadyExists(
-                restore_targets.address.to_string(),
+                restore_targets.manifest.address.to_string(),
             ));
         }
 
-        let address_path = restore_targets.address.to_string();
+        let address_path = restore_targets.manifest.address.to_string();
         let paths = Paths::new(data_dir, &address_path);
 
         // Write out the identity vault
@@ -426,7 +451,7 @@ impl AccountBackup {
             let name = format!(
                 "{} ({})",
                 restore_targets.identity.0.name(),
-                &restore_targets.address
+                &restore_targets.manifest.address
             );
 
             let identity_vault_file = paths.identity_vault();
@@ -462,7 +487,8 @@ impl AccountBackup {
             event_log.apply(events.iter().collect()).await?;
         }
 
-        let account = PublicIdentity::new(label, restore_targets.address);
+        let account =
+            PublicIdentity::new(label, restore_targets.manifest.address);
 
         Ok((restore_targets, account))
     }
@@ -495,22 +521,27 @@ impl AccountBackup {
         .await?;
 
         let RestoreTargets {
-            address,
+            manifest,
             identity,
             vaults,
+            devices,
+            account: account_events,
         } = &targets;
 
         // The app should check the identity already exists
         // but we will double check here to be safe
         let paths = Paths::new_global(data_dir.clone());
         let keys = Identity::list_accounts(Some(&paths)).await?;
-        let existing_account = keys.iter().find(|k| k.address() == address);
+        let existing_account =
+            keys.iter().find(|k| k.address() == &manifest.address);
 
         let account = existing_account
-            .ok_or_else(|| Error::NoArchiveAccount(address.to_string()))?
+            .ok_or_else(|| {
+                Error::NoArchiveAccount(manifest.address.to_string())
+            })?
             .clone();
 
-        let address = address.to_string();
+        let address = manifest.address.to_string();
         let paths = Paths::new(data_dir, &address);
         let mut user = Identity::new(paths.clone());
         let key: AccessKey = passphrase.clone().into();
@@ -534,6 +565,17 @@ impl AccountBackup {
 
             user.save_folder_password(vault.id(), vault_passphrase)
                 .await?;
+        }
+
+        // Restore account events
+        if let Some(events) = account_events {
+            vfs::write_exclusive(paths.account_events(), events).await?;
+        }
+
+        // Restore device events and vault
+        if let Some((events, vault)) = devices {
+            vfs::write_exclusive(paths.device_events(), events).await?;
+            vfs::write_exclusive(paths.device_file(), vault).await?;
         }
 
         Ok((targets, account))
@@ -571,7 +613,8 @@ impl AccountBackup {
             }
         }
 
-        let (address, identity, vaults) = reader.finish().await?;
+        let (manifest, identity, vaults, devices, account) =
+            reader.finish().await?;
 
         // Filter extracted vaults to those selected by the user
         let vaults = vaults
@@ -597,15 +640,29 @@ impl AccountBackup {
             let restored_user =
                 MemoryIdentityFolder::login(&identity.1, &key).await?;
 
-            if restored_user.address() != &address {
+            if restored_user.address() != &manifest.address {
                 return Err(Error::ArchiveAddressMismatch);
             }
         }
 
+        let account = if let Some(events) = account {
+            Some(events)
+        } else {
+            None
+        };
+
+        let devices = if let Some((vault_item, event_item)) = devices {
+            Some((vault_item.1, event_item))
+        } else {
+            None
+        };
+
         Ok(RestoreTargets {
-            address,
+            manifest,
             identity,
             vaults: decoded,
+            account,
+            devices,
         })
     }
 }
