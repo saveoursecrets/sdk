@@ -7,12 +7,14 @@ use futures::{pin_mut, StreamExt};
 use sos_sdk::{
     events::{AccountEventLog, DeviceEventLog, FileEventLog},
     prelude::{
-        decode, encode, vfs, CommitHash, Error as SdkError, EventLogExt,
-        EventRecord, FolderEventLog, Identity, Paths, PublicIdentity,
-        SecretId, Vault, VaultCommit, VaultEntry,
+        decode, encode, list_external_files, vfs, CommitHash,
+        Error as SdkError, EventLogExt, EventRecord, ExternalFile,
+        FolderEventLog, Identity, Paths, PublicIdentity, SecretId, Vault,
+        VaultCommit, VaultEntry,
     },
+    vault::VaultId,
 };
-use std::path::Path;
+use std::{collections::HashMap, path::Path};
 
 /// Create an account in the database.
 pub async fn import_account(
@@ -61,6 +63,18 @@ pub async fn import_account(
         folders.push((vault, rows, events));
     }
 
+    let mut user_files = Vec::new();
+    let files = list_external_files(&paths).await?;
+    for file in files {
+        let path = paths.file_location(
+            file.vault_id(),
+            file.secret_id(),
+            file.file_name().to_string(),
+        );
+        let buffer = vfs::read(path).await.map_err(SdkError::from)?;
+        user_files.push((file, buffer));
+    }
+
     client
         .conn_mut(move |conn| {
             let mut tx = conn.transaction()?;
@@ -79,7 +93,7 @@ pub async fn import_account(
                 };
 
                 // Create the identity folder
-                let identity_folder_id = create_folder(
+                let (identity_folder_id, _) = create_folder(
                     &mut tx,
                     account_id,
                     identity_vault,
@@ -98,7 +112,7 @@ pub async fn import_account(
 
                 // Create the device folder without events
                 // as it is configured for SYSTEM | DEVICE | NO_SYNC
-                let device_folder_id = create_folder(
+                let (device_folder_id, _) = create_folder(
                     &mut tx,
                     account_id,
                     device_vault,
@@ -127,16 +141,21 @@ pub async fn import_account(
                 create_file_events(&mut tx, account_id, file_events).await?;
 
                 // Create user folders
+                let mut folder_ids = HashMap::new();
                 for (vault, rows, events) in folders {
-                  create_folder(
+                    let id = *vault.id();
+                    let folder_id = create_folder(
                       &mut tx,
                       account_id,
                       vault,
                       rows,
                       Some(events),
-                  )
-                  .await?;
+                    )
+                    .await?;
+                    folder_ids.insert(id, folder_id);
                 }
+
+                create_files(&mut tx, &folder_ids, user_files).await?;
 
                 // TODO: file blobs
                 // TODO: preferences
@@ -232,7 +251,7 @@ async fn create_folder(
     vault: Vault,
     rows: Vec<(SecretId, CommitHash, Vec<u8>, Vec<u8>)>,
     events: Option<Vec<(String, CommitHash, EventRecord)>>,
-) -> std::result::Result<i64, SqlError> {
+) -> std::result::Result<(i64, HashMap<SecretId, i64>), SqlError> {
     // Insert folder meta data and get folder_id
     let folder_id = {
         let identifier = vault.id().to_string();
@@ -263,6 +282,7 @@ async fn create_folder(
     };
 
     // Insert the vault secret rows
+    let mut secret_ids = HashMap::new();
     {
         let mut stmt = tx.prepare_cached(
             r#"
@@ -279,6 +299,7 @@ async fn create_folder(
                 &meta,
                 &secret,
             ))?;
+            secret_ids.insert(identifier, tx.last_insert_rowid());
         }
     }
 
@@ -293,7 +314,7 @@ async fn create_folder(
         create_events(stmt, folder_id, events).await?;
     }
 
-    Ok(folder_id)
+    Ok((folder_id, secret_ids))
 }
 
 async fn create_account_events(
@@ -348,6 +369,51 @@ async fn create_events(
 ) -> std::result::Result<(), SqlError> {
     for (time, commit, record) in events {
         stmt.execute((&id, time, commit.to_string(), record.event_bytes()))?;
+    }
+    Ok(())
+}
+
+async fn create_files(
+    tx: &mut Transaction<'_>,
+    folder_ids: &HashMap<VaultId, (i64, HashMap<SecretId, i64>)>,
+    user_files: Vec<(ExternalFile, Vec<u8>)>,
+) -> std::result::Result<(), SqlError> {
+    for (file, contents) in user_files {
+        if let Some((folder_id, secret_ids)) =
+            folder_ids.iter().find_map(|(k, v)| {
+                if k == file.vault_id() {
+                    Some(v)
+                } else {
+                    None
+                }
+            })
+        {
+            if let Some(secret_id) = secret_ids.get(file.secret_id()) {
+                let mut stmt = tx.prepare_cached(
+                    r#"
+                      INSERT INTO folder_files
+                        (folder_id, secret_id, checksum, contents)
+                        VALUES (?1, ?2, ?3, ?4)
+                    "#,
+                )?;
+                stmt.execute((
+                    folder_id,
+                    secret_id,
+                    file.file_name().to_string(),
+                    contents,
+                ))?;
+            } else {
+                tracing::warn!(
+                    file = %file,
+                    "db::import::no_secret_for_file",
+                );
+            }
+        } else {
+            tracing::warn!(
+                file = %file,
+                "db::import::no_folder_for_file",
+            );
+        }
     }
     Ok(())
 }
