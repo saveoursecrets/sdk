@@ -102,12 +102,12 @@ CREATE INDEX IF NOT EXISTS folder_secrets_identifier_idx
   ON folder_secrets (identifier);
 
 CREATE TRIGGER
-  update_vault_modified_at
+  update_folder_secrets_modified_at
 AFTER UPDATE OF meta, secret ON folder_secrets
 FOR EACH ROW
 BEGIN UPDATE folder_secrets
   SET modified_at = datetime('now')
-  WHERE vault_id = NEW.vault_id;
+  WHERE secret_id = NEW.secret_id;
 END;
 
 -- Event logs for a folder
@@ -217,9 +217,45 @@ CREATE TABLE IF NOT EXISTS preferences
     preference_id         INTEGER             PRIMARY KEY NOT NULL,
     account_id            INTEGER,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
+    modified_at           DATETIME            DEFAULT CURRENT_TIMESTAMP,
     -- JSON encoded data for the preferences
     json_data             TEXT                NOT NULL,
 
     FOREIGN KEY (account_id) REFERENCES accounts (account_id)
       ON DELETE CASCADE
 );
+
+CREATE TRIGGER
+  update_preferences_modified_at
+AFTER UPDATE OF json_data ON preferences
+FOR EACH ROW
+BEGIN UPDATE preferences
+  SET modified_at = datetime('now')
+  WHERE preference_id = NEW.preference_id;
+END;
+
+-- Server remote origins for an account
+CREATE TABLE IF NOT EXISTS servers
+(
+    server_id             INTEGER             PRIMARY KEY NOT NULL,
+    account_id            INTEGER             NOT NULL,
+    created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
+    modified_at           DATETIME            DEFAULT CURRENT_TIMESTAMP,
+
+    -- Server name
+    name                  TEXT                NOT NULL,
+    -- Server URL
+    url                   TEXT                NOT NULL,
+
+    FOREIGN KEY (account_id) REFERENCES accounts (account_id)
+      ON DELETE CASCADE
+);
+
+CREATE TRIGGER
+  update_servers_modified_at
+AFTER UPDATE OF name, url ON servers
+FOR EACH ROW
+BEGIN UPDATE servers
+  SET modified_at = datetime('now')
+  WHERE server_id = NEW.server_id;
+END;
