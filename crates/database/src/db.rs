@@ -54,13 +54,19 @@ pub async fn import_account(
                 };
 
                 // Create the identity folder
-                create_folder(
+                let identity_folder_id = create_folder(
                   &mut tx,
                   account_id,
                   identity_vault,
                   identity_rows,
                   identity_events,
                 ).await?;
+                
+                // Create the join entry for the account login folder
+                tx.execute(
+                  "INSERT INTO account_logins (account_id, folder_id) VALUES (?1, ?2)",
+                  (&account_id, &identity_folder_id),
+                )?;
 
                 // Create the account events
                 create_account_events(
@@ -157,7 +163,7 @@ async fn create_folder(
     vault: Vault,
     rows: Vec<(SecretId, CommitHash, Vec<u8>, Vec<u8>)>,
     events: Vec<(String, CommitHash, EventRecord)>,
-) -> std::result::Result<(), SqlError> {
+) -> std::result::Result<i64, SqlError> {
     // Insert folder meta data and get folder_id
     let folder_id = {
         let identifier = vault.id().to_string();
@@ -214,7 +220,7 @@ async fn create_folder(
         }
     }
 
-    Ok(())
+    Ok(folder_id)
 }
 
 async fn create_account_events(
