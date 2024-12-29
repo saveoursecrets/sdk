@@ -209,3 +209,17 @@ CREATE TABLE IF NOT EXISTS file_events
 CREATE INDEX IF NOT EXISTS file_events_commit_hash_idx
   ON file_events (commit_hash);
 
+-- Preferences, when an account_id is not set then the 
+-- preferences are considered to be global (eg: language)
+-- otherwise they are specific to an account.
+CREATE TABLE IF NOT EXISTS preferences
+(
+    preference_id         INTEGER             PRIMARY KEY NOT NULL,
+    account_id            INTEGER,
+    created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
+    -- JSON encoded data for the preferences
+    json_data             TEXT                NOT NULL,
+
+    FOREIGN KEY (account_id) REFERENCES accounts (account_id)
+      ON DELETE CASCADE
+);
