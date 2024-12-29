@@ -58,29 +58,13 @@ BEGIN UPDATE folders
   WHERE folder_id = NEW.folder_id;
 END;
 
-CREATE TABLE IF NOT EXISTS events 
-(
-    event_id              INTEGER             PRIMARY KEY NOT NULL,
-    folder_id             INTEGER             NOT NULL,
-    event_type            TEXT                CHECK(event_type IN ('account', 'device', 'folder', 'file')) NOT NULL,
-    created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
-    -- SHA256 hash of the encoded data
-    commit_hash           TEXT                NOT NULL,
-    -- Encoded event data
-    event                 BLOB                NOT NULL,
-
-    FOREIGN KEY (folder_id) REFERENCES folders (folder_id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS events_type_idx        ON events (event_type);
-CREATE INDEX IF NOT EXISTS events_commit_hash_idx ON events (commit_hash);
-
-CREATE TABLE IF NOT EXISTS vaults 
+CREATE TABLE IF NOT EXISTS folder_vaults 
 (
     vault_id              INTEGER             PRIMARY KEY NOT NULL,
     folder_id             INTEGER             NOT NULL,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
     modified_at           DATETIME            DEFAULT CURRENT_TIMESTAMP,
-    -- UUID
+    -- UUID (secret_id)
     identifier            TEXT                NOT NULL UNIQUE,
     -- SHA256 hash of the encoded data
     commit_hash           TEXT                NOT NULL,
@@ -91,13 +75,57 @@ CREATE TABLE IF NOT EXISTS vaults
 
     FOREIGN KEY (folder_id) REFERENCES folders (folder_id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS vaults_identifier_idx ON vaults (identifier);
+CREATE INDEX IF NOT EXISTS vaults_identifier_idx ON folder_vaults (identifier);
 
 CREATE TRIGGER
   update_vault_modified_at
-AFTER UPDATE OF meta, secret ON vaults 
+AFTER UPDATE OF meta, secret ON folder_vaults 
 FOR EACH ROW
-BEGIN UPDATE vaults
+BEGIN UPDATE folder_vaults
   SET modified_at = datetime('now')
   WHERE vault_id = NEW.vault_id;
 END;
+
+CREATE TABLE IF NOT EXISTS folder_events 
+(
+    event_id              INTEGER             PRIMARY KEY NOT NULL,
+    folder_id             INTEGER             NOT NULL,
+    -- event_type            TEXT                CHECK(event_type IN ('account', 'device', 'folder', 'file')) NOT NULL,
+    created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
+    -- SHA256 hash of the encoded data
+    commit_hash           TEXT                NOT NULL,
+    -- Encoded event data (WriteEvent)
+    event                 BLOB                NOT NULL,
+
+    FOREIGN KEY (folder_id) REFERENCES folders (folder_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS folder_events_commit_hash_idx ON folder_events (commit_hash);
+
+CREATE TABLE IF NOT EXISTS account_events 
+(
+    event_id              INTEGER             PRIMARY KEY NOT NULL,
+    account_id            INTEGER             NOT NULL,
+    created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
+    -- SHA256 hash of the encoded data
+    commit_hash           TEXT                NOT NULL,
+    -- Encoded event data (AccountEvent)
+    event                 BLOB                NOT NULL,
+
+    FOREIGN KEY (account_id) REFERENCES accounts (account_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS account_events_commit_hash_idx ON account_events (commit_hash);
+
+CREATE TABLE IF NOT EXISTS file_events 
+(
+    event_id              INTEGER             PRIMARY KEY NOT NULL,
+    account_id            INTEGER             NOT NULL,
+    created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
+    -- SHA256 hash of the encoded data
+    commit_hash           TEXT                NOT NULL,
+    -- Encoded event data (AccountEvent)
+    event                 BLOB                NOT NULL,
+
+    FOREIGN KEY (account_id) REFERENCES accounts (account_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS file_events_commit_hash_idx ON file_events (commit_hash);
+

@@ -4,10 +4,13 @@ use async_sqlite::{
     Client,
 };
 use futures::{pin_mut, StreamExt};
-use sos_sdk::prelude::{
-    decode, encode, vfs, CommitHash, Error as SdkError, EventLogExt,
-    EventRecord, FolderEventLog, Paths, PublicIdentity, SecretId, Vault,
-    VaultCommit, VaultEntry,
+use sos_sdk::{
+    events::{AccountEventLog, FileEventLog},
+    prelude::{
+        decode, encode, vfs, CommitHash, Error as SdkError, EventLogExt,
+        EventRecord, FolderEventLog, Paths, PublicIdentity, SecretId, Vault,
+        VaultCommit, VaultEntry,
+    },
 };
 use std::path::Path;
 
@@ -17,17 +20,24 @@ pub async fn import_account(
     paths: &Paths,
     account: &PublicIdentity,
 ) -> Result<()> {
+    let account_identifier = account.address().to_string();
+    let account_name = account.label().to_owned();
+
+    // Identity folder
     let buffer = vfs::read(paths.identity_vault())
         .await
         .map_err(SdkError::from)?;
-
     let identity_vault: Vault = decode(&buffer).await?;
     let identity_rows = collect_vault_rows(&identity_vault).await?;
     let identity_events =
         collect_folder_events(paths.identity_events()).await?;
 
-    let account_identifier = account.address().to_string();
-    let account_name = account.label().to_owned();
+    // Account events
+    let account_events =
+        collect_account_events(paths.account_events()).await?;
+
+    // File events
+    let file_events = collect_file_events(paths.file_events()).await?;
 
     client
         .conn_mut(move |conn| {
@@ -43,7 +53,7 @@ pub async fn import_account(
                     tx.last_insert_rowid()
                 };
 
-                // Create the identity folder first
+                // Create the identity folder
                 create_folder(
                   &mut tx,
                   account_id,
@@ -52,10 +62,23 @@ pub async fn import_account(
                   identity_events,
                 ).await?;
 
-                // TODO: devices folder
-                // TODO: account events
+                // Create the account events
+                create_account_events(
+                  &mut tx,
+                  account_id,
+                  account_events,
+                ).await?;
+
+                // Create the file events
+                create_file_events(
+                  &mut tx,
+                  account_id,
+                  file_events,
+                ).await?;
+
                 // TODO: user folders
-                // TODO: file events
+
+                // TODO: devices folder
                 // TODO: file blobs
 
                 Ok::<_, SqlError>(())
@@ -83,11 +106,37 @@ async fn collect_vault_rows(
     Ok(rows)
 }
 
+async fn collect_account_events(
+    path: impl AsRef<Path>,
+) -> Result<Vec<(String, CommitHash, EventRecord)>> {
+    let mut events = Vec::new();
+    let event_log = AccountEventLog::new_account(path).await?;
+    let stream = event_log.stream(false).await;
+    pin_mut!(stream);
+    while let Some(record) = stream.next().await {
+        events.push(convert_event_row(record?.0)?);
+    }
+    Ok(events)
+}
+
 async fn collect_folder_events(
     path: impl AsRef<Path>,
 ) -> Result<Vec<(String, CommitHash, EventRecord)>> {
     let mut events = Vec::new();
     let event_log = FolderEventLog::new(path).await?;
+    let stream = event_log.stream(false).await;
+    pin_mut!(stream);
+    while let Some(record) = stream.next().await {
+        events.push(convert_event_row(record?.0)?);
+    }
+    Ok(events)
+}
+
+async fn collect_file_events(
+    path: impl AsRef<Path>,
+) -> Result<Vec<(String, CommitHash, EventRecord)>> {
+    let mut events = Vec::new();
+    let event_log = FileEventLog::new_file(path).await?;
     let stream = event_log.stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {
@@ -137,7 +186,7 @@ async fn create_folder(
     // Insert the vault rows
     {
         let mut stmt = tx.prepare_cached(
-            "INSERT INTO vaults (folder_id, identifier, commit_hash, meta, secret) VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO folder_vaults (folder_id, identifier, commit_hash, meta, secret) VALUES (?1, ?2, ?3, ?4, ?5)",
         )?;
         for (identifier, commit_hash, meta, secret) in rows {
             stmt.execute((
@@ -153,17 +202,62 @@ async fn create_folder(
     // Insert the event rows
     {
         let mut stmt = tx.prepare_cached(
-            "INSERT INTO events (folder_id, event_type, created_at, commit_hash, event) VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO folder_events (folder_id, created_at, commit_hash, event) VALUES (?1, ?2, ?3, ?4)",
         )?;
         for (time, commit, record) in events {
             stmt.execute((
                 &folder_id,
-                "folder",
                 time,
                 commit.to_string(),
                 record.event_bytes(),
             ))?;
         }
+    }
+
+    Ok(())
+}
+
+async fn create_account_events(
+    tx: &mut Transaction<'_>,
+    account_id: i64,
+    events: Vec<(String, CommitHash, EventRecord)>,
+) -> std::result::Result<(), SqlError> {
+    let mut stmt = tx.prepare_cached(
+        r#"INSERT INTO account_events
+          (account_id, created_at, commit_hash, event)
+          VALUES (?1, ?2, ?3, ?4)
+        "#,
+    )?;
+    for (time, commit, record) in events {
+        stmt.execute((
+            &account_id,
+            time,
+            commit.to_string(),
+            record.event_bytes(),
+        ))?;
+    }
+
+    Ok(())
+}
+
+async fn create_file_events(
+    tx: &mut Transaction<'_>,
+    account_id: i64,
+    events: Vec<(String, CommitHash, EventRecord)>,
+) -> std::result::Result<(), SqlError> {
+    let mut stmt = tx.prepare_cached(
+        r#"INSERT INTO file_events
+          (account_id, created_at, commit_hash, event)
+          VALUES (?1, ?2, ?3, ?4)
+        "#,
+    )?;
+    for (time, commit, record) in events {
+        stmt.execute((
+            &account_id,
+            time,
+            commit.to_string(),
+            record.event_bytes(),
+        ))?;
     }
 
     Ok(())
