@@ -5,6 +5,7 @@ use std::{
 };
 use url::Url;
 
+/// Remote server origin.
 #[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub struct Origin {
     name: String,

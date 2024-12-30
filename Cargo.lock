@@ -5049,6 +5049,7 @@ version = "0.16.0"
 dependencies = [
  "hex",
  "rs_merkle",
+ "rustc_version",
  "serde",
  "thiserror 2.0.9",
  "url",
