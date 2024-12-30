@@ -137,6 +137,9 @@ mod folders {
 
 /// File names.
 mod files {
+    /// Database file.
+    pub const DATABASE_FILE: &str = "accounts.db";
+
     /// Manifest file for archives.
     pub const ARCHIVE_MANIFEST: &str = "sos-manifest.json";
 }

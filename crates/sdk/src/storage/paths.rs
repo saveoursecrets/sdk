@@ -18,10 +18,10 @@ use std::{
 
 use crate::{
     constants::{
-        ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DEVICE_EVENTS,
-        DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS, IDENTITY_DIR,
-        JSON_EXT, LOCAL_DIR, LOGS_DIR, PENDING_DIR, REMOTES_FILE, REMOTE_DIR,
-        VAULTS_DIR, VAULT_EXT,
+        ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DATABASE_FILE,
+        DEVICE_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS,
+        IDENTITY_DIR, JSON_EXT, LOCAL_DIR, LOGS_DIR, PENDING_DIR,
+        REMOTES_FILE, REMOTE_DIR, VAULTS_DIR, VAULT_EXT,
     },
     vault::{secret::SecretId, VaultId},
     vfs,
@@ -135,7 +135,7 @@ impl Paths {
         let device_file =
             user_dir.join(format!("{}.{}", DEVICE_FILE, VAULT_EXT));
 
-        let database_file = local_dir.join("accounts.db");
+        let database_file = local_dir.join(DATABASE_FILE);
 
         Self {
             user_id: user_id.as_ref().to_owned(),
