@@ -1,5 +1,4 @@
 //! Implements merging into a local account.
-//!
 
 // Ideally we want this code to be in the `sos-net`
 // crate but we also need to share some traits with the
@@ -622,7 +621,7 @@ impl SyncStorage for LocalAccount {
         root_tree.append(&mut root_commits);
         root_tree.commit();
 
-        let root = root_tree.root().ok_or(Error::NoRootCommit)?;
+        let root = root_tree.root().ok_or(sos_core::Error::NoRootCommit)?;
 
         Ok(SyncStatus {
             root,

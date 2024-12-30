@@ -754,7 +754,7 @@ impl AccountSearch {
     }
 
     /// Clear the entire search index.
-    pub(crate) async fn clear(&mut self) {
+    pub async fn clear(&mut self) {
         let mut writer = self.search_index.write().await;
         writer.remove_all();
     }

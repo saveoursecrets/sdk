@@ -90,7 +90,7 @@ pub enum FileMutationEvent {
 
 impl ClientStorage {
     /// Append file mutation events to the file event log.
-    pub(crate) async fn append_file_mutation_events(
+    pub async fn append_file_mutation_events(
         &mut self,
         events: &[FileMutationEvent],
     ) -> Result<()> {
@@ -344,7 +344,7 @@ impl ClientStorage {
 
     /// Move a collection of external storage files.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn move_files(
+    pub async fn move_files(
         &self,
         secret_data: &SecretRow,
         old_vault_id: &VaultId,

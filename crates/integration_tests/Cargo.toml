@@ -77,6 +77,10 @@ path = "../database"
 features = ["full"]
 path = "../net"
 
+[dev-dependencies.sos-account]
+features = ["full"]
+path = "../account"
+
 [dev-dependencies.sos-server]
 default-features = false
 features = ["listen", "audit", "pairing"]

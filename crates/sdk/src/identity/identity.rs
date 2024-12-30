@@ -58,7 +58,7 @@ impl Identity {
     }
 
     /// Find and load a vault.
-    pub(crate) async fn load_local_vault(
+    pub async fn load_local_vault(
         paths: &Paths,
         id: &VaultId,
     ) -> Result<(Vault, PathBuf)> {
@@ -182,15 +182,13 @@ impl Identity {
 
     /// Create the file encryption password.
     #[cfg(feature = "files")]
-    pub(crate) async fn create_file_encryption_password(
-        &mut self,
-    ) -> Result<()> {
+    pub async fn create_file_encryption_password(&mut self) -> Result<()> {
         self.identity_mut()?.create_file_encryption_password().await
     }
 
     /// Find the password used for symmetric file encryption (AGE).
     #[cfg(feature = "files")]
-    pub(crate) async fn find_file_encryption_password(
+    pub async fn find_file_encryption_password(
         &self,
     ) -> Result<SecretString> {
         self.identity()?.find_file_encryption_password().await

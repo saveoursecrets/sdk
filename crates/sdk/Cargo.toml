@@ -64,12 +64,13 @@ tempfile.workspace = true
 rs_merkle.workspace = true
 typeshare.workspace = true
 sos-vfs.workspace = true
+
 xclipboard = { workspace = true, optional = true }
 serde_json_path = { workspace = true, optional = true }
 
 subtle = { version = "2.5" }
 ethereum-types = "0.15"
-async_zip = { version = "0.0.17", default-features = false, features = ["deflate", "tokio"], optional = true }
+async_zip = { workspace = true, optional = true }
 csv-async = { version = "1", features = ["tokio", "with_serde"], optional = true }
 aes-gcm = { version = "0.10.1", features = ["std"] }
 chacha20poly1305 = { version = "0.10.1", features = ["std"] }
@@ -79,7 +80,7 @@ balloon-hash = { version = "0.4", features = ["std"]}
 pem = { version = "3", features = ["serde"] }
 zxcvbn = { version = "3.0.1", features = ["ser"] }
 totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
-vcard4 = { version = "0.7.1", features = ["serde"] }
+vcard4.workspace = true
 async-once-cell = "0.5"
 age = { version = "0.11", features = ["async"] }
 ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
@@ -87,8 +88,8 @@ urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"
 unicode-segmentation = "1.10"
 mime_guess = { version = "2" }
-sanitize-filename = "0.6"
-futures-util = "0.3"
+sanitize-filename.workspace = true
+futures-util.workspace = true
 async-stream = "0.3"
 whoami = { version = "1.5" }
 vsss-rs = {version = "3", optional = true }

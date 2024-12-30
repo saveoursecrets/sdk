@@ -5008,6 +5008,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-account"
+version = "0.16.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "async_zip",
+ "futures-util",
+ "indexmap 2.7.0",
+ "sanitize-filename",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "serde_json_path",
+ "sha2",
+ "sos-core",
+ "sos-sdk",
+ "tempfile",
+ "thiserror 2.0.9",
+ "time",
+ "time-tz",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "typeshare",
+ "uuid",
+ "vcard4",
+ "walkdir",
+ "xclipboard",
+]
+
+[[package]]
 name = "sos-account-extras"
 version = "0.16.2"
 dependencies = [
@@ -5092,6 +5123,7 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
+ "sos-account",
  "sos-account-extras",
  "sos-database",
  "sos-ipc",

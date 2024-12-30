@@ -204,7 +204,10 @@ where
     /// Folder root commit hash.
     pub async fn root_hash(&self) -> Result<CommitHash> {
         let event_log = self.events.read().await;
-        event_log.tree().root().ok_or(Error::NoRootCommit)
+        Ok(event_log
+            .tree()
+            .root()
+            .ok_or(sos_core::Error::NoRootCommit)?)
     }
 
     /// Apply events to the event log.

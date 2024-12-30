@@ -6,8 +6,9 @@ use std::{
     sync::Arc,
 };
 
-use crate::{
-    account::{convert::CipherComparison, AccountBuilder},
+use crate::{convert::CipherComparison, AccountBuilder, Error, Result};
+
+use sos_sdk::{
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
@@ -29,19 +30,19 @@ use crate::{
         BuilderCredentials, Gatekeeper, Header, Summary, Vault, VaultBuilder,
         VaultCommit, VaultFlags, VaultId,
     },
-    vfs, Error, Paths, Result, UtcDateTime,
+    vfs, Paths, UtcDateTime,
 };
 
 #[cfg(feature = "search")]
-use crate::search::{DocumentCount, SearchIndex};
+use sos_sdk::search::{DocumentCount, SearchIndex};
 
 #[cfg(feature = "audit")]
-use crate::audit::{AuditData, AuditEvent};
+use sos_sdk::audit::{AuditData, AuditEvent};
 
 #[cfg(feature = "archive")]
-use crate::account::archive::{Inventory, RestoreOptions};
+use crate::archive::{Inventory, RestoreOptions};
 
-use crate::{
+use sos_sdk::{
     device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
     events::DeviceEventLog,
 };
@@ -49,16 +50,16 @@ use crate::{
 use indexmap::IndexSet;
 
 #[cfg(feature = "files")]
-use crate::{
+use sos_sdk::{
     events::{FileEventLog, FilePatch},
     storage::files::FileMutationEvent,
 };
 
 #[cfg(feature = "search")]
-use crate::search::*;
+use sos_sdk::search::*;
 
 #[cfg(feature = "migrate")]
-use crate::migrate::{
+use sos_sdk::migrate::{
     export::PublicExport,
     import::{
         csv::{
@@ -237,7 +238,10 @@ pub enum ContactImportProgress {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait Account {
     /// Errors for this account.
-    type Error: std::error::Error + std::fmt::Debug + From<crate::Error>;
+    type Error: std::error::Error
+        + std::fmt::Debug
+        + From<crate::Error>
+        + From<sos_sdk::Error>;
 
     /// Result type for network-aware implementations.
     type NetworkResult: std::fmt::Debug;
@@ -1049,7 +1053,7 @@ impl LocalAccount {
         vault_id: &VaultId,
         new_key: AccessKey,
     ) -> Result<Vec<u8>> {
-        use crate::vault::ChangePassword;
+        use sos_sdk::vault::ChangePassword;
         let paths = self.paths().clone();
         // Get the current vault passphrase from the identity vault
         let current_key = self
@@ -1067,7 +1071,7 @@ impl LocalAccount {
                 .build()
                 .await?;
 
-        encode(&vault).await
+        Ok(encode(&vault).await?)
     }
 
     pub(crate) async fn open_vault(
@@ -1267,10 +1271,11 @@ impl LocalAccount {
         let mut file_events = Vec::new();
 
         self.open_vault(to, false).await?;
+        let (_, meta, secret) = secret_data.into();
         let (new_id, create_event, _) = self
             .add_secret(
-                secret_data.meta,
-                secret_data.secret,
+                meta,
+                secret,
                 Default::default(),
                 false,
                 #[cfg(feature = "files")]
@@ -1344,7 +1349,7 @@ impl LocalAccount {
         let keys = self.folder_keys().await?;
         let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
         let mut writer = storage.write().await;
-        writer.build_search_index(&keys).await
+        Ok(writer.build_search_index(&keys).await?)
     }
 
     /// Access keys for all folders.
@@ -1751,7 +1756,7 @@ impl Account for LocalAccount {
         &self,
         folder_id: &VaultId,
     ) -> Result<Option<AccessKey>> {
-        self.user()?.find_folder_password(folder_id).await
+        Ok(self.user()?.find_folder_password(folder_id).await?)
     }
 
     async fn generate_folder_password(&self) -> Result<SecretString> {
@@ -1839,7 +1844,7 @@ impl Account for LocalAccount {
         let vault = VaultBuilder::new()
             .id(*summary.id())
             .public_name(summary.name().to_owned())
-            .description(meta.description)
+            .description(meta.description().to_owned())
             .flags(summary.flags().clone())
             .kdf(summary.kdf().clone())
             .cipher(*summary.cipher())
@@ -2272,7 +2277,7 @@ impl Account for LocalAccount {
     ) -> Result<Vec<Document>> {
         let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
-        reader.index()?.query_view(views, archive).await
+        Ok(reader.index()?.query_view(views, archive).await?)
     }
 
     #[cfg(feature = "search")]
@@ -2283,7 +2288,7 @@ impl Account for LocalAccount {
     ) -> Result<Vec<Document>> {
         let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
-        reader.index()?.query_map(query, filter).await
+        Ok(reader.index()?.query_map(query, filter).await?)
     }
 
     #[cfg(feature = "search")]
@@ -2318,7 +2323,7 @@ impl Account for LocalAccount {
     ) -> Result<Vec<u8>> {
         let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
         let reader = storage.read().await;
-        reader.download_file(vault_id, secret_id, file_name).await
+        Ok(reader.download_file(vault_id, secret_id, file_name).await?)
     }
 
     async fn create_secret(
@@ -2583,11 +2588,11 @@ impl Account for LocalAccount {
         let cipher = options
             .cipher
             .take()
-            .unwrap_or_else(|| identity_folder.cipher.clone());
+            .unwrap_or_else(|| identity_folder.cipher().clone());
         let kdf = options
             .kdf
             .take()
-            .unwrap_or_else(|| identity_folder.kdf.clone());
+            .unwrap_or_else(|| identity_folder.kdf().clone());
 
         options.key = Some(key.clone());
         options.cipher = Some(cipher);
@@ -2931,7 +2936,7 @@ impl Account for LocalAccount {
         folder: Option<Summary>,
     ) -> Result<Option<Vec<u8>>> {
         let (data, _) = self.read_secret(secret_id, folder).await?;
-        if let Secret::Contact { vcard, .. } = &data.secret {
+        if let Secret::Contact { vcard, .. } = data.secret() {
             let jpeg = if let Ok(mut jpegs) = vcard.parse_photo_jpeg() {
                 if !jpegs.is_empty() {
                     Some(jpegs.remove(0))
@@ -2963,7 +2968,7 @@ impl Account for LocalAccount {
         };
 
         let (data, _) = self.get_secret(secret_id, folder, false).await?;
-        if let Secret::Contact { vcard, .. } = &data.secret {
+        if let Secret::Contact { vcard, .. } = data.secret() {
             let content = vcard.to_string();
             vfs::write_exclusive(&path, content).await?;
         } else {
@@ -3034,7 +3039,7 @@ impl Account for LocalAccount {
         content: &str,
         progress: impl Fn(ContactImportProgress) + Send + Sync,
     ) -> Result<Vec<SecretId>> {
-        use crate::vcard4::parse;
+        use vcard4::parse;
 
         let mut ids = Vec::new();
         let current = {
@@ -3107,9 +3112,7 @@ impl Account for LocalAccount {
 
         for (summary, _) in vaults {
             let (vault, _) =
-                Identity::load_local_vault(&*paths, summary.id())
-                    .await
-                    .map_err(Box::from)?;
+                Identity::load_local_vault(&*paths, summary.id()).await?;
             let vault_passphrase = self
                 .user()?
                 .find_folder_password(summary.id())
@@ -3307,7 +3310,8 @@ impl Account for LocalAccount {
             let keys = self.folder_keys().await?;
             let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
-            writer.restore_archive(&targets, &keys).await?;
+            // writer.restore_archive(&targets, &keys).await?;
+            todo!("FIX RESTORE LOGIC");
         }
 
         #[cfg(feature = "search")]
@@ -3412,10 +3416,7 @@ impl Account for LocalAccount {
                 text
             };
 
-            clipboard
-                .set_text_timeout(text)
-                .await
-                .map_err(Error::from)?;
+            clipboard.set_text_timeout(text).await?;
             return Ok(true);
         }
         Ok(false)
@@ -3425,33 +3426,44 @@ impl Account for LocalAccount {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl StorageEventLogs for LocalAccount {
-    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
+    async fn identity_log(
+        &self,
+    ) -> sos_sdk::Result<Arc<RwLock<FolderEventLog>>> {
+        let storage =
+            self.storage.as_ref().ok_or(sos_sdk::Error::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.identity_log))
     }
 
-    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
-        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
+    async fn account_log(
+        &self,
+    ) -> sos_sdk::Result<Arc<RwLock<AccountEventLog>>> {
+        let storage =
+            self.storage.as_ref().ok_or(sos_sdk::Error::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.account_log))
     }
 
-    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
-        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
+    async fn device_log(
+        &self,
+    ) -> sos_sdk::Result<Arc<RwLock<DeviceEventLog>>> {
+        let storage =
+            self.storage.as_ref().ok_or(sos_sdk::Error::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.device_log))
     }
 
     #[cfg(feature = "files")]
-    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
-        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
+    async fn file_log(&self) -> sos_sdk::Result<Arc<RwLock<FileEventLog>>> {
+        let storage =
+            self.storage.as_ref().ok_or(sos_sdk::Error::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.file_log))
     }
 
-    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
-        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
+    async fn folder_details(&self) -> sos_sdk::Result<IndexSet<Summary>> {
+        let storage =
+            self.storage.as_ref().ok_or(sos_sdk::Error::NoStorage)?;
         let storage = storage.read().await;
         let folders = storage.list_folders();
         Ok(folders.into_iter().cloned().collect())
@@ -3460,13 +3472,14 @@ impl StorageEventLogs for LocalAccount {
     async fn folder_log(
         &self,
         id: &VaultId,
-    ) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let storage = self.storage.as_ref().ok_or(Error::NoStorage)?;
+    ) -> sos_sdk::Result<Arc<RwLock<FolderEventLog>>> {
+        let storage =
+            self.storage.as_ref().ok_or(sos_sdk::Error::NoStorage)?;
         let storage = storage.read().await;
         let folder = storage
             .cache()
             .get(id)
-            .ok_or(Error::CacheNotAvailable(*id))?;
+            .ok_or(sos_sdk::Error::CacheNotAvailable(*id))?;
         Ok(folder.event_log())
     }
 }

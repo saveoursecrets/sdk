@@ -666,7 +666,7 @@ impl SyncStorage for ServerStorage {
         root_tree.append(&mut root_commits);
         root_tree.commit();
 
-        let root = root_tree.root().ok_or(Error::NoRootCommit)?;
+        let root = root_tree.root().ok_or(sos_core::Error::NoRootCommit)?;
 
         Ok(SyncStatus {
             root,

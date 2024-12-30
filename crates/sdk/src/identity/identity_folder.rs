@@ -387,8 +387,8 @@ where
         Ok(())
     }
 
-    //// Rebuild the index lookup for folder passwords.
-    pub(crate) async fn rebuild_lookup_index(&mut self) -> Result<()> {
+    /// Rebuild the index lookup for folder passwords.
+    pub async fn rebuild_lookup_index(&mut self) -> Result<()> {
         let keeper = self.folder.keeper();
         let (index, _, _) = Self::lookup_identity_secrets(keeper).await?;
         self.index = index;

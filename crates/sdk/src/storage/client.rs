@@ -333,7 +333,7 @@ impl ClientStorage {
     /// This should be called after a user has signed in to
     /// create the initial search index.
     #[cfg(feature = "search")]
-    pub(crate) async fn initialize_search_index(
+    pub async fn initialize_search_index(
         &mut self,
         keys: &FolderKeys,
     ) -> Result<(DocumentCount, Vec<Summary>)> {
@@ -359,7 +359,7 @@ impl ClientStorage {
 
     /// Build the search index for all folders.
     #[cfg(feature = "search")]
-    pub(crate) async fn build_search_index(
+    pub async fn build_search_index(
         &mut self,
         keys: &FolderKeys,
     ) -> Result<DocumentCount> {
@@ -390,7 +390,7 @@ impl ClientStorage {
     }
 
     /// Mark a folder as the currently open folder.
-    pub(crate) async fn open_folder(
+    pub async fn open_folder(
         &mut self,
         summary: &Summary,
     ) -> Result<ReadEvent> {
@@ -402,7 +402,7 @@ impl ClientStorage {
     }
 
     /// Close the current open folder.
-    pub(crate) fn close_folder(&mut self) {
+    pub fn close_folder(&mut self) {
         self.current = None;
     }
 
@@ -727,7 +727,7 @@ impl ClientStorage {
     }
 
     /// Read a vault from the file on disc.
-    pub(crate) async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
+    pub async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
         let buffer = self.read_vault_file(id).await?;
         decode(&buffer).await
     }
@@ -1362,7 +1362,7 @@ impl ClientStorage {
     /// If the target vault is the currently selected vault
     /// the currently selected vault is unlocked with the new
     /// passphrase on success.
-    pub(crate) async fn change_password(
+    pub async fn change_password(
         &mut self,
         vault: &Vault,
         current_key: AccessKey,
@@ -1457,7 +1457,7 @@ impl ClientStorage {
 #[cfg(feature = "account")]
 impl ClientStorage {
     /// Create a secret in the currently open vault.
-    pub(crate) async fn create_secret(
+    pub async fn create_secret(
         &mut self,
         secret_data: SecretRow,
         #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
@@ -1513,7 +1513,7 @@ impl ClientStorage {
     }
 
     /// Read the encrypted contents of a secret.
-    pub(crate) async fn raw_secret(
+    pub async fn raw_secret(
         &self,
         folder_id: &VaultId,
         secret_id: &SecretId,
@@ -1526,7 +1526,7 @@ impl ClientStorage {
     }
 
     /// Read a secret in the currently open folder.
-    pub(crate) async fn read_secret(
+    pub async fn read_secret(
         &self,
         id: &SecretId,
     ) -> Result<(SecretMeta, Secret, ReadEvent)> {
@@ -1543,7 +1543,7 @@ impl ClientStorage {
     }
 
     /// Update a secret in the currently open folder.
-    pub(crate) async fn update_secret(
+    pub async fn update_secret(
         &mut self,
         secret_id: &SecretId,
         meta: SecretMeta,
@@ -1597,7 +1597,7 @@ impl ClientStorage {
     /// between folders or managing external files which allows us
     /// to avoid recursion when handling embedded file secrets which
     /// require rewriting the secret once the files have been encrypted.
-    pub(crate) async fn write_secret(
+    pub async fn write_secret(
         &mut self,
         id: &SecretId,
         mut secret_data: SecretRow,
@@ -1652,7 +1652,7 @@ impl ClientStorage {
     }
 
     /// Delete a secret in the currently open vault.
-    pub(crate) async fn delete_secret(
+    pub async fn delete_secret(
         &mut self,
         secret_id: &SecretId,
         #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
@@ -1692,7 +1692,7 @@ impl ClientStorage {
     /// Remove a secret.
     ///
     /// Any external files for the secret are left intact.
-    pub(crate) async fn remove_secret(
+    pub async fn remove_secret(
         &mut self,
         id: &SecretId,
     ) -> Result<WriteEvent> {
