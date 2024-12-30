@@ -730,7 +730,7 @@ pub struct AccountStatistics {
 /// Modify and query the search index for an account.
 pub struct AccountSearch {
     /// Search index.
-    pub(crate) search_index: Arc<RwLock<SearchIndex>>,
+    pub search_index: Arc<RwLock<SearchIndex>>,
 }
 
 impl Default for AccountSearch {

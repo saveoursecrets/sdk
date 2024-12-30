@@ -44,14 +44,17 @@ pub enum Error {
 
     /// Error generated if we could not determine a cache directory.
     #[error("could not determine cache directory")]
+    #[deprecated]
     NoCache,
 
     /// Error generated when a search index is required.
     #[error("no search index")]
+    #[deprecated]
     NoSearchIndex,
 
     /// Error generated when a file encryption password is required.
     #[error("no file password")]
+    #[deprecated]
     NoFilePassword,
 
     /// Error generated when an open folder is expected.
@@ -74,6 +77,7 @@ pub enum Error {
 
     /// Error generated when a file secret is expected.
     #[error("not a file secret")]
+    #[deprecated]
     NotFileContent,
 
     /// Error generated when attempting to unarchive a secret that
@@ -120,6 +124,7 @@ pub enum Error {
 
     /// Error generated when a directory is expected.
     #[error("path {0} is not a directory")]
+    #[deprecated]
     NotDirectory(PathBuf),
 
     /// Error generated when attempting to parse a key/value pair.
@@ -447,6 +452,7 @@ pub enum Error {
 
     /// Error generated attempting to access a vault that is not available.
     #[error("cache not available for {0}")]
+    #[deprecated]
     CacheNotAvailable(Uuid),
 
     /// Error generated when unlocking a vault failed.
@@ -456,10 +462,12 @@ pub enum Error {
     /// Error generated attempting to make changes to the current
     /// vault but no vault is open.
     #[error("no vault is available, vault must be open")]
+    #[deprecated]
     NoOpenVault,
 
     /// Error generated when a secret could not be found.
     #[error(r#"secret "{0}" not found"#)]
+    #[deprecated]
     SecretNotFound(SecretId),
 
     /// Error generated when an external file could not be parsed.

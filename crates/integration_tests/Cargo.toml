@@ -71,6 +71,7 @@ pretty_assertions = "1.4"
 sos-test-utils = { path = "../test_utils" }
 
 [dev-dependencies.sos-database]
+features = ["full"]
 path = "../database"
 
 [dev-dependencies.sos-net]

@@ -5023,6 +5023,7 @@ dependencies = [
  "serde_json_path",
  "sha2",
  "sos-core",
+ "sos-database",
  "sos-sdk",
  "tempfile",
  "thiserror 2.0.9",
@@ -5091,19 +5092,27 @@ dependencies = [
 
 [[package]]
 name = "sos-database"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
+ "age",
  "anyhow",
  "async-sqlite",
+ "async-trait",
  "futures",
+ "indexmap 2.7.0",
  "refinery",
+ "secrecy",
+ "serde",
  "serde_json",
+ "sha2",
  "sos-core",
  "sos-sdk",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-util",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -5247,6 +5256,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sos-core",
+ "sos-database",
  "sos-sdk",
  "thiserror 2.0.9",
  "tokio",

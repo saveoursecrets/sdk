@@ -1,16 +1,40 @@
 [package]
 name = "sos-database"
-version = "0.1.0"
+version = "0.16.0"
 edition = "2021"
 description = "Database storage layer for the Save Our Secrets SDK"
 
+[features]
+full = [
+  "account",
+  "archive",
+  "audit",
+  "files",
+  "search",
+]
+account = []
+archive = []
+audit = []
+files = ["dep:tokio-util", "dep:age"]
+search = []
+
 [dependencies]
-thiserror = "1"
 sos-core.workspace = true
 sos-sdk.workspace = true
+
+thiserror = "1"
 futures.workspace = true
 tracing.workspace = true
 serde_json.workspace = true
+uuid.workspace = true
+indexmap.workspace = true
+async-trait.workspace = true
+secrecy.workspace = true
+sha2.workspace = true
+serde.workspace = true
+
+tokio-util = { workspace = true, optional = true }
+age  = { workspace = true, optional = true }
 
 async-sqlite = "0.3"
 refinery = {version = "0.8", git = "https://github.com/rust-db/refinery", features = ["rusqlite"]}

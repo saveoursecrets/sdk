@@ -26,6 +26,7 @@ search = ["sos-sdk/search"]
 [dependencies]
 sos-core.workspace = true
 sos-sdk.workspace = true
+sos-database.workspace = true
 
 thiserror.workspace = true
 tracing.workspace = true

@@ -1,5 +1,6 @@
 //! Create a new local account.
 use secrecy::SecretString;
+use sos_database::storage::AccountPack;
 use sos_sdk::{
     constants::{
         DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_AUTHENTICATOR_VAULT_NAME,
@@ -8,7 +9,6 @@ use sos_sdk::{
     crypto::AccessKey,
     identity::{FolderKeys, Identity, IdentityFolder},
     signer::ecdsa::Address,
-    storage::AccountPack,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,

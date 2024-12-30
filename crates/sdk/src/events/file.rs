@@ -1,6 +1,6 @@
 //! Event for modifications to external files.
 use super::{EventKind, LogEvent};
-use sos_core::{ExternalFileName, SecretPath};
+use sos_core::{ExternalFile, ExternalFileName, SecretPath};
 
 /// File event records changes to external files
 ///
@@ -26,6 +26,13 @@ pub enum FileEvent {
     },
     /// File was deleted.
     DeleteFile(SecretPath, ExternalFileName),
+}
+
+impl From<ExternalFile> for FileEvent {
+    fn from(value: ExternalFile) -> Self {
+        let (path, name) = value.into();
+        FileEvent::CreateFile(path, name)
+    }
 }
 
 impl LogEvent for FileEvent {
