@@ -53,13 +53,13 @@ version = "0.16"
 path = "../sdk"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.reqwest]
-version = "0.12.5"
+version = "0.12.11"
 default-features = false
 features = ["json", "rustls-tls", "stream"]
 optional = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.reqwest]
-version = "0.12.5"
+version = "0.12.11"
 default-features = false
 features = ["json", "stream"]
 optional = true
