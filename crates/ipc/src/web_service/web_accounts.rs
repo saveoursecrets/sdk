@@ -6,13 +6,13 @@ use serde::{Deserialize, Serialize};
 use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::{
     events::{AccountEvent, EventLogExt, WriteEvent},
-    prelude::{
-        Account, AccountSwitcher, Address, Error as SdkError, ErrorExt, Paths,
-    },
+    prelude::{Address, Error as SdkError, ErrorExt, Paths},
     vault::VaultId,
 };
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, RwLock};
+
+use sos_account::{Account, AccountSwitcher};
 
 use crate::{Error, FileEventError, Result};
 
@@ -60,6 +60,8 @@ where
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -83,6 +85,8 @@ where
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -110,6 +114,8 @@ where
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -229,6 +235,8 @@ where
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -256,6 +264,7 @@ where
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -396,6 +405,8 @@ where
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -556,6 +567,8 @@ where
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync

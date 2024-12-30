@@ -3,6 +3,7 @@ use anyhow::Result;
 
 use crate::test_utils::{mock::files::create_file_secret, setup, teardown};
 use indexmap::IndexSet;
+use sos_account::{Account, LocalAccount};
 use sos_net::sdk::prelude::*;
 use sos_test_utils::flip_bits_on_byte;
 

@@ -3,6 +3,7 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
+use sos_account::Account;
 use sos_net::{protocol::AccountSync, sdk::prelude::*};
 
 /// Tests making deletes to a folder whilst

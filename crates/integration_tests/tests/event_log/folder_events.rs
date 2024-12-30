@@ -1,6 +1,7 @@
 use super::last_log_event;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
+use sos_account::{Account, LocalAccount, SecretChange};
 use sos_net::sdk::prelude::*;
 
 /// Tests events saved to a folder event log.

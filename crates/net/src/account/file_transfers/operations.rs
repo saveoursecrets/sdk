@@ -8,9 +8,11 @@ use crate::{
         transfer::{CancelReason, FileSyncClient},
         Error, SyncClient,
     },
-    sdk::{storage::files::ExternalFile, vfs, Paths},
+    sdk::{vfs, Paths},
     Result,
 };
+
+use sos_core::ExternalFile;
 
 use async_recursion::async_recursion;
 use http::StatusCode;

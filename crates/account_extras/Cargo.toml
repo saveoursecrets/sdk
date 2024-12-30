@@ -12,21 +12,25 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
+full = [
+  "preferences",
+  "security-report",
+  "system-messages",
+]
 preferences = []
 security-report = []
 system-messages = []
 
 [dependencies]
+sos-sdk.workspace = true
+sos-account.workspace = true
+
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_with.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-
-[dependencies.sos-sdk]
-version = "0.16"
-path = "../sdk"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }

@@ -3,7 +3,7 @@
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Web accounts for the [Save Our Secrets SDK](https://saveoursecrets.com/) intended to be used in webassembly bindings.
 
-use sos_sdk::prelude::{Account, AccountSwitcher};
+use sos_account::{Account, AccountSwitcher};
 
 mod error;
 

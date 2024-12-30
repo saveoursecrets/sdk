@@ -1,5 +1,5 @@
 //! Network aware account storage.
-use crate::sdk::prelude::{Account, AccountSwitcher};
+use sos_account::{Account, AccountSwitcher};
 
 // mod auto_merge;
 #[cfg(feature = "files")]

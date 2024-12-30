@@ -22,10 +22,10 @@ pub enum CancelReason {
 #[cfg(feature = "files")]
 mod files {
     //! Manage pending file transfer operations.
-    use crate::sdk::{
-        events::FileEvent,
-        storage::files::{ExternalFile, FileMutationEvent},
-    };
+    use crate::sdk::events::FileEvent;
+
+    use sos_core::ExternalFile;
+    use sos_database::storage::files::FileMutationEvent;
 
     use crate::transfer::CancelReason;
     use async_trait::async_trait;

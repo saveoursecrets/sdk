@@ -1,5 +1,6 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
+use sos_account::{Account, FolderCreate, LocalAccount};
 use sos_net::sdk::prelude::*;
 
 /// Tests sign in when a folder password is missing.

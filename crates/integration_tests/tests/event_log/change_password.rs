@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::test_utils::{mock, setup, teardown};
-
+use sos_account::{Account, LocalAccount};
 use sos_net::sdk::prelude::*;
 
 use super::last_log_event;

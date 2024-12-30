@@ -1,12 +1,13 @@
+use sos_account::{
+    AccountSwitcherOptions, LocalAccount, LocalAccountSwitcher,
+};
 use sos_ipc::{
     extension_helper::server::{
         ExtensionHelperOptions, ExtensionHelperServer,
     },
     ServiceAppInfo,
 };
-use sos_sdk::prelude::{
-    AccountSwitcherOptions, LocalAccount, LocalAccountSwitcher, Paths,
-};
+use sos_sdk::prelude::Paths;
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 

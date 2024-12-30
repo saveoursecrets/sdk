@@ -1,6 +1,7 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use maplit2::hashmap;
+use sos_account::{archive::RestoreOptions, Account, LocalAccount};
 use sos_net::sdk::prelude::*;
 
 const TEST_ID: &str = "backup_export_restore";

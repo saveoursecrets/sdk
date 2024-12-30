@@ -1,17 +1,17 @@
 //! Synchronization types that are used internally.
-use crate::sdk::{
-    commit::{CommitState, Comparison},
-    events::{
-        AccountDiff, CheckedPatch, EventLogExt, FolderDiff, WriteEvent,
-    },
-    storage::StorageEventLogs,
-    vault::VaultId,
-    Error, Result,
-};
 use crate::{
-    CreateSet, MaybeDiff, MergeOutcome, Origin, SyncCompare, SyncDiff,
-    SyncStatus,
+    CreateSet, Error, MaybeDiff, MergeOutcome, Origin, Result, SyncCompare,
+    SyncDiff, SyncStatus,
 };
+use sos_core::{
+    commit::{CommitState, Comparison},
+    VaultId,
+};
+use sos_database::storage::StorageEventLogs;
+use sos_sdk::events::{
+    AccountDiff, CheckedPatch, EventLogExt, FolderDiff, WriteEvent,
+};
+
 use async_trait::async_trait;
 use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
@@ -366,7 +366,7 @@ impl SyncComparison {
                 .remote_status
                 .folders
                 .get(id)
-                .ok_or(Error::CacheNotAvailable(*id))?;
+                .ok_or(sos_database::Error::CacheNotAvailable(*id))?;
 
             match folder {
                 Comparison::Equal => {}

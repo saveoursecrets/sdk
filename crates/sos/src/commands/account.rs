@@ -2,18 +2,18 @@ use clap::Subcommand;
 use enum_iterator::all;
 use sos_net::{
     sdk::{
-        account::{
-            archive::{
-                AccountBackup, ExtractFilesLocation, Inventory,
-                RestoreOptions,
-            },
-            Account,
-        },
         identity::{AccountRef, PublicIdentity},
         migrate::import::{ImportFormat, ImportTarget},
         vfs, Paths,
     },
     NetworkAccount,
+};
+
+use sos_account::{
+    archive::{
+        AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
+    },
+    Account,
 };
 use std::{path::PathBuf, sync::Arc};
 use tokio::io::BufReader;

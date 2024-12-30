@@ -2,7 +2,7 @@ use crate::test_utils::{
     simulate_device, spawn, teardown, wait_num_websocket_connections,
 };
 use anyhow::Result;
-use sos_net::sdk::prelude::*;
+use sos_account::Account;
 
 /// Tests websocket shutdown logic on sign out.
 #[tokio::test]

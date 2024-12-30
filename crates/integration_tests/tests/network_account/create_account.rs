@@ -3,7 +3,7 @@ use crate::test_utils::{
     simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::sdk::prelude::*;
+use sos_account::Account;
 
 /// Tests creating all the account data on a remote
 /// when the server does not have the account data yet.

@@ -1,10 +1,8 @@
 //! File encryption/decryption and manager for external files.
-use crate::Error;
 use indexmap::IndexSet;
-use serde::{Deserialize, Serialize};
 use sos_core::{SecretId, SecretPath, VaultId};
-use sos_sdk::{events::FileEvent, hex, vfs, Paths, Result};
-use std::{fmt, path::Path, str::FromStr};
+use sos_sdk::{vfs, Paths, Result};
+use std::path::Path;
 
 mod external_files;
 mod file_manager;

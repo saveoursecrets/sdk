@@ -1,5 +1,6 @@
 use crate::test_utils::{simulate_device, spawn, teardown, wait_for_cond};
 use anyhow::Result;
+use sos_account::{Account, FolderCreate, FolderDelete};
 use sos_net::sdk::prelude::*;
 
 /// Tests syncing delete folder events between two clients

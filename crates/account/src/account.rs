@@ -1097,6 +1097,7 @@ impl LocalAccount {
             writer.open_folder(summary).await?
         };
 
+        #[cfg(feature = "audit")]
         if audit {
             let event = Event::Read(*summary.id(), event);
             let audit_event: AuditEvent = (self.address(), &event).into();
@@ -1210,6 +1211,8 @@ impl LocalAccount {
         file_events.append(&mut result.file_events);
 
         let event = Event::Write(*folder.id(), result.event);
+
+        #[cfg(feature = "audit")]
         if audit {
             let audit_event: AuditEvent = (self.address(), &event).into();
             self.paths.append_audit_events(vec![audit_event]).await?;
@@ -1245,6 +1248,7 @@ impl LocalAccount {
             reader.read_secret(secret_id).await?
         };
 
+        #[cfg(feature = "audit")]
         if audit {
             let event = Event::Read(*folder.id(), read_event.clone());
             let audit_event: AuditEvent = (self.address(), &event).into();
@@ -1320,17 +1324,20 @@ impl LocalAccount {
 
         let event = Event::MoveSecret(read_event, create_event, delete_event);
 
-        let audit_event = AuditEvent::new(
-            EventKind::MoveSecret,
-            *self.address(),
-            Some(AuditData::MoveSecret {
-                from_vault_id: *from.id(),
-                to_vault_id: *to.id(),
-                from_secret_id: *secret_id,
-                to_secret_id: new_id,
-            }),
-        );
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::MoveSecret,
+                *self.address(),
+                Some(AuditData::MoveSecret {
+                    from_vault_id: *from.id(),
+                    to_vault_id: *to.id(),
+                    from_secret_id: *secret_id,
+                    to_secret_id: new_id,
+                }),
+            );
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         Ok(SecretMove {
             id: new_id,
@@ -1955,8 +1962,13 @@ impl Account for LocalAccount {
           directory = %paths.documents_dir().display(),
           "delete_account");
         let event = self.user_mut()?.delete_account(&paths).await?;
-        let audit_event: AuditEvent = (self.address(), &event).into();
-        self.paths.append_audit_events(vec![audit_event]).await?;
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent = (self.address(), &event).into();
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
+
         self.sign_out().await?;
         Ok(())
     }
@@ -2424,8 +2436,11 @@ impl Account for LocalAccount {
             *secret_id
         };
 
-        let audit_event: AuditEvent = (self.address(), &event).into();
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent = (self.address(), &event).into();
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         Ok(SecretChange {
             id,
@@ -2488,8 +2503,11 @@ impl Account for LocalAccount {
 
         let event = Event::Write(*folder.id(), result.event);
 
-        let audit_event: AuditEvent = (self.address(), &event).into();
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent = (self.address(), &event).into();
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         Ok(SecretDelete {
             event,
@@ -2893,12 +2911,15 @@ impl Account for LocalAccount {
             .await?;
         }
 
-        let audit_event = AuditEvent::new(
-            EventKind::ExportVault,
-            *self.address(),
-            Some(AuditData::Vault(*summary.id())),
-        );
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ExportVault,
+                *self.address(),
+                Some(AuditData::Vault(*summary.id())),
+            );
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         Ok(buffer)
     }

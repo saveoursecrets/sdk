@@ -4,16 +4,17 @@ use crate::{
     SyncClient, SyncDirection,
 };
 use async_trait::async_trait;
-use sos_sdk::{
-    account::Account,
-    commit::{CommitHash, CommitProof, CommitTree},
-    events::{
-        AccountDiff, AccountEvent, CheckedPatch, Diff, EventLogExt,
-        EventRecord, FolderDiff, Patch, WriteEvent,
-    },
-    storage::StorageEventLogs,
-    vault::VaultId,
+use sos_sdk::events::{
+    AccountDiff, AccountEvent, CheckedPatch, Diff, EventLogExt, EventRecord,
+    FolderDiff, Patch, WriteEvent,
 };
+
+use sos_account::Account;
+use sos_core::{
+    commit::{CommitHash, CommitProof, CommitTree},
+    VaultId,
+};
+use sos_database::storage::StorageEventLogs;
 
 use crate::{
     EventLogType, ForceMerge, HardConflictResolver, MaybeConflict, Merge,

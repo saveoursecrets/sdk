@@ -3,7 +3,7 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
-use sos_net::sdk::prelude::*;
+use sos_account::{Account, SecretDelete};
 
 /// Tests sending delete secret events to a remote.
 #[tokio::test]

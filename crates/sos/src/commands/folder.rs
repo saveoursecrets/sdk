@@ -2,12 +2,13 @@ use clap::Subcommand;
 
 use human_bytes::human_bytes;
 use sos_net::sdk::{
-    account::{Account, FolderCreate},
     events::{EventLogExt, LogEvent},
     hex,
     identity::AccountRef,
     vault::FolderRef,
 };
+
+use sos_account::{Account, FolderCreate};
 
 use crate::{
     helpers::{
@@ -378,16 +379,12 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let owner = owner
                         .selected_account()
                         .ok_or(Error::NoSelectedAccount)?;
+                    let paths = owner.paths();
                     let summary = owner
                         .current_folder()
                         .await?
                         .ok_or(Error::NoVaultSelected)?;
-                    let storage = owner
-                        .storage()
-                        .await
-                        .ok_or(sos_net::sdk::Error::NoStorage)?;
-                    let owner = storage.read().await;
-                    owner.verify(&summary).await?;
+                    verify_event_log(&*paths, &summary).await?;
                     success("Verified");
                 }
                 History::List { verbose, .. } => {
@@ -418,5 +415,21 @@ pub async fn run(cmd: Command) -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+/// Verify an event log.
+async fn verify_event_log(
+    paths: &sos_sdk::Paths,
+    summary: &sos_sdk::prelude::Summary,
+) -> Result<()> {
+    use futures::StreamExt;
+    use sos_sdk::integrity::event_integrity;
+    let path = paths.event_log_path(summary.id());
+    let stream = event_integrity(&path);
+    futures::pin_mut!(stream);
+    while let Some(event) = stream.next().await {
+        event??;
+    }
     Ok(())
 }

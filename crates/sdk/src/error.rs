@@ -465,11 +465,6 @@ pub enum Error {
     #[deprecated]
     NoOpenVault,
 
-    /// Error generated when a secret could not be found.
-    #[error(r#"secret "{0}" not found"#)]
-    #[deprecated]
-    SecretNotFound(SecretId),
-
     /// Error generated when an external file could not be parsed.
     #[error("external file reference '{0}' could not be parsed")]
     #[deprecated]
@@ -709,7 +704,7 @@ pub trait ErrorExt {
 
 impl ErrorExt for Error {
     fn is_secret_not_found(&self) -> bool {
-        matches!(self, Error::SecretNotFound(_))
+        false
     }
 
     fn is_permission_denied(&self) -> bool {

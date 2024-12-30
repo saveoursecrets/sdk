@@ -12,7 +12,14 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-account = ["sos-sdk/account", "sos-protocol/account"]
+full = [
+  "archive",
+  "clipboard",
+  "contacts",
+  "files",
+  "migrate",
+  "search",
+]
 archive = []
 clipboard = []
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
@@ -27,8 +34,10 @@ indexmap.workspace = true
 async-trait.workspace = true
 
 sos-core.workspace = true
-sos-sdk = { version = "0.16", path = "../sdk", features = ["account"] }
-sos-protocol = { version = "0.16", path = "../protocol", features = ["network-client"] }
+sos-account.workspace = true
+sos-database.workspace = true
+sos-sdk.workspace = true
+sos-protocol = { workspace = true, features = ["network-client"] }
 
 tokio = { version = "1", features = ["rt", "io-util", "sync"] }
 

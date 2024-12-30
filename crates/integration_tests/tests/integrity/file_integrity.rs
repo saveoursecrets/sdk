@@ -2,6 +2,8 @@
 use anyhow::Result;
 
 use crate::test_utils::{mock::files::create_file_secret, setup, teardown};
+use sos_account::{Account, LocalAccount};
+use sos_database::storage::StorageEventLogs;
 use sos_net::sdk::prelude::*;
 
 /// Tests an ok file integrity report.

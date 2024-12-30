@@ -2,10 +2,9 @@
 
 use http::{Request, Response, StatusCode};
 use serde::Deserialize;
+use sos_account::Account;
 use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{
-    Account, ArchiveFilter, DocumentView, ErrorExt, QueryFilter,
-};
+use sos_sdk::prelude::{ArchiveFilter, DocumentView, ErrorExt, QueryFilter};
 use std::collections::HashMap;
 
 use crate::web_service::{
@@ -42,6 +41,8 @@ where
         + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -81,6 +82,8 @@ where
         + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync

@@ -11,13 +11,11 @@ use http::{
     header::{CONTENT_LENGTH, CONTENT_TYPE},
     StatusCode,
 };
+use sos_account::{Account, AccountSwitcher};
 use sos_protocol::{
     constants::MIME_TYPE_JSON, ErrorReply, Merge, SyncStorage,
 };
-use sos_sdk::{
-    logs::Logger,
-    prelude::{Account, AccountSwitcher, ErrorExt},
-};
+use sos_sdk::{logs::Logger, prelude::ErrorExt};
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
@@ -59,6 +57,8 @@ where
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -85,6 +85,8 @@ where
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync

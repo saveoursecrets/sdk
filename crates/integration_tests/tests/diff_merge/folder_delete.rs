@@ -1,5 +1,6 @@
 use crate::test_utils::{copy_account, setup, teardown};
 use anyhow::Result;
+use sos_account::{Account, FolderCreate, LocalAccount};
 use sos_net::{
     protocol::{diff, Merge, MergeOutcome, SyncStorage},
     sdk::prelude::*,

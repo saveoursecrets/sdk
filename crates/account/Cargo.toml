@@ -17,9 +17,10 @@ full = [
   "migrate",
   "search",
 ]
-audit = ["sos-sdk/audit"]
+audit = ["sos-sdk/audit", "sos-database/audit"]
 archive = [
   "sos-sdk/archive",
+  "sos-database/archive",
   "dep:async_zip",
   "dep:walkdir",
   "dep:tokio-util",
@@ -29,8 +30,8 @@ archive = [
 clipboard = ["dep:xclipboard", "dep:serde_json_path", "dep:time-tz"]
 contacts = ["dep:vcard4"]
 migrate = ["sos-sdk/migrate"]
-files =["sos-sdk/files"]
-search =["sos-sdk/search"]
+files =["sos-sdk/files", "sos-database/files"]
+search =["sos-sdk/search", "sos-database/search"]
 
 [dependencies]
 sos-core.workspace = true

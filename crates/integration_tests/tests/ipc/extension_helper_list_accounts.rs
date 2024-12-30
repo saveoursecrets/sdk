@@ -1,12 +1,11 @@
 use anyhow::Result;
 use http::StatusCode;
+use sos_account::LocalAccount;
 use sos_ipc::{
     extension_helper::client::ExtensionHelperClient,
     local_transport::{HttpMessage, LocalRequest},
 };
-use sos_sdk::prelude::{
-    generate_passphrase, LocalAccount, Paths, PublicIdentity,
-};
+use sos_sdk::prelude::{generate_passphrase, Paths, PublicIdentity};
 
 use sos_test_utils::{setup, teardown};
 

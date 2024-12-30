@@ -3,7 +3,8 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
-use sos_net::{protocol::AccountSync, sdk::prelude::*};
+use sos_account::Account;
+use sos_net::protocol::AccountSync;
 
 /// Tests syncing create secret events between two
 /// clients.

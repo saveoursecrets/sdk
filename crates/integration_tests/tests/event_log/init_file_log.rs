@@ -1,6 +1,7 @@
 use super::last_log_event;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
+use sos_account::{Account, LocalAccount};
 use sos_net::sdk::prelude::*;
 
 /// Tests lazy initialization of the file events log.

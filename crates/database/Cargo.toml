@@ -6,17 +6,15 @@ description = "Database storage layer for the Save Our Secrets SDK"
 
 [features]
 full = [
-  "account",
   "archive",
   "audit",
   "files",
   "search",
 ]
-account = []
-archive = []
-audit = []
-files = ["dep:tokio-util", "dep:age"]
-search = []
+archive = ["sos-sdk/archive"]
+audit = ["sos-sdk/audit"]
+files = ["sos-sdk/files", "dep:tokio-util", "dep:age"]
+search = ["sos-sdk/search"]
 
 [dependencies]
 sos-core.workspace = true

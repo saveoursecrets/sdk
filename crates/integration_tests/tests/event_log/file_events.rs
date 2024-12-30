@@ -1,6 +1,10 @@
 use super::all_events;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
+use sos_account::{
+    Account, FolderCreate, LocalAccount, SecretChange, SecretMove,
+};
+use sos_database::storage::AccessOptions;
 use sos_net::sdk::prelude::*;
 
 /// Tests the various file events are being logged.

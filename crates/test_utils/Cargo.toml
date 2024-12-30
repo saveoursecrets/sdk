@@ -19,6 +19,9 @@ rustls.workspace = true
 
 anyhow = "1"
 sos-net = { path = "../net", features = ["full"] }
+sos-account.workspace = true
+sos-core.workspace = true
+sos-database.workspace = true
 sos-server = { path = "../server" }
 tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
 pretty_assertions = "1.4"

@@ -2,6 +2,7 @@ use crate::test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
 };
 use anyhow::Result;
+use sos_account::{Account, FolderCreate, SecretChange};
 use sos_net::{protocol::AccountSync, sdk::prelude::*};
 
 /// Tests recovering a folder from a remote origin after

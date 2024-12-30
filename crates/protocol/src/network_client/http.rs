@@ -41,9 +41,11 @@ use crate::{
 };
 
 #[cfg(feature = "files")]
-use crate::{
-    sdk::storage::files::ExternalFile,
-    transfer::{FileSet, FileSyncClient, FileTransfersSet, ProgressChannel},
+use {
+    crate::transfer::{
+        FileSet, FileSyncClient, FileTransfersSet, ProgressChannel,
+    },
+    sos_core::ExternalFile,
 };
 
 /// Client that can synchronize with a server over HTTP(S).

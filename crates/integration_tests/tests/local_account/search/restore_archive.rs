@@ -1,5 +1,8 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
+use sos_account::{
+    archive::RestoreOptions, Account, LocalAccount, SecretChange,
+};
 use sos_net::sdk::prelude::*;
 
 /// Tests querying the index after restoring from a backup archive.

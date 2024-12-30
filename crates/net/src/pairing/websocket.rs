@@ -16,7 +16,6 @@ use crate::{
         SyncOptions,
     },
     sdk::{
-        account::Account,
         device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
         events::DeviceEvent,
         signer::ecdsa::SingleParty,
@@ -24,6 +23,7 @@ use crate::{
     },
     NetworkAccount,
 };
+
 use futures::{
     select,
     stream::{SplitSink, SplitStream},
@@ -31,6 +31,7 @@ use futures::{
 };
 use prost::bytes::Bytes;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
+use sos_account::Account;
 use std::collections::HashSet;
 use std::{borrow::Cow, path::PathBuf};
 use tokio::{net::TcpStream, sync::mpsc};

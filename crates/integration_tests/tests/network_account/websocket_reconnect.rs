@@ -2,10 +2,8 @@ use crate::test_utils::{
     simulate_device, spawn, teardown, wait_num_websocket_connections,
 };
 use anyhow::Result;
-use sos_net::{
-    protocol::network_client::{ListenOptions, NetworkRetry},
-    sdk::prelude::*,
-};
+use sos_account::Account;
+use sos_net::protocol::network_client::{ListenOptions, NetworkRetry};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;

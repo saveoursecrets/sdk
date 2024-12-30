@@ -3,6 +3,7 @@ use crate::test_utils::{
     teardown,
 };
 use anyhow::Result;
+use sos_account::{Account, FolderCreate};
 use sos_net::sdk::prelude::*;
 
 /// Tests syncing update folder events between two clients

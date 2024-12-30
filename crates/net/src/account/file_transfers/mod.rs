@@ -23,9 +23,11 @@ use crate::{
         },
         Origin, SyncClient,
     },
-    sdk::{storage::files::ExternalFile, vfs, Paths},
+    sdk::{vfs, Paths},
     Error, Result,
 };
+
+use sos_core::ExternalFile;
 
 use futures::FutureExt;
 use std::{

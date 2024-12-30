@@ -5,6 +5,7 @@ use crate::test_utils::{
     default_server_config, simulate_device, spawn_with_config, teardown,
 };
 use http::StatusCode;
+use sos_account::Account;
 use sos_net::{
     protocol::{AccountSync, Error as ProtocolError, NetworkError},
     sdk::prelude::*,

@@ -3,7 +3,7 @@ use crate::test_utils::{
     simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::sdk::prelude::*;
+use sos_account::{Account, FolderChange};
 
 /// Tests sending create folder events to a remote.
 #[tokio::test]

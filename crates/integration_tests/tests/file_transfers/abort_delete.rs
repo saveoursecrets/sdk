@@ -5,6 +5,8 @@ use crate::test_utils::{
     assert_local_remote_file_not_exist, mock::files::create_file_secret,
     simulate_device, spawn, teardown, wait_for_num_transfers,
 };
+use sos_account::Account;
+use sos_core::ExternalFile;
 use sos_net::sdk::prelude::*;
 
 /// Tests uploading then deleting an external file aborts

@@ -3,7 +3,6 @@
 
 mod auto_merge;
 mod folder;
-#[cfg(feature = "account")]
 mod local_account;
 mod primitives;
 mod remote;

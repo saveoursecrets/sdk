@@ -3,7 +3,7 @@ use crate::test_utils::{
     simulate_device, spawn, sync_pause, teardown,
 };
 use anyhow::Result;
-use sos_net::sdk::prelude::*;
+use sos_account::{Account, FolderChange};
 
 /// Tests syncing folder rename events between two clients
 /// where the second client listens for changes emitted

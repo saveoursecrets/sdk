@@ -41,17 +41,14 @@
 //! * `migrate` Import and export unencrypted secrets.
 //!
 
-#[cfg(all(not(feature = "account"), feature = "archive"))]
-compile_error!("account feature must be enabled to use archive");
+// #[cfg(all(not(feature = "account"), feature = "archive"))]
+// compile_error!("account feature must be enabled to use archive");
 
-#[cfg(all(not(feature = "account"), feature = "contacts"))]
-compile_error!("account feature must be enabled to use contacts");
+// #[cfg(all(not(feature = "account"), feature = "contacts"))]
+// compile_error!("account feature must be enabled to use contacts");
 
-#[cfg(all(not(feature = "account"), feature = "migrate"))]
-compile_error!("account feature must be enabled to use migrate");
-
-#[cfg(feature = "account")]
-pub mod account;
+// #[cfg(all(not(feature = "account"), feature = "migrate"))]
+// compile_error!("account feature must be enabled to use migrate");
 
 #[cfg(feature = "archive")]
 pub mod archive;
@@ -86,7 +83,6 @@ pub mod recovery;
 pub mod search;
 
 pub mod signer;
-pub mod storage;
 pub mod vault;
 
 pub use date_time::UtcDateTime;

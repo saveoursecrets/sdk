@@ -6,15 +6,18 @@ use crate::{
     },
     sdk::{
         events::{AccountEventLog, FolderEventLog},
-        prelude::{Account, CommitState},
-        storage::StorageEventLogs,
-        vault::{Summary, VaultId},
-        Result,
+        vault::Summary,
     },
     NetworkAccount,
 };
+
+use crate::Result;
+use sos_account::Account;
+use sos_core::{commit::CommitState, VaultId};
+
 use async_trait::async_trait;
 use indexmap::IndexSet;
+use sos_database::storage::StorageEventLogs;
 use sos_protocol::MergeOutcome;
 use std::{
     collections::{HashMap, HashSet},
@@ -202,28 +205,38 @@ impl AccountSync for NetworkAccount {
 
 #[async_trait]
 impl StorageEventLogs for NetworkAccount {
-    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
+    async fn identity_log(
+        &self,
+    ) -> sos_database::Result<Arc<RwLock<FolderEventLog>>> {
         let account = self.account.lock().await;
         account.identity_log().await
     }
 
-    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
+    async fn account_log(
+        &self,
+    ) -> sos_database::Result<Arc<RwLock<AccountEventLog>>> {
         let account = self.account.lock().await;
         account.account_log().await
     }
 
-    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
+    async fn device_log(
+        &self,
+    ) -> sos_database::Result<Arc<RwLock<DeviceEventLog>>> {
         let account = self.account.lock().await;
         account.device_log().await
     }
 
     #[cfg(feature = "files")]
-    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
+    async fn file_log(
+        &self,
+    ) -> sos_database::Result<Arc<RwLock<FileEventLog>>> {
         let account = self.account.lock().await;
         account.file_log().await
     }
 
-    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
+    async fn folder_details(
+        &self,
+    ) -> sos_database::Result<IndexSet<Summary>> {
         let account = self.account.lock().await;
         account.folder_details().await
     }
@@ -231,7 +244,7 @@ impl StorageEventLogs for NetworkAccount {
     async fn folder_log(
         &self,
         id: &VaultId,
-    ) -> Result<Arc<RwLock<FolderEventLog>>> {
+    ) -> sos_database::Result<Arc<RwLock<FolderEventLog>>> {
         let account = self.account.lock().await;
         account.folder_log(id).await
     }
@@ -243,7 +256,7 @@ impl SyncStorage for NetworkAccount {
         true
     }
 
-    async fn sync_status(&self) -> Result<SyncStatus> {
+    async fn sync_status(&self) -> sos_protocol::Result<SyncStatus> {
         let account = self.account.lock().await;
         account.sync_status().await
     }
@@ -255,7 +268,7 @@ impl Merge for NetworkAccount {
         &mut self,
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<CheckedPatch> {
+    ) -> sos_protocol::Result<CheckedPatch> {
         let mut account = self.account.lock().await;
         Ok(account.merge_identity(diff, outcome).await?)
     }
@@ -263,7 +276,7 @@ impl Merge for NetworkAccount {
     async fn compare_identity(
         &self,
         state: &CommitState,
-    ) -> Result<Comparison> {
+    ) -> sos_protocol::Result<Comparison> {
         let account = self.account.lock().await;
         Ok(account.compare_identity(state).await?)
     }
@@ -272,7 +285,7 @@ impl Merge for NetworkAccount {
         &mut self,
         diff: AccountDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<(CheckedPatch, HashSet<VaultId>)> {
+    ) -> sos_protocol::Result<(CheckedPatch, HashSet<VaultId>)> {
         let mut account = self.account.lock().await;
         Ok(account.merge_account(diff, outcome).await?)
     }
@@ -280,7 +293,7 @@ impl Merge for NetworkAccount {
     async fn compare_account(
         &self,
         state: &CommitState,
-    ) -> Result<Comparison> {
+    ) -> sos_protocol::Result<Comparison> {
         let account = self.account.lock().await;
         Ok(account.compare_account(state).await?)
     }
@@ -289,7 +302,7 @@ impl Merge for NetworkAccount {
         &mut self,
         diff: DeviceDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<CheckedPatch> {
+    ) -> sos_protocol::Result<CheckedPatch> {
         let mut account = self.account.lock().await;
         Ok(account.merge_device(diff, outcome).await?)
     }
@@ -297,7 +310,7 @@ impl Merge for NetworkAccount {
     async fn compare_device(
         &self,
         state: &CommitState,
-    ) -> Result<Comparison> {
+    ) -> sos_protocol::Result<Comparison> {
         let account = self.account.lock().await;
         Ok(account.compare_device(state).await?)
     }
@@ -307,13 +320,16 @@ impl Merge for NetworkAccount {
         &mut self,
         diff: FileDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<CheckedPatch> {
+    ) -> sos_protocol::Result<CheckedPatch> {
         let mut account = self.account.lock().await;
         Ok(account.merge_files(diff, outcome).await?)
     }
 
     #[cfg(feature = "files")]
-    async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
+    async fn compare_files(
+        &self,
+        state: &CommitState,
+    ) -> sos_protocol::Result<Comparison> {
         let account = self.account.lock().await;
         Ok(account.compare_files(state).await?)
     }
@@ -323,7 +339,7 @@ impl Merge for NetworkAccount {
         folder_id: &VaultId,
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
+    ) -> sos_protocol::Result<(CheckedPatch, Vec<WriteEvent>)> {
         let mut account = self.account.lock().await;
         Ok(account.merge_folder(folder_id, diff, outcome).await?)
     }
@@ -332,7 +348,7 @@ impl Merge for NetworkAccount {
         &self,
         folder_id: &VaultId,
         state: &CommitState,
-    ) -> Result<Comparison> {
+    ) -> sos_protocol::Result<Comparison> {
         let account = self.account.lock().await;
         Ok(account.compare_folder(folder_id, state).await?)
     }

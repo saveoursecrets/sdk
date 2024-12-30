@@ -16,8 +16,17 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["account", "audit", "logs"]
-account = []
+default = ["audit", "logs"]
+full = [
+  "archive",
+  "audit",
+  "clipboard",
+  "contacts",
+  "files",
+  "logs",
+  "migrate",
+  "search",
+]
 archive = ["dep:async_zip"]
 audit = []
 clipboard = ["dep:xclipboard", "dep:serde_json_path"]

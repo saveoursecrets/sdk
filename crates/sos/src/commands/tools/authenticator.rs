@@ -5,9 +5,10 @@ use crate::{
     Error, Result,
 };
 use clap::Subcommand;
+use sos_account::{Account, FolderCreate};
+use sos_database::storage::NewFolderOptions;
 use sos_net::sdk::prelude::{
-    export_authenticator, import_authenticator, Account, AccountRef,
-    FolderCreate, NewFolderOptions, VaultFlags,
+    export_authenticator, import_authenticator, AccountRef, VaultFlags,
 };
 use std::path::PathBuf;
 

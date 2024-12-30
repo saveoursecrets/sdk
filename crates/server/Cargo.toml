@@ -21,6 +21,7 @@ audit = []
 
 [dependencies]
 sos-core.workspace = true
+sos-database.workspace = true
 
 tokio-util.workspace = true
 thiserror.workspace = true

@@ -13,20 +13,30 @@ use sos_sdk::{
         FolderEventLog, FolderPatch,
     },
     prelude::{
-        AccessKey, AccessOptions, Account, AccountChange, AccountData,
-        AccountEvent, Address, Cipher, CipherComparison, ClientStorage,
-        CommitHash, CommitState, DetachedView, DeviceManager,
-        DevicePublicKey, DeviceSigner, EventRecord, FolderChange,
-        FolderCreate, FolderDelete, KeyDerivation, LocalAccount,
-        NewFolderOptions, Paths, PublicIdentity, ReadEvent, Secret,
-        SecretChange, SecretDelete, SecretId, SecretInsert, SecretMeta,
-        SecretMove, SecretRow, StorageEventLogs, Summary, TrustedDevice,
-        Vault, VaultCommit, VaultFlags, VaultId,
+        AccessKey, AccountEvent, Address, Cipher, DeviceManager,
+        DevicePublicKey, DeviceSigner, EventRecord, KeyDerivation, Paths,
+        PublicIdentity, ReadEvent, Secret, SecretMeta, SecretRow, Summary,
+        TrustedDevice, Vault, VaultCommit, VaultFlags,
     },
     secrecy::SecretString,
     signer::ecdsa::BoxedEcdsaSigner,
     vfs,
 };
+
+use sos_core::{
+    commit::{CommitHash, CommitState},
+    SecretId, VaultId,
+};
+use sos_database::storage::{
+    AccessOptions, ClientStorage, NewFolderOptions, StorageEventLogs,
+};
+
+use sos_account::{
+    Account, AccountChange, AccountData, CipherComparison, DetachedView,
+    FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
+    SecretDelete, SecretInsert, SecretMove,
+};
+
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -35,9 +45,9 @@ use std::{
 use tokio::sync::{Mutex, RwLock};
 
 #[cfg(feature = "clipboard")]
-use sos_sdk::{
-    prelude::{ClipboardCopyRequest, SecretPath},
-    xclipboard::Clipboard,
+use {
+    sos_account::{xclipboard::Clipboard, ClipboardCopyRequest},
+    sos_core::SecretPath,
 };
 
 #[cfg(feature = "search")]
@@ -47,10 +57,10 @@ use sos_sdk::prelude::{
 };
 
 #[cfg(feature = "archive")]
-use sos_sdk::prelude::{Inventory, RestoreOptions};
+use sos_account::archive::{Inventory, RestoreOptions};
 
 #[cfg(feature = "contacts")]
-use sos_sdk::prelude::ContactImportProgress;
+use sos_account::ContactImportProgress;
 
 #[cfg(feature = "archive")]
 use tokio::io::{AsyncRead, AsyncSeek};
@@ -1024,32 +1034,36 @@ impl Account for LinkedAccount {
 impl StorageEventLogs for LinkedAccount {
     async fn identity_log(
         &self,
-    ) -> sos_sdk::Result<Arc<RwLock<FolderEventLog>>> {
+    ) -> sos_database::Result<Arc<RwLock<FolderEventLog>>> {
         let account = self.account.lock().await;
         account.identity_log().await
     }
 
     async fn account_log(
         &self,
-    ) -> sos_sdk::Result<Arc<RwLock<AccountEventLog>>> {
+    ) -> sos_database::Result<Arc<RwLock<AccountEventLog>>> {
         let account = self.account.lock().await;
         account.account_log().await
     }
 
     async fn device_log(
         &self,
-    ) -> sos_sdk::Result<Arc<RwLock<DeviceEventLog>>> {
+    ) -> sos_database::Result<Arc<RwLock<DeviceEventLog>>> {
         let account = self.account.lock().await;
         account.device_log().await
     }
 
     #[cfg(feature = "files")]
-    async fn file_log(&self) -> sos_sdk::Result<Arc<RwLock<FileEventLog>>> {
+    async fn file_log(
+        &self,
+    ) -> sos_database::Result<Arc<RwLock<FileEventLog>>> {
         let account = self.account.lock().await;
         account.file_log().await
     }
 
-    async fn folder_details(&self) -> sos_sdk::Result<IndexSet<Summary>> {
+    async fn folder_details(
+        &self,
+    ) -> sos_database::Result<IndexSet<Summary>> {
         let account = self.account.lock().await;
         account.folder_details().await
     }
@@ -1057,7 +1071,7 @@ impl StorageEventLogs for LinkedAccount {
     async fn folder_log(
         &self,
         id: &VaultId,
-    ) -> sos_sdk::Result<Arc<RwLock<FolderEventLog>>> {
+    ) -> sos_database::Result<Arc<RwLock<FolderEventLog>>> {
         let account = self.account.lock().await;
         account.folder_log(id).await
     }
@@ -1070,7 +1084,7 @@ impl SyncStorage for LinkedAccount {
         true
     }
 
-    async fn sync_status(&self) -> sos_sdk::Result<SyncStatus> {
+    async fn sync_status(&self) -> sos_protocol::Result<SyncStatus> {
         let account = self.account.lock().await;
         account.sync_status().await
     }

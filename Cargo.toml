@@ -24,10 +24,14 @@ members = [
 
 [workspace.dependencies]
 sos-account = { version = "0.16", path = "crates/account" }
+sos-account-extras = { version = "0.16", path = "crates/account_extras" }
 sos-core = { version = "0.16", path = "crates/core" }
+sos-ipc = { version = "0.16", path = "crates/ipc" }
+sos-web = { version = "0.16", path = "crates/web" }
 sos-sdk = { version = "0.16", path = "crates/sdk" }
 sos-database = { version = "0.16", path = "crates/database" }
 sos-protocol = { version = "0.16", path = "crates/protocol" }
+sos-net = { version = "0.16", path = "crates/net" }
 sos-vfs = { version = "0.2.2", path = "crates/vfs" }
 xclipboard  = { version = "0.16", path = "crates/clipboard" }
 

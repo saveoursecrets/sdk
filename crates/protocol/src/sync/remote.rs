@@ -5,7 +5,8 @@ use crate::{
     SyncClient, SyncDirection, SyncPacket, SyncStatus, SyncStorage,
 };
 use async_trait::async_trait;
-use sos_sdk::prelude::{Account, Address};
+use sos_account::Account;
+use sos_sdk::prelude::Address;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
@@ -38,8 +39,11 @@ pub trait RemoteSyncHandler {
         + std::fmt::Debug
         + AsConflict
         + From<ConflictError>
+        + From<crate::Error>
         + From<sos_sdk::Error>
         + From<sos_core::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + From<<Self::Account as Account>::Error>
         + From<<Self::Client as SyncClient>::Error>
@@ -172,7 +176,7 @@ pub trait RemoteSyncHandler {
 
                 #[cfg(feature = "files")]
                 if !outcome.external_files.is_empty() {
-                    use sos_sdk::account::Account;
+                    use sos_account::Account;
                     let paths = account.paths();
                     // let mut writer = self.transfers.write().await;
 

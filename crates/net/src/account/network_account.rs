@@ -5,12 +5,6 @@ use crate::{
         RemoteSyncHandler, SyncClient, SyncOptions, SyncResult, UpdateSet,
     },
     sdk::{
-        account::{
-            Account, AccountBuilder, AccountChange, AccountData,
-            CipherComparison, FolderChange, FolderCreate, FolderDelete,
-            LocalAccount, SecretChange, SecretDelete, SecretInsert,
-            SecretMove,
-        },
         commit::{CommitHash, CommitState},
         crypto::{AccessKey, Cipher, KeyDerivation},
         device::{
@@ -20,9 +14,6 @@ use crate::{
         identity::{AccountRef, PublicIdentity},
         sha2::{Digest, Sha256},
         signer::ecdsa::{Address, BoxedEcdsaSigner},
-        storage::{
-            AccessOptions, ClientStorage, NewFolderOptions, StorageEventLogs,
-        },
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow},
             Summary, Vault, VaultCommit, VaultFlags, VaultId,
@@ -33,6 +24,15 @@ use crate::{
 };
 use async_trait::async_trait;
 use secrecy::SecretString;
+use sos_account::{
+    Account, AccountBuilder, AccountChange, AccountData, CipherComparison,
+    FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
+    SecretDelete, SecretInsert, SecretMove,
+};
+
+use sos_database::storage::{
+    AccessOptions, ClientStorage, NewFolderOptions, StorageEventLogs,
+};
 use sos_sdk::events::{AccountPatch, DevicePatch, FolderPatch};
 use std::{
     collections::{HashMap, HashSet},
@@ -42,9 +42,9 @@ use std::{
 use tokio::sync::{Mutex, RwLock};
 
 #[cfg(feature = "clipboard")]
-use sos_sdk::{
-    prelude::{ClipboardCopyRequest, SecretPath},
-    xclipboard::Clipboard,
+use {
+    sos_account::{xclipboard::Clipboard, ClipboardCopyRequest},
+    sos_core::SecretPath,
 };
 
 #[cfg(feature = "search")]
@@ -54,12 +54,12 @@ use crate::sdk::prelude::{
 };
 
 #[cfg(feature = "archive")]
-use crate::sdk::prelude::{Inventory, RestoreOptions};
+use sos_account::archive::{Inventory, RestoreOptions};
 
 use indexmap::IndexSet;
 
 #[cfg(feature = "contacts")]
-use crate::sdk::prelude::ContactImportProgress;
+use sos_account::ContactImportProgress;
 
 #[cfg(feature = "archive")]
 use tokio::io::{AsyncRead, AsyncSeek};
@@ -80,13 +80,16 @@ use crate::sdk::account::security_report::{
 use super::remote::Remotes;
 
 #[cfg(feature = "files")]
-use crate::{
-    account::file_transfers::{
-        FileTransferSettings, FileTransfers, FileTransfersHandle,
-        InflightTransfers,
+use {
+    crate::{
+        account::file_transfers::{
+            FileTransferSettings, FileTransfers, FileTransfersHandle,
+            InflightTransfers,
+        },
+        protocol::{network_client::HttpClient, transfer::FileOperation},
+        sdk::prelude::FilePatch,
     },
-    protocol::{network_client::HttpClient, transfer::FileOperation},
-    sdk::{prelude::FilePatch, storage::files::FileMutationEvent},
+    sos_database::storage::files::FileMutationEvent,
 };
 
 /// Options for network account creation.
@@ -1211,7 +1214,7 @@ impl Account for NetworkAccount {
         &self,
         summary: &Summary,
         commit: CommitHash,
-    ) -> Result<crate::sdk::account::DetachedView> {
+    ) -> Result<sos_account::DetachedView> {
         let account = self.account.lock().await;
         Ok(account.detached_view(summary, commit).await?)
     }

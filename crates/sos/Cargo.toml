@@ -18,6 +18,11 @@ enable-cli-tests = []
 
 [dependencies]
 sos-core.workspace = true
+sos-account.workspace = true
+sos-database = { workspace = true, features = ["full"] }
+sos-protocol = { workspace = true, features = ["full"] }
+sos-net = { workspace = true, features = ["full"] }
+sos-sdk = { workspace = true, features = ["full"] }
 
 csv-async.workspace = true
 binary-stream.workspace = true
@@ -49,11 +54,6 @@ ctrlc = "3"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
 rustyline = "14"
 rustyline-derive = "0.11"
-
-[dependencies.sos-net]
-version = "0.16" 
-features = ["full"]
-path = "../net"
 
 [dependencies.sos-cli-helpers]
 version = "0.1.0" 

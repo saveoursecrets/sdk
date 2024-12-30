@@ -2,8 +2,9 @@
 
 use http::{Request, Response, StatusCode};
 use serde::Deserialize;
+use sos_account::{Account, ClipboardCopyRequest};
 use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{Account, ClipboardCopyRequest, ErrorExt, SecretPath};
+use sos_sdk::prelude::{ErrorExt, SecretPath};
 
 use crate::web_service::{
     internal_server_error, json, parse_account_id, parse_json_body, status,
@@ -42,6 +43,8 @@ where
         + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -88,6 +91,8 @@ where
         + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -147,6 +152,8 @@ where
         + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -225,6 +232,8 @@ where
         + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
         + From<std::io::Error>
         + Send
         + Sync

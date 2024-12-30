@@ -8,8 +8,8 @@ use crate::{
     Error, Result,
 };
 use clap::Subcommand;
+use sos_account::Account;
 use sos_net::sdk::{
-    account::Account,
     constants::EVENT_LOG_EXT,
     crypto::{AccessKey, Cipher, KeyDerivation},
     encode,

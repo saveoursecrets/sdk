@@ -23,7 +23,6 @@ use sos_sdk::{
     vfs, Paths, UtcDateTime,
 };
 
-use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use sos_core::commit::{CommitHash, CommitState};
 use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
@@ -1458,7 +1457,6 @@ impl ClientStorage {
     }
 }
 
-#[cfg(feature = "account")]
 impl ClientStorage {
     /// Create a secret in the currently open vault.
     pub async fn create_secret(

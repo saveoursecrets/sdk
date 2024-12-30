@@ -1,6 +1,7 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use maplit2::hashset;
+use sos_account::{Account, LocalAccount, SecretChange, SecretMove};
 use sos_net::sdk::prelude::*;
 
 /// Tests the statistics maintained whilst modifting the search index.

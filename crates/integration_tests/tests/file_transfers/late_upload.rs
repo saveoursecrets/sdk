@@ -7,6 +7,8 @@ use crate::test_utils::{
     simulate_device, spawn, teardown, wait_for_num_transfers,
 };
 use anyhow::Result;
+use sos_account::{Account, FolderCreate, SecretMove};
+use sos_core::ExternalFile;
 use sos_net::sdk::prelude::*;
 
 /// Tests creating external files then adding a remote

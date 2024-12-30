@@ -1,5 +1,6 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
+use sos_account::{Account, LocalAccount};
 use sos_net::sdk::prelude::*;
 
 /// Tests querying the search index using a websites view.

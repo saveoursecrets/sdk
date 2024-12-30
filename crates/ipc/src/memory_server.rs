@@ -10,8 +10,9 @@ use http_body_util::{BodyExt, Full};
 use hyper::client::conn::http1::handshake;
 use hyper::server::conn::http1::Builder;
 use hyper_util::rt::tokio::TokioIo;
+use sos_account::Account;
 use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{Account, ErrorExt};
+use sos_sdk::prelude::ErrorExt;
 use std::sync::Arc;
 use tokio::{
     io::DuplexStream,
@@ -122,6 +123,8 @@ impl LocalMemoryServer {
             + std::error::Error
             + ErrorExt
             + From<sos_sdk::Error>
+            + From<sos_database::Error>
+            + From<sos_account::Error>
             + From<std::io::Error>
             + Send
             + Sync

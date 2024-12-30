@@ -2,6 +2,10 @@ use anyhow::Result;
 
 use crate::test_utils::{mock, setup, teardown};
 use secrecy::SecretString;
+use sos_account::{
+    archive::RestoreOptions, Account, FolderCreate, LocalAccount,
+    SecretChange,
+};
 use sos_net::sdk::prelude::*;
 use std::path::{Path, PathBuf};
 

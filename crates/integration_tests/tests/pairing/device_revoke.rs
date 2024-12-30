@@ -4,9 +4,9 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use http::StatusCode;
+use sos_account::Account;
 use sos_net::{
     protocol::{AccountSync, Error as ProtocolError, NetworkError},
-    sdk::prelude::*,
     Error as ClientError,
 };
 

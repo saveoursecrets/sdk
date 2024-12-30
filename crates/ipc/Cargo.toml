@@ -21,7 +21,6 @@ local-transport = [
   "async-trait",
 ]
 memory-http-server = []
-account = ["sos-sdk/account", "sos-protocol/account"]
 archive = ["sos-sdk/archive", "sos-protocol/archive"]
 clipboard = ["sos-sdk/clipboard"]
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
@@ -70,8 +69,10 @@ serde_with = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 notify = { workspace = true, optional = true }
 
-sos-sdk = { version = "0.16", path = "../sdk", features = ["account"] }
-sos-protocol = { version = "0.16", path = "../protocol" }
+sos-sdk.workspace = true
+sos-account.workspace = true
+sos-database.workspace = true
+sos-protocol.workspace = true
 sos-platform-authenticator = { version = "0.1", path = "../platform_authenticator", optional = true }
 
 tokio = { version = "1", features = ["rt", "macros", "io-util", "sync"] }

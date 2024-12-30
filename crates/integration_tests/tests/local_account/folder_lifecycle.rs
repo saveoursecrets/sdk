@@ -1,5 +1,6 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
+use sos_account::{Account, FolderCreate, LocalAccount, SecretChange};
 use sos_net::sdk::prelude::*;
 
 /// Tests the basic folder lifecycle; create, write, export,

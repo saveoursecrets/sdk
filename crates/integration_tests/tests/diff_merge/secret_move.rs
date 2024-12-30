@@ -1,12 +1,13 @@
 use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
-use sos_net::{
-    protocol::{
-        diff, Merge, MergeOutcome, SyncStorage, TrackedAccountChange,
-        TrackedFolderChange,
-    },
-    sdk::prelude::*,
+use sos_account::{
+    Account, Error, FolderCreate, LocalAccount, SecretChange, SecretMove,
 };
+use sos_net::protocol::{
+    diff, Merge, MergeOutcome, SyncStorage, TrackedAccountChange,
+    TrackedFolderChange,
+};
+use sos_sdk::prelude::{generate_passphrase, AccessKey};
 
 /// Tests creating a diff and merging a move secret
 /// event without any networking.
@@ -98,7 +99,10 @@ async fn diff_merge_secret_move() -> Result<()> {
     let result = remote
         .read_secret(&new_id, Some(default_folder.clone()))
         .await;
-    assert!(matches!(result, Err(Error::SecretNotFound(_))));
+    assert!(matches!(
+        result,
+        Err(Error::Database(sos_database::Error::SecretNotFound(_)))
+    ));
 
     // Check we can read it in the destination folder (to)
     remote.open_folder(&summary).await?;

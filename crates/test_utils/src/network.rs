@@ -8,19 +8,20 @@ use sos_net::{
         AccountSync, Origin, RemoteSyncHandler, SyncClient, SyncStorage,
     },
     sdk::{
-        account::{Account, AccountBuilder},
         constants::{FILES_DIR, VAULT_EXT},
         crypto::AccessKey,
         events::EventLogExt,
         passwd::diceware::generate_passphrase,
         sha2::{Digest, Sha256},
-        storage::files::ExternalFile,
         url::Url,
         vault::{Summary, VaultId},
         vfs, Paths,
     },
     InflightNotification, InflightTransfers, NetworkAccount, RemoteBridge,
 };
+
+use sos_account::{Account, AccountBuilder};
+use sos_core::ExternalFile;
 use std::{
     path::PathBuf,
     sync::Arc,

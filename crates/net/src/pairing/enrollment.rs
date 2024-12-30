@@ -3,7 +3,6 @@ use crate::{
     pairing::{Error, Result},
     protocol::{network_client::HttpClient, Origin, SyncClient},
     sdk::{
-        account::Account,
         crypto::AccessKey,
         device::DeviceSigner,
         encode,
@@ -21,6 +20,7 @@ use crate::{
     },
     NetworkAccount,
 };
+use sos_account::Account;
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},

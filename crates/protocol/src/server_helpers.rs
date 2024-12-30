@@ -11,8 +11,9 @@ use sos_sdk::{
         DiscEventLog, EventRecord, FolderDiff, Patch, WriteEvent,
     },
     prelude::EventLogExt,
-    storage::StorageEventLogs,
 };
+
+use sos_database::storage::StorageEventLogs;
 
 #[cfg(feature = "files")]
 use sos_sdk::events::{FileDiff, FileEvent};

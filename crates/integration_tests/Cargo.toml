@@ -15,37 +15,49 @@ http.workspace = true
 anyhow.workspace = true
 
 [dependencies.sos-ipc]
+workspace = true
 features = [
   "extension-helper-server",
   "extension-helper-client",
-  "account",
   "archive",
   "contacts", 
   "migrate",
   "search",
   "files",
 ]
-path = "../ipc"
+
+[dependencies.sos-core]
+workspace = true
 
 [dependencies.sos-account-extras]
-features = ["preferences"]
-path = "../account_extras/"
+workspace = true
+features = ["full"]
 
 [dependencies.sos-sdk]
-path = "../sdk"
+workspace = true
+features = ["full"]
 
 # must enable matching features here
 [dependencies.sos-web]
-path = "../web"
-features = [
-  "account",
-  "archive",
-  "clipboard",
-  "contacts",
-  "files",
-  "migrate",
-  "search", 
-]
+workspace = true
+features = ["full"]
+
+[dependencies.sos-account]
+workspace = true
+features = ["full"]
+
+[dependencies.sos-database]
+workspace = true
+features = ["full"]
+
+[dependencies.sos-net]
+workspace = true
+features = ["full"]
+
+[dependencies.sos-server]
+default-features = false
+features = ["listen", "audit", "pairing"]
+path = "../server"
 
 [dev-dependencies]
 binary-stream.workspace = true
@@ -69,23 +81,6 @@ maplit2 = "1"
 tempfile = "3.5"
 pretty_assertions = "1.4"
 sos-test-utils = { path = "../test_utils" }
-
-[dev-dependencies.sos-database]
-features = ["full"]
-path = "../database"
-
-[dev-dependencies.sos-net]
-features = ["full"]
-path = "../net"
-
-[dev-dependencies.sos-account]
-features = ["full"]
-path = "../account"
-
-[dev-dependencies.sos-server]
-default-features = false
-features = ["listen", "audit", "pairing"]
-path = "../server"
 
 [[bin]]
 name = "test-extension-helper"

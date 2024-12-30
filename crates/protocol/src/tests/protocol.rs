@@ -356,11 +356,9 @@ async fn encode_decode_update_set() -> Result<()> {
 #[cfg(feature = "files")]
 #[tokio::test]
 async fn encode_decode_change_files() -> Result<()> {
-    use crate::{
-        sdk::{storage::files::ExternalFile, vault::secret::SecretId},
-        transfer::{FileSet, FileTransfersSet},
-    };
+    use crate::transfer::{FileSet, FileTransfersSet};
     use indexmap::IndexSet;
+    use sos_core::{ExternalFile, SecretId};
 
     let file_name = [1u8; 32];
 

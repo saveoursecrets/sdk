@@ -15,12 +15,8 @@ use axum_extra::{
 
 use super::BODY_LIMIT;
 
-use sos_protocol::sdk::{
-    storage::files::{ExternalFile, ExternalFileName},
-    vault::{
-        secret::{SecretId, SecretPath},
-        VaultId,
-    },
+use sos_core::{
+    ExternalFile, ExternalFileName, SecretId, SecretPath, VaultId,
 };
 
 use crate::{
@@ -365,11 +361,14 @@ mod handlers {
         constants::MIME_TYPE_PROTOBUF,
         sdk::{
             sha2::{Digest, Sha256},
-            storage::files::{list_external_files, ExternalFileName},
             vault::{secret::SecretId, VaultId},
         },
         transfer::{FileSet, FileTransfersSet},
         WireEncodeDecode,
+    };
+
+    use sos_database::storage::files::{
+        list_external_files, ExternalFileName,
     };
 
     use crate::{

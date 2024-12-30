@@ -36,7 +36,7 @@ use tokio_rustls_acme::{caches::DirCache, AcmeConfig};
 #[cfg(feature = "listen")]
 use super::handlers::websocket::upgrade;
 
-use sos_protocol::sdk::storage::files::ExternalFile;
+use sos_core::ExternalFile;
 
 #[cfg(feature = "pairing")]
 use super::handlers::relay::{upgrade as relay_upgrade, RelayState};

@@ -1,9 +1,11 @@
 use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
-use sos_net::{
-    protocol::{diff, Merge, MergeOutcome, SyncStorage, TrackedFolderChange},
-    sdk::prelude::*,
+use sos_net::protocol::{
+    diff, Merge, MergeOutcome, SyncStorage, TrackedFolderChange,
 };
+
+use sos_account::{Account, LocalAccount, SecretChange};
+use sos_sdk::prelude::{generate_passphrase, AccessKey};
 
 /// Tests creating a diff and merging an update secret
 /// event without any networking.

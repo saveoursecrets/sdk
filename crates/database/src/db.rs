@@ -7,16 +7,22 @@ use futures::{pin_mut, StreamExt};
 use sos_sdk::prelude::{
     AuditLogFile,
     AuditEvent,
-    AccountEventLog, DeviceEventLog, FileEventLog,
-    decode, encode, list_external_files, vfs, CommitHash,
-    Error as SdkError, EventLogExt, EventRecord, ExternalFile,
+    AccountEventLog, DeviceEventLog, 
+    decode, encode, vfs, CommitHash,
+    Error as SdkError, EventLogExt, EventRecord,
     FolderEventLog, Identity, Paths, PublicIdentity, SecretId, Vault,
     VaultCommit, VaultEntry,
     FormatStreamIterator,
     VaultId,
 };
-use sos_core::Origin;
+use sos_core::{Origin, ExternalFile};
 use std::{collections::HashMap, path::Path};
+
+#[cfg(feature = "files")]
+use {
+    crate::storage::files::list_external_files,
+    sos_sdk::events::FileEventLog,
+};
 
 /// Create global values in the database.
 pub(crate) async fn import_globals(
@@ -104,6 +110,7 @@ pub(crate) async fn import_account(
     let device_events = collect_device_events(paths.device_events()).await?;
 
     // File events
+    #[cfg(feature = "files")]
     let file_events = collect_file_events(paths.file_events()).await?;
 
     // User folders
@@ -117,17 +124,20 @@ pub(crate) async fn import_account(
             collect_folder_events(paths.event_log_path(summary.id())).await?;
         folders.push((vault, rows, events));
     }
-
+    
     let mut user_files = Vec::new();
-    let files = list_external_files(&paths).await?;
-    for file in files {
-        let path = paths.file_location(
-            file.vault_id(),
-            file.secret_id(),
-            file.file_name().to_string(),
-        );
-        let buffer = vfs::read(path).await.map_err(SdkError::from)?;
-        user_files.push((file, buffer));
+    #[cfg(feature = "files")]
+    {
+        let files = list_external_files(&paths).await?;
+        for file in files {
+            let path = paths.file_location(
+                file.vault_id(),
+                file.secret_id(),
+                file.file_name().to_string(),
+            );
+            let buffer = vfs::read(path).await.map_err(SdkError::from)?;
+            user_files.push((file, buffer));
+        }
     }
 
     let account_preferences = if vfs::try_exists(paths.preferences_file())
@@ -219,6 +229,7 @@ pub(crate) async fn import_account(
                     .await?;
 
                 // Create the file events
+                #[cfg(feature = "files")]
                 create_file_events(&mut tx, account_id, file_events).await?;
 
                 // Create user folders
@@ -310,6 +321,7 @@ async fn collect_device_events(
     Ok(events)
 }
 
+#[cfg(feature = "files")]
 async fn collect_file_events(
     path: impl AsRef<Path>,
 ) -> Result<Vec<(String, CommitHash, EventRecord)>> {

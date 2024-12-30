@@ -1,9 +1,8 @@
 use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
-use sos_net::{
-    protocol::{diff, Merge, MergeOutcome, SyncStorage},
-    sdk::prelude::*,
-};
+use sos_account::{Account, Error, LocalAccount, SecretChange};
+use sos_net::protocol::{diff, Merge, MergeOutcome, SyncStorage};
+use sos_sdk::prelude::{generate_passphrase, AccessKey};
 
 /// Tests creating a diff and merging a delete secret
 /// event without any networking.
@@ -67,7 +66,10 @@ async fn diff_merge_secret_delete() -> Result<()> {
 
     // Check we can't read the secret
     let result = remote.read_secret(&id, None).await;
-    assert!(matches!(result, Err(Error::SecretNotFound(_))));
+    assert!(matches!(
+        result,
+        Err(Error::Database(sos_database::Error::SecretNotFound(_)))
+    ));
 
     // Check we can't find it in the search index
     let documents = remote.query_map("note", Default::default()).await?;

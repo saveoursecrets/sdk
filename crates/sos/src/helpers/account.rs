@@ -2,9 +2,9 @@
 use std::{borrow::Cow, sync::Arc};
 
 use parking_lot::Mutex;
+use sos_account::Account;
 use sos_net::{
     sdk::{
-        account::Account,
         constants::DEFAULT_VAULT_NAME,
         crypto::AccessKey,
         identity::{AccountRef, Identity, PublicIdentity},

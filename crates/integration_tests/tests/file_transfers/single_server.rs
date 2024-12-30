@@ -7,6 +7,8 @@ use crate::test_utils::{
     mock::files::{create_file_secret, update_file_secret},
     simulate_device, spawn, teardown, wait_for_num_transfers,
 };
+use sos_account::{Account, FolderCreate, SecretMove};
+use sos_core::ExternalFile;
 use sos_net::{protocol::AccountSync, sdk::prelude::*};
 
 /// Tests uploading an external file.

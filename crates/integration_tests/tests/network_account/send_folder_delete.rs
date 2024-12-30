@@ -3,6 +3,8 @@ use crate::test_utils::{
     num_events, simulate_device, spawn, teardown,
 };
 use anyhow::Result;
+use sos_account::{Account, FolderCreate, FolderDelete};
+use sos_core::ExternalFile;
 use sos_net::sdk::prelude::*;
 
 /// Tests sending delete folder events to a remote.

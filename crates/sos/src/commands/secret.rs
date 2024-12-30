@@ -20,6 +20,8 @@ use crossterm::{
 };
 use futures::{future::LocalBoxFuture, select, FutureExt};
 use kdam::{term, tqdm, BarExt, Column, RichProgress, Spinner};
+use sos_account::Account;
+use sos_database::storage::{files::FileProgress, AccessOptions};
 use sos_net::sdk::prelude::*;
 use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 use terminal_banner::{Banner, Padding};

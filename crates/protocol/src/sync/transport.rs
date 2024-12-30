@@ -16,10 +16,12 @@ use sos_sdk::events::WriteEvent;
 use std::{collections::HashMap, hash::Hash};
 
 #[cfg(feature = "files")]
-use crate::sdk::{
-    events::{FileDiff, FileEvent, FilePatch},
-    storage::files::{ExternalFile, ExternalFileName},
-    vault::secret::SecretPath,
+use {
+    sos_core::{ExternalFile, ExternalFileName},
+    sos_sdk::{
+        events::{FileDiff, FileEvent, FilePatch},
+        vault::secret::SecretPath,
+    },
 };
 
 pub use sos_core::Origin;

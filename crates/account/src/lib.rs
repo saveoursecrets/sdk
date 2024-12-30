@@ -23,7 +23,7 @@ pub use error::Error;
 pub use account::ContactImportProgress;
 
 #[cfg(feature = "clipboard")]
-pub use account::ClipboardCopyRequest;
+pub use {account::ClipboardCopyRequest, xclipboard};
 
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;

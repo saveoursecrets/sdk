@@ -12,11 +12,21 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
+full = [
+  "listen",
+  "hashcheck",
+  "network-client",
+  "pairing",
+  "archive",
+  "contacts",
+  "files",
+  "migrate",
+  "search",
+]
 listen = ["tokio-tungstenite"]
 hashcheck = ["reqwest"]
 network-client = ["reqwest", "bs58", "async-stream", "tokio-util"]
 pairing = []
-account = ["sos-sdk/account"]
 archive = ["sos-sdk/archive"]
 contacts = ["sos-sdk/contacts"]
 files = ["sos-sdk/files"]
@@ -24,6 +34,7 @@ migrate = ["sos-sdk/migrate"]
 search = ["sos-sdk/search"]
 
 [dependencies]
+sos-account.workspace = true
 sos-core.workspace = true
 sos-sdk.workspace = true
 sos-database.workspace = true

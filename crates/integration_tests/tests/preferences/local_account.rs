@@ -3,6 +3,7 @@ use crate::{
     test_utils::{setup, teardown},
 };
 use anyhow::Result;
+use sos_account::{Account, LocalAccount};
 use sos_net::{extras::preferences::*, sdk::prelude::*};
 
 /// Tests the preferences in the context of a local account.

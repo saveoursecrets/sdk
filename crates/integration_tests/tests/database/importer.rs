@@ -1,10 +1,12 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
-use sos_database::importer::import_accounts;
-use sos_sdk::prelude::{
-    vfs, Account, AccountBackup, ExtractFilesLocation, Inventory,
-    LocalAccount, Paths, RestoreOptions,
+use sos_account::{
+    archive::RestoreOptions,
+    archive::{AccountBackup, ExtractFilesLocation, Inventory},
+    Account, LocalAccount,
 };
+use sos_database::importer::import_accounts;
+use sos_sdk::prelude::{vfs, Paths};
 use tokio::io::BufReader;
 
 #[tokio::test]

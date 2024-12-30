@@ -5,6 +5,9 @@ use crate::test_utils::{
     assert_local_remote_file_eq, mock::files::create_file_secret,
     simulate_device, spawn, teardown, wait_for_num_transfers,
 };
+
+use sos_account::{Account, FolderCreate, SecretMove};
+use sos_core::ExternalFile;
 use sos_net::sdk::prelude::*;
 
 /// Tests uploading then moving an external file aborts

@@ -3,6 +3,7 @@ use crate::test_utils::{
     simulate_device, spawn, teardown,
 };
 use anyhow::Result;
+use sos_account::{Account, FolderCreate};
 use sos_net::sdk::prelude::*;
 
 /// Tests sending import folder events to a remote.

@@ -1,7 +1,7 @@
 //! Types for security report generation.
 use serde::{Deserialize, Serialize};
+use sos_account::Account;
 use sos_sdk::{
-    account::Account,
     hex,
     vault::{
         secret::{Secret, SecretId, SecretType},

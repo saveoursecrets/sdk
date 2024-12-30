@@ -6,22 +6,23 @@
 // hit the problem with foreign trait implementations.
 use crate::{
     sdk::{
-        account::{Account, LocalAccount},
         commit::{CommitState, CommitTree, Comparison},
         decode,
         events::{
             AccountDiff, AccountEvent, CheckedPatch, EventLogExt, FolderDiff,
             LogEvent, WriteEvent,
         },
-        storage::StorageEventLogs,
         vault::{Vault, VaultId},
-        Error, Result,
     },
     FolderMerge, FolderMergeOptions, ForceMerge, IdentityFolderMerge, Merge,
     MergeOutcome, SyncStatus, SyncStorage, TrackedChanges,
 };
+
+use crate::Result;
 use async_trait::async_trait;
 use indexmap::IndexMap;
+use sos_account::{Account, LocalAccount};
+use sos_database::storage::StorageEventLogs;
 use std::collections::HashSet;
 
 use crate::sdk::events::{DeviceDiff, DeviceReducer};
@@ -142,13 +143,13 @@ impl ForceMerge for LocalAccount {
         );
 
         let storage =
-            self.storage().await.ok_or(sos_sdk::Error::NoStorage)?;
+            self.storage().await.ok_or(sos_database::Error::NoStorage)?;
         let mut storage = storage.write().await;
 
-        let folder = storage
-            .cache_mut()
-            .get_mut(folder_id)
-            .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+        let folder =
+            storage.cache_mut().get_mut(folder_id).ok_or_else(|| {
+                sos_database::Error::CacheNotAvailable(*folder_id)
+            })?;
         folder.force_merge(&diff).await?;
 
         outcome.changes += len;
@@ -262,7 +263,7 @@ impl Merge for LocalAccount {
                             let storage = self
                                 .storage()
                                 .await
-                                .ok_or(sos_sdk::Error::NoStorage)?;
+                                .ok_or(sos_database::Error::NoStorage)?;
                             let mut storage = storage.write().await;
                             storage
                                 .import_folder(
@@ -280,7 +281,7 @@ impl Merge for LocalAccount {
                             let storage = self
                                 .storage()
                                 .await
-                                .ok_or(sos_sdk::Error::NoStorage)?;
+                                .ok_or(sos_database::Error::NoStorage)?;
                             let mut storage = storage.write().await;
                             // Note that this event is recorded at both
                             // the account level and the folder level so
@@ -296,7 +297,7 @@ impl Merge for LocalAccount {
                             let storage = self
                                 .storage()
                                 .await
-                                .ok_or(sos_sdk::Error::NoStorage)?;
+                                .ok_or(sos_database::Error::NoStorage)?;
                             let mut storage = storage.write().await;
                             storage.delete_folder(summary, false).await?;
                             deleted_folders.insert(*id);
@@ -390,7 +391,7 @@ impl Merge for LocalAccount {
         );
 
         let storage =
-            self.storage().await.ok_or(sos_sdk::Error::NoStorage)?;
+            self.storage().await.ok_or(sos_database::Error::NoStorage)?;
         let storage = storage.read().await;
         let mut event_log = storage.file_log.write().await;
 
@@ -442,13 +443,15 @@ impl Merge for LocalAccount {
 
         let (checked_patch, events) = {
             let storage =
-                self.storage().await.ok_or(sos_sdk::Error::NoStorage)?;
+                self.storage().await.ok_or(sos_database::Error::NoStorage)?;
             let mut storage = storage.write().await;
 
             #[cfg(feature = "search")]
             let search = {
-                let index =
-                    storage.index.as_ref().ok_or(Error::NoSearchIndex)?;
+                let index = storage
+                    .index
+                    .as_ref()
+                    .ok_or(sos_database::Error::NoSearchIndex)?;
                 index.search()
             };
 
@@ -467,17 +470,16 @@ impl Merge for LocalAccount {
             let promoted =
                 storage.try_promote_pending_folder(folder_id).await?;
             if promoted {
-                let key = self
-                    .find_folder_password(folder_id)
-                    .await?
-                    .ok_or(Error::NoFolderPassword(*folder_id))?;
+                let key = self.find_folder_password(folder_id).await?.ok_or(
+                    sos_database::Error::NoFolderPassword(*folder_id),
+                )?;
                 storage.unlock_folder(folder_id, &key).await?;
             }
 
-            let folder = storage
-                .cache_mut()
-                .get_mut(folder_id)
-                .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+            let folder =
+                storage.cache_mut().get_mut(folder_id).ok_or_else(|| {
+                    sos_database::Error::CacheNotAvailable(*folder_id)
+                })?;
 
             #[cfg(feature = "search")]
             {
@@ -532,13 +534,12 @@ impl Merge for LocalAccount {
         state: &CommitState,
     ) -> Result<Comparison> {
         let storage =
-            self.storage().await.ok_or(sos_sdk::Error::NoStorage)?;
+            self.storage().await.ok_or(sos_database::Error::NoStorage)?;
         let storage = storage.read().await;
 
-        let folder = storage
-            .cache()
-            .get(folder_id)
-            .ok_or_else(|| Error::CacheNotAvailable(*folder_id))?;
+        let folder = storage.cache().get(folder_id).ok_or_else(|| {
+            sos_database::Error::CacheNotAvailable(*folder_id)
+        })?;
         let event_log = folder.event_log();
         let reader = event_log.read().await;
         Ok(reader.tree().compare(&state.1)?)
@@ -560,7 +561,7 @@ impl SyncStorage for LocalAccount {
         // NOTE: root hash is deterministic
 
         let storage =
-            self.storage().await.ok_or(sos_sdk::Error::NoStorage)?;
+            self.storage().await.ok_or(sos_database::Error::NoStorage)?;
         let storage = storage.read().await;
         let summaries = storage.list_folders().to_vec();
 
@@ -592,10 +593,9 @@ impl SyncStorage for LocalAccount {
         let mut folders = IndexMap::new();
         let mut folder_roots: Vec<(&VaultId, [u8; 32])> = Vec::new();
         for summary in &summaries {
-            let folder = storage
-                .cache()
-                .get(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            let folder = storage.cache().get(summary.id()).ok_or(
+                sos_database::Error::CacheNotAvailable(*summary.id()),
+            )?;
 
             let commit_state = folder.commit_state().await?;
             folder_roots.push((summary.id(), commit_state.1.root().into()));

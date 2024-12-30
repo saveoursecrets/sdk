@@ -2,7 +2,8 @@ use crate::test_utils::{
     assert_local_remote_events_eq, mock, simulate_device, spawn, teardown,
 };
 use anyhow::Result;
-use sos_net::{protocol::AccountSync, sdk::prelude::*};
+use sos_account::Account;
+use sos_net::protocol::AccountSync;
 
 /// Tests syncing a single client with multiple
 /// remote servers.

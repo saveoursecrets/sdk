@@ -1,4 +1,5 @@
 use anyhow::Result;
+use sos_account::{Account, LocalAccount};
 use sos_net::sdk::prelude::*;
 
 use crate::test_utils::{setup, teardown};
