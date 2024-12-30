@@ -2,6 +2,15 @@ use anyhow::Result;
 use sos_sdk::prelude::*;
 use sos_test_utils::{mock_encryption_key, mock_secret_note};
 
+fn vault_to_commit_tree(value: &Vault) -> CommitTree {
+    let mut commit_tree = CommitTree::new();
+    for (_, commit) in value.commits() {
+        commit_tree.insert(commit.into());
+    }
+    commit_tree.commit();
+    commit_tree
+}
+
 async fn mock_commit_tree() -> Result<CommitTree> {
     let (encryption_key, _, passphrase) = mock_encryption_key()?;
     let mut vault = VaultBuilder::new()
@@ -31,7 +40,7 @@ async fn mock_commit_tree() -> Result<CommitTree> {
         };
     }
 
-    Ok((&vault).into())
+    Ok(vault_to_commit_tree(&vault))
 }
 
 #[tokio::test]

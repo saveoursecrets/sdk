@@ -54,7 +54,6 @@ compile_error!("account feature must be enabled to use migrate");
 pub mod account;
 #[cfg(feature = "audit")]
 pub mod audit;
-pub mod commit;
 pub mod crypto;
 mod date_time;
 pub mod device;
@@ -105,6 +104,7 @@ pub use uuid;
 pub use vcard4;
 pub use zxcvbn;
 
+pub use sos_core::commit;
 pub use sos_core::constants;
 
 #[cfg(feature = "clipboard")]
@@ -114,3 +114,17 @@ pub use xclipboard;
 
 /// Result type for the core library.
 pub type Result<T> = std::result::Result<T, Error>;
+
+/*
+#[cfg(debug_assertions)]
+impl From<&crate::vault::Vault> for crate::commit::CommitTree {
+    fn from(value: &crate::vault::Vault) -> Self {
+        let mut commit_tree = crate::commit::CommitTree::new();
+        for (_, commit) in value.commits() {
+            commit_tree.tree.insert(commit.into());
+        }
+        commit_tree.tree.commit();
+        commit_tree
+    }
+}
+*/

@@ -50,6 +50,9 @@ security-report = ["sos-account-extras/security-report"]
 system-messages = ["sos-account-extras/system-messages"]
 
 [dependencies]
+sos-core.workspace = true
+sos-sdk.workspace = true
+
 tokio-util.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
@@ -77,9 +80,6 @@ prost.workspace = true
 snow = { version = "0.9", optional = true }
 
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync"] }
-
-[dependencies.sos-sdk]
-workspace = true
 
 [dependencies.sos-protocol]
 version = "0.16"

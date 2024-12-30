@@ -188,6 +188,7 @@ impl CommitTree {
     }
 }
 
+/*
 #[cfg(debug_assertions)]
 impl From<&crate::vault::Vault> for CommitTree {
     fn from(value: &crate::vault::Vault) -> Self {
@@ -199,3 +200,4 @@ impl From<&crate::vault::Vault> for CommitTree {
         commit_tree
     }
 }
+*/

@@ -332,7 +332,7 @@ impl Merge for ServerStorage {
         state: &CommitState,
     ) -> Result<Comparison> {
         let reader = self.identity_log.read().await;
-        reader.tree().compare(&state.1)
+        Ok(reader.tree().compare(&state.1)?)
     }
 
     async fn merge_account(
@@ -414,7 +414,7 @@ impl Merge for ServerStorage {
         state: &CommitState,
     ) -> Result<Comparison> {
         let reader = self.account_log.read().await;
-        reader.tree().compare(&state.1)
+        Ok(reader.tree().compare(&state.1)?)
     }
 
     async fn merge_device(
@@ -454,7 +454,7 @@ impl Merge for ServerStorage {
         state: &CommitState,
     ) -> Result<Comparison> {
         let reader = self.device_log.read().await;
-        reader.tree().compare(&state.1)
+        Ok(reader.tree().compare(&state.1)?)
     }
 
     async fn merge_files(
@@ -495,7 +495,7 @@ impl Merge for ServerStorage {
 
     async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
         let reader = self.file_log.read().await;
-        reader.tree().compare(&state.1)
+        Ok(reader.tree().compare(&state.1)?)
     }
 
     async fn merge_folder(

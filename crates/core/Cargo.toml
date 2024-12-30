@@ -8,5 +8,8 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [dependencies]
+thiserror.workspace = true
 serde.workspace = true
 url.workspace = true
+rs_merkle.workspace = true
+hex.workspace = true

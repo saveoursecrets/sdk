@@ -26,6 +26,7 @@ tracing.workspace = true
 indexmap.workspace = true
 async-trait.workspace = true
 
+sos-core.workspace = true
 sos-sdk = { version = "0.16", path = "../sdk", features = ["account"] }
 sos-protocol = { version = "0.16", path = "../protocol", features = ["network-client"] }
 

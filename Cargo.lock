@@ -4993,6 +4993,7 @@ dependencies = [
  "serde_json",
  "shell-words",
  "sos-cli-helpers",
+ "sos-core",
  "sos-net",
  "tempfile",
  "terminal-banner",
@@ -5046,7 +5047,10 @@ dependencies = [
 name = "sos-core"
 version = "0.16.0"
 dependencies = [
+ "hex",
+ "rs_merkle",
  "serde",
+ "thiserror 2.0.9",
  "url",
 ]
 
@@ -5158,6 +5162,7 @@ dependencies = [
  "sha3",
  "snow",
  "sos-account-extras",
+ "sos-core",
  "sos-protocol",
  "sos-sdk",
  "thiserror 2.0.9",
@@ -5316,6 +5321,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sos-cli-helpers",
+ "sos-core",
  "sos-protocol",
  "thiserror 2.0.9",
  "tokio",
@@ -5375,6 +5381,7 @@ dependencies = [
  "async-trait",
  "indexmap 2.7.0",
  "rustc_version",
+ "sos-core",
  "sos-protocol",
  "sos-sdk",
  "thiserror 2.0.9",

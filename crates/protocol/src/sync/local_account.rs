@@ -196,7 +196,7 @@ impl Merge for LocalAccount {
     ) -> Result<Comparison> {
         let log = self.identity_log().await?;
         let event_log = log.read().await;
-        event_log.tree().compare(&state.1)
+        Ok(event_log.tree().compare(&state.1)?)
     }
 
     async fn merge_account(
@@ -321,7 +321,7 @@ impl Merge for LocalAccount {
     ) -> Result<Comparison> {
         let log = self.account_log().await?;
         let event_log = log.read().await;
-        event_log.tree().compare(&state.1)
+        Ok(event_log.tree().compare(&state.1)?)
     }
 
     async fn merge_device(
@@ -374,7 +374,7 @@ impl Merge for LocalAccount {
     ) -> Result<Comparison> {
         let log = self.device_log().await?;
         let event_log = log.read().await;
-        event_log.tree().compare(&state.1)
+        Ok(event_log.tree().compare(&state.1)?)
     }
 
     #[cfg(feature = "files")]
@@ -430,7 +430,7 @@ impl Merge for LocalAccount {
     async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
         let log = self.file_log().await?;
         let event_log = log.read().await;
-        event_log.tree().compare(&state.1)
+        Ok(event_log.tree().compare(&state.1)?)
     }
 
     async fn merge_folder(

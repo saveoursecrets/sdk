@@ -198,7 +198,7 @@ where
     /// Folder commit state.
     pub async fn commit_state(&self) -> Result<CommitState> {
         let event_log = self.events.read().await;
-        event_log.tree().commit_state()
+        Ok(event_log.tree().commit_state()?)
     }
 
     /// Folder root commit hash.

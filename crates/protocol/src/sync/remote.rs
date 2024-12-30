@@ -39,6 +39,7 @@ pub trait RemoteSyncHandler {
         + AsConflict
         + From<ConflictError>
         + From<sos_sdk::Error>
+        + From<sos_core::Error>
         + From<std::io::Error>
         + From<<Self::Account as Account>::Error>
         + From<<Self::Client as SyncClient>::Error>
