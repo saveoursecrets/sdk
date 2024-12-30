@@ -1,6 +1,5 @@
 //! Storage backed by the filesystem.
 use crate::{
-    commit::{CommitHash, CommitState},
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
     decode, encode,
@@ -23,6 +22,7 @@ use crate::{
 
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
+use sos_core::commit::{CommitHash, CommitState};
 use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 

@@ -8,7 +8,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 mod client;
