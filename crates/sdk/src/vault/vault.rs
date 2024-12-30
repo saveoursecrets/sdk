@@ -35,8 +35,7 @@ use crate::{
     Error, Result, UtcDateTime,
 };
 
-/// Identifier for vaults.
-pub type VaultId = Uuid;
+pub use sos_core::VaultId;
 
 bitflags! {
     /// Bit flags for a vault.

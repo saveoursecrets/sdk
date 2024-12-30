@@ -29,13 +29,12 @@ use crate::{
         ecdsa::{self, BoxedEcdsaSigner},
         ed25519::{self, BoxedEd25519Signer},
     },
-    vault::VaultId,
     Error, Result, UtcDateTime,
 };
 
 use std::path::PathBuf;
 
-pub use sos_core::SecretPath;
+pub use sos_core::{SecretId, SecretPath};
 
 bitflags! {
     /// Bit flags for a secret.
@@ -113,9 +112,6 @@ fn is_empty_secret_vec(value: &SecretBox<Vec<u8>>) -> bool {
 fn default_secret_vec() -> SecretBox<Vec<u8>> {
     SecretBox::new(Box::new(Vec::new()))
 }
-
-/// Identifier for secrets.
-pub type SecretId = Uuid;
 
 /// Reference to a secret using an id or a named label.
 #[derive(Debug, Clone)]
