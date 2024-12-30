@@ -19,6 +19,7 @@ full = [
 ]
 audit = ["sos-sdk/audit"]
 archive = [
+  "sos-sdk/archive",
   "dep:async_zip",
   "dep:walkdir",
   "dep:tokio-util",

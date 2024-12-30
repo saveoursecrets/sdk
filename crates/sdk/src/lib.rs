@@ -52,6 +52,10 @@ compile_error!("account feature must be enabled to use migrate");
 
 #[cfg(feature = "account")]
 pub mod account;
+
+#[cfg(feature = "archive")]
+pub mod archive;
+
 #[cfg(feature = "audit")]
 pub mod audit;
 pub mod crypto;

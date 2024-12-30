@@ -1,4 +1,4 @@
-use sos_core::SecretId;
+use sos_core::{SecretId, VaultId};
 use std::path::PathBuf;
 use thiserror::Error;
 use uuid::Uuid;
@@ -34,6 +34,11 @@ pub enum Error {
     /// Error generated when a search index is required.
     #[error("no search index")]
     NoSearchIndex,
+
+    /// Error generated when a folder password in the identity
+    /// vault could not be located.
+    #[error("could not find folder password for '{0}'")]
+    NoFolderPassword(VaultId),
 
     /// Error generated when no storage is configured.
     #[error(

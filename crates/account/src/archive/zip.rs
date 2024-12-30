@@ -15,6 +15,7 @@ use tokio::io::{AsyncBufRead, AsyncSeek, AsyncWrite};
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
 use sos_sdk::{
+    archive::{ArchiveItem, Manifest},
     constants::{
         ACCOUNT_EVENTS, ARCHIVE_MANIFEST, DEVICE_FILE, EVENT_LOG_EXT,
         FILES_DIR, FILE_EVENTS, JSON_EXT, PREFERENCES_FILE, REMOTES_FILE,
@@ -26,40 +27,6 @@ use sos_sdk::{
     vfs::{self, File},
     Error, Result,
 };
-
-/// Manifest used to determine if the archive is supported
-/// for import purposes.
-#[derive(Default, Debug, Serialize, Deserialize)]
-pub struct Manifest {
-    /// Address of the identity file.
-    pub address: Address,
-
-    /// Checksum of the identity vault.
-    pub checksum: String,
-
-    /// Map of vault identifiers to checksums.
-    pub vaults: HashMap<VaultId, String>,
-
-    /// Account events checksum.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub account: Option<String>,
-
-    /// Device vault and events checksums.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub devices: Option<(String, String)>,
-
-    /// File events checksum.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub files: Option<String>,
-
-    /// Account-specific preferences.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub preferences: Option<String>,
-
-    /// Remote server settings.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub remotes: Option<String>,
-}
 
 /// Write to an archive.
 ///
@@ -267,9 +234,6 @@ impl<W: AsyncWrite + Unpin> Writer<W> {
         Ok(self.writer.close().await?)
     }
 }
-
-/// A vault reference extracted from an archive.
-pub type ArchiveItem = (Summary, Vec<u8>);
 
 /// Inventory of an archive.
 pub struct Inventory {

@@ -29,8 +29,8 @@ use sos_core::commit::{CommitHash, CommitState};
 use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
-// #[cfg(feature = "archive")]
-// use crate::archive::RestoreTargets;
+#[cfg(feature = "archive")]
+use sos_sdk::archive::RestoreTargets;
 
 #[cfg(feature = "audit")]
 use sos_sdk::audit::AuditEvent;
@@ -538,7 +538,6 @@ impl ClientStorage {
         Ok(summary)
     }
 
-    /*
     /// Restore vaults from an archive.
     ///
     /// Buffer is the compressed archive contents.
@@ -573,7 +572,6 @@ impl ClientStorage {
 
         Ok(())
     }
-    */
 
     /// List the folder summaries for this storage.
     pub fn list_folders(&self) -> &[Summary] {

@@ -3311,8 +3311,7 @@ impl Account for LocalAccount {
             let keys = self.folder_keys().await?;
             let storage = self.storage.as_mut().ok_or(Error::NoStorage)?;
             let mut writer = storage.write().await;
-            // writer.restore_archive(&targets, &keys).await?;
-            todo!("FIX RESTORE LOGIC");
+            writer.restore_archive(&targets, &keys).await?;
         }
 
         #[cfg(feature = "search")]

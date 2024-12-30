@@ -11,9 +11,10 @@ use tokio::io::{AsyncBufRead, AsyncSeek, BufReader};
 use uuid::Uuid;
 use walkdir::WalkDir;
 
-use crate::archive::{ArchiveItem, Inventory, Manifest, Reader, Writer};
+use crate::archive::{Inventory, Reader, Writer};
 
 use sos_sdk::{
+    archive::{ArchiveItem, Manifest, RestoreTargets},
     constants::VAULT_EXT,
     crypto::AccessKey,
     decode,
@@ -57,27 +58,6 @@ pub struct RestoreOptions {
     pub selected: Vec<Summary>,
     /// Target directory for files.
     pub files_dir: Option<ExtractFilesLocation>,
-}
-
-/// Buffers of data to restore after selected options
-/// have been applied to the data in an archive.
-pub struct RestoreTargets {
-    /// The manifest extracted from the archive.
-    pub manifest: Manifest,
-    /// Archive item for the identity vault.
-    pub identity: ArchiveItem,
-    /// List of vaults to restore.
-    pub vaults: Vec<(Vec<u8>, Vault)>,
-    /// Account events.
-    pub account: Option<Vec<u8>>,
-    /// Device vault and events.
-    pub devices: Option<(Vec<u8>, Vec<u8>)>,
-    /// File events.
-    pub files: Option<Vec<u8>>,
-    /// Account-specific preferences.
-    pub preferences: Option<Vec<u8>>,
-    /// Remote server origins.
-    pub remotes: Option<Vec<u8>>,
 }
 
 /// Options to use when building an account manifest.

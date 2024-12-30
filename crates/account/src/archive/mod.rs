@@ -4,6 +4,6 @@ mod zip;
 
 pub use backup::{
     AccountBackup, AccountManifest, ExtractFilesLocation, ManifestEntry,
-    RestoreOptions, RestoreTargets,
+    RestoreOptions,
 };
 pub use zip::*;
