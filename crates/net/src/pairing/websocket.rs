@@ -448,7 +448,7 @@ impl<'a> OfferPairing<'a> {
                 .account
                 .storage()
                 .await
-                .ok_or(sos_sdk::Error::NoStorage)?;
+                .ok_or(sos_account::Error::NoStorage)?;
             let mut writer = storage.write().await;
             writer.patch_devices_unchecked(events).await?;
         }

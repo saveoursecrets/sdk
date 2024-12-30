@@ -234,7 +234,11 @@ impl ServerStorage {
         let (vault, events) = FolderReducer::split(vault).await?;
 
         if id != vault.id() {
-            return Err(Error::VaultIdentifierMismatch(*id, *vault.id()));
+            return Err(sos_sdk::Error::VaultIdentifierMismatch(
+                *id,
+                *vault.id(),
+            )
+            .into());
         }
 
         let vault_path = self.paths.vault_path(id);

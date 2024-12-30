@@ -303,9 +303,11 @@ where
                             let key = account
                                 .find_folder_password(&folder_id)
                                 .await?
-                                .ok_or(SdkError::NoFolderPassword(
-                                    folder_id,
-                                ))?;
+                                .ok_or(
+                                    sos_account::Error::NoFolderPassword(
+                                        folder_id,
+                                    ),
+                                )?;
                             // Import the vault into the account
                             account
                                 .import_folder(

@@ -337,7 +337,7 @@ impl Merge for LocalAccount {
 
         let checked_patch = {
             let storage =
-                self.storage().await.ok_or(sos_sdk::Error::NoStorage)?;
+                self.storage().await.ok_or(sos_account::Error::NoStorage)?;
             let storage = storage.read().await;
             let mut event_log = storage.device_log.write().await;
             event_log
@@ -347,8 +347,10 @@ impl Merge for LocalAccount {
 
         if let CheckedPatch::Success(_) = &checked_patch {
             let devices = {
-                let storage =
-                    self.storage().await.ok_or(sos_sdk::Error::NoStorage)?;
+                let storage = self
+                    .storage()
+                    .await
+                    .ok_or(sos_account::Error::NoStorage)?;
                 let storage = storage.read().await;
                 let event_log = storage.device_log.read().await;
                 let reducer = DeviceReducer::new(&*event_log);
@@ -356,7 +358,7 @@ impl Merge for LocalAccount {
             };
 
             let storage =
-                self.storage().await.ok_or(sos_sdk::Error::NoStorage)?;
+                self.storage().await.ok_or(sos_account::Error::NoStorage)?;
             let mut storage = storage.write().await;
             storage.devices = devices;
 

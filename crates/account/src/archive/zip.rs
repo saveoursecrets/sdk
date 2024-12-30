@@ -1,9 +1,5 @@
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
 
 use async_zip::{

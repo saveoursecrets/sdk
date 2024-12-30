@@ -1,6 +1,6 @@
 //! Synchronization types that are used internally.
 use crate::{
-    CreateSet, Error, MaybeDiff, MergeOutcome, Origin, Result, SyncCompare,
+    CreateSet, MaybeDiff, MergeOutcome, Origin, Result, SyncCompare,
     SyncDiff, SyncStatus,
 };
 use sos_core::{

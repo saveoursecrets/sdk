@@ -254,8 +254,10 @@ impl NetworkAccount {
         // Update the local device event log
         {
             let account = self.account.lock().await;
-            let storage =
-                account.storage().await.ok_or(sos_sdk::Error::NoStorage)?;
+            let storage = account
+                .storage()
+                .await
+                .ok_or(sos_account::Error::NoStorage)?;
             let mut storage = storage.write().await;
             storage.revoke_device(device_key).await?;
         }
@@ -499,7 +501,7 @@ impl NetworkAccount {
     #[cfg(feature = "files")]
     async fn start_file_transfers(&mut self) -> Result<()> {
         if !self.is_authenticated().await {
-            return Err(crate::sdk::Error::NotAuthenticated.into());
+            return Err(sos_account::Error::NotAuthenticated.into());
         }
 
         if self.offline {
@@ -671,7 +673,7 @@ impl NetworkAccount {
             .file_transfers
             .as_ref()
             .map(|t| Arc::clone(&t.inflight))
-            .ok_or_else(|| crate::sdk::Error::NotAuthenticated)?)
+            .ok_or_else(|| sos_account::Error::NotAuthenticated)?)
     }
 
     /// Convert file mutation events into file transfer queue entries.

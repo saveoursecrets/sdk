@@ -27,12 +27,12 @@ pub enum Error {
 
     /// Error generated when a path is not a file.
     #[error("path {0} is not a file")]
+    #[deprecated]
     NotFile(PathBuf),
 
     /// Error generated accessing an account that is not
     /// authenticated.
     #[error("account not authenticated, sign in required")]
-    #[deprecated]
     NotAuthenticated,
 
     /// Error generated when no storage is configured.
@@ -386,6 +386,7 @@ pub enum Error {
     /// Error generated when an archive signing key address
     /// does not match the address in the archive manifest.
     #[error("archive manifest address does not match identity signing key address")]
+    #[deprecated]
     ArchiveAddressMismatch,
 
     /// Error generated when an archive does not contain a default vault.
@@ -632,6 +633,7 @@ pub enum Error {
 
     /// Error generated when walking a directory.
     #[error(transparent)]
+    #[deprecated]
     Walk(#[from] walkdir::Error),
 
     /// Error generated when stripping a prefix from a path.

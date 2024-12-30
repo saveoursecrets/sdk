@@ -11,10 +11,13 @@ use tokio::io::{AsyncBufRead, AsyncSeek, BufReader};
 use uuid::Uuid;
 use walkdir::WalkDir;
 
-use crate::archive::{Inventory, Reader, Writer};
+use crate::{
+    archive::{Inventory, Reader, Writer},
+    Error, Result,
+};
 
 use sos_sdk::{
-    archive::{ArchiveItem, Manifest, RestoreTargets},
+    archive::RestoreTargets,
     constants::VAULT_EXT,
     crypto::AccessKey,
     decode,
@@ -27,7 +30,7 @@ use sos_sdk::{
         secret::SecretId, Summary, Vault, VaultAccess, VaultId, VaultWriter,
     },
     vfs::{self, File},
-    Error, Paths, Result,
+    Paths,
 };
 
 use secrecy::SecretString;
@@ -385,7 +388,7 @@ impl AccountBackup {
         archive: R,
     ) -> Result<Inventory> {
         let mut reader = Reader::new(archive).await?;
-        reader.inventory().await
+        Ok(reader.inventory().await?)
     }
 
     /// Import from an archive.
