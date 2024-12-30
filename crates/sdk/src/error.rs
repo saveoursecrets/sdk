@@ -464,6 +464,7 @@ pub enum Error {
 
     /// Error generated when an external file could not be parsed.
     #[error("external file reference '{0}' could not be parsed")]
+    #[deprecated]
     InvalidExternalFile(String),
 
     /// Error generated when an address has the wrong prefix.

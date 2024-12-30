@@ -12,6 +12,10 @@ pub enum Error {
     #[error("commit tree does not have a last commit")]
     NoLastCommit,
 
+    /// Error generated when an external file could not be parsed.
+    #[error("external file reference '{0}' could not be parsed")]
+    InvalidExternalFile(String),
+
     /// Error generated converting to fixed length slice.
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),
@@ -19,4 +23,8 @@ pub enum Error {
     /// Error generated converting from hexadecimal.
     #[error(transparent)]
     Hex(#[from] hex::FromHexError),
+
+    /// Error generated converting from UUID.
+    #[error(transparent)]
+    Uuid(#[from] uuid::Error),
 }

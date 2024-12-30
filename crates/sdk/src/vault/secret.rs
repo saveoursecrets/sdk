@@ -35,21 +35,7 @@ use crate::{
 
 use std::path::PathBuf;
 
-/// Path to a secret.
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SecretPath(pub VaultId, pub SecretId);
-
-impl SecretPath {
-    /// Folder identifier.
-    pub fn folder_id(&self) -> &VaultId {
-        &self.0
-    }
-
-    /// Secret identifier.
-    pub fn secret_id(&self) -> &SecretId {
-        &self.1
-    }
-}
+pub use sos_core::SecretPath;
 
 bitflags! {
     /// Bit flags for a secret.

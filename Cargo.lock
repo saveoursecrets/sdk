@@ -5086,6 +5086,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.9",
  "url",
+ "uuid",
 ]
 
 [[package]]

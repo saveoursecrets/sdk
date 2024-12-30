@@ -2,11 +2,11 @@
 use crate::{
     integrity::IntegrityFailure,
     sha2::{Digest, Sha256},
-    storage::files::ExternalFile,
     vfs, Paths, Result,
 };
 use futures::StreamExt;
 use indexmap::IndexSet;
+use sos_core::ExternalFile;
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::{
     mpsc::{self, Receiver, Sender},

@@ -6,17 +6,41 @@
 pub mod commit;
 pub mod constants;
 mod error;
+mod file;
 mod origin;
 
 pub use error::Error;
+pub use file::{ExternalFile, ExternalFileName};
 pub use origin::Origin;
-
 pub use rs_merkle as merkle;
 
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;
 
+use serde::{Deserialize, Serialize};
 use std::path::Path;
+
+/// Identifier for a vault.
+pub type VaultId = uuid::Uuid;
+
+/// Identifier for a secret.
+pub type SecretId = uuid::Uuid;
+
+/// Path to a secret.
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SecretPath(pub VaultId, pub SecretId);
+
+impl SecretPath {
+    /// Folder identifier.
+    pub fn folder_id(&self) -> &VaultId {
+        &self.0
+    }
+
+    /// Secret identifier.
+    pub fn secret_id(&self) -> &SecretId {
+        &self.1
+    }
+}
 
 /// Infallibly compute the base file name from a path.
 ///

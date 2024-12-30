@@ -262,11 +262,12 @@ mod files {
     use crate::{
         commit::CommitHash,
         events::{EventLogExt, FileEvent, FileEventLog},
-        storage::files::ExternalFile,
         Result,
     };
+
     use futures::{pin_mut, stream::StreamExt};
     use indexmap::IndexSet;
+    use sos_core::ExternalFile;
 
     /// Reduce file events to a collection of external files.
     pub struct FileReducer<'a> {
