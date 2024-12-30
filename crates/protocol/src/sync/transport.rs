@@ -12,14 +12,8 @@ use crate::sdk::{
 };
 use crate::sync::MaybeConflict;
 use indexmap::{IndexMap, IndexSet};
-use serde::{Deserialize, Serialize};
 use sos_sdk::events::WriteEvent;
-use std::{
-    collections::HashMap,
-    fmt,
-    hash::{Hash, Hasher},
-};
-use url::Url;
+use std::{collections::HashMap, hash::Hash};
 
 #[cfg(feature = "files")]
 use crate::sdk::{
@@ -27,6 +21,8 @@ use crate::sdk::{
     storage::files::{ExternalFile, ExternalFileName},
     vault::secret::SecretPath,
 };
+
+pub use sos_core::Origin;
 
 /// Types of event logs.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -44,6 +40,7 @@ pub enum EventLogType {
     Folder(VaultId),
 }
 
+/*
 /// Server origin information.
 #[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub struct Origin {
@@ -92,6 +89,7 @@ impl From<Url> for Origin {
         Self { name, url }
     }
 }
+*/
 
 /// Combined sync status, diff and comparisons.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

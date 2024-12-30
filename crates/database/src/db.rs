@@ -15,7 +15,7 @@ use sos_sdk::prelude::{
     FormatStreamIterator,
     VaultId,
 };
-use sos_protocol::Origin;
+use sos_core::Origin;
 use std::{collections::HashMap, path::Path};
 
 /// Create global values in the database.

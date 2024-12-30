@@ -24,6 +24,8 @@ migrate = ["sos-sdk/migrate"]
 search = ["sos-sdk/search"]
 
 [dependencies]
+sos-core.workspace = true
+
 thiserror.workspace = true
 tracing.workspace = true
 async-trait.workspace = true

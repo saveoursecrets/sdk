@@ -5043,6 +5043,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-core"
+version = "0.16.0"
+dependencies = [
+ "serde",
+ "url",
+]
+
+[[package]]
 name = "sos-database"
 version = "0.1.0"
 dependencies = [
@@ -5051,7 +5059,7 @@ dependencies = [
  "futures",
  "refinery",
  "serde_json",
- "sos-protocol",
+ "sos-core",
  "sos-sdk",
  "tempfile",
  "thiserror 1.0.69",
@@ -5197,6 +5205,7 @@ dependencies = [
  "rustc_version",
  "serde",
  "serde_json",
+ "sos-core",
  "sos-sdk",
  "thiserror 2.0.9",
  "tokio",

@@ -1,0 +1,12 @@
+[package]
+name = "sos-core"
+version = "0.16.0"
+edition = "2021"
+description = "Shared types for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[dependencies]
+serde.workspace = true
+url.workspace = true
