@@ -5,7 +5,7 @@ use sos_protocol::{
             ecdsa::Address,
             ed25519::{self, Verifier, VerifyingKey},
         },
-        storage::DiscFolder,
+        vault::DiscFolder,
         vfs, Paths,
     },
     CreateSet, MergeOutcome, SyncStorage, UpdateSet,

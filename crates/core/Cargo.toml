@@ -17,6 +17,7 @@ serde.workspace = true
 url.workspace = true
 rs_merkle.workspace = true
 hex.workspace = true
+mime_guess.workspace = true
 
 [build-dependencies]
 rustc_version = "0.4.1"

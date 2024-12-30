@@ -21,6 +21,8 @@ use uuid::Uuid;
 use vcard4::{self, Vcard};
 use zxcvbn::Entropy;
 
+use sos_core::{basename, guess_mime};
+
 use crate::{
     passwd::generator::measure_entropy,
     signer::{
@@ -2190,10 +2192,10 @@ impl TryFrom<PathBuf> for Secret {
     fn try_from(path: PathBuf) -> Result<Self> {
         Ok(Secret::File {
             content: FileContent::External {
-                name: crate::storage::basename(&path),
+                name: basename(&path),
                 size: 0,
                 checksum: [0; 32],
-                mime: crate::storage::guess_mime(&path)?,
+                mime: guess_mime(&path)?,
                 path: Some(path),
             },
             user_data: Default::default(),

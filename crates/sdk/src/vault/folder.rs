@@ -14,13 +14,12 @@ use crate::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Gatekeeper, Vault, VaultCommit, VaultId, VaultMeta, VaultWriter,
     },
-    vfs, Error, Paths, Result,
+    vfs, Paths, Result,
 };
 
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::{borrow::Cow, path::Path, sync::Arc};
 use tokio::sync::RwLock;
-
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 /// Folder that writes events to disc.
 pub type DiscFolder = Folder<FolderEventLog, DiscLog, DiscLog, DiscData>;
@@ -211,17 +210,14 @@ where
     }
 
     /// Apply events to the event log.
-    pub(super) async fn apply(
-        &mut self,
-        events: Vec<&WriteEvent>,
-    ) -> Result<()> {
+    pub async fn apply(&mut self, events: Vec<&WriteEvent>) -> Result<()> {
         let mut event_log = self.events.write().await;
         event_log.apply(events).await?;
         Ok(())
     }
 
     /// Apply event recordds to the event log.
-    pub(super) async fn apply_records(
+    pub async fn apply_records(
         &mut self,
         records: Vec<EventRecord>,
     ) -> Result<()> {
@@ -231,7 +227,7 @@ where
     }
 
     /// Clear events from the event log.
-    pub(super) async fn clear(&mut self) -> Result<()> {
+    pub async fn clear(&mut self) -> Result<()> {
         let mut event_log = self.events.write().await;
         event_log.clear().await?;
         Ok(())

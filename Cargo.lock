@@ -5080,6 +5080,7 @@ name = "sos-core"
 version = "0.16.0"
 dependencies = [
  "hex",
+ "mime_guess",
  "rs_merkle",
  "rustc_version",
  "serde",

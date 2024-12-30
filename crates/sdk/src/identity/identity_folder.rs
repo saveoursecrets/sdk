@@ -20,11 +20,10 @@ use crate::{
         ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
         ed25519, Signer,
     },
-    storage::{DiscFolder, Folder, MemoryFolder},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
-        BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
-        VaultId, VaultWriter,
+        BuilderCredentials, DiscFolder, Folder, Gatekeeper, MemoryFolder,
+        Vault, VaultBuilder, VaultFlags, VaultId, VaultWriter,
     },
     vfs, Error, Paths, Result,
 };

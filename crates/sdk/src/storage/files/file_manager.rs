@@ -5,7 +5,6 @@ use super::{list_folder_files, SecretPath};
 use crate::{
     events::{EventLogExt, FileEvent},
     storage::{
-        basename,
         files::{EncryptedFile, FileStorage},
         ClientStorage,
     },
@@ -15,6 +14,7 @@ use crate::{
     },
     vfs, Error, Result,
 };
+use sos_core::basename;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},

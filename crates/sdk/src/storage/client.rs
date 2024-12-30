@@ -1,7 +1,7 @@
 //! Storage backed by the filesystem.
 use crate::{
     commit::{CommitHash, CommitState},
-    constants::VAULT_EXT,
+    constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
     decode, encode,
     events::{
@@ -11,13 +11,12 @@ use crate::{
     },
     identity::FolderKeys,
     passwd::diceware::generate_passphrase,
-    prelude::{VaultFlags, EVENT_LOG_EXT},
     signer::ecdsa::Address,
-    storage::{AccessOptions, AccountPack, DiscFolder, NewFolderOptions},
+    storage::{AccessOptions, AccountPack, NewFolderOptions},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
-        BuilderCredentials, ChangePassword, FolderRef, Header, Summary,
-        Vault, VaultBuilder, VaultCommit, VaultId,
+        BuilderCredentials, ChangePassword, DiscFolder, FolderRef, Header,
+        Summary, Vault, VaultBuilder, VaultCommit, VaultFlags, VaultId,
     },
     vfs, Error, Paths, Result, UtcDateTime,
 };
