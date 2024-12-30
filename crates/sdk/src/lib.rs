@@ -71,6 +71,7 @@ pub mod logs;
 pub mod migrate;
 
 pub mod passwd;
+pub(crate) mod paths;
 pub mod prelude;
 
 #[doc(hidden)]
@@ -84,7 +85,7 @@ pub mod vault;
 pub use date_time::UtcDateTime;
 pub use encoding::{decode, encode};
 pub use error::Error;
-pub use storage::paths::Paths;
+pub use paths::Paths;
 
 // Re-exports
 pub use age;
@@ -114,17 +115,3 @@ pub use xclipboard;
 
 /// Result type for the core library.
 pub type Result<T> = std::result::Result<T, Error>;
-
-/*
-#[cfg(debug_assertions)]
-impl From<&crate::vault::Vault> for crate::commit::CommitTree {
-    fn from(value: &crate::vault::Vault) -> Self {
-        let mut commit_tree = crate::commit::CommitTree::new();
-        for (_, commit) in value.commits() {
-            commit_tree.tree.insert(commit.into());
-        }
-        commit_tree.tree.commit();
-        commit_tree
-    }
-}
-*/
