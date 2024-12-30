@@ -55,7 +55,6 @@ pub mod account;
 #[cfg(feature = "audit")]
 pub mod audit;
 pub mod commit;
-pub mod constants;
 pub mod crypto;
 mod date_time;
 pub mod device;
@@ -105,6 +104,8 @@ pub use urn;
 pub use uuid;
 pub use vcard4;
 pub use zxcvbn;
+
+pub use sos_core::constants;
 
 #[cfg(feature = "clipboard")]
 pub use serde_json_path as json_path;

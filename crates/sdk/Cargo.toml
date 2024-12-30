@@ -32,6 +32,8 @@ recovery = ["dep:vsss-rs"]
 search = ["dep:probly-search"]
 
 [dependencies]
+sos-core.workspace = true
+
 binary-stream.workspace = true
 secrecy.workspace = true
 tokio-util.workspace = true
