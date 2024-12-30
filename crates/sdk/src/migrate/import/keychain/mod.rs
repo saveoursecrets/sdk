@@ -17,7 +17,7 @@ use std::{
 
 use crate::{
     crypto::AccessKey,
-    storage::search::SearchIndex,
+    search::SearchIndex,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Gatekeeper, Vault,

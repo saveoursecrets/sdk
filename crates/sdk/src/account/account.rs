@@ -33,7 +33,7 @@ use crate::{
 };
 
 #[cfg(feature = "search")]
-use crate::storage::search::{DocumentCount, SearchIndex};
+use crate::search::{DocumentCount, SearchIndex};
 
 #[cfg(feature = "audit")]
 use crate::audit::{AuditData, AuditEvent};
@@ -55,7 +55,7 @@ use crate::{
 };
 
 #[cfg(feature = "search")]
-use crate::storage::search::*;
+use crate::search::*;
 
 #[cfg(feature = "migrate")]
 use crate::migrate::{

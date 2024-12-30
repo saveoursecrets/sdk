@@ -20,11 +20,11 @@ pub use crate::migrate::import::*;
 #[cfg(feature = "migrate")]
 pub use crate::migrate::*;
 pub use crate::passwd::*;
+#[cfg(feature = "search")]
+pub use crate::search::*;
 pub use crate::signer::ecdsa::Address;
 #[cfg(feature = "files")]
 pub use crate::storage::files::*;
-#[cfg(feature = "search")]
-pub use crate::storage::search::*;
 pub use crate::storage::*;
 pub use crate::vault::secret::*;
 pub use crate::vault::*;

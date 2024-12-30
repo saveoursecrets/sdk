@@ -44,7 +44,7 @@ pub(crate) enum FolderMergeOptions<'a> {
     Urn(VaultId, &'a mut crate::sdk::identity::UrnLookup),
     /// Update a search index when merging.
     #[cfg(feature = "search")]
-    Search(VaultId, &'a mut crate::sdk::storage::search::SearchIndex),
+    Search(VaultId, &'a mut crate::sdk::search::SearchIndex),
 }
 
 /*

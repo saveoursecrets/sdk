@@ -159,7 +159,7 @@ mod test {
     use crate::{
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
-        storage::search::SearchIndex,
+        search::SearchIndex,
         vault::{BuilderCredentials, Gatekeeper, VaultBuilder},
     };
     use url::Url;

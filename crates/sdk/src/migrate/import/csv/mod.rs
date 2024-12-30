@@ -14,7 +14,7 @@ use vcard4::Vcard;
 
 use crate::{
     crypto::AccessKey,
-    storage::search::SearchIndex,
+    search::SearchIndex,
     vault::{
         secret::{
             IdentityKind, Secret, SecretId, SecretMeta, SecretRow, UserData,

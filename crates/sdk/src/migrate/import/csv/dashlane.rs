@@ -671,7 +671,7 @@ mod test {
     use crate::{
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
-        storage::search::SearchIndex,
+        search::SearchIndex,
         vault::{
             secret::Secret, BuilderCredentials, Gatekeeper, VaultBuilder,
         },

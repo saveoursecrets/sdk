@@ -78,6 +78,9 @@ pub mod prelude;
 #[cfg(feature = "recovery")]
 pub mod recovery;
 
+#[cfg(feature = "search")]
+pub mod search;
+
 pub mod signer;
 pub mod storage;
 pub mod vault;

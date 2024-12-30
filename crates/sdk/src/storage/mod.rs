@@ -15,8 +15,6 @@ mod client;
 #[cfg(feature = "files")]
 pub mod files;
 mod folder;
-#[cfg(feature = "search")]
-pub mod search;
 
 pub use client::ClientStorage;
 pub use folder::{DiscFolder, Folder, MemoryFolder};
