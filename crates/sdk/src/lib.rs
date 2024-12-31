@@ -80,7 +80,6 @@ pub use url;
 pub use urn;
 pub use uuid;
 pub use vcard4;
-pub use zxcvbn;
 
 pub use sos_core::constants;
 

@@ -8,6 +8,8 @@ mod memorable;
 
 pub use error::Error;
 
+pub use zxcvbn;
+
 /// Default cryptographically secure RNG.
 pub(crate) fn csprng() -> impl rand::CryptoRng + rand::Rng {
     rand::rngs::OsRng

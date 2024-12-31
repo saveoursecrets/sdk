@@ -79,6 +79,7 @@ indexmap.workspace = true
 anyhow.workspace = true
 secrecy.workspace = true
 http.workspace = true
+zxcvbn.workspace = true
 
 copy_dir = "0.1"
 maplit2 = "1"

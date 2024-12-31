@@ -8,6 +8,7 @@ use serde::{
     ser::{SerializeMap, SerializeSeq},
     Deserialize, Serialize, Serializer,
 };
+use sos_password::zxcvbn::Entropy;
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
@@ -19,7 +20,6 @@ use url::Url;
 use urn::Urn;
 use uuid::Uuid;
 use vcard4::{self, Vcard};
-use zxcvbn::Entropy;
 
 use sos_core::{basename, guess_mime};
 

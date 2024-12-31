@@ -5012,6 +5012,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "unicode-width 0.2.0",
+ "zxcvbn",
 ]
 
 [[package]]
@@ -5061,6 +5062,7 @@ dependencies = [
  "thiserror 2.0.9",
  "tokio",
  "tracing",
+ "zxcvbn",
 ]
 
 [[package]]
@@ -5161,6 +5163,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "zxcvbn",
 ]
 
 [[package]]
@@ -5349,7 +5352,6 @@ dependencies = [
  "bitflags 2.6.0",
  "bs58",
  "chacha20poly1305",
- "chbs",
  "ed25519-dalek",
  "etcetera",
  "ethereum-types",
@@ -5399,7 +5401,6 @@ dependencies = [
  "vsss-rs",
  "walkdir",
  "whoami",
- "zxcvbn",
 ]
 
 [[package]]

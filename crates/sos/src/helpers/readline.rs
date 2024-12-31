@@ -8,8 +8,9 @@ use rustyline_derive::{Completer, Helper, Hinter, Validator};
 use sos_net::sdk::{
     passwd::generator::measure_entropy,
     secrecy::{ExposeSecret, SecretString},
-    zxcvbn::Score,
 };
+
+use zxcvbn::Score;
 
 use crate::{helpers::messages::fail, Error, Result};
 

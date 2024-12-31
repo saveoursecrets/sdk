@@ -7,9 +7,10 @@ use sos_sdk::{
         secret::{Secret, SecretId, SecretType},
         Gatekeeper, Summary, VaultId,
     },
-    zxcvbn::{Entropy, Score},
     Result,
 };
+
+use zxcvbn::{Entropy, Score};
 
 /// Generate a security report.
 pub async fn generate_security_report<A, E, T, D, R>(

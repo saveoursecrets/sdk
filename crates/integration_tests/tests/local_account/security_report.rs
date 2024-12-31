@@ -2,10 +2,8 @@ use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use secrecy::SecretString;
 use sos_account::{Account, LocalAccount, SecretChange};
-use sos_net::{
-    extras::security_report::*,
-    sdk::{prelude::*, zxcvbn::Score},
-};
+use sos_net::{extras::security_report::*, sdk::prelude::*};
+use zxcvbn::Score;
 
 #[tokio::test]
 async fn local_security_report() -> Result<()> {

@@ -93,10 +93,6 @@ tracing-appender = { version = "0.2", optional = true }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "json"], optional = true }
 rev_buf_reader = { version = "0.3", optional = true }
 
-zxcvbn = { version = "3.0.1", features = ["ser"] }
-chbs.workspace = true
-
-
 [dependencies.probly-search]
 version = "2.0.1"
 optional = true
