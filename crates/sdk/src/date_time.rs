@@ -8,14 +8,12 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use time_tz::{OffsetDateTimeExt, TimeZone};
 
-use filetime::FileTime;
-
 use time::{
     format_description::{
         self,
         well_known::{Rfc2822, Rfc3339},
     },
-    Date, Duration, Month, OffsetDateTime, Time, UtcOffset,
+    Date, Month, OffsetDateTime, Time, UtcOffset,
 };
 
 use crate::Result;
@@ -162,16 +160,6 @@ impl From<OffsetDateTime> for UtcDateTime {
 impl From<UtcDateTime> for OffsetDateTime {
     fn from(value: UtcDateTime) -> Self {
         value.0
-    }
-}
-
-impl TryFrom<FileTime> for UtcDateTime {
-    type Error = crate::Error;
-
-    fn try_from(value: FileTime) -> std::result::Result<Self, Self::Error> {
-        let time = OffsetDateTime::from_unix_timestamp(value.seconds())?
-            + Duration::nanoseconds(value.nanoseconds() as i64);
-        Ok(time.into())
     }
 }
 

@@ -614,11 +614,6 @@ pub enum Error {
     #[error(transparent)]
     AgeDecrypt(#[from] age::DecryptError),
 
-    /// Error generated when walking a directory.
-    #[error(transparent)]
-    #[deprecated]
-    Walk(#[from] walkdir::Error),
-
     /// Error generated when stripping a prefix from a path.
     #[error(transparent)]
     StripPrefix(#[from] std::path::StripPrefixError),

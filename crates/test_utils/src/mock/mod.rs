@@ -2,11 +2,11 @@
 
 use age as age_encryption;
 use anyhow::Result;
+use pem as pem_encoding;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use sos_net::sdk::{
     device::TrustedDevice,
-    pem,
     url::Url,
     vault::secret::{FileContent, IdentityKind, Secret, SecretMeta},
 };
@@ -109,7 +109,7 @@ pub fn list(label: &str, items: HashMap<&str, &str>) -> (SecretMeta, Secret) {
 pub fn pem(label: &str) -> (SecretMeta, Secret) {
     const CERTIFICATE: &str =
         include_str!("../../../../fixtures/mock-cert.pem");
-    let certificates = pem::parse_many(CERTIFICATE).unwrap();
+    let certificates = pem_encoding::parse_many(CERTIFICATE).unwrap();
     let secret_value = Secret::Pem {
         certificates,
         user_data: Default::default(),

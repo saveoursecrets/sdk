@@ -54,12 +54,14 @@ age = { version = "0.11", features = ["async"] }
 argon2 = { version = "0.5", features = ["std"]}
 totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
 aes-gcm = { version = "0.10.1", features = ["std"] }
+chacha20poly1305 = { version = "0.10.1", features = ["std"] }
+balloon-hash = { version = "0.4", features = ["std"]}
+pem = { version = "3", features = ["serde"] }
 
+urn = { version = "0.7", features = ["serde"] }
 async-fd-lock = "0.2"
 thiserror = "2"
 anyhow = "1"
-zstd = "0.13"
-flate2 = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 secrecy = { version = "0.10", features = ["serde"] }

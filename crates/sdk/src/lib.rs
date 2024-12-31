@@ -6,7 +6,7 @@
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 
 //! Software development kit for a
-//! distributed encrypted database that can be used
+//! distributed, encrypted database that can be used
 //! to build password managers, cryptocurrency wallets
 //! or other applications that require storing secrets
 //! securely.
@@ -69,7 +69,6 @@ pub use paths::Paths;
 
 // Re-exports
 pub use hex;
-pub use pem;
 pub use secrecy;
 pub use sos_vfs as vfs;
 pub use time;

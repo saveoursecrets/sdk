@@ -32,7 +32,7 @@ files = []
 logs = ["rev_buf_reader", "tracing-appender", "tracing-subscriber"]
 mem-fs = ["sos-vfs/mem-fs"]
 recovery = ["dep:vsss-rs"]
-search = ["dep:probly-search"]
+search = ["dep:probly-search", "dep:unicode-segmentation"]
 
 [dependencies]
 sos-core.workspace = true
@@ -49,7 +49,6 @@ serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
 hex.workspace = true
-k256.workspace = true
 sha1.workspace = true
 sha2.workspace = true
 sha3.workspace = true
@@ -68,50 +67,48 @@ tempfile.workspace = true
 typeshare.workspace = true
 totp-rs.workspace = true
 vcard4.workspace = true
+urn.workspace = true
+futures-util.workspace = true
+async-stream.workspace = true
+pem.workspace = true
+tokio.workspace = true
 
-subtle = "2.5"
-ethereum-types = "0.15"
-
+# crypto
 age.workspace = true
 argon2.workspace = true
 aes-gcm.workspace = true
+chacha20poly1305.workspace = true
+balloon-hash.workspace = true
 
-chacha20poly1305 = { version = "0.10.1", features = ["std"] }
-balloon-hash = { version = "0.4", features = ["std"]}
-pem = { version = "3", features = ["serde"] }
-
-filetime = "0.2"
-async-once-cell = "0.5"
+# signing
+ethereum-types = "0.15"
+subtle = "2.5"
+k256.workspace = true
 ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
-urn = { version = "0.7", features = ["serde"] }
-walkdir = "2"
-unicode-segmentation = "1.10"
-mime_guess = { version = "2" }
-futures-util.workspace = true
-async-stream = "0.3"
+
+# search
+unicode-segmentation = { version = "1.10", optional = true }
+probly-search = { version = "2.0.1", optional = true }
+
+async-once-cell = "0.5"
 whoami = { version = "1.5" }
 vsss-rs = {version = "3", optional = true }
+
+# logs
 tracing-appender = { version = "0.2", optional = true }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "json"], optional = true }
 rev_buf_reader = { version = "0.3", optional = true }
 
-[dependencies.probly-search]
-version = "2.0.1"
-optional = true
-
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
 etcetera = "0.8"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = {version = "0.2", features = ["js"]}
 uuid = { version = "1", features = ["serde", "v4", "js"] }
-tokio = { version = "1", default-features = false, features = ["rt", "sync", "macros", "io-util"] }
 
 [dev-dependencies]
 anyhow.workspace = true
-tokio = { version = "1", features = ["full"] }
 sos-test-utils.workspace = true
 
 [build-dependencies]
-rustc_version = "0.4.1"
+rustc_version.workspace = true
