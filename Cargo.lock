@@ -5114,7 +5114,7 @@ dependencies = [
  "sos-core",
  "sos-sdk",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.9",
  "tokio",
  "tokio-util",
  "tracing",
@@ -5282,7 +5282,7 @@ dependencies = [
 
 [[package]]
 name = "sos-sdk"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "aes-gcm",
  "age",

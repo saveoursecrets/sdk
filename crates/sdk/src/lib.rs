@@ -5,19 +5,14 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 
-//! High-level software development kit for a
+//! Software development kit for a
 //! distributed encrypted database that can be used
 //! to build password managers, cryptocurrency wallets
 //! or other applications that require storing secrets
 //! securely.
 //!
-//! This library provides primitives for syncing when the `sync`
-//! feature flag is enabled but does not perform any networking,
-//! for networking support use the
-//! [sos-net](https://docs.rs/sos-net/latest/sos_net/) crate.
-//!
-//! The high-level account management API is described in [account::Account]
-//! which is implemented by [account::LocalAccount] for a network aware
+//! A higher-level account management API is described in [sos_account::Account](https://docs.rs/sos-account/latest/sos_account/)
+//! which is implemented by [LocalAccount](https://docs.rs/sos-account/latest/sos_account/). For a network aware
 //! account use [NetworkAccount](https://docs.rs/sos-net/latest/sos_net/client/struct.NetworkAccount.html) in [sos-net](https://docs.rs/sos-net/latest/sos_net/).
 //!
 //! For lower-level access use the types in the [vault] module.
@@ -28,7 +23,7 @@
 //! * `archive` Shared types for account backup archives.
 //! * `contacts` Manage account contacts.
 //! * `files` Store external encrypted files.
-//! * `logs` File log support.
+//! * `logs` Log file support.
 //! * `migrate` Import and export unencrypted secrets.
 //! * `search` In-memory search index.
 //!
