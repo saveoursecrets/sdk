@@ -5451,7 +5451,9 @@ dependencies = [
 name = "sos-test-utils"
 version = "0.1.0"
 dependencies = [
+ "age",
  "anyhow",
+ "argon2",
  "axum-server",
  "copy_dir",
  "futures",

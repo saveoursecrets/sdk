@@ -1,6 +1,5 @@
 //! Test utility functions.
 use sos_net::sdk::{
-    argon2::password_hash::SaltString,
     crypto::{KeyDerivation, PrivateKey},
     encode,
     events::{EventLogExt, FolderEventLog, WriteEvent},
@@ -12,6 +11,7 @@ use sos_net::sdk::{
     },
 };
 
+use argon2::password_hash::SaltString;
 use sha2::{Digest, Sha256};
 use sos_core::commit::CommitHash;
 use std::io::Write;

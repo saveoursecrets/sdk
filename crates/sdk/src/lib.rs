@@ -68,8 +68,6 @@ pub use error::Error;
 pub use paths::Paths;
 
 // Re-exports
-pub use age;
-pub use argon2;
 pub use hex;
 pub use pem;
 pub use secrecy;

@@ -51,7 +51,9 @@ tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"]}
 async-stream = "0.3"
 
 age = { version = "0.11", features = ["async"] }
+argon2 = { version = "0.5", features = ["std"]}
 totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
+aes-gcm = { version = "0.10.1", features = ["std"] }
 
 async-fd-lock = "0.2"
 thiserror = "2"

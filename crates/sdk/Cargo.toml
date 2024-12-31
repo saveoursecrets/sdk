@@ -67,19 +67,21 @@ bitflags.workspace = true
 tempfile.workspace = true
 typeshare.workspace = true
 totp-rs.workspace = true
+vcard4.workspace = true
 
-subtle = { version = "2.5" }
+subtle = "2.5"
 ethereum-types = "0.15"
 
-aes-gcm = { version = "0.10.1", features = ["std"] }
+age.workspace = true
+argon2.workspace = true
+aes-gcm.workspace = true
+
 chacha20poly1305 = { version = "0.10.1", features = ["std"] }
-filetime = "0.2"
-argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
 pem = { version = "3", features = ["serde"] }
-vcard4.workspace = true
+
+filetime = "0.2"
 async-once-cell = "0.5"
-age.workspace = true
 ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
 urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"

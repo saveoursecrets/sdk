@@ -1,10 +1,10 @@
 //! Mock data.
 
+use age as age_encryption;
 use anyhow::Result;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use sos_net::sdk::{
-    age,
     device::TrustedDevice,
     pem,
     url::Url,
@@ -168,7 +168,7 @@ pub fn password(label: &str, password: SecretString) -> (SecretMeta, Secret) {
 pub fn age(label: &str) -> (SecretMeta, Secret) {
     let secret_value = Secret::Age {
         version: Default::default(),
-        key: age::x25519::Identity::generate().to_string(),
+        key: age_encryption::x25519::Identity::generate().to_string(),
         user_data: Default::default(),
     };
     let secret_meta = SecretMeta::new(label.to_string(), secret_value.kind());

@@ -23,6 +23,8 @@ tokio-rustls.workspace = true
 rustls.workspace = true
 sha2.workspace = true
 anyhow.workspace = true
+age.workspace = true
+argon2.workspace = true
 
 tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
 pretty_assertions = "1.4"
