@@ -54,6 +54,7 @@ sos-sdk.workspace = true
 sos-database.workspace = true
 sos-protocol = { workspace = true, features = ["network-client"] }
 sos-migrate = { workspace = true, optional = true }
+sos-account-extras = { workspace = true, optional = true }
 
 tokio-util.workspace = true
 thiserror.workspace = true
@@ -83,13 +84,8 @@ snow = { version = "0.9", optional = true }
 
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync"] }
 
-[dependencies.sos-account-extras]
-version = "0.16"
-path = "../account_extras/"
-optional = true
-
 [dev-dependencies]
-anyhow = "1"
+anyhow.workspace = true
 
 [build-dependencies]
-rustc_version = "0.4.1"
+rustc_version.workspace = true

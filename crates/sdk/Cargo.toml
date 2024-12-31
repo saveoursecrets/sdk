@@ -29,7 +29,6 @@ archive = []
 audit = []
 contacts = []
 files = []
-interactive-keychain-tests = []
 logs = ["rev_buf_reader", "tracing-appender", "tracing-subscriber"]
 mem-fs = ["sos-vfs/mem-fs"]
 recovery = ["dep:vsss-rs"]
@@ -37,6 +36,7 @@ search = ["dep:probly-search"]
 
 [dependencies]
 sos-core.workspace = true
+sos-password.workspace = true
 sos-vfs.workspace = true
 
 binary-stream.workspace = true
@@ -77,7 +77,6 @@ filetime = "0.2"
 argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
 pem = { version = "3", features = ["serde"] }
-zxcvbn = { version = "3.0.1", features = ["ser"] }
 vcard4.workspace = true
 async-once-cell = "0.5"
 age.workspace = true
@@ -94,6 +93,10 @@ tracing-appender = { version = "0.2", optional = true }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "json"], optional = true }
 rev_buf_reader = { version = "0.3", optional = true }
 
+zxcvbn = { version = "3.0.1", features = ["ser"] }
+chbs.workspace = true
+
+
 [dependencies.probly-search]
 version = "2.0.1"
 optional = true
@@ -106,9 +109,6 @@ etcetera = "0.8"
 getrandom = {version = "0.2", features = ["js"]}
 uuid = { version = "1", features = ["serde", "v4", "js"] }
 tokio = { version = "1", default-features = false, features = ["rt", "sync", "macros", "io-util"] }
-
-[dependencies.chbs]
-version = "0.1.1"
 
 [dev-dependencies]
 anyhow.workspace = true

@@ -4999,6 +4999,7 @@ dependencies = [
  "sos-database",
  "sos-migrate",
  "sos-net",
+ "sos-password",
  "sos-protocol",
  "sos-sdk",
  "tempfile",
@@ -5114,6 +5115,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sos-core",
+ "sos-password",
  "sos-sdk",
  "tempfile",
  "thiserror 2.0.9",
@@ -5266,6 +5268,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-password"
+version = "0.16.0"
+dependencies = [
+ "anyhow",
+ "chbs",
+ "once_cell",
+ "rand",
+ "rustc_version",
+ "secrecy",
+ "thiserror 2.0.9",
+ "zxcvbn",
+]
+
+[[package]]
 name = "sos-platform-authenticator"
 version = "0.1.0"
 dependencies = [
@@ -5357,6 +5373,7 @@ dependencies = [
  "sha2",
  "sha3",
  "sos-core",
+ "sos-password",
  "sos-test-utils",
  "sos-vfs",
  "subtle",

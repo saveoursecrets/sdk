@@ -4,7 +4,7 @@ use rand::Rng;
 use secrecy::{ExposeSecret, SecretString};
 use zxcvbn::{zxcvbn, Entropy};
 
-use crate::{crypto::csprng, Result};
+use crate::{csprng, Result};
 
 const ROMAN_LOWER: &str = "abcdefghijklmnopqrstuvwxyz";
 const ROMAN_UPPER: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";

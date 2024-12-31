@@ -48,7 +48,7 @@ pub mod integrity;
 #[cfg(feature = "logs")]
 pub mod logs;
 
-pub mod passwd;
+pub use sos_password as passwd;
 pub(crate) mod paths;
 pub mod prelude;
 
