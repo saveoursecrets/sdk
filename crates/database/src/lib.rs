@@ -1,3 +1,4 @@
+//! Database storage layer for the [Save Our Secrets](https://saveoursecrets.com) SDK.
 pub mod db;
 mod error;
 pub mod importer;
