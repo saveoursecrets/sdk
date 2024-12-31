@@ -1,6 +1,6 @@
 [package]
 name = "sos-migrate"
-version = "0.16.0"
+version = "0.16.1"
 edition = "2021"
 description = "Import and export for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
@@ -8,6 +8,14 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [features]
+full = [
+  "authenticator",
+  "import",
+  "export",
+]
+authenticator = []
+import = []
+export = []
 keychain-access = ["dep:security-framework", "dep:keychain_parser"]
 interactive-keychain-tests = []
 

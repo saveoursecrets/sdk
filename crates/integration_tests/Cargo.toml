@@ -31,7 +31,7 @@ workspace = true
 
 [dependencies.sos-migrate]
 workspace = true
-# features = ["full"]
+features = ["full"]
 
 [dependencies.sos-account-extras]
 workspace = true

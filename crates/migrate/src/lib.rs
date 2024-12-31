@@ -8,9 +8,11 @@
 use async_trait::async_trait;
 use sos_sdk::{crypto::AccessKey, vault::Vault};
 
+#[cfg(feature = "authenticator")]
 mod authenticator;
 mod error;
 
+#[cfg(feature = "authenticator")]
 pub use authenticator::*;
 pub use error::Error;
 
@@ -33,5 +35,7 @@ pub trait Convert {
     ) -> crate::Result<Vault>;
 }
 
+#[cfg(feature = "export")]
 pub mod export;
+#[cfg(feature = "import")]
 pub mod import;
