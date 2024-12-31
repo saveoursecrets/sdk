@@ -11,7 +11,9 @@ use sos_sdk::{
 };
 
 #[cfg(feature = "search")]
-use sos_sdk::search::{ArchiveFilter, Document, DocumentView, QueryFilter};
+use sos_database::search::{
+    ArchiveFilter, Document, DocumentView, QueryFilter,
+};
 
 #[cfg(feature = "clipboard")]
 use {crate::ClipboardCopyRequest, xclipboard::Clipboard};

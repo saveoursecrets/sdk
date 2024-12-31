@@ -46,7 +46,7 @@ use sos_sdk::events::{FileEvent, FileEventLog};
 use crate::storage::files::FileMutationEvent;
 
 #[cfg(feature = "search")]
-use sos_sdk::search::{AccountSearch, DocumentCount};
+use crate::search::{AccountSearch, DocumentCount};
 
 /// Storage change event with an optional
 /// collection of file mutation events.

@@ -36,7 +36,7 @@ clipboard = ["dep:xclipboard", "dep:serde_json_path", "dep:time-tz"]
 contacts = ["dep:vcard4"]
 migrate = ["sos-migrate"]
 files =["sos-sdk/files", "sos-database/files", "dep:walkdir"]
-search =["sos-sdk/search", "sos-database/search"]
+search =["sos-database/search"]
 
 [dependencies]
 sos-core.workspace = true

@@ -52,7 +52,7 @@ use {
 };
 
 #[cfg(feature = "search")]
-use crate::sdk::prelude::{
+use sos_database::search::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
     QueryFilter, SearchIndex,
 };

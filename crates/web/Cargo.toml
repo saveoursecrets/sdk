@@ -25,7 +25,7 @@ clipboard = []
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = []
 migrate = ["sos-account/migrate", "sos-migrate"]
-search = ["sos-sdk/search", "sos-protocol/search"]
+search = ["sos-database/search", "sos-protocol/search"]
 
 [dependencies]
 sos-core.workspace = true

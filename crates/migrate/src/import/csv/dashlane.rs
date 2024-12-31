@@ -663,10 +663,10 @@ mod test {
     use crate::Convert;
     use anyhow::Result;
 
+    use sos_database::search::SearchIndex;
     use sos_sdk::{
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
-        search::SearchIndex,
         vault::{
             secret::Secret, BuilderCredentials, Gatekeeper, VaultBuilder,
         },

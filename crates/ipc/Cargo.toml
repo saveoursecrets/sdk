@@ -26,7 +26,7 @@ clipboard = ["sos-account/clipboard"]
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = ["sos-sdk/files", "sos-protocol/files"]
 migrate = ["sos-account/migrate"]
-search = ["sos-sdk/search", "sos-protocol/search"]
+search = ["sos-database/search", "sos-protocol/search"]
 extension-helper-server = [
   "memory-http-server",
   "open",

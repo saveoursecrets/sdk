@@ -8,8 +8,6 @@ pub use crate::events::*;
 pub use crate::formats::*;
 pub use crate::identity::*;
 pub use crate::passwd::*;
-#[cfg(feature = "search")]
-pub use crate::search::*;
 pub use crate::signer::ecdsa::Address;
 pub use crate::vault::secret::*;
 pub use crate::vault::*;

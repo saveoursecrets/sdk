@@ -12,9 +12,10 @@ use std::collections::{HashMap, HashSet};
 use url::Url;
 use vcard4::Vcard;
 
+use crate::Convert;
+use sos_database::search::SearchIndex;
 use sos_sdk::{
     crypto::AccessKey,
-    search::SearchIndex,
     vault::{
         secret::{
             IdentityKind, Secret, SecretId, SecretMeta, SecretRow, UserData,
@@ -23,8 +24,6 @@ use sos_sdk::{
     },
     UtcDateTime,
 };
-
-use crate::Convert;
 
 /// Default label for CSV records when a title is not available.
 pub const UNTITLED: &str = "Untitled";

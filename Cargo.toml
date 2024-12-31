@@ -85,7 +85,13 @@ typeshare = "1"
 http = "1"
 uuid = { version = "1", features = ["serde", "v4"] }
 hex = { version = "0.4", features = ["serde"] }
+
+# signing
 k256 = { version = "0.13.1", features = ["ecdsa"] }
+subtle = "2.5"
+ethereum-types = "0.15"
+ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
+
 # matches the version in k256
 sha1 = "0.10.6"
 sha2 = "0.10.6"

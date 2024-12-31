@@ -51,7 +51,7 @@ use {
 };
 
 #[cfg(feature = "search")]
-use sos_sdk::prelude::{
+use sos_database::search::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
     QueryFilter, SearchIndex,
 };

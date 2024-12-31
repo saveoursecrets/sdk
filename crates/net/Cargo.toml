@@ -41,7 +41,7 @@ migrate = ["sos-account/migrate", "sos-migrate"]
 keychain-access = ["sos-migrate/keychain-access"]
 recovery = ["sos-sdk/recovery"]
 pairing = ["dep:snow", "sos-protocol/pairing"]
-search = ["sos-sdk/search", "sos-protocol/search"]
+search = ["sos-database/search", "sos-protocol/search"]
 
 preferences = ["sos-account-extras/preferences"]
 security-report = ["sos-account-extras/security-report"]

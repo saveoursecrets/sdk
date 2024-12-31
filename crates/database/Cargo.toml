@@ -21,7 +21,12 @@ full = [
 archive = ["sos-sdk/archive"]
 audit = ["sos-sdk/audit"]
 files = ["sos-sdk/files", "dep:tokio-util", "dep:age"]
-search = ["sos-sdk/search"]
+search = [
+  "dep:probly-search",
+  "dep:unicode-segmentation",
+  "dep:url",
+  "dep:vcard4",
+]
 
 [dependencies]
 sos-core.workspace = true
@@ -38,9 +43,16 @@ async-trait.workspace = true
 secrecy.workspace = true
 sha2.workspace = true
 serde.workspace = true
+typeshare.workspace = true
 
 tokio-util = { workspace = true, optional = true }
 age  = { workspace = true, optional = true }
+
+# search
+unicode-segmentation = { workspace = true, optional = true }
+probly-search = { workspace = true, optional = true }
+url  = { workspace = true, optional = true }
+vcard4 = { workspace = true, optional = true }
 
 async-sqlite = "0.3"
 refinery = {version = "0.8", git = "https://github.com/rust-db/refinery", features = ["rusqlite"]}

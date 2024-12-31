@@ -5114,6 +5114,7 @@ dependencies = [
  "async-trait",
  "futures",
  "indexmap 2.7.0",
+ "probly-search",
  "refinery",
  "secrecy",
  "serde",
@@ -5127,7 +5128,11 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "typeshare",
+ "unicode-segmentation",
+ "url",
  "uuid",
+ "vcard4",
 ]
 
 [[package]]
@@ -5257,6 +5262,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sos-core",
+ "sos-database",
  "sos-sdk",
  "sos-test-utils",
  "tempfile",
@@ -5401,7 +5407,6 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "pem",
- "probly-search",
  "rand",
  "rustc_version",
  "secrecy",
@@ -5425,7 +5430,6 @@ dependencies = [
  "totp-rs",
  "tracing",
  "typeshare",
- "unicode-segmentation",
  "url",
  "urn",
  "uuid",

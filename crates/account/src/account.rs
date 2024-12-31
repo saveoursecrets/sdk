@@ -36,7 +36,7 @@ use sos_database::storage::{
 };
 
 #[cfg(feature = "search")]
-use sos_sdk::search::{DocumentCount, SearchIndex};
+use sos_database::search::{DocumentCount, SearchIndex};
 
 #[cfg(feature = "audit")]
 use sos_sdk::audit::{AuditData, AuditEvent};
@@ -58,7 +58,7 @@ use {
 };
 
 #[cfg(feature = "search")]
-use sos_sdk::search::*;
+use sos_database::search::*;
 
 #[cfg(feature = "migrate")]
 use sos_migrate::{

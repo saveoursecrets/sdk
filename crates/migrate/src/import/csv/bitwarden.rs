@@ -154,9 +154,10 @@ mod test {
     use sos_sdk::{
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
-        search::SearchIndex,
         vault::{BuilderCredentials, Gatekeeper, VaultBuilder},
     };
+
+    use sos_database::search::SearchIndex;
     use url::Url;
 
     #[tokio::test]

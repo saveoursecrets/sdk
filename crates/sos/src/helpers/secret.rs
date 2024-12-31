@@ -9,9 +9,7 @@ use terminal_banner::{Banner, Padding};
 use secrecy::{ExposeSecret, SecretString};
 use sos_account::Account;
 use sos_net::sdk::{
-    hex,
-    search::Document,
-    secrecy,
+    hex, secrecy,
     url::Url,
     vault::{
         secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
@@ -30,6 +28,7 @@ use crate::{
     },
     Error, Result,
 };
+use sos_database::search::Document;
 
 use super::{account::Owner, set_clipboard_text};
 

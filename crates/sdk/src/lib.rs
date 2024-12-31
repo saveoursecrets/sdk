@@ -26,7 +26,6 @@
 //! * `archive` Shared types for account backup archives.
 //! * `contacts` Manage account contacts.
 //! * `files` Store external encrypted files.
-//! * `search` In-memory search index.
 //!
 
 #[cfg(feature = "archive")]
@@ -43,16 +42,12 @@ pub mod events;
 pub mod formats;
 pub mod identity;
 
-pub use sos_password as passwd;
 pub(crate) mod paths;
 pub mod prelude;
 
 #[doc(hidden)]
 #[cfg(feature = "recovery")]
 pub mod recovery;
-
-#[cfg(feature = "search")]
-pub mod search;
 
 pub mod signer;
 pub mod vault;
@@ -73,7 +68,10 @@ pub use urn;
 pub use uuid;
 pub use vcard4;
 
+// Deprecated re-exports for backwards compatibility
+// DO NOT USE - they will be removed in the future
 pub use sos_core::constants;
+pub use sos_password as passwd;
 
-/// Result type for the core library.
+/// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;

@@ -22,7 +22,6 @@ full = [
   "audit",
   "contacts",
   "files",
-  "search",
 ]
 archive = []
 audit = []
@@ -30,7 +29,6 @@ contacts = []
 files = []
 mem-fs = ["sos-vfs/mem-fs"]
 recovery = ["dep:vsss-rs"]
-search = ["dep:probly-search", "dep:unicode-segmentation"]
 
 [dependencies]
 sos-core.workspace = true
@@ -83,10 +81,6 @@ k256.workspace = true
 ethereum-types = "0.15"
 subtle = "2.5"
 ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
-
-# search
-unicode-segmentation = { workspace = true, optional = true }
-probly-search = { workspace = true, optional = true }
 
 async-once-cell = "0.5"
 

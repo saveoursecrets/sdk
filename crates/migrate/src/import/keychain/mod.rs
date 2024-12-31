@@ -17,12 +17,13 @@ use std::{
 
 use sos_sdk::{
     crypto::AccessKey,
-    search::SearchIndex,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         Gatekeeper, Vault,
     },
 };
+
+use sos_database::search::SearchIndex;
 
 use keychain_parser::{AttributeName, KeychainParser};
 use secrecy::{ExposeSecret, SecretString};

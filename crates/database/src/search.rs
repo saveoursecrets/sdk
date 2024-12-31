@@ -1,5 +1,7 @@
 //! Search provides an in-memory index for secret meta data.
-use crate::{
+use probly_search::{score::bm25, Index, QueryResult};
+use serde::{Deserialize, Serialize};
+use sos_sdk::{
     crypto::AccessKey,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRef, SecretType},
@@ -7,8 +9,6 @@ use crate::{
     },
     Error, Result,
 };
-use probly_search::{score::bm25, Index, QueryResult};
-use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     collections::{btree_map::Values, BTreeMap, HashMap, HashSet},
@@ -1052,7 +1052,7 @@ pub struct ArchiveFilter {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::vault::secret::{SecretMeta, SecretType};
+    use sos_sdk::vault::secret::{SecretMeta, SecretType};
     use uuid::Uuid;
 
     #[test]
