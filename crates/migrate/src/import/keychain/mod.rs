@@ -15,7 +15,7 @@ use std::{
     sync::mpsc::{channel, Receiver},
 };
 
-use crate::{
+use sos_sdk::{
     crypto::AccessKey,
     search::SearchIndex,
     vault::{
@@ -31,7 +31,7 @@ use security_framework::{
     os::macos::{item::ItemSearchOptionsExt, keychain::SecKeychain},
 };
 
-use crate::migrate::Convert;
+use crate::Convert;
 
 /// Import a MacOS keychain access dump into a vault.
 pub struct KeychainImport;

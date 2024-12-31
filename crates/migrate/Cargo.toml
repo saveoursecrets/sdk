@@ -5,6 +5,7 @@ edition = "2021"
 
 [features]
 keychain-access = ["dep:security-framework", "dep:keychain_parser"]
+interactive-keychain-tests = []
 
 [dependencies]
 sos-core.workspace = true

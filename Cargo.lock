@@ -5063,7 +5063,7 @@ dependencies = [
 
 [[package]]
 name = "sos-artifact"
-version = "0.8.7"
+version = "0.8.8"
 dependencies = [
  "anyhow",
  "hex",
@@ -5332,7 +5332,6 @@ dependencies = [
  "chacha20poly1305",
  "chbs",
  "ed25519-dalek",
- "enum-iterator",
  "etcetera",
  "ethereum-types",
  "filetime",
@@ -5342,7 +5341,6 @@ dependencies = [
  "hex",
  "indexmap 2.7.0",
  "k256",
- "keychain_parser",
  "mime_guess",
  "once_cell",
  "parking_lot",
@@ -5352,7 +5350,6 @@ dependencies = [
  "rev_buf_reader",
  "rustc_version",
  "secrecy",
- "security-framework 3.1.0",
  "serde",
  "serde_json",
  "serde_with",
