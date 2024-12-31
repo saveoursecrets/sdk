@@ -3,8 +3,6 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 
-#[cfg(feature = "archive")]
-pub mod archive;
 pub mod commit;
 pub mod constants;
 mod error;

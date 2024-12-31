@@ -30,7 +30,7 @@ archive = [
 clipboard = ["dep:xclipboard", "dep:serde_json_path", "dep:time-tz"]
 contacts = ["dep:vcard4"]
 migrate = ["sos-sdk/migrate"]
-files =["sos-sdk/files", "sos-database/files"]
+files =["sos-sdk/files", "sos-database/files", "dep:walkdir"]
 search =["sos-sdk/search", "sos-database/search"]
 
 [dependencies]

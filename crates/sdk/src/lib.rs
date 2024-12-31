@@ -24,31 +24,14 @@
 //!
 //! # Features
 //!
-//! Default features enable account management, audit trail,
-//! search and backup archives. If you want to just use encrypted
-//! vaults without the account management support disable `default-features`.
-//!
-//! * `account` Local account management.
 //! * `audit` Audit trail logs.
+//! * `archive` Shared types for account backup archives.
+//! * `contacts` Manage account contacts.
 //! * `files` Store external encrypted files.
-//! * `recovery` Primitives for social recovery.
+//! * `logs` File log support.
+//! * `migrate` Import and export unencrypted secrets.
 //! * `search` In-memory search index.
 //!
-//! The following features require that the `account` feature is enabled:
-//!
-//! * `archive` Create and restore from account backup archives.
-//! * `contacts` Manage account contacts.
-//! * `migrate` Import and export unencrypted secrets.
-//!
-
-// #[cfg(all(not(feature = "account"), feature = "archive"))]
-// compile_error!("account feature must be enabled to use archive");
-
-// #[cfg(all(not(feature = "account"), feature = "contacts"))]
-// compile_error!("account feature must be enabled to use contacts");
-
-// #[cfg(all(not(feature = "account"), feature = "migrate"))]
-// compile_error!("account feature must be enabled to use migrate");
 
 #[cfg(feature = "archive")]
 pub mod archive;
@@ -110,11 +93,6 @@ pub use zxcvbn;
 
 pub use sos_core::commit;
 pub use sos_core::constants;
-
-#[cfg(feature = "clipboard")]
-pub use serde_json_path as json_path;
-#[cfg(feature = "clipboard")]
-pub use xclipboard;
 
 /// Result type for the core library.
 pub type Result<T> = std::result::Result<T, Error>;

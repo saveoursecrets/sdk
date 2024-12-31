@@ -3344,12 +3344,15 @@ impl Account for LocalAccount {
             self.open_vault(folder, false).await?;
         }
 
-        let audit_event = AuditEvent::new(
-            EventKind::ImportBackupArchive,
-            *self.address(),
-            None,
-        );
-        self.paths.append_audit_events(vec![audit_event]).await?;
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                EventKind::ImportBackupArchive,
+                *self.address(),
+                None,
+            );
+            self.paths.append_audit_events(vec![audit_event]).await?;
+        }
 
         Ok(account)
     }

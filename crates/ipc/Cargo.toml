@@ -22,7 +22,7 @@ local-transport = [
 ]
 memory-http-server = []
 archive = ["sos-sdk/archive", "sos-protocol/archive"]
-clipboard = ["sos-sdk/clipboard"]
+clipboard = ["sos-account/clipboard"]
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = ["sos-sdk/files", "sos-protocol/files"]
 migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
