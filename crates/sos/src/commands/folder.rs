@@ -424,7 +424,7 @@ async fn verify_event_log(
     summary: &sos_sdk::prelude::Summary,
 ) -> Result<()> {
     use futures::StreamExt;
-    use sos_sdk::integrity::event_integrity;
+    use sos_integrity::event_integrity;
     let path = paths.event_log_path(summary.id());
     let stream = event_integrity(&path);
     futures::pin_mut!(stream);

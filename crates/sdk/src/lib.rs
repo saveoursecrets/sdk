@@ -42,7 +42,6 @@ mod error;
 pub mod events;
 pub mod formats;
 pub mod identity;
-pub mod integrity;
 
 pub use sos_password as passwd;
 pub(crate) mod paths;

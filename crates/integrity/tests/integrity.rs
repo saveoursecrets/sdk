@@ -1,5 +1,6 @@
 use anyhow::Result;
 use futures::{pin_mut, StreamExt};
+use sos_integrity::{event_integrity, vault_integrity};
 use sos_sdk::prelude::*;
 use sos_test_utils::*;
 use std::io::Write;

@@ -10,9 +10,12 @@ members = [
   "crates/database",
   "crates/keychain_parser",
   "crates/integration_tests",
+  "crates/integrity",
   "crates/ipc",
+  "crates/logs",
   "crates/migrate",
   "crates/net",
+  "crates/password",
   "crates/platform_authenticator",
   "crates/protocol",
   "crates/sdk",
@@ -20,7 +23,7 @@ members = [
   "crates/sos",
   "crates/test_utils",
   "crates/vfs", 
-  "crates/web", "crates/password", "crates/logs", 
+  "crates/web",   
 ]
 
 [workspace.dependencies]
@@ -29,6 +32,7 @@ sos-account-extras = { version = "0.16", path = "crates/account_extras" }
 sos-cli-helpers = { path = "crates/cli_helpers" }
 sos-core = { version = "0.16", path = "crates/core" }
 sos-database = { version = "0.16", path = "crates/database" }
+sos-integrity = { version = "0.16", path = "crates/integrity" }
 sos-ipc = { version = "0.16", path = "crates/ipc" }
 sos-logs = { version = "0.16", path = "crates/logs" }
 sos-migrate = { version = "0.16", path = "crates/migrate" }

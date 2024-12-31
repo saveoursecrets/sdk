@@ -2,9 +2,9 @@ use clap::Subcommand;
 use futures::{pin_mut, StreamExt};
 use std::path::PathBuf;
 
+use sos_integrity::{event_integrity, vault_integrity};
 use sos_net::sdk::{
     decode, hex,
-    integrity::{event_integrity, vault_integrity},
     vault::{Header, Vault},
     vfs,
 };

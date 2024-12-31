@@ -1,5 +1,5 @@
 //! Run integrity checks on vault files.
-use crate::{
+use sos_sdk::{
     constants::VAULT_IDENTITY,
     encoding::encoding_options,
     formats::{FileIdentity, FileItem, VaultRecord},

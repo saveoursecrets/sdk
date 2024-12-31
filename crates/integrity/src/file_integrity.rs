@@ -1,5 +1,6 @@
 //! Check integrity of external files.
-use crate::{integrity::IntegrityFailure, vfs, Paths, Result};
+use crate::IntegrityFailure;
+use sos_sdk::{vfs, Paths, Result};
 
 use futures::StreamExt;
 use indexmap::IndexSet;

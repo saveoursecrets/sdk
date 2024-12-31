@@ -7,7 +7,6 @@ pub use crate::device::*;
 pub use crate::events::*;
 pub use crate::formats::*;
 pub use crate::identity::*;
-pub use crate::integrity::*;
 pub use crate::passwd::*;
 #[cfg(feature = "search")]
 pub use crate::search::*;

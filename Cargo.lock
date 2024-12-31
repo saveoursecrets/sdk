@@ -4998,6 +4998,7 @@ dependencies = [
  "sos-cli-helpers",
  "sos-core",
  "sos-database",
+ "sos-integrity",
  "sos-logs",
  "sos-migrate",
  "sos-net",
@@ -5152,6 +5153,7 @@ dependencies = [
  "sos-account-extras",
  "sos-core",
  "sos-database",
+ "sos-integrity",
  "sos-ipc",
  "sos-migrate",
  "sos-net",
@@ -5165,6 +5167,28 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "zxcvbn",
+]
+
+[[package]]
+name = "sos-integrity"
+version = "0.16.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "binary-stream",
+ "futures",
+ "hex",
+ "indexmap 2.7.0",
+ "rustc_version",
+ "sha2",
+ "sos-core",
+ "sos-sdk",
+ "sos-test-utils",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

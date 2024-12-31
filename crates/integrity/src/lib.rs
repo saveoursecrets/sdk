@@ -1,5 +1,5 @@
 //! Integrity checks for vaults, event logs and external files.
-use crate::error::Error;
+use sos_sdk::Error;
 use std::path::PathBuf;
 
 mod account_integrity;
