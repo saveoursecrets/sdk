@@ -8,12 +8,10 @@
 //! They are also used for some read events to maintain
 //! an audit trail of actions.
 
-use crate::{
-    commit::{CommitHash, CommitTree},
-    encode, Result,
-};
+use crate::{encode, Result};
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
+use sos_core::commit::{CommitHash, CommitTree};
 
 mod account;
 mod device;

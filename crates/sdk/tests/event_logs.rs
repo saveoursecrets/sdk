@@ -1,4 +1,5 @@
 use anyhow::Result;
+use sos_core::commit::{CommitHash, CommitTree, Comparison};
 use sos_sdk::prelude::*;
 use std::path::Path;
 use uuid::Uuid;

@@ -2,15 +2,14 @@ include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 
 use crate::{
     decode_uuid, encode_uuid,
-    sdk::{
-        commit::Comparison,
-        events::{Diff, EventRecord, Patch},
-    },
+    sdk::events::{Diff, EventRecord, Patch},
     CreateSet, Error, MaybeDiff, MergeOutcome, Origin, ProtoBinding, Result,
     SyncCompare, SyncDiff, SyncPacket, SyncStatus, TrackedAccountChange,
     TrackedChanges, TrackedDeviceChange, TrackedFolderChange, UpdateSet,
 };
+
 use indexmap::{IndexMap, IndexSet};
+use sos_core::commit::Comparison;
 use std::collections::HashMap;
 
 impl ProtoBinding for Origin {

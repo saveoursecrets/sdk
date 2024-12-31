@@ -10,6 +10,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount, SecretMove};
+use sos_core::commit::ZERO;
 use sos_core::ExternalFileName;
 use sos_database::storage::{files::FileProgress, AccessOptions};
 use sos_net::sdk::{hex, prelude::*};

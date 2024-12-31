@@ -8,8 +8,11 @@ use std::{
 
 use crate::{convert::CipherComparison, AccountBuilder, Error, Result};
 
-use sos_sdk::{
+use sos_core::{
     commit::{CommitHash, CommitState},
+    SecretId, VaultId,
+};
+use sos_sdk::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
     events::{
@@ -20,11 +23,9 @@ use sos_sdk::{
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     vault::{
-        secret::{
-            Secret, SecretId, SecretMeta, SecretPath, SecretRow, SecretType,
-        },
+        secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
         BuilderCredentials, Gatekeeper, Header, Summary, Vault, VaultBuilder,
-        VaultCommit, VaultFlags, VaultId,
+        VaultCommit, VaultFlags,
     },
     vfs, Paths, UtcDateTime,
 };

@@ -1,6 +1,5 @@
 //! Run integrity checks on vault files.
 use crate::{
-    commit::CommitTree,
     constants::VAULT_IDENTITY,
     encoding::encoding_options,
     formats::{FileIdentity, FileItem, VaultRecord},
@@ -8,9 +7,11 @@ use crate::{
     vault::Header,
     vfs, Error, Result,
 };
+
 use async_stream::try_stream;
 use binary_stream::futures::BinaryReader;
 use futures::stream::Stream;
+use sos_core::commit::CommitTree;
 use std::{io::SeekFrom, path::Path};
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 

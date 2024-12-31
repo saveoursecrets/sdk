@@ -1,7 +1,7 @@
 use anyhow::Result;
 use binary_stream::futures::{Decodable, Encodable};
+use sos_core::commit::CommitHash;
 use sos_net::sdk::{
-    commit::CommitHash,
     events::DiscEventLog,
     events::{EventLogExt, LogEvent},
 };

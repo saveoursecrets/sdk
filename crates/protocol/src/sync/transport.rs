@@ -1,17 +1,20 @@
 //! Synchronization types that are sent
 //! between the client and server.
 use crate::sdk::{
-    commit::{CommitHash, CommitState, Comparison},
     device::DevicePublicKey,
     events::{
         AccountDiff, AccountEvent, AccountPatch, DeviceDiff, DeviceEvent,
         DevicePatch, FolderDiff, FolderPatch,
     },
-    vault::{secret::SecretId, VaultId},
     Result,
 };
+
 use crate::sync::MaybeConflict;
 use indexmap::{IndexMap, IndexSet};
+use sos_core::{
+    commit::{CommitHash, CommitState, Comparison},
+    SecretId, VaultId,
+};
 use sos_sdk::events::WriteEvent;
 use std::{collections::HashMap, hash::Hash};
 

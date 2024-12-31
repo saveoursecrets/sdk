@@ -3,7 +3,6 @@ include!(concat!(env!("OUT_DIR"), "/common.rs"));
 use crate::{
     decode_uuid, encode_uuid,
     sdk::{
-        commit::{CommitHash, CommitProof, CommitState},
         events::{CheckedPatch, EventRecord},
         time::{Duration, OffsetDateTime},
         vault::secret::SecretPath,
@@ -13,6 +12,7 @@ use crate::{
     Error, ProtoBinding, Result,
 };
 use rs_merkle::{algorithms::Sha256, MerkleProof};
+use sos_core::commit::{CommitHash, CommitProof, CommitState};
 
 impl ProtoBinding for UtcDateTime {
     type Inner = WireUtcDateTime;

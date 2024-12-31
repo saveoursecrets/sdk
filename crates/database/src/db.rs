@@ -8,13 +8,13 @@ use sos_sdk::prelude::{
     AuditLogFile,
     AuditEvent,
     AccountEventLog, DeviceEventLog, 
-    decode, encode, vfs, CommitHash,
+    decode, encode, vfs,
     Error as SdkError, EventLogExt, EventRecord,
-    FolderEventLog, Identity, Paths, PublicIdentity, SecretId, Vault,
+    FolderEventLog, Identity, Paths, PublicIdentity, Vault,
     VaultCommit, VaultEntry,
     FormatStreamIterator,
-    VaultId,
 };
+use sos_core::{commit::CommitHash, SecretId, VaultId};
 use sos_core::{Origin, ExternalFile};
 use std::{collections::HashMap, path::Path};
 

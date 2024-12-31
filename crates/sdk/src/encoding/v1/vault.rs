@@ -1,5 +1,4 @@
 use crate::{
-    commit::CommitHash,
     constants::VAULT_IDENTITY,
     crypto::{AeadPack, SEED_SIZE},
     encoding::{decode_uuid, encoding_error},
@@ -16,6 +15,7 @@ use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use sos_core::commit::CommitHash;
 use std::io::{Error, ErrorKind, Result, SeekFrom};
 
 #[async_trait]

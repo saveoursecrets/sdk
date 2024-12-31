@@ -1,9 +1,10 @@
 use crate::{
-    commit::{CommitHash, CommitProof},
     events::{AccountEvent, EventRecord, WriteEvent},
     Result,
 };
+
 use binary_stream::futures::{Decodable, Encodable};
+use sos_core::commit::{CommitHash, CommitProof};
 use std::marker::PhantomData;
 
 use crate::events::DeviceEvent;

@@ -1,5 +1,4 @@
 use crate::{
-    commit::CommitHash,
     crypto::AeadPack,
     decode,
     events::{EventLogExt, WriteEvent},
@@ -8,6 +7,7 @@ use crate::{
 };
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use sos_core::commit::CommitHash;
 
 use indexmap::IndexMap;
 
@@ -260,13 +260,13 @@ pub use device::DeviceReducer;
 #[cfg(feature = "files")]
 mod files {
     use crate::{
-        commit::CommitHash,
         events::{EventLogExt, FileEvent, FileEventLog},
         Result,
     };
 
     use futures::{pin_mut, stream::StreamExt};
     use indexmap::IndexSet;
+    use sos_core::commit::CommitHash;
     use sos_core::ExternalFile;
 
     /// Reduce file events to a collection of external files.

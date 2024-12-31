@@ -5,7 +5,10 @@ use crate::{
         SyncResult, SyncStatus, SyncStorage, UpdateSet,
     },
     sdk::{
-        events::{AccountEventLog, FolderEventLog},
+        events::{
+            AccountDiff, AccountEventLog, CheckedPatch, DeviceDiff,
+            DeviceEventLog, FolderDiff, FolderEventLog, WriteEvent,
+        },
         vault::Summary,
     },
     NetworkAccount,
@@ -13,7 +16,10 @@ use crate::{
 
 use crate::Result;
 use sos_account::Account;
-use sos_core::{commit::CommitState, VaultId};
+use sos_core::{
+    commit::{CommitState, Comparison},
+    VaultId,
+};
 
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -24,14 +30,6 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::RwLock;
-
-use sos_sdk::{
-    commit::Comparison,
-    events::{
-        AccountDiff, CheckedPatch, DeviceDiff, DeviceEventLog, FolderDiff,
-        WriteEvent,
-    },
-};
 
 #[cfg(feature = "files")]
 use crate::{

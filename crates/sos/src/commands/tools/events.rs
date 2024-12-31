@@ -2,8 +2,8 @@ use clap::Subcommand;
 use std::path::PathBuf;
 
 use binary_stream::futures::{Decodable, Encodable};
+use sos_core::commit::{CommitHash, CommitTree};
 use sos_net::sdk::{
-    commit::{CommitHash, CommitTree},
     events::{
         AccountEvent, AccountEventLog, DeviceEvent, DeviceEventLog,
         DiscEventLog, EventLogExt, FileEvent, FileEventLog, FolderEventLog,

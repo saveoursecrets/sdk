@@ -1,7 +1,6 @@
 //! Test utility functions.
 use sos_net::sdk::{
     argon2::password_hash::SaltString,
-    commit::CommitHash,
     crypto::{KeyDerivation, PrivateKey},
     encode,
     events::{EventLogExt, FolderEventLog, WriteEvent},
@@ -13,6 +12,8 @@ use sos_net::sdk::{
         BuilderCredentials, Vault, VaultAccess, VaultBuilder, VaultEntry,
     },
 };
+
+use sos_core::commit::CommitHash;
 use std::io::Write;
 
 use tempfile::NamedTempFile;

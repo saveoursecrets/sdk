@@ -6,16 +6,20 @@
 // hit the problem with foreign trait implementations.
 use crate::{
     sdk::{
-        commit::{CommitState, CommitTree, Comparison},
         decode,
         events::{
             AccountDiff, AccountEvent, CheckedPatch, EventLogExt, FolderDiff,
             LogEvent, WriteEvent,
         },
-        vault::{Vault, VaultId},
+        vault::Vault,
     },
     FolderMerge, FolderMergeOptions, ForceMerge, IdentityFolderMerge, Merge,
     MergeOutcome, SyncStatus, SyncStorage, TrackedChanges,
+};
+
+use sos_core::{
+    commit::{CommitState, CommitTree, Comparison},
+    VaultId,
 };
 
 use crate::Result;

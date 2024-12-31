@@ -4,10 +4,8 @@ use prost::bytes::Bytes;
 
 use crate::{
     sdk::{
-        commit::{CommitHash, CommitProof, CommitState},
         events::{CheckedPatch, EventRecord, FolderDiff},
         signer::ecdsa::Address,
-        vault::{secret::SecretPath, VaultId},
         UtcDateTime,
     },
     sync::{
@@ -16,6 +14,11 @@ use crate::{
     },
     DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
     ScanResponse, WireEncodeDecode,
+};
+
+use sos_core::{
+    commit::{CommitHash, CommitProof, CommitState},
+    SecretPath, VaultId,
 };
 
 const HASH: &str =

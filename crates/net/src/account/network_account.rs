@@ -5,7 +5,6 @@ use crate::{
         RemoteSyncHandler, SyncClient, SyncOptions, SyncResult, UpdateSet,
     },
     sdk::{
-        commit::{CommitHash, CommitState},
         crypto::{AccessKey, Cipher, KeyDerivation},
         device::{
             DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice,
@@ -15,19 +14,24 @@ use crate::{
         sha2::{Digest, Sha256},
         signer::ecdsa::{Address, BoxedEcdsaSigner},
         vault::{
-            secret::{Secret, SecretId, SecretMeta, SecretRow},
-            Summary, Vault, VaultCommit, VaultFlags, VaultId,
+            secret::{Secret, SecretMeta, SecretRow},
+            Summary, Vault, VaultCommit, VaultFlags,
         },
         vfs, Paths,
     },
     Error, RemoteBridge, Result,
 };
+
 use async_trait::async_trait;
 use secrecy::SecretString;
 use sos_account::{
     Account, AccountBuilder, AccountChange, AccountData, CipherComparison,
     FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
     SecretDelete, SecretInsert, SecretMove,
+};
+use sos_core::{
+    commit::{CommitHash, CommitState},
+    SecretId, VaultId,
 };
 
 use sos_database::storage::{

@@ -1,10 +1,13 @@
-use crate::{commit, encoding::encoding_error};
+use crate::encoding::encoding_error;
 use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use sos_core::merkle::{algorithms::Sha256, MerkleProof};
+use sos_core::{
+    commit,
+    merkle::{algorithms::Sha256, MerkleProof},
+};
 use std::io::{Error, ErrorKind, Result};
 
 #[doc(hidden)]
@@ -25,12 +28,6 @@ impl From<commit::CommitHash> for CommitHash {
 
 #[doc(hidden)]
 pub struct CommitState(CommitHash, CommitProof);
-
-// impl AsRef<commit::CommitState> for CommitState {
-//     fn as_ref(&self) -> &commit::CommitState {
-//         &self.0
-//     }
-// }
 
 impl From<commit::CommitState> for CommitState {
     fn from(value: commit::CommitState) -> Self {

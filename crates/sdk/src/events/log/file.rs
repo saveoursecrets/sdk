@@ -14,7 +14,6 @@
 //! The first row must always contain a last commit hash that is all zero.
 //!
 use crate::{
-    commit::{CommitHash, CommitProof, CommitTree, Comparison},
     encode,
     encoding::{encoding_options, VERSION1},
     events::{AccountEvent, IntoRecord, WriteEvent},
@@ -29,6 +28,7 @@ use crate::{
 
 use async_stream::try_stream;
 use futures::stream::BoxStream;
+use sos_core::commit::{CommitHash, CommitProof, CommitTree, Comparison};
 
 use futures::io::{
     AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,

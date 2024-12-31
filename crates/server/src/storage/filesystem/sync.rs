@@ -4,27 +4,29 @@ use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
 use sos_protocol::{
     sdk::{
-        commit::{CommitState, CommitTree, Comparison},
         encode,
         events::{
             AccountDiff, AccountEvent, AccountEventLog, CheckedPatch,
-            EventLogExt, FolderDiff, FolderEventLog, FolderPatch,
+            DeviceDiff, DeviceEventLog, DeviceReducer, EventLogExt, FileDiff,
+            FileEventLog, FolderDiff, FolderEventLog, FolderPatch,
             FolderReducer, LogEvent, WriteEvent,
         },
-        vault::{Header, Summary, VaultAccess, VaultId, VaultWriter},
+        vault::{Header, Summary, VaultAccess, VaultWriter},
         vfs, Error, Paths,
     },
     CreateSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
     TrackedChanges, UpdateSet,
 };
 
+use sos_core::{
+    commit::{CommitState, CommitTree, Comparison},
+    VaultId,
+};
+
 use crate::Result;
 use sos_database::storage::StorageEventLogs;
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
-
-use sos_protocol::sdk::events::{DeviceDiff, DeviceEventLog, DeviceReducer};
-use sos_protocol::sdk::events::{FileDiff, FileEventLog};
 
 impl ServerStorage {
     /// Create a new vault file on disc and the associated

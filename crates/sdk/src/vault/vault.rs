@@ -21,7 +21,6 @@ use urn::Urn;
 use uuid::Uuid;
 
 use crate::{
-    commit::CommitHash,
     constants::{DEFAULT_VAULT_NAME, URN_NID, VAULT_IDENTITY, VAULT_NSS},
     crypto::{
         AccessKey, AeadPack, Cipher, Deriver, KeyDerivation, PrivateKey, Seed,
@@ -34,6 +33,7 @@ use crate::{
     vfs::File,
     Error, Result, UtcDateTime,
 };
+use sos_core::commit::CommitHash;
 
 pub use sos_core::VaultId;
 

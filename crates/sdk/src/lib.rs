@@ -86,7 +86,6 @@ pub use uuid;
 pub use vcard4;
 pub use zxcvbn;
 
-pub use sos_core::commit;
 pub use sos_core::constants;
 
 /// Result type for the core library.

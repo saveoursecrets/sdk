@@ -1,5 +1,4 @@
 use crate::{
-    commit::CommitHash,
     crypto::AeadPack,
     encoding::{decode_uuid, encoding_error},
     events::{AccountEvent, EventKind, EventRecord, LogEvent, WriteEvent},
@@ -10,6 +9,7 @@ use crate::{
 };
 
 use crate::events::DeviceEvent;
+use sos_core::commit::CommitHash;
 
 #[cfg(feature = "files")]
 use crate::{events::FileEvent, vault::secret::SecretPath};

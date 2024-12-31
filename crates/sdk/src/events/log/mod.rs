@@ -1,8 +1,7 @@
 //! Event log types and traits.
-use crate::{
-    commit::CommitHash, decode, formats::EventLogRecord, Result, UtcDateTime,
-};
+use crate::{decode, formats::EventLogRecord, Result, UtcDateTime};
 use binary_stream::futures::Decodable;
+use sos_core::commit::CommitHash;
 
 mod file;
 pub mod patch;

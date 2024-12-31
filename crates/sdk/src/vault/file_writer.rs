@@ -24,7 +24,6 @@ use binary_stream::futures::{stream_length, BinaryReader, BinaryWriter};
 use uuid::Uuid;
 
 use crate::{
-    commit::CommitHash,
     crypto::AeadPack,
     encode,
     encoding::encoding_options,
@@ -36,6 +35,7 @@ use crate::{
     vfs::{self, File, OpenOptions},
     Result,
 };
+use sos_core::commit::CommitHash;
 
 /// Mutates a vault file in-place.
 pub struct VaultWriter<F>

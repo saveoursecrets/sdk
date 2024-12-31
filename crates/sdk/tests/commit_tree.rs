@@ -1,4 +1,5 @@
 use anyhow::Result;
+use sos_core::commit::{CommitTree, Comparison};
 use sos_sdk::prelude::*;
 use sos_test_utils::{mock_encryption_key, mock_secret_note};
 
