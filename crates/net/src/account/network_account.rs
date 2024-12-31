@@ -11,7 +11,6 @@ use crate::{
         },
         events::{AccountEvent, EventLogExt, EventRecord, ReadEvent},
         identity::{AccountRef, PublicIdentity},
-        sha2::{Digest, Sha256},
         signer::ecdsa::{Address, BoxedEcdsaSigner},
         vault::{
             secret::{Secret, SecretMeta, SecretRow},
@@ -24,6 +23,7 @@ use crate::{
 
 use async_trait::async_trait;
 use secrecy::SecretString;
+use sha2::{Digest, Sha256};
 use sos_account::{
     Account, AccountBuilder, AccountChange, AccountData, CipherComparison,
     FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,

@@ -11,9 +11,9 @@ use std::{
 };
 
 use secrecy::ExposeSecret;
+use sha2::{Digest, Sha256};
 use sos_net::sdk::{
     secrecy,
-    sha3::{Digest, Keccak256},
     vault::secret::{FileContent, Secret},
     vcard4::Vcard,
     vfs,
@@ -178,7 +178,7 @@ async fn editor<'a>(
 }
 
 fn digest<B: AsRef<[u8]>>(bytes: B) -> Vec<u8> {
-    Keccak256::digest(bytes).to_vec()
+    Sha256::digest(bytes).to_vec()
 }
 
 /// Edit a secret.

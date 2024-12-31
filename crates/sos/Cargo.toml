@@ -42,6 +42,7 @@ serde.workspace = true
 enum-iterator.workspace = true
 clap.workspace = true
 arboard.workspace = true
+sha2.workspace = true
 
 tokio-rustls.workspace = true
 rustls.workspace = true

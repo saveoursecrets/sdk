@@ -5,7 +5,6 @@ use sos_net::sdk::{
     encode,
     events::{EventLogExt, FolderEventLog, WriteEvent},
     passwd::diceware::generate_passphrase,
-    sha2::{Digest, Sha256},
     uuid::Uuid,
     vault::{
         secret::{FileContent, Secret, SecretId, SecretMeta},
@@ -13,6 +12,7 @@ use sos_net::sdk::{
     },
 };
 
+use sha2::{Digest, Sha256};
 use sos_core::commit::CommitHash;
 use std::io::Write;
 

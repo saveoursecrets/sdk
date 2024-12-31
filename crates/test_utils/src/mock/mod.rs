@@ -2,11 +2,11 @@
 
 use anyhow::Result;
 use secrecy::SecretString;
+use sha2::{Digest, Sha256};
 use sos_net::sdk::{
     age,
     device::TrustedDevice,
     pem,
-    sha2::{Digest, Sha256},
     url::Url,
     vault::secret::{FileContent, IdentityKind, Secret, SecretMeta},
 };

@@ -643,10 +643,8 @@ impl FileSyncClient for HttpClient {
             crate::transfer::CancelReason,
         >,
     ) -> Result<http::StatusCode> {
-        use crate::sdk::{
-            sha2::{Digest, Sha256},
-            vfs,
-        };
+        use sha2::{Digest, Sha256};
+        use sos_sdk::vfs;
         use tokio::io::AsyncWriteExt;
 
         let url_path = format!("api/v1/sync/file/{}", file_info);

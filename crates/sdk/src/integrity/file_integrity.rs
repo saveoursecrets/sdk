@@ -1,11 +1,9 @@
 //! Check integrity of external files.
-use crate::{
-    integrity::IntegrityFailure,
-    sha2::{Digest, Sha256},
-    vfs, Paths, Result,
-};
+use crate::{integrity::IntegrityFailure, vfs, Paths, Result};
+
 use futures::StreamExt;
 use indexmap::IndexSet;
+use sha2::{Digest, Sha256};
 use sos_core::ExternalFile;
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::{

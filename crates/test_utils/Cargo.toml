@@ -6,23 +6,24 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [dependencies]
+sos-net = { workspace = true, features = ["full"] }
+sos-account.workspace = true
+sos-core.workspace = true
+sos-database.workspace = true
+sos-server.workspace = true
+
 tracing.workspace = true
 tracing-subscriber.workspace = true
 secrecy.workspace = true
 serde_json.workspace = true
 futures.workspace = true
 tempfile.workspace = true
-
 axum-server.workspace = true
 tokio-rustls.workspace = true
 rustls.workspace = true
+sha2.workspace = true
+anyhow.workspace = true
 
-anyhow = "1"
-sos-net = { path = "../net", features = ["full"] }
-sos-account.workspace = true
-sos-core.workspace = true
-sos-database.workspace = true
-sos-server = { path = "../server" }
 tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
 pretty_assertions = "1.4"
 copy_dir = "0.1"

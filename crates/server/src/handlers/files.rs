@@ -359,13 +359,12 @@ mod handlers {
     use super::MoveFileQuery;
     use sos_protocol::{
         constants::MIME_TYPE_PROTOBUF,
-        sdk::{
-            sha2::{Digest, Sha256},
-            vault::{secret::SecretId, VaultId},
-        },
+        sdk::vault::{secret::SecretId, VaultId},
         transfer::{FileSet, FileTransfersSet},
         WireEncodeDecode,
     };
+
+    use sha2::{Digest, Sha256};
 
     use sos_database::storage::files::{
         list_external_files, ExternalFileName,

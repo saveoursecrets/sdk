@@ -24,7 +24,6 @@ use sos_sdk::{
     events::{EventLogExt, FolderEventLog, FolderReducer},
     hex,
     identity::{Identity, MemoryIdentityFolder, PublicIdentity},
-    sha2::{Digest, Sha256},
     signer::ecdsa::Address,
     vault::{
         secret::SecretId, Summary, Vault, VaultAccess, VaultId, VaultWriter,
@@ -34,6 +33,7 @@ use sos_sdk::{
 };
 
 use secrecy::SecretString;
+use sha2::{Digest, Sha256};
 
 /// Get the path to the file storage directory for the given
 /// account address.

@@ -12,7 +12,6 @@ use sos_net::{
         crypto::AccessKey,
         events::EventLogExt,
         passwd::diceware::generate_passphrase,
-        sha2::{Digest, Sha256},
         url::Url,
         vault::{Summary, VaultId},
         vfs, Paths,
@@ -20,6 +19,7 @@ use sos_net::{
     InflightNotification, InflightTransfers, NetworkAccount, RemoteBridge,
 };
 
+use sha2::{Digest, Sha256};
 use sos_account::{Account, AccountBuilder};
 use sos_core::ExternalFile;
 use std::{

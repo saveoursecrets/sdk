@@ -30,6 +30,7 @@ archive = [
   "dep:tokio-util",
   "dep:sanitize-filename",
   "dep:futures-util",
+  "dep:sha2",
 ]
 clipboard = ["dep:xclipboard", "dep:serde_json_path", "dep:time-tz"]
 contacts = ["dep:vcard4"]
@@ -52,10 +53,10 @@ async-trait.workspace = true
 indexmap.workspace = true
 uuid.workspace = true
 time.workspace = true
-sha2.workspace = true
 hex.workspace = true
 serde_json.workspace = true
 
+sha2 = { workspace = true, optional = true }
 tokio-util = { workspace = true, optional = true }
 async_zip = { workspace = true, optional = true }
 xclipboard = { workspace = true, optional = true }

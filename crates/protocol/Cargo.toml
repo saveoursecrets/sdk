@@ -54,6 +54,7 @@ http.workspace = true
 bytes.workspace = true
 binary-stream.workspace = true
 typeshare.workspace = true
+sha2.workspace = true
 tokio = { version = "1", features = ["rt",  "macros"] }
 
 # network-client

@@ -34,6 +34,7 @@ sos-migrate = { version = "0.16", path = "crates/migrate" }
 sos-net = { version = "0.16", path = "crates/net" }
 sos-password = { version = "0.16", path = "crates/password" }
 sos-protocol = { version = "0.16", path = "crates/protocol" }
+sos-server = { version = "0.16", path = "crates/server" }
 sos-sdk = { version = "0.16", path = "crates/sdk" }
 sos-test-utils = { path = "crates/test_utils" }
 sos-vfs = { version = "0.2.2", path = "crates/vfs" }
