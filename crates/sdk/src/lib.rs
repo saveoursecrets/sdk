@@ -11,9 +11,9 @@
 //! or other applications that require storing secrets
 //! securely.
 //!
-//! A higher-level account management API is described in [sos_account::Account](https://docs.rs/sos-account/latest/sos_account/)
-//! which is implemented by [LocalAccount](https://docs.rs/sos-account/latest/sos_account/). For a network aware
-//! account use [NetworkAccount](https://docs.rs/sos-net/latest/sos_net/client/struct.NetworkAccount.html) in [sos-net](https://docs.rs/sos-net/latest/sos_net/).
+//! A higher-level account management API is described in [sos_account::Account](https://docs.rs/sos-account/latest/sos_account/trait.Account.html)
+//! which is implemented by [sos_account::LocalAccount](https://docs.rs/sos-account/latest/sos_account/struct.LocalAccount.html). For a network aware
+//! account with sync capability use [sos_net::NetworkAccount](https://docs.rs/sos-net/latest/sos_net/client/struct.NetworkAccount.html).
 //!
 //! For lower-level access use the types in the [vault] module.
 //!

@@ -1,6 +1,6 @@
 [package]
 name = "sos-sdk"
-version = "0.16.3"
+version = "0.16.4"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
@@ -26,7 +26,7 @@ full = [
   "migrate",
   "search",
 ]
-archive = ["dep:async_zip"]
+archive = []
 audit = []
 contacts = []
 files = []
