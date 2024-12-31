@@ -30,8 +30,8 @@ use sos_sdk::{
     vfs, Paths, UtcDateTime,
 };
 
-use sos_database::storage::{
-    AccessOptions, AccountPack, ClientStorage, NewFolderOptions,
+use sos_database::{
+    storage::{AccessOptions, AccountPack, ClientStorage, NewFolderOptions},
     StorageEventLogs,
 };
 
@@ -3451,9 +3451,9 @@ impl Account for LocalAccount {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl StorageEventLogs for LocalAccount {
-    async fn identity_log(
-        &self,
-    ) -> sos_database::Result<Arc<RwLock<FolderEventLog>>> {
+    type Error = Error;
+
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
         let storage = self
             .storage
             .as_ref()
@@ -3462,9 +3462,7 @@ impl StorageEventLogs for LocalAccount {
         Ok(Arc::clone(&storage.identity_log))
     }
 
-    async fn account_log(
-        &self,
-    ) -> sos_database::Result<Arc<RwLock<AccountEventLog>>> {
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
         let storage = self
             .storage
             .as_ref()
@@ -3473,9 +3471,7 @@ impl StorageEventLogs for LocalAccount {
         Ok(Arc::clone(&storage.account_log))
     }
 
-    async fn device_log(
-        &self,
-    ) -> sos_database::Result<Arc<RwLock<DeviceEventLog>>> {
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
         let storage = self
             .storage
             .as_ref()
@@ -3485,9 +3481,7 @@ impl StorageEventLogs for LocalAccount {
     }
 
     #[cfg(feature = "files")]
-    async fn file_log(
-        &self,
-    ) -> sos_database::Result<Arc<RwLock<FileEventLog>>> {
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
         let storage = self
             .storage
             .as_ref()
@@ -3496,9 +3490,7 @@ impl StorageEventLogs for LocalAccount {
         Ok(Arc::clone(&storage.file_log))
     }
 
-    async fn folder_details(
-        &self,
-    ) -> sos_database::Result<IndexSet<Summary>> {
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
         let storage = self
             .storage
             .as_ref()
@@ -3511,7 +3503,7 @@ impl StorageEventLogs for LocalAccount {
     async fn folder_log(
         &self,
         id: &VaultId,
-    ) -> sos_database::Result<Arc<RwLock<FolderEventLog>>> {
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
         let storage = self
             .storage
             .as_ref()

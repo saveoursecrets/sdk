@@ -26,7 +26,7 @@ use crate::Result;
 use async_trait::async_trait;
 use indexmap::IndexMap;
 use sos_account::{Account, LocalAccount};
-use sos_database::storage::StorageEventLogs;
+use sos_database::StorageEventLogs;
 use std::collections::HashSet;
 
 use crate::sdk::events::{DeviceDiff, DeviceReducer};
@@ -37,6 +37,8 @@ use crate::sdk::events::FileDiff;
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ForceMerge for LocalAccount {
+    type Error = crate::Error;
+
     async fn force_merge_identity(
         &mut self,
         diff: FolderDiff,
@@ -169,6 +171,8 @@ impl ForceMerge for LocalAccount {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Merge for LocalAccount {
+    type Error = crate::Error;
+
     async fn merge_identity(
         &mut self,
         diff: FolderDiff,
@@ -559,7 +563,7 @@ impl SyncStorage for LocalAccount {
         true
     }
 
-    async fn sync_status(&self) -> Result<SyncStatus> {
+    async fn sync_status(&self) -> sos_account::Result<SyncStatus> {
         // NOTE: the order for computing the cumulative
         // NOTE: root hash must be identical to the logic
         // NOTE: in the server implementation and the folders

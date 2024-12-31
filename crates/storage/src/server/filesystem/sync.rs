@@ -3,19 +3,20 @@ use super::ServerStorage;
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
 use sos_protocol::{
-    sdk::{
-        encode,
-        events::{
-            AccountDiff, AccountEvent, AccountEventLog, CheckedPatch,
-            DeviceDiff, DeviceEventLog, DeviceReducer, EventLogExt, FileDiff,
-            FileEventLog, FolderDiff, FolderEventLog, FolderPatch,
-            FolderReducer, LogEvent, WriteEvent,
-        },
-        vault::{Header, Summary, VaultAccess, VaultWriter},
-        vfs, Error, Paths,
-    },
     CreateSet, ForceMerge, Merge, MergeOutcome, SyncStatus, SyncStorage,
     TrackedChanges, UpdateSet,
+};
+
+use sos_sdk::{
+    encode,
+    events::{
+        AccountDiff, AccountEvent, AccountEventLog, CheckedPatch, DeviceDiff,
+        DeviceEventLog, DeviceReducer, EventLogExt, FileDiff, FileEventLog,
+        FolderDiff, FolderEventLog, FolderPatch, FolderReducer, LogEvent,
+        WriteEvent,
+    },
+    vault::{Header, Summary, VaultAccess, VaultWriter},
+    vfs, Paths,
 };
 
 use sos_core::{
@@ -23,8 +24,9 @@ use sos_core::{
     VaultId,
 };
 
-use crate::Result;
-use sos_database::storage::StorageEventLogs;
+use crate::server::{Error, Result};
+
+use sos_database::StorageEventLogs;
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -152,11 +154,13 @@ impl ServerStorage {
 
 #[async_trait]
 impl ForceMerge for ServerStorage {
+    type Error = Error;
+
     async fn force_merge_identity(
         &mut self,
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> sos_protocol::Result<()> {
+    ) -> Result<()> {
         let len = diff.patch.len() as u64;
 
         tracing::debug!(
@@ -189,7 +193,7 @@ impl ForceMerge for ServerStorage {
         &mut self,
         diff: AccountDiff,
         outcome: &mut MergeOutcome,
-    ) -> sos_protocol::Result<()> {
+    ) -> Result<()> {
         let len = diff.patch.len() as u64;
 
         tracing::debug!(
@@ -212,7 +216,7 @@ impl ForceMerge for ServerStorage {
         &mut self,
         diff: DeviceDiff,
         outcome: &mut MergeOutcome,
-    ) -> sos_protocol::Result<()> {
+    ) -> Result<()> {
         let len = diff.patch.len() as u64;
 
         tracing::debug!(
@@ -242,7 +246,7 @@ impl ForceMerge for ServerStorage {
         &mut self,
         diff: FileDiff,
         outcome: &mut MergeOutcome,
-    ) -> sos_protocol::Result<()> {
+    ) -> Result<()> {
         let len = diff.patch.len() as u64;
 
         tracing::debug!(
@@ -267,7 +271,7 @@ impl ForceMerge for ServerStorage {
         folder_id: &VaultId,
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> sos_protocol::Result<()> {
+    ) -> Result<()> {
         let len = diff.patch.len() as u64;
 
         tracing::debug!(
@@ -307,11 +311,13 @@ impl ForceMerge for ServerStorage {
 
 #[async_trait]
 impl Merge for ServerStorage {
+    type Error = Error;
+
     async fn merge_identity(
         &mut self,
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> sos_protocol::Result<CheckedPatch> {
+    ) -> Result<CheckedPatch> {
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
@@ -334,7 +340,7 @@ impl Merge for ServerStorage {
     async fn compare_identity(
         &self,
         state: &CommitState,
-    ) -> sos_protocol::Result<Comparison> {
+    ) -> Result<Comparison> {
         let reader = self.identity_log.read().await;
         Ok(reader.tree().compare(&state.1)?)
     }
@@ -343,7 +349,7 @@ impl Merge for ServerStorage {
         &mut self,
         diff: AccountDiff,
         outcome: &mut MergeOutcome,
-    ) -> sos_protocol::Result<(CheckedPatch, HashSet<VaultId>)> {
+    ) -> Result<(CheckedPatch, HashSet<VaultId>)> {
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
@@ -416,7 +422,7 @@ impl Merge for ServerStorage {
     async fn compare_account(
         &self,
         state: &CommitState,
-    ) -> sos_protocol::Result<Comparison> {
+    ) -> Result<Comparison> {
         let reader = self.account_log.read().await;
         Ok(reader.tree().compare(&state.1)?)
     }
@@ -425,7 +431,7 @@ impl Merge for ServerStorage {
         &mut self,
         diff: DeviceDiff,
         outcome: &mut MergeOutcome,
-    ) -> sos_protocol::Result<CheckedPatch> {
+    ) -> Result<CheckedPatch> {
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
@@ -456,7 +462,7 @@ impl Merge for ServerStorage {
     async fn compare_device(
         &self,
         state: &CommitState,
-    ) -> sos_protocol::Result<Comparison> {
+    ) -> Result<Comparison> {
         let reader = self.device_log.read().await;
         Ok(reader.tree().compare(&state.1)?)
     }
@@ -465,7 +471,7 @@ impl Merge for ServerStorage {
         &mut self,
         diff: FileDiff,
         outcome: &mut MergeOutcome,
-    ) -> sos_protocol::Result<CheckedPatch> {
+    ) -> Result<CheckedPatch> {
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
@@ -497,10 +503,7 @@ impl Merge for ServerStorage {
         Ok(checked_patch)
     }
 
-    async fn compare_files(
-        &self,
-        state: &CommitState,
-    ) -> sos_protocol::Result<Comparison> {
+    async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
         let reader = self.file_log.read().await;
         Ok(reader.tree().compare(&state.1)?)
     }
@@ -510,7 +513,7 @@ impl Merge for ServerStorage {
         folder_id: &VaultId,
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
-    ) -> sos_protocol::Result<(CheckedPatch, Vec<WriteEvent>)> {
+    ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
         let len = diff.patch.len() as u64;
 
         tracing::debug!(
@@ -557,7 +560,7 @@ impl Merge for ServerStorage {
         &self,
         folder_id: &VaultId,
         state: &CommitState,
-    ) -> sos_protocol::Result<Comparison> {
+    ) -> Result<Comparison> {
         let log = self
             .cache
             .get(folder_id)
@@ -569,33 +572,25 @@ impl Merge for ServerStorage {
 
 #[async_trait]
 impl StorageEventLogs for ServerStorage {
-    async fn identity_log(
-        &self,
-    ) -> sos_database::Result<Arc<RwLock<FolderEventLog>>> {
+    type Error = Error;
+
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
         Ok(Arc::clone(&self.identity_log))
     }
 
-    async fn account_log(
-        &self,
-    ) -> sos_database::Result<Arc<RwLock<AccountEventLog>>> {
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
         Ok(Arc::clone(&self.account_log))
     }
 
-    async fn device_log(
-        &self,
-    ) -> sos_database::Result<Arc<RwLock<DeviceEventLog>>> {
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
         Ok(Arc::clone(&self.device_log))
     }
 
-    async fn file_log(
-        &self,
-    ) -> sos_database::Result<Arc<RwLock<FileEventLog>>> {
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
         Ok(Arc::clone(&self.file_log))
     }
 
-    async fn folder_details(
-        &self,
-    ) -> sos_database::Result<IndexSet<Summary>> {
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
         let ids = self.cache.keys().copied().collect::<Vec<_>>();
         let mut output = IndexSet::new();
         for id in &ids {
@@ -609,7 +604,7 @@ impl StorageEventLogs for ServerStorage {
     async fn folder_log(
         &self,
         id: &VaultId,
-    ) -> sos_database::Result<Arc<RwLock<FolderEventLog>>> {
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
         Ok(Arc::clone(
             self.cache.get(id).ok_or(Error::CacheNotAvailable(*id))?,
         ))
@@ -622,7 +617,7 @@ impl SyncStorage for ServerStorage {
         false
     }
 
-    async fn sync_status(&self) -> sos_protocol::Result<SyncStatus> {
+    async fn sync_status(&self) -> Result<SyncStatus> {
         // NOTE: the order for computing the cumulative
         // NOTE: root hash must be identical to the logic
         // NOTE: in the client implementation and the folders

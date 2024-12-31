@@ -6,6 +6,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use sos_account::Account;
+use sos_database::StorageEventLogs;
 use sos_sdk::prelude::Address;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
@@ -46,6 +47,9 @@ pub trait RemoteSyncHandler {
         + From<sos_account::Error>
         + From<std::io::Error>
         + From<<Self::Account as Account>::Error>
+        + From<<Self::Account as Merge>::Error>
+        + From<<Self::Account as ForceMerge>::Error>
+        + From<<Self::Account as StorageEventLogs>::Error>
         + From<<Self::Client as SyncClient>::Error>
         + Send
         + Sync
@@ -146,7 +150,7 @@ pub trait RemoteSyncHandler {
         tracing::debug!("merge_client");
 
         let (needs_sync, local_status, local_changes) =
-            crate::diff(&*account, remote_status).await?;
+            crate::diff::<_, Self::Error>(&*account, remote_status).await?;
 
         tracing::debug!(needs_sync = %needs_sync, "merge_client");
 

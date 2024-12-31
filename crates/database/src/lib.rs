@@ -4,8 +4,10 @@ mod error;
 pub mod importer;
 pub mod migrations;
 pub mod storage;
+mod traits;
 
 pub use error::Error;
+pub use traits::StorageEventLogs;
 
 #[cfg(feature = "search")]
 pub mod search;

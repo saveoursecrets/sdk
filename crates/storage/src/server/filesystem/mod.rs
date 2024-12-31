@@ -1,31 +1,26 @@
 //! Server storage backed by the filesystem.
-use sos_protocol::sdk::{
+use crate::server::{Error, Result};
+use sos_sdk::{
     constants::VAULT_EXT,
-    decode, encode,
+    decode,
+    device::{DevicePublicKey, TrustedDevice},
+    encode,
     events::{
-        AccountEvent, AccountEventLog, EventLogExt, FolderEventLog,
-        FolderReducer,
+        AccountEvent, AccountEventLog, DeviceEventLog, DeviceReducer,
+        EventLogExt, FileEvent, FileEventLog, FolderEventLog, FolderReducer,
     },
     signer::ecdsa::Address,
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
-    vfs, Error, Paths, Result,
+    vfs, Paths,
 };
-
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "audit")]
-use sos_protocol::sdk::audit::AuditEvent;
-
-use sos_protocol::sdk::{
-    device::{DevicePublicKey, TrustedDevice},
-    events::{DeviceEventLog, DeviceReducer},
-};
+use sos_sdk::audit::AuditEvent;
 
 use indexmap::IndexSet;
 use std::collections::HashSet;
-
-use sos_protocol::sdk::events::{FileEvent, FileEventLog};
 
 mod sync;
 
@@ -82,7 +77,8 @@ impl ServerStorage {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
                 paths.documents_dir().to_path_buf(),
-            ));
+            )
+            .into());
         }
 
         paths.ensure().await?;

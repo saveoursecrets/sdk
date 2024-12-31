@@ -17,7 +17,7 @@ use std::{
 };
 use tokio::sync::RwLock;
 
-use crate::storage::filesystem::ServerStorage;
+use sos_storage::server::filesystem::ServerStorage;
 
 /// Account storage.
 pub struct AccountStorage {

@@ -27,8 +27,9 @@ use sos_core::{
     commit::{CommitHash, CommitState},
     SecretId, VaultId,
 };
-use sos_database::storage::{
-    AccessOptions, ClientStorage, NewFolderOptions, StorageEventLogs,
+use sos_database::{
+    storage::{AccessOptions, ClientStorage, NewFolderOptions},
+    StorageEventLogs,
 };
 
 use sos_account::{
@@ -1032,48 +1033,40 @@ impl Account for LinkedAccount {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl StorageEventLogs for LinkedAccount {
-    async fn identity_log(
-        &self,
-    ) -> sos_database::Result<Arc<RwLock<FolderEventLog>>> {
+    type Error = Error;
+
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
         let account = self.account.lock().await;
-        account.identity_log().await
+        Ok(account.identity_log().await?)
     }
 
-    async fn account_log(
-        &self,
-    ) -> sos_database::Result<Arc<RwLock<AccountEventLog>>> {
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
         let account = self.account.lock().await;
-        account.account_log().await
+        Ok(account.account_log().await?)
     }
 
-    async fn device_log(
-        &self,
-    ) -> sos_database::Result<Arc<RwLock<DeviceEventLog>>> {
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
         let account = self.account.lock().await;
-        account.device_log().await
+        Ok(account.device_log().await?)
     }
 
     #[cfg(feature = "files")]
-    async fn file_log(
-        &self,
-    ) -> sos_database::Result<Arc<RwLock<FileEventLog>>> {
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
         let account = self.account.lock().await;
-        account.file_log().await
+        Ok(account.file_log().await?)
     }
 
-    async fn folder_details(
-        &self,
-    ) -> sos_database::Result<IndexSet<Summary>> {
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
         let account = self.account.lock().await;
-        account.folder_details().await
+        Ok(account.folder_details().await?)
     }
 
     async fn folder_log(
         &self,
         id: &VaultId,
-    ) -> sos_database::Result<Arc<RwLock<FolderEventLog>>> {
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
         let account = self.account.lock().await;
-        account.folder_log(id).await
+        Ok(account.folder_log(id).await?)
     }
 }
 
@@ -1084,9 +1077,9 @@ impl SyncStorage for LinkedAccount {
         true
     }
 
-    async fn sync_status(&self) -> sos_protocol::Result<SyncStatus> {
+    async fn sync_status(&self) -> Result<SyncStatus> {
         let account = self.account.lock().await;
-        account.sync_status().await
+        Ok(account.sync_status().await?)
     }
 }
 

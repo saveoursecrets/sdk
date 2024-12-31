@@ -5027,6 +5027,7 @@ dependencies = [
  "futures-util",
  "hex",
  "indexmap 2.7.0",
+ "rustc_version",
  "sanitize-filename",
  "secrecy",
  "serde",
@@ -5164,6 +5165,7 @@ dependencies = [
  "sos-net",
  "sos-sdk",
  "sos-server",
+ "sos-storage",
  "sos-test-utils",
  "sos-web",
  "tempfile",
@@ -5466,6 +5468,7 @@ dependencies = [
  "sos-logs",
  "sos-protocol",
  "sos-sdk",
+ "sos-storage",
  "thiserror 2.0.9",
  "tokio",
  "tokio-rustls",
@@ -5479,6 +5482,22 @@ dependencies = [
  "url",
  "utoipa",
  "utoipa-rapidoc",
+ "uuid",
+]
+
+[[package]]
+name = "sos-storage"
+version = "0.16.0"
+dependencies = [
+ "async-trait",
+ "indexmap 2.7.0",
+ "sos-core",
+ "sos-database",
+ "sos-protocol",
+ "sos-sdk",
+ "thiserror 2.0.9",
+ "tokio",
+ "tracing",
  "uuid",
 ]
 

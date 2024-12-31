@@ -1,8 +1,8 @@
 //! Helper functions for server implementations.
 use crate::{
-    DiffRequest, DiffResponse, EventLogType, Merge, MergeOutcome,
-    PatchRequest, PatchResponse, Result, ScanRequest, ScanResponse,
-    SyncPacket, SyncStorage,
+    error::MergeError, DiffRequest, DiffResponse, EventLogType, Merge,
+    MergeOutcome, PatchRequest, PatchResponse, Result, ScanRequest,
+    ScanResponse, SyncPacket, SyncStorage,
 };
 use binary_stream::futures::{Decodable, Encodable};
 use sos_sdk::{
@@ -13,16 +13,30 @@ use sos_sdk::{
     prelude::EventLogExt,
 };
 
-use sos_database::storage::StorageEventLogs;
+use sos_database::StorageEventLogs;
 
 #[cfg(feature = "files")]
 use sos_sdk::events::{FileDiff, FileEvent};
 
 /// Sync an account.
-pub async fn sync_account(
+pub async fn sync_account<S, E>(
     packet: SyncPacket,
-    storage: &mut (impl SyncStorage + Merge + Send + Sync + 'static),
-) -> Result<(SyncPacket, MergeOutcome)> {
+    storage: &mut S,
+) -> std::result::Result<(SyncPacket, MergeOutcome), E>
+where
+    S: SyncStorage + Merge + Send + Sync + 'static,
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<<S as StorageEventLogs>::Error>
+        + From<MergeError<S>>
+        + From<sos_core::Error>
+        + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<crate::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     let (remote_status, mut diff) = (packet.status, packet.diff);
 
     // Apply the diff to the storage
@@ -40,7 +54,10 @@ pub async fn sync_account(
             .collect::<Vec<_>>();
         diff.folders.retain(|k, _| folders.contains(k));
 
-        storage.merge(diff, &mut outcome).await?
+        storage
+            .merge(diff, &mut outcome)
+            .await
+            .map_err(MergeError::<S>::new)?
     };
 
     // Generate a new diff so the client can apply changes
@@ -48,7 +65,7 @@ pub async fn sync_account(
     let (local_status, diff) = {
         // let reader = account.read().await;
         let (_, local_status, diff) =
-            crate::diff(storage, remote_status).await?;
+            crate::diff::<_, E>(storage, remote_status).await?;
         (local_status, diff)
     };
 
@@ -62,10 +79,19 @@ pub async fn sync_account(
 }
 
 /// Read a diff of events from a event log.
-pub async fn event_diff(
+pub async fn event_diff<S, E>(
     req: &DiffRequest,
-    storage: &impl StorageEventLogs,
-) -> Result<DiffResponse> {
+    storage: &S,
+) -> std::result::Result<DiffResponse, E>
+where
+    S: StorageEventLogs + Send + Sync + 'static,
+    E: From<<S as StorageEventLogs>::Error>
+        + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     match &req.log_type {
         EventLogType::Identity => {
             let log = storage.identity_log().await?;
@@ -97,12 +123,13 @@ pub async fn event_diff(
 }
 
 /// Create a diff response from a request and target event log.
-async fn diff_log<T>(
+async fn diff_log<T, E>(
     req: &DiffRequest,
     event_log: &DiscEventLog<T>,
-) -> Result<DiffResponse>
+) -> std::result::Result<DiffResponse, E>
 where
     T: Default + Encodable + Decodable + Send + Sync + 'static,
+    E: From<sos_sdk::Error> + From<sos_core::Error> + Send + Sync + 'static,
 {
     Ok(DiffResponse {
         patch: event_log.diff_records(req.from_hash.as_ref()).await?,
@@ -111,10 +138,18 @@ where
 }
 
 /// Scan event proofs.
-pub async fn event_scan(
+pub async fn event_scan<S, E>(
     req: &ScanRequest,
-    storage: &impl StorageEventLogs,
-) -> Result<ScanResponse> {
+    storage: &S,
+) -> std::result::Result<ScanResponse, E>
+where
+    S: StorageEventLogs,
+    E: From<<S as StorageEventLogs>::Error>
+        + From<crate::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     let response = match &req.log_type {
         EventLogType::Identity => {
             let log = storage.identity_log().await?;
@@ -212,10 +247,21 @@ where
 
 /// Apply a patch of events rewinding to an optional checkpoint commit
 /// before applying the patch.
-pub async fn event_patch(
+pub async fn event_patch<S, E>(
     req: PatchRequest,
-    storage: &mut (impl StorageEventLogs + Merge),
-) -> Result<(PatchResponse, MergeOutcome)> {
+    storage: &mut S,
+) -> std::result::Result<(PatchResponse, MergeOutcome), E>
+where
+    S: StorageEventLogs + Merge,
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<<S as StorageEventLogs>::Error>
+        + From<MergeError<S>>
+        + From<sos_sdk::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     let (checked_patch, outcome, records) = match &req.log_type {
         EventLogType::Identity => {
             let patch = Patch::<WriteEvent>::new(req.patch);
@@ -236,7 +282,10 @@ pub async fn event_patch(
 
             let mut outcome = MergeOutcome::default();
             (
-                storage.merge_identity(diff, &mut outcome).await?,
+                storage
+                    .merge_identity(diff, &mut outcome)
+                    .await
+                    .map_err(MergeError::<S>::new)?,
                 outcome,
                 records,
             )
@@ -260,7 +309,11 @@ pub async fn event_patch(
 
             let mut outcome = MergeOutcome::default();
             (
-                storage.merge_account(diff, &mut outcome).await?.0,
+                storage
+                    .merge_account(diff, &mut outcome)
+                    .await
+                    .map_err(MergeError::<S>::new)?
+                    .0,
                 outcome,
                 records,
             )
@@ -284,7 +337,10 @@ pub async fn event_patch(
 
             let mut outcome = MergeOutcome::default();
             (
-                storage.merge_device(diff, &mut outcome).await?,
+                storage
+                    .merge_device(diff, &mut outcome)
+                    .await
+                    .map_err(MergeError::<S>::new)?,
                 outcome,
                 records,
             )
@@ -309,7 +365,10 @@ pub async fn event_patch(
 
             let mut outcome = MergeOutcome::default();
             (
-                storage.merge_files(diff, &mut outcome).await?,
+                storage
+                    .merge_files(diff, &mut outcome)
+                    .await
+                    .map_err(MergeError::<S>::new)?,
                 outcome,
                 records,
             )
@@ -333,7 +392,11 @@ pub async fn event_patch(
 
             let mut outcome = MergeOutcome::default();
             (
-                storage.merge_folder(&id, diff, &mut outcome).await?.0,
+                storage
+                    .merge_folder(&id, diff, &mut outcome)
+                    .await
+                    .map_err(MergeError::<S>::new)?
+                    .0,
                 outcome,
                 records,
             )
@@ -346,17 +409,27 @@ pub async fn event_patch(
             head = ?head,
             num_records = ?records.len(),
             "events_patch::rollback_rewind");
-        rollback_rewind(&req.log_type, storage, records).await?;
+        rollback_rewind::<_, E>(&req.log_type, storage, records).await?;
     }
 
     Ok((PatchResponse { checked_patch }, outcome))
 }
 
-async fn rollback_rewind(
+async fn rollback_rewind<S, E>(
     log_type: &EventLogType,
-    storage: &mut impl StorageEventLogs,
+    storage: &mut S,
     records: Vec<EventRecord>,
-) -> Result<()> {
+) -> std::result::Result<(), E>
+where
+    S: StorageEventLogs,
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<<S as StorageEventLogs>::Error>
+        + From<sos_sdk::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     match log_type {
         EventLogType::Identity => {
             let log = storage.identity_log().await?;

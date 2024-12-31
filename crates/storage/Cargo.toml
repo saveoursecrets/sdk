@@ -1,0 +1,26 @@
+[package]
+name = "sos-storage"
+version = "0.16.0"
+edition = "2021"
+description = "Client and server storage for the Save Our Secrets SDK."
+homepage = "https://saveoursecrets.com"
+license = "AGPL-3.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[features]
+audit = []
+server = []
+client = []
+
+[dependencies]
+sos-core.workspace = true
+sos-database.workspace = true
+sos-protocol.workspace = true
+sos-sdk.workspace = true
+
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+indexmap.workspace = true
+uuid.workspace = true
+async-trait.workspace = true

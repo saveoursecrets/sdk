@@ -34,8 +34,9 @@ use sos_core::{
     SecretId, VaultId,
 };
 
-use sos_database::storage::{
-    AccessOptions, ClientStorage, NewFolderOptions, StorageEventLogs,
+use sos_database::{
+    storage::{AccessOptions, ClientStorage, NewFolderOptions},
+    StorageEventLogs,
 };
 use sos_sdk::events::{AccountPatch, DevicePatch, FolderPatch};
 use std::{

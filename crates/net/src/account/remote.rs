@@ -101,7 +101,7 @@ impl RemoteSyncHandler for RemoteBridge {
 
     #[cfg(feature = "files")]
     async fn execute_sync_file_transfers(&self) -> Result<()> {
-        use sos_database::storage::StorageEventLogs;
+        use sos_database::StorageEventLogs;
         let external_files = {
             let account = self.account();
             let account = account.lock().await;

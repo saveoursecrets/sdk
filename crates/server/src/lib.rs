@@ -16,7 +16,6 @@ mod config;
 mod error;
 mod handlers;
 mod server;
-mod storage;
 
 pub use error::Error;
 
