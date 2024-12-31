@@ -12,7 +12,7 @@ use std::collections::{HashMap, HashSet};
 use url::Url;
 use vcard4::Vcard;
 
-use crate::{
+use sos_sdk::{
     crypto::AccessKey,
     search::SearchIndex,
     vault::{
@@ -24,7 +24,7 @@ use crate::{
     UtcDateTime,
 };
 
-use crate::migrate::Convert;
+use crate::Convert;
 
 /// Default label for CSV records when a title is not available.
 pub const UNTITLED: &str = "Untitled";

@@ -7,9 +7,8 @@ use crate::{
 use clap::Subcommand;
 use sos_account::{Account, FolderCreate};
 use sos_database::storage::NewFolderOptions;
-use sos_net::sdk::prelude::{
-    export_authenticator, import_authenticator, AccountRef, VaultFlags,
-};
+use sos_migrate::{export_authenticator, import_authenticator};
+use sos_net::sdk::prelude::{AccountRef, VaultFlags};
 use std::path::PathBuf;
 
 #[derive(Subcommand, Debug)]

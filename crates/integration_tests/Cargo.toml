@@ -29,6 +29,10 @@ features = [
 [dependencies.sos-core]
 workspace = true
 
+[dependencies.sos-migrate]
+workspace = true
+# features = ["full"]
+
 [dependencies.sos-account-extras]
 workspace = true
 features = ["full"]

@@ -1,10 +1,12 @@
-//! Export and import unencrypted data.
+//! Export and import unencrypted data for the [Save Our Secrets](https://saveoursecrets.com) SDK.
 //!
 //! Used to move between different apps.
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 
 use async_trait::async_trait;
-
-use crate::{crypto::AccessKey, vault::Vault};
+use sos_sdk::{crypto::AccessKey, vault::Vault};
 
 mod authenticator;
 mod error;

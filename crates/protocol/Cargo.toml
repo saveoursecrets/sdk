@@ -30,7 +30,7 @@ pairing = []
 archive = ["sos-sdk/archive"]
 contacts = ["sos-sdk/contacts"]
 files = ["sos-sdk/files", "sos-account/files"]
-migrate = ["sos-sdk/migrate", "sos-account/migrate"]
+migrate = ["sos-account/migrate"]
 search = ["sos-sdk/search", "sos-account/search"]
 
 [dependencies]

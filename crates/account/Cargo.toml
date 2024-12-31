@@ -29,7 +29,7 @@ archive = [
 ]
 clipboard = ["dep:xclipboard", "dep:serde_json_path", "dep:time-tz"]
 contacts = ["dep:vcard4"]
-migrate = ["sos-sdk/migrate"]
+migrate = ["sos-migrate"]
 files =["sos-sdk/files", "sos-database/files", "dep:walkdir"]
 search =["sos-sdk/search", "sos-database/search"]
 
@@ -37,6 +37,7 @@ search =["sos-sdk/search", "sos-database/search"]
 sos-core.workspace = true
 sos-sdk.workspace = true
 sos-database.workspace = true
+sos-migrate = { workspace = true, optional = true }
 
 thiserror.workspace = true
 secrecy.workspace = true

@@ -2,12 +2,12 @@
 
 use async_trait::async_trait;
 
-use crate::{
+use serde::Deserialize;
+use sos_sdk::{
     crypto::AccessKey,
     vault::{secret::IdentityKind, Vault},
-    UtcDateTime,
+    vfs, UtcDateTime,
 };
-use serde::Deserialize;
 use std::{
     collections::HashSet,
     io::Cursor,
@@ -25,12 +25,7 @@ use super::{
     GenericIdRecord, GenericNoteRecord, GenericPasswordRecord,
     GenericPaymentRecord, UNTITLED,
 };
-use crate::migrate::{import::read_csv_records, Convert, Result};
-
-#[cfg(not(test))]
-use crate::vfs;
-#[cfg(test)]
-use tokio::fs as vfs;
+use crate::{import::read_csv_records, Convert, Result};
 
 /// Record used to deserialize dashlane CSV files.
 #[derive(Debug)]
@@ -665,10 +660,10 @@ impl Convert for DashlaneCsvZip {
 #[cfg(test)]
 mod test {
     use super::{parse_path, DashlaneCsvZip, DashlaneRecord};
-    use crate::migrate::Convert;
+    use crate::Convert;
     use anyhow::Result;
 
-    use crate::{
+    use sos_sdk::{
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         search::SearchIndex,

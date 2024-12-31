@@ -3,11 +3,12 @@ use enum_iterator::all;
 use sos_net::{
     sdk::{
         identity::{AccountRef, PublicIdentity},
-        migrate::import::{ImportFormat, ImportTarget},
         vfs, Paths,
     },
     NetworkAccount,
 };
+
+use sos_migrate::import::{ImportFormat, ImportTarget};
 
 use sos_account::{
     archive::{

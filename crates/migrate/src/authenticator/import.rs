@@ -1,12 +1,12 @@
-use crate::{
-    migrate::Error,
+use crate::{Error, Result};
+use async_zip::tokio::read::seek::ZipFileReader;
+use sos_sdk::{
     vault::{
         secret::{Secret, SecretMeta, SecretRow},
         Gatekeeper,
     },
-    Result,
+    vfs,
 };
-use async_zip::tokio::read::seek::ZipFileReader;
 use std::path::Path;
 use tokio::io::BufReader;
 use totp_rs::TOTP;
@@ -18,7 +18,7 @@ pub async fn import_authenticator(
     path: impl AsRef<Path>,
     keeper: &mut Gatekeeper,
 ) -> Result<()> {
-    let inner = BufReader::new(tokio::fs::File::open(path.as_ref()).await?);
+    let inner = BufReader::new(vfs::File::open(path.as_ref()).await?);
     let mut reader = ZipFileReader::with_tokio(inner).await?;
 
     let mut urls: Option<AuthenticatorUrls> = None;

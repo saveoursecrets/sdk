@@ -6,6 +6,7 @@ use sos_account::{
     archive::RestoreOptions, Account, FolderCreate, LocalAccount,
     SecretChange,
 };
+use sos_migrate::import::ImportTarget;
 use sos_net::sdk::prelude::*;
 use std::path::{Path, PathBuf};
 

@@ -11,19 +11,14 @@ use std::{
 };
 use url::Url;
 
-use crate::{crypto::AccessKey, vault::Vault};
 use async_trait::async_trait;
+use sos_sdk::{crypto::AccessKey, vault::Vault, vfs};
 use tokio::io::AsyncRead;
 
 use super::{
     GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED,
 };
-use crate::migrate::{import::read_csv_records, Convert, Result};
-
-#[cfg(not(test))]
-use crate::vfs;
-#[cfg(test)]
-use tokio::fs as vfs;
+use crate::{import::read_csv_records, Convert, Result};
 
 /// Record for an entry in a MacOS passwords CSV export.
 #[derive(Deserialize)]
@@ -172,10 +167,10 @@ where
 #[cfg(test)]
 mod test {
     use super::{super::UNTITLED, parse_path, OnePasswordCsv};
-    use crate::migrate::Convert;
+    use crate::Convert;
     use anyhow::Result;
 
-    use crate::{
+    use sos_sdk::{
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         search::SearchIndex,

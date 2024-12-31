@@ -9,12 +9,11 @@ use async_zip::{tokio::write::ZipFileWriter, Compression, ZipEntryBuilder};
 use tokio::io::AsyncWrite;
 use tokio_util::compat::Compat;
 
-use crate::{
-    vault::{
-        secret::{FileContent, Secret, SecretId, SecretMeta},
-        Gatekeeper, Summary, VaultId, VaultMeta,
-    },
-    Result,
+use crate::Result;
+use sos_core::{SecretId, VaultId};
+use sos_sdk::vault::{
+    secret::{FileContent, Secret, SecretMeta},
+    Gatekeeper, Summary, VaultMeta,
 };
 
 /// Public export encapsulates a collection of vaults

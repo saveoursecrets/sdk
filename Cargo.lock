@@ -4997,6 +4997,7 @@ dependencies = [
  "sos-cli-helpers",
  "sos-core",
  "sos-database",
+ "sos-migrate",
  "sos-net",
  "sos-protocol",
  "sos-sdk",
@@ -5029,6 +5030,7 @@ dependencies = [
  "sha2",
  "sos-core",
  "sos-database",
+ "sos-migrate",
  "sos-sdk",
  "tempfile",
  "thiserror 2.0.9",
@@ -5145,6 +5147,7 @@ dependencies = [
  "sos-core",
  "sos-database",
  "sos-ipc",
+ "sos-migrate",
  "sos-net",
  "sos-sdk",
  "sos-server",
@@ -5194,6 +5197,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-migrate"
+version = "0.16.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "async_zip",
+ "csv-async",
+ "enum-iterator",
+ "futures",
+ "hex",
+ "keychain_parser",
+ "rustc_version",
+ "secrecy",
+ "security-framework 3.1.0",
+ "serde",
+ "serde_json",
+ "sos-core",
+ "sos-sdk",
+ "sos-test-utils",
+ "tempfile",
+ "thiserror 2.0.9",
+ "time",
+ "tokio",
+ "tokio-util",
+ "totp-rs",
+ "url",
+ "vcard4",
+]
+
+[[package]]
 name = "sos-net"
 version = "0.16.2"
 dependencies = [
@@ -5219,6 +5252,7 @@ dependencies = [
  "sos-account-extras",
  "sos-core",
  "sos-database",
+ "sos-migrate",
  "sos-protocol",
  "sos-sdk",
  "thiserror 2.0.9",
@@ -5291,15 +5325,14 @@ dependencies = [
  "async-once-cell",
  "async-stream",
  "async-trait",
- "async_zip",
  "balloon-hash",
  "binary-stream",
  "bitflags 2.6.0",
  "bs58",
  "chacha20poly1305",
  "chbs",
- "csv-async",
  "ed25519-dalek",
+ "enum-iterator",
  "etcetera",
  "ethereum-types",
  "filetime",
@@ -5442,6 +5475,7 @@ dependencies = [
  "sos-account",
  "sos-core",
  "sos-database",
+ "sos-migrate",
  "sos-protocol",
  "sos-sdk",
  "thiserror 2.0.9",

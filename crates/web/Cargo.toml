@@ -24,22 +24,22 @@ archive = []
 clipboard = []
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = []
-migrate = []
+migrate = ["sos-account/migrate", "sos-migrate"]
 search = ["sos-sdk/search", "sos-protocol/search"]
 
 [dependencies]
-thiserror.workspace = true
-tracing.workspace = true
-indexmap.workspace = true
-async-trait.workspace = true
-
 sos-core.workspace = true
 sos-account.workspace = true
 sos-database.workspace = true
 sos-sdk.workspace = true
 sos-protocol = { workspace = true, features = ["network-client"] }
+sos-migrate = { workspace = true, optional = true }
 
-tokio = { version = "1", features = ["rt", "io-util", "sync"] }
+thiserror.workspace = true
+tracing.workspace = true
+indexmap.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
 
 [build-dependencies]
 rustc_version = "0.4.1"

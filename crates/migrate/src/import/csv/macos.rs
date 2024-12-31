@@ -1,54 +1,51 @@
-//! Parser for the Chrome passwords CSV export.
+//! Parser for the MacOS passwords CSV export.
 
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use url::Url;
 
-use crate::{crypto::AccessKey, vault::Vault};
 use async_trait::async_trait;
+use sos_sdk::{crypto::AccessKey, vault::Vault, vfs};
 use tokio::io::AsyncRead;
 
 use super::{
     GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED,
 };
-use crate::migrate::{import::read_csv_records, Convert, Result};
+use crate::{import::read_csv_records, Convert, Result};
 
-#[cfg(not(test))]
-use crate::vfs;
-#[cfg(test)]
-use tokio::fs as vfs;
-
-/// Record for an entry in a Chrome passwords CSV export.
+/// Record for an entry in a MacOS passwords CSV export.
 #[derive(Deserialize)]
-pub struct ChromePasswordRecord {
-    /// The name of the entry.
-    pub name: String,
+pub struct MacPasswordRecord {
+    /// The title of the entry.
+    #[serde(rename = "Title")]
+    pub title: String,
     /// The URL of the entry.
-    pub url: Option<String>,
+    #[serde(rename = "Url")]
+    pub url: Option<Url>,
     /// The username for the entry.
+    #[serde(rename = "Username")]
     pub username: String,
     /// The password for the entry.
+    #[serde(rename = "Password")]
     pub password: String,
-    /// The note for the entry.
-    pub note: Option<String>,
+    /// Notes for the entry.
+    #[serde(rename = "Notes")]
+    pub notes: Option<String>,
+    /// OTP auth information for the entry.
+    #[serde(rename = "OTPAuth")]
+    pub otp_auth: Option<String>,
 }
 
-impl From<ChromePasswordRecord> for GenericPasswordRecord {
-    fn from(value: ChromePasswordRecord) -> Self {
-        let label = if value.name.is_empty() {
+impl From<MacPasswordRecord> for GenericPasswordRecord {
+    fn from(value: MacPasswordRecord) -> Self {
+        let label = if value.title.is_empty() {
             UNTITLED.to_owned()
         } else {
-            value.name
+            value.title
         };
 
         let url = if let Some(url) = value.url {
-            let mut websites = Vec::new();
-            for u in url.split(",") {
-                if let Ok(url) = u.trim().parse::<Url>() {
-                    websites.push(url);
-                }
-            }
-            websites
+            vec![url]
         } else {
             vec![]
         };
@@ -58,15 +55,15 @@ impl From<ChromePasswordRecord> for GenericPasswordRecord {
             url,
             username: value.username,
             password: value.password,
-            otp_auth: None,
+            otp_auth: value.otp_auth,
             tags: None,
-            note: value.note,
+            note: value.notes,
         }
     }
 }
 
-impl From<ChromePasswordRecord> for GenericCsvEntry {
-    fn from(value: ChromePasswordRecord) -> Self {
+impl From<MacPasswordRecord> for GenericCsvEntry {
+    fn from(value: MacPasswordRecord) -> Self {
         Self::Password(value.into())
     }
 }
@@ -74,22 +71,22 @@ impl From<ChromePasswordRecord> for GenericCsvEntry {
 /// Parse records from a reader.
 pub async fn parse_reader<R: AsyncRead + Unpin + Send>(
     reader: R,
-) -> Result<Vec<ChromePasswordRecord>> {
-    read_csv_records::<ChromePasswordRecord, _>(reader).await
+) -> Result<Vec<MacPasswordRecord>> {
+    read_csv_records::<MacPasswordRecord, _>(reader).await
 }
 
 /// Parse records from a path.
 pub async fn parse_path<P: AsRef<Path>>(
     path: P,
-) -> Result<Vec<ChromePasswordRecord>> {
+) -> Result<Vec<MacPasswordRecord>> {
     parse_reader(vfs::File::open(path).await?).await
 }
 
-/// Import a Chrome passwords CSV export into a vault.
-pub struct ChromePasswordCsv;
+/// Import a MacOS passwords CSV export into a vault.
+pub struct MacPasswordCsv;
 
 #[async_trait]
-impl Convert for ChromePasswordCsv {
+impl Convert for MacPasswordCsv {
     type Input = PathBuf;
 
     async fn convert(
@@ -109,11 +106,11 @@ impl Convert for ChromePasswordCsv {
 
 #[cfg(test)]
 mod test {
-    use super::{parse_path, ChromePasswordCsv};
-    use crate::migrate::{import::csv::GenericPasswordRecord, Convert};
+    use super::{parse_path, MacPasswordCsv};
+    use crate::Convert;
     use anyhow::Result;
 
-    use crate::{
+    use sos_sdk::{
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         search::SearchIndex,
@@ -122,54 +119,43 @@ mod test {
     use url::Url;
 
     #[tokio::test]
-    async fn chrome_passwords_csv_parse() -> Result<()> {
+    async fn macos_passwords_csv_parse() -> Result<()> {
         let mut records =
-            parse_path("../../fixtures/migrate/chrome-export.csv").await?;
+            parse_path("../../fixtures/migrate/macos-export.csv").await?;
         assert_eq!(2, records.len());
 
         let first = records.remove(0);
         let second = records.remove(0);
 
-        assert_eq!("mock.example.com", &first.name);
-        assert_eq!(
-            Some("https://mock.example.com/login,https://mock.example.com/login2".to_owned()),
-            first.url
-        );
+        assert_eq!("mock.example.com (mock@example.com)", &first.title);
+        assert_eq!(Some(Url::parse("https://mock.example.com/")?), first.url);
         assert_eq!("mock@example.com", &first.username);
         assert_eq!("XXX-MOCK-1", &first.password);
+        assert!(first.otp_auth.is_none());
 
-        assert_eq!("mock2.example.com", &second.name);
+        assert_eq!("mock2.example.com (mock-username)", &second.title);
         assert_eq!(
-            Some("https://mock2.example.com/login".to_owned()),
+            Some(Url::parse("https://mock2.example.com/")?),
             second.url
         );
-        assert_eq!("mock2@example.com", &second.username);
+        assert_eq!("mock-username", &second.username);
         assert_eq!("XXX-MOCK-2", &second.password);
-
-        // Check multiple URL parsing
-        let entry: GenericPasswordRecord = first.into();
-        assert_eq!(
-            vec![
-                Url::parse("https://mock.example.com/login")?,
-                Url::parse("https://mock.example.com/login2")?,
-            ],
-            entry.url
-        );
+        assert!(second.otp_auth.is_none());
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn chrome_passwords_csv_convert() -> Result<()> {
+    async fn macos_passwords_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
         let vault = VaultBuilder::new()
             .build(BuilderCredentials::Password(passphrase.clone(), None))
             .await?;
 
         let key: AccessKey = passphrase.into();
-        let vault = ChromePasswordCsv
+        let vault = MacPasswordCsv
             .convert(
-                "../../fixtures/migrate/chrome-export.csv".into(),
+                "../../fixtures/migrate/macos-export.csv".into(),
                 vault,
                 &key,
             )
@@ -180,28 +166,34 @@ mod test {
         keeper.unlock(&key).await?;
         search.add_folder(&keeper).await?;
 
-        let first =
-            search.find_by_label(keeper.id(), "mock.example.com", None);
+        let first = search.find_by_label(
+            keeper.id(),
+            "mock.example.com (mock@example.com)",
+            None,
+        );
         assert!(first.is_some());
 
-        let second =
-            search.find_by_label(keeper.id(), "mock2.example.com", None);
+        let second = search.find_by_label(
+            keeper.id(),
+            "mock2.example.com (mock-username)",
+            None,
+        );
         assert!(second.is_some());
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn chrome_passwords_note_csv_convert() -> Result<()> {
+    async fn macos_passwords_notes_csv_convert() -> Result<()> {
         let (passphrase, _) = generate_passphrase()?;
         let vault = VaultBuilder::new()
             .build(BuilderCredentials::Password(passphrase.clone(), None))
             .await?;
 
         let key: AccessKey = passphrase.into();
-        let vault = ChromePasswordCsv
+        let vault = MacPasswordCsv
             .convert(
-                "../../fixtures/migrate/chrome-export-note.csv".into(),
+                "../../fixtures/migrate/macos-notes-export.csv".into(),
                 vault,
                 &key,
             )
@@ -212,8 +204,11 @@ mod test {
         keeper.unlock(&key).await?;
         search.add_folder(&keeper).await?;
 
-        let first =
-            search.find_by_label(keeper.id(), "mock.example.com", None);
+        let first = search.find_by_label(
+            keeper.id(),
+            "mock.example.com (mock@example.com)",
+            None,
+        );
         assert!(first.is_some());
 
         let doc = first.unwrap();

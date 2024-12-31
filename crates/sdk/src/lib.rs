@@ -24,7 +24,6 @@
 //! * `contacts` Manage account contacts.
 //! * `files` Store external encrypted files.
 //! * `logs` Log file support.
-//! * `migrate` Import and export unencrypted secrets.
 //! * `search` In-memory search index.
 //!
 
@@ -45,9 +44,6 @@ pub mod integrity;
 
 #[cfg(feature = "logs")]
 pub mod logs;
-
-#[cfg(feature = "migrate")]
-pub mod migrate;
 
 pub mod passwd;
 pub(crate) mod paths;

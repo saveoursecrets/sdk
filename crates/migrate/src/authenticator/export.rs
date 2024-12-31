@@ -1,11 +1,12 @@
 use super::{AuthenticatorUrls, OTP_AUTH_URLS};
-use crate::{
-    vault::{secret::Secret, Gatekeeper},
-    Result,
-};
+use crate::{Error, Result};
 use async_zip::{
     tokio::write::ZipFileWriter, Compression, ZipDateTimeBuilder,
     ZipEntryBuilder,
+};
+use sos_sdk::{
+    vault::{secret::Secret, Gatekeeper},
+    vfs,
 };
 use std::{collections::HashMap, path::Path};
 use time::OffsetDateTime;
@@ -29,7 +30,7 @@ pub async fn export_authenticator(
         }
     }
 
-    let inner = tokio::fs::File::create(path.as_ref()).await?;
+    let inner = vfs::File::create(path.as_ref()).await?;
     let mut writer = ZipFileWriter::with_tokio(inner);
 
     // Write the JSON otpauth: URLs
@@ -45,7 +46,7 @@ pub async fn export_authenticator(
     if include_qr_codes {
         for (id, totp) in totp_secrets {
             let name = format!("qr/{}.png", id);
-            let buffer = totp.get_qr_png()?;
+            let buffer = totp.get_qr_png().map_err(Error::Message)?;
             let entry = get_entry(&name)?;
             writer.write_entry_whole(entry, &buffer).await?;
         }

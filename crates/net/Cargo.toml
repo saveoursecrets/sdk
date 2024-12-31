@@ -37,7 +37,7 @@ archive = ["sos-sdk/archive", "sos-protocol/archive", "sos-account/archive"]
 files = ["sos-sdk/files", "sos-protocol/files"]
 clipboard = ["sos-account/clipboard"]
 contacts = ["sos-account/contacts", "sos-protocol/contacts"]
-migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
+migrate = ["sos-account/migrate", "sos-migrate"]
 keychain-access = ["sos-sdk/keychain-access"]
 recovery = ["sos-sdk/recovery"]
 pairing = ["dep:snow", "sos-protocol/pairing"]
@@ -53,6 +53,7 @@ sos-core.workspace = true
 sos-sdk.workspace = true
 sos-database.workspace = true
 sos-protocol = { workspace = true, features = ["network-client"] }
+sos-migrate = { workspace = true, optional = true }
 
 tokio-util.workspace = true
 thiserror.workspace = true

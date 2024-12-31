@@ -23,7 +23,6 @@ full = [
   "contacts",
   "files",
   "logs",
-  "migrate",
   "search",
 ]
 archive = []
@@ -33,13 +32,13 @@ files = []
 interactive-keychain-tests = []
 logs = ["rev_buf_reader", "tracing-appender", "tracing-subscriber"]
 mem-fs = ["sos-vfs/mem-fs"]
-migrate = ["dep:async_zip", "dep:csv-async"]
 keychain-access = ["dep:security-framework", "dep:keychain_parser"]
 recovery = ["dep:vsss-rs"]
 search = ["dep:probly-search"]
 
 [dependencies]
 sos-core.workspace = true
+sos-vfs.workspace = true
 
 binary-stream.workspace = true
 secrecy.workspace = true
@@ -69,12 +68,11 @@ bitflags.workspace = true
 tempfile.workspace = true
 enum-iterator.workspace = true
 typeshare.workspace = true
-sos-vfs.workspace = true
+totp-rs.workspace = true
 
 subtle = { version = "2.5" }
 ethereum-types = "0.15"
-async_zip = { workspace = true, optional = true }
-csv-async = { version = "1", features = ["tokio", "with_serde"], optional = true }
+
 aes-gcm = { version = "0.10.1", features = ["std"] }
 chacha20poly1305 = { version = "0.10.1", features = ["std"] }
 filetime = "0.2"
@@ -82,7 +80,6 @@ argon2 = { version = "0.5", features = ["std"]}
 balloon-hash = { version = "0.4", features = ["std"]}
 pem = { version = "3", features = ["serde"] }
 zxcvbn = { version = "3.0.1", features = ["ser"] }
-totp-rs = { version = "5.5", features = ["qr", "serde_support", "zeroize"] }
 vcard4.workspace = true
 async-once-cell = "0.5"
 age.workspace = true
@@ -120,9 +117,9 @@ tokio = { version = "1", default-features = false, features = ["rt", "sync", "ma
 version = "0.1.1"
 
 [dev-dependencies]
-anyhow = "1"
+anyhow.workspace = true
 tokio = { version = "1", features = ["full"] }
-sos-test-utils = { path = "../test_utils" }
+sos-test-utils.workspace = true
 
 [build-dependencies]
 rustc_version = "0.4.1"

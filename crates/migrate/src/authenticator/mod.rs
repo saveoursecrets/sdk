@@ -1,5 +1,5 @@
-use crate::vault::secret::SecretId;
 use serde::{Deserialize, Serialize};
+use sos_core::SecretId;
 use std::collections::HashMap;
 use url::Url;
 

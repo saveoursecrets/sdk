@@ -66,7 +66,7 @@ use sos_account::ContactImportProgress;
 use tokio::io::{AsyncRead, AsyncSeek};
 
 #[cfg(feature = "migrate")]
-use sos_sdk::prelude::ImportTarget;
+use sos_migrate::import::ImportTarget;
 
 #[cfg(feature = "files")]
 use sos_protocol::transfer::FileTransferQueueSender;

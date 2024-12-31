@@ -1,4 +1,5 @@
 use anyhow::Result;
+use sos_migrate::export::PublicExport;
 use sos_sdk::prelude::*;
 use sos_test_utils::*;
 use std::io::Cursor;

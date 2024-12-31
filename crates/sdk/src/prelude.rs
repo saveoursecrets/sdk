@@ -8,12 +8,6 @@ pub use crate::events::*;
 pub use crate::formats::*;
 pub use crate::identity::*;
 pub use crate::integrity::*;
-#[cfg(feature = "migrate")]
-pub use crate::migrate::export::*;
-#[cfg(feature = "migrate")]
-pub use crate::migrate::import::*;
-#[cfg(feature = "migrate")]
-pub use crate::migrate::*;
 pub use crate::passwd::*;
 #[cfg(feature = "search")]
 pub use crate::search::*;

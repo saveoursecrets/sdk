@@ -61,7 +61,7 @@ use {
 use sos_sdk::search::*;
 
 #[cfg(feature = "migrate")]
-use sos_sdk::migrate::{
+use sos_migrate::{
     export::PublicExport,
     import::{
         csv::{

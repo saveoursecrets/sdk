@@ -4,12 +4,12 @@ use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use url::Url;
 
-use crate::{crypto::AccessKey, vault::Vault, vfs};
 use async_trait::async_trait;
+use sos_sdk::{crypto::AccessKey, vault::Vault, vfs};
 use tokio::io::AsyncRead;
 
 use super::{GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord};
-use crate::migrate::{import::read_csv_records, Convert, Result};
+use crate::{import::read_csv_records, Convert, Result};
 
 /// Record for an entry in a Firefox passwords CSV export.
 #[derive(Deserialize)]
@@ -98,10 +98,10 @@ impl Convert for FirefoxPasswordCsv {
 #[cfg(test)]
 mod test {
     use super::{parse_path, FirefoxPasswordCsv};
-    use crate::migrate::Convert;
+    use crate::Convert;
     use anyhow::Result;
 
-    use crate::{
+    use sos_sdk::{
         crypto::AccessKey,
         passwd::diceware::generate_passphrase,
         search::SearchIndex,

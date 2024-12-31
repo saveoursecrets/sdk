@@ -1,0 +1,40 @@
+[package]
+name = "sos-migrate"
+version = "0.16.0"
+edition = "2021"
+
+[features]
+keychain-access = ["dep:security-framework", "dep:keychain_parser"]
+
+[dependencies]
+sos-core.workspace = true
+sos-sdk = { workspace = true, features = ["search"] }
+
+thiserror.workspace = true
+enum-iterator.workspace = true
+serde_json.workspace = true
+async_zip.workspace = true
+csv-async.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+async-trait.workspace = true
+hex.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+futures.workspace = true
+time.workspace = true
+url.workspace = true
+totp-rs.workspace = true
+vcard4.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = { version = "3.1", optional = true }
+keychain_parser = { workspace = true, optional = true }
+
+[dev-dependencies]
+anyhow.workspace = true
+tempfile.workspace = true
+sos-test-utils.workspace = true
+
+[build-dependencies]
+rustc_version = "0.4.1"

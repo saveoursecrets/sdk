@@ -69,7 +69,7 @@ use sos_account::ContactImportProgress;
 use tokio::io::{AsyncRead, AsyncSeek};
 
 #[cfg(feature = "migrate")]
-use crate::sdk::prelude::ImportTarget;
+use sos_migrate::import::ImportTarget;
 
 #[cfg(feature = "listen")]
 use sos_protocol::network_client::WebSocketHandle;

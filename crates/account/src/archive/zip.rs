@@ -21,8 +21,9 @@ use sos_sdk::{
     signer::ecdsa::Address,
     vault::{Header as VaultHeader, Summary, VaultId},
     vfs::{self, File},
-    Error, Result,
 };
+
+use crate::{Error, Result};
 
 /// Write to an archive.
 ///

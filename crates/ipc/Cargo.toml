@@ -25,7 +25,7 @@ archive = ["sos-sdk/archive", "sos-protocol/archive"]
 clipboard = ["sos-account/clipboard"]
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = ["sos-sdk/files", "sos-protocol/files"]
-migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
+migrate = ["sos-account/migrate"]
 search = ["sos-sdk/search", "sos-protocol/search"]
 extension-helper-server = [
   "memory-http-server",
@@ -53,6 +53,12 @@ extension-helper-client = [
 ]
 
 [dependencies]
+sos-sdk.workspace = true
+sos-account.workspace = true
+sos-database.workspace = true
+sos-protocol.workspace = true
+sos-platform-authenticator = { version = "0.1", path = "../platform_authenticator", optional = true }
+
 thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
@@ -68,12 +74,6 @@ async-trait = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 notify = { workspace = true, optional = true }
-
-sos-sdk.workspace = true
-sos-account.workspace = true
-sos-database.workspace = true
-sos-protocol.workspace = true
-sos-platform-authenticator = { version = "0.1", path = "../platform_authenticator", optional = true }
 
 tokio = { version = "1", features = ["rt", "macros", "io-util", "sync"] }
 tokio-util = { version = "0.7", features = ["codec"] }
