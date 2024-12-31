@@ -188,36 +188,13 @@ impl DeviceManager {
 
 /// Additional information about the device such as the
 /// device name, manufacturer and model.
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct DeviceMetaData {
     // Note that order is very important here as this type
     // is included in the device event log and if the order
     // is non-deterministic the commit hashes will differ.
     #[serde(flatten)]
     info: BTreeMap<String, Value>,
-}
-
-impl Default for DeviceMetaData {
-    fn default() -> Self {
-        let mut info = BTreeMap::new();
-        if let Ok(hostname) = whoami::fallible::hostname() {
-            info.insert("hostname".to_owned(), Value::String(hostname));
-        }
-        info.insert(
-            "platform".to_owned(),
-            Value::String(whoami::platform().to_string()),
-        );
-        info.insert("distro".to_owned(), Value::String(whoami::distro()));
-        info.insert(
-            "arch".to_owned(),
-            Value::String(whoami::arch().to_string()),
-        );
-        info.insert(
-            "desktop".to_owned(),
-            Value::String(whoami::desktop_env().to_string()),
-        );
-        Self { info }
-    }
 }
 
 impl fmt::Display for DeviceMetaData {

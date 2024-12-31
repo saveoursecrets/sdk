@@ -123,8 +123,12 @@ rustls = { version = "0.23", default-features = false, features = ["ring"] }
 keyring = { version = "3.5", features = ["apple-native", "windows-native", "sync-secret-service"] }
 
 # logs
-tracing-appender = { version = "0.2" }
-rev_buf_reader = { version = "0.3" }
+tracing-appender = "0.2"
+rev_buf_reader = "0.3"
+
+# search
+unicode-segmentation = "1.10"
+probly-search = "2.0.1"
 
 rustc_version = "0.4.1"
 
