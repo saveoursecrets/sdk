@@ -66,9 +66,7 @@ parking_lot.workspace = true
 bs58.workspace = true
 indexmap.workspace = true
 bitflags.workspace = true
-enum-iterator.workspace = true
 tempfile.workspace = true
-rs_merkle.workspace = true
 typeshare.workspace = true
 sos-vfs.workspace = true
 
@@ -92,7 +90,6 @@ urn = { version = "0.7", features = ["serde"] }
 walkdir = "2"
 unicode-segmentation = "1.10"
 mime_guess = { version = "2" }
-sanitize-filename.workspace = true
 futures-util.workspace = true
 async-stream = "0.3"
 whoami = { version = "1.5" }
