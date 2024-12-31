@@ -24,6 +24,7 @@ sos-protocol = { workspace = true, features = ["full"] }
 sos-net = { workspace = true, features = ["full"] }
 sos-sdk = { workspace = true, features = ["full"] }
 sos-migrate.workspace = true
+sos-cli-helpers.workspace = true
 
 csv-async.workspace = true
 binary-stream.workspace = true
@@ -56,6 +57,3 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
 rustyline = "14"
 rustyline-derive = "0.11"
 
-[dependencies.sos-cli-helpers]
-version = "0.1.0" 
-path = "../cli_helpers"

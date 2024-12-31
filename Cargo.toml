@@ -26,6 +26,7 @@ members = [
 [workspace.dependencies]
 sos-account = { version = "0.16", path = "crates/account" }
 sos-account-extras = { version = "0.16", path = "crates/account_extras" }
+sos-cli-helpers = { path = "crates/cli_helpers" }
 sos-core = { version = "0.16", path = "crates/core" }
 sos-ipc = { version = "0.16", path = "crates/ipc" }
 sos-web = { version = "0.16", path = "crates/web" }
