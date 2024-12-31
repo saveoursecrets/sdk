@@ -20,7 +20,7 @@ members = [
   "crates/sos",
   "crates/test_utils",
   "crates/vfs", 
-  "crates/web", "crates/password", 
+  "crates/web", "crates/password", "crates/logs", 
 ]
 
 [workspace.dependencies]
@@ -30,6 +30,7 @@ sos-cli-helpers = { path = "crates/cli_helpers" }
 sos-core = { version = "0.16", path = "crates/core" }
 sos-database = { version = "0.16", path = "crates/database" }
 sos-ipc = { version = "0.16", path = "crates/ipc" }
+sos-logs = { version = "0.16", path = "crates/logs" }
 sos-migrate = { version = "0.16", path = "crates/migrate" }
 sos-net = { version = "0.16", path = "crates/net" }
 sos-password = { version = "0.16", path = "crates/password" }
@@ -43,6 +44,10 @@ sos-web = { version = "0.16", path = "crates/web" }
 keychain_parser = { version = "0.1", path = "crates/keychain_parser" }
 xclipboard  = { version = "0.16", path = "crates/clipboard" }
 
+# core
+rs_merkle = "1.4.2"
+
+# password
 zxcvbn = { version = "3.0.1", features = ["ser"] }
 chbs = "0.1.1"
 
@@ -63,7 +68,7 @@ async-fd-lock = "0.2"
 thiserror = "2"
 anyhow = "1"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.16", features = ["env-filter", "json"] }
 secrecy = { version = "0.10", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time", "sync"]}
@@ -117,10 +122,11 @@ tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 keyring = { version = "3.5", features = ["apple-native", "windows-native", "sync-secret-service"] }
 
-rustc_version = "0.4.1"
+# logs
+tracing-appender = { version = "0.2" }
+rev_buf_reader = { version = "0.3" }
 
-[workspace.dependencies.rs_merkle]
-version = "1.4.2"
+rustc_version = "0.4.1"
 
 [workspace.dependencies.binary-stream]
 version = "9.1.0"

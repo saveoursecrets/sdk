@@ -26,7 +26,6 @@
 //! * `archive` Shared types for account backup archives.
 //! * `contacts` Manage account contacts.
 //! * `files` Store external encrypted files.
-//! * `logs` Log file support.
 //! * `search` In-memory search index.
 //!
 
@@ -44,9 +43,6 @@ pub mod events;
 pub mod formats;
 pub mod identity;
 pub mod integrity;
-
-#[cfg(feature = "logs")]
-pub mod logs;
 
 pub use sos_password as passwd;
 pub(crate) mod paths;

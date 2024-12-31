@@ -4998,6 +4998,7 @@ dependencies = [
  "sos-cli-helpers",
  "sos-core",
  "sos-database",
+ "sos-logs",
  "sos-migrate",
  "sos-net",
  "sos-password",
@@ -5191,6 +5192,7 @@ dependencies = [
  "serde_with",
  "sos-account",
  "sos-database",
+ "sos-logs",
  "sos-platform-authenticator",
  "sos-protocol",
  "sos-sdk",
@@ -5200,6 +5202,17 @@ dependencies = [
  "tower 0.5.2",
  "tracing",
  "typeshare",
+]
+
+[[package]]
+name = "sos-logs"
+version = "0.16.0"
+dependencies = [
+ "rev_buf_reader",
+ "rustc_version",
+ "sos-sdk",
+ "tracing-appender",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -5366,7 +5379,6 @@ dependencies = [
  "pem",
  "probly-search",
  "rand",
- "rev_buf_reader",
  "rustc_version",
  "secrecy",
  "serde",
@@ -5388,8 +5400,6 @@ dependencies = [
  "tokio-util",
  "totp-rs",
  "tracing",
- "tracing-appender",
- "tracing-subscriber",
  "typeshare",
  "unicode-segmentation",
  "url",
@@ -5426,6 +5436,7 @@ dependencies = [
  "sos-cli-helpers",
  "sos-core",
  "sos-database",
+ "sos-logs",
  "sos-protocol",
  "sos-sdk",
  "thiserror 2.0.9",

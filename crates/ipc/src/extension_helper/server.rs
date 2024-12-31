@@ -12,10 +12,12 @@ use http::{
     StatusCode,
 };
 use sos_account::{Account, AccountSwitcher};
+use sos_logs::Logger;
 use sos_protocol::{
     constants::MIME_TYPE_JSON, ErrorReply, Merge, SyncStorage,
 };
-use sos_sdk::{logs::Logger, prelude::ErrorExt};
+use sos_sdk::prelude::ErrorExt;
+
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};

@@ -1,4 +1,4 @@
-use sos_protocol::sdk::logs::Logger;
+use sos_logs::Logger;
 use sos_server::{LogConfig, Result};
 
 #[tokio::main]

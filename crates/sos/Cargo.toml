@@ -20,6 +20,7 @@ enable-cli-tests = []
 sos-core.workspace = true
 sos-account.workspace = true
 sos-database = { workspace = true, features = ["full"] }
+sos-logs.workspace = true
 sos-password.workspace = true
 sos-protocol = { workspace = true, features = ["full"] }
 sos-net = { workspace = true, features = ["full"] }

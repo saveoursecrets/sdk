@@ -13,4 +13,4 @@ logos = { version = "0.15", features = ["export_derive"] }
 plist = "1.7"
 
 [dev-dependencies]
-anyhow = "1"
+anyhow.workspace = true
