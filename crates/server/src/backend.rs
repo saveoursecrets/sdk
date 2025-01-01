@@ -8,8 +8,9 @@ use sos_protocol::{
         vault::DiscFolder,
         vfs, Paths,
     },
-    CreateSet, MergeOutcome, SyncStorage, UpdateSet,
+    MergeOutcome, SyncStorage, UpdateSet,
 };
+use sos_sync::CreateSet;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},

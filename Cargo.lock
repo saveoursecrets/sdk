@@ -5475,6 +5475,7 @@ dependencies = [
  "sos-protocol",
  "sos-sdk",
  "sos-storage",
+ "sos-sync",
  "thiserror 2.0.9",
  "tokio",
  "tokio-rustls",

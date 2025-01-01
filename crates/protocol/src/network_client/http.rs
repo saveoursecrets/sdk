@@ -12,12 +12,12 @@ use crate::{
         },
         MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
     },
-    CreateSet, DiffRequest, DiffResponse, Error, NetworkError, Origin,
-    PatchRequest, PatchResponse, Result, ScanRequest, ScanResponse,
-    SyncClient, SyncPacket, UpdateSet, WireEncodeDecode,
+    DiffRequest, DiffResponse, Error, NetworkError, Origin, PatchRequest,
+    PatchResponse, Result, ScanRequest, ScanResponse, SyncClient, SyncPacket,
+    UpdateSet, WireEncodeDecode,
 };
 
-use sos_sync::SyncStatus;
+use sos_sync::{CreateSet, SyncStatus};
 
 use sos_sdk::{
     prelude::Address,

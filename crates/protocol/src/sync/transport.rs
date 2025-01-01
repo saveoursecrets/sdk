@@ -12,7 +12,7 @@ use crate::sdk::{
 use crate::sync::MaybeConflict;
 use indexmap::{IndexMap, IndexSet};
 use sos_core::{
-    commit::{CommitHash, CommitState, Comparison},
+    commit::{CommitState, Comparison},
     SecretId, VaultId,
 };
 use sos_sdk::events::WriteEvent;
@@ -57,28 +57,6 @@ pub struct SyncPacket {
     /// Sync comparisons.
     pub compare: Option<SyncCompare>,
 }
-
-/*
-/// Provides a status overview of an account.
-///
-/// Intended to be used during a synchronization protocol.
-#[derive(Debug, Default, Clone, Eq, PartialEq)]
-pub struct SyncStatus {
-    /// Computed root of all event log roots.
-    pub root: CommitHash,
-    /// Identity vault commit state.
-    pub identity: CommitState,
-    /// Account log commit state.
-    pub account: CommitState,
-    /// Device log commit state.
-    pub device: CommitState,
-    /// Files log commit state.
-    #[cfg(feature = "files")]
-    pub files: Option<CommitState>,
-    /// Commit proofs for the account folders.
-    pub folders: IndexMap<VaultId, CommitState>,
-}
-*/
 
 /// Collection of comparisons for an account.
 ///
@@ -166,6 +144,7 @@ pub struct SyncDiff {
     pub folders: IndexMap<VaultId, MaybeDiff<FolderDiff>>,
 }
 
+/*
 /// Collection of patches for an account.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct CreateSet {
@@ -181,6 +160,7 @@ pub struct CreateSet {
     /// Folders to be imported into the new account.
     pub folders: HashMap<VaultId, FolderPatch>,
 }
+*/
 
 /// Set of updates to the folders in an account.
 ///

@@ -83,6 +83,28 @@ pub struct CreateSet {
     pub folders: HashMap<VaultId, FolderPatch>,
 }
 
+/// Set of updates to the folders in an account.
+///
+/// Used to destructively update folders in an account;
+/// the identity and folders are entire event
+/// logs so that the account state can be overwritten in the
+/// case of events such as changing encryption cipher, changing
+/// folder password or compacing the events in a folder.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct UpdateSet {
+    /// Identity folder event logs.
+    pub identity: Option<FolderDiff>,
+    /// Account event log.
+    pub account: Option<AccountDiff>,
+    /// Device event log.
+    pub device: Option<DeviceDiff>,
+    /// Files event log.
+    #[cfg(feature = "files")]
+    pub files: Option<FileDiff>,
+    /// Folders to be updated.
+    pub folders: HashMap<VaultId, FolderDiff>,
+}
+
 /// Outcome of a merge operation.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct MergeOutcome {

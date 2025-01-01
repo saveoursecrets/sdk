@@ -598,9 +598,10 @@ mod handlers {
         StatusCode,
     };
     use sos_protocol::{
-        constants::MIME_TYPE_PROTOBUF, CreateSet, DiffRequest, PatchRequest,
+        constants::MIME_TYPE_PROTOBUF, DiffRequest, PatchRequest,
         ScanRequest, SyncPacket, SyncStorage, UpdateSet, WireEncodeDecode,
     };
+    use sos_sync::CreateSet;
 
     use sos_storage::server::server_helpers;
 
