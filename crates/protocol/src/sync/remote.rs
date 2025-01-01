@@ -46,7 +46,6 @@ pub trait RemoteSyncHandler {
         + From<sos_account::Error>
         + From<std::io::Error>
         + From<<Self::Account as Account>::Error>
-        + From<<Self::Account as ForceMerge>::Error>
         + From<<Self::Account as StorageEventLogs>::Error>
         + From<<Self::Client as SyncClient>::Error>
         + Send

@@ -86,76 +86,6 @@ pub trait StorageEventLogs {
     ) -> Result<Arc<RwLock<FolderEventLog>>, Self::Error>;
 }
 
-/// Storage implementations that can synchronize.
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait SyncStorage: StorageEventLogs {
-    /// Determine if this is client-side storage.
-    fn is_client_storage(&self) -> bool;
-
-    /// Get the sync status.
-    async fn sync_status(
-        &self,
-    ) -> std::result::Result<SyncStatus, Self::Error>;
-
-    /// Change set of all event logs.
-    ///
-    /// Used by network aware implementations to transfer
-    /// entire accounts.
-    async fn change_set(
-        &self,
-    ) -> std::result::Result<CreateSet, Self::Error> {
-        let identity = {
-            let log = self.identity_log().await?;
-            let reader = log.read().await;
-            reader.diff_events(None).await?
-        };
-
-        let account = {
-            let log = self.account_log().await?;
-            let reader = log.read().await;
-            reader.diff_events(None).await?
-        };
-
-        let device = {
-            let log = self.device_log().await?;
-            let reader = log.read().await;
-            reader.diff_events(None).await?
-        };
-
-        #[cfg(feature = "files")]
-        let files = {
-            let log = self.file_log().await?;
-            let reader = log.read().await;
-            reader.diff_events(None).await?
-        };
-
-        let mut folders = HashMap::new();
-        let details = self.folder_details().await?;
-
-        for folder in details {
-            if folder.flags().is_sync_disabled() {
-                tracing::debug!(
-                    folder_id = %folder.id(),
-                    "change_set::ignore::no_sync_flag");
-                continue;
-            }
-            let event_log = self.folder_log(folder.id()).await?;
-            let log_file = event_log.read().await;
-            folders.insert(*folder.id(), log_file.diff_events(None).await?);
-        }
-
-        Ok(CreateSet {
-            identity,
-            account,
-            folders,
-            device,
-            #[cfg(feature = "files")]
-            files,
-        })
-    }
-}
-
 /// Types that can merge diffs.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -361,10 +291,7 @@ pub trait Merge: StorageEventLogs {
 /// and need to be rewritten.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait ForceMerge {
-    /// Error type for force merge.
-    type Error: std::error::Error;
-
+pub trait ForceMerge: StorageEventLogs {
     /// Force merge changes to the identity folder.
     async fn force_merge_identity(
         &mut self,
@@ -401,4 +328,74 @@ pub trait ForceMerge {
         source: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> std::result::Result<(), Self::Error>;
+}
+
+/// Storage implementations that can synchronize.
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait SyncStorage: StorageEventLogs {
+    /// Determine if this is client-side storage.
+    fn is_client_storage(&self) -> bool;
+
+    /// Get the sync status.
+    async fn sync_status(
+        &self,
+    ) -> std::result::Result<SyncStatus, Self::Error>;
+
+    /// Change set of all event logs.
+    ///
+    /// Used by network aware implementations to transfer
+    /// entire accounts.
+    async fn change_set(
+        &self,
+    ) -> std::result::Result<CreateSet, Self::Error> {
+        let identity = {
+            let log = self.identity_log().await?;
+            let reader = log.read().await;
+            reader.diff_events(None).await?
+        };
+
+        let account = {
+            let log = self.account_log().await?;
+            let reader = log.read().await;
+            reader.diff_events(None).await?
+        };
+
+        let device = {
+            let log = self.device_log().await?;
+            let reader = log.read().await;
+            reader.diff_events(None).await?
+        };
+
+        #[cfg(feature = "files")]
+        let files = {
+            let log = self.file_log().await?;
+            let reader = log.read().await;
+            reader.diff_events(None).await?
+        };
+
+        let mut folders = HashMap::new();
+        let details = self.folder_details().await?;
+
+        for folder in details {
+            if folder.flags().is_sync_disabled() {
+                tracing::debug!(
+                    folder_id = %folder.id(),
+                    "change_set::ignore::no_sync_flag");
+                continue;
+            }
+            let event_log = self.folder_log(folder.id()).await?;
+            let log_file = event_log.read().await;
+            folders.insert(*folder.id(), log_file.diff_events(None).await?);
+        }
+
+        Ok(CreateSet {
+            identity,
+            account,
+            folders,
+            device,
+            #[cfg(feature = "files")]
+            files,
+        })
+    }
 }

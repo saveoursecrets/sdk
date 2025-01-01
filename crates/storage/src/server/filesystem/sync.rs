@@ -153,8 +153,6 @@ impl ServerStorage {
 
 #[async_trait]
 impl ForceMerge for ServerStorage {
-    type Error = Error;
-
     async fn force_merge_identity(
         &mut self,
         diff: FolderDiff,

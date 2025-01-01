@@ -2,8 +2,6 @@
 //! for local account and folders.
 
 mod auto_merge;
-// mod folder;
-// mod local_account;
 mod primitives;
 mod remote;
 
@@ -25,5 +23,3 @@ pub enum SyncDirection {
     /// such as the browser extension.
     Pull,
 }
-
-// pub(crate) use folder::{FolderMerge, IdentityFolderMerge};

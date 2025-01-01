@@ -32,8 +32,6 @@ use sos_sdk::events::FileDiff;
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ForceMerge for LocalAccount {
-    type Error = crate::Error;
-
     async fn force_merge_identity(
         &mut self,
         diff: FolderDiff,
