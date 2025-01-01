@@ -35,7 +35,12 @@ archive = [
 clipboard = ["dep:xclipboard", "dep:serde_json_path", "dep:time-tz"]
 contacts = ["dep:vcard4"]
 migrate = ["sos-migrate"]
-files =["sos-sdk/files", "sos-database/files", "dep:walkdir"]
+files =[
+  "sos-sdk/files",
+  "sos-database/files",
+  "sos-client-storage/files",
+  "dep:walkdir",
+]
 search =["sos-database/search"]
 
 [dependencies]
@@ -43,6 +48,7 @@ sos-core.workspace = true
 sos-sdk.workspace = true
 sos-database.workspace = true
 sos-sync.workspace = true
+sos-client-storage.workspace = true
 sos-migrate = { workspace = true, optional = true }
 
 thiserror.workspace = true

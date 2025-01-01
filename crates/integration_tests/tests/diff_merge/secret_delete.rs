@@ -1,8 +1,8 @@
 use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
-use sos_account::{Account, Error, LocalAccount, SecretChange};
+use sos_account::{Account, LocalAccount, SecretChange};
 use sos_protocol::diff;
-use sos_sdk::prelude::{generate_passphrase, AccessKey};
+use sos_sdk::prelude::{generate_passphrase, AccessKey, ErrorExt};
 use sos_sync::MergeOutcome;
 use sos_sync::{Merge, SyncStorage};
 
@@ -68,11 +68,8 @@ async fn diff_merge_secret_delete() -> Result<()> {
     assert!(outcome.tracked.folders.get(default_folder.id()).is_none());
 
     // Check we can't read the secret
-    let result = remote.read_secret(&id, None).await;
-    assert!(matches!(
-        result,
-        Err(Error::Database(sos_database::Error::SecretNotFound(_)))
-    ));
+    let err = remote.read_secret(&id, None).await.err().unwrap();
+    assert!(err.is_secret_not_found());
 
     // Check we can't find it in the search index
     let documents = remote.query_map("note", Default::default()).await?;

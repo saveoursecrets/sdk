@@ -1,7 +1,5 @@
 //! Storage backed by the filesystem.
-use crate::client::{
-    AccessOptions, AccountPack, Error, NewFolderOptions, Result,
-};
+use crate::{AccessOptions, AccountPack, Error, NewFolderOptions, Result};
 use sos_sdk::{
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
@@ -42,7 +40,7 @@ use sos_sdk::{
 use sos_sdk::events::{FileEvent, FileEventLog};
 
 #[cfg(feature = "files")]
-use crate::client::files::FileMutationEvent;
+use sos_database::files::FileMutationEvent;
 
 #[cfg(feature = "search")]
 use sos_database::search::{AccountSearch, DocumentCount};
@@ -271,7 +269,8 @@ impl ClientStorage {
         tracing::debug!(needs_init = %needs_init, "file_log");
 
         if needs_init {
-            let files = crate::files::list_external_files(paths).await?;
+            let files =
+                sos_database::files::list_external_files(paths).await?;
             let events: Vec<FileEvent> =
                 files.into_iter().map(|f| f.into()).collect();
 

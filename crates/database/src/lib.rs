@@ -3,7 +3,9 @@ pub mod db;
 mod error;
 pub mod importer;
 pub mod migrations;
-pub mod storage;
+
+#[cfg(feature = "files")]
+pub mod files;
 
 pub use error::Error;
 

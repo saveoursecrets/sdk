@@ -20,7 +20,7 @@ use sos_core::{
     VaultId,
 };
 
-use crate::server::{Error, Result};
+use crate::{Error, Result};
 
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,

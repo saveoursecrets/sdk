@@ -4,7 +4,7 @@ use sos_account::{
     Account, Error, FolderCreate, LocalAccount, SecretChange, SecretMove,
 };
 use sos_protocol::diff;
-use sos_sdk::prelude::{generate_passphrase, AccessKey};
+use sos_sdk::prelude::{generate_passphrase, AccessKey, ErrorExt};
 use sos_sync::{
     Merge, MergeOutcome, SyncStorage, TrackedAccountChange,
     TrackedFolderChange,
@@ -98,13 +98,12 @@ async fn diff_merge_secret_move() -> Result<()> {
     assert_eq!(2, folders.len());
 
     // Check we can't read the secret in the source folder (from)
-    let result = remote
+    let err = remote
         .read_secret(&new_id, Some(default_folder.clone()))
-        .await;
-    assert!(matches!(
-        result,
-        Err(Error::Database(sos_database::Error::SecretNotFound(_)))
-    ));
+        .await
+        .err()
+        .unwrap();
+    assert!(err.is_secret_not_found());
 
     // Check we can read it in the destination folder (to)
     remote.open_folder(&summary).await?;

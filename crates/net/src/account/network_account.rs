@@ -14,11 +14,11 @@ use sos_account::{
     FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
     SecretDelete, SecretInsert, SecretMove,
 };
+use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_core::{
     commit::{CommitHash, CommitState},
     Origin, SecretId, VaultId,
 };
-use sos_database::storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_sdk::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
@@ -86,7 +86,7 @@ use {
         },
         protocol::{network_client::HttpClient, transfer::FileOperation},
     },
-    sos_database::storage::files::FileMutationEvent,
+    sos_database::files::FileMutationEvent,
 };
 
 /// Options for network account creation.

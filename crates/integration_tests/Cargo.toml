@@ -29,7 +29,11 @@ features = [
 [dependencies.sos-core]
 workspace = true
 
-[dependencies.sos-storage]
+[dependencies.sos-client-storage]
+workspace = true
+features = ["full"]
+
+[dependencies.sos-server-storage]
 workspace = true
 features = ["full"]
 

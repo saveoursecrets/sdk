@@ -1,7 +1,7 @@
 use crate::test_utils::{mock, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, SecretChange};
-use sos_database::storage::NewFolderOptions;
+use sos_client_storage::NewFolderOptions;
 use sos_net::{protocol::AccountSync, sdk::prelude::*};
 
 /// Tests syncing an authenticator folder after

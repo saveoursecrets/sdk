@@ -1,5 +1,5 @@
 //! Server storage backed by the filesystem.
-use crate::server::{Error, Result};
+use crate::{Error, Result};
 use sos_sdk::{
     constants::VAULT_EXT,
     decode,
@@ -124,7 +124,7 @@ impl ServerStorage {
     }
 
     async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
-        use crate::files::list_external_files;
+        use sos_database::files::list_external_files;
 
         let log_file = paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;

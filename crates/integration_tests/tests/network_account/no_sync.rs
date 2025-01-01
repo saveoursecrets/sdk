@@ -1,7 +1,7 @@
 use crate::test_utils::{setup, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
-use sos_database::storage::NewFolderOptions;
+use sos_client_storage::NewFolderOptions;
 use sos_net::NetworkAccount;
 use sos_protocol::{AccountSync, RemoteSyncHandler, SyncClient};
 use sos_sdk::prelude::*;

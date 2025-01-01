@@ -24,7 +24,7 @@ sos-core.workspace = true
 sos-sdk.workspace = true
 sos-database.workspace = true
 sos-sync.workspace = true
-sos-storage = { workspace = true, features = ["server"] }
+sos-server-storage.workspace = true
 sos-logs.workspace = true
 sos-protocol = { workspace = true, features = ["files"] }
 sos-cli-helpers.workspace = true

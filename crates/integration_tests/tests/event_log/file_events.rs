@@ -4,7 +4,7 @@ use anyhow::Result;
 use sos_account::{
     Account, FolderCreate, LocalAccount, SecretChange, SecretMove,
 };
-use sos_database::storage::AccessOptions;
+use sos_client_storage::AccessOptions;
 use sos_net::sdk::prelude::*;
 
 /// Tests the various file events are being logged.

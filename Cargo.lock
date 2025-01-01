@@ -4996,6 +4996,7 @@ dependencies = [
  "shell-words",
  "sos-account",
  "sos-cli-helpers",
+ "sos-client-storage",
  "sos-core",
  "sos-database",
  "sos-integrity",
@@ -5036,6 +5037,7 @@ dependencies = [
  "serde_json",
  "serde_json_path",
  "sha2",
+ "sos-client-storage",
  "sos-core",
  "sos-database",
  "sos-migrate",
@@ -5095,6 +5097,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-client-storage"
+version = "0.16.0"
+dependencies = [
+ "age",
+ "anyhow",
+ "async-trait",
+ "binary-stream",
+ "futures",
+ "indexmap 2.7.0",
+ "probly-search",
+ "secrecy",
+ "serde",
+ "sha2",
+ "sos-core",
+ "sos-database",
+ "sos-password",
+ "sos-sdk",
+ "sos-sync",
+ "thiserror 2.0.9",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "unicode-segmentation",
+ "url",
+ "uuid",
+ "vcard4",
+]
+
+[[package]]
 name = "sos-core"
 version = "0.16.0"
 dependencies = [
@@ -5125,7 +5156,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "sos-core",
- "sos-password",
  "sos-sdk",
  "tempfile",
  "thiserror 2.0.9",
@@ -5160,6 +5190,7 @@ dependencies = [
  "serde_json",
  "sos-account",
  "sos-account-extras",
+ "sos-client-storage",
  "sos-core",
  "sos-database",
  "sos-integrity",
@@ -5169,7 +5200,7 @@ dependencies = [
  "sos-protocol",
  "sos-sdk",
  "sos-server",
- "sos-storage",
+ "sos-server-storage",
  "sos-sync",
  "sos-test-utils",
  "sos-web",
@@ -5227,6 +5258,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "sos-account",
+ "sos-client-storage",
  "sos-database",
  "sos-logs",
  "sos-platform-authenticator",
@@ -5308,6 +5340,7 @@ dependencies = [
  "snow",
  "sos-account",
  "sos-account-extras",
+ "sos-client-storage",
  "sos-core",
  "sos-database",
  "sos-migrate",
@@ -5375,6 +5408,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sos-account",
+ "sos-client-storage",
  "sos-core",
  "sos-database",
  "sos-sdk",
@@ -5476,7 +5510,7 @@ dependencies = [
  "sos-logs",
  "sos-protocol",
  "sos-sdk",
- "sos-storage",
+ "sos-server-storage",
  "sos-sync",
  "thiserror 2.0.9",
  "tokio",
@@ -5495,7 +5529,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sos-storage"
+name = "sos-server-storage"
 version = "0.16.0"
 dependencies = [
  "age",
@@ -5504,13 +5538,11 @@ dependencies = [
  "binary-stream",
  "futures",
  "indexmap 2.7.0",
- "probly-search",
  "secrecy",
  "serde",
  "sha2",
  "sos-core",
  "sos-database",
- "sos-password",
  "sos-protocol",
  "sos-sdk",
  "sos-sync",
@@ -5518,10 +5550,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
- "unicode-segmentation",
- "url",
  "uuid",
- "vcard4",
 ]
 
 [[package]]
@@ -5555,6 +5584,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sos-account",
+ "sos-client-storage",
  "sos-core",
  "sos-database",
  "sos-net",
@@ -5589,6 +5619,7 @@ dependencies = [
  "indexmap 2.7.0",
  "rustc_version",
  "sos-account",
+ "sos-client-storage",
  "sos-core",
  "sos-database",
  "sos-migrate",

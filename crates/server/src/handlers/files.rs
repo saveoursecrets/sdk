@@ -357,19 +357,6 @@ pub(crate) async fn compare_files(
 
 mod handlers {
     use super::MoveFileQuery;
-    use sos_protocol::{
-        constants::MIME_TYPE_PROTOBUF,
-        sdk::vault::{secret::SecretId, VaultId},
-        transfer::{FileSet, FileTransfersSet},
-        WireEncodeDecode,
-    };
-
-    use sha2::{Digest, Sha256};
-
-    use sos_database::storage::files::{
-        list_external_files, ExternalFileName,
-    };
-
     use crate::{
         handlers::Caller, Error, Result, ServerBackend, ServerState,
     };
@@ -381,6 +368,15 @@ mod handlers {
     use futures::TryStreamExt;
     use http::header::{self, HeaderMap, HeaderValue};
     use indexmap::IndexSet;
+    use sha2::{Digest, Sha256};
+    use sos_core::ExternalFileName;
+    use sos_database::files::list_external_files;
+    use sos_protocol::{
+        constants::MIME_TYPE_PROTOBUF,
+        sdk::vault::{secret::SecretId, VaultId},
+        transfer::{FileSet, FileTransfersSet},
+        WireEncodeDecode,
+    };
     use std::{path::PathBuf, sync::Arc};
     use tokio::{
         fs::File,

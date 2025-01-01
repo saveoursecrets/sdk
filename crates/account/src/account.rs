@@ -1,11 +1,11 @@
 //! Account storage and search index.
 use crate::{convert::CipherComparison, AccountBuilder, Error, Result};
+use sos_client_storage::{
+    AccessOptions, AccountPack, ClientStorage, NewFolderOptions,
+};
 use sos_core::{
     commit::{CommitHash, CommitState},
     SecretId, VaultId,
-};
-use sos_database::storage::{
-    AccessOptions, AccountPack, ClientStorage, NewFolderOptions,
 };
 use sos_sdk::{
     crypto::{AccessKey, Cipher, KeyDerivation},
@@ -48,10 +48,7 @@ use sos_sdk::{
 use indexmap::IndexSet;
 
 #[cfg(feature = "files")]
-use {
-    sos_database::storage::files::FileMutationEvent,
-    sos_sdk::events::FileEventLog,
-};
+use {sos_database::files::FileMutationEvent, sos_sdk::events::FileEventLog};
 
 #[cfg(feature = "search")]
 use sos_database::search::*;
@@ -3445,7 +3442,7 @@ impl StorageEventLogs for LocalAccount {
         let storage = self
             .storage
             .as_ref()
-            .ok_or(sos_database::Error::NoStorage)?;
+            .ok_or(sos_client_storage::Error::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.identity_log))
     }
@@ -3454,7 +3451,7 @@ impl StorageEventLogs for LocalAccount {
         let storage = self
             .storage
             .as_ref()
-            .ok_or(sos_database::Error::NoStorage)?;
+            .ok_or(sos_client_storage::Error::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.account_log))
     }
@@ -3463,7 +3460,7 @@ impl StorageEventLogs for LocalAccount {
         let storage = self
             .storage
             .as_ref()
-            .ok_or(sos_database::Error::NoStorage)?;
+            .ok_or(sos_client_storage::Error::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.device_log))
     }
@@ -3473,7 +3470,7 @@ impl StorageEventLogs for LocalAccount {
         let storage = self
             .storage
             .as_ref()
-            .ok_or(sos_database::Error::NoStorage)?;
+            .ok_or(sos_client_storage::Error::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.file_log))
     }
@@ -3482,7 +3479,7 @@ impl StorageEventLogs for LocalAccount {
         let storage = self
             .storage
             .as_ref()
-            .ok_or(sos_database::Error::NoStorage)?;
+            .ok_or(sos_client_storage::Error::NoStorage)?;
         let storage = storage.read().await;
         let folders = storage.list_folders();
         Ok(folders.into_iter().cloned().collect())
@@ -3495,12 +3492,12 @@ impl StorageEventLogs for LocalAccount {
         let storage = self
             .storage
             .as_ref()
-            .ok_or(sos_database::Error::NoStorage)?;
+            .ok_or(sos_client_storage::Error::NoStorage)?;
         let storage = storage.read().await;
         let folder = storage
             .cache()
             .get(id)
-            .ok_or(sos_database::Error::CacheNotAvailable(*id))?;
+            .ok_or(sos_client_storage::Error::CacheNotAvailable(*id))?;
         Ok(folder.event_log())
     }
 }

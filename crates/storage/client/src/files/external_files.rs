@@ -10,11 +10,12 @@
 //! The file name is the hex-encoded digest of the encrypted data
 //! stored on disc.
 
-use crate::client::Result;
+use crate::Result;
 use age::Encryptor;
 use futures::io::{AsyncReadExt, BufReader};
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
+use sos_database::files::EncryptedFile;
 use sos_sdk::{
     hex,
     vault::{secret::SecretId, VaultId},
@@ -23,8 +24,6 @@ use sos_sdk::{
 };
 use std::path::{Path, PathBuf};
 use tokio_util::compat::TokioAsyncReadCompatExt;
-
-use super::EncryptedFile;
 
 /// Manage encrypted file storage.
 pub struct FileStorage;

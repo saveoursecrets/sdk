@@ -601,7 +601,7 @@ mod handlers {
         constants::MIME_TYPE_PROTOBUF, DiffRequest, PatchRequest,
         ScanRequest, WireEncodeDecode,
     };
-    use sos_storage::server::server_helpers;
+    use sos_server_storage::server_helpers;
     use sos_sync::{CreateSet, SyncPacket, SyncStorage, UpdateSet};
     use std::sync::Arc;
 

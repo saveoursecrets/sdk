@@ -1,6 +1,5 @@
 //! Implements merging into a local account.
 
-// use crate::{FolderMerge, FolderMergeOptions, IdentityFolderMerge, Result};
 use crate::{Account, LocalAccount, Result};
 use async_trait::async_trait;
 use indexmap::IndexMap;
@@ -141,13 +140,15 @@ impl ForceMerge for LocalAccount {
             "force_merge::folder",
         );
 
-        let storage =
-            self.storage().await.ok_or(sos_database::Error::NoStorage)?;
+        let storage = self
+            .storage()
+            .await
+            .ok_or(sos_client_storage::Error::NoStorage)?;
         let mut storage = storage.write().await;
 
         let folder =
             storage.cache_mut().get_mut(folder_id).ok_or_else(|| {
-                sos_database::Error::CacheNotAvailable(*folder_id)
+                sos_client_storage::Error::CacheNotAvailable(*folder_id)
             })?;
         folder.force_merge(&diff).await?;
 
@@ -259,10 +260,9 @@ impl Merge for LocalAccount {
                             // Must operate on the storage level otherwise
                             // we would duplicate identity events for folder
                             // password
-                            let storage = self
-                                .storage()
-                                .await
-                                .ok_or(sos_database::Error::NoStorage)?;
+                            let storage = self.storage().await.ok_or(
+                                sos_client_storage::Error::NoStorage,
+                            )?;
                             let mut storage = storage.write().await;
                             storage
                                 .import_folder(
@@ -277,10 +277,9 @@ impl Merge for LocalAccount {
                     AccountEvent::RenameFolder(id, name) => {
                         let summary = self.find(|s| s.id() == id).await;
                         if let Some(summary) = &summary {
-                            let storage = self
-                                .storage()
-                                .await
-                                .ok_or(sos_database::Error::NoStorage)?;
+                            let storage = self.storage().await.ok_or(
+                                sos_client_storage::Error::NoStorage,
+                            )?;
                             let mut storage = storage.write().await;
                             // Note that this event is recorded at both
                             // the account level and the folder level so
@@ -293,10 +292,9 @@ impl Merge for LocalAccount {
                     AccountEvent::DeleteFolder(id) => {
                         let summary = self.find(|s| s.id() == id).await;
                         if let Some(summary) = &summary {
-                            let storage = self
-                                .storage()
-                                .await
-                                .ok_or(sos_database::Error::NoStorage)?;
+                            let storage = self.storage().await.ok_or(
+                                sos_client_storage::Error::NoStorage,
+                            )?;
                             let mut storage = storage.write().await;
                             storage.delete_folder(summary, false).await?;
                             deleted_folders.insert(*id);
@@ -389,8 +387,10 @@ impl Merge for LocalAccount {
             "files",
         );
 
-        let storage =
-            self.storage().await.ok_or(sos_database::Error::NoStorage)?;
+        let storage = self
+            .storage()
+            .await
+            .ok_or(sos_client_storage::Error::NoStorage)?;
         let storage = storage.read().await;
         let mut event_log = storage.file_log.write().await;
 
@@ -441,8 +441,10 @@ impl Merge for LocalAccount {
         let len = diff.patch.len() as u64;
 
         let (checked_patch, events) = {
-            let storage =
-                self.storage().await.ok_or(sos_database::Error::NoStorage)?;
+            let storage = self
+                .storage()
+                .await
+                .ok_or(sos_client_storage::Error::NoStorage)?;
             let mut storage = storage.write().await;
 
             #[cfg(feature = "search")]
@@ -450,7 +452,7 @@ impl Merge for LocalAccount {
                 let index = storage
                     .index
                     .as_ref()
-                    .ok_or(sos_database::Error::NoSearchIndex)?;
+                    .ok_or(sos_client_storage::Error::NoSearchIndex)?;
                 index.search()
             };
 
@@ -470,14 +472,14 @@ impl Merge for LocalAccount {
                 storage.try_promote_pending_folder(folder_id).await?;
             if promoted {
                 let key = self.find_folder_password(folder_id).await?.ok_or(
-                    sos_database::Error::NoFolderPassword(*folder_id),
+                    sos_client_storage::Error::NoFolderPassword(*folder_id),
                 )?;
                 storage.unlock_folder(folder_id, &key).await?;
             }
 
             let folder =
                 storage.cache_mut().get_mut(folder_id).ok_or_else(|| {
-                    sos_database::Error::CacheNotAvailable(*folder_id)
+                    sos_client_storage::Error::CacheNotAvailable(*folder_id)
                 })?;
 
             #[cfg(feature = "search")]
@@ -532,12 +534,14 @@ impl Merge for LocalAccount {
         folder_id: &VaultId,
         state: &CommitState,
     ) -> Result<Comparison> {
-        let storage =
-            self.storage().await.ok_or(sos_database::Error::NoStorage)?;
+        let storage = self
+            .storage()
+            .await
+            .ok_or(sos_client_storage::Error::NoStorage)?;
         let storage = storage.read().await;
 
         let folder = storage.cache().get(folder_id).ok_or_else(|| {
-            sos_database::Error::CacheNotAvailable(*folder_id)
+            sos_client_storage::Error::CacheNotAvailable(*folder_id)
         })?;
         let event_log = folder.event_log();
         let reader = event_log.read().await;
@@ -559,8 +563,10 @@ impl SyncStorage for LocalAccount {
         // NOTE: collection must be sorted so that the folders
         // NOTE: root hash is deterministic
 
-        let storage =
-            self.storage().await.ok_or(sos_database::Error::NoStorage)?;
+        let storage = self
+            .storage()
+            .await
+            .ok_or(sos_client_storage::Error::NoStorage)?;
         let storage = storage.read().await;
         let summaries = storage.list_folders().to_vec();
 
@@ -593,7 +599,7 @@ impl SyncStorage for LocalAccount {
         let mut folder_roots: Vec<(&VaultId, [u8; 32])> = Vec::new();
         for summary in &summaries {
             let folder = storage.cache().get(summary.id()).ok_or(
-                sos_database::Error::CacheNotAvailable(*summary.id()),
+                sos_client_storage::Error::CacheNotAvailable(*summary.id()),
             )?;
 
             let commit_state = folder.commit_state().await?;

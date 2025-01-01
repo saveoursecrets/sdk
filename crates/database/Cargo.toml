@@ -31,7 +31,6 @@ search = [
 [dependencies]
 sos-core.workspace = true
 sos-sdk.workspace = true
-sos-password.workspace = true
 
 thiserror.workspace = true
 futures.workspace = true

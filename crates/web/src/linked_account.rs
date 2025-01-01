@@ -7,11 +7,11 @@ use sos_account::{
     FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
     SecretDelete, SecretInsert, SecretMove,
 };
+use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_core::{
     commit::{CommitHash, CommitState, Comparison},
     Origin, SecretId, VaultId,
 };
-use sos_database::storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_protocol::{
     network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
     RemoteSyncHandler, SyncClient, SyncOptions,

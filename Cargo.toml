@@ -21,9 +21,12 @@ members = [
   "crates/sdk",
   "crates/server",
   "crates/sos",
+  "crates/storage/client",
+  "crates/storage/server",
+  "crates/sync",  
   "crates/test_utils",
   "crates/vfs", 
-  "crates/web", "crates/storage", "crates/sync",   
+  "crates/web",   
 ]
 
 [workspace.dependencies]
@@ -40,7 +43,8 @@ sos-net = { version = "0.16", path = "crates/net" }
 sos-password = { version = "0.16", path = "crates/password" }
 sos-protocol = { version = "0.16", path = "crates/protocol" }
 sos-server = { version = "0.16", path = "crates/server" }
-sos-storage = { version = "0.16", path = "crates/storage" }
+sos-client-storage = { version = "0.16", path = "crates/storage/client" }
+sos-server-storage = { version = "0.16", path = "crates/storage/server" }
 sos-sync = { version = "0.16", path = "crates/sync" }
 sos-sdk = { version = "0.16", path = "crates/sdk" }
 sos-test-utils = { path = "crates/test_utils" }

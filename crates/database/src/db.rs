@@ -20,7 +20,7 @@ use std::{collections::HashMap, path::Path};
 
 #[cfg(feature = "files")]
 use {
-    crate::storage::files::list_external_files,
+    crate::files::list_external_files,
     sos_sdk::events::FileEventLog,
 };
 

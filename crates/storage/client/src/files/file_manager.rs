@@ -1,12 +1,11 @@
 //! File manager to keep external files in sync
 //! as secrets are created, updated and moved.
 
-use crate::files::list_folder_files;
+use crate::{files::FileStorage, ClientStorage, Error, Result};
 use sos_core::{basename, SecretId, SecretPath, VaultId};
-
-use crate::client::{
-    files::{EncryptedFile, FileStorage},
-    ClientStorage, Error, Result,
+use sos_database::files::{
+    list_folder_files, EncryptedFile, FileMutationEvent, FileProgress,
+    FileSource, FileStorageDiff, FileStorageResult,
 };
 
 use sos_sdk::{
@@ -18,78 +17,8 @@ use sos_sdk::{
     },
     vfs,
 };
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::Path};
 use tokio::sync::mpsc;
-
-/// File progress operations.
-#[derive(Debug)]
-pub enum FileProgress {
-    /// File is being written.
-    Write {
-        /// File name.
-        name: String,
-    },
-    /// File is being moved.
-    Move {
-        /// File name.
-        name: String,
-    },
-    /// File is being deleted.
-    Delete {
-        /// File name.
-        name: String,
-    },
-}
-
-/// Diff of file secrets.
-#[derive(Debug)]
-struct FileStorageDiff<'a> {
-    /// File secrets that have been deleted.
-    deleted: Vec<&'a Secret>,
-    /// File secrets that have not changed.
-    unchanged: Vec<&'a Secret>,
-}
-
-/// Source path to a file.
-#[derive(Debug, Clone)]
-pub struct FileSource {
-    /// Path to the source file.
-    path: PathBuf,
-    /// Name of the file.
-    name: String,
-    /// Field index for attachments.
-    field_index: Option<usize>,
-}
-
-/// Result of encrypting an external file.
-#[derive(Debug, Clone)]
-pub struct FileStorageResult {
-    /// Source for the file.
-    source: FileSource,
-    /// Encrypted file data.
-    encrypted_file: EncryptedFile,
-}
-
-/// Wraps the file storage information and a
-/// related file event that can be persisted
-/// to an event log.
-#[derive(Debug, Clone)]
-pub enum FileMutationEvent {
-    /// File was created.
-    Create {
-        /// Information the created file.
-        result: FileStorageResult,
-        /// An event that can be persisted to an event log.
-        event: FileEvent,
-    },
-    /// File was moved.
-    Move(FileEvent),
-    /// File was deleted.
-    Delete(FileEvent),
-}
 
 impl ClientStorage {
     /// Append file mutation events to the file event log.

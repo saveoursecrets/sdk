@@ -6,10 +6,15 @@ use sos_sdk::{
 };
 
 mod client;
+mod error;
 #[cfg(feature = "files")]
 pub mod files;
 
 pub use client::ClientStorage;
+pub use error::Error;
+
+/// Result type for the client module.
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// Options used when creating a new folder.
 #[derive(Debug, Default)]
@@ -47,7 +52,8 @@ pub struct AccessOptions {
     pub folder: Option<Summary>,
     /// Channel for file progress operations.
     #[cfg(feature = "files")]
-    pub file_progress: Option<tokio::sync::mpsc::Sender<files::FileProgress>>,
+    pub file_progress:
+        Option<tokio::sync::mpsc::Sender<sos_database::files::FileProgress>>,
 }
 
 impl From<Summary> for AccessOptions {

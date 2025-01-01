@@ -10,9 +10,10 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount, SecretMove};
+use sos_client_storage::AccessOptions;
 use sos_core::commit::ZERO;
 use sos_core::ExternalFileName;
-use sos_database::storage::{files::FileProgress, AccessOptions};
+use sos_database::files::FileProgress;
 use sos_net::sdk::{hex, prelude::*};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
