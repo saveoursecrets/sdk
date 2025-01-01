@@ -11,9 +11,8 @@ use sos_sdk::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
     events::{
-        AccountEvent, AccountEventLog, AccountPatch, DevicePatch, Event,
-        EventKind, EventLogExt, EventRecord, FolderEventLog, FolderPatch,
-        FolderReducer, ReadEvent, WriteEvent,
+        AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
+        EventRecord, FolderEventLog, FolderReducer, ReadEvent, WriteEvent,
     },
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
@@ -51,7 +50,7 @@ use indexmap::IndexSet;
 #[cfg(feature = "files")]
 use {
     sos_database::storage::files::FileMutationEvent,
-    sos_sdk::events::{FileEventLog, FilePatch},
+    sos_sdk::events::FileEventLog,
 };
 
 #[cfg(feature = "search")]

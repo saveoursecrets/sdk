@@ -22,10 +22,7 @@ use sos_database::storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_sdk::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
-    events::{
-        AccountEvent, AccountPatch, DevicePatch, EventLogExt, EventRecord,
-        FolderPatch, ReadEvent,
-    },
+    events::{AccountEvent, EventLogExt, EventRecord, ReadEvent},
     identity::{AccountRef, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     vault::{
@@ -88,7 +85,6 @@ use {
             InflightTransfers,
         },
         protocol::{network_client::HttpClient, transfer::FileOperation},
-        sdk::prelude::FilePatch,
     },
     sos_database::storage::files::FileMutationEvent,
 };

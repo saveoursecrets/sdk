@@ -69,7 +69,7 @@ use sos_migrate::import::ImportTarget;
 #[cfg(feature = "files")]
 use {
     sos_protocol::transfer::FileTransferQueueSender,
-    sos_sdk::prelude::{FileDiff, FileEventLog, FilePatch},
+    sos_sdk::prelude::{FileDiff, FileEventLog},
 };
 
 /// Linked account syncs with a local account on the same device.
