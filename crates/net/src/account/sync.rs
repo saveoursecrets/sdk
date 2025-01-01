@@ -2,7 +2,7 @@
 use crate::{
     protocol::{
         AccountSync, Merge, Origin, RemoteSync, SyncClient, SyncOptions,
-        SyncResult, SyncStorage, UpdateSet,
+        SyncResult, SyncStorage,
     },
     sdk::{
         events::{
@@ -11,21 +11,18 @@ use crate::{
         },
         vault::Summary,
     },
-    NetworkAccount,
+    NetworkAccount, Result,
 };
-
-use crate::Result;
+use async_trait::async_trait;
+use indexmap::IndexSet;
 use sos_account::Account;
 use sos_core::{
     commit::{CommitState, Comparison},
     VaultId,
 };
-use sos_sync::SyncStatus;
-
-use async_trait::async_trait;
-use indexmap::IndexSet;
 use sos_protocol::MergeOutcome;
 use sos_sync::StorageEventLogs;
+use sos_sync::{SyncStatus, UpdateSet};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,

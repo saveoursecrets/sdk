@@ -2,7 +2,7 @@
 use crate::{
     protocol::{
         network_client::HttpClient, AutoMerge, Origin, RemoteResult,
-        RemoteSync, SyncClient, SyncDirection, SyncOptions, UpdateSet,
+        RemoteSync, SyncClient, SyncDirection, SyncOptions,
     },
     sdk::{
         prelude::Address,
@@ -14,6 +14,7 @@ use crate::{
 use async_trait::async_trait;
 use sos_account::LocalAccount;
 use sos_protocol::RemoteSyncHandler;
+use sos_sync::UpdateSet;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 

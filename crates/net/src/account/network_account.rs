@@ -2,7 +2,7 @@
 use crate::{
     protocol::{
         AccountSync, DiffRequest, EventLogType, Origin, RemoteSync,
-        RemoteSyncHandler, SyncClient, SyncOptions, SyncResult, UpdateSet,
+        RemoteSyncHandler, SyncClient, SyncOptions, SyncResult,
     },
     sdk::{
         crypto::{AccessKey, Cipher, KeyDerivation},
@@ -37,7 +37,7 @@ use sos_core::{
 use sos_database::storage::{AccessOptions, ClientStorage, NewFolderOptions};
 
 use sos_sdk::events::{AccountPatch, DevicePatch, FolderPatch};
-use sos_sync::StorageEventLogs;
+use sos_sync::{StorageEventLogs, UpdateSet};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},

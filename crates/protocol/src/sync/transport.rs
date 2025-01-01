@@ -162,6 +162,7 @@ pub struct CreateSet {
 }
 */
 
+/*
 /// Set of updates to the folders in an account.
 ///
 /// Used to destructively update folders in an account;
@@ -183,6 +184,7 @@ pub struct UpdateSet {
     /// Folders to be updated.
     pub folders: HashMap<VaultId, FolderDiff>,
 }
+*/
 
 /// Outcome of a merge operation.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

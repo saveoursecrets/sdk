@@ -5,10 +5,10 @@ use crate::{
     sdk::events::{Diff, EventRecord, Patch},
     Error, MaybeDiff, MergeOutcome, Origin, ProtoBinding, Result,
     SyncCompare, SyncDiff, SyncPacket, TrackedAccountChange, TrackedChanges,
-    TrackedDeviceChange, TrackedFolderChange, UpdateSet,
+    TrackedDeviceChange, TrackedFolderChange,
 };
 
-use sos_sync::{CreateSet, SyncStatus};
+use sos_sync::{CreateSet, SyncStatus, UpdateSet};
 
 use indexmap::{IndexMap, IndexSet};
 use sos_core::commit::Comparison;

@@ -10,7 +10,7 @@ use crate::{
     },
     sync::{
         EventLogType, MaybeDiff, MergeOutcome, Origin, SyncCompare, SyncDiff,
-        SyncPacket, UpdateSet,
+        SyncPacket,
     },
     DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
     ScanResponse, WireEncodeDecode,
@@ -20,7 +20,7 @@ use sos_core::{
     commit::{CommitHash, CommitProof, CommitState},
     SecretPath, VaultId,
 };
-use sos_sync::{CreateSet, SyncStatus};
+use sos_sync::{CreateSet, SyncStatus, UpdateSet};
 
 const HASH: &str =
     "54c4de4a0db65b62302964a52b0ea346e69b11d54b430d4615672a37ff0d4e58";
