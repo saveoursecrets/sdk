@@ -1,16 +1,11 @@
 //! Account storage and search index.
-use std::{
-    borrow::Cow,
-    collections::HashMap,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
-
 use crate::{convert::CipherComparison, AccountBuilder, Error, Result};
-
 use sos_core::{
     commit::{CommitHash, CommitState},
     SecretId, VaultId,
+};
+use sos_database::storage::{
+    AccessOptions, AccountPack, ClientStorage, NewFolderOptions,
 };
 use sos_sdk::{
     crypto::{AccessKey, Cipher, KeyDerivation},
@@ -29,11 +24,13 @@ use sos_sdk::{
     },
     vfs, Paths, UtcDateTime,
 };
-
-use sos_database::storage::{
-    AccessOptions, AccountPack, ClientStorage, NewFolderOptions,
+use sos_sync::{CreateSet, StorageEventLogs};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Arc,
 };
-use sos_sync::StorageEventLogs;
 
 #[cfg(feature = "search")]
 use sos_database::search::{DocumentCount, SearchIndex};
@@ -265,11 +262,7 @@ pub trait Account {
     /// Import encrypted account events into the client storage.
     async fn import_account_events(
         &mut self,
-        identity: FolderPatch,
-        account: AccountPatch,
-        device: DevicePatch,
-        folders: HashMap<VaultId, FolderPatch>,
-        #[cfg(feature = "files")] files: FilePatch,
+        events: CreateSet,
     ) -> std::result::Result<(), Self::Error>;
 
     /// Create a new in-memory device vault.
@@ -1612,11 +1605,7 @@ impl Account for LocalAccount {
 
     async fn import_account_events(
         &mut self,
-        identity: FolderPatch,
-        account: AccountPatch,
-        device: DevicePatch,
-        folders: HashMap<VaultId, FolderPatch>,
-        #[cfg(feature = "files")] files: FilePatch,
+        events: CreateSet,
     ) -> Result<()> {
         let address = *self.address();
         let paths = self.paths();
@@ -1627,7 +1616,7 @@ impl Account for LocalAccount {
 
         {
             let mut identity_log = storage.identity_log.write().await;
-            let records: Vec<EventRecord> = identity.into();
+            let records: Vec<EventRecord> = events.identity.into();
             identity_log.apply_records(records).await?;
             let vault = FolderReducer::new()
                 .reduce(&*identity_log)
@@ -1645,7 +1634,7 @@ impl Account for LocalAccount {
 
         {
             let mut account_log = storage.account_log.write().await;
-            let records: Vec<EventRecord> = account.into();
+            let records: Vec<EventRecord> = events.account.into();
             account_log.apply_records(records).await?;
 
             tracing::info!(
@@ -1655,20 +1644,20 @@ impl Account for LocalAccount {
 
         {
             let mut device_log = storage.device_log.write().await;
-            let records: Vec<EventRecord> = device.into();
+            let records: Vec<EventRecord> = events.device.into();
             device_log.apply_records(records).await?;
             tracing::info!(
               root = ?device_log.tree().root().map(|c| c.to_string()),
               "import_account_events::device");
         }
 
-        storage.import_folder_patches(folders).await?;
+        storage.import_folder_patches(events.folders).await?;
 
         #[cfg(feature = "files")]
         {
             tracing::info!("import_account_events::files");
             let mut file_log = storage.file_log.write().await;
-            let records: Vec<EventRecord> = files.into();
+            let records: Vec<EventRecord> = events.files.into();
             file_log.apply_records(records).await?;
             tracing::info!(
               root = ?file_log.tree().root().map(|c| c.to_string()),

@@ -34,7 +34,7 @@ use sos_sdk::{
     },
     vfs, Paths,
 };
-use sos_sync::{EventLogType, StorageEventLogs, UpdateSet};
+use sos_sync::{CreateSet, EventLogType, StorageEventLogs, UpdateSet};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -722,23 +722,10 @@ impl Account for NetworkAccount {
 
     async fn import_account_events(
         &mut self,
-        identity: FolderPatch,
-        account: AccountPatch,
-        device: DevicePatch,
-        folders: HashMap<VaultId, FolderPatch>,
-        #[cfg(feature = "files")] files: FilePatch,
+        events: CreateSet,
     ) -> Result<()> {
         let mut inner = self.account.lock().await;
-        Ok(inner
-            .import_account_events(
-                identity,
-                account,
-                device,
-                folders,
-                #[cfg(feature = "files")]
-                files,
-            )
-            .await?)
+        Ok(inner.import_account_events(events).await?)
     }
 
     async fn new_device_vault(

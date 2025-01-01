@@ -109,16 +109,7 @@ pub trait RemoteSyncHandler {
         {
             let account = self.account();
             let mut account = account.lock().await;
-            account
-                .import_account_events(
-                    public_account.identity,
-                    public_account.account,
-                    public_account.device,
-                    public_account.folders,
-                    #[cfg(feature = "files")]
-                    public_account.files,
-                )
-                .await?;
+            account.import_account_events(public_account).await?;
         }
 
         /*
