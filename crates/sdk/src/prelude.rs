@@ -7,14 +7,12 @@ pub use crate::device::*;
 pub use crate::events::*;
 pub use crate::formats::*;
 pub use crate::identity::*;
-pub use crate::passwd::*;
 pub use crate::signer::ecdsa::Address;
 pub use crate::vault::secret::*;
 pub use crate::vault::*;
 pub use crate::vfs;
-pub use crate::{
-    decode, encode, passwd::diceware::generate_passphrase, Paths, UtcDateTime,
-};
+pub use crate::{decode, encode, Paths, UtcDateTime};
+pub use sos_password::diceware::generate_passphrase;
 
 #[cfg(feature = "recovery")]
 pub use crate::recovery::*;

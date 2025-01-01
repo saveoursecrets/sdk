@@ -9,7 +9,6 @@ use sos_net::{
         constants::DEFAULT_VAULT_NAME,
         crypto::AccessKey,
         identity::{AccountRef, Identity, PublicIdentity},
-        passwd::diceware::generate_passphrase,
         secrecy::{ExposeSecret, SecretString},
         signer::ecdsa::Address,
         vault::{FolderRef, Summary},
@@ -17,6 +16,7 @@ use sos_net::{
     },
     NetworkAccount, NetworkAccountSwitcher,
 };
+use sos_password::diceware::generate_passphrase;
 use terminal_banner::{Banner, Padding};
 use tokio::sync::RwLock;
 

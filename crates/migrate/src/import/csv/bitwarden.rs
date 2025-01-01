@@ -150,14 +150,12 @@ mod test {
     use super::{parse_path, BitwardenCsv};
     use crate::Convert;
     use anyhow::Result;
-
+    use sos_database::search::SearchIndex;
+    use sos_password::diceware::generate_passphrase;
     use sos_sdk::{
         crypto::AccessKey,
-        passwd::diceware::generate_passphrase,
         vault::{BuilderCredentials, Gatekeeper, VaultBuilder},
     };
-
-    use sos_database::search::SearchIndex;
     use url::Url;
 
     #[tokio::test]

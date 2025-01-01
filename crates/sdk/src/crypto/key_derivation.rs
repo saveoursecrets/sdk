@@ -174,8 +174,8 @@ impl Deriver<Sha256> for BalloonHashDeriver {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::passwd::diceware::generate_passphrase;
     use anyhow::Result;
+    use sos_password::diceware::generate_passphrase;
 
     fn assert_key_length(kdf: &KeyDerivation) -> Result<()> {
         let salt = KeyDerivation::generate_salt();

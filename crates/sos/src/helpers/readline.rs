@@ -1,18 +1,13 @@
-use std::borrow::Cow::{self, Borrowed, Owned};
-
+use crate::{helpers::messages::fail, Error, Result};
 use rustyline::{
     config::Configurer, error::ReadlineError, highlight::Highlighter,
     history::MemHistory, ColorMode, Editor,
 };
 use rustyline_derive::{Completer, Helper, Hinter, Validator};
-use sos_net::sdk::{
-    passwd::generator::measure_entropy,
-    secrecy::{ExposeSecret, SecretString},
-};
-
+use sos_net::sdk::secrecy::{ExposeSecret, SecretString};
+use sos_password::generator::measure_entropy;
+use std::borrow::Cow::{self, Borrowed, Owned};
 use zxcvbn::Score;
-
-use crate::{helpers::messages::fail, Error, Result};
 
 const DEFAULT_PROMPT: &str = ">> ";
 

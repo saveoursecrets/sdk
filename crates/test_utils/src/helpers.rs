@@ -1,25 +1,22 @@
 //! Test utility functions.
+use anyhow::Result;
+use argon2::password_hash::SaltString;
+use secrecy::{SecretBox, SecretString};
+use sha2::{Digest, Sha256};
+use sos_core::commit::CommitHash;
 use sos_net::sdk::{
     crypto::{KeyDerivation, PrivateKey},
     encode,
     events::{EventLogExt, FolderEventLog, WriteEvent},
-    passwd::diceware::generate_passphrase,
     uuid::Uuid,
     vault::{
         secret::{FileContent, Secret, SecretId, SecretMeta},
         BuilderCredentials, Vault, VaultAccess, VaultBuilder, VaultEntry,
     },
 };
-
-use argon2::password_hash::SaltString;
-use sha2::{Digest, Sha256};
-use sos_core::commit::CommitHash;
+use sos_password::diceware::generate_passphrase;
 use std::io::Write;
-
 use tempfile::NamedTempFile;
-
-use anyhow::Result;
-use secrecy::{SecretBox, SecretString};
 
 /// Generate a mock encyption key.
 pub fn mock_encryption_key() -> Result<(PrivateKey, SaltString, SecretString)>

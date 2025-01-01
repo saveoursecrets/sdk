@@ -15,7 +15,6 @@ use crate::{
         MemoryFolderLog, MemoryLog, WriteEvent,
     },
     identity::{PrivateIdentity, UrnLookup},
-    passwd::diceware::generate_passphrase_words,
     signer::{
         ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
         ed25519, Signer,
@@ -29,6 +28,7 @@ use crate::{
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
+use sos_password::diceware::generate_passphrase_words;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,

@@ -15,13 +15,13 @@ use sos_net::{
         constants::{FILES_DIR, VAULT_EXT},
         crypto::AccessKey,
         events::EventLogExt,
-        passwd::diceware::generate_passphrase,
         url::Url,
         vault::{Summary, VaultId},
         vfs, Paths,
     },
     InflightNotification, InflightTransfers, NetworkAccount, RemoteBridge,
 };
+use sos_password::diceware::generate_passphrase;
 use sos_sync::SyncStorage;
 use std::{
     path::PathBuf,

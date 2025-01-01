@@ -250,21 +250,20 @@ impl Identity {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
-    use urn::Urn;
-
     use crate::{
         constants::LOGIN_SIGNING_KEY_URN,
         crypto::AccessKey,
         encode,
         identity::MemoryIdentityFolder,
-        passwd::diceware::generate_passphrase,
         vault::{
             secret::{Secret, SecretId, SecretMeta, SecretRow},
             BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
         },
         Error,
     };
+    use anyhow::Result;
+    use sos_password::diceware::generate_passphrase;
+    use urn::Urn;
 
     #[tokio::test]
     async fn identity_not_identity_vault() -> Result<()> {

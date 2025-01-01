@@ -71,7 +71,6 @@ pub use vcard4;
 // Deprecated re-exports for backwards compatibility
 // DO NOT USE - they will be removed in the future
 pub use sos_core::constants;
-pub use sos_password as passwd;
 
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;

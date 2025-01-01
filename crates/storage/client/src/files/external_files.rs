@@ -121,7 +121,8 @@ impl FileStorage {
 mod test {
     use super::*;
     use anyhow::Result;
-    use sos_sdk::{passwd::diceware::generate_passphrase, vfs};
+    use sos_password::diceware::generate_passphrase;
+    use sos_sdk::vfs;
 
     #[tokio::test]
     async fn file_encrypt_decrypt() -> Result<()> {

@@ -3,6 +3,7 @@ use crate::{AccessOptions, AccountPack, Error, NewFolderOptions, Result};
 use indexmap::IndexSet;
 use sos_core::commit::{CommitHash, CommitState};
 use sos_database::StorageError;
+use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
@@ -13,7 +14,6 @@ use sos_sdk::{
         WriteEvent,
     },
     identity::FolderKeys,
-    passwd::diceware::generate_passphrase,
     signer::ecdsa::Address,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
