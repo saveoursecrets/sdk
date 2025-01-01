@@ -18,12 +18,13 @@ full = [
   "system-messages",
 ]
 preferences = []
-security-report = ["dep:zxcvbn"]
+security-report = ["dep:zxcvbn", "dep:sha1", "dep:secrecy"]
 system-messages = []
 
 [dependencies]
 sos-sdk.workspace = true
 sos-account.workspace = true
+sos-password.workspace = true
 sos-database = { workspace = true, features = ["client"] }
 
 thiserror.workspace = true
@@ -34,6 +35,8 @@ tokio.workspace = true
 tracing.workspace = true
 
 zxcvbn = { workspace = true, optional = true }
+sha1 = { workspace = true, optional = true }
+secrecy = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }

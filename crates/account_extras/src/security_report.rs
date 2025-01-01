@@ -1,6 +1,8 @@
 //! Types for security report generation.
+use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use sos_account::Account;
+use sos_password::generator::measure_entropy;
 use sos_sdk::{
     hex,
     vault::{
@@ -256,7 +258,7 @@ pub(super) async fn secret_security_report(
             if field.meta().kind() == &SecretType::Account
                 || field.meta().kind() == &SecretType::Password
             {
-                let check = Secret::check_password(field.secret())?;
+                let check = check_password(field.secret())?;
                 if let Some(check) = check {
                     password_hashes.push((
                         *secret_id,
@@ -266,10 +268,61 @@ pub(super) async fn secret_security_report(
                 }
             }
         }
-        let check = Secret::check_password(&secret)?;
+        let check = check_password(&secret)?;
         if let Some(check) = check {
             password_hashes.push((*secret_id, check, None));
         }
     }
     Ok(())
+}
+
+/// Measure entropy for a password and compute a SHA-1 checksum.
+///
+/// Only applies to account and password types, other
+/// types will yield `None.`
+pub fn check_password(
+    secret: &Secret,
+) -> Result<Option<(Option<Entropy>, Vec<u8>)>> {
+    // TODO: remove Result type from function return value
+    use sha1::{Digest, Sha1};
+    match secret {
+        Secret::Account {
+            account, password, ..
+        } => {
+            let hash = Sha1::digest(password.expose_secret().as_bytes());
+
+            // Zxcvbn cannot handle empty passwords but we
+            // need to handle this gracefully
+            if password.expose_secret().is_empty() {
+                Ok(Some((None, hash.to_vec())))
+            } else {
+                let entropy =
+                    measure_entropy(password.expose_secret(), &[account]);
+                Ok(Some((Some(entropy), hash.to_vec())))
+            }
+        }
+        Secret::Password { password, name, .. } => {
+            let inputs = if let Some(name) = name {
+                vec![&name.expose_secret()[..]]
+            } else {
+                vec![]
+            };
+
+            let hash = Sha1::digest(password.expose_secret().as_bytes());
+
+            // Zxcvbn cannot handle empty passwords but we
+            // need to handle this gracefully
+            if password.expose_secret().is_empty() {
+                Ok(Some((None, hash.to_vec())))
+            } else {
+                let entropy = measure_entropy(
+                    password.expose_secret(),
+                    inputs.as_slice(),
+                );
+
+                Ok(Some((Some(entropy), hash.to_vec())))
+            }
+        }
+        _ => Ok(None),
+    }
 }

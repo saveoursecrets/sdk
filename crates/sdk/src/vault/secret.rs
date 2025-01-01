@@ -8,7 +8,6 @@ use serde::{
     ser::{SerializeMap, SerializeSeq},
     Deserialize, Serialize, Serializer,
 };
-use sos_password::zxcvbn::Entropy;
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
@@ -24,7 +23,6 @@ use vcard4::{self, Vcard};
 use sos_core::{basename, guess_mime};
 
 use crate::{
-    passwd::generator::measure_entropy,
     signer::{
         ecdsa::{self, BoxedEcdsaSigner},
         ed25519::{self, BoxedEd25519Signer},
@@ -1430,57 +1428,6 @@ impl fmt::Debug for Secret {
 }
 
 impl Secret {
-    /// Measure entropy for a password and compute a SHA-1 checksum.
-    ///
-    /// Only applies to account and password types, other
-    /// types will yield `None.`
-    pub fn check_password(
-        secret: &Secret,
-    ) -> Result<Option<(Option<Entropy>, Vec<u8>)>> {
-        // TODO: remove Result type from function return value
-        use sha1::{Digest, Sha1};
-        match secret {
-            Secret::Account {
-                account, password, ..
-            } => {
-                let hash = Sha1::digest(password.expose_secret().as_bytes());
-
-                // Zxcvbn cannot handle empty passwords but we
-                // need to handle this gracefully
-                if password.expose_secret().is_empty() {
-                    Ok(Some((None, hash.to_vec())))
-                } else {
-                    let entropy =
-                        measure_entropy(password.expose_secret(), &[account]);
-                    Ok(Some((Some(entropy), hash.to_vec())))
-                }
-            }
-            Secret::Password { password, name, .. } => {
-                let inputs = if let Some(name) = name {
-                    vec![&name.expose_secret()[..]]
-                } else {
-                    vec![]
-                };
-
-                let hash = Sha1::digest(password.expose_secret().as_bytes());
-
-                // Zxcvbn cannot handle empty passwords but we
-                // need to handle this gracefully
-                if password.expose_secret().is_empty() {
-                    Ok(Some((None, hash.to_vec())))
-                } else {
-                    let entropy = measure_entropy(
-                        password.expose_secret(),
-                        inputs.as_slice(),
-                    );
-
-                    Ok(Some((Some(entropy), hash.to_vec())))
-                }
-            }
-            _ => Ok(None),
-        }
-    }
-
     /// Try to redact a secret.
     ///
     /// When `preserve_length` is set fields that are redacted preserve the
