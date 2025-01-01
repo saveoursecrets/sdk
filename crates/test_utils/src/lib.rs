@@ -5,6 +5,9 @@
 use anyhow::Result;
 use axum_server::Handle;
 use copy_dir::copy_dir;
+use sos_core::Origin;
+use sos_net::sdk::{signer::ecdsa::Address, url::Url, vfs, Paths};
+use sos_server::{Server, ServerConfig, State};
 use std::{
     net::SocketAddr,
     path::{Path, PathBuf},
@@ -13,13 +16,6 @@ use std::{
     time::Duration,
 };
 use tokio::sync::{oneshot, RwLock};
-
-use sos_net::{
-    protocol::Origin,
-    sdk::{signer::ecdsa::Address, url::Url, vfs, Paths},
-};
-
-use sos_server::{Server, ServerConfig, State};
 
 mod helpers;
 pub mod mock;

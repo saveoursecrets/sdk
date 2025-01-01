@@ -3,22 +3,19 @@ use crate::{
     AsConflict, ConflictError, DiffRequest, PatchRequest, ScanRequest,
     SyncClient, SyncDirection,
 };
+use crate::{ForceMerge, HardConflictResolver, Merge, SyncOptions};
 use async_trait::async_trait;
-use sos_sdk::events::{
-    AccountDiff, AccountEvent, CheckedPatch, Diff, EventLogExt, EventRecord,
-    FolderDiff, Patch, WriteEvent,
-};
-
 use sos_account::Account;
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree},
     VaultId,
 };
-use sos_sync::{MergeOutcome, StorageEventLogs, SyncStatus};
-
-use crate::{
-    EventLogType, ForceMerge, HardConflictResolver, MaybeConflict, Merge,
-    SyncOptions,
+use sos_sdk::events::{
+    AccountDiff, AccountEvent, CheckedPatch, Diff, EventLogExt, EventRecord,
+    FolderDiff, Patch, WriteEvent,
+};
+use sos_sync::{
+    EventLogType, MaybeConflict, MergeOutcome, StorageEventLogs, SyncStatus,
 };
 use std::collections::HashSet;
 use tracing::instrument;

@@ -1,10 +1,4 @@
 //! HTTP client implementation.
-use async_trait::async_trait;
-use http::StatusCode;
-use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
-use serde_json::Value;
-use tracing::instrument;
-
 use crate::{
     constants::{
         routes::v1::{
@@ -12,19 +6,22 @@ use crate::{
         },
         MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
     },
-    DiffRequest, DiffResponse, Error, NetworkError, Origin, PatchRequest,
-    PatchResponse, Result, ScanRequest, ScanResponse, SyncClient, SyncPacket,
+    DiffRequest, DiffResponse, Error, NetworkError, PatchRequest,
+    PatchResponse, Result, ScanRequest, ScanResponse, SyncClient,
     WireEncodeDecode,
 };
-
-use sos_sync::{CreateSet, SyncStatus, UpdateSet};
-
+use async_trait::async_trait;
+use http::StatusCode;
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
+use serde_json::Value;
+use sos_core::Origin;
 use sos_sdk::{
     prelude::Address,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
 };
-
+use sos_sync::{CreateSet, SyncPacket, SyncStatus, UpdateSet};
 use std::{fmt, time::Duration};
+use tracing::instrument;
 use url::Url;
 
 #[cfg(feature = "listen")]

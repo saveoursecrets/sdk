@@ -1,13 +1,15 @@
 //! Synchronization types that are used internally.
-use crate::{MaybeDiff, Origin, SyncCompare, SyncDiff};
 use sos_core::{
     commit::{CommitState, Comparison},
-    VaultId,
+    Origin, VaultId,
 };
 use sos_sdk::events::{
     AccountDiff, CheckedPatch, EventLogExt, FolderDiff, WriteEvent,
 };
-use sos_sync::{CreateSet, MergeOutcome, StorageEventLogs, SyncStatus};
+use sos_sync::{
+    CreateSet, MaybeDiff, MergeOutcome, StorageEventLogs, SyncCompare,
+    SyncDiff, SyncStatus,
+};
 
 use async_trait::async_trait;
 use indexmap::IndexMap;
@@ -56,6 +58,7 @@ impl FolderMergeOptions<'_> {
 }
 */
 
+/*
 /// Information about possible conflicts.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct MaybeConflict {
@@ -92,6 +95,7 @@ impl MaybeConflict {
         has_conflicts
     }
 }
+*/
 
 /// Comparison between local and remote status.
 #[derive(Debug)]

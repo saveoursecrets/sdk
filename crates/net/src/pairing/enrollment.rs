@@ -1,7 +1,7 @@
 //! Enroll a device to an account on a remote server.
 use crate::{
     pairing::{Error, Result},
-    protocol::{network_client::HttpClient, Origin, SyncClient},
+    protocol::{network_client::HttpClient, SyncClient},
     sdk::{
         crypto::AccessKey,
         device::DeviceSigner,
@@ -21,6 +21,7 @@ use crate::{
     NetworkAccount,
 };
 use sos_account::Account;
+use sos_core::Origin;
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},

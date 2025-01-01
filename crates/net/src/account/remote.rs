@@ -1,8 +1,8 @@
 //! Connect a remote data source with a local account.
 use crate::{
     protocol::{
-        network_client::HttpClient, AutoMerge, Origin, RemoteResult,
-        RemoteSync, SyncClient, SyncDirection, SyncOptions,
+        network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
+        SyncClient, SyncDirection, SyncOptions,
     },
     sdk::{
         prelude::Address,
@@ -13,6 +13,7 @@ use crate::{
 
 use async_trait::async_trait;
 use sos_account::LocalAccount;
+use sos_core::Origin;
 use sos_protocol::RemoteSyncHandler;
 use sos_sync::UpdateSet;
 use std::{collections::HashMap, sync::Arc};

@@ -1,25 +1,23 @@
 //! Basic smoke tests for encoding and decoding.
-use anyhow::Result;
-use prost::bytes::Bytes;
-
 use crate::{
-    sdk::{
-        events::{CheckedPatch, EventRecord, FolderDiff},
-        signer::ecdsa::Address,
-        UtcDateTime,
-    },
-    sync::{
-        EventLogType, MaybeDiff, Origin, SyncCompare, SyncDiff, SyncPacket,
-    },
     DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
     ScanResponse, WireEncodeDecode,
 };
-
+use anyhow::Result;
+use prost::bytes::Bytes;
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitState},
-    SecretPath, VaultId,
+    Origin, SecretPath, VaultId,
 };
-use sos_sync::{CreateSet, MergeOutcome, SyncStatus, UpdateSet};
+use sos_sdk::{
+    events::{CheckedPatch, EventRecord, FolderDiff},
+    signer::ecdsa::Address,
+    UtcDateTime,
+};
+use sos_sync::{
+    CreateSet, EventLogType, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff,
+    SyncPacket, SyncStatus, UpdateSet,
+};
 
 const HASH: &str =
     "54c4de4a0db65b62302964a52b0ea346e69b11d54b430d4615672a37ff0d4e58";

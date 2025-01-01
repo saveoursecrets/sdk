@@ -4,13 +4,16 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_net::{
-    protocol::{AccountSync, Origin, SyncOptions, SyncStorage},
+    protocol::{AccountSync, SyncOptions, SyncStorage},
     sdk::{events::EventLogExt, identity::AccountRef, url::Url},
     NetworkAccount,
 };
 
 use sos_account::Account;
-use sos_core::commit::{CommitState, CommitTree, Comparison};
+use sos_core::{
+    commit::{CommitState, CommitTree, Comparison},
+    Origin,
+};
 use sos_sync::{StorageEventLogs, SyncStatus};
 
 #[derive(Subcommand, Debug)]

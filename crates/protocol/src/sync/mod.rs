@@ -6,12 +6,10 @@ mod folder;
 mod local_account;
 mod primitives;
 mod remote;
-mod transport;
 
 pub use auto_merge::*;
 pub use primitives::*;
 pub use remote::*;
-pub use transport::*;
 
 /// Direction of a sync.
 #[derive(Debug, Clone, Copy)]

@@ -3,7 +3,7 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_protocol::{
-    network_client::HttpClient, AutoMerge, Origin, RemoteResult, RemoteSync,
+    network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
     RemoteSyncHandler, SyncClient, SyncDirection, SyncOptions, SyncStorage,
 };
 use sos_sdk::{
@@ -24,7 +24,7 @@ use sos_sdk::{
 
 use sos_core::{
     commit::{CommitHash, CommitState},
-    SecretId, VaultId,
+    Origin, SecretId, VaultId,
 };
 use sos_database::storage::{AccessOptions, ClientStorage, NewFolderOptions};
 

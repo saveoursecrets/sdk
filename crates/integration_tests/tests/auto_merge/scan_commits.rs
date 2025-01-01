@@ -3,10 +3,10 @@ use anyhow::Result;
 use sos_account::Account;
 use sos_core::commit::Comparison;
 use sos_net::{
-    protocol::{EventLogType, RemoteSyncHandler, ScanRequest, SyncClient},
+    protocol::{RemoteSyncHandler, ScanRequest, SyncClient},
     sdk::prelude::*,
 };
-use sos_sync::StorageEventLogs;
+use sos_sync::{EventLogType, StorageEventLogs};
 
 /// Tests scanning commit hashes on remote servers.
 #[tokio::test]

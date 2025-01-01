@@ -1,7 +1,6 @@
 //! Error type for the client module.
-use sos_protocol::{
-    transfer::CancelReason, AsConflict, ConflictError, Origin,
-};
+use sos_core::Origin;
+use sos_protocol::{transfer::CancelReason, AsConflict, ConflictError};
 use sos_sdk::{prelude::ErrorExt, vault::VaultId};
 use std::error::Error as StdError;
 use std::path::PathBuf;

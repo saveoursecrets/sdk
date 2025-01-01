@@ -1,13 +1,15 @@
 //! Handler that can synchronize account data between a
 //! remote data source and local account.
 use crate::{
-    AsConflict, ConflictError, MaybeDiff, Merge, Origin, SyncClient,
-    SyncDirection, SyncPacket, SyncStorage,
+    AsConflict, ConflictError, Merge, SyncClient, SyncDirection, SyncStorage,
 };
 use async_trait::async_trait;
 use sos_account::Account;
+use sos_core::Origin;
 use sos_sdk::prelude::Address;
-use sos_sync::{MergeOutcome, StorageEventLogs, SyncStatus};
+use sos_sync::{
+    MaybeDiff, MergeOutcome, StorageEventLogs, SyncPacket, SyncStatus,
+};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 

@@ -11,7 +11,7 @@ use crate::{
             },
             MaybeTlsStream, WebSocketStream,
         },
-        AccountSync, Origin, PairingConfirm, PairingMessage, PairingReady,
+        AccountSync, PairingConfirm, PairingMessage, PairingReady,
         PairingRequest, ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
         SyncOptions,
     },
@@ -32,6 +32,7 @@ use futures::{
 use prost::bytes::Bytes;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use sos_account::Account;
+use sos_core::Origin;
 use std::collections::HashSet;
 use std::{borrow::Cow, path::PathBuf};
 use tokio::{net::TcpStream, sync::mpsc};

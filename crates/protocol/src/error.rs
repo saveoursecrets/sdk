@@ -1,13 +1,11 @@
 //! Error type for the wire protocol.
-use crate::MaybeConflict;
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sos_sdk::time;
+use sos_sync::{MaybeConflict, SyncStatus};
 use std::error::Error as StdError;
 use thiserror::Error;
-
-use sos_sync::SyncStatus;
 
 /// Trait for error implementations that
 /// support a conflict error.

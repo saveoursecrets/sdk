@@ -1,8 +1,8 @@
 //! Adds sync capability to network account.
 use crate::{
     protocol::{
-        AccountSync, Merge, Origin, RemoteSync, SyncClient, SyncOptions,
-        SyncResult, SyncStorage,
+        AccountSync, Merge, RemoteSync, SyncClient, SyncOptions, SyncResult,
+        SyncStorage,
     },
     sdk::{
         events::{
@@ -18,7 +18,7 @@ use indexmap::IndexSet;
 use sos_account::Account;
 use sos_core::{
     commit::{CommitState, Comparison},
-    VaultId,
+    Origin, VaultId,
 };
 use sos_sync::{MergeOutcome, StorageEventLogs, SyncStatus, UpdateSet};
 use std::{

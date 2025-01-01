@@ -20,6 +20,33 @@ use {
     sos_sdk::events::{FileDiff, FileEvent, FilePatch},
 };
 
+/// Types of event logs.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum EventLogType {
+    /// Identity folder event log.
+    Identity,
+    /// Account event log.
+    Account,
+    /// Device event log.
+    Device,
+    /// Files event log.
+    #[cfg(feature = "files")]
+    Files,
+    /// Folder event log.
+    Folder(VaultId),
+}
+
+/// Combined sync status, diff and comparisons.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct SyncPacket {
+    /// Sync status.
+    pub status: SyncStatus,
+    /// Sync diff.
+    pub diff: SyncDiff,
+    /// Sync comparisons.
+    pub compare: Option<SyncCompare>,
+}
+
 /// Diff of events or conflict information.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MaybeDiff<T> {

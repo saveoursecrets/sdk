@@ -1,26 +1,11 @@
 //! Network aware account.
 use crate::{
     protocol::{
-        AccountSync, DiffRequest, EventLogType, Origin, RemoteSync,
-        RemoteSyncHandler, SyncClient, SyncOptions, SyncResult,
-    },
-    sdk::{
-        crypto::{AccessKey, Cipher, KeyDerivation},
-        device::{
-            DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice,
-        },
-        events::{AccountEvent, EventLogExt, EventRecord, ReadEvent},
-        identity::{AccountRef, PublicIdentity},
-        signer::ecdsa::{Address, BoxedEcdsaSigner},
-        vault::{
-            secret::{Secret, SecretMeta, SecretRow},
-            Summary, Vault, VaultCommit, VaultFlags,
-        },
-        vfs, Paths,
+        AccountSync, DiffRequest, RemoteSync, RemoteSyncHandler, SyncClient,
+        SyncOptions, SyncResult,
     },
     Error, RemoteBridge, Result,
 };
-
 use async_trait::async_trait;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
@@ -31,13 +16,25 @@ use sos_account::{
 };
 use sos_core::{
     commit::{CommitHash, CommitState},
-    SecretId, VaultId,
+    Origin, SecretId, VaultId,
 };
-
 use sos_database::storage::{AccessOptions, ClientStorage, NewFolderOptions};
-
-use sos_sdk::events::{AccountPatch, DevicePatch, FolderPatch};
-use sos_sync::{StorageEventLogs, UpdateSet};
+use sos_sdk::{
+    crypto::{AccessKey, Cipher, KeyDerivation},
+    device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
+    events::{
+        AccountEvent, AccountPatch, DevicePatch, EventLogExt, EventRecord,
+        FolderPatch, ReadEvent,
+    },
+    identity::{AccountRef, PublicIdentity},
+    signer::ecdsa::{Address, BoxedEcdsaSigner},
+    vault::{
+        secret::{Secret, SecretMeta, SecretRow},
+        Summary, Vault, VaultCommit, VaultFlags,
+    },
+    vfs, Paths,
+};
+use sos_sync::{EventLogType, StorageEventLogs, UpdateSet};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},

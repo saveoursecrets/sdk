@@ -8,11 +8,11 @@ use crate::{
         vault::secret::SecretPath,
         UtcDateTime,
     },
-    sync::EventLogType,
     Error, ProtoBinding, Result,
 };
 use rs_merkle::{algorithms::Sha256, MerkleProof};
 use sos_core::commit::{CommitHash, CommitProof, CommitState};
+use sos_sync::EventLogType;
 
 impl ProtoBinding for UtcDateTime {
     type Inner = WireUtcDateTime;

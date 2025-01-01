@@ -599,9 +599,9 @@ mod handlers {
     };
     use sos_protocol::{
         constants::MIME_TYPE_PROTOBUF, DiffRequest, PatchRequest,
-        ScanRequest, SyncPacket, SyncStorage, WireEncodeDecode,
+        ScanRequest, SyncStorage, WireEncodeDecode,
     };
-    use sos_sync::{CreateSet, UpdateSet};
+    use sos_sync::{CreateSet, SyncPacket, UpdateSet};
 
     use sos_storage::server::server_helpers;
 

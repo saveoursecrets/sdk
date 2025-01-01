@@ -1,10 +1,11 @@
 use crate::{
-    DiffRequest, DiffResponse, Origin, PatchRequest, PatchResponse,
-    ScanRequest, ScanResponse, SyncOptions, SyncPacket,
+    DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
+    ScanResponse, SyncOptions,
 };
 use async_trait::async_trait;
+use sos_core::Origin;
 use sos_sdk::prelude::Address;
-use sos_sync::{CreateSet, MergeOutcome, SyncStatus, UpdateSet};
+use sos_sync::{CreateSet, MergeOutcome, SyncPacket, SyncStatus, UpdateSet};
 
 /// Result of a sync operation with a single remote.
 #[derive(Debug)]
