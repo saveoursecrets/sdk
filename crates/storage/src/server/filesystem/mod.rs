@@ -124,7 +124,7 @@ impl ServerStorage {
     }
 
     async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
-        use sos_database::storage::files::list_external_files;
+        use crate::files::list_external_files;
 
         let log_file = paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;

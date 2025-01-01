@@ -5498,18 +5498,30 @@ dependencies = [
 name = "sos-storage"
 version = "0.16.0"
 dependencies = [
+ "age",
+ "anyhow",
  "async-trait",
  "binary-stream",
+ "futures",
  "indexmap 2.7.0",
+ "probly-search",
+ "secrecy",
+ "serde",
+ "sha2",
  "sos-core",
  "sos-database",
+ "sos-password",
  "sos-protocol",
  "sos-sdk",
  "sos-sync",
  "thiserror 2.0.9",
  "tokio",
+ "tokio-util",
  "tracing",
+ "unicode-segmentation",
+ "url",
  "uuid",
+ "vcard4",
 ]
 
 [[package]]

@@ -8,14 +8,30 @@ license = "AGPL-3.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [features]
-audit = []
-server = ["files", "binary-stream"]
-client = []
-files = []
+full = ["audit", "client", "server", "archive", "search"]
+archive = ["sos-sdk/archive"]
+audit = ["sos-sdk/audit"]
+files = [
+  "sos-sdk/files",
+  "sos-sync/files",
+  "dep:tokio-util",
+  "dep:age",
+  "dep:binary-stream",
+]
+search = [
+  "sos-database/search",
+  "dep:probly-search",
+  "dep:unicode-segmentation",
+  "dep:url",
+  "dep:vcard4",
+]
+server = ["files"]
+client = ["sos-password"]
 
 [dependencies]
 sos-core.workspace = true
 sos-database.workspace = true
+sos-password = { workspace = true, optional = true }
 sos-sync.workspace = true
 sos-protocol.workspace = true
 sos-sdk.workspace = true
@@ -26,5 +42,22 @@ tokio.workspace = true
 indexmap.workspace = true
 uuid.workspace = true
 async-trait.workspace = true
+secrecy.workspace = true
+sha2.workspace = true
+serde.workspace = true
+futures.workspace = true
 
 binary-stream = { workspace = true, optional = true }
+
+tokio-util = { workspace = true, optional = true }
+age  = { workspace = true, optional = true }
+
+# search
+unicode-segmentation = { workspace = true, optional = true }
+probly-search = { workspace = true, optional = true }
+url  = { workspace = true, optional = true }
+vcard4 = { workspace = true, optional = true }
+
+[dev-dependencies]
+anyhow.workspace = true
+

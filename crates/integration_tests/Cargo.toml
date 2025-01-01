@@ -31,7 +31,7 @@ workspace = true
 
 [dependencies.sos-storage]
 workspace = true
-features = ["audit"]
+features = ["full"]
 
 [dependencies.sos-migrate]
 workspace = true
