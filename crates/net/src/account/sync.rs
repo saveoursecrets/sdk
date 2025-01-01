@@ -23,8 +23,8 @@ use sos_core::{
 
 use async_trait::async_trait;
 use indexmap::IndexSet;
-use sos_database::StorageEventLogs;
 use sos_protocol::MergeOutcome;
+use sos_sync::StorageEventLogs;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,

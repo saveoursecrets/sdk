@@ -6,8 +6,8 @@ use crate::{
 };
 use async_trait::async_trait;
 use sos_account::Account;
-use sos_database::StorageEventLogs;
 use sos_sdk::prelude::Address;
+use sos_sync::StorageEventLogs;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 

@@ -26,7 +26,7 @@ use sos_core::{
 
 use crate::server::{Error, Result};
 
-use sos_database::StorageEventLogs;
+use sos_sync::StorageEventLogs;
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
 

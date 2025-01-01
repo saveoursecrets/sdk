@@ -16,6 +16,7 @@ files = []
 [dependencies]
 sos-core.workspace = true
 sos-database.workspace = true
+sos-sync.workspace = true
 sos-protocol.workspace = true
 sos-sdk.workspace = true
 

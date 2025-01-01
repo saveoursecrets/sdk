@@ -11,7 +11,7 @@ use sos_net::{
 
 use sos_account::Account;
 use sos_core::commit::{CommitState, CommitTree, Comparison};
-use sos_database::StorageEventLogs;
+use sos_sync::StorageEventLogs;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {

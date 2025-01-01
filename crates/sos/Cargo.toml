@@ -19,6 +19,7 @@ enable-cli-tests = []
 [dependencies]
 sos-core.workspace = true
 sos-account.workspace = true
+sos-sync.workspace = true
 sos-database = { workspace = true, features = ["full"] }
 sos-integrity.workspace = true
 sos-logs.workspace = true

@@ -14,7 +14,7 @@ use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree},
     VaultId,
 };
-use sos_database::StorageEventLogs;
+use sos_sync::StorageEventLogs;
 
 use crate::{
     EventLogType, ForceMerge, HardConflictResolver, MaybeConflict, Merge,

@@ -13,7 +13,7 @@ use sos_sdk::{
     prelude::EventLogExt,
 };
 
-use sos_database::StorageEventLogs;
+use sos_sync::StorageEventLogs;
 
 #[cfg(feature = "files")]
 use sos_sdk::events::{FileDiff, FileEvent};

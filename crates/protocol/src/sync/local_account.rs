@@ -26,7 +26,7 @@ use crate::Result;
 use async_trait::async_trait;
 use indexmap::IndexMap;
 use sos_account::{Account, LocalAccount};
-use sos_database::StorageEventLogs;
+use sos_sync::StorageEventLogs;
 use std::collections::HashSet;
 
 use crate::sdk::events::{DeviceDiff, DeviceReducer};

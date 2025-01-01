@@ -7,10 +7,10 @@ use sos_core::{
     commit::{CommitState, Comparison},
     VaultId,
 };
-use sos_database::StorageEventLogs;
 use sos_sdk::events::{
     AccountDiff, CheckedPatch, EventLogExt, FolderDiff, WriteEvent,
 };
+use sos_sync::StorageEventLogs;
 
 use async_trait::async_trait;
 use indexmap::IndexMap;

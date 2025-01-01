@@ -30,10 +30,10 @@ use sos_sdk::{
     vfs, Paths, UtcDateTime,
 };
 
-use sos_database::{
-    storage::{AccessOptions, AccountPack, ClientStorage, NewFolderOptions},
-    StorageEventLogs,
+use sos_database::storage::{
+    AccessOptions, AccountPack, ClientStorage, NewFolderOptions,
 };
+use sos_sync::StorageEventLogs;
 
 #[cfg(feature = "search")]
 use sos_database::search::{DocumentCount, SearchIndex};

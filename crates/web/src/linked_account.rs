@@ -27,10 +27,9 @@ use sos_core::{
     commit::{CommitHash, CommitState},
     SecretId, VaultId,
 };
-use sos_database::{
-    storage::{AccessOptions, ClientStorage, NewFolderOptions},
-    StorageEventLogs,
-};
+use sos_database::storage::{AccessOptions, ClientStorage, NewFolderOptions};
+
+use sos_sync::StorageEventLogs;
 
 use sos_account::{
     Account, AccountChange, AccountData, CipherComparison, DetachedView,

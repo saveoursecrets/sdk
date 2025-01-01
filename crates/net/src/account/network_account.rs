@@ -34,11 +34,10 @@ use sos_core::{
     SecretId, VaultId,
 };
 
-use sos_database::{
-    storage::{AccessOptions, ClientStorage, NewFolderOptions},
-    StorageEventLogs,
-};
+use sos_database::storage::{AccessOptions, ClientStorage, NewFolderOptions};
+
 use sos_sdk::events::{AccountPatch, DevicePatch, FolderPatch};
+use sos_sync::StorageEventLogs;
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},

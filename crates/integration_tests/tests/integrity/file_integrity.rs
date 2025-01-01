@@ -3,9 +3,9 @@ use anyhow::Result;
 
 use crate::test_utils::{mock::files::create_file_secret, setup, teardown};
 use sos_account::{Account, LocalAccount};
-use sos_database::StorageEventLogs;
 use sos_integrity::{file_integrity, FileIntegrityEvent, IntegrityFailure};
 use sos_net::sdk::prelude::*;
+use sos_sync::StorageEventLogs;
 
 /// Tests an ok file integrity report.
 #[tokio::test]
