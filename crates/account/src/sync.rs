@@ -1,13 +1,9 @@
 //! Implements merging into a local account.
 
-// Ideally we want this code to be in the `sos-net`
-// crate but we also need to share some traits with the
-// server so we have to implement here otherwise we
-// hit the problem with foreign trait implementations.
-use crate::{FolderMerge, FolderMergeOptions, IdentityFolderMerge, Result};
+// use crate::{FolderMerge, FolderMergeOptions, IdentityFolderMerge, Result};
+use crate::{Account, LocalAccount, Result};
 use async_trait::async_trait;
 use indexmap::IndexMap;
-use sos_account::{Account, LocalAccount};
 use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
     VaultId,
@@ -25,6 +21,10 @@ use sos_sync::{
     SyncStorage, TrackedChanges,
 };
 use std::collections::HashSet;
+
+use super::folder_sync::{
+    FolderMerge, FolderMergeOptions, IdentityFolderMerge,
+};
 
 #[cfg(feature = "files")]
 use sos_sdk::events::FileDiff;
@@ -340,7 +340,7 @@ impl Merge for LocalAccount {
 
         let checked_patch = {
             let storage =
-                self.storage().await.ok_or(sos_account::Error::NoStorage)?;
+                self.storage().await.ok_or(crate::Error::NoStorage)?;
             let storage = storage.read().await;
             let mut event_log = storage.device_log.write().await;
             event_log
@@ -350,10 +350,8 @@ impl Merge for LocalAccount {
 
         if let CheckedPatch::Success(_) = &checked_patch {
             let devices = {
-                let storage = self
-                    .storage()
-                    .await
-                    .ok_or(sos_account::Error::NoStorage)?;
+                let storage =
+                    self.storage().await.ok_or(crate::Error::NoStorage)?;
                 let storage = storage.read().await;
                 let event_log = storage.device_log.read().await;
                 let reducer = DeviceReducer::new(&*event_log);
@@ -361,7 +359,7 @@ impl Merge for LocalAccount {
             };
 
             let storage =
-                self.storage().await.ok_or(sos_account::Error::NoStorage)?;
+                self.storage().await.ok_or(crate::Error::NoStorage)?;
             let mut storage = storage.write().await;
             storage.devices = devices;
 
@@ -388,7 +386,7 @@ impl Merge for LocalAccount {
         diff: FileDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        use crate::sdk::events::FileReducer;
+        use sos_sdk::events::FileReducer;
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),
@@ -558,7 +556,7 @@ impl SyncStorage for LocalAccount {
         true
     }
 
-    async fn sync_status(&self) -> sos_account::Result<SyncStatus> {
+    async fn sync_status(&self) -> crate::Result<SyncStatus> {
         // NOTE: the order for computing the cumulative
         // NOTE: root hash must be identical to the logic
         // NOTE: in the server implementation and the folders

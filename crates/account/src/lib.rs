@@ -7,6 +7,9 @@ mod builder;
 mod convert;
 mod error;
 
+mod folder_sync;
+mod sync;
+
 pub use account::{
     Account, AccountChange, AccountData, DetachedView, FolderChange,
     FolderCreate, FolderDelete, LocalAccount, SecretChange, SecretDelete,

@@ -51,6 +51,7 @@ serde.workspace = true
 tracing.workspace = true
 typeshare.workspace = true
 async-trait.workspace = true
+futures.workspace = true
 indexmap.workspace = true
 uuid.workspace = true
 time.workspace = true

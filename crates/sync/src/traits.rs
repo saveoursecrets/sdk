@@ -1,4 +1,7 @@
 //! Core traits for storage that supports synchronization.
+use crate::{
+    CreateSet, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff, SyncStatus,
+};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_core::{
@@ -18,10 +21,6 @@ use std::{
 };
 use tokio::sync::RwLock;
 
-use crate::{
-    CreateSet, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff, SyncStatus,
-};
-
 #[cfg(feature = "files")]
 use {
     sos_core::ExternalFile,
@@ -32,7 +31,9 @@ use {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait StorageEventLogs {
+    /// Error type for storage event logs.
     type Error: std::error::Error
+        + From<sos_core::Error>
         + From<sos_sdk::Error>
         + Send
         + Sync
@@ -352,4 +353,55 @@ pub trait Merge {
 
         Ok(compare)
     }
+}
+
+/// Types that can force merge a diff.
+///
+/// Force merge deletes all events from the log and
+/// applies the diff patch as a new set of events.
+///
+/// Use this when event logs have completely diverged
+/// and need to be rewritten.
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait ForceMerge {
+    /// Error type for force merge.
+    type Error: std::error::Error;
+
+    /// Force merge changes to the identity folder.
+    async fn force_merge_identity(
+        &mut self,
+        source: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Force merge changes to the account event log.
+    async fn force_merge_account(
+        &mut self,
+        diff: AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Force merge changes to the devices event log.
+    async fn force_merge_device(
+        &mut self,
+        diff: DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Force merge changes to the files event log.
+    #[cfg(feature = "files")]
+    async fn force_merge_files(
+        &mut self,
+        diff: FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Force merge changes to a folder.
+    async fn force_merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        source: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> std::result::Result<(), Self::Error>;
 }

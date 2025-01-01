@@ -4,8 +4,8 @@ use http::{Request, Response, StatusCode};
 use secrecy::SecretString;
 use serde::Deserialize;
 use sos_account::Account;
-use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::prelude::{AccessKey, Address, ErrorExt, Identity};
+use sos_sync::{Merge, SyncStorage};
 use std::collections::HashMap;
 
 use crate::web_service::{

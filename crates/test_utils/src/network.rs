@@ -8,7 +8,7 @@ use sos_core::{ExternalFile, Origin};
 use sos_net::{
     protocol::{
         network_client::{HttpClient, ListenOptions},
-        AccountSync, RemoteSyncHandler, SyncClient, SyncStorage,
+        AccountSync, RemoteSyncHandler, SyncClient,
     },
     sdk::{
         constants::{FILES_DIR, VAULT_EXT},
@@ -21,6 +21,7 @@ use sos_net::{
     },
     InflightNotification, InflightTransfers, NetworkAccount, RemoteBridge,
 };
+use sos_sync::SyncStorage;
 use std::{
     path::PathBuf,
     sync::Arc,

@@ -3,8 +3,8 @@
 use http::{Request, Response, StatusCode};
 use serde::Deserialize;
 use sos_account::{Account, ClipboardCopyRequest};
-use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::prelude::{ErrorExt, SecretPath};
+use sos_sync::{Merge, SyncStorage};
 
 use crate::web_service::{
     internal_server_error, json, parse_account_id, parse_json_body, status,

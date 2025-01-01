@@ -2,7 +2,6 @@
 use super::ServerStorage;
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
-use sos_protocol::{ForceMerge, Merge, SyncStorage};
 
 use sos_sdk::{
     encode,
@@ -24,8 +23,8 @@ use sos_core::{
 use crate::server::{Error, Result};
 
 use sos_sync::{
-    CreateSet, MergeOutcome, StorageEventLogs, SyncStatus, TrackedChanges,
-    UpdateSet,
+    CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
+    SyncStorage, TrackedChanges, UpdateSet,
 };
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;

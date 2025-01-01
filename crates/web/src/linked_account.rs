@@ -2,9 +2,19 @@
 use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
+use sos_account::{
+    Account, AccountChange, AccountData, CipherComparison, DetachedView,
+    FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
+    SecretDelete, SecretInsert, SecretMove,
+};
+use sos_core::{
+    commit::{CommitHash, CommitState},
+    Origin, SecretId, VaultId,
+};
+use sos_database::storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_protocol::{
     network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
-    RemoteSyncHandler, SyncClient, SyncDirection, SyncOptions, SyncStorage,
+    RemoteSyncHandler, SyncClient, SyncDirection, SyncOptions,
 };
 use sos_sdk::{
     events::{
@@ -21,21 +31,7 @@ use sos_sdk::{
     signer::ecdsa::BoxedEcdsaSigner,
     vfs,
 };
-
-use sos_core::{
-    commit::{CommitHash, CommitState},
-    Origin, SecretId, VaultId,
-};
-use sos_database::storage::{AccessOptions, ClientStorage, NewFolderOptions};
-
-use sos_sync::{StorageEventLogs, SyncStatus, UpdateSet};
-
-use sos_account::{
-    Account, AccountChange, AccountData, CipherComparison, DetachedView,
-    FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
-    SecretDelete, SecretInsert, SecretMove,
-};
-
+use sos_sync::{StorageEventLogs, SyncStatus, SyncStorage, UpdateSet};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},

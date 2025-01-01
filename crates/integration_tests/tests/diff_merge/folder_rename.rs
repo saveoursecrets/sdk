@@ -1,12 +1,9 @@
 use crate::test_utils::{copy_account, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
-use sos_net::{
-    protocol::{diff, Merge, SyncStorage},
-    sdk::prelude::*,
-};
-
-use sos_sync::{MergeOutcome, TrackedAccountChange};
+use sos_protocol::diff;
+use sos_sdk::prelude::*;
+use sos_sync::{Merge, MergeOutcome, SyncStorage, TrackedAccountChange};
 
 /// Tests creating a diff and merging a rename folder
 /// event without any networking.

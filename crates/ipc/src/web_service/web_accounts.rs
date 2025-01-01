@@ -3,12 +3,12 @@ use notify::{
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::{
     events::{AccountEvent, EventLogExt, WriteEvent},
     prelude::{Address, Error as SdkError, ErrorExt, Paths},
     vault::VaultId,
 };
+use sos_sync::{Merge, SyncStorage};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, RwLock};
 

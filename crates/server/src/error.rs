@@ -6,8 +6,9 @@ use axum::{
 };
 use serde_json::{json, Value};
 use sos_protocol::{
-    sdk::signer::ecdsa::Address, Error as ProtocolError, Merge, MergeError,
+    sdk::signer::ecdsa::Address, Error as ProtocolError, MergeError,
 };
+use sos_sync::Merge;
 use std::path::PathBuf;
 use thiserror::Error;
 

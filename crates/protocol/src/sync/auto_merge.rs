@@ -3,7 +3,7 @@ use crate::{
     AsConflict, ConflictError, DiffRequest, PatchRequest, ScanRequest,
     SyncClient, SyncDirection,
 };
-use crate::{ForceMerge, HardConflictResolver, Merge, SyncOptions};
+use crate::{HardConflictResolver, SyncOptions};
 use async_trait::async_trait;
 use sos_account::Account;
 use sos_core::{
@@ -15,7 +15,8 @@ use sos_sdk::events::{
     FolderDiff, Patch, WriteEvent,
 };
 use sos_sync::{
-    EventLogType, MaybeConflict, MergeOutcome, StorageEventLogs, SyncStatus,
+    EventLogType, ForceMerge, MaybeConflict, Merge, MergeOutcome,
+    StorageEventLogs, SyncStatus,
 };
 use std::collections::HashSet;
 use tracing::instrument;

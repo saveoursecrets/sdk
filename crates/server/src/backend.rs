@@ -1,24 +1,20 @@
 use super::{Error, Result};
-use sos_protocol::{
-    sdk::{
-        signer::{
-            ecdsa::Address,
-            ed25519::{self, Verifier, VerifyingKey},
-        },
-        vault::DiscFolder,
-        vfs, Paths,
+use sos_sdk::{
+    signer::{
+        ecdsa::Address,
+        ed25519::{self, Verifier, VerifyingKey},
     },
-    SyncStorage,
+    vault::DiscFolder,
+    vfs, Paths,
 };
-use sos_sync::{CreateSet, MergeOutcome, UpdateSet};
+use sos_storage::server::filesystem::ServerStorage;
+use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
 use tokio::sync::RwLock;
-
-use sos_storage::server::filesystem::ServerStorage;
 
 /// Account storage.
 pub struct AccountStorage {

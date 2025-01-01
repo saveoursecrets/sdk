@@ -2,11 +2,10 @@ use crate::test_utils::{setup, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
 use sos_database::storage::NewFolderOptions;
-use sos_net::{
-    protocol::{AccountSync, RemoteSyncHandler, SyncClient, SyncStorage},
-    sdk::prelude::*,
-    NetworkAccount,
-};
+use sos_net::NetworkAccount;
+use sos_protocol::{AccountSync, RemoteSyncHandler, SyncClient};
+use sos_sdk::prelude::*;
+use sos_sync::SyncStorage;
 
 /// Tests syncing with the NO_SYNC flag set before the account
 /// exists on the remote server.

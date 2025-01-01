@@ -599,12 +599,10 @@ mod handlers {
     };
     use sos_protocol::{
         constants::MIME_TYPE_PROTOBUF, DiffRequest, PatchRequest,
-        ScanRequest, SyncStorage, WireEncodeDecode,
+        ScanRequest, WireEncodeDecode,
     };
-    use sos_sync::{CreateSet, SyncPacket, UpdateSet};
-
     use sos_storage::server::server_helpers;
-
+    use sos_sync::{CreateSet, SyncPacket, SyncStorage, UpdateSet};
     use std::sync::Arc;
 
     #[cfg(feature = "listen")]

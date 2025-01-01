@@ -8,7 +8,7 @@ use sos_sdk::events::{
 };
 use sos_sync::{
     CreateSet, MaybeDiff, MergeOutcome, StorageEventLogs, SyncCompare,
-    SyncDiff, SyncStatus,
+    SyncDiff, SyncStatus, SyncStorage,
 };
 
 use async_trait::async_trait;
@@ -37,6 +37,7 @@ pub struct SyncOptions {
     pub hard_conflict_resolver: HardConflictResolver,
 }
 
+/*
 /// Options for folder merge.
 pub(crate) enum FolderMergeOptions<'a> {
     /// Update a URN lookup when merging.
@@ -45,6 +46,7 @@ pub(crate) enum FolderMergeOptions<'a> {
     #[cfg(feature = "search")]
     Search(VaultId, &'a mut sos_database::search::SearchIndex),
 }
+*/
 
 /// Comparison between local and remote status.
 #[derive(Debug)]
@@ -390,6 +392,7 @@ impl SyncComparison {
     }
 }
 
+/*
 /// Storage implementations that can synchronize.
 #[deprecated]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -460,7 +463,9 @@ pub trait SyncStorage: StorageEventLogs {
         })
     }
 }
+*/
 
+/*
 /// Types that can force merge a diff.
 ///
 /// Force merge deletes all events from the log and
@@ -712,6 +717,7 @@ pub trait Merge {
         Ok(compare)
     }
 }
+*/
 
 /// Difference between a local sync status and a remote
 /// sync status.

@@ -295,7 +295,7 @@ impl AsConflict for Error {
     }
 }
 
-use crate::sync::Merge;
+use sos_sync::Merge;
 
 /// Convert from a merge error.
 pub struct MergeError<T: Merge> {

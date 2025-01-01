@@ -3,11 +3,12 @@
 use crate::{
     protocol::{
         network_client::ListenOptions, ChangeNotification, RemoteResult,
-        RemoteSync, SyncStorage,
+        RemoteSync,
     },
     Error, NetworkAccount, Result,
 };
 use sos_core::Origin;
+use sos_sync::SyncStorage;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 

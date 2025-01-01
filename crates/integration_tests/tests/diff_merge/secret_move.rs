@@ -3,9 +3,12 @@ use anyhow::Result;
 use sos_account::{
     Account, Error, FolderCreate, LocalAccount, SecretChange, SecretMove,
 };
-use sos_net::protocol::{diff, Merge, SyncStorage};
+use sos_protocol::diff;
 use sos_sdk::prelude::{generate_passphrase, AccessKey};
-use sos_sync::{MergeOutcome, TrackedAccountChange, TrackedFolderChange};
+use sos_sync::{
+    Merge, MergeOutcome, SyncStorage, TrackedAccountChange,
+    TrackedFolderChange,
+};
 
 /// Tests creating a diff and merging a move secret
 /// event without any networking.

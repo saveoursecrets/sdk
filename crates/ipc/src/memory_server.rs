@@ -11,8 +11,8 @@ use hyper::client::conn::http1::handshake;
 use hyper::server::conn::http1::Builder;
 use hyper_util::rt::tokio::TokioIo;
 use sos_account::Account;
-use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::prelude::ErrorExt;
+use sos_sync::{Merge, SyncStorage};
 use std::sync::Arc;
 use tokio::{
     io::DuplexStream,
