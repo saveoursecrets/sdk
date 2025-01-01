@@ -23,11 +23,11 @@ members = [
   "crates/storage/client",
   "crates/storage/server",
   "crates/sync",  
-  "crates/test_utils",
   "crates/vfs", 
   "crates/web",   
 
   "tests/integration",
+  "tests/test_utils",
 ]
 
 [workspace.dependencies]
@@ -48,9 +48,10 @@ sos-client-storage = { version = "0.16", path = "crates/storage/client" }
 sos-server-storage = { version = "0.16", path = "crates/storage/server" }
 sos-sync = { version = "0.16", path = "crates/sync" }
 sos-sdk = { version = "0.16", path = "crates/sdk" }
-sos-test-utils = { path = "crates/test_utils" }
 sos-vfs = { version = "0.2.2", path = "crates/vfs" }
 sos-web = { version = "0.16", path = "crates/web" }
+
+sos-test-utils = { path = "tests/test_utils" }
 
 keychain_parser = { version = "0.1", path = "crates/keychain_parser" }
 xclipboard  = { version = "0.16", path = "crates/clipboard" }
