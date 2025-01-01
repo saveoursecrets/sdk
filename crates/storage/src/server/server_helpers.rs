@@ -1,8 +1,8 @@
 //! Helper functions for server implementations.
 use binary_stream::futures::{Decodable, Encodable};
 use sos_protocol::{
-    DiffRequest, DiffResponse, MergeError, PatchRequest, PatchResponse,
-    ScanRequest, ScanResponse,
+    DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
+    ScanResponse,
 };
 use sos_sdk::{
     events::{
@@ -30,7 +30,6 @@ where
     E: std::error::Error
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>
-        + From<MergeError<S>>
         + From<sos_core::Error>
         + From<sos_sdk::Error>
         + From<sos_database::Error>
@@ -55,10 +54,7 @@ where
             .collect::<Vec<_>>();
         diff.folders.retain(|k, _| folders.contains(k));
 
-        storage
-            .merge(diff, &mut outcome)
-            .await
-            .map_err(MergeError::<S>::new)?
+        storage.merge(diff, &mut outcome).await?
     };
 
     // Generate a new diff so the client can apply changes
@@ -257,7 +253,6 @@ where
     E: std::error::Error
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>
-        + From<MergeError<S>>
         + From<sos_sdk::Error>
         + Send
         + Sync
@@ -283,10 +278,7 @@ where
 
             let mut outcome = MergeOutcome::default();
             (
-                storage
-                    .merge_identity(diff, &mut outcome)
-                    .await
-                    .map_err(MergeError::<S>::new)?,
+                storage.merge_identity(diff, &mut outcome).await?,
                 outcome,
                 records,
             )
@@ -310,11 +302,7 @@ where
 
             let mut outcome = MergeOutcome::default();
             (
-                storage
-                    .merge_account(diff, &mut outcome)
-                    .await
-                    .map_err(MergeError::<S>::new)?
-                    .0,
+                storage.merge_account(diff, &mut outcome).await?.0,
                 outcome,
                 records,
             )
@@ -338,10 +326,7 @@ where
 
             let mut outcome = MergeOutcome::default();
             (
-                storage
-                    .merge_device(diff, &mut outcome)
-                    .await
-                    .map_err(MergeError::<S>::new)?,
+                storage.merge_device(diff, &mut outcome).await?,
                 outcome,
                 records,
             )
@@ -366,10 +351,7 @@ where
 
             let mut outcome = MergeOutcome::default();
             (
-                storage
-                    .merge_files(diff, &mut outcome)
-                    .await
-                    .map_err(MergeError::<S>::new)?,
+                storage.merge_files(diff, &mut outcome).await?,
                 outcome,
                 records,
             )
@@ -393,11 +375,7 @@ where
 
             let mut outcome = MergeOutcome::default();
             (
-                storage
-                    .merge_folder(&id, diff, &mut outcome)
-                    .await
-                    .map_err(MergeError::<S>::new)?
-                    .0,
+                storage.merge_folder(&id, diff, &mut outcome).await?.0,
                 outcome,
                 records,
             )

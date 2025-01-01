@@ -159,10 +159,7 @@ pub trait SyncStorage: StorageEventLogs {
 /// Types that can merge diffs.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait Merge {
-    /// Error type for merge.
-    type Error: std::error::Error;
-
+pub trait Merge: StorageEventLogs {
     /// Merge changes to the identity folder.
     async fn merge_identity(
         &mut self,

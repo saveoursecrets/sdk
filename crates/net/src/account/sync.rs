@@ -251,8 +251,6 @@ impl SyncStorage for NetworkAccount {
 
 #[async_trait]
 impl Merge for NetworkAccount {
-    type Error = crate::Error;
-
     async fn merge_identity(
         &mut self,
         diff: FolderDiff,

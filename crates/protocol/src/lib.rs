@@ -40,9 +40,7 @@ pub mod transfer;
 pub mod hashcheck;
 
 pub use bindings::*;
-pub use error::{
-    AsConflict, ConflictError, Error, ErrorReply, MergeError, NetworkError,
-};
+pub use error::{AsConflict, ConflictError, Error, ErrorReply, NetworkError};
 pub use sync::*;
 pub use traits::*;
 
