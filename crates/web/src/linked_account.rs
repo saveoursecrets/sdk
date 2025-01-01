@@ -14,7 +14,7 @@ use sos_core::{
 use sos_database::storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_protocol::{
     network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
-    RemoteSyncHandler, SyncClient, SyncDirection, SyncOptions,
+    RemoteSyncHandler, SyncClient, SyncOptions,
 };
 use sos_sdk::{
     events::{
@@ -32,8 +32,8 @@ use sos_sdk::{
     vfs,
 };
 use sos_sync::{
-    CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
-    SyncStorage, UpdateSet,
+    CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs,
+    SyncDirection, SyncStatus, SyncStorage, UpdateSet,
 };
 use std::{
     collections::{HashMap, HashSet},

@@ -1,7 +1,7 @@
 //! Implements auto merge logic for a remote.
 use crate::{
     AsConflict, ConflictError, DiffRequest, PatchRequest, ScanRequest,
-    SyncClient, SyncDirection,
+    SyncClient,
 };
 use crate::{HardConflictResolver, SyncOptions};
 use async_trait::async_trait;
@@ -16,7 +16,7 @@ use sos_sdk::events::{
 };
 use sos_sync::{
     EventLogType, ForceMerge, MaybeConflict, Merge, MergeOutcome,
-    StorageEventLogs, SyncStatus,
+    StorageEventLogs, SyncDirection, SyncStatus,
 };
 use std::collections::HashSet;
 use tracing::instrument;
