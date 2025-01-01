@@ -5167,6 +5167,7 @@ dependencies = [
  "sos-sdk",
  "sos-server",
  "sos-storage",
+ "sos-sync",
  "sos-test-utils",
  "sos-web",
  "tempfile",
@@ -5501,6 +5502,19 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "sos-sync"
+version = "0.16.0"
+dependencies = [
+ "async-trait",
+ "indexmap 2.7.0",
+ "sos-core",
+ "sos-sdk",
+ "thiserror 2.0.9",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

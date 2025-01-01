@@ -66,6 +66,10 @@ features = ["full"]
 workspace = true
 features = ["full"]
 
+[dependencies.sos-sync]
+workspace = true
+features = ["full"]
+
 [dependencies.sos-net]
 workspace = true
 features = ["full"]

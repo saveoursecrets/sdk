@@ -1,0 +1,20 @@
+[package]
+name = "sos-sync"
+version = "0.16.0"
+edition = "2021"
+
+[features]
+full = [
+  "files",
+]
+files = []
+
+[dependencies]
+sos-core.workspace = true
+sos-sdk.workspace = true
+
+thiserror.workspace = true
+async-trait.workspace = true
+indexmap.workspace = true
+tokio.workspace = true
+tracing.workspace = true
