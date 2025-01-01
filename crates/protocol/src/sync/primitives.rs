@@ -46,57 +46,6 @@ pub(crate) enum FolderMergeOptions<'a> {
     Search(VaultId, &'a mut sos_database::search::SearchIndex),
 }
 
-/*
-impl FolderMergeOptions<'_> {
-    /// Folder identifier.
-    pub fn folder_id(&self) -> &VaultId {
-        match self {
-            Self::Urn(id, _) => id,
-            Self::Search(id, _) => id,
-        }
-    }
-}
-*/
-
-/*
-/// Information about possible conflicts.
-#[derive(Debug, Default, Eq, PartialEq)]
-pub struct MaybeConflict {
-    /// Whether the identity folder might be conflicted.
-    pub identity: bool,
-    /// Whether the account log might be conflicted.
-    pub account: bool,
-    /// Whether the device log might be conflicted.
-    pub device: bool,
-    /// Whether the files log might be conflicted.
-    #[cfg(feature = "files")]
-    pub files: bool,
-    /// Account folders that might be conflicted.
-    pub folders: IndexMap<VaultId, bool>,
-}
-
-impl MaybeConflict {
-    /// Check for any conflicts.
-    pub fn has_conflicts(&self) -> bool {
-        let mut has_conflicts = self.identity || self.account || self.device;
-
-        #[cfg(feature = "files")]
-        {
-            has_conflicts = has_conflicts || self.files;
-        }
-
-        for (_, value) in &self.folders {
-            has_conflicts = has_conflicts || *value;
-            if has_conflicts {
-                break;
-            }
-        }
-
-        has_conflicts
-    }
-}
-*/
-
 /// Comparison between local and remote status.
 #[derive(Debug)]
 pub struct SyncComparison {
@@ -442,6 +391,7 @@ impl SyncComparison {
 }
 
 /// Storage implementations that can synchronize.
+#[deprecated]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait SyncStorage: StorageEventLogs {
@@ -518,6 +468,7 @@ pub trait SyncStorage: StorageEventLogs {
 ///
 /// Use this when event logs have completely diverged
 /// and need to be rewritten.
+#[deprecated]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ForceMerge {
@@ -563,6 +514,7 @@ pub trait ForceMerge {
 }
 
 /// Types that can merge diffs.
+#[deprecated]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait Merge {
