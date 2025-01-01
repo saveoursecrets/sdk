@@ -31,13 +31,6 @@ pub enum Error {
     #[error("account not authenticated, sign in required")]
     NotAuthenticated,
 
-    /// Error generated when no storage is configured.
-    #[error(
-        "account is empty, you may need to initialize the account or sign in"
-    )]
-    #[deprecated]
-    NoStorage,
-
     /// Error generated if we could not determine a cache directory.
     #[error("could not determine cache directory")]
     #[deprecated]

@@ -19,9 +19,11 @@ use crossterm::{
     terminal::{Clear, ClearType},
 };
 use futures::{future::LocalBoxFuture, select, FutureExt};
+use human_bytes::human_bytes;
 use kdam::{term, tqdm, BarExt, Column, RichProgress, Spinner};
 use sos_account::Account;
 use sos_client_storage::AccessOptions;
+use sos_database::StorageError;
 use sos_database::{
     files::FileProgress,
     search::{ArchiveFilter, Document, DocumentView},
@@ -30,8 +32,6 @@ use sos_net::sdk::prelude::*;
 use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 use terminal_banner::{Banner, Padding};
 use tokio::sync::{mpsc, oneshot};
-
-use human_bytes::human_bytes;
 
 type PredicateFunc =
     Box<dyn Fn(&mut Owner) -> LocalBoxFuture<Result<Summary>>>;
@@ -683,10 +683,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                     ignored_types: None,
                 }];
             } else if let Some(folder) = &folder {
-                let storage = owner
-                    .storage()
-                    .await
-                    .ok_or(sos_net::sdk::Error::NoStorage)?;
+                let storage =
+                    owner.storage().await.ok_or(StorageError::NoStorage)?;
                 let reader = storage.read().await;
                 let summary = reader
                     .find_folder(folder)

@@ -21,7 +21,10 @@ where
     A: Account,
     D: Fn(Vec<String>) -> R + Send + Sync,
     R: std::future::Future<Output = Vec<T>> + Send + Sync,
-    E: From<A::Error> + From<sos_sdk::Error> + From<sos_account::Error>,
+    E: From<A::Error>
+        + From<sos_sdk::Error>
+        + From<sos_account::Error>
+        + From<sos_database::StorageError>,
 {
     let mut records = Vec::new();
     let mut hashes = Vec::new();
@@ -40,7 +43,7 @@ where
         let storage = account
             .storage()
             .await
-            .ok_or(sos_account::Error::NoStorage)?;
+            .ok_or(sos_database::StorageError::NoStorage)?;
         let reader = storage.read().await;
 
         let folder = reader.cache().get(target.id()).unwrap();

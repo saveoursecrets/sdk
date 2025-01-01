@@ -5,6 +5,7 @@ use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use sos_account::{Account, AccountBuilder};
 use sos_core::{ExternalFile, Origin};
+use sos_database::StorageError;
 use sos_net::{
     protocol::{
         network_client::{HttpClient, ListenOptions},
@@ -233,10 +234,7 @@ pub async fn assert_local_remote_vaults_eq(
     owner: &mut NetworkAccount,
     _provider: &mut RemoteBridge,
 ) -> Result<()> {
-    let storage = owner
-        .storage()
-        .await
-        .ok_or(sos_net::sdk::Error::NoStorage)?;
+    let storage = owner.storage().await.ok_or(StorageError::NoStorage)?;
     let reader = storage.read().await;
 
     // Compare vault buffers

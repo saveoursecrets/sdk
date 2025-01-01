@@ -15,8 +15,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 full = [
   "archive",
   "audit",
+  "client",
   "files",
   "search",
+  "server",
 ]
 archive = ["sos-sdk/archive"]
 audit = ["sos-sdk/audit"]
@@ -27,6 +29,8 @@ search = [
   "dep:url",
   "dep:vcard4",
 ]
+client = ["search"]
+server = []
 
 [dependencies]
 sos-core.workspace = true

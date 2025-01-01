@@ -33,6 +33,7 @@ use prost::bytes::Bytes;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use sos_account::Account;
 use sos_core::Origin;
+use sos_database::StorageError;
 use std::collections::HashSet;
 use std::{borrow::Cow, path::PathBuf};
 use tokio::{net::TcpStream, sync::mpsc};
@@ -449,7 +450,7 @@ impl<'a> OfferPairing<'a> {
                 .account
                 .storage()
                 .await
-                .ok_or(sos_account::Error::NoStorage)?;
+                .ok_or(StorageError::NoStorage)?;
             let mut writer = storage.write().await;
             writer.patch_devices_unchecked(events).await?;
         }

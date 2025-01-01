@@ -51,7 +51,7 @@ system-messages = ["sos-account-extras/system-messages"]
 sos-account.workspace = true
 sos-core.workspace = true
 sos-sdk.workspace = true
-sos-database.workspace = true
+sos-database = { workspace = true, features = ["client"] }
 sos-sync.workspace = true
 sos-client-storage.workspace = true
 sos-protocol = { workspace = true, features = ["network-client"] }

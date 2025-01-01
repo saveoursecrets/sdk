@@ -1,7 +1,7 @@
 use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{
-    Account, Error, FolderCreate, LocalAccount, SecretChange, SecretMove,
+    Account, FolderCreate, LocalAccount, SecretChange, SecretMove,
 };
 use sos_protocol::diff;
 use sos_sdk::prelude::{generate_passphrase, AccessKey, ErrorExt};

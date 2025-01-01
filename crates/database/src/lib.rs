@@ -7,7 +7,7 @@ pub mod migrations;
 #[cfg(feature = "files")]
 pub mod files;
 
-pub use error::Error;
+pub use error::{Error, StorageError};
 
 #[cfg(feature = "search")]
 pub mod search;

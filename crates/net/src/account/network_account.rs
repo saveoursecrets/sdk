@@ -19,6 +19,7 @@ use sos_core::{
     commit::{CommitHash, CommitState},
     Origin, SecretId, VaultId,
 };
+use sos_database::StorageError;
 use sos_sdk::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
@@ -251,10 +252,8 @@ impl NetworkAccount {
         // Update the local device event log
         {
             let account = self.account.lock().await;
-            let storage = account
-                .storage()
-                .await
-                .ok_or(sos_account::Error::NoStorage)?;
+            let storage =
+                account.storage().await.ok_or(StorageError::NoStorage)?;
             let mut storage = storage.write().await;
             storage.revoke_device(device_key).await?;
         }

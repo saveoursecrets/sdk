@@ -25,6 +25,7 @@ audit = ["sos-sdk/audit", "sos-database/audit"]
 archive = [
   "sos-sdk/archive",
   "sos-database/archive",
+  "sos-client-storage/archive",
   "dep:async_zip",
   "dep:walkdir",
   "dep:tokio-util",
@@ -41,12 +42,12 @@ files =[
   "sos-client-storage/files",
   "dep:walkdir",
 ]
-search =["sos-database/search"]
+search =["sos-database/search", "sos-client-storage/search"]
 
 [dependencies]
 sos-core.workspace = true
 sos-sdk.workspace = true
-sos-database.workspace = true
+sos-database = { workspace = true, features = ["client"] }
 sos-sync.workspace = true
 sos-client-storage.workspace = true
 sos-migrate = { workspace = true, optional = true }

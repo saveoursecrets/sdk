@@ -1,15 +1,3 @@
-use clap::Subcommand;
-
-use human_bytes::human_bytes;
-use sos_net::sdk::{
-    events::{EventLogExt, LogEvent},
-    hex,
-    identity::AccountRef,
-    vault::FolderRef,
-};
-
-use sos_account::{Account, FolderCreate};
-
 use crate::{
     helpers::{
         account::{cd_folder, resolve_folder, resolve_user, SHELL},
@@ -17,6 +5,16 @@ use crate::{
         readline::read_flag,
     },
     Error, Result,
+};
+use clap::Subcommand;
+use human_bytes::human_bytes;
+use sos_account::{Account, FolderCreate};
+use sos_database::StorageError;
+use sos_net::sdk::{
+    events::{EventLogExt, LogEvent},
+    hex,
+    identity::AccountRef,
+    vault::FolderRef,
 };
 
 #[derive(Subcommand, Debug)]
@@ -279,10 +277,8 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = user.read().await;
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-            let storage = owner
-                .storage()
-                .await
-                .ok_or(sos_net::sdk::Error::NoStorage)?;
+            let storage =
+                owner.storage().await.ok_or(StorageError::NoStorage)?;
             let reader = storage.read().await;
             if let Some(folder) = reader.cache().get(summary.id()) {
                 let event_log = folder.event_log();
@@ -399,7 +395,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let storage = owner
                         .storage()
                         .await
-                        .ok_or(sos_net::sdk::Error::NoStorage)?;
+                        .ok_or(StorageError::NoStorage)?;
                     let owner = storage.read().await;
                     let records = owner.history(&summary).await?;
                     for (commit, time, event) in records {

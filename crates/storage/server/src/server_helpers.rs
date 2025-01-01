@@ -31,7 +31,7 @@ where
         + From<<S as StorageEventLogs>::Error>
         + From<sos_core::Error>
         + From<sos_sdk::Error>
-        + From<sos_database::Error>
+        + From<sos_database::StorageError>
         + Send
         + Sync
         + 'static,
@@ -56,9 +56,6 @@ where
         storage.merge(diff, &mut outcome).await?
     };
 
-    todo!("fix server diff error type");
-
-    /*
     // Generate a new diff so the client can apply changes
     // that exist in remote but not in the local
     let (local_status, diff) = {
@@ -73,7 +70,6 @@ where
         diff,
         compare: Some(compare),
     };
-    */
 
     Ok((packet, outcome))
 }

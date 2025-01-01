@@ -5066,6 +5066,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "sos-account",
+ "sos-database",
  "sos-sdk",
  "thiserror 2.0.9",
  "tokio",

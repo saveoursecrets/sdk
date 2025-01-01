@@ -30,7 +30,7 @@ search = ["sos-database/search", "sos-protocol/search"]
 [dependencies]
 sos-core.workspace = true
 sos-account.workspace = true
-sos-database.workspace = true
+sos-database = { workspace = true, features = ["client"] }
 sos-sync.workspace = true
 sos-client-storage.workspace = true
 sos-sdk.workspace = true

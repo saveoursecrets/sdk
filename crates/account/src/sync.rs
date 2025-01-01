@@ -1,5 +1,8 @@
 //! Implements merging into a local account.
 
+use super::folder_sync::{
+    FolderMerge, FolderMergeOptions, IdentityFolderMerge,
+};
 use crate::{Account, LocalAccount, Result};
 use async_trait::async_trait;
 use indexmap::IndexMap;
@@ -7,6 +10,7 @@ use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
     VaultId,
 };
+use sos_database::StorageError;
 use sos_sdk::{
     decode,
     events::{
@@ -20,10 +24,6 @@ use sos_sync::{
     SyncStorage, TrackedChanges,
 };
 use std::collections::HashSet;
-
-use super::folder_sync::{
-    FolderMerge, FolderMergeOptions, IdentityFolderMerge,
-};
 
 #[cfg(feature = "files")]
 use sos_sdk::events::FileDiff;
@@ -146,10 +146,10 @@ impl ForceMerge for LocalAccount {
             .ok_or(sos_client_storage::Error::NoStorage)?;
         let mut storage = storage.write().await;
 
-        let folder =
-            storage.cache_mut().get_mut(folder_id).ok_or_else(|| {
-                sos_client_storage::Error::CacheNotAvailable(*folder_id)
-            })?;
+        let folder = storage
+            .cache_mut()
+            .get_mut(folder_id)
+            .ok_or_else(|| StorageError::CacheNotAvailable(*folder_id))?;
         folder.force_merge(&diff).await?;
 
         outcome.changes += len;
@@ -334,7 +334,7 @@ impl Merge for LocalAccount {
 
         let checked_patch = {
             let storage =
-                self.storage().await.ok_or(crate::Error::NoStorage)?;
+                self.storage().await.ok_or(StorageError::NoStorage)?;
             let storage = storage.read().await;
             let mut event_log = storage.device_log.write().await;
             event_log
@@ -345,7 +345,7 @@ impl Merge for LocalAccount {
         if let CheckedPatch::Success(_) = &checked_patch {
             let devices = {
                 let storage =
-                    self.storage().await.ok_or(crate::Error::NoStorage)?;
+                    self.storage().await.ok_or(StorageError::NoStorage)?;
                 let storage = storage.read().await;
                 let event_log = storage.device_log.read().await;
                 let reducer = DeviceReducer::new(&*event_log);
@@ -353,7 +353,7 @@ impl Merge for LocalAccount {
             };
 
             let storage =
-                self.storage().await.ok_or(crate::Error::NoStorage)?;
+                self.storage().await.ok_or(StorageError::NoStorage)?;
             let mut storage = storage.write().await;
             storage.devices = devices;
 
@@ -477,10 +477,10 @@ impl Merge for LocalAccount {
                 storage.unlock_folder(folder_id, &key).await?;
             }
 
-            let folder =
-                storage.cache_mut().get_mut(folder_id).ok_or_else(|| {
-                    sos_client_storage::Error::CacheNotAvailable(*folder_id)
-                })?;
+            let folder = storage
+                .cache_mut()
+                .get_mut(folder_id)
+                .ok_or_else(|| StorageError::CacheNotAvailable(*folder_id))?;
 
             #[cfg(feature = "search")]
             {
@@ -540,9 +540,10 @@ impl Merge for LocalAccount {
             .ok_or(sos_client_storage::Error::NoStorage)?;
         let storage = storage.read().await;
 
-        let folder = storage.cache().get(folder_id).ok_or_else(|| {
-            sos_client_storage::Error::CacheNotAvailable(*folder_id)
-        })?;
+        let folder = storage
+            .cache()
+            .get(folder_id)
+            .ok_or_else(|| StorageError::CacheNotAvailable(*folder_id))?;
         let event_log = folder.event_log();
         let reader = event_log.read().await;
         Ok(reader.tree().compare(&state.1)?)
@@ -598,9 +599,10 @@ impl SyncStorage for LocalAccount {
         let mut folders = IndexMap::new();
         let mut folder_roots: Vec<(&VaultId, [u8; 32])> = Vec::new();
         for summary in &summaries {
-            let folder = storage.cache().get(summary.id()).ok_or(
-                sos_client_storage::Error::CacheNotAvailable(*summary.id()),
-            )?;
+            let folder = storage
+                .cache()
+                .get(summary.id())
+                .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
 
             let commit_state = folder.commit_state().await?;
             folder_roots.push((summary.id(), commit_state.1.root().into()));

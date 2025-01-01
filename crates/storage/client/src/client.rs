@@ -1,5 +1,8 @@
 //! Storage backed by the filesystem.
 use crate::{AccessOptions, AccountPack, Error, NewFolderOptions, Result};
+use indexmap::IndexSet;
+use sos_core::commit::{CommitHash, CommitState};
+use sos_database::StorageError;
 use sos_sdk::{
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
@@ -19,9 +22,6 @@ use sos_sdk::{
     },
     vfs, Paths, UtcDateTime,
 };
-
-use indexmap::IndexSet;
-use sos_core::commit::{CommitHash, CommitState};
 use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -394,7 +394,7 @@ impl ClientStorage {
         summary: &Summary,
     ) -> Result<ReadEvent> {
         self.find(|s| s.id() == summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
 
         self.current = Some(summary.clone());
         Ok(ReadEvent::ReadVault)
@@ -802,7 +802,7 @@ impl ClientStorage {
         let folder = self
             .cache
             .get_mut(id)
-            .ok_or(Error::CacheNotAvailable(*id))?;
+            .ok_or(StorageError::CacheNotAvailable(*id))?;
         folder.unlock(key).await?;
         Ok(())
     }
@@ -812,7 +812,7 @@ impl ClientStorage {
         let folder = self
             .cache
             .get_mut(id)
-            .ok_or(Error::CacheNotAvailable(*id))?;
+            .ok_or(StorageError::CacheNotAvailable(*id))?;
         folder.lock();
         Ok(())
     }
@@ -1092,7 +1092,7 @@ impl ClientStorage {
         let folder = self
             .cache
             .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
         folder.clear().await?;
         folder.apply(events.iter().collect()).await?;
 
@@ -1109,7 +1109,7 @@ impl ClientStorage {
             let folder = self
                 .cache
                 .get_mut(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+                .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
             let event_log = folder.event_log();
             let mut log_file = event_log.write().await;
 
@@ -1140,7 +1140,7 @@ impl ClientStorage {
         let folder = self
             .cache
             .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
         Ok(FolderReducer::new()
@@ -1285,7 +1285,7 @@ impl ClientStorage {
         let folder = self
             .cache
             .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
 
         folder.rename_folder(name.as_ref()).await?;
 
@@ -1319,7 +1319,7 @@ impl ClientStorage {
         let folder = self
             .cache
             .get_mut(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
 
         let event = folder.update_folder_flags(flags).await?;
         let event = Event::Write(*summary.id(), event);
@@ -1339,7 +1339,7 @@ impl ClientStorage {
         if let Some(folder) = self.cache.get(summary.id()) {
             Ok(folder.description().await?)
         } else {
-            Err(Error::CacheNotAvailable(*summary.id()))
+            Err(StorageError::CacheNotAvailable(*summary.id()).into())
         }
     }
 
@@ -1352,7 +1352,7 @@ impl ClientStorage {
         if let Some(folder) = self.cache.get_mut(summary.id()) {
             Ok(folder.set_description(description).await?)
         } else {
-            Err(Error::CacheNotAvailable(*summary.id()))
+            Err(StorageError::CacheNotAvailable(*summary.id()).into())
         }
     }
 
@@ -1415,7 +1415,7 @@ impl ClientStorage {
         let folder = self
             .cache()
             .get(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
         let mut records = Vec::new();
@@ -1448,7 +1448,7 @@ impl ClientStorage {
         let folder = self
             .cache
             .get(summary.id())
-            .ok_or_else(|| Error::CacheNotAvailable(*summary.id()))?;
+            .ok_or_else(|| StorageError::CacheNotAvailable(*summary.id()))?;
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
         Ok(log_file.tree().commit_state()?)
@@ -1482,7 +1482,7 @@ impl ClientStorage {
             let folder = self
                 .cache
                 .get_mut(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+                .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
             folder.create_secret(&secret_data).await?
         };
 
@@ -1521,7 +1521,7 @@ impl ClientStorage {
         let folder = self
             .cache
             .get(folder_id)
-            .ok_or(Error::CacheNotAvailable(*folder_id))?;
+            .ok_or(StorageError::CacheNotAvailable(*folder_id))?;
         Ok(folder.raw_secret(secret_id).await?)
     }
 
@@ -1534,7 +1534,7 @@ impl ClientStorage {
         let folder = self
             .cache
             .get(summary.id())
-            .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+            .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
         let result = folder
             .read_secret(id)
             .await?
@@ -1634,7 +1634,7 @@ impl ClientStorage {
             let folder = self
                 .cache
                 .get_mut(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+                .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
             let (_, meta, secret) = secret_data.into();
             folder
                 .update_secret(id, meta, secret)
@@ -1703,7 +1703,7 @@ impl ClientStorage {
             let folder = self
                 .cache
                 .get_mut(summary.id())
-                .ok_or(Error::CacheNotAvailable(*summary.id()))?;
+                .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
             folder
                 .delete_secret(id)
                 .await?
