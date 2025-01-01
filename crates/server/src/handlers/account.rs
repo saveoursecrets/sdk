@@ -727,8 +727,11 @@ mod handlers {
         }
 
         let reader = account.read().await;
-        let response =
-            server_helpers::event_scan(&req, &reader.storage).await?;
+        let response = server_helpers::event_scan::<_, crate::Error>(
+            &req,
+            &reader.storage,
+        )
+        .await?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -758,8 +761,11 @@ mod handlers {
         let req = DiffRequest::decode(bytes).await?;
 
         let reader = account.read().await;
-        let response =
-            server_helpers::event_diff(&req, &reader.storage).await?;
+        let response = server_helpers::event_diff::<_, crate::Error>(
+            &req,
+            &reader.storage,
+        )
+        .await?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -790,7 +796,11 @@ mod handlers {
 
         let (response, outcome) = {
             let mut writer = account.write().await;
-            server_helpers::event_patch(req, &mut writer.storage).await?
+            server_helpers::event_patch::<_, crate::Error>(
+                req,
+                &mut writer.storage,
+            )
+            .await?
         };
 
         #[cfg(feature = "listen")]
@@ -838,7 +848,11 @@ mod handlers {
 
         let (packet, outcome) = {
             let mut writer = account.write().await;
-            server_helpers::sync_account(packet, &mut writer.storage).await?
+            server_helpers::sync_account::<_, crate::Error>(
+                packet,
+                &mut writer.storage,
+            )
+            .await?
         };
 
         #[cfg(feature = "listen")]

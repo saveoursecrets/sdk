@@ -5163,6 +5163,7 @@ dependencies = [
  "sos-ipc",
  "sos-migrate",
  "sos-net",
+ "sos-protocol",
  "sos-sdk",
  "sos-server",
  "sos-storage",

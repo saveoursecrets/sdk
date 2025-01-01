@@ -295,7 +295,8 @@ use crate::sync::Merge;
 
 /// Convert from a merge error.
 pub struct MergeError<T: Merge> {
-    err: T::Error,
+    /// Inner associated error of the Merge implementation.
+    pub err: T::Error,
 }
 
 impl<T> MergeError<T>

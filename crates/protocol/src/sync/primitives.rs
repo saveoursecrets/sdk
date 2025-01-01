@@ -1,7 +1,7 @@
 //! Synchronization types that are used internally.
 use crate::{
-    CreateSet, MaybeDiff, MergeOutcome, Origin, Result, SyncCompare,
-    SyncDiff, SyncStatus,
+    CreateSet, MaybeDiff, MergeOutcome, Origin, SyncCompare, SyncDiff,
+    SyncStatus,
 };
 use sos_core::{
     commit::{CommitState, Comparison},
