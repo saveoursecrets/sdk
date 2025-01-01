@@ -21,35 +21,14 @@ pub enum Error {
     #[error("permission denied")]
     PermissionDenied,
 
-    /// Error generated when a path is not a file.
-    #[error("path {0} is not a file")]
-    #[deprecated]
-    NotFile(PathBuf),
+    /// Error generated when a folder password could not be located.
+    #[error("could not find folder password for '{0}'")]
+    NoFolderPassword(VaultId),
 
     /// Error generated accessing an account that is not
     /// authenticated.
     #[error("account not authenticated, sign in required")]
     NotAuthenticated,
-
-    /// Error generated if we could not determine a cache directory.
-    #[error("could not determine cache directory")]
-    #[deprecated]
-    NoCache,
-
-    /// Error generated when a search index is required.
-    #[error("no search index")]
-    #[deprecated]
-    NoSearchIndex,
-
-    /// Error generated when a file encryption password is required.
-    #[error("no file password")]
-    #[deprecated]
-    NoFilePassword,
-
-    /// Error generated when an open folder is expected.
-    #[error("no open folder")]
-    #[deprecated]
-    NoOpenFolder,
 
     /// Error generated when a device signer is expected.
     #[error("no device available")]
@@ -58,45 +37,6 @@ pub enum Error {
     /// Error generated when no default folder is available.
     #[error("no default folder")]
     NoDefaultFolder,
-
-    /// Error generated when a PEM-encoded certificate is invalid.
-    #[error("invalid PEM encoding")]
-    #[deprecated]
-    PemEncoding,
-
-    /// Error generated when a file secret is expected.
-    #[error("not a file secret")]
-    #[deprecated]
-    NotFileContent,
-
-    /// Error generated when attempting to unarchive a secret that
-    /// is not archived.
-    #[error("cannot unarchive, not archived")]
-    #[deprecated]
-    NotArchived,
-
-    /// Error generated when an archive folder is not available.
-    #[error("archive folder does not exist")]
-    #[deprecated]
-    NoArchive,
-
-    /// Error generated when attempting to archive a secret that
-    /// is already archived.
-    #[error("cannot move to archive, already archived")]
-    #[deprecated]
-    AlreadyArchived,
-
-    /// Error generated when a contacts folder is not available.
-    #[cfg(feature = "contacts")]
-    #[error("no contacts folder")]
-    #[deprecated]
-    NoContactsFolder,
-
-    /// Error generated when a secret is not a contact secret.
-    #[cfg(feature = "contacts")]
-    #[error("not a contact")]
-    #[deprecated]
-    NotContact,
 
     /// Error generated when a signing key is required.
     #[error("no signer")]
@@ -110,11 +50,6 @@ pub enum Error {
     /// wrong cipher.
     #[error(r#"bad cipher, expecting "{0}" but got "{1}""#)]
     BadCipher(String, String),
-
-    /// Error generated when a directory is expected.
-    #[error("path {0} is not a directory")]
-    #[deprecated]
-    NotDirectory(PathBuf),
 
     /// Error generated when attempting to parse a key/value pair.
     #[error(r#"invalid key value "{0}""#)]
@@ -185,11 +120,6 @@ pub enum Error {
     #[error("invalid nonce")]
     InvalidNonce,
 
-    #[deprecated]
-    /// Error generated attempting to convert to a change event.
-    #[error("not compatible with change event")]
-    NoChangeEvent,
-
     /// Error generated when a vault is locked.
     #[error("vault must be unlocked")]
     VaultLocked,
@@ -203,11 +133,6 @@ pub enum Error {
     /// Error generated when a secret does not exist for an update operation.
     #[error("secret {0} does not exist")]
     SecretDoesNotExist(Uuid),
-
-    /// Error generated when secret meta data does not exist.
-    #[error("too few words for diceware passphrase generation, got {0} but minimum is {1}")]
-    #[deprecated]
-    DicewareWordsTooFew(usize, u8),
 
     /// Error generated when attempting to verify a password fails.
     ///
@@ -316,21 +241,6 @@ pub enum Error {
     #[error("purpose identifier {0} is unknown")]
     UnknownPurpose(u8),
 
-    /// Error generated an archive does not contain a manifest file.
-    #[error("archive does not contain a manifest file")]
-    #[deprecated]
-    NoArchiveManifest,
-
-    /// Error generated an archive does not contain a manifest file.
-    #[error("archive does contain the vault {0}")]
-    #[deprecated]
-    NoArchiveVault(PathBuf),
-
-    /// Error generated an archive does not contain a manifest file.
-    #[error("archive file {0} does not match the manifest checksum")]
-    #[deprecated]
-    ArchiveChecksumMismatch(String),
-
     /// Error generated converting now to the zip date time format.
     #[error("zip date time is invalid")]
     ZipDateTime,
@@ -338,12 +248,6 @@ pub enum Error {
     /// Error generated parsing an AGE identity from a string.
     #[error("failed to parse AGE identity: {0}")]
     AgeIdentityParse(String),
-
-    /// Error generated when a folder password in the identity
-    /// vault could not be located.
-    #[error("could not find folder password for '{0}'")]
-    #[deprecated]
-    NoFolderPassword(VaultId),
 
     /// Error generated when a file encryption password could not be found.
     #[error("could not find file encryption password in identity folder")]
@@ -354,20 +258,6 @@ pub enum Error {
     #[error("vault entry for {0} is of an unexpected type")]
     VaultEntryKind(String),
 
-    /// Error generated when an archive is for an address that does
-    /// not exist locally when we are expecting an archive to be imported
-    /// in the context of an existing account.
-    #[error("could not find account for archive address {0}")]
-    #[deprecated]
-    NoArchiveAccount(String),
-
-    /// Error generated attempting to restore an account from an archive
-    /// whilst not authenticated and the address for the archive matches
-    /// an account that already exists.
-    #[error("account for archive address {0} already exists")]
-    #[deprecated]
-    ArchiveAccountAlreadyExists(String),
-
     /// Error generated when a vault file could not be located.
     #[error("could not find vault file for {0}")]
     NoVaultFile(String),
@@ -375,12 +265,6 @@ pub enum Error {
     /// Error generated when an account does not exist.
     #[error("could not find account {0}")]
     NoAccount(String),
-
-    /// Error generated when an archive signing key address
-    /// does not match the address in the archive manifest.
-    #[error("archive manifest address does not match identity signing key address")]
-    #[deprecated]
-    ArchiveAddressMismatch,
 
     /// Error generated when an archive does not contain a default vault.
     #[error("archive does not contain a default vault")]
@@ -444,25 +328,9 @@ pub enum Error {
     #[error(r#"attachment "{0}" not found"#)]
     FieldNotFound(SecretId),
 
-    /// Error generated attempting to access a vault that is not available.
-    #[error("cache not available for {0}")]
-    #[deprecated]
-    CacheNotAvailable(Uuid),
-
     /// Error generated when unlocking a vault failed.
     #[error("failed to unlock vault")]
     VaultUnlockFail,
-
-    /// Error generated attempting to make changes to the current
-    /// vault but no vault is open.
-    #[error("no vault is available, vault must be open")]
-    #[deprecated]
-    NoOpenVault,
-
-    /// Error generated when an external file could not be parsed.
-    #[error("external file reference '{0}' could not be parsed")]
-    #[deprecated]
-    InvalidExternalFile(String),
 
     /// Error generated when an address has the wrong prefix.
     #[error("address must begin with 0x")]
@@ -491,13 +359,14 @@ pub enum Error {
         rollback_completed: bool,
     },
 
+    /*
     /// Attempt to apply a patch whose timestamp of the first event
     /// is younger than the last event in the log file.
     ///
     /// Typically, this can happen when clocks are out of sync.
     #[error("attempt to add an event in the past, this can happen if your clocks are out of sync, to fix this ensure that your device clock is using the correct date and time")]
     EventTimeBehind,
-
+    */
     /// Error generated by the core library.
     #[error(transparent)]
     Core(#[from] sos_core::Error),
@@ -538,18 +407,9 @@ pub enum Error {
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),
 
-    /// Error generated during AES encryption and decryption.
-    //#[error(transparent)]
-    //Aes(#[from] aes_gcm::Error),
-
     /// Error generated by elliptic curve library.
     #[error(transparent)]
     Elliptic(#[from] k256::elliptic_curve::Error),
-
-    /// Error generated attempting to detect the system time zone.
-    #[error(transparent)]
-    #[deprecated]
-    TimeZone(#[from] time_tz::system::Error),
 
     /// Error generated converting time types.
     #[error(transparent)]
@@ -606,10 +466,6 @@ pub enum Error {
     /// Error generated by the AGE library when decrypting.
     #[error(transparent)]
     AgeDecrypt(#[from] age::DecryptError),
-
-    /// Error generated when stripping a prefix from a path.
-    #[error(transparent)]
-    StripPrefix(#[from] std::path::StripPrefixError),
 
     /// Error generated when attempting to join a task.
     #[error(transparent)]
