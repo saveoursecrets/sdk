@@ -13,8 +13,7 @@ use sos_sdk::{
 };
 
 use sos_sync::{
-    EventLogType, Merge, MergeOutcome, StorageEventLogs, SyncPacket,
-    SyncStorage,
+    EventLogType, MergeOutcome, StorageEventLogs, SyncPacket, SyncStorage,
 };
 
 #[cfg(feature = "files")]
@@ -26,7 +25,7 @@ pub async fn sync_account<S, E>(
     storage: &mut S,
 ) -> std::result::Result<(SyncPacket, MergeOutcome), E>
 where
-    S: SyncStorage + Send + Sync + 'static,
+    S: SyncStorage,
     E: std::error::Error
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>
@@ -81,7 +80,7 @@ pub async fn event_diff<S, E>(
     storage: &S,
 ) -> std::result::Result<DiffResponse, E>
 where
-    S: SyncStorage + Send + Sync + 'static,
+    S: SyncStorage,
     E: From<<S as StorageEventLogs>::Error>
         + From<sos_sdk::Error>
         + From<sos_core::Error>

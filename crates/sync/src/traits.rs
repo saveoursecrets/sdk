@@ -30,7 +30,7 @@ use {
 /// References to the storage event logs.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait StorageEventLogs {
+pub trait StorageEventLogs: Send + Sync + 'static {
     /// Error type for storage event logs.
     type Error: std::error::Error
         + From<sos_core::Error>

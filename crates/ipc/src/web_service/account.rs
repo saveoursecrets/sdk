@@ -26,11 +26,7 @@ pub async fn list_accounts<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
@@ -56,11 +52,7 @@ pub async fn list_folders<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
@@ -97,11 +89,7 @@ pub async fn authenticated_accounts<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
@@ -172,11 +160,7 @@ pub async fn sign_in<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
@@ -226,11 +210,7 @@ pub async fn sign_in_password<A, R, E>(
     save_password: bool,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
@@ -300,11 +280,7 @@ pub async fn sign_out_account<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
@@ -359,11 +335,7 @@ pub async fn sign_out<A, R, E>(
     account_id: Option<Address>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error

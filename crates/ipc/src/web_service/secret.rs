@@ -32,11 +32,7 @@ pub async fn copy_secret_clipboard<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
@@ -79,11 +75,7 @@ pub async fn read_secret<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
@@ -140,10 +132,7 @@ pub async fn set_favorite<A, R, E>(
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+        + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
@@ -218,11 +207,7 @@ pub async fn load_avatar<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt

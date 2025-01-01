@@ -112,11 +112,7 @@ impl LocalMemoryServer {
         app_info: ServiceAppInfo,
     ) -> Result<LocalMemoryClient>
     where
-        A: Account<Error = E, NetworkResult = R>
-            + SyncStorage
-            + Sync
-            + Send
-            + 'static,
+        A: Account<Error = E, NetworkResult = R> + SyncStorage,
         R: 'static,
         E: std::fmt::Debug
             + std::error::Error

@@ -377,7 +377,7 @@ pub async fn diff<S, E>(
     remote_status: SyncStatus,
 ) -> std::result::Result<(bool, SyncStatus, SyncDiff), E>
 where
-    S: SyncStorage + Send + Sync,
+    S: SyncStorage,
     E: std::error::Error
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>

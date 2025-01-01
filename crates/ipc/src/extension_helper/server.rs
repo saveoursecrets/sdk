@@ -46,11 +46,7 @@ impl ExtensionHelperOptions {
 /// Server for a native bridge proxy.
 pub struct ExtensionHelperServer<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error

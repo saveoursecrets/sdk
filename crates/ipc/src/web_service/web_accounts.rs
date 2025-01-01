@@ -49,11 +49,7 @@ impl ChangeRecords {
 /// User accounts for the web service.
 pub struct WebAccounts<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
@@ -73,11 +69,7 @@ where
 
 impl<A, R, E> Clone for WebAccounts<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
@@ -101,11 +93,7 @@ where
 
 impl<A, R, E> WebAccounts<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
@@ -221,11 +209,7 @@ where
 impl<A, R, E> AsRef<Arc<RwLock<AccountSwitcher<A, R, E>>>>
     for WebAccounts<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
@@ -249,11 +233,7 @@ async fn update_account_search_index<A, R, E>(
     records: &ChangeRecords,
 ) -> std::result::Result<(), E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
