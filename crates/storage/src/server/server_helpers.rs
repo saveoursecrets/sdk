@@ -1,10 +1,10 @@
 //! Helper functions for server implementations.
-use crate::{
-    error::MergeError, DiffRequest, DiffResponse, EventLogType, Merge,
-    MergeOutcome, PatchRequest, PatchResponse, Result, ScanRequest,
-    ScanResponse, SyncPacket, SyncStorage,
-};
 use binary_stream::futures::{Decodable, Encodable};
+use sos_protocol::{
+    DiffRequest, DiffResponse, EventLogType, Merge, MergeError, MergeOutcome,
+    PatchRequest, PatchResponse, ScanRequest, ScanResponse, SyncPacket,
+    SyncStorage,
+};
 use sos_sdk::{
     events::{
         AccountDiff, AccountEvent, CheckedPatch, DeviceDiff, DeviceEvent,
@@ -32,7 +32,6 @@ where
         + From<sos_core::Error>
         + From<sos_sdk::Error>
         + From<sos_database::Error>
-        + From<crate::Error>
         + Send
         + Sync
         + 'static,
@@ -65,7 +64,7 @@ where
     let (local_status, diff) = {
         // let reader = account.read().await;
         let (_, local_status, diff) =
-            crate::diff::<_, E>(storage, remote_status).await?;
+            sos_protocol::diff::<_, E>(storage, remote_status).await?;
         (local_status, diff)
     };
 
@@ -145,7 +144,7 @@ pub async fn event_scan<S, E>(
 where
     S: StorageEventLogs,
     E: From<<S as StorageEventLogs>::Error>
-        + From<crate::Error>
+        + From<sos_sdk::Error>
         + Send
         + Sync
         + 'static,
@@ -186,7 +185,7 @@ where
 async fn scan_log<T>(
     req: &ScanRequest,
     event_log: &DiscEventLog<T>,
-) -> Result<ScanResponse>
+) -> sos_sdk::Result<ScanResponse>
 where
     T: Default + Encodable + Decodable + Send + Sync + 'static,
 {

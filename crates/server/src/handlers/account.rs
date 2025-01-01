@@ -598,10 +598,11 @@ mod handlers {
         StatusCode,
     };
     use sos_protocol::{
-        constants::MIME_TYPE_PROTOBUF, server_helpers, CreateSet,
-        DiffRequest, PatchRequest, ScanRequest, SyncPacket, SyncStorage,
-        UpdateSet, WireEncodeDecode,
+        constants::MIME_TYPE_PROTOBUF, CreateSet, DiffRequest, PatchRequest,
+        ScanRequest, SyncPacket, SyncStorage, UpdateSet, WireEncodeDecode,
     };
+
+    use sos_storage::server::server_helpers;
 
     use std::sync::Arc;
 

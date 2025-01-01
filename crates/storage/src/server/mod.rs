@@ -1,6 +1,7 @@
 mod error;
 
 pub mod filesystem;
+pub mod server_helpers;
 
 pub use error::Error;
 

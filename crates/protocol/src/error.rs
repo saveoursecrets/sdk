@@ -292,6 +292,8 @@ impl AsConflict for Error {
 }
 
 use crate::sync::Merge;
+
+/// Convert from a merge error.
 pub struct MergeError<T: Merge> {
     err: T::Error,
 }
@@ -300,6 +302,7 @@ impl<T> MergeError<T>
 where
     T: Merge,
 {
+    /// Create a merge error.
     pub fn new(err: <T as Merge>::Error) -> Self {
         Self { err }
     }

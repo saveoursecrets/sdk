@@ -26,7 +26,6 @@ pub mod constants;
 mod error;
 #[cfg(feature = "network-client")]
 pub mod network_client;
-pub mod server_helpers;
 mod sync;
 mod traits;
 
@@ -41,7 +40,9 @@ pub mod transfer;
 pub mod hashcheck;
 
 pub use bindings::*;
-pub use error::{AsConflict, ConflictError, Error, ErrorReply, NetworkError};
+pub use error::{
+    AsConflict, ConflictError, Error, ErrorReply, MergeError, NetworkError,
+};
 pub use sync::*;
 pub use traits::*;
 

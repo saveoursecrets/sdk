@@ -9,8 +9,9 @@ repository = "https://github.com/saveoursecrets/sdk"
 
 [features]
 audit = []
-server = []
+server = ["files", "binary-stream"]
 client = []
+files = []
 
 [dependencies]
 sos-core.workspace = true
@@ -24,3 +25,5 @@ tokio.workspace = true
 indexmap.workspace = true
 uuid.workspace = true
 async-trait.workspace = true
+
+binary-stream = { workspace = true, optional = true }
