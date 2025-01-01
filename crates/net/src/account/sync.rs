@@ -2,7 +2,7 @@
 use crate::{
     protocol::{
         AccountSync, Merge, Origin, RemoteSync, SyncClient, SyncOptions,
-        SyncResult, SyncStatus, SyncStorage, UpdateSet,
+        SyncResult, SyncStorage, UpdateSet,
     },
     sdk::{
         events::{
@@ -20,6 +20,7 @@ use sos_core::{
     commit::{CommitState, Comparison},
     VaultId,
 };
+use sos_sync::SyncStatus;
 
 use async_trait::async_trait;
 use indexmap::IndexSet;

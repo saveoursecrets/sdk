@@ -14,7 +14,7 @@ use crate::{
         vault::Vault,
     },
     FolderMerge, FolderMergeOptions, ForceMerge, IdentityFolderMerge, Merge,
-    MergeOutcome, SyncStatus, SyncStorage, TrackedChanges,
+    MergeOutcome, SyncStorage, TrackedChanges,
 };
 
 use sos_core::{
@@ -26,7 +26,7 @@ use crate::Result;
 use async_trait::async_trait;
 use indexmap::IndexMap;
 use sos_account::{Account, LocalAccount};
-use sos_sync::StorageEventLogs;
+use sos_sync::{StorageEventLogs, SyncStatus};
 use std::collections::HashSet;
 
 use crate::sdk::events::{DeviceDiff, DeviceReducer};

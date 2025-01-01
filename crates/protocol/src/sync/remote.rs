@@ -2,12 +2,12 @@
 //! remote data source and local account.
 use crate::{
     AsConflict, ConflictError, MaybeDiff, Merge, MergeOutcome, Origin,
-    SyncClient, SyncDirection, SyncPacket, SyncStatus, SyncStorage,
+    SyncClient, SyncDirection, SyncPacket, SyncStorage,
 };
 use async_trait::async_trait;
 use sos_account::Account;
 use sos_sdk::prelude::Address;
-use sos_sync::StorageEventLogs;
+use sos_sync::{StorageEventLogs, SyncStatus};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 

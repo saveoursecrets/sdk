@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_protocol::{
     network_client::HttpClient, AutoMerge, Origin, RemoteResult, RemoteSync,
-    RemoteSyncHandler, SyncClient, SyncDirection, SyncOptions, SyncStatus,
-    SyncStorage, UpdateSet,
+    RemoteSyncHandler, SyncClient, SyncDirection, SyncOptions, SyncStorage,
+    UpdateSet,
 };
 use sos_sdk::{
     events::{
@@ -29,7 +29,7 @@ use sos_core::{
 };
 use sos_database::storage::{AccessOptions, ClientStorage, NewFolderOptions};
 
-use sos_sync::StorageEventLogs;
+use sos_sync::{StorageEventLogs, SyncStatus};
 
 use sos_account::{
     Account, AccountChange, AccountData, CipherComparison, DetachedView,

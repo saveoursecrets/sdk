@@ -4,9 +4,11 @@ use crate::{
     decode_uuid, encode_uuid,
     sdk::events::{Diff, EventRecord, Patch},
     CreateSet, Error, MaybeDiff, MergeOutcome, Origin, ProtoBinding, Result,
-    SyncCompare, SyncDiff, SyncPacket, SyncStatus, TrackedAccountChange,
-    TrackedChanges, TrackedDeviceChange, TrackedFolderChange, UpdateSet,
+    SyncCompare, SyncDiff, SyncPacket, TrackedAccountChange, TrackedChanges,
+    TrackedDeviceChange, TrackedFolderChange, UpdateSet,
 };
+
+use sos_sync::SyncStatus;
 
 use indexmap::{IndexMap, IndexSet};
 use sos_core::commit::Comparison;

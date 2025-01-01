@@ -4,14 +4,14 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_net::{
-    protocol::{AccountSync, Origin, SyncOptions, SyncStatus, SyncStorage},
+    protocol::{AccountSync, Origin, SyncOptions, SyncStorage},
     sdk::{events::EventLogExt, identity::AccountRef, url::Url},
     NetworkAccount,
 };
 
 use sos_account::Account;
 use sos_core::commit::{CommitState, CommitTree, Comparison};
-use sos_sync::StorageEventLogs;
+use sos_sync::{StorageEventLogs, SyncStatus};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {

@@ -18,6 +18,8 @@ use sos_core::{
 use sos_sdk::events::WriteEvent;
 use std::{collections::HashMap, hash::Hash};
 
+use sos_sync::SyncStatus;
+
 #[cfg(feature = "files")]
 use {
     sos_core::{ExternalFile, ExternalFileName},
@@ -56,6 +58,7 @@ pub struct SyncPacket {
     pub compare: Option<SyncCompare>,
 }
 
+/*
 /// Provides a status overview of an account.
 ///
 /// Intended to be used during a synchronization protocol.
@@ -75,6 +78,7 @@ pub struct SyncStatus {
     /// Commit proofs for the account folders.
     pub folders: IndexMap<VaultId, CommitState>,
 }
+*/
 
 /// Collection of comparisons for an account.
 ///

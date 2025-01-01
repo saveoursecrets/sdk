@@ -14,8 +14,10 @@ use crate::{
     },
     CreateSet, DiffRequest, DiffResponse, Error, NetworkError, Origin,
     PatchRequest, PatchResponse, Result, ScanRequest, ScanResponse,
-    SyncClient, SyncPacket, SyncStatus, UpdateSet, WireEncodeDecode,
+    SyncClient, SyncPacket, UpdateSet, WireEncodeDecode,
 };
+
+use sos_sync::SyncStatus;
 
 use sos_sdk::{
     prelude::Address,

@@ -1,7 +1,6 @@
 //! Synchronization types that are used internally.
 use crate::{
     CreateSet, MaybeDiff, MergeOutcome, Origin, SyncCompare, SyncDiff,
-    SyncStatus,
 };
 use sos_core::{
     commit::{CommitState, Comparison},
@@ -10,7 +9,7 @@ use sos_core::{
 use sos_sdk::events::{
     AccountDiff, CheckedPatch, EventLogExt, FolderDiff, WriteEvent,
 };
-use sos_sync::StorageEventLogs;
+use sos_sync::{StorageEventLogs, SyncStatus};
 
 use async_trait::async_trait;
 use indexmap::IndexMap;
