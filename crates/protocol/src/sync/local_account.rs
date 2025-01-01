@@ -5,34 +5,29 @@
 // server so we have to implement here otherwise we
 // hit the problem with foreign trait implementations.
 use crate::{
-    sdk::{
-        decode,
-        events::{
-            AccountDiff, AccountEvent, CheckedPatch, EventLogExt, FolderDiff,
-            LogEvent, WriteEvent,
-        },
-        vault::Vault,
-    },
     FolderMerge, FolderMergeOptions, ForceMerge, IdentityFolderMerge, Merge,
-    MergeOutcome, SyncStorage, TrackedChanges,
+    Result, SyncStorage,
 };
-
+use async_trait::async_trait;
+use indexmap::IndexMap;
+use sos_account::{Account, LocalAccount};
 use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
     VaultId,
 };
-
-use crate::Result;
-use async_trait::async_trait;
-use indexmap::IndexMap;
-use sos_account::{Account, LocalAccount};
-use sos_sync::{StorageEventLogs, SyncStatus};
+use sos_sdk::{
+    decode,
+    events::{
+        AccountDiff, AccountEvent, CheckedPatch, DeviceDiff, DeviceReducer,
+        EventLogExt, FolderDiff, LogEvent, WriteEvent,
+    },
+    vault::Vault,
+};
+use sos_sync::{MergeOutcome, StorageEventLogs, SyncStatus, TrackedChanges};
 use std::collections::HashSet;
 
-use crate::sdk::events::{DeviceDiff, DeviceReducer};
-
 #[cfg(feature = "files")]
-use crate::sdk::events::FileDiff;
+use sos_sdk::events::FileDiff;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

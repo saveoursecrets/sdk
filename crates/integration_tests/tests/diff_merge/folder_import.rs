@@ -2,12 +2,11 @@ use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount};
 use sos_net::{
-    protocol::{
-        diff, Merge, MergeOutcome, SyncStorage, TrackedAccountChange,
-        TrackedFolderChange,
-    },
+    protocol::{diff, Merge, SyncStorage},
     sdk::prelude::*,
 };
+
+use sos_sync::{MergeOutcome, TrackedAccountChange, TrackedFolderChange};
 
 /// Tests creating a diff and merging an import folder
 /// event without any networking.

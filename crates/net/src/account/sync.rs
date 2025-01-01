@@ -20,9 +20,7 @@ use sos_core::{
     commit::{CommitState, Comparison},
     VaultId,
 };
-use sos_protocol::MergeOutcome;
-use sos_sync::StorageEventLogs;
-use sos_sync::{SyncStatus, UpdateSet};
+use sos_sync::{MergeOutcome, StorageEventLogs, SyncStatus, UpdateSet};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,

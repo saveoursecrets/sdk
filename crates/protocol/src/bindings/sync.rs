@@ -3,12 +3,14 @@ include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 use crate::{
     decode_uuid, encode_uuid,
     sdk::events::{Diff, EventRecord, Patch},
-    Error, MaybeDiff, MergeOutcome, Origin, ProtoBinding, Result,
-    SyncCompare, SyncDiff, SyncPacket, TrackedAccountChange, TrackedChanges,
-    TrackedDeviceChange, TrackedFolderChange,
+    Error, MaybeDiff, Origin, ProtoBinding, Result, SyncCompare, SyncDiff,
+    SyncPacket,
 };
 
-use sos_sync::{CreateSet, SyncStatus, UpdateSet};
+use sos_sync::{
+    CreateSet, MergeOutcome, SyncStatus, TrackedAccountChange,
+    TrackedChanges, TrackedDeviceChange, TrackedFolderChange, UpdateSet,
+};
 
 use indexmap::{IndexMap, IndexSet};
 use sos_core::commit::Comparison;
@@ -766,8 +768,9 @@ mod files {
     };
     use crate::{
         bindings::sync::WireTrackedFileCreated, Error, ProtoBinding, Result,
-        TrackedFileChange,
     };
+
+    use sos_sync::TrackedFileChange;
 
     impl ProtoBinding for TrackedFileChange {
         type Inner = WireTrackedFileChange;

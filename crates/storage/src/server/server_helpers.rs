@@ -1,9 +1,8 @@
 //! Helper functions for server implementations.
 use binary_stream::futures::{Decodable, Encodable};
 use sos_protocol::{
-    DiffRequest, DiffResponse, EventLogType, Merge, MergeError, MergeOutcome,
-    PatchRequest, PatchResponse, ScanRequest, ScanResponse, SyncPacket,
-    SyncStorage,
+    DiffRequest, DiffResponse, EventLogType, Merge, MergeError, PatchRequest,
+    PatchResponse, ScanRequest, ScanResponse, SyncPacket, SyncStorage,
 };
 use sos_sdk::{
     events::{
@@ -13,7 +12,7 @@ use sos_sdk::{
     prelude::EventLogExt,
 };
 
-use sos_sync::StorageEventLogs;
+use sos_sync::{MergeOutcome, StorageEventLogs};
 
 #[cfg(feature = "files")]
 use sos_sdk::events::{FileDiff, FileEvent};

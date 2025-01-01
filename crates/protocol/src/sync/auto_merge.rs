@@ -14,11 +14,11 @@ use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree},
     VaultId,
 };
-use sos_sync::{StorageEventLogs, SyncStatus};
+use sos_sync::{MergeOutcome, StorageEventLogs, SyncStatus};
 
 use crate::{
     EventLogType, ForceMerge, HardConflictResolver, MaybeConflict, Merge,
-    MergeOutcome, SyncOptions,
+    SyncOptions,
 };
 use std::collections::HashSet;
 use tracing::instrument;

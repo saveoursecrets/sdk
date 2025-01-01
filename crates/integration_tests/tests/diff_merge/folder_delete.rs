@@ -2,9 +2,11 @@ use crate::test_utils::{copy_account, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount};
 use sos_net::{
-    protocol::{diff, Merge, MergeOutcome, SyncStorage},
+    protocol::{diff, Merge, SyncStorage},
     sdk::prelude::*,
 };
+
+use sos_sync::MergeOutcome;
 
 /// Tests creating a diff and merging a delete folder
 /// event without any networking.
