@@ -79,9 +79,8 @@ workspace = true
 features = ["full"]
 
 [dependencies.sos-server]
-default-features = false
+workspace = true
 features = ["listen", "audit", "pairing"]
-path = "../server"
 
 [dev-dependencies]
 binary-stream.workspace = true
@@ -105,7 +104,7 @@ copy_dir = "0.1"
 maplit2 = "1"
 tempfile = "3.5"
 pretty_assertions = "1.4"
-sos-test-utils = { path = "../test_utils" }
+sos-test-utils.workspace = true
 
 [[bin]]
 name = "test-extension-helper"

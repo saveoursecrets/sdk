@@ -9,7 +9,6 @@ members = [
   "crates/core",
   "crates/database",
   "crates/keychain_parser",
-  "crates/integration_tests",
   "crates/integrity",
   "crates/ipc",
   "crates/logs",
@@ -27,6 +26,8 @@ members = [
   "crates/test_utils",
   "crates/vfs", 
   "crates/web",   
+
+  "tests/integration",
 ]
 
 [workspace.dependencies]
