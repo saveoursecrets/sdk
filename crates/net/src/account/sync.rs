@@ -20,7 +20,8 @@ use sos_core::{
     Origin, VaultId,
 };
 use sos_sync::{
-    Merge, MergeOutcome, StorageEventLogs, SyncStatus, SyncStorage, UpdateSet,
+    ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
+    SyncStorage, UpdateSet,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -335,5 +336,56 @@ impl Merge for NetworkAccount {
     ) -> Result<Comparison> {
         let account = self.account.lock().await;
         Ok(account.compare_folder(folder_id, state).await?)
+    }
+}
+
+#[async_trait]
+impl ForceMerge for NetworkAccount {
+    async fn force_merge_identity(
+        &mut self,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_identity(diff, outcome).await?)
+    }
+
+    async fn force_merge_account(
+        &mut self,
+        diff: AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_account(diff, outcome).await?)
+    }
+
+    async fn force_merge_device(
+        &mut self,
+        diff: DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_device(diff, outcome).await?)
+    }
+
+    /// Force merge changes to the files event log.
+    #[cfg(feature = "files")]
+    async fn force_merge_files(
+        &mut self,
+        diff: FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_files(diff, outcome).await?)
+    }
+
+    async fn force_merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_folder(folder_id, diff, outcome).await?)
     }
 }

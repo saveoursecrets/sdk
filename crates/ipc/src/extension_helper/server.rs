@@ -15,7 +15,7 @@ use sos_account::{Account, AccountSwitcher};
 use sos_logs::Logger;
 use sos_protocol::{constants::MIME_TYPE_JSON, ErrorReply};
 use sos_sdk::prelude::ErrorExt;
-use sos_sync::{Merge, SyncStorage};
+use sos_sync::SyncStorage;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
@@ -48,7 +48,6 @@ pub struct ExtensionHelperServer<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -76,7 +75,6 @@ impl<A, R, E> ExtensionHelperServer<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,

@@ -4,7 +4,7 @@ use http::{Request, Response, StatusCode};
 use serde::Deserialize;
 use sos_account::{Account, ClipboardCopyRequest};
 use sos_sdk::prelude::{ErrorExt, SecretPath};
-use sos_sync::{Merge, SyncStorage};
+use sos_sync::SyncStorage;
 
 use crate::web_service::{
     internal_server_error, json, parse_account_id, parse_json_body, status,
@@ -34,7 +34,6 @@ pub async fn copy_secret_clipboard<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -82,7 +81,6 @@ pub async fn read_secret<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -143,7 +141,6 @@ pub async fn set_favorite<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -223,7 +220,6 @@ pub async fn load_avatar<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,

@@ -8,7 +8,7 @@ use sos_sdk::{
     prelude::{Address, Error as SdkError, ErrorExt, Paths},
     vault::VaultId,
 };
-use sos_sync::{Merge, SyncStorage};
+use sos_sync::SyncStorage;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, RwLock};
 
@@ -51,7 +51,6 @@ pub struct WebAccounts<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -76,7 +75,6 @@ impl<A, R, E> Clone for WebAccounts<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -105,7 +103,6 @@ impl<A, R, E> WebAccounts<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -226,7 +223,6 @@ impl<A, R, E> AsRef<Arc<RwLock<AccountSwitcher<A, R, E>>>>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -255,7 +251,6 @@ async fn update_account_search_index<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -398,7 +393,6 @@ async fn notify_listener<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -560,7 +554,6 @@ async fn load_account_records<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,

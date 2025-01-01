@@ -26,13 +26,7 @@ pub trait RemoteSyncHandler {
     type Client: SyncClient + Send + Sync + 'static;
 
     /// Local account.
-    type Account: Account
-        + SyncStorage
-        + Merge
-        + ForceMerge
-        + Send
-        + Sync
-        + 'static;
+    type Account: Account + SyncStorage + Send + Sync + 'static;
 
     /// Error implementation.
     type Error: std::error::Error

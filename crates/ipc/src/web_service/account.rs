@@ -5,7 +5,7 @@ use secrecy::SecretString;
 use serde::Deserialize;
 use sos_account::Account;
 use sos_sdk::prelude::{AccessKey, Address, ErrorExt, Identity};
-use sos_sync::{Merge, SyncStorage};
+use sos_sync::SyncStorage;
 use std::collections::HashMap;
 
 use crate::web_service::{
@@ -28,7 +28,6 @@ pub async fn list_accounts<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -59,7 +58,6 @@ pub async fn list_folders<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -101,7 +99,6 @@ pub async fn authenticated_accounts<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -134,7 +131,6 @@ pub async fn sign_in_account<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -178,7 +174,6 @@ pub async fn sign_in<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -233,7 +228,6 @@ pub async fn sign_in_password<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -308,7 +302,6 @@ pub async fn sign_out_account<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -341,7 +334,6 @@ pub async fn sign_out_all<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -369,7 +361,6 @@ pub async fn sign_out<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,

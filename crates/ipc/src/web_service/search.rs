@@ -5,7 +5,7 @@ use serde::Deserialize;
 use sos_account::Account;
 use sos_database::search::{ArchiveFilter, DocumentView, QueryFilter};
 use sos_sdk::prelude::ErrorExt;
-use sos_sync::{Merge, SyncStorage};
+use sos_sync::SyncStorage;
 use std::collections::HashMap;
 
 use crate::web_service::{
@@ -33,7 +33,6 @@ pub async fn search<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -74,7 +73,6 @@ pub async fn query_view<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,

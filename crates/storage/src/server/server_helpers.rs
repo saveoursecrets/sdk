@@ -26,7 +26,7 @@ pub async fn sync_account<S, E>(
     storage: &mut S,
 ) -> std::result::Result<(SyncPacket, MergeOutcome), E>
 where
-    S: SyncStorage + Merge + Send + Sync + 'static,
+    S: SyncStorage + Send + Sync + 'static,
     E: std::error::Error
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>
@@ -81,7 +81,7 @@ pub async fn event_diff<S, E>(
     storage: &S,
 ) -> std::result::Result<DiffResponse, E>
 where
-    S: StorageEventLogs + Send + Sync + 'static,
+    S: SyncStorage + Send + Sync + 'static,
     E: From<<S as StorageEventLogs>::Error>
         + From<sos_sdk::Error>
         + From<sos_core::Error>
@@ -140,7 +140,7 @@ pub async fn event_scan<S, E>(
     storage: &S,
 ) -> std::result::Result<ScanResponse, E>
 where
-    S: StorageEventLogs,
+    S: SyncStorage,
     E: From<<S as StorageEventLogs>::Error>
         + From<sos_sdk::Error>
         + Send
@@ -249,7 +249,7 @@ pub async fn event_patch<S, E>(
     storage: &mut S,
 ) -> std::result::Result<(PatchResponse, MergeOutcome), E>
 where
-    S: StorageEventLogs + Merge,
+    S: SyncStorage,
     E: std::error::Error
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>
@@ -400,7 +400,7 @@ async fn rollback_rewind<S, E>(
     records: Vec<EventRecord>,
 ) -> std::result::Result<(), E>
 where
-    S: StorageEventLogs,
+    S: SyncStorage,
     E: std::error::Error
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>

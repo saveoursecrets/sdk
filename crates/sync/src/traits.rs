@@ -291,7 +291,7 @@ pub trait Merge: StorageEventLogs {
 /// and need to be rewritten.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait ForceMerge: StorageEventLogs {
+pub trait ForceMerge: Merge {
     /// Force merge changes to the identity folder.
     async fn force_merge_identity(
         &mut self,
@@ -333,7 +333,7 @@ pub trait ForceMerge: StorageEventLogs {
 /// Storage implementations that can synchronize.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait SyncStorage: StorageEventLogs {
+pub trait SyncStorage: ForceMerge {
     /// Determine if this is client-side storage.
     fn is_client_storage(&self) -> bool;
 
