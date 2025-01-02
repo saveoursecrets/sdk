@@ -7,7 +7,7 @@ use sos_sdk::{
     vault::DiscFolder,
     vfs, Paths,
 };
-use sos_server_storage::filesystem::ServerStorage;
+use sos_server_storage::filesystem::ServerFileStorage;
 use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
 use std::{
     collections::HashMap,
@@ -18,7 +18,7 @@ use tokio::sync::RwLock;
 
 /// Account storage.
 pub struct AccountStorage {
-    pub(crate) storage: ServerStorage,
+    pub(crate) storage: ServerFileStorage,
 }
 
 /// Individual account.
@@ -90,7 +90,7 @@ impl Backend {
                             DiscFolder::new_event_log(&user_paths).await?;
 
                         let account = AccountStorage {
-                            storage: ServerStorage::new(
+                            storage: ServerFileStorage::new(
                                 owner.clone(),
                                 Some(self.directory.clone()),
                                 identity_log,
@@ -133,10 +133,10 @@ impl Backend {
         paths.ensure().await?;
 
         let identity_log =
-            ServerStorage::initialize_account(&paths, &account_data.identity)
+            ServerFileStorage::initialize_account(&paths, &account_data.identity)
                 .await?;
 
-        let mut storage = ServerStorage::new(
+        let mut storage = ServerFileStorage::new(
             owner.clone(),
             Some(self.directory.clone()),
             Arc::new(RwLock::new(identity_log)),

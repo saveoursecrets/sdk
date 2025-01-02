@@ -25,7 +25,7 @@ use std::collections::HashSet;
 mod sync;
 
 /// Server folders loaded into memory and mirrored to disc.
-pub struct ServerStorage {
+pub struct ServerFileStorage {
     /// Address of the account owner.
     pub(super) address: Address,
 
@@ -51,7 +51,7 @@ pub struct ServerStorage {
     pub(super) file_log: Arc<RwLock<FileEventLog>>,
 }
 
-impl ServerStorage {
+impl ServerFileStorage {
     /// Create folder storage for server-side access.
     pub async fn new(
         address: Address,

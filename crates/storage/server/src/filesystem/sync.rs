@@ -1,5 +1,5 @@
 //! Synchronization helpers.
-use super::ServerStorage;
+use super::ServerFileStorage;
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
 
@@ -29,7 +29,7 @@ use sos_sync::{
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
 
-impl ServerStorage {
+impl ServerFileStorage {
     /// Create a new vault file on disc and the associated
     /// event log.
     ///
@@ -152,7 +152,7 @@ impl ServerStorage {
 }
 
 #[async_trait]
-impl ForceMerge for ServerStorage {
+impl ForceMerge for ServerFileStorage {
     async fn force_merge_identity(
         &mut self,
         diff: FolderDiff,
@@ -307,7 +307,7 @@ impl ForceMerge for ServerStorage {
 }
 
 #[async_trait]
-impl Merge for ServerStorage {
+impl Merge for ServerFileStorage {
     async fn merge_identity(
         &mut self,
         diff: FolderDiff,
@@ -564,7 +564,7 @@ impl Merge for ServerStorage {
 }
 
 #[async_trait]
-impl StorageEventLogs for ServerStorage {
+impl StorageEventLogs for ServerFileStorage {
     type Error = Error;
 
     async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
@@ -605,7 +605,7 @@ impl StorageEventLogs for ServerStorage {
 }
 
 #[async_trait]
-impl SyncStorage for ServerStorage {
+impl SyncStorage for ServerFileStorage {
     fn is_client_storage(&self) -> bool {
         false
     }
