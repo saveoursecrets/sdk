@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 /// Trait for server storage implementations.
 #[async_trait]
-pub trait ServerStorage: SyncStorage {
+pub trait ServerAccountStorage: SyncStorage {
     /// Address of the account owner.
     fn address(&self) -> &Address;
 

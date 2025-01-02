@@ -377,7 +377,7 @@ mod handlers {
         transfer::{FileSet, FileTransfersSet},
         WireEncodeDecode,
     };
-    use sos_server_storage::ServerStorage;
+    use sos_server_storage::ServerAccountStorage;
     use std::{path::PathBuf, sync::Arc};
     use tokio::{
         fs::File,

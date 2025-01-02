@@ -1,5 +1,5 @@
 //! Server storage backed by the filesystem.
-use crate::{Error, Result, ServerStorage};
+use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_sdk::{
@@ -175,7 +175,7 @@ impl ServerFileStorage {
 }
 
 #[async_trait]
-impl ServerStorage for ServerFileStorage {
+impl ServerAccountStorage for ServerFileStorage {
     fn address(&self) -> &Address {
         &self.address
     }

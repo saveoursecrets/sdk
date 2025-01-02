@@ -7,7 +7,9 @@ use sos_sdk::{
     vault::DiscFolder,
     vfs, Paths,
 };
-use sos_server_storage::{filesystem::ServerFileStorage, ServerStorage};
+use sos_server_storage::{
+    filesystem::ServerFileStorage, ServerAccountStorage,
+};
 use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
 use std::{
     collections::HashMap,

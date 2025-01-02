@@ -1,5 +1,5 @@
 //! Synchronization helpers.
-use crate::{filesystem::ServerFileStorage, ServerStorage};
+use crate::{filesystem::ServerFileStorage, ServerAccountStorage};
 use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
