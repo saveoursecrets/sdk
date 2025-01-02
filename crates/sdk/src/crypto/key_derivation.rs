@@ -20,7 +20,8 @@ pub(crate) const ARGON_2_ID: u8 = 1;
 pub(crate) const BALLOON_HASH: u8 = 2;
 
 /// Number of bytes for the passphrase seed entropy.
-pub(crate) const SEED_SIZE: usize = 32;
+#[doc(hidden)]
+pub const SEED_SIZE: usize = 32;
 /// Type for additional passphrase seed entropy.
 pub type Seed = [u8; SEED_SIZE];
 

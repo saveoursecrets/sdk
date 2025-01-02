@@ -17,6 +17,7 @@ members = [
   "crates/password",
   "crates/platform_authenticator",
   "crates/protocol",
+  "crates/recovery",
   "crates/sdk",
   "crates/server",
   "crates/sos",
@@ -45,6 +46,7 @@ sos-migrate = { version = "0.16", path = "crates/migrate" }
 sos-net = { version = "0.16", path = "crates/net" }
 sos-password = { version = "0.16", path = "crates/password" }
 sos-protocol = { version = "0.16", path = "crates/protocol" }
+sos-recovery = { version = "0.16", path = "crates/recovery" }
 sos-server = { version = "0.16", path = "crates/server" }
 sos-client-storage = { version = "0.16", path = "crates/storage/client" }
 sos-server-storage = { version = "0.16", path = "crates/storage/server" }

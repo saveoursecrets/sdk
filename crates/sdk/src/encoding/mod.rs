@@ -43,7 +43,8 @@ pub async fn decode<T: Decodable + Default>(buffer: &[u8]) -> Result<T> {
 }
 
 /// Helper to decode a UUIDv4.
-pub(crate) async fn decode_uuid<R: AsyncRead + AsyncSeek + Unpin + Send>(
+#[doc(hidden)]
+pub async fn decode_uuid<R: AsyncRead + AsyncSeek + Unpin + Send>(
     reader: &mut BinaryReader<R>,
 ) -> std::result::Result<uuid::Uuid, std::io::Error> {
     let uuid: [u8; 16] = reader

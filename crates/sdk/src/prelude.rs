@@ -14,8 +14,5 @@ pub use crate::vfs;
 pub use crate::{decode, encode, Paths, UtcDateTime};
 pub use sos_password::diceware::generate_passphrase;
 
-#[cfg(feature = "recovery")]
-pub use crate::recovery::*;
-
 // Ensure top-level versions take precedence
 pub use crate::{error::ErrorExt, Error, Result};

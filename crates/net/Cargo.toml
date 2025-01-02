@@ -39,7 +39,6 @@ clipboard = ["sos-account/clipboard"]
 contacts = ["sos-account/contacts", "sos-protocol/contacts"]
 migrate = ["sos-account/migrate", "sos-migrate"]
 keychain-access = ["sos-migrate/keychain-access"]
-recovery = ["sos-sdk/recovery"]
 pairing = ["dep:snow", "sos-protocol/pairing"]
 search = ["sos-database/search", "sos-protocol/search"]
 

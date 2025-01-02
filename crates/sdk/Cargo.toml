@@ -28,7 +28,6 @@ audit = []
 contacts = []
 files = []
 mem-fs = ["sos-vfs/mem-fs"]
-recovery = ["dep:vsss-rs"]
 
 [dependencies]
 sos-core.workspace = true
@@ -82,9 +81,6 @@ subtle = "2.5"
 ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
 
 async-once-cell = "0.5"
-
-# recovery
-vsss-rs = {version = "3", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 etcetera = "0.8"

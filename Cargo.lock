@@ -5447,6 +5447,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-recovery"
+version = "0.16.0"
+dependencies = [
+ "async-trait",
+ "binary-stream",
+ "futures",
+ "hex",
+ "k256",
+ "secrecy",
+ "serde",
+ "serde_with",
+ "sos-core",
+ "sos-sdk",
+ "uuid",
+ "vsss-rs",
+]
+
+[[package]]
 name = "sos-sdk"
 version = "0.16.4"
 dependencies = [
@@ -5500,7 +5518,6 @@ dependencies = [
  "urn",
  "uuid",
  "vcard4",
- "vsss-rs",
 ]
 
 [[package]]
@@ -5632,6 +5649,7 @@ dependencies = [
  "k256",
  "keychain_parser",
  "secrecy",
+ "serde",
  "serde_json",
  "sha3",
  "sos-account",
@@ -5643,6 +5661,7 @@ dependencies = [
  "sos-net",
  "sos-password",
  "sos-protocol",
+ "sos-recovery",
  "sos-sdk",
  "sos-server-storage",
  "sos-sync",

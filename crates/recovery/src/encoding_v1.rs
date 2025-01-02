@@ -1,11 +1,12 @@
 use secrecy::ExposeSecret;
 use std::io::Result;
 
-use crate::{
+use sos_sdk::{
     crypto::SEED_SIZE,
     encoding::{decode_uuid, encoding_error},
-    recovery::{RecoveryData, RecoveryOptions, RecoveryPack},
 };
+
+use crate::{RecoveryData, RecoveryOptions, RecoveryPack};
 
 use async_trait::async_trait;
 use binary_stream::futures::{

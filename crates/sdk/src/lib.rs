@@ -45,10 +45,6 @@ pub mod identity;
 pub(crate) mod paths;
 pub mod prelude;
 
-#[doc(hidden)]
-#[cfg(feature = "recovery")]
-pub mod recovery;
-
 pub mod signer;
 pub mod vault;
 

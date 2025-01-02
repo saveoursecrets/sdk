@@ -12,9 +12,10 @@ mod private_key;
 pub use cipher::Cipher;
 pub(crate) use cipher::{AES_GCM_256, X25519, X_CHACHA20_POLY1305};
 
-pub(crate) use key_derivation::{
-    Deriver, ARGON_2_ID, BALLOON_HASH, SEED_SIZE,
-};
+#[doc(hidden)]
+pub use key_derivation::SEED_SIZE;
+pub(crate) use key_derivation::{Deriver, ARGON_2_ID, BALLOON_HASH};
+
 pub use key_derivation::{KeyDerivation, Seed};
 pub use private_key::{AccessKey, DerivedPrivateKey, PrivateKey};
 

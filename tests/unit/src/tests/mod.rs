@@ -11,5 +11,6 @@ mod migrate;
 mod pairing;
 mod password;
 mod protocol;
+mod recovery;
 mod search;
 mod signer;
