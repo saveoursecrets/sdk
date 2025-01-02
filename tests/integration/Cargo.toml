@@ -10,7 +10,7 @@ default = []
 enable-cli-tests = []
 
 [dependencies]
-tokio.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread"] }
 http.workspace = true
 anyhow.workspace = true
 

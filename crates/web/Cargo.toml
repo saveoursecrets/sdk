@@ -22,7 +22,7 @@ full = [
 ]
 archive = []
 clipboard = []
-contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
+contacts = ["sos-account/contacts", "sos-protocol/contacts"]
 files = []
 migrate = ["sos-account/migrate", "sos-migrate"]
 search = ["sos-database/search", "sos-protocol/search"]

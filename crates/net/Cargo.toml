@@ -51,7 +51,7 @@ system-messages = ["sos-account-extras/system-messages"]
 sos-account.workspace = true
 sos-core.workspace = true
 sos-sdk.workspace = true
-sos-database = { workspace = true, features = ["client"] }
+sos-database = { workspace = true, features = ["client", "sqlite"] }
 sos-sync.workspace = true
 sos-client-storage.workspace = true
 sos-protocol = { workspace = true, features = ["network-client"] }
@@ -80,11 +80,11 @@ indexmap.workspace = true
 binary-stream.workspace = true
 rs_merkle.workspace = true
 prost.workspace = true
+tokio.workspace = true
 
 # pairing
 snow = { version = "0.9", optional = true }
 
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync"] }
 
 [dev-dependencies]
 anyhow.workspace = true

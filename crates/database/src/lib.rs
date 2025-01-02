@@ -1,7 +1,10 @@
 //! Database storage layer for the [Save Our Secrets](https://saveoursecrets.com) SDK.
+#[cfg(feature = "sqlite")]
 pub mod db;
 mod error;
+#[cfg(feature = "sqlite")]
 pub mod importer;
+#[cfg(feature = "sqlite")]
 pub mod migrations;
 
 #[cfg(feature = "files")]

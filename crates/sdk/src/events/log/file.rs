@@ -555,18 +555,21 @@ where
             let rw = self.file();
             let _lock = rw.lock().await;
 
-            let file = OpenOptions::new()
+            #[allow(unused_mut)]
+            let mut file = OpenOptions::new()
                 .write(true)
                 .append(true)
                 .open(path)
                 .await?;
 
-            let mut guard = vfs::lock_write(file).await?;
-
             #[cfg(target_arch = "wasm32")]
             {
+                use tokio::io::AsyncSeekExt;
                 file.seek(SeekFrom::End(0)).await?;
             }
+
+            let mut guard = vfs::lock_write(file).await?;
+
             match guard.write_all(&buffer).await {
                 Ok(_) => {
                     guard.flush().await?;

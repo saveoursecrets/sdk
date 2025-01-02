@@ -18,6 +18,7 @@ full = [
   "client",
   "files",
   "search",
+  "sqlite",
 ]
 archive = ["sos-sdk/archive"]
 audit = ["sos-sdk/audit"]
@@ -28,6 +29,7 @@ search = [
   "dep:url",
   "dep:vcard4",
 ]
+sqlite = ["dep:async-sqlite", "dep:refinery"]
 client = []
 
 [dependencies]
@@ -54,8 +56,8 @@ url  = { workspace = true, optional = true }
 vcard4 = { workspace = true, optional = true }
 
 # sqlite
-async-sqlite = "0.3"
-refinery = {version = "0.8", git = "https://github.com/rust-db/refinery", features = ["rusqlite"]}
+async-sqlite = { version = "0.3", optional = true }
+refinery = { version = "0.8", git = "https://github.com/rust-db/refinery", features = ["rusqlite"], optional = true }
 
 [dev-dependencies]
 anyhow.workspace = true
