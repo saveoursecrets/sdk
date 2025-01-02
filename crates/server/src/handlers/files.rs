@@ -419,7 +419,7 @@ mod handlers {
 
         let (parent_path, file_path) = {
             let reader = account.read().await;
-            let paths = reader.storage.paths();
+            let paths = reader.paths();
             let name = file_name.to_string();
             let parent_path = paths
                 .file_folder_location(&vault_id)
@@ -490,7 +490,7 @@ mod handlers {
 
         let file_path = {
             let reader = account.read().await;
-            let paths = reader.storage.paths();
+            let paths = reader.paths();
             let name = file_name.to_string();
             paths.file_location(&vault_id, &secret_id, &name)
         };
@@ -524,7 +524,7 @@ mod handlers {
 
         let file_path = {
             let reader = account.read().await;
-            let paths = reader.storage.paths();
+            let paths = reader.paths();
             let name = file_name.to_string();
             paths.file_location(&vault_id, &secret_id, &name)
         };
@@ -565,7 +565,7 @@ mod handlers {
 
         let (source_path, target_path, parent_path) = {
             let reader = account.read().await;
-            let paths = reader.storage.paths();
+            let paths = reader.paths();
             let name = file_name.to_string();
             let source = paths.file_location(&vault_id, &secret_id, &name);
             let target = paths.file_location(
@@ -616,7 +616,7 @@ mod handlers {
                 .get(caller.address())
                 .ok_or_else(|| Error::NoAccount(*caller.address()))?;
             let account = account.read().await;
-            account.storage.paths()
+            account.paths()
         };
 
         let local_files = FileSet::decode(body).await?;

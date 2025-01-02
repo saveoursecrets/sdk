@@ -3,7 +3,6 @@ use crate::Result;
 use async_trait::async_trait;
 use sos_sdk::{
     device::DevicePublicKey,
-    events::{FolderEventLog, FolderPatch},
     signer::ecdsa::Address,
     vault::{Summary, VaultId},
     Paths,
@@ -23,19 +22,6 @@ pub trait ServerAccountStorage: SyncStorage {
 
     /// Computed storage directories for the provider.
     fn paths(&self) -> Arc<Paths>;
-
-    /// Create a new vault file on disc and the associated
-    /// event log.
-    ///
-    /// If a vault file already exists it is overwritten if an
-    /// event log exists it is truncated.
-    ///
-    /// Intended to be used by a server to create the identity
-    /// vault and event log when a new account is created.
-    async fn initialize_account(
-        paths: &Paths,
-        identity_patch: &FolderPatch,
-    ) -> Result<FolderEventLog>;
 
     /// Import an account from a change set of event logs.
     ///

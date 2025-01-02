@@ -8,7 +8,7 @@ use sos_sdk::{
     vfs, Paths,
 };
 use sos_server_storage::{
-    filesystem::ServerFileStorage, ServerAccountStorage,
+    filesystem::ServerFileStorage, ServerAccountStorage, ServerStorage,
 };
 use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
 use std::{
@@ -18,13 +18,8 @@ use std::{
 };
 use tokio::sync::RwLock;
 
-/// Account storage.
-pub struct AccountStorage {
-    pub(crate) storage: ServerFileStorage,
-}
-
 /// Individual account.
-pub type ServerAccount = Arc<RwLock<AccountStorage>>;
+pub type ServerAccount = Arc<RwLock<ServerStorage>>;
 
 /// Collection of accounts by address.
 pub type Accounts = Arc<RwLock<HashMap<Address, ServerAccount>>>;
@@ -91,21 +86,21 @@ impl Backend {
                         let identity_log =
                             DiscFolder::new_event_log(&user_paths).await?;
 
-                        let account = AccountStorage {
-                            storage: ServerFileStorage::new(
+                        let account = ServerStorage::FileSystem(
+                            ServerFileStorage::new(
                                 owner.clone(),
                                 Some(self.directory.clone()),
                                 identity_log,
                             )
                             .await?,
-                        };
+                        );
 
                         let mut accounts = self.accounts.write().await;
                         let account = accounts
                             .entry(owner.clone())
                             .or_insert(Arc::new(RwLock::new(account)));
                         let mut writer = account.write().await;
-                        writer.storage.load_folders().await?;
+                        writer.load_folders().await?;
                     }
                 }
             }
@@ -148,7 +143,7 @@ impl Backend {
         .await?;
         storage.import_account(&account_data).await?;
 
-        let account = AccountStorage { storage };
+        let account = ServerStorage::FileSystem(storage);
         let mut accounts = self.accounts.write().await;
         accounts
             .entry(owner.clone())
@@ -166,7 +161,7 @@ impl Backend {
             accounts.get_mut(owner).ok_or(Error::NoAccount(*owner))?;
 
         let mut account = account.write().await;
-        account.storage.delete_account().await?;
+        account.delete_account().await?;
 
         Ok(())
     }
@@ -186,10 +181,7 @@ impl Backend {
             accounts.get_mut(owner).ok_or(Error::NoAccount(*owner))?;
 
         let mut account = account.write().await;
-        account
-            .storage
-            .update_account(account_data, &mut outcome)
-            .await?;
+        account.update_account(account_data, &mut outcome).await?;
         Ok(outcome)
     }
 
@@ -201,7 +193,7 @@ impl Backend {
         let account = accounts.get(owner).ok_or(Error::NoAccount(*owner))?;
 
         let reader = account.read().await;
-        let change_set = reader.storage.change_set().await?;
+        let change_set = reader.change_set().await?;
 
         Ok(change_set)
     }
@@ -216,7 +208,7 @@ impl Backend {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
             let reader = account.read().await;
-            let account_devices = reader.storage.list_device_keys();
+            let account_devices = reader.list_device_keys();
             for device_key in account_devices {
                 let verifying_key: VerifyingKey = device_key.try_into()?;
                 if verifying_key

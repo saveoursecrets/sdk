@@ -167,6 +167,35 @@ impl ServerFileStorage {
         Ok(())
     }
 
+    /// Create a new vault file on disc and the associated
+    /// event log.
+    ///
+    /// If a vault file already exists it is overwritten if an
+    /// event log exists it is truncated.
+    ///
+    /// Intended to be used by a server to create the identity
+    /// vault and event log when a new account is created.
+    pub async fn initialize_account(
+        paths: &Paths,
+        identity_patch: &FolderPatch,
+    ) -> Result<FolderEventLog> {
+        let mut event_log =
+            FolderEventLog::new(paths.identity_events()).await?;
+        event_log.clear().await?;
+        event_log.patch_unchecked(identity_patch).await?;
+
+        let vault = FolderReducer::new()
+            .reduce(&event_log)
+            .await?
+            .build(false)
+            .await?;
+
+        let buffer = encode(&vault).await?;
+        vfs::write(paths.identity_vault(), buffer).await?;
+
+        Ok(event_log)
+    }
+
     fn cache_mut(
         &mut self,
     ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
@@ -186,27 +215,6 @@ impl ServerAccountStorage for ServerFileStorage {
 
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
-    }
-
-    async fn initialize_account(
-        paths: &Paths,
-        identity_patch: &FolderPatch,
-    ) -> Result<FolderEventLog> {
-        let mut event_log =
-            FolderEventLog::new(paths.identity_events()).await?;
-        event_log.clear().await?;
-        event_log.patch_unchecked(identity_patch).await?;
-
-        let vault = FolderReducer::new()
-            .reduce(&event_log)
-            .await?
-            .build(false)
-            .await?;
-
-        let buffer = encode(&vault).await?;
-        vfs::write(paths.identity_vault(), buffer).await?;
-
-        Ok(event_log)
     }
 
     async fn import_account(
