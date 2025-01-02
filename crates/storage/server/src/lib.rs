@@ -17,6 +17,7 @@ use crate::traits::{ServerAccountStorage, SyncStorage};
 use crate::filesystem::Paths;
 use crates::sdk::identity::Address;
 use crates::sdk::crypto::DevicePublicKey;
+use crates::sdk::vault::{Secret, SecretId, Vault, VaultId};
 
 /// Server storage backed by filesystem or database.
 pub enum ServerStorage {
@@ -56,6 +57,76 @@ impl ServerAccountStorage for ServerStorage {
         match self {
             ServerStorage::FileSystem(fs) => fs.paths(),
             ServerStorage::Database(db) => db.paths(),
+        }
+    }
+
+    async fn add_device_key(&self, key: DevicePublicKey) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.add_device_key(key).await,
+            ServerStorage::Database(db) => db.add_device_key(key).await,
+        }
+    }
+
+    async fn remove_device_key(&self, key: &DevicePublicKey) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.remove_device_key(key).await,
+            ServerStorage::Database(db) => db.remove_device_key(key).await,
+        }
+    }
+
+    async fn get_vault(&self, vault_id: &VaultId) -> Result<Option<Vault>> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.get_vault(vault_id).await,
+            ServerStorage::Database(db) => db.get_vault(vault_id).await,
+        }
+    }
+
+    async fn put_vault(&self, vault: Vault) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.put_vault(vault).await,
+            ServerStorage::Database(db) => db.put_vault(vault).await,
+        }
+    }
+
+    async fn delete_vault(&self, vault_id: &VaultId) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.delete_vault(vault_id).await,
+            ServerStorage::Database(db) => db.delete_vault(vault_id).await,
+        }
+    }
+
+    async fn list_vaults(&self) -> Result<Vec<VaultId>> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.list_vaults().await,
+            ServerStorage::Database(db) => db.list_vaults().await,
+        }
+    }
+
+    async fn get_secret(&self, vault_id: &VaultId, secret_id: &SecretId) -> Result<Option<Secret>> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.get_secret(vault_id, secret_id).await,
+            ServerStorage::Database(db) => db.get_secret(vault_id, secret_id).await,
+        }
+    }
+
+    async fn put_secret(&self, vault_id: &VaultId, secret: Secret) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.put_secret(vault_id, secret).await,
+            ServerStorage::Database(db) => db.put_secret(vault_id, secret).await,
+        }
+    }
+
+    async fn delete_secret(&self, vault_id: &VaultId, secret_id: &SecretId) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.delete_secret(vault_id, secret_id).await,
+            ServerStorage::Database(db) => db.delete_secret(vault_id, secret_id).await,
+        }
+    }
+
+    async fn list_secrets(&self, vault_id: &VaultId) -> Result<Vec<SecretId>> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.list_secrets(vault_id).await,
+            ServerStorage::Database(db) => db.list_secrets(vault_id).await,
         }
     }
 }
