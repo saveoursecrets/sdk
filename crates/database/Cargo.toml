@@ -18,19 +18,17 @@ full = [
   "client",
   "files",
   "search",
-  "server",
 ]
 archive = ["sos-sdk/archive"]
 audit = ["sos-sdk/audit"]
-files = ["sos-sdk/files", "dep:tokio-util", "dep:age"]
+files = ["sos-sdk/files"]
 search = [
   "dep:probly-search",
   "dep:unicode-segmentation",
   "dep:url",
   "dep:vcard4",
 ]
-client = ["search"]
-server = []
+client = []
 
 [dependencies]
 sos-core.workspace = true
@@ -47,9 +45,7 @@ secrecy.workspace = true
 sha2.workspace = true
 serde.workspace = true
 typeshare.workspace = true
-
-tokio-util = { workspace = true, optional = true }
-age  = { workspace = true, optional = true }
+tokio.workspace = true
 
 # search
 unicode-segmentation = { workspace = true, optional = true }
@@ -57,9 +53,9 @@ probly-search = { workspace = true, optional = true }
 url  = { workspace = true, optional = true }
 vcard4 = { workspace = true, optional = true }
 
+# sqlite
 async-sqlite = "0.3"
 refinery = {version = "0.8", git = "https://github.com/rust-db/refinery", features = ["rusqlite"]}
-tokio = {version = "1", features = ["sync", "macros"]}
 
 [dev-dependencies]
 anyhow.workspace = true

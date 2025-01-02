@@ -5147,7 +5147,6 @@ dependencies = [
 name = "sos-database"
 version = "0.16.0"
 dependencies = [
- "age",
  "anyhow",
  "async-sqlite",
  "async-trait",
@@ -5164,7 +5163,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.9",
  "tokio",
- "tokio-util",
  "tracing",
  "typeshare",
  "unicode-segmentation",

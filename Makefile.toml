@@ -31,7 +31,7 @@ args = [
   "-p",
   "sos-web",
   "--features",
-  "account,contacts,search",
+  "contacts,search",
   "--target",
   "wasm32-unknown-unknown",
 ]
