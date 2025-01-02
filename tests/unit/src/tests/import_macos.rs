@@ -77,7 +77,7 @@ async fn macos_passwords_notes_csv_convert() -> Result<()> {
     let key: AccessKey = passphrase.into();
     let vault = MacPasswordCsv
         .convert(
-            "../../fixtures/migrate/macos-notes-export.csv".into(),
+            "../fixtures/migrate/macos-notes-export.csv".into(),
             vault,
             &key,
         )

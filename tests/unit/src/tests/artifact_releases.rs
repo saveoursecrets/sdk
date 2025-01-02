@@ -2,7 +2,7 @@ use anyhow::Result;
 use sos_artifact::*;
 use time::OffsetDateTime;
 
-static JSON: &str = include_str!("../../fixtures/releases.json");
+static JSON: &str = include_str!("../../../fixtures/releases.json");
 
 #[test]
 fn artifact_releases_serde() -> Result<()> {
