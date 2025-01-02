@@ -54,8 +54,8 @@ axum-server.workspace = true
 tokio-rustls.workspace = true
 rustls.workspace = true
 
-axum = { version = "0.7", features = ["ws", "original-uri"] }
-axum-extra = {version = "0.9", features = ["typed-header"] }
+axum = { version = "0.8", features = ["ws", "original-uri"] }
+axum-extra = {version = "0.10", features = ["typed-header"] }
 # axum-macros = { version = "0.4" }
 axum-prometheus = { version = "0.7", optional = true }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
