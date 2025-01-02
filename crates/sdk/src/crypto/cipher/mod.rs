@@ -5,9 +5,9 @@ use age::x25519::Recipient;
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 
-mod aesgcm256;
-mod x25519;
-mod xchacha20poly1305;
+pub mod aes_gcm_256;
+pub mod x25519;
+pub mod xchacha20_poly1305;
 
 /// Extended ChaCha20 Poly1305 cipher.
 pub const X_CHACHA20_POLY1305: u8 = 1;
@@ -40,14 +40,13 @@ impl Cipher {
         match self {
             Cipher::XChaCha20Poly1305 => match key {
                 PrivateKey::Symmetric(key) => {
-                    xchacha20poly1305::encrypt(self, key, plaintext, nonce)
-                        .await
+                    xchacha20_poly1305::encrypt(key, plaintext, nonce)
                 }
                 _ => Err(Error::NotSymmetric),
             },
             Cipher::AesGcm256 => match key {
                 PrivateKey::Symmetric(key) => {
-                    aesgcm256::encrypt(self, key, plaintext, nonce).await
+                    aes_gcm_256::encrypt(key, plaintext, nonce)
                 }
                 _ => Err(Error::NotSymmetric),
             },
@@ -64,14 +63,12 @@ impl Cipher {
         match self {
             Cipher::XChaCha20Poly1305 => match key {
                 PrivateKey::Symmetric(key) => {
-                    xchacha20poly1305::decrypt(self, key, aead).await
+                    xchacha20_poly1305::decrypt(key, aead)
                 }
                 _ => Err(Error::NotSymmetric),
             },
             Cipher::AesGcm256 => match key {
-                PrivateKey::Symmetric(key) => {
-                    aesgcm256::decrypt(self, key, aead).await
-                }
+                PrivateKey::Symmetric(key) => aes_gcm_256::decrypt(key, aead),
                 _ => Err(Error::NotSymmetric),
             },
             _ => Err(Error::NotSymmetric),
@@ -88,7 +85,7 @@ impl Cipher {
         match self {
             Cipher::X25519 => match key {
                 PrivateKey::Asymmetric(_) => {
-                    x25519::encrypt(self, plaintext, recipients).await
+                    x25519::encrypt(plaintext, recipients).await
                 }
                 _ => Err(Error::NotAsymmetric),
             },
@@ -105,7 +102,7 @@ impl Cipher {
         match self {
             Cipher::X25519 => match key {
                 PrivateKey::Asymmetric(identity) => {
-                    x25519::decrypt(self, identity, aead).await
+                    x25519::decrypt(identity, aead).await
                 }
                 _ => Err(Error::NotAsymmetric),
             },

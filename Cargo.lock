@@ -5622,13 +5622,17 @@ dependencies = [
 name = "sos-unit-tests"
 version = "0.1.0"
 dependencies = [
+ "age",
  "anyhow",
  "bytes",
  "hex",
  "indexmap 2.7.0",
+ "k256",
  "keychain_parser",
  "secrecy",
  "serde_json",
+ "sha2",
+ "sha3",
  "sos-account",
  "sos-artifact",
  "sos-client-storage",

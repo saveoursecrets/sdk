@@ -1,5 +1,6 @@
 mod account;
 mod artifact;
+mod crypto;
 mod database;
 mod file;
 mod keychain;

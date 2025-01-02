@@ -46,11 +46,6 @@ pub enum Error {
     #[error("recovery group threshold '{0}' is too small, must be >= 2")]
     RecoveryThreshold(u8),
 
-    /// Error generated attempting to encrypt or decrypt with the
-    /// wrong cipher.
-    #[error(r#"bad cipher, expecting "{0}" but got "{1}""#)]
-    BadCipher(String, String),
-
     /// Error generated when attempting to parse a key/value pair.
     #[error(r#"invalid key value "{0}""#)]
     InvalidKeyValue(String),
