@@ -5633,7 +5633,6 @@ dependencies = [
  "keychain_parser",
  "secrecy",
  "serde_json",
- "sha2",
  "sha3",
  "sos-account",
  "sos-artifact",
@@ -5652,6 +5651,7 @@ dependencies = [
  "time",
  "tokio",
  "url",
+ "urn",
  "uuid",
 ]
 

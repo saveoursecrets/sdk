@@ -162,19 +162,3 @@ impl From<UtcDateTime> for OffsetDateTime {
         value.0
     }
 }
-
-#[cfg(test)]
-mod test {
-    use super::UtcDateTime;
-    use crate::{decode, encode};
-    use anyhow::Result;
-
-    #[tokio::test]
-    async fn timestamp_encode() -> Result<()> {
-        let timestamp: UtcDateTime = Default::default();
-        let buffer = encode(&timestamp).await?;
-        let decoded: UtcDateTime = decode(&buffer).await?;
-        assert_eq!(timestamp, decoded);
-        Ok(())
-    }
-}
