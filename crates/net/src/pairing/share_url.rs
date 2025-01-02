@@ -1,7 +1,9 @@
 use super::{Error, Result};
+use hex;
 use rand::Rng;
-use sos_sdk::{crypto::csprng, hex, url::Url};
+use sos_core::csprng;
 use std::str::FromStr;
+use url::Url;
 
 /// Server URL.
 const URL: &str = "url";

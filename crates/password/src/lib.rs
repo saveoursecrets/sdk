@@ -11,11 +11,6 @@ pub use memorable::memorable_password;
 
 pub use zxcvbn;
 
-/// Default cryptographically secure RNG.
-pub(crate) fn csprng() -> impl rand::CryptoRng + rand::Rng {
-    rand::rngs::OsRng
-}
-
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;
 

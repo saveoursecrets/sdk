@@ -17,8 +17,14 @@ pub use rs_merkle as merkle;
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;
 
+use rand::{rngs::OsRng, CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+
+/// Exposes the default cryptographically secure RNG.
+pub fn csprng() -> impl CryptoRng + Rng {
+    OsRng
+}
 
 /// Identifier for a vault.
 pub type VaultId = uuid::Uuid;

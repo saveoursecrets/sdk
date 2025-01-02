@@ -1,7 +1,8 @@
 //! Cryptographic routines and types.
-use rand::{rngs::OsRng, CryptoRng, Rng};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_with::{base64::Base64, serde_as};
+use sos_core::csprng;
 
 #[doc(hidden)]
 pub mod cipher;
@@ -16,11 +17,6 @@ pub(crate) use key_derivation::{
 };
 pub use key_derivation::{KeyDerivation, Seed};
 pub use private_key::{AccessKey, DerivedPrivateKey, PrivateKey};
-
-/// Exposes the default cryptographically secure RNG.
-pub fn csprng() -> impl CryptoRng + Rng {
-    OsRng
-}
 
 /// Enumeration of the sizes for nonces.
 #[serde_as]

@@ -5161,6 +5161,7 @@ version = "0.16.0"
 dependencies = [
  "hex",
  "mime_guess",
+ "rand",
  "rs_merkle",
  "rustc_version",
  "serde",
@@ -5389,6 +5390,7 @@ dependencies = [
  "rand",
  "rustc_version",
  "secrecy",
+ "sos-core",
  "thiserror 2.0.9",
  "zxcvbn",
 ]

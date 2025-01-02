@@ -1,10 +1,10 @@
 //! Utility for generating random passwords.
+use crate::Result;
 use chbs::{config::BasicConfig, word::WordSampler};
 use rand::Rng;
 use secrecy::{ExposeSecret, SecretString};
+use sos_core::csprng;
 use zxcvbn::{zxcvbn, Entropy};
-
-use crate::{csprng, Result};
 
 const ROMAN_LOWER: &str = "abcdefghijklmnopqrstuvwxyz";
 const ROMAN_UPPER: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
