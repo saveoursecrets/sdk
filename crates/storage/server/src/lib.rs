@@ -15,6 +15,13 @@ use crate::traits::{ServerAccountStorage, SyncStorage};
 use async_trait::async_trait;
 use std::collections::HashSet;
 use std::sync::Arc;
+use sos_sdk::{
+    device::DevicePublicKey,
+    events::FolderPatch,
+    signer::ecdsa::Address,
+    vault::{Summary, VaultId},
+};
+use sos_sync::{CreateSet, MergeOutcome, UpdateSet};
 
 /// Server storage backed by filesystem or database.
 pub enum ServerStorage {
@@ -44,6 +51,55 @@ impl ServerAccountStorage for ServerStorage {
         match self {
             ServerStorage::FileSystem(fs) => fs.paths(),
             ServerStorage::Database(db) => db.paths(),
+        }
+    }
+
+    async fn import_account(&mut self, account_data: &CreateSet) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.import_account(account_data).await,
+            ServerStorage::Database(db) => db.import_account(account_data).await,
+        }
+    }
+
+    async fn update_account(&mut self, update_set: UpdateSet, outcome: &mut MergeOutcome) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.update_account(update_set, outcome).await,
+            ServerStorage::Database(db) => db.update_account(update_set, outcome).await,
+        }
+    }
+
+    async fn load_folders(&mut self) -> Result<Vec<Summary>> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.load_folders().await,
+            ServerStorage::Database(db) => db.load_folders().await,
+        }
+    }
+
+    async fn import_folder(&mut self, id: &VaultId, buffer: &[u8]) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.import_folder(id, buffer).await,
+            ServerStorage::Database(db) => db.import_folder(id, buffer).await,
+        }
+    }
+
+    async fn delete_folder(&mut self, id: &VaultId) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.delete_folder(id).await,
+            ServerStorage::Database(db) => db.delete_folder(id).await,
+        }
+    }
+
+    async fn rename_folder(&mut self, id: &VaultId, name: &str) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.rename_folder(id, name).await,
+            ServerStorage::Database(db) => db.rename_folder(id, name).await,
+        }
+    }
+
+    async fn delete_account(&mut self) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.delete_account().await,
+            ServerStorage::Database(db) => db.delete_account().await,
         }
     }
 }
