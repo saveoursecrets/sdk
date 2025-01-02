@@ -1,10 +1,8 @@
 //! Helper that reads and writes the magic identity bytes for file formats.
-use binary_stream::futures::{BinaryReader, BinaryWriter};
-use std::path::Path;
-
-use futures::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
-
 use crate::{vfs::File, Error, Result};
+use binary_stream::futures::{BinaryReader, BinaryWriter};
+use futures::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
+use std::path::Path;
 
 /// String of formatted identity bytes for error messages.
 fn format_identity_bytes(identity: &[u8]) -> String {
