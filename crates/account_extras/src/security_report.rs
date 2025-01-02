@@ -11,7 +11,6 @@ use sos_sdk::{
     },
     Result,
 };
-
 use zxcvbn::{Entropy, Score};
 
 /// Generate a security report.

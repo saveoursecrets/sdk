@@ -1,0 +1,5 @@
+type,name,url,email,username,password,note,totp,createTime,modifyTime,vault
+login,Test Login,https://example.com/,test@example.com,,Ranked5-Relock7-Chip4-Dominoes2-Lustiness0,,,1723970793,1723970793,Personal
+note,Example Note,,,,,This is a test note.,,1723970855,1723970855,Personal
+creditCard,Example Card,,,,,"{""cardholderName"":""Jane Doe"",""cardType"":0,""number"":""1234123412341234"",""verificationNumber"":""123"",""expirationDate"":""2012-12"",""pin"":""1234"",""note"":""Note for the card secret.""}",,1723970895,1723970895,Personal
+identity,Example Identity,,,,,,,1723970974,1723970974,Personal

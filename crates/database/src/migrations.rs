@@ -40,27 +40,3 @@ async fn migrate_client(client: Client) -> Result<Report> {
     let report = res.unwrap()?;
     Ok(report)
 }
-
-#[cfg(test)]
-mod test {
-    use super::{migrate_db_file, migrate_db_memory};
-    use anyhow::Result;
-    use tempfile::NamedTempFile;
-
-    #[tokio::test]
-    async fn migrations_file() -> Result<()> {
-        let temp = NamedTempFile::new()?;
-        let report = migrate_db_file(temp.path()).await;
-        // println!("{:#?}", report);
-        assert!(report.is_ok());
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn migrations_memory() -> Result<()> {
-        let report = migrate_db_memory().await;
-        // println!("{:#?}", report);
-        assert!(report.is_ok());
-        Ok(())
-    }
-}

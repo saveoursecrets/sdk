@@ -1,21 +1,12 @@
 //! Account manager provides utility functions for
 //! creating and managing local accounts.
-use std::{
-    io::Cursor,
-    path::{Path, PathBuf},
-};
-
-use serde::{Deserialize, Serialize};
-use tokio::io::{AsyncBufRead, AsyncSeek, BufReader};
-
-use uuid::Uuid;
-use walkdir::WalkDir;
-
 use crate::{
     archive::{Inventory, Reader, Writer},
     Error, Result,
 };
-
+use secrecy::SecretString;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use sos_sdk::{
     archive::RestoreTargets,
     constants::VAULT_EXT,
@@ -31,9 +22,13 @@ use sos_sdk::{
     vfs::{self, File},
     Paths,
 };
-
-use secrecy::SecretString;
-use sha2::{Digest, Sha256};
+use std::{
+    io::Cursor,
+    path::{Path, PathBuf},
+};
+use tokio::io::{AsyncBufRead, AsyncSeek, BufReader};
+use uuid::Uuid;
+use walkdir::WalkDir;
 
 /// Get the path to the file storage directory for the given
 /// account address.

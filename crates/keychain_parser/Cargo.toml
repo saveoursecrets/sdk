@@ -11,6 +11,3 @@ repository = "https://github.com/saveoursecrets/sdk"
 thiserror.workspace = true
 logos = { version = "0.15", features = ["export_derive"] }
 plist = "1.7"
-
-[dev-dependencies]
-anyhow.workspace = true

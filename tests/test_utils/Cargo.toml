@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 sos-net = { workspace = true, features = ["full"] }
-sos-account.workspace = true
+sos-account = { workspace = true, features = ["full"] }
 sos-core.workspace = true
 sos-sync.workspace = true
 sos-password.workspace = true

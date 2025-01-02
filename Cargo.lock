@@ -2786,7 +2786,6 @@ dependencies = [
 name = "keychain_parser"
 version = "0.1.1"
 dependencies = [
- "anyhow",
  "logos",
  "plist",
  "thiserror 2.0.9",
@@ -5055,7 +5054,6 @@ dependencies = [
 name = "sos-account"
 version = "0.16.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "async_zip",
  "futures",
@@ -5075,7 +5073,6 @@ dependencies = [
  "sos-migrate",
  "sos-sdk",
  "sos-sync",
- "tempfile",
  "thiserror 2.0.9",
  "time",
  "time-tz",
@@ -5113,11 +5110,9 @@ dependencies = [
 name = "sos-artifact"
 version = "0.8.8"
 dependencies = [
- "anyhow",
  "hex",
  "semver",
  "serde",
- "serde_json",
  "thiserror 2.0.9",
  "time",
  "url",
@@ -5629,6 +5624,28 @@ dependencies = [
  "tokio-rustls",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "sos-unit-tests"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "keychain_parser",
+ "serde_json",
+ "sos-account",
+ "sos-artifact",
+ "sos-database",
+ "sos-migrate",
+ "sos-password",
+ "sos-sdk",
+ "sos-server-storage",
+ "sos-test-utils",
+ "tempfile",
+ "time",
+ "tokio",
+ "url",
+ "uuid",
 ]
 
 [[package]]

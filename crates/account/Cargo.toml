@@ -35,7 +35,7 @@ archive = [
 ]
 clipboard = ["dep:xclipboard", "dep:serde_json_path", "dep:time-tz"]
 contacts = ["dep:vcard4"]
-migrate = ["sos-migrate"]
+migrate = ["sos-migrate/import", "sos-migrate/export"]
 files =[
   "sos-sdk/files",
   "sos-database/files",
@@ -76,10 +76,6 @@ sanitize-filename = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
 vcard4 = { workspace = true, optional = true }
 time-tz = { workspace = true, optional = true }
-
-[dev-dependencies]
-anyhow.workspace = true
-tempfile.workspace = true
 
 [build-dependencies]
 rustc_version.workspace = true
