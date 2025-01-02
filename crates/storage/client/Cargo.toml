@@ -54,7 +54,3 @@ unicode-segmentation = { workspace = true, optional = true }
 probly-search = { workspace = true, optional = true }
 url  = { workspace = true, optional = true }
 vcard4 = { workspace = true, optional = true }
-
-[dev-dependencies]
-anyhow.workspace = true
-

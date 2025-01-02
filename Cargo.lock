@@ -5132,7 +5132,6 @@ name = "sos-client-storage"
 version = "0.16.0"
 dependencies = [
  "age",
- "anyhow",
  "async-trait",
  "binary-stream",
  "futures",
@@ -5317,7 +5316,6 @@ dependencies = [
 name = "sos-migrate"
 version = "0.16.1"
 dependencies = [
- "anyhow",
  "async-trait",
  "async_zip",
  "csv-async",
@@ -5332,10 +5330,7 @@ dependencies = [
  "serde_json",
  "sos-core",
  "sos-database",
- "sos-password",
  "sos-sdk",
- "sos-test-utils",
- "tempfile",
  "thiserror 2.0.9",
  "time",
  "tokio",
@@ -5349,7 +5344,6 @@ dependencies = [
 name = "sos-net"
 version = "0.16.2"
 dependencies = [
- "anyhow",
  "async-recursion",
  "async-trait",
  "binary-stream",
@@ -5390,7 +5384,6 @@ dependencies = [
 name = "sos-password"
 version = "0.16.0"
 dependencies = [
- "anyhow",
  "chbs",
  "once_cell",
  "rand",
@@ -5418,7 +5411,6 @@ dependencies = [
 name = "sos-protocol"
 version = "0.16.3"
 dependencies = [
- "anyhow",
  "async-stream",
  "async-trait",
  "binary-stream",
@@ -5631,15 +5623,24 @@ name = "sos-unit-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bytes",
+ "hex",
+ "indexmap 2.7.0",
  "keychain_parser",
+ "secrecy",
  "serde_json",
  "sos-account",
  "sos-artifact",
+ "sos-client-storage",
+ "sos-core",
  "sos-database",
  "sos-migrate",
+ "sos-net",
  "sos-password",
+ "sos-protocol",
  "sos-sdk",
  "sos-server-storage",
+ "sos-sync",
  "sos-test-utils",
  "tempfile",
  "time",

@@ -3,14 +3,25 @@ name = "sos-unit-tests"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["listen", "files"]
+listen = []
+files = []
+interactive-keychain-tests = []
+
 [dependencies]
 keychain_parser.workspace = true
 sos-account = { workspace = true, features = ["full"] }
 sos-artifact.workspace = true
+sos-core.workspace = true
+sos-client-storage = { workspace = true, features = ["full"] }
 sos-database = { workspace = true, features = ["full"] }
 sos-password.workspace = true
 sos-migrate = { workspace = true, features = ["full"] }
+sos-net = { workspace = true, features = ["full"] }
+sos-protocol = { workspace = true, features = ["full"] }
 sos-sdk = { workspace = true, features = ["full"] }
+sos-sync = { workspace = true, features = ["full"] }
 sos-server-storage = { workspace = true, features = ["full"] }
 sos-test-utils.workspace = true
 
@@ -18,6 +29,10 @@ anyhow.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
 time.workspace = true
+hex.workspace = true
 uuid.workspace = true
+indexmap.workspace = true
 url.workspace = true
+bytes.workspace = true
+secrecy.workspace = true
 serde_json.workspace = true

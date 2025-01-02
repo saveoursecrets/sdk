@@ -3,8 +3,8 @@ use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_net::sdk::prelude::*;
 
-const CONTACT: &str = include_str!("../../../../fixtures/contact.vcf");
-const AVATAR: &str = include_str!("../../../../fixtures/avatar.vcf");
+const CONTACT: &str = include_str!("../../../fixtures/contact.vcf");
+const AVATAR: &str = include_str!("../../../fixtures/avatar.vcf");
 
 /// Tests importing and exporting contacts from vCard
 /// files.

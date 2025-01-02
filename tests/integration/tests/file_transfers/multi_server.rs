@@ -92,6 +92,7 @@ async fn file_transfers_multi_update() -> Result<()> {
         None,
     )
     .await?;
+
     wait_for_num_transfers(&device.owner, 4).await?;
     let file = ExternalFile::new(
         SecretPath(*default_folder.id(), secret_id),

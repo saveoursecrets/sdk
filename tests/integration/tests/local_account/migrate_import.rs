@@ -29,7 +29,7 @@ async fn local_migrate_import() -> Result<()> {
 
     let target = ImportTarget {
         format: ImportFormat::OnePasswordCsv,
-        path: PathBuf::from("../../fixtures/migrate/1password-export.csv"),
+        path: PathBuf::from("../fixtures/migrate/1password-export.csv"),
         folder_name: "1password".to_string(),
     };
     account.import_file(target).await?;
@@ -39,7 +39,7 @@ async fn local_migrate_import() -> Result<()> {
 
     let target = ImportTarget {
         format: ImportFormat::DashlaneZip,
-        path: PathBuf::from("../../fixtures/migrate/dashlane-export.zip"),
+        path: PathBuf::from("../fixtures/migrate/dashlane-export.zip"),
         folder_name: "dashlane".to_string(),
     };
     account.import_file(target).await?;
@@ -49,7 +49,7 @@ async fn local_migrate_import() -> Result<()> {
 
     let target = ImportTarget {
         format: ImportFormat::BitwardenCsv,
-        path: PathBuf::from("../../fixtures/migrate/bitwarden-export.csv"),
+        path: PathBuf::from("../fixtures/migrate/bitwarden-export.csv"),
         folder_name: "bitwarden".to_string(),
     };
     account.import_file(target).await?;
@@ -59,7 +59,7 @@ async fn local_migrate_import() -> Result<()> {
 
     let target = ImportTarget {
         format: ImportFormat::ChromeCsv,
-        path: PathBuf::from("../../fixtures/migrate/chrome-export.csv"),
+        path: PathBuf::from("../fixtures/migrate/chrome-export.csv"),
         folder_name: "chrome".to_string(),
     };
     account.import_file(target).await?;
@@ -69,7 +69,7 @@ async fn local_migrate_import() -> Result<()> {
 
     let target = ImportTarget {
         format: ImportFormat::FirefoxCsv,
-        path: PathBuf::from("../../fixtures/migrate/firefox-export.csv"),
+        path: PathBuf::from("../fixtures/migrate/firefox-export.csv"),
         folder_name: "firefox".to_string(),
     };
     account.import_file(target).await?;
@@ -79,7 +79,7 @@ async fn local_migrate_import() -> Result<()> {
 
     let target = ImportTarget {
         format: ImportFormat::MacosCsv,
-        path: PathBuf::from("../../fixtures/migrate/macos-export.csv"),
+        path: PathBuf::from("../fixtures/migrate/macos-export.csv"),
         folder_name: "macos".to_string(),
     };
     account.import_file(target).await?;

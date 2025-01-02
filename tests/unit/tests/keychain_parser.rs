@@ -8,7 +8,7 @@ mod test {
         let expected =
             include_str!("../../fixtures/migrate/plist-data-unescaped.txt");
         let contents =
-            include_str!("../../../fixtures/migrate/plist-data-escaped.txt");
+            include_str!("../../fixtures/migrate/plist-data-escaped.txt");
         let plist = unescape_octal(&contents)?;
         assert_eq!(&expected, &plist);
         Ok(())

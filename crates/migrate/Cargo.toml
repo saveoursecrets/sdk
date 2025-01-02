@@ -49,11 +49,5 @@ vcard4.workspace = true
 security-framework = { version = "3.1", optional = true }
 keychain_parser = { workspace = true, optional = true }
 
-[dev-dependencies]
-anyhow.workspace = true
-tempfile.workspace = true
-sos-test-utils.workspace = true
-sos-password.workspace = true
-
 [build-dependencies]
 rustc_version = "0.4.1"

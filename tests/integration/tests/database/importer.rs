@@ -21,7 +21,7 @@ async fn database_importer() -> Result<()> {
     // Prepare to import to database file
     // by restoring an account from a backup archive fixture
     let archive =
-        "../../fixtures/backups/v2/0xba0faea9bbc182e3f4fdb3eea7636b5bb31ea9ac.zip";
+        "../fixtures/backups/v2/0xba0faea9bbc182e3f4fdb3eea7636b5bb31ea9ac.zip";
     let reader = vfs::File::open(archive).await?;
     let inventory: Inventory =
         AccountBackup::restore_archive_inventory(BufReader::new(reader))

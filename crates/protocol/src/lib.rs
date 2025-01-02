@@ -52,9 +52,6 @@ pub use reqwest;
 #[cfg(any(feature = "listen", feature = "pairing"))]
 pub use tokio_tungstenite;
 
-#[cfg(test)]
-mod tests;
-
 pub use sos_sdk as sdk;
 
 /// Result type for the wire protocol.

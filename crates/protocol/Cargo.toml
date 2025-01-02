@@ -78,9 +78,6 @@ default-features = false
 features = ["json", "stream"]
 optional = true
 
-[dev-dependencies]
-anyhow = "1"
-
 [build-dependencies]
 rustc_version = "0.4.1"
 prost-build = "0.13"

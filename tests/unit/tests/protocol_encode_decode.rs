@@ -1,13 +1,13 @@
 //! Basic smoke tests for encoding and decoding.
-use crate::{
-    DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
-    ScanResponse, WireEncodeDecode,
-};
 use anyhow::Result;
-use prost::bytes::Bytes;
+use bytes::Bytes;
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitState},
     Origin, SecretPath, VaultId,
+};
+use sos_protocol::{
+    DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
+    ScanResponse, WireEncodeDecode,
 };
 use sos_sdk::{
     events::{CheckedPatch, EventRecord, FolderDiff},
@@ -231,7 +231,7 @@ async fn encode_decode_merge_outcom() -> Result<()> {
 #[cfg(feature = "listen")]
 #[tokio::test]
 async fn encode_decode_change_notification() -> Result<()> {
-    use crate::ChangeNotification;
+    use sos_protocol::ChangeNotification;
     let outcome = MergeOutcome {
         changes: 7,
         ..Default::default()
@@ -357,9 +357,9 @@ async fn encode_decode_update_set() -> Result<()> {
 #[cfg(feature = "files")]
 #[tokio::test]
 async fn encode_decode_change_files() -> Result<()> {
-    use crate::transfer::{FileSet, FileTransfersSet};
     use indexmap::IndexSet;
     use sos_core::{ExternalFile, SecretId};
+    use sos_protocol::transfer::{FileSet, FileTransfersSet};
 
     let file_name = [1u8; 32];
 

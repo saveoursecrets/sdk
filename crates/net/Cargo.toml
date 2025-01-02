@@ -85,9 +85,5 @@ tokio.workspace = true
 # pairing
 snow = { version = "0.9", optional = true }
 
-
-[dev-dependencies]
-anyhow.workspace = true
-
 [build-dependencies]
 rustc_version.workspace = true

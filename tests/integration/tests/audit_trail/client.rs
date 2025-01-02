@@ -214,7 +214,7 @@ async fn simulate_session(
     let unsafe_archive = "target/audit-trail-unsafe-archive.zip";
     account.export_unsafe_archive(unsafe_archive).await?;
 
-    let import_file = "../../fixtures/migrate/bitwarden-export.csv";
+    let import_file = "../fixtures/migrate/bitwarden-export.csv";
     let import_target = ImportTarget {
         format: "bitwarden.csv".parse()?,
         path: PathBuf::from(import_file),
@@ -222,7 +222,7 @@ async fn simulate_session(
     };
     account.import_file(import_target).await?;
 
-    let contacts = "../../fixtures/contacts.vcf";
+    let contacts = "../fixtures/contacts.vcf";
     let vcard = vfs::read_to_string(contacts).await?;
     account.import_contacts(&vcard, |_| {}).await?;
 
