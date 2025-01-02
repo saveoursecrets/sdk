@@ -391,7 +391,7 @@ async fn create_folder(
             stmt.execute((
                 &folder_id,
                 &identifier.to_string(),
-                commit_hash.to_string(),
+                commit_hash.as_ref(),
                 &meta,
                 &secret,
             ))?;
@@ -464,7 +464,7 @@ async fn create_events(
     events: Vec<(String, CommitHash, EventRecord)>,
 ) -> std::result::Result<(), SqlError> {
     for (time, commit, record) in events {
-        stmt.execute((&id, time, commit.to_string(), record.event_bytes()))?;
+        stmt.execute((&id, time, commit.as_ref(), record.event_bytes()))?;
     }
     Ok(())
 }
@@ -495,7 +495,7 @@ async fn create_files(
                 stmt.execute((
                     folder_id,
                     secret_id,
-                    file.file_name().to_string(),
+                    file.file_name().as_ref(),
                     contents,
                 ))?;
             } else {

@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS folder_secrets
     -- UUID
     identifier            TEXT                NOT NULL UNIQUE,
     -- SHA256 hash of the encoded data
-    commit_hash           TEXT                NOT NULL,
+    commit_hash           BLOB(32)            NOT NULL,
     -- AEAD encrypted meta data
     meta                  BLOB                NOT NULL,
     -- AEAD encrypted secret data
@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS folder_events
     folder_id             INTEGER             NOT NULL,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
     -- SHA256 hash of the encoded data
-    commit_hash           TEXT                NOT NULL,
+    commit_hash           BLOB(32)            NOT NULL,
     -- Encoded event data (WriteEvent)
     event                 BLOB                NOT NULL,
 
@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS folder_files
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
     modified_at           DATETIME            DEFAULT CURRENT_TIMESTAMP,
     -- SHA256 hash of the encrypted file contents
-    checksum              TEXT                NOT NULL,
+    checksum              BLOB(32)            NOT NULL,
     -- Encrypted file contents
     contents              BLOB                NOT NULL,
 
@@ -175,7 +175,7 @@ CREATE TABLE IF NOT EXISTS account_events
     account_id            INTEGER             NOT NULL,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
     -- SHA256 hash of the encoded data
-    commit_hash           TEXT                NOT NULL,
+    commit_hash           BLOB(32)            NOT NULL,
     -- Encoded event data (AccountEvent)
     event                 BLOB                NOT NULL,
 
@@ -192,7 +192,7 @@ CREATE TABLE IF NOT EXISTS device_events
     account_id            INTEGER             NOT NULL,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
     -- SHA256 hash of the encoded data
-    commit_hash           TEXT                NOT NULL,
+    commit_hash           BLOB(32)            NOT NULL,
     -- Encoded event data (DeviceEvent)
     event                 BLOB                NOT NULL,
 
@@ -209,7 +209,7 @@ CREATE TABLE IF NOT EXISTS file_events
     account_id            INTEGER             NOT NULL,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
     -- SHA256 hash of the encoded data
-    commit_hash           TEXT                NOT NULL,
+    commit_hash           BLOB(32)            NOT NULL,
     -- Encoded event data (FileEvent)
     event                 BLOB                NOT NULL,
 
