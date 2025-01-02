@@ -7,12 +7,14 @@ use sos_sdk::{
     encode,
     events::{
         AccountEvent, AccountEventLog, DeviceEventLog, DeviceReducer,
-        EventLogExt, FileEvent, FileEventLog, FolderEventLog, FolderReducer,
+        EventLogExt, FileEvent, FileEventLog, FolderEventLog, FolderPatch,
+        FolderReducer,
     },
     signer::ecdsa::Address,
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
     vfs, Paths,
 };
+use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -155,6 +157,126 @@ impl ServerFileStorage {
     /// Get the computed storage directories for the provider.
     pub fn paths(&self) -> Arc<Paths> {
         Arc::clone(&self.paths)
+    }
+
+    /// Create a new vault file on disc and the associated
+    /// event log.
+    ///
+    /// If a vault file already exists it is overwritten if an
+    /// event log exists it is truncated.
+    ///
+    /// Intended to be used by a server to create the identity
+    /// vault and event log when a new account is created.
+    pub async fn initialize_account(
+        paths: &Paths,
+        identity_patch: &FolderPatch,
+    ) -> Result<FolderEventLog> {
+        // let events: Vec<&WriteEvent> = identity_patch.into();
+
+        let mut event_log =
+            FolderEventLog::new(paths.identity_events()).await?;
+        event_log.clear().await?;
+        event_log.patch_unchecked(identity_patch).await?;
+
+        let vault = FolderReducer::new()
+            .reduce(&event_log)
+            .await?
+            .build(false)
+            .await?;
+
+        let buffer = encode(&vault).await?;
+        vfs::write(paths.identity_vault(), buffer).await?;
+
+        Ok(event_log)
+    }
+
+    /// Import an account from a change set of event logs.
+    ///
+    /// Does not prepare the identity vault event log
+    /// which should be done by calling `initialize_account()`
+    /// before creating new storage.
+    ///
+    /// Intended to be used on a server to create a new
+    /// account from a collection of patches.
+    pub async fn import_account(
+        &mut self,
+        account_data: &CreateSet,
+    ) -> Result<()> {
+        {
+            let mut writer = self.account_log.write().await;
+            writer.patch_unchecked(&account_data.account).await?;
+        }
+
+        {
+            let mut writer = self.device_log.write().await;
+            writer.patch_unchecked(&account_data.device).await?;
+            let reducer = DeviceReducer::new(&*writer);
+            self.devices = reducer.reduce().await?;
+        }
+
+        {
+            let mut writer = self.file_log.write().await;
+            writer.patch_unchecked(&account_data.files).await?;
+        }
+
+        for (id, folder) in &account_data.folders {
+            let vault_path = self.paths.vault_path(id);
+            let events_path = self.paths.event_log_path(id);
+
+            let mut event_log = FolderEventLog::new(events_path).await?;
+            event_log.patch_unchecked(folder).await?;
+
+            let vault = FolderReducer::new()
+                .reduce(&event_log)
+                .await?
+                .build(false)
+                .await?;
+
+            let buffer = encode(&vault).await?;
+            vfs::write(vault_path, buffer).await?;
+
+            self.cache_mut()
+                .insert(*id, Arc::new(RwLock::new(event_log)));
+        }
+
+        Ok(())
+    }
+
+    /// Update an account from a change set of event logs and
+    /// event diffs.
+    ///
+    /// Overwrites all existing account data with the event logs
+    /// in the change set.
+    ///
+    /// Intended to be used to perform a destructive overwrite
+    /// when changing the encryption cipher or other events
+    /// which rewrite the account data.
+    pub async fn update_account(
+        &mut self,
+        mut update_set: UpdateSet,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        if let Some(diff) = update_set.identity.take() {
+            self.force_merge_identity(diff, outcome).await?;
+        }
+
+        if let Some(diff) = update_set.account.take() {
+            self.force_merge_account(diff, outcome).await?;
+        }
+
+        if let Some(diff) = update_set.device.take() {
+            self.force_merge_device(diff, outcome).await?;
+        }
+
+        if let Some(diff) = update_set.files.take() {
+            self.force_merge_files(diff, outcome).await?;
+        }
+
+        for (id, folder) in update_set.folders {
+            self.force_merge_folder(&id, folder, outcome).await?;
+        }
+
+        Ok(())
     }
 
     /// Create new event log cache entries.
