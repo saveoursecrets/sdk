@@ -10,9 +10,9 @@ use sos_sdk::{
 };
 use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
 use std::collections::HashSet;
-use std::{collections::HashMap, sync::Arc};
-use tokio::sync::RwLock;
+use std::sync::Arc;
 
+/// Trait for server storage implementations.
 #[async_trait]
 pub trait ServerStorage: SyncStorage {
     /// Address of the account owner.
@@ -23,11 +23,6 @@ pub trait ServerStorage: SyncStorage {
 
     /// Computed storage directories for the provider.
     fn paths(&self) -> Arc<Paths>;
-
-    /// Mutable folder event logs.
-    fn cache_mut(
-        &mut self,
-    ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>>;
 
     /// Create a new vault file on disc and the associated
     /// event log.
@@ -87,13 +82,13 @@ pub trait ServerStorage: SyncStorage {
         buffer: &[u8],
     ) -> Result<()>;
 
-    /// Delete all the files for this account.
-    async fn delete_account(&mut self) -> Result<()>;
-
     /// Delete a folder.
     async fn delete_folder(&mut self, id: &VaultId) -> Result<()>;
 
     /// Set the name of a folder.
     async fn rename_folder(&mut self, id: &VaultId, name: &str)
         -> Result<()>;
+
+    /// Delete this account.
+    async fn delete_account(&mut self) -> Result<()>;
 }

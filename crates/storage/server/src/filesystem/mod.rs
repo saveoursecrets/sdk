@@ -166,6 +166,12 @@ impl ServerFileStorage {
         }
         Ok(())
     }
+
+    fn cache_mut(
+        &mut self,
+    ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
+        &mut self.cache
+    }
 }
 
 #[async_trait]
@@ -180,12 +186,6 @@ impl ServerStorage for ServerFileStorage {
 
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
-    }
-
-    fn cache_mut(
-        &mut self,
-    ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
-        &mut self.cache
     }
 
     async fn initialize_account(
