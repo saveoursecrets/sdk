@@ -293,7 +293,7 @@ impl Server {
                 router = router
                     .route("/sync/files", post(files::compare_files))
                     .route(
-                        "/sync/file/:vault_id/:secret_id/:file_name",
+                        "/sync/file/{vault_id}/{secret_id}/{file_name}",
                         put(files::receive_file)
                             .post(files::move_file)
                             .get(files::send_file)
