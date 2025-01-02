@@ -10,14 +10,11 @@ pub use traits::ServerAccountStorage;
 /// Result type for the server module.
 pub type Result<T> = std::result::Result<T, Error>;
 
+use crate::filesystem::Paths;
+use crate::traits::{ServerAccountStorage, SyncStorage};
 use async_trait::async_trait;
 use std::collections::HashSet;
 use std::sync::Arc;
-use crate::traits::{ServerAccountStorage, SyncStorage};
-use crate::filesystem::Paths;
-use crates::sdk::identity::Address;
-use crates::sdk::crypto::DevicePublicKey;
-use crates::sdk::vault::{Secret, SecretId, Vault, VaultId};
 
 /// Server storage backed by filesystem or database.
 pub enum ServerStorage {
@@ -25,16 +22,6 @@ pub enum ServerStorage {
     FileSystem(filesystem::ServerFileStorage),
     /// Database storage (TODO: switch impl).
     Database(filesystem::ServerFileStorage),
-}
-
-#[async_trait]
-impl SyncStorage for ServerStorage {
-    async fn sync(&self) -> Result<()> {
-        match self {
-            ServerStorage::FileSystem(fs) => fs.sync().await,
-            ServerStorage::Database(db) => db.sync().await,
-        }
-    }
 }
 
 #[async_trait]
