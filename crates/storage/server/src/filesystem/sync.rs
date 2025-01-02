@@ -1,27 +1,22 @@
 //! Synchronization helpers.
-use super::ServerFileStorage;
+use crate::{filesystem::ServerFileStorage, ServerStorage};
+use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
-
+use sos_core::{
+    commit::{CommitState, CommitTree, Comparison},
+    VaultId,
+};
 use sos_sdk::{
     encode,
     events::{
         AccountDiff, AccountEvent, AccountEventLog, CheckedPatch, DeviceDiff,
         DeviceEventLog, DeviceReducer, EventLogExt, FileDiff, FileEventLog,
-        FolderDiff, FolderEventLog, FolderPatch, FolderReducer, LogEvent,
-        WriteEvent,
+        FolderDiff, FolderEventLog, FolderReducer, LogEvent, WriteEvent,
     },
     vault::{Header, Summary, VaultAccess, VaultWriter},
-    vfs, Paths,
+    vfs,
 };
-
-use sos_core::{
-    commit::{CommitState, CommitTree, Comparison},
-    VaultId,
-};
-
-use crate::{Error, Result};
-
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
     SyncStorage, TrackedChanges,

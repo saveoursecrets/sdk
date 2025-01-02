@@ -337,7 +337,7 @@ pub trait SyncStorage: ForceMerge {
     /// Determine if this is client-side storage.
     fn is_client_storage(&self) -> bool;
 
-    /// Get the sync status.
+    /// Sync status for the storage.
     async fn sync_status(
         &self,
     ) -> std::result::Result<SyncStatus, Self::Error>;

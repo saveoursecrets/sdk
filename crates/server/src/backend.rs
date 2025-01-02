@@ -7,7 +7,7 @@ use sos_sdk::{
     vault::DiscFolder,
     vfs, Paths,
 };
-use sos_server_storage::filesystem::ServerFileStorage;
+use sos_server_storage::{filesystem::ServerFileStorage, ServerStorage};
 use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
 use std::{
     collections::HashMap,
@@ -132,9 +132,11 @@ impl Backend {
             Paths::new_server(self.directory.clone(), owner.to_string());
         paths.ensure().await?;
 
-        let identity_log =
-            ServerFileStorage::initialize_account(&paths, &account_data.identity)
-                .await?;
+        let identity_log = ServerFileStorage::initialize_account(
+            &paths,
+            &account_data.identity,
+        )
+        .await?;
 
         let mut storage = ServerFileStorage::new(
             owner.clone(),

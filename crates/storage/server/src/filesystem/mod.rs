@@ -1,5 +1,7 @@
 //! Server storage backed by the filesystem.
-use crate::{Error, Result};
+use crate::{Error, Result, ServerStorage};
+use async_trait::async_trait;
+use indexmap::IndexSet;
 use sos_sdk::{
     constants::VAULT_EXT,
     decode,
@@ -15,14 +17,12 @@ use sos_sdk::{
     vfs, Paths,
 };
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
+use std::collections::HashSet;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "audit")]
 use sos_sdk::audit::AuditEvent;
-
-use indexmap::IndexSet;
-use std::collections::HashSet;
 
 mod sync;
 
@@ -107,11 +107,6 @@ impl ServerFileStorage {
         })
     }
 
-    /// Address of the account owner.
-    pub fn address(&self) -> &Address {
-        &self.address
-    }
-
     async fn initialize_device_log(
         paths: &Paths,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
@@ -147,32 +142,56 @@ impl ServerFileStorage {
         Ok(event_log)
     }
 
-    /// Mutable folder event logs.
-    pub fn cache_mut(
+    /// Create new event log cache entries.
+    async fn create_cache_entry(&mut self, id: &VaultId) -> Result<()> {
+        let event_log_path = self.paths.event_log_path(id);
+        let mut event_log = FolderEventLog::new(&event_log_path).await?;
+        event_log.load_tree().await?;
+        self.cache.insert(*id, Arc::new(RwLock::new(event_log)));
+        Ok(())
+    }
+
+    /// Remove a vault file and event log file.
+    async fn remove_vault_file(&self, id: &VaultId) -> Result<()> {
+        // Remove local vault mirror if it exists
+        let vault_path = self.paths.vault_path(id);
+        if vfs::try_exists(&vault_path).await? {
+            vfs::remove_file(&vault_path).await?;
+        }
+
+        // Remove the local event log file
+        let event_log_path = self.paths.event_log_path(id);
+        if vfs::try_exists(&event_log_path).await? {
+            vfs::remove_file(&event_log_path).await?;
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl ServerStorage for ServerFileStorage {
+    fn address(&self) -> &Address {
+        &self.address
+    }
+
+    fn list_device_keys(&self) -> HashSet<&DevicePublicKey> {
+        self.devices.iter().map(|d| d.public_key()).collect()
+    }
+
+    fn paths(&self) -> Arc<Paths> {
+        self.paths.clone()
+    }
+
+    fn cache_mut(
         &mut self,
     ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
         &mut self.cache
     }
 
-    /// Get the computed storage directories for the provider.
-    pub fn paths(&self) -> Arc<Paths> {
-        Arc::clone(&self.paths)
-    }
-
-    /// Create a new vault file on disc and the associated
-    /// event log.
-    ///
-    /// If a vault file already exists it is overwritten if an
-    /// event log exists it is truncated.
-    ///
-    /// Intended to be used by a server to create the identity
-    /// vault and event log when a new account is created.
-    pub async fn initialize_account(
+    async fn initialize_account(
         paths: &Paths,
         identity_patch: &FolderPatch,
     ) -> Result<FolderEventLog> {
-        // let events: Vec<&WriteEvent> = identity_patch.into();
-
         let mut event_log =
             FolderEventLog::new(paths.identity_events()).await?;
         event_log.clear().await?;
@@ -190,15 +209,7 @@ impl ServerFileStorage {
         Ok(event_log)
     }
 
-    /// Import an account from a change set of event logs.
-    ///
-    /// Does not prepare the identity vault event log
-    /// which should be done by calling `initialize_account()`
-    /// before creating new storage.
-    ///
-    /// Intended to be used on a server to create a new
-    /// account from a collection of patches.
-    pub async fn import_account(
+    async fn import_account(
         &mut self,
         account_data: &CreateSet,
     ) -> Result<()> {
@@ -242,16 +253,7 @@ impl ServerFileStorage {
         Ok(())
     }
 
-    /// Update an account from a change set of event logs and
-    /// event diffs.
-    ///
-    /// Overwrites all existing account data with the event logs
-    /// in the change set.
-    ///
-    /// Intended to be used to perform a destructive overwrite
-    /// when changing the encryption cipher or other events
-    /// which rewrite the account data.
-    pub async fn update_account(
+    async fn update_account(
         &mut self,
         mut update_set: UpdateSet,
         outcome: &mut MergeOutcome,
@@ -279,35 +281,7 @@ impl ServerFileStorage {
         Ok(())
     }
 
-    /// Create new event log cache entries.
-    async fn create_cache_entry(&mut self, id: &VaultId) -> Result<()> {
-        let event_log_path = self.paths.event_log_path(id);
-        let mut event_log = FolderEventLog::new(&event_log_path).await?;
-        event_log.load_tree().await?;
-        self.cache.insert(*id, Arc::new(RwLock::new(event_log)));
-        Ok(())
-    }
-
-    /// Remove a vault file and event log file.
-    async fn remove_vault_file(&self, id: &VaultId) -> Result<()> {
-        // Remove local vault mirror if it exists
-        let vault_path = self.paths.vault_path(id);
-        if vfs::try_exists(&vault_path).await? {
-            vfs::remove_file(&vault_path).await?;
-        }
-
-        // Remove the local event log file
-        let event_log_path = self.paths.event_log_path(id);
-        if vfs::try_exists(&event_log_path).await? {
-            vfs::remove_file(&event_log_path).await?;
-        }
-        Ok(())
-    }
-
-    /// Load folders from the local disc.
-    ///
-    /// Creates the in-memory event logs for each folder on disc.
-    pub async fn load_folders(&mut self) -> Result<Vec<Summary>> {
+    async fn load_folders(&mut self) -> Result<Vec<Summary>> {
         let storage = self.paths.vaults_dir();
         let mut summaries = Vec::new();
         let mut contents = vfs::read_dir(&storage).await?;
@@ -335,20 +309,14 @@ impl ServerFileStorage {
         Ok(summaries)
     }
 
-    /// Import a folder into an existing account.
-    ///
-    /// If a folder with the same identifier already exists
-    /// it is overwritten.
-    ///
-    /// Buffer is the encoded representation of the vault.
-    pub async fn import_folder(
+    async fn import_folder(
         &mut self,
         id: &VaultId,
-        buffer: impl AsRef<[u8]>,
+        buffer: &[u8],
     ) -> Result<()> {
         let exists = self.cache.get(id).is_some();
 
-        let vault: Vault = decode(buffer.as_ref()).await?;
+        let vault: Vault = decode(buffer).await?;
         let (vault, events) = FolderReducer::split(vault).await?;
 
         if id != vault.id() {
@@ -392,21 +360,7 @@ impl ServerFileStorage {
         Ok(())
     }
 
-    /// Delete all the files for this account.
-    pub async fn delete_account(&mut self) -> Result<()> {
-        let user_dir = self.paths.user_dir();
-        let identity_vault = self.paths.identity_vault();
-        let identity_event = self.paths.identity_events();
-
-        vfs::remove_dir_all(&user_dir).await?;
-        vfs::remove_file(&identity_vault).await?;
-        vfs::remove_file(&identity_event).await?;
-
-        Ok(())
-    }
-
-    /// Delete a folder.
-    pub async fn delete_folder(&mut self, id: &VaultId) -> Result<()> {
+    async fn delete_folder(&mut self, id: &VaultId) -> Result<()> {
         // Remove the files
         self.remove_vault_file(id).await?;
 
@@ -431,22 +385,21 @@ impl ServerFileStorage {
         Ok(())
     }
 
-    /// Set the name of a vault.
-    pub async fn rename_folder(
+    async fn rename_folder(
         &mut self,
         id: &VaultId,
-        name: impl AsRef<str>,
+        name: &str,
     ) -> Result<()> {
         // Update the vault on disc
         let vault_path = self.paths.vault_path(id);
         let vault_file = VaultWriter::open(&vault_path).await?;
         let mut access = VaultWriter::new(vault_path, vault_file)?;
-        access.set_vault_name(name.as_ref().to_owned()).await?;
+        access.set_vault_name(name.to_owned()).await?;
 
         #[cfg(feature = "audit")]
         {
             let account_event =
-                AccountEvent::RenameFolder(*id, name.as_ref().to_owned());
+                AccountEvent::RenameFolder(*id, name.to_owned());
             let audit_event: AuditEvent =
                 (self.address(), &account_event).into();
             self.paths.append_audit_events(vec![audit_event]).await?;
@@ -455,8 +408,13 @@ impl ServerFileStorage {
         Ok(())
     }
 
-    /// List the public keys of trusted devices.
-    pub fn list_device_keys(&self) -> HashSet<&DevicePublicKey> {
-        self.devices.iter().map(|d| d.public_key()).collect()
+    async fn delete_account(&mut self) -> Result<()> {
+        let user_dir = self.paths.user_dir();
+        let identity_vault = self.paths.identity_vault();
+        let identity_event = self.paths.identity_events();
+        vfs::remove_dir_all(&user_dir).await?;
+        vfs::remove_file(&identity_vault).await?;
+        vfs::remove_file(&identity_event).await?;
+        Ok(())
     }
 }
