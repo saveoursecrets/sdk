@@ -5245,7 +5245,6 @@ dependencies = [
 name = "sos-integrity"
 version = "0.16.0"
 dependencies = [
- "anyhow",
  "async-stream",
  "binary-stream",
  "futures",
@@ -5255,8 +5254,6 @@ dependencies = [
  "sha2",
  "sos-core",
  "sos-sdk",
- "sos-test-utils",
- "tempfile",
  "tokio",
  "tokio-util",
  "tracing",
@@ -5658,6 +5655,7 @@ dependencies = [
  "sos-client-storage",
  "sos-core",
  "sos-database",
+ "sos-integrity",
  "sos-migrate",
  "sos-net",
  "sos-password",

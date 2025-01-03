@@ -6,6 +6,7 @@ mod date_time;
 mod file;
 mod gatekeeper;
 mod identity;
+mod integrity;
 mod keychain;
 mod migrate;
 mod pairing;

@@ -29,10 +29,5 @@ hex.workspace = true
 uuid.workspace = true
 sha2.workspace = true
 
-[dev-dependencies]
-anyhow.workspace = true
-tempfile.workspace = true
-sos-test-utils.workspace = true
-
 [build-dependencies]
 rustc_version.workspace = true

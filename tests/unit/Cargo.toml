@@ -16,6 +16,7 @@ sos-artifact.workspace = true
 sos-core.workspace = true
 sos-client-storage = { workspace = true, features = ["full"] }
 sos-database = { workspace = true, features = ["full"] }
+sos-integrity = { workspace = true, features = ["full"] }
 sos-password.workspace = true
 sos-migrate = { workspace = true, features = ["full"] }
 sos-net = { workspace = true, features = ["full"] }
