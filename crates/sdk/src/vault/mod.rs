@@ -14,9 +14,10 @@ pub use file_writer::VaultWriter;
 pub use folder::{DiscFolder, Folder, MemoryFolder};
 pub use gatekeeper::Gatekeeper;
 pub use vault::{
-    FolderRef, Header, SharedAccess, Summary, Vault, VaultAccess,
-    VaultCommit, VaultEntry, VaultFlags, VaultId, VaultMeta,
+    FolderRef, Header, SharedAccess, Summary, Vault, VaultAccess, VaultMeta,
 };
+
+pub use sos_core::{VaultCommit, VaultEntry, VaultFlags, VaultId};
 
 pub(crate) use vault::Auth;
 

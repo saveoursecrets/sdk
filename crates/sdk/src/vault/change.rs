@@ -3,9 +3,10 @@
 use crate::{
     crypto::{AccessKey, KeyDerivation, PrivateKey, Seed},
     events::WriteEvent,
-    vault::{Vault, VaultAccess, VaultCommit, VaultEntry},
+    vault::{Vault, VaultAccess},
     Error, Result,
 };
+use sos_core::{VaultCommit, VaultEntry};
 
 /// Builder that changes a vault password.
 ///
@@ -42,11 +43,11 @@ impl<'a> ChangePassword<'a> {
     fn current_private_key(&self) -> Result<PrivateKey> {
         let salt = self.vault.salt().ok_or(Error::VaultNotInit)?;
         let salt = KeyDerivation::parse_salt(salt)?;
-        self.current_key.clone().into_private(
+        Ok(self.current_key.clone().into_private(
             self.vault.kdf(),
             &salt,
             self.vault.seed(),
-        )
+        )?)
 
         /*
         let salt = self.vault.salt().ok_or(Error::VaultNotInit)?;
@@ -64,9 +65,11 @@ impl<'a> ChangePassword<'a> {
     fn new_private_key(&self, vault: &Vault) -> Result<PrivateKey> {
         let salt = vault.salt().ok_or(Error::VaultNotInit)?;
         let salt = KeyDerivation::parse_salt(salt)?;
-        self.new_key
-            .clone()
-            .into_private(vault.kdf(), &salt, vault.seed())
+        Ok(self.new_key.clone().into_private(
+            vault.kdf(),
+            &salt,
+            vault.seed(),
+        )?)
 
         /*
         let salt = vault.salt().ok_or(Error::VaultNotInit)?;

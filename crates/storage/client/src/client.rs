@@ -412,7 +412,7 @@ impl ClientStorage {
     ) -> Result<Vec<Event>> {
         let mut events = Vec::new();
 
-        let create_account = Event::CreateAccount(account.address);
+        let create_account = Event::CreateAccount(account.address.into());
 
         #[cfg(feature = "audit")]
         {

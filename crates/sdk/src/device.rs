@@ -15,6 +15,29 @@ use std::{
 };
 use time::OffsetDateTime;
 
+pub use sos_core::device::{
+    DeviceMetaData, DevicePublicKey, TrustedDevice, DEVICE,
+};
+
+#[doc(hidden)]
+pub fn into_device_verifying_key(
+    value: &DevicePublicKey,
+) -> Result<VerifyingKey> {
+    let bytes: [u8; 32] = value.as_ref().try_into()?;
+    Ok(VerifyingKey::from_bytes(&bytes)?)
+}
+
+/*
+impl TryFrom<&DevicePublicKey> for VerifyingKey {
+    type Error = Error;
+
+    fn try_from(value: &DevicePublicKey) -> Result<Self> {
+        Ok(VerifyingKey::from_bytes(&value.0)?)
+    }
+}
+*/
+
+/*
 /// Device meta data.
 ///
 /// Applications can set this when they boot so that trusted devices
@@ -83,6 +106,7 @@ impl fmt::Display for DevicePublicKey {
         write!(f, "{}", hex::encode(self.0))
     }
 }
+*/
 
 /// Signing key for a device.
 #[derive(Clone)]
@@ -186,6 +210,7 @@ impl DeviceManager {
     }
 }
 
+/*
 /// Additional information about the device such as the
 /// device name, manufacturer and model.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -211,7 +236,9 @@ impl fmt::Display for DeviceMetaData {
         Ok(())
     }
 }
+*/
 
+/*
 /// Device that has been trusted.
 #[derive(Debug, Clone, Serialize, Deserialize, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -303,3 +330,4 @@ impl TryFrom<&TrustedDevice> for (DevicePublicKey, String) {
         ))
     }
 }
+*/

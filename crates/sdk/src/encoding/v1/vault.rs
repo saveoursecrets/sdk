@@ -43,6 +43,7 @@ impl Decodable for VaultMeta {
     }
 }
 
+/*
 #[async_trait]
 impl Encodable for VaultEntry {
     async fn encode<W: AsyncWrite + AsyncSeek + Unpin + Send>(
@@ -120,6 +121,7 @@ impl Decodable for VaultCommit {
         Ok(())
     }
 }
+*/
 
 #[async_trait]
 impl Encodable for Auth {

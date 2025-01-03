@@ -35,7 +35,7 @@ where
         for (time, event, data) in events {
             stmt.execute((
                 time,
-                event.address().to_string(),
+                event.account_id().to_string(),
                 event.event_kind().to_string(),
                 data,
             ))?;

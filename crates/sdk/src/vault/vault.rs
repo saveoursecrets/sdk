@@ -1,25 +1,3 @@
-use serde::{Deserialize, Serialize};
-
-use async_trait::async_trait;
-use binary_stream::futures::{BinaryReader, Decodable};
-
-use futures::io::{AsyncReadExt, AsyncSeek};
-use futures::io::{BufReader, Cursor};
-use tokio_util::compat::TokioAsyncReadCompatExt;
-
-use age::x25519::{Identity, Recipient};
-use bitflags::bitflags;
-use indexmap::IndexMap;
-use secrecy::SecretString;
-use sha2::{Digest, Sha256};
-use std::{
-    borrow::Cow, cmp::Ordering, collections::HashMap, fmt, path::Path,
-    str::FromStr,
-};
-use typeshare::typeshare;
-use urn::Urn;
-use uuid::Uuid;
-
 use crate::{
     constants::{DEFAULT_VAULT_NAME, URN_NID, VAULT_IDENTITY, VAULT_NSS},
     crypto::{
@@ -33,10 +11,28 @@ use crate::{
     vfs::File,
     Error, Result, UtcDateTime,
 };
-use sos_core::commit::CommitHash;
+use age::x25519::{Identity, Recipient};
+use async_trait::async_trait;
+use binary_stream::futures::{BinaryReader, Decodable};
+use futures::io::{AsyncReadExt, AsyncSeek};
+use futures::io::{BufReader, Cursor};
+use indexmap::IndexMap;
+use secrecy::SecretString;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::{
+    borrow::Cow, cmp::Ordering, collections::HashMap, fmt, path::Path,
+    str::FromStr,
+};
+use tokio_util::compat::TokioAsyncReadCompatExt;
+use typeshare::typeshare;
+use urn::Urn;
+use uuid::Uuid;
 
-pub use sos_core::VaultId;
+use sos_core::{commit::CommitHash, VaultCommit, VaultEntry};
+use sos_core::{VaultFlags, VaultId};
 
+/*
 bitflags! {
     /// Bit flags for a vault.
     #[derive(Default, Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
@@ -131,6 +127,7 @@ impl VaultFlags {
         self.contains(VaultFlags::SHARED)
     }
 }
+*/
 
 /// Vault meta data.
 #[derive(Default, Serialize, Deserialize)]
@@ -195,14 +192,18 @@ impl From<VaultId> for FolderRef {
     }
 }
 
+/*
 /// Type to represent a secret as an encrypted pair of meta data
 /// and secret data.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[deprecated]
 pub struct VaultEntry(pub AeadPack, pub AeadPack);
 
 /// Type to represent an encrypted secret with an associated commit hash.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[deprecated]
 pub struct VaultCommit(pub CommitHash, pub VaultEntry);
+*/
 
 /// Trait that defines the operations on an encrypted vault.
 ///
@@ -780,9 +781,10 @@ impl Vault {
         plaintext: &[u8],
     ) -> Result<AeadPack> {
         match self.cipher() {
-            Cipher::XChaCha20Poly1305 | Cipher::AesGcm256 => {
-                self.cipher().encrypt_symmetric(key, plaintext, None).await
-            }
+            Cipher::XChaCha20Poly1305 | Cipher::AesGcm256 => Ok(self
+                .cipher()
+                .encrypt_symmetric(key, plaintext, None)
+                .await?),
             Cipher::X25519 => {
                 let recipients = match &self.header.shared_access {
                     SharedAccess::WriteAccess(access) => {
@@ -805,9 +807,10 @@ impl Vault {
                     }
                 };
 
-                self.cipher()
+                Ok(self
+                    .cipher()
                     .encrypt_asymmetric(key, plaintext, recipients)
-                    .await
+                    .await?)
             }
         }
     }
@@ -820,10 +823,10 @@ impl Vault {
     ) -> Result<Vec<u8>> {
         match self.cipher() {
             Cipher::XChaCha20Poly1305 | Cipher::AesGcm256 => {
-                self.cipher().decrypt_symmetric(key, aead).await
+                Ok(self.cipher().decrypt_symmetric(key, aead).await?)
             }
             Cipher::X25519 => {
-                self.cipher().decrypt_asymmetric(key, aead).await
+                Ok(self.cipher().decrypt_asymmetric(key, aead).await?)
             }
         }
     }

@@ -1,5 +1,6 @@
 use super::{Error, Result};
 use sos_sdk::{
+    device::into_device_verifying_key,
     signer::{
         ecdsa::Address,
         ed25519::{self, Verifier, VerifyingKey},
@@ -210,7 +211,7 @@ impl Backend {
             let reader = account.read().await;
             let account_devices = reader.list_device_keys();
             for device_key in account_devices {
-                let verifying_key: VerifyingKey = device_key.try_into()?;
+                let verifying_key = into_device_verifying_key(device_key)?;
                 if verifying_key
                     .verify(message_body, device_signature)
                     .is_ok()

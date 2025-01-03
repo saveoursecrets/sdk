@@ -14,6 +14,18 @@ use sha3::{Digest, Keccak256};
 use std::{fmt, str::FromStr};
 use subtle::Choice;
 
+impl From<&Address> for sos_core::AccountId {
+    fn from(value: &Address) -> Self {
+        value.0.into()
+    }
+}
+
+impl From<Address> for sos_core::AccountId {
+    fn from(value: Address) -> Self {
+        value.0.into()
+    }
+}
+
 /// Ethereum public address that may be converted to and from
 /// a string.
 ///

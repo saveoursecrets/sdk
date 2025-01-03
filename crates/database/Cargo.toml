@@ -22,7 +22,7 @@ full = [
 ]
 archive = ["sos-sdk/archive"]
 audit = ["sos-sdk/audit"]
-files = ["sos-sdk/files"]
+files = ["sos-sdk/files", "sos-filesystem/files"]
 search = [
   "dep:probly-search",
   "dep:unicode-segmentation",
@@ -35,6 +35,7 @@ client = []
 [dependencies]
 sos-core.workspace = true
 sos-sdk.workspace = true
+sos-filesystem.workspace = true
 
 thiserror.workspace = true
 futures.workspace = true

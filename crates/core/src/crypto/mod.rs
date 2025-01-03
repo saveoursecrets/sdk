@@ -1,8 +1,8 @@
 //! Cryptographic routines and types.
+use crate::csprng;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_with::{base64::Base64, serde_as};
-use sos_core::csprng;
 
 #[doc(hidden)]
 pub mod cipher;
@@ -10,11 +10,11 @@ mod key_derivation;
 mod private_key;
 
 pub use cipher::Cipher;
-pub(crate) use cipher::{AES_GCM_256, X25519, X_CHACHA20_POLY1305};
+pub use cipher::{AES_GCM_256, X25519, X_CHACHA20_POLY1305};
 
 #[doc(hidden)]
-pub use key_derivation::SEED_SIZE;
-pub(crate) use key_derivation::{Deriver, ARGON_2_ID, BALLOON_HASH};
+pub use key_derivation::{Deriver, SEED_SIZE};
+pub(crate) use key_derivation::{ARGON_2_ID, BALLOON_HASH};
 
 pub use key_derivation::{KeyDerivation, Seed};
 pub use private_key::{AccessKey, DerivedPrivateKey, PrivateKey};

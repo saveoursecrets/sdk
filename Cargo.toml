@@ -8,6 +8,7 @@ members = [
   "crates/clipboard", 
   "crates/core",
   "crates/database",
+  "crates/filesystem",
   "crates/keychain_parser",
   "crates/integrity",
   "crates/ipc",
@@ -29,7 +30,7 @@ members = [
 
   "tests/integration",
   "tests/unit",
-  "tests/utils",
+  "tests/utils", "crates/filesystem",
 ]
 
 [workspace.dependencies]
@@ -39,6 +40,7 @@ sos-artifact = { version = "0.8", path = "crates/artifact" }
 sos-cli-helpers = { path = "crates/cli_helpers" }
 sos-core = { version = "0.16", path = "crates/core" }
 sos-database = { version = "0.16", path = "crates/database" }
+sos-filesystem = { version = "0.16", path = "crates/filesystem" }
 sos-integrity = { version = "0.16", path = "crates/integrity" }
 sos-ipc = { version = "0.16", path = "crates/ipc" }
 sos-logs = { version = "0.16", path = "crates/logs" }

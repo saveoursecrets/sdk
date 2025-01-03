@@ -1,10 +1,9 @@
-use clap::Subcommand;
-
 use crate::{helpers::messages::info, Error, Result};
+use clap::Subcommand;
+use sos_core::AccountId;
 use sos_net::sdk::{
     audit::{AuditData, AuditEvent, AuditLogFile},
     formats::FormatStreamIterator,
-    signer::ecdsa::Address,
     vfs::{self, File},
 };
 use std::{path::PathBuf, thread, time};
@@ -25,9 +24,9 @@ pub enum Command {
         #[clap(short, long)]
         count: Option<usize>,
 
-        /// Filter to events that match the given address.
+        /// Filter to events that match the given account identifier.
         #[clap(short, long)]
-        address: Vec<Address>,
+        account_id: Vec<AccountId>,
 
         /// Audit log file
         audit_log: PathBuf,
@@ -38,9 +37,9 @@ pub enum Command {
         #[clap(short, long)]
         json: bool,
 
-        /// Filter to events that match the given address(es).
+        /// Filter to events that match the given account identifiers.
         #[clap(short, long)]
-        address: Vec<Address>,
+        account_id: Vec<AccountId>,
 
         /// Audit log file
         audit_log: PathBuf,
@@ -52,18 +51,18 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Logs {
             audit_log,
             json,
-            address,
+            account_id,
             reverse,
             count,
         } => {
-            logs(audit_log, json, address, reverse, count).await?;
+            logs(audit_log, json, account_id, reverse, count).await?;
         }
         Command::Monitor {
             audit_log,
             json,
-            address,
+            account_id,
         } => {
-            monitor(audit_log, json, address).await?;
+            monitor(audit_log, json, account_id).await?;
         }
     }
     Ok(())
@@ -73,7 +72,7 @@ pub async fn run(cmd: Command) -> Result<()> {
 pub async fn monitor(
     audit_log: PathBuf,
     json: bool,
-    address: Vec<Address>,
+    account_id: Vec<AccountId>,
 ) -> Result<()> {
     if !vfs::metadata(&audit_log).await?.is_file() {
         return Err(Error::NotFile(audit_log));
@@ -98,7 +97,8 @@ pub async fn monitor(
         if len > offset {
             while let Some(record) = it.next().await? {
                 let event = log_file.read_event(&mut file, &record).await?;
-                if !address.is_empty() && !is_address_match(&event, &address)
+                if !account_id.is_empty()
+                    && !is_account_id_match(&event, &account_id)
                 {
                     continue;
                 }
@@ -117,7 +117,7 @@ pub async fn monitor(
 async fn logs(
     audit_log: PathBuf,
     json: bool,
-    address: Vec<Address>,
+    account_id: Vec<AccountId>,
     reverse: bool,
     count: Option<usize>,
 ) -> Result<()> {
@@ -137,7 +137,8 @@ async fn logs(
     let mut it = log_file.iter(reverse).await?;
     while let Some(record) = it.next().await? {
         let event = log_file.read_event(&mut file, &record).await?;
-        if !address.is_empty() && !is_address_match(&event, &address) {
+        if !account_id.is_empty() && !is_account_id_match(&event, &account_id)
+        {
             continue;
         }
         c += 1;
@@ -161,7 +162,7 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
                     "{} {} by {}, vault = {}",
                     event.time().to_rfc3339()?,
                     event.event_kind(),
-                    event.address(),
+                    event.account_id(),
                     vault_id,
                 ));
             }
@@ -170,7 +171,7 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
                     "{} {} by {}, vault = {}, secret = {}",
                     event.time().to_rfc3339()?,
                     event.event_kind(),
-                    event.address(),
+                    event.account_id(),
                     vault_id,
                     secret_id,
                 ));
@@ -185,7 +186,7 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
                     "{} {} by {}, from = {}/{}, to = {}/{}",
                     event.time().to_rfc3339()?,
                     event.event_kind(),
-                    event.address(),
+                    event.account_id(),
                     from_vault_id,
                     from_secret_id,
                     to_vault_id,
@@ -198,12 +199,12 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
             "{} {} by {}",
             event.time().to_rfc3339()?,
             event.event_kind(),
-            event.address(),
+            event.account_id(),
         ));
     }
     Ok(())
 }
 
-fn is_address_match(event: &AuditEvent, address: &[Address]) -> bool {
-    address.iter().any(|addr| addr == event.address())
+fn is_account_id_match(event: &AuditEvent, ids: &[AccountId]) -> bool {
+    ids.into_iter().any(|addr| addr == event.account_id())
 }

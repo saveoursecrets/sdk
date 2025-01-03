@@ -33,8 +33,7 @@ pub mod archive;
 
 #[cfg(feature = "audit")]
 pub mod audit;
-pub mod crypto;
-mod date_time;
+// mod date_time;
 pub mod device;
 pub mod encoding;
 mod error;
@@ -48,7 +47,7 @@ pub mod prelude;
 pub mod signer;
 pub mod vault;
 
-pub use date_time::UtcDateTime;
+// pub use date_time::UtcDateTime;
 pub use encoding::{decode, encode};
 pub use error::Error;
 pub use paths::Paths;
@@ -67,6 +66,8 @@ pub use vcard4;
 // Deprecated re-exports for backwards compatibility
 // DO NOT USE - they will be removed in the future
 pub use sos_core::constants;
+pub use sos_core::crypto;
+pub use sos_core::UtcDateTime;
 
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;

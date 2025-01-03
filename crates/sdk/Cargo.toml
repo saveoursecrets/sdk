@@ -26,7 +26,7 @@ full = [
 archive = []
 audit = []
 contacts = []
-files = []
+files = ["sos-core/files"]
 mem-fs = ["sos-vfs/mem-fs"]
 
 [dependencies]

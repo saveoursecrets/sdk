@@ -3,9 +3,10 @@ use async_trait::async_trait;
 
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
+use sos_core::{events::LogEvent, AccountId};
 
 use crate::{
-    events::{Event, EventKind, LogEvent, ReadEvent, WriteEvent},
+    events::{Event, EventKind, ReadEvent, WriteEvent},
     signer::ecdsa::Address,
     vault::{secret::SecretId, VaultId},
     UtcDateTime,
@@ -66,8 +67,8 @@ pub struct AuditEvent {
     /// Event being logged.
     #[serde(rename = "type")]
     pub(crate) event_kind: EventKind,
-    /// Address of the client performing the event.
-    pub(crate) address: Address,
+    /// Account identifier of the client performing the event.
+    pub(crate) account_id: AccountId,
     /// Context data about the event.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) data: Option<AuditData>,
@@ -77,20 +78,20 @@ impl AuditEvent {
     /// Create a new audit log event.
     pub fn new(
         event_kind: EventKind,
-        address: Address,
+        account_id: AccountId,
         data: Option<AuditData>,
     ) -> Self {
         Self {
             time: Default::default(),
             event_kind,
-            address,
+            account_id,
             data,
         }
     }
 
     /// Get the address for this audit event.
-    pub fn address(&self) -> &Address {
-        &self.address
+    pub fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     /// Get the timestamp for this audit event.
@@ -135,14 +136,14 @@ impl From<(&Address, &Event)> for AuditEvent {
     fn from(value: (&Address, &Event)) -> Self {
         let (address, event) = value;
         match event {
-            Event::CreateAccount(address) => {
-                AuditEvent::new(EventKind::CreateAccount, *address, None)
+            Event::CreateAccount(account_id) => {
+                AuditEvent::new(EventKind::CreateAccount, *account_id, None)
             }
             Event::MoveSecret(_, _, _) => {
                 panic!("move secret audit event must be constructed")
             }
-            Event::DeleteAccount(address) => {
-                AuditEvent::new(EventKind::DeleteAccount, *address, None)
+            Event::DeleteAccount(account_id) => {
+                AuditEvent::new(EventKind::DeleteAccount, *account_id, None)
             }
             _ => {
                 let audit_data = match event {
@@ -185,7 +186,7 @@ impl From<(&Address, &Event)> for AuditEvent {
                 if let Some(audit_data) = audit_data {
                     AuditEvent::new(
                         event.event_kind(),
-                        *address,
+                        address.into(),
                         Some(audit_data),
                     )
                 } else {
@@ -201,7 +202,11 @@ impl From<(&Address, &AccountEvent)> for AuditEvent {
         let (address, event) = value;
         let audit_data = event.folder_id().map(AuditData::Vault);
         if let Some(audit_data) = audit_data {
-            AuditEvent::new(event.event_kind(), *address, Some(audit_data))
+            AuditEvent::new(
+                event.event_kind(),
+                address.into(),
+                Some(audit_data),
+            )
         } else {
             unreachable!();
         }

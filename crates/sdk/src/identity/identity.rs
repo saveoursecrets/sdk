@@ -122,7 +122,7 @@ impl Identity {
     pub async fn delete_account(&self, paths: &Paths) -> Result<Event> {
         vfs::remove_file(paths.identity_vault()).await?;
         vfs::remove_dir_all(paths.user_dir()).await?;
-        Ok(Event::DeleteAccount(*self.identity()?.address()))
+        Ok(Event::DeleteAccount(self.identity()?.address().into()))
     }
 
     /// Rename this account by changing the name of the identity vault.

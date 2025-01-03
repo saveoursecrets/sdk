@@ -3,6 +3,7 @@ use crate::{filesystem::ServerFileStorage, ServerAccountStorage};
 use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
+use sos_core::events::LogEvent;
 use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
     VaultId,
@@ -12,7 +13,7 @@ use sos_sdk::{
     events::{
         AccountDiff, AccountEvent, AccountEventLog, CheckedPatch, DeviceDiff,
         DeviceEventLog, DeviceReducer, EventLogExt, FileDiff, FileEventLog,
-        FolderDiff, FolderEventLog, FolderReducer, LogEvent, WriteEvent,
+        FolderDiff, FolderEventLog, FolderReducer, WriteEvent,
     },
     vault::{Header, Summary, VaultAccess, VaultWriter},
     vfs,

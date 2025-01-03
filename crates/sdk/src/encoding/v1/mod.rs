@@ -1,11 +1,10 @@
 #[cfg(feature = "audit")]
 mod audit;
-mod commit;
-mod crypto;
+// mod commit;
+#[deprecated]
 mod events;
 mod secret;
 mod signer;
-mod timestamp;
 mod vault;
 
 ///

@@ -5159,13 +5159,31 @@ dependencies = [
 name = "sos-core"
 version = "0.16.0"
 dependencies = [
+ "aes-gcm",
+ "age",
+ "argon2",
+ "async-trait",
+ "balloon-hash",
+ "binary-stream",
+ "bitflags 2.6.0",
+ "bs58",
+ "chacha20poly1305",
+ "futures",
  "hex",
  "mime_guess",
+ "once_cell",
+ "pem",
  "rand",
  "rs_merkle",
  "rustc_version",
+ "secrecy",
  "serde",
+ "serde_json",
+ "serde_with",
+ "sha2",
  "thiserror 2.0.9",
+ "time",
+ "time-tz",
  "url",
  "uuid",
 ]
@@ -5185,6 +5203,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sos-core",
+ "sos-filesystem",
  "sos-sdk",
  "thiserror 2.0.9",
  "tokio",
@@ -5194,6 +5213,25 @@ dependencies = [
  "url",
  "uuid",
  "vcard4",
+]
+
+[[package]]
+name = "sos-filesystem"
+version = "0.16.0"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "binary-stream",
+ "futures",
+ "indexmap 2.7.0",
+ "parking_lot",
+ "sos-core",
+ "sos-vfs",
+ "tempfile",
+ "thiserror 2.0.9",
+ "tokio",
+ "tokio-util",
+ "tracing",
 ]
 
 [[package]]

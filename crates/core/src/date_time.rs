@@ -4,10 +4,9 @@
 //! a u32 nanosecond offset from the second so the total size
 //! when encoded is 12 bytes.
 
+use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use time_tz::{OffsetDateTimeExt, TimeZone};
-
 use time::{
     format_description::{
         self,
@@ -15,8 +14,7 @@ use time::{
     },
     Date, Month, OffsetDateTime, Time, UtcOffset,
 };
-
-use crate::Result;
+use time_tz::{OffsetDateTimeExt, TimeZone};
 
 /// Date and time with binary encoding support.
 #[derive(

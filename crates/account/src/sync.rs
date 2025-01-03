@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use indexmap::IndexMap;
 use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
+    events::LogEvent,
     VaultId,
 };
 use sos_database::StorageError;
@@ -15,7 +16,7 @@ use sos_sdk::{
     decode,
     events::{
         AccountDiff, AccountEvent, CheckedPatch, DeviceDiff, DeviceReducer,
-        EventLogExt, FolderDiff, LogEvent, WriteEvent,
+        EventLogExt, FolderDiff, WriteEvent,
     },
     vault::Vault,
 };

@@ -1329,7 +1329,7 @@ impl LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::MoveSecret,
-                *self.address(),
+                self.address().into(),
                 Some(AuditData::MoveSecret {
                     from_vault_id: *from.id(),
                     to_vault_id: *to.id(),
@@ -1395,7 +1395,7 @@ impl LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ImportUnsafe,
-                self.address().clone(),
+                self.address().into(),
                 None,
             );
             paths.append_audit_events(vec![audit_event]).await?;
@@ -2923,7 +2923,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ExportVault,
-                *self.address(),
+                self.address().into(),
                 Some(AuditData::Vault(*summary.id())),
             );
             self.paths.append_audit_events(vec![audit_event]).await?;
@@ -3011,7 +3011,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ExportContacts,
-                self.address().clone(),
+                self.address().into(),
                 Some(AuditData::Secret(*current_folder.id(), *secret_id)),
             );
             self.paths.append_audit_events(vec![audit_event]).await?;
@@ -3056,7 +3056,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ExportContacts,
-                self.address().clone(),
+                self.address().into(),
                 None,
             );
             self.paths.append_audit_events(vec![audit_event]).await?;
@@ -3122,7 +3122,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ImportContacts,
-                self.address().clone(),
+                self.address().into(),
                 None,
             );
             self.paths.append_audit_events(vec![audit_event]).await?;
@@ -3174,7 +3174,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ExportUnsafe,
-                self.address().clone(),
+                self.address().into(),
                 None,
             );
             self.paths.append_audit_events(vec![audit_event]).await?;
@@ -3252,7 +3252,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ExportBackupArchive,
-                *self.address(),
+                self.address().into(),
                 None,
             );
             self.paths.append_audit_events(vec![audit_event]).await?;
@@ -3296,7 +3296,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ImportBackupArchive,
-                *account.address(),
+                account.address().into(),
                 None,
             );
 
@@ -3360,7 +3360,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ImportBackupArchive,
-                *self.address(),
+                self.address().into(),
                 None,
             );
             self.paths.append_audit_events(vec![audit_event]).await?;
