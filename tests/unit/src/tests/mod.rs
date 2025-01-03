@@ -12,5 +12,6 @@ mod pairing;
 mod password;
 mod protocol;
 mod recovery;
+mod sdk;
 mod search;
 mod signer;

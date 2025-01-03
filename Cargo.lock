@@ -5470,7 +5470,6 @@ version = "0.16.4"
 dependencies = [
  "aes-gcm",
  "age",
- "anyhow",
  "argon2",
  "async-once-cell",
  "async-stream",
@@ -5502,7 +5501,6 @@ dependencies = [
  "sha3",
  "sos-core",
  "sos-password",
- "sos-test-utils",
  "sos-vfs",
  "subtle",
  "tempfile",
@@ -5643,11 +5641,14 @@ version = "0.1.0"
 dependencies = [
  "age",
  "anyhow",
+ "binary-stream",
  "bytes",
+ "futures",
  "hex",
  "indexmap 2.7.0",
  "k256",
  "keychain_parser",
+ "pem",
  "secrecy",
  "serde",
  "serde_json",
@@ -5669,9 +5670,11 @@ dependencies = [
  "tempfile",
  "time",
  "tokio",
+ "totp-rs",
  "url",
  "urn",
  "uuid",
+ "vcard4",
 ]
 
 [[package]]

@@ -89,9 +89,5 @@ etcetera = "0.8"
 getrandom = { version = "0.2", features = ["js"] }
 uuid = { version = "1", features = ["serde", "v4", "js"] }
 
-[dev-dependencies]
-anyhow.workspace = true
-sos-test-utils.workspace = true
-
 [build-dependencies]
 rustc_version.workspace = true
