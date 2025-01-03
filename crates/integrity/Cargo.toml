@@ -19,7 +19,10 @@ files = []
 sos-core.workspace = true
 sos-filesystem.workspace = true
 sos-sdk.workspace = true
+sos-vfs.workspace = true
+sos-vault.workspace = true
 
+thiserror.workspace = true
 async-stream.workspace = true
 binary-stream.workspace = true
 futures.workspace = true

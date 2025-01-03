@@ -1,11 +1,11 @@
 //! Check integrity of the folders in an account.
-use crate::IntegrityFailure;
+use crate::{Error, IntegrityFailure, Result};
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use sos_filesystem::formats::{EventLogRecord, VaultRecord};
 use sos_sdk::{
     vault::{Summary, VaultId},
-    vfs, Error, Paths, Result,
+    vfs, Paths,
 };
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::{

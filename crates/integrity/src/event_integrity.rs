@@ -1,4 +1,5 @@
 //! Run integrity checks on event logs.
+use crate::{Error, Result};
 use async_stream::try_stream;
 use binary_stream::futures::BinaryReader;
 use futures::stream::Stream;
@@ -8,7 +9,7 @@ use sos_filesystem::{
     events::{EventLogExt, FolderEventLog},
     formats::{EventLogRecord, FileItem},
 };
-use sos_sdk::{encoding::encoding_options, vfs, Error, Result};
+use sos_sdk::{encoding::encoding_options, vfs};
 use std::{io::SeekFrom, path::Path};
 use tokio_util::compat::TokioAsyncReadCompatExt;
 

@@ -1,4 +1,5 @@
 //! Run integrity checks on vault files.
+use crate::{Error, Result};
 use async_stream::try_stream;
 use binary_stream::futures::BinaryReader;
 use futures::stream::Stream;
@@ -7,8 +8,7 @@ use sos_filesystem::formats::{
     FileIdentity, FileItem, FormatStream, FormatStreamIterator, VaultRecord,
 };
 use sos_sdk::{
-    constants::VAULT_IDENTITY, encoding::encoding_options, vault::Header,
-    vfs, Error, Result,
+    constants::VAULT_IDENTITY, encoding::encoding_options, vault::Header, vfs,
 };
 use std::{io::SeekFrom, path::Path};
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};

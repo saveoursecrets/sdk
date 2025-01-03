@@ -1,8 +1,6 @@
 //! Integrity checks for vaults, event logs and external files.
-use sos_sdk::Error;
-use std::path::PathBuf;
-
 mod account_integrity;
+mod error;
 mod event_integrity;
 #[cfg(feature = "files")]
 mod file_integrity;
@@ -14,6 +12,13 @@ pub use vault_integrity::vault_integrity;
 
 #[cfg(feature = "files")]
 pub use file_integrity::{file_integrity, FileIntegrityEvent};
+
+pub use error::Error;
+
+/// Result type for the library.
+pub type Result<T> = std::result::Result<T, Error>;
+
+use std::path::PathBuf;
 
 /// Reasons why an integrity check can fail.
 #[derive(Debug)]
