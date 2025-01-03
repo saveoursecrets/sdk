@@ -66,6 +66,7 @@ futures-util.workspace = true
 async-stream.workspace = true
 pem.workspace = true
 tokio.workspace = true
+async-once-cell.workspace = true
 
 # crypto
 age.workspace = true
@@ -76,11 +77,9 @@ balloon-hash.workspace = true
 
 # signing
 k256.workspace = true
-ethereum-types = "0.15"
-subtle = "2.5"
-ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
-
-async-once-cell = "0.5"
+ethereum-types.workspace = true
+subtle.workspace = true
+ed25519-dalek.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 etcetera = "0.8"
