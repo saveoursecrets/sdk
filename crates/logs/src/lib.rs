@@ -1,11 +1,12 @@
 //! Log tracing output to disc.
 use rev_buf_reader::RevBufReader;
-use sos_sdk::{time::OffsetDateTime, Paths, Result, UtcDateTime};
+use sos_sdk::{Paths, Result, UtcDateTime};
 use std::{
     fs::File,
     io::BufRead,
     path::{Path, PathBuf},
 };
+use time::OffsetDateTime;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 

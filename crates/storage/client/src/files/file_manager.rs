@@ -2,6 +2,7 @@
 //! as secrets are created, updated and moved.
 
 use crate::{files::FileStorage, ClientStorage, Error, Result};
+use hex;
 use sos_core::events::FileEvent;
 use sos_core::{basename, SecretId, SecretPath, VaultId};
 use sos_database::files::{
@@ -10,7 +11,6 @@ use sos_database::files::{
 };
 use sos_sdk::{
     events::EventLogExt,
-    hex,
     vault::{
         secret::{FileContent, Secret, SecretRow, UserData},
         Summary,

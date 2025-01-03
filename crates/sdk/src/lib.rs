@@ -40,17 +40,6 @@ pub use error::Error;
 pub use sos_core::Paths;
 pub use sos_core::{decode, encode};
 
-// Re-exports
-pub use hex;
-pub use secrecy;
-pub use sos_vfs as vfs;
-pub use time;
-pub use totp_rs as totp;
-pub use url;
-pub use urn;
-pub use uuid;
-pub use vcard4;
-
 // Deprecated re-exports for backwards compatibility
 // DO NOT USE - some will be removed in the future
 pub use sos_core::constants;
@@ -59,6 +48,7 @@ pub use sos_core::UtcDateTime;
 pub use sos_login as identity;
 pub use sos_signer as signer;
 pub use sos_vault as vault;
+pub use sos_vfs as vfs;
 
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;

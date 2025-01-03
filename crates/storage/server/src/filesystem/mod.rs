@@ -2,19 +2,21 @@
 use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
-use sos_filesystem::folder::FolderReducer;
-use sos_sdk::{
+use sos_core::{
     constants::VAULT_EXT,
     decode,
     device::{DevicePublicKey, TrustedDevice},
-    encode,
+    encode, Paths,
+};
+use sos_filesystem::folder::FolderReducer;
+use sos_sdk::{
     events::{
         AccountEvent, AccountEventLog, DeviceEventLog, DeviceReducer,
         EventLogExt, FileEvent, FileEventLog, FolderEventLog, FolderPatch,
     },
     signer::ecdsa::Address,
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
-    vfs, Paths,
+    vfs,
 };
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
 use std::collections::HashSet;
@@ -22,7 +24,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "audit")]
-use sos_sdk::audit::AuditEvent;
+use sos_audit::AuditEvent;
 
 mod sync;
 
@@ -328,11 +330,9 @@ impl ServerAccountStorage for ServerFileStorage {
         let (vault, events) = FolderReducer::split(vault).await?;
 
         if id != vault.id() {
-            return Err(sos_sdk::Error::VaultIdentifierMismatch(
-                *id,
-                *vault.id(),
-            )
-            .into());
+            return Err(
+                Error::VaultIdentifierMismatch(*id, *vault.id()).into()
+            );
         }
 
         let vault_path = self.paths.vault_path(id);

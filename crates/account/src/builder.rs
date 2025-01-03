@@ -1,4 +1,5 @@
 //! Create a new local account.
+use crate::Result;
 use secrecy::SecretString;
 use sos_client_storage::AccountPack;
 use sos_sdk::{
@@ -13,7 +14,7 @@ use sos_sdk::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
     },
-    Paths, Result,
+    Paths,
 };
 use std::{collections::HashMap, path::PathBuf};
 

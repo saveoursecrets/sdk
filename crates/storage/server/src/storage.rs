@@ -1,9 +1,11 @@
 use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
-use sos_core::commit::{CommitState, Comparison};
-use sos_sdk::{
+use sos_core::{
+    commit::{CommitState, Comparison},
     device::DevicePublicKey,
+};
+use sos_sdk::{
     events::{
         AccountDiff, AccountEventLog, CheckedPatch, DeviceDiff,
         DeviceEventLog, FileDiff, FileEventLog, FolderDiff, FolderEventLog,

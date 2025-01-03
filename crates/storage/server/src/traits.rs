@@ -1,12 +1,8 @@
 //! Server storage implementations.
 use crate::Result;
 use async_trait::async_trait;
-use sos_sdk::{
-    device::DevicePublicKey,
-    signer::ecdsa::Address,
-    vault::{Summary, VaultId},
-    Paths,
-};
+use sos_core::{device::DevicePublicKey, Paths, VaultId};
+use sos_sdk::{signer::ecdsa::Address, vault::Summary};
 use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
 use std::collections::HashSet;
 use std::sync::Arc;

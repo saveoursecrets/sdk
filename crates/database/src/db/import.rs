@@ -59,7 +59,7 @@ pub(crate) async fn import_globals(
         while let Some(record) = it.next().await? {
             let event = log_file.read_event(&mut file, &record).await?;
             let data = if let Some(data) = event.data() {
-                Some(serde_json::to_string(data).map_err(SdkError::from)?)
+                Some(serde_json::to_string(data)?)
             } else {
                 None
             };
@@ -167,10 +167,7 @@ pub(crate) async fn import_account(
         let buffer = vfs::read(paths.remote_origins())
             .await
             .map_err(SdkError::from)?;
-        Some(
-            serde_json::from_slice::<Vec<Origin>>(&buffer)
-                .map_err(SdkError::from)?,
-        )
+        Some(serde_json::from_slice::<Vec<Origin>>(&buffer)?)
     } else {
         None
     };

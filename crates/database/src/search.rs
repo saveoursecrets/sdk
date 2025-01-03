@@ -1,4 +1,5 @@
 //! Search provides an in-memory index for secret meta data.
+use crate::{Error, Result};
 use probly_search::{score::bm25, Index, QueryResult};
 use serde::{Deserialize, Serialize};
 use sos_sdk::{
@@ -7,7 +8,6 @@ use sos_sdk::{
         secret::{Secret, SecretId, SecretMeta, SecretRef, SecretType},
         Gatekeeper, Summary, Vault, VaultId,
     },
-    Error, Result,
 };
 use std::{
     borrow::Cow,

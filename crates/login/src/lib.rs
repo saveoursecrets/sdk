@@ -1,6 +1,6 @@
 //! Account identity management.
 
-mod device;
+pub mod device;
 mod error;
 mod identity;
 mod identity_folder;

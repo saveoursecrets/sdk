@@ -4,16 +4,8 @@ pub use sos_core::{
     device::{DeviceMetaData, DevicePublicKey, TrustedDevice, DEVICE},
     encode,
 };
-use sos_signer::ed25519::{BoxedEd25519Signer, SingleParty, VerifyingKey};
+use sos_signer::ed25519::{BoxedEd25519Signer, SingleParty};
 use sos_vault::{Gatekeeper, Vault};
-
-#[doc(hidden)]
-pub fn into_device_verifying_key(
-    value: &DevicePublicKey,
-) -> Result<VerifyingKey> {
-    let bytes: [u8; 32] = value.as_ref().try_into()?;
-    Ok(VerifyingKey::from_bytes(&bytes)?)
-}
 
 /// Signing key for a device.
 #[derive(Clone)]

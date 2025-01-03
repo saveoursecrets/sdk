@@ -1,7 +1,6 @@
 use super::{Error, Result};
 use sos_filesystem::folder::DiscFolder;
 use sos_sdk::{
-    device::into_device_verifying_key,
     signer::{
         ecdsa::Address,
         ed25519::{self, Verifier, VerifyingKey},
@@ -24,6 +23,13 @@ pub type ServerAccount = Arc<RwLock<ServerStorage>>;
 
 /// Collection of accounts by address.
 pub type Accounts = Arc<RwLock<HashMap<Address, ServerAccount>>>;
+
+fn into_device_verifying_key(
+    value: &DevicePublicKey,
+) -> Result<VerifyingKey> {
+    let bytes: [u8; 32] = value.as_ref().try_into()?;
+    Ok(VerifyingKey::from_bytes(&bytes)?)
+}
 
 /// Backend for a server.
 pub struct Backend {

@@ -310,12 +310,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-once-cell"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4288f83726785267c6f2ef073a3d83dc3f9b81464e9f99898240cced85fce35a"
-
-[[package]]
 name = "async-recursion"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5069,10 +5063,12 @@ dependencies = [
  "serde_json",
  "serde_json_path",
  "sha2",
+ "sos-audit",
  "sos-client-storage",
  "sos-core",
  "sos-database",
  "sos-filesystem",
+ "sos-login",
  "sos-migrate",
  "sos-sdk",
  "sos-signer",
@@ -5159,11 +5155,13 @@ dependencies = [
  "async-trait",
  "binary-stream",
  "futures",
+ "hex",
  "indexmap 2.7.0",
  "probly-search",
  "secrecy",
  "serde",
  "sha2",
+ "sos-audit",
  "sos-core",
  "sos-database",
  "sos-filesystem",
@@ -5235,6 +5233,7 @@ dependencies = [
  "sos-filesystem",
  "sos-login",
  "sos-sdk",
+ "sos-vault",
  "thiserror 2.0.9",
  "tokio",
  "tracing",
@@ -5403,6 +5402,7 @@ dependencies = [
  "rev_buf_reader",
  "rustc_version",
  "sos-sdk",
+ "time",
  "tracing-appender",
  "tracing-subscriber",
 ]
@@ -5538,6 +5538,7 @@ dependencies = [
  "sos-signer",
  "sos-sync",
  "thiserror 2.0.9",
+ "time",
  "tokio",
  "tokio-tungstenite 0.24.0",
  "tokio-util",
@@ -5571,37 +5572,8 @@ dependencies = [
 name = "sos-sdk"
 version = "0.16.4"
 dependencies = [
- "aes-gcm",
- "age",
- "argon2",
- "async-once-cell",
- "async-stream",
- "async-trait",
- "balloon-hash",
- "binary-stream",
- "bitflags 2.6.0",
- "bs58",
- "chacha20poly1305",
- "ed25519-dalek",
- "etcetera",
- "ethereum-types",
- "futures",
- "futures-util",
- "getrandom",
- "hex",
- "indexmap 2.7.0",
- "k256",
- "once_cell",
- "parking_lot",
- "pem",
- "rand",
  "rustc_version",
- "secrecy",
  "serde",
- "serde_json",
- "serde_with",
- "sha2",
- "sha3",
  "sos-core",
  "sos-filesystem",
  "sos-login",
@@ -5609,20 +5581,7 @@ dependencies = [
  "sos-signer",
  "sos-vault",
  "sos-vfs",
- "subtle",
- "tempfile",
  "thiserror 2.0.9",
- "time",
- "time-tz",
- "tokio",
- "tokio-util",
- "totp-rs",
- "tracing",
- "typeshare",
- "url",
- "urn",
- "uuid",
- "vcard4",
 ]
 
 [[package]]
@@ -5686,6 +5645,7 @@ dependencies = [
  "secrecy",
  "serde",
  "sha2",
+ "sos-audit",
  "sos-core",
  "sos-database",
  "sos-filesystem",
@@ -6841,7 +6801,6 @@ checksum = "f8c5f0a0af699448548ad1a2fbf920fb4bee257eae39953ba95cb84891a0446a"
 dependencies = [
  "getrandom",
  "serde",
- "wasm-bindgen",
 ]
 
 [[package]]

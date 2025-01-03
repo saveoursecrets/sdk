@@ -37,15 +37,14 @@ use std::{
 use sos_database::search::{DocumentCount, SearchIndex};
 
 #[cfg(feature = "audit")]
-use sos_sdk::audit::{AuditData, AuditEvent};
+use sos_audit::{AuditData, AuditEvent};
 
 #[cfg(feature = "archive")]
 use crate::archive::{Inventory, RestoreOptions};
 
-use sos_sdk::{
-    device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
-    events::DeviceEventLog,
-};
+use sos_core::device::{DevicePublicKey, TrustedDevice};
+use sos_filesystem::events::DeviceEventLog;
+use sos_login::device::{DeviceManager, DeviceSigner};
 
 use indexmap::IndexSet;
 

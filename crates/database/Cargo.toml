@@ -38,6 +38,7 @@ sos-core.workspace = true
 sos-sdk.workspace = true
 sos-login.workspace = true
 sos-filesystem.workspace = true
+sos-vault.workspace = true
 
 thiserror.workspace = true
 futures.workspace = true

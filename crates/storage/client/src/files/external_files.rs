@@ -13,11 +13,11 @@
 use crate::Result;
 use age::Encryptor;
 use futures::io::{AsyncReadExt, BufReader};
+use hex;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use sos_database::files::EncryptedFile;
 use sos_sdk::{
-    hex,
     vault::{secret::SecretId, VaultId},
     vfs::{self, File},
     Paths,

@@ -27,6 +27,7 @@ search = [
 ]
 
 [dependencies]
+sos-audit.workspace = true
 sos-core.workspace = true
 sos-database.workspace = true
 sos-password.workspace = true
@@ -45,6 +46,7 @@ secrecy.workspace = true
 sha2.workspace = true
 serde.workspace = true
 futures.workspace = true
+hex.workspace = true
 
 binary-stream = { workspace = true, optional = true }
 tokio-util = { workspace = true, optional = true }
