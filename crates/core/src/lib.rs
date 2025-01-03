@@ -13,6 +13,7 @@ pub mod encoding;
 mod error;
 pub mod events;
 mod file;
+pub mod file_identity;
 mod origin;
 
 pub use account::AccountId;

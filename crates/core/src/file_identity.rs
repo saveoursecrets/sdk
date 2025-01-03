@@ -1,8 +1,8 @@
-//! Helper that reads and writes the magic identity bytes for file formats.
-use crate::{vfs::File, Error, Result};
+//! Helper functions to read and write the magic identity
+//! bytes for file formats.
+use crate::{Error, Result};
 use binary_stream::futures::{BinaryReader, BinaryWriter};
 use futures::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
-use std::path::Path;
 
 /// String of formatted identity bytes for error messages.
 fn format_identity_bytes(identity: &[u8]) -> String {
@@ -28,33 +28,6 @@ fn format_identity_bytes(identity: &[u8]) -> String {
 pub struct FileIdentity;
 
 impl FileIdentity {
-    /// Read the identity magic bytes from a file.
-    pub async fn read_file<P: AsRef<Path>>(
-        path: P,
-        identity: &[u8],
-    ) -> Result<File> {
-        use tokio::io::AsyncReadExt;
-        let mut file = File::open(path.as_ref()).await?;
-        let len = file.metadata().await?.len();
-        if len >= identity.len() as u64 {
-            let mut buffer = [0u8; 4];
-            file.read_exact(&mut buffer).await?;
-            for (index, ident) in identity.iter().enumerate() {
-                let byte = buffer[index];
-                if byte != *ident {
-                    return Err(Error::BadIdentity(
-                        byte,
-                        index,
-                        format_identity_bytes(identity),
-                    ));
-                }
-            }
-        } else {
-            return Err(Error::IdentityLength);
-        }
-        Ok(file)
-    }
-
     /// Read the identity magic bytes from a slice.
     pub fn read_slice(buffer: &[u8], identity: &[u8]) -> Result<()> {
         if buffer.len() >= identity.len() {

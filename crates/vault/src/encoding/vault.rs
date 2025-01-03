@@ -1,4 +1,4 @@
-use crate::vault::{
+use crate::{
     Auth, Contents, Header, SharedAccess, Summary, Vault, VaultCommit,
     VaultFlags, VaultMeta,
 };

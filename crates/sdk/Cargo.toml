@@ -32,6 +32,8 @@ mem-fs = ["sos-vfs/mem-fs"]
 [dependencies]
 sos-core.workspace = true
 sos-password.workspace = true
+sos-signer.workspace = true
+sos-vault.workspace = true
 sos-vfs.workspace = true
 
 binary-stream.workspace = true

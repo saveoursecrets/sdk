@@ -1,4 +1,4 @@
-use crate::{vfs::File, Error, Result};
+use crate::{Error, Result};
 use age::x25519::{Identity, Recipient};
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, Decodable};
@@ -19,6 +19,7 @@ use sos_core::{
     file_identity::FileIdentity,
     SecretId, UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
+use sos_vfs::File;
 use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, path::Path,
     str::FromStr,

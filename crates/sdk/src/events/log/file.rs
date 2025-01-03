@@ -19,8 +19,7 @@ use crate::{
     events::{AccountEvent, IntoRecord, WriteEvent},
     formats::{
         stream::{MemoryBuffer, MemoryInner},
-        EventLogRecord, FileIdentity, FileItem, FormatStream,
-        FormatStreamIterator,
+        EventLogRecord, FileItem, FormatStream, FormatStreamIterator,
     },
     vfs::{self, File, OpenOptions},
     Error, Result,
@@ -857,6 +856,7 @@ impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
         )
         .await?;
 
+        /*
         FileIdentity::read_file(path.as_ref(), &FOLDER_EVENT_LOG_IDENTITY)
             .await?;
 
@@ -870,6 +870,9 @@ impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
             version: None,
             phantom: std::marker::PhantomData,
         })
+        */
+
+        todo!("restore FileIdentity");
     }
 }
 
@@ -1004,6 +1007,7 @@ impl EventLog<AccountEvent, DiscLog, DiscLog, PathBuf> {
         )
         .await?;
 
+        /*
         FileIdentity::read_file(path.as_ref(), &ACCOUNT_EVENT_LOG_IDENTITY)
             .await?;
 
@@ -1017,6 +1021,9 @@ impl EventLog<AccountEvent, DiscLog, DiscLog, PathBuf> {
             version: Some(VERSION),
             phantom: std::marker::PhantomData,
         })
+        */
+
+        todo!("restore FileIdentity");
     }
 }
 
@@ -1033,6 +1040,7 @@ impl EventLog<DeviceEvent, DiscLog, DiscLog, PathBuf> {
         )
         .await?;
 
+        /*
         FileIdentity::read_file(path.as_ref(), &DEVICE_EVENT_LOG_IDENTITY)
             .await?;
 
@@ -1046,6 +1054,9 @@ impl EventLog<DeviceEvent, DiscLog, DiscLog, PathBuf> {
             version: Some(VERSION),
             phantom: std::marker::PhantomData,
         })
+        */
+
+        todo!("restore FileIdentity");
     }
 }
 

@@ -44,7 +44,6 @@ pub mod identity;
 pub(crate) mod paths;
 pub mod prelude;
 
-pub mod signer;
 pub mod vault;
 
 // pub use date_time::UtcDateTime;
@@ -64,10 +63,11 @@ pub use uuid;
 pub use vcard4;
 
 // Deprecated re-exports for backwards compatibility
-// DO NOT USE - they will be removed in the future
+// DO NOT USE - some will be removed in the future
 pub use sos_core::constants;
 pub use sos_core::crypto;
 pub use sos_core::UtcDateTime;
+pub use sos_signer as signer;
 
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;

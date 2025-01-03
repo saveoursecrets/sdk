@@ -1,0 +1,22 @@
+[package]
+name = "sos-signer"
+version = "0.16.0"
+edition = "2021"
+
+[dependencies]
+sos-core.workspace = true
+
+thiserror.workspace = true
+async-trait.workspace = true
+k256.workspace = true
+serde.workspace = true
+ethereum-types.workspace = true
+rand.workspace = true
+subtle.workspace = true
+sha3.workspace = true
+ed25519-dalek.workspace = true
+hex.workspace = true
+bs58.workspace = true
+sha2.workspace = true
+binary-stream.workspace = true
+futures.workspace = true

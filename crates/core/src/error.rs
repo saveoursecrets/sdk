@@ -49,6 +49,15 @@ pub enum Error {
     #[error("account identifier must begin with 0x")]
     BadAccountIdPrefix,
 
+    /// Error generated when a vault identity byte is wrong.
+    #[error("bad identity byte {0:#04x} at position {1} expecting {2}")]
+    BadIdentity(u8, usize, String),
+
+    /// Error generated when a buffer used to read identity bytes
+    /// is not long enough.
+    #[error("buffer passed for identity check is too short")]
+    IdentityLength,
+
     /// Error generated converting by the IO module.
     #[error(transparent)]
     Io(#[from] std::io::Error),

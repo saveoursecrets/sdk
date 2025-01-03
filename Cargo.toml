@@ -21,16 +21,18 @@ members = [
   "crates/recovery",
   "crates/sdk",
   "crates/server",
+  "crates/signer", 
   "crates/sos",
   "crates/storage/client",
   "crates/storage/server",
   "crates/sync",  
   "crates/vfs", 
   "crates/web",   
+  "crates/vault",
 
   "tests/integration",
   "tests/unit",
-  "tests/utils", "crates/filesystem",
+  "tests/utils", 
 ]
 
 [workspace.dependencies]
@@ -53,10 +55,12 @@ sos-recovery = { version = "0.16", path = "crates/recovery" }
 sos-server = { version = "0.16", path = "crates/server" }
 sos-client-storage = { version = "0.16", path = "crates/storage/client" }
 sos-server-storage = { version = "0.16", path = "crates/storage/server" }
+sos-signer = { version = "0.16", path = "crates/signer" }
 sos-sync = { version = "0.16", path = "crates/sync" }
 sos-sdk = { version = "0.16", path = "crates/sdk" }
 sos-vfs = { version = "0.2.2", path = "crates/vfs" }
 sos-web = { version = "0.16", path = "crates/web" }
+sos-vault = { version = "0.16", path = "crates/vault" }
 
 sos-test-utils = { path = "tests/utils" }
 

@@ -1,10 +1,15 @@
 //! Traits and types for signing messages.
 use async_trait::async_trait;
 
-use crate::Result;
-
 mod address;
+mod encoding;
+mod error;
 mod signature;
+
+pub use error::Error;
+
+/// Result type for the signer library.
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// Boxed signer.
 type BoxedSigner<O, V, A> = Box<

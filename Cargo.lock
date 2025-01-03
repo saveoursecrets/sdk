@@ -5534,6 +5534,8 @@ dependencies = [
  "sha3",
  "sos-core",
  "sos-password",
+ "sos-signer",
+ "sos-vault",
  "sos-vfs",
  "subtle",
  "tempfile",
@@ -5623,6 +5625,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-signer"
+version = "0.16.0"
+dependencies = [
+ "async-trait",
+ "binary-stream",
+ "bs58",
+ "ed25519-dalek",
+ "ethereum-types",
+ "futures",
+ "hex",
+ "k256",
+ "rand",
+ "serde",
+ "sha2",
+ "sha3",
+ "sos-core",
+ "subtle",
+ "thiserror 2.0.9",
+]
+
+[[package]]
 name = "sos-sync"
 version = "0.16.0"
 dependencies = [
@@ -5709,6 +5732,38 @@ dependencies = [
  "uuid",
  "vcard4",
  "xclipboard",
+]
+
+[[package]]
+name = "sos-vault"
+version = "0.16.0"
+dependencies = [
+ "age",
+ "async-trait",
+ "binary-stream",
+ "bitflags 2.6.0",
+ "ed25519-dalek",
+ "futures",
+ "hex",
+ "indexmap 2.7.0",
+ "pem",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sos-core",
+ "sos-signer",
+ "sos-vfs",
+ "thiserror 2.0.9",
+ "tokio",
+ "tokio-util",
+ "totp-rs",
+ "tracing",
+ "typeshare",
+ "url",
+ "urn",
+ "uuid",
+ "vcard4",
 ]
 
 [[package]]

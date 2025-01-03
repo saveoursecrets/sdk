@@ -1,0 +1,33 @@
+[package]
+name = "sos-vault"
+version = "0.16.0"
+edition = "2021"
+
+[dependencies]
+sos-core.workspace = true
+sos-signer.workspace = true
+sos-vfs.workspace = true
+
+thiserror.workspace = true
+pem.workspace = true
+async-trait.workspace = true
+binary-stream.workspace = true
+serde.workspace = true
+indexmap.workspace = true
+secrecy.workspace = true
+sha2.workspace = true
+urn.workspace = true
+tokio-util.workspace = true
+typeshare.workspace = true
+uuid.workspace = true
+futures.workspace = true
+age.workspace = true
+tokio.workspace = true
+bitflags.workspace = true
+vcard4.workspace = true
+totp-rs.workspace = true
+url.workspace = true
+ed25519-dalek.workspace = true
+tracing.workspace = true
+serde_json.workspace = true
+hex.workspace = true

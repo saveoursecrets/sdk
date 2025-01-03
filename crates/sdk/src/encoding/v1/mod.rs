@@ -2,8 +2,9 @@
 mod audit;
 #[deprecated]
 mod events;
+#[deprecated]
 mod secret;
-mod signer;
+#[deprecated]
 mod vault;
 
 ///
