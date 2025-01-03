@@ -1,21 +1,14 @@
 use crate::{
     crypto::AeadPack,
     encoding::{decode_uuid, encoding_error},
-    events::{AccountEvent, EventKind, LogEvent, WriteEvent},
-    // formats::{EventLogRecord, FileRecord, VaultRecord},
-    UtcDateTime,
-    VaultCommit,
-    VaultFlags,
+    events::{AccountEvent, DeviceEvent, EventKind, LogEvent, WriteEvent},
+    VaultCommit, VaultFlags,
 };
-
-use crate::commit::CommitHash;
-use crate::events::DeviceEvent;
-
 #[cfg(feature = "files")]
 use crate::{events::FileEvent, SecretPath};
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use std::io::{Error, ErrorKind, Result, SeekFrom};
+use std::io::{Error, ErrorKind, Result};
 
 use async_trait::async_trait;
 use binary_stream::futures::{

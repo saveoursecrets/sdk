@@ -1,20 +1,11 @@
-use sos_core::{
-    crypto::AeadPack,
-    encoding::{decode_uuid, encoding_error},
-    events::{AccountEvent, EventKind, LogEvent, WriteEvent},
-    UtcDateTime, VaultCommit, VaultFlags,
-};
+use sos_core::{encoding::encoding_error, UtcDateTime};
 
 use crate::events::EventRecord;
 use crate::formats::{EventLogRecord, FileRecord, VaultRecord};
 use sos_core::commit::CommitHash;
-use sos_core::events::DeviceEvent;
-
-#[cfg(feature = "files")]
-use sos_core::{events::FileEvent, SecretPath};
 
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use std::io::{Error, ErrorKind, Result, SeekFrom};
+use std::io::{Result, SeekFrom};
 
 use async_trait::async_trait;
 use binary_stream::futures::{
