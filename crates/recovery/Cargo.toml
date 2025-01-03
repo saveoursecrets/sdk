@@ -20,6 +20,5 @@ binary-stream.workspace = true
 hex.workspace = true
 async-trait.workspace = true
 futures.workspace = true
-
-vsss-rs = "3"
+vsss-rs.workspace = true
 

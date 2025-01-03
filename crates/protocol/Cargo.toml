@@ -60,25 +60,22 @@ sha2.workspace = true
 tokio = { version = "1", features = ["rt",  "macros"] }
 
 # network-client
-# reqwest = { workspace = true, optional = true }
 tokio-tungstenite = { workspace = true, optional = true }
 bs58 = { workspace = true, optional = true }
 async-stream = { workspace = true, optional = true }
 tokio-util = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.reqwest]
-version = "0.12.5"
-default-features = false
+workspace = true
 features = ["json", "rustls-tls", "stream"]
 optional = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.reqwest]
-version = "0.12.5"
-default-features = false
+workspace = true
 features = ["json", "stream"]
 optional = true
 
 [build-dependencies]
-rustc_version = "0.4.1"
-prost-build = "0.13"
-protoc-bin-vendored = "3"
+rustc_version.workspace = true
+prost-build.workspace = true
+protoc-bin-vendored.workspace = true

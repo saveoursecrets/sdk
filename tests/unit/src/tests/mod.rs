@@ -1,5 +1,6 @@
 mod account;
 mod artifact;
+mod clipboard;
 mod crypto;
 mod database;
 mod date_time;

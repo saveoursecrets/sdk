@@ -17,4 +17,4 @@ thiserror.workspace = true
 serde.workspace = true
 hex.workspace = true
 time.workspace = true
-semver = { version = "1", features = ["serde"] }
+semver.workspace = true

@@ -26,6 +26,7 @@ sos-sdk = { workspace = true, features = ["full"] }
 sos-sync = { workspace = true, features = ["full"] }
 sos-server-storage = { workspace = true, features = ["full"] }
 sos-test-utils.workspace = true
+xclipboard.workspace = true
 
 anyhow.workspace = true
 tempfile.workspace = true

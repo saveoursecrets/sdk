@@ -48,12 +48,11 @@ clap.workspace = true
 arboard.workspace = true
 sha2.workspace = true
 zxcvbn.workspace = true
-
 tokio-rustls.workspace = true
 rustls.workspace = true
+tempfile.workspace = true
 
 human_bytes = "0.4"
-tempfile = "3.5"
 shell-words = "1"
 terminal-banner = { version = "0.4.1", features = ["color"] }
 unicode-width = "0.2"

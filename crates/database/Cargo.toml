@@ -56,10 +56,5 @@ url  = { workspace = true, optional = true }
 vcard4 = { workspace = true, optional = true }
 
 # sqlite
-async-sqlite = { version = "0.3", optional = true }
-refinery = { version = "0.8", git = "https://github.com/rust-db/refinery", features = ["rusqlite"], optional = true }
-
-[dev-dependencies]
-anyhow.workspace = true
-tempfile.workspace = true
-
+async-sqlite = { workspace = true, optional = true }
+refinery = { workspace = true, optional = true }

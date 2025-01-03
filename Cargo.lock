@@ -5174,7 +5174,6 @@ dependencies = [
 name = "sos-database"
 version = "0.16.0"
 dependencies = [
- "anyhow",
  "async-sqlite",
  "async-trait",
  "futures",
@@ -5187,7 +5186,6 @@ dependencies = [
  "sha2",
  "sos-core",
  "sos-sdk",
- "tempfile",
  "thiserror 2.0.9",
  "tokio",
  "tracing",
@@ -5567,7 +5565,6 @@ name = "sos-server-storage"
 version = "0.16.0"
 dependencies = [
  "age",
- "anyhow",
  "async-trait",
  "binary-stream",
  "futures",
@@ -5673,6 +5670,7 @@ dependencies = [
  "urn",
  "uuid",
  "vcard4",
+ "xclipboard",
 ]
 
 [[package]]
@@ -6045,7 +6043,6 @@ dependencies = [
  "bytes",
  "libc",
  "mio",
- "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
  "socket2",
@@ -7336,7 +7333,6 @@ dependencies = [
 name = "xclipboard"
 version = "0.16.0"
 dependencies = [
- "anyhow",
  "arboard",
  "rustc_version",
  "thiserror 2.0.9",

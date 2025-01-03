@@ -9,5 +9,5 @@ repository = "https://github.com/saveoursecrets/sdk"
 
 [dependencies]
 thiserror.workspace = true
-logos = { version = "0.15", features = ["export_derive"] }
-plist = "1.7"
+logos.workspace = true
+plist.workspace = true
