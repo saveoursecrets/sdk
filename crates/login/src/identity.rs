@@ -7,12 +7,9 @@
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single primary password.
 use crate::device::DeviceManager;
-use crate::{
-    identity::{DiscIdentityFolder, PublicIdentity},
-    Error, Paths, Result,
-};
+use crate::{DiscIdentityFolder, Error, PublicIdentity, Result};
 use secrecy::SecretString;
-use sos_core::{crypto::AccessKey, events::Event, SecretId, VaultId};
+use sos_core::{crypto::AccessKey, events::Event, Paths, SecretId, VaultId};
 use sos_signer::ecdsa::Address;
 use sos_vault::{Summary, Vault};
 use sos_vfs as vfs;

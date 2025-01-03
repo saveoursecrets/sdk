@@ -1,7 +1,7 @@
 //! Private identity manages the identity vault,
 //! account signing key, device signing key and delegated
 //! passwords.
-use crate::signer::ecdsa::{Address, BoxedEcdsaSigner};
+use sos_signer::ecdsa::{Address, BoxedEcdsaSigner};
 
 /// Private identity containing the in-memory identity vault
 /// and signing keys.

@@ -1,16 +1,14 @@
-use crate::{
-    audit::{AuditData, AuditEvent, AuditLogFile, AuditLogFlags},
-    encoding::{decode_uuid, encoding_error},
-    UtcDateTime,
-};
-
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use std::io::{Error, ErrorKind, Result, SeekFrom};
-
+use crate::{AuditData, AuditEvent, AuditLogFile, AuditLogFlags};
 use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use sos_core::{
+    encoding::{decode_uuid, encoding_error},
+    UtcDateTime,
+};
+use std::io::{Error, ErrorKind, Result, SeekFrom};
 
 #[async_trait]
 impl Encodable for AuditEvent {

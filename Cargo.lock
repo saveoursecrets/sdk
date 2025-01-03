@@ -5124,6 +5124,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-audit"
+version = "0.16.0"
+dependencies = [
+ "async-trait",
+ "binary-stream",
+ "bitflags 2.6.0",
+ "futures",
+ "serde",
+ "sos-core",
+ "sos-filesystem",
+ "sos-signer",
+ "sos-vault",
+ "sos-vfs",
+ "thiserror 2.0.9",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "sos-cli-helpers"
 version = "0.1.0"
 dependencies = [
@@ -5175,6 +5194,7 @@ dependencies = [
  "bitflags 2.6.0",
  "bs58",
  "chacha20poly1305",
+ "etcetera",
  "futures",
  "hex",
  "mime_guess",
@@ -5188,6 +5208,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "sha2",
+ "sos-vfs",
  "thiserror 2.0.9",
  "time",
  "time-tz",
@@ -5209,8 +5230,10 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "sos-audit",
  "sos-core",
  "sos-filesystem",
+ "sos-login",
  "sos-sdk",
  "thiserror 2.0.9",
  "tokio",
@@ -5269,6 +5292,7 @@ dependencies = [
  "sos-filesystem",
  "sos-integrity",
  "sos-ipc",
+ "sos-login",
  "sos-migrate",
  "sos-net",
  "sos-protocol",
@@ -5348,6 +5372,28 @@ dependencies = [
  "tower 0.5.2",
  "tracing",
  "typeshare",
+]
+
+[[package]]
+name = "sos-login"
+version = "0.16.0"
+dependencies = [
+ "age",
+ "ed25519-dalek",
+ "futures",
+ "secrecy",
+ "serde",
+ "sos-core",
+ "sos-filesystem",
+ "sos-password",
+ "sos-signer",
+ "sos-vault",
+ "sos-vfs",
+ "thiserror 2.0.9",
+ "tokio",
+ "tracing",
+ "typeshare",
+ "urn",
 ]
 
 [[package]]
@@ -5558,6 +5604,7 @@ dependencies = [
  "sha3",
  "sos-core",
  "sos-filesystem",
+ "sos-login",
  "sos-password",
  "sos-signer",
  "sos-vault",

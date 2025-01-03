@@ -31,22 +31,14 @@
 #[cfg(feature = "archive")]
 pub mod archive;
 
-#[cfg(feature = "audit")]
-pub mod audit;
-// mod date_time;
-pub mod device;
-pub mod encoding;
 mod error;
 pub mod events;
-pub mod identity;
-
-pub(crate) mod paths;
 pub mod prelude;
 
-// pub use date_time::UtcDateTime;
-pub use encoding::{decode, encode};
 pub use error::Error;
-pub use paths::Paths;
+
+pub use sos_core::Paths;
+pub use sos_core::{decode, encode};
 
 // Re-exports
 pub use hex;
@@ -64,6 +56,7 @@ pub use vcard4;
 pub use sos_core::constants;
 pub use sos_core::crypto;
 pub use sos_core::UtcDateTime;
+pub use sos_login as identity;
 pub use sos_signer as signer;
 pub use sos_vault as vault;
 

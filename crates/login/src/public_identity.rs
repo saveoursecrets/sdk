@@ -1,12 +1,10 @@
 //! Public identity information.
-use crate::{
-    constants::VAULT_EXT,
-    decode,
-    signer::ecdsa::Address,
-    vault::{Header, Summary, Vault, VaultId},
-    vfs, Error, Paths, Result,
-};
+use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
+use sos_core::{constants::VAULT_EXT, decode, Paths, VaultId};
+use sos_signer::ecdsa::Address;
+use sos_vault::{Header, Summary, Vault};
+use sos_vfs as vfs;
 use std::{
     fmt,
     path::{Path, PathBuf},

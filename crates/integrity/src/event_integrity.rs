@@ -5,11 +5,12 @@ use binary_stream::futures::BinaryReader;
 use futures::stream::Stream;
 use hex;
 use sos_core::commit::CommitTree;
+use sos_core::encoding::encoding_options;
 use sos_filesystem::{
     events::{EventLogExt, FolderEventLog},
     formats::{EventLogRecord, FileItem},
 };
-use sos_sdk::{encoding::encoding_options, vfs};
+use sos_vfs as vfs;
 use std::{io::SeekFrom, path::Path};
 use tokio_util::compat::TokioAsyncReadCompatExt;
 

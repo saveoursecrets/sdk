@@ -15,6 +15,7 @@ pub mod events;
 mod file;
 pub mod file_identity;
 mod origin;
+mod paths;
 
 pub use account::AccountId;
 // pub use crypto::*;
@@ -24,6 +25,7 @@ pub use encoding::{decode, encode};
 pub use error::Error;
 pub use file::{ExternalFile, ExternalFileName};
 pub use origin::Origin;
+pub use paths::Paths;
 pub use rs_merkle as merkle;
 
 /// Result type for the library.

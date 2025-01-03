@@ -33,8 +33,10 @@ sqlite = ["dep:async-sqlite", "dep:refinery"]
 client = []
 
 [dependencies]
+sos-audit.workspace = true
 sos-core.workspace = true
 sos-sdk.workspace = true
+sos-login.workspace = true
 sos-filesystem.workspace = true
 
 thiserror.workspace = true

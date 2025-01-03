@@ -1,5 +1,5 @@
 use async_sqlite::rusqlite::{Connection, Error as SqlError};
-use sos_sdk::audit::AuditEvent;
+use sos_audit::AuditEvent;
 use std::ops::Deref;
 
 type AuditSourceRow = (String, AuditEvent, Option<String>);

@@ -25,13 +25,10 @@ pub enum Error {
     #[deprecated]
     PermissionDenied,
 
-    /// Error generated when a folder password could not be located.
-    #[error("could not find folder password for '{0}'")]
-    NoFolderPassword(VaultId),
-
     /// Error generated accessing an account that is not
     /// authenticated.
     #[error("account not authenticated, sign in required")]
+    #[deprecated]
     NotAuthenticated,
 
     /// Error generated when a device signer is expected.
@@ -71,11 +68,6 @@ pub enum Error {
     #[error("password verification failed")]
     #[deprecated]
     PassphraseVerification,
-
-    /// Error generated when a login vault does not contain
-    /// the identity bit flag.
-    #[error("vault is not an identity vault")]
-    NotIdentityFolder,
 
     /// Error generated when a vault does not contain a secret by URN.
     #[error("vault {0} does not contain {1}")]
@@ -117,14 +109,6 @@ pub enum Error {
     /// the wrong secret kind.
     #[error("vault entry for {0} is of an unexpected type")]
     VaultEntryKind(String),
-
-    /// Error generated when a vault file could not be located.
-    #[error("could not find vault file for {0}")]
-    NoVaultFile(String),
-
-    /// Error generated when an account does not exist.
-    #[error("could not find account {0}")]
-    NoAccount(String),
 
     /// Error generated when an archive does not contain a default vault.
     #[error("archive does not contain a default vault")]

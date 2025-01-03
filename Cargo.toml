@@ -4,6 +4,7 @@ members = [
   "crates/account",
   "crates/account_extras",
   "crates/artifact",
+  "crates/audit",
   "crates/cli_helpers", 
   "crates/clipboard", 
   "crates/core",
@@ -12,6 +13,7 @@ members = [
   "crates/keychain_parser",
   "crates/integrity",
   "crates/ipc",
+  "crates/login",
   "crates/logs",
   "crates/migrate",
   "crates/net",
@@ -39,12 +41,14 @@ members = [
 sos-account = { version = "0.16", path = "crates/account" }
 sos-account-extras = { version = "0.16", path = "crates/account_extras" }
 sos-artifact = { version = "0.8", path = "crates/artifact" }
+sos-audit = { version = "0.16", path = "crates/audit" }
 sos-cli-helpers = { path = "crates/cli_helpers" }
 sos-core = { version = "0.16", path = "crates/core" }
 sos-database = { version = "0.16", path = "crates/database" }
 sos-filesystem = { version = "0.16", path = "crates/filesystem" }
 sos-integrity = { version = "0.16", path = "crates/integrity" }
 sos-ipc = { version = "0.16", path = "crates/ipc" }
+sos-login = { version = "0.16", path = "crates/login" }
 sos-logs = { version = "0.16", path = "crates/logs" }
 sos-migrate = { version = "0.16", path = "crates/migrate" }
 sos-net = { version = "0.16", path = "crates/net" }

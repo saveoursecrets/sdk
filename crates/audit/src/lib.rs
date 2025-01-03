@@ -5,12 +5,21 @@ use serde::{Deserialize, Serialize};
 use sos_core::events::{
     AccountEvent, Event, EventKind, ReadEvent, WriteEvent,
 };
-use sos_core::{events::LogEvent, AccountId, UtcDateTime};
+use sos_core::{events::LogEvent, AccountId, SecretId, UtcDateTime, VaultId};
 use sos_signer::ecdsa::Address;
-use sos_vault::{secret::SecretId, VaultId};
 
+mod encoding;
+mod error;
 mod log_file;
+mod stream;
+
 pub use log_file::AuditLogFile;
+pub use stream::audit_stream;
+
+pub use error::Error;
+
+/// Result type for the library.
+pub type Result<T> = std::result::Result<T, Error>;
 
 bitflags! {
     /// Bit flags for associated data.

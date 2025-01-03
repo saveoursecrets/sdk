@@ -16,6 +16,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+sos-vfs.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 url.workspace = true
@@ -44,6 +45,9 @@ argon2.workspace = true
 aes-gcm.workspace = true
 chacha20poly1305.workspace = true
 balloon-hash.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+etcetera.workspace = true
 
 [build-dependencies]
 rustc_version.workspace = true

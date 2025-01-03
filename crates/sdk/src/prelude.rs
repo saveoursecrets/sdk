@@ -1,8 +1,5 @@
 //! Prelude re-exports common types.
-#[cfg(feature = "audit")]
-pub use crate::audit::*;
 pub use crate::constants::*;
-pub use crate::device::*;
 pub use crate::events::*;
 pub use crate::identity::*;
 

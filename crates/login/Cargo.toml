@@ -1,0 +1,27 @@
+[package]
+name = "sos-login"
+version = "0.16.0"
+edition = "2021"
+
+[features]
+full = ["files"]
+files = []
+
+[dependencies]
+sos-core.workspace = true
+sos-filesystem.workspace = true
+sos-password.workspace = true
+sos-signer.workspace = true
+sos-vault.workspace = true
+sos-vfs.workspace = true
+
+thiserror.workspace = true
+secrecy.workspace = true
+urn.workspace = true
+age.workspace = true
+serde.workspace = true
+futures.workspace = true
+tokio.workspace = true
+typeshare.workspace = true
+ed25519-dalek.workspace = true
+tracing.workspace = true

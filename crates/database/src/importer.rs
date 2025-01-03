@@ -1,6 +1,7 @@
 use crate::{db, migrations::migrate_db_file, Error, Result};
 use async_sqlite::{Client, ClientBuilder, JournalMode};
-use sos_sdk::prelude::{Identity, Paths, PublicIdentity};
+use sos_core::Paths;
+use sos_sdk::prelude::{Identity, PublicIdentity};
 use std::path::PathBuf;
 
 /// Create the database for an existing account from account paths.

@@ -1,12 +1,10 @@
 use super::{AuditEvent, AuditProvider};
-use crate::Result;
+use crate::{audit_stream, Result};
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter};
 use futures::io::{BufReader, BufWriter, Cursor};
 use sos_core::{constants::AUDIT_IDENTITY, encoding::encoding_options};
-use sos_filesystem::formats::{
-    audit_stream, FileItem, FileRecord, FormatStream,
-};
+use sos_filesystem::formats::{FileItem, FileRecord, FormatStream};
 use sos_vfs::{self as vfs, File};
 use std::{
     io::SeekFrom,

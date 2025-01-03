@@ -58,6 +58,10 @@ pub enum Error {
     #[error("buffer passed for identity check is too short")]
     IdentityLength,
 
+    /// Generic boxed error.
+    #[error(transparent)]
+    Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
+
     /// Error generated converting by the IO module.
     #[error(transparent)]
     Io(#[from] std::io::Error),

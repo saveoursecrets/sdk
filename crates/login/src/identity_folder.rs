@@ -7,17 +7,14 @@
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single primary password.
 use crate::device::{DeviceManager, DeviceSigner};
-use crate::{
-    identity::{PrivateIdentity, UrnLookup},
-    Error, Paths, Result,
-};
+use crate::{Error, PrivateIdentity, Result, UrnLookup};
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use sos_core::events::WriteEvent;
 use sos_core::{
     constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
     crypto::{AccessKey, KeyDerivation},
-    decode, encode,
+    decode, encode, Paths,
 };
 use sos_filesystem::{
     events::{
@@ -167,7 +164,7 @@ where
     }
 
     fn device_urn(&self) -> Result<Urn> {
-        use crate::constants::DEVICE_KEY_URN;
+        use sos_core::constants::DEVICE_KEY_URN;
         Ok(DEVICE_KEY_URN.parse()?)
     }
 
@@ -404,7 +401,8 @@ where
     pub(crate) async fn create_file_encryption_password(
         &mut self,
     ) -> Result<()> {
-        use crate::{constants::FILE_PASSWORD_URN, vault::secret::UserData};
+        use sos_core::constants::FILE_PASSWORD_URN;
+        use sos_vault::secret::UserData;
         let file_passphrase = self.generate_folder_password()?;
         let secret = Secret::Password {
             password: file_passphrase,
@@ -429,7 +427,7 @@ where
     pub(crate) async fn find_file_encryption_password(
         &self,
     ) -> Result<SecretString> {
-        use crate::constants::FILE_PASSWORD_URN;
+        use sos_core::constants::FILE_PASSWORD_URN;
         let urn: Urn = FILE_PASSWORD_URN.parse()?;
 
         let id = self

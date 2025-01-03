@@ -4,12 +4,12 @@ use async_stream::try_stream;
 use binary_stream::futures::BinaryReader;
 use futures::stream::Stream;
 use sos_core::commit::CommitTree;
+use sos_core::{constants::VAULT_IDENTITY, encoding::encoding_options};
 use sos_filesystem::formats::{
     FileIdentity, FileItem, FormatStream, FormatStreamIterator, VaultRecord,
 };
-use sos_sdk::{
-    constants::VAULT_IDENTITY, encoding::encoding_options, vault::Header, vfs,
-};
+use sos_vault::Header;
+use sos_vfs as vfs;
 use std::{io::SeekFrom, path::Path};
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 

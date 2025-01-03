@@ -1,13 +1,11 @@
 //! Types for device support.
-use crate::{
+use crate::Result;
+pub use sos_core::{
+    device::{DeviceMetaData, DevicePublicKey, TrustedDevice, DEVICE},
     encode,
-    signer::ed25519::{BoxedEd25519Signer, SingleParty, VerifyingKey},
-    vault::{Gatekeeper, Vault},
-    Result,
 };
-pub use sos_core::device::{
-    DeviceMetaData, DevicePublicKey, TrustedDevice, DEVICE,
-};
+use sos_signer::ed25519::{BoxedEd25519Signer, SingleParty, VerifyingKey};
+use sos_vault::{Gatekeeper, Vault};
 
 #[doc(hidden)]
 pub fn into_device_verifying_key(
