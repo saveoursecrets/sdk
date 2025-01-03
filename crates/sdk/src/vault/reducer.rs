@@ -1,13 +1,12 @@
 use crate::{
-    crypto::AeadPack,
-    decode,
-    events::{EventLogExt, WriteEvent},
+    events::EventLogExt,
     vault::{secret::SecretId, Vault, VaultCommit, VaultFlags},
     Error, Result,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use indexmap::IndexMap;
 use sos_core::commit::CommitHash;
+use sos_core::{crypto::AeadPack, decode, events::WriteEvent};
 
 /// Reduce log events to a vault.
 #[derive(Default)]

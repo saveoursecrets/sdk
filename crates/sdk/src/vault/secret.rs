@@ -1,5 +1,11 @@
 //! Types used to represent vault meta data and secrets.
-
+use crate::{
+    signer::{
+        ecdsa::{self, BoxedEcdsaSigner},
+        ed25519::{self, BoxedEd25519Signer},
+    },
+    Error, Result,
+};
 use bitflags::bitflags;
 use ed25519_dalek::SECRET_KEY_LENGTH;
 use pem::Pem;
@@ -8,6 +14,8 @@ use serde::{
     ser::{SerializeMap, SerializeSeq},
     Deserialize, Serialize, Serializer,
 };
+use sos_core::{basename, guess_mime, UtcDateTime};
+use std::path::PathBuf;
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
@@ -20,18 +28,6 @@ use urn::Urn;
 use uuid::Uuid;
 use vcard4::{self, Vcard};
 
-use sos_core::{basename, guess_mime};
-
-use crate::{
-    signer::{
-        ecdsa::{self, BoxedEcdsaSigner},
-        ed25519::{self, BoxedEd25519Signer},
-    },
-    Error, Result, UtcDateTime,
-};
-
-use std::path::PathBuf;
-
 pub use sos_core::{SecretId, SecretPath};
 
 bitflags! {
@@ -39,7 +35,8 @@ bitflags! {
     #[derive(Default, Serialize, Deserialize, Debug, Clone)]
     #[serde(transparent)]
     pub struct SecretFlags: u32 {
-        /// Clients should verify the account passphrase
+        /// Clients should verify user presence either using
+        /// the platform authenticator or the account password
         /// before revealing this secret.
         const VERIFY            =        0b00000001;
     }

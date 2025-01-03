@@ -1,4 +1,14 @@
-use crate::{
+use crate::{formats::FileIdentity, vfs::File, Error, Result};
+use age::x25519::{Identity, Recipient};
+use async_trait::async_trait;
+use binary_stream::futures::{BinaryReader, Decodable};
+use futures::io::{AsyncReadExt, AsyncSeek, BufReader, Cursor};
+use indexmap::IndexMap;
+use secrecy::SecretString;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use sos_core::{
+    commit::CommitHash,
     constants::{DEFAULT_VAULT_NAME, URN_NID, VAULT_IDENTITY, VAULT_NSS},
     crypto::{
         AccessKey, AeadPack, Cipher, Deriver, KeyDerivation, PrivateKey, Seed,
@@ -6,20 +16,8 @@ use crate::{
     decode, encode,
     encoding::{encoding_options, VERSION},
     events::{ReadEvent, WriteEvent},
-    formats::FileIdentity,
-    vault::secret::SecretId,
-    vfs::File,
-    Error, Result, UtcDateTime,
+    SecretId, UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
-use age::x25519::{Identity, Recipient};
-use async_trait::async_trait;
-use binary_stream::futures::{BinaryReader, Decodable};
-use futures::io::{AsyncReadExt, AsyncSeek};
-use futures::io::{BufReader, Cursor};
-use indexmap::IndexMap;
-use secrecy::SecretString;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, path::Path,
     str::FromStr,
@@ -28,106 +26,6 @@ use tokio_util::compat::TokioAsyncReadCompatExt;
 use typeshare::typeshare;
 use urn::Urn;
 use uuid::Uuid;
-
-use sos_core::{commit::CommitHash, VaultCommit, VaultEntry};
-use sos_core::{VaultFlags, VaultId};
-
-/*
-bitflags! {
-    /// Bit flags for a vault.
-    #[derive(Default, Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
-    #[serde(transparent)]
-    pub struct VaultFlags: u64 {
-        /// Indicates this vault should be treated as
-        /// the default folder.
-        const DEFAULT           =        0b0000000000000001;
-        /// Indicates this vault is an identity vault used
-        /// to authenticate a user and store delegated folder passwords.
-        const IDENTITY          =        0b0000000000000010;
-        /// Indicates this vault is to be used as an archive.
-        const ARCHIVE           =        0b0000000000000100;
-        /// Indicates this vault is to be used for
-        /// two-factor authentication.
-        const AUTHENTICATOR     =        0b0000000000001000;
-        /// Indicates this vault is to be used to store contacts.
-        const CONTACT           =        0b0000000000010000;
-        /// Indicates this vault is a system vault and should
-        /// not be presented to the account holder when listing
-        /// available vaults.
-        const SYSTEM            =        0b0000000000100000;
-        /// Indicates this vault is to be used to store device
-        /// specific information such as key shares or device
-        /// specific private keys.
-        ///
-        /// Typically these vaults should also be assigned the
-        /// NO_SYNC flag.
-        const DEVICE            =        0b0000000001000000;
-        /// Indicates this vault should not be synced with
-        /// devices owned by the account holder.
-        ///
-        /// This is useful for storing device specific keys.
-        const NO_SYNC           =        0b0000000010000000;
-        /// Indicates the folder is intended to be local first.
-        const LOCAL             =        0b0000000100000000;
-        /// Indicates this vault is shared using asymmetric
-        /// encryption.
-        const SHARED            =        0b0000001000000000;
-    }
-}
-
-impl VaultFlags {
-    /// Determine if this vault is a default vault.
-    pub fn is_default(&self) -> bool {
-        self.contains(VaultFlags::DEFAULT)
-    }
-
-    /// Determine if this vault is an identity vault.
-    pub fn is_identity(&self) -> bool {
-        self.contains(VaultFlags::IDENTITY)
-    }
-
-    /// Determine if this vault is an archive vault.
-    pub fn is_archive(&self) -> bool {
-        self.contains(VaultFlags::ARCHIVE)
-    }
-
-    /// Determine if this vault is an authenticator vault.
-    pub fn is_authenticator(&self) -> bool {
-        self.contains(VaultFlags::AUTHENTICATOR)
-    }
-
-    /// Determine if this vault is for contacts.
-    pub fn is_contact(&self) -> bool {
-        self.contains(VaultFlags::CONTACT)
-    }
-
-    /// Determine if this vault is for system specific information.
-    pub fn is_system(&self) -> bool {
-        self.contains(VaultFlags::SYSTEM)
-    }
-
-    /// Determine if this vault is for device specific information.
-    pub fn is_device(&self) -> bool {
-        self.contains(VaultFlags::DEVICE)
-    }
-
-    /// Determine if this vault is set to ignore sync
-    /// with other devices owned by the account holder.
-    pub fn is_sync_disabled(&self) -> bool {
-        self.contains(VaultFlags::NO_SYNC)
-    }
-
-    /// Determine if this vault is local first.
-    pub fn is_local(&self) -> bool {
-        self.contains(VaultFlags::LOCAL)
-    }
-
-    /// Determine if this vault is shared.
-    pub fn is_shared(&self) -> bool {
-        self.contains(VaultFlags::SHARED)
-    }
-}
-*/
 
 /// Vault meta data.
 #[derive(Default, Serialize, Deserialize)]

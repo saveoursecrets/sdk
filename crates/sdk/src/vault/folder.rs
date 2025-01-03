@@ -13,11 +13,11 @@ use crate::{
         FolderReducer, Gatekeeper, Vault, VaultCommit, VaultId, VaultMeta,
         VaultWriter,
     },
-    vfs, Paths, Result,
+    Paths, Result,
 };
-
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use sos_core::commit::{CommitHash, CommitState};
+use sos_vfs as vfs;
 use std::{borrow::Cow, path::Path, sync::Arc};
 use tokio::sync::RwLock;
 

@@ -1,12 +1,14 @@
 use crate::{
-    constants::DEFAULT_VAULT_NAME,
-    crypto::{Cipher, KeyDerivation, PrivateKey, Seed},
-    encode,
     vault::{Vault, VaultAccess, VaultFlags, VaultId, VaultMeta},
     Result,
 };
 use age::x25519::{Identity, Recipient};
 use secrecy::SecretString;
+use sos_core::{
+    constants::DEFAULT_VAULT_NAME,
+    crypto::{Cipher, KeyDerivation, PrivateKey, Seed},
+    encode,
+};
 
 /// Credentials for a new vault.
 pub enum BuilderCredentials<'a> {

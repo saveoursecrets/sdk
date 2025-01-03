@@ -1,4 +1,22 @@
 //! Implements random access to a single vault file on disc.
+use crate::{
+    vault::{
+        secret::SecretId, Contents, Header, Summary, VaultAccess,
+        VaultCommit, VaultEntry, VaultFlags,
+    },
+    Result,
+};
+use async_trait::async_trait;
+use binary_stream::futures::{stream_length, BinaryReader, BinaryWriter};
+use futures::io::{BufWriter, Cursor};
+use sos_core::{
+    commit::CommitHash,
+    crypto::AeadPack,
+    encode,
+    encoding::encoding_options,
+    events::{ReadEvent, WriteEvent},
+};
+use sos_vfs::{self as vfs, File, OpenOptions};
 use std::{
     borrow::Cow,
     io::SeekFrom,
@@ -6,7 +24,6 @@ use std::{
     path::Path,
     path::PathBuf,
 };
-
 use tokio::{
     io::{
         AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
@@ -14,28 +31,8 @@ use tokio::{
     },
     sync::Mutex,
 };
-
-use futures::io::{BufWriter, Cursor};
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
-
-use async_trait::async_trait;
-use binary_stream::futures::{stream_length, BinaryReader, BinaryWriter};
-
 use uuid::Uuid;
-
-use crate::{
-    crypto::AeadPack,
-    encode,
-    encoding::encoding_options,
-    events::{ReadEvent, WriteEvent},
-    vault::{
-        secret::SecretId, Contents, Header, Summary, VaultAccess,
-        VaultCommit, VaultEntry, VaultFlags,
-    },
-    vfs::{self, File, OpenOptions},
-    Result,
-};
-use sos_core::commit::CommitHash;
 
 /// Mutates a vault file in-place.
 pub struct VaultWriter<F>

@@ -1,5 +1,4 @@
 //! Vault encrypted storage and access.
-
 mod builder;
 mod change;
 mod file_writer;

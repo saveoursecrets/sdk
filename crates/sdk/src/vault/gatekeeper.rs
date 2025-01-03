@@ -1,18 +1,19 @@
 //! Gatekeeper manages access to a vault.
 use crate::{
+    vault::{
+        secret::{Secret, SecretMeta, SecretRow},
+        SharedAccess, Summary, Vault, VaultAccess, VaultMeta, VaultWriter,
+    },
+    Error, Result,
+};
+use sos_core::{
     crypto::{AccessKey, AeadPack, KeyDerivation, PrivateKey},
     decode, encode,
     events::{ReadEvent, WriteEvent},
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow},
-        SharedAccess, Summary, Vault, VaultAccess, VaultCommit, VaultEntry,
-        VaultId, VaultMeta, VaultWriter,
-    },
-    vfs, Error, Result,
+    SecretId, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
+use sos_vfs as vfs;
 use std::{borrow::Cow, path::Path};
-
-use super::VaultFlags;
 
 /// Access to an in-memory vault optionally mirroring changes to disc.
 ///
@@ -184,7 +185,7 @@ impl Gatekeeper {
             .decrypt(private_key, meta_aead)
             .await
             .map_err(|_| Error::PassphraseVerification)?;
-        decode(&meta_blob).await
+        Ok(decode(&meta_blob).await?)
     }
 
     /// Set the meta data for the vault.
