@@ -1,26 +1,34 @@
 //! Storage backed by the filesystem.
 use crate::{AccessOptions, AccountPack, Error, NewFolderOptions, Result};
 use indexmap::IndexSet;
-use sos_core::commit::{CommitHash, CommitState};
+use sos_core::{
+    commit::{CommitHash, CommitState},
+    SecretId, VaultId,
+};
 use sos_database::StorageError;
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
-    constants::{EVENT_LOG_EXT, VAULT_EXT},
-    crypto::AccessKey,
-    decode, encode,
     events::{
-        AccountEvent, AccountEventLog, Event, EventLogExt, EventRecord,
-        FolderEventLog, FolderPatch, IntoRecord, ReadEvent, WriteEvent,
+        AccountEventLog, EventLogExt, EventRecord, FolderEventLog,
+        FolderPatch, IntoRecord,
     },
     identity::FolderKeys,
     signer::ecdsa::Address,
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow},
-        BuilderCredentials, ChangePassword, DiscFolder, FolderReducer,
-        FolderRef, Header, Summary, Vault, VaultBuilder, VaultCommit,
-        VaultFlags, VaultId,
-    },
-    vfs, Paths, UtcDateTime,
+    vfs, Paths,
+};
+
+use sos_core::{
+    constants::{EVENT_LOG_EXT, VAULT_EXT},
+    crypto::AccessKey,
+    decode, encode,
+    events::{AccountEvent, Event, ReadEvent, WriteEvent},
+    UtcDateTime,
+};
+use sos_filesystem::folder::{DiscFolder, FolderReducer};
+use sos_vault::{
+    secret::{Secret, SecretMeta, SecretRow},
+    BuilderCredentials, ChangePassword, FolderRef, Header, Summary, Vault,
+    VaultBuilder, VaultCommit, VaultFlags,
 };
 use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
@@ -31,16 +39,18 @@ use sos_sdk::archive::RestoreTargets;
 #[cfg(feature = "audit")]
 use sos_sdk::audit::AuditEvent;
 
-use sos_sdk::{
+use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
-    events::{DeviceEvent, DeviceEventLog, DeviceReducer},
+    events::DeviceEvent,
 };
 
-#[cfg(feature = "files")]
-use sos_sdk::events::{FileEvent, FileEventLog};
+use sos_filesystem::events::{DeviceEventLog, DeviceReducer};
 
 #[cfg(feature = "files")]
-use sos_database::files::FileMutationEvent;
+use {
+    sos_core::events::FileEvent, sos_database::files::FileMutationEvent,
+    sos_filesystem::events::FileEventLog,
+};
 
 #[cfg(feature = "search")]
 use sos_database::search::{AccountSearch, DocumentCount};

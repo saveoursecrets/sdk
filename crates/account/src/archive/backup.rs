@@ -7,19 +7,19 @@ use crate::{
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use sos_core::{
+    constants::VAULT_EXT, crypto::AccessKey, decode, SecretId, VaultId,
+};
+use sos_filesystem::{
+    events::{EventLogExt, FolderEventLog},
+    folder::FolderReducer,
+};
 use sos_sdk::{
     archive::RestoreTargets,
-    constants::VAULT_EXT,
-    crypto::AccessKey,
-    decode,
-    events::{EventLogExt, FolderEventLog},
     hex,
     identity::{Identity, MemoryIdentityFolder, PublicIdentity},
     signer::ecdsa::Address,
-    vault::{
-        secret::SecretId, FolderReducer, Summary, Vault, VaultAccess,
-        VaultId, VaultWriter,
-    },
+    vault::{Summary, Vault, VaultAccess, VaultWriter},
     vfs::{self, File},
     Paths,
 };

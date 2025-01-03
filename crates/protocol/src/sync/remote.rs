@@ -38,6 +38,7 @@ pub trait RemoteSyncHandler {
         + From<sos_core::Error>
         + From<sos_database::StorageError>
         + From<sos_account::Error>
+        + From<sos_filesystem::Error>
         + From<std::io::Error>
         + From<<Self::Account as Account>::Error>
         + From<<Self::Account as StorageEventLogs>::Error>

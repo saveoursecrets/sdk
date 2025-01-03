@@ -9,14 +9,15 @@ use indexmap::IndexMap;
 use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
     events::LogEvent,
+    events::{AccountEvent, WriteEvent},
     VaultId,
 };
 use sos_database::StorageError;
 use sos_sdk::{
     decode,
     events::{
-        AccountDiff, AccountEvent, CheckedPatch, DeviceDiff, DeviceReducer,
-        EventLogExt, FolderDiff, WriteEvent,
+        AccountDiff, CheckedPatch, DeviceDiff, DeviceReducer, EventLogExt,
+        FolderDiff,
     },
     vault::Vault,
 };

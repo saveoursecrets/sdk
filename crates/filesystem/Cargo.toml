@@ -9,6 +9,7 @@ files = ["sos-core/files"]
 
 [dependencies]
 sos-core.workspace = true
+sos-vault.workspace = true
 sos-vfs.workspace = true
 
 thiserror.workspace = true

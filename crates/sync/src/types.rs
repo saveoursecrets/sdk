@@ -5,19 +5,21 @@ use sos_core::{
     commit::{CommitHash, CommitState, Comparison},
     SecretId, VaultId,
 };
-use sos_sdk::{
+use sos_core::{
     device::DevicePublicKey,
-    events::{
-        AccountDiff, AccountEvent, AccountPatch, DeviceDiff, DeviceEvent,
-        DevicePatch, FolderDiff, FolderPatch, WriteEvent,
-    },
+    events::{AccountEvent, DeviceEvent, WriteEvent},
+};
+use sos_filesystem::events::{
+    AccountDiff, AccountPatch, DeviceDiff, DevicePatch, FolderDiff,
+    FolderPatch,
 };
 use std::collections::HashMap;
 
 #[cfg(feature = "files")]
 use {
+    sos_core::events::FileEvent,
     sos_core::{ExternalFile, ExternalFileName, SecretPath},
-    sos_sdk::events::{FileDiff, FileEvent, FilePatch},
+    sos_filesystem::events::{FileDiff, FilePatch},
 };
 
 /// Types of event logs.

@@ -1,18 +1,13 @@
 //! Audit logging.
 use async_trait::async_trait;
-
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
-use sos_core::{events::LogEvent, AccountId};
-
-use crate::{
-    events::{Event, EventKind, ReadEvent, WriteEvent},
-    signer::ecdsa::Address,
-    vault::{secret::SecretId, VaultId},
-    UtcDateTime,
+use sos_core::events::{
+    AccountEvent, Event, EventKind, ReadEvent, WriteEvent,
 };
-
-use crate::events::AccountEvent;
+use sos_core::{events::LogEvent, AccountId, UtcDateTime};
+use sos_signer::ecdsa::Address;
+use sos_vault::{secret::SecretId, VaultId};
 
 mod log_file;
 pub use log_file::AuditLogFile;

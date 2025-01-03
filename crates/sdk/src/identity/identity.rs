@@ -6,23 +6,22 @@
 //!
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single primary password.
+use crate::device::DeviceManager;
 use crate::{
-    crypto::AccessKey,
-    events::Event,
     identity::{DiscIdentityFolder, PublicIdentity},
-    signer::ecdsa::Address,
-    vault::{secret::SecretId, Summary, Vault, VaultId},
-    vfs, Error, Paths, Result,
+    Error, Paths, Result,
 };
 use secrecy::SecretString;
+use sos_core::{crypto::AccessKey, events::Event, SecretId, VaultId};
+use sos_signer::ecdsa::Address;
+use sos_vault::{Summary, Vault};
+use sos_vfs as vfs;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
 use urn::Urn;
-
-use crate::device::DeviceManager;
 
 /// Collection of folder access keys.
 pub struct FolderKeys(pub HashMap<Summary, AccessKey>);

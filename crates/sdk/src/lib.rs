@@ -37,14 +37,10 @@ pub mod audit;
 pub mod device;
 pub mod encoding;
 mod error;
-pub mod events;
-pub mod formats;
 pub mod identity;
 
 pub(crate) mod paths;
 pub mod prelude;
-
-pub mod vault;
 
 // pub use date_time::UtcDateTime;
 pub use encoding::{decode, encode};
@@ -68,6 +64,10 @@ pub use sos_core::constants;
 pub use sos_core::crypto;
 pub use sos_core::UtcDateTime;
 pub use sos_signer as signer;
+pub use sos_vault as vault;
+
+pub use sos_filesystem::events;
+pub use sos_filesystem::formats;
 
 /// Result type for the library.
 pub type Result<T> = std::result::Result<T, Error>;

@@ -48,9 +48,12 @@ search =["sos-database/search", "sos-client-storage/search"]
 sos-core.workspace = true
 sos-sdk.workspace = true
 sos-database = { workspace = true, features = ["client"] }
+sos-filesystem.workspace = true
 sos-sync.workspace = true
 sos-client-storage.workspace = true
 sos-migrate = { workspace = true, optional = true }
+sos-signer.workspace = true
+sos-vault.workspace = true
 
 thiserror.workspace = true
 secrecy.workspace = true

@@ -42,7 +42,7 @@ impl AuditLogFile {
         &self,
         reverse: bool,
     ) -> Result<FormatStream<FileRecord, Compat<File>>> {
-        audit_stream(&self.file_path, reverse).await
+        Ok(audit_stream(&self.file_path, reverse).await?)
     }
 
     /// Create the file used to store audit logs.

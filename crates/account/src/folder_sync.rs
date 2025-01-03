@@ -2,11 +2,15 @@
 
 use async_trait::async_trait;
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use sos_core::{events::LogEvent, VaultId};
+use sos_core::{
+    events::{LogEvent, WriteEvent},
+    VaultId,
+};
+use sos_filesystem::folder::{Folder, FolderReducer};
 use sos_sdk::{
-    events::{CheckedPatch, EventLogExt, FolderDiff, WriteEvent},
+    events::{CheckedPatch, EventLogExt, FolderDiff},
     identity::IdentityFolder,
-    vault::{secret::SecretRow, Folder, FolderReducer},
+    vault::secret::SecretRow,
     Result,
 };
 

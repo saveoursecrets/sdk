@@ -23,7 +23,7 @@ use sos_database::StorageError;
 use sos_sdk::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
-    events::{AccountEvent, EventLogExt, EventRecord, ReadEvent},
+    events::{EventLogExt, EventRecord},
     identity::{AccountRef, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     vault::{
@@ -32,6 +32,8 @@ use sos_sdk::{
     },
     vfs, Paths,
 };
+
+use sos_core::events::{AccountEvent, ReadEvent};
 use sos_sync::{CreateSet, EventLogType, StorageEventLogs, UpdateSet};
 use std::{
     collections::{HashMap, HashSet},

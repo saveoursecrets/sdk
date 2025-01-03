@@ -4,17 +4,16 @@ use crate::{
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
+use sos_core::events::WriteEvent;
 use sos_core::{
     commit::{CommitState, Comparison},
     VaultId,
 };
-use sos_sdk::{
-    events::{
-        AccountDiff, AccountEventLog, CheckedPatch, DeviceDiff,
-        DeviceEventLog, EventLogExt, FolderDiff, FolderEventLog, WriteEvent,
-    },
-    vault::Summary,
+use sos_filesystem::events::{
+    AccountDiff, AccountEventLog, CheckedPatch, DeviceDiff, DeviceEventLog,
+    EventLogExt, FolderDiff, FolderEventLog,
 };
+use sos_vault::Summary;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -34,6 +33,7 @@ pub trait StorageEventLogs: Send + Sync + 'static {
     /// Error type for storage event logs.
     type Error: std::error::Error
         + From<sos_core::Error>
+        + From<sos_filesystem::Error>
         + From<sos_sdk::Error>
         + Send
         + Sync

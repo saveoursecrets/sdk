@@ -2,14 +2,14 @@
 //! as secrets are created, updated and moved.
 
 use crate::{files::FileStorage, ClientStorage, Error, Result};
+use sos_core::events::FileEvent;
 use sos_core::{basename, SecretId, SecretPath, VaultId};
 use sos_database::files::{
     list_folder_files, EncryptedFile, FileMutationEvent, FileProgress,
     FileSource, FileStorageDiff, FileStorageResult,
 };
-
 use sos_sdk::{
-    events::{EventLogExt, FileEvent},
+    events::EventLogExt,
     hex,
     vault::{
         secret::{FileContent, Secret, SecretRow, UserData},

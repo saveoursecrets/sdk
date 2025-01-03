@@ -84,8 +84,10 @@ impl Backend {
                             self.directory.clone(),
                             owner.to_string(),
                         );
-                        let identity_log =
-                            DiscFolder::new_event_log(&user_paths).await?;
+                        let identity_log = DiscFolder::new_event_log(
+                            user_paths.identity_events(),
+                        )
+                        .await?;
 
                         let account = ServerStorage::FileSystem(
                             ServerFileStorage::new(

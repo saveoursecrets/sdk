@@ -1,7 +1,8 @@
 mod encoding;
 mod error;
-mod events;
-mod formats;
+pub mod events;
+pub mod folder;
+pub mod formats;
 
 pub use error::Error;
 

@@ -38,7 +38,9 @@ sos-account.workspace = true
 sos-core.workspace = true
 sos-sdk.workspace = true
 sos-database.workspace = true
+sos-filesystem.workspace = true
 sos-client-storage.workspace = true
+sos-signer.workspace = true
 sos-sync.workspace = true
 
 thiserror.workspace = true

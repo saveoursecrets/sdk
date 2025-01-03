@@ -6,37 +6,43 @@
 //!
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single primary password.
+use crate::device::{DeviceManager, DeviceSigner};
 use crate::{
-    constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
-    crypto::{AccessKey, KeyDerivation},
-    decode, encode,
-    events::{
-        DiscData, DiscLog, EventLogExt, FolderEventLog, MemoryData,
-        MemoryFolderLog, MemoryLog, WriteEvent,
-    },
     identity::{PrivateIdentity, UrnLookup},
-    signer::{
-        ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
-        ed25519, Signer,
-    },
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
-        BuilderCredentials, DiscFolder, Folder, Gatekeeper, MemoryFolder,
-        Vault, VaultBuilder, VaultFlags, VaultId, VaultWriter,
-    },
-    vfs, Error, Paths, Result,
+    Error, Paths, Result,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
+use sos_core::events::WriteEvent;
+use sos_core::{
+    constants::{LOGIN_AGE_KEY_URN, LOGIN_SIGNING_KEY_URN},
+    crypto::{AccessKey, KeyDerivation},
+    decode, encode,
+};
+use sos_filesystem::{
+    events::{
+        DiscData, DiscLog, EventLogExt, FolderEventLog, MemoryData,
+        MemoryFolderLog, MemoryLog,
+    },
+    folder::{DiscFolder, Folder, MemoryFolder},
+};
 use sos_password::diceware::generate_passphrase_words;
+use sos_signer::{
+    ecdsa::{Address, BoxedEcdsaSigner, SingleParty},
+    ed25519, Signer,
+};
+use sos_vault::{
+    secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
+    BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags, VaultId,
+    VaultWriter,
+};
+use sos_vfs as vfs;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
 use tokio::sync::RwLock;
 use urn::Urn;
-
-use crate::device::{DeviceManager, DeviceSigner};
 
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
@@ -128,7 +134,7 @@ where
     /// Rename this identity vault.
     pub async fn rename(&mut self, account_name: String) -> Result<()> {
         self.folder
-            .keeper
+            .keeper_mut()
             .set_vault_name(account_name.clone())
             .await?;
         Ok(())
@@ -543,7 +549,7 @@ impl From<IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData>>
     fn from(
         value: IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData>,
     ) -> Self {
-        value.folder.keeper.into()
+        value.folder.into()
     }
 }
 

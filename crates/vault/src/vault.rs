@@ -665,7 +665,7 @@ impl Vault {
     }
 
     /// Insert a secret into this vault.
-    pub(crate) fn insert_entry(&mut self, id: SecretId, entry: VaultCommit) {
+    pub fn insert_entry(&mut self, id: SecretId, entry: VaultCommit) {
         self.contents.data.insert(id, entry);
     }
 
@@ -869,7 +869,7 @@ impl Vault {
     }
 
     /// Mutable vault header.
-    pub(crate) fn header_mut(&mut self) -> &mut Header {
+    pub fn header_mut(&mut self) -> &mut Header {
         &mut self.header
     }
 

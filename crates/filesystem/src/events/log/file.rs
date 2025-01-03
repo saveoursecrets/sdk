@@ -13,14 +13,14 @@
 //!
 //! The first row must always contain a last commit hash that is all zero.
 //!
-use crate::IntoRecord;
 use crate::{
+    folder::FolderReducer,
     formats::{
         stream::{MemoryBuffer, MemoryInner},
         EventLogRecord, FileIdentity, FileItem, FormatStream,
         FormatStreamIterator,
     },
-    Error, Result,
+    Error, IntoRecord, Result,
 };
 use async_stream::try_stream;
 use futures::io::{
@@ -955,7 +955,6 @@ impl EventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner> {
 impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
     /// Get a copy of this event log compacted.
     pub async fn compact(&self) -> Result<(Self, u64, u64)> {
-        /*
         let old_size = self.data.metadata()?.len();
 
         // Get the reduced set of events
@@ -987,9 +986,6 @@ impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
         new_event_log.load_tree().await?;
 
         Ok((new_event_log, old_size, new_size))
-        */
-
-        todo!("restore compact logic");
     }
 }
 

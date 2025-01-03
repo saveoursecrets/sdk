@@ -1,22 +1,27 @@
 //! Storage backed by the filesystem.
+use crate::folder::FolderReducer;
 use crate::{
+    events::{
+        DiscData, DiscLog, EventLogExt, EventRecord, FolderEventLog,
+        MemoryData, MemoryFolderLog, MemoryLog,
+    },
+    Result,
+};
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use sos_core::{
+    commit::{CommitHash, CommitState},
+    VaultFlags,
+};
+use sos_core::{
     constants::EVENT_LOG_EXT,
     crypto::AccessKey,
     decode,
-    events::{
-        DiscData, DiscLog, EventLogExt, EventRecord, FolderEventLog,
-        MemoryData, MemoryFolderLog, MemoryLog, ReadEvent, WriteEvent,
-    },
-    prelude::VaultFlags,
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow},
-        FolderReducer, Gatekeeper, Vault, VaultCommit, VaultId, VaultMeta,
-        VaultWriter,
-    },
-    Paths, Result,
+    events::{ReadEvent, WriteEvent},
 };
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use sos_core::commit::{CommitHash, CommitState};
+use sos_vault::{
+    secret::{Secret, SecretId, SecretMeta, SecretRow},
+    Gatekeeper, Vault, VaultCommit, VaultId, VaultMeta, VaultWriter,
+};
 use sos_vfs as vfs;
 use std::{borrow::Cow, path::Path, sync::Arc};
 use tokio::sync::RwLock;
@@ -79,7 +84,7 @@ where
 
     /// Unlock using the folder access key.
     pub async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta> {
-        self.keeper.unlock(key).await
+        Ok(self.keeper.unlock(key).await?)
     }
 
     /// Lock the folder.
@@ -103,7 +108,7 @@ where
         &self,
         id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
-        self.keeper.read_secret(id).await
+        Ok(self.keeper.read_secret(id).await?)
     }
 
     /// Read the encrypted contents of a secret.
@@ -111,7 +116,7 @@ where
         &self,
         id: &SecretId,
     ) -> Result<(Option<Cow<'_, VaultCommit>>, ReadEvent)> {
-        self.keeper.raw_secret(id).await
+        Ok(self.keeper.raw_secret(id).await?)
     }
 
     /// Update a secret.
@@ -272,10 +277,10 @@ impl Folder<FolderEventLog, DiscLog, DiscLog, DiscData> {
 
     /// Load an identity folder event log from the given paths.
     pub async fn new_event_log(
-        paths: &Paths,
+        path: impl AsRef<Path>,
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
         let mut event_log =
-            FolderEventLog::new(paths.identity_events()).await?;
+            FolderEventLog::new(path.as_ref().to_owned()).await?;
         event_log.load_tree().await?;
         Ok(Arc::new(RwLock::new(event_log)))
     }
@@ -288,5 +293,13 @@ impl Folder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
         let vault: Vault = decode(buffer.as_ref()).await?;
         let keeper = Gatekeeper::new(vault);
         Ok(Self::init(keeper, MemoryFolderLog::new()))
+    }
+}
+
+impl From<Folder<FolderEventLog, DiscLog, DiscLog, DiscData>> for Vault {
+    fn from(
+        value: Folder<FolderEventLog, DiscLog, DiscLog, DiscData>,
+    ) -> Self {
+        value.keeper.into()
     }
 }

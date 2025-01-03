@@ -6,7 +6,7 @@ use crate::{
     sdk::{
         events::{
             AccountDiff, AccountEventLog, CheckedPatch, DeviceDiff,
-            DeviceEventLog, FolderDiff, FolderEventLog, WriteEvent,
+            DeviceEventLog, FolderDiff, FolderEventLog,
         },
         vault::Summary,
     },
@@ -15,6 +15,7 @@ use crate::{
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_account::Account;
+use sos_core::events::WriteEvent;
 use sos_core::{
     commit::{CommitState, Comparison},
     Origin, VaultId,

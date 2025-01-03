@@ -5,25 +5,26 @@ use sos_client_storage::{
 };
 use sos_core::{
     commit::{CommitHash, CommitState},
+    crypto::{AccessKey, Cipher, KeyDerivation},
+    decode, encode,
+    events::{AccountEvent, Event, EventKind, ReadEvent, WriteEvent},
     SecretId, VaultId,
 };
 use sos_database::StorageError;
 use sos_sdk::{
-    crypto::{AccessKey, Cipher, KeyDerivation},
-    decode, encode,
-    events::{
-        AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
-        EventRecord, FolderEventLog, ReadEvent, WriteEvent,
-    },
+    events::{AccountEventLog, EventLogExt, EventRecord, FolderEventLog},
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     vault::{
         secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
-        BuilderCredentials, FolderReducer, Gatekeeper, Header, Summary,
-        Vault, VaultBuilder, VaultCommit, VaultFlags,
+        BuilderCredentials, Gatekeeper, Header, Summary, Vault, VaultBuilder,
+        VaultCommit, VaultFlags,
     },
     vfs, Paths, UtcDateTime,
 };
+
+use sos_filesystem::folder::FolderReducer;
+
 use sos_sync::{CreateSet, StorageEventLogs};
 use std::{
     borrow::Cow,

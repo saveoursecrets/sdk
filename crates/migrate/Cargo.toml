@@ -26,7 +26,9 @@ interactive-keychain-tests = []
 [dependencies]
 sos-core.workspace = true
 sos-database = { workspace = true, features = ["search"] }
+sos-filesystem.workspace = true
 sos-sdk.workspace = true
+sos-vault.workspace = true
 
 thiserror.workspace = true
 enum-iterator.workspace = true

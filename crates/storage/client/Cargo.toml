@@ -30,8 +30,10 @@ search = [
 sos-core.workspace = true
 sos-database.workspace = true
 sos-password.workspace = true
+sos-filesystem.workspace = true
 sos-sync.workspace = true
 sos-sdk.workspace = true
+sos-vault.workspace = true
 
 thiserror.workspace = true
 tracing.workspace = true

@@ -17,13 +17,11 @@ use crate::{
     },
     sdk::{
         device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
-        events::DeviceEvent,
         signer::ecdsa::SingleParty,
         url::Url,
     },
     NetworkAccount,
 };
-
 use futures::{
     select,
     stream::{SplitSink, SplitStream},
@@ -32,6 +30,7 @@ use futures::{
 use prost::bytes::Bytes;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use sos_account::Account;
+use sos_core::events::DeviceEvent;
 use sos_core::Origin;
 use sos_database::StorageError;
 use std::collections::HashSet;
