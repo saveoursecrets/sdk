@@ -5,15 +5,20 @@ use sos_core::{commit::CommitHash, decode, UtcDateTime};
 
 mod file;
 pub mod patch;
+mod reducer;
 
 #[cfg(feature = "files")]
 pub use file::FileEventLog;
+
+#[cfg(feature = "files")]
+pub use reducer::FileReducer;
 
 pub use file::{
     AccountEventLog, DeviceEventLog, DiscData, DiscEventLog, DiscLog,
     EventLogExt, FolderEventLog, MemoryData, MemoryEventLog, MemoryFolderLog,
     MemoryLog,
 };
+pub use reducer::DeviceReducer;
 
 /// Record for a row in the event log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]

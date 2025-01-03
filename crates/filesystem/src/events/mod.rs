@@ -21,17 +21,17 @@ mod log;
 
 pub use self::log::{
     patch::*, AccountEventLog, DiscData, DiscEventLog, DiscLog, EventLogExt,
-    EventRecord, FolderEventLog, /*FolderReducer,*/ MemoryData,
-    MemoryEventLog, MemoryFolderLog, MemoryLog,
+    EventRecord, FolderEventLog, MemoryData, MemoryEventLog, MemoryFolderLog,
+    MemoryLog,
 };
 
-pub use self::log::{DeviceEventLog /*, DeviceReducer*/};
+pub use self::log::{DeviceEventLog, DeviceReducer};
 
 #[cfg(feature = "files")]
 pub use self::log::FileEventLog;
 
-// #[cfg(feature = "files")]
-// pub use self::log::FileReducer;
+#[cfg(feature = "files")]
+pub use self::log::FileReducer;
 
 /// Trait for events that can be written to an event log..
 pub trait LogEvent {
