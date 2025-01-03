@@ -57,6 +57,8 @@ where
         + From<sos_sdk::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -77,6 +79,8 @@ where
         + From<sos_sdk::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -101,6 +105,8 @@ where
         + From<sos_sdk::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -217,6 +223,8 @@ where
         + From<sos_sdk::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -240,6 +248,8 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -383,6 +393,8 @@ where
         + From<sos_sdk::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -541,9 +553,11 @@ where
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
+        + From<sos_account::Error>
         + From<sos_sdk::Error>
         + From<sos_database::Error>
-        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync

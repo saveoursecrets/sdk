@@ -14,7 +14,6 @@ use binary_stream::futures::{Decodable, Encodable};
 use sos_core::{
     commit::{CommitHash, CommitTree},
     encode,
-    events::EventKind,
 };
 
 mod log;
@@ -32,12 +31,6 @@ pub use self::log::FileEventLog;
 
 #[cfg(feature = "files")]
 pub use self::log::FileReducer;
-
-/// Trait for events that can be written to an event log..
-pub trait LogEvent {
-    /// Get the event kind for this event.
-    fn event_kind(&self) -> EventKind;
-}
 
 /// Encode an event into a record.
 #[async_trait]

@@ -1,7 +1,9 @@
 use anyhow::Result;
 use secrecy::ExposeSecret;
-use sos_sdk::prelude::*;
+use sos_core::{crypto::AccessKey, decode, encode, SecretId};
+use sos_password::diceware::generate_passphrase;
 use sos_test_utils::*;
+use sos_vault::{secret::*, *};
 
 #[tokio::test]
 async fn vault_encode_decode_empty() -> Result<()> {

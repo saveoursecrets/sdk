@@ -1,13 +1,12 @@
 //! Check integrity of the folders in an account.
-use sos_sdk::{
-    prelude::{EventLogRecord, VaultRecord},
-    vault::{Summary, VaultId},
-    vfs, Error, Paths, Result,
-};
-
 use crate::IntegrityFailure;
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
+use sos_filesystem::formats::{EventLogRecord, VaultRecord};
+use sos_sdk::{
+    vault::{Summary, VaultId},
+    vfs, Error, Paths, Result,
+};
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::{
     mpsc::{self, Receiver, Sender},

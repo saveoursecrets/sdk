@@ -546,7 +546,7 @@ impl ErrorExt for Error {
     }
 
     fn is_permission_denied(&self) -> bool {
-        matches!(self, Error::PassphraseVerification)
+        matches!(self, Error::Vault(sos_vault::Error::PassphraseVerification))
     }
 }
 

@@ -1,9 +1,9 @@
 use crate::{helpers::messages::info, Error, Result};
 use clap::Subcommand;
 use sos_core::AccountId;
+use sos_filesystem::formats::FormatStreamIterator;
 use sos_net::sdk::{
     audit::{AuditData, AuditEvent, AuditLogFile},
-    formats::FormatStreamIterator,
     vfs::{self, File},
 };
 use std::{path::PathBuf, thread, time};

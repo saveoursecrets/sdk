@@ -1,7 +1,15 @@
 use anyhow::Result;
 use secrecy::ExposeSecret;
-use sos_sdk::prelude::*;
+use sos_core::{
+    crypto::PrivateKey, decode, SecretId, VaultCommit, VaultEntry,
+};
+use sos_filesystem::events::{EventLogExt, FolderEventLog};
+use sos_filesystem::folder::FolderReducer;
 use sos_test_utils::*;
+use sos_vault::{
+    secret::{Secret, SecretMeta},
+    VaultAccess,
+};
 use tempfile::NamedTempFile;
 
 async fn mock_event_log_file(

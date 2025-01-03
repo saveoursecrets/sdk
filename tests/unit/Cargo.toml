@@ -11,11 +11,14 @@ interactive-keychain-tests = []
 
 [dependencies]
 keychain_parser.workspace = true
+xclipboard.workspace = true
+
 sos-account = { workspace = true, features = ["full"] }
 sos-artifact.workspace = true
 sos-core.workspace = true
 sos-client-storage = { workspace = true, features = ["full"] }
 sos-database = { workspace = true, features = ["full"] }
+sos-filesystem = { workspace = true, features = ["full"] }
 sos-integrity = { workspace = true, features = ["full"] }
 sos-password.workspace = true
 sos-migrate = { workspace = true, features = ["full"] }
@@ -26,7 +29,7 @@ sos-sdk = { workspace = true, features = ["full"] }
 sos-sync = { workspace = true, features = ["full"] }
 sos-server-storage = { workspace = true, features = ["full"] }
 sos-test-utils.workspace = true
-xclipboard.workspace = true
+sos-vault.workspace = true
 
 anyhow.workspace = true
 tempfile.workspace = true

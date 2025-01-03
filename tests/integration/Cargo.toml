@@ -37,6 +37,10 @@ features = ["full"]
 workspace = true
 features = ["full"]
 
+[dependencies.sos-filesystem]
+workspace = true
+features = ["full"]
+
 [dependencies.sos-migrate]
 workspace = true
 features = ["full"]

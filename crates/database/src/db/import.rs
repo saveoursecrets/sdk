@@ -10,11 +10,11 @@ use async_sqlite::{
 use futures::{pin_mut, StreamExt};
 use sos_core::Origin;
 use sos_core::{commit::CommitHash, SecretId};
+use sos_filesystem::formats::FormatStreamIterator;
 use sos_sdk::prelude::{
     decode, encode, vfs, AccountEventLog, AuditLogFile, DeviceEventLog,
-    Error as SdkError, EventLogExt, EventRecord, FolderEventLog,
-    FormatStreamIterator, Identity, Paths, PublicIdentity, Vault,
-    VaultCommit, VaultEntry,
+    Error as SdkError, EventLogExt, EventRecord, FolderEventLog, Identity,
+    Paths, PublicIdentity, Vault, VaultCommit, VaultEntry,
 };
 use std::{collections::HashMap, path::Path};
 

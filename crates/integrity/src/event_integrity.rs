@@ -1,16 +1,14 @@
 //! Run integrity checks on event logs.
-use sos_sdk::{
-    encoding::encoding_options,
-    events::{EventLogExt, FolderEventLog},
-    formats::{EventLogRecord, FileItem},
-    vfs, Error, Result,
-};
-
 use async_stream::try_stream;
 use binary_stream::futures::BinaryReader;
 use futures::stream::Stream;
 use hex;
 use sos_core::commit::CommitTree;
+use sos_filesystem::{
+    events::{EventLogExt, FolderEventLog},
+    formats::{EventLogRecord, FileItem},
+};
+use sos_sdk::{encoding::encoding_options, vfs, Error, Result};
 use std::{io::SeekFrom, path::Path};
 use tokio_util::compat::TokioAsyncReadCompatExt;
 

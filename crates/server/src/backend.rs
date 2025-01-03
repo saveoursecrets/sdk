@@ -1,11 +1,11 @@
 use super::{Error, Result};
+use sos_filesystem::folder::DiscFolder;
 use sos_sdk::{
     device::into_device_verifying_key,
     signer::{
         ecdsa::Address,
         ed25519::{self, Verifier, VerifyingKey},
     },
-    vault::DiscFolder,
     vfs, Paths,
 };
 use sos_server_storage::{

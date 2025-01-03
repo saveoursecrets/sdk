@@ -2,6 +2,7 @@
 use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
+use sos_filesystem::folder::FolderReducer;
 use sos_sdk::{
     constants::VAULT_EXT,
     decode,
@@ -12,10 +13,7 @@ use sos_sdk::{
         EventLogExt, FileEvent, FileEventLog, FolderEventLog, FolderPatch,
     },
     signer::ecdsa::Address,
-    vault::{
-        FolderReducer, Header, Summary, Vault, VaultAccess, VaultId,
-        VaultWriter,
-    },
+    vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
     vfs, Paths,
 };
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};

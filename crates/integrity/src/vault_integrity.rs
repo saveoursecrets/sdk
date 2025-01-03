@@ -1,17 +1,15 @@
 //! Run integrity checks on vault files.
-use sos_sdk::{
-    constants::VAULT_IDENTITY,
-    encoding::encoding_options,
-    formats::{FileIdentity, FileItem, VaultRecord},
-    formats::{FormatStream, FormatStreamIterator},
-    vault::Header,
-    vfs, Error, Result,
-};
-
 use async_stream::try_stream;
 use binary_stream::futures::BinaryReader;
 use futures::stream::Stream;
 use sos_core::commit::CommitTree;
+use sos_filesystem::formats::{
+    FileIdentity, FileItem, FormatStream, FormatStreamIterator, VaultRecord,
+};
+use sos_sdk::{
+    constants::VAULT_IDENTITY, encoding::encoding_options, vault::Header,
+    vfs, Error, Result,
+};
 use std::{io::SeekFrom, path::Path};
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 

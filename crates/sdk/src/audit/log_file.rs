@@ -1,24 +1,19 @@
+use super::{AuditEvent, AuditProvider};
+use crate::Result;
 use async_trait::async_trait;
+use binary_stream::futures::{BinaryReader, BinaryWriter};
+use futures::io::{BufReader, BufWriter, Cursor};
+use sos_core::{constants::AUDIT_IDENTITY, encoding::encoding_options};
+use sos_filesystem::formats::{
+    audit_stream, FileItem, FileRecord, FormatStream,
+};
+use sos_vfs::{self as vfs, File};
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
 };
-
-use futures::io::{BufReader, BufWriter, Cursor};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tokio_util::compat::Compat;
-
-use crate::{
-    constants::AUDIT_IDENTITY,
-    encoding::encoding_options,
-    formats::{audit_stream, FileItem, FileRecord, FormatStream},
-    vfs::{self, File},
-    Result,
-};
-
-use super::{AuditEvent, AuditProvider};
-
-use binary_stream::futures::{BinaryReader, BinaryWriter};
 
 /// Represents an audit log file.
 pub struct AuditLogFile {

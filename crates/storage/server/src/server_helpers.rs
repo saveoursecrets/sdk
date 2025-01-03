@@ -31,6 +31,7 @@ where
         + From<<S as StorageEventLogs>::Error>
         + From<sos_core::Error>
         + From<sos_sdk::Error>
+        + From<sos_filesystem::Error>
         + From<sos_database::StorageError>
         + Send
         + Sync
@@ -84,6 +85,7 @@ where
     E: From<<S as StorageEventLogs>::Error>
         + From<sos_sdk::Error>
         + From<sos_core::Error>
+        + From<sos_filesystem::Error>
         + Send
         + Sync
         + 'static,
@@ -125,7 +127,12 @@ async fn diff_log<T, E>(
 ) -> std::result::Result<DiffResponse, E>
 where
     T: Default + Encodable + Decodable + Send + Sync + 'static,
-    E: From<sos_sdk::Error> + From<sos_core::Error> + Send + Sync + 'static,
+    E: From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_filesystem::Error>
+        + Send
+        + Sync
+        + 'static,
 {
     Ok(DiffResponse {
         patch: event_log.diff_records(req.from_hash.as_ref()).await?,
@@ -142,6 +149,7 @@ where
     S: SyncStorage,
     E: From<<S as StorageEventLogs>::Error>
         + From<sos_sdk::Error>
+        + From<sos_filesystem::Error>
         + Send
         + Sync
         + 'static,
@@ -253,6 +261,7 @@ where
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>
         + From<sos_sdk::Error>
+        + From<sos_filesystem::Error>
         + Send
         + Sync
         + 'static,
@@ -404,6 +413,7 @@ where
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>
         + From<sos_sdk::Error>
+        + From<sos_filesystem::Error>
         + Send
         + Sync
         + 'static,
