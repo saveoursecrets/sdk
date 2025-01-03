@@ -13,9 +13,9 @@ use sos_sdk::{
     events::{
         AccountDiff, AccountEvent, AccountEventLog, CheckedPatch, DeviceDiff,
         DeviceEventLog, DeviceReducer, EventLogExt, FileDiff, FileEventLog,
-        FolderDiff, FolderEventLog, FolderReducer, WriteEvent,
+        FolderDiff, FolderEventLog, WriteEvent,
     },
-    vault::{Header, Summary, VaultAccess, VaultWriter},
+    vault::{FolderReducer, Header, Summary, VaultAccess, VaultWriter},
     vfs,
 };
 use sos_sync::{

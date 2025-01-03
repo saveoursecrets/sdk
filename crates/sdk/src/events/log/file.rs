@@ -55,7 +55,8 @@ use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use binary_stream::futures::{BinaryReader, Decodable, Encodable};
 use tempfile::NamedTempFile;
 
-use super::{EventRecord, FolderReducer};
+use super::EventRecord;
+use crate::vault::FolderReducer;
 
 /// Type for logging events to a file.
 pub type DiscLog = Compat<File>;

@@ -5,13 +5,13 @@ use crate::{
     decode,
     events::{
         DiscData, DiscLog, EventLogExt, EventRecord, FolderEventLog,
-        FolderReducer, MemoryData, MemoryFolderLog, MemoryLog, ReadEvent,
-        WriteEvent,
+        MemoryData, MemoryFolderLog, MemoryLog, ReadEvent, WriteEvent,
     },
     prelude::VaultFlags,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
-        Gatekeeper, Vault, VaultCommit, VaultId, VaultMeta, VaultWriter,
+        FolderReducer, Gatekeeper, Vault, VaultCommit, VaultId, VaultMeta,
+        VaultWriter,
     },
     vfs, Paths, Result,
 };

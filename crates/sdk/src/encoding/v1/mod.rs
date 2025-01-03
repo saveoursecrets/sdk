@@ -1,6 +1,5 @@
 #[cfg(feature = "audit")]
 mod audit;
-// mod commit;
 #[deprecated]
 mod events;
 mod secret;

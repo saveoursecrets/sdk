@@ -8,14 +8,14 @@ use crate::{
         encode,
         events::{
             AccountEvent, AccountEventLog, AccountPatch, EventLogExt,
-            FolderEventLog, FolderPatch, FolderReducer,
+            FolderEventLog, FolderPatch,
         },
         identity::PublicIdentity,
         signer::{
             ecdsa::{Address, BoxedEcdsaSigner},
             ed25519::BoxedEd25519Signer,
         },
-        vault::{VaultAccess, VaultId, VaultWriter},
+        vault::{FolderReducer, VaultAccess, VaultId, VaultWriter},
         vfs, Paths,
     },
     NetworkAccount,

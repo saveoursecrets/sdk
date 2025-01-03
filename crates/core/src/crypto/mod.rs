@@ -10,7 +10,7 @@ mod key_derivation;
 mod private_key;
 
 pub use cipher::Cipher;
-pub use cipher::{AES_GCM_256, X25519, X_CHACHA20_POLY1305};
+pub(crate) use cipher::{AES_GCM_256, X25519, X_CHACHA20_POLY1305};
 
 #[doc(hidden)]
 pub use key_derivation::{Deriver, SEED_SIZE};

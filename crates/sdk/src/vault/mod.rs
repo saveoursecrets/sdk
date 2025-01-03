@@ -5,6 +5,7 @@ mod change;
 mod file_writer;
 mod folder;
 mod gatekeeper;
+mod reducer;
 pub mod secret;
 mod vault;
 
@@ -13,6 +14,7 @@ pub use change::ChangePassword;
 pub use file_writer::VaultWriter;
 pub use folder::{DiscFolder, Folder, MemoryFolder};
 pub use gatekeeper::Gatekeeper;
+pub use reducer::FolderReducer;
 pub use vault::{
     FolderRef, Header, SharedAccess, Summary, Vault, VaultAccess, VaultMeta,
 };

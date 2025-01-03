@@ -10,15 +10,15 @@ use sos_sdk::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventLogExt, EventRecord,
-        FolderEventLog, FolderPatch, FolderReducer, IntoRecord, ReadEvent,
-        WriteEvent,
+        FolderEventLog, FolderPatch, IntoRecord, ReadEvent, WriteEvent,
     },
     identity::FolderKeys,
     signer::ecdsa::Address,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
-        BuilderCredentials, ChangePassword, DiscFolder, FolderRef, Header,
-        Summary, Vault, VaultBuilder, VaultCommit, VaultFlags, VaultId,
+        BuilderCredentials, ChangePassword, DiscFolder, FolderReducer,
+        FolderRef, Header, Summary, Vault, VaultBuilder, VaultCommit,
+        VaultFlags, VaultId,
     },
     vfs, Paths, UtcDateTime,
 };

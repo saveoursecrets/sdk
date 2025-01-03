@@ -18,7 +18,7 @@ pub use file::{
     EventLogExt, FolderEventLog, MemoryData, MemoryEventLog, MemoryFolderLog,
     MemoryLog,
 };
-pub use reducer::{DeviceReducer, FolderReducer};
+pub use reducer::DeviceReducer;
 
 /// Record for a row in the event log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]

@@ -13,14 +13,14 @@ use sos_sdk::{
     decode, encode,
     events::{
         AccountEvent, AccountEventLog, Event, EventKind, EventLogExt,
-        EventRecord, FolderEventLog, FolderReducer, ReadEvent, WriteEvent,
+        EventRecord, FolderEventLog, ReadEvent, WriteEvent,
     },
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     signer::ecdsa::{Address, BoxedEcdsaSigner},
     vault::{
         secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
-        BuilderCredentials, Gatekeeper, Header, Summary, Vault, VaultBuilder,
-        VaultCommit, VaultFlags,
+        BuilderCredentials, FolderReducer, Gatekeeper, Header, Summary,
+        Vault, VaultBuilder, VaultCommit, VaultFlags,
     },
     vfs, Paths, UtcDateTime,
 };

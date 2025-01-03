@@ -17,8 +17,8 @@ mod log;
 
 pub use self::log::{
     patch::*, AccountEventLog, DiscData, DiscEventLog, DiscLog, EventLogExt,
-    EventRecord, FolderEventLog, FolderReducer, MemoryData, MemoryEventLog,
-    MemoryFolderLog, MemoryLog,
+    EventRecord, FolderEventLog, MemoryData, MemoryEventLog, MemoryFolderLog,
+    MemoryLog,
 };
 
 pub use self::log::{DeviceEventLog, DeviceReducer};

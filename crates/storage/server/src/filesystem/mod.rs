@@ -10,10 +10,12 @@ use sos_sdk::{
     events::{
         AccountEvent, AccountEventLog, DeviceEventLog, DeviceReducer,
         EventLogExt, FileEvent, FileEventLog, FolderEventLog, FolderPatch,
-        FolderReducer,
     },
     signer::ecdsa::Address,
-    vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
+    vault::{
+        FolderReducer, Header, Summary, Vault, VaultAccess, VaultId,
+        VaultWriter,
+    },
     vfs, Paths,
 };
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};

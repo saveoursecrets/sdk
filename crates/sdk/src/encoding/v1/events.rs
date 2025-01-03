@@ -1,10 +1,7 @@
 use crate::{
-    crypto::AeadPack,
-    encoding::{decode_uuid, encoding_error},
-    events::{AccountEvent, EventKind, EventRecord, WriteEvent},
+    encoding::encoding_error,
+    events::EventRecord,
     formats::{EventLogRecord, FileRecord, VaultRecord},
-    prelude::VaultFlags,
-    vault::VaultCommit,
     UtcDateTime,
 };
 

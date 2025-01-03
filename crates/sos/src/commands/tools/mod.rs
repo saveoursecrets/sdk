@@ -13,9 +13,9 @@ use sos_net::sdk::{
     constants::EVENT_LOG_EXT,
     crypto::{AccessKey, Cipher, KeyDerivation},
     encode,
-    events::{FolderEventLog, FolderReducer},
+    events::FolderEventLog,
     identity::AccountRef,
-    vault::VaultId,
+    vault::{FolderReducer, VaultId},
     vfs, Paths,
 };
 use std::path::PathBuf;
