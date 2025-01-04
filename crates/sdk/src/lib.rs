@@ -31,6 +31,7 @@
 #[cfg(feature = "archive")]
 pub mod archive;
 
+pub mod device;
 mod error;
 pub mod events;
 pub mod prelude;

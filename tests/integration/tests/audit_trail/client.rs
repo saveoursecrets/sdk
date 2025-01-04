@@ -6,6 +6,7 @@ use sos_account::{
     archive::RestoreOptions, Account, FolderCreate, LocalAccount,
     SecretChange,
 };
+use sos_audit::AuditEvent;
 use sos_filesystem::formats::FormatStreamIterator;
 use sos_migrate::import::ImportTarget;
 use sos_net::sdk::prelude::*;
@@ -240,7 +241,8 @@ async fn read_audit_events(
     audit_log: impl AsRef<Path>,
 ) -> Result<Vec<AuditEvent>> {
     let mut events = Vec::new();
-    let log_file = AuditLogFile::new(audit_log.as_ref()).await?;
+    let log_file =
+        sos_audit::fs::AuditLogFile::new(audit_log.as_ref()).await?;
     let mut file = vfs::File::open(audit_log.as_ref()).await?;
     let mut it = log_file.iter(false).await?;
     while let Some(record) = it.next().await? {

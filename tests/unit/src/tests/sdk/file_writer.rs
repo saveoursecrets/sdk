@@ -2,9 +2,9 @@ use anyhow::Result;
 use binary_stream::futures::{BinaryReader, BinaryWriter};
 use futures::io::{BufReader, BufWriter, Cursor};
 use sos_core::commit::CommitHash;
-use sos_sdk::{encoding::encoding_options, prelude::*};
+use sos_core::encoding::encoding_options;
+use sos_sdk::prelude::*;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
-
 use uuid::Uuid;
 
 use sos_test_utils::{

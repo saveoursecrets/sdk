@@ -24,7 +24,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "audit")]
-use sos_audit::AuditEvent;
+use sos_audit::{append_audit_events, AuditEvent};
 
 mod sync;
 
@@ -362,7 +362,7 @@ impl ServerAccountStorage for ServerFileStorage {
 
             let audit_event: AuditEvent =
                 (self.address(), &account_event).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(())
@@ -387,7 +387,7 @@ impl ServerAccountStorage for ServerFileStorage {
             let account_event = AccountEvent::DeleteFolder(*id);
             let audit_event: AuditEvent =
                 (self.address(), &account_event).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(())
@@ -410,7 +410,7 @@ impl ServerAccountStorage for ServerFileStorage {
                 AccountEvent::RenameFolder(*id, name.to_owned());
             let audit_event: AuditEvent =
                 (self.address(), &account_event).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(())

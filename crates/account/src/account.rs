@@ -24,7 +24,6 @@ use sos_sdk::{
 };
 
 use sos_filesystem::folder::FolderReducer;
-
 use sos_sync::{CreateSet, StorageEventLogs};
 use std::{
     borrow::Cow,
@@ -37,7 +36,7 @@ use std::{
 use sos_database::search::{DocumentCount, SearchIndex};
 
 #[cfg(feature = "audit")]
-use sos_audit::{AuditData, AuditEvent};
+use sos_audit::{append_audit_events, AuditData, AuditEvent};
 
 #[cfg(feature = "archive")]
 use crate::archive::{Inventory, RestoreOptions};
@@ -1095,7 +1094,7 @@ impl LocalAccount {
         if audit {
             let event = Event::Read(*summary.id(), event);
             let audit_event: AuditEvent = (self.address(), &event).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(())
@@ -1212,7 +1211,7 @@ impl LocalAccount {
         #[cfg(feature = "audit")]
         if audit {
             let audit_event: AuditEvent = (self.address(), &event).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok((id, event, folder))
@@ -1251,7 +1250,7 @@ impl LocalAccount {
         if audit {
             let event = Event::Read(*folder.id(), read_event.clone());
             let audit_event: AuditEvent = (self.address(), &event).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok((SecretRow::new(*secret_id, meta, secret), read_event))
@@ -1337,7 +1336,7 @@ impl LocalAccount {
                     to_secret_id: new_id,
                 }),
             );
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(SecretMove {
@@ -1398,7 +1397,7 @@ impl LocalAccount {
                 self.address().into(),
                 None,
             );
-            paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         let vaults = Identity::list_local_folders(&paths).await?;
@@ -1965,7 +1964,7 @@ impl Account for LocalAccount {
         #[cfg(feature = "audit")]
         {
             let audit_event: AuditEvent = (self.address(), &event).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         self.sign_out().await?;
@@ -2442,7 +2441,7 @@ impl Account for LocalAccount {
         #[cfg(feature = "audit")]
         {
             let audit_event: AuditEvent = (self.address(), &event).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(SecretChange {
@@ -2510,7 +2509,7 @@ impl Account for LocalAccount {
         #[cfg(feature = "audit")]
         {
             let audit_event: AuditEvent = (self.address(), &event).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(SecretDelete {
@@ -2926,7 +2925,7 @@ impl Account for LocalAccount {
                 self.address().into(),
                 Some(AuditData::Vault(*summary.id())),
             );
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(buffer)
@@ -3014,7 +3013,7 @@ impl Account for LocalAccount {
                 self.address().into(),
                 Some(AuditData::Secret(*current_folder.id(), *secret_id)),
             );
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(())
@@ -3059,7 +3058,7 @@ impl Account for LocalAccount {
                 self.address().into(),
                 None,
             );
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(())
@@ -3125,7 +3124,7 @@ impl Account for LocalAccount {
                 self.address().into(),
                 None,
             );
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(ids)
@@ -3177,7 +3176,7 @@ impl Account for LocalAccount {
                 self.address().into(),
                 None,
             );
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(())
@@ -3255,7 +3254,7 @@ impl Account for LocalAccount {
                 self.address().into(),
                 None,
             );
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(())
@@ -3299,14 +3298,7 @@ impl Account for LocalAccount {
                 account.address().into(),
                 None,
             );
-
-            let data_dir = if let Some(data_dir) = &data_dir {
-                data_dir.clone()
-            } else {
-                Paths::data_dir()?
-            };
-            let paths = Paths::new(data_dir, account.address().to_string());
-            paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(account)
@@ -3363,7 +3355,7 @@ impl Account for LocalAccount {
                 self.address().into(),
                 None,
             );
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(account)

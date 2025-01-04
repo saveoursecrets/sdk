@@ -18,7 +18,6 @@ use crate::{
     sdk::{
         device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
         signer::ecdsa::SingleParty,
-        url::Url,
     },
     NetworkAccount,
 };
@@ -36,6 +35,7 @@ use sos_database::StorageError;
 use std::collections::HashSet;
 use std::{borrow::Cow, path::PathBuf};
 use tokio::{net::TcpStream, sync::mpsc};
+use url::Url;
 
 const PATTERN: &str = "Noise_XXpsk3_25519_ChaChaPoly_BLAKE2s";
 const RELAY_PATH: &str = "api/v1/relay";

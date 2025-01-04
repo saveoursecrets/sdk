@@ -165,10 +165,10 @@ pub(crate) fn bearer_prefix(
 #[cfg(any(feature = "listen", feature = "pairing"))]
 mod websocket_request {
     use super::Result;
-    use sos_sdk::url::Url;
     use tokio_tungstenite::tungstenite::{
         self, client::IntoClientRequest, handshake::client::generate_key,
     };
+    use url::Url;
 
     /// Build a websocket connection request.
     pub struct WebSocketRequest {

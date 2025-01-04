@@ -8,7 +8,6 @@ use sos_net::sdk::{
     crypto::{KeyDerivation, PrivateKey},
     encode,
     events::{EventLogExt, FolderEventLog, WriteEvent},
-    uuid::Uuid,
     vault::{
         secret::{FileContent, Secret, SecretId, SecretMeta},
         BuilderCredentials, Vault, VaultAccess, VaultBuilder, VaultEntry,
@@ -17,6 +16,7 @@ use sos_net::sdk::{
 use sos_password::diceware::generate_passphrase;
 use std::io::Write;
 use tempfile::NamedTempFile;
+use uuid::Uuid;
 
 /// Generate a mock encyption key.
 pub fn mock_encryption_key() -> Result<(PrivateKey, SaltString, SecretString)>

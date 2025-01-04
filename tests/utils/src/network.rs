@@ -15,7 +15,6 @@ use sos_net::{
         constants::{FILES_DIR, VAULT_EXT},
         crypto::AccessKey,
         events::EventLogExt,
-        url::Url,
         vault::{Summary, VaultId},
         vfs, Paths,
     },
@@ -29,6 +28,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 use tokio::sync::Mutex;
+use url::Url;
 
 /// Wait for a number of websocket connections to be reported
 /// by a server.

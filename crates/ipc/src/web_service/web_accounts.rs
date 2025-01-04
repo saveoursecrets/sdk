@@ -5,7 +5,7 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use sos_sdk::{
     events::{AccountEvent, EventLogExt, WriteEvent},
-    prelude::{Address, Error as SdkError, ErrorExt, Paths},
+    prelude::{Address, ErrorExt, Paths},
     vault::VaultId,
 };
 use sos_sync::SyncStorage;
@@ -248,6 +248,7 @@ where
         + ErrorExt
         + From<sos_sdk::Error>
         + From<sos_account::Error>
+        + From<sos_database::Error>
         + From<sos_filesystem::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
@@ -457,7 +458,7 @@ where
 
             ChangeRecords::Account(records)
         } else {
-            let folder_id: VaultId = name.parse().map_err(SdkError::from)?;
+            let folder_id: VaultId = name.parse()?;
 
             // Event log was removed so we can treat
             // as a folder delete event, we should

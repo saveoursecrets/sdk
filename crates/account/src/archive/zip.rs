@@ -3,6 +3,7 @@ use async_zip::{
     tokio::{read::seek::ZipFileReader, write::ZipFileWriter},
     Compression, ZipDateTimeBuilder, ZipEntryBuilder,
 };
+use hex;
 use sha2::{Digest, Sha256};
 use sos_sdk::{
     archive::{ArchiveItem, Manifest},
@@ -11,7 +12,6 @@ use sos_sdk::{
         FILES_DIR, FILE_EVENTS, JSON_EXT, PREFERENCES_FILE, REMOTES_FILE,
         VAULT_EXT,
     },
-    hex,
     signer::ecdsa::Address,
     vault::{Header as VaultHeader, Summary, VaultId},
     vfs::{self, File},

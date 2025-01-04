@@ -1,15 +1,12 @@
 //! Types for security report generation.
+use hex;
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use sos_account::Account;
 use sos_password::generator::measure_entropy;
-use sos_sdk::{
-    hex,
-    vault::{
-        secret::{Secret, SecretId, SecretType},
-        Gatekeeper, Summary, VaultId,
-    },
-    Result,
+use sos_vault::{
+    secret::{Secret, SecretId, SecretType},
+    Gatekeeper, Summary, VaultId,
 };
 use zxcvbn::{Entropy, Score};
 
@@ -23,8 +20,9 @@ where
     D: Fn(Vec<String>) -> R + Send + Sync,
     R: std::future::Future<Output = Vec<T>> + Send + Sync,
     E: From<A::Error>
-        + From<sos_sdk::Error>
         + From<sos_account::Error>
+        + From<sos_core::Error>
+        + From<sos_vault::Error>
         + From<sos_database::StorageError>,
 {
     let mut records = Vec::new();
@@ -58,7 +56,7 @@ where
         )> = Vec::new();
 
         if let Some(target) = &options.target {
-            secret_security_report(
+            secret_security_report::<E>(
                 &target.1,
                 keeper,
                 &mut password_hashes,
@@ -67,7 +65,7 @@ where
             .await?;
         } else {
             for secret_id in vault.keys() {
-                secret_security_report(
+                secret_security_report::<E>(
                     secret_id,
                     keeper,
                     &mut password_hashes,
@@ -237,7 +235,7 @@ pub struct SecurityReportRecord {
     pub entropy: Option<Entropy>,
 }
 
-pub(super) async fn secret_security_report(
+pub(super) async fn secret_security_report<E>(
     secret_id: &SecretId,
     keeper: &Gatekeeper,
     password_hashes: &mut Vec<(
@@ -246,7 +244,10 @@ pub(super) async fn secret_security_report(
         Option<SecretId>,
     )>,
     target_field: Option<&SecretId>,
-) -> Result<()> {
+) -> std::result::Result<(), E>
+where
+    E: From<sos_vault::Error> + From<sos_database::StorageError>,
+{
     if let Some((_meta, secret, _)) = keeper.read_secret(secret_id).await? {
         for field in secret.user_data().fields().iter().filter(|field| {
             if let Some(field_id) = target_field {
@@ -257,7 +258,7 @@ pub(super) async fn secret_security_report(
             if field.meta().kind() == &SecretType::Account
                 || field.meta().kind() == &SecretType::Password
             {
-                let check = check_password(field.secret())?;
+                let check = check_password::<E>(field.secret())?;
                 if let Some(check) = check {
                     password_hashes.push((
                         *secret_id,
@@ -267,7 +268,7 @@ pub(super) async fn secret_security_report(
                 }
             }
         }
-        let check = check_password(&secret)?;
+        let check = check_password::<E>(&secret)?;
         if let Some(check) = check {
             password_hashes.push((*secret_id, check, None));
         }
@@ -279,9 +280,12 @@ pub(super) async fn secret_security_report(
 ///
 /// Only applies to account and password types, other
 /// types will yield `None.`
-pub fn check_password(
+pub fn check_password<E>(
     secret: &Secret,
-) -> Result<Option<(Option<Entropy>, Vec<u8>)>> {
+) -> std::result::Result<Option<(Option<Entropy>, Vec<u8>)>, E>
+where
+    E: From<sos_vault::Error> + From<sos_database::StorageError>,
+{
     // TODO: remove Result type from function return value
     use sha1::{Digest, Sha1};
     match secret {

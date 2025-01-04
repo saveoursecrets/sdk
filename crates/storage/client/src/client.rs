@@ -37,7 +37,7 @@ use tokio::sync::RwLock;
 use sos_sdk::archive::RestoreTargets;
 
 #[cfg(feature = "audit")]
-use sos_audit::AuditEvent;
+use sos_audit::{append_audit_events, AuditEvent};
 
 use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
@@ -428,7 +428,7 @@ impl ClientStorage {
         {
             let audit_event: AuditEvent =
                 (self.address(), &create_account).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         // Import folders
@@ -969,7 +969,7 @@ impl ClientStorage {
         {
             let audit_event: AuditEvent =
                 (self.address(), &account_event).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         let event = Event::Folder(account_event, write_event);
@@ -1010,7 +1010,7 @@ impl ClientStorage {
         {
             let audit_event: AuditEvent =
                 (self.address(), &account_event).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok((buf, key, summary, account_event))
@@ -1231,7 +1231,7 @@ impl ClientStorage {
         {
             let audit_event: AuditEvent =
                 (self.address(), &account_event).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         events.insert(0, Event::Account(account_event));
@@ -1311,7 +1311,7 @@ impl ClientStorage {
         {
             let audit_event: AuditEvent =
                 (self.address(), &account_event).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(Event::Account(account_event))
@@ -1337,7 +1337,7 @@ impl ClientStorage {
         #[cfg(feature = "audit")]
         {
             let audit_event: AuditEvent = (self.address(), &event).into();
-            self.paths.append_audit_events(vec![audit_event]).await?;
+            append_audit_events(vec![audit_event]).await?;
         }
 
         Ok(event)

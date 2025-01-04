@@ -7,11 +7,11 @@ use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use sos_net::sdk::{
     device::TrustedDevice,
-    url::Url,
     vault::secret::{FileContent, IdentityKind, Secret, SecretMeta},
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
+use url::Url;
 
 pub mod files;
 
@@ -194,7 +194,7 @@ pub fn identity(
 
 /// Create a TOTP secret.
 pub fn totp(label: &str) -> (SecretMeta, Secret) {
-    use sos_net::sdk::totp::{Algorithm, TOTP};
+    use totp_rs::{Algorithm, TOTP};
     let totp = TOTP::new(
         Algorithm::SHA1,
         6,
@@ -216,7 +216,7 @@ pub fn totp(label: &str) -> (SecretMeta, Secret) {
 
 /// Create a contact secret.
 pub fn contact(label: &str, full_name: &str) -> (SecretMeta, Secret) {
-    use sos_net::sdk::vcard4::Vcard;
+    use vcard4::Vcard;
     let text = format!(
         r#"BEGIN:VCARD
 VERSION:4.0

@@ -716,7 +716,7 @@ impl FileSyncClient for HttpClient {
             vfs::remove_file(download_path).await?;
             return Err(Error::FileChecksumMismatch(
                 file_info.file_name().to_string(),
-                sos_sdk::hex::encode(digest.as_slice()),
+                hex::encode(digest.as_slice()),
             ));
         }
 

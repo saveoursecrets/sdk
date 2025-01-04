@@ -1,16 +1,15 @@
 use super::{Error, Result};
+use sos_core::{device::DevicePublicKey, Paths};
 use sos_filesystem::folder::DiscFolder;
-use sos_sdk::{
-    signer::{
-        ecdsa::Address,
-        ed25519::{self, Verifier, VerifyingKey},
-    },
-    vfs, Paths,
-};
 use sos_server_storage::{
     filesystem::ServerFileStorage, ServerAccountStorage, ServerStorage,
 };
+use sos_signer::{
+    ecdsa::Address,
+    ed25519::{self, Verifier, VerifyingKey},
+};
 use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
+use sos_vfs as vfs;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},

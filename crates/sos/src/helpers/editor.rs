@@ -3,24 +3,21 @@
 //! VIM users should use `set nofixendofline` in their .vimrc
 //! to prevent an appended newline changing the file automatically.
 //!
+use crate::{helpers::messages::fail, Error, Result};
 use async_recursion::async_recursion;
+use secrecy::ExposeSecret;
+use sha2::{Digest, Sha256};
+use sos_net::sdk::{
+    vault::secret::{FileContent, Secret},
+    vfs,
+};
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
     process::{Command, ExitStatus},
 };
-
-use secrecy::ExposeSecret;
-use sha2::{Digest, Sha256};
-use sos_net::sdk::{
-    secrecy,
-    vault::secret::{FileContent, Secret},
-    vcard4::Vcard,
-    vfs,
-};
 use tempfile::Builder;
-
-use crate::{helpers::messages::fail, Error, Result};
+use {secrecy, vcard4::Vcard};
 
 /// The result of editing a secret.
 ///

@@ -8,7 +8,7 @@ use async_sqlite::{
     Client,
 };
 use futures::{pin_mut, StreamExt};
-use sos_audit::AuditLogFile;
+use sos_audit::fs::{audit_stream, AuditLogFile};
 use sos_core::Origin;
 use sos_core::{commit::CommitHash, Paths, SecretId};
 use sos_filesystem::formats::FormatStreamIterator;
@@ -52,10 +52,8 @@ pub(crate) async fn import_globals(
         .map_err(SdkError::from)?
     {
         let log_file = AuditLogFile::new(paths.audit_file()).await?;
-        let mut file = vfs::File::open(paths.audit_file())
-            .await
-            .map_err(SdkError::from)?;
-        let mut it = log_file.iter(false).await?;
+        let mut file = vfs::File::open(paths.audit_file()).await?;
+        let mut it = audit_stream(paths.audit_file(), false).await?;
         while let Some(record) = it.next().await? {
             let event = log_file.read_event(&mut file, &record).await?;
             let data = if let Some(data) = event.data() {

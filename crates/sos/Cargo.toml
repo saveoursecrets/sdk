@@ -18,12 +18,14 @@ enable-cli-tests = []
 
 [dependencies]
 sos-account.workspace = true
+sos-audit.workspace = true
 sos-core.workspace = true
 sos-cli-helpers.workspace = true
 sos-client-storage.workspace = true
 sos-database = { workspace = true, features = ["full"] }
 sos-filesystem.workspace = true
 sos-integrity.workspace = true
+sos-login.workspace = true
 sos-logs.workspace = true
 sos-password.workspace = true
 sos-protocol = { workspace = true, features = ["full"] }
@@ -32,8 +34,10 @@ sos-migrate.workspace = true
 sos-sdk = { workspace = true, features = ["full"] }
 sos-sync.workspace = true
 sos-vault.workspace = true
+sos-vfs.workspace = true
 
 csv-async.workspace = true
+secrecy.workspace = true
 binary-stream.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
@@ -53,6 +57,9 @@ zxcvbn.workspace = true
 tokio-rustls.workspace = true
 rustls.workspace = true
 tempfile.workspace = true
+hex.workspace = true
+url.workspace = true
+vcard4.workspace = true
 
 human_bytes = "0.4"
 shell-words = "1"
@@ -61,7 +68,7 @@ unicode-width = "0.2"
 kdam = { version = "0.6", features = ["rich", "spinner"] }
 crossterm = "0.28"
 ctrlc = "3"
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync"] }
 rustyline = "14"
 rustyline-derive = "0.11"
 

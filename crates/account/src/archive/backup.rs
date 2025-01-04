@@ -4,6 +4,7 @@ use crate::{
     archive::{Inventory, Reader, Writer},
     Error, Result,
 };
+use hex;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -14,15 +15,11 @@ use sos_filesystem::{
     events::{EventLogExt, FolderEventLog},
     folder::FolderReducer,
 };
-use sos_sdk::{
-    archive::RestoreTargets,
-    hex,
-    identity::{Identity, MemoryIdentityFolder, PublicIdentity},
-    signer::ecdsa::Address,
-    vault::{Summary, Vault, VaultAccess, VaultWriter},
-    vfs::{self, File},
-    Paths,
-};
+use sos_login::{Identity, MemoryIdentityFolder, PublicIdentity};
+use sos_sdk::{archive::RestoreTargets, Paths};
+use sos_signer::ecdsa::Address;
+use sos_vault::{Summary, Vault, VaultAccess, VaultWriter};
+use sos_vfs::{self as vfs, File};
 use std::{
     io::Cursor,
     path::{Path, PathBuf},

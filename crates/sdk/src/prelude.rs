@@ -1,5 +1,6 @@
 //! Prelude re-exports common types.
 pub use crate::constants::*;
+pub use crate::device::*;
 pub use crate::events::*;
 pub use crate::identity::*;
 

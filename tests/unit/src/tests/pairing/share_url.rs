@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sos_net::pairing::ServerPairUrl;
-use sos_sdk::url::Url;
+use url::Url;
 
 #[test]
 fn server_pair_url() -> Result<()> {

@@ -24,7 +24,7 @@ async fn identity_not_identity_vault() -> Result<()> {
     let key: AccessKey = password.into();
     let result = MemoryIdentityFolder::login(buffer, &key).await;
 
-    if let Err(Error::NotIdentityFolder) = result {
+    if let Err(sos_login::Error::NotIdentityFolder) = result {
         Ok(())
     } else {
         panic!("expecting identity vault error");
@@ -45,7 +45,7 @@ async fn no_signing_key() -> Result<()> {
     let key: AccessKey = password.into();
     let result = MemoryIdentityFolder::login(buffer, &key).await;
 
-    if let Err(Error::NoSigningKey) = result {
+    if let Err(sos_login::Error::NoSigningKey) = result {
         Ok(())
     } else {
         panic!("expecting no identity signer error");
@@ -85,7 +85,7 @@ async fn no_identity_key() -> Result<()> {
     let key: AccessKey = password.into();
     let result = MemoryIdentityFolder::login(buffer, &key).await;
 
-    if let Err(Error::NoIdentityKey) = result {
+    if let Err(sos_login::Error::NoIdentityKey) = result {
         Ok(())
     } else {
         panic!("expecting identity signer kind error");

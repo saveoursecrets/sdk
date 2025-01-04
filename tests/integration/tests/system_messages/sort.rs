@@ -5,11 +5,11 @@ use sos_net::{
     sdk::{
         prelude::*,
         signer::{ecdsa::SingleParty, Signer},
-        urn::Urn,
     },
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use urn::Urn;
 
 /// Tests sorting of system messages.
 #[tokio::test]

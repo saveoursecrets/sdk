@@ -10,6 +10,25 @@ default = []
 enable-cli-tests = []
 
 [dependencies]
+sos-audit.workspace = true
+sos-core.workspace = true
+sos-account = { workspace = true, features = ["full"] }
+sos-account-extras = { workspace = true, features = ["full"] }
+sos-database = { workspace = true, features = ["full"] }
+sos-login = { workspace = true, features = ["full"] }
+sos-filesystem = { workspace = true, features = ["full"] }
+sos-migrate = { workspace = true, features = ["full"] }
+sos-integrity = { workspace = true, features = ["full"] }
+sos-client-storage = { workspace = true, features = ["full"] }
+sos-server-storage = { workspace = true, features = ["full"] }
+sos-web = { workspace = true, features = ["full"] }
+sos-protocol = { workspace = true, features = ["full"] }
+sos-sync = { workspace = true, features = ["full"] }
+sos-net = { workspace = true, features = ["full"] }
+sos-server = { workspace = true, features = ["listen", "audit", "pairing"] }
+
+sos-sdk = { workspace = true, features = ["full"] }
+
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 http.workspace = true
 anyhow.workspace = true
@@ -25,70 +44,6 @@ features = [
   "search",
   "files",
 ]
-
-[dependencies.sos-core]
-workspace = true
-
-[dependencies.sos-login]
-workspace = true
-features = ["full"]
-
-[dependencies.sos-client-storage]
-workspace = true
-features = ["full"]
-
-[dependencies.sos-server-storage]
-workspace = true
-features = ["full"]
-
-[dependencies.sos-filesystem]
-workspace = true
-features = ["full"]
-
-[dependencies.sos-migrate]
-workspace = true
-features = ["full"]
-
-[dependencies.sos-integrity]
-workspace = true
-features = ["full"]
-
-[dependencies.sos-account-extras]
-workspace = true
-features = ["full"]
-
-[dependencies.sos-sdk]
-workspace = true
-features = ["full"]
-
-# must enable matching features here
-[dependencies.sos-web]
-workspace = true
-features = ["full"]
-
-[dependencies.sos-account]
-workspace = true
-features = ["full"]
-
-[dependencies.sos-database]
-workspace = true
-features = ["full"]
-
-[dependencies.sos-protocol]
-workspace = true
-features = ["full"]
-
-[dependencies.sos-sync]
-workspace = true
-features = ["full"]
-
-[dependencies.sos-net]
-workspace = true
-features = ["full"]
-
-[dependencies.sos-server]
-workspace = true
-features = ["listen", "audit", "pairing"]
 
 [dev-dependencies]
 binary-stream.workspace = true
@@ -107,6 +62,8 @@ anyhow.workspace = true
 secrecy.workspace = true
 http.workspace = true
 zxcvbn.workspace = true
+hex.workspace = true
+urn.workspace = true
 
 copy_dir = "0.1"
 maplit2 = "1"

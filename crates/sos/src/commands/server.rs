@@ -9,8 +9,9 @@ use clap::Subcommand;
 use sos_core::Origin;
 use sos_net::{
     protocol::{AccountSync, SyncOptions},
-    sdk::{identity::AccountRef, url::Url},
+    sdk::identity::AccountRef,
 };
+use url::Url;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {

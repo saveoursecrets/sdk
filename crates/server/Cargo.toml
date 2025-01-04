@@ -30,6 +30,7 @@ sos-logs.workspace = true
 sos-protocol = { workspace = true, features = ["files"] }
 sos-cli-helpers.workspace = true
 sos-signer.workspace = true
+sos-vfs.workspace = true
 
 tokio-util.workspace = true
 thiserror.workspace = true

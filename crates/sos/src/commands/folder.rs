@@ -7,12 +7,13 @@ use crate::{
     Error, Result,
 };
 use clap::Subcommand;
+use hex;
 use human_bytes::human_bytes;
 use sos_account::{Account, FolderCreate};
 use sos_core::events::LogEvent;
 use sos_database::StorageError;
 use sos_net::sdk::{
-    events::EventLogExt, hex, identity::AccountRef, vault::FolderRef,
+    events::EventLogExt, identity::AccountRef, vault::FolderRef,
 };
 
 #[derive(Subcommand, Debug)]

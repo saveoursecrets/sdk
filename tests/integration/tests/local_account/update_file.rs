@@ -1,7 +1,8 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
+use hex;
 use sos_account::{Account, LocalAccount, SecretChange};
-use sos_net::sdk::{hex, prelude::*, vfs};
+use sos_net::sdk::{prelude::*, vfs};
 
 /// Tests creating a file and updating the secret contents.
 #[tokio::test]

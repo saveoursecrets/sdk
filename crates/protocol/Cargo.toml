@@ -51,6 +51,7 @@ serde_json.workspace = true
 uuid.workspace = true
 url.workspace = true
 time.workspace = true
+hex.workspace = true
 futures.workspace = true
 indexmap.workspace = true
 rs_merkle.workspace = true

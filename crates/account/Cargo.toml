@@ -21,7 +21,7 @@ full = [
   "migrate",
   "search",
 ]
-audit = ["sos-sdk/audit", "sos-database/audit"]
+audit = ["sos-audit", "sos-database/audit"]
 archive = [
   "sos-sdk/archive",
   "sos-database/archive",
@@ -46,7 +46,7 @@ files =[
 search = ["sos-database/search", "sos-client-storage/search"]
 
 [dependencies]
-sos-audit.workspace = true
+sos-audit = { workspace = true, optional = true }
 sos-core.workspace = true
 sos-sdk.workspace = true
 sos-database = { workspace = true, features = ["client"] }
@@ -57,6 +57,7 @@ sos-client-storage.workspace = true
 sos-migrate = { workspace = true, optional = true }
 sos-signer.workspace = true
 sos-vault.workspace = true
+sos-vfs.workspace = true
 
 thiserror.workspace = true
 secrecy.workspace = true

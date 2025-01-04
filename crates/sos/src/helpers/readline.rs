@@ -4,7 +4,7 @@ use rustyline::{
     history::MemHistory, ColorMode, Editor,
 };
 use rustyline_derive::{Completer, Helper, Hinter, Validator};
-use sos_net::sdk::secrecy::{ExposeSecret, SecretString};
+use secrecy::{ExposeSecret, SecretString};
 use sos_password::generator::measure_entropy;
 use std::borrow::Cow::{self, Borrowed, Owned};
 use zxcvbn::Score;

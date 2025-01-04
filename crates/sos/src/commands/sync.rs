@@ -11,10 +11,11 @@ use sos_core::{
 use sos_database::StorageError;
 use sos_net::{
     protocol::{AccountSync, SyncOptions},
-    sdk::{events::EventLogExt, identity::AccountRef, url::Url},
+    sdk::{events::EventLogExt, identity::AccountRef},
     NetworkAccount,
 };
 use sos_sync::{StorageEventLogs, SyncStatus, SyncStorage};
+use url::Url;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {

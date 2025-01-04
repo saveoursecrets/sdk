@@ -1,15 +1,14 @@
+use crate::{helpers::messages::success, Error, Result};
 use clap::Subcommand;
 use futures::{pin_mut, StreamExt};
-use std::path::PathBuf;
-
+use hex;
 use sos_integrity::{event_integrity, vault_integrity};
 use sos_net::sdk::{
-    decode, hex,
+    decode,
     vault::{Header, Vault},
     vfs,
 };
-
-use crate::{helpers::messages::success, Error, Result};
+use std::path::PathBuf;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {

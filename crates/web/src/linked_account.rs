@@ -2,6 +2,7 @@
 use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
+use secrecy::SecretString;
 use sos_account::{
     Account, AccountChange, AccountData, CipherComparison, DetachedView,
     FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
@@ -27,14 +28,14 @@ use sos_sdk::{
         PublicIdentity, ReadEvent, Secret, SecretMeta, SecretRow, Summary,
         TrustedDevice, Vault, VaultCommit, VaultFlags,
     },
-    secrecy::SecretString,
-    signer::ecdsa::BoxedEcdsaSigner,
-    vfs,
 };
+
+use sos_signer::ecdsa::BoxedEcdsaSigner;
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs,
     SyncDirection, SyncStatus, SyncStorage, UpdateSet,
 };
+use sos_vfs as vfs;
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},

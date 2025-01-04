@@ -7,7 +7,10 @@
 //! system library.
 use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
-use sos_sdk::{identity::PublicIdentity, signer::ecdsa::Address, vfs, Paths};
+use sos_core::Paths;
+use sos_login::PublicIdentity;
+use sos_signer::ecdsa::Address;
+use sos_vfs as vfs;
 use std::{collections::HashMap, fmt, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 

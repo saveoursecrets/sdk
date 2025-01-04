@@ -1,4 +1,4 @@
-use crate::{AuditData, AuditEvent, AuditLogFile, AuditLogFlags};
+use crate::{fs::AuditLogFile, AuditData, AuditEvent, AuditLogFlags};
 use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
@@ -124,7 +124,7 @@ impl AuditLogFile {
         W: AsyncWrite + AsyncSeek + Unpin + Send,
     >(
         writer: &mut BinaryWriter<W>,
-        event: AuditEvent,
+        event: &AuditEvent,
     ) -> Result<()> {
         // Set up the leading row length
         let size_pos = writer.stream_position().await?;
