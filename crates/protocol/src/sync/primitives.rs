@@ -1,22 +1,10 @@
 //! Synchronization types that are used internally.
-use crate::sdk::{
-    commit::{CommitState, Comparison},
-    events::{
-        AccountDiff, CheckedPatch, EventLogExt, FolderDiff, WriteEvent,
-    },
-    storage::StorageEventLogs,
-    vault::VaultId,
-    Error, Result,
-};
-use crate::{
-    CreateSet, MaybeDiff, MergeOutcome, Origin, SyncCompare, SyncDiff,
-    SyncStatus,
-};
-use async_trait::async_trait;
 use indexmap::IndexMap;
-use std::collections::{HashMap, HashSet};
-
-use crate::sdk::events::DeviceDiff;
+use sos_core::{commit::Comparison, Origin, VaultId};
+use sos_sdk::events::{EventLogExt, FolderDiff};
+use sos_sync::{
+    MaybeDiff, StorageEventLogs, SyncDiff, SyncStatus, SyncStorage,
+};
 
 #[cfg(feature = "files")]
 use crate::sdk::events::FileDiff;
@@ -36,64 +24,6 @@ pub struct SyncOptions {
     pub origins: Vec<Origin>,
     /// Resolver for hard conflicts.
     pub hard_conflict_resolver: HardConflictResolver,
-}
-
-/// Options for folder merge.
-pub(crate) enum FolderMergeOptions<'a> {
-    /// Update a URN lookup when merging.
-    Urn(VaultId, &'a mut crate::sdk::identity::UrnLookup),
-    /// Update a search index when merging.
-    #[cfg(feature = "search")]
-    Search(VaultId, &'a mut crate::sdk::storage::search::SearchIndex),
-}
-
-/*
-impl FolderMergeOptions<'_> {
-    /// Folder identifier.
-    pub fn folder_id(&self) -> &VaultId {
-        match self {
-            Self::Urn(id, _) => id,
-            Self::Search(id, _) => id,
-        }
-    }
-}
-*/
-
-/// Information about possible conflicts.
-#[derive(Debug, Default, Eq, PartialEq)]
-pub struct MaybeConflict {
-    /// Whether the identity folder might be conflicted.
-    pub identity: bool,
-    /// Whether the account log might be conflicted.
-    pub account: bool,
-    /// Whether the device log might be conflicted.
-    pub device: bool,
-    /// Whether the files log might be conflicted.
-    #[cfg(feature = "files")]
-    pub files: bool,
-    /// Account folders that might be conflicted.
-    pub folders: IndexMap<VaultId, bool>,
-}
-
-impl MaybeConflict {
-    /// Check for any conflicts.
-    pub fn has_conflicts(&self) -> bool {
-        let mut has_conflicts = self.identity || self.account || self.device;
-
-        #[cfg(feature = "files")]
-        {
-            has_conflicts = has_conflicts || self.files;
-        }
-
-        for (_, value) in &self.folders {
-            has_conflicts = has_conflicts || *value;
-            if has_conflicts {
-                break;
-            }
-        }
-
-        has_conflicts
-    }
 }
 
 /// Comparison between local and remote status.
@@ -118,10 +48,14 @@ pub struct SyncComparison {
 
 impl SyncComparison {
     /// Create a new sync comparison.
-    pub async fn new(
-        storage: &impl SyncStorage,
+    pub async fn new<S, E>(
+        storage: &S,
         remote_status: SyncStatus,
-    ) -> Result<SyncComparison> {
+    ) -> std::result::Result<SyncComparison, E>
+    where
+        S: SyncStorage,
+        E: From<<S as StorageEventLogs>::Error> + From<sos_core::Error>,
+    {
         let local_status = storage.sync_status().await?;
 
         let identity = {
@@ -195,9 +129,19 @@ impl SyncComparison {
     /// The diff includes changes on local that are not yet
     /// present on the remote or information that will allow
     /// a comparison on the remote.
-    pub async fn diff<S>(&self, storage: &S) -> Result<SyncDiff>
+    pub async fn diff<S, E>(
+        &self,
+        storage: &S,
+    ) -> std::result::Result<SyncDiff, E>
     where
         S: SyncStorage,
+        E: std::error::Error
+            + std::fmt::Debug
+            + From<<S as StorageEventLogs>::Error>
+            + From<sos_sdk::Error>
+            + From<sos_filesystem::Error>
+            + From<sos_database::StorageError>
+            + From<sos_core::Error>,
     {
         let mut diff: SyncDiff = Default::default();
 
@@ -362,11 +306,10 @@ impl SyncComparison {
         }
 
         for (id, folder) in &self.folders {
-            let commit_state = self
-                .remote_status
-                .folders
-                .get(id)
-                .ok_or(Error::CacheNotAvailable(*id))?;
+            let commit_state =
+                self.remote_status.folders.get(id).ok_or(
+                    sos_database::StorageError::CacheNotAvailable(*id),
+                )?;
 
             match folder {
                 Comparison::Equal => {}
@@ -427,324 +370,32 @@ impl SyncComparison {
     }
 }
 
-/// Storage implementations that can synchronize.
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait SyncStorage: StorageEventLogs {
-    /// Determine if this is client-side storage.
-    fn is_client_storage(&self) -> bool;
-
-    /// Get the sync status.
-    async fn sync_status(&self) -> Result<SyncStatus>;
-
-    /// Change set of all event logs.
-    ///
-    /// Used by network aware implementations to transfer
-    /// entire accounts.
-    async fn change_set(&self) -> Result<CreateSet> {
-        let identity = {
-            let log = self.identity_log().await?;
-            let reader = log.read().await;
-            reader.diff_events(None).await?
-        };
-
-        let account = {
-            let log = self.account_log().await?;
-            let reader = log.read().await;
-            reader.diff_events(None).await?
-        };
-
-        let device = {
-            let log = self.device_log().await?;
-            let reader = log.read().await;
-            reader.diff_events(None).await?
-        };
-
-        #[cfg(feature = "files")]
-        let files = {
-            let log = self.file_log().await?;
-            let reader = log.read().await;
-            reader.diff_events(None).await?
-        };
-
-        let mut folders = HashMap::new();
-        let details = self.folder_details().await?;
-
-        for folder in details {
-            if folder.flags().is_sync_disabled() {
-                tracing::debug!(
-                    folder_id = %folder.id(),
-                    "change_set::ignore::no_sync_flag");
-                continue;
-            }
-            let event_log = self.folder_log(folder.id()).await?;
-            let log_file = event_log.read().await;
-            folders.insert(*folder.id(), log_file.diff_events(None).await?);
-        }
-
-        Ok(CreateSet {
-            identity,
-            account,
-            folders,
-            device,
-            #[cfg(feature = "files")]
-            files,
-        })
-    }
-}
-
-/// Types that can force merge a diff.
-///
-/// Force merge deletes all events from the log and
-/// applies the diff patch as a new set of events.
-///
-/// Use this when event logs have completely diverged
-/// and need to be rewritten.
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait ForceMerge {
-    /// Force merge changes to the identity folder.
-    async fn force_merge_identity(
-        &mut self,
-        source: FolderDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<()>;
-
-    /// Force merge changes to the account event log.
-    async fn force_merge_account(
-        &mut self,
-        diff: AccountDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<()>;
-
-    /// Force merge changes to the devices event log.
-    async fn force_merge_device(
-        &mut self,
-        diff: DeviceDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<()>;
-
-    /// Force merge changes to the files event log.
-    #[cfg(feature = "files")]
-    async fn force_merge_files(
-        &mut self,
-        diff: FileDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<()>;
-
-    /// Force merge changes to a folder.
-    async fn force_merge_folder(
-        &mut self,
-        folder_id: &VaultId,
-        source: FolderDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<()>;
-}
-
-/// Types that can merge diffs.
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait Merge {
-    /// Merge changes to the identity folder.
-    async fn merge_identity(
-        &mut self,
-        diff: FolderDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<CheckedPatch>;
-
-    /// Compare the identity folder.
-    async fn compare_identity(
-        &self,
-        state: &CommitState,
-    ) -> Result<Comparison>;
-
-    /// Merge changes to the account event log.
-    async fn merge_account(
-        &mut self,
-        diff: AccountDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<(CheckedPatch, HashSet<VaultId>)>;
-
-    /// Compare the account events.
-    async fn compare_account(
-        &self,
-        state: &CommitState,
-    ) -> Result<Comparison>;
-
-    /// Merge changes to the devices event log.
-    async fn merge_device(
-        &mut self,
-        diff: DeviceDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<CheckedPatch>;
-
-    /// Compare the device events.
-    async fn compare_device(&self, state: &CommitState)
-        -> Result<Comparison>;
-
-    /// Merge changes to the files event log.
-    #[cfg(feature = "files")]
-    async fn merge_files(
-        &mut self,
-        diff: FileDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<CheckedPatch>;
-
-    /// Compare the file events.
-    #[cfg(feature = "files")]
-    async fn compare_files(&self, state: &CommitState) -> Result<Comparison>;
-
-    /// Merge changes to a folder.
-    async fn merge_folder(
-        &mut self,
-        folder_id: &VaultId,
-        diff: FolderDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<(CheckedPatch, Vec<WriteEvent>)>;
-
-    /// Compare folder events.
-    async fn compare_folder(
-        &self,
-        folder_id: &VaultId,
-        state: &CommitState,
-    ) -> Result<Comparison>;
-
-    /// Compare the local state to a remote status.
-    async fn compare(
-        &mut self,
-        remote_status: &SyncStatus,
-    ) -> Result<SyncCompare> {
-        let mut compare = SyncCompare::default();
-
-        compare.identity =
-            Some(self.compare_identity(&remote_status.identity).await?);
-
-        compare.account =
-            Some(self.compare_account(&remote_status.account).await?);
-
-        compare.device =
-            Some(self.compare_device(&remote_status.device).await?);
-
-        #[cfg(feature = "files")]
-        if let Some(files) = &remote_status.files {
-            compare.files = Some(self.compare_files(files).await?);
-        }
-
-        for (id, folder_status) in &remote_status.folders {
-            compare
-                .folders
-                .insert(*id, self.compare_folder(id, folder_status).await?);
-        }
-
-        Ok(compare)
-    }
-
-    /// Merge a diff into this storage.
-    async fn merge(
-        &mut self,
-        diff: SyncDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<SyncCompare> {
-        let mut compare = SyncCompare::default();
-
-        match diff.identity {
-            Some(MaybeDiff::Diff(diff)) => {
-                self.merge_identity(diff, outcome).await?;
-            }
-            Some(MaybeDiff::Compare(state)) => {
-                if let Some(state) = state {
-                    compare.identity =
-                        Some(self.compare_identity(&state).await?);
-                }
-            }
-            None => {}
-        }
-
-        let mut deleted_folders = HashSet::new();
-
-        match diff.account {
-            Some(MaybeDiff::Diff(diff)) => {
-                let (_, deletions) =
-                    self.merge_account(diff, outcome).await?;
-                deleted_folders = deletions;
-            }
-            Some(MaybeDiff::Compare(state)) => {
-                if let Some(state) = state {
-                    compare.account =
-                        Some(self.compare_account(&state).await?);
-                }
-            }
-            None => {}
-        }
-
-        match diff.device {
-            Some(MaybeDiff::Diff(diff)) => {
-                self.merge_device(diff, outcome).await?;
-            }
-            Some(MaybeDiff::Compare(state)) => {
-                if let Some(state) = state {
-                    compare.device = Some(self.compare_device(&state).await?);
-                }
-            }
-            None => {}
-        }
-
-        #[cfg(feature = "files")]
-        match diff.files {
-            Some(MaybeDiff::Diff(diff)) => {
-                self.merge_files(diff, outcome).await?;
-            }
-            Some(MaybeDiff::Compare(state)) => {
-                if let Some(state) = state {
-                    compare.files = Some(self.compare_files(&state).await?);
-                }
-            }
-            None => {}
-        }
-
-        for (id, maybe_diff) in diff.folders {
-            // Don't bother trying to merge folders that
-            // have been deleted
-            if deleted_folders.contains(&id) {
-                tracing::debug!(
-                    folder_id = %id,
-                    "merge::ignore_deleted_folder");
-                continue;
-            }
-            match maybe_diff {
-                MaybeDiff::Diff(diff) => {
-                    self.merge_folder(&id, diff, outcome).await?;
-                }
-                MaybeDiff::Compare(state) => {
-                    if let Some(state) = state {
-                        compare.folders.insert(
-                            id,
-                            self.compare_folder(&id, &state).await?,
-                        );
-                    }
-                }
-            }
-        }
-
-        tracing::debug!(num_changes = %outcome.changes, "merge complete");
-
-        Ok(compare)
-    }
-}
-
 /// Difference between a local sync status and a remote
 /// sync status.
-pub async fn diff(
-    storage: &(impl SyncStorage + Send + Sync),
+pub async fn diff<S, E>(
+    storage: &S,
     remote_status: SyncStatus,
-) -> Result<(bool, SyncStatus, SyncDiff)> {
+) -> std::result::Result<(bool, SyncStatus, SyncDiff), E>
+where
+    S: SyncStorage,
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<<S as StorageEventLogs>::Error>
+        + From<sos_core::Error>
+        + From<sos_sdk::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_database::StorageError>
+        + Send
+        + Sync
+        + 'static,
+{
     let comparison = {
         // Compare local status to the remote
-        SyncComparison::new(storage, remote_status).await?
+        SyncComparison::new::<_, E>(storage, remote_status).await?
     };
 
     let needs_sync = comparison.needs_sync();
-    let mut diff = comparison.diff(storage).await?;
+    let mut diff = comparison.diff::<_, E>(storage).await?;
 
     let is_server = !storage.is_client_storage();
     if is_server {

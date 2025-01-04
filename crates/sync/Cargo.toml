@@ -1,0 +1,29 @@
+[package]
+name = "sos-sync"
+version = "0.16.0"
+edition = "2021"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+full = [
+  "files",
+]
+files = []
+
+[dependencies]
+sos-core.workspace = true
+sos-filesystem.workspace = true
+sos-sdk.workspace = true
+sos-vault.workspace = true
+
+thiserror.workspace = true
+async-trait.workspace = true
+indexmap.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[build-dependencies]
+rustc_version.workspace = true

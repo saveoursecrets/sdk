@@ -1,0 +1,64 @@
+[package]
+name = "sos-database"
+version = "0.16.0"
+edition = "2021"
+description = "Database storage layer for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+full = [
+  "archive",
+  "audit",
+  "client",
+  "files",
+  "search",
+  "sqlite",
+]
+archive = ["sos-sdk/archive"]
+audit = ["sos-sdk/audit"]
+files = ["sos-sdk/files", "sos-filesystem/files"]
+search = [
+  "dep:probly-search",
+  "dep:unicode-segmentation",
+  "dep:url",
+  "dep:vcard4",
+]
+sqlite = ["dep:async-sqlite", "dep:refinery"]
+client = []
+
+[dependencies]
+sos-audit.workspace = true
+sos-core.workspace = true
+sos-sdk.workspace = true
+sos-login.workspace = true
+sos-filesystem.workspace = true
+sos-vault.workspace = true
+
+thiserror.workspace = true
+futures.workspace = true
+tracing.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+indexmap.workspace = true
+async-trait.workspace = true
+secrecy.workspace = true
+sha2.workspace = true
+serde.workspace = true
+typeshare.workspace = true
+tokio.workspace = true
+
+# search
+unicode-segmentation = { workspace = true, optional = true }
+probly-search = { workspace = true, optional = true }
+url  = { workspace = true, optional = true }
+vcard4 = { workspace = true, optional = true }
+
+# sqlite
+async-sqlite = { workspace = true, optional = true }
+refinery = { workspace = true, optional = true }

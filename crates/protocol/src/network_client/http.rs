@@ -1,10 +1,4 @@
 //! HTTP client implementation.
-use async_trait::async_trait;
-use http::StatusCode;
-use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
-use serde_json::Value;
-use tracing::instrument;
-
 use crate::{
     constants::{
         routes::v1::{
@@ -12,17 +6,22 @@ use crate::{
         },
         MIME_TYPE_JSON, MIME_TYPE_PROTOBUF, X_SOS_ACCOUNT_ID,
     },
-    CreateSet, DiffRequest, DiffResponse, Error, NetworkError, Origin,
-    PatchRequest, PatchResponse, Result, ScanRequest, ScanResponse,
-    SyncClient, SyncPacket, SyncStatus, UpdateSet, WireEncodeDecode,
+    DiffRequest, DiffResponse, Error, NetworkError, PatchRequest,
+    PatchResponse, Result, ScanRequest, ScanResponse, SyncClient,
+    WireEncodeDecode,
 };
-
+use async_trait::async_trait;
+use http::StatusCode;
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
+use serde_json::Value;
+use sos_core::Origin;
 use sos_sdk::{
     prelude::Address,
     signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
 };
-
+use sos_sync::{CreateSet, SyncPacket, SyncStatus, UpdateSet};
 use std::{fmt, time::Duration};
+use tracing::instrument;
 use url::Url;
 
 #[cfg(feature = "listen")]
@@ -41,9 +40,11 @@ use crate::{
 };
 
 #[cfg(feature = "files")]
-use crate::{
-    sdk::storage::files::ExternalFile,
-    transfer::{FileSet, FileSyncClient, FileTransfersSet, ProgressChannel},
+use {
+    crate::transfer::{
+        FileSet, FileSyncClient, FileTransfersSet, ProgressChannel,
+    },
+    sos_core::ExternalFile,
 };
 
 /// Client that can synchronize with a server over HTTP(S).
@@ -641,10 +642,8 @@ impl FileSyncClient for HttpClient {
             crate::transfer::CancelReason,
         >,
     ) -> Result<http::StatusCode> {
-        use crate::sdk::{
-            sha2::{Digest, Sha256},
-            vfs,
-        };
+        use sha2::{Digest, Sha256};
+        use sos_sdk::vfs;
         use tokio::io::AsyncWriteExt;
 
         let url_path = format!("api/v1/sync/file/{}", file_info);
@@ -717,7 +716,7 @@ impl FileSyncClient for HttpClient {
             vfs::remove_file(download_path).await?;
             return Err(Error::FileChecksumMismatch(
                 file_info.file_name().to_string(),
-                sos_sdk::hex::encode(digest.as_slice()),
+                hex::encode(digest.as_slice()),
             ));
         }
 

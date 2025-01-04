@@ -1,7 +1,4 @@
-//! Types for release artifact meta data.
-//!
-//! Provides serde support and string parsing for types
-//! that can be supplied as command line arguments.
+//! Release artifact meta data for the [Save Our Secrets](https://saveoursecrets.com) SDK.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 

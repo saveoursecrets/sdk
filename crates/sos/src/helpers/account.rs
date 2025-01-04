@@ -1,29 +1,29 @@
 //! Helpers for creating and switching accounts.
 use std::{borrow::Cow, sync::Arc};
 
+use crate::helpers::{
+    display_passphrase,
+    messages::success,
+    readline::{choose, choose_password, read_flag, read_password, Choice},
+};
 use parking_lot::Mutex;
+use secrecy::{ExposeSecret, SecretString};
+use sos_account::Account;
+use sos_database::StorageError;
 use sos_net::{
     sdk::{
-        account::Account,
         constants::DEFAULT_VAULT_NAME,
         crypto::AccessKey,
         identity::{AccountRef, Identity, PublicIdentity},
-        passwd::diceware::generate_passphrase,
-        secrecy::{ExposeSecret, SecretString},
         signer::ecdsa::Address,
         vault::{FolderRef, Summary},
         Paths,
     },
     NetworkAccount, NetworkAccountSwitcher,
 };
+use sos_password::diceware::generate_passphrase;
 use terminal_banner::{Banner, Padding};
 use tokio::sync::RwLock;
-
-use crate::helpers::{
-    display_passphrase,
-    messages::success,
-    readline::{choose, choose_password, read_flag, read_password, Choice},
-};
 
 use once_cell::sync::Lazy;
 
@@ -191,10 +191,7 @@ pub async fn resolve_folder(
     let owner = user.read().await;
     let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
     if let Some(vault) = folder {
-        let storage = owner
-            .storage()
-            .await
-            .ok_or(sos_net::sdk::Error::NoStorage)?;
+        let storage = owner.storage().await.ok_or(StorageError::NoStorage)?;
         let reader = storage.read().await;
         Ok(Some(
             reader
@@ -212,10 +209,7 @@ pub async fn resolve_folder(
             .ok_or(Error::NoVaultSelected)?;
         Ok(Some(summary.clone()))
     } else {
-        let storage = owner
-            .storage()
-            .await
-            .ok_or(sos_net::sdk::Error::NoStorage)?;
+        let storage = owner.storage().await.ok_or(StorageError::NoStorage)?;
         let reader = storage.read().await;
         Ok(reader.find(|s| s.flags().is_default()).cloned())
     }
@@ -226,10 +220,7 @@ pub async fn cd_folder(folder: Option<&FolderRef>) -> Result<()> {
         let owner = USER.read().await;
         let owner =
             owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-        let storage = owner
-            .storage()
-            .await
-            .ok_or(sos_net::sdk::Error::NoStorage)?;
+        let storage = owner.storage().await.ok_or(StorageError::NoStorage)?;
         let reader = storage.read().await;
         let summary = if let Some(vault) = folder {
             Some(

@@ -2,67 +2,76 @@
 use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
+use secrecy::SecretString;
+use sos_account::{
+    Account, AccountChange, AccountData, CipherComparison, DetachedView,
+    FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
+    SecretDelete, SecretInsert, SecretMove,
+};
+use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
+use sos_core::{
+    commit::{CommitHash, CommitState, Comparison},
+    Origin, SecretId, VaultId,
+};
 use sos_protocol::{
-    network_client::HttpClient, AutoMerge, Origin, RemoteResult, RemoteSync,
-    RemoteSyncHandler, SyncClient, SyncDirection, SyncOptions, SyncStatus,
-    SyncStorage, UpdateSet,
+    network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
+    RemoteSyncHandler, SyncClient, SyncOptions,
 };
 use sos_sdk::{
     events::{
-        AccountEventLog, AccountPatch, DeviceEventLog, DevicePatch,
-        FolderEventLog, FolderPatch,
+        AccountDiff, AccountEventLog, CheckedPatch, DeviceDiff,
+        DeviceEventLog, FolderDiff, FolderEventLog, WriteEvent,
     },
     prelude::{
-        AccessKey, AccessOptions, Account, AccountChange, AccountData,
-        AccountEvent, Address, Cipher, CipherComparison, ClientStorage,
-        CommitHash, CommitState, DetachedView, DeviceManager,
-        DevicePublicKey, DeviceSigner, EventRecord, FolderChange,
-        FolderCreate, FolderDelete, KeyDerivation, LocalAccount,
-        NewFolderOptions, Paths, PublicIdentity, ReadEvent, Secret,
-        SecretChange, SecretDelete, SecretId, SecretInsert, SecretMeta,
-        SecretMove, SecretRow, StorageEventLogs, Summary, TrustedDevice,
-        Vault, VaultCommit, VaultFlags, VaultId,
+        AccessKey, AccountEvent, Address, Cipher, DeviceManager,
+        DevicePublicKey, DeviceSigner, EventRecord, KeyDerivation, Paths,
+        PublicIdentity, ReadEvent, Secret, SecretMeta, SecretRow, Summary,
+        TrustedDevice, Vault, VaultCommit, VaultFlags,
     },
-    secrecy::SecretString,
-    signer::ecdsa::BoxedEcdsaSigner,
-    vfs,
 };
+
+use sos_signer::ecdsa::BoxedEcdsaSigner;
+use sos_sync::{
+    CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs,
+    SyncDirection, SyncStatus, SyncStorage, UpdateSet,
+};
+use sos_vfs as vfs;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::Arc,
 };
 use tokio::sync::{Mutex, RwLock};
 
 #[cfg(feature = "clipboard")]
-use sos_sdk::{
-    prelude::{ClipboardCopyRequest, SecretPath},
-    xclipboard::Clipboard,
+use {
+    sos_account::{xclipboard::Clipboard, ClipboardCopyRequest},
+    sos_core::SecretPath,
 };
 
 #[cfg(feature = "search")]
-use sos_sdk::prelude::{
+use sos_database::search::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
     QueryFilter, SearchIndex,
 };
 
 #[cfg(feature = "archive")]
-use sos_sdk::prelude::{Inventory, RestoreOptions};
+use sos_account::archive::{Inventory, RestoreOptions};
 
 #[cfg(feature = "contacts")]
-use sos_sdk::prelude::ContactImportProgress;
+use sos_account::ContactImportProgress;
 
 #[cfg(feature = "archive")]
 use tokio::io::{AsyncRead, AsyncSeek};
 
 #[cfg(feature = "migrate")]
-use sos_sdk::prelude::ImportTarget;
+use sos_migrate::import::ImportTarget;
 
 #[cfg(feature = "files")]
-use sos_protocol::transfer::FileTransferQueueSender;
-
-#[cfg(feature = "files")]
-use sos_sdk::prelude::{FileEventLog, FilePatch};
+use {
+    sos_protocol::transfer::FileTransferQueueSender,
+    sos_sdk::prelude::{FileDiff, FileEventLog},
+};
 
 /// Linked account syncs with a local account on the same device.
 pub struct LinkedAccount {
@@ -139,23 +148,10 @@ impl Account for LinkedAccount {
 
     async fn import_account_events(
         &mut self,
-        identity: FolderPatch,
-        account: AccountPatch,
-        device: DevicePatch,
-        folders: HashMap<VaultId, FolderPatch>,
-        #[cfg(feature = "files")] files: FilePatch,
+        events: CreateSet,
     ) -> Result<()> {
         let mut inner = self.account.lock().await;
-        Ok(inner
-            .import_account_events(
-                identity,
-                account,
-                device,
-                folders,
-                #[cfg(feature = "files")]
-                files,
-            )
-            .await?)
+        Ok(inner.import_account_events(events).await?)
     }
 
     async fn new_device_vault(
@@ -1022,44 +1018,40 @@ impl Account for LinkedAccount {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl StorageEventLogs for LinkedAccount {
-    async fn identity_log(
-        &self,
-    ) -> sos_sdk::Result<Arc<RwLock<FolderEventLog>>> {
+    type Error = Error;
+
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
         let account = self.account.lock().await;
-        account.identity_log().await
+        Ok(account.identity_log().await?)
     }
 
-    async fn account_log(
-        &self,
-    ) -> sos_sdk::Result<Arc<RwLock<AccountEventLog>>> {
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
         let account = self.account.lock().await;
-        account.account_log().await
+        Ok(account.account_log().await?)
     }
 
-    async fn device_log(
-        &self,
-    ) -> sos_sdk::Result<Arc<RwLock<DeviceEventLog>>> {
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
         let account = self.account.lock().await;
-        account.device_log().await
+        Ok(account.device_log().await?)
     }
 
     #[cfg(feature = "files")]
-    async fn file_log(&self) -> sos_sdk::Result<Arc<RwLock<FileEventLog>>> {
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
         let account = self.account.lock().await;
-        account.file_log().await
+        Ok(account.file_log().await?)
     }
 
-    async fn folder_details(&self) -> sos_sdk::Result<IndexSet<Summary>> {
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
         let account = self.account.lock().await;
-        account.folder_details().await
+        Ok(account.folder_details().await?)
     }
 
     async fn folder_log(
         &self,
         id: &VaultId,
-    ) -> sos_sdk::Result<Arc<RwLock<FolderEventLog>>> {
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
         let account = self.account.lock().await;
-        account.folder_log(id).await
+        Ok(account.folder_log(id).await?)
     }
 }
 
@@ -1070,9 +1062,151 @@ impl SyncStorage for LinkedAccount {
         true
     }
 
-    async fn sync_status(&self) -> sos_sdk::Result<SyncStatus> {
+    async fn sync_status(&self) -> Result<SyncStatus> {
         let account = self.account.lock().await;
-        account.sync_status().await
+        Ok(account.sync_status().await?)
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl Merge for LinkedAccount {
+    async fn merge_identity(
+        &mut self,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<CheckedPatch> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_identity(diff, outcome).await?)
+    }
+
+    async fn compare_identity(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_identity(state).await?)
+    }
+
+    async fn merge_account(
+        &mut self,
+        diff: AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<(CheckedPatch, HashSet<VaultId>)> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_account(diff, outcome).await?)
+    }
+
+    async fn compare_account(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_account(state).await?)
+    }
+
+    async fn merge_device(
+        &mut self,
+        diff: DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<CheckedPatch> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_device(diff, outcome).await?)
+    }
+
+    async fn compare_device(
+        &self,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_device(state).await?)
+    }
+
+    #[cfg(feature = "files")]
+    async fn merge_files(
+        &mut self,
+        diff: FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<CheckedPatch> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_files(diff, outcome).await?)
+    }
+
+    #[cfg(feature = "files")]
+    async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_files(state).await?)
+    }
+
+    async fn merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
+        let mut account = self.account.lock().await;
+        Ok(account.merge_folder(folder_id, diff, outcome).await?)
+    }
+
+    async fn compare_folder(
+        &self,
+        folder_id: &VaultId,
+        state: &CommitState,
+    ) -> Result<Comparison> {
+        let account = self.account.lock().await;
+        Ok(account.compare_folder(folder_id, state).await?)
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ForceMerge for LinkedAccount {
+    async fn force_merge_identity(
+        &mut self,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_identity(diff, outcome).await?)
+    }
+
+    async fn force_merge_account(
+        &mut self,
+        diff: AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_account(diff, outcome).await?)
+    }
+
+    async fn force_merge_device(
+        &mut self,
+        diff: DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_device(diff, outcome).await?)
+    }
+
+    /// Force merge changes to the files event log.
+    #[cfg(feature = "files")]
+    async fn force_merge_files(
+        &mut self,
+        diff: FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_files(diff, outcome).await?)
+    }
+
+    async fn force_merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.force_merge_folder(folder_id, diff, outcome).await?)
     }
 }
 

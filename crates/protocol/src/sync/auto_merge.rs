@@ -1,33 +1,31 @@
 //! Implements auto merge logic for a remote.
 use crate::{
     AsConflict, ConflictError, DiffRequest, PatchRequest, ScanRequest,
-    SyncClient, SyncDirection,
+    SyncClient,
 };
+use crate::{HardConflictResolver, SyncOptions};
 use async_trait::async_trait;
-use sos_sdk::{
-    account::Account,
+use sos_account::Account;
+use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree},
-    events::{
-        AccountDiff, AccountEvent, CheckedPatch, Diff, EventLogExt,
-        EventRecord, FolderDiff, Patch, WriteEvent,
-    },
-    storage::StorageEventLogs,
-    vault::VaultId,
+    events::{AccountEvent, DeviceEvent, WriteEvent},
+    VaultId,
 };
-
-use crate::{
-    EventLogType, ForceMerge, HardConflictResolver, MaybeConflict, Merge,
-    MergeOutcome, SyncOptions, SyncStatus,
+use sos_filesystem::events::{
+    AccountDiff, CheckedPatch, DeviceDiff, Diff, EventLogExt, EventRecord,
+    FolderDiff, Patch,
+};
+use sos_sync::{
+    EventLogType, ForceMerge, MaybeConflict, Merge, MergeOutcome,
+    StorageEventLogs, SyncDirection, SyncStatus,
 };
 use std::collections::HashSet;
 use tracing::instrument;
 
 const PROOF_SCAN_LIMIT: u16 = 32;
 
-use sos_sdk::events::{DeviceDiff, DeviceEvent};
-
 #[cfg(feature = "files")]
-use sos_sdk::events::{FileDiff, FileEvent};
+use {sos_core::events::FileEvent, sos_filesystem::events::FileDiff};
 
 use super::RemoteSyncHandler;
 

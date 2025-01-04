@@ -1,0 +1,41 @@
+[package]
+name = "sos-test-utils"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+sos-audit.workspace = true
+sos-net = { workspace = true, features = ["full"] }
+sos-account = { workspace = true, features = ["full"] }
+sos-core.workspace = true
+sos-sync.workspace = true
+sos-password.workspace = true
+sos-client-storage.workspace = true
+sos-database.workspace = true
+sos-server.workspace = true
+
+tracing.workspace = true
+tracing-subscriber.workspace = true
+secrecy.workspace = true
+serde_json.workspace = true
+futures.workspace = true
+tempfile.workspace = true
+axum-server.workspace = true
+tokio-rustls.workspace = true
+rustls.workspace = true
+sha2.workspace = true
+anyhow.workspace = true
+age.workspace = true
+argon2.workspace = true
+pem.workspace = true
+uuid.workspace = true
+url.workspace = true
+totp-rs.workspace = true
+vcard4.workspace = true
+
+tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
+pretty_assertions = "1.4"
+copy_dir = "0.1"
+

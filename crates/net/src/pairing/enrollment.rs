@@ -1,32 +1,36 @@
 //! Enroll a device to an account on a remote server.
 use crate::{
     pairing::{Error, Result},
-    protocol::{network_client::HttpClient, Origin, SyncClient},
+    protocol::{network_client::HttpClient, SyncClient},
     sdk::{
-        account::Account,
-        crypto::AccessKey,
         device::DeviceSigner,
-        encode,
-        events::{
-            AccountEvent, AccountEventLog, AccountPatch, EventLogExt,
-            FolderEventLog, FolderPatch, FolderReducer,
-        },
         identity::PublicIdentity,
         signer::{
             ecdsa::{Address, BoxedEcdsaSigner},
             ed25519::BoxedEd25519Signer,
         },
-        vault::{VaultAccess, VaultId, VaultWriter},
+        vault::{VaultAccess, VaultWriter},
         vfs, Paths,
     },
     NetworkAccount,
+};
+
+use sos_account::Account;
+use sos_core::events::AccountEvent;
+use sos_core::{crypto::AccessKey, encode, Origin, VaultId};
+use sos_filesystem::{
+    events::{
+        AccountEventLog, AccountPatch, EventLogExt, FolderEventLog,
+        FolderPatch,
+    },
+    folder::FolderReducer,
 };
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
 };
 
-use crate::sdk::events::{DeviceEventLog, DevicePatch};
+use sos_filesystem::events::{DeviceEventLog, DevicePatch};
 
 /// Enroll a device.
 ///

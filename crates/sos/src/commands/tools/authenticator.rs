@@ -5,10 +5,11 @@ use crate::{
     Error, Result,
 };
 use clap::Subcommand;
-use sos_net::sdk::prelude::{
-    export_authenticator, import_authenticator, Account, AccountRef,
-    FolderCreate, NewFolderOptions, VaultFlags,
-};
+use sos_account::{Account, FolderCreate};
+use sos_client_storage::NewFolderOptions;
+use sos_database::StorageError;
+use sos_migrate::{export_authenticator, import_authenticator};
+use sos_net::sdk::prelude::{AccountRef, VaultFlags};
 use std::path::PathBuf;
 
 #[derive(Subcommand, Debug)]
@@ -57,10 +58,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .await
                 .ok_or(Error::NoAuthenticatorFolder)?;
 
-            let storage = owner
-                .storage()
-                .await
-                .ok_or(sos_net::sdk::Error::NoStorage)?;
+            let storage =
+                owner.storage().await.ok_or(StorageError::NoStorage)?;
             let storage = storage.read().await;
             let folder = storage.cache().get(authenticator.id()).unwrap();
 
@@ -108,10 +107,8 @@ pub async fn run(cmd: Command) -> Result<()> {
             };
 
             if let Some(folder) = folder {
-                let storage = owner
-                    .storage()
-                    .await
-                    .ok_or(sos_net::sdk::Error::NoStorage)?;
+                let storage =
+                    owner.storage().await.ok_or(StorageError::NoStorage)?;
                 let mut storage = storage.write().await;
                 let folder =
                     storage.cache_mut().get_mut(folder.id()).unwrap();

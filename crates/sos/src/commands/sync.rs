@@ -3,18 +3,19 @@ use crate::{
     Error, Result,
 };
 use clap::Subcommand;
+use sos_account::Account;
+use sos_core::{
+    commit::{CommitState, CommitTree, Comparison},
+    Origin,
+};
+use sos_database::StorageError;
 use sos_net::{
-    protocol::{AccountSync, Origin, SyncOptions, SyncStatus, SyncStorage},
-    sdk::{
-        account::Account,
-        commit::{CommitState, CommitTree, Comparison},
-        events::EventLogExt,
-        identity::AccountRef,
-        storage::StorageEventLogs,
-        url::Url,
-    },
+    protocol::{AccountSync, SyncOptions},
+    sdk::{events::EventLogExt, identity::AccountRef},
     NetworkAccount,
 };
+use sos_sync::{StorageEventLogs, SyncStatus, SyncStorage};
+use url::Url;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -205,10 +206,7 @@ async fn print_status(
     let folders = owner.list_folders().await?;
     for folder in folders {
         let id = folder.id();
-        let storage = owner
-            .storage()
-            .await
-            .ok_or(sos_net::sdk::Error::NoStorage)?;
+        let storage = owner.storage().await.ok_or(StorageError::NoStorage)?;
         let storage = storage.read().await;
         let disc_folder = storage.cache().get(id).unwrap();
         let log = disc_folder.event_log();

@@ -3,16 +3,16 @@ use notify::{
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use sos_protocol::{Merge, SyncStorage};
 use sos_sdk::{
     events::{AccountEvent, EventLogExt, WriteEvent},
-    prelude::{
-        Account, AccountSwitcher, Address, Error as SdkError, ErrorExt, Paths,
-    },
+    prelude::{Address, ErrorExt, Paths},
     vault::VaultId,
 };
+use sos_sync::SyncStorage;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, RwLock};
+
+use sos_account::{Account, AccountSwitcher};
 
 use crate::{Error, FileEventError, Result};
 
@@ -49,17 +49,16 @@ impl ChangeRecords {
 /// User accounts for the web service.
 pub struct WebAccounts<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -72,17 +71,16 @@ where
 
 impl<A, R, E> Clone for WebAccounts<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -99,17 +97,16 @@ where
 
 impl<A, R, E> WebAccounts<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -218,17 +215,16 @@ where
 impl<A, R, E> AsRef<Arc<RwLock<AccountSwitcher<A, R, E>>>>
     for WebAccounts<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -245,17 +241,16 @@ async fn update_account_search_index<A, R, E>(
     records: &ChangeRecords,
 ) -> std::result::Result<(), E>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_account::Error>
+        + From<sos_database::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -294,9 +289,11 @@ where
                             let key = account
                                 .find_folder_password(&folder_id)
                                 .await?
-                                .ok_or(SdkError::NoFolderPassword(
-                                    folder_id,
-                                ))?;
+                                .ok_or(
+                                    sos_account::Error::NoFolderPassword(
+                                        folder_id,
+                                    ),
+                                )?;
                             // Import the vault into the account
                             account
                                 .import_folder(
@@ -387,7 +384,6 @@ async fn notify_listener<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -396,6 +392,10 @@ where
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -458,7 +458,7 @@ where
 
             ChangeRecords::Account(records)
         } else {
-            let folder_id: VaultId = name.parse().map_err(SdkError::from)?;
+            let folder_id: VaultId = name.parse()?;
 
             // Event log was removed so we can treat
             // as a folder delete event, we should
@@ -547,7 +547,6 @@ async fn load_account_records<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -555,7 +554,11 @@ where
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
+        + From<sos_account::Error>
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync

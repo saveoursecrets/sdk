@@ -1,0 +1,80 @@
+[package]
+name = "sos-integration-tests"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[features]
+default = []
+enable-cli-tests = []
+
+[dependencies]
+sos-audit.workspace = true
+sos-core.workspace = true
+sos-account = { workspace = true, features = ["full"] }
+sos-account-extras = { workspace = true, features = ["full"] }
+sos-database = { workspace = true, features = ["full"] }
+sos-login = { workspace = true, features = ["full"] }
+sos-filesystem = { workspace = true, features = ["full"] }
+sos-migrate = { workspace = true, features = ["full"] }
+sos-integrity = { workspace = true, features = ["full"] }
+sos-client-storage = { workspace = true, features = ["full"] }
+sos-server-storage = { workspace = true, features = ["full"] }
+sos-web = { workspace = true, features = ["full"] }
+sos-protocol = { workspace = true, features = ["full"] }
+sos-sync = { workspace = true, features = ["full"] }
+sos-net = { workspace = true, features = ["full"] }
+sos-server = { workspace = true, features = ["listen", "audit", "pairing"] }
+
+sos-sdk = { workspace = true, features = ["full"] }
+
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+http.workspace = true
+anyhow.workspace = true
+
+[dependencies.sos-ipc]
+workspace = true
+features = [
+  "extension-helper-server",
+  "extension-helper-client",
+  "archive",
+  "contacts", 
+  "migrate",
+  "search",
+  "files",
+]
+
+[dev-dependencies]
+binary-stream.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+async-recursion.workspace = true
+futures.workspace = true
+parking_lot.workspace = true
+once_cell.workspace = true
+serde.workspace = true
+indexmap.workspace = true
+anyhow.workspace = true
+secrecy.workspace = true
+http.workspace = true
+zxcvbn.workspace = true
+hex.workspace = true
+urn.workspace = true
+
+copy_dir = "0.1"
+maplit2 = "1"
+tempfile = "3.5"
+pretty_assertions = "1.4"
+sos-test-utils.workspace = true
+
+[[bin]]
+name = "test-extension-helper"
+path = "src/test_extension_helper.rs"
+
+[[bin]]
+name = "test-preferences-concurrency"
+path = "src/test_preferences_concurrency.rs"

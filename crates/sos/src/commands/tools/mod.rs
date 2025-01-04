@@ -8,14 +8,15 @@ use crate::{
     Error, Result,
 };
 use clap::Subcommand;
+use sos_account::Account;
+use sos_core::VaultId;
+use sos_filesystem::folder::FolderReducer;
 use sos_net::sdk::{
-    account::Account,
     constants::EVENT_LOG_EXT,
     crypto::{AccessKey, Cipher, KeyDerivation},
     encode,
-    events::{FolderEventLog, FolderReducer},
+    events::FolderEventLog,
     identity::AccountRef,
-    vault::VaultId,
     vfs, Paths,
 };
 use std::path::PathBuf;

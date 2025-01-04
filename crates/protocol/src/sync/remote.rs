@@ -1,11 +1,14 @@
 //! Handler that can synchronize account data between a
 //! remote data source and local account.
-use crate::{
-    AsConflict, ConflictError, MaybeDiff, Merge, MergeOutcome, Origin,
-    SyncClient, SyncDirection, SyncPacket, SyncStatus, SyncStorage,
-};
+use crate::{AsConflict, ConflictError, SyncClient};
 use async_trait::async_trait;
-use sos_sdk::prelude::{Account, Address};
+use sos_account::Account;
+use sos_core::Origin;
+use sos_sdk::prelude::Address;
+use sos_sync::{
+    MaybeDiff, Merge, MergeOutcome, StorageEventLogs, SyncDirection,
+    SyncPacket, SyncStatus, SyncStorage,
+};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
@@ -13,8 +16,6 @@ use tokio::sync::Mutex;
 use crate::transfer::{
     FileOperation, FileTransferQueueSender, TransferOperation,
 };
-
-use super::ForceMerge;
 
 /// Trait for types that bridge between a remote data source
 /// and a local account.
@@ -25,22 +26,22 @@ pub trait RemoteSyncHandler {
     type Client: SyncClient + Send + Sync + 'static;
 
     /// Local account.
-    type Account: Account
-        + SyncStorage
-        + Merge
-        + ForceMerge
-        + Send
-        + Sync
-        + 'static;
+    type Account: Account + SyncStorage;
 
     /// Error implementation.
     type Error: std::error::Error
         + std::fmt::Debug
         + AsConflict
         + From<ConflictError>
+        + From<crate::Error>
         + From<sos_sdk::Error>
+        + From<sos_core::Error>
+        + From<sos_database::StorageError>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
         + From<std::io::Error>
         + From<<Self::Account as Account>::Error>
+        + From<<Self::Account as StorageEventLogs>::Error>
         + From<<Self::Client as SyncClient>::Error>
         + Send
         + Sync
@@ -101,16 +102,7 @@ pub trait RemoteSyncHandler {
         {
             let account = self.account();
             let mut account = account.lock().await;
-            account
-                .import_account_events(
-                    public_account.identity,
-                    public_account.account,
-                    public_account.device,
-                    public_account.folders,
-                    #[cfg(feature = "files")]
-                    public_account.files,
-                )
-                .await?;
+            account.import_account_events(public_account).await?;
         }
 
         /*
@@ -141,7 +133,7 @@ pub trait RemoteSyncHandler {
         tracing::debug!("merge_client");
 
         let (needs_sync, local_status, local_changes) =
-            crate::diff(&*account, remote_status).await?;
+            crate::diff::<_, Self::Error>(&*account, remote_status).await?;
 
         tracing::debug!(needs_sync = %needs_sync, "merge_client");
 
@@ -171,7 +163,7 @@ pub trait RemoteSyncHandler {
 
                 #[cfg(feature = "files")]
                 if !outcome.external_files.is_empty() {
-                    use sos_sdk::account::Account;
+                    use sos_account::Account;
                     let paths = account.paths();
                     // let mut writer = self.transfers.write().await;
 

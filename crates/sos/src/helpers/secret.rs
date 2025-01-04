@@ -1,24 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
-
-use human_bytes::human_bytes;
-use terminal_banner::{Banner, Padding};
-
-use secrecy::{ExposeSecret, SecretString};
-use sos_net::sdk::{
-    account::Account,
-    hex, secrecy,
-    storage::search::Document,
-    url::Url,
-    vault::{
-        secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
-        Summary,
-    },
-    vfs,
-};
-
+use super::{account::Owner, set_clipboard_text};
 use crate::{
     helpers::{
         messages::{fail, success},
@@ -29,8 +9,23 @@ use crate::{
     },
     Error, Result,
 };
-
-use super::{account::Owner, set_clipboard_text};
+use human_bytes::human_bytes;
+use secrecy::{ExposeSecret, SecretString};
+use sos_account::Account;
+use sos_database::search::Document;
+use sos_net::sdk::{
+    vault::{
+        secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
+        Summary,
+    },
+    vfs,
+};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
+use terminal_banner::{Banner, Padding};
+use {hex, secrecy, url::Url};
 
 /// Resolved secret data.
 pub(crate) struct ResolvedSecret {

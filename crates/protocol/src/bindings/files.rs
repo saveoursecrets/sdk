@@ -3,16 +3,15 @@ include!(concat!(env!("OUT_DIR"), "/files.rs"));
 #[cfg(feature = "files")]
 mod files {
     use super::*;
+
     use crate::{
         decode_uuid, encode_uuid,
-        sdk::{
-            storage::files::{ExternalFile, ExternalFileName},
-            vault::secret::SecretPath,
-        },
+        sdk::vault::secret::SecretPath,
         transfer::{FileSet, FileTransfersSet},
         Error, ProtoBinding, Result,
     };
     use indexmap::IndexSet;
+    use sos_core::{ExternalFile, ExternalFileName};
 
     impl ProtoBinding for ExternalFile {
         type Inner = WireExternalFile;

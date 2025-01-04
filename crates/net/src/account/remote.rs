@@ -1,18 +1,21 @@
 //! Connect a remote data source with a local account.
 use crate::{
     protocol::{
-        network_client::HttpClient, AutoMerge, Origin, RemoteResult,
-        RemoteSync, SyncClient, SyncDirection, SyncOptions, UpdateSet,
+        network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
+        SyncClient, SyncOptions,
     },
     sdk::{
-        account::LocalAccount,
         prelude::Address,
         signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
     },
     Result,
 };
+
 use async_trait::async_trait;
+use sos_account::LocalAccount;
+use sos_core::Origin;
 use sos_protocol::RemoteSyncHandler;
+use sos_sync::{SyncDirection, UpdateSet};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
@@ -100,7 +103,7 @@ impl RemoteSyncHandler for RemoteBridge {
 
     #[cfg(feature = "files")]
     async fn execute_sync_file_transfers(&self) -> Result<()> {
-        use sos_sdk::storage::StorageEventLogs;
+        use sos_sync::StorageEventLogs;
         let external_files = {
             let account = self.account();
             let account = account.lock().await;

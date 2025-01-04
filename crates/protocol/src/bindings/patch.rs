@@ -1,12 +1,11 @@
 include!(concat!(env!("OUT_DIR"), "/patch.rs"));
 
 use crate::{
-    sdk::{
-        commit::{CommitHash, CommitProof},
-        events::{CheckedPatch, EventRecord},
-    },
-    Error, EventLogType, ProtoBinding, Result,
+    sdk::events::{CheckedPatch, EventRecord},
+    Error, ProtoBinding, Result,
 };
+use sos_core::commit::{CommitHash, CommitProof};
+use sos_sync::EventLogType;
 
 /// Request to patch an event log from a specific commit.
 ///

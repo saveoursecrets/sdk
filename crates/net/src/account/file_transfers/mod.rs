@@ -21,13 +21,13 @@ use crate::{
             CancelReason, FileOperation, FileSyncClient,
             FileTransferQueueRequest, ProgressChannel, TransferOperation,
         },
-        Origin, SyncClient,
+        SyncClient,
     },
-    sdk::{storage::files::ExternalFile, vfs, Paths},
+    sdk::{vfs, Paths},
     Error, Result,
 };
-
 use futures::FutureExt;
+use sos_core::{ExternalFile, Origin};
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},

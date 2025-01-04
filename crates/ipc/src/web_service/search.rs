@@ -2,10 +2,10 @@
 
 use http::{Request, Response, StatusCode};
 use serde::Deserialize;
-use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{
-    Account, ArchiveFilter, DocumentView, ErrorExt, QueryFilter,
-};
+use sos_account::Account;
+use sos_database::search::{ArchiveFilter, DocumentView, QueryFilter};
+use sos_sdk::prelude::ErrorExt;
+use sos_sync::SyncStorage;
 use std::collections::HashMap;
 
 use crate::web_service::{
@@ -31,17 +31,16 @@ pub async fn search<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -70,17 +69,16 @@ pub async fn query_view<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync

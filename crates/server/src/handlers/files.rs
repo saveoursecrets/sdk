@@ -15,12 +15,8 @@ use axum_extra::{
 
 use super::BODY_LIMIT;
 
-use sos_protocol::sdk::{
-    storage::files::{ExternalFile, ExternalFileName},
-    vault::{
-        secret::{SecretId, SecretPath},
-        VaultId,
-    },
+use sos_core::{
+    ExternalFile, ExternalFileName, SecretId, SecretPath, VaultId,
 };
 
 use crate::{
@@ -361,17 +357,6 @@ pub(crate) async fn compare_files(
 
 mod handlers {
     use super::MoveFileQuery;
-    use sos_protocol::{
-        constants::MIME_TYPE_PROTOBUF,
-        sdk::{
-            sha2::{Digest, Sha256},
-            storage::files::{list_external_files, ExternalFileName},
-            vault::{secret::SecretId, VaultId},
-        },
-        transfer::{FileSet, FileTransfersSet},
-        WireEncodeDecode,
-    };
-
     use crate::{
         handlers::Caller, Error, Result, ServerBackend, ServerState,
     };
@@ -383,6 +368,16 @@ mod handlers {
     use futures::TryStreamExt;
     use http::header::{self, HeaderMap, HeaderValue};
     use indexmap::IndexSet;
+    use sha2::{Digest, Sha256};
+    use sos_core::ExternalFileName;
+    use sos_database::files::list_external_files;
+    use sos_protocol::{
+        constants::MIME_TYPE_PROTOBUF,
+        sdk::vault::{secret::SecretId, VaultId},
+        transfer::{FileSet, FileTransfersSet},
+        WireEncodeDecode,
+    };
+    use sos_server_storage::ServerAccountStorage;
     use std::{path::PathBuf, sync::Arc};
     use tokio::{
         fs::File,
@@ -424,7 +419,7 @@ mod handlers {
 
         let (parent_path, file_path) = {
             let reader = account.read().await;
-            let paths = reader.storage.paths();
+            let paths = reader.paths();
             let name = file_name.to_string();
             let parent_path = paths
                 .file_folder_location(&vault_id)
@@ -495,7 +490,7 @@ mod handlers {
 
         let file_path = {
             let reader = account.read().await;
-            let paths = reader.storage.paths();
+            let paths = reader.paths();
             let name = file_name.to_string();
             paths.file_location(&vault_id, &secret_id, &name)
         };
@@ -529,7 +524,7 @@ mod handlers {
 
         let file_path = {
             let reader = account.read().await;
-            let paths = reader.storage.paths();
+            let paths = reader.paths();
             let name = file_name.to_string();
             paths.file_location(&vault_id, &secret_id, &name)
         };
@@ -570,7 +565,7 @@ mod handlers {
 
         let (source_path, target_path, parent_path) = {
             let reader = account.read().await;
-            let paths = reader.storage.paths();
+            let paths = reader.paths();
             let name = file_name.to_string();
             let source = paths.file_location(&vault_id, &secret_id, &name);
             let target = paths.file_location(
@@ -621,7 +616,7 @@ mod handlers {
                 .get(caller.address())
                 .ok_or_else(|| Error::NoAccount(*caller.address()))?;
             let account = account.read().await;
-            account.storage.paths()
+            account.paths()
         };
 
         let local_files = FileSet::decode(body).await?;

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use bytes::Bytes;
 use http::{header::CONTENT_TYPE, Request, Response, StatusCode, Uri};
 use http_body_util::{BodyExt, Full};
@@ -8,7 +6,9 @@ use sos_protocol::{
     constants::{MIME_TYPE_JSON, X_SOS_ACCOUNT_ID},
     ErrorReply,
 };
-use sos_sdk::{prelude::Address, url::form_urlencoded};
+use sos_sdk::prelude::Address;
+use std::collections::HashMap;
+use url::form_urlencoded;
 
 use super::{Body, Incoming};
 

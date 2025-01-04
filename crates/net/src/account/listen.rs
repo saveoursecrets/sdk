@@ -2,11 +2,13 @@
 //! a websocket connection.
 use crate::{
     protocol::{
-        network_client::ListenOptions, ChangeNotification, Origin,
-        RemoteResult, RemoteSync, SyncStorage,
+        network_client::ListenOptions, ChangeNotification, RemoteResult,
+        RemoteSync,
     },
     Error, NetworkAccount, Result,
 };
+use sos_core::Origin;
+use sos_sync::SyncStorage;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 

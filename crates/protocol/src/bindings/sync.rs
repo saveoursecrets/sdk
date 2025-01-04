@@ -2,15 +2,17 @@ include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 
 use crate::{
     decode_uuid, encode_uuid,
-    sdk::{
-        commit::Comparison,
-        events::{Diff, EventRecord, Patch},
-    },
-    CreateSet, Error, MaybeDiff, MergeOutcome, Origin, ProtoBinding, Result,
-    SyncCompare, SyncDiff, SyncPacket, SyncStatus, TrackedAccountChange,
-    TrackedChanges, TrackedDeviceChange, TrackedFolderChange, UpdateSet,
+    sdk::events::{Diff, EventRecord, Patch},
+    Error, ProtoBinding, Result,
 };
 use indexmap::{IndexMap, IndexSet};
+use sos_core::commit::Comparison;
+use sos_core::Origin;
+use sos_sync::{
+    CreateSet, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff, SyncPacket,
+    SyncStatus, TrackedAccountChange, TrackedChanges, TrackedDeviceChange,
+    TrackedFolderChange, UpdateSet,
+};
 use std::collections::HashMap;
 
 impl ProtoBinding for Origin {
@@ -765,8 +767,9 @@ mod files {
     };
     use crate::{
         bindings::sync::WireTrackedFileCreated, Error, ProtoBinding, Result,
-        TrackedFileChange,
     };
+
+    use sos_sync::TrackedFileChange;
 
     impl ProtoBinding for TrackedFileChange {
         type Inner = WireTrackedFileChange;

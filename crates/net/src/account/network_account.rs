@@ -1,39 +1,40 @@
 //! Network aware account.
 use crate::{
     protocol::{
-        AccountSync, DiffRequest, EventLogType, Origin, RemoteSync,
-        RemoteSyncHandler, SyncClient, SyncOptions, SyncResult, UpdateSet,
-    },
-    sdk::{
-        account::{
-            Account, AccountBuilder, AccountChange, AccountData,
-            CipherComparison, FolderChange, FolderCreate, FolderDelete,
-            LocalAccount, SecretChange, SecretDelete, SecretInsert,
-            SecretMove,
-        },
-        commit::{CommitHash, CommitState},
-        crypto::{AccessKey, Cipher, KeyDerivation},
-        device::{
-            DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice,
-        },
-        events::{AccountEvent, EventLogExt, EventRecord, ReadEvent},
-        identity::{AccountRef, PublicIdentity},
-        sha2::{Digest, Sha256},
-        signer::ecdsa::{Address, BoxedEcdsaSigner},
-        storage::{
-            AccessOptions, ClientStorage, NewFolderOptions, StorageEventLogs,
-        },
-        vault::{
-            secret::{Secret, SecretId, SecretMeta, SecretRow},
-            Summary, Vault, VaultCommit, VaultFlags, VaultId,
-        },
-        vfs, Paths,
+        AccountSync, DiffRequest, RemoteSync, RemoteSyncHandler, SyncClient,
+        SyncOptions, SyncResult,
     },
     Error, RemoteBridge, Result,
 };
 use async_trait::async_trait;
 use secrecy::SecretString;
-use sos_sdk::events::{AccountPatch, DevicePatch, FolderPatch};
+use sha2::{Digest, Sha256};
+use sos_account::{
+    Account, AccountBuilder, AccountChange, AccountData, CipherComparison,
+    FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
+    SecretDelete, SecretInsert, SecretMove,
+};
+use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
+use sos_core::{
+    commit::{CommitHash, CommitState},
+    Origin, SecretId, VaultId,
+};
+use sos_database::StorageError;
+use sos_sdk::{
+    crypto::{AccessKey, Cipher, KeyDerivation},
+    device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
+    events::{EventLogExt, EventRecord},
+    identity::{AccountRef, PublicIdentity},
+    signer::ecdsa::{Address, BoxedEcdsaSigner},
+    vault::{
+        secret::{Secret, SecretMeta, SecretRow},
+        Summary, Vault, VaultCommit, VaultFlags,
+    },
+    vfs, Paths,
+};
+
+use sos_core::events::{AccountEvent, ReadEvent};
+use sos_sync::{CreateSet, EventLogType, StorageEventLogs, UpdateSet};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -42,30 +43,30 @@ use std::{
 use tokio::sync::{Mutex, RwLock};
 
 #[cfg(feature = "clipboard")]
-use sos_sdk::{
-    prelude::{ClipboardCopyRequest, SecretPath},
-    xclipboard::Clipboard,
+use {
+    sos_account::{xclipboard::Clipboard, ClipboardCopyRequest},
+    sos_core::SecretPath,
 };
 
 #[cfg(feature = "search")]
-use crate::sdk::prelude::{
+use sos_database::search::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
     QueryFilter, SearchIndex,
 };
 
 #[cfg(feature = "archive")]
-use crate::sdk::prelude::{Inventory, RestoreOptions};
+use sos_account::archive::{Inventory, RestoreOptions};
 
 use indexmap::IndexSet;
 
 #[cfg(feature = "contacts")]
-use crate::sdk::prelude::ContactImportProgress;
+use sos_account::ContactImportProgress;
 
 #[cfg(feature = "archive")]
 use tokio::io::{AsyncRead, AsyncSeek};
 
 #[cfg(feature = "migrate")]
-use crate::sdk::prelude::ImportTarget;
+use sos_migrate::import::ImportTarget;
 
 #[cfg(feature = "listen")]
 use sos_protocol::network_client::WebSocketHandle;
@@ -80,13 +81,15 @@ use crate::sdk::account::security_report::{
 use super::remote::Remotes;
 
 #[cfg(feature = "files")]
-use crate::{
-    account::file_transfers::{
-        FileTransferSettings, FileTransfers, FileTransfersHandle,
-        InflightTransfers,
+use {
+    crate::{
+        account::file_transfers::{
+            FileTransferSettings, FileTransfers, FileTransfersHandle,
+            InflightTransfers,
+        },
+        protocol::{network_client::HttpClient, transfer::FileOperation},
     },
-    protocol::{network_client::HttpClient, transfer::FileOperation},
-    sdk::{prelude::FilePatch, storage::files::FileMutationEvent},
+    sos_database::files::FileMutationEvent,
 };
 
 /// Options for network account creation.
@@ -252,7 +255,7 @@ impl NetworkAccount {
         {
             let account = self.account.lock().await;
             let storage =
-                account.storage().await.ok_or(sos_sdk::Error::NoStorage)?;
+                account.storage().await.ok_or(StorageError::NoStorage)?;
             let mut storage = storage.write().await;
             storage.revoke_device(device_key).await?;
         }
@@ -496,7 +499,7 @@ impl NetworkAccount {
     #[cfg(feature = "files")]
     async fn start_file_transfers(&mut self) -> Result<()> {
         if !self.is_authenticated().await {
-            return Err(crate::sdk::Error::NotAuthenticated.into());
+            return Err(sos_account::Error::NotAuthenticated.into());
         }
 
         if self.offline {
@@ -668,7 +671,7 @@ impl NetworkAccount {
             .file_transfers
             .as_ref()
             .map(|t| Arc::clone(&t.inflight))
-            .ok_or_else(|| crate::sdk::Error::NotAuthenticated)?)
+            .ok_or_else(|| sos_account::Error::NotAuthenticated)?)
     }
 
     /// Convert file mutation events into file transfer queue entries.
@@ -716,23 +719,10 @@ impl Account for NetworkAccount {
 
     async fn import_account_events(
         &mut self,
-        identity: FolderPatch,
-        account: AccountPatch,
-        device: DevicePatch,
-        folders: HashMap<VaultId, FolderPatch>,
-        #[cfg(feature = "files")] files: FilePatch,
+        events: CreateSet,
     ) -> Result<()> {
         let mut inner = self.account.lock().await;
-        Ok(inner
-            .import_account_events(
-                identity,
-                account,
-                device,
-                folders,
-                #[cfg(feature = "files")]
-                files,
-            )
-            .await?)
+        Ok(inner.import_account_events(events).await?)
     }
 
     async fn new_device_vault(
@@ -1211,7 +1201,7 @@ impl Account for NetworkAccount {
         &self,
         summary: &Summary,
         commit: CommitHash,
-    ) -> Result<crate::sdk::account::DetachedView> {
+    ) -> Result<sos_account::DetachedView> {
         let account = self.account.lock().await;
         Ok(account.detached_view(summary, commit).await?)
     }

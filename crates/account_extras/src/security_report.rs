@@ -1,15 +1,14 @@
 //! Types for security report generation.
+use hex;
+use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
-use sos_sdk::{
-    account::Account,
-    hex,
-    vault::{
-        secret::{Secret, SecretId, SecretType},
-        Gatekeeper, Summary, VaultId,
-    },
-    zxcvbn::{Entropy, Score},
-    Result,
+use sos_account::Account;
+use sos_password::generator::measure_entropy;
+use sos_vault::{
+    secret::{Secret, SecretId, SecretType},
+    Gatekeeper, Summary, VaultId,
 };
+use zxcvbn::{Entropy, Score};
 
 /// Generate a security report.
 pub async fn generate_security_report<A, E, T, D, R>(
@@ -20,7 +19,11 @@ where
     A: Account,
     D: Fn(Vec<String>) -> R + Send + Sync,
     R: std::future::Future<Output = Vec<T>> + Send + Sync,
-    E: From<A::Error> + From<sos_sdk::Error>,
+    E: From<A::Error>
+        + From<sos_account::Error>
+        + From<sos_core::Error>
+        + From<sos_vault::Error>
+        + From<sos_database::StorageError>,
 {
     let mut records = Vec::new();
     let mut hashes = Vec::new();
@@ -36,8 +39,10 @@ where
         .collect();
 
     for target in targets {
-        let storage =
-            account.storage().await.ok_or(sos_sdk::Error::NoStorage)?;
+        let storage = account
+            .storage()
+            .await
+            .ok_or(sos_database::StorageError::NoStorage)?;
         let reader = storage.read().await;
 
         let folder = reader.cache().get(target.id()).unwrap();
@@ -51,7 +56,7 @@ where
         )> = Vec::new();
 
         if let Some(target) = &options.target {
-            secret_security_report(
+            secret_security_report::<E>(
                 &target.1,
                 keeper,
                 &mut password_hashes,
@@ -60,7 +65,7 @@ where
             .await?;
         } else {
             for secret_id in vault.keys() {
-                secret_security_report(
+                secret_security_report::<E>(
                     secret_id,
                     keeper,
                     &mut password_hashes,
@@ -230,7 +235,7 @@ pub struct SecurityReportRecord {
     pub entropy: Option<Entropy>,
 }
 
-pub(super) async fn secret_security_report(
+pub(super) async fn secret_security_report<E>(
     secret_id: &SecretId,
     keeper: &Gatekeeper,
     password_hashes: &mut Vec<(
@@ -239,7 +244,10 @@ pub(super) async fn secret_security_report(
         Option<SecretId>,
     )>,
     target_field: Option<&SecretId>,
-) -> Result<()> {
+) -> std::result::Result<(), E>
+where
+    E: From<sos_vault::Error> + From<sos_database::StorageError>,
+{
     if let Some((_meta, secret, _)) = keeper.read_secret(secret_id).await? {
         for field in secret.user_data().fields().iter().filter(|field| {
             if let Some(field_id) = target_field {
@@ -250,7 +258,7 @@ pub(super) async fn secret_security_report(
             if field.meta().kind() == &SecretType::Account
                 || field.meta().kind() == &SecretType::Password
             {
-                let check = Secret::check_password(field.secret())?;
+                let check = check_password::<E>(field.secret())?;
                 if let Some(check) = check {
                     password_hashes.push((
                         *secret_id,
@@ -260,10 +268,64 @@ pub(super) async fn secret_security_report(
                 }
             }
         }
-        let check = Secret::check_password(&secret)?;
+        let check = check_password::<E>(&secret)?;
         if let Some(check) = check {
             password_hashes.push((*secret_id, check, None));
         }
     }
     Ok(())
+}
+
+/// Measure entropy for a password and compute a SHA-1 checksum.
+///
+/// Only applies to account and password types, other
+/// types will yield `None.`
+pub fn check_password<E>(
+    secret: &Secret,
+) -> std::result::Result<Option<(Option<Entropy>, Vec<u8>)>, E>
+where
+    E: From<sos_vault::Error> + From<sos_database::StorageError>,
+{
+    // TODO: remove Result type from function return value
+    use sha1::{Digest, Sha1};
+    match secret {
+        Secret::Account {
+            account, password, ..
+        } => {
+            let hash = Sha1::digest(password.expose_secret().as_bytes());
+
+            // Zxcvbn cannot handle empty passwords but we
+            // need to handle this gracefully
+            if password.expose_secret().is_empty() {
+                Ok(Some((None, hash.to_vec())))
+            } else {
+                let entropy =
+                    measure_entropy(password.expose_secret(), &[account]);
+                Ok(Some((Some(entropy), hash.to_vec())))
+            }
+        }
+        Secret::Password { password, name, .. } => {
+            let inputs = if let Some(name) = name {
+                vec![&name.expose_secret()[..]]
+            } else {
+                vec![]
+            };
+
+            let hash = Sha1::digest(password.expose_secret().as_bytes());
+
+            // Zxcvbn cannot handle empty passwords but we
+            // need to handle this gracefully
+            if password.expose_secret().is_empty() {
+                Ok(Some((None, hash.to_vec())))
+            } else {
+                let entropy = measure_entropy(
+                    password.expose_secret(),
+                    inputs.as_slice(),
+                );
+
+                Ok(Some((Some(entropy), hash.to_vec())))
+            }
+        }
+        _ => Ok(None),
+    }
 }

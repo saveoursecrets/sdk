@@ -10,8 +10,9 @@ use http_body_util::{BodyExt, Full};
 use hyper::client::conn::http1::handshake;
 use hyper::server::conn::http1::Builder;
 use hyper_util::rt::tokio::TokioIo;
-use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{Account, ErrorExt};
+use sos_account::Account;
+use sos_sdk::prelude::ErrorExt;
+use sos_sync::SyncStorage;
 use std::sync::Arc;
 use tokio::{
     io::DuplexStream,
@@ -111,17 +112,16 @@ impl LocalMemoryServer {
         app_info: ServiceAppInfo,
     ) -> Result<LocalMemoryClient>
     where
-        A: Account<Error = E, NetworkResult = R>
-            + SyncStorage
-            + Merge
-            + Sync
-            + Send
-            + 'static,
+        A: Account<Error = E, NetworkResult = R> + SyncStorage,
         R: 'static,
         E: std::fmt::Debug
             + std::error::Error
             + ErrorExt
             + From<sos_sdk::Error>
+            + From<sos_database::Error>
+            + From<sos_account::Error>
+            + From<sos_filesystem::Error>
+            + From<sos_vault::Error>
             + From<std::io::Error>
             + Send
             + Sync

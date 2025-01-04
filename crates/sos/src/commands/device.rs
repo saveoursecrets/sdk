@@ -1,9 +1,8 @@
 use clap::Subcommand;
 use std::sync::Arc;
 
-use sos_net::sdk::{
-    account::Account, device::TrustedDevice, identity::AccountRef,
-};
+use sos_account::Account;
+use sos_net::sdk::{device::TrustedDevice, identity::AccountRef};
 
 use crate::{
     helpers::{

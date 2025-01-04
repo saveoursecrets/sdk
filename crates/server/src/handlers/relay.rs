@@ -57,12 +57,12 @@ async fn handle_socket(
                 Message::Text(_) => {}
                 Message::Binary(buffer) => {
                     if let Ok((public_key, buffer)) =
-                        RelayPacket::decode_split(buffer)
+                        RelayPacket::decode_split(buffer.into())
                     {
                         let mut writer = state.lock().await;
                         if let Some(tx) = writer.get_mut(&public_key) {
                             if let Err(e) =
-                                tx.send(Message::Binary(buffer)).await
+                                tx.send(Message::Binary(buffer.into())).await
                             {
                                 tracing::warn!(error = ?e);
                             }

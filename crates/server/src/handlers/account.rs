@@ -598,11 +598,11 @@ mod handlers {
         StatusCode,
     };
     use sos_protocol::{
-        constants::MIME_TYPE_PROTOBUF, server_helpers, CreateSet,
-        DiffRequest, PatchRequest, ScanRequest, SyncPacket, SyncStorage,
-        UpdateSet, WireEncodeDecode,
+        constants::MIME_TYPE_PROTOBUF, DiffRequest, PatchRequest,
+        ScanRequest, WireEncodeDecode,
     };
-
+    use sos_server_storage::server_helpers;
+    use sos_sync::{CreateSet, SyncPacket, SyncStorage, UpdateSet};
     use std::sync::Arc;
 
     #[cfg(feature = "listen")]
@@ -693,7 +693,7 @@ mod handlers {
         let reader = accounts.read().await;
         let account = reader.get(caller.address()).unwrap();
         let account = account.read().await;
-        let status = account.storage.sync_status().await?;
+        let status = account.sync_status().await?;
         let mut headers = HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
@@ -727,7 +727,8 @@ mod handlers {
 
         let reader = account.read().await;
         let response =
-            server_helpers::event_scan(&req, &reader.storage).await?;
+            server_helpers::event_scan::<_, crate::Error>(&req, &*reader)
+                .await?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -758,7 +759,8 @@ mod handlers {
 
         let reader = account.read().await;
         let response =
-            server_helpers::event_diff(&req, &reader.storage).await?;
+            server_helpers::event_diff::<_, crate::Error>(&req, &*reader)
+                .await?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -789,14 +791,15 @@ mod handlers {
 
         let (response, outcome) = {
             let mut writer = account.write().await;
-            server_helpers::event_patch(req, &mut writer.storage).await?
+            server_helpers::event_patch::<_, crate::Error>(req, &mut *writer)
+                .await?
         };
 
         #[cfg(feature = "listen")]
         if outcome.changes > 0 {
             if let Some(conn_id) = caller.connection_id() {
                 let reader = account.read().await;
-                let local_status = reader.storage.sync_status().await?;
+                let local_status = reader.sync_status().await?;
                 let notification = ChangeNotification::new(
                     caller.address(),
                     conn_id.to_string(),
@@ -837,7 +840,11 @@ mod handlers {
 
         let (packet, outcome) = {
             let mut writer = account.write().await;
-            server_helpers::sync_account(packet, &mut writer.storage).await?
+            server_helpers::sync_account::<_, crate::Error>(
+                packet,
+                &mut *writer,
+            )
+            .await?
         };
 
         #[cfg(feature = "listen")]

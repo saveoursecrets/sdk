@@ -1,10 +1,18 @@
 //! Listen for change notifications on a websocket connection.
+use crate::{
+    network_client::{NetworkRetry, WebSocketRequest},
+    transfer::CancelReason,
+    ChangeNotification, Error, Result, WireEncodeDecode,
+};
 use futures::{
     stream::{Map, SplitStream},
     Future, FutureExt, StreamExt,
 };
 use prost::bytes::Bytes;
+use sos_core::Origin;
+use sos_sdk::signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 use std::{borrow::Cow, pin::Pin};
+use tokio::{net::TcpStream, sync::watch, time::Duration};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
@@ -12,16 +20,6 @@ use tokio_tungstenite::{
         protocol::{frame::coding::CloseCode, CloseFrame, Message},
     },
     MaybeTlsStream, WebSocketStream,
-};
-
-use tokio::{net::TcpStream, sync::watch, time::Duration};
-
-use sos_sdk::signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
-
-use crate::{
-    network_client::{NetworkRetry, WebSocketRequest},
-    transfer::CancelReason,
-    ChangeNotification, Error, Origin, Result, WireEncodeDecode,
 };
 
 use super::{

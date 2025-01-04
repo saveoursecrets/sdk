@@ -1,15 +1,15 @@
 use super::{Error, Result};
-use sos_protocol::{
-    sdk::{
-        signer::{
-            ecdsa::Address,
-            ed25519::{self, Verifier, VerifyingKey},
-        },
-        storage::DiscFolder,
-        vfs, Paths,
-    },
-    CreateSet, MergeOutcome, SyncStorage, UpdateSet,
+use sos_core::{device::DevicePublicKey, Paths};
+use sos_filesystem::folder::DiscFolder;
+use sos_server_storage::{
+    filesystem::ServerFileStorage, ServerAccountStorage, ServerStorage,
 };
+use sos_signer::{
+    ecdsa::Address,
+    ed25519::{self, Verifier, VerifyingKey},
+};
+use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
+use sos_vfs as vfs;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -17,18 +17,18 @@ use std::{
 };
 use tokio::sync::RwLock;
 
-use crate::storage::filesystem::ServerStorage;
-
-/// Account storage.
-pub struct AccountStorage {
-    pub(crate) storage: ServerStorage,
-}
-
 /// Individual account.
-pub type ServerAccount = Arc<RwLock<AccountStorage>>;
+pub type ServerAccount = Arc<RwLock<ServerStorage>>;
 
 /// Collection of accounts by address.
 pub type Accounts = Arc<RwLock<HashMap<Address, ServerAccount>>>;
+
+fn into_device_verifying_key(
+    value: &DevicePublicKey,
+) -> Result<VerifyingKey> {
+    let bytes: [u8; 32] = value.as_ref().try_into()?;
+    Ok(VerifyingKey::from_bytes(&bytes)?)
+}
 
 /// Backend for a server.
 pub struct Backend {
@@ -89,24 +89,26 @@ impl Backend {
                             self.directory.clone(),
                             owner.to_string(),
                         );
-                        let identity_log =
-                            DiscFolder::new_event_log(&user_paths).await?;
+                        let identity_log = DiscFolder::new_event_log(
+                            user_paths.identity_events(),
+                        )
+                        .await?;
 
-                        let account = AccountStorage {
-                            storage: ServerStorage::new(
+                        let account = ServerStorage::FileSystem(
+                            ServerFileStorage::new(
                                 owner.clone(),
                                 Some(self.directory.clone()),
                                 identity_log,
                             )
                             .await?,
-                        };
+                        );
 
                         let mut accounts = self.accounts.write().await;
                         let account = accounts
                             .entry(owner.clone())
                             .or_insert(Arc::new(RwLock::new(account)));
                         let mut writer = account.write().await;
-                        writer.storage.load_folders().await?;
+                        writer.load_folders().await?;
                     }
                 }
             }
@@ -135,11 +137,13 @@ impl Backend {
             Paths::new_server(self.directory.clone(), owner.to_string());
         paths.ensure().await?;
 
-        let identity_log =
-            ServerStorage::initialize_account(&paths, &account_data.identity)
-                .await?;
+        let identity_log = ServerFileStorage::initialize_account(
+            &paths,
+            &account_data.identity,
+        )
+        .await?;
 
-        let mut storage = ServerStorage::new(
+        let mut storage = ServerFileStorage::new(
             owner.clone(),
             Some(self.directory.clone()),
             Arc::new(RwLock::new(identity_log)),
@@ -147,7 +151,7 @@ impl Backend {
         .await?;
         storage.import_account(&account_data).await?;
 
-        let account = AccountStorage { storage };
+        let account = ServerStorage::FileSystem(storage);
         let mut accounts = self.accounts.write().await;
         accounts
             .entry(owner.clone())
@@ -165,7 +169,7 @@ impl Backend {
             accounts.get_mut(owner).ok_or(Error::NoAccount(*owner))?;
 
         let mut account = account.write().await;
-        account.storage.delete_account().await?;
+        account.delete_account().await?;
 
         Ok(())
     }
@@ -185,10 +189,7 @@ impl Backend {
             accounts.get_mut(owner).ok_or(Error::NoAccount(*owner))?;
 
         let mut account = account.write().await;
-        account
-            .storage
-            .update_account(account_data, &mut outcome)
-            .await?;
+        account.update_account(account_data, &mut outcome).await?;
         Ok(outcome)
     }
 
@@ -200,7 +201,7 @@ impl Backend {
         let account = accounts.get(owner).ok_or(Error::NoAccount(*owner))?;
 
         let reader = account.read().await;
-        let change_set = reader.storage.change_set().await?;
+        let change_set = reader.change_set().await?;
 
         Ok(change_set)
     }
@@ -215,9 +216,9 @@ impl Backend {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(owner) {
             let reader = account.read().await;
-            let account_devices = reader.storage.list_device_keys();
+            let account_devices = reader.list_device_keys();
             for device_key in account_devices {
-                let verifying_key: VerifyingKey = device_key.try_into()?;
+                let verifying_key = into_device_verifying_key(device_key)?;
                 if verifying_key
                     .verify(message_body, device_signature)
                     .is_ok()

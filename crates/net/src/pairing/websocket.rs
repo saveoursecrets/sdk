@@ -11,16 +11,13 @@ use crate::{
             },
             MaybeTlsStream, WebSocketStream,
         },
-        AccountSync, Origin, PairingConfirm, PairingMessage, PairingReady,
+        AccountSync, PairingConfirm, PairingMessage, PairingReady,
         PairingRequest, ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
         SyncOptions,
     },
     sdk::{
-        account::Account,
         device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
-        events::DeviceEvent,
         signer::ecdsa::SingleParty,
-        url::Url,
     },
     NetworkAccount,
 };
@@ -31,9 +28,14 @@ use futures::{
 };
 use prost::bytes::Bytes;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
+use sos_account::Account;
+use sos_core::events::DeviceEvent;
+use sos_core::Origin;
+use sos_database::StorageError;
 use std::collections::HashSet;
 use std::{borrow::Cow, path::PathBuf};
 use tokio::{net::TcpStream, sync::mpsc};
+use url::Url;
 
 const PATTERN: &str = "Noise_XXpsk3_25519_ChaChaPoly_BLAKE2s";
 const RELAY_PATH: &str = "api/v1/relay";
@@ -447,7 +449,7 @@ impl<'a> OfferPairing<'a> {
                 .account
                 .storage()
                 .await
-                .ok_or(sos_sdk::Error::NoStorage)?;
+                .ok_or(StorageError::NoStorage)?;
             let mut writer = storage.write().await;
             writer.patch_devices_unchecked(events).await?;
         }

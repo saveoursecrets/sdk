@@ -3,8 +3,9 @@
 use http::{Request, Response, StatusCode};
 use secrecy::SecretString;
 use serde::Deserialize;
-use sos_protocol::{Merge, SyncStorage};
-use sos_sdk::prelude::{AccessKey, Account, Address, ErrorExt, Identity};
+use sos_account::Account;
+use sos_sdk::prelude::{AccessKey, Address, ErrorExt, Identity};
+use sos_sync::SyncStorage;
 use std::collections::HashMap;
 
 use crate::web_service::{
@@ -25,17 +26,16 @@ pub async fn list_accounts<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -54,17 +54,16 @@ pub async fn list_folders<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -94,17 +93,16 @@ pub async fn authenticated_accounts<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -127,7 +125,6 @@ pub async fn sign_in_account<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -136,6 +133,10 @@ where
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -167,17 +168,16 @@ pub async fn sign_in<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -220,17 +220,16 @@ pub async fn sign_in_password<A, R, E>(
     save_password: bool,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -293,17 +292,16 @@ pub async fn sign_out_account<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -326,7 +324,6 @@ pub async fn sign_out_all<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
-        + Merge
         + Sync
         + Send
         + 'static,
@@ -335,6 +332,10 @@ where
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -350,17 +351,16 @@ pub async fn sign_out<A, R, E>(
     account_id: Option<Address>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R>
-        + SyncStorage
-        + Merge
-        + Sync
-        + Send
-        + 'static,
+    A: Account<Error = E, NetworkResult = R> + SyncStorage,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
         + ErrorExt
         + From<sos_sdk::Error>
+        + From<sos_database::Error>
+        + From<sos_account::Error>
+        + From<sos_filesystem::Error>
+        + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
         + Sync

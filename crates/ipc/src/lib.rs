@@ -1,8 +1,10 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Inter-process communication library supporting the
-//! native messaging API for browser extensions.
+//! Inter-process communication library for the
+//! [Save Our Secrets](https://saveoursecrets.com) SDK.
+//!
+//! Supports the native messaging API for browser extensions.
 
 mod error;
 

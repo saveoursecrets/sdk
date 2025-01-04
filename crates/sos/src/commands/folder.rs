@@ -1,14 +1,3 @@
-use clap::Subcommand;
-
-use human_bytes::human_bytes;
-use sos_net::sdk::{
-    account::{Account, FolderCreate},
-    events::{EventLogExt, LogEvent},
-    hex,
-    identity::AccountRef,
-    vault::FolderRef,
-};
-
 use crate::{
     helpers::{
         account::{cd_folder, resolve_folder, resolve_user, SHELL},
@@ -16,6 +5,15 @@ use crate::{
         readline::read_flag,
     },
     Error, Result,
+};
+use clap::Subcommand;
+use hex;
+use human_bytes::human_bytes;
+use sos_account::{Account, FolderCreate};
+use sos_core::events::LogEvent;
+use sos_database::StorageError;
+use sos_net::sdk::{
+    events::EventLogExt, identity::AccountRef, vault::FolderRef,
 };
 
 #[derive(Subcommand, Debug)]
@@ -278,10 +276,8 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = user.read().await;
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-            let storage = owner
-                .storage()
-                .await
-                .ok_or(sos_net::sdk::Error::NoStorage)?;
+            let storage =
+                owner.storage().await.ok_or(StorageError::NoStorage)?;
             let reader = storage.read().await;
             if let Some(folder) = reader.cache().get(summary.id()) {
                 let event_log = folder.event_log();
@@ -378,16 +374,12 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let owner = owner
                         .selected_account()
                         .ok_or(Error::NoSelectedAccount)?;
+                    let paths = owner.paths();
                     let summary = owner
                         .current_folder()
                         .await?
                         .ok_or(Error::NoVaultSelected)?;
-                    let storage = owner
-                        .storage()
-                        .await
-                        .ok_or(sos_net::sdk::Error::NoStorage)?;
-                    let owner = storage.read().await;
-                    owner.verify(&summary).await?;
+                    verify_event_log(&*paths, &summary).await?;
                     success("Verified");
                 }
                 History::List { verbose, .. } => {
@@ -402,7 +394,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let storage = owner
                         .storage()
                         .await
-                        .ok_or(sos_net::sdk::Error::NoStorage)?;
+                        .ok_or(StorageError::NoStorage)?;
                     let owner = storage.read().await;
                     let records = owner.history(&summary).await?;
                     for (commit, time, event) in records {
@@ -418,5 +410,21 @@ pub async fn run(cmd: Command) -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+/// Verify an event log.
+async fn verify_event_log(
+    paths: &sos_sdk::Paths,
+    summary: &sos_sdk::prelude::Summary,
+) -> Result<()> {
+    use futures::StreamExt;
+    use sos_integrity::event_integrity;
+    let path = paths.event_log_path(summary.id());
+    let stream = event_integrity(&path);
+    futures::pin_mut!(stream);
+    while let Some(event) = stream.next().await {
+        event??;
+    }
     Ok(())
 }

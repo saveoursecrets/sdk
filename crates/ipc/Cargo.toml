@@ -21,13 +21,12 @@ local-transport = [
   "async-trait",
 ]
 memory-http-server = []
-account = ["sos-sdk/account", "sos-protocol/account"]
 archive = ["sos-sdk/archive", "sos-protocol/archive"]
-clipboard = ["sos-sdk/clipboard"]
+clipboard = ["sos-account/clipboard"]
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = ["sos-sdk/files", "sos-protocol/files"]
-migrate = ["sos-sdk/migrate", "sos-protocol/migrate"]
-search = ["sos-sdk/search", "sos-protocol/search"]
+migrate = ["sos-account/migrate"]
+search = ["sos-database/search", "sos-protocol/search"]
 extension-helper-server = [
   "memory-http-server",
   "open",
@@ -45,6 +44,7 @@ extension-helper-server = [
   "base64",
   "notify",
   "sos-platform-authenticator",
+  "sos-logs",
 ]
 extension-helper-client = [
   "local-transport",
@@ -54,6 +54,15 @@ extension-helper-client = [
 ]
 
 [dependencies]
+sos-account.workspace = true
+sos-client-storage.workspace = true
+sos-database = { workspace = true, features = ["client"] }
+sos-filesystem.workspace = true
+sos-protocol.workspace = true
+sos-sdk.workspace = true
+sos-sync.workspace = true
+sos-vault.workspace = true
+
 thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
@@ -62,21 +71,22 @@ typeshare.workspace = true
 parking_lot.workspace = true
 http.workspace = true
 bytes.workspace = true
+url.workspace = true
+uuid.workspace = true
 secrecy.workspace = true
+tokio.workspace = true
+tokio-util = { workspace = true, features = ["codec"] }
+futures-util = { workspace = true, features = ["sink"] }
+
+sos-logs = { workspace = true, optional = true }
+sos-platform-authenticator = { workspace = true, optional = true }
+
 futures = { workspace = true, optional = true }
 once_cell = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 notify = { workspace = true, optional = true }
-
-sos-sdk = { version = "0.16", path = "../sdk", features = ["account"] }
-sos-protocol = { version = "0.16", path = "../protocol" }
-sos-platform-authenticator = { version = "0.1", path = "../platform_authenticator", optional = true }
-
-tokio = { version = "1", features = ["rt", "macros", "io-util", "sync"] }
-tokio-util = { version = "0.7", features = ["codec"] }
-futures-util = { version = "0.3", features = ["sink"] }
 
 # server and client
 hyper = { version = "1", optional = true }
@@ -91,5 +101,5 @@ matchit = { version = "0.7", optional = true }
 open = { version = "5", optional = true }
 
 [build-dependencies]
-rustc_version = "0.4.1"
+rustc_version.workspace = true
 

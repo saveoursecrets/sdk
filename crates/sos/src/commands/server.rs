@@ -6,10 +6,12 @@ use crate::{
     Error, Result,
 };
 use clap::Subcommand;
+use sos_core::Origin;
 use sos_net::{
-    protocol::{AccountSync, Origin, SyncOptions},
-    sdk::{identity::AccountRef, url::Url},
+    protocol::{AccountSync, SyncOptions},
+    sdk::identity::AccountRef,
 };
+use url::Url;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {

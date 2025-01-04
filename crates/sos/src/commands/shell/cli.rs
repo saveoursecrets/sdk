@@ -1,8 +1,7 @@
 use terminal_banner::{Banner, Padding};
 
-use sos_net::sdk::{
-    account::Account, identity::AccountRef, vault::FolderRef, vfs, Paths,
-};
+use sos_account::Account;
+use sos_net::sdk::{identity::AccountRef, vault::FolderRef, vfs, Paths};
 
 use crate::{
     helpers::{

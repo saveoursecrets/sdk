@@ -246,7 +246,7 @@ async fn write(
             event = outgoing.recv() => {
                 match event {
                     Ok(msg) => {
-                        if sink.send(Message::Binary(msg)).await.is_err() {
+                        if sink.send(Message::Binary(msg.into())).await.is_err() {
                             tracing::trace!(
                                 address = %address,
                                 "ws_server::disconnect::send_error",

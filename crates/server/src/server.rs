@@ -36,7 +36,7 @@ use tokio_rustls_acme::{caches::DirCache, AcmeConfig};
 #[cfg(feature = "listen")]
 use super::handlers::websocket::upgrade;
 
-use sos_protocol::sdk::storage::files::ExternalFile;
+use sos_core::ExternalFile;
 
 #[cfg(feature = "pairing")]
 use super::handlers::relay::{upgrade as relay_upgrade, RelayState};
@@ -293,7 +293,7 @@ impl Server {
                 router = router
                     .route("/sync/files", post(files::compare_files))
                     .route(
-                        "/sync/file/:vault_id/:secret_id/:file_name",
+                        "/sync/file/{vault_id}/{secret_id}/{file_name}",
                         put(files::receive_file)
                             .post(files::move_file)
                             .get(files::send_file)
