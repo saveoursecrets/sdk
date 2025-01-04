@@ -9,6 +9,7 @@ use sos_account::{
     SecretDelete, SecretInsert, SecretMove,
 };
 use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
+use sos_core::events::{AccountEvent, ReadEvent};
 use sos_core::{
     commit::{CommitHash, CommitState},
     AccountId, Origin, SecretId, VaultId,
@@ -23,15 +24,13 @@ use sos_sdk::{
     device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
     events::{EventLogExt, EventRecord},
     identity::{AccountRef, PublicIdentity},
-    signer::ecdsa::{Address, BoxedEcdsaSigner},
     vault::{
         secret::{Secret, SecretMeta, SecretRow},
         Summary, Vault, VaultCommit, VaultFlags,
     },
     vfs, Paths,
 };
-
-use sos_core::events::{AccountEvent, ReadEvent};
+use sos_signer::ecdsa::{Address, BoxedEcdsaSigner};
 use sos_sync::{CreateSet, EventLogType, StorageEventLogs, UpdateSet};
 use std::{
     collections::{HashMap, HashSet},

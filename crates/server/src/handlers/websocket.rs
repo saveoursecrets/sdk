@@ -1,3 +1,5 @@
+use super::{authenticate_endpoint, Caller, ConnectionQuery};
+use crate::{Result, ServerBackend, ServerState};
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -14,13 +16,9 @@ use futures::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
-
-use sos_protocol::sdk::signer::ecdsa::Address;
+use sos_signer::ecdsa::Address;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, watch};
-
-use super::{authenticate_endpoint, Caller, ConnectionQuery};
-use crate::{Result, ServerBackend, ServerState};
 
 /// State for the websocket connection for a single
 /// authenticated client.

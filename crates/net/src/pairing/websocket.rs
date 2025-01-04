@@ -26,10 +26,8 @@ use sos_protocol::{
     PairingRequest, ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
     SyncOptions,
 };
-use sos_sdk::{
-    device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
-    signer::ecdsa::SingleParty,
-};
+use sos_sdk::device::{DeviceMetaData, DevicePublicKey, TrustedDevice};
+use sos_signer::ecdsa::SingleParty;
 use std::collections::HashSet;
 use std::{borrow::Cow, path::PathBuf};
 use tokio::{net::TcpStream, sync::mpsc};

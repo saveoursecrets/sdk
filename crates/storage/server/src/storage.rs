@@ -11,10 +11,10 @@ use sos_sdk::{
         DeviceEventLog, FileDiff, FileEventLog, FolderDiff, FolderEventLog,
         WriteEvent,
     },
-    signer::ecdsa::Address,
     vault::{Summary, VaultId},
     Paths,
 };
+use sos_signer::ecdsa::Address;
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
     SyncStorage, UpdateSet,

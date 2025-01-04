@@ -1,16 +1,15 @@
 //! Server configuration.
+use super::backend::Backend;
+use super::{Error, Result};
 use serde::{Deserialize, Serialize};
+use sos_signer::ecdsa::Address;
+use sos_vfs as vfs;
 use std::{
     collections::HashSet,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
 };
 use url::Url;
-
-use super::backend::Backend;
-use super::{Error, Result};
-
-use sos_protocol::sdk::{signer::ecdsa::Address, vfs};
 
 /// Configuration for the web server.
 #[derive(Default, Debug, Serialize, Deserialize)]

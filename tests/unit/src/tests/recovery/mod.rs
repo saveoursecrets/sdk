@@ -2,11 +2,8 @@ use anyhow::Result;
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use sos_recovery::*;
-use sos_sdk::{
-    decode, encode,
-    signer::{ecdsa::SingleParty, Signer},
-    vault::VaultId,
-};
+use sos_sdk::{decode, encode, vault::VaultId};
+use sos_signer::{ecdsa::SingleParty, Signer};
 
 #[derive(Serialize, Deserialize)]
 pub struct MockUserInfo {

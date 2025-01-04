@@ -10,7 +10,7 @@ use futures::{
 };
 use prost::bytes::Bytes;
 use sos_core::Origin;
-use sos_sdk::signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
+use sos_signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 use std::{borrow::Cow, pin::Pin};
 use tokio::{net::TcpStream, sync::watch, time::Duration};
 use tokio_tungstenite::{

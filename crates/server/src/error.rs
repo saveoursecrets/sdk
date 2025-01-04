@@ -5,7 +5,7 @@ use axum::{
     response::{IntoResponse, Json, Response},
 };
 use serde_json::{json, Value};
-use sos_sdk::signer::ecdsa::Address;
+use sos_signer::ecdsa::Address;
 use std::path::PathBuf;
 use thiserror::Error;
 

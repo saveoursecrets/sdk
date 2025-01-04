@@ -9,13 +9,13 @@ use sos_sdk::{
     },
     crypto::AccessKey,
     identity::{FolderKeys, Identity, IdentityFolder},
-    signer::ecdsa::Address,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
     },
     Paths,
 };
+use sos_signer::ecdsa::Address;
 use std::{collections::HashMap, path::PathBuf};
 
 /// Private information about a new account.

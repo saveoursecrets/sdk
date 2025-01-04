@@ -2,7 +2,7 @@ use anyhow::Result;
 use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
 use sha3::{Digest, Keccak256};
 use sos_core::csprng;
-use sos_sdk::signer::ecdsa::Signature;
+use sos_signer::ecdsa::Signature;
 
 #[test]
 fn ecdsa_sign() -> Result<()> {

@@ -1,16 +1,12 @@
 //! Authentication helper functions for extracting an address
 //! from a signature given in bearer authorization data.
-use axum_extra::headers::{authorization::Bearer, Authorization};
-
-use sos_protocol::sdk::{
-    decode,
-    signer::{
-        ecdsa::{self, recover_address, Address, BinaryEcdsaSignature},
-        ed25519::{self, BinaryEd25519Signature},
-    },
-};
-
 use super::{Error, Result};
+use axum_extra::headers::{authorization::Bearer, Authorization};
+use sos_protocol::sdk::decode;
+use sos_signer::{
+    ecdsa::{self, recover_address, Address, BinaryEcdsaSignature},
+    ed25519::{self, BinaryEd25519Signature},
+};
 
 #[derive(Debug)]
 pub struct BearerToken {

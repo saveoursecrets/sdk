@@ -8,10 +8,8 @@ use sos_protocol::{
     network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
     SyncClient, SyncOptions,
 };
-use sos_sdk::{
-    prelude::Address,
-    signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-};
+use sos_sdk::prelude::Address;
+use sos_signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 use sos_sync::{SyncDirection, UpdateSet};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;

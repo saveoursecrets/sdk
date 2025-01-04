@@ -5,18 +5,6 @@ use sos_core::{
     commit::{CommitHash, CommitState},
     SecretId, VaultId,
 };
-use sos_database::StorageError;
-use sos_password::diceware::generate_passphrase;
-use sos_sdk::{
-    events::{
-        AccountEventLog, EventLogExt, EventRecord, FolderEventLog,
-        FolderPatch, IntoRecord,
-    },
-    identity::FolderKeys,
-    signer::ecdsa::Address,
-    vfs, Paths,
-};
-
 use sos_core::{
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
@@ -24,7 +12,18 @@ use sos_core::{
     events::{AccountEvent, Event, ReadEvent, WriteEvent},
     UtcDateTime,
 };
+use sos_database::StorageError;
 use sos_filesystem::folder::{DiscFolder, FolderReducer};
+use sos_password::diceware::generate_passphrase;
+use sos_sdk::{
+    events::{
+        AccountEventLog, EventLogExt, EventRecord, FolderEventLog,
+        FolderPatch, IntoRecord,
+    },
+    identity::FolderKeys,
+    vfs, Paths,
+};
+use sos_signer::ecdsa::Address;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     BuilderCredentials, ChangePassword, FolderRef, Header, Summary, Vault,

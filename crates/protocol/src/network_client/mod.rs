@@ -1,14 +1,11 @@
 //! HTTP transport trait and implementations.
 use super::{Error, Result};
 use crate::transfer::CancelReason;
-use sos_sdk::{
-    encode,
-    signer::{
-        ecdsa::{BinaryEcdsaSignature, Signature},
-        ed25519::{BinaryEd25519Signature, Signature as Ed25519Signature},
-    },
+use sos_sdk::encode;
+use sos_signer::{
+    ecdsa::{BinaryEcdsaSignature, Signature},
+    ed25519::{BinaryEd25519Signature, Signature as Ed25519Signature},
 };
-
 use std::{
     future::Future,
     sync::{

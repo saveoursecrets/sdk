@@ -17,7 +17,8 @@ use axum::{
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use colored::Colorize;
 use futures::StreamExt;
-use sos_protocol::sdk::{signer::ecdsa::Address, UtcDateTime};
+use sos_core::UtcDateTime;
+use sos_signer::ecdsa::Address;
 use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,

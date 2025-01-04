@@ -26,6 +26,7 @@ sos-database.workspace = true
 sos-filesystem.workspace = true
 sos-protocol.workspace = true
 sos-sdk.workspace = true
+sos-signer.workspace = true
 sos-sync.workspace = true
 sos-vault.workspace = true
 

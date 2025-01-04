@@ -36,6 +36,5 @@ pub use sos_core::constants;
 pub use sos_core::crypto;
 pub use sos_core::UtcDateTime;
 pub use sos_login as identity;
-pub use sos_signer as signer;
 pub use sos_vault as vault;
 pub use sos_vfs as vfs;

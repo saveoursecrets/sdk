@@ -13,7 +13,7 @@ use crate::{
 use axum_extra::headers::{authorization::Bearer, Authorization};
 use serde::Deserialize;
 use serde_json::json;
-use sos_protocol::sdk::signer::ecdsa::Address;
+use sos_signer::ecdsa::Address;
 
 pub mod account;
 pub mod files;

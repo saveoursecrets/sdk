@@ -1,9 +1,7 @@
 use anyhow::Result;
 use secrecy::{ExposeSecret, SecretBox};
-use sos_sdk::{
-    prelude::*,
-    signer::{ecdsa::SingleParty, Signer},
-};
+use sos_sdk::prelude::*;
+use sos_signer::{ecdsa::SingleParty, Signer};
 use sos_test_utils::*;
 use std::collections::HashMap;
 use vcard4::Vcard;

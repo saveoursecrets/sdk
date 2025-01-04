@@ -27,6 +27,7 @@ sos-migrate = { workspace = true, features = ["full"] }
 sos-net = { workspace = true, features = ["full"] }
 sos-protocol = { workspace = true, features = ["full"] }
 sos-recovery.workspace = true
+sos-signer.workspace = true
 sos-sdk = { workspace = true, features = ["full"] }
 sos-sync = { workspace = true, features = ["full"] }
 sos-server-storage = { workspace = true, features = ["full"] }

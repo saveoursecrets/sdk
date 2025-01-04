@@ -17,12 +17,12 @@ use sos_protocol::{network_client::HttpClient, SyncClient};
 use sos_sdk::{
     device::DeviceSigner,
     identity::PublicIdentity,
-    signer::{
-        ecdsa::{Address, BoxedEcdsaSigner},
-        ed25519::BoxedEd25519Signer,
-    },
     vault::{VaultAccess, VaultWriter},
     vfs, Paths,
+};
+use sos_signer::{
+    ecdsa::{Address, BoxedEcdsaSigner},
+    ed25519::BoxedEd25519Signer,
 };
 use std::{
     collections::{HashMap, HashSet},

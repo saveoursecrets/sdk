@@ -11,9 +11,9 @@ use sos_protocol::{
 };
 use sos_sdk::{
     events::{CheckedPatch, EventRecord, FolderDiff},
-    signer::ecdsa::Address,
     UtcDateTime,
 };
+use sos_signer::ecdsa::Address;
 use sos_sync::{
     CreateSet, EventLogType, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff,
     SyncPacket, SyncStatus, UpdateSet,

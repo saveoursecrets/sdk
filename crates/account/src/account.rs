@@ -11,10 +11,10 @@ use sos_core::{
     AccountId, SecretId, VaultId,
 };
 use sos_database::StorageError;
+use sos_filesystem::folder::FolderReducer;
 use sos_sdk::{
     events::{AccountEventLog, EventLogExt, EventRecord, FolderEventLog},
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
-    signer::ecdsa::{Address, BoxedEcdsaSigner},
     vault::{
         secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
         BuilderCredentials, Gatekeeper, Header, Summary, Vault, VaultBuilder,
@@ -22,8 +22,7 @@ use sos_sdk::{
     },
     vfs, Paths, UtcDateTime,
 };
-
-use sos_filesystem::folder::FolderReducer;
+use sos_signer::ecdsa::{Address, BoxedEcdsaSigner};
 use sos_sync::{CreateSet, StorageEventLogs};
 use std::{
     borrow::Cow,
