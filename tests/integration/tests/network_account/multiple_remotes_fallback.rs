@@ -4,7 +4,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::Account;
-use sos_net::protocol::AccountSync;
+use sos_protocol::AccountSync;
 
 /// Tests syncing a single client with multiple
 /// remote servers when one of the servers is offline.

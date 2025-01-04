@@ -1,11 +1,9 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
-use sos_net::{
-    extras::preferences::*,
-    sdk::{
-        prelude::*,
-        signer::{ecdsa::SingleParty, Signer},
-    },
+use sos_net::extras::preferences::*;
+use sos_sdk::{
+    prelude::*,
+    signer::{ecdsa::SingleParty, Signer},
 };
 
 /// Tests the cached preferences without any accounts or authentication.

@@ -1,8 +1,4 @@
-use terminal_banner::{Banner, Padding};
-
-use sos_account::Account;
-use sos_net::sdk::{identity::AccountRef, vault::FolderRef, vfs, Paths};
-
+use super::repl::exec;
 use crate::{
     helpers::{
         account::{cd_folder, choose_account, sign_in, SHELL, USER},
@@ -11,8 +7,9 @@ use crate::{
     },
     Error, Result,
 };
-
-use super::repl::exec;
+use sos_account::Account;
+use sos_sdk::{identity::AccountRef, vault::FolderRef, vfs, Paths};
+use terminal_banner::{Banner, Padding};
 
 const WELCOME: &str = include_str!("welcome.txt");
 

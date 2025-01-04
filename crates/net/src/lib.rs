@@ -14,9 +14,6 @@ mod error;
 #[cfg(feature = "pairing")]
 pub mod pairing;
 
-pub use sos_protocol as protocol;
-pub use sos_sdk as sdk;
-
 pub use account::*;
 pub use error::Error;
 
@@ -24,10 +21,10 @@ pub use error::Error;
 pub use sos_protocol::hashcheck;
 
 /// Remote result.
-pub type RemoteResult = protocol::RemoteResult<Error>;
+pub type RemoteResult = sos_protocol::RemoteResult<Error>;
 
 /// Sync result.
-pub type SyncResult = protocol::SyncResult<Error>;
+pub type SyncResult = sos_protocol::SyncResult<Error>;
 
 #[cfg(any(
     feature = "preferences",

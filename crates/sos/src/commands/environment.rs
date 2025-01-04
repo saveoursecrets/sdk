@@ -1,7 +1,7 @@
 use crate::{helpers::account::resolve_account_address, Result};
 use clap::Subcommand;
 use enum_iterator::{all, Sequence};
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 use std::{fmt, str::FromStr};
 
 /// Filter used for printing paths.

@@ -13,7 +13,7 @@ use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
 use sos_account::Account;
 use sos_database::search::Document;
-use sos_net::sdk::{
+use sos_sdk::{
     vault::{
         secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
         Summary,

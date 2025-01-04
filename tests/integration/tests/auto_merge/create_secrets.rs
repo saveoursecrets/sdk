@@ -4,7 +4,8 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::Account;
-use sos_net::{protocol::AccountSync, sdk::prelude::*};
+use sos_protocol::AccountSync;
+use sos_sdk::prelude::*;
 
 /// Tests making conflicting changes to a folder whilst
 /// a server is offline and resolving the conflicts with

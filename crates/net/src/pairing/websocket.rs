@@ -1,26 +1,6 @@
 //! Protocol for pairing devices.
 use super::{DeviceEnrollment, Error, Result, ServerPairUrl};
-use crate::{
-    protocol::{
-        network_client::WebSocketRequest,
-        pairing_message,
-        tokio_tungstenite::{
-            connect_async,
-            tungstenite::protocol::{
-                frame::coding::CloseCode, CloseFrame, Message,
-            },
-            MaybeTlsStream, WebSocketStream,
-        },
-        AccountSync, PairingConfirm, PairingMessage, PairingReady,
-        PairingRequest, ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
-        SyncOptions,
-    },
-    sdk::{
-        device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
-        signer::ecdsa::SingleParty,
-    },
-    NetworkAccount,
-};
+use crate::NetworkAccount;
 use futures::{
     select,
     stream::{SplitSink, SplitStream},
@@ -32,6 +12,24 @@ use sos_account::Account;
 use sos_core::events::DeviceEvent;
 use sos_core::Origin;
 use sos_database::StorageError;
+use sos_protocol::{
+    network_client::WebSocketRequest,
+    pairing_message,
+    tokio_tungstenite::{
+        connect_async,
+        tungstenite::protocol::{
+            frame::coding::CloseCode, CloseFrame, Message,
+        },
+        MaybeTlsStream, WebSocketStream,
+    },
+    AccountSync, PairingConfirm, PairingMessage, PairingReady,
+    PairingRequest, ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
+    SyncOptions,
+};
+use sos_sdk::{
+    device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
+    signer::ecdsa::SingleParty,
+};
 use std::collections::HashSet;
 use std::{borrow::Cow, path::PathBuf};
 use tokio::{net::TcpStream, sync::mpsc};

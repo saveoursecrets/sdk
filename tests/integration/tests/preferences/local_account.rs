@@ -4,7 +4,8 @@ use crate::{
 };
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
-use sos_net::{extras::preferences::*, sdk::prelude::*};
+use sos_net::extras::preferences::*;
+use sos_sdk::prelude::*;
 
 /// Tests the preferences in the context of a local account.
 #[tokio::test]

@@ -9,7 +9,7 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_account::Account;
 use sos_core::ExternalFile;
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 
 /// Tests creating external files then adding a remote
 /// server, syncing and uploading the files.

@@ -7,10 +7,8 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_core::Origin;
-use sos_net::{
-    protocol::{AccountSync, SyncOptions},
-    sdk::identity::AccountRef,
-};
+use sos_protocol::{AccountSync, SyncOptions};
+use sos_sdk::identity::AccountRef;
 use url::Url;
 
 #[derive(Subcommand, Debug)]

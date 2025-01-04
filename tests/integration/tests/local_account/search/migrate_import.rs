@@ -2,7 +2,7 @@ use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_migrate::import::{ImportFormat, ImportTarget};
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 use std::path::PathBuf;
 
 /// Tests querying the search index after importing

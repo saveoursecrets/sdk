@@ -3,9 +3,9 @@ use anyhow::Result;
 use futures::{stream::FuturesUnordered, Future, StreamExt};
 use sos_net::{
     pairing::{self, AcceptPairing, OfferPairing},
-    sdk::prelude::*,
     NetworkAccount,
 };
+use sos_sdk::prelude::*;
 use std::pin::Pin;
 use tokio::sync::mpsc;
 

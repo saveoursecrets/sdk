@@ -4,7 +4,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::Account;
-use sos_net::protocol::AccountSync;
+use sos_protocol::AccountSync;
 
 /// Tests syncing create secret events between two
 /// clients.

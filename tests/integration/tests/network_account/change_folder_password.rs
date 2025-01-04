@@ -3,7 +3,8 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, SecretChange};
-use sos_net::{protocol::AccountSync, sdk::prelude::*};
+use sos_protocol::AccountSync;
+use sos_sdk::prelude::*;
 
 /// Tests changing a folder password and force syncing
 /// the updated folder events log.

@@ -1,9 +1,3 @@
-use clap::Subcommand;
-use std::sync::Arc;
-
-use sos_account::Account;
-use sos_net::sdk::{device::TrustedDevice, identity::AccountRef};
-
 use crate::{
     helpers::{
         account::{resolve_user, Owner},
@@ -12,6 +6,10 @@ use crate::{
     },
     Error, Result,
 };
+use clap::Subcommand;
+use sos_account::Account;
+use sos_sdk::{device::TrustedDevice, identity::AccountRef};
+use std::sync::Arc;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {

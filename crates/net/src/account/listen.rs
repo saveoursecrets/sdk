@@ -1,13 +1,11 @@
 //! Adds functions for listening to change notifications using
 //! a websocket connection.
-use crate::{
-    protocol::{
-        network_client::ListenOptions, ChangeNotification, RemoteResult,
-        RemoteSync,
-    },
-    Error, NetworkAccount, Result,
-};
+use crate::{Error, NetworkAccount, Result};
 use sos_core::Origin;
+use sos_protocol::{
+    network_client::ListenOptions, ChangeNotification, RemoteResult,
+    RemoteSync,
+};
 use sos_sync::SyncStorage;
 use std::sync::Arc;
 use tokio::sync::mpsc;

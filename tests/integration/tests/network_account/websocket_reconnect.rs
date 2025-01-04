@@ -3,7 +3,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::Account;
-use sos_net::protocol::network_client::{ListenOptions, NetworkRetry};
+use sos_protocol::network_client::{ListenOptions, NetworkRetry};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;

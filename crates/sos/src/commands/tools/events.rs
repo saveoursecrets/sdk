@@ -4,7 +4,7 @@ use clap::Subcommand;
 use futures::{pin_mut, stream::StreamExt};
 use sos_core::commit::{CommitHash, CommitTree};
 use sos_core::events::LogEvent;
-use sos_net::sdk::{
+use sos_sdk::{
     events::{
         AccountEvent, AccountEventLog, DeviceEvent, DeviceEventLog,
         DiscEventLog, EventLogExt, FileEvent, FileEventLog, FolderEventLog,

@@ -5,10 +5,8 @@ use crate::test_utils::{
 use anyhow::Result;
 use http::StatusCode;
 use sos_account::Account;
-use sos_net::{
-    protocol::{AccountSync, Error as ProtocolError, NetworkError},
-    Error as ClientError,
-};
+use sos_net::Error as ClientError;
+use sos_protocol::{AccountSync, Error as ProtocolError, NetworkError};
 
 /// Tests pairing a new device and revoking trust in the device.
 #[tokio::test]

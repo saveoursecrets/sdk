@@ -1,6 +1,6 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
-use sos_net::sdk::{prelude::*, vfs};
+use sos_sdk::{prelude::*, vfs};
 
 /// Tests creating an identity vault and logging in
 /// with the new vault and managing delegated passwords.

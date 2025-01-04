@@ -1,26 +1,23 @@
 //! Connect a remote data source with a local account.
-use crate::{
-    protocol::{
-        network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
-        SyncClient, SyncOptions,
-    },
-    sdk::{
-        prelude::Address,
-        signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
-    },
-    Result,
-};
-
+use crate::Result;
 use async_trait::async_trait;
 use sos_account::LocalAccount;
 use sos_core::Origin;
 use sos_protocol::RemoteSyncHandler;
+use sos_protocol::{
+    network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
+    SyncClient, SyncOptions,
+};
+use sos_sdk::{
+    prelude::Address,
+    signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer},
+};
 use sos_sync::{SyncDirection, UpdateSet};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 #[cfg(feature = "files")]
-use crate::protocol::transfer::{
+use sos_protocol::transfer::{
     FileOperation, FileSet, FileSyncClient, FileTransferQueueRequest,
     FileTransferQueueSender, TransferOperation,
 };
@@ -194,12 +191,10 @@ impl RemoteSync for RemoteBridge {
 
 #[cfg(feature = "listen")]
 mod listen {
-    use crate::{
-        protocol::{
-            network_client::{ListenOptions, WebSocketHandle},
-            ChangeNotification,
-        },
-        RemoteBridge,
+    use crate::RemoteBridge;
+    use sos_protocol::{
+        network_client::{ListenOptions, WebSocketHandle},
+        ChangeNotification,
     };
     use tokio::sync::mpsc;
 

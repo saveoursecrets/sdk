@@ -1,7 +1,7 @@
 use crate::test_utils::{simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_account::Account;
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 
 /// Tests the logic for saving and loading remote definitions.
 #[tokio::test]

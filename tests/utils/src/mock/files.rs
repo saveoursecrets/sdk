@@ -6,7 +6,7 @@ use sos_account::{Account, SecretChange};
 use sos_client_storage::AccessOptions;
 use sos_core::ExternalFileName;
 use sos_database::files::FileProgress;
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 

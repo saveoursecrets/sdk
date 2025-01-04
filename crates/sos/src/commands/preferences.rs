@@ -8,7 +8,7 @@ use crate::{
 use clap::Subcommand;
 use sos_account::Account;
 use sos_net::extras::preferences::*;
-use sos_net::sdk::prelude::AccountRef;
+use sos_sdk::prelude::AccountRef;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {

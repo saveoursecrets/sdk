@@ -14,20 +14,18 @@
 //!
 //! Requests are limited to the `concurrent_requests` setting guarded
 //! by a semaphore and notifications are sent via [InflightTransfers].
-use crate::{
-    protocol::{
-        network_client::NetworkRetry,
-        transfer::{
-            CancelReason, FileOperation, FileSyncClient,
-            FileTransferQueueRequest, ProgressChannel, TransferOperation,
-        },
-        SyncClient,
-    },
-    sdk::{vfs, Paths},
-    Error, Result,
-};
+use crate::{Error, Result};
 use futures::FutureExt;
 use sos_core::{ExternalFile, Origin};
+use sos_protocol::{
+    network_client::NetworkRetry,
+    transfer::{
+        CancelReason, FileOperation, FileSyncClient,
+        FileTransferQueueRequest, ProgressChannel, TransferOperation,
+    },
+    SyncClient,
+};
+use sos_sdk::{vfs, Paths};
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},

@@ -9,7 +9,7 @@ use sos_account::{
 use sos_audit::AuditEvent;
 use sos_filesystem::formats::FormatStreamIterator;
 use sos_migrate::import::ImportTarget;
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 use std::path::{Path, PathBuf};
 
 #[tokio::test]

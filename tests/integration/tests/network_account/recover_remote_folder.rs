@@ -3,7 +3,8 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, SecretChange};
-use sos_net::{protocol::AccountSync, sdk::prelude::*};
+use sos_protocol::AccountSync;
+use sos_sdk::prelude::*;
 
 /// Tests recovering a folder from a remote origin after
 /// it has been removed from the local account.

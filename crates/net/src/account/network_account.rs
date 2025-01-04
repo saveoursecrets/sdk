@@ -1,11 +1,5 @@
 //! Network aware account.
-use crate::{
-    protocol::{
-        AccountSync, DiffRequest, RemoteSync, RemoteSyncHandler, SyncClient,
-        SyncOptions, SyncResult,
-    },
-    Error, RemoteBridge, Result,
-};
+use crate::{Error, RemoteBridge, Result};
 use async_trait::async_trait;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
@@ -20,6 +14,10 @@ use sos_core::{
     Origin, SecretId, VaultId,
 };
 use sos_database::StorageError;
+use sos_protocol::{
+    AccountSync, DiffRequest, RemoteSync, RemoteSyncHandler, SyncClient,
+    SyncOptions, SyncResult,
+};
 use sos_sdk::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
@@ -82,14 +80,12 @@ use super::remote::Remotes;
 
 #[cfg(feature = "files")]
 use {
-    crate::{
-        account::file_transfers::{
-            FileTransferSettings, FileTransfers, FileTransfersHandle,
-            InflightTransfers,
-        },
-        protocol::{network_client::HttpClient, transfer::FileOperation},
+    crate::account::file_transfers::{
+        FileTransferSettings, FileTransfers, FileTransfersHandle,
+        InflightTransfers,
     },
     sos_database::files::FileMutationEvent,
+    sos_protocol::{network_client::HttpClient, transfer::FileOperation},
 };
 
 /// Options for network account creation.
@@ -244,7 +240,7 @@ impl NetworkAccount {
     /// Revoke a device.
     pub async fn revoke_device(
         &mut self,
-        device_key: &crate::sdk::device::DevicePublicKey,
+        device_key: &sos_sdk::device::DevicePublicKey,
     ) -> Result<()> {
         let current_device = self.current_device().await?;
         if current_device.public_key() == device_key {

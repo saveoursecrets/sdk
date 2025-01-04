@@ -1,18 +1,14 @@
-use anyhow::Result;
-use std::collections::HashSet;
-
 use crate::test_utils::{
     default_server_config, simulate_device, spawn_with_config, teardown,
 };
+use anyhow::Result;
 use http::StatusCode;
 use sos_account::Account;
-use sos_net::{
-    protocol::{AccountSync, Error as ProtocolError, NetworkError},
-    sdk::prelude::*,
-    Error as ClientError, NetworkAccount,
-};
-
+use sos_net::{Error as ClientError, NetworkAccount};
+use sos_protocol::{AccountSync, Error as ProtocolError, NetworkError};
+use sos_sdk::prelude::*;
 use sos_server::AccessControlConfig;
+use std::collections::HashSet;
 
 /// Tests server deny access control.
 #[tokio::test]

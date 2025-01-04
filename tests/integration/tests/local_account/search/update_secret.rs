@@ -1,7 +1,7 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange};
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 
 /// Tests updating the search index when we update secrets.
 #[tokio::test]

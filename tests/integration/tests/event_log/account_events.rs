@@ -2,7 +2,7 @@ use super::last_log_event;
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount};
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 
 /// Tests that basic account events are being logged.
 #[tokio::test]

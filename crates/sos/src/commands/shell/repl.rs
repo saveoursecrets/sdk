@@ -1,10 +1,3 @@
-use std::ffi::OsString;
-
-use clap::{CommandFactory, Parser, Subcommand};
-
-use sos_account::Account;
-use sos_net::sdk::{identity::AccountRef, vault::FolderRef};
-
 use crate::{
     commands::{
         AccountCommand, EnvironmentCommand, FolderCommand, PreferenceCommand,
@@ -13,6 +6,10 @@ use crate::{
     helpers::account::{cd_folder, switch, USER},
     Error,
 };
+use clap::{CommandFactory, Parser, Subcommand};
+use sos_account::Account;
+use sos_sdk::{identity::AccountRef, vault::FolderRef};
+use std::ffi::OsString;
 
 use crate::Result;
 

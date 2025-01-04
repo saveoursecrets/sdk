@@ -4,7 +4,8 @@ use argon2::password_hash::SaltString;
 use secrecy::{SecretBox, SecretString};
 use sha2::{Digest, Sha256};
 use sos_core::commit::CommitHash;
-use sos_net::sdk::{
+use sos_password::diceware::generate_passphrase;
+use sos_sdk::{
     crypto::{KeyDerivation, PrivateKey},
     encode,
     events::{EventLogExt, FolderEventLog, WriteEvent},
@@ -13,7 +14,6 @@ use sos_net::sdk::{
         BuilderCredentials, Vault, VaultAccess, VaultBuilder, VaultEntry,
     },
 };
-use sos_password::diceware::generate_passphrase;
 use std::io::Write;
 use tempfile::NamedTempFile;
 use uuid::Uuid;

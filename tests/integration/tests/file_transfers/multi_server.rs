@@ -9,7 +9,8 @@ use crate::test_utils::{
 };
 use sos_account::{Account, FolderCreate, SecretMove};
 use sos_core::ExternalFile;
-use sos_net::{protocol::AccountSync, sdk::prelude::*};
+use sos_protocol::AccountSync;
+use sos_sdk::prelude::*;
 
 /// Tests uploading an external file to multiple servers.
 #[tokio::test]

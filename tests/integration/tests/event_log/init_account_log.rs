@@ -1,7 +1,7 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 
 /// Tests lazy initialization of the account events log.
 #[tokio::test]

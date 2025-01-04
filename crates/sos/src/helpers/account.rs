@@ -1,31 +1,27 @@
 //! Helpers for creating and switching accounts.
-use std::{borrow::Cow, sync::Arc};
-
 use crate::helpers::{
     display_passphrase,
     messages::success,
     readline::{choose, choose_password, read_flag, read_password, Choice},
 };
+use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use secrecy::{ExposeSecret, SecretString};
 use sos_account::Account;
 use sos_database::StorageError;
-use sos_net::{
-    sdk::{
-        constants::DEFAULT_VAULT_NAME,
-        crypto::AccessKey,
-        identity::{AccountRef, Identity, PublicIdentity},
-        signer::ecdsa::Address,
-        vault::{FolderRef, Summary},
-        Paths,
-    },
-    NetworkAccount, NetworkAccountSwitcher,
-};
+use sos_net::{NetworkAccount, NetworkAccountSwitcher};
 use sos_password::diceware::generate_passphrase;
+use sos_sdk::{
+    constants::DEFAULT_VAULT_NAME,
+    crypto::AccessKey,
+    identity::{AccountRef, Identity, PublicIdentity},
+    signer::ecdsa::Address,
+    vault::{FolderRef, Summary},
+    Paths,
+};
+use std::{borrow::Cow, sync::Arc};
 use terminal_banner::{Banner, Padding};
 use tokio::sync::RwLock;
-
-use once_cell::sync::Lazy;
 
 use crate::{Error, Result};
 

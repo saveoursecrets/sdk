@@ -1,10 +1,8 @@
-use anyhow::Result;
-
-use crate::test_utils::{mock, setup, teardown};
-use sos_account::{Account, LocalAccount};
-use sos_net::sdk::prelude::*;
-
 use super::last_log_event;
+use crate::test_utils::{mock, setup, teardown};
+use anyhow::Result;
+use sos_account::{Account, LocalAccount};
+use sos_sdk::prelude::*;
 
 /// Tests the account events after changing the encryption
 /// password of a folder.

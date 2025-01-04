@@ -3,7 +3,7 @@ use anyhow::Result;
 use maplit2::{hashmap, hashset};
 use sos_account::{Account, FolderCreate, LocalAccount};
 use sos_database::search::{ArchiveFilter, DocumentView, QueryFilter};
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 
 /// Tests querying the search index using views and search queries.
 #[tokio::test]

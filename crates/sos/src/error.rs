@@ -1,4 +1,4 @@
-use sos_net::sdk::vault::secret::SecretRef;
+use sos_vault::secret::SecretRef;
 use std::path::PathBuf;
 use thiserror::Error;
 use vcard4;

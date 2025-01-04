@@ -1,20 +1,8 @@
 //! Enroll a device to an account on a remote server.
 use crate::{
     pairing::{Error, Result},
-    protocol::{network_client::HttpClient, SyncClient},
-    sdk::{
-        device::DeviceSigner,
-        identity::PublicIdentity,
-        signer::{
-            ecdsa::{Address, BoxedEcdsaSigner},
-            ed25519::BoxedEd25519Signer,
-        },
-        vault::{VaultAccess, VaultWriter},
-        vfs, Paths,
-    },
     NetworkAccount,
 };
-
 use sos_account::Account;
 use sos_core::events::AccountEvent;
 use sos_core::{crypto::AccessKey, encode, Origin, VaultId};
@@ -24,6 +12,17 @@ use sos_filesystem::{
         FolderPatch,
     },
     folder::FolderReducer,
+};
+use sos_protocol::{network_client::HttpClient, SyncClient};
+use sos_sdk::{
+    device::DeviceSigner,
+    identity::PublicIdentity,
+    signer::{
+        ecdsa::{Address, BoxedEcdsaSigner},
+        ed25519::BoxedEd25519Signer,
+    },
+    vault::{VaultAccess, VaultWriter},
+    vfs, Paths,
 };
 use std::{
     collections::{HashMap, HashSet},

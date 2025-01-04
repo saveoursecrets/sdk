@@ -8,7 +8,7 @@ use crate::test_utils::{
 };
 use sos_account::Account;
 use sos_core::ExternalFile;
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 
 /// Tests uploading an external file to a server that was
 /// added.

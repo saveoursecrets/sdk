@@ -5,7 +5,7 @@ use sos_account::{
     Account, FolderCreate, LocalAccount, SecretChange, SecretMove,
 };
 use sos_client_storage::AccessOptions;
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 
 /// Tests the various file events are being logged.
 #[tokio::test]

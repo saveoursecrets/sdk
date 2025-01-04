@@ -5,7 +5,7 @@ use anyhow::Result;
 use pem as pem_encoding;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
-use sos_net::sdk::{
+use sos_sdk::{
     device::TrustedDevice,
     vault::secret::{FileContent, IdentityKind, Secret, SecretMeta},
 };

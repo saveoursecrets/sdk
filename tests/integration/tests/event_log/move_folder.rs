@@ -2,7 +2,7 @@ use super::all_events;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 
 /// Tests events after moving a folder between accounts.
 #[tokio::test]

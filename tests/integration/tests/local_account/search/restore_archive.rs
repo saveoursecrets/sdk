@@ -3,7 +3,7 @@ use anyhow::Result;
 use sos_account::{
     archive::RestoreOptions, Account, LocalAccount, SecretChange,
 };
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 
 /// Tests querying the index after restoring from a backup archive.
 #[tokio::test]

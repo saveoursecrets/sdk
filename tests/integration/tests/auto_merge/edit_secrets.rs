@@ -4,7 +4,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, SecretChange};
-use sos_net::protocol::AccountSync;
+use sos_protocol::AccountSync;
 
 /// Tests making conflicting edits to a folder whilst
 /// a server is offline and resolving the conflicts with

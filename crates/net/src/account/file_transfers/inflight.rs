@@ -1,7 +1,6 @@
 //! Tracks inflight file transfer requests.
-use crate::protocol::transfer::{CancelReason, TransferOperation};
 use sos_core::{ExternalFile, Origin};
-
+use sos_protocol::transfer::{CancelReason, TransferOperation};
 use std::{
     collections::HashMap,
     sync::{

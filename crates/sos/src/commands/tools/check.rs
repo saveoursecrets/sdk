@@ -3,7 +3,7 @@ use clap::Subcommand;
 use futures::{pin_mut, StreamExt};
 use hex;
 use sos_integrity::{event_integrity, vault_integrity};
-use sos_net::sdk::{
+use sos_sdk::{
     decode,
     vault::{Header, Vault},
     vfs,

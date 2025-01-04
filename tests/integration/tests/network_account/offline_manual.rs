@@ -4,7 +4,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, SecretChange, SecretDelete};
-use sos_net::protocol::AccountSync;
+use sos_protocol::AccountSync;
 
 /// Tests syncing events between two clients after
 /// a server goes offline and a client commits changes

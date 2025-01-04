@@ -5745,6 +5745,8 @@ dependencies = [
  "sos-database",
  "sos-net",
  "sos-password",
+ "sos-protocol",
+ "sos-sdk",
  "sos-server",
  "sos-sync",
  "tempfile",

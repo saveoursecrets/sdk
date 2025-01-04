@@ -2,21 +2,17 @@
 //!
 //! Tasks that handle retry until exhaustion for
 //! download, upload, move and delete operations.
-use crate::{
-    protocol::{
-        network_client::NetworkRetry,
-        transfer::{CancelReason, FileSyncClient},
-        Error, SyncClient,
-    },
-    sdk::{vfs, Paths},
-    Result,
-};
-
-use sos_core::ExternalFile;
-
+use crate::Result;
 use async_recursion::async_recursion;
 use http::StatusCode;
+use sos_core::ExternalFile;
 use sos_protocol::NetworkError;
+use sos_protocol::{
+    network_client::NetworkRetry,
+    transfer::{CancelReason, FileSyncClient},
+    Error, SyncClient,
+};
+use sos_sdk::{vfs, Paths};
 use std::{io::ErrorKind, sync::Arc};
 use tokio::sync::watch;
 

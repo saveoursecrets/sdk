@@ -28,7 +28,7 @@ use sos_database::{
     files::FileProgress,
     search::{ArchiveFilter, Document, DocumentView},
 };
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 use terminal_banner::{Banner, Padding};
 use tokio::sync::{mpsc, oneshot};

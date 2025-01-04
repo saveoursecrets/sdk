@@ -7,7 +7,7 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, SecretMove};
 use sos_core::ExternalFile;
-use sos_net::sdk::prelude::*;
+use sos_sdk::prelude::*;
 
 /// Tests creating an attachment.
 #[tokio::test]

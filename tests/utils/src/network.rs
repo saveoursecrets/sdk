@@ -7,20 +7,20 @@ use sos_account::{Account, AccountBuilder};
 use sos_core::{ExternalFile, Origin};
 use sos_database::StorageError;
 use sos_net::{
-    protocol::{
-        network_client::{HttpClient, ListenOptions},
-        AccountSync, RemoteSyncHandler, SyncClient,
-    },
-    sdk::{
-        constants::{FILES_DIR, VAULT_EXT},
-        crypto::AccessKey,
-        events::EventLogExt,
-        vault::{Summary, VaultId},
-        vfs, Paths,
-    },
     InflightNotification, InflightTransfers, NetworkAccount, RemoteBridge,
 };
 use sos_password::diceware::generate_passphrase;
+use sos_protocol::{
+    network_client::{HttpClient, ListenOptions},
+    AccountSync, RemoteSyncHandler, SyncClient,
+};
+use sos_sdk::{
+    constants::{FILES_DIR, VAULT_EXT},
+    crypto::AccessKey,
+    events::EventLogExt,
+    vault::{Summary, VaultId},
+    vfs, Paths,
+};
 use sos_sync::SyncStorage;
 use std::{
     path::PathBuf,

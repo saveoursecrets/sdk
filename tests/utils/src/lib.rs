@@ -6,7 +6,7 @@ use anyhow::Result;
 use axum_server::Handle;
 use copy_dir::copy_dir;
 use sos_core::Origin;
-use sos_net::sdk::{signer::ecdsa::Address, vfs, Paths};
+use sos_sdk::{signer::ecdsa::Address, vfs, Paths};
 use sos_server::{Server, ServerConfig, State};
 use std::{
     net::SocketAddr,

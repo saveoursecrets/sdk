@@ -1,17 +1,5 @@
 //! Adds sync capability to network account.
-use crate::{
-    protocol::{
-        AccountSync, RemoteSync, SyncClient, SyncOptions, SyncResult,
-    },
-    sdk::{
-        events::{
-            AccountDiff, AccountEventLog, CheckedPatch, DeviceDiff,
-            DeviceEventLog, FolderDiff, FolderEventLog,
-        },
-        vault::Summary,
-    },
-    NetworkAccount, Result,
-};
+use crate::{NetworkAccount, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_account::Account;
@@ -19,6 +7,16 @@ use sos_core::events::WriteEvent;
 use sos_core::{
     commit::{CommitState, Comparison},
     Origin, VaultId,
+};
+use sos_protocol::{
+    AccountSync, RemoteSync, SyncClient, SyncOptions, SyncResult,
+};
+use sos_sdk::{
+    events::{
+        AccountDiff, AccountEventLog, CheckedPatch, DeviceDiff,
+        DeviceEventLog, FolderDiff, FolderEventLog,
+    },
+    vault::Summary,
 };
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
@@ -31,9 +29,9 @@ use std::{
 use tokio::sync::RwLock;
 
 #[cfg(feature = "files")]
-use crate::{
-    protocol::transfer::{FileSet, FileSyncClient, FileTransfersSet},
-    sdk::events::{FileDiff, FileEventLog},
+use {
+    sos_protocol::transfer::{FileSet, FileSyncClient, FileTransfersSet},
+    sos_sdk::events::{FileDiff, FileEventLog},
 };
 
 /// Server status for all remote origins.

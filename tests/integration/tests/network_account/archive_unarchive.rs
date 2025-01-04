@@ -4,7 +4,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, SecretChange, SecretMove};
-use sos_net::protocol::AccountSync;
+use sos_protocol::AccountSync;
 
 /// Tests moving to and from an archive folder.
 #[tokio::test]
