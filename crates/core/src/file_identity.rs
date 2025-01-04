@@ -1,11 +1,12 @@
 //! Helper functions to read and write the magic identity
 //! bytes for file formats.
 use crate::{Error, Result};
-use binary_stream::futures::{BinaryReader, BinaryWriter};
-use futures::io::{AsyncReadExt, AsyncSeek, AsyncWriteExt};
+use binary_stream::futures::BinaryReader;
+use futures::io::{AsyncReadExt, AsyncSeek};
 
 /// String of formatted identity bytes for error messages.
-fn format_identity_bytes(identity: &[u8]) -> String {
+#[doc(hidden)]
+pub fn format_identity_bytes(identity: &[u8]) -> String {
     let c =
         std::str::from_utf8(identity).expect("identity bytes to be UTF-8");
     format!("{:#04x?} ({})", identity, c)
@@ -24,7 +25,7 @@ fn format_identity_bytes(identity: &[u8]) -> String {
     */
 }
 
-/// Read and write the identity bytes for a file.
+/// Read identity bytes.
 pub struct FileIdentity;
 
 impl FileIdentity {
@@ -62,17 +63,6 @@ impl FileIdentity {
                 ));
             }
         }
-        Ok(())
-    }
-
-    /// Write the identity magic bytes.
-    pub async fn write_identity<
-        W: AsyncWriteExt + AsyncSeek + Unpin + Send,
-    >(
-        writer: &mut BinaryWriter<W>,
-        identity: &[u8],
-    ) -> Result<()> {
-        writer.write_bytes(identity).await?;
         Ok(())
     }
 }

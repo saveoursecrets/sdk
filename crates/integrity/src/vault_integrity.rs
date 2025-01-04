@@ -6,7 +6,8 @@ use futures::stream::Stream;
 use sos_core::commit::CommitTree;
 use sos_core::{constants::VAULT_IDENTITY, encoding::encoding_options};
 use sos_filesystem::formats::{
-    FileIdentity, FileItem, FormatStream, FormatStreamIterator, VaultRecord,
+    read_file_identity_bytes, FileItem, FormatStream, FormatStreamIterator,
+    VaultRecord,
 };
 use sos_vault::Header;
 use sos_vfs as vfs;
@@ -19,7 +20,7 @@ pub fn vault_integrity(
     path: impl AsRef<Path>,
 ) -> impl Stream<Item = Result<Result<VaultRecord>>> {
     try_stream! {
-      FileIdentity::read_file(path.as_ref(), &VAULT_IDENTITY).await?;
+      read_file_identity_bytes(path.as_ref(), &VAULT_IDENTITY).await?;
 
       // Use an additional reader to read in the row values
       let mut file = vfs::File::open(path.as_ref()).await?.compat();

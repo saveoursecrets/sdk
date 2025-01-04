@@ -16,9 +16,9 @@
 use crate::{
     folder::FolderReducer,
     formats::{
+        read_file_identity_bytes,
         stream::{MemoryBuffer, MemoryInner},
-        EventLogRecord, FileIdentity, FileItem, FormatStream,
-        FormatStreamIterator,
+        EventLogRecord, FileItem, FormatStream, FormatStreamIterator,
     },
     Error, IntoRecord, Result,
 };
@@ -855,7 +855,7 @@ impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
         )
         .await?;
 
-        FileIdentity::read_file(path.as_ref(), &FOLDER_EVENT_LOG_IDENTITY)
+        read_file_identity_bytes(path.as_ref(), &FOLDER_EVENT_LOG_IDENTITY)
             .await?;
 
         let reader = Self::create_reader(path.as_ref()).await?;
@@ -1002,7 +1002,7 @@ impl EventLog<AccountEvent, DiscLog, DiscLog, PathBuf> {
         )
         .await?;
 
-        FileIdentity::read_file(path.as_ref(), &ACCOUNT_EVENT_LOG_IDENTITY)
+        read_file_identity_bytes(path.as_ref(), &ACCOUNT_EVENT_LOG_IDENTITY)
             .await?;
 
         let reader = Self::create_reader(path.as_ref()).await?;
@@ -1031,7 +1031,7 @@ impl EventLog<DeviceEvent, DiscLog, DiscLog, PathBuf> {
         )
         .await?;
 
-        FileIdentity::read_file(path.as_ref(), &DEVICE_EVENT_LOG_IDENTITY)
+        read_file_identity_bytes(path.as_ref(), &DEVICE_EVENT_LOG_IDENTITY)
             .await?;
 
         let reader = Self::create_reader(path.as_ref()).await?;
@@ -1061,7 +1061,7 @@ impl EventLog<FileEvent, DiscLog, DiscLog, PathBuf> {
         )
         .await?;
 
-        FileIdentity::read_file(path.as_ref(), &FILE_EVENT_LOG_IDENTITY)
+        read_file_identity_bytes(path.as_ref(), &FILE_EVENT_LOG_IDENTITY)
             .await?;
 
         let reader = Self::create_reader(path.as_ref()).await?;

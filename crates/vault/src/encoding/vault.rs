@@ -124,9 +124,7 @@ impl Encodable for Header {
         &self,
         writer: &mut BinaryWriter<W>,
     ) -> Result<()> {
-        FileIdentity::write_identity(&mut *writer, &VAULT_IDENTITY)
-            .await
-            .map_err(encoding_error)?;
+        writer.write_bytes(&VAULT_IDENTITY).await?;
 
         let size_pos = writer.stream_position().await?;
         writer.write_u32(0).await?;
