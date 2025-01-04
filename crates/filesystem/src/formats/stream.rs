@@ -1,19 +1,19 @@
 //! File streams.
-use std::{
-    io::{self, Cursor, SeekFrom},
-    ops::Range,
-    pin::Pin,
-    sync::Arc,
-};
-
-use crate::{encoding_options, formats::FileItem, Result};
+use crate::{formats::FileItem, Result};
 use async_trait::async_trait;
 use binary_stream::futures::{stream_length, BinaryReader};
 use futures::io::{
     AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, IoSlice, IoSliceMut,
 };
 use futures::task::{Context, Poll};
+use sos_core::encoding::encoding_options;
 use sos_vfs::File;
+use std::{
+    io::{self, Cursor, SeekFrom},
+    ops::Range,
+    pin::Pin,
+    sync::Arc,
+};
 use tokio_util::compat::Compat;
 
 /// Trait for file format iterators.

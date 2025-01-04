@@ -13,19 +13,6 @@ pub use error::Error;
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
-use binary_stream::{Endian, Options};
-
-/// Maximum buffer size allowed when encoding and decoding.
-const MAX_BUFFER_SIZE: usize = 1024 * 1024 * 16;
-
-/// Standard encoding options.
-pub fn encoding_options() -> Options {
-    Options {
-        endian: Endian::Little,
-        max_buffer_size: Some(MAX_BUFFER_SIZE),
-    }
-}
-
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use events::EventRecord;
