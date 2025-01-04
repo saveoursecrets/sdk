@@ -1,3 +1,7 @@
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
+//! Server storage backed by the file system.
 mod error;
 
 pub mod filesystem;

@@ -1,3 +1,4 @@
+//! Database entities.
 mod account;
 mod audit;
 mod event;

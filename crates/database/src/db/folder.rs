@@ -4,6 +4,7 @@ use sos_sdk::vault::Summary;
 use std::collections::HashMap;
 use std::ops::Deref;
 
+/// Folder entity.
 pub struct FolderEntity<'conn, C>
 where
     C: Deref<Target = Connection>,

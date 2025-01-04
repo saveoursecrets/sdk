@@ -20,3 +20,6 @@ bs58.workspace = true
 sha2.workspace = true
 binary-stream.workspace = true
 futures.workspace = true
+
+[build-dependencies]
+rustc_version.workspace = true

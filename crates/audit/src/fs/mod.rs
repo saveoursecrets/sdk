@@ -1,3 +1,4 @@
+//! Audit trail provider backed by an append-only file.
 mod log_file;
 mod stream;
 

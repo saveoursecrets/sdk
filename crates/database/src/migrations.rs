@@ -1,3 +1,4 @@
+//! Run database migrations.
 use crate::Result;
 use async_sqlite::{Client, ClientBuilder, JournalMode};
 use refinery::Report;

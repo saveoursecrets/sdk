@@ -16,7 +16,6 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = []
 full = [
   "archive",
   "contacts",

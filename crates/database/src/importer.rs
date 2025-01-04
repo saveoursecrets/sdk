@@ -1,3 +1,4 @@
+//! Import filesystem backed accounts into a database.
 use crate::{db, migrations::migrate_db_file, Error, Result};
 use async_sqlite::{Client, ClientBuilder, JournalMode};
 use sos_core::Paths;

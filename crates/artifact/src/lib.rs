@@ -1,6 +1,6 @@
-//! Release artifact meta data for the [Save Our Secrets](https://saveoursecrets.com) SDK.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
+//! Release artifact meta data for the [Save Our Secrets](https://saveoursecrets.com) SDK.
 
 pub use semver;
 

@@ -4,6 +4,7 @@ use std::ops::Deref;
 
 type AuditSourceRow = (String, AuditEvent, Option<String>);
 
+/// Audit entity.
 pub struct AuditEntity<'conn, C>
 where
     C: Deref<Target = Connection>,

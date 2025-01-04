@@ -1,3 +1,6 @@
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Traits and types for signing messages.
 use async_trait::async_trait;
 

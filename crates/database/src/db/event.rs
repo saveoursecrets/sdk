@@ -7,6 +7,7 @@ use std::ops::Deref;
 
 type EventSourceRow = (String, CommitHash, EventRecord);
 
+/// Event entity.
 pub struct EventEntity<'conn, C>
 where
     C: Deref<Target = Connection>,

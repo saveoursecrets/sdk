@@ -1,3 +1,4 @@
+//! File system folder and reducer.
 mod folder;
 mod reducer;
 

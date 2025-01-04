@@ -1,6 +1,7 @@
 use async_sqlite::rusqlite::{Connection, Error as SqlError};
 use std::ops::Deref;
 
+/// Account entity.
 pub struct AccountEntity<'conn, C>
 where
     C: Deref<Target = Connection>,

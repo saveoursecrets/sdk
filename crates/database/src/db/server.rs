@@ -2,6 +2,7 @@ use async_sqlite::rusqlite::{Connection, Error as SqlError};
 use sos_core::Origin;
 use std::ops::Deref;
 
+/// Server entity.
 pub struct ServerEntity<'conn, C>
 where
     C: Deref<Target = Connection>,

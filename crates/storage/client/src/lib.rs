@@ -1,4 +1,7 @@
-//! Folder storage backed by the file system.
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
+//! Client storage backed by the file system.
 use sos_sdk::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     signer::ecdsa::Address,

@@ -3,6 +3,7 @@ use sos_core::{ExternalFile, SecretId, VaultId};
 use std::collections::HashMap;
 use std::ops::Deref;
 
+/// File entity.
 pub struct FileEntity<'conn, C>
 where
     C: Deref<Target = Connection>,
