@@ -20,6 +20,7 @@ pairing = ["sos-protocol/pairing"]
 audit = []
 
 [dependencies]
+sos-audit.workspace = true
 sos-core.workspace = true
 sos-sdk.workspace = true
 sos-database.workspace = true

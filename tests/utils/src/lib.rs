@@ -252,6 +252,10 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
             target.join(test_id).join(&format!("client{}", index + 1));
         let _ = vfs::remove_dir_all(&client).await;
         vfs::create_dir_all(&client).await?;
+
+        let paths = Paths::new_global(client.clone());
+        sos_audit::default_audit_providers(&paths).await;
+
         clients.push(client);
     }
 

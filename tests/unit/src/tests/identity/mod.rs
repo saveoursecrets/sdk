@@ -9,7 +9,6 @@ use sos_sdk::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
     },
-    Error,
 };
 use urn::Urn;
 

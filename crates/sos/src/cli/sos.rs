@@ -139,7 +139,10 @@ pub async fn run() -> Result<()> {
     if let Some(storage) = &args.storage {
         Paths::set_data_dir(storage.clone());
     }
+
     Paths::scaffold(args.storage).await?;
+    let paths = Paths::new_global(Paths::data_dir()?);
+    sos_audit::default_audit_providers(&paths).await;
 
     #[cfg(any(test, debug_assertions))]
     if let Some(password) = args.password.take() {

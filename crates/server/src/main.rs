@@ -133,6 +133,7 @@ mod cli {
 
     mod service {
         use axum_server::Handle;
+        use sos_core::Paths;
         use sos_protocol::sdk::vfs;
         use sos_server::{
             Error, Result, Server, ServerConfig, SslConfig, State,
@@ -182,7 +183,12 @@ mod cli {
         /// Start a web server.
         pub async fn start(config: ServerConfig) -> Result<()> {
             let backend = config.backend().await?;
+
+            let paths = Paths::new_global_server(backend.directory());
+            sos_audit::default_audit_providers(&paths).await;
+
             let state = Arc::new(RwLock::new(State::new(config)));
+
             let handle = Handle::new();
             let server = Server::new().await?;
             server
