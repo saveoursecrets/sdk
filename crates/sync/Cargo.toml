@@ -2,6 +2,10 @@
 name = "sos-sync"
 version = "0.16.0"
 edition = "2021"
+description = "Core sync types and traits for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
 
 [package.metadata.docs.rs]
 all-features = true
