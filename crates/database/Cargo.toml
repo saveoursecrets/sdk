@@ -13,13 +13,11 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 full = [
-  "archive",
   "client",
   "files",
   "search",
   "sqlite",
 ]
-archive = ["sos-sdk/archive"]
 files = ["sos-sdk/files", "sos-filesystem/files"]
 search = [
   "dep:probly-search",

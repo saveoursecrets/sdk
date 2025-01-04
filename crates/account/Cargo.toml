@@ -24,7 +24,6 @@ full = [
 audit = ["sos-audit", "sos-client-storage/audit"]
 archive = [
   "sos-sdk/archive",
-  "sos-database/archive",
   "sos-client-storage/archive",
   "dep:async_zip",
   "dep:walkdir",

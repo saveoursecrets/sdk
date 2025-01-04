@@ -17,7 +17,6 @@ full = [
   "hashcheck",
   "network-client",
   "pairing",
-  "archive",
   "contacts",
   "files",
   "migrate",
@@ -27,7 +26,6 @@ listen = ["tokio-tungstenite"]
 hashcheck = ["reqwest"]
 network-client = ["reqwest", "bs58", "async-stream", "tokio-util"]
 pairing = []
-archive = ["sos-sdk/archive"]
 contacts = ["sos-sdk/contacts"]
 files = ["sos-sdk/files", "sos-account/files"]
 migrate = ["sos-account/migrate"]

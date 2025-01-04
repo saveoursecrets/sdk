@@ -21,7 +21,6 @@ local-transport = [
   "async-trait",
 ]
 memory-http-server = []
-archive = ["sos-sdk/archive", "sos-protocol/archive"]
 clipboard = ["sos-account/clipboard"]
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = ["sos-sdk/files", "sos-protocol/files"]
