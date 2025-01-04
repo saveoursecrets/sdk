@@ -126,3 +126,12 @@ pub enum Error {
     #[error(transparent)]
     AgeDecrypt(#[from] age::DecryptError),
 }
+
+/// Extension functions for error types.
+pub trait ErrorExt {
+    /// Whether this is a secret not found error.
+    fn is_secret_not_found(&self) -> bool;
+
+    /// Whether this is a permission denied error.
+    fn is_permission_denied(&self) -> bool;
+}

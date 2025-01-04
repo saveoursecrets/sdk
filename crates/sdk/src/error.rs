@@ -29,15 +29,7 @@ pub enum Error {
     Io(#[from] std::io::Error),
 }
 
-/// Extension functions for error types.
-pub trait ErrorExt {
-    /// Whether this is a secret not found error.
-    fn is_secret_not_found(&self) -> bool;
-
-    /// Whether this is a permission denied error.
-    fn is_permission_denied(&self) -> bool;
-}
-
+/*
 impl ErrorExt for Error {
     fn is_secret_not_found(&self) -> bool {
         false
@@ -47,3 +39,4 @@ impl ErrorExt for Error {
         matches!(self, Error::Vault(sos_vault::Error::PassphraseVerification))
     }
 }
+*/

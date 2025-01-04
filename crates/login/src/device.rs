@@ -1,7 +1,7 @@
 //! Types for device support.
 use crate::Result;
-pub use sos_core::{
-    device::{DeviceMetaData, DevicePublicKey, TrustedDevice, DEVICE},
+use sos_core::{
+    device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
     encode,
 };
 use sos_signer::ed25519::{BoxedEd25519Signer, SingleParty};

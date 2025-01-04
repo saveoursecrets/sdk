@@ -46,6 +46,3 @@ pub use sos_login as identity;
 pub use sos_signer as signer;
 pub use sos_vault as vault;
 pub use sos_vfs as vfs;
-
-/// Result type for the library.
-pub(crate) type Result<T> = std::result::Result<T, Error>;

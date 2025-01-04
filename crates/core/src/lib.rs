@@ -22,7 +22,7 @@ pub use account::AccountId;
 pub use date_time::UtcDateTime;
 // pub use device::{DevicePublicKey, TrustedDevice};
 pub use encoding::{decode, encode};
-pub use error::Error;
+pub use error::{Error, ErrorExt};
 pub use file::{ExternalFile, ExternalFileName};
 pub use origin::Origin;
 pub use paths::Paths;
