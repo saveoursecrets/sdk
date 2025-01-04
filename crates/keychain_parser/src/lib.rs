@@ -10,4 +10,4 @@ pub use error::Error;
 pub use parser::*;
 
 /// Result type for keychain parser.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;

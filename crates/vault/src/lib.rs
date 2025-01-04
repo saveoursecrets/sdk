@@ -25,7 +25,7 @@ pub use vault::{
 
 pub use sos_core::{VaultCommit, VaultEntry, VaultFlags, VaultId};
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 pub(crate) use vault::Auth;
 

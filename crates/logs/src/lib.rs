@@ -1,6 +1,6 @@
 //! Log tracing output to disc.
 use rev_buf_reader::RevBufReader;
-use sos_sdk::{Paths, Result, UtcDateTime};
+use sos_sdk::{Error, Paths, UtcDateTime};
 use std::{
     fs::File,
     io::BufRead,
@@ -9,6 +9,8 @@ use std::{
 use time::OffsetDateTime;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+type Result<T> = std::result::Result<T, Error>;
 
 const LOG_FILE_NAME: &str = "saveoursecrets.log";
 const DEFAULT_LOG_LEVEL: &str =

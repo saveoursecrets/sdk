@@ -10,7 +10,7 @@ mod error;
 pub use error::Error;
 
 /// Result type for the clipboard library.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 #[cfg(all(not(target_os = "android"), not(target_os = "ios")))]
 mod desktop;

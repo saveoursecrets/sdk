@@ -34,6 +34,6 @@ pub type SyncResult = sos_protocol::SyncResult<Error>;
 pub use sos_account_extras as extras;
 
 /// Result type for the client module.
-pub type Result<T> = std::result::Result<T, error::Error>;
+pub(crate) type Result<T> = std::result::Result<T, error::Error>;
 
 pub use sos_protocol::is_offline;

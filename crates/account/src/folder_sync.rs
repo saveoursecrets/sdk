@@ -1,5 +1,5 @@
 //! Implements merging for folders.
-
+use crate::Result;
 use async_trait::async_trait;
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use sos_core::{
@@ -11,7 +11,6 @@ use sos_sdk::{
     events::{CheckedPatch, EventLogExt, FolderDiff},
     identity::IdentityFolder,
     vault::secret::SecretRow,
-    Result,
 };
 
 /// Options for folder merge.

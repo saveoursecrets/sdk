@@ -9,7 +9,7 @@ mod signature;
 pub use error::Error;
 
 /// Result type for the signer library.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 /// Boxed signer.
 type BoxedSigner<O, V, A> = Box<

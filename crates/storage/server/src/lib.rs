@@ -10,4 +10,4 @@ pub use storage::ServerStorage;
 pub use traits::ServerAccountStorage;
 
 /// Result type for the server module.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;

@@ -55,7 +55,7 @@ pub use tokio_tungstenite;
 pub use sos_sdk as sdk;
 
 /// Result type for the wire protocol.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 /// Trait for encoding and decoding protobuf generated types.
 ///

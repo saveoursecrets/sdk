@@ -7,7 +7,7 @@ pub mod formats;
 pub use error::Error;
 
 /// Result type for the library.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 use binary_stream::{Endian, Options};
 

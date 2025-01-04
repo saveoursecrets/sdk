@@ -16,7 +16,7 @@ pub use file_integrity::{file_integrity, FileIntegrityEvent};
 pub use error::Error;
 
 /// Result type for the library.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 use std::path::PathBuf;
 

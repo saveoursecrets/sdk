@@ -190,7 +190,7 @@ where
 async fn scan_log<T>(
     req: &ScanRequest,
     event_log: &DiscEventLog<T>,
-) -> sos_sdk::Result<ScanResponse>
+) -> Result<ScanResponse, sos_sdk::Error>
 where
     T: Default + Encodable + Decodable + Send + Sync + 'static,
 {

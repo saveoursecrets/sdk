@@ -35,12 +35,15 @@ use {
 };
 
 /// Server status for all remote origins.
-pub type ServerStatus = HashMap<Origin, sos_protocol::Result<SyncStatus>>;
+pub type ServerStatus =
+    HashMap<Origin, std::result::Result<SyncStatus, sos_protocol::Error>>;
 
 /// Transfer status for all remote origins.
 #[cfg(feature = "files")]
-pub type TransferStatus =
-    HashMap<Origin, sos_protocol::Result<FileTransfersSet>>;
+pub type TransferStatus = HashMap<
+    Origin,
+    std::result::Result<FileTransfersSet, sos_protocol::Error>,
+>;
 
 impl NetworkAccount {
     /// Sync status for remote servers.

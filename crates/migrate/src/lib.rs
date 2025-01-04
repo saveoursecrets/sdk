@@ -17,7 +17,7 @@ pub use authenticator::*;
 pub use error::Error;
 
 /// Result type for the migration library.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 /// Trait for implementations that can convert data
 /// from a third-party provider.

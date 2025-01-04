@@ -8,7 +8,7 @@ pub use error::Error;
 pub use event::*;
 
 /// Result type for the library.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 /// Trait for types that append to an audit log.
 #[async_trait::async_trait]

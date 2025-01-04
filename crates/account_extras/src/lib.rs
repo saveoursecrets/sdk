@@ -9,7 +9,7 @@ mod error;
 pub use error::Error;
 
 /// Result type for the extras library.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 #[cfg(feature = "preferences")]
 pub mod preferences;

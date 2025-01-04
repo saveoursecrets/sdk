@@ -1,3 +1,6 @@
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Account identity management.
 
 pub mod device;
@@ -17,4 +20,4 @@ pub use public_identity::{AccountRef, PublicIdentity};
 pub use error::Error;
 
 /// Result type for the library.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;

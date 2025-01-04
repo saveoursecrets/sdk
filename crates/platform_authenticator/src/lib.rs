@@ -13,7 +13,7 @@ pub mod local_auth;
 pub use error::Error;
 
 /// Result type for the library.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 /// Attempt to find authentication credentials for an account.
 ///

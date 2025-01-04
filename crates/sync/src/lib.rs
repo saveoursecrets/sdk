@@ -13,7 +13,7 @@ pub use traits::*;
 pub use types::*;
 
 /// Result type for the library.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 /// Direction of a sync.
 #[derive(Debug, Clone, Copy)]

@@ -12,7 +12,7 @@ pub use memorable::memorable_password;
 pub use zxcvbn;
 
 /// Result type for the library.
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 /// English vowels.
 #[doc(hidden)]

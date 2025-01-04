@@ -12,4 +12,4 @@ pub use sos_vault::*;
 pub use sos_vfs as vfs;
 
 // Ensure top-level versions take precedence
-pub use crate::{error::ErrorExt, Error, Paths, Result};
+pub use crate::{error::ErrorExt, Error, Paths};

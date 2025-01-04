@@ -1,10 +1,11 @@
 //! Types for file management.
+use crate::Result;
 use indexmap::IndexSet;
 use sos_core::events::FileEvent;
 use sos_core::{
     ExternalFile, ExternalFileName, Paths, SecretId, SecretPath, VaultId,
 };
-use sos_sdk::{vault::secret::Secret, vfs, Result};
+use sos_sdk::{vault::secret::Secret, vfs};
 use std::path::{Path, PathBuf};
 
 /// Meta data about an encrypted file.
