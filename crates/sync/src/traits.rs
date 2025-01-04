@@ -23,7 +23,7 @@ use tokio::sync::RwLock;
 #[cfg(feature = "files")]
 use {
     sos_core::ExternalFile,
-    sos_sdk::events::{FileDiff, FileEventLog},
+    sos_filesystem::events::{FileDiff, FileEventLog},
 };
 
 /// References to the storage event logs.
@@ -34,7 +34,6 @@ pub trait StorageEventLogs: Send + Sync + 'static {
     type Error: std::error::Error
         + From<sos_core::Error>
         + From<sos_filesystem::Error>
-        + From<sos_sdk::Error>
         + Send
         + Sync
         + 'static;
@@ -65,7 +64,7 @@ pub trait StorageEventLogs: Send + Sync + 'static {
     async fn canonical_files(
         &self,
     ) -> Result<IndexSet<ExternalFile>, Self::Error> {
-        use sos_sdk::events::FileReducer;
+        use sos_filesystem::events::FileReducer;
         let files = self.file_log().await?;
         let event_log = files.read().await;
 

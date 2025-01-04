@@ -233,10 +233,7 @@ pub enum ContactImportProgress {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait Account {
     /// Errors for this account.
-    type Error: std::error::Error
-        + std::fmt::Debug
-        + From<crate::Error>
-        + From<sos_sdk::Error>;
+    type Error: std::error::Error + std::fmt::Debug + From<Error>;
 
     /// Result type for network-aware implementations.
     type NetworkResult: std::fmt::Debug;

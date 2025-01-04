@@ -13,9 +13,9 @@ use sos_core::Origin;
 use sos_core::{commit::CommitHash, Paths, SecretId};
 use sos_filesystem::formats::FormatStreamIterator;
 use sos_sdk::prelude::{
-    decode, encode, vfs, AccountEventLog, DeviceEventLog, Error as SdkError,
-    EventLogExt, EventRecord, FolderEventLog, Identity, PublicIdentity,
-    Vault, VaultCommit, VaultEntry,
+    decode, encode, vfs, AccountEventLog, DeviceEventLog, EventLogExt,
+    EventRecord, FolderEventLog, Identity, PublicIdentity, Vault,
+    VaultCommit, VaultEntry,
 };
 use std::{collections::HashMap, path::Path};
 
@@ -33,24 +33,14 @@ pub(crate) async fn import_globals(
     let global_preferences =
         Paths::new_global(paths.documents_dir().to_owned())
             .preferences_file();
-    let global_preferences = if vfs::try_exists(&global_preferences)
-        .await
-        .map_err(SdkError::from)?
-    {
-        Some(
-            vfs::read_to_string(global_preferences)
-                .await
-                .map_err(SdkError::from)?,
-        )
+    let global_preferences = if vfs::try_exists(&global_preferences).await? {
+        Some(vfs::read_to_string(global_preferences).await?)
     } else {
         None
     };
 
     let mut audit_events = Vec::new();
-    if vfs::try_exists(paths.audit_file())
-        .await
-        .map_err(SdkError::from)?
-    {
+    if vfs::try_exists(paths.audit_file()).await? {
         let log_file = AuditLogFile::new(paths.audit_file()).await?;
         let mut file = vfs::File::open(paths.audit_file()).await?;
         let mut it = audit_stream(paths.audit_file(), false).await?;
@@ -92,9 +82,7 @@ pub(crate) async fn import_account(
     let account_name = account.label().to_owned();
 
     // Identity folder
-    let buffer = vfs::read(paths.identity_vault())
-        .await
-        .map_err(SdkError::from)?;
+    let buffer = vfs::read(paths.identity_vault()).await?;
     let identity_vault: Vault = decode(&buffer).await?;
     let identity_rows = collect_vault_rows(&identity_vault).await?;
     let identity_events =
@@ -105,9 +93,7 @@ pub(crate) async fn import_account(
         collect_account_events(paths.account_events()).await?;
 
     // Device vault
-    let buffer = vfs::read(paths.device_file())
-        .await
-        .map_err(SdkError::from)?;
+    let buffer = vfs::read(paths.device_file()).await?;
     let device_vault: Vault = decode(&buffer).await?;
     let device_rows = collect_vault_rows(&device_vault).await?;
 
@@ -122,7 +108,7 @@ pub(crate) async fn import_account(
     let mut folders = Vec::new();
     let user_folders = Identity::list_local_folders(paths).await?;
     for (summary, path) in user_folders {
-        let buffer = vfs::read(path).await.map_err(SdkError::from)?;
+        let buffer = vfs::read(path).await?;
         let vault: Vault = decode(&buffer).await?;
         let rows = collect_vault_rows(&vault).await?;
         let events =
@@ -140,31 +126,20 @@ pub(crate) async fn import_account(
                 file.secret_id(),
                 file.file_name().to_string(),
             );
-            let buffer = vfs::read(path).await.map_err(SdkError::from)?;
+            let buffer = vfs::read(path).await?;
             user_files.push((file, buffer));
         }
     }
 
-    let account_preferences = if vfs::try_exists(paths.preferences_file())
-        .await
-        .map_err(SdkError::from)?
-    {
-        Some(
-            vfs::read_to_string(paths.preferences_file())
-                .await
-                .map_err(SdkError::from)?,
-        )
-    } else {
-        None
-    };
+    let account_preferences =
+        if vfs::try_exists(paths.preferences_file()).await? {
+            Some(vfs::read_to_string(paths.preferences_file()).await?)
+        } else {
+            None
+        };
 
-    let remote_servers = if vfs::try_exists(paths.remote_origins())
-        .await
-        .map_err(SdkError::from)?
-    {
-        let buffer = vfs::read(paths.remote_origins())
-            .await
-            .map_err(SdkError::from)?;
+    let remote_servers = if vfs::try_exists(paths.remote_origins()).await? {
+        let buffer = vfs::read(paths.remote_origins()).await?;
         Some(serde_json::from_slice::<Vec<Origin>>(&buffer)?)
     } else {
         None

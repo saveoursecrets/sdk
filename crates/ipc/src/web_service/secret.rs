@@ -37,7 +37,6 @@ where
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
-        + From<sos_sdk::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
         + From<sos_filesystem::Error>
@@ -82,7 +81,6 @@ where
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
-        + From<sos_sdk::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
         + From<sos_filesystem::Error>
@@ -141,7 +139,6 @@ where
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
-        + From<sos_sdk::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
         + From<sos_filesystem::Error>
@@ -218,7 +215,6 @@ where
     E: std::fmt::Debug
         + ErrorExt
         + std::error::Error
-        + From<sos_sdk::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
         + From<sos_filesystem::Error>

@@ -36,60 +36,7 @@ sos-signer.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 
-thiserror.workspace = true
 serde.workspace = true
-
-# binary-stream.workspace = true
-# secrecy.workspace = true
-# tokio-util.workspace = true
-# tracing.workspace = true
-# async-trait.workspace = true
-# serde_json.workspace = true
-# uuid.workspace = true
-# hex.workspace = true
-# sha2.workspace = true
-# sha3.workspace = true
-# serde_with.workspace = true
-# once_cell.workspace = true
-# rand.workspace = true
-# url.workspace = true
-# time.workspace = true
-# time-tz.workspace = true
-# futures.workspace = true
-# parking_lot.workspace = true
-# bs58.workspace = true
-# indexmap.workspace = true
-# bitflags.workspace = true
-# tempfile.workspace = true
-# typeshare.workspace = true
-# totp-rs.workspace = true
-# vcard4.workspace = true
-# urn.workspace = true
-# futures-util.workspace = true
-# async-stream.workspace = true
-# pem.workspace = true
-# tokio.workspace = true
-# async-once-cell.workspace = true
-#
-# # crypto
-# age.workspace = true
-# argon2.workspace = true
-# aes-gcm.workspace = true
-# chacha20poly1305.workspace = true
-# balloon-hash.workspace = true
-#
-# # signing
-# k256.workspace = true
-# ethereum-types.workspace = true
-# subtle.workspace = true
-# ed25519-dalek.workspace = true
-
-# [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-# etcetera.workspace = true
-
-# [target.'cfg(target_arch = "wasm32")'.dependencies]
-# getrandom = { workspace = true, features = ["js"] }
-# uuid = { workspace = true, features = ["serde", "v4", "js"] }
 
 [build-dependencies]
 rustc_version.workspace = true

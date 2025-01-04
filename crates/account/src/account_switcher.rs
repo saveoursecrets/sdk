@@ -46,10 +46,7 @@ pub struct AccountSwitcherOptions {
 pub struct AccountSwitcher<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    E: From<crate::Error>
-        + From<sos_sdk::Error>
-        + std::error::Error
-        + std::fmt::Debug,
+    E: From<crate::Error> + std::error::Error + std::fmt::Debug,
 {
     #[doc(hidden)]
     pub accounts: Vec<A>,
@@ -62,10 +59,7 @@ where
 impl<A, R, E> AccountSwitcher<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    E: From<crate::Error>
-        + From<sos_sdk::Error>
-        + std::error::Error
-        + std::fmt::Debug,
+    E: From<crate::Error> + std::error::Error + std::fmt::Debug,
 {
     /// Create an account switcher.
     pub fn new() -> Self {
@@ -289,10 +283,7 @@ where
 impl<A, R, E> From<Paths> for AccountSwitcher<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R> + Sync + Send + 'static,
-    E: From<crate::Error>
-        + From<sos_sdk::Error>
-        + std::error::Error
-        + std::fmt::Debug,
+    E: From<crate::Error> + std::error::Error + std::fmt::Debug,
 {
     fn from(paths: Paths) -> Self {
         Self::new_with_options(AccountSwitcherOptions {

@@ -5423,7 +5423,8 @@ version = "0.16.0"
 dependencies = [
  "rev_buf_reader",
  "rustc_version",
- "sos-sdk",
+ "sos-core",
+ "thiserror 2.0.9",
  "time",
  "tracing-appender",
  "tracing-subscriber",
@@ -5605,7 +5606,6 @@ dependencies = [
  "sos-signer",
  "sos-vault",
  "sos-vfs",
- "thiserror 2.0.9",
 ]
 
 [[package]]
@@ -5716,7 +5716,6 @@ dependencies = [
  "rustc_version",
  "sos-core",
  "sos-filesystem",
- "sos-sdk",
  "sos-vault",
  "thiserror 2.0.9",
  "tokio",

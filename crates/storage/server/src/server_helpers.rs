@@ -30,7 +30,6 @@ where
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>
         + From<sos_core::Error>
-        + From<sos_sdk::Error>
         + From<sos_filesystem::Error>
         + From<sos_database::StorageError>
         + Send
@@ -83,7 +82,6 @@ pub async fn event_diff<S, E>(
 where
     S: SyncStorage,
     E: From<<S as StorageEventLogs>::Error>
-        + From<sos_sdk::Error>
         + From<sos_core::Error>
         + From<sos_filesystem::Error>
         + Send
@@ -127,8 +125,7 @@ async fn diff_log<T, E>(
 ) -> std::result::Result<DiffResponse, E>
 where
     T: Default + Encodable + Decodable + Send + Sync + 'static,
-    E: From<sos_sdk::Error>
-        + From<sos_core::Error>
+    E: From<sos_core::Error>
         + From<sos_filesystem::Error>
         + Send
         + Sync
@@ -148,7 +145,6 @@ pub async fn event_scan<S, E>(
 where
     S: SyncStorage,
     E: From<<S as StorageEventLogs>::Error>
-        + From<sos_sdk::Error>
         + From<sos_filesystem::Error>
         + Send
         + Sync
@@ -190,7 +186,7 @@ where
 async fn scan_log<T>(
     req: &ScanRequest,
     event_log: &DiscEventLog<T>,
-) -> Result<ScanResponse, sos_sdk::Error>
+) -> Result<ScanResponse, sos_filesystem::Error>
 where
     T: Default + Encodable + Decodable + Send + Sync + 'static,
 {
@@ -260,7 +256,6 @@ where
     E: std::error::Error
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>
-        + From<sos_sdk::Error>
         + From<sos_filesystem::Error>
         + Send
         + Sync
@@ -412,7 +407,6 @@ where
     E: std::error::Error
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>
-        + From<sos_sdk::Error>
         + From<sos_filesystem::Error>
         + Send
         + Sync

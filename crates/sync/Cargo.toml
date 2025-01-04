@@ -8,15 +8,12 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-full = [
-  "files",
-]
-files = []
+full = ["files"]
+files = ["sos-filesystem/files"]
 
 [dependencies]
 sos-core.workspace = true
 sos-filesystem.workspace = true
-sos-sdk.workspace = true
 sos-vault.workspace = true
 
 thiserror.workspace = true

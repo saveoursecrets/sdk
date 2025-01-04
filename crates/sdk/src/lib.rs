@@ -28,11 +28,8 @@
 pub mod archive;
 
 pub mod device;
-mod error;
 pub mod events;
 pub mod prelude;
-
-pub use error::Error;
 
 pub use sos_core::Paths;
 pub use sos_core::{decode, encode};
