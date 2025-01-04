@@ -11,18 +11,31 @@ use k256::{
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
+use sos_core::AccountId;
 use std::{fmt, str::FromStr};
 use subtle::Choice;
 
-impl From<&Address> for sos_core::AccountId {
+impl From<&Address> for AccountId {
     fn from(value: &Address) -> Self {
         value.0.into()
     }
 }
 
-impl From<Address> for sos_core::AccountId {
+impl From<Address> for AccountId {
     fn from(value: Address) -> Self {
         value.0.into()
+    }
+}
+
+impl From<&AccountId> for Address {
+    fn from(value: &AccountId) -> Self {
+        Self((*value).into())
+    }
+}
+
+impl From<AccountId> for Address {
+    fn from(value: AccountId) -> Self {
+        Self(value.into())
     }
 }
 

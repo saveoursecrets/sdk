@@ -34,7 +34,7 @@ use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "archive")]
-use sos_sdk::archive::RestoreTargets;
+use sos_backup_archive::RestoreTargets;
 
 #[cfg(feature = "audit")]
 use sos_audit::{append_audit_events, AuditEvent};

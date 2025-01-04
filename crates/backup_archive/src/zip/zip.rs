@@ -1,21 +1,21 @@
-use crate::{Error, Result};
+use super::{Error, Result};
+use crate::{ArchiveItem, Manifest};
 use async_zip::{
     tokio::{read::seek::ZipFileReader, write::ZipFileWriter},
     Compression, ZipDateTimeBuilder, ZipEntryBuilder,
 };
 use hex;
 use sha2::{Digest, Sha256};
-use sos_sdk::{
-    archive::{ArchiveItem, Manifest},
+use sos_core::{
     constants::{
         ACCOUNT_EVENTS, ARCHIVE_MANIFEST, DEVICE_FILE, EVENT_LOG_EXT,
         FILES_DIR, FILE_EVENTS, JSON_EXT, PREFERENCES_FILE, REMOTES_FILE,
         VAULT_EXT,
     },
-    signer::ecdsa::Address,
-    vault::{Header as VaultHeader, Summary, VaultId},
-    vfs::{self, File},
+    AccountId,
 };
+use sos_vault::{Header as VaultHeader, Summary, VaultId};
+use sos_vfs::{self as vfs, File};
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
 use tokio::io::{AsyncBufRead, AsyncSeek, AsyncWrite};
@@ -66,7 +66,7 @@ impl<W: AsyncWrite + Unpin> Writer<W> {
     /// Set the identity vault for the archive.
     pub async fn set_identity(
         mut self,
-        address: &Address,
+        address: &AccountId,
         vault: &[u8],
     ) -> Result<Self> {
         let mut path = PathBuf::from(address.to_string());

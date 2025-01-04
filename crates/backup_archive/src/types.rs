@@ -1,7 +1,7 @@
 //! Types for backup archives.
-use crate::prelude::{Address, Summary, Vault};
 use serde::{Deserialize, Serialize};
-use sos_core::VaultId;
+use sos_core::{AccountId, VaultId};
+use sos_vault::{Summary, Vault};
 use std::collections::HashMap;
 
 /// Vault reference extracted from an archive.
@@ -12,7 +12,7 @@ pub type ArchiveItem = (Summary, Vec<u8>);
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Manifest {
     /// Address of the identity file.
-    pub address: Address,
+    pub address: AccountId,
 
     /// Checksum of the identity vault.
     pub checksum: String,

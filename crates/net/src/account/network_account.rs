@@ -11,7 +11,7 @@ use sos_account::{
 use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_core::{
     commit::{CommitHash, CommitState},
-    Origin, SecretId, VaultId,
+    AccountId, Origin, SecretId, VaultId,
 };
 use sos_database::StorageError;
 use sos_protocol::{
@@ -101,7 +101,11 @@ pub struct NetworkAccountOptions {
 /// Account with networking capability.
 pub struct NetworkAccount {
     /// Address of this account.
+    #[deprecated]
     address: Address,
+
+    /// Account identifier.
+    account_id: AccountId,
 
     /// Paths for the account.
     paths: Arc<Paths>,
@@ -557,7 +561,7 @@ impl NetworkAccount {
 
 impl From<&NetworkAccount> for AccountRef {
     fn from(value: &NetworkAccount) -> Self {
-        Self::Address(value.address().clone())
+        Self::Id(*value.account_id())
     }
 }
 
@@ -576,6 +580,7 @@ impl NetworkAccount {
             LocalAccount::new_unauthenticated(address, data_dir).await?;
 
         Ok(Self {
+            account_id: (&address).into(),
             address,
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
@@ -641,6 +646,7 @@ impl NetworkAccount {
         .await?;
 
         let owner = Self {
+            account_id: account.address().into(),
             address: account.address().clone(),
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
@@ -697,6 +703,10 @@ impl Account for NetworkAccount {
 
     fn address(&self) -> &Address {
         &self.address
+    }
+
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     fn paths(&self) -> Arc<Paths> {

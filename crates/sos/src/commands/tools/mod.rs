@@ -180,7 +180,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .ok_or(Error::NoAccount(account.to_string()))?;
 
             match account {
-                AccountRef::Address(address) => {
+                AccountRef::Id(address) => {
                     let paths =
                         Paths::new(Paths::data_dir()?, address.to_string());
                     let events_file = paths.event_log_path(&folder);

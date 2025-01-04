@@ -1,5 +1,6 @@
+use sos_core::AccountId;
 use sos_protocol::{AsConflict, ConflictError};
-use sos_sdk::prelude::{Address, VaultId};
+use sos_sdk::prelude::VaultId;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -109,7 +110,7 @@ pub enum FileEventError {
 
     /// Error generated when a file system event does not have a path.
     #[error("no account for {0}")]
-    NoAccount(Address),
+    NoAccount(AccountId),
 
     /// Error generated when a file system event does not have a path.
     #[error("no folder for {0}")]

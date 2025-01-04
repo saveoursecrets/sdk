@@ -4,7 +4,8 @@ use http::{Request, Response, StatusCode};
 use secrecy::SecretString;
 use serde::Deserialize;
 use sos_account::Account;
-use sos_sdk::prelude::{AccessKey, Address, ErrorExt, Identity};
+use sos_core::AccountId;
+use sos_sdk::prelude::{AccessKey, ErrorExt, Identity};
 use sos_sync::SyncStorage;
 use std::collections::HashMap;
 
@@ -70,11 +71,11 @@ where
     let accounts = accounts.as_ref().read().await;
     let mut list = HashMap::new();
     for account in accounts.iter() {
-        let address = account.address().to_string();
+        let account_id = account.account_id().to_string();
         if account.is_authenticated().await {
             match account.list_folders().await {
                 Ok(folders) => {
-                    list.insert(address, folders);
+                    list.insert(account_id, folders);
                 }
                 Err(e) => {
                     return internal_server_error(e);
@@ -108,8 +109,8 @@ where
     let accounts = accounts.as_ref().read().await;
     let mut list = HashMap::new();
     for account in accounts.iter() {
-        let address = account.address().to_string();
-        list.insert(address.to_string(), account.is_authenticated().await);
+        let account_id = account.account_id().to_string();
+        list.insert(account_id.to_string(), account.is_authenticated().await);
     }
     json(StatusCode::OK, &list)
 }
@@ -210,7 +211,7 @@ where
 /// Sign in to an account
 pub async fn sign_in_password<A, R, E>(
     accounts: WebAccounts<A, R, E>,
-    account_id: Address,
+    account_id: AccountId,
     password: SecretString,
     save_password: bool,
 ) -> hyper::Result<Response<Body>>
@@ -234,7 +235,7 @@ where
     let mut user_accounts = accounts.as_ref().write().await;
     let Some(account) = user_accounts
         .iter_mut()
-        .find(|a| a.address() == &account_id)
+        .find(|a| a.account_id() == &account_id)
     else {
         return status(StatusCode::NOT_FOUND);
     };
@@ -340,7 +341,7 @@ where
 /// Sign out of an account
 pub async fn sign_out<A, R, E>(
     accounts: WebAccounts<A, R, E>,
-    account_id: Option<Address>,
+    account_id: Option<AccountId>,
 ) -> hyper::Result<Response<Body>>
 where
     A: Account<Error = E, NetworkResult = R> + SyncStorage,
@@ -361,7 +362,7 @@ where
     if let Some(account_id) = account_id {
         let Some(account) = user_accounts
             .iter_mut()
-            .find(|a| a.address() == &account_id)
+            .find(|a| a.account_id() == &account_id)
         else {
             return status(StatusCode::NOT_FOUND);
         };
@@ -394,7 +395,7 @@ where
             };
 
             account_info.push((
-                *account.address(),
+                *account.account_id(),
                 account.paths(),
                 folder_ids,
             ));

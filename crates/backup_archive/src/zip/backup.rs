@@ -1,9 +1,7 @@
-//! Account manager provides utility functions for
-//! creating and managing local accounts.
-use crate::{
-    archive::{Inventory, Reader, Writer},
-    Error, Result,
-};
+//! Account archive backup.
+use super::{Error, Result};
+use crate::zip::{Inventory, Reader, Writer};
+use crate::RestoreTargets;
 use hex;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
@@ -11,13 +9,12 @@ use sha2::{Digest, Sha256};
 use sos_core::{
     constants::VAULT_EXT, crypto::AccessKey, decode, SecretId, VaultId,
 };
+use sos_core::{AccountId, Paths};
 use sos_filesystem::{
     events::{EventLogExt, FolderEventLog},
     folder::FolderReducer,
 };
 use sos_login::{Identity, MemoryIdentityFolder, PublicIdentity};
-use sos_sdk::{archive::RestoreTargets, Paths};
-use sos_signer::ecdsa::Address;
 use sos_vault::{Summary, Vault, VaultAccess, VaultWriter};
 use sos_vfs::{self as vfs, File};
 use std::{
@@ -74,14 +71,14 @@ pub struct AccountManifest {
     /// Identifier for this manifest.
     pub id: Uuid,
     /// Account address.
-    pub address: Address,
+    pub address: AccountId,
     /// Manifest entries.
     pub entries: Vec<ManifestEntry>,
 }
 
 impl AccountManifest {
     /// Create a new account manifest.
-    pub fn new(address: Address) -> Self {
+    pub fn new(address: AccountId) -> Self {
         Self {
             id: Uuid::new_v4(),
             address,
@@ -168,7 +165,7 @@ pub struct AccountBackup;
 impl AccountBackup {
     /// Build a manifest for an account.
     pub async fn manifest(
-        address: &Address,
+        address: &AccountId,
         paths: &Paths,
         options: AccountManifestOptions,
     ) -> Result<(AccountManifest, u64)> {
@@ -242,7 +239,7 @@ impl AccountBackup {
 
     /// Resolve a manifest entry to a path.
     pub fn resolve_manifest_entry(
-        _address: &Address,
+        _address: &AccountId,
         paths: &Paths,
         entry: &ManifestEntry,
     ) -> Result<PathBuf> {
@@ -289,7 +286,7 @@ impl AccountBackup {
     /// Create a buffer for a zip archive including the
     /// identity vault and all user vaults.
     pub async fn export_archive_buffer(
-        address: &Address,
+        address: &AccountId,
         paths: &Paths,
     ) -> Result<Vec<u8>> {
         let identity_path = paths.identity_vault();
@@ -366,7 +363,7 @@ impl AccountBackup {
     /// Export an archive of the account to disc.
     pub async fn export_archive_file<P: AsRef<Path>>(
         path: P,
-        address: &Address,
+        address: &AccountId,
         paths: &Paths,
     ) -> Result<()> {
         let buffer = Self::export_archive_buffer(address, paths).await?;
@@ -425,7 +422,7 @@ impl AccountBackup {
         let keys = Identity::list_accounts(Some(&paths)).await?;
         let existing_account = keys
             .iter()
-            .find(|k| k.address() == &restore_targets.manifest.address);
+            .find(|k| k.account_id() == &restore_targets.manifest.address);
 
         if existing_account.is_some() {
             return Err(Error::ArchiveAccountAlreadyExists(
@@ -581,7 +578,7 @@ impl AccountBackup {
         let paths = Paths::new_global(data_dir.clone());
         let keys = Identity::list_accounts(Some(&paths)).await?;
         let existing_account =
-            keys.iter().find(|k| k.address() == &manifest.address);
+            keys.iter().find(|k| k.account_id() == &manifest.address);
 
         let account = existing_account
             .ok_or_else(|| {
@@ -688,8 +685,10 @@ impl AccountBackup {
             let restored_user =
                 MemoryIdentityFolder::login(&identity.1, &key).await?;
 
-            if restored_user.address() != &manifest.address {
-                return Err(Error::ArchiveAddressMismatch);
+            let account_id: AccountId = restored_user.address().into();
+
+            if &account_id != &manifest.address {
+                return Err(Error::ArchiveAccountIdMismatch);
             }
         }
 

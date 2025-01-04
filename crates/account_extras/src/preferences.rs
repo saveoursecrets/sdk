@@ -7,9 +7,8 @@
 //! system library.
 use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
-use sos_core::Paths;
+use sos_core::{AccountId, Paths};
 use sos_login::PublicIdentity;
-use sos_signer::ecdsa::Address;
 use sos_vfs as vfs;
 use std::{collections::HashMap, fmt, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
@@ -18,7 +17,7 @@ use tokio::sync::Mutex;
 pub struct CachedPreferences {
     data_dir: Option<PathBuf>,
     globals: Arc<Mutex<Preferences>>,
-    accounts: Mutex<HashMap<Address, Arc<Mutex<Preferences>>>>,
+    accounts: Mutex<HashMap<AccountId, Arc<Mutex<Preferences>>>>,
 }
 
 impl CachedPreferences {
@@ -57,7 +56,7 @@ impl CachedPreferences {
         accounts: &[PublicIdentity],
     ) -> Result<()> {
         for account in accounts {
-            self.new_account(account.address()).await?;
+            self.new_account(account.account_id()).await?;
         }
         Ok(())
     }
@@ -70,17 +69,17 @@ impl CachedPreferences {
     /// Preferences for an account.
     pub async fn account_preferences(
         &self,
-        address: &Address,
+        account_id: &AccountId,
     ) -> Option<Arc<Mutex<Preferences>>> {
         let cache = self.accounts.lock().await;
-        cache.get(address).map(Arc::clone)
+        cache.get(account_id).map(Arc::clone)
     }
 
     /// Add a new account to the cached preferences.
     ///
     /// If a preferences file exists for an account it is loaded
     /// into memory otherwise empty preferences are used.
-    pub async fn new_account(&self, address: &Address) -> Result<()> {
+    pub async fn new_account(&self, account_id: &AccountId) -> Result<()> {
         let data_dir = if let Some(data_dir) = self.data_dir.clone() {
             data_dir
         } else {
@@ -88,7 +87,7 @@ impl CachedPreferences {
         };
 
         let mut cache = self.accounts.lock().await;
-        let paths = Paths::new(&data_dir, address.to_string());
+        let paths = Paths::new(&data_dir, account_id.to_string());
         let file = paths.preferences_file();
         let prefs = if vfs::try_exists(&file).await? {
             let mut prefs = Preferences::new(&paths);
@@ -97,7 +96,7 @@ impl CachedPreferences {
         } else {
             Preferences::new(&paths)
         };
-        cache.insert(address.clone(), Arc::new(Mutex::new(prefs)));
+        cache.insert(account_id.clone(), Arc::new(Mutex::new(prefs)));
         Ok(())
     }
 }

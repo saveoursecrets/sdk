@@ -95,7 +95,8 @@ where
     };
 
     let accounts = accounts.as_ref().read().await;
-    let Some(account) = accounts.iter().find(|a| a.address() == &account_id)
+    let Some(account) =
+        accounts.iter().find(|a| a.account_id() == &account_id)
     else {
         return status(StatusCode::NOT_FOUND);
     };
@@ -154,7 +155,7 @@ where
 
     let mut accounts = accounts.as_ref().write().await;
     let Some(account) =
-        accounts.iter_mut().find(|a| a.address() == &account_id)
+        accounts.iter_mut().find(|a| a.account_id() == &account_id)
     else {
         return status(StatusCode::NOT_FOUND);
     };
@@ -232,7 +233,8 @@ where
     };
 
     let accounts = accounts.as_ref().read().await;
-    let Some(account) = accounts.iter().find(|a| a.address() == &account_id)
+    let Some(account) =
+        accounts.iter().find(|a| a.account_id() == &account_id)
     else {
         return status(StatusCode::NOT_FOUND);
     };

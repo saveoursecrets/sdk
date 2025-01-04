@@ -11,7 +11,7 @@ use sos_account::{
 use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_core::{
     commit::{CommitHash, CommitState, Comparison},
-    Origin, SecretId, VaultId,
+    AccountId, Origin, SecretId, VaultId,
 };
 use sos_protocol::{
     network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
@@ -76,7 +76,9 @@ use {
 /// Linked account syncs with a local account on the same device.
 pub struct LinkedAccount {
     account: Arc<Mutex<LocalAccount>>,
+    #[deprecated]
     address: Address,
+    account_id: AccountId,
     paths: Arc<Paths>,
     client: HttpClient,
     /// Lock to prevent write to local storage
@@ -94,6 +96,7 @@ impl LinkedAccount {
         let account =
             LocalAccount::new_unauthenticated(address, data_dir).await?;
         Ok(Self {
+            account_id: (&address).into(),
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             address,
@@ -113,6 +116,7 @@ impl LinkedAccount {
             LocalAccount::new_account(account_name, passphrase, data_dir)
                 .await?;
         Ok(Self {
+            account_id: *account.account_id(),
             address: *account.address(),
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
@@ -130,6 +134,10 @@ impl Account for LinkedAccount {
 
     fn address(&self) -> &Address {
         &self.address
+    }
+
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     fn paths(&self) -> Arc<Paths> {

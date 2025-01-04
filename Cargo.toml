@@ -5,6 +5,7 @@ members = [
   "crates/account_extras",
   "crates/artifact",
   "crates/audit",
+  "crates/backup_archive",
   "crates/cli_helpers", 
   "crates/clipboard", 
   "crates/core",
@@ -42,6 +43,7 @@ sos-account = { version = "0.16", path = "crates/account" }
 sos-account-extras = { version = "0.16", path = "crates/account_extras" }
 sos-artifact = { version = "0.8", path = "crates/artifact" }
 sos-audit = { version = "0.16", path = "crates/audit" }
+sos-backup-archive = { version = "0.16", path = "crates/backup_archive" }
 sos-cli-helpers = { path = "crates/cli_helpers" }
 sos-core = { version = "0.16", path = "crates/core" }
 sos-database = { version = "0.16", path = "crates/database" }

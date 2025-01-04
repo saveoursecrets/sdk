@@ -78,7 +78,7 @@ pub(crate) async fn import_account(
     paths: &Paths,
     account: &PublicIdentity,
 ) -> Result<()> {
-    let account_identifier = account.address().to_string();
+    let account_identifier = account.account_id().to_string();
     let account_name = account.label().to_owned();
 
     // Identity folder

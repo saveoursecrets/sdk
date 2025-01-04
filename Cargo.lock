@@ -5023,6 +5023,7 @@ dependencies = [
  "shell-words",
  "sos-account",
  "sos-audit",
+ "sos-backup-archive",
  "sos-cli-helpers",
  "sos-client-storage",
  "sos-core",
@@ -5058,19 +5059,18 @@ name = "sos-account"
 version = "0.16.0"
 dependencies = [
  "async-trait",
- "async_zip",
  "futures",
  "futures-util",
  "hex",
  "indexmap 2.7.0",
  "rustc_version",
- "sanitize-filename",
  "secrecy",
  "serde",
  "serde_json",
  "serde_json_path",
  "sha2",
  "sos-audit",
+ "sos-backup-archive",
  "sos-client-storage",
  "sos-core",
  "sos-database",
@@ -5086,7 +5086,6 @@ dependencies = [
  "time",
  "time-tz",
  "tokio",
- "tokio-util",
  "tracing",
  "typeshare",
  "uuid",
@@ -5156,6 +5155,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-backup-archive"
+version = "0.16.0"
+dependencies = [
+ "async-trait",
+ "async_zip",
+ "futures",
+ "futures-util",
+ "hex",
+ "rustc_version",
+ "sanitize-filename",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sos-core",
+ "sos-filesystem",
+ "sos-login",
+ "sos-vault",
+ "sos-vfs",
+ "thiserror 2.0.9",
+ "time",
+ "tokio",
+ "tokio-util",
+ "uuid",
+ "walkdir",
+]
+
+[[package]]
 name = "sos-cli-helpers"
 version = "0.1.0"
 dependencies = [
@@ -5180,6 +5207,7 @@ dependencies = [
  "serde",
  "sha2",
  "sos-audit",
+ "sos-backup-archive",
  "sos-core",
  "sos-database",
  "sos-filesystem",
@@ -5307,6 +5335,7 @@ dependencies = [
  "sos-account",
  "sos-account-extras",
  "sos-audit",
+ "sos-backup-archive",
  "sos-client-storage",
  "sos-core",
  "sos-database",
@@ -5380,6 +5409,7 @@ dependencies = [
  "serde_with",
  "sos-account",
  "sos-client-storage",
+ "sos-core",
  "sos-database",
  "sos-filesystem",
  "sos-logs",
@@ -5601,7 +5631,6 @@ name = "sos-sdk"
 version = "0.16.4"
 dependencies = [
  "rustc_version",
- "serde",
  "sos-core",
  "sos-filesystem",
  "sos-login",
@@ -5785,6 +5814,7 @@ dependencies = [
  "sha3",
  "sos-account",
  "sos-artifact",
+ "sos-backup-archive",
  "sos-client-storage",
  "sos-core",
  "sos-database",

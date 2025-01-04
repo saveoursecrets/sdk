@@ -1,10 +1,8 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
+use sos_core::AccountId;
 use sos_net::extras::preferences::*;
-use sos_sdk::{
-    prelude::*,
-    signer::{ecdsa::SingleParty, Signer},
-};
+use sos_sdk::prelude::*;
 
 /// Tests the cached preferences without any accounts or authentication.
 #[tokio::test]
@@ -15,13 +13,12 @@ async fn preferences_no_account() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
 
-    let mock_signer = SingleParty::new_random();
-    let address = mock_signer.address()?;
-    let identity = PublicIdentity::new("mock-user".to_owned(), address);
+    let account_id = AccountId::random();
+    let identity = PublicIdentity::new("mock-user".to_owned(), account_id);
 
     // Ensure paths exist
     Paths::scaffold(Some(data_dir.clone())).await?;
-    let paths = Paths::new(data_dir.clone(), address.to_string());
+    let paths = Paths::new(data_dir.clone(), account_id.to_string());
     paths.ensure().await?;
 
     // Prepare the preferences
@@ -31,7 +28,7 @@ async fn preferences_no_account() -> Result<()> {
         .load_account_preferences(accounts.as_slice())
         .await?;
 
-    let prefs = preferences.account_preferences(&address).await;
+    let prefs = preferences.account_preferences(&account_id).await;
     assert!(prefs.is_some());
 
     let prefs = prefs.unwrap();

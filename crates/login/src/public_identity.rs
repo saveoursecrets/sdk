@@ -1,7 +1,7 @@
 //! Public identity information.
 use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
-use sos_core::{constants::VAULT_EXT, decode, Paths, VaultId};
+use sos_core::{constants::VAULT_EXT, decode, AccountId, Paths, VaultId};
 use sos_signer::ecdsa::Address;
 use sos_vault::{Header, Summary, Vault};
 use sos_vfs as vfs;
@@ -16,10 +16,7 @@ use std::{
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct PublicIdentity {
     /// Address identifier for the account.
-    ///
-    /// This corresponds to the address of the signing key
-    /// for the account.
-    address: Address,
+    account_id: AccountId,
     /// Label for the account.
     ///
     /// This is the name given to the identity vault.
@@ -28,13 +25,13 @@ pub struct PublicIdentity {
 
 impl PublicIdentity {
     /// Create new account information.
-    pub fn new(label: String, address: Address) -> Self {
-        Self { label, address }
+    pub fn new(label: String, account_id: AccountId) -> Self {
+        Self { label, account_id }
     }
 
-    /// Get the address of this account.
-    pub fn address(&self) -> &Address {
-        &self.address
+    /// Get the account identifier.
+    pub fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     /// Get the label of this account.
@@ -80,7 +77,7 @@ impl PublicIdentity {
                 let summary =
                     Header::read_summary_file(path.as_ref()).await?;
                 return Ok(Some(PublicIdentity {
-                    address: file_stem.to_string_lossy().parse()?,
+                    account_id: file_stem.to_string_lossy().parse()?,
                     label: summary.name().to_owned(),
                 }));
             } else {
@@ -129,7 +126,7 @@ impl PublicIdentity {
 
 impl From<&PublicIdentity> for AccountRef {
     fn from(value: &PublicIdentity) -> Self {
-        AccountRef::Address(*value.address())
+        AccountRef::Id(*value.account_id())
     }
 }
 
@@ -143,7 +140,7 @@ impl From<PublicIdentity> for AccountRef {
 #[derive(Debug, Clone)]
 pub enum AccountRef {
     /// Account identifier.
-    Address(Address),
+    Id(AccountId),
     /// Account label.
     Name(String),
 }
@@ -151,7 +148,7 @@ pub enum AccountRef {
 impl fmt::Display for AccountRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Address(address) => write!(f, "{}", address),
+            Self::Id(id) => write!(f, "{}", id),
             Self::Name(name) => write!(f, "{}", name),
         }
     }
@@ -160,8 +157,8 @@ impl fmt::Display for AccountRef {
 impl FromStr for AccountRef {
     type Err = Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        if let Ok(address) = s.parse::<Address>() {
-            Ok(Self::Address(address))
+        if let Ok(id) = s.parse::<AccountId>() {
+            Ok(Self::Id(id))
         } else {
             Ok(Self::Name(s.to_string()))
         }

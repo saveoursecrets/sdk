@@ -8,6 +8,7 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use secrecy::{ExposeSecret, SecretString};
 use sos_account::Account;
+use sos_core::AccountId;
 use sos_database::StorageError;
 use sos_net::{NetworkAccount, NetworkAccountSwitcher};
 use sos_password::diceware::generate_passphrase;
@@ -15,7 +16,6 @@ use sos_sdk::{
     constants::DEFAULT_VAULT_NAME,
     crypto::AccessKey,
     identity::{AccountRef, Identity, PublicIdentity},
-    signer::ecdsa::Address,
     vault::{FolderRef, Summary},
     Paths,
 };
@@ -156,7 +156,7 @@ pub async fn resolve_account(
 
 pub async fn resolve_account_address(
     account: Option<&AccountRef>,
-) -> Result<Address> {
+) -> Result<AccountId> {
     let account = resolve_account(account)
         .await
         .ok_or_else(|| Error::NoAccountFound)?;
@@ -166,12 +166,12 @@ pub async fn resolve_account_address(
         match account {
             AccountRef::Name(ref name) => {
                 if info.label() == name {
-                    return Ok(*info.address());
+                    return Ok(*info.account_id());
                 }
             }
-            AccountRef::Address(address) => {
-                if info.address() == &address {
-                    return Ok(*info.address());
+            AccountRef::Id(address) => {
+                if info.account_id() == &address {
+                    return Ok(*info.account_id());
                 }
             }
         }
@@ -250,7 +250,7 @@ pub async fn list_accounts(verbose: bool) -> Result<()> {
     let accounts = Identity::list_accounts(None).await?;
     for account in &accounts {
         if verbose {
-            println!("{} {}", account.address(), account.label());
+            println!("{} {}", account.account_id(), account.label());
         } else {
             println!("{}", account.label());
         }
@@ -266,8 +266,8 @@ pub async fn find_account(
 ) -> Result<Option<PublicIdentity>> {
     let accounts = Identity::list_accounts(None).await?;
     match account {
-        AccountRef::Address(address) => {
-            Ok(accounts.into_iter().find(|a| a.address() == address))
+        AccountRef::Id(id) => {
+            Ok(accounts.into_iter().find(|a| a.account_id() == id))
         }
         AccountRef::Name(label) => {
             Ok(accounts.into_iter().find(|a| a.label() == label))
@@ -284,8 +284,9 @@ pub async fn sign_in(account: &AccountRef) -> Result<SecretString> {
     let mut owner = USER.write().await;
 
     let is_authenticated = {
-        if let Some(current) =
-            owner.iter().find(|a| a.address() == account.address())
+        if let Some(current) = owner
+            .iter()
+            .find(|a| a.account_id() == account.account_id())
         {
             current.is_authenticated().await
         } else {
@@ -295,7 +296,7 @@ pub async fn sign_in(account: &AccountRef) -> Result<SecretString> {
 
     let passphrase = if !is_authenticated {
         let mut current_account = NetworkAccount::new_unauthenticated(
-            *account.address(),
+            account.account_id().into(),
             None,
             Default::default(),
         )
@@ -311,7 +312,7 @@ pub async fn sign_in(account: &AccountRef) -> Result<SecretString> {
         SecretString::new("".into())
     };
 
-    owner.switch_account(account.address());
+    owner.switch_account(account.account_id());
 
     Ok(passphrase)
 }

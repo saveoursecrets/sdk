@@ -19,13 +19,9 @@
 //!
 //! # Features
 //!
-//! * `archive` Shared types for account backup archives.
 //! * `contacts` Manage account contacts.
 //! * `files` Store external encrypted files.
 //!
-
-#[cfg(feature = "archive")]
-pub mod archive;
 
 pub mod device;
 pub mod events;

@@ -1,14 +1,9 @@
+use crate::{Account, Error, LocalAccount, Result};
+use sos_core::AccountId;
+use sos_sdk::{identity::Identity, prelude::PublicIdentity, Paths};
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::{collections::HashMap, future::Future};
-
-use crate::{Account, Error, LocalAccount, Result};
-
-use sos_sdk::{
-    identity::Identity,
-    prelude::{Address, PublicIdentity},
-    Paths,
-};
 
 #[cfg(feature = "search")]
 use sos_database::search::{
@@ -50,7 +45,7 @@ where
 {
     #[doc(hidden)]
     pub accounts: Vec<A>,
-    selected: Option<Address>,
+    selected: Option<AccountId>,
     paths: Option<Paths>,
     #[cfg(feature = "clipboard")]
     clipboard: Option<xclipboard::Clipboard>,
@@ -120,7 +115,8 @@ where
         let identities = Identity::list_accounts(self.paths()).await?;
 
         for identity in identities {
-            tracing::info!(address = %identity.address(), "add_account");
+            tracing::info!(
+                account_id = %identity.account_id(), "add_account");
             let account = builder(identity).await.unwrap();
 
             let paths = account.paths();
@@ -136,19 +132,19 @@ where
     ///
     /// If the account already exists it is selected.
     pub fn new_account(&mut self, account: A) -> bool {
-        let address = *account.address();
+        let account_id = *account.account_id();
         if self.add_account(account) {
-            self.selected = Some(address);
+            self.selected = Some(account_id);
             true
         } else {
-            self.selected = Some(address);
+            self.selected = Some(account_id);
             false
         }
     }
 
     /// Add an account to the collection if it does not already exist.
     pub fn add_account(&mut self, account: A) -> bool {
-        if self.position(account.address()).is_none() {
+        if self.position(account.account_id()).is_none() {
             self.accounts.push(account);
             true
         } else {
@@ -157,10 +153,10 @@ where
     }
 
     /// Remove an account from the collection if it exists.
-    pub fn remove_account(&mut self, address: &Address) -> bool {
-        if let Some(position) = self.position(address) {
+    pub fn remove_account(&mut self, account_id: &AccountId) -> bool {
+        if let Some(position) = self.position(account_id) {
             self.accounts.remove(position);
-            if self.selected == Some(*address) {
+            if self.selected == Some(*account_id) {
                 self.selected = None;
             }
             true
@@ -171,11 +167,11 @@ where
 
     /// Switch selected account.
     ///
-    /// If no account exists for the given address no change
+    /// If no account exists for the given account_id no change
     /// is made to the current selection.
-    pub fn switch_account(&mut self, address: &Address) -> bool {
-        if self.position(address).is_some() {
-            self.selected = Some(*address);
+    pub fn switch_account(&mut self, account_id: &AccountId) -> bool {
+        if self.position(account_id).is_some() {
+            self.selected = Some(*account_id);
             true
         } else {
             false
@@ -184,8 +180,8 @@ where
 
     /// Selected account.
     pub fn selected_account(&self) -> Option<&A> {
-        if let Some(address) = &self.selected {
-            if let Some(index) = self.position(address) {
+        if let Some(account_id) = &self.selected {
+            if let Some(index) = self.position(account_id) {
                 self.accounts.get(index)
             } else {
                 None
@@ -197,8 +193,8 @@ where
 
     /// Mutable selected account.
     pub fn selected_account_mut(&mut self) -> Option<&mut A> {
-        if let Some(address) = &self.selected {
-            if let Some(index) = self.position(address) {
+        if let Some(account_id) = &self.selected {
+            if let Some(index) = self.position(account_id) {
                 self.accounts.get_mut(index)
             } else {
                 None
@@ -214,13 +210,13 @@ where
         &self,
         needle: String,
         filter: QueryFilter,
-    ) -> std::result::Result<HashMap<Address, Vec<Document>>, E> {
+    ) -> std::result::Result<HashMap<AccountId, Vec<Document>>, E> {
         let mut out = HashMap::new();
         for account in self.iter() {
             if account.is_authenticated().await {
                 let results =
                     account.query_map(&needle, filter.clone()).await?;
-                out.insert(*account.address(), results);
+                out.insert(*account.account_id(), results);
             }
         }
         Ok(out)
@@ -232,13 +228,13 @@ where
         &self,
         views: &[DocumentView],
         archive_filter: Option<&ArchiveFilter>,
-    ) -> std::result::Result<HashMap<Address, Vec<Document>>, E> {
+    ) -> std::result::Result<HashMap<AccountId, Vec<Document>>, E> {
         let mut out = HashMap::new();
         for account in self.iter() {
             if account.is_authenticated().await {
                 let results =
                     account.query_view(views, archive_filter).await?;
-                out.insert(*account.address(), results);
+                out.insert(*account.account_id(), results);
             }
         }
         Ok(out)
@@ -248,7 +244,7 @@ where
     pub async fn sign_out_all(&mut self) -> std::result::Result<(), E> {
         for account in &mut self.accounts {
             if account.is_authenticated().await {
-                tracing::info!(account = %account.address(), "sign out");
+                tracing::info!(account = %account.account_id(), "sign out");
                 account.sign_out().await?;
             }
         }
@@ -259,7 +255,7 @@ where
     #[cfg(feature = "clipboard")]
     pub async fn copy_clipboard(
         &self,
-        account_id: &Address,
+        account_id: &AccountId,
         target: &SecretPath,
         request: &ClipboardCopyRequest,
     ) -> std::result::Result<bool, E> {
@@ -267,7 +263,7 @@ where
             return Err(Error::NoClipboard.into());
         };
 
-        let account = self.iter().find(|a| a.address() == account_id);
+        let account = self.iter().find(|a| a.account_id() == account_id);
         if let Some(account) = account {
             account.copy_clipboard(&clipboard, target, request).await
         } else {
@@ -275,8 +271,10 @@ where
         }
     }
 
-    fn position(&self, address: &Address) -> Option<usize> {
-        self.accounts.iter().position(|a| a.address() == address)
+    fn position(&self, account_id: &AccountId) -> Option<usize> {
+        self.accounts
+            .iter()
+            .position(|a| a.account_id() == account_id)
     }
 }
 

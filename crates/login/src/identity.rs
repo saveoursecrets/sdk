@@ -9,8 +9,9 @@
 use crate::device::DeviceManager;
 use crate::{DiscIdentityFolder, Error, PublicIdentity, Result};
 use secrecy::SecretString;
-use sos_core::{crypto::AccessKey, events::Event, Paths, SecretId, VaultId};
-use sos_signer::ecdsa::Address;
+use sos_core::{
+    crypto::AccessKey, events::Event, AccountId, Paths, SecretId, VaultId,
+};
 use sos_vault::{Summary, Vault};
 use sos_vfs as vfs;
 use std::{
@@ -210,14 +211,14 @@ impl Identity {
     /// Sign in to a user account.
     pub async fn sign_in(
         &mut self,
-        address: &Address,
+        account_id: &AccountId,
         key: &AccessKey,
     ) -> Result<()> {
         let accounts = Self::list_accounts(Some(&self.paths)).await?;
         let account = accounts
             .into_iter()
-            .find(|a| a.address() == address)
-            .ok_or_else(|| Error::NoAccount(address.to_string()))?;
+            .find(|a| a.account_id() == account_id)
+            .ok_or_else(|| Error::NoAccount(account_id.to_string()))?;
 
         let identity_path = self.paths.identity_vault();
 

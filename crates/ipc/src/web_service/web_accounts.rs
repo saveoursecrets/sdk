@@ -3,9 +3,10 @@ use notify::{
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use sos_core::AccountId;
 use sos_sdk::{
     events::{AccountEvent, EventLogExt, WriteEvent},
-    prelude::{Address, ErrorExt, Paths},
+    prelude::{ErrorExt, Paths},
     vault::VaultId,
 };
 use sos_sync::SyncStorage;
@@ -22,7 +23,7 @@ use crate::{Error, FileEventError, Result};
 #[serde(rename_all = "camelCase")]
 pub struct AccountChangeEvent {
     /// Account identifier.
-    pub account_id: Address,
+    pub account_id: AccountId,
     /// Event records with information about the changes.
     pub records: ChangeRecords,
 }
@@ -64,7 +65,7 @@ where
         + 'static,
 {
     accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
-    watchers: Arc<Mutex<HashMap<Address, RecommendedWatcher>>>,
+    watchers: Arc<Mutex<HashMap<AccountId, RecommendedWatcher>>>,
     channel: broadcast::Sender<AccountChangeEvent>,
 }
 
@@ -127,7 +128,7 @@ where
     /// Start watching an account for changes.
     pub fn watch(
         &self,
-        account_id: Address,
+        account_id: AccountId,
         paths: Arc<Paths>,
         folder_ids: Vec<VaultId>,
     ) -> Result<()> {
@@ -189,7 +190,7 @@ where
     /// Stop watching an account for changes.
     pub fn unwatch(
         &self,
-        account_id: &Address,
+        account_id: &AccountId,
         paths: Arc<Paths>,
         folder_ids: Vec<VaultId>,
     ) -> Result<bool> {
@@ -369,10 +370,10 @@ where
 }
 
 async fn notify_listener<A, R, E>(
-    account_id: Address,
+    account_id: AccountId,
     paths: Arc<Paths>,
     accounts: Arc<RwLock<AccountSwitcher<A, R, E>>>,
-    watchers: Arc<Mutex<HashMap<Address, RecommendedWatcher>>>,
+    watchers: Arc<Mutex<HashMap<AccountId, RecommendedWatcher>>>,
     mut rx: broadcast::Receiver<notify::Event>,
     channel: broadcast::Sender<AccountChangeEvent>,
 ) -> Result<()>
@@ -415,7 +416,7 @@ where
             let mut accounts = accounts.write().await;
             let account = accounts
                 .iter_mut()
-                .find(|a| a.address() == &account_id)
+                .find(|a| a.account_id() == &account_id)
                 .ok_or(FileEventError::NoAccount(account_id))?;
 
             // Reload the identity folder
@@ -469,7 +470,7 @@ where
                     let accounts = accounts.read().await;
                     let account = accounts
                         .iter()
-                        .find(|a| a.address() == &account_id)
+                        .find(|a| a.account_id() == &account_id)
                         .ok_or(FileEventError::NoAccount(account_id))?;
 
                     let storage = account.storage().await.unwrap();
@@ -481,7 +482,7 @@ where
                 let accounts = accounts.read().await;
                 let account = accounts
                     .iter()
-                    .find(|a| a.address() == &account_id)
+                    .find(|a| a.account_id() == &account_id)
                     .ok_or(FileEventError::NoAccount(account_id))?;
 
                 let storage = account.storage().await.unwrap();
@@ -508,7 +509,7 @@ where
             let mut accounts = accounts.write().await;
 
             if let Some(account) =
-                accounts.iter_mut().find(|a| a.address() == &account_id)
+                accounts.iter_mut().find(|a| a.account_id() == &account_id)
             {
                 update_account_search_index(account, &records)
                     .await

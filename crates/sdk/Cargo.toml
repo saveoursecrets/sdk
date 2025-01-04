@@ -17,14 +17,11 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 full = [
-  "archive",
   "contacts",
   "files",
 ]
-archive = []
 contacts = []
 files = ["sos-core/files"]
-mem-fs = ["sos-vfs/mem-fs"]
 
 [dependencies]
 sos-core.workspace = true
@@ -34,8 +31,6 @@ sos-password.workspace = true
 sos-signer.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
-
-serde.workspace = true
 
 [build-dependencies]
 rustc_version.workspace = true

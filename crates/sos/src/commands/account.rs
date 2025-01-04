@@ -357,7 +357,7 @@ async fn account_info(
     if json {
         serde_json::to_writer_pretty(&mut std::io::stdout(), &data)?;
     } else {
-        println!("{} {}", data.account.address(), data.account.label());
+        println!("{} {}", data.account.account_id(), data.account.label());
         for summary in &data.folders {
             if verbose {
                 println!("{} {}", summary.id(), summary.name());
@@ -386,7 +386,7 @@ async fn account_backup(
     let account = find_account(&account)
         .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
-    let address = account.address();
+    let address = account.account_id();
     let paths = Paths::new(Paths::data_dir()?, address.to_string());
 
     AccountBackup::export_archive_file(&output, address, &paths).await?;
@@ -405,7 +405,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
     let inventory: Inventory =
         AccountBackup::restore_archive_inventory(BufReader::new(reader))
             .await?;
-    let account_ref = AccountRef::Address(inventory.manifest.address);
+    let account_ref = AccountRef::Id(inventory.manifest.address);
 
     let account = find_account(&account_ref).await?;
 

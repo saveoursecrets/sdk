@@ -8,7 +8,7 @@ use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
     events::{AccountEvent, Event, EventKind, ReadEvent, WriteEvent},
-    SecretId, VaultId,
+    AccountId, SecretId, VaultId,
 };
 use sos_database::StorageError;
 use sos_sdk::{
@@ -239,7 +239,11 @@ pub trait Account {
     type NetworkResult: std::fmt::Debug;
 
     /// Account address.
+    #[deprecated]
     fn address(&self) -> &Address;
+
+    /// Account identifier.
+    fn account_id(&self) -> &AccountId;
 
     /// User storage paths.
     fn paths(&self) -> Arc<Paths>;
@@ -897,7 +901,11 @@ pub struct AccountData {
 /// to authenticate a user call [Account::sign_in].
 pub struct LocalAccount {
     /// Account address.
+    #[deprecated]
     address: Address,
+
+    /// Account identifier.
+    account_id: AccountId,
 
     /// Account information after a successful
     /// sign in.
@@ -926,7 +934,7 @@ impl LocalAccount {
         tracing::debug!(data_dir = ?paths.documents_dir(), "sign_in");
 
         let mut user = Identity::new(paths.clone());
-        user.sign_in(self.address(), key).await?;
+        user.sign_in(self.account_id(), key).await?;
         tracing::debug!("sign_in success");
 
         // Signing key for the storage provider
@@ -1468,7 +1476,7 @@ impl LocalAccount {
 
 impl From<&LocalAccount> for AccountRef {
     fn from(value: &LocalAccount) -> Self {
-        Self::Address(*value.address())
+        Self::Id(*value.account_id())
     }
 }
 
@@ -1502,6 +1510,7 @@ impl LocalAccount {
         };
 
         Ok(Self {
+            account_id: (&address).into(),
             address,
             storage,
             paths: Arc::new(paths),
@@ -1570,6 +1579,7 @@ impl LocalAccount {
         tracing::debug!("imported new account");
 
         let account = Self {
+            account_id: (&address).into(),
             address,
             paths: storage.paths(),
             storage: Some(Arc::new(RwLock::new(storage))),
@@ -1588,6 +1598,10 @@ impl Account for LocalAccount {
 
     fn address(&self) -> &Address {
         &self.address
+    }
+
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     fn paths(&self) -> Arc<Paths> {
@@ -3241,8 +3255,12 @@ impl Account for LocalAccount {
     ) -> Result<()> {
         use super::archive::AccountBackup;
 
-        AccountBackup::export_archive_file(path, self.address(), &self.paths)
-            .await?;
+        AccountBackup::export_archive_file(
+            path,
+            self.account_id(),
+            &self.paths,
+        )
+        .await?;
 
         #[cfg(feature = "audit")]
         {
@@ -3269,9 +3287,9 @@ impl Account for LocalAccount {
             AccountBackup::restore_archive_inventory(BufReader::new(buffer))
                 .await?;
         let accounts = Identity::list_accounts(None).await?;
-        let exists_local = accounts
-            .iter()
-            .any(|account| account.address() == &inventory.manifest.address);
+        let exists_local = accounts.iter().any(|account| {
+            account.account_id() == &inventory.manifest.address
+        });
         inventory.exists_local = exists_local;
         Ok(inventory)
     }
@@ -3292,7 +3310,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ImportBackupArchive,
-                account.address().into(),
+                *account.account_id(),
                 None,
             );
             append_audit_events(vec![audit_event]).await?;

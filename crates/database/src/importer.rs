@@ -45,8 +45,10 @@ pub async fn import_accounts(data_dir: PathBuf) -> Result<()> {
 
     let accounts = Identity::list_accounts(Some(&paths)).await?;
     for account in accounts {
-        let account_paths =
-            Paths::new(paths.documents_dir(), account.address().to_string());
+        let account_paths = Paths::new(
+            paths.documents_dir(),
+            account.account_id().to_string(),
+        );
         import_account(&mut client, &account_paths, &account).await?;
     }
     Ok(())

@@ -1,16 +1,15 @@
+use super::{Body, Incoming};
 use bytes::Bytes;
 use http::{header::CONTENT_TYPE, Request, Response, StatusCode, Uri};
 use http_body_util::{BodyExt, Full};
 use serde::{de::DeserializeOwned, Serialize};
+use sos_core::AccountId;
 use sos_protocol::{
     constants::{MIME_TYPE_JSON, X_SOS_ACCOUNT_ID},
     ErrorReply,
 };
-use sos_sdk::prelude::Address;
 use std::collections::HashMap;
 use url::form_urlencoded;
-
-use super::{Body, Incoming};
 
 pub async fn parse_json_body<T: DeserializeOwned>(
     req: Request<Incoming>,
@@ -34,13 +33,13 @@ pub async fn read_bytes(req: Request<Incoming>) -> hyper::Result<Bytes> {
     Ok(req.collect().await?.to_bytes())
 }
 
-pub fn parse_account_id(req: &Request<Incoming>) -> Option<Address> {
+pub fn parse_account_id(req: &Request<Incoming>) -> Option<AccountId> {
     let Some(Ok(account_id)) =
         req.headers().get(X_SOS_ACCOUNT_ID).map(|v| v.to_str())
     else {
         return None;
     };
-    let Ok(account_id) = account_id.parse::<Address>() else {
+    let Ok(account_id) = account_id.parse::<AccountId>() else {
         return None;
     };
     Some(account_id)
