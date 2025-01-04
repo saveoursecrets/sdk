@@ -1,13 +1,10 @@
 include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 
-use crate::{
-    decode_uuid, encode_uuid,
-    sdk::events::{Diff, EventRecord, Patch},
-    Error, ProtoBinding, Result,
-};
+use crate::{decode_uuid, encode_uuid, Error, ProtoBinding, Result};
 use indexmap::{IndexMap, IndexSet};
 use sos_core::commit::Comparison;
 use sos_core::Origin;
+use sos_filesystem::events::{Diff, EventRecord, Patch};
 use sos_sync::{
     CreateSet, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff, SyncPacket,
     SyncStatus, TrackedAccountChange, TrackedChanges, TrackedDeviceChange,

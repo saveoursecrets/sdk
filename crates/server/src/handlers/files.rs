@@ -5,25 +5,20 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
-
 use axum_extra::{
     headers::{authorization::Bearer, Authorization},
     typed_header::TypedHeader,
 };
-
 //use axum_macros::debug_handler;
-
 use super::BODY_LIMIT;
-
-use sos_core::{
-    ExternalFile, ExternalFileName, SecretId, SecretPath, VaultId,
-};
-
 use crate::{
     handlers::{authenticate_endpoint, ConnectionQuery},
     ServerBackend, ServerState, ServerTransfer,
 };
 use serde::Deserialize;
+use sos_core::{
+    ExternalFile, ExternalFileName, SecretId, SecretPath, VaultId,
+};
 use std::sync::Arc;
 
 /// Query string for moving a file.
@@ -369,11 +364,10 @@ mod handlers {
     use http::header::{self, HeaderMap, HeaderValue};
     use indexmap::IndexSet;
     use sha2::{Digest, Sha256};
-    use sos_core::ExternalFileName;
+    use sos_core::{ExternalFileName, SecretId, VaultId};
     use sos_database::files::list_external_files;
     use sos_protocol::{
         constants::MIME_TYPE_PROTOBUF,
-        sdk::vault::{secret::SecretId, VaultId},
         transfer::{FileSet, FileTransfersSet},
         WireEncodeDecode,
     };

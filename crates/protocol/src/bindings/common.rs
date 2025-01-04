@@ -1,16 +1,15 @@
 include!(concat!(env!("OUT_DIR"), "/common.rs"));
 
-use crate::{
-    decode_uuid, encode_uuid,
-    sdk::{
-        events::{CheckedPatch, EventRecord},
-        vault::secret::SecretPath,
-        UtcDateTime,
-    },
-    Error, ProtoBinding, Result,
-};
+use crate::{decode_uuid, encode_uuid, Error, ProtoBinding, Result};
 use rs_merkle::{algorithms::Sha256, MerkleProof};
-use sos_core::commit::{CommitHash, CommitProof, CommitState};
+use sos_core::{
+    commit::{CommitHash, CommitProof, CommitState},
+    SecretPath,
+};
+use sos_sdk::{
+    events::{CheckedPatch, EventRecord},
+    UtcDateTime,
+};
 use sos_sync::EventLogType;
 use time::{Duration, OffsetDateTime};
 

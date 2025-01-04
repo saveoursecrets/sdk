@@ -7,7 +7,7 @@ use sos_sync::{
 };
 
 #[cfg(feature = "files")]
-use crate::sdk::events::FileDiff;
+use sos_filesystem::events::FileDiff;
 
 /// How to resolve hard conflicts.
 #[derive(Default, Debug)]

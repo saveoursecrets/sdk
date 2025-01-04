@@ -1,7 +1,8 @@
 include!(concat!(env!("OUT_DIR"), "/diff.rs"));
 
-use crate::{sdk::events::EventRecord, Error, ProtoBinding, Result};
+use crate::{Error, ProtoBinding, Result};
 use sos_core::commit::{CommitHash, CommitProof};
+use sos_filesystem::events::EventRecord;
 use sos_sync::EventLogType;
 
 /// Request commit diff from an event log.

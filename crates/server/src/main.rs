@@ -134,11 +134,11 @@ mod cli {
     mod service {
         use axum_server::Handle;
         use sos_core::Paths;
-        use sos_protocol::sdk::vfs;
         use sos_server::{
             Error, Result, Server, ServerConfig, SslConfig, State,
             StorageConfig,
         };
+        use sos_vfs as vfs;
         use std::{net::SocketAddr, path::PathBuf, sync::Arc};
         use tokio::sync::RwLock;
 

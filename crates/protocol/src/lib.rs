@@ -52,8 +52,6 @@ pub use reqwest;
 #[cfg(any(feature = "listen", feature = "pairing"))]
 pub use tokio_tungstenite;
 
-pub use sos_sdk as sdk;
-
 /// Result type for the wire protocol.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
@@ -181,6 +179,6 @@ fn encode_uuid(id: &uuid::Uuid) -> Vec<u8> {
 
 /// Determine if the offline environment variable is set.
 pub fn is_offline() -> bool {
-    use crate::sdk::constants::SOS_OFFLINE;
+    use sos_core::constants::SOS_OFFLINE;
     std::env::var(SOS_OFFLINE).ok().is_some()
 }

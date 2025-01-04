@@ -40,6 +40,7 @@ sos-filesystem.workspace = true
 sos-client-storage.workspace = true
 sos-signer.workspace = true
 sos-sync.workspace = true
+sos-vfs.workspace = true
 
 thiserror.workspace = true
 tracing.workspace = true

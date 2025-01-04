@@ -551,12 +551,12 @@ impl FileSyncClient for HttpClient {
             crate::transfer::CancelReason,
         >,
     ) -> Result<http::StatusCode> {
-        use crate::sdk::vfs;
         use futures::StreamExt;
         use reqwest::{
             header::{CONTENT_LENGTH, CONTENT_TYPE},
             Body,
         };
+        use sos_vfs as vfs;
         use tokio_util::io::ReaderStream;
 
         let url_path = format!("api/v1/sync/file/{}", file_info);
@@ -643,7 +643,7 @@ impl FileSyncClient for HttpClient {
         >,
     ) -> Result<http::StatusCode> {
         use sha2::{Digest, Sha256};
-        use sos_sdk::vfs;
+        use sos_vfs as vfs;
         use tokio::io::AsyncWriteExt;
 
         let url_path = format!("api/v1/sync/file/{}", file_info);
