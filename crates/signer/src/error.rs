@@ -12,7 +12,6 @@ pub enum Error {
 
     /// Error generated when an address has the wrong prefix.
     #[error("address must begin with 0x")]
-    #[deprecated]
     BadAddressPrefix,
 
     /// Error generated converting to fixed length slice.
