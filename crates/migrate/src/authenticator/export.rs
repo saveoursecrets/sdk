@@ -4,10 +4,8 @@ use async_zip::{
     tokio::write::ZipFileWriter, Compression, ZipDateTimeBuilder,
     ZipEntryBuilder,
 };
-use sos_sdk::{
-    vault::{secret::Secret, Gatekeeper},
-    vfs,
-};
+use sos_vault::{secret::Secret, Gatekeeper};
+use sos_vfs as vfs;
 use std::{collections::HashMap, path::Path};
 use time::OffsetDateTime;
 use url::Url;

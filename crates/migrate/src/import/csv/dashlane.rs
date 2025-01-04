@@ -1,13 +1,10 @@
 //! Parser for the Dashlane CSV zip export.
 
 use async_trait::async_trait;
-
 use serde::Deserialize;
-use sos_sdk::{
-    crypto::AccessKey,
-    vault::{secret::IdentityKind, Vault},
-    vfs, UtcDateTime,
-};
+use sos_core::{crypto::AccessKey, UtcDateTime};
+use sos_vault::{secret::IdentityKind, Vault};
+use sos_vfs as vfs;
 use std::{
     collections::HashSet,
     io::Cursor,

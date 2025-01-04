@@ -1,12 +1,13 @@
 //! Parser for the MacOS passwords CSV export.
 
-use serde::Deserialize;
-use std::path::{Path, PathBuf};
-use url::Url;
-
 use async_trait::async_trait;
-use sos_sdk::{crypto::AccessKey, vault::Vault, vfs};
+use serde::Deserialize;
+use sos_core::crypto::AccessKey;
+use sos_vault::Vault;
+use sos_vfs as vfs;
+use std::path::{Path, PathBuf};
 use tokio::io::AsyncRead;
+use url::Url;
 
 use super::{
     GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED,

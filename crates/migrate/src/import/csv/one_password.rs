@@ -1,19 +1,20 @@
 //! Parser for the 1Password passwords CSV export.
 
+use async_trait::async_trait;
 use serde::{
     de::{self, Deserializer, Unexpected, Visitor},
     Deserialize,
 };
+use sos_core::crypto::AccessKey;
+use sos_vault::Vault;
+use sos_vfs as vfs;
 use std::{
     collections::HashSet,
     fmt,
     path::{Path, PathBuf},
 };
-use url::Url;
-
-use async_trait::async_trait;
-use sos_sdk::{crypto::AccessKey, vault::Vault, vfs};
 use tokio::io::AsyncRead;
+use url::Url;
 
 use super::{
     GenericCsvConvert, GenericCsvEntry, GenericPasswordRecord, UNTITLED,

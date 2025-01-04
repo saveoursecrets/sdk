@@ -13,16 +13,13 @@ use url::Url;
 use vcard4::Vcard;
 
 use crate::Convert;
+use sos_core::{crypto::AccessKey, UtcDateTime};
 use sos_database::search::SearchIndex;
-use sos_sdk::{
-    crypto::AccessKey,
-    vault::{
-        secret::{
-            IdentityKind, Secret, SecretId, SecretMeta, SecretRow, UserData,
-        },
-        Gatekeeper, Vault,
+use sos_vault::{
+    secret::{
+        IdentityKind, Secret, SecretId, SecretMeta, SecretRow, UserData,
     },
-    UtcDateTime,
+    Gatekeeper, Vault,
 };
 
 /// Default label for CSV records when a title is not available.

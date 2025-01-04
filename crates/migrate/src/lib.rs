@@ -6,7 +6,8 @@
 //! Used to move between different apps.
 
 use async_trait::async_trait;
-use sos_sdk::{crypto::AccessKey, vault::Vault};
+use sos_core::crypto::AccessKey;
+use sos_vault::Vault;
 
 #[cfg(feature = "authenticator")]
 mod authenticator;

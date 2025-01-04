@@ -1,17 +1,14 @@
+use super::{AuthenticatorUrls, OTP_AUTH_URLS};
 use crate::{Error, Result};
 use async_zip::tokio::read::seek::ZipFileReader;
-use sos_sdk::{
-    vault::{
-        secret::{Secret, SecretMeta, SecretRow},
-        Gatekeeper,
-    },
-    vfs,
+use sos_vault::{
+    secret::{Secret, SecretMeta, SecretRow},
+    Gatekeeper,
 };
+use sos_vfs as vfs;
 use std::path::Path;
 use tokio::io::BufReader;
 use totp_rs::TOTP;
-
-use super::{AuthenticatorUrls, OTP_AUTH_URLS};
 
 /// Import an authenticator vault from a zip archive.
 pub async fn import_authenticator(

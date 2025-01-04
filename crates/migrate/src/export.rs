@@ -11,7 +11,7 @@ use tokio_util::compat::Compat;
 
 use crate::Result;
 use sos_core::{SecretId, VaultId};
-use sos_sdk::vault::{
+use sos_vault::{
     secret::{FileContent, Secret, SecretMeta},
     Gatekeeper, Summary, VaultMeta,
 };

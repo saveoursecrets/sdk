@@ -7,6 +7,19 @@ pub mod error;
 /// Result type for keychain access integration.
 pub type Result<T> = std::result::Result<T, Error>;
 
+use crate::Convert;
+use keychain_parser::{AttributeName, KeychainParser};
+use secrecy::{ExposeSecret, SecretString};
+use security_framework::{
+    item::{ItemClass, ItemSearchOptions},
+    os::macos::{item::ItemSearchOptionsExt, keychain::SecKeychain},
+};
+use sos_core::crypto::AccessKey;
+use sos_database::search::SearchIndex;
+use sos_vault::{
+    secret::{Secret, SecretId, SecretMeta, SecretRow},
+    Gatekeeper, Vault,
+};
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader, BufWriter, Write},
@@ -14,25 +27,6 @@ use std::{
     process::{Command, Stdio},
     sync::mpsc::{channel, Receiver},
 };
-
-use sos_sdk::{
-    crypto::AccessKey,
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow},
-        Gatekeeper, Vault,
-    },
-};
-
-use sos_database::search::SearchIndex;
-
-use keychain_parser::{AttributeName, KeychainParser};
-use secrecy::{ExposeSecret, SecretString};
-use security_framework::{
-    item::{ItemClass, ItemSearchOptions},
-    os::macos::{item::ItemSearchOptionsExt, keychain::SecKeychain},
-};
-
-use crate::Convert;
 
 /// Import a MacOS keychain access dump into a vault.
 pub struct KeychainImport;
