@@ -16,15 +16,13 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["audit"]
+default = []
 full = [
   "archive",
-  "audit",
   "contacts",
   "files",
 ]
 archive = []
-audit = []
 contacts = []
 files = ["sos-core/files"]
 mem-fs = ["sos-vfs/mem-fs"]

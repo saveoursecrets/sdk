@@ -21,7 +21,7 @@ full = [
   "migrate",
   "search",
 ]
-audit = ["sos-audit", "sos-database/audit"]
+audit = ["sos-audit", "sos-client-storage/audit"]
 archive = [
   "sos-sdk/archive",
   "sos-database/archive",

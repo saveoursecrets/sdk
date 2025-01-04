@@ -14,14 +14,12 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 full = [
   "archive",
-  "audit",
   "client",
   "files",
   "search",
   "sqlite",
 ]
 archive = ["sos-sdk/archive"]
-audit = ["sos-sdk/audit"]
 files = ["sos-sdk/files", "sos-filesystem/files"]
 search = [
   "dep:probly-search",

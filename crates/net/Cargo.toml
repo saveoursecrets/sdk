@@ -32,7 +32,7 @@ full = [
 
 listen = ["sos-protocol/listen"]
 hashcheck = ["sos-protocol/hashcheck"]
-audit = ["sos-sdk/audit"]
+audit = ["sos-account/audit"]
 archive = ["sos-sdk/archive", "sos-protocol/archive", "sos-account/archive"]
 files = ["sos-sdk/files", "sos-protocol/files"]
 clipboard = ["sos-account/clipboard"]
