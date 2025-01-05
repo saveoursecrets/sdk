@@ -22,10 +22,7 @@ use sos_sdk::{
     vault::{VaultAccess, VaultWriter},
     vfs, Paths,
 };
-use sos_signer::{
-    ecdsa::{Address, BoxedEcdsaSigner},
-    ed25519::BoxedEd25519Signer,
-};
+use sos_signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -39,9 +36,6 @@ use sos_filesystem::events::{DeviceEventLog, DevicePatch};
 /// to retrieve the account data and then [DeviceEnrollment::finish]
 /// to authenticate the account.
 pub struct DeviceEnrollment {
-    /// Account address.
-    #[deprecated]
-    address: Address,
     /// Account identifier.
     account_id: AccountId,
     /// Account paths.
@@ -92,7 +86,6 @@ impl DeviceEnrollment {
 
         Ok(Self {
             account_id: address.into(),
-            address: address.to_owned(),
             paths,
             data_dir,
             client,
@@ -101,11 +94,6 @@ impl DeviceEnrollment {
             account_name: None,
             servers,
         })
-    }
-
-    /// Account address.
-    pub fn address(&self) -> &Address {
-        &self.address
     }
 
     /// Account identifier.

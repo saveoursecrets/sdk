@@ -8,7 +8,6 @@ use sos_protocol::{
     network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
     SyncClient, SyncOptions,
 };
-use sos_sdk::prelude::Address;
 use sos_signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 use sos_sync::{SyncDirection, UpdateSet};
 use std::{collections::HashMap, sync::Arc};
@@ -26,9 +25,6 @@ pub(crate) type Remotes = HashMap<Origin, RemoteBridge>;
 /// Bridge between a local account and a remote.
 #[derive(Clone)]
 pub struct RemoteBridge {
-    /// Address of the account.
-    #[deprecated]
-    address: Address,
     /// Address of the account.
     account_id: AccountId,
     /// Account so we can replay events
@@ -59,10 +55,9 @@ impl RemoteBridge {
             tokio::sync::broadcast::channel::<FileTransferQueueRequest>(32);
 
         Ok(Self {
-            account_id: (&address).into(),
+            account_id: address.into(),
             account,
             client,
-            address,
             #[cfg(feature = "files")]
             file_transfer_queue,
         })

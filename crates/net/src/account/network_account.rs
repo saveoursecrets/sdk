@@ -30,7 +30,7 @@ use sos_sdk::{
     },
     vfs, Paths,
 };
-use sos_signer::ecdsa::{Address, BoxedEcdsaSigner};
+use sos_signer::ecdsa::BoxedEcdsaSigner;
 use sos_sync::{CreateSet, EventLogType, StorageEventLogs, UpdateSet};
 use std::{
     collections::{HashMap, HashSet},

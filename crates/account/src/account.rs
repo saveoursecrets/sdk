@@ -22,7 +22,7 @@ use sos_sdk::{
     },
     vfs, Paths, UtcDateTime,
 };
-use sos_signer::ecdsa::{Address, BoxedEcdsaSigner};
+use sos_signer::ecdsa::BoxedEcdsaSigner;
 use sos_sync::{CreateSet, StorageEventLogs};
 use std::{
     borrow::Cow,

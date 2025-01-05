@@ -15,10 +15,7 @@ use http::StatusCode;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde_json::Value;
 use sos_core::{AccountId, Origin};
-use sos_signer::{
-    ecdsa::{Address, BoxedEcdsaSigner},
-    ed25519::BoxedEd25519Signer,
-};
+use sos_signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 use sos_sync::{CreateSet, SyncPacket, SyncStatus, UpdateSet};
 use std::{fmt, time::Duration};
 use tracing::instrument;

@@ -2,7 +2,6 @@
 use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use sos_core::{constants::VAULT_EXT, decode, AccountId, Paths, VaultId};
-use sos_signer::ecdsa::Address;
 use sos_vault::{Header, Summary, Vault};
 use sos_vfs as vfs;
 use std::{

@@ -23,7 +23,6 @@ use sos_sdk::{
     identity::FolderKeys,
     vfs, Paths,
 };
-use sos_signer::ecdsa::Address;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     BuilderCredentials, ChangePassword, FolderRef, Header, Summary, Vault,

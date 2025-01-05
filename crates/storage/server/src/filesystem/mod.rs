@@ -17,7 +17,6 @@ use sos_sdk::{
     vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
     vfs,
 };
-use sos_signer::ecdsa::Address;
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
 use std::collections::HashSet;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};

@@ -17,7 +17,6 @@ use sos_sdk::{
         BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
     },
 };
-use sos_signer::ecdsa::Address;
 use std::{collections::HashMap, path::PathBuf};
 
 /// Private information about a new account.

@@ -23,10 +23,10 @@ use sos_sdk::{
         DeviceEventLog, FolderDiff, FolderEventLog, WriteEvent,
     },
     prelude::{
-        AccessKey, AccountEvent, Address, Cipher, DeviceManager,
-        DevicePublicKey, DeviceSigner, EventRecord, KeyDerivation, Paths,
-        PublicIdentity, ReadEvent, Secret, SecretMeta, SecretRow, Summary,
-        TrustedDevice, Vault, VaultCommit, VaultFlags,
+        AccessKey, AccountEvent, Cipher, DeviceManager, DevicePublicKey,
+        DeviceSigner, EventRecord, KeyDerivation, Paths, PublicIdentity,
+        ReadEvent, Secret, SecretMeta, SecretRow, Summary, TrustedDevice,
+        Vault, VaultCommit, VaultFlags,
     },
 };
 
