@@ -81,36 +81,6 @@ pub mod ecdsa {
     /// Signer for single party ECDSA signatures.
     pub type BoxedEcdsaSigner = BoxedSigner<Signature, VerifyingKey, Address>;
 
-    /// Signature that can be encoded and decoded to binary.
-    #[derive(Default)]
-    pub struct BinaryEcdsaSignature(pub(crate) Signature);
-
-    impl From<Signature> for BinaryEcdsaSignature {
-        fn from(value: Signature) -> Self {
-            BinaryEcdsaSignature(value)
-        }
-    }
-
-    impl From<BinaryEcdsaSignature> for Signature {
-        fn from(value: BinaryEcdsaSignature) -> Self {
-            value.0
-        }
-    }
-
-    /// Recover the address from a signature.
-    pub fn recover_address(
-        signature: Signature,
-        message: &[u8],
-    ) -> Result<Address> {
-        let (signature, recid) = signature.try_into()?;
-        let public_key = VerifyingKey::recover_from_digest(
-            Keccak256::new_with_prefix(message),
-            &signature,
-            recid,
-        )?;
-        Ok((&public_key).try_into()?)
-    }
-
     impl Clone for BoxedEcdsaSigner {
         fn clone(&self) -> Self {
             self.clone_boxed()
