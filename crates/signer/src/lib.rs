@@ -15,12 +15,8 @@ pub use error::Error;
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 /// Boxed signer.
-type BoxedSigner<O, V, A> = Box<
-    dyn Signer<Output = O, Verifying = V, Address = A>
-        + Sync
-        + Send
-        + 'static,
->;
+type BoxedSigner<O, V> =
+    Box<dyn Signer<Output = O, Verifying = V> + Sync + Send + 'static>;
 
 /// Trait for implementations that can sign a message.
 ///
@@ -29,14 +25,11 @@ type BoxedSigner<O, V, A> = Box<
 /// which are inherently asynchronous.
 #[async_trait]
 pub trait Signer {
-    /// The signature output when signing.
+    /// Signature output.
     type Output;
 
-    /// The type for the verifying key.
+    /// Verifying key.
     type Verifying;
-
-    /// The type that represents an address for the signer.
-    type Address;
 
     /// Sign a message and generate a recoverable signature.
     ///
@@ -52,13 +45,8 @@ pub trait Signer {
     /// Get the verifying key for this signer.
     fn verifying_key(&self) -> Self::Verifying;
 
-    /// Compute the public address for this signer.
-    fn address(&self) -> Result<Self::Address>;
-
     /// Clone a boxed version of this signer.
-    fn clone_boxed(
-        &self,
-    ) -> BoxedSigner<Self::Output, Self::Verifying, Self::Address>;
+    fn clone_boxed(&self) -> BoxedSigner<Self::Output, Self::Verifying>;
 
     /// Get the bytes for this signing key.
     fn to_bytes(&self) -> Vec<u8>;
@@ -79,7 +67,7 @@ pub mod ecdsa {
     use crate::Result;
 
     /// Signer for single party ECDSA signatures.
-    pub type BoxedEcdsaSigner = BoxedSigner<Signature, VerifyingKey, Address>;
+    pub type BoxedEcdsaSigner = BoxedSigner<Signature, VerifyingKey>;
 
     impl Clone for BoxedEcdsaSigner {
         fn clone(&self) -> Self {
@@ -104,7 +92,6 @@ pub mod ecdsa {
     impl Signer for SingleParty {
         type Output = Signature;
         type Verifying = VerifyingKey;
-        type Address = Address;
 
         fn clone_boxed(&self) -> BoxedEcdsaSigner {
             Box::new(self.clone())
@@ -133,13 +120,6 @@ pub mod ecdsa {
                 )?;
             let sig: Signature = result.try_into()?;
             Ok(sig)
-        }
-
-        fn address(&self) -> Result<Self::Address> {
-            let point = self.0.verifying_key().to_encoded_point(true);
-            let bytes: [u8; 33] = point.as_bytes().try_into()?;
-            let address: Address = (&bytes).try_into()?;
-            Ok(address)
         }
     }
 
@@ -177,8 +157,7 @@ pub mod ed25519 {
     use crate::Result;
 
     /// Signer for single party Ed25519signatures.
-    pub type BoxedEd25519Signer =
-        BoxedSigner<Signature, VerifyingKey, String>;
+    pub type BoxedEd25519Signer = BoxedSigner<Signature, VerifyingKey>;
 
     impl Clone for BoxedEd25519Signer {
         fn clone(&self) -> Self {
@@ -230,7 +209,6 @@ pub mod ed25519 {
     impl Signer for SingleParty {
         type Output = Signature;
         type Verifying = VerifyingKey;
-        type Address = String;
 
         fn clone_boxed(&self) -> BoxedEd25519Signer {
             Box::new(self.clone())
@@ -250,13 +228,6 @@ pub mod ed25519 {
 
         fn sign_sync(&self, message: &[u8]) -> Result<Self::Output> {
             Ok(self.0.sign(message))
-        }
-
-        fn address(&self) -> Result<Self::Address> {
-            let mut encoded = String::new();
-            let verifying_key = self.0.verifying_key();
-            bs58::encode(verifying_key.as_bytes()).into(&mut encoded)?;
-            Ok(encoded)
         }
     }
 

@@ -14,7 +14,7 @@ use std::{
 #[typeshare::typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct PublicIdentity {
-    /// Address identifier for the account.
+    /// Account identifier.
     account_id: AccountId,
     /// Label for the account.
     ///

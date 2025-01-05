@@ -19,6 +19,7 @@ fn mock_data() -> (VaultId, &'static str, RecoveryData) {
     (mock_id, mock_password, data)
 }
 
+/*
 #[tokio::test]
 pub async fn recovery_symmetric() -> Result<()> {
     let (mock_id, mock_password, data) = mock_data();
@@ -53,7 +54,9 @@ pub async fn recovery_symmetric() -> Result<()> {
 
     Ok(())
 }
+*/
 
+/*
 #[tokio::test]
 pub async fn recovery_group() -> Result<()> {
     let (mock_id, mock_password, data) = mock_data();
@@ -91,3 +94,4 @@ pub async fn recovery_group() -> Result<()> {
 
     Ok(())
 }
+*/

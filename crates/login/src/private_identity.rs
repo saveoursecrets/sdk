@@ -6,9 +6,8 @@ use sos_core::AccountId;
 /// Private identity containing the in-memory identity vault
 /// and signing keys.
 pub struct PrivateIdentity {
-    /// Address of the signing key.
+    /// Account identifier.
     pub(super) account_id: AccountId,
-
     /// AGE identity keypair.
     #[allow(dead_code)]
     pub(super) shared_private: age::x25519::Identity,

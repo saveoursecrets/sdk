@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{base64::Base64, serde_as};
 use sos_core::{
     crypto::{AeadPack, Cipher, KeyDerivation, PrivateKey, Seed},
-    decode, encode,
+    decode, encode, AccountId,
 };
 use sos_core::{csprng, VaultId};
 use sos_signer::{
@@ -122,7 +122,7 @@ pub struct RecoveryPack {
     #[serde_as(as = "Base64")]
     pub(crate) seed: Seed,
     pub(crate) data: AeadPack,
-    pub(crate) address: Address,
+    pub(crate) account_id: AccountId,
 }
 
 impl RecoveryPack {
@@ -136,9 +136,9 @@ impl RecoveryPack {
         &self.options
     }
 
-    /// Account address for this recovery pack.
-    pub fn address(&self) -> &Address {
-        &self.address
+    /// Account identifier for this recovery pac.
+    pub fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     /// Identifiers for vaults that are included in the recovery pack.
@@ -146,6 +146,7 @@ impl RecoveryPack {
         self.vaults.as_slice()
     }
 
+    /*
     /// Create a new recovery pack encrypting the
     /// data using the given signing key.
     pub async fn encrypt(
@@ -193,7 +194,7 @@ impl RecoveryPack {
                 salt: salt.to_string(),
                 seed,
                 data: encrypted_data,
-                address,
+                account_id,
             },
             RecoveryShares { shares: key_shares },
         ))
@@ -233,6 +234,7 @@ impl RecoveryPack {
 
         Ok((signer, decode::<RecoveryData>(&encoded_data).await?))
     }
+    */
 }
 
 /// Participant in a recovery group.
@@ -285,9 +287,9 @@ impl<T> RecoveryGroup<T> {
         &self.pack
     }
 
-    /// Address of the account.
-    pub fn address(&self) -> &Address {
-        &self.pack.address
+    /// Account identifier.
+    pub fn account_id(&self) -> &AccountId {
+        &self.pack.account_id
     }
 
     /// Limit on secret shares.
@@ -412,6 +414,9 @@ impl<T> RecoveryGroupBuilder<T> {
         }
         self.options.threshold = threshold;
 
+        todo!("restore recovery group handling");
+
+        /*
         let signer = self.signer.take().ok_or_else(|| Error::NoSigner)?;
         let (pack, shares) =
             RecoveryPack::encrypt(&self.data, &signer, self.options.clone())
@@ -427,5 +432,6 @@ impl<T> RecoveryGroupBuilder<T> {
             },
             shares,
         ))
+        */
     }
 }

@@ -62,26 +62,15 @@ Folder is the term used to refer to the combined vault and event
 log files which represent the entirety of the data required 
 for a collection of secrets.
 
-## Signing Key
+## Account Identifier
 
-The account signing key is an ECDSA (Secp256k1 curve) private 
-key used to uniquely identify an account and verify account 
-ownership by signing requests to a remote service.
-
-## Account Address
-
-An account address is an Ethereum-style address derived from 
-the public key of the account signing key used to uniquely 
-identify an account. An account address is used as the identifier 
-so that remote servers (used for syncing data) can allow account 
-creation and modification without requiring any sign-up which 
-may expose personally identifiable information (PII) to the server.
+An account identifier is 20 random bytes.
 
 ## Identity Vault
 
 The identity vault is a special kind of vault whose purpose is 
-to protect the account signing key, provide a single password 
-account sign in flow and to store delegated passwords. 
+to provide a single password account sign in flow and to 
+store delegated passwords. 
 Delegated passwords are passwords for other folders managed 
 by the account owner.
 

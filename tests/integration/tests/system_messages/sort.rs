@@ -1,8 +1,8 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
+use sos_core::AccountId;
 use sos_net::extras::system_messages::*;
 use sos_sdk::prelude::*;
-use sos_signer::{ecdsa::SingleParty, Signer};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use urn::Urn;
@@ -16,12 +16,11 @@ async fn system_messages_sort() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
 
-    let mock_signer = SingleParty::new_random();
-    let address = mock_signer.address()?;
+    let account_id = AccountId::random();
 
     // Ensure paths exist
     Paths::scaffold(Some(data_dir.clone())).await?;
-    let paths = Paths::new(data_dir.clone(), address.to_string());
+    let paths = Paths::new(data_dir.clone(), account_id.to_string());
     paths.ensure().await?;
 
     let mut messages = SystemMessages::new(&paths);

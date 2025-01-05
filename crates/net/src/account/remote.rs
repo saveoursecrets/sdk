@@ -25,7 +25,7 @@ pub(crate) type Remotes = HashMap<Origin, RemoteBridge>;
 /// Bridge between a local account and a remote.
 #[derive(Clone)]
 pub struct RemoteBridge {
-    /// Address of the account.
+    /// Account identifier.
     account_id: AccountId,
     /// Account so we can replay events
     /// when a remote diff is merged.
