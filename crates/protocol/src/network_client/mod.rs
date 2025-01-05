@@ -19,7 +19,7 @@ mod http;
 #[cfg(feature = "listen")]
 mod websocket;
 
-pub use self::http::HttpClient;
+pub use self::http::{set_user_agent, HttpClient};
 
 #[cfg(feature = "listen")]
 pub use websocket::{changes, connect, ListenOptions, WebSocketHandle};

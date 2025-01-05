@@ -12,6 +12,7 @@ use crate::{
     helpers::{account::SHELL, PROGRESS_MONITOR},
     CommandTree, Result,
 };
+use sos_protocol::network_client::set_user_agent;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -143,6 +144,9 @@ pub async fn run() -> Result<()> {
     Paths::scaffold(args.storage).await?;
     let paths = Paths::new_global(Paths::data_dir()?);
     sos_audit::default_audit_providers(&paths).await;
+
+    let user_agent = format!("sos-cli/{}", env!("CARGO_PKG_VERSION"));
+    set_user_agent(user_agent);
 
     #[cfg(any(test, debug_assertions))]
     if let Some(password) = args.password.take() {

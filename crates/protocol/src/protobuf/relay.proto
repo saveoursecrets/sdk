@@ -66,7 +66,6 @@ message PairingConfirm {
   bytes device_vault = 3;
   // Collection of server origins.
   repeated sync.WireOrigin servers = 4;
-  
   // Account identifier.
   string account_id = 5;
 }
