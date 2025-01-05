@@ -6,7 +6,6 @@ use async_trait::async_trait;
 
 mod encoding;
 mod error;
-mod signature;
 
 pub use error::Error;
 
@@ -58,14 +57,17 @@ pub mod ecdsa {
     use sha2::Sha256;
     use sha3::{Digest, Keccak256};
 
-    pub use super::signature::Signature;
-    pub use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
+    pub use k256::ecdsa::{
+        hazmat::SignPrimitive, RecoveryId, Signature, SigningKey,
+        VerifyingKey,
+    };
 
     use super::{BoxedSigner, Signer};
     use crate::Result;
 
     /// Signer for single party ECDSA signatures.
-    pub type BoxedEcdsaSigner = BoxedSigner<Signature, VerifyingKey>;
+    pub type BoxedEcdsaSigner =
+        BoxedSigner<(Signature, Option<RecoveryId>), VerifyingKey>;
 
     impl Clone for BoxedEcdsaSigner {
         fn clone(&self) -> Self {
@@ -88,7 +90,7 @@ pub mod ecdsa {
 
     #[async_trait]
     impl Signer for SingleParty {
-        type Output = Signature;
+        type Output = (Signature, Option<RecoveryId>);
         type Verifying = VerifyingKey;
 
         fn clone_boxed(&self) -> BoxedEcdsaSigner {
@@ -116,8 +118,7 @@ pub mod ecdsa {
                     digest.as_slice().into(),
                     b"",
                 )?;
-            let sig: Signature = result.try_into()?;
-            Ok(sig)
+            Ok(result)
         }
     }
 
@@ -138,8 +139,6 @@ pub mod ecdsa {
             Ok(Self(SigningKey::from_bytes(value.into())?))
         }
     }
-
-    // TODO(muji) Integation with multi-party-ecdsa / cggmp-threshold-ecdsa
 }
 
 /// ED25519 signer using the ed25519-dalek library.

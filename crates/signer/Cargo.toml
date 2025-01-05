@@ -14,7 +14,6 @@ thiserror.workspace = true
 async-trait.workspace = true
 k256.workspace = true
 serde.workspace = true
-ethereum-types.workspace = true
 rand.workspace = true
 sha3.workspace = true
 ed25519-dalek.workspace = true
