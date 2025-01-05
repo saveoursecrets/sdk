@@ -47,6 +47,7 @@ use {
 /// Client that can synchronize with a server over HTTP(S).
 #[derive(Clone)]
 pub struct HttpClient {
+    account_id: AccountId,
     origin: Origin,
     account_signer: BoxedEcdsaSigner,
     device_signer: BoxedEd25519Signer,
@@ -75,6 +76,7 @@ impl fmt::Debug for HttpClient {
 impl HttpClient {
     /// Create a new client.
     pub fn new(
+        account_id: AccountId,
         origin: Origin,
         account_signer: BoxedEcdsaSigner,
         device_signer: BoxedEd25519Signer,
@@ -90,6 +92,7 @@ impl HttpClient {
         let client = reqwest::ClientBuilder::new().build()?;
 
         Ok(Self {
+            account_id,
             origin,
             account_signer,
             device_signer,
@@ -121,6 +124,7 @@ impl HttpClient {
         F: Future<Output = ()> + Send + 'static,
     {
         let listener = WebSocketChangeListener::new(
+            self.account_id.clone(),
             self.origin.clone(),
             self.account_signer.clone(),
             self.device_signer.clone(),

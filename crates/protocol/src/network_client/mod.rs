@@ -161,7 +161,10 @@ pub(crate) fn bearer_prefix(
 
 #[cfg(any(feature = "listen", feature = "pairing"))]
 mod websocket_request {
+    use crate::constants::X_SOS_ACCOUNT_ID;
+
     use super::Result;
+    use sos_core::AccountId;
     use tokio_tungstenite::tungstenite::{
         self, client::IntoClientRequest, handshake::client::generate_key,
     };
@@ -169,6 +172,8 @@ mod websocket_request {
 
     /// Build a websocket connection request.
     pub struct WebSocketRequest {
+        /// Account identifier.
+        pub account_id: AccountId,
         /// Remote URI.
         pub uri: Url,
         /// Remote host.
@@ -181,7 +186,11 @@ mod websocket_request {
 
     impl WebSocketRequest {
         /// Create a new websocket request.
-        pub fn new(url: &Url, path: &str) -> Result<Self> {
+        pub fn new(
+            account_id: AccountId,
+            url: &Url,
+            path: &str,
+        ) -> Result<Self> {
             let origin = url.origin();
             let host = url.host_str().unwrap().to_string();
 
@@ -198,6 +207,7 @@ mod websocket_request {
                 .expect("failed to set websocket scheme");
 
             Ok(Self {
+                account_id,
                 host,
                 uri,
                 origin,
@@ -228,6 +238,7 @@ mod websocket_request {
                 .header("host", self.host)
                 .header("origin", origin)
                 .header("connection", "keep-alive, Upgrade")
+                .header(X_SOS_ACCOUNT_ID, self.account_id.to_string())
                 .header("upgrade", "websocket");
             Ok(request.body(())?)
         }

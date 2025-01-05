@@ -40,6 +40,7 @@ pub(crate) async fn account_exists(
     let uri = uri.path().to_string();
     let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         None,
@@ -84,7 +85,7 @@ pub(crate) async fn account_exists(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account account_id is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::CONFLICT,
@@ -107,6 +108,7 @@ pub(crate) async fn create_account(
     let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
+            account_id,
             bearer,
             &bytes,
             Some(query),
@@ -141,7 +143,7 @@ pub(crate) async fn create_account(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account account_id is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::NOT_FOUND,
@@ -163,6 +165,7 @@ pub(crate) async fn delete_account(
     let uri = uri.path().to_string();
     let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         None,
@@ -201,7 +204,7 @@ pub(crate) async fn delete_account(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account account_id is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::NOT_FOUND,
@@ -224,6 +227,7 @@ pub(crate) async fn update_account(
     let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
+            account_id,
             bearer,
             &bytes,
             Some(query),
@@ -261,7 +265,7 @@ pub(crate) async fn update_account(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account account_id is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -282,6 +286,7 @@ pub(crate) async fn fetch_account(
     let uri = uri.path().to_string();
     let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         Some(query),
@@ -315,7 +320,7 @@ pub(crate) async fn fetch_account(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account account_id is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -336,6 +341,7 @@ pub(crate) async fn sync_status(
     let uri = uri.path().to_string();
     let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         Some(query),
@@ -374,7 +380,7 @@ pub(crate) async fn sync_status(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account account_id is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -395,6 +401,7 @@ pub(crate) async fn event_scan(
     let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
+            account_id,
             bearer,
             &bytes,
             Some(query),
@@ -437,7 +444,7 @@ pub(crate) async fn event_scan(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account account_id is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -458,6 +465,7 @@ pub(crate) async fn event_diff(
     let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
+            account_id,
             bearer,
             &bytes,
             Some(query),
@@ -500,7 +508,7 @@ pub(crate) async fn event_diff(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account account_id is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -521,6 +529,7 @@ pub(crate) async fn event_patch(
     let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
+            account_id,
             bearer,
             &bytes,
             Some(query),
@@ -563,7 +572,7 @@ pub(crate) async fn event_patch(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account account_id is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -584,6 +593,7 @@ pub(crate) async fn sync_account(
     let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
+            account_id,
             bearer,
             &bytes,
             Some(query),

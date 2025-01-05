@@ -10,7 +10,7 @@ use prost::bytes::Bytes;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use sos_account::Account;
 use sos_core::events::DeviceEvent;
-use sos_core::Origin;
+use sos_core::{AccountId, Origin};
 use sos_database::StorageError;
 use sos_protocol::{
     network_client::WebSocketRequest,
@@ -130,8 +130,11 @@ impl<'a> OfferPairing<'a> {
     ) -> Result<(OfferPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
-        let share_url =
-            ServerPairUrl::new(url.clone(), keypair.public.clone());
+        let share_url = ServerPairUrl::new(
+            *account.account_id(),
+            url.clone(),
+            keypair.public.clone(),
+        );
         Self::new_connection(account, share_url, keypair, false).await
     }
 
@@ -166,8 +169,11 @@ impl<'a> OfferPairing<'a> {
                 .build_responder()?
         };
 
-        let mut request =
-            WebSocketRequest::new(share_url.server(), RELAY_PATH)?;
+        let mut request = WebSocketRequest::new(
+            *account.account_id(),
+            share_url.server(),
+            RELAY_PATH,
+        )?;
         request
             .uri
             .query_pairs_mut()
@@ -548,13 +554,15 @@ impl<'a> AcceptPairing<'a> {
 
     /// Create a new inverted pairing connection.
     pub async fn new_inverted(
+        account_id: AccountId,
         server: Url,
         device: &'a DeviceMetaData,
         data_dir: Option<PathBuf>,
     ) -> Result<(ServerPairUrl, AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
-        let share_url = ServerPairUrl::new(server, keypair.public.clone());
+        let share_url =
+            ServerPairUrl::new(account_id, server, keypair.public.clone());
         let (pairing, stream) = Self::new_connection(
             share_url.clone(),
             device,
@@ -587,8 +595,11 @@ impl<'a> AcceptPairing<'a> {
                 .build_initiator()?
         };
 
-        let mut request =
-            WebSocketRequest::new(share_url.server(), RELAY_PATH)?;
+        let mut request = WebSocketRequest::new(
+            *share_url.account_id(),
+            share_url.server(),
+            RELAY_PATH,
+        )?;
         request
             .uri
             .query_pairs_mut()

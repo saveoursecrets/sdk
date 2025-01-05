@@ -53,7 +53,7 @@ pub struct MoveFileQuery {
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account account_id is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -78,6 +78,7 @@ pub(crate) async fn receive_file(
     let uri = uri.path().to_string();
     let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         Some(query),
@@ -120,7 +121,7 @@ pub(crate) async fn receive_file(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account account_id is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -144,6 +145,7 @@ pub(crate) async fn delete_file(
     let uri = uri.path().to_string();
     let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         Some(query),
@@ -186,7 +188,7 @@ pub(crate) async fn delete_file(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account account_id is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -211,6 +213,7 @@ pub(crate) async fn send_file(
     let uri = uri.path().to_string();
     let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         Some(query),
@@ -253,7 +256,7 @@ pub(crate) async fn send_file(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account account_id is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -278,6 +281,7 @@ pub(crate) async fn move_file(
     let uri = uri.path().to_string();
     let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         Some(query),
@@ -317,7 +321,7 @@ pub(crate) async fn move_file(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account account_id is not allowed on this server.",
+            description = "Account identifier is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -338,6 +342,7 @@ pub(crate) async fn compare_files(
     let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
+            account_id,
             bearer,
             uri.as_bytes(),
             Some(query),

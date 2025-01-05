@@ -1,11 +1,13 @@
-use super::{authenticate_endpoint, Caller, ConnectionQuery};
+use super::{
+    authenticate_endpoint, parse_account_id, Caller, ConnectionQuery,
+};
 use crate::{Result, ServerBackend, ServerState};
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         Extension, OriginalUri, Query,
     },
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::Response,
 };
 use axum_extra::{
@@ -82,12 +84,15 @@ pub async fn upgrade(
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> std::result::Result<Response, StatusCode> {
     tracing::debug!("ws_server::upgrade_request");
 
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     let caller = authenticate_endpoint(
+        account_id,
         bearer,
         uri.as_bytes(),
         Some(query.clone()),

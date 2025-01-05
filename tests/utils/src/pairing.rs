@@ -1,6 +1,7 @@
 use crate::SimulatedDevice;
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, Future, StreamExt};
+use sos_account::Account;
 use sos_net::{
     pairing::{self, AcceptPairing, OfferPairing},
     NetworkAccount,
@@ -83,6 +84,7 @@ pub async fn run_inverted_pairing_protocol(
 ) -> Result<NetworkAccount> {
     let origin = primary_device.origin.clone();
     let password = primary_device.password.clone();
+    let account_id = primary_device.owner.account_id().clone();
     let key: AccessKey = password.into();
 
     // Get the data dir for the second client
@@ -101,6 +103,7 @@ pub async fn run_inverted_pairing_protocol(
         // in the server URL
         let (share_url, mut accept, accept_stream) =
             AcceptPairing::new_inverted(
+                account_id,
                 origin.url().clone(),
                 &device_meta,
                 Some(data_dir),

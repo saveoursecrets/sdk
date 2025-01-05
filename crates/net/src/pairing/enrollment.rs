@@ -68,6 +68,7 @@ impl DeviceEnrollment {
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let address = account_signing_key.address()?;
+        let account_id: AccountId = address.into();
         let paths = if let Some(data_dir) = &data_dir {
             Paths::new(data_dir.clone(), address.to_string())
         } else {
@@ -78,6 +79,7 @@ impl DeviceEnrollment {
         let device: BoxedEd25519Signer = device_signing_key.into();
 
         let client = HttpClient::new(
+            account_id,
             origin,
             account_signing_key,
             device,
@@ -85,7 +87,7 @@ impl DeviceEnrollment {
         )?;
 
         Ok(Self {
-            account_id: address.into(),
+            account_id,
             paths,
             data_dir,
             client,

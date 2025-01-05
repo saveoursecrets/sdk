@@ -9,7 +9,7 @@ use futures::{
     Future, FutureExt, StreamExt,
 };
 use prost::bytes::Bytes;
-use sos_core::Origin;
+use sos_core::{AccountId, Origin};
 use sos_signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
 use std::{borrow::Cow, pin::Pin};
 use tokio::{net::TcpStream, sync::watch, time::Duration};
@@ -95,13 +95,17 @@ pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 /// Create the websocket connection and listen for events.
 pub async fn connect(
+    account_id: AccountId,
     origin: Origin,
     signer: BoxedEcdsaSigner,
     device: BoxedEd25519Signer,
     connection_id: String,
 ) -> Result<WsStream> {
-    let mut request =
-        WebSocketRequest::new(origin.url(), "api/v1/sync/changes")?;
+    let mut request = WebSocketRequest::new(
+        account_id,
+        origin.url(),
+        "api/v1/sync/changes",
+    )?;
 
     let bearer =
         request_bearer(&mut request, &signer, &device, &connection_id)
@@ -179,6 +183,7 @@ impl WebSocketHandle {
 /// Creates a websocket that listens for changes emitted by a remote
 /// server and invokes a handler with the change notifications.
 pub struct WebSocketChangeListener {
+    account_id: AccountId,
     origin: Origin,
     signer: BoxedEcdsaSigner,
     device: BoxedEd25519Signer,
@@ -190,6 +195,7 @@ pub struct WebSocketChangeListener {
 impl WebSocketChangeListener {
     /// Create a new websocket changes listener.
     pub fn new(
+        account_id: AccountId,
         origin: Origin,
         signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
@@ -198,6 +204,7 @@ impl WebSocketChangeListener {
         let (shutdown, _) = watch::channel(());
         let (cancel_retry, _) = watch::channel(Default::default());
         Self {
+            account_id,
             origin,
             signer,
             device,
@@ -280,6 +287,7 @@ impl WebSocketChangeListener {
 
     async fn stream(&self) -> Result<WsStream> {
         connect(
+            self.account_id.clone(),
             self.origin.clone(),
             self.signer.clone(),
             self.device.clone(),

@@ -48,14 +48,21 @@ impl RemoteBridge {
         connection_id: String,
     ) -> Result<Self> {
         let address = signer.address()?;
-        let client = HttpClient::new(origin, signer, device, connection_id)?;
+        let account_id: AccountId = address.into();
+        let client = HttpClient::new(
+            account_id,
+            origin,
+            signer,
+            device,
+            connection_id,
+        )?;
 
         #[cfg(feature = "files")]
         let (file_transfer_queue, _) =
             tokio::sync::broadcast::channel::<FileTransferQueueRequest>(32);
 
         Ok(Self {
-            account_id: address.into(),
+            account_id,
             account,
             client,
             #[cfg(feature = "files")]

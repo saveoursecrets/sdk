@@ -11,7 +11,7 @@ use crate::{
     Error, Result, ServerBackend,
 };
 use axum_extra::headers::{authorization::Bearer, Authorization};
-use http::{HeaderMap, StatusCode};
+use http::HeaderMap;
 use serde::Deserialize;
 use serde_json::json;
 use sos_core::AccountId;
@@ -90,6 +90,7 @@ impl Caller {
 
 /// Authenticate an endpoint.
 async fn authenticate_endpoint(
+    account_id: Option<AccountId>,
     bearer: Authorization<Bearer>,
     signed_data: &[u8],
     query: Option<ConnectionQuery>,
