@@ -186,23 +186,24 @@ impl AccountBuilder {
         )
         .await?;
 
-        let address = *identity_folder.address();
+        let account_id = *identity_folder.account_id();
 
         let mut folder_keys = HashMap::new();
 
         // Authenticate on the newly created identity vault so we
         // can get the signing key for provider communication
         let paths = if let Some(data_dir) = &data_dir {
-            Paths::new(data_dir, address.to_string())
+            Paths::new(data_dir, account_id.to_string())
         } else {
-            Paths::new(Paths::data_dir()?, address.to_string())
+            Paths::new(Paths::data_dir()?, account_id.to_string())
         };
 
         paths.ensure().await?;
 
         let mut user = Identity::new(paths.clone());
         let key: AccessKey = passphrase.clone().into();
-        user.login(paths.identity_vault(), &key).await?;
+        user.login(&account_id, paths.identity_vault(), &key)
+            .await?;
 
         // Prepare the passphrase for the default vault
         let vault_passphrase = user.generate_folder_password()?;
@@ -322,7 +323,7 @@ impl AccountBuilder {
 
         Ok(PrivateNewAccount {
             data_dir,
-            account_id: address.into(),
+            account_id,
             user,
             identity_vault: identity_folder.into(),
             default_folder,

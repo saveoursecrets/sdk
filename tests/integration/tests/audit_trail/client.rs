@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 #[tokio::test]
 async fn audit_trail_client() -> Result<()> {
     const TEST_ID: &str = "audit_trail_client";
-    //crate::test_utils::init_tracing();
+    crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -36,6 +36,7 @@ async fn audit_trail_client() -> Result<()> {
         },
     )
     .await?;
+
     let key: AccessKey = passphrase.clone().into();
     account.sign_in(&key).await?;
     let summary = account.default_folder().await.unwrap();

@@ -405,7 +405,7 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
     let inventory: Inventory =
         AccountBackup::restore_archive_inventory(BufReader::new(reader))
             .await?;
-    let account_ref = AccountRef::Id(inventory.manifest.address);
+    let account_ref = AccountRef::Id(inventory.manifest.account_id);
 
     let account = find_account(&account_ref).await?;
 
@@ -439,8 +439,8 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
             .restore_backup_archive(&input, password, options, None)
             .await?
     } else {
-        let address = inventory.manifest.address.to_string();
-        let paths = Paths::new(Paths::data_dir()?, &address);
+        let account_id = inventory.manifest.account_id.to_string();
+        let paths = Paths::new(Paths::data_dir()?, &account_id);
         let files_dir = paths.files_dir();
         let options = RestoreOptions {
             selected: inventory.vaults,

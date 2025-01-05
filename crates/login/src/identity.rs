@@ -119,7 +119,7 @@ impl Identity {
     pub async fn delete_account(&self, paths: &Paths) -> Result<Event> {
         vfs::remove_file(paths.identity_vault()).await?;
         vfs::remove_dir_all(paths.user_dir()).await?;
-        Ok(Event::DeleteAccount(self.identity()?.address().into()))
+        Ok(Event::DeleteAccount(*self.identity()?.account_id()))
     }
 
     /// Rename this account by changing the name of the identity vault.
@@ -194,10 +194,12 @@ impl Identity {
     /// Login to an identity vault.
     pub async fn login<P: AsRef<Path>>(
         &mut self,
+        account_id: &AccountId,
         file: P,
         key: &AccessKey,
     ) -> Result<()> {
-        self.identity = Some(DiscIdentityFolder::login(file, key).await?);
+        self.identity =
+            Some(DiscIdentityFolder::login(account_id, file, key).await?);
 
         // Lazily create or retrieve a device specific signing key
         {
@@ -224,7 +226,7 @@ impl Identity {
 
         tracing::debug!(identity_path = ?identity_path);
 
-        self.login(identity_path, key).await?;
+        self.login(account_id, identity_path, key).await?;
 
         tracing::debug!("identity verified");
 

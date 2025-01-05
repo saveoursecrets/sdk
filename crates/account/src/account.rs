@@ -1799,6 +1799,7 @@ impl Account for LocalAccount {
     ) -> Result<CipherComparison> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
 
+        let account_id = *self.account_id();
         let conversion = self.compare_cipher(&cipher, kdf).await?;
 
         // Short circuit if there is nothing to do
@@ -1811,7 +1812,7 @@ impl Account for LocalAccount {
         // Login again so in-memory data is up to date
         let identity_vault_path = self.paths().identity_vault();
         self.user_mut()?
-            .login(&identity_vault_path, &account_key)
+            .login(&account_id, &identity_vault_path, &account_key)
             .await?;
 
         Ok(conversion)
@@ -1823,6 +1824,7 @@ impl Account for LocalAccount {
     ) -> Result<()> {
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
 
+        let account_id = *self.account_id();
         let user = self.user()?;
         let identity = user.identity()?;
         let input = identity.keeper();
@@ -1856,7 +1858,7 @@ impl Account for LocalAccount {
         // Login again so in-memory data is up to date
         let identity_vault_path = self.paths().identity_vault();
         self.user_mut()?
-            .login(&identity_vault_path, &account_key)
+            .login(&account_id, &identity_vault_path, &account_key)
             .await?;
 
         Ok(())
@@ -3261,7 +3263,7 @@ impl Account for LocalAccount {
                 .await?;
         let accounts = Identity::list_accounts(None).await?;
         let exists_local = accounts.iter().any(|account| {
-            account.account_id() == &inventory.manifest.address
+            account.account_id() == &inventory.manifest.account_id
         });
         inventory.exists_local = exists_local;
         Ok(inventory)

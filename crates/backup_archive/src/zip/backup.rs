@@ -422,15 +422,15 @@ impl AccountBackup {
         let keys = Identity::list_accounts(Some(&paths)).await?;
         let existing_account = keys
             .iter()
-            .find(|k| k.account_id() == &restore_targets.manifest.address);
+            .find(|k| k.account_id() == &restore_targets.manifest.account_id);
 
         if existing_account.is_some() {
             return Err(Error::ArchiveAccountAlreadyExists(
-                restore_targets.manifest.address.to_string(),
+                restore_targets.manifest.account_id.to_string(),
             ));
         }
 
-        let address_path = restore_targets.manifest.address.to_string();
+        let address_path = restore_targets.manifest.account_id.to_string();
         let paths = Paths::new(data_dir, &address_path);
 
         // Write out the identity vault
@@ -447,7 +447,7 @@ impl AccountBackup {
             let name = format!(
                 "{} ({})",
                 restore_targets.identity.0.name(),
-                &restore_targets.manifest.address
+                &restore_targets.manifest.account_id
             );
 
             let identity_vault_file = paths.identity_vault();
@@ -470,7 +470,7 @@ impl AccountBackup {
         Self::restore_user_folders(&paths, &restore_targets.vaults).await?;
 
         let account =
-            PublicIdentity::new(label, restore_targets.manifest.address);
+            PublicIdentity::new(label, restore_targets.manifest.account_id);
         Ok((restore_targets, account))
     }
 
@@ -578,23 +578,28 @@ impl AccountBackup {
         let paths = Paths::new_global(data_dir.clone());
         let keys = Identity::list_accounts(Some(&paths)).await?;
         let existing_account =
-            keys.iter().find(|k| k.account_id() == &manifest.address);
+            keys.iter().find(|k| k.account_id() == &manifest.account_id);
 
         let account = existing_account
             .ok_or_else(|| {
-                Error::NoArchiveAccount(manifest.address.to_string())
+                Error::NoArchiveAccount(manifest.account_id.to_string())
             })?
             .clone();
 
-        let address = manifest.address.to_string();
-        let paths = Paths::new(data_dir, &address);
+        let account_id = manifest.account_id.to_string();
+        let paths = Paths::new(data_dir, &account_id);
         let mut user = Identity::new(paths.clone());
         let key: AccessKey = passphrase.clone().into();
         let identity_vault_file = paths.identity_vault().clone();
-        user.login(&identity_vault_file, &key).await?;
+        user.login(&manifest.account_id, &identity_vault_file, &key)
+            .await?;
 
-        let restored_user =
-            MemoryIdentityFolder::login(&identity.1, &key).await?;
+        let restored_user = MemoryIdentityFolder::login(
+            &manifest.account_id,
+            &identity.1,
+            &key,
+        )
+        .await?;
 
         // Prepare the vaults directory
         let vaults_dir = paths.vaults_dir();
@@ -636,8 +641,8 @@ impl AccountBackup {
                 }
                 ExtractFilesLocation::Builder(builder) => {
                     if let Some(manifest) = reader.manifest() {
-                        let address = manifest.address.to_string();
-                        if let Some(files_dir) = builder(&address) {
+                        let account_id = manifest.account_id.to_string();
+                        if let Some(files_dir) = builder(&account_id) {
                             reader
                                 .extract_files(
                                     files_dir,
@@ -682,12 +687,15 @@ impl AccountBackup {
             // and get the signing address from the identity folder
             // and verify it matches the manifest address
             let key: AccessKey = passphrase.clone().into();
-            let restored_user =
-                MemoryIdentityFolder::login(&identity.1, &key).await?;
+            let restored_user = MemoryIdentityFolder::login(
+                &manifest.account_id,
+                &identity.1,
+                &key,
+            )
+            .await?;
 
-            let account_id: AccountId = restored_user.address().into();
-
-            if &account_id != &manifest.address {
+            let account_id = restored_user.account_id();
+            if account_id != &manifest.account_id {
                 return Err(Error::ArchiveAccountIdMismatch);
             }
         }

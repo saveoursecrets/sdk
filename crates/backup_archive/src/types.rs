@@ -11,8 +11,9 @@ pub type ArchiveItem = (Summary, Vec<u8>);
 /// for import purposes.
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Manifest {
-    /// Address of the identity file.
-    pub address: AccountId,
+    /// Account identifier.
+    #[serde(rename = "address")]
+    pub account_id: AccountId,
 
     /// Checksum of the identity vault.
     pub checksum: String,

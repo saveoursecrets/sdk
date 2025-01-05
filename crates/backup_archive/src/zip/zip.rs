@@ -66,13 +66,13 @@ impl<W: AsyncWrite + Unpin> Writer<W> {
     /// Set the identity vault for the archive.
     pub async fn set_identity(
         mut self,
-        address: &AccountId,
+        account_id: &AccountId,
         vault: &[u8],
     ) -> Result<Self> {
-        let mut path = PathBuf::from(address.to_string());
+        let mut path = PathBuf::from(account_id.to_string());
         path.set_extension(VAULT_EXT);
 
-        self.manifest.address = *address;
+        self.manifest.account_id = *account_id;
         self.manifest.checksum =
             hex::encode(Sha256::digest(vault).as_slice());
         self.append_file_buffer(
@@ -273,7 +273,7 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
             .await?
             .take()
             .ok_or(Error::NoArchiveManifest)?;
-        let entry_name = format!("{}.{}", manifest.address, VAULT_EXT);
+        let entry_name = format!("{}.{}", manifest.account_id, VAULT_EXT);
         let checksum = hex::decode(&manifest.checksum)?;
         let (identity, _) =
             self.archive_folder(&entry_name, checksum).await?;
@@ -432,7 +432,7 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
     )> {
         let manifest =
             self.manifest.take().ok_or(Error::NoArchiveManifest)?;
-        let entry_name = format!("{}.{}", manifest.address, VAULT_EXT);
+        let entry_name = format!("{}.{}", manifest.account_id, VAULT_EXT);
         let checksum = hex::decode(&manifest.checksum)?;
         let identity = self.archive_folder(&entry_name, checksum).await?;
         let mut vaults = Vec::new();

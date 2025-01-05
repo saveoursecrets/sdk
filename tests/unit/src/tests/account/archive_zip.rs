@@ -17,7 +17,7 @@ async fn archive_buffer_async() -> Result<()> {
         Some(dir.path().to_owned()),
     )
     .await?;
-    let address = identity_vault.address().clone();
+    let account_id = identity_vault.account_id().clone();
     let identity_vault: Vault = identity_vault.into();
 
     let identity = encode(&identity_vault).await?;
@@ -26,7 +26,7 @@ async fn archive_buffer_async() -> Result<()> {
     let vault_buffer = encode(&vault).await?;
 
     let zip = writer
-        .set_identity(&(address.into()), &identity)
+        .set_identity(&(account_id.into()), &identity)
         .await?
         .add_vault(*vault.id(), &vault_buffer)
         .await?
@@ -41,14 +41,14 @@ async fn archive_buffer_async() -> Result<()> {
     let mut reader = Reader::new(Cursor::new(cursor.get_ref())).await?;
     let inventory = reader.inventory().await?;
 
-    assert_eq!(address, inventory.manifest.address.into());
+    assert_eq!(account_id, inventory.manifest.account_id);
     assert_eq!("Mock", inventory.identity.name());
     assert_eq!(1, inventory.vaults.len());
 
     let (manifest_decoded, identity_entry, vault_entries, _, _, _, _, _) =
         reader.prepare().await?.finish().await?;
 
-    assert_eq!(address, manifest_decoded.address.into());
+    assert_eq!(account_id, manifest_decoded.account_id);
 
     let (identity_summary, identity_buffer) = identity_entry;
     assert_eq!(identity_vault.summary(), &identity_summary);

@@ -26,18 +26,18 @@ async fn sign_in_identity_login() -> Result<()> {
     )
     .await?;
 
-    let address = identity_vault.address().clone();
+    let account_id = identity_vault.account_id().clone();
     let vault: Vault = identity_vault.into();
 
     let buffer = encode(&vault).await?;
     vfs::write(&path, buffer).await?;
 
-    let paths = Paths::new(data_dir, address.to_string());
+    let paths = Paths::new(data_dir, account_id.to_string());
     paths.ensure().await?;
     let mut identity = Identity::new(paths);
 
     let key: AccessKey = password.into();
-    identity.login(&path, &key).await?;
+    identity.login(&account_id, &path, &key).await?;
 
     let folder = VaultId::new_v4();
     let access_key: AccessKey = identity.generate_folder_password()?.into();
@@ -52,7 +52,7 @@ async fn sign_in_identity_login() -> Result<()> {
 
     // Login again and check the secure access keys
     // are loaded at login
-    identity.login(&path, &key).await?;
+    identity.login(&account_id, &path, &key).await?;
 
     // Remove the folder password
     identity.remove_folder_password(&folder).await?;

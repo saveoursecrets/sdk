@@ -36,11 +36,6 @@ pub enum Error {
     #[error("identity vault does not contain a valid account identity key")]
     NoIdentityKey,
 
-    /// Error generated when a signing key could not be
-    /// found in an identity vault.
-    #[error("identity vault does not contain a valid account signing key")]
-    NoSigningKey,
-
     /// Error generated when a vault entry in an identity vault is of
     /// the wrong secret kind.
     #[error("vault entry for {0} is of an unexpected type")]

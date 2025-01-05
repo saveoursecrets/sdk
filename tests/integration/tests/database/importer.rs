@@ -27,8 +27,10 @@ async fn database_importer() -> Result<()> {
         AccountBackup::restore_archive_inventory(BufReader::new(reader))
             .await?;
 
-    let user_paths =
-        Paths::new(data_dir.clone(), inventory.manifest.address.to_string());
+    let user_paths = Paths::new(
+        data_dir.clone(),
+        inventory.manifest.account_id.to_string(),
+    );
     user_paths.ensure().await?;
 
     let options = RestoreOptions {
