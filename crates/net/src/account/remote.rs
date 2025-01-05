@@ -155,11 +155,7 @@ impl RemoteSync for RemoteBridge {
         &self,
         account_data: UpdateSet,
     ) -> RemoteResult<Self::Error> {
-        match self
-            .client
-            .update_account(&self.account_id, account_data)
-            .await
-        {
+        match self.client.update_account(account_data).await {
             Ok(_) => RemoteResult {
                 origin: self.origin().clone(),
                 result: Ok(None),

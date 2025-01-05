@@ -2,7 +2,6 @@
 use crate::{NetworkAccount, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
-use sos_account::Account;
 use sos_core::events::WriteEvent;
 use sos_core::{
     commit::{CommitState, Comparison},
@@ -60,7 +59,7 @@ impl NetworkAccount {
                 || options.origins.contains(origin);
 
             if sync_remote {
-                match remote.client.sync_status(self.account_id()).await {
+                match remote.client.sync_status().await {
                     Ok(status) => {
                         server_status.insert(origin.clone(), Ok(status));
                     }

@@ -206,7 +206,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
-    async fn account_exists(&self, account_id: &AccountId) -> Result<bool> {
+    async fn account_exists(&self) -> Result<bool> {
         let url = self.build_url(SYNC_ACCOUNT)?;
 
         let sign_url = url.path();
@@ -220,7 +220,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .head(url)
-            .header(X_SOS_ACCOUNT_ID, account_id.to_string())
+            .header(X_SOS_ACCOUNT_ID, self.account_id.to_string())
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
@@ -237,11 +237,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
-    async fn create_account(
-        &self,
-        account_id: &AccountId,
-        account: CreateSet,
-    ) -> Result<()> {
+    async fn create_account(&self, account: CreateSet) -> Result<()> {
         let body = account.encode().await?;
         let url = self.build_url(SYNC_ACCOUNT)?;
 
@@ -254,7 +250,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .put(url)
-            .header(X_SOS_ACCOUNT_ID, account_id.to_string())
+            .header(X_SOS_ACCOUNT_ID, self.account_id.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -267,11 +263,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
-    async fn update_account(
-        &self,
-        account_id: &AccountId,
-        account: UpdateSet,
-    ) -> Result<()> {
+    async fn update_account(&self, account: UpdateSet) -> Result<()> {
         let body = account.encode().await?;
         let url = self.build_url(SYNC_ACCOUNT)?;
 
@@ -284,7 +276,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .post(url)
-            .header(X_SOS_ACCOUNT_ID, account_id.to_string())
+            .header(X_SOS_ACCOUNT_ID, self.account_id.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -297,10 +289,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
-    async fn fetch_account(
-        &self,
-        account_id: &AccountId,
-    ) -> Result<CreateSet> {
+    async fn fetch_account(&self) -> Result<CreateSet> {
         let url = self.build_url(SYNC_ACCOUNT)?;
 
         tracing::debug!(url = %url, "http::fetch_account");
@@ -314,7 +303,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .get(url)
-            .header(X_SOS_ACCOUNT_ID, account_id.to_string())
+            .header(X_SOS_ACCOUNT_ID, self.account_id.to_string())
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
@@ -326,7 +315,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
-    async fn delete_account(&self, account_id: &AccountId) -> Result<()> {
+    async fn delete_account(&self) -> Result<()> {
         let url = self.build_url(SYNC_ACCOUNT)?;
 
         let sign_url = url.path();
@@ -340,7 +329,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .delete(url)
-            .header(X_SOS_ACCOUNT_ID, account_id.to_string())
+            .header(X_SOS_ACCOUNT_ID, self.account_id.to_string())
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
@@ -351,10 +340,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
-    async fn sync_status(
-        &self,
-        account_id: &AccountId,
-    ) -> Result<SyncStatus> {
+    async fn sync_status(&self) -> Result<SyncStatus> {
         let url = self.build_url(SYNC_ACCOUNT_STATUS)?;
 
         tracing::debug!(url = %url, "http::sync_status");
@@ -368,7 +354,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .get(url)
-            .header(X_SOS_ACCOUNT_ID, account_id.to_string())
+            .header(X_SOS_ACCOUNT_ID, self.account_id.to_string())
             .header(AUTHORIZATION, auth)
             .send()
             .await?;
@@ -380,11 +366,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
-    async fn sync(
-        &self,
-        account_id: &AccountId,
-        packet: SyncPacket,
-    ) -> Result<SyncPacket> {
+    async fn sync(&self, packet: SyncPacket) -> Result<SyncPacket> {
         let body = packet.encode().await?;
         let url = self.build_url(SYNC_ACCOUNT)?;
 
@@ -397,7 +379,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .patch(url)
-            .header(X_SOS_ACCOUNT_ID, account_id.to_string())
+            .header(X_SOS_ACCOUNT_ID, self.account_id.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -411,11 +393,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
-    async fn scan(
-        &self,
-        account_id: &AccountId,
-        request: ScanRequest,
-    ) -> Result<ScanResponse> {
+    async fn scan(&self, request: ScanRequest) -> Result<ScanResponse> {
         let body = request.encode().await?;
         let url = self.build_url(SYNC_ACCOUNT_EVENTS)?;
 
@@ -428,7 +406,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .get(url)
-            .header(X_SOS_ACCOUNT_ID, account_id.to_string())
+            .header(X_SOS_ACCOUNT_ID, self.account_id.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -442,11 +420,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
-    async fn diff(
-        &self,
-        account_id: &AccountId,
-        request: DiffRequest,
-    ) -> Result<DiffResponse> {
+    async fn diff(&self, request: DiffRequest) -> Result<DiffResponse> {
         let body = request.encode().await?;
         let url = self.build_url(SYNC_ACCOUNT_EVENTS)?;
 
@@ -459,7 +433,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .post(url)
-            .header(X_SOS_ACCOUNT_ID, account_id.to_string())
+            .header(X_SOS_ACCOUNT_ID, self.account_id.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
@@ -473,11 +447,7 @@ impl SyncClient for HttpClient {
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), instrument(skip_all))]
-    async fn patch(
-        &self,
-        account_id: &AccountId,
-        request: PatchRequest,
-    ) -> Result<PatchResponse> {
+    async fn patch(&self, request: PatchRequest) -> Result<PatchResponse> {
         let body = request.encode().await?;
         let url = self.build_url(SYNC_ACCOUNT_EVENTS)?;
 
@@ -490,7 +460,7 @@ impl SyncClient for HttpClient {
         let response = self
             .client
             .patch(url)
-            .header(X_SOS_ACCOUNT_ID, account_id.to_string())
+            .header(X_SOS_ACCOUNT_ID, self.account_id.to_string())
             .header(CONTENT_TYPE, MIME_TYPE_PROTOBUF)
             .header(AUTHORIZATION, auth)
             .body(body)
