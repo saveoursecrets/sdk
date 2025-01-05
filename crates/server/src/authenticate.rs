@@ -11,45 +11,78 @@ use sos_signer::{
 #[derive(Debug)]
 pub struct BearerToken {
     pub account_id: AccountId,
-    pub device_signature: Option<ed25519::Signature>,
+    pub device_signature: ed25519::Signature,
 }
 
 impl BearerToken {
     /// Create a new bearer token.
     pub async fn new(
-        account_id: Option<AccountId>,
+        header_account_id: Option<AccountId>,
         token: &str,
         message: &[u8],
     ) -> Result<Self> {
         let has_period_delimiter = token.contains('.');
 
-        // When a token contains a period we are expecting
-        // an account signature and a device signature
-        let token = if has_period_delimiter {
-            token.split_once('.').map(|s| (s.0, Some(s.1)))
-        } else {
-            Some((token, None))
-        };
+        #[allow(unused_assignments)]
+        let mut account_id: Option<AccountId> = None;
+        #[allow(unused_assignments)]
+        let mut device_signature: Option<ed25519::Signature> = None;
 
-        let token = token.ok_or_else(|| Error::BadRequest)?;
-        let (account_token, device_token) = token;
+        match (header_account_id, has_period_delimiter) {
+            // Version 2 of the bearer format does not include
+            // an account signature but extracts the AccountId
+            // from a header instead
+            (Some(id), false) => {
+                account_id = Some(id);
 
-        let value = bs58::decode(account_token).into_vec()?;
-        let buffer: BinaryEcdsaSignature = decode(&value).await?;
-        let signature: ecdsa::Signature = buffer.into();
-        let account_id = recover_address(signature, message)?;
+                let value = bs58::decode(token).into_vec()?;
+                let buffer: BinaryEd25519Signature = decode(&value).await?;
+                let signature: ed25519::Signature = buffer.into();
+                device_signature = Some(signature);
+            }
+            // Concatenated account signature and device signature with
+            // account identifier in the header is deprecated but we will
+            // support it for now, preferring the value in the header
+            (Some(id), true) => {
+                account_id = Some(id);
 
-        let device_signature = if let Some(device_token) = device_token {
-            let value = bs58::decode(device_token).into_vec()?;
-            let buffer: BinaryEd25519Signature = decode(&value).await?;
-            let signature: ed25519::Signature = buffer.into();
-            Some(signature)
-        } else {
-            None
-        };
+                let (_, device_token) = token.split_once('.').unwrap();
+                let value = bs58::decode(device_token).into_vec()?;
+                let buffer: BinaryEd25519Signature = decode(&value).await?;
+                let signature: ed25519::Signature = buffer.into();
+                device_signature = Some(signature);
+            }
+            // Legacy version 1 encoding extracts the account identifier
+            // from the ECDSA signature public key
+            (None, true) => {
+                let (account_token, device_token) =
+                    token.split_once('.').unwrap();
+
+                let value = bs58::decode(account_token).into_vec()?;
+                let buffer: BinaryEcdsaSignature = decode(&value).await?;
+                let signature: ecdsa::Signature = buffer.into();
+                account_id =
+                    Some(recover_address(signature, message)?.into());
+
+                let value = bs58::decode(device_token).into_vec()?;
+                let buffer: BinaryEd25519Signature = decode(&value).await?;
+                let signature: ed25519::Signature = buffer.into();
+                device_signature = Some(signature);
+            }
+            // Legacy without a device signature is now forbidden.
+            //
+            // This was previously accepted in v0.15.x.
+            (None, false) => {
+                return Err(Error::Forbidden);
+            }
+        }
+
+        let account_id = account_id.ok_or_else(|| Error::BadRequest)?;
+        let device_signature =
+            device_signature.ok_or_else(|| Error::BadRequest)?;
 
         Ok(Self {
-            account_id: account_id.into(),
+            account_id,
             device_signature,
         })
     }

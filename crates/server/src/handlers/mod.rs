@@ -114,10 +114,12 @@ async fn authenticate_endpoint(
 
     // Restricted services require a device signature
     match (restricted, &token.device_signature) {
+        /*
         (true, None) => {
             return Err(Error::Forbidden);
         }
-        (true, Some(device_signature)) => {
+        */
+        (true, device_signature) => {
             let reader = backend.read().await;
             reader
                 .verify_device(
