@@ -5741,7 +5741,6 @@ dependencies = [
  "sha2",
  "sha3",
  "sos-core",
- "subtle",
  "thiserror 2.0.9",
 ]
 
