@@ -28,7 +28,7 @@ async fn network_no_sync_create_account() -> Result<()> {
         Default::default(),
     )
     .await?;
-    let address = account.address().clone();
+    let address = account.account_id().clone();
 
     // Sign in to the new account
     let key: AccessKey = password.clone().into();
@@ -78,7 +78,7 @@ async fn network_no_sync_update_account() -> Result<()> {
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 2, Some(&server)).await?;
-    let address = device.owner.address().clone();
+    let address = device.owner.account_id().clone();
 
     // Create folder with AUTHENTICATOR flag
     let options = NewFolderOptions {

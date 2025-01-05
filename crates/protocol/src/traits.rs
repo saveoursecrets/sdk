@@ -3,8 +3,7 @@ use crate::{
     ScanResponse, SyncOptions,
 };
 use async_trait::async_trait;
-use sos_core::Origin;
-use sos_sdk::prelude::Address;
+use sos_core::{AccountId, Origin};
 use sos_sync::{CreateSet, MergeOutcome, SyncPacket, SyncStatus, UpdateSet};
 
 /// Result of a sync operation with a single remote.
@@ -166,59 +165,59 @@ pub trait SyncClient {
     /// Check if an account already exists.
     async fn account_exists(
         &self,
-        address: &Address,
+        address: &AccountId,
     ) -> Result<bool, Self::Error>;
 
     /// Create a new account.
     async fn create_account(
         &self,
-        address: &Address,
+        address: &AccountId,
         account: CreateSet,
     ) -> Result<(), Self::Error>;
 
     /// Update an account.
     async fn update_account(
         &self,
-        address: &Address,
+        address: &AccountId,
         account: UpdateSet,
     ) -> Result<(), Self::Error>;
 
     /// Fetch an account from a remote server.
     async fn fetch_account(
         &self,
-        address: &Address,
+        address: &AccountId,
     ) -> Result<CreateSet, Self::Error>;
 
     /// Delete the account on the server.
     async fn delete_account(
         &self,
-        address: &Address,
+        address: &AccountId,
     ) -> Result<(), Self::Error>;
 
     /// Sync status on the server.
     async fn sync_status(
         &self,
-        address: &Address,
+        address: &AccountId,
     ) -> Result<SyncStatus, Self::Error>;
 
     /// Sync with a remote.
     async fn sync(
         &self,
-        address: &Address,
+        address: &AccountId,
         packet: SyncPacket,
     ) -> Result<SyncPacket, Self::Error>;
 
     /// Scan commits in an event log.
     async fn scan(
         &self,
-        address: &Address,
+        address: &AccountId,
         request: ScanRequest,
     ) -> Result<ScanResponse, Self::Error>;
 
     /// Fetch a collection of event records since a given commit hash.
     async fn diff(
         &self,
-        address: &Address,
+        address: &AccountId,
         request: DiffRequest,
     ) -> Result<DiffResponse, Self::Error>;
 
@@ -228,7 +227,7 @@ pub trait SyncClient {
     /// attempt to rewind to the commit before applying the patch.
     async fn patch(
         &self,
-        address: &Address,
+        address: &AccountId,
         request: PatchRequest,
     ) -> Result<PatchResponse, Self::Error>;
 }

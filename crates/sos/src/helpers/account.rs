@@ -447,7 +447,7 @@ pub async fn new_account(
             },
         )
         .await?;
-        let address = owner.address().to_string();
+        let account_id = owner.account_id().to_string();
 
         let key: AccessKey = passphrase.into();
         owner.sign_in(&key).await?;
@@ -457,7 +457,7 @@ pub async fn new_account(
             r#"* Account: {} ({})
 * Storage: {}"#,
             account_name,
-            address,
+            account_id,
             data_dir.display(),
         );
 

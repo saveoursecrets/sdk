@@ -5,10 +5,9 @@
 use anyhow::Result;
 use axum_server::Handle;
 use copy_dir::copy_dir;
-use sos_core::Origin;
-use sos_sdk::{vfs, Paths};
+use sos_core::{AccountId, Origin, Paths};
 use sos_server::{Server, ServerConfig, State};
-use sos_signer::ecdsa::Address;
+use sos_vfs as vfs;
 use std::{
     net::SocketAddr,
     path::{Path, PathBuf},
@@ -167,13 +166,13 @@ pub struct TestServer {
 
 impl TestServer {
     /// Server paths for the given address.
-    pub fn paths(&self, address: &Address) -> Arc<Paths> {
-        Arc::new(Paths::new_server(self.path.clone(), address.to_string()))
+    pub fn paths(&self, account_id: &AccountId) -> Arc<Paths> {
+        Arc::new(Paths::new_server(self.path.clone(), account_id.to_string()))
     }
 
     /// Path to the server account data.
-    pub fn account_path(&self, address: &Address) -> PathBuf {
-        let paths = self.paths(address);
+    pub fn account_path(&self, account_id: &AccountId) -> PathBuf {
+        let paths = self.paths(account_id);
         paths.user_dir().to_owned()
     }
 }

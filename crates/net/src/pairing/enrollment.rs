@@ -4,8 +4,10 @@ use crate::{
     NetworkAccount,
 };
 use sos_account::Account;
-use sos_core::events::AccountEvent;
-use sos_core::{crypto::AccessKey, encode, Origin, VaultId};
+use sos_core::{
+    crypto::AccessKey, encode, events::AccountEvent, AccountId, Origin,
+    VaultId,
+};
 use sos_filesystem::{
     events::{
         AccountEventLog, AccountPatch, EventLogExt, FolderEventLog,
@@ -38,7 +40,10 @@ use sos_filesystem::events::{DeviceEventLog, DevicePatch};
 /// to authenticate the account.
 pub struct DeviceEnrollment {
     /// Account address.
+    #[deprecated]
     address: Address,
+    /// Account identifier.
+    account_id: AccountId,
     /// Account paths.
     paths: Paths,
     /// Data directory.
@@ -86,6 +91,7 @@ impl DeviceEnrollment {
         )?;
 
         Ok(Self {
+            account_id: address.into(),
             address: address.to_owned(),
             paths,
             data_dir,
@@ -100,6 +106,11 @@ impl DeviceEnrollment {
     /// Account address.
     pub fn address(&self) -> &Address {
         &self.address
+    }
+
+    /// Account identifier.
+    pub fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     /// Public identity of the account.
@@ -122,7 +133,7 @@ impl DeviceEnrollment {
         Paths::scaffold(self.data_dir.clone()).await?;
         self.paths.ensure().await?;
 
-        let change_set = self.client.fetch_account(self.address()).await?;
+        let change_set = self.client.fetch_account(self.account_id()).await?;
         self.create_folders(change_set.folders).await?;
         self.create_account(change_set.account).await?;
         self.create_device(change_set.device).await?;

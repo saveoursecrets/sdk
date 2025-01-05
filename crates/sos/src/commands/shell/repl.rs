@@ -283,7 +283,11 @@ async fn exec_program(program: Shell) -> Result<()> {
             let owner = USER.read().await;
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-            println!("{} {}", owner.account_label().await?, owner.address());
+            println!(
+                "{} {}",
+                owner.account_label().await?,
+                owner.account_id()
+            );
             Ok(())
         }
         ShellCommand::Pwd => {

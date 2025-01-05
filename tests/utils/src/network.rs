@@ -172,7 +172,7 @@ pub async fn simulate_device_with_builder(
         let sync_result = owner.sync().await;
         assert!(sync_result.first_error().is_none());
 
-        (origin, server.account_path(owner.address()))
+        (origin, server.account_path(owner.account_id()))
     } else {
         let url: Url = "https://example.com".parse()?;
         (url.into(), PathBuf::new())
@@ -268,7 +268,7 @@ pub async fn assert_local_remote_events_eq(
     // Compare event log status (commit proofs)
     let local_status = owner.sync_status().await?;
     let remote_status =
-        provider.client().sync_status(owner.address()).await?;
+        provider.client().sync_status(owner.account_id()).await?;
 
     //println!(" local {:#?}", local_status);
     //println!("remote {:#?}", remote_status);

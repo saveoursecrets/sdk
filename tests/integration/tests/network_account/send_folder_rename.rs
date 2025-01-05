@@ -21,7 +21,7 @@ async fn network_sync_folder_rename() -> Result<()> {
     let folders = device.folders.clone();
 
     // Path that we expect the remote server to write to
-    let server_path = server.account_path(device.owner.address());
+    let server_path = server.account_path(device.owner.account_id());
 
     let FolderChange { sync_result, .. } = device
         .owner

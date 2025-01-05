@@ -62,7 +62,7 @@ pub trait AutoMerge: RemoteSyncHandler {
         match self.direction() {
             SyncDirection::Push => {
                 let exists =
-                    self.client().account_exists(self.address()).await?;
+                    self.client().account_exists(self.account_id()).await?;
                 if exists {
                     self.perform_sync(options).await
                 } else {
@@ -91,7 +91,8 @@ pub trait AutoMerge: RemoteSyncHandler {
         &self,
         options: &SyncOptions,
     ) -> Result<Option<MergeOutcome>, Self::Error> {
-        let sync_status = self.client().sync_status(self.address()).await?;
+        let sync_status =
+            self.client().sync_status(self.account_id()).await?;
         match self.sync_account(sync_status).await {
             Ok(outcome) => Ok(Some(outcome)),
             Err(e) => {
@@ -243,7 +244,7 @@ pub trait AutoMerge: RemoteSyncHandler {
                     from_hash: None,
                 };
                 let response =
-                    self.client().diff(self.address(), request).await?;
+                    self.client().diff(self.account_id(), request).await?;
                 let patch = Patch::<EventType>::new(response.patch);
                 let diff =
                     Diff::<EventType>::new(patch, response.checkpoint, None);
@@ -453,7 +454,7 @@ pub trait AutoMerge: RemoteSyncHandler {
                     from_hash: None,
                 };
                 let response =
-                    self.client().diff(self.address(), request).await?;
+                    self.client().diff(self.account_id(), request).await?;
                 let patch = Patch::<WriteEvent>::new(response.patch);
                 let diff = FolderDiff {
                     patch,
@@ -522,7 +523,7 @@ pub trait AutoMerge: RemoteSyncHandler {
             from_hash: Some(commit),
         };
         let remote_patch =
-            self.client().diff(self.address(), request).await?.patch;
+            self.client().diff(self.account_id(), request).await?.patch;
 
         let result = self.merge_patches(local_patch, remote_patch).await?;
 
@@ -753,7 +754,7 @@ pub trait AutoMerge: RemoteSyncHandler {
 
         let remote_patch = self
             .client()
-            .patch(self.address(), req)
+            .patch(self.account_id(), req)
             .await?
             .checked_patch;
         let local_patch = match &remote_patch {
@@ -886,8 +887,10 @@ pub trait AutoMerge: RemoteSyncHandler {
           request = ?request,
           "auto_merge::iterate_scan_proofs");
 
-        let response =
-            self.client().scan(self.address(), request.clone()).await?;
+        let response = self
+            .client()
+            .scan(self.account_id(), request.clone())
+            .await?;
 
         // If the server gave us a first proof and we don't
         // have it in our event log then there is no point scanning

@@ -3,7 +3,7 @@
 use crate::{AsConflict, ConflictError, SyncClient};
 use async_trait::async_trait;
 use sos_account::Account;
-use sos_core::Origin;
+use sos_core::{AccountId, Origin};
 use sos_sdk::prelude::Address;
 use sos_sync::{
     MaybeDiff, Merge, MergeOutcome, StorageEventLogs, SyncDirection,
@@ -53,7 +53,11 @@ pub trait RemoteSyncHandler {
     fn origin(&self) -> &Origin;
 
     /// Account address.
+    #[deprecated]
     fn address(&self) -> &Address;
+
+    /// Account identifier.
+    fn account_id(&self) -> &AccountId;
 
     /// Local account.
     fn account(&self) -> Arc<Mutex<Self::Account>>;
@@ -77,7 +81,7 @@ pub trait RemoteSyncHandler {
             let account = account.lock().await;
             let public_account = account.change_set().await?;
             self.client()
-                .create_account(self.address(), public_account)
+                .create_account(self.account_id(), public_account)
                 .await?;
         }
 
@@ -94,7 +98,7 @@ pub trait RemoteSyncHandler {
 
         // Get account data from the remote.
         let public_account =
-            self.client().fetch_account(self.address()).await?;
+            self.client().fetch_account(self.account_id()).await?;
 
         tracing::info!("create_pull_account::fetch_completed");
 
@@ -144,8 +148,10 @@ pub trait RemoteSyncHandler {
                 diff: local_changes,
                 compare: None,
             };
-            let remote_changes =
-                self.client().sync(self.address(), packet.clone()).await?;
+            let remote_changes = self
+                .client()
+                .sync(self.account_id(), packet.clone())
+                .await?;
 
             let maybe_conflict = remote_changes
                 .compare

@@ -16,7 +16,7 @@ async fn network_sync_delete_account() -> Result<()> {
 
     // Prepare a mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
-    let address = device.owner.address().clone();
+    let address = device.owner.account_id().clone();
     let origin = device.origin.clone();
 
     // Note that setting up the mock device automatically

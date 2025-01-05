@@ -1241,6 +1241,10 @@ impl RemoteSyncHandler for LinkedAccount {
         &self.address
     }
 
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
+    }
+
     fn account(&self) -> Arc<Mutex<Self::Account>> {
         self.account.clone()
     }
@@ -1291,7 +1295,7 @@ impl RemoteSync for LinkedAccount {
     ) -> RemoteResult<Self::Error> {
         match self
             .client
-            .update_account(&self.address, account_data)
+            .update_account(&self.account_id, account_data)
             .await
         {
             Ok(_) => RemoteResult {

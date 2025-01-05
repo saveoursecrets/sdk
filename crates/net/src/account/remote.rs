@@ -2,7 +2,7 @@
 use crate::Result;
 use async_trait::async_trait;
 use sos_account::LocalAccount;
-use sos_core::Origin;
+use sos_core::{AccountId, Origin};
 use sos_protocol::RemoteSyncHandler;
 use sos_protocol::{
     network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
@@ -27,7 +27,10 @@ pub(crate) type Remotes = HashMap<Origin, RemoteBridge>;
 #[derive(Clone)]
 pub struct RemoteBridge {
     /// Address of the account.
+    #[deprecated]
     address: Address,
+    /// Address of the account.
+    account_id: AccountId,
     /// Account so we can replay events
     /// when a remote diff is merged.
     pub(super) account: Arc<Mutex<LocalAccount>>,
@@ -56,6 +59,7 @@ impl RemoteBridge {
             tokio::sync::broadcast::channel::<FileTransferQueueRequest>(32);
 
         Ok(Self {
+            account_id: (&address).into(),
             account,
             client,
             address,
@@ -85,6 +89,10 @@ impl RemoteSyncHandler for RemoteBridge {
 
     fn address(&self) -> &Address {
         &self.address
+    }
+
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     fn account(&self) -> Arc<Mutex<Self::Account>> {
@@ -158,7 +166,7 @@ impl RemoteSync for RemoteBridge {
     ) -> RemoteResult<Self::Error> {
         match self
             .client
-            .update_account(&self.address, account_data)
+            .update_account(&self.account_id, account_data)
             .await
         {
             Ok(_) => RemoteResult {

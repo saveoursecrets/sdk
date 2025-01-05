@@ -21,7 +21,7 @@ async fn file_transfers_late_upload() -> Result<()> {
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 1, None).await?;
-    let address = device.owner.address().clone();
+    let address = device.owner.account_id().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
 
     // Create an external file secret then delete it,
