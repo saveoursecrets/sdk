@@ -3,10 +3,7 @@
 use super::{Error, Result};
 use axum_extra::headers::{authorization::Bearer, Authorization};
 use sos_core::{decode, AccountId};
-use sos_signer::{
-    ecdsa::{self, recover_address, BinaryEcdsaSignature},
-    ed25519::{self, BinaryEd25519Signature},
-};
+use sos_signer::ed25519::{self, BinaryEd25519Signature};
 
 #[derive(Debug)]
 pub struct BearerToken {
@@ -19,7 +16,6 @@ impl BearerToken {
     pub async fn new(
         header_account_id: Option<AccountId>,
         token: &str,
-        message: &[u8],
     ) -> Result<Self> {
         let has_period_delimiter = token.contains('.');
 
@@ -40,34 +36,13 @@ impl BearerToken {
                 let signature: ed25519::Signature = buffer.into();
                 device_signature = Some(signature);
             }
-            // Concatenated account signature and device signature with
-            // account identifier in the header is deprecated but we will
-            // support it for now, preferring the value in the header
-            (Some(id), true) => {
-                account_id = Some(id);
-
-                let (_, device_token) = token.split_once('.').unwrap();
-                let value = bs58::decode(device_token).into_vec()?;
-                let buffer: BinaryEd25519Signature = decode(&value).await?;
-                let signature: ed25519::Signature = buffer.into();
-                device_signature = Some(signature);
+            (Some(_), true) => {
+                return Err(Error::Forbidden);
             }
             // Legacy version 1 encoding extracts the account identifier
             // from the ECDSA signature public key
             (None, true) => {
-                let (account_token, device_token) =
-                    token.split_once('.').unwrap();
-
-                let value = bs58::decode(account_token).into_vec()?;
-                let buffer: BinaryEcdsaSignature = decode(&value).await?;
-                let signature: ecdsa::Signature = buffer.into();
-                account_id =
-                    Some(recover_address(signature, message)?.into());
-
-                let value = bs58::decode(device_token).into_vec()?;
-                let buffer: BinaryEd25519Signature = decode(&value).await?;
-                let signature: ed25519::Signature = buffer.into();
-                device_signature = Some(signature);
+                return Err(Error::Forbidden);
             }
             // Legacy without a device signature is now forbidden.
             //
@@ -96,13 +71,9 @@ impl BearerToken {
 ///
 /// The signature is then converted to a recoverable signature and the public
 /// key is extracted using the body bytes as the message that has been signed.
-pub async fn bearer<B>(
+pub async fn bearer(
     account_id: Option<AccountId>,
     authorization: Authorization<Bearer>,
-    body: B,
-) -> Result<BearerToken>
-where
-    B: AsRef<[u8]>,
-{
-    BearerToken::new(account_id, authorization.token(), body.as_ref()).await
+) -> Result<BearerToken> {
+    BearerToken::new(account_id, authorization.token()).await
 }
