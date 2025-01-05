@@ -96,13 +96,12 @@ async fn authenticate_endpoint(
     query: Option<ConnectionQuery>,
     state: ServerState,
     backend: ServerBackend,
-    restricted: bool,
 ) -> Result<Caller> {
     let token = authenticate::bearer(account_id, bearer, signed_data)
         .await
         .map_err(|_| Error::BadRequest)?;
 
-    // Deny unauthorized account account_ids
+    // Deny unauthorized account ids
     {
         let reader = state.read().await;
         if let Some(access) = &reader.config.access {
@@ -112,25 +111,14 @@ async fn authenticate_endpoint(
         }
     }
 
-    // Restricted services require a device signature
-    match (restricted, &token.device_signature) {
-        /*
-        (true, None) => {
-            return Err(Error::Forbidden);
-        }
-        */
-        (true, device_signature) => {
-            let reader = backend.read().await;
-            reader
-                .verify_device(
-                    &token.account_id,
-                    device_signature,
-                    &signed_data,
-                )
-                .await?;
-        }
-        _ => {}
-    }
+    let reader = backend.read().await;
+    reader
+        .verify_device(
+            &token.account_id,
+            &token.device_signature,
+            &signed_data,
+        )
+        .await?;
 
     let owner = Caller {
         token,

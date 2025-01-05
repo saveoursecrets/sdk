@@ -46,7 +46,6 @@ pub(crate) async fn account_exists(
         None,
         Arc::clone(&state),
         Arc::clone(&backend),
-        false,
     )
     .await
     {
@@ -114,7 +113,6 @@ pub(crate) async fn create_account(
             Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
-            false,
         )
         .await
         {
@@ -171,7 +169,6 @@ pub(crate) async fn delete_account(
         None,
         Arc::clone(&state),
         Arc::clone(&backend),
-        false,
     )
     .await
     {
@@ -233,7 +230,6 @@ pub(crate) async fn update_account(
             Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
-            true,
         )
         .await
         {
@@ -292,7 +288,6 @@ pub(crate) async fn fetch_account(
         Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
-        true,
     )
     .await
     {
@@ -347,7 +342,6 @@ pub(crate) async fn sync_status(
         Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
-        true,
     )
     .await
     {
@@ -407,7 +401,6 @@ pub(crate) async fn event_scan(
             Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
-            true,
         )
         .await
         {
@@ -471,7 +464,6 @@ pub(crate) async fn event_diff(
             Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
-            true,
         )
         .await
         {
@@ -535,7 +527,6 @@ pub(crate) async fn event_patch(
             Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
-            true,
         )
         .await
         {
@@ -599,7 +590,6 @@ pub(crate) async fn sync_account(
             Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
-            true,
         )
         .await
         {

@@ -84,7 +84,6 @@ pub(crate) async fn receive_file(
         Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
-        true,
     )
     .await
     {
@@ -151,7 +150,6 @@ pub(crate) async fn delete_file(
         Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
-        true,
     )
     .await
     {
@@ -219,7 +217,6 @@ pub(crate) async fn send_file(
         Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
-        true,
     )
     .await
     {
@@ -287,7 +284,6 @@ pub(crate) async fn move_file(
         Some(query),
         Arc::clone(&state),
         Arc::clone(&backend),
-        true,
     )
     .await
     {
@@ -348,7 +344,6 @@ pub(crate) async fn compare_files(
             Some(query),
             Arc::clone(&state),
             Arc::clone(&backend),
-            true,
         )
         .await
         {

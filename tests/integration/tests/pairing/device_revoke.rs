@@ -62,7 +62,7 @@ async fn pairing_device_revoke() -> Result<()> {
         assert!(matches!(
             &*err,
             ClientError::Protocol(ProtocolError::Network(
-                NetworkError::ResponseJson(StatusCode::FORBIDDEN, _)
+                NetworkError::ResponseCode(StatusCode::FORBIDDEN)
             ))
         ));
     } else {
@@ -76,7 +76,7 @@ async fn pairing_device_revoke() -> Result<()> {
         assert!(matches!(
             err,
             ClientError::Protocol(ProtocolError::Network(
-                NetworkError::ResponseJson(StatusCode::FORBIDDEN, _)
+                NetworkError::ResponseCode(StatusCode::FORBIDDEN)
             ))
         ));
     } else {

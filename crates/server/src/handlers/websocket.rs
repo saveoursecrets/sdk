@@ -98,7 +98,6 @@ pub async fn upgrade(
         Some(query.clone()),
         Arc::clone(&state),
         Arc::clone(&backend),
-        true,
     )
     .await
     .map_err(|_| StatusCode::BAD_REQUEST)?;
