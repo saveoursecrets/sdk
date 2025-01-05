@@ -20,10 +20,7 @@ use sos_core::{
     decode, encode, AccountId,
 };
 use sos_core::{csprng, VaultId};
-use sos_signer::{
-    ecdsa::{Address, SingleParty},
-    Signer,
-};
+use sos_signer::{ecdsa::SingleParty, Signer};
 use std::collections::HashMap;
 use uuid::Uuid;
 use vsss_rs::{combine_shares, shamir};

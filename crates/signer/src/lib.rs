@@ -4,7 +4,6 @@
 //! Traits and types for signing messages.
 use async_trait::async_trait;
 
-mod address;
 mod encoding;
 mod error;
 mod signature;
@@ -59,7 +58,6 @@ pub mod ecdsa {
     use sha2::Sha256;
     use sha3::{Digest, Keccak256};
 
-    pub use super::address::Address;
     pub use super::signature::Signature;
     pub use k256::ecdsa::{hazmat::SignPrimitive, SigningKey, VerifyingKey};
 
