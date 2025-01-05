@@ -98,7 +98,7 @@ async fn authenticate_endpoint(
     backend: ServerBackend,
     restricted: bool,
 ) -> Result<Caller> {
-    let token = authenticate::bearer(bearer, signed_data)
+    let token = authenticate::bearer(account_id, bearer, signed_data)
         .await
         .map_err(|_| Error::BadRequest)?;
 

@@ -80,7 +80,7 @@ async fn request_bearer(
     let device_signature =
         encode_device_signature(device.sign(sign_url.as_bytes()).await?)
             .await?;
-    let auth = bearer_prefix(&account_signature, Some(&device_signature));
+    let auth = bearer_prefix(&account_signature, &device_signature);
 
     request
         .uri

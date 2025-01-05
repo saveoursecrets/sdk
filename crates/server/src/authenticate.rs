@@ -16,10 +16,16 @@ pub struct BearerToken {
 
 impl BearerToken {
     /// Create a new bearer token.
-    pub async fn new(token: &str, message: &[u8]) -> Result<Self> {
+    pub async fn new(
+        account_id: Option<AccountId>,
+        token: &str,
+        message: &[u8],
+    ) -> Result<Self> {
+        let has_period_delimiter = token.contains('.');
+
         // When a token contains a period we are expecting
         // an account signature and a device signature
-        let token = if token.contains('.') {
+        let token = if has_period_delimiter {
             token.split_once('.').map(|s| (s.0, Some(s.1)))
         } else {
             Some((token, None))
@@ -58,11 +64,12 @@ impl BearerToken {
 /// The signature is then converted to a recoverable signature and the public
 /// key is extracted using the body bytes as the message that has been signed.
 pub async fn bearer<B>(
+    account_id: Option<AccountId>,
     authorization: Authorization<Bearer>,
     body: B,
 ) -> Result<BearerToken>
 where
     B: AsRef<[u8]>,
 {
-    BearerToken::new(authorization.token(), body.as_ref()).await
+    BearerToken::new(account_id, authorization.token(), body.as_ref()).await
 }

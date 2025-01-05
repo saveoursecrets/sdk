@@ -225,7 +225,11 @@ impl SyncClient for HttpClient {
             self.account_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
-        let auth = bearer_prefix(&account_signature, None);
+        let device_signature = encode_device_signature(
+            self.device_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, &device_signature);
 
         tracing::debug!(url = %url, "http::account_exists");
         let response = self
@@ -261,7 +265,10 @@ impl SyncClient for HttpClient {
         let account_signature =
             encode_account_signature(self.account_signer.sign(&body).await?)
                 .await?;
-        let auth = bearer_prefix(&account_signature, None);
+        let device_signature =
+            encode_device_signature(self.device_signer.sign(&body).await?)
+                .await?;
+        let auth = bearer_prefix(&account_signature, &device_signature);
         let response = self
             .client
             .put(url)
@@ -294,7 +301,7 @@ impl SyncClient for HttpClient {
         let device_signature =
             encode_device_signature(self.device_signer.sign(&body).await?)
                 .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let auth = bearer_prefix(&account_signature, &device_signature);
         let response = self
             .client
             .post(url)
@@ -328,7 +335,7 @@ impl SyncClient for HttpClient {
             self.device_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let auth = bearer_prefix(&account_signature, &device_signature);
         let response = self
             .client
             .get(url)
@@ -352,7 +359,11 @@ impl SyncClient for HttpClient {
             self.account_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
-        let auth = bearer_prefix(&account_signature, None);
+        let device_signature = encode_device_signature(
+            self.device_signer.sign(sign_url.as_bytes()).await?,
+        )
+        .await?;
+        let auth = bearer_prefix(&account_signature, &device_signature);
 
         tracing::debug!(url = %url, "http::delete_account");
         let response = self
@@ -386,7 +397,7 @@ impl SyncClient for HttpClient {
             self.device_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let auth = bearer_prefix(&account_signature, &device_signature);
         let response = self
             .client
             .get(url)
@@ -418,7 +429,7 @@ impl SyncClient for HttpClient {
         let device_signature =
             encode_device_signature(self.device_signer.sign(&body).await?)
                 .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let auth = bearer_prefix(&account_signature, &device_signature);
         let response = self
             .client
             .patch(url)
@@ -452,7 +463,7 @@ impl SyncClient for HttpClient {
         let device_signature =
             encode_device_signature(self.device_signer.sign(&body).await?)
                 .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let auth = bearer_prefix(&account_signature, &device_signature);
         let response = self
             .client
             .get(url)
@@ -486,7 +497,7 @@ impl SyncClient for HttpClient {
         let device_signature =
             encode_device_signature(self.device_signer.sign(&body).await?)
                 .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let auth = bearer_prefix(&account_signature, &device_signature);
         let response = self
             .client
             .post(url)
@@ -520,7 +531,7 @@ impl SyncClient for HttpClient {
         let device_signature =
             encode_device_signature(self.device_signer.sign(&body).await?)
                 .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let auth = bearer_prefix(&account_signature, &device_signature);
         let response = self
             .client
             .patch(url)
@@ -579,7 +590,7 @@ impl FileSyncClient for HttpClient {
             self.device_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let auth = bearer_prefix(&account_signature, &device_signature);
 
         let metadata = vfs::metadata(path).await?;
         let file_size = metadata.len();
@@ -666,7 +677,7 @@ impl FileSyncClient for HttpClient {
             self.device_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let auth = bearer_prefix(&account_signature, &device_signature);
 
         let mut response = self
             .client
@@ -758,7 +769,7 @@ impl FileSyncClient for HttpClient {
             self.device_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let auth = bearer_prefix(&account_signature, &device_signature);
 
         let response = self
             .client
@@ -799,8 +810,7 @@ impl FileSyncClient for HttpClient {
             self.device_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
-
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let auth = bearer_prefix(&account_signature, &device_signature);
 
         let response = self
             .client
@@ -833,7 +843,7 @@ impl FileSyncClient for HttpClient {
             self.device_signer.sign(sign_url.as_bytes()).await?,
         )
         .await?;
-        let auth = bearer_prefix(&account_signature, Some(&device_signature));
+        let auth = bearer_prefix(&account_signature, &device_signature);
 
         let body = local_files.encode().await?;
 
