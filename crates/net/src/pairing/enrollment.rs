@@ -22,7 +22,7 @@ use sos_sdk::{
     vault::{VaultAccess, VaultWriter},
     vfs, Paths,
 };
-use sos_signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
+use sos_signer::ed25519::BoxedEd25519Signer;
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -60,24 +60,21 @@ pub struct DeviceEnrollment {
 impl DeviceEnrollment {
     /// Create a new device enrollment.
     pub(crate) async fn new(
-        account_signing_key: BoxedEcdsaSigner,
+        account_id: AccountId,
         origin: Origin,
         device_signer: DeviceSigner,
         device_vault: Vec<u8>,
         servers: HashSet<Origin>,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
-        let address = account_signing_key.address()?;
-        let account_id: AccountId = address.into();
         let paths = if let Some(data_dir) = &data_dir {
-            Paths::new(data_dir.clone(), address.to_string())
+            Paths::new(data_dir.clone(), account_id.to_string())
         } else {
-            Paths::new(Paths::data_dir()?, address.to_string())
+            Paths::new(Paths::data_dir()?, account_id.to_string())
         };
 
         let device_signing_key = device_signer.clone();
         let device: BoxedEd25519Signer = device_signing_key.into();
-
         let client =
             HttpClient::new(account_id, origin, device, String::new())?;
 

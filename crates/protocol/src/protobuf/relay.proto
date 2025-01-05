@@ -51,18 +51,24 @@ message PairingReady {}
 message PairingRequest {
   // Meta data of the device making the request.
   bytes device_meta_data = 1;
+  // Account identifier.
+  string account_id = 2;
 }
 
 // Pairing confirmed.
 message PairingConfirm {
-  // Signing key of the account.
-  bytes account_signing_key = 1;
+  // Signing key of the account (deprecated).
+  // bytes account_signing_key = 1;
+
   // Signing key for the new device being paired.
   bytes device_signing_key = 2;
   // Vault containing the device signing key.
   bytes device_vault = 3;
   // Collection of server origins.
   repeated sync.WireOrigin servers = 4;
+  
+  // Account identifier.
+  string account_id = 5;
 }
 
 // Message for the pairing protocol.

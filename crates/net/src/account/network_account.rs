@@ -30,7 +30,6 @@ use sos_sdk::{
     },
     vfs, Paths,
 };
-use sos_signer::ecdsa::BoxedEcdsaSigner;
 use sos_sync::{CreateSet, EventLogType, StorageEventLogs, UpdateSet};
 use std::{
     collections::{HashMap, HashSet},
@@ -703,11 +702,6 @@ impl Account for NetworkAccount {
     async fn is_authenticated(&self) -> bool {
         let account = self.account.lock().await;
         account.is_authenticated().await
-    }
-
-    async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
-        let account = self.account.lock().await;
-        Ok(account.account_signer().await?)
     }
 
     async fn import_account_events(

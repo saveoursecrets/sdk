@@ -22,7 +22,6 @@ use sos_sdk::{
     },
     vfs, Paths, UtcDateTime,
 };
-use sos_signer::ecdsa::BoxedEcdsaSigner;
 use sos_sync::{CreateSet, StorageEventLogs};
 use std::{
     borrow::Cow,
@@ -245,11 +244,6 @@ pub trait Account {
 
     /// Determine if the account is authenticated.
     async fn is_authenticated(&self) -> bool;
-
-    /// Signing key for the account.
-    async fn account_signer(
-        &self,
-    ) -> std::result::Result<BoxedEcdsaSigner, Self::Error>;
 
     /// Import encrypted account events into the client storage.
     async fn import_account_events(
@@ -1593,10 +1587,6 @@ impl Account for LocalAccount {
 
     async fn is_authenticated(&self) -> bool {
         self.authenticated.is_some()
-    }
-
-    async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
-        Ok(self.user()?.identity()?.signer().clone())
     }
 
     async fn device_signer(&self) -> Result<DeviceSigner> {

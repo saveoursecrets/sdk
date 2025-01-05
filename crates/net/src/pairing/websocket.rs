@@ -27,7 +27,6 @@ use sos_protocol::{
     SyncOptions,
 };
 use sos_sdk::device::{DeviceMetaData, DevicePublicKey, TrustedDevice};
-use sos_signer::ecdsa::SingleParty;
 use std::collections::HashSet;
 use std::{borrow::Cow, path::PathBuf};
 use tokio::{net::TcpStream, sync::mpsc};
@@ -372,11 +371,6 @@ impl<'a> OfferPairing<'a> {
                     let device: DeviceMetaData =
                         serde_json::from_slice(&device_bytes)?;
 
-                    let account_signer =
-                        self.account.account_signer().await?;
-                    let account_signing_key = account_signer.to_bytes();
-                    let account_signing_key: [u8; 32] =
-                        account_signing_key.as_slice().try_into()?;
                     let (device_signer, manager) =
                         self.account.new_device_vault().await?;
                     let device_vault = manager.into_vault_buffer().await?;
@@ -386,7 +380,7 @@ impl<'a> OfferPairing<'a> {
                         .await?;
 
                     let private_message = PairingConfirm {
-                        account_signing_key: account_signing_key.to_vec(),
+                        account_id: message.account_id,
                         device_signing_key: device_signer.to_bytes().to_vec(),
                         device_vault,
                         servers: servers
@@ -778,6 +772,10 @@ impl<'a> AcceptPairing<'a> {
 
                         let private_message = PairingRequest {
                             device_meta_data: device_bytes,
+                            account_id: self
+                                .share_url
+                                .account_id()
+                                .to_string(),
                         };
 
                         let payload = encrypt(
@@ -831,8 +829,8 @@ impl<'a> AcceptPairing<'a> {
         &mut self,
         confirmation: PairingConfirm,
     ) -> Result<()> {
-        let signing_key: [u8; 32] =
-            confirmation.account_signing_key.as_slice().try_into()?;
+        // let signing_key: [u8; 32] =
+        //     confirmation.account_signing_key.as_slice().try_into()?;
         let device_signing_key: [u8; 32] =
             confirmation.device_signing_key.as_slice().try_into()?;
         let device_vault = confirmation.device_vault;
@@ -840,13 +838,15 @@ impl<'a> AcceptPairing<'a> {
         for server in confirmation.servers {
             servers.insert(server.try_into()?);
         }
+        let account_id: AccountId = confirmation.account_id.parse()?;
 
-        let signer: SingleParty = signing_key.try_into()?;
+        // let signer: SingleParty = signing_key.try_into()?;
+
         let server = self.share_url.server().clone();
         let origin: Origin = server.into();
         let data_dir = self.data_dir.clone();
         let enrollment = DeviceEnrollment::new(
-            Box::new(signer),
+            account_id,
             origin,
             device_signing_key.try_into()?,
             device_vault,

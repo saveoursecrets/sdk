@@ -29,8 +29,6 @@ use sos_sdk::{
         Vault, VaultCommit, VaultFlags,
     },
 };
-
-use sos_signer::ecdsa::BoxedEcdsaSigner;
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs,
     SyncDirection, SyncStatus, SyncStorage, UpdateSet,
@@ -139,11 +137,6 @@ impl Account for LinkedAccount {
     async fn is_authenticated(&self) -> bool {
         let account = self.account.lock().await;
         account.is_authenticated().await
-    }
-
-    async fn account_signer(&self) -> Result<BoxedEcdsaSigner> {
-        let account = self.account.lock().await;
-        Ok(account.account_signer().await?)
     }
 
     async fn import_account_events(
