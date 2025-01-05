@@ -8,7 +8,7 @@ use sos_protocol::{
     network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
     SyncClient, SyncOptions,
 };
-use sos_signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
+use sos_signer::ed25519::BoxedEd25519Signer;
 use sos_sync::{SyncDirection, UpdateSet};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
@@ -41,21 +41,14 @@ impl RemoteBridge {
     /// Create a new remote bridge that updates the given
     /// local account.
     pub fn new(
+        account_id: AccountId,
         account: Arc<Mutex<LocalAccount>>,
         origin: Origin,
-        signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
         connection_id: String,
     ) -> Result<Self> {
-        let address = signer.address()?;
-        let account_id: AccountId = address.into();
-        let client = HttpClient::new(
-            account_id,
-            origin,
-            signer,
-            device,
-            connection_id,
-        )?;
+        let client =
+            HttpClient::new(account_id, origin, device, connection_id)?;
 
         #[cfg(feature = "files")]
         let (file_transfer_queue, _) =

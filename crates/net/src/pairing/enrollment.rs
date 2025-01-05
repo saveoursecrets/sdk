@@ -78,13 +78,8 @@ impl DeviceEnrollment {
         let device_signing_key = device_signer.clone();
         let device: BoxedEd25519Signer = device_signing_key.into();
 
-        let client = HttpClient::new(
-            account_id,
-            origin,
-            account_signing_key,
-            device,
-            String::new(),
-        )?;
+        let client =
+            HttpClient::new(account_id, origin, device, String::new())?;
 
         Ok(Self {
             account_id,

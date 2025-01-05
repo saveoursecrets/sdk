@@ -10,7 +10,7 @@ use futures::{
 };
 use prost::bytes::Bytes;
 use sos_core::{AccountId, Origin};
-use sos_signer::{ecdsa::BoxedEcdsaSigner, ed25519::BoxedEd25519Signer};
+use sos_signer::ed25519::BoxedEd25519Signer;
 use std::{borrow::Cow, pin::Pin};
 use tokio::{net::TcpStream, sync::watch, time::Duration};
 use tokio_tungstenite::{
@@ -22,9 +22,7 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
-use super::{
-    bearer_prefix, encode_account_signature, encode_device_signature,
-};
+use super::{bearer_prefix, encode_device_signature};
 
 /// Options used when listening for change notifications.
 #[derive(Clone)]
@@ -67,20 +65,16 @@ impl ListenOptions {
 /// Get the URI for a websocket changes connection.
 async fn request_bearer(
     request: &mut WebSocketRequest,
-    signer: &BoxedEcdsaSigner,
     device: &BoxedEd25519Signer,
     connection_id: &str,
 ) -> Result<String> {
     //let endpoint = changes_endpoint_url(remote)?;
     let sign_url = request.uri.path();
 
-    let account_signature =
-        encode_account_signature(signer.sign(sign_url.as_bytes()).await?)
-            .await?;
     let device_signature =
         encode_device_signature(device.sign(sign_url.as_bytes()).await?)
             .await?;
-    let auth = bearer_prefix(&account_signature, &device_signature);
+    let auth = bearer_prefix(&device_signature);
 
     request
         .uri
@@ -97,7 +91,6 @@ pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 pub async fn connect(
     account_id: AccountId,
     origin: Origin,
-    signer: BoxedEcdsaSigner,
     device: BoxedEd25519Signer,
     connection_id: String,
 ) -> Result<WsStream> {
@@ -108,8 +101,7 @@ pub async fn connect(
     )?;
 
     let bearer =
-        request_bearer(&mut request, &signer, &device, &connection_id)
-            .await?;
+        request_bearer(&mut request, &device, &connection_id).await?;
     request.set_bearer(bearer);
 
     tracing::debug!(uri = %request.uri, "ws_client::connect");
@@ -185,7 +177,6 @@ impl WebSocketHandle {
 pub struct WebSocketChangeListener {
     account_id: AccountId,
     origin: Origin,
-    signer: BoxedEcdsaSigner,
     device: BoxedEd25519Signer,
     options: ListenOptions,
     shutdown: watch::Sender<()>,
@@ -197,7 +188,6 @@ impl WebSocketChangeListener {
     pub fn new(
         account_id: AccountId,
         origin: Origin,
-        signer: BoxedEcdsaSigner,
         device: BoxedEd25519Signer,
         options: ListenOptions,
     ) -> Self {
@@ -206,7 +196,6 @@ impl WebSocketChangeListener {
         Self {
             account_id,
             origin,
-            signer,
             device,
             options,
             shutdown,
@@ -289,7 +278,6 @@ impl WebSocketChangeListener {
         connect(
             self.account_id.clone(),
             self.origin.clone(),
-            self.signer.clone(),
             self.device.clone(),
             self.options.connection_id.clone(),
         )

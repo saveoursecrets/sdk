@@ -398,18 +398,16 @@ impl NetworkAccount {
 
     /// Create a remote bridge between this account and the origin server.
     async fn remote_bridge(&self, origin: &Origin) -> Result<RemoteBridge> {
-        let signer = self.account_signer().await?;
         let device = self.device_signer().await?;
         let conn_id = if let Some(conn_id) = &self.connection_id {
             conn_id.to_string()
         } else {
             self.client_connection_id().await?
         };
-
         let provider = RemoteBridge::new(
+            *self.account_id(),
             Arc::clone(&self.account),
             origin.clone(),
-            signer,
             device.into(),
             conn_id,
         )?;

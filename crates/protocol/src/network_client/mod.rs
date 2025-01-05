@@ -2,9 +2,8 @@
 use super::{Error, Result};
 use crate::transfer::CancelReason;
 use sos_sdk::encode;
-use sos_signer::{
-    ecdsa::{BinaryEcdsaSignature, Signature},
-    ed25519::{BinaryEd25519Signature, Signature as Ed25519Signature},
+use sos_signer::ed25519::{
+    BinaryEd25519Signature, Signature as Ed25519Signature,
 };
 use std::{
     future::Future,
@@ -134,13 +133,6 @@ impl NetworkRetry {
     }
 }
 
-pub(crate) async fn encode_account_signature(
-    signature: Signature,
-) -> Result<String> {
-    let signature: BinaryEcdsaSignature = signature.into();
-    Ok(bs58::encode(encode(&signature).await?).into_string())
-}
-
 pub(crate) async fn encode_device_signature(
     signature: Ed25519Signature,
 ) -> Result<String> {
@@ -148,19 +140,8 @@ pub(crate) async fn encode_device_signature(
     Ok(bs58::encode(encode(&signature).await?).into_string())
 }
 
-pub(crate) fn bearer_prefix(
-    account_signature: &str,
-    device_signature: &str,
-) -> String {
-    format!("Bearer {}.{}", account_signature, device_signature)
-
-    /*
-    if let Some(device_signature) = device_signature {
-        format!("Bearer {}.{}", account_signature, device_signature)
-    } else {
-        format!("Bearer {}", account_signature)
-    }
-    */
+pub(crate) fn bearer_prefix(device_signature: &str) -> String {
+    format!("Bearer {}", device_signature)
 }
 
 #[cfg(any(feature = "listen", feature = "pairing"))]

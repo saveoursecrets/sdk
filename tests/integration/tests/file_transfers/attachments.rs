@@ -14,7 +14,7 @@ use sos_sdk::prelude::*;
 async fn file_transfers_attach_create() -> Result<()> {
     const TEST_ID: &str = "file_transfers_attach_create";
 
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
