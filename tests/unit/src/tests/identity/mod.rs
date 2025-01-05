@@ -6,8 +6,7 @@ use sos_sdk::{
     encode,
     identity::MemoryIdentityFolder,
     vault::{
-        secret::Secret, BuilderCredentials, Gatekeeper, Vault, VaultBuilder,
-        VaultFlags,
+        BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
     },
 };
 

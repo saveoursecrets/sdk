@@ -23,7 +23,7 @@ impl Encodable for AuditEvent {
         self.time.encode(&mut *writer).await?;
         // EventKind - the what
         self.event_kind.encode(&mut *writer).await?;
-        // Address - by whom
+        // Account identifier - by whom
         writer.write_bytes(self.account_id.as_ref()).await?;
         // Data - context
         if flags.contains(AuditLogFlags::DATA) {
@@ -48,7 +48,7 @@ impl Decodable for AuditEvent {
         self.time = timestamp;
         // EventKind - the what
         self.event_kind.decode(&mut *reader).await?;
-        // Address - by whom
+        // Account identifier - by whom
         let address = reader.read_bytes(20).await?;
         let address: [u8; 20] =
             address.as_slice().try_into().map_err(encoding_error)?;

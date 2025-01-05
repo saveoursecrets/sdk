@@ -7,7 +7,6 @@ pub use sos_core::{
 };
 pub use sos_login::{AccountRef, Identity, IdentityFolder, PublicIdentity};
 pub use sos_password::diceware::generate_passphrase;
-pub use sos_signer::ecdsa::Address;
 pub use sos_vault::{
     secret::{
         FileContent, IdentityKind, Secret, SecretFlags, SecretMeta,
