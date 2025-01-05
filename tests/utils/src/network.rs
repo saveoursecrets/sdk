@@ -82,7 +82,7 @@ impl SimulatedDevice {
         let data_dir = self.dirs.clients.get(index).unwrap();
 
         let mut owner = NetworkAccount::new_unauthenticated(
-            self.owner.address().clone(),
+            *self.owner.account_id(),
             Some(data_dir.clone()),
             Default::default(),
         )

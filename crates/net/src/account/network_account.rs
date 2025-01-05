@@ -99,10 +99,6 @@ pub struct NetworkAccountOptions {
 
 /// Account with networking capability.
 pub struct NetworkAccount {
-    /// Address of this account.
-    #[deprecated]
-    address: Address,
-
     /// Account identifier.
     account_id: AccountId,
 
@@ -152,7 +148,7 @@ impl NetworkAccount {
             let mut account = self.account.lock().await;
             let folders = account.sign_in(key).await?;
             self.paths = account.paths();
-            self.address = account.address().clone();
+            self.account_id = *account.account_id();
             folders
         };
 
@@ -571,17 +567,16 @@ impl NetworkAccount {
     /// After preparing an account call `sign_in`
     /// to authenticate a user.
     pub async fn new_unauthenticated(
-        address: Address,
+        account_id: AccountId,
         data_dir: Option<PathBuf>,
         options: NetworkAccountOptions,
         // offline: bool,
     ) -> Result<Self> {
         let account =
-            LocalAccount::new_unauthenticated(address, data_dir).await?;
+            LocalAccount::new_unauthenticated(account_id, data_dir).await?;
 
         Ok(Self {
-            account_id: (&address).into(),
-            address,
+            account_id,
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             remotes: Arc::new(RwLock::new(Default::default())),
@@ -646,8 +641,7 @@ impl NetworkAccount {
         .await?;
 
         let owner = Self {
-            account_id: account.address().into(),
-            address: account.address().clone(),
+            account_id: *account.account_id(),
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             remotes: Arc::new(RwLock::new(Default::default())),
@@ -700,10 +694,6 @@ impl NetworkAccount {
 impl Account for NetworkAccount {
     type Error = Error;
     type NetworkResult = SyncResult<Self::Error>;
-
-    fn address(&self) -> &Address {
-        &self.address
-    }
 
     fn account_id(&self) -> &AccountId {
         &self.account_id

@@ -26,7 +26,7 @@ async fn file_transfers_multi_upload() -> Result<()> {
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;
-    let address = device.owner.address().clone();
+    let account_id = device.owner.account_id().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
 
@@ -41,7 +41,7 @@ async fn file_transfers_multi_upload() -> Result<()> {
 
     let server1_path = device.server_path;
     let server2_path =
-        server2.path.join(REMOTE_DIR).join(address.to_string());
+        server2.path.join(REMOTE_DIR).join(account_id.to_string());
 
     // Assert the files on server1 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server1_path, &file)
@@ -73,7 +73,7 @@ async fn file_transfers_multi_update() -> Result<()> {
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;
-    let address = device.owner.address().clone();
+    let account_id = device.owner.account_id().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
 
@@ -102,7 +102,7 @@ async fn file_transfers_multi_update() -> Result<()> {
 
     let server1_path = device.server_path;
     let server2_path =
-        server2.path.join(REMOTE_DIR).join(address.to_string());
+        server2.path.join(REMOTE_DIR).join(account_id.to_string());
 
     // Assert the files on server1 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server1_path, &file)
@@ -134,7 +134,7 @@ async fn file_transfers_multi_move() -> Result<()> {
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;
-    let address = device.owner.address().clone();
+    let account_id = device.owner.account_id().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
 
@@ -170,7 +170,7 @@ async fn file_transfers_multi_move() -> Result<()> {
 
     let server1_path = device.server_path;
     let server2_path =
-        server2.path.join(REMOTE_DIR).join(address.to_string());
+        server2.path.join(REMOTE_DIR).join(account_id.to_string());
 
     // Assert the files on server1 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server1_path, &file)
@@ -201,7 +201,7 @@ async fn file_transfers_multi_delete() -> Result<()> {
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;
-    let address = device.owner.address().clone();
+    let account_id = device.owner.account_id().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
 
@@ -230,7 +230,7 @@ async fn file_transfers_multi_delete() -> Result<()> {
 
     let server1_path = device.server_path;
     let server2_path =
-        server2.path.join(REMOTE_DIR).join(address.to_string());
+        server2.path.join(REMOTE_DIR).join(account_id.to_string());
 
     // Assert the files on server1 do not exist
     assert_local_remote_file_not_exist(
@@ -270,7 +270,7 @@ async fn file_transfers_multi_download() -> Result<()> {
 
     // Prepare mock device
     let mut uploader = simulate_device(TEST_ID, 2, Some(&server1)).await?;
-    let address = uploader.owner.address().clone();
+    let account_id = uploader.owner.account_id().clone();
     let default_folder = uploader.owner.default_folder().await.unwrap();
     uploader.owner.add_server(origin).await?;
     let mut downloader = uploader.connect(1, None).await?;
@@ -304,7 +304,7 @@ async fn file_transfers_multi_download() -> Result<()> {
 
         let server1_path = downloader.server_path;
         let server2_path =
-            server2.path.join(REMOTE_DIR).join(address.to_string());
+            server2.path.join(REMOTE_DIR).join(account_id.to_string());
 
         assert_local_remote_file_eq(
             downloader.owner.paths(),

@@ -4,7 +4,6 @@ use crate::{AsConflict, ConflictError, SyncClient};
 use async_trait::async_trait;
 use sos_account::Account;
 use sos_core::{AccountId, Origin};
-use sos_sdk::prelude::Address;
 use sos_sync::{
     MaybeDiff, Merge, MergeOutcome, StorageEventLogs, SyncDirection,
     SyncPacket, SyncStatus, SyncStorage,
@@ -51,10 +50,6 @@ pub trait RemoteSyncHandler {
 
     /// Remote origin.
     fn origin(&self) -> &Origin;
-
-    /// Account address.
-    #[deprecated]
-    fn address(&self) -> &Address;
 
     /// Account identifier.
     fn account_id(&self) -> &AccountId;

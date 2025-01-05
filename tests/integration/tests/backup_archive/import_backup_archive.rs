@@ -24,7 +24,7 @@ async fn backup_export_import() -> Result<()> {
         Some(data_dir.clone()),
     )
     .await?;
-    let address = account.address().clone();
+    let account_id = account.account_id().clone();
 
     let key: AccessKey = password.clone().into();
     let folders = account.sign_in(&key).await?;
@@ -84,7 +84,7 @@ async fn backup_export_import() -> Result<()> {
 
     // Sign in after restoring the account
     let mut account =
-        LocalAccount::new_unauthenticated(address, Some(data_dir.clone()))
+        LocalAccount::new_unauthenticated(account_id, Some(data_dir.clone()))
             .await?;
 
     account.sign_in(&key).await?;

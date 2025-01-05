@@ -17,8 +17,7 @@ use axum::{
 use axum_server::{tls_rustls::RustlsConfig, Handle};
 use colored::Colorize;
 use futures::StreamExt;
-use sos_core::UtcDateTime;
-use sos_signer::ecdsa::Address;
+use sos_core::{AccountId, UtcDateTime};
 use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
@@ -47,7 +46,7 @@ pub struct State {
     /// The server configuration.
     pub config: ServerConfig,
     /// Map of websocket channels by account identifier.
-    pub(crate) sockets: HashMap<Address, WebSocketAccount>,
+    pub(crate) sockets: HashMap<AccountId, WebSocketAccount>,
 }
 
 impl State {

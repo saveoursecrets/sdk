@@ -28,7 +28,7 @@ async fn diff_merge_folder_rename() -> Result<()> {
 
     let key: AccessKey = password.clone().into();
     local.sign_in(&key).await?;
-    let address = local.address().clone();
+    let account_id = local.account_id().clone();
     let default_folder = local.default_folder().await.unwrap();
 
     // Copy the initial account disc state
@@ -36,7 +36,7 @@ async fn diff_merge_folder_rename() -> Result<()> {
 
     // Sign in on the other account
     let mut remote =
-        LocalAccount::new_unauthenticated(address, Some(data_dir_merge))
+        LocalAccount::new_unauthenticated(account_id, Some(data_dir_merge))
             .await?;
     remote.sign_in(&key).await?;
 

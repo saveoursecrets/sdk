@@ -1,9 +1,8 @@
 //! Server storage implementations.
 use crate::Result;
 use async_trait::async_trait;
-use sos_core::{device::DevicePublicKey, Paths, VaultId};
+use sos_core::{device::DevicePublicKey, AccountId, Paths, VaultId};
 use sos_sdk::vault::Summary;
-use sos_signer::ecdsa::Address;
 use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -11,8 +10,8 @@ use std::sync::Arc;
 /// Trait for server storage implementations.
 #[async_trait]
 pub trait ServerAccountStorage: SyncStorage {
-    /// Address of the account owner.
-    fn address(&self) -> &Address;
+    /// Account identifier.
+    fn account_id(&self) -> &AccountId;
 
     /// List the public keys of trusted devices.
     fn list_device_keys(&self) -> HashSet<&DevicePublicKey>;

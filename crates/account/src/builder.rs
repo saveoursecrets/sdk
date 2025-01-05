@@ -2,18 +2,20 @@
 use crate::Result;
 use secrecy::SecretString;
 use sos_client_storage::AccountPack;
-use sos_sdk::{
+use sos_core::{
     constants::{
         DEFAULT_ARCHIVE_VAULT_NAME, DEFAULT_AUTHENTICATOR_VAULT_NAME,
         DEFAULT_CONTACTS_VAULT_NAME,
     },
     crypto::AccessKey,
+    AccountId, Paths,
+};
+use sos_sdk::{
     identity::{FolderKeys, Identity, IdentityFolder},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
         BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
     },
-    Paths,
 };
 use sos_signer::ecdsa::Address;
 use std::{collections::HashMap, path::PathBuf};
@@ -22,8 +24,8 @@ use std::{collections::HashMap, path::PathBuf};
 pub struct PrivateNewAccount {
     /// Directory for the new account.
     pub data_dir: Option<PathBuf>,
-    /// Address of the account signing key.
-    pub address: Address,
+    /// Account identifier.
+    pub account_id: AccountId,
     /// User identity.
     pub user: Identity,
     /// Identity vault.
@@ -53,7 +55,7 @@ impl From<PrivateNewAccount> for AccountPack {
             folders.push(contacts);
         }
         Self {
-            address: value.address,
+            account_id: value.account_id,
             identity_vault: value.identity_vault,
             folders,
         }
@@ -321,7 +323,7 @@ impl AccountBuilder {
 
         Ok(PrivateNewAccount {
             data_dir,
-            address,
+            account_id: address.into(),
             user,
             identity_vault: identity_folder.into(),
             default_folder,

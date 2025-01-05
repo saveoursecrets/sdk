@@ -76,8 +76,6 @@ use {
 /// Linked account syncs with a local account on the same device.
 pub struct LinkedAccount {
     account: Arc<Mutex<LocalAccount>>,
-    #[deprecated]
-    address: Address,
     account_id: AccountId,
     paths: Arc<Paths>,
     client: HttpClient,
@@ -89,17 +87,16 @@ pub struct LinkedAccount {
 impl LinkedAccount {
     /// Create a new unauthenticated linked account.
     pub async fn new_unauthenticated(
-        address: Address,
+        account_id: AccountId,
         client: HttpClient,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let account =
-            LocalAccount::new_unauthenticated(address, data_dir).await?;
+            LocalAccount::new_unauthenticated(account_id, data_dir).await?;
         Ok(Self {
-            account_id: (&address).into(),
+            account_id,
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
-            address,
             client,
             sync_lock: Arc::new(Mutex::new(())),
         })
@@ -117,7 +114,6 @@ impl LinkedAccount {
                 .await?;
         Ok(Self {
             account_id: *account.account_id(),
-            address: *account.address(),
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             client,
@@ -131,10 +127,6 @@ impl LinkedAccount {
 impl Account for LinkedAccount {
     type Error = Error;
     type NetworkResult = RemoteResult<Self::Error>;
-
-    fn address(&self) -> &Address {
-        &self.address
-    }
 
     fn account_id(&self) -> &AccountId {
         &self.account_id
@@ -1235,10 +1227,6 @@ impl RemoteSyncHandler for LinkedAccount {
 
     fn origin(&self) -> &Origin {
         self.client.origin()
-    }
-
-    fn address(&self) -> &Address {
-        &self.address
     }
 
     fn account_id(&self) -> &AccountId {

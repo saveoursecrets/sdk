@@ -18,9 +18,9 @@ async fn access_control_deny() -> Result<()> {
 
     let mut config = default_server_config().await?;
     let mut allowed = simulate_device(TEST_ID, 2, None).await?;
-    let allowed_address = allowed.owner.address().clone();
+    let allowed_account_id = allowed.owner.account_id().clone();
 
-    // Create an account with a different address
+    // Create an account with a different account_id
     let data_dir = allowed.dirs.clients.get(1).unwrap().clone();
     let (password, _) = generate_passphrase()?;
     let mut denied = NetworkAccount::new_account(
@@ -30,17 +30,17 @@ async fn access_control_deny() -> Result<()> {
         Default::default(),
     )
     .await?;
-    let denied_address = denied.address().clone();
+    let denied_account_id = denied.account_id().clone();
     let key: AccessKey = password.into();
     denied.sign_in(&key).await?;
 
-    assert_ne!(allowed_address, denied_address);
+    assert_ne!(allowed_account_id, denied_account_id);
 
-    let mut addresses = HashSet::new();
-    addresses.insert(denied_address);
+    let mut account_ides = HashSet::new();
+    account_ides.insert(denied_account_id);
     config.access = Some(AccessControlConfig {
         allow: None,
-        deny: Some(addresses),
+        deny: Some(account_ides),
     });
 
     // Spawn a backend server and wait for it to be listening

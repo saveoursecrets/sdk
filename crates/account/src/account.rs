@@ -237,10 +237,6 @@ pub trait Account {
     /// Result type for network-aware implementations.
     type NetworkResult: std::fmt::Debug;
 
-    /// Account address.
-    #[deprecated]
-    fn address(&self) -> &Address;
-
     /// Account identifier.
     fn account_id(&self) -> &AccountId;
 
@@ -899,10 +895,6 @@ pub struct AccountData {
 /// return [Error::NotAuthenticated] if the account is not authenticated
 /// to authenticate a user call [Account::sign_in].
 pub struct LocalAccount {
-    /// Account address.
-    #[deprecated]
-    address: Address,
-
     /// Account identifier.
     account_id: AccountId,
 
@@ -921,13 +913,13 @@ impl LocalAccount {
     /// Private login implementation so we can support the backwards
     /// compatible sign_in() and also the newer sign_in_with_options().
     async fn login(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
-        let address = &self.address;
+        let account_id = &self.account_id;
         let data_dir = self.paths().documents_dir().clone();
 
-        tracing::debug!(address = %address, "sign_in");
+        tracing::debug!(account_id = %account_id, "sign_in");
 
         // Ensure all paths before sign_in
-        let paths = Paths::new(&data_dir, address.to_string());
+        let paths = Paths::new(&data_dir, account_id.to_string());
         paths.ensure().await?;
 
         tracing::debug!(data_dir = ?paths.documents_dir(), "sign_in");
@@ -937,13 +929,11 @@ impl LocalAccount {
         tracing::debug!("sign_in success");
 
         // Signing key for the storage provider
-        let signer = user.identity()?.signer().clone();
-
         let identity_log = user.identity().as_ref().unwrap().event_log();
 
         #[allow(unused_mut)]
         let mut storage = ClientStorage::new_authenticated(
-            signer.address()?,
+            *account_id,
             Some(data_dir),
             identity_log,
             user.identity()?.devices()?.current_device(None),
@@ -1097,7 +1087,7 @@ impl LocalAccount {
         #[cfg(feature = "audit")]
         if audit {
             let event = Event::Read(*summary.id(), event);
-            let audit_event: AuditEvent = (self.address(), &event).into();
+            let audit_event: AuditEvent = (self.account_id(), &event).into();
             append_audit_events(vec![audit_event]).await?;
         }
 
@@ -1214,7 +1204,7 @@ impl LocalAccount {
 
         #[cfg(feature = "audit")]
         if audit {
-            let audit_event: AuditEvent = (self.address(), &event).into();
+            let audit_event: AuditEvent = (self.account_id(), &event).into();
             append_audit_events(vec![audit_event]).await?;
         }
 
@@ -1253,7 +1243,7 @@ impl LocalAccount {
         #[cfg(feature = "audit")]
         if audit {
             let event = Event::Read(*folder.id(), read_event.clone());
-            let audit_event: AuditEvent = (self.address(), &event).into();
+            let audit_event: AuditEvent = (self.account_id(), &event).into();
             append_audit_events(vec![audit_event]).await?;
         }
 
@@ -1332,7 +1322,7 @@ impl LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::MoveSecret,
-                self.address().into(),
+                *self.account_id(),
                 Some(AuditData::MoveSecret {
                     from_vault_id: *from.id(),
                     to_vault_id: *to.id(),
@@ -1398,7 +1388,7 @@ impl LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ImportUnsafe,
-                self.address().into(),
+                *self.account_id(),
                 None,
             );
             append_audit_events(vec![audit_event]).await?;
@@ -1485,7 +1475,7 @@ impl LocalAccount {
     /// After preparing an account call `sign_in`
     /// to authenticate a user.
     pub async fn new_unauthenticated(
-        address: Address,
+        account_id: AccountId,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let data_dir = if let Some(data_dir) = data_dir {
@@ -1494,12 +1484,12 @@ impl LocalAccount {
             Paths::data_dir()?
         };
 
-        let paths = Paths::new(data_dir, address.to_string());
+        let paths = Paths::new(data_dir, account_id.to_string());
 
         let storage = if paths.is_usable().await? {
             Some(Arc::new(RwLock::new(
                 ClientStorage::new_unauthenticated(
-                    address,
+                    account_id,
                     Arc::new(paths.clone()),
                 )
                 .await?,
@@ -1509,8 +1499,7 @@ impl LocalAccount {
         };
 
         Ok(Self {
-            account_id: (&address).into(),
-            address,
+            account_id,
             storage,
             paths: Arc::new(paths),
             authenticated: None,
@@ -1556,13 +1545,13 @@ impl LocalAccount {
         let new_account = account_builder.finish().await?;
 
         tracing::debug!(
-          address = %new_account.address, "created_account");
+          account_id = %new_account.account_id, "created_account");
 
-        let address = new_account.address;
+        let account_id = new_account.account_id;
         let identity_log = new_account.user.identity()?.event_log();
 
         let mut storage = ClientStorage::new_authenticated(
-            address,
+            account_id,
             data_dir.clone(),
             identity_log,
             new_account.user.identity()?.devices()?.current_device(None),
@@ -1578,8 +1567,7 @@ impl LocalAccount {
         tracing::debug!("imported new account");
 
         let account = Self {
-            account_id: (&address).into(),
-            address,
+            account_id,
             paths: storage.paths(),
             storage: Some(Arc::new(RwLock::new(storage))),
             authenticated: None,
@@ -1594,10 +1582,6 @@ impl LocalAccount {
 impl Account for LocalAccount {
     type Error = Error;
     type NetworkResult = ();
-
-    fn address(&self) -> &Address {
-        &self.address
-    }
 
     fn account_id(&self) -> &AccountId {
         &self.account_id
@@ -1623,11 +1607,11 @@ impl Account for LocalAccount {
         &mut self,
         events: CreateSet,
     ) -> Result<()> {
-        let address = *self.address();
+        let account_id = *self.account_id();
         let paths = self.paths();
 
         let mut storage =
-            ClientStorage::new_unauthenticated(address, paths.clone())
+            ClientStorage::new_unauthenticated(account_id, paths.clone())
                 .await?;
 
         {
@@ -1911,7 +1895,7 @@ impl Account for LocalAccount {
     }
 
     async fn sign_out(&mut self) -> Result<()> {
-        tracing::debug!(address = %self.address(), "sign_out");
+        tracing::debug!(account_id = %self.account_id(), "sign_out");
 
         tracing::debug!("lock storage vaults");
         // Lock all the storage vaults
@@ -1966,14 +1950,14 @@ impl Account for LocalAccount {
     async fn delete_account(&mut self) -> Result<()> {
         let paths = self.paths().clone();
         tracing::info!(
-          address = %self.address,
+          account_id = %self.account_id,
           directory = %paths.documents_dir().display(),
           "delete_account");
         let event = self.user_mut()?.delete_account(&paths).await?;
 
         #[cfg(feature = "audit")]
         {
-            let audit_event: AuditEvent = (self.address(), &event).into();
+            let audit_event: AuditEvent = (self.account_id(), &event).into();
             append_audit_events(vec![audit_event]).await?;
         }
 
@@ -2450,7 +2434,7 @@ impl Account for LocalAccount {
 
         #[cfg(feature = "audit")]
         {
-            let audit_event: AuditEvent = (self.address(), &event).into();
+            let audit_event: AuditEvent = (self.account_id(), &event).into();
             append_audit_events(vec![audit_event]).await?;
         }
 
@@ -2518,7 +2502,7 @@ impl Account for LocalAccount {
 
         #[cfg(feature = "audit")]
         {
-            let audit_event: AuditEvent = (self.address(), &event).into();
+            let audit_event: AuditEvent = (self.account_id(), &event).into();
             append_audit_events(vec![audit_event]).await?;
         }
 
@@ -2932,7 +2916,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ExportVault,
-                self.address().into(),
+                *self.account_id(),
                 Some(AuditData::Vault(*summary.id())),
             );
             append_audit_events(vec![audit_event]).await?;
@@ -3020,7 +3004,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ExportContacts,
-                self.address().into(),
+                *self.account_id(),
                 Some(AuditData::Secret(*current_folder.id(), *secret_id)),
             );
             append_audit_events(vec![audit_event]).await?;
@@ -3065,7 +3049,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ExportContacts,
-                self.address().into(),
+                *self.account_id(),
                 None,
             );
             append_audit_events(vec![audit_event]).await?;
@@ -3131,7 +3115,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ImportContacts,
-                self.address().into(),
+                *self.account_id(),
                 None,
             );
             append_audit_events(vec![audit_event]).await?;
@@ -3183,7 +3167,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ExportUnsafe,
-                self.address().into(),
+                *self.account_id(),
                 None,
             );
             append_audit_events(vec![audit_event]).await?;
@@ -3265,7 +3249,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ExportBackupArchive,
-                self.address().into(),
+                *self.account_id(),
                 None,
             );
             append_audit_events(vec![audit_event]).await?;
@@ -3366,7 +3350,7 @@ impl Account for LocalAccount {
         {
             let audit_event = AuditEvent::new(
                 EventKind::ImportBackupArchive,
-                self.address().into(),
+                *self.account_id(),
                 None,
             );
             append_audit_events(vec![audit_event]).await?;

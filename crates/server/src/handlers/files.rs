@@ -52,7 +52,7 @@ pub struct MoveFileQuery {
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account account_id is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -117,7 +117,7 @@ pub(crate) async fn receive_file(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account account_id is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -181,7 +181,7 @@ pub(crate) async fn delete_file(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account account_id is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -246,7 +246,7 @@ pub(crate) async fn send_file(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account account_id is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -308,7 +308,7 @@ pub(crate) async fn move_file(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account account_id is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -406,8 +406,8 @@ mod handlers {
             let accounts = backend.accounts();
             let accounts = accounts.read().await;
             let account = accounts
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
@@ -477,8 +477,8 @@ mod handlers {
             let accounts = backend.accounts();
             let accounts = accounts.read().await;
             let account = accounts
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
@@ -511,8 +511,8 @@ mod handlers {
             let accounts = backend.accounts();
             let accounts = accounts.read().await;
             let account = accounts
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
@@ -552,8 +552,8 @@ mod handlers {
             let accounts = backend.accounts();
             let accounts = accounts.read().await;
             let account = accounts
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
@@ -607,8 +607,8 @@ mod handlers {
             let accounts = backend.accounts();
             let accounts = accounts.read().await;
             let account = accounts
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             let account = account.read().await;
             account.paths()
         };

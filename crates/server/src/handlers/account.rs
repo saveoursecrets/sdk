@@ -84,7 +84,7 @@ pub(crate) async fn account_exists(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account account_id is not allowed on this server.",
         ),
         (
             status = StatusCode::CONFLICT,
@@ -139,7 +139,7 @@ pub(crate) async fn create_account(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account account_id is not allowed on this server.",
         ),
         (
             status = StatusCode::NOT_FOUND,
@@ -197,7 +197,7 @@ pub(crate) async fn delete_account(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account account_id is not allowed on this server.",
         ),
         (
             status = StatusCode::NOT_FOUND,
@@ -255,7 +255,7 @@ pub(crate) async fn update_account(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account account_id is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -307,7 +307,7 @@ pub(crate) async fn fetch_account(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account account_id is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -364,7 +364,7 @@ pub(crate) async fn sync_status(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account account_id is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -425,7 +425,7 @@ pub(crate) async fn event_scan(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account account_id is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -486,7 +486,7 @@ pub(crate) async fn event_diff(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account account_id is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -547,7 +547,7 @@ pub(crate) async fn event_patch(
         ),
         (
             status = StatusCode::FORBIDDEN,
-            description = "Account address is not allowed on this server.",
+            description = "Account account_id is not allowed on this server.",
         ),
         (
             status = StatusCode::OK,
@@ -617,7 +617,7 @@ mod handlers {
         caller: Caller,
     ) -> Result<bool> {
         let reader = backend.read().await;
-        reader.account_exists(caller.address()).await
+        reader.account_exists(caller.account_id()).await
     }
 
     pub(super) async fn create_account(
@@ -628,14 +628,14 @@ mod handlers {
     ) -> Result<()> {
         {
             let reader = backend.read().await;
-            if reader.account_exists(caller.address()).await? {
+            if reader.account_exists(caller.account_id()).await? {
                 return Err(Error::Conflict);
             }
         }
 
         let account = CreateSet::decode(bytes).await?;
         let mut writer = backend.write().await;
-        writer.create_account(caller.address(), account).await?;
+        writer.create_account(caller.account_id(), account).await?;
         Ok(())
     }
 
@@ -645,7 +645,7 @@ mod handlers {
         caller: Caller,
     ) -> Result<()> {
         let mut writer = backend.write().await;
-        writer.delete_account(caller.address()).await?;
+        writer.delete_account(caller.account_id()).await?;
         Ok(())
     }
 
@@ -657,7 +657,7 @@ mod handlers {
     ) -> Result<()> {
         let account = UpdateSet::decode(bytes).await?;
         let mut writer = backend.write().await;
-        writer.update_account(caller.address(), account).await?;
+        writer.update_account(caller.account_id(), account).await?;
         Ok(())
     }
 
@@ -668,7 +668,7 @@ mod handlers {
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let reader = backend.read().await;
         let account: CreateSet =
-            reader.fetch_account(caller.address()).await?;
+            reader.fetch_account(caller.account_id()).await?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -685,13 +685,13 @@ mod handlers {
         caller: Caller,
     ) -> Result<(HeaderMap, Vec<u8>)> {
         let reader = backend.read().await;
-        if !reader.account_exists(caller.address()).await? {
+        if !reader.account_exists(caller.account_id()).await? {
             return Err(Error::Status(StatusCode::NOT_FOUND));
         }
 
         let accounts = reader.accounts();
         let reader = accounts.read().await;
-        let account = reader.get(caller.address()).unwrap();
+        let account = reader.get(caller.account_id()).unwrap();
         let account = account.read().await;
         let status = account.sync_status().await?;
         let mut headers = HeaderMap::new();
@@ -713,8 +713,8 @@ mod handlers {
             let accounts = reader.accounts();
             let reader = accounts.read().await;
             let account = reader
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
@@ -750,8 +750,8 @@ mod handlers {
             let accounts = reader.accounts();
             let reader = accounts.read().await;
             let account = reader
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
@@ -782,8 +782,8 @@ mod handlers {
             let accounts = reader.accounts();
             let reader = accounts.read().await;
             let account = reader
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
@@ -801,7 +801,7 @@ mod handlers {
                 let reader = account.read().await;
                 let local_status = reader.sync_status().await?;
                 let notification = ChangeNotification::new(
-                    caller.address(),
+                    caller.account_id(),
                     conn_id.to_string(),
                     local_status.root,
                     outcome,
@@ -831,8 +831,8 @@ mod handlers {
             let accounts = reader.accounts();
             let reader = accounts.read().await;
             let account = reader
-                .get(caller.address())
-                .ok_or_else(|| Error::NoAccount(*caller.address()))?;
+                .get(caller.account_id())
+                .ok_or_else(|| Error::NoAccount(*caller.account_id()))?;
             Arc::clone(account)
         };
 
@@ -851,7 +851,7 @@ mod handlers {
         if outcome.changes > 0 {
             if let Some(conn_id) = caller.connection_id() {
                 let notification = ChangeNotification::new(
-                    caller.address(),
+                    caller.account_id(),
                     conn_id.to_string(),
                     packet.status.root,
                     outcome,

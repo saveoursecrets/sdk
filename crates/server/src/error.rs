@@ -5,7 +5,7 @@ use axum::{
     response::{IntoResponse, Json, Response},
 };
 use serde_json::{json, Value};
-use sos_signer::ecdsa::Address;
+use sos_core::AccountId;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -58,11 +58,11 @@ pub enum Error {
 
     /// Error generated when an account is required.
     #[error("account '{0}' does not exist")]
-    NoAccount(Address),
+    NoAccount(AccountId),
 
     /// Error generated when an account should not already exist.
     #[error("account '{0}' already exists")]
-    AccountExists(Address),
+    AccountExists(AccountId),
 
     /// Error generated when an uploaded file checksum does not
     /// match the expected checksum.

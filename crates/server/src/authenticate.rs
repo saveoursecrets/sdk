@@ -2,15 +2,15 @@
 //! from a signature given in bearer authorization data.
 use super::{Error, Result};
 use axum_extra::headers::{authorization::Bearer, Authorization};
-use sos_core::decode;
+use sos_core::{decode, AccountId};
 use sos_signer::{
-    ecdsa::{self, recover_address, Address, BinaryEcdsaSignature},
+    ecdsa::{self, recover_address, BinaryEcdsaSignature},
     ed25519::{self, BinaryEd25519Signature},
 };
 
 #[derive(Debug)]
 pub struct BearerToken {
-    pub address: Address,
+    pub account_id: AccountId,
     pub device_signature: Option<ed25519::Signature>,
 }
 
@@ -31,7 +31,7 @@ impl BearerToken {
         let value = bs58::decode(account_token).into_vec()?;
         let buffer: BinaryEcdsaSignature = decode(&value).await?;
         let signature: ecdsa::Signature = buffer.into();
-        let address = recover_address(signature, message)?;
+        let account_id = recover_address(signature, message)?;
 
         let device_signature = if let Some(device_token) = device_token {
             let value = bs58::decode(device_token).into_vec()?;
@@ -43,7 +43,7 @@ impl BearerToken {
         };
 
         Ok(Self {
-            address,
+            account_id: account_id.into(),
             device_signature,
         })
     }

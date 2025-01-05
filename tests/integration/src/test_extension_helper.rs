@@ -45,7 +45,7 @@ pub async fn main() -> anyhow::Result<()> {
                 let app_dir = data_dir.clone();
                 Box::pin(async move {
                     Ok(LocalAccount::new_unauthenticated(
-                        identity.account_id().into(),
+                        *identity.account_id(),
                         app_dir,
                     )
                     .await?)

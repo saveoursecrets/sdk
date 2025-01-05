@@ -6,7 +6,7 @@ use sos_core::{
     constants::VAULT_EXT,
     decode,
     device::{DevicePublicKey, TrustedDevice},
-    encode, Paths,
+    encode, AccountId, Paths,
 };
 use sos_filesystem::folder::FolderReducer;
 use sos_sdk::{
@@ -30,8 +30,8 @@ mod sync;
 
 /// Server folders loaded into memory and mirrored to disc.
 pub struct ServerFileStorage {
-    /// Address of the account owner.
-    pub(super) address: Address,
+    /// Account identifier.
+    pub(super) account_id: AccountId,
 
     /// Directories for file storage.
     pub(super) paths: Arc<Paths>,
@@ -58,7 +58,7 @@ pub struct ServerFileStorage {
 impl ServerFileStorage {
     /// Create folder storage for server-side access.
     pub async fn new(
-        address: Address,
+        account_id: AccountId,
         data_dir: Option<PathBuf>,
         identity_log: Arc<RwLock<FolderEventLog>>,
     ) -> Result<Self> {
@@ -68,14 +68,14 @@ impl ServerFileStorage {
             Paths::data_dir().map_err(|_| Error::NoCache)?
         };
 
-        let dirs = Paths::new_server(data_dir, address.to_string());
-        Self::new_paths(Arc::new(dirs), address, identity_log).await
+        let dirs = Paths::new_server(data_dir, account_id.to_string());
+        Self::new_paths(Arc::new(dirs), account_id, identity_log).await
     }
 
     /// Create new storage backed by files on disc.
     async fn new_paths(
         paths: Arc<Paths>,
-        address: Address,
+        account_id: AccountId,
         identity_log: Arc<RwLock<FolderEventLog>>,
     ) -> Result<Self> {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
@@ -98,7 +98,7 @@ impl ServerFileStorage {
         let file_log = Self::initialize_file_log(&paths).await?;
 
         Ok(Self {
-            address,
+            account_id,
             cache: Default::default(),
             paths,
             identity_log,
@@ -207,8 +207,8 @@ impl ServerFileStorage {
 
 #[async_trait]
 impl ServerAccountStorage for ServerFileStorage {
-    fn address(&self) -> &Address {
-        &self.address
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     fn list_device_keys(&self) -> HashSet<&DevicePublicKey> {
@@ -361,7 +361,7 @@ impl ServerAccountStorage for ServerFileStorage {
             };
 
             let audit_event: AuditEvent =
-                (self.address(), &account_event).into();
+                (self.account_id(), &account_event).into();
             append_audit_events(vec![audit_event]).await?;
         }
 
@@ -386,7 +386,7 @@ impl ServerAccountStorage for ServerFileStorage {
         {
             let account_event = AccountEvent::DeleteFolder(*id);
             let audit_event: AuditEvent =
-                (self.address(), &account_event).into();
+                (self.account_id(), &account_event).into();
             append_audit_events(vec![audit_event]).await?;
         }
 
@@ -409,7 +409,7 @@ impl ServerAccountStorage for ServerFileStorage {
             let account_event =
                 AccountEvent::RenameFolder(*id, name.to_owned());
             let audit_event: AuditEvent =
-                (self.address(), &account_event).into();
+                (self.account_id(), &account_event).into();
             append_audit_events(vec![audit_event]).await?;
         }
 

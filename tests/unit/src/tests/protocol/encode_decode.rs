@@ -3,17 +3,13 @@ use anyhow::Result;
 use bytes::Bytes;
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitState},
-    Origin, SecretPath, VaultId,
+    AccountId, Origin, SecretPath, UtcDateTime, VaultId,
 };
 use sos_protocol::{
     DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
     ScanResponse, WireEncodeDecode,
 };
-use sos_sdk::{
-    events::{CheckedPatch, EventRecord, FolderDiff},
-    UtcDateTime,
-};
-use sos_signer::ecdsa::Address;
+use sos_sdk::events::{CheckedPatch, EventRecord, FolderDiff};
 use sos_sync::{
     CreateSet, EventLogType, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff,
     SyncPacket, SyncStatus, UpdateSet,
@@ -236,9 +232,9 @@ async fn encode_decode_change_notification() -> Result<()> {
         changes: 7,
         ..Default::default()
     };
-    let address: Address = [1u8; 20].into();
+    let account_id: AccountId = [1u8; 20].into();
     let value = ChangeNotification::new(
-        &address,
+        &account_id,
         "mock-connection".to_string(),
         Default::default(),
         outcome,

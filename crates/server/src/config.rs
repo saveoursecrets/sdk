@@ -2,7 +2,7 @@
 use super::backend::Backend;
 use super::{Error, Result};
 use serde::{Deserialize, Serialize};
-use sos_signer::ecdsa::Address;
+use sos_core::AccountId;
 use sos_vfs as vfs;
 use std::{
     collections::HashSet,
@@ -39,36 +39,36 @@ pub struct ServerConfig {
 /// deny the same address it will be denied.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct AccessControlConfig {
-    /// Addresses that are explicitly allowed.
-    pub allow: Option<HashSet<Address>>,
-    /// Addresses that are explicitly denied.
-    pub deny: Option<HashSet<Address>>,
+    /// AccountIdes that are explicitly allowed.
+    pub allow: Option<HashSet<AccountId>>,
+    /// AccountIdes that are explicitly denied.
+    pub deny: Option<HashSet<AccountId>>,
 }
 
 impl AccessControlConfig {
     /// Determine if a signing key address is allowed access
     /// to this server.
-    pub fn is_allowed_access(&self, address: &Address) -> bool {
+    pub fn is_allowed_access(&self, account_id: &AccountId) -> bool {
         let has_definitions = self.allow.is_some() || self.deny.is_some();
         if has_definitions {
             match (&self.deny, &self.allow) {
                 (Some(deny), None) => {
-                    if deny.iter().any(|a| a == address) {
+                    if deny.iter().any(|a| a == account_id) {
                         return false;
                     }
                     true
                 }
                 (None, Some(allow)) => {
-                    if allow.iter().any(|a| a == address) {
+                    if allow.iter().any(|a| a == account_id) {
                         return true;
                     }
                     false
                 }
                 (Some(deny), Some(allow)) => {
-                    if allow.iter().any(|a| a == address) {
+                    if allow.iter().any(|a| a == account_id) {
                         return true;
                     }
-                    if deny.iter().any(|a| a == address) {
+                    if deny.iter().any(|a| a == account_id) {
                         return false;
                     }
                     false

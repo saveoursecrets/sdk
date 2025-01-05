@@ -4,6 +4,7 @@ use indexmap::IndexSet;
 use sos_core::{
     commit::{CommitState, Comparison},
     device::DevicePublicKey,
+    AccountId,
 };
 use sos_sdk::{
     events::{
@@ -14,7 +15,6 @@ use sos_sdk::{
     vault::{Summary, VaultId},
     Paths,
 };
-use sos_signer::ecdsa::Address;
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
     SyncStorage, UpdateSet,
@@ -33,10 +33,10 @@ pub enum ServerStorage {
 
 #[async_trait]
 impl ServerAccountStorage for ServerStorage {
-    fn address(&self) -> &Address {
+    fn account_id(&self) -> &AccountId {
         match self {
-            ServerStorage::FileSystem(fs) => fs.address(),
-            ServerStorage::Database(db) => db.address(),
+            ServerStorage::FileSystem(fs) => fs.account_id(),
+            ServerStorage::Database(db) => db.account_id(),
         }
     }
 

@@ -1,13 +1,10 @@
 use super::{Error, Result};
-use sos_core::{device::DevicePublicKey, Paths};
+use sos_core::{device::DevicePublicKey, AccountId, Paths};
 use sos_filesystem::folder::DiscFolder;
 use sos_server_storage::{
     filesystem::ServerFileStorage, ServerAccountStorage, ServerStorage,
 };
-use sos_signer::{
-    ecdsa::Address,
-    ed25519::{self, Verifier, VerifyingKey},
-};
+use sos_signer::ed25519::{self, Verifier, VerifyingKey};
 use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
 use sos_vfs as vfs;
 use std::{
@@ -21,7 +18,7 @@ use tokio::sync::RwLock;
 pub type ServerAccount = Arc<RwLock<ServerStorage>>;
 
 /// Collection of accounts by address.
-pub type Accounts = Arc<RwLock<HashMap<Address, ServerAccount>>>;
+pub type Accounts = Arc<RwLock<HashMap<AccountId, ServerAccount>>>;
 
 fn into_device_verifying_key(
     value: &DevicePublicKey,
@@ -78,7 +75,7 @@ impl Backend {
             if vfs::metadata(&path).await?.is_dir() {
                 if let Some(name) = path.file_stem() {
                     if let Ok(owner) =
-                        name.to_string_lossy().parse::<Address>()
+                        name.to_string_lossy().parse::<AccountId>()
                     {
                         tracing::debug!(
                             account = %owner,
@@ -119,7 +116,7 @@ impl Backend {
     /// Create an account.
     pub async fn create_account(
         &mut self,
-        owner: &Address,
+        owner: &AccountId,
         account_data: CreateSet,
     ) -> Result<()> {
         {
@@ -161,7 +158,7 @@ impl Backend {
     }
 
     /// Delete an account.
-    pub async fn delete_account(&mut self, owner: &Address) -> Result<()> {
+    pub async fn delete_account(&mut self, owner: &AccountId) -> Result<()> {
         tracing::debug!(address = %owner, "backend::delete_account");
 
         let mut accounts = self.accounts.write().await;
@@ -177,7 +174,7 @@ impl Backend {
     /// Update an account.
     pub async fn update_account(
         &mut self,
-        owner: &Address,
+        owner: &AccountId,
         account_data: UpdateSet,
     ) -> Result<MergeOutcome> {
         tracing::debug!(address = %owner, "backend::update_account");
@@ -194,7 +191,10 @@ impl Backend {
     }
 
     /// Fetch an existing account.
-    pub async fn fetch_account(&self, owner: &Address) -> Result<CreateSet> {
+    pub async fn fetch_account(
+        &self,
+        owner: &AccountId,
+    ) -> Result<CreateSet> {
         tracing::debug!(address = %owner, "backend::fetch_account");
 
         let accounts = self.accounts.read().await;
@@ -209,7 +209,7 @@ impl Backend {
     /// Verify a device is allowed to access an account.
     pub(crate) async fn verify_device(
         &self,
-        owner: &Address,
+        owner: &AccountId,
         device_signature: &ed25519::Signature,
         message_body: &[u8],
     ) -> Result<()> {
@@ -233,7 +233,7 @@ impl Backend {
     }
 
     /// Determine if an account exists.
-    pub async fn account_exists(&self, owner: &Address) -> Result<bool> {
+    pub async fn account_exists(&self, owner: &AccountId) -> Result<bool> {
         let accounts = self.accounts.read().await;
         Ok(accounts.get(owner).is_some())
     }

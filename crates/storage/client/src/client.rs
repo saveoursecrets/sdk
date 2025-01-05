@@ -10,7 +10,7 @@ use sos_core::{
     crypto::AccessKey,
     decode, encode,
     events::{AccountEvent, Event, ReadEvent, WriteEvent},
-    UtcDateTime,
+    AccountId, UtcDateTime,
 };
 use sos_database::StorageError;
 use sos_filesystem::folder::{DiscFolder, FolderReducer};
@@ -67,8 +67,8 @@ pub struct StorageChangeEvent {
 
 /// Client storage for folders loaded into memory and mirrored to disc.
 pub struct ClientStorage {
-    /// Address of the account owner.
-    pub(super) address: Address,
+    /// Account identifier.
+    pub(super) account_id: AccountId,
 
     /// Folders managed by this storage.
     pub(super) summaries: Vec<Summary>,
@@ -114,7 +114,7 @@ pub struct ClientStorage {
 impl ClientStorage {
     /// Create unauthenticated folder storage for client-side access.
     pub async fn new_unauthenticated(
-        address: Address,
+        account_id: AccountId,
         paths: Arc<Paths>,
     ) -> Result<Self> {
         paths.ensure().await?;
@@ -137,7 +137,7 @@ impl ClientStorage {
         ));
 
         let mut storage = Self {
-            address,
+            account_id,
             summaries: Vec::new(),
             current: None,
             cache: Default::default(),
@@ -161,7 +161,7 @@ impl ClientStorage {
 
     /// Create folder storage for client-side access.
     pub async fn new_authenticated(
-        address: Address,
+        account_id: AccountId,
         data_dir: Option<PathBuf>,
         identity_log: Arc<RwLock<FolderEventLog>>,
         device: TrustedDevice,
@@ -172,14 +172,15 @@ impl ClientStorage {
             Paths::data_dir().map_err(|_| Error::NoCache)?
         };
 
-        let dirs = Paths::new(data_dir, address.to_string());
-        Self::new_paths(Arc::new(dirs), address, identity_log, device).await
+        let dirs = Paths::new(data_dir, account_id.to_string());
+        Self::new_paths(Arc::new(dirs), account_id, identity_log, device)
+            .await
     }
 
     /// Create new storage backed by files on disc.
     async fn new_paths(
         paths: Arc<Paths>,
-        address: Address,
+        account_id: AccountId,
         identity_log: Arc<RwLock<FolderEventLog>>,
         device: TrustedDevice,
     ) -> Result<Self> {
@@ -203,7 +204,7 @@ impl ClientStorage {
         let file_log = Self::initialize_file_log(&paths).await?;
 
         Ok(Self {
-            address,
+            account_id,
             summaries: Vec::new(),
             current: None,
             cache: Default::default(),
@@ -221,9 +222,9 @@ impl ClientStorage {
         })
     }
 
-    /// Address of the account owner.
-    pub fn address(&self) -> &Address {
-        &self.address
+    /// Account identifier.
+    pub fn account_id(&self) -> &AccountId {
+        &self.account_id
     }
 
     async fn initialize_device_log(
@@ -421,12 +422,12 @@ impl ClientStorage {
     ) -> Result<Vec<Event>> {
         let mut events = Vec::new();
 
-        let create_account = Event::CreateAccount(account.address.into());
+        let create_account = Event::CreateAccount(account.account_id.into());
 
         #[cfg(feature = "audit")]
         {
             let audit_event: AuditEvent =
-                (self.address(), &create_account).into();
+                (self.account_id(), &create_account).into();
             append_audit_events(vec![audit_event]).await?;
         }
 
@@ -967,7 +968,7 @@ impl ClientStorage {
         #[cfg(feature = "audit")]
         {
             let audit_event: AuditEvent =
-                (self.address(), &account_event).into();
+                (self.account_id(), &account_event).into();
             append_audit_events(vec![audit_event]).await?;
         }
 
@@ -1008,7 +1009,7 @@ impl ClientStorage {
         #[cfg(feature = "audit")]
         {
             let audit_event: AuditEvent =
-                (self.address(), &account_event).into();
+                (self.account_id(), &account_event).into();
             append_audit_events(vec![audit_event]).await?;
         }
 
@@ -1229,7 +1230,7 @@ impl ClientStorage {
         #[cfg(feature = "audit")]
         {
             let audit_event: AuditEvent =
-                (self.address(), &account_event).into();
+                (self.account_id(), &account_event).into();
             append_audit_events(vec![audit_event]).await?;
         }
 
@@ -1309,7 +1310,7 @@ impl ClientStorage {
         #[cfg(feature = "audit")]
         {
             let audit_event: AuditEvent =
-                (self.address(), &account_event).into();
+                (self.account_id(), &account_event).into();
             append_audit_events(vec![audit_event]).await?;
         }
 
@@ -1335,7 +1336,7 @@ impl ClientStorage {
 
         #[cfg(feature = "audit")]
         {
-            let audit_event: AuditEvent = (self.address(), &event).into();
+            let audit_event: AuditEvent = (self.account_id(), &event).into();
             append_audit_events(vec![audit_event]).await?;
         }
 

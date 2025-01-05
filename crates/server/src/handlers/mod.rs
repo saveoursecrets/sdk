@@ -13,7 +13,7 @@ use crate::{
 use axum_extra::headers::{authorization::Bearer, Authorization};
 use serde::Deserialize;
 use serde_json::json;
-use sos_signer::ecdsa::Address;
+use sos_core::AccountId;
 
 pub mod account;
 pub mod files;
@@ -68,9 +68,9 @@ pub struct Caller {
 }
 
 impl Caller {
-    /// Account address of the caller.
-    pub fn address(&self) -> &Address {
-        &self.token.address
+    /// Account account_id of the caller.
+    pub fn account_id(&self) -> &AccountId {
+        &self.token.account_id
     }
 
     /// Connection identifier.
@@ -92,11 +92,11 @@ async fn authenticate_endpoint(
         .await
         .map_err(|_| Error::BadRequest)?;
 
-    // Deny unauthorized account addresses
+    // Deny unauthorized account account_ides
     {
         let reader = state.read().await;
         if let Some(access) = &reader.config.access {
-            if !access.is_allowed_access(&token.address) {
+            if !access.is_allowed_access(&token.account_id) {
                 return Err(Error::Forbidden);
             }
         }
@@ -110,7 +110,11 @@ async fn authenticate_endpoint(
         (true, Some(device_signature)) => {
             let reader = backend.read().await;
             reader
-                .verify_device(&token.address, device_signature, &signed_data)
+                .verify_device(
+                    &token.account_id,
+                    device_signature,
+                    &signed_data,
+                )
                 .await?;
         }
         _ => {}
@@ -134,7 +138,7 @@ pub(crate) async fn send_notification(
     // Send notification on the websockets channel
     match notification.encode().await {
         Ok(buffer) => {
-            if let Some(account) = reader.sockets.get(caller.address()) {
+            if let Some(account) = reader.sockets.get(caller.account_id()) {
                 if let Err(error) = account.broadcast(caller, buffer).await {
                     tracing::warn!(error = ?error);
                 }

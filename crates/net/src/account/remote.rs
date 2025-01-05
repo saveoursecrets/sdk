@@ -87,10 +87,6 @@ impl RemoteSyncHandler for RemoteBridge {
         self.client.origin()
     }
 
-    fn address(&self) -> &Address {
-        &self.address
-    }
-
     fn account_id(&self) -> &AccountId {
         &self.account_id
     }

@@ -32,7 +32,7 @@ async fn diff_merge_folder_import() -> Result<()> {
 
     let key: AccessKey = password.clone().into();
     local.sign_in(&key).await?;
-    let address = local.address().clone();
+    let account_id = local.account_id().clone();
 
     // Copy the initial account disc state
     copy_account(&data_dir, &data_dir_merge)?;
@@ -45,7 +45,7 @@ async fn diff_merge_folder_import() -> Result<()> {
     // then the import event in the accounts we want to test.
     copy_account(&data_dir, &data_dir_export)?;
     let mut temp = LocalAccount::new_unauthenticated(
-        address,
+        account_id,
         Some(data_dir_export.clone()),
     )
     .await?;
@@ -70,7 +70,7 @@ async fn diff_merge_folder_import() -> Result<()> {
 
     // Sign in on the remote account
     let mut remote =
-        LocalAccount::new_unauthenticated(address, Some(data_dir_merge))
+        LocalAccount::new_unauthenticated(account_id, Some(data_dir_merge))
             .await?;
     remote.sign_in(&key).await?;
 

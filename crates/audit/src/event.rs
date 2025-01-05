@@ -5,7 +5,6 @@ use sos_core::events::{
     AccountEvent, Event, EventKind, ReadEvent, WriteEvent,
 };
 use sos_core::{events::LogEvent, AccountId, SecretId, UtcDateTime, VaultId};
-use sos_signer::ecdsa::Address;
 
 bitflags! {
     /// Bit flags for associated data.
@@ -35,7 +34,7 @@ bitflags! {
 /// * 8 bytes for the timestamp seconds.
 /// * 4 bytes for the timestamp nanoseconds.
 /// * 2 bytes for the event kind identifier.
-/// * 20 bytes for the public address.
+/// * 20 bytes for the public account_id.
 /// * 16, 32 or 64 bytes for the context data (one, two or four UUIDs).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
 pub struct AuditEvent {
@@ -109,9 +108,9 @@ impl AuditEvent {
     }
 }
 
-impl From<(&Address, &Event)> for AuditEvent {
-    fn from(value: (&Address, &Event)) -> Self {
-        let (address, event) = value;
+impl From<(&AccountId, &Event)> for AuditEvent {
+    fn from(value: (&AccountId, &Event)) -> Self {
+        let (account_id, event) = value;
         match event {
             Event::CreateAccount(account_id) => {
                 AuditEvent::new(EventKind::CreateAccount, *account_id, None)
@@ -163,7 +162,7 @@ impl From<(&Address, &Event)> for AuditEvent {
                 if let Some(audit_data) = audit_data {
                     AuditEvent::new(
                         event.event_kind(),
-                        address.into(),
+                        *account_id,
                         Some(audit_data),
                     )
                 } else {
@@ -174,11 +173,11 @@ impl From<(&Address, &Event)> for AuditEvent {
     }
 }
 
-impl From<(&Address, &AccountEvent)> for AuditEvent {
-    fn from(value: (&Address, &AccountEvent)) -> Self {
-        let (address, event) = value;
+impl From<(&AccountId, &AccountEvent)> for AuditEvent {
+    fn from(value: (&AccountId, &AccountEvent)) -> Self {
+        let (account_id, event) = value;
         let audit_data = event.folder_id().map(AuditData::Vault);
-        AuditEvent::new(event.event_kind(), address.into(), audit_data)
+        AuditEvent::new(event.event_kind(), *account_id, audit_data)
     }
 }
 

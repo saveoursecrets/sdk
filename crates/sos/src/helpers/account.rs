@@ -296,7 +296,7 @@ pub async fn sign_in(account: &AccountRef) -> Result<SecretString> {
 
     let passphrase = if !is_authenticated {
         let mut current_account = NetworkAccount::new_unauthenticated(
-            account.account_id().into(),
+            *account.account_id(),
             None,
             Default::default(),
         )

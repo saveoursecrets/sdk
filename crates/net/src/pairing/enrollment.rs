@@ -167,7 +167,7 @@ impl DeviceEnrollment {
             .ok_or_else(|| Error::AccountNotFetched)?;
 
         let mut account = NetworkAccount::new_unauthenticated(
-            self.address.clone(),
+            self.account_id,
             self.data_dir.clone(),
             Default::default(),
         )
