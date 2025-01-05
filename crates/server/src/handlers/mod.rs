@@ -11,9 +11,11 @@ use crate::{
     Error, Result, ServerBackend,
 };
 use axum_extra::headers::{authorization::Bearer, Authorization};
+use http::{HeaderMap, StatusCode};
 use serde::Deserialize;
 use serde_json::json;
 use sos_core::AccountId;
+use sos_protocol::constants::X_SOS_ACCOUNT_ID;
 
 pub mod account;
 pub mod files;
@@ -29,6 +31,13 @@ const BODY_LIMIT: usize = 33554432;
 use sos_protocol::{ChangeNotification, WireEncodeDecode};
 
 use crate::server::{ServerState, State};
+
+fn parse_account_id(headers: &HeaderMap) -> Option<AccountId> {
+    headers
+        .get(X_SOS_ACCOUNT_ID)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<AccountId>().ok())
+}
 
 /// Query string for connections.
 #[derive(Debug, Deserialize, Clone)]
@@ -68,7 +77,7 @@ pub struct Caller {
 }
 
 impl Caller {
-    /// Account account_id of the caller.
+    /// Account identifier of the caller.
     pub fn account_id(&self) -> &AccountId {
         &self.token.account_id
     }
@@ -92,7 +101,7 @@ async fn authenticate_endpoint(
         .await
         .map_err(|_| Error::BadRequest)?;
 
-    // Deny unauthorized account account_ides
+    // Deny unauthorized account account_ids
     {
         let reader = state.read().await;
         if let Some(access) = &reader.config.access {

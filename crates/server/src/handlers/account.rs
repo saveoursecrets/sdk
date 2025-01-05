@@ -1,21 +1,19 @@
-use super::{authenticate_endpoint, Caller};
+use super::BODY_LIMIT;
+use super::{authenticate_endpoint, parse_account_id, Caller};
+use crate::{handlers::ConnectionQuery, ServerBackend, ServerState};
 use axum::{
     body::{to_bytes, Body},
     extract::{Extension, OriginalUri, Query},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
 use axum_extra::{
     headers::{authorization::Bearer, Authorization},
     typed_header::TypedHeader,
 };
+use std::sync::Arc;
 
 //use axum_macros::debug_handler;
-
-use super::BODY_LIMIT;
-use crate::{handlers::ConnectionQuery, ServerBackend, ServerState};
-
-use std::sync::Arc;
 
 /// Determine if an account exists.
 #[utoipa::path(
@@ -37,8 +35,10 @@ pub(crate) async fn account_exists(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
@@ -101,8 +101,10 @@ pub(crate) async fn create_account(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
+    let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
             bearer,
@@ -156,8 +158,10 @@ pub(crate) async fn delete_account(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
@@ -214,8 +218,10 @@ pub(crate) async fn update_account(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
+    let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
             bearer,
@@ -271,8 +277,10 @@ pub(crate) async fn fetch_account(
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
@@ -323,8 +331,10 @@ pub(crate) async fn sync_status(
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
@@ -379,8 +389,10 @@ pub(crate) async fn event_scan(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
+    let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
             bearer,
@@ -440,8 +452,10 @@ pub(crate) async fn event_diff(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
+    let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
             bearer,
@@ -501,8 +515,10 @@ pub(crate) async fn event_patch(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
+    let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
             bearer,
@@ -562,8 +578,10 @@ pub(crate) async fn sync_account(
     Extension(backend): Extension<ServerBackend>,
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
+    let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
             bearer,

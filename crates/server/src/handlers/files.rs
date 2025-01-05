@@ -1,7 +1,12 @@
+use super::{parse_account_id, BODY_LIMIT};
+use crate::{
+    handlers::{authenticate_endpoint, ConnectionQuery},
+    ServerBackend, ServerState, ServerTransfer,
+};
 use axum::{
     body::{to_bytes, Body},
     extract::{Extension, OriginalUri, Path, Query, Request},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
 };
@@ -9,17 +14,13 @@ use axum_extra::{
     headers::{authorization::Bearer, Authorization},
     typed_header::TypedHeader,
 };
-//use axum_macros::debug_handler;
-use super::BODY_LIMIT;
-use crate::{
-    handlers::{authenticate_endpoint, ConnectionQuery},
-    ServerBackend, ServerState, ServerTransfer,
-};
 use serde::Deserialize;
 use sos_core::{
     ExternalFile, ExternalFileName, SecretId, SecretPath, VaultId,
 };
 use std::sync::Arc;
+
+//use axum_macros::debug_handler;
 
 /// Query string for moving a file.
 #[derive(Debug, Deserialize)]
@@ -71,9 +72,11 @@ pub(crate) async fn receive_file(
     )>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
@@ -136,8 +139,10 @@ pub(crate) async fn delete_file(
     )>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
@@ -201,8 +206,10 @@ pub(crate) async fn send_file(
     )>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
@@ -266,8 +273,10 @@ pub(crate) async fn move_file(
     Query(query): Query<ConnectionQuery>,
     Query(move_query): Query<MoveFileQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match authenticate_endpoint(
         bearer,
         uri.as_bytes(),
@@ -322,9 +331,11 @@ pub(crate) async fn compare_files(
     TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
     Query(query): Query<ConnectionQuery>,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
     body: Body,
 ) -> impl IntoResponse {
     let uri = uri.path().to_string();
+    let account_id = parse_account_id(&headers);
     match to_bytes(body, BODY_LIMIT).await {
         Ok(bytes) => match authenticate_endpoint(
             bearer,
