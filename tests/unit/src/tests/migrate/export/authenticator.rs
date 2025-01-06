@@ -1,12 +1,13 @@
 use anyhow::Result;
 use secrecy::SecretString;
+use sos_filesystem::FileSystemGatekeeper;
 use sos_migrate::{export_authenticator, import_authenticator};
 use sos_sdk::prelude::*;
 use sos_test_utils::mock;
 use tempfile::NamedTempFile;
 
 async fn create_mock_authenticator(
-) -> Result<(Gatekeeper, SecretString, SecretRow)> {
+) -> Result<(FileSystemGatekeeper, SecretString, SecretRow)> {
     let (folder_key, _) = generate_passphrase()?;
     let vault = VaultBuilder::new()
         .flags(VaultFlags::AUTHENTICATOR)
@@ -14,7 +15,7 @@ async fn create_mock_authenticator(
         .await?;
 
     let key: AccessKey = folder_key.clone().into();
-    let mut keeper = Gatekeeper::new(vault);
+    let mut keeper = FileSystemGatekeeper::new(vault);
     keeper.unlock(&key).await?;
 
     let (meta, secret) = mock::totp("mock@example.com");

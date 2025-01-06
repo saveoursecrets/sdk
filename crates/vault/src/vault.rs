@@ -20,6 +20,7 @@ use sos_core::{
     SecretId, UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
 use sos_vfs::File;
+use std::path::PathBuf;
 use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, path::Path,
     str::FromStr,
@@ -116,33 +117,47 @@ pub struct VaultCommit(pub CommitHash, pub VaultEntry);
 ///
 #[async_trait]
 pub trait VaultAccess {
+    /// Error type for vault access.
+    type Error: std::error::Error
+        + std::fmt::Debug
+        + From<crate::Error>
+        + From<sos_core::Error>
+        + Send
+        + Sync
+        + 'static;
+
     /// Get the vault summary.
-    async fn summary(&self) -> Result<Summary>;
+    async fn summary(&self) -> std::result::Result<Summary, Self::Error>;
 
     /// Get the name of a vault.
-    async fn vault_name(&self) -> Result<Cow<'_, str>>;
+    async fn vault_name(
+        &self,
+    ) -> std::result::Result<Cow<'_, str>, Self::Error>;
 
     /// Set the name of a vault.
-    async fn set_vault_name(&mut self, name: String) -> Result<WriteEvent>;
+    async fn set_vault_name(
+        &mut self,
+        name: String,
+    ) -> std::result::Result<WriteEvent, Self::Error>;
 
     /// Set the flags for a vault.
     async fn set_vault_flags(
         &mut self,
         flags: VaultFlags,
-    ) -> Result<WriteEvent>;
+    ) -> std::result::Result<WriteEvent, Self::Error>;
 
     /// Set the vault meta data.
     async fn set_vault_meta(
         &mut self,
         meta_data: AeadPack,
-    ) -> Result<WriteEvent>;
+    ) -> std::result::Result<WriteEvent, Self::Error>;
 
     /// Add an encrypted secret to the vault.
     async fn create_secret(
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<WriteEvent>;
+    ) -> std::result::Result<WriteEvent, Self::Error>;
 
     /// Insert an encrypted secret to the vault with the given id.
     ///
@@ -154,13 +169,16 @@ pub trait VaultAccess {
         id: SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<WriteEvent>;
+    ) -> std::result::Result<WriteEvent, Self::Error>;
 
     /// Get an encrypted secret from the vault.
     async fn read_secret<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)>;
+    ) -> std::result::Result<
+        (Option<Cow<'a, VaultCommit>>, ReadEvent),
+        Self::Error,
+    >;
 
     /// Update an encrypted secret in the vault.
     async fn update_secret(
@@ -168,13 +186,25 @@ pub trait VaultAccess {
         id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Option<WriteEvent>>;
+    ) -> std::result::Result<Option<WriteEvent>, Self::Error>;
 
     /// Remove an encrypted secret from the vault.
     async fn delete_secret(
         &mut self,
         id: &SecretId,
-    ) -> Result<Option<WriteEvent>>;
+    ) -> std::result::Result<Option<WriteEvent>, Self::Error>;
+
+    /// Replace the vault with new vault content.
+    async fn replace_vault(
+        &mut self,
+        vault: &Vault,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Re-initialize the vault access from a path on disc.
+    async fn reload_vault(
+        &mut self,
+        path: PathBuf,
+    ) -> std::result::Result<(), Self::Error>;
 }
 
 /// Authentication information.
@@ -873,6 +903,16 @@ impl Vault {
         &mut self.header
     }
 
+    /// Vault data.
+    pub fn data(&self) -> &IndexMap<SecretId, VaultCommit> {
+        &self.contents.data
+    }
+
+    /// Mutable vault data.
+    pub fn data_mut(&mut self) -> &mut IndexMap<SecretId, VaultCommit> {
+        &mut self.contents.data
+    }
+
     /// Get the meta data for all the secrets.
     pub fn meta_data(&self) -> HashMap<&Uuid, &AeadPack> {
         self.contents
@@ -940,6 +980,8 @@ impl IntoIterator for Vault {
 
 #[async_trait]
 impl VaultAccess for Vault {
+    type Error = Error;
+
     async fn summary(&self) -> Result<Summary> {
         Ok(self.header.summary.clone())
     }
@@ -1021,5 +1063,14 @@ impl VaultAccess for Vault {
     ) -> Result<Option<WriteEvent>> {
         let entry = self.contents.data.shift_remove(id);
         Ok(entry.map(|_| WriteEvent::DeleteSecret(*id)))
+    }
+
+    async fn replace_vault(&mut self, vault: &Vault) -> Result<()> {
+        *self = vault.clone();
+        Ok(())
+    }
+
+    async fn reload_vault(&mut self, _path: PathBuf) -> Result<()> {
+        Ok(())
     }
 }

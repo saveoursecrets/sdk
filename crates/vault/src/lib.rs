@@ -6,26 +6,19 @@ mod builder;
 mod change;
 mod encoding;
 mod error;
-mod file_writer;
 mod gatekeeper;
 pub mod secret;
 mod vault;
 
-// mod reducer;
-// pub use reducer::FolderReducer;
-
-// mod folder;
-// pub use folder::{DiscFolder, Folder, MemoryFolder};
-
 pub use builder::{BuilderCredentials, VaultBuilder};
 pub use change::ChangePassword;
 pub use error::Error;
-pub use file_writer::VaultWriter;
 pub use gatekeeper::Gatekeeper;
 pub use vault::{
     FolderRef, Header, SharedAccess, Summary, Vault, VaultAccess, VaultMeta,
 };
 
+// DO NOT USE: these re-exports will be removed in the future
 pub use sos_core::{VaultCommit, VaultEntry, VaultFlags, VaultId};
 
 pub(crate) type Result<T> = std::result::Result<T, Error>;

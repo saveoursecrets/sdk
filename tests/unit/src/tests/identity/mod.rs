@@ -1,13 +1,12 @@
 use anyhow::Result;
 use sos_core::AccountId;
+use sos_filesystem::FileSystemGatekeeper;
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
     crypto::AccessKey,
     encode,
     identity::MemoryIdentityFolder,
-    vault::{
-        BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
-    },
+    vault::{BuilderCredentials, Vault, VaultBuilder, VaultFlags},
 };
 
 #[tokio::test]
@@ -39,7 +38,7 @@ async fn no_identity_key() -> Result<()> {
         .build(BuilderCredentials::Password(password.clone(), None))
         .await?;
 
-    let mut keeper = Gatekeeper::new(vault);
+    let mut keeper = FileSystemGatekeeper::new(vault);
     let key = password.clone().into();
     keeper.unlock(&key).await?;
 

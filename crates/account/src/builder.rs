@@ -1,5 +1,5 @@
 //! Create a new local account.
-use crate::Result;
+use crate::{Error, Result};
 use secrecy::SecretString;
 use sos_client_storage::AccountPack;
 use sos_core::{
@@ -227,7 +227,7 @@ impl AccountBuilder {
 
         // Save the master passphrase in the default vault
         if save_passphrase {
-            let mut keeper = Gatekeeper::new(default_folder);
+            let mut keeper = Gatekeeper::<Error>::new(default_folder);
             let key: AccessKey = vault_passphrase.clone().into();
             keeper.unlock(&key).await?;
 

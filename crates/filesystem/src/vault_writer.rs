@@ -1,8 +1,5 @@
 //! Implements random access to a single vault file on disc.
-use crate::{
-    secret::SecretId, Contents, Header, Result, Summary, VaultAccess,
-    VaultCommit, VaultEntry, VaultFlags,
-};
+use crate::{Error, Result};
 use async_trait::async_trait;
 use binary_stream::futures::{stream_length, BinaryReader, BinaryWriter};
 use futures::io::{BufWriter, Cursor};
@@ -12,7 +9,9 @@ use sos_core::{
     encode,
     encoding::encoding_options,
     events::{ReadEvent, WriteEvent},
+    SecretId, VaultCommit, VaultEntry, VaultFlags,
 };
+use sos_vault::{Contents, Header, Summary, Vault, VaultAccess};
 use sos_vfs::{self as vfs, File, OpenOptions};
 use std::{
     borrow::Cow,
@@ -65,7 +64,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
     /// Check the identity bytes and return the byte offset of the
     /// beginning of the vault content area.
     async fn check_identity(&self) -> Result<u64> {
-        Header::read_content_offset(&self.file_path).await
+        Ok(Header::read_content_offset(&self.file_path).await?)
     }
 
     /// Write out the header preserving the existing content bytes.
@@ -190,8 +189,10 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
 impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
     for VaultWriter<F>
 {
+    type Error = Error;
+
     async fn summary(&self) -> Result<Summary> {
-        Header::read_summary_file(&self.file_path).await
+        Ok(Header::read_summary_file(&self.file_path).await?)
     }
 
     async fn vault_name(&self) -> Result<Cow<'_, str>> {
@@ -347,5 +348,16 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
         } else {
             Ok(None)
         }
+    }
+
+    async fn replace_vault(&mut self, vault: &Vault) -> Result<()> {
+        let buffer = encode(vault).await?;
+        vfs::write_exclusive(&self.file_path, &buffer).await?;
+        Ok(())
+    }
+
+    async fn reload_vault(&mut self, path: PathBuf) -> Result<()> {
+        self.file_path = path;
+        Ok(())
     }
 }

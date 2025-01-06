@@ -2,11 +2,12 @@
 use crate::{Error, Result};
 use probly_search::{score::bm25, Index, QueryResult};
 use serde::{Deserialize, Serialize};
+use sos_filesystem::FileSystemGatekeeper;
 use sos_sdk::{
     crypto::AccessKey,
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRef, SecretType},
-        Gatekeeper, Summary, Vault, VaultId,
+        Summary, Vault, VaultId,
     },
 };
 use std::{
@@ -609,7 +610,10 @@ impl SearchIndex {
 
     /// Add the meta data from the entries in a folder
     /// to this search index.
-    pub async fn add_folder(&mut self, folder: &Gatekeeper) -> Result<()> {
+    pub async fn add_folder(
+        &mut self,
+        folder: &FileSystemGatekeeper,
+    ) -> Result<()> {
         let vault = folder.vault();
         for id in vault.keys() {
             let (meta, secret, _) = folder
@@ -622,7 +626,10 @@ impl SearchIndex {
     }
 
     /// Remove the meta data from the entries in a folder.
-    pub async fn remove_folder(&mut self, folder: &Gatekeeper) -> Result<()> {
+    pub async fn remove_folder(
+        &mut self,
+        folder: &FileSystemGatekeeper,
+    ) -> Result<()> {
         let vault = folder.vault();
         for id in vault.keys() {
             self.remove(folder.id(), id);
@@ -761,7 +768,10 @@ impl AccountSearch {
     }
 
     /// Add a folder which must be unlocked.
-    pub async fn add_folder(&self, folder: &Gatekeeper) -> Result<()> {
+    pub async fn add_folder(
+        &self,
+        folder: &FileSystemGatekeeper,
+    ) -> Result<()> {
         let mut index = self.search_index.write().await;
         index.add_folder(folder).await
     }
@@ -780,7 +790,7 @@ impl AccountSearch {
         key: &AccessKey,
     ) -> Result<()> {
         let mut index = self.search_index.write().await;
-        let mut keeper = Gatekeeper::new(vault);
+        let mut keeper = FileSystemGatekeeper::new(vault);
         keeper.unlock(key).await?;
         index.add_folder(&keeper).await?;
         keeper.lock();

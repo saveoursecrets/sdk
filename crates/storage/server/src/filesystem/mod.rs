@@ -8,13 +8,13 @@ use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
     encode, AccountId, Paths,
 };
-use sos_filesystem::folder::FolderReducer;
+use sos_filesystem::{folder::FolderReducer, VaultWriter};
 use sos_sdk::{
     events::{
         AccountEvent, AccountEventLog, DeviceEventLog, DeviceReducer,
         EventLogExt, FileEvent, FileEventLog, FolderEventLog, FolderPatch,
     },
-    vault::{Header, Summary, Vault, VaultAccess, VaultId, VaultWriter},
+    vault::{Header, Summary, Vault, VaultAccess, VaultId},
     vfs,
 };
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};

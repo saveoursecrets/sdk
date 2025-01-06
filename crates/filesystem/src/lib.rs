@@ -7,8 +7,13 @@ mod error;
 pub mod events;
 pub mod folder;
 pub mod formats;
+pub mod vault_writer;
 
 pub use error::Error;
+pub use vault_writer::VaultWriter;
+
+/// Gatekeeper that mirrors changes to a vault on disc.
+pub type FileSystemGatekeeper = sos_vault::Gatekeeper<Error>;
 
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;

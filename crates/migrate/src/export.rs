@@ -1,20 +1,18 @@
 //! Export an archive of unencrypted secrets that
 //! can be used to migrate data to another app.
-
+use crate::{Error, Result};
+use async_zip::{tokio::write::ZipFileWriter, Compression, ZipEntryBuilder};
 use secrecy::{ExposeSecret, SecretBox};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
-use async_zip::{tokio::write::ZipFileWriter, Compression, ZipEntryBuilder};
-use tokio::io::AsyncWrite;
-use tokio_util::compat::Compat;
-
-use crate::Result;
 use sos_core::{SecretId, VaultId};
+use sos_filesystem::FileSystemGatekeeper;
 use sos_vault::{
     secret::{FileContent, Secret, SecretMeta},
-    Gatekeeper, Summary, VaultMeta,
+    Summary, VaultMeta,
 };
+use std::collections::HashMap;
+use tokio::io::AsyncWrite;
+use tokio_util::compat::Compat;
 
 /// Public export encapsulates a collection of vaults
 /// and their unencrypted secrets.
@@ -47,7 +45,7 @@ impl<W: AsyncWrite + Unpin> PublicExport<W> {
     ///
     /// The passed `Gatekeeper` must already be unlocked so the
     /// secrets can be decrypted.
-    pub async fn add(&mut self, access: &Gatekeeper) -> Result<()> {
+    pub async fn add(&mut self, access: &FileSystemGatekeeper) -> Result<()> {
         // This verifies decryption early, if the keeper is locked
         // it will error here
         let meta = access.vault_meta().await?;

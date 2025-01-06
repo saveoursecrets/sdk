@@ -1,11 +1,12 @@
 //! Types for device support.
-use crate::Result;
+use crate::{Error, Result};
 use sos_core::{
     device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
     encode,
 };
+use sos_filesystem::FileSystemGatekeeper;
 use sos_signer::ed25519::{BoxedEd25519Signer, SingleParty};
-use sos_vault::{Gatekeeper, Vault};
+use sos_vault::Vault;
 
 /// Signing key for a device.
 #[derive(Clone)]
@@ -35,7 +36,7 @@ impl DeviceSigner {
 }
 
 impl TryFrom<[u8; 32]> for DeviceSigner {
-    type Error = crate::Error;
+    type Error = Error;
 
     fn try_from(value: [u8; 32]) -> Result<Self> {
         let signer: SingleParty = value.try_into()?;
@@ -63,7 +64,7 @@ pub struct DeviceManager {
     signer: DeviceSigner,
     /// Access to the vault that stores the device
     /// signing key.
-    keeper: Gatekeeper,
+    keeper: FileSystemGatekeeper,
 }
 
 impl DeviceManager {
@@ -71,7 +72,10 @@ impl DeviceManager {
     ///
     /// The gatekeeper should be unlocked before assigning to a
     /// device manager.
-    pub(super) fn new(signer: DeviceSigner, keeper: Gatekeeper) -> Self {
+    pub(super) fn new(
+        signer: DeviceSigner,
+        keeper: FileSystemGatekeeper,
+    ) -> Self {
         Self { signer, keeper }
     }
 

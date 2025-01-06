@@ -1,8 +1,7 @@
 //! Gatekeeper manages access to a vault.
 use crate::{
     secret::{Secret, SecretMeta, SecretRow},
-    Error, Result, SharedAccess, Summary, Vault, VaultAccess, VaultMeta,
-    VaultWriter,
+    Error, SharedAccess, Summary, Vault, VaultAccess, VaultMeta,
 };
 use sos_core::{
     crypto::{AccessKey, AeadPack, KeyDerivation, PrivateKey},
@@ -12,6 +11,9 @@ use sos_core::{
 };
 use sos_vfs as vfs;
 use std::{borrow::Cow, path::Path};
+
+pub type VaultMirror<E> =
+    Box<dyn VaultAccess<Error = E> + Send + Sync + 'static>;
 
 /// Access to an in-memory vault optionally mirroring changes to disc.
 ///
@@ -28,16 +30,36 @@ use std::{borrow::Cow, path::Path};
 /// a very poor user experience and would lead to confusion so the
 /// gatekeeper is also responsible for ensuring the same private key
 /// is used to encrypt the different chunks.
-pub struct Gatekeeper {
+pub struct Gatekeeper<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<crate::Error>
+        + From<sos_core::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     /// The private key.
     private_key: Option<PrivateKey>,
     /// The underlying vault.
     vault: Vault,
     /// Mirror in-memory vault changes to a writer.
-    mirror: Option<VaultWriter<vfs::File>>,
+    mirror: Option<VaultMirror<E>>,
 }
 
-impl Gatekeeper {
+impl<E> Gatekeeper<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<crate::Error>
+        + From<sos_core::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     /// Create a new gatekeeper.
     pub fn new(vault: Vault) -> Self {
         Self {
@@ -48,8 +70,8 @@ impl Gatekeeper {
     }
 
     /// Create a new gatekeeper that writes in-memory
-    /// changes to a file.
-    pub fn new_mirror(vault: Vault, mirror: VaultWriter<vfs::File>) -> Self {
+    /// changes to a mirror.
+    pub fn new_mirror(vault: Vault, mirror: VaultMirror<E>) -> Self {
         Self {
             vault,
             private_key: None,
@@ -85,10 +107,9 @@ impl Gatekeeper {
         &mut self,
         vault: Vault,
         write_disc: bool,
-    ) -> Result<()> {
-        if let (true, Some(mirror)) = (write_disc, &self.mirror) {
-            let buffer = encode(&vault).await?;
-            vfs::write_exclusive(&mirror.file_path, &buffer).await?;
+    ) -> Result<(), E> {
+        if let (true, Some(mirror)) = (write_disc, &mut self.mirror) {
+            mirror.replace_vault(&vault).await?;
         }
         self.vault = vault;
         Ok(())
@@ -106,16 +127,12 @@ impl Gatekeeper {
     pub async fn reload_vault(
         &mut self,
         path: impl AsRef<Path>,
-    ) -> Result<()> {
+    ) -> Result<(), E> {
         let buffer = vfs::read(path.as_ref()).await?;
         self.vault = decode(&buffer).await?;
-
-        if self.mirror.is_some() {
-            let vault_file = VaultWriter::open(path.as_ref()).await?;
-            let mirror = VaultWriter::new(path.as_ref(), vault_file)?;
-            self.mirror = Some(mirror);
+        if let Some(mirror) = &mut self.mirror {
+            mirror.reload_vault(path.as_ref().to_owned()).await?;
         }
-
         Ok(())
     }
 
@@ -143,31 +160,31 @@ impl Gatekeeper {
     pub async fn set_vault_name(
         &mut self,
         name: String,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, E> {
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.set_vault_name(name.clone()).await?;
         }
-        self.vault.set_vault_name(name).await
+        Ok(self.vault.set_vault_name(name).await?)
     }
 
     /// Set the vault flags.
     pub async fn set_vault_flags(
         &mut self,
         flags: VaultFlags,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, E> {
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.set_vault_flags(flags.clone()).await?;
         }
-        self.vault.set_vault_flags(flags).await
+        Ok(self.vault.set_vault_flags(flags).await?)
     }
 
     /// Attempt to decrypt the meta data for the vault
     /// using the key assigned to this gatekeeper.
-    pub async fn vault_meta(&self) -> Result<VaultMeta> {
+    pub async fn vault_meta(&self) -> Result<VaultMeta, E> {
         if let Some(meta_aead) = self.vault.header().meta() {
             Ok(self.decrypt_meta(meta_aead).await?)
         } else {
-            Err(Error::VaultNotInit)
+            Err(Error::VaultNotInit.into())
         }
     }
 
@@ -175,7 +192,7 @@ impl Gatekeeper {
     pub async fn decrypt_meta(
         &self,
         meta_aead: &AeadPack,
-    ) -> Result<VaultMeta> {
+    ) -> Result<VaultMeta, E> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
         let meta_blob = self
@@ -190,7 +207,7 @@ impl Gatekeeper {
     pub async fn set_vault_meta(
         &mut self,
         meta_data: &VaultMeta,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, E> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
         let meta_blob = encode(meta_data).await?;
@@ -198,7 +215,7 @@ impl Gatekeeper {
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.set_vault_meta(meta_aead.clone()).await?;
         }
-        self.vault.set_vault_meta(meta_aead).await
+        Ok(self.vault.set_vault_meta(meta_aead).await?)
     }
 
     #[doc(hidden)]
@@ -206,7 +223,7 @@ impl Gatekeeper {
         &self,
         vault_commit: &VaultCommit,
         private_key: Option<&PrivateKey>,
-    ) -> Result<(SecretMeta, Secret)> {
+    ) -> Result<(SecretMeta, Secret), E> {
         let private_key = private_key
             .or(self.private_key.as_ref())
             .ok_or(Error::VaultLocked)?;
@@ -224,7 +241,10 @@ impl Gatekeeper {
 
     /// Ensure that if shared access is set to readonly that
     /// this user is allowed to write.
-    async fn enforce_shared_readonly(&self, key: &PrivateKey) -> Result<()> {
+    async fn enforce_shared_readonly(
+        &self,
+        key: &PrivateKey,
+    ) -> Result<(), E> {
         if let SharedAccess::ReadOnly(aead) = self.vault.shared_access() {
             self.vault
                 .decrypt(key, aead)
@@ -238,7 +258,7 @@ impl Gatekeeper {
     pub async fn create_secret(
         &mut self,
         secret_data: &SecretRow,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, E> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
@@ -277,15 +297,15 @@ impl Gatekeeper {
     pub async fn raw_secret(
         &self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'_, VaultCommit>>, ReadEvent)> {
-        self.vault.read_secret(id).await
+    ) -> Result<(Option<Cow<'_, VaultCommit>>, ReadEvent), E> {
+        Ok(self.vault.read_secret(id).await?)
     }
 
     /// Get a secret and it's meta data.
     pub async fn read_secret(
         &self,
         id: &SecretId,
-    ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
+    ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>, E> {
         if let (Some(value), event) = self.raw_secret(id).await? {
             let (meta, secret) = self
                 .decrypt_secret(value.as_ref(), self.private_key.as_ref())
@@ -302,7 +322,7 @@ impl Gatekeeper {
         id: &SecretId,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<Option<WriteEvent>> {
+    ) -> Result<Option<WriteEvent>, E> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
 
@@ -328,35 +348,36 @@ impl Gatekeeper {
                 .await?;
         }
 
-        self.vault
+        Ok(self
+            .vault
             .update_secret(id, commit, VaultEntry(meta_aead, secret_aead))
-            .await
+            .await?)
     }
 
     /// Delete a secret and it's meta data.
     pub async fn delete_secret(
         &mut self,
         id: &SecretId,
-    ) -> Result<Option<WriteEvent>> {
+    ) -> Result<Option<WriteEvent>, E> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
         self.enforce_shared_readonly(private_key).await?;
         if let Some(mirror) = self.mirror.as_mut() {
             mirror.delete_secret(id).await?;
         }
-        self.vault.delete_secret(id).await
+        Ok(self.vault.delete_secret(id).await?)
     }
 
     /// Verify an encryption passphrase.
-    pub async fn verify(&self, key: &AccessKey) -> Result<()> {
-        self.vault.verify(key).await
+    pub async fn verify(&self, key: &AccessKey) -> Result<(), E> {
+        Ok(self.vault.verify(key).await?)
     }
 
     /// Unlock the vault using the access key.
     ///
     /// The derived private key is stored in memory
     /// until [Gatekeeper::lock] is called.
-    pub async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta> {
+    pub async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta, E> {
         if let Some(salt) = self.vault.salt() {
             match key {
                 AccessKey::Password(passphrase) => {
@@ -378,7 +399,7 @@ impl Gatekeeper {
                 }
             }
         } else {
-            Err(Error::VaultNotInit)
+            Err(Error::VaultNotInit.into())
         }
     }
 
@@ -391,14 +412,34 @@ impl Gatekeeper {
     }
 }
 
-impl From<Vault> for Gatekeeper {
+impl<E> From<Vault> for Gatekeeper<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<crate::Error>
+        + From<sos_core::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     fn from(value: Vault) -> Self {
-        Gatekeeper::new(value)
+        Gatekeeper::<E>::new(value)
     }
 }
 
-impl From<Gatekeeper> for Vault {
-    fn from(value: Gatekeeper) -> Self {
+impl<E> From<Gatekeeper<E>> for Vault
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<crate::Error>
+        + From<sos_core::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    fn from(value: Gatekeeper<E>) -> Self {
         value.vault
     }
 }

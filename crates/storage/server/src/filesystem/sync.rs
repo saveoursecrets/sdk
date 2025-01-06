@@ -8,7 +8,7 @@ use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
     VaultId,
 };
-use sos_filesystem::folder::FolderReducer;
+use sos_filesystem::{folder::FolderReducer, VaultWriter};
 use sos_sdk::{
     encode,
     events::{
@@ -16,7 +16,7 @@ use sos_sdk::{
         DeviceEventLog, DeviceReducer, EventLogExt, FileDiff, FileEventLog,
         FolderDiff, FolderEventLog, WriteEvent,
     },
-    vault::{Header, Summary, VaultAccess, VaultWriter},
+    vault::{Header, Summary, VaultAccess},
     vfs,
 };
 use sos_sync::{

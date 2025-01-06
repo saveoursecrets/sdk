@@ -10,12 +10,13 @@ use sos_core::{
     constants::VAULT_EXT, crypto::AccessKey, decode, SecretId, VaultId,
 };
 use sos_core::{AccountId, Paths};
+use sos_filesystem::VaultWriter;
 use sos_filesystem::{
     events::{EventLogExt, FolderEventLog},
     folder::FolderReducer,
 };
 use sos_login::{Identity, MemoryIdentityFolder, PublicIdentity};
-use sos_vault::{Summary, Vault, VaultAccess, VaultWriter};
+use sos_vault::{Summary, Vault, VaultAccess};
 use sos_vfs::{self as vfs, File};
 use std::{
     io::Cursor,

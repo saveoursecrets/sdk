@@ -7,20 +7,20 @@ pub mod firefox;
 pub mod macos;
 pub mod one_password;
 
-use async_trait::async_trait;
-use std::collections::{HashMap, HashSet};
-use url::Url;
-use vcard4::Vcard;
-
 use crate::Convert;
+use async_trait::async_trait;
 use sos_core::{crypto::AccessKey, UtcDateTime};
 use sos_database::search::SearchIndex;
+use sos_filesystem::FileSystemGatekeeper;
 use sos_vault::{
     secret::{
         IdentityKind, Secret, SecretId, SecretMeta, SecretRow, UserData,
     },
-    Gatekeeper, Vault,
+    Vault,
 };
+use std::collections::{HashMap, HashSet};
+use url::Url;
+use vcard4::Vcard;
 
 /// Default label for CSV records when a title is not available.
 pub const UNTITLED: &str = "Untitled";
@@ -302,7 +302,7 @@ impl Convert for GenericCsvConvert {
         key: &AccessKey,
     ) -> crate::Result<Vault> {
         let mut index = SearchIndex::new();
-        let mut keeper = Gatekeeper::new(vault);
+        let mut keeper = FileSystemGatekeeper::new(vault);
         keeper.unlock(key).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();

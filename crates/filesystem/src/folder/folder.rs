@@ -5,7 +5,7 @@ use crate::{
         DiscData, DiscLog, EventLogExt, EventRecord, FolderEventLog,
         MemoryData, MemoryFolderLog, MemoryLog,
     },
-    Result,
+    FileSystemGatekeeper, Result, VaultWriter,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use sos_core::{
@@ -20,7 +20,7 @@ use sos_core::{
 };
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},
-    Gatekeeper, Vault, VaultCommit, VaultId, VaultMeta, VaultWriter,
+    Vault, VaultCommit, VaultId, VaultMeta,
 };
 use sos_vfs as vfs;
 use std::{borrow::Cow, path::Path, sync::Arc};
@@ -41,7 +41,7 @@ where
     W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
     D: Clone + Send + Sync,
 {
-    pub(crate) keeper: Gatekeeper,
+    pub(crate) keeper: FileSystemGatekeeper,
     events: Arc<RwLock<T>>,
     marker: std::marker::PhantomData<(R, W, D)>,
 }
@@ -54,7 +54,7 @@ where
     D: Clone + Send + Sync,
 {
     /// Create a new folder.
-    fn init(keeper: Gatekeeper, events: T) -> Self {
+    fn init(keeper: FileSystemGatekeeper, events: T) -> Self {
         Self {
             keeper,
             events: Arc::new(RwLock::new(events)),
@@ -68,12 +68,12 @@ where
     }
 
     /// Gatekeeper for this folder.
-    pub fn keeper(&self) -> &Gatekeeper {
+    pub fn keeper(&self) -> &FileSystemGatekeeper {
         &self.keeper
     }
 
     /// Mutable gatekeeper for this folder.
-    pub fn keeper_mut(&mut self) -> &mut Gatekeeper {
+    pub fn keeper_mut(&mut self) -> &mut FileSystemGatekeeper {
         &mut self.keeper
     }
 
@@ -270,7 +270,8 @@ impl Folder<FolderEventLog, DiscLog, DiscLog, DiscData> {
 
         let vault_file = VaultWriter::open(path.as_ref()).await?;
         let mirror = VaultWriter::new(path.as_ref(), vault_file)?;
-        let keeper = Gatekeeper::new_mirror(vault, mirror);
+        let keeper =
+            FileSystemGatekeeper::new_mirror(vault, Box::new(mirror));
 
         Ok(Self::init(keeper, event_log))
     }
@@ -291,7 +292,7 @@ impl Folder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
     /// that writes to memory.
     pub async fn new(buffer: impl AsRef<[u8]>) -> Result<Self> {
         let vault: Vault = decode(buffer.as_ref()).await?;
-        let keeper = Gatekeeper::new(vault);
+        let keeper = FileSystemGatekeeper::new(vault);
         Ok(Self::init(keeper, MemoryFolderLog::new()))
     }
 }

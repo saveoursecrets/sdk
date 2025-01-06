@@ -3,6 +3,7 @@ use binary_stream::futures::{BinaryReader, BinaryWriter};
 use futures::io::{BufReader, BufWriter, Cursor};
 use sos_core::commit::CommitHash;
 use sos_core::encoding::encoding_options;
+use sos_filesystem::VaultWriter;
 use sos_sdk::prelude::*;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use uuid::Uuid;

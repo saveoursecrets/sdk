@@ -22,13 +22,13 @@ use sos_filesystem::{
         MemoryFolderLog, MemoryLog,
     },
     folder::{DiscFolder, Folder, MemoryFolder},
+    FileSystemGatekeeper, VaultWriter,
 };
 use sos_password::diceware::generate_passphrase_words;
 use sos_signer::ed25519;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
-    BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags, VaultId,
-    VaultWriter,
+    BuilderCredentials, Vault, VaultBuilder, VaultFlags, VaultId,
 };
 use sos_vfs as vfs;
 use std::{
@@ -92,7 +92,7 @@ where
     }
 
     /// Get the gatekeeper.
-    pub fn keeper(&self) -> &Gatekeeper {
+    pub fn keeper(&self) -> &FileSystemGatekeeper {
         self.folder.keeper()
     }
 
@@ -179,7 +179,8 @@ where
         let vault_file = VaultWriter::open(&device_vault_path).await?;
         let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
 
-        let mut device_keeper = Gatekeeper::new_mirror(vault, mirror);
+        let mut device_keeper =
+            FileSystemGatekeeper::new_mirror(vault, Box::new(mirror));
         let key: AccessKey = device_password.into();
         device_keeper.unlock(&key).await?;
 
@@ -248,9 +249,9 @@ where
             vfs::write_exclusive(&device_vault_path, &buffer).await?;
             let vault_file = VaultWriter::open(&device_vault_path).await?;
             let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
-            Gatekeeper::new_mirror(vault, mirror)
+            FileSystemGatekeeper::new_mirror(vault, Box::new(mirror))
         } else {
-            Gatekeeper::new(vault)
+            FileSystemGatekeeper::new(vault)
         };
         device_keeper.unlock(&key).await?;
 
@@ -458,7 +459,7 @@ where
     /// the URN lookup index which maps URNs to the
     /// corresponding secret identifiers.
     async fn lookup_identity_secrets(
-        keeper: &Gatekeeper,
+        keeper: &FileSystemGatekeeper,
     ) -> Result<(UrnLookup, Option<Secret>)> {
         let mut index: UrnLookup = Default::default();
 
@@ -487,7 +488,7 @@ where
 
     async fn login_private_identity(
         account_id: AccountId,
-        keeper: &Gatekeeper,
+        keeper: &FileSystemGatekeeper,
     ) -> Result<(UrnLookup, PrivateIdentity)> {
         let (index, identity_secret) =
             Self::lookup_identity_secrets(keeper).await?;

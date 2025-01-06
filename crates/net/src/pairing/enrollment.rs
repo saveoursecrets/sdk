@@ -8,6 +8,7 @@ use sos_core::{
     crypto::AccessKey, encode, events::AccountEvent, AccountId, Origin,
     VaultId,
 };
+use sos_filesystem::VaultWriter;
 use sos_filesystem::{
     events::{
         AccountEventLog, AccountPatch, EventLogExt, FolderEventLog,
@@ -17,10 +18,8 @@ use sos_filesystem::{
 };
 use sos_protocol::{network_client::HttpClient, SyncClient};
 use sos_sdk::{
-    device::DeviceSigner,
-    identity::PublicIdentity,
-    vault::{VaultAccess, VaultWriter},
-    vfs, Paths,
+    device::DeviceSigner, identity::PublicIdentity, vault::VaultAccess, vfs,
+    Paths,
 };
 use sos_signer::ed25519::BoxedEd25519Signer;
 use std::{

@@ -16,9 +16,10 @@ use security_framework::{
 };
 use sos_core::crypto::AccessKey;
 use sos_database::search::SearchIndex;
+use sos_filesystem::FileSystemGatekeeper;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},
-    Gatekeeper, Vault,
+    Vault,
 };
 use std::{
     collections::HashMap,
@@ -110,7 +111,7 @@ impl KeychainImport {
 }
 
 async fn rename_label(
-    keeper: &mut Gatekeeper,
+    keeper: &mut FileSystemGatekeeper,
     label: String,
     duplicates: &mut HashMap<String, usize>,
     index: &SearchIndex,
@@ -144,7 +145,7 @@ impl Convert for KeychainImport {
         let list = parser.parse()?;
 
         let mut index = SearchIndex::new();
-        let mut keeper = Gatekeeper::new(vault);
+        let mut keeper = FileSystemGatekeeper::new(vault);
         keeper.unlock(&key).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();

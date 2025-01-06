@@ -3,10 +3,11 @@ use hex;
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use sos_account::Account;
+use sos_filesystem::FileSystemGatekeeper;
 use sos_password::generator::measure_entropy;
 use sos_vault::{
     secret::{Secret, SecretId, SecretType},
-    Gatekeeper, Summary, VaultId,
+    Summary, VaultId,
 };
 use zxcvbn::{Entropy, Score};
 
@@ -23,7 +24,12 @@ where
         + From<sos_account::Error>
         + From<sos_core::Error>
         + From<sos_vault::Error>
-        + From<sos_database::StorageError>,
+        + From<sos_filesystem::Error>
+        + From<std::io::Error>
+        + From<sos_database::StorageError>
+        + Send
+        + Sync
+        + 'static,
 {
     let mut records = Vec::new();
     let mut hashes = Vec::new();
@@ -237,7 +243,7 @@ pub struct SecurityReportRecord {
 
 pub(super) async fn secret_security_report<E>(
     secret_id: &SecretId,
-    keeper: &Gatekeeper,
+    keeper: &FileSystemGatekeeper,
     password_hashes: &mut Vec<(
         SecretId,
         (Option<Entropy>, Vec<u8>),
@@ -246,7 +252,9 @@ pub(super) async fn secret_security_report<E>(
     target_field: Option<&SecretId>,
 ) -> std::result::Result<(), E>
 where
-    E: From<sos_vault::Error> + From<sos_database::StorageError>,
+    E: From<sos_vault::Error>
+        + From<sos_database::StorageError>
+        + From<sos_filesystem::Error>,
 {
     if let Some((_meta, secret, _)) = keeper.read_secret(secret_id).await? {
         for field in secret.user_data().fields().iter().filter(|field| {
