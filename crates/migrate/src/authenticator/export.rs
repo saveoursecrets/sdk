@@ -5,7 +5,7 @@ use async_zip::{
     ZipEntryBuilder,
 };
 use sos_filesystem::FileSystemGatekeeper;
-use sos_vault::{secret::Secret, VaultAccess};
+use sos_vault::secret::Secret;
 use sos_vfs as vfs;
 use std::{collections::HashMap, path::Path};
 use time::OffsetDateTime;

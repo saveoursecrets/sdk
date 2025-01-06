@@ -1,6 +1,6 @@
 //! Export an archive of unencrypted secrets that
 //! can be used to migrate data to another app.
-use crate::{Error, Result};
+use crate::Result;
 use async_zip::{tokio::write::ZipFileWriter, Compression, ZipEntryBuilder};
 use secrecy::{ExposeSecret, SecretBox};
 use serde::{Deserialize, Serialize};

@@ -8,7 +8,7 @@ use sos_sdk::{
     events::WriteEvent,
     vault::{
         secret::{Secret, SecretMeta, SecretRow},
-        BuilderCredentials, Gatekeeper, VaultBuilder,
+        BuilderCredentials, VaultBuilder,
     },
 };
 
