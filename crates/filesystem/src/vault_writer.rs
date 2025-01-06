@@ -25,7 +25,6 @@ use tokio::{
     sync::Mutex,
 };
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
-use uuid::Uuid;
 
 /// Write changes to a vault file on disc.
 pub struct VaultFileWriter {
@@ -149,7 +148,7 @@ impl VaultFileWriter {
         while let Ok(row_len) = reader.read_u32().await {
             let row_id: [u8; 16] =
                 reader.read_bytes(16).await?.as_slice().try_into()?;
-            let row_id = Uuid::from_bytes(row_id);
+            let row_id = SecretId::from_bytes(row_id);
             if id == &row_id {
                 // Need to backtrack as we just read the row length and UUID;
                 // calling decode_row() will try to read the length and UUID.
@@ -217,7 +216,7 @@ impl VaultAccess for VaultFileWriter {
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<WriteEvent> {
-        let id = Uuid::new_v4();
+        let id = SecretId::new_v4();
         self.insert_secret(id, commit, secret).await
     }
 

@@ -27,7 +27,6 @@ parking_lot.workspace = true
 indexmap.workspace = true
 tempfile.workspace = true
 tracing.workspace = true
-uuid.workspace = true
 
 [build-dependencies]
 rustc_version.workspace = true
