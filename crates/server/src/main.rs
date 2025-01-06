@@ -184,8 +184,11 @@ mod cli {
         pub async fn start(config: ServerConfig) -> Result<()> {
             let backend = config.backend().await?;
 
-            let paths = Paths::new_global_server(backend.directory());
-            sos_audit::default_audit_providers(&paths).await;
+            #[cfg(feature = "audit")]
+            {
+                let paths = Paths::new_global_server(backend.directory());
+                sos_audit::default_audit_providers(&paths).await;
+            }
 
             let state = Arc::new(RwLock::new(State::new(config)));
 

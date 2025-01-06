@@ -14,9 +14,6 @@ files = [
   "sos-database/files",
   "sos-sdk/files",
   "sos-sync/files",
-  "dep:tokio-util",
-  "dep:age",
-  "dep:binary-stream",
 ]
 
 [dependencies]
@@ -40,10 +37,7 @@ secrecy.workspace = true
 sha2.workspace = true
 serde.workspace = true
 futures.workspace = true
-
-binary-stream = { workspace = true, optional = true }
-tokio-util = { workspace = true, optional = true }
-age  = { workspace = true, optional = true }
+binary-stream.workspace = true
 
 [build-dependencies]
 rustc_version.workspace = true

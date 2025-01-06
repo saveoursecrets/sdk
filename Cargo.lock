@@ -5450,7 +5450,6 @@ dependencies = [
 name = "sos-server-storage"
 version = "0.16.0"
 dependencies = [
- "age",
  "async-trait",
  "binary-stream",
  "futures",
@@ -5470,7 +5469,6 @@ dependencies = [
  "sos-vault",
  "thiserror 2.0.9",
  "tokio",
- "tokio-util",
  "tracing",
  "uuid",
 ]
