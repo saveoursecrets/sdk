@@ -453,9 +453,7 @@ impl AccountBackup {
 
             let identity_vault_file = paths.identity_vault();
 
-            let vault_file = VaultWriter::open(&identity_vault_file).await?;
-            let mut access =
-                VaultWriter::new(identity_vault_file, vault_file)?;
+            let mut access = VaultWriter::new(identity_vault_file).await?;
             access.set_vault_name(name.clone()).await?;
 
             name

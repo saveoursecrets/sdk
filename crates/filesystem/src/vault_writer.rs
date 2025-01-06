@@ -21,41 +21,28 @@ use std::{
     path::PathBuf,
 };
 use tokio::{
-    io::{
-        AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
-        AsyncWriteExt,
-    },
+    io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
     sync::Mutex,
 };
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 use uuid::Uuid;
 
 /// Mutates a vault file in-place.
-pub struct VaultWriter<F>
-where
-    F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send,
-{
+pub struct VaultWriter {
     pub(crate) file_path: PathBuf,
-    stream: Mutex<Compat<F>>,
+    stream: Mutex<Compat<File>>,
 }
 
-impl VaultWriter<File> {
-    /// Open a file in read and write mode suitable for passing
-    /// to the new constructor.
-    pub async fn open<P: AsRef<Path>>(path: P) -> Result<File> {
-        Ok(OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(path.as_ref())
-            .await?)
-    }
-}
-
-impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
+impl VaultWriter {
     /// Create a new vault access.
     ///
     /// The underlying file should already exist and be a valid vault.
-    pub fn new<P: AsRef<Path>>(path: P, file: F) -> Result<Self> {
+    pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(path.as_ref())
+            .await?;
         let file_path = path.as_ref().to_path_buf();
         let stream = Mutex::new(file.compat_write());
         Ok(Self { file_path, stream })
@@ -186,9 +173,7 @@ impl<F: AsyncRead + AsyncWrite + AsyncSeek + Unpin + Send> VaultWriter<F> {
 }
 
 #[async_trait]
-impl<F: AsyncRead + AsyncWrite + AsyncSeek + Send + Unpin> VaultAccess
-    for VaultWriter<F>
-{
+impl VaultAccess for VaultWriter {
     type Error = Error;
 
     async fn summary(&self) -> Result<Summary> {

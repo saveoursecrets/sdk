@@ -124,8 +124,7 @@ impl DeviceEnrollment {
         // of the identity vault
         if let Some(account_name) = self.account_name.take() {
             let path = self.paths.identity_vault();
-            let vault_file = VaultWriter::open(&path).await?;
-            let mut file = VaultWriter::new(&path, vault_file)?;
+            let mut file = VaultWriter::new(&path).await?;
             file.set_vault_name(account_name).await?;
         }
 

@@ -268,8 +268,7 @@ impl Folder<FolderEventLog, DiscLog, DiscLog, DiscData> {
             vault
         };
 
-        let vault_file = VaultWriter::open(path.as_ref()).await?;
-        let mirror = VaultWriter::new(path.as_ref(), vault_file)?;
+        let mirror = VaultWriter::new(path.as_ref()).await?;
         let keeper =
             FileSystemGatekeeper::new_mirror(vault, Box::new(mirror));
 

@@ -176,9 +176,7 @@ where
             .await?
             .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
-        let vault_file = VaultWriter::open(&device_vault_path).await?;
-        let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
-
+        let mirror = VaultWriter::new(&device_vault_path).await?;
         let mut device_keeper =
             FileSystemGatekeeper::new_mirror(vault, Box::new(mirror));
         let key: AccessKey = device_password.into();
@@ -247,8 +245,7 @@ where
         let mut device_keeper = if mirror {
             let buffer = encode(&vault).await?;
             vfs::write_exclusive(&device_vault_path, &buffer).await?;
-            let vault_file = VaultWriter::open(&device_vault_path).await?;
-            let mirror = VaultWriter::new(&device_vault_path, vault_file)?;
+            let mirror = VaultWriter::new(&device_vault_path).await?;
             FileSystemGatekeeper::new_mirror(vault, Box::new(mirror))
         } else {
             FileSystemGatekeeper::new(vault)

@@ -399,8 +399,7 @@ impl ServerAccountStorage for ServerFileStorage {
     ) -> Result<()> {
         // Update the vault on disc
         let vault_path = self.paths.vault_path(id);
-        let vault_file = VaultWriter::open(&vault_path).await?;
-        let mut access = VaultWriter::new(vault_path, vault_file)?;
+        let mut access = VaultWriter::new(vault_path).await?;
         access.set_vault_name(name.to_owned()).await?;
 
         #[cfg(feature = "audit")]
