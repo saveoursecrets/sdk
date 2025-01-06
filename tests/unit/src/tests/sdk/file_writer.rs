@@ -3,9 +3,8 @@ use binary_stream::futures::{BinaryReader, BinaryWriter};
 use futures::io::{BufReader, BufWriter, Cursor};
 use sos_core::commit::CommitHash;
 use sos_core::encoding::encoding_options;
-use sos_filesystem::VaultWriter;
+use sos_filesystem::VaultFileWriter;
 use sos_sdk::prelude::*;
-use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use uuid::Uuid;
 
 use sos_test_utils::{
@@ -32,7 +31,7 @@ async fn get_vault_entry(
 }
 
 async fn create_secure_note(
-    vault_access: &mut VaultWriter,
+    vault_access: &mut VaultFileWriter,
     vault: &Vault,
     encryption_key: &PrivateKey,
     secret_label: &str,
@@ -85,7 +84,7 @@ async fn vault_file_access() -> Result<()> {
     let (encryption_key, _, _) = mock_encryption_key()?;
     let (temp, vault) = mock_vault_file().await?;
 
-    let mut vault_access = VaultWriter::new(temp.path()).await?;
+    let mut vault_access = VaultFileWriter::new(temp.path()).await?;
 
     // Missing row should not exist
     let missing_id = Uuid::new_v4();
@@ -169,7 +168,7 @@ async fn vault_file_del_splice() -> Result<()> {
     let (encryption_key, _, _) = mock_encryption_key()?;
     let (temp, vault) = mock_vault_file().await?;
 
-    let mut vault_access = VaultWriter::new(temp.path()).await?;
+    let mut vault_access = VaultFileWriter::new(temp.path()).await?;
 
     let secrets = [
         ("Note one", "First note"),
@@ -213,7 +212,7 @@ async fn vault_file_del_splice() -> Result<()> {
 async fn vault_file_flags() -> Result<()> {
     let (temp, _) = mock_vault_file().await?;
 
-    let mut vault_access = VaultWriter::new(temp.path()).await?;
+    let mut vault_access = VaultFileWriter::new(temp.path()).await?;
 
     let flags = VaultFlags::NO_SYNC;
     vault_access.set_vault_flags(flags.clone()).await?;

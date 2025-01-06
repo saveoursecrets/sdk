@@ -27,24 +27,20 @@ use tokio::{
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 use uuid::Uuid;
 
-/// Mutates a vault file in-place.
-pub struct VaultWriter {
+/// Write changes to a vault file on disc.
+pub struct VaultFileWriter {
     pub(crate) file_path: PathBuf,
     stream: Mutex<Compat<File>>,
 }
 
-impl VaultWriter {
-    /// Create a new vault access.
+impl VaultFileWriter {
+    /// Create a new vault file writer.
     ///
     /// The underlying file should already exist and be a valid vault.
     pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(path.as_ref())
-            .await?;
-        let file_path = path.as_ref().to_path_buf();
+        let file = OpenOptions::new().read(true).open(path.as_ref()).await?;
         let stream = Mutex::new(file.compat_write());
+        let file_path = path.as_ref().to_path_buf();
         Ok(Self { file_path, stream })
     }
 
@@ -173,7 +169,7 @@ impl VaultWriter {
 }
 
 #[async_trait]
-impl VaultAccess for VaultWriter {
+impl VaultAccess for VaultFileWriter {
     type Error = Error;
 
     async fn summary(&self) -> Result<Summary> {
@@ -342,6 +338,8 @@ impl VaultAccess for VaultWriter {
     }
 
     async fn reload_vault(&mut self, path: PathBuf) -> Result<()> {
+        let file = OpenOptions::new().read(true).open(&path).await?;
+        self.stream = Mutex::new(file.compat_write());
         self.file_path = path;
         Ok(())
     }

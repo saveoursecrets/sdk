@@ -10,7 +10,7 @@ use sos_core::{
     constants::VAULT_EXT, crypto::AccessKey, decode, SecretId, VaultId,
 };
 use sos_core::{AccountId, Paths};
-use sos_filesystem::VaultWriter;
+use sos_filesystem::VaultFileWriter;
 use sos_filesystem::{
     events::{EventLogExt, FolderEventLog},
     folder::FolderReducer,
@@ -453,7 +453,8 @@ impl AccountBackup {
 
             let identity_vault_file = paths.identity_vault();
 
-            let mut access = VaultWriter::new(identity_vault_file).await?;
+            let mut access =
+                VaultFileWriter::new(identity_vault_file).await?;
             access.set_vault_name(name.clone()).await?;
 
             name

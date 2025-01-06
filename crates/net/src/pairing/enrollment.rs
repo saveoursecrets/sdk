@@ -8,7 +8,7 @@ use sos_core::{
     crypto::AccessKey, encode, events::AccountEvent, AccountId, Origin,
     VaultId,
 };
-use sos_filesystem::VaultWriter;
+use sos_filesystem::VaultFileWriter;
 use sos_filesystem::{
     events::{
         AccountEventLog, AccountPatch, EventLogExt, FolderEventLog,
@@ -124,7 +124,7 @@ impl DeviceEnrollment {
         // of the identity vault
         if let Some(account_name) = self.account_name.take() {
             let path = self.paths.identity_vault();
-            let mut file = VaultWriter::new(&path).await?;
+            let mut file = VaultFileWriter::new(&path).await?;
             file.set_vault_name(account_name).await?;
         }
 

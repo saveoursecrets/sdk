@@ -5,7 +5,7 @@ use crate::{
         DiscData, DiscLog, EventLogExt, EventRecord, FolderEventLog,
         MemoryData, MemoryFolderLog, MemoryLog,
     },
-    FileSystemGatekeeper, Result, VaultWriter,
+    FileSystemGatekeeper, Result, VaultFileWriter,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use sos_core::{
@@ -268,7 +268,7 @@ impl Folder<FolderEventLog, DiscLog, DiscLog, DiscData> {
             vault
         };
 
-        let mirror = VaultWriter::new(path.as_ref()).await?;
+        let mirror = VaultFileWriter::new(path.as_ref()).await?;
         let keeper =
             FileSystemGatekeeper::new_mirror(vault, Box::new(mirror));
 

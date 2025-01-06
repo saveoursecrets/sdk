@@ -10,7 +10,7 @@ pub mod formats;
 pub mod vault_writer;
 
 pub use error::Error;
-pub use vault_writer::VaultWriter;
+pub use vault_writer::VaultFileWriter;
 
 /// Gatekeeper that mirrors changes to a vault on disc.
 pub type FileSystemGatekeeper = sos_vault::Gatekeeper<Error>;

@@ -8,7 +8,7 @@ use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
     encode, AccountId, Paths,
 };
-use sos_filesystem::{folder::FolderReducer, VaultWriter};
+use sos_filesystem::{folder::FolderReducer, VaultFileWriter};
 use sos_sdk::{
     events::{
         AccountEvent, AccountEventLog, DeviceEventLog, DeviceReducer,
@@ -399,7 +399,7 @@ impl ServerAccountStorage for ServerFileStorage {
     ) -> Result<()> {
         // Update the vault on disc
         let vault_path = self.paths.vault_path(id);
-        let mut access = VaultWriter::new(vault_path).await?;
+        let mut access = VaultFileWriter::new(vault_path).await?;
         access.set_vault_name(name.to_owned()).await?;
 
         #[cfg(feature = "audit")]

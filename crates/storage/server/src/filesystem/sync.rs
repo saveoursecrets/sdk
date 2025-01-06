@@ -8,7 +8,7 @@ use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
     VaultId,
 };
-use sos_filesystem::{folder::FolderReducer, VaultWriter};
+use sos_filesystem::{folder::FolderReducer, VaultFileWriter};
 use sos_sdk::{
     encode,
     events::{
@@ -247,7 +247,7 @@ impl Merge for ServerFileStorage {
                     }
                     AccountEvent::RenameAccount(name) => {
                         let path = self.paths.identity_vault();
-                        let mut file = VaultWriter::new(path).await?;
+                        let mut file = VaultFileWriter::new(path).await?;
                         file.set_vault_name(name.to_owned()).await?;
                     }
                     AccountEvent::UpdateIdentity(_) => {
@@ -408,7 +408,7 @@ impl Merge for ServerFileStorage {
             for event in events {
                 if let WriteEvent::SetVaultFlags(flags) = event {
                     let path = self.paths.vault_path(folder_id);
-                    let mut writer = VaultWriter::new(path).await?;
+                    let mut writer = VaultFileWriter::new(path).await?;
                     writer.set_vault_flags(flags).await?;
                 }
             }

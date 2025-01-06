@@ -22,7 +22,7 @@ use sos_filesystem::{
         MemoryFolderLog, MemoryLog,
     },
     folder::{DiscFolder, Folder, MemoryFolder},
-    FileSystemGatekeeper, VaultWriter,
+    FileSystemGatekeeper, VaultFileWriter,
 };
 use sos_password::diceware::generate_passphrase_words;
 use sos_signer::ed25519;
@@ -176,7 +176,7 @@ where
             .await?
             .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
-        let mirror = VaultWriter::new(&device_vault_path).await?;
+        let mirror = VaultFileWriter::new(&device_vault_path).await?;
         let mut device_keeper =
             FileSystemGatekeeper::new_mirror(vault, Box::new(mirror));
         let key: AccessKey = device_password.into();
@@ -245,7 +245,7 @@ where
         let mut device_keeper = if mirror {
             let buffer = encode(&vault).await?;
             vfs::write_exclusive(&device_vault_path, &buffer).await?;
-            let mirror = VaultWriter::new(&device_vault_path).await?;
+            let mirror = VaultFileWriter::new(&device_vault_path).await?;
             FileSystemGatekeeper::new_mirror(vault, Box::new(mirror))
         } else {
             FileSystemGatekeeper::new(vault)
