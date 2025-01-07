@@ -1,6 +1,6 @@
 use crate::{Error, Result};
 use async_sqlite::rusqlite::{
-    Connection, Error as SqlError, OptionalExtension,
+    CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
 };
 use sos_core::VaultFlags;
 use sos_core::{commit::CommitHash, SecretId, VaultId};
@@ -11,16 +11,36 @@ use std::ops::Deref;
 use std::result::Result as StdResult;
 
 /// Folder row from the database.
-pub(crate) struct FolderRow {
+#[doc(hidden)]
+pub struct FolderRow {
     pub row_id: i64,
     pub created_at: String,
     pub modified_at: String,
     pub identifier: String,
     pub name: String,
+    pub meta: Vec<u8>,
     pub version: i64,
     pub cipher: String,
     pub kdf: String,
     pub flags: Vec<u8>,
+}
+
+impl<'a> TryFrom<&Row<'a>> for FolderRow {
+    type Error = SqlError;
+    fn try_from(row: &Row<'a>) -> StdResult<Self, Self::Error> {
+        Ok(FolderRow {
+            row_id: row.get(0)?,
+            created_at: row.get(1)?,
+            modified_at: row.get(2)?,
+            identifier: row.get(3)?,
+            name: row.get(4)?,
+            meta: row.get(5)?,
+            version: row.get(6)?,
+            cipher: row.get(7)?,
+            kdf: row.get(8)?,
+            flags: row.get(9)?,
+        })
+    }
 }
 
 impl TryFrom<FolderRow> for FolderRecord {
@@ -78,12 +98,8 @@ where
         Self { conn }
     }
 
-    /// Find a folder in the database.
-    pub(crate) fn find_one(
-        &self,
-        folder_id: &VaultId,
-    ) -> StdResult<Option<FolderRow>, SqlError> {
-        let mut stmt = self.conn.prepare_cached(
+    fn find_folder_statement(&self) -> StdResult<CachedStatement, SqlError> {
+        Ok(self.conn.prepare_cached(
             r#"
               SELECT
                 folder_id,
@@ -91,39 +107,98 @@ where
                 modified_at,
                 identifier,
                 name,
+                meta,
                 version,
                 cipher,
                 kdf,
                 flags
                 FROM folders WHERE folder_id=?1
             "#,
-        )?;
+        )?)
+    }
 
+    /// Find a folder in the database.
+    pub fn find_one(
+        &self,
+        folder_id: &VaultId,
+    ) -> StdResult<FolderRow, SqlError> {
+        let mut stmt = self.find_folder_statement()?;
+        let result = stmt.query_row([folder_id.to_string()], |row| {
+            let row: FolderRow = row.try_into()?;
+            Ok(row)
+        })?;
+
+        Ok(result)
+    }
+
+    /// Find an optional folder in the database.
+    pub fn find_one_optional(
+        &self,
+        folder_id: &VaultId,
+    ) -> StdResult<Option<FolderRow>, SqlError> {
+        let mut stmt = self.find_folder_statement()?;
         let result = stmt
             .query_row([folder_id.to_string()], |row| {
-                Ok(FolderRow {
-                    row_id: row.get(0)?,
-                    created_at: row.get(1)?,
-                    modified_at: row.get(2)?,
-                    identifier: row.get(3)?,
-                    name: row.get(4)?,
-                    version: row.get(5)?,
-                    cipher: row.get(6)?,
-                    kdf: row.get(7)?,
-                    flags: row.get(8)?,
-                })
+                let row: FolderRow = row.try_into()?;
+                Ok(row)
             })
             .optional()?;
 
         Ok(result)
+    }
 
-        /*
-        if let Some(row) = result {
-            Ok(Some(row.try_into()?))
-        } else {
-            Ok(None)
-        }
-        */
+    /// Update the name of a folder.
+    pub fn update_name(
+        &self,
+        folder_id: &VaultId,
+        name: &str,
+    ) -> StdResult<(), SqlError> {
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+              UPDATE
+                folders
+                SET name=?1
+                WHERE identifier=?2
+            "#,
+        )?;
+        stmt.execute((name, folder_id.to_string()))?;
+        Ok(())
+    }
+
+    /// Update the folder flags.
+    pub fn update_flags(
+        &self,
+        folder_id: &VaultId,
+        flags: &[u8],
+    ) -> StdResult<(), SqlError> {
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+              UPDATE
+                folders
+                SET flags=?1
+                WHERE identifier=?2
+            "#,
+        )?;
+        stmt.execute((flags, folder_id.to_string()))?;
+        Ok(())
+    }
+
+    /// Update the folder meta data.
+    pub fn update_meta(
+        &self,
+        folder_id: &VaultId,
+        meta: &[u8],
+    ) -> StdResult<(), SqlError> {
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+              UPDATE
+                folders
+                SET meta=?1
+                WHERE identifier=?2
+            "#,
+        )?;
+        stmt.execute((meta, folder_id.to_string()))?;
+        Ok(())
     }
 
     /// Create the folder entity in the database.
@@ -168,6 +243,42 @@ where
         rows: Vec<(SecretId, CommitHash, Vec<u8>, Vec<u8>)>,
     ) -> StdResult<HashMap<SecretId, i64>, SqlError> {
         let mut secret_ids = HashMap::new();
+        for (identifier, commit_hash, meta, secret) in rows {
+            let secret_id = self.insert_secret_by_id(
+                folder_id,
+                &identifier,
+                &commit_hash,
+                &meta,
+                &secret,
+            )?;
+            secret_ids.insert(identifier, secret_id);
+        }
+        Ok(secret_ids)
+    }
+
+    /// Create folder secret.
+    pub fn insert_secret(
+        &self,
+        folder_id: &VaultId,
+        secret_id: &SecretId,
+        commit: &CommitHash,
+        meta: &[u8],
+        secret: &[u8],
+    ) -> StdResult<i64, SqlError> {
+        let row = self.find_one(folder_id)?;
+        Ok(self.insert_secret_by_id(
+            row.row_id, secret_id, commit, meta, secret,
+        )?)
+    }
+
+    fn insert_secret_by_id(
+        &self,
+        folder_id: i64,
+        secret_id: &SecretId,
+        commit: &CommitHash,
+        meta: &[u8],
+        secret: &[u8],
+    ) -> StdResult<i64, SqlError> {
         let mut stmt = self.conn.prepare_cached(
             r#"
             INSERT INTO folder_secrets
@@ -175,16 +286,13 @@ where
               VALUES (?1, ?2, ?3, ?4, ?5)
           "#,
         )?;
-        for (identifier, commit_hash, meta, secret) in rows {
-            stmt.execute((
-                &folder_id,
-                &identifier.to_string(),
-                commit_hash.as_ref(),
-                &meta,
-                &secret,
-            ))?;
-            secret_ids.insert(identifier, self.conn.last_insert_rowid());
-        }
-        Ok(secret_ids)
+        stmt.execute((
+            &folder_id,
+            &secret_id.to_string(),
+            commit.as_ref(),
+            meta,
+            secret,
+        ))?;
+        Ok(self.conn.last_insert_rowid())
     }
 }
