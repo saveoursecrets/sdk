@@ -130,7 +130,7 @@ where
             r#"
                 SELECT
                     folder_id,
-                    created_id,
+                    created_at,
                     modified_at,
                     identifier,
                     name,
@@ -324,7 +324,7 @@ where
             r#"
                 SELECT
                     secret_id,
-                    created_id,
+                    created_at,
                     modified_at,
                     identifier,
                     commit_hash,
