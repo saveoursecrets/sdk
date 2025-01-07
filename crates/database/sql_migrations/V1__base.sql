@@ -66,6 +66,9 @@ CREATE TABLE IF NOT EXISTS folders
     -- name
     name                  TEXT                NOT NULL,
 
+    -- AEAD encrypted meta data
+    meta                  BLOB,
+
     -- encoding version
     version               INTEGER             NOT NULL,
     -- encryption cipher

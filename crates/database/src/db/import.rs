@@ -84,6 +84,12 @@ pub(crate) async fn import_account(
     // Identity folder
     let buffer = vfs::read(paths.identity_vault()).await?;
     let identity_vault: Vault = decode(&buffer).await?;
+    let identity_vault_meta =
+        if let Some(meta) = identity_vault.header().meta() {
+            Some(encode(meta).await?)
+        } else {
+            None
+        };
     let identity_rows = collect_vault_rows(&identity_vault).await?;
     let identity_events =
         collect_folder_events(paths.identity_events()).await?;
@@ -95,6 +101,11 @@ pub(crate) async fn import_account(
     // Device vault
     let buffer = vfs::read(paths.device_file()).await?;
     let device_vault: Vault = decode(&buffer).await?;
+    let device_vault_meta = if let Some(meta) = device_vault.header().meta() {
+        Some(encode(meta).await?)
+    } else {
+        None
+    };
     let device_rows = collect_vault_rows(&device_vault).await?;
 
     // Device events
@@ -110,15 +121,20 @@ pub(crate) async fn import_account(
     for (summary, path) in user_folders {
         let buffer = vfs::read(path).await?;
         let vault: Vault = decode(&buffer).await?;
+        let vault_meta = if let Some(meta) = vault.header().meta() {
+            Some(encode(meta).await?)
+        } else {
+            None
+        };
         let rows = collect_vault_rows(&vault).await?;
         let events =
             collect_folder_events(paths.event_log_path(summary.id())).await?;
-        folders.push((vault, rows, events));
+        folders.push((vault, vault_meta, rows, events));
     }
 
-    let mut user_files = Vec::new();
     #[cfg(feature = "files")]
-    {
+    let user_files = {
+        let mut user_files = Vec::new();
         let files = list_external_files(&paths).await?;
         for file in files {
             let path = paths.file_location(
@@ -129,7 +145,8 @@ pub(crate) async fn import_account(
             let buffer = vfs::read(path).await?;
             user_files.push((file, buffer));
         }
-    }
+        user_files
+    };
 
     let account_preferences =
         if vfs::try_exists(paths.preferences_file()).await? {
@@ -159,6 +176,7 @@ pub(crate) async fn import_account(
                 &tx,
                 account_id,
                 identity_vault,
+                identity_vault_meta,
                 identity_rows,
                 Some(identity_events),
             )?;
@@ -173,6 +191,7 @@ pub(crate) async fn import_account(
                 &tx,
                 account_id,
                 device_vault,
+                device_vault_meta,
                 device_rows,
                 None,
             )?;
@@ -190,12 +209,13 @@ pub(crate) async fn import_account(
 
             // Create user folders
             let mut folder_ids = HashMap::new();
-            for (vault, rows, events) in folders {
+            for (vault, vault_meta, rows, events) in folders {
                 let id = *vault.id();
                 let folder_id = create_folder(
                     &tx,
                     account_id,
                     vault,
+                    vault_meta,
                     rows,
                     Some(events),
                 )?;
@@ -308,12 +328,13 @@ fn create_folder(
     tx: &Transaction<'_>,
     account_id: i64,
     vault: Vault,
+    meta: Option<Vec<u8>>,
     rows: Vec<(SecretId, CommitHash, Vec<u8>, Vec<u8>)>,
     events: Option<Vec<(String, CommitHash, EventRecord)>>,
 ) -> std::result::Result<(i64, HashMap<SecretId, i64>), SqlError> {
     let folder_entity = FolderEntity::new(tx);
     let folder_id =
-        folder_entity.insert_folder(account_id, vault.summary())?;
+        folder_entity.insert_folder(account_id, vault.summary(), meta)?;
     let secret_ids = folder_entity.insert_folder_secrets(folder_id, rows)?;
     if let Some(events) = events {
         // Insert the event rows

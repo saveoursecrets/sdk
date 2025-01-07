@@ -274,6 +274,7 @@ impl Default for Summary {
 impl Summary {
     /// Create a new summary.
     pub fn new(
+        version: u16,
         id: VaultId,
         name: String,
         cipher: Cipher,
@@ -281,7 +282,7 @@ impl Summary {
         flags: VaultFlags,
     ) -> Self {
         Self {
-            version: VERSION,
+            version,
             cipher,
             kdf,
             id,
@@ -361,7 +362,7 @@ impl Header {
         flags: VaultFlags,
     ) -> Self {
         Self {
-            summary: Summary::new(id, name, cipher, kdf, flags),
+            summary: Summary::new(VERSION, id, name, cipher, kdf, flags),
             meta: None,
             auth: Default::default(),
             shared_access: Default::default(),
