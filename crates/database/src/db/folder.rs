@@ -266,7 +266,7 @@ where
     ) -> StdResult<HashMap<SecretId, i64>, SqlError> {
         let mut secret_ids = HashMap::new();
         for (identifier, commit_hash, meta, secret) in rows {
-            let secret_id = self.insert_secret_by_id(
+            let secret_id = self.insert_secret_by_row_id(
                 folder_id,
                 &identifier,
                 &commit_hash,
@@ -288,12 +288,13 @@ where
         secret: &[u8],
     ) -> StdResult<i64, SqlError> {
         let row = self.find_one(folder_id)?;
-        Ok(self.insert_secret_by_id(
+        Ok(self.insert_secret_by_row_id(
             row.row_id, secret_id, commit, meta, secret,
         )?)
     }
 
-    fn insert_secret_by_id(
+    /// Insert a secret using the folder row id.
+    pub fn insert_secret_by_row_id(
         &self,
         folder_id: i64,
         secret_id: &SecretId,
@@ -351,6 +352,36 @@ where
             .optional()?)
     }
 
+    /// Update a folder secret.
+    pub fn update_secret(
+        &self,
+        folder_id: &VaultId,
+        secret_id: &SecretId,
+        commit: &CommitHash,
+        meta: &[u8],
+        secret: &[u8],
+    ) -> StdResult<bool, SqlError> {
+        let row = self.find_one(folder_id)?;
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+            UPDATE folder_secrets
+                SET
+                    commit_hash=?1,
+                    meta=?2, 
+                    secret=?3
+                WHERE folder_id=?4 AND identifier=?5
+          "#,
+        )?;
+        let affected_rows = stmt.execute((
+            commit.as_ref(),
+            meta,
+            secret,
+            row.row_id,
+            &secret_id.to_string(),
+        ))?;
+        Ok(affected_rows > 0)
+    }
+
     /// Delete folder secret.
     pub fn delete_secret(
         &self,
@@ -368,5 +399,21 @@ where
         let affected_rows =
             stmt.execute((row.row_id, secret_id.to_string()))?;
         Ok(affected_rows > 0)
+    }
+
+    /// Delete all folder secrets.
+    pub fn delete_all_secrets(
+        &self,
+        folder_id: &VaultId,
+    ) -> StdResult<usize, SqlError> {
+        let row = self.find_one(folder_id)?;
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+                DELETE
+                    FROM folder_secrets
+                    WHERE folder_id=?1
+            "#,
+        )?;
+        Ok(stmt.execute([row.row_id])?)
     }
 }

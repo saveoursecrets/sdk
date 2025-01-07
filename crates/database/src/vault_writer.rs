@@ -167,7 +167,28 @@ impl VaultAccess for VaultDatabaseWriter {
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<Option<WriteEvent>> {
-        todo!();
+        let folder_id = self.folder_id.clone();
+        let folder_secret_id = *secret_id;
+        let VaultEntry(entry_meta, entry_secret) = &secret;
+        let meta_blob = encode(entry_meta).await?;
+        let secret_blob = encode(entry_secret).await?;
+        let updated = self
+            .client
+            .conn(move |conn| {
+                let folder = FolderEntity::new(&conn);
+                Ok(folder.update_secret(
+                    &folder_id,
+                    &folder_secret_id,
+                    &commit,
+                    meta_blob.as_slice(),
+                    secret_blob.as_slice(),
+                )?)
+            })
+            .await?;
+        Ok(updated.then_some(WriteEvent::UpdateSecret(
+            *secret_id,
+            VaultCommit(commit, secret),
+        )))
     }
 
     async fn delete_secret(
@@ -187,7 +208,43 @@ impl VaultAccess for VaultDatabaseWriter {
     }
 
     async fn replace_vault(&mut self, vault: &Vault) -> Result<()> {
-        todo!();
+        let folder_id = self.folder_id.clone();
+
+        let mut insert_secrets = Vec::new();
+        for (secret_id, secret) in vault.iter() {
+            let VaultCommit(commit, VaultEntry(entry_meta, entry_secret)) =
+                &secret;
+            let meta_blob = encode(entry_meta).await?;
+            let secret_blob = encode(entry_secret).await?;
+
+            insert_secrets.push((
+                *secret_id,
+                *commit,
+                meta_blob,
+                secret_blob,
+            ));
+        }
+
+        self.client
+            .conn_mut(move |conn| {
+                let tx = conn.transaction()?;
+                let folder = FolderEntity::new(&tx);
+                let folder_row = folder.find_one(&folder_id)?;
+                folder.delete_all_secrets(&folder_id)?;
+                for (secret_id, commit, meta, secret) in insert_secrets {
+                    folder.insert_secret_by_row_id(
+                        folder_row.row_id,
+                        &secret_id,
+                        &commit,
+                        meta.as_slice(),
+                        secret.as_slice(),
+                    )?;
+                }
+                tx.commit()?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
     }
 
     async fn reload_vault(&mut self, path: PathBuf) -> Result<()> {
