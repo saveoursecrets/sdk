@@ -81,6 +81,33 @@ pub struct FolderRecord {
     pub summary: Summary,
 }
 
+/// Secret row from the database.
+#[doc(hidden)]
+pub struct SecretRow {
+    pub row_id: i64,
+    pub created_at: String,
+    pub modified_at: String,
+    pub identifier: String,
+    pub commit: Vec<u8>,
+    pub meta: Vec<u8>,
+    pub secret: Vec<u8>,
+}
+
+impl<'a> TryFrom<&Row<'a>> for SecretRow {
+    type Error = SqlError;
+    fn try_from(row: &Row<'a>) -> StdResult<Self, Self::Error> {
+        Ok(SecretRow {
+            row_id: row.get(0)?,
+            created_at: row.get(1)?,
+            modified_at: row.get(2)?,
+            identifier: row.get(3)?,
+            commit: row.get(4)?,
+            meta: row.get(5)?,
+            secret: row.get(6)?,
+        })
+    }
+}
+
 /// Folder entity.
 pub struct FolderEntity<'conn, C>
 where
@@ -101,18 +128,19 @@ where
     fn find_folder_statement(&self) -> StdResult<CachedStatement, SqlError> {
         Ok(self.conn.prepare_cached(
             r#"
-              SELECT
-                folder_id,
-                created_id,
-                modified_at,
-                identifier,
-                name,
-                meta,
-                version,
-                cipher,
-                kdf,
-                flags
-                FROM folders WHERE folder_id=?1
+                SELECT
+                    folder_id,
+                    created_id,
+                    modified_at,
+                    identifier,
+                    name,
+                    meta,
+                    version,
+                    cipher,
+                    kdf,
+                    flags
+                FROM folders
+                WHERE folder_id=?1
             "#,
         )?)
     }
@@ -123,28 +151,22 @@ where
         folder_id: &VaultId,
     ) -> StdResult<FolderRow, SqlError> {
         let mut stmt = self.find_folder_statement()?;
-        let result = stmt.query_row([folder_id.to_string()], |row| {
-            let row: FolderRow = row.try_into()?;
-            Ok(row)
-        })?;
-
-        Ok(result)
+        Ok(stmt
+            .query_row([folder_id.to_string()], |row| Ok(row.try_into()?))?)
     }
 
     /// Find an optional folder in the database.
-    pub fn find_one_optional(
+    pub fn find_optional(
         &self,
         folder_id: &VaultId,
     ) -> StdResult<Option<FolderRow>, SqlError> {
         let mut stmt = self.find_folder_statement()?;
-        let result = stmt
+        Ok(stmt
             .query_row([folder_id.to_string()], |row| {
                 let row: FolderRow = row.try_into()?;
                 Ok(row)
             })
-            .optional()?;
-
-        Ok(result)
+            .optional()?)
     }
 
     /// Update the name of a folder.
@@ -294,5 +316,57 @@ where
             secret,
         ))?;
         Ok(self.conn.last_insert_rowid())
+    }
+
+    fn find_secret_statement(&self) -> StdResult<CachedStatement, SqlError> {
+        Ok(self.conn.prepare_cached(
+            r#"
+                SELECT
+                    secret_id,
+                    created_id,
+                    modified_at,
+                    identifier,
+                    commit_hash,
+                    meta,
+                    secret 
+                FROM folder_secrets
+                WHERE folder_id=?1 AND identifier=?2
+            "#,
+        )?)
+    }
+
+    /// Find a folder secret.
+    pub fn find_secret(
+        &self,
+        folder_id: &VaultId,
+        secret_id: &SecretId,
+    ) -> StdResult<Option<SecretRow>, SqlError> {
+        let row = self.find_one(folder_id)?;
+        let mut stmt = self.find_secret_statement()?;
+        Ok(stmt
+            .query_row((row.row_id, secret_id.to_string()), |row| {
+                let row: SecretRow = row.try_into()?;
+                Ok(row)
+            })
+            .optional()?)
+    }
+
+    /// Delete folder secret.
+    pub fn delete_secret(
+        &self,
+        folder_id: &VaultId,
+        secret_id: &SecretId,
+    ) -> StdResult<bool, SqlError> {
+        let row = self.find_one(folder_id)?;
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+                DELETE
+                    FROM folder_secrets
+                    WHERE folder_id=?1 AND identifier=?2
+            "#,
+        )?;
+        let affected_rows =
+            stmt.execute((row.row_id, secret_id.to_string()))?;
+        Ok(affected_rows > 0)
     }
 }

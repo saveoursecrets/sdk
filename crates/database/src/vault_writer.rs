@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use sos_core::{
     commit::CommitHash,
     crypto::AeadPack,
-    encode,
+    decode, encode,
     events::{ReadEvent, WriteEvent},
     SecretId, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
@@ -38,7 +38,7 @@ impl VaultAccess for VaultDatabaseWriter {
             .client
             .conn(move |conn| {
                 let folder = FolderEntity::new(&conn);
-                let row = folder.find_one_optional(&folder_id)?;
+                let row = folder.find_optional(&folder_id)?;
                 Ok(row)
             })
             .await?;
@@ -136,14 +136,34 @@ impl VaultAccess for VaultDatabaseWriter {
 
     async fn read_secret<'a>(
         &'a self,
-        id: &SecretId,
+        secret_id: &SecretId,
     ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)> {
-        todo!();
+        let folder_id = self.folder_id.clone();
+        let folder_secret_id = *secret_id;
+        let secret_row = self
+            .client
+            .conn(move |conn| {
+                let folder = FolderEntity::new(&conn);
+                Ok(folder.find_secret(&folder_id, &folder_secret_id)?)
+            })
+            .await?;
+
+        let event = ReadEvent::ReadSecret(*secret_id);
+        if let Some(row) = secret_row {
+            let commit_hash = CommitHash(row.commit.as_slice().try_into()?);
+            let meta: AeadPack = decode(&row.meta).await?;
+            let secret: AeadPack = decode(&row.secret).await?;
+            let entry = VaultEntry(meta, secret);
+            let commit = VaultCommit(commit_hash, entry);
+            Ok((Some(Cow::Owned(commit)), event))
+        } else {
+            Ok((None, event))
+        }
     }
 
     async fn update_secret(
         &mut self,
-        id: &SecretId,
+        secret_id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
     ) -> Result<Option<WriteEvent>> {
@@ -152,9 +172,18 @@ impl VaultAccess for VaultDatabaseWriter {
 
     async fn delete_secret(
         &mut self,
-        id: &SecretId,
+        secret_id: &SecretId,
     ) -> Result<Option<WriteEvent>> {
-        todo!();
+        let folder_id = self.folder_id.clone();
+        let folder_secret_id = *secret_id;
+        let deleted = self
+            .client
+            .conn(move |conn| {
+                let folder = FolderEntity::new(&conn);
+                Ok(folder.delete_secret(&folder_id, &folder_secret_id)?)
+            })
+            .await?;
+        Ok(deleted.then_some(WriteEvent::DeleteSecret(*secret_id)))
     }
 
     async fn replace_vault(&mut self, vault: &Vault) -> Result<()> {
