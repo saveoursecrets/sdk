@@ -69,15 +69,15 @@ pub type MemoryLog = MemoryBuffer;
 pub type MemoryData = MemoryInner;
 
 /// Event log that writes to disc.
-pub type DiscEventLog<E> = EventLog<E, DiscLog, DiscLog, PathBuf>;
+pub type DiscEventLog<E> = FileSystemEventLog<E, DiscLog, DiscLog, PathBuf>;
 
 /// Event log that writes to memory.
 pub type MemoryEventLog<E> =
-    EventLog<E, MemoryBuffer, MemoryBuffer, MemoryInner>;
+    FileSystemEventLog<E, MemoryBuffer, MemoryBuffer, MemoryInner>;
 
 /// Event log for changes to a folder that writes to memory.
 pub type MemoryFolderLog =
-    EventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>;
+    FileSystemEventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>;
 
 /// Event log for changes to an account.
 pub type AccountEventLog = DiscEventLog<AccountEvent>;
@@ -632,12 +632,12 @@ where
     }
 }
 
-/// Event log.
+/// Filesystem event log.
 ///
 /// Appends events to an append-only writer and reads events
 /// via a reader whilst managing an in-memory merkle tree
 /// of event hashes.
-pub struct EventLog<E, R, W, D>
+pub struct FileSystemEventLog<E, R, W, D>
 where
     E: Default + Encodable + Decodable + Send + Sync,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
@@ -654,7 +654,7 @@ where
 
 #[async_trait]
 impl<E> EventLogExt<E, DiscLog, DiscLog, PathBuf>
-    for EventLog<E, DiscLog, DiscLog, PathBuf>
+    for FileSystemEventLog<E, DiscLog, DiscLog, PathBuf>
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
 {
@@ -799,7 +799,7 @@ where
     }
 }
 
-impl<E> EventLog<E, DiscLog, DiscLog, PathBuf>
+impl<E> FileSystemEventLog<E, DiscLog, DiscLog, PathBuf>
 where
     E: Default + Encodable + Decodable + Send + Sync,
 {
@@ -841,7 +841,7 @@ where
     }
 }
 
-impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
+impl FileSystemEventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
     /// Create a new folder event log file.
     pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         use sos_core::constants::FOLDER_EVENT_LOG_IDENTITY;
@@ -873,7 +873,12 @@ impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
 
 #[async_trait]
 impl EventLogExt<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
-    for EventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
+    for FileSystemEventLog<
+        WriteEvent,
+        MemoryBuffer,
+        MemoryBuffer,
+        MemoryInner,
+    >
 {
     async fn iter(&self, reverse: bool) -> Result<Iter> {
         let content_offset = self.header_len() as u64;
@@ -932,7 +937,7 @@ impl EventLogExt<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
     }
 }
 
-impl EventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner> {
+impl FileSystemEventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner> {
     /// Create a new folder event log writing to memory.
     pub fn new() -> Self {
         use sos_core::constants::FOLDER_EVENT_LOG_IDENTITY;
@@ -952,7 +957,7 @@ impl EventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner> {
     }
 }
 
-impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
+impl FileSystemEventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
     /// Get a copy of this event log compacted.
     pub async fn compact(&self) -> Result<(Self, u64, u64)> {
         let old_size = self.data.metadata()?.len();
@@ -989,7 +994,7 @@ impl EventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
     }
 }
 
-impl EventLog<AccountEvent, DiscLog, DiscLog, PathBuf> {
+impl FileSystemEventLog<AccountEvent, DiscLog, DiscLog, PathBuf> {
     /// Create a new account event log file.
     pub async fn new_account<P: AsRef<Path>>(path: P) -> Result<Self> {
         use sos_core::{
@@ -1018,7 +1023,7 @@ impl EventLog<AccountEvent, DiscLog, DiscLog, PathBuf> {
     }
 }
 
-impl EventLog<DeviceEvent, DiscLog, DiscLog, PathBuf> {
+impl FileSystemEventLog<DeviceEvent, DiscLog, DiscLog, PathBuf> {
     /// Create a new device event log file.
     pub async fn new_device(path: impl AsRef<Path>) -> Result<Self> {
         use sos_core::{
@@ -1048,7 +1053,7 @@ impl EventLog<DeviceEvent, DiscLog, DiscLog, PathBuf> {
 }
 
 #[cfg(feature = "files")]
-impl EventLog<FileEvent, DiscLog, DiscLog, PathBuf> {
+impl FileSystemEventLog<FileEvent, DiscLog, DiscLog, PathBuf> {
     /// Create a new file event log file.
     pub async fn new_file(path: impl AsRef<Path>) -> Result<Self> {
         use sos_core::{
