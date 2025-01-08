@@ -5530,6 +5530,7 @@ dependencies = [
  "sos-client-storage",
  "sos-core",
  "sos-database",
+ "sos-filesystem",
  "sos-net",
  "sos-password",
  "sos-protocol",

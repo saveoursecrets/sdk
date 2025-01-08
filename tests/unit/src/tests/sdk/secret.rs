@@ -2,7 +2,7 @@ use anyhow::Result;
 use secrecy::{ExposeSecret, SecretBox};
 use sos_sdk::prelude::*;
 use sos_signer::{ecdsa::SingleParty, Signer};
-use sos_test_utils::*;
+use sos_test_utils::mock;
 use std::collections::HashMap;
 use vcard4::Vcard;
 
@@ -88,7 +88,7 @@ async fn secret_encode_note() -> Result<()> {
 
 #[tokio::test]
 async fn secret_encode_file() -> Result<()> {
-    let (_, secret, _, _) = mock_secret_file(
+    let (_, secret, _, _) = mock::secret_file(
         "Mock file",
         "hello.txt",
         "text/plain",

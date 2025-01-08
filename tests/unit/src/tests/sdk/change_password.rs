@@ -5,7 +5,7 @@ use sos_test_utils::*;
 
 #[tokio::test]
 async fn change_password() -> Result<()> {
-    let (_, _, current_key) = mock_encryption_key()?;
+    let (_, _, current_key) = mock::encryption_key()?;
     let mock_vault = VaultBuilder::new()
         .build(BuilderCredentials::Password(current_key.clone(), None))
         .await?;
@@ -22,7 +22,7 @@ async fn change_password() -> Result<()> {
     ];
     for item in notes {
         let (secret_meta, secret_value, _, _) =
-            mock_secret_note(item.0, item.1).await?;
+            mock::secret_note(item.0, item.1).await?;
         let secret_data =
             SecretRow::new(SecretId::new_v4(), secret_meta, secret_value);
         keeper.create_secret(&secret_data).await?;
@@ -31,7 +31,7 @@ async fn change_password() -> Result<()> {
     let expected_len = keeper.vault().len();
     assert_eq!(3, expected_len);
 
-    let (_, _, new_key) = mock_encryption_key()?;
+    let (_, _, new_key) = mock::encryption_key()?;
 
     let expected_passphrase = AccessKey::Password(new_key.clone());
 

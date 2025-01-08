@@ -1,8 +1,7 @@
 use anyhow::Result;
-use tempfile::NamedTempFile;
-
 use sos_sdk::prelude::*;
-use sos_test_utils::*;
+use sos_test_utils::mock;
+use tempfile::NamedTempFile;
 
 async fn mock_account_event_log() -> Result<(NamedTempFile, AccountEventLog)>
 {
@@ -18,8 +17,8 @@ async fn mock_folder_event_log() -> Result<(NamedTempFile, FolderEventLog)> {
 }
 
 async fn mock_event_log_file() -> Result<(NamedTempFile, FolderEventLog)> {
-    let (encryption_key, _, _) = mock_encryption_key()?;
-    let (_, mut vault) = mock_vault_file().await?;
+    let (encryption_key, _, _) = mock::encryption_key()?;
+    let (_, mut vault) = mock::vault_file().await?;
 
     let (temp, mut event_log) = mock_folder_event_log().await?;
 
@@ -28,7 +27,7 @@ async fn mock_event_log_file() -> Result<(NamedTempFile, FolderEventLog)> {
     event_log.apply(vec![&event]).await?;
 
     // Create a secret
-    let (secret_id, _, _, _, event) = mock_vault_note(
+    let (secret_id, _, _, _, event) = mock::vault_note(
         &mut vault,
         &encryption_key,
         "event log Note",
@@ -38,7 +37,7 @@ async fn mock_event_log_file() -> Result<(NamedTempFile, FolderEventLog)> {
     event_log.apply(vec![&event]).await?;
 
     // Update the secret
-    let (_, _, _, event) = mock_vault_note_update(
+    let (_, _, _, event) = mock::vault_note_update(
         &mut vault,
         &encryption_key,
         &secret_id,
@@ -80,7 +79,7 @@ async fn folder_event_log_iter_backward() -> Result<()> {
 #[tokio::test]
 async fn event_log_last_commit() -> Result<()> {
     let (temp, mut event_log) = mock_folder_event_log().await?;
-    let (_, vault) = mock_vault_file().await?;
+    let (_, vault) = mock::vault_file().await?;
 
     assert!(event_log.tree().last_commit().is_none());
 

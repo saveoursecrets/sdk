@@ -1,8 +1,7 @@
 use anyhow::Result;
 use sos_core::commit::CommitHash;
 use sos_sdk::prelude::*;
-
-use sos_test_utils::mock_secret_note;
+use sos_test_utils::mock;
 
 mod encode_decode;
 mod vault_access;
@@ -16,7 +15,7 @@ pub(crate) async fn get_vault_entry(
     secret_note: &str,
 ) -> Result<(CommitHash, VaultEntry)> {
     let (_secret_meta, _secret_value, meta_bytes, secret_bytes) =
-        mock_secret_note(secret_label, secret_note).await?;
+        mock::secret_note(secret_label, secret_note).await?;
     let meta_aead = vault.encrypt(encryption_key, &meta_bytes).await?;
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes).await?;
     let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead).await?;

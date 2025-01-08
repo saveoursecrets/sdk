@@ -5,55 +5,12 @@ use sos_core::{
 };
 use sos_filesystem::events::{EventLogExt, FolderEventLog};
 use sos_filesystem::folder::FolderReducer;
-use sos_test_utils::*;
+use sos_test_utils::mock;
 use sos_vault::{
     secret::{Secret, SecretMeta},
     VaultAccess,
 };
 use tempfile::NamedTempFile;
-
-async fn mock_event_log_file(
-) -> Result<(NamedTempFile, FolderEventLog, PrivateKey, SecretId)> {
-    let (encryption_key, _, _) = mock_encryption_key()?;
-    let (_, mut vault) = mock_vault_file().await?;
-
-    let temp = NamedTempFile::new()?;
-    let mut event_log = FolderEventLog::new(temp.path()).await?;
-
-    // Create the vault
-    let event = vault.into_event().await?;
-    event_log.apply(vec![&event]).await?;
-
-    // Create a secret
-    let (secret_id, _, _, _, event) =
-        mock_vault_note(&mut vault, &encryption_key, "foo", "bar").await?;
-    event_log.apply(vec![&event]).await?;
-
-    // Update the secret
-    let (_, _, _, event) = mock_vault_note_update(
-        &mut vault,
-        &encryption_key,
-        &secret_id,
-        "bar",
-        "qux",
-    )
-    .await?;
-    if let Some(event) = event {
-        event_log.apply(vec![&event]).await?;
-    }
-
-    // Create another secret
-    let (del_id, _, _, _, event) =
-        mock_vault_note(&mut vault, &encryption_key, "qux", "baz").await?;
-    event_log.apply(vec![&event]).await?;
-
-    let event = vault.delete_secret(&del_id).await?;
-    if let Some(event) = event {
-        event_log.apply(vec![&event]).await?;
-    }
-
-    Ok((temp, event_log, encryption_key, secret_id))
-}
 
 #[tokio::test]
 async fn event_log_reduce_build() -> Result<()> {
@@ -129,4 +86,47 @@ async fn event_log_reduce_compact() -> Result<()> {
     assert_eq!(vault, compact_vault);
 
     Ok(())
+}
+
+async fn mock_event_log_file(
+) -> Result<(NamedTempFile, FolderEventLog, PrivateKey, SecretId)> {
+    let (encryption_key, _, _) = mock::encryption_key()?;
+    let (_, mut vault) = mock::vault_file().await?;
+
+    let temp = NamedTempFile::new()?;
+    let mut event_log = FolderEventLog::new(temp.path()).await?;
+
+    // Create the vault
+    let event = vault.into_event().await?;
+    event_log.apply(vec![&event]).await?;
+
+    // Create a secret
+    let (secret_id, _, _, _, event) =
+        mock::vault_note(&mut vault, &encryption_key, "foo", "bar").await?;
+    event_log.apply(vec![&event]).await?;
+
+    // Update the secret
+    let (_, _, _, event) = mock::vault_note_update(
+        &mut vault,
+        &encryption_key,
+        &secret_id,
+        "bar",
+        "qux",
+    )
+    .await?;
+    if let Some(event) = event {
+        event_log.apply(vec![&event]).await?;
+    }
+
+    // Create another secret
+    let (del_id, _, _, _, event) =
+        mock::vault_note(&mut vault, &encryption_key, "qux", "baz").await?;
+    event_log.apply(vec![&event]).await?;
+
+    let event = vault.delete_secret(&del_id).await?;
+    if let Some(event) = event {
+        event_log.apply(vec![&event]).await?;
+    }
+
+    Ok((temp, event_log, encryption_key, secret_id))
 }

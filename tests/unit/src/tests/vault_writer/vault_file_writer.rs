@@ -2,13 +2,13 @@ use super::create_secure_note;
 use anyhow::Result;
 use sos_filesystem::VaultFileWriter;
 use sos_sdk::prelude::*;
-use sos_test_utils::{mock_encryption_key, mock_vault_file};
+use sos_test_utils::mock;
 
 /// Test file writer deletion and splice logic.
 #[tokio::test]
 async fn vault_file_del_splice() -> Result<()> {
-    let (encryption_key, _, _) = mock_encryption_key()?;
-    let (temp, vault) = mock_vault_file().await?;
+    let (encryption_key, _, _) = mock::encryption_key()?;
+    let (temp, vault) = mock::vault_file().await?;
 
     let mut vault_access = VaultFileWriter::new(temp.path()).await?;
 

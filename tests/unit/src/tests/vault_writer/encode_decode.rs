@@ -4,13 +4,13 @@ use binary_stream::futures::{BinaryReader, BinaryWriter};
 use futures::io::{BufReader, BufWriter, Cursor};
 use sos_core::encoding::encoding_options;
 use sos_sdk::prelude::*;
-use sos_test_utils::{mock_encryption_key, mock_vault_file};
+use sos_test_utils::mock;
 
 /// Test encoding and decoding a vault row.
 #[tokio::test]
 async fn vault_encode_decode_row() -> Result<()> {
-    let (encryption_key, _, _) = mock_encryption_key()?;
-    let (_temp, vault) = mock_vault_file().await?;
+    let (encryption_key, _, _) = mock::encryption_key()?;
+    let (_temp, vault) = mock::vault_file().await?;
 
     let secret_label = "Test note";
     let secret_note = "Super secret note for you to read.";

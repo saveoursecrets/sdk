@@ -3,16 +3,14 @@ use anyhow::Result;
 use sos_database::VaultDatabaseWriter;
 use sos_filesystem::VaultFileWriter;
 use sos_sdk::prelude::*;
-use sos_test_utils::{
-    mock, mock_encryption_key, mock_secret_note, mock_vault_file,
-};
+use sos_test_utils::mock;
 use uuid::Uuid;
 
 /// Test the VaultAccess implementation for the filesystem.
 #[tokio::test]
 async fn vault_access_filesystem() -> Result<()> {
-    let (encryption_key, _, _) = mock_encryption_key()?;
-    let (temp, vault) = mock_vault_file().await?;
+    let (encryption_key, _, _) = mock::encryption_key()?;
+    let (temp, vault) = mock::vault_file().await?;
     let mut vault_access = VaultFileWriter::new(temp.path()).await?;
     test_vault_access(&mut vault_access, vault, &encryption_key).await?;
     temp.close()?;
@@ -22,7 +20,7 @@ async fn vault_access_filesystem() -> Result<()> {
 /// Test the VaultAccess implementation for the database.
 #[tokio::test]
 async fn vault_access_database() -> Result<()> {
-    let (encryption_key, _, _) = mock_encryption_key()?;
+    let (encryption_key, _, _) = mock::encryption_key()?;
     let mut db_client = mock::memory_database().await?;
     let vault: Vault = Default::default();
     mock::insert_database_vault(&mut db_client, &vault).await?;
@@ -79,7 +77,7 @@ async fn test_vault_access(
     let updated_label = "Updated test note";
     let updated_note = "Updated note text.";
     let (_, _, meta_bytes, secret_bytes) =
-        mock_secret_note(updated_label, updated_note).await?;
+        mock::secret_note(updated_label, updated_note).await?;
 
     let updated_meta = vault.encrypt(encryption_key, &meta_bytes).await?;
     let updated_secret = vault.encrypt(encryption_key, &secret_bytes).await?;

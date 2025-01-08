@@ -18,12 +18,10 @@ use std::{
 use tokio::sync::{oneshot, RwLock};
 use url::Url;
 
-mod helpers;
 pub mod mock;
 mod network;
 mod pairing;
 
-pub use helpers::*;
 pub use network::*;
 pub use pairing::*;
 

@@ -3,7 +3,7 @@ use secrecy::ExposeSecret;
 use sos_core::{crypto::AccessKey, decode, encode, SecretId};
 use sos_filesystem::FileSystemGatekeeper;
 use sos_password::diceware::generate_passphrase;
-use sos_test_utils::*;
+use sos_test_utils::mock;
 use sos_vault::{secret::*, *};
 
 #[tokio::test]
@@ -21,20 +21,21 @@ async fn vault_encode_decode_empty() -> Result<()> {
 
 #[tokio::test]
 async fn vault_encode_decode_secret_note() -> Result<()> {
-    let (encryption_key, _, passphrase) = mock_encryption_key()?;
+    let (encryption_key, _, passphrase) = mock::encryption_key()?;
     let mut vault = VaultBuilder::new()
         .build(BuilderCredentials::Password(passphrase, None))
         .await?;
 
     let secret_label = "Test note";
     let secret_note = "Super secret note for you to read.";
-    let (secret_id, _commit, secret_meta, secret_value, _) = mock_vault_note(
-        &mut vault,
-        &encryption_key,
-        secret_label,
-        secret_note,
-    )
-    .await?;
+    let (secret_id, _commit, secret_meta, secret_value, _) =
+        mock::vault_note(
+            &mut vault,
+            &encryption_key,
+            secret_label,
+            secret_note,
+        )
+        .await?;
 
     let buffer = encode(&vault).await?;
 
@@ -86,7 +87,7 @@ async fn vault_shared_folder_writable() -> Result<()> {
     let key = AccessKey::Identity(owner.clone());
     keeper.unlock(&key).await?;
     let (meta, secret, _, _) =
-        mock_secret_note("Shared label", "Shared note").await?;
+        mock::secret_note("Shared label", "Shared note").await?;
     let id = SecretId::new_v4();
     let secret_data = SecretRow::new(id, meta.clone(), secret.clone());
     keeper.create_secret(&secret_data).await?;
@@ -112,7 +113,7 @@ async fn vault_shared_folder_writable() -> Result<()> {
     }
 
     let (new_meta, new_secret, _, _) =
-        mock_secret_note("Shared label updated", "Shared note updated")
+        mock::secret_note("Shared label updated", "Shared note updated")
             .await?;
     keeper_1
         .update_secret(&id, new_meta.clone(), new_secret.clone())
@@ -158,14 +159,14 @@ async fn vault_shared_folder_readonly() -> Result<()> {
     let key = AccessKey::Identity(owner.clone());
     keeper.unlock(&key).await?;
     let (meta, secret, _, _) =
-        mock_secret_note("Shared label", "Shared note").await?;
+        mock::secret_note("Shared label", "Shared note").await?;
     let id = SecretId::new_v4();
     let secret_data = SecretRow::new(id, meta.clone(), secret.clone());
     keeper.create_secret(&secret_data).await?;
 
     // Check the owner can update
     let (new_meta, new_secret, _, _) =
-        mock_secret_note("Shared label updated", "Shared note updated")
+        mock::secret_note("Shared label updated", "Shared note updated")
             .await?;
     keeper
         .update_secret(&id, new_meta.clone(), new_secret.clone())
@@ -195,7 +196,7 @@ async fn vault_shared_folder_readonly() -> Result<()> {
 
     //  If the other recipient tries to update
     //  they get a permission denied error
-    let (updated_meta, updated_secret, _, _) = mock_secret_note(
+    let (updated_meta, updated_secret, _, _) = mock::secret_note(
         "Shared label update denied",
         "Shared note update denied",
     )

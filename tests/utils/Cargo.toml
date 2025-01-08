@@ -12,6 +12,7 @@ sos-net = { workspace = true, features = ["full"] }
 sos-account = { workspace = true, features = ["full"] }
 sos-core.workspace = true
 sos-sync.workspace = true
+sos-filesystem.workspace = true
 sos-password.workspace = true
 sos-protocol = { workspace = true, features = ["full"] }
 sos-client-storage.workspace = true

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sos_migrate::export::PublicExport;
 use sos_sdk::prelude::*;
-use sos_test_utils::*;
+use sos_test_utils::mock;
 use std::io::Cursor;
 use tokio::io::{AsyncSeek, AsyncWrite};
 
@@ -21,11 +21,11 @@ async fn create_mock_migration<W: AsyncWrite + AsyncSeek + Unpin>(
     keeper.unlock(&key).await?;
 
     let (meta, secret, _, _) =
-        mock_secret_note("Mock note", "Value for the mock note").await?;
+        mock::secret_note("Mock note", "Value for the mock note").await?;
     let secret_data = SecretRow::new(SecretId::new_v4(), meta, secret);
     keeper.create_secret(&secret_data).await?;
 
-    let (meta, secret, _, _) = mock_secret_file(
+    let (meta, secret, _, _) = mock::secret_file(
         "Mock file",
         "test.txt",
         "text/plain",

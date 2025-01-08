@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sos_core::commit::{CommitTree, Comparison};
 use sos_sdk::prelude::*;
-use sos_test_utils::{mock_encryption_key, mock_secret_note};
+use sos_test_utils::mock;
 
 fn vault_to_commit_tree(value: &Vault) -> CommitTree {
     let mut commit_tree = CommitTree::new();
@@ -13,7 +13,7 @@ fn vault_to_commit_tree(value: &Vault) -> CommitTree {
 }
 
 async fn mock_commit_tree() -> Result<CommitTree> {
-    let (encryption_key, _, passphrase) = mock_encryption_key()?;
+    let (encryption_key, _, passphrase) = mock::encryption_key()?;
     let mut vault = VaultBuilder::new()
         .build(BuilderCredentials::Password(passphrase, None))
         .await?;
@@ -26,7 +26,7 @@ async fn mock_commit_tree() -> Result<CommitTree> {
 
     for (label, note) in secrets {
         let (_secret_meta, _secret_value, meta_bytes, secret_bytes) =
-            mock_secret_note(label, note).await?;
+            mock::secret_note(label, note).await?;
         let meta_aead = vault.encrypt(&encryption_key, &meta_bytes).await?;
         let secret_aead =
             vault.encrypt(&encryption_key, &secret_bytes).await?;
