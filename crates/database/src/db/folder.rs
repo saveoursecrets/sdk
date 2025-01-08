@@ -18,7 +18,7 @@ pub struct FolderRow {
     pub modified_at: String,
     pub identifier: String,
     pub name: String,
-    pub meta: Vec<u8>,
+    pub meta: Option<Vec<u8>>,
     pub version: i64,
     pub cipher: String,
     pub kdf: String,
@@ -47,8 +47,8 @@ impl TryFrom<FolderRow> for FolderRecord {
     type Error = Error;
 
     fn try_from(value: FolderRow) -> Result<Self> {
-        let created_at = UtcDateTime::parse_rfc3339(&value.created_at)?;
-        let modified_at = UtcDateTime::parse_rfc3339(&value.modified_at)?;
+        let created_at = UtcDateTime::parse_utc_iso8601(&value.created_at)?;
+        let modified_at = UtcDateTime::parse_utc_iso8601(&value.modified_at)?;
         let folder_id: VaultId = value.identifier.parse()?;
         let version: u16 = value.version.try_into()?;
         let cipher = value.cipher.parse()?;
@@ -140,7 +140,7 @@ where
                     kdf,
                     flags
                 FROM folders
-                WHERE folder_id=?1
+                WHERE identifier=?1
             "#,
         )?)
     }

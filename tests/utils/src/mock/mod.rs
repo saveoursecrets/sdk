@@ -6,9 +6,12 @@ use async_sqlite::{Client, ClientBuilder};
 use pem as pem_encoding;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
-use sos_sdk::{
-    device::TrustedDevice,
-    vault::secret::{FileContent, IdentityKind, Secret, SecretMeta},
+use sos_core::AccountId;
+use sos_database::db::{AccountEntity, FolderEntity};
+use sos_sdk::device::TrustedDevice;
+use sos_vault::{
+    secret::{FileContent, IdentityKind, Secret, SecretMeta},
+    Vault,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -23,6 +26,28 @@ pub async fn memory_database() -> Result<Client> {
     let mut client = ClientBuilder::new().open().await?;
     sos_database::migrations::migrate_client(&mut client).await?;
     Ok(client)
+}
+
+/// Create a database folder for a vault.
+pub async fn insert_database_vault(
+    client: &mut Client,
+    vault: &Vault,
+) -> Result<i64> {
+    let vault = vault.clone();
+    Ok(client
+        .conn_mut(move |conn| {
+            let tx = conn.transaction()?;
+            let account = AccountEntity::new(&tx);
+            let account_identifier = AccountId::random();
+            let account_id = account
+                .insert(&account_identifier.to_string(), "mock-account")?;
+            let folder = FolderEntity::new(&tx);
+            let folder_id =
+                folder.insert_folder(account_id, vault.summary(), None)?;
+            tx.commit()?;
+            Ok(folder_id)
+        })
+        .await?)
 }
 
 /// Create a login secret.

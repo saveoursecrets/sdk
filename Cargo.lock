@@ -5536,6 +5536,7 @@ dependencies = [
  "sos-sdk",
  "sos-server",
  "sos-sync",
+ "sos-vault",
  "sos-vfs",
  "tempfile",
  "tokio",

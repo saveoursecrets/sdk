@@ -1,6 +1,5 @@
 use anyhow::Result;
 use sos_core::commit::CommitHash;
-use sos_filesystem::VaultFileWriter;
 use sos_sdk::prelude::*;
 
 use sos_test_utils::mock_secret_note;
