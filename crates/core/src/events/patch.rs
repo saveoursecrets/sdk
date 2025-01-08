@@ -1,13 +1,14 @@
-use crate::{events::EventRecord, Result};
-use binary_stream::futures::{Decodable, Encodable};
-use sos_core::{
+//! Patch and diff types for events.
+use crate::{
     commit::{CommitHash, CommitProof},
-    events::{AccountEvent, DeviceEvent, WriteEvent},
+    events::{AccountEvent, DeviceEvent, EventRecord, WriteEvent},
+    Result,
 };
+use binary_stream::futures::{Decodable, Encodable};
 use std::marker::PhantomData;
 
 #[cfg(feature = "files")]
-use sos_core::events::FileEvent;
+use crate::events::FileEvent;
 
 /// Patch of account events.
 pub type AccountPatch = Patch<AccountEvent>;

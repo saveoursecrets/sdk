@@ -14,7 +14,9 @@ mod event;
 mod event_kind;
 #[cfg(feature = "files")]
 mod file;
+pub mod patch;
 mod read;
+mod record;
 mod write;
 
 pub use account::AccountEvent;
@@ -24,6 +26,7 @@ pub use event_kind::EventKind;
 #[cfg(feature = "files")]
 pub use file::FileEvent;
 pub use read::ReadEvent;
+pub use record::EventRecord;
 pub use write::WriteEvent;
 
 /// Trait for events that can be written to an event log.

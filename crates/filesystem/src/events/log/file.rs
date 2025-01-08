@@ -202,9 +202,7 @@ where
             while let Some(record) = it.next().await? {
                 let event_buffer = read_event_buffer(
                     handle.clone(), &record).await?;
-
-                let event_record: EventRecord = (record, event_buffer).into();
-
+                let event_record = record.into_event_record(event_buffer);
                 let event = event_record.decode_event::<E>().await?;
                 yield (event_record, event);
             }
@@ -284,7 +282,8 @@ where
             // be looking for commits near the end of the event log
             // but we want the patch events in the order they were
             // appended so insert at the beginning to reverse the list
-            events.insert(0, (record, buffer).into());
+            let event_record = record.into_event_record(buffer);
+            events.insert(0, event_record);
         }
 
         // If the caller wanted to patch until a particular commit
@@ -784,7 +783,8 @@ where
 
             let event_buffer =
                 read_event_buffer(handle.clone(), &record).await?;
-            let event_record: EventRecord = (record, event_buffer).into();
+
+            let event_record = record.into_event_record(event_buffer);
             records.push(event_record);
 
             tracing::trace!(

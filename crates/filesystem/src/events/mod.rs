@@ -48,7 +48,7 @@ where
     async fn default_record(&self) -> Result<EventRecord> {
         let bytes = encode(*self).await?;
         let commit = CommitHash(CommitTree::hash(&bytes));
-        Ok(EventRecord(
+        Ok(EventRecord::new(
             Default::default(),
             Default::default(),
             commit,

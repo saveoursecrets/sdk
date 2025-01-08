@@ -117,6 +117,7 @@ impl LocalMemoryServer {
         E: std::fmt::Debug
             + std::error::Error
             + ErrorExt
+            + From<sos_core::Error>
             + From<sos_database::Error>
             + From<sos_account::Error>
             + From<sos_filesystem::Error>

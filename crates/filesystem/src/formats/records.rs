@@ -1,6 +1,6 @@
 //! File format iterators.
 use binary_stream::futures::Decodable;
-use sos_core::UtcDateTime;
+use sos_core::{commit::CommitHash, events::EventRecord, UtcDateTime};
 use std::ops::Range;
 
 /// Trait for types yielded by the file iterator.
@@ -126,6 +126,15 @@ impl EventLogRecord {
         } else {
             0
         }
+    }
+
+    pub(crate) fn into_event_record(self, buffer: Vec<u8>) -> EventRecord {
+        EventRecord::new(
+            self.time,
+            CommitHash(self.last_commit),
+            CommitHash(self.commit),
+            buffer,
+        )
     }
 }
 
