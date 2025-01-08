@@ -37,6 +37,7 @@ uuid.workspace = true
 url.workspace = true
 totp-rs.workspace = true
 vcard4.workspace = true
+async-sqlite.workspace = true
 
 tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
 pretty_assertions = "1.4"

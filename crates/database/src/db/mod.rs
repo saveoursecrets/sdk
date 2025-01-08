@@ -19,3 +19,16 @@ pub use preference::PreferenceEntity;
 pub use server::ServerEntity;
 
 pub(crate) use import::{import_account, import_globals};
+
+use crate::Result;
+use async_sqlite::{Client, ClientBuilder, JournalMode};
+use std::path::Path;
+
+/// Open a database file from a path with WAL journal mode enabled.
+pub async fn open_file(path: impl AsRef<Path>) -> Result<Client> {
+    Ok(ClientBuilder::new()
+        .path(path.as_ref())
+        .journal_mode(JournalMode::Wal)
+        .open()
+        .await?)
+}

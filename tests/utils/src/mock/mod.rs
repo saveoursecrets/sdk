@@ -2,6 +2,7 @@
 
 use age as age_encryption;
 use anyhow::Result;
+use async_sqlite::{Client, ClientBuilder};
 use pem as pem_encoding;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
@@ -16,6 +17,13 @@ use url::Url;
 pub mod files;
 
 const IPHONE: &str = include_str!("../../../fixtures/devices/iphone.json");
+
+/// Create an in-memory database and run migrations.
+pub async fn memory_database() -> Result<Client> {
+    let mut client = ClientBuilder::new().open().await?;
+    sos_database::migrations::migrate_client(&mut client).await?;
+    Ok(client)
+}
 
 /// Create a login secret.
 pub fn login(

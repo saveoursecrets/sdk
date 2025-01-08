@@ -5515,6 +5515,7 @@ dependencies = [
  "age",
  "anyhow",
  "argon2",
+ "async-sqlite",
  "axum-server",
  "copy_dir",
  "futures",
@@ -5553,6 +5554,7 @@ version = "0.1.0"
 dependencies = [
  "age",
  "anyhow",
+ "async-sqlite",
  "binary-stream",
  "bytes",
  "futures",

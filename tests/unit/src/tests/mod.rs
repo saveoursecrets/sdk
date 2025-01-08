@@ -17,3 +17,4 @@ mod recovery;
 mod sdk;
 mod search;
 mod signer;
+mod vault_writer;

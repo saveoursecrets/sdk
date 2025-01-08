@@ -13,7 +13,7 @@ use sos_core::{
     SecretId, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
 use sos_vault::{Summary, Vault, VaultAccess};
-use std::{borrow::Cow, path::PathBuf};
+use std::borrow::Cow;
 
 /// Write changes to a vault in the database.
 pub struct VaultDatabaseWriter {

@@ -12,21 +12,22 @@ mod embedded {
 
 /// Run migrations on a file-based database.
 pub async fn migrate_db_file(path: impl AsRef<Path>) -> Result<Report> {
-    let client = ClientBuilder::new()
+    let mut client = ClientBuilder::new()
         .path(path)
         .journal_mode(JournalMode::Wal)
         .open()
         .await?;
-    migrate_client(client).await
+    migrate_client(&mut client).await
 }
 
 /// Run migrations on an in-memory database.
 pub async fn migrate_db_memory() -> Result<Report> {
-    let client = ClientBuilder::new().open().await?;
-    migrate_client(client).await
+    let mut client = ClientBuilder::new().open().await?;
+    migrate_client(&mut client).await
 }
 
-async fn migrate_client(client: Client) -> Result<Report> {
+/// Run migrations for a client.
+pub async fn migrate_client(client: &mut Client) -> Result<Report> {
     let (tx, rx) =
         oneshot::channel::<std::result::Result<Report, refinery::Error>>();
     client
