@@ -1,6 +1,6 @@
 //! Import filesystem backed accounts into a database.
-use crate::{db, migrations::migrate_db_file, Error, Result};
-use async_sqlite::{Client, ClientBuilder, JournalMode};
+use crate::{db, migrations::migrate_client, Error, Result};
+use async_sqlite::Client;
 use sos_core::Paths;
 use sos_sdk::prelude::{Identity, PublicIdentity};
 use std::path::PathBuf;
@@ -18,9 +18,7 @@ async fn import_account(
     if paths.is_global() {
         panic!("import_account does not allow global paths");
     }
-
     db::import_account(client, paths, account).await?;
-
     Ok(())
 }
 
@@ -33,13 +31,8 @@ pub async fn import_accounts(data_dir: PathBuf) -> Result<()> {
         return Err(Error::DatabaseExists(db_file.to_owned()));
     }
 
-    migrate_db_file(&db_file).await?;
-
-    let mut client = ClientBuilder::new()
-        .path(&db_file)
-        .journal_mode(JournalMode::Wal)
-        .open()
-        .await?;
+    let mut client = db::open_file(paths.database_file()).await?;
+    migrate_client(&mut client).await?;
 
     db::import_globals(&mut client, &paths).await?;
 
