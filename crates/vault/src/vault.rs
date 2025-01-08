@@ -20,7 +20,6 @@ use sos_core::{
     SecretId, UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
 use sos_vfs::File;
-use std::path::PathBuf;
 use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, path::Path,
     str::FromStr,
@@ -198,12 +197,6 @@ pub trait VaultAccess {
     async fn replace_vault(
         &mut self,
         vault: &Vault,
-    ) -> std::result::Result<(), Self::Error>;
-
-    /// Re-initialize the vault access from a path on disc.
-    async fn reload_vault(
-        &mut self,
-        path: PathBuf,
     ) -> std::result::Result<(), Self::Error>;
 }
 
@@ -1068,10 +1061,6 @@ impl VaultAccess for Vault {
 
     async fn replace_vault(&mut self, vault: &Vault) -> Result<()> {
         *self = vault.clone();
-        Ok(())
-    }
-
-    async fn reload_vault(&mut self, _path: PathBuf) -> Result<()> {
         Ok(())
     }
 }

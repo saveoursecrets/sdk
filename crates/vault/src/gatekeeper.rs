@@ -129,10 +129,11 @@ where
         path: impl AsRef<Path>,
     ) -> Result<(), E> {
         let buffer = vfs::read(path.as_ref()).await?;
-        self.vault = decode(&buffer).await?;
+        let vault: Vault = decode(&buffer).await?;
         if let Some(mirror) = &mut self.mirror {
-            mirror.reload_vault(path.as_ref().to_owned()).await?;
+            mirror.replace_vault(&vault).await?;
         }
+        self.vault = vault;
         Ok(())
     }
 

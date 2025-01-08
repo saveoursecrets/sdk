@@ -335,11 +335,4 @@ impl VaultAccess for VaultFileWriter {
         vfs::write_exclusive(&self.file_path, &buffer).await?;
         Ok(())
     }
-
-    async fn reload_vault(&mut self, path: PathBuf) -> Result<()> {
-        let file = OpenOptions::new().read(true).open(&path).await?;
-        self.stream = Mutex::new(file.compat_write());
-        self.file_path = path;
-        Ok(())
-    }
 }

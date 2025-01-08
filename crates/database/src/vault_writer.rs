@@ -246,8 +246,4 @@ impl VaultAccess for VaultDatabaseWriter {
             .await?;
         Ok(())
     }
-
-    async fn reload_vault(&mut self, path: PathBuf) -> Result<()> {
-        todo!();
-    }
 }
