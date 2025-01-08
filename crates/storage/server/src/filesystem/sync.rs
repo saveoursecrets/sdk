@@ -8,21 +8,26 @@ use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
     VaultId,
 };
-use sos_filesystem::{folder::FolderReducer, VaultFileWriter};
-use sos_sdk::{
+use sos_core::{
     encode,
     events::{
-        AccountDiff, AccountEvent, AccountEventLog, CheckedPatch, DeviceDiff,
-        DeviceEventLog, DeviceReducer, EventLogExt, FileDiff, FileEventLog,
-        FolderDiff, FolderEventLog, WriteEvent,
+        patch::{
+            AccountDiff, CheckedPatch, DeviceDiff, FileDiff, FolderDiff,
+        },
+        AccountEvent, WriteEvent,
     },
-    vault::{Header, Summary, VaultAccess},
-    vfs,
 };
+use sos_filesystem::events::{
+    AccountEventLog, DeviceEventLog, DeviceReducer, EventLogExt,
+    FileEventLog, FolderEventLog,
+};
+use sos_filesystem::{folder::FolderReducer, VaultFileWriter};
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
     SyncStorage, TrackedChanges,
 };
+use sos_vault::{Header, Summary, VaultAccess};
+use sos_vfs as vfs;
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
 

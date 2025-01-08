@@ -20,10 +20,10 @@ pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
-use events::EventRecord;
 use sos_core::{
     commit::{CommitHash, CommitTree},
     encode,
+    events::EventRecord,
 };
 
 /// Encode an event into a record.

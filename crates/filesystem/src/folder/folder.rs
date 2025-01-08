@@ -2,8 +2,8 @@
 use crate::folder::FolderReducer;
 use crate::{
     events::{
-        DiscData, DiscLog, EventLogExt, EventRecord, FolderEventLog,
-        MemoryData, MemoryFolderLog, MemoryLog,
+        DiscData, DiscLog, EventLogExt, FolderEventLog, MemoryData,
+        MemoryFolderLog, MemoryLog,
     },
     FileSystemGatekeeper, Result, VaultFileWriter,
 };
@@ -16,7 +16,7 @@ use sos_core::{
     constants::EVENT_LOG_EXT,
     crypto::AccessKey,
     decode,
-    events::{ReadEvent, WriteEvent},
+    events::{EventRecord, ReadEvent, WriteEvent},
 };
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},

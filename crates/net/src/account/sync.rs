@@ -5,22 +5,20 @@ use indexmap::IndexSet;
 use sos_core::events::WriteEvent;
 use sos_core::{
     commit::{CommitState, Comparison},
+    events::patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
     Origin, VaultId,
+};
+use sos_filesystem::events::{
+    AccountEventLog, DeviceEventLog, FolderEventLog,
 };
 use sos_protocol::{
     AccountSync, RemoteSync, SyncClient, SyncOptions, SyncResult,
-};
-use sos_sdk::{
-    events::{
-        AccountDiff, AccountEventLog, CheckedPatch, DeviceDiff,
-        DeviceEventLog, FolderDiff, FolderEventLog,
-    },
-    vault::Summary,
 };
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
     SyncStorage, UpdateSet,
 };
+use sos_vault::Summary;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -29,8 +27,9 @@ use tokio::sync::RwLock;
 
 #[cfg(feature = "files")]
 use {
+    sos_core::events::patch::FileDiff,
+    sos_filesystem::events::FileEventLog,
     sos_protocol::transfer::{FileSet, FileSyncClient, FileTransfersSet},
-    sos_sdk::events::{FileDiff, FileEventLog},
 };
 
 /// Server status for all remote origins.

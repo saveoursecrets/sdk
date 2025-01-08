@@ -8,13 +8,15 @@ use async_trait::async_trait;
 use sos_account::Account;
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree},
-    events::{AccountEvent, DeviceEvent, WriteEvent},
+    events::{
+        patch::{
+            AccountDiff, CheckedPatch, DeviceDiff, Diff, FolderDiff, Patch,
+        },
+        AccountEvent, DeviceEvent, EventRecord, WriteEvent,
+    },
     VaultId,
 };
-use sos_filesystem::events::{
-    AccountDiff, CheckedPatch, DeviceDiff, Diff, EventLogExt, EventRecord,
-    FolderDiff, Patch,
-};
+use sos_filesystem::events::EventLogExt;
 use sos_sync::{
     EventLogType, ForceMerge, MaybeConflict, Merge, MergeOutcome,
     StorageEventLogs, SyncDirection, SyncStatus,
@@ -25,7 +27,7 @@ use tracing::instrument;
 const PROOF_SCAN_LIMIT: u16 = 32;
 
 #[cfg(feature = "files")]
-use {sos_core::events::FileEvent, sos_filesystem::events::FileDiff};
+use sos_core::events::{patch::FileDiff, FileEvent};
 
 use super::RemoteSyncHandler;
 

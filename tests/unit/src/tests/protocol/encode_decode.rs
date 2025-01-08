@@ -1,6 +1,10 @@
 //! Basic smoke tests for encoding and decoding.
 use anyhow::Result;
 use bytes::Bytes;
+use sos_core::events::{
+    patch::{CheckedPatch, FolderDiff},
+    EventRecord,
+};
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitState},
     AccountId, Origin, SecretPath, UtcDateTime, VaultId,
@@ -9,7 +13,6 @@ use sos_protocol::{
     DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
     ScanResponse, WireEncodeDecode,
 };
-use sos_sdk::events::{CheckedPatch, EventRecord, FolderDiff};
 use sos_sync::{
     CreateSet, EventLogType, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff,
     SyncPacket, SyncStatus, UpdateSet,

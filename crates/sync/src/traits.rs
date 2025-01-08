@@ -7,11 +7,11 @@ use indexmap::IndexSet;
 use sos_core::events::WriteEvent;
 use sos_core::{
     commit::{CommitState, Comparison},
+    events::patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
     VaultId,
 };
 use sos_filesystem::events::{
-    AccountDiff, AccountEventLog, CheckedPatch, DeviceDiff, DeviceEventLog,
-    EventLogExt, FolderDiff, FolderEventLog,
+    AccountEventLog, DeviceEventLog, EventLogExt, FolderEventLog,
 };
 use sos_vault::Summary;
 use std::{
@@ -22,8 +22,8 @@ use tokio::sync::RwLock;
 
 #[cfg(feature = "files")]
 use {
-    sos_core::ExternalFile,
-    sos_filesystem::events::{FileDiff, FileEventLog},
+    sos_core::{events::patch::FileDiff, ExternalFile},
+    sos_filesystem::events::FileEventLog,
 };
 
 /// References to the storage event logs.

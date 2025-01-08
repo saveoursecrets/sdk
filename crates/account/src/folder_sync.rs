@@ -3,14 +3,15 @@ use crate::Result;
 use async_trait::async_trait;
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use sos_core::{
-    events::{LogEvent, WriteEvent},
+    events::{
+        patch::{CheckedPatch, FolderDiff},
+        LogEvent, WriteEvent,
+    },
     VaultId,
 };
 use sos_filesystem::folder::{Folder, FolderReducer};
 use sos_sdk::{
-    events::{CheckedPatch, EventLogExt, FolderDiff},
-    identity::IdentityFolder,
-    vault::secret::SecretRow,
+    events::EventLogExt, identity::IdentityFolder, vault::secret::SecretRow,
 };
 
 /// Options for folder merge.

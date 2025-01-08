@@ -1,3 +1,5 @@
+//! Event log types and traits.
+//!
 //! Events represent changes to accounts, folders and files.
 //!
 //! Events may be appended to *event log* files for persistence.
@@ -11,26 +13,27 @@
 use crate::Result;
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
+use sos_core::events::EventRecord;
 use sos_core::{
     commit::{CommitHash, CommitTree},
     encode,
 };
 
-mod log;
+mod file;
+mod reducer;
 
-pub use self::log::{
-    patch::*, AccountEventLog, DiscData, DiscEventLog, DiscLog, EventLogExt,
-    EventRecord, FolderEventLog, MemoryData, MemoryEventLog, MemoryFolderLog,
+#[cfg(feature = "files")]
+pub use file::FileEventLog;
+
+#[cfg(feature = "files")]
+pub use reducer::FileReducer;
+
+pub use file::{
+    AccountEventLog, DeviceEventLog, DiscData, DiscEventLog, DiscLog,
+    EventLogExt, FolderEventLog, MemoryData, MemoryEventLog, MemoryFolderLog,
     MemoryLog,
 };
-
-pub use self::log::{DeviceEventLog, DeviceReducer};
-
-#[cfg(feature = "files")]
-pub use self::log::FileEventLog;
-
-#[cfg(feature = "files")]
-pub use self::log::FileReducer;
+pub use reducer::DeviceReducer;
 
 /// Encode an event into a record.
 #[async_trait]

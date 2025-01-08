@@ -8,17 +8,16 @@ use async_trait::async_trait;
 use indexmap::IndexMap;
 use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
-    events::LogEvent,
-    events::{AccountEvent, WriteEvent},
+    events::{
+        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
+        AccountEvent, LogEvent, WriteEvent,
+    },
     VaultId,
 };
 use sos_database::StorageError;
 use sos_sdk::{
     decode,
-    events::{
-        AccountDiff, CheckedPatch, DeviceDiff, DeviceReducer, EventLogExt,
-        FolderDiff,
-    },
+    events::{DeviceReducer, EventLogExt},
     vault::Vault,
 };
 use sos_sync::{
@@ -28,7 +27,7 @@ use sos_sync::{
 use std::collections::HashSet;
 
 #[cfg(feature = "files")]
-use sos_sdk::events::FileDiff;
+use sos_core::events::patch::FileDiff;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

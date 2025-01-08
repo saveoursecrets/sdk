@@ -2,22 +2,24 @@
 use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
+use sos_core::events::{patch::FolderPatch, AccountEvent, FileEvent};
 use sos_core::{
     constants::VAULT_EXT,
     decode,
     device::{DevicePublicKey, TrustedDevice},
-    encode, AccountId, Paths,
+    encode, AccountId, Paths, VaultId,
 };
-use sos_filesystem::{folder::FolderReducer, VaultFileWriter};
-use sos_sdk::{
+use sos_filesystem::{
     events::{
-        AccountEvent, AccountEventLog, DeviceEventLog, DeviceReducer,
-        EventLogExt, FileEvent, FileEventLog, FolderEventLog, FolderPatch,
+        AccountEventLog, DeviceEventLog, DeviceReducer, EventLogExt,
+        FileEventLog, FolderEventLog,
     },
-    vault::{Header, Summary, Vault, VaultAccess, VaultId},
-    vfs,
+    folder::FolderReducer,
+    VaultFileWriter,
 };
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
+use sos_vault::{Header, Summary, Vault, VaultAccess};
+use sos_vfs as vfs;
 use std::collections::HashSet;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;

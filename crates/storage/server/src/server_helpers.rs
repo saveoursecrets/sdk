@@ -1,23 +1,20 @@
 //! Helper functions for server implementations.
 use binary_stream::futures::{Decodable, Encodable};
+use sos_core::events::{
+    patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff, Patch},
+    AccountEvent, DeviceEvent, EventRecord, WriteEvent,
+};
+use sos_filesystem::events::{DiscEventLog, EventLogExt};
 use sos_protocol::{
     DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
     ScanResponse,
 };
-use sos_sdk::{
-    events::{
-        AccountDiff, AccountEvent, CheckedPatch, DeviceDiff, DeviceEvent,
-        DiscEventLog, EventRecord, FolderDiff, Patch, WriteEvent,
-    },
-    prelude::EventLogExt,
-};
-
 use sos_sync::{
     EventLogType, MergeOutcome, StorageEventLogs, SyncPacket, SyncStorage,
 };
 
 #[cfg(feature = "files")]
-use sos_sdk::events::{FileDiff, FileEvent};
+use sos_core::events::{patch::FileDiff, FileEvent};
 
 /// Sync an account.
 pub async fn sync_account<S, E>(

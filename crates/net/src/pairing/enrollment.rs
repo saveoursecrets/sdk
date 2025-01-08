@@ -5,16 +5,16 @@ use crate::{
 };
 use sos_account::Account;
 use sos_core::{
-    crypto::AccessKey, encode, events::AccountEvent, AccountId, Origin,
-    VaultId,
+    crypto::AccessKey,
+    encode,
+    events::patch::{AccountPatch, DevicePatch, FolderPatch},
+    events::AccountEvent,
+    AccountId, Origin, VaultId,
 };
-use sos_filesystem::VaultFileWriter;
 use sos_filesystem::{
-    events::{
-        AccountEventLog, AccountPatch, EventLogExt, FolderEventLog,
-        FolderPatch,
-    },
+    events::{AccountEventLog, DeviceEventLog, EventLogExt, FolderEventLog},
     folder::FolderReducer,
+    VaultFileWriter,
 };
 use sos_protocol::{network_client::HttpClient, SyncClient};
 use sos_sdk::{
@@ -26,8 +26,6 @@ use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
 };
-
-use sos_filesystem::events::{DeviceEventLog, DevicePatch};
 
 /// Enroll a device.
 ///

@@ -2,9 +2,14 @@ include!(concat!(env!("OUT_DIR"), "/sync.rs"));
 
 use crate::{decode_uuid, encode_uuid, Error, ProtoBinding, Result};
 use indexmap::{IndexMap, IndexSet};
-use sos_core::commit::Comparison;
-use sos_core::Origin;
-use sos_filesystem::events::{Diff, EventRecord, Patch};
+use sos_core::{
+    commit::Comparison,
+    events::{
+        patch::{Diff, Patch},
+        EventRecord,
+    },
+    Origin,
+};
 use sos_sync::{
     CreateSet, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff, SyncPacket,
     SyncStatus, TrackedAccountChange, TrackedChanges, TrackedDeviceChange,

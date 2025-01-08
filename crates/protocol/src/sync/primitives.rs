@@ -1,13 +1,15 @@
 //! Synchronization types that are used internally.
 use indexmap::IndexMap;
-use sos_core::{commit::Comparison, Origin, VaultId};
-use sos_sdk::events::{EventLogExt, FolderDiff};
+use sos_core::{
+    commit::Comparison, events::patch::FolderDiff, Origin, VaultId,
+};
+use sos_sdk::events::EventLogExt;
 use sos_sync::{
     MaybeDiff, StorageEventLogs, SyncDiff, SyncStatus, SyncStorage,
 };
 
 #[cfg(feature = "files")]
-use sos_filesystem::events::FileDiff;
+use sos_core::events::patch::FileDiff;
 
 /// How to resolve hard conflicts.
 #[derive(Default, Debug)]

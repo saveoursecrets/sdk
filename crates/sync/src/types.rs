@@ -7,19 +7,23 @@ use sos_core::{
 };
 use sos_core::{
     device::DevicePublicKey,
-    events::{AccountEvent, DeviceEvent, WriteEvent},
-};
-use sos_filesystem::events::{
-    AccountDiff, AccountPatch, DeviceDiff, DevicePatch, FolderDiff,
-    FolderPatch,
+    events::{
+        patch::{
+            AccountDiff, AccountPatch, DeviceDiff, DevicePatch, FolderDiff,
+            FolderPatch,
+        },
+        AccountEvent, DeviceEvent, WriteEvent,
+    },
 };
 use std::collections::HashMap;
 
 #[cfg(feature = "files")]
-use {
-    sos_core::events::FileEvent,
-    sos_core::{ExternalFile, ExternalFileName, SecretPath},
-    sos_filesystem::events::{FileDiff, FilePatch},
+use sos_core::{
+    events::{
+        patch::{FileDiff, FilePatch},
+        FileEvent,
+    },
+    ExternalFile, ExternalFileName, SecretPath,
 };
 
 /// Types of event logs.

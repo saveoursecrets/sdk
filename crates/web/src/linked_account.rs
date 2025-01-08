@@ -11,23 +11,24 @@ use sos_account::{
 use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_core::{
     commit::{CommitHash, CommitState, Comparison},
+    events::{
+        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
+        WriteEvent,
+    },
     AccountId, Origin, SecretId, VaultId,
+};
+use sos_filesystem::events::{
+    AccountEventLog, DeviceEventLog, FolderEventLog,
 };
 use sos_protocol::{
     network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
     RemoteSyncHandler, SyncClient, SyncOptions,
 };
-use sos_sdk::{
-    events::{
-        AccountDiff, AccountEventLog, CheckedPatch, DeviceDiff,
-        DeviceEventLog, FolderDiff, FolderEventLog, WriteEvent,
-    },
-    prelude::{
-        AccessKey, AccountEvent, Cipher, DeviceManager, DevicePublicKey,
-        DeviceSigner, EventRecord, KeyDerivation, Paths, PublicIdentity,
-        ReadEvent, Secret, SecretMeta, SecretRow, Summary, TrustedDevice,
-        Vault, VaultCommit, VaultFlags,
-    },
+use sos_sdk::prelude::{
+    AccessKey, AccountEvent, Cipher, DeviceManager, DevicePublicKey,
+    DeviceSigner, EventRecord, KeyDerivation, Paths, PublicIdentity,
+    ReadEvent, Secret, SecretMeta, SecretRow, Summary, TrustedDevice, Vault,
+    VaultCommit, VaultFlags,
 };
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs,
@@ -67,8 +68,8 @@ use sos_migrate::import::ImportTarget;
 
 #[cfg(feature = "files")]
 use {
+    sos_core::events::patch::FileDiff, sos_filesystem::events::FileEventLog,
     sos_protocol::transfer::FileTransferQueueSender,
-    sos_sdk::prelude::{FileDiff, FileEventLog},
 };
 
 /// Linked account syncs with a local account on the same device.

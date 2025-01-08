@@ -9,7 +9,9 @@ use sos_core::{
     constants::{EVENT_LOG_EXT, VAULT_EXT},
     crypto::AccessKey,
     decode, encode,
-    events::{AccountEvent, Event, ReadEvent, WriteEvent},
+    events::{
+        patch::FolderPatch, AccountEvent, Event, ReadEvent, WriteEvent,
+    },
     AccountId, UtcDateTime,
 };
 use sos_database::StorageError;
@@ -17,8 +19,7 @@ use sos_filesystem::folder::{DiscFolder, FolderReducer};
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
     events::{
-        AccountEventLog, EventLogExt, EventRecord, FolderEventLog,
-        FolderPatch, IntoRecord,
+        AccountEventLog, EventLogExt, EventRecord, FolderEventLog, IntoRecord,
     },
     identity::FolderKeys,
     vfs, Paths,

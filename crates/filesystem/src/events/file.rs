@@ -32,14 +32,15 @@ use sos_core::commit::{CommitHash, CommitProof, CommitTree, Comparison};
 use sos_core::{
     encode,
     encoding::{encoding_options, VERSION1},
-    events::{AccountEvent, DeviceEvent, WriteEvent},
+    events::{
+        patch::{CheckedPatch, Diff, Patch},
+        AccountEvent, DeviceEvent, WriteEvent,
+    },
 };
 use sos_vfs::{self as vfs, File, OpenOptions};
 
 #[cfg(feature = "files")]
 use sos_core::events::FileEvent;
-
-use super::patch::{CheckedPatch, Diff, Patch};
 
 use async_trait::async_trait;
 use std::{
