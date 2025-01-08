@@ -1,9 +1,10 @@
 use super::create_secure_note;
 use anyhow::Result;
+use sos_database::VaultDatabaseWriter;
 use sos_filesystem::VaultFileWriter;
 use sos_sdk::prelude::*;
 use sos_test_utils::{
-    mock_encryption_key, mock_secret_note, mock_vault_file,
+    mock, mock_encryption_key, mock_secret_note, mock_vault_file,
 };
 use uuid::Uuid;
 
@@ -15,6 +16,19 @@ async fn vault_access_filesystem() -> Result<()> {
     let mut vault_access = VaultFileWriter::new(temp.path()).await?;
     test_vault_access(&mut vault_access, vault, &encryption_key).await?;
     temp.close()?;
+    Ok(())
+}
+
+/// Test the VaultAccess implementation for the database.
+#[tokio::test]
+async fn vault_access_database() -> Result<()> {
+    let (encryption_key, _, _) = mock_encryption_key()?;
+    let mut db_client = mock::memory_database().await?;
+    let vault: Vault = Default::default();
+    mock::insert_database_vault(&mut db_client, &vault).await?;
+    let mut vault_access =
+        VaultDatabaseWriter::new(db_client, *vault.id()).await;
+    test_vault_access(&mut vault_access, vault, &encryption_key).await?;
     Ok(())
 }
 
