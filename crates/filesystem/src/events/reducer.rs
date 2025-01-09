@@ -1,26 +1,31 @@
 mod device {
-    use crate::{
-        events::{DeviceEventLog, EventLog},
-        Result,
-    };
+    use crate::events::EventLog;
     use futures::{pin_mut, stream::StreamExt};
     use indexmap::IndexSet;
     use sos_core::{device::TrustedDevice, events::DeviceEvent};
 
     /// Reduce device events to a collection of devices.
-    pub struct DeviceReducer<'a> {
-        log: &'a DeviceEventLog,
+    pub struct DeviceReducer<'a, L, E>
+    where
+        L: EventLog<DeviceEvent, Error = E>,
+        E: std::error::Error + std::fmt::Debug + From<sos_core::Error>,
+    {
+        log: &'a L,
     }
 
-    impl<'a> DeviceReducer<'a> {
+    impl<'a, L, E> DeviceReducer<'a, L, E>
+    where
+        L: EventLog<DeviceEvent, Error = E>,
+        E: std::error::Error + std::fmt::Debug + From<sos_core::Error>,
+    {
         /// Create a new device reducer.
-        pub fn new(log: &'a DeviceEventLog) -> Self {
+        pub fn new(log: &'a L) -> Self {
             Self { log }
         }
 
         /// Reduce device events to a canonical collection
         /// of trusted devices.
-        pub async fn reduce(self) -> Result<IndexSet<TrustedDevice>> {
+        pub async fn reduce(self) -> Result<IndexSet<TrustedDevice>, E> {
             let mut devices = IndexSet::new();
 
             let stream = self.log.stream(false).await;

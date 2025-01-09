@@ -1746,7 +1746,7 @@ impl ClientStorage {
         event_log.apply(events.iter().collect()).await?;
 
         // Update in-memory cache of trusted devices
-        let reducer = DeviceReducer::new(&event_log);
+        let reducer = DeviceReducer::new(&*event_log);
         let devices = reducer.reduce().await?;
         self.devices = devices;
 

@@ -18,8 +18,8 @@ use sos_core::{
     },
 };
 use sos_filesystem::events::{
-    AccountEventLog, DeviceEventLog, DeviceReducer, EventLog,
-    FileEventLog, FolderEventLog,
+    AccountEventLog, DeviceEventLog, DeviceReducer, EventLog, FileEventLog,
+    FolderEventLog,
 };
 use sos_filesystem::{folder::FolderReducer, VaultFileWriter};
 use sos_sync::{
@@ -107,7 +107,7 @@ impl ForceMerge for ServerFileStorage {
         event_log.patch_replace(&diff).await?;
 
         // Update in-memory cache of trusted devices
-        let reducer = DeviceReducer::new(&event_log);
+        let reducer = DeviceReducer::new(&*event_log);
         let devices = reducer.reduce().await?;
         self.devices = devices;
 
