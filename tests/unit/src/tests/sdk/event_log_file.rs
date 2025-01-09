@@ -123,27 +123,3 @@ async fn account_event_log() -> Result<()> {
     temp.close()?;
     Ok(())
 }
-
-#[tokio::test]
-async fn memory_folder_log() -> Result<()> {
-    let mut event_log = MemoryFolderLog::new();
-
-    event_log
-        .apply(vec![&WriteEvent::CreateVault(vec![])])
-        .await?;
-
-    assert!(event_log.tree().len() > 0);
-    assert!(event_log.tree().root().is_some());
-    assert!(event_log.tree().last_commit().is_some());
-
-    let previous_commit = event_log.tree().last_commit();
-
-    event_log
-        .apply(vec![&WriteEvent::SetVaultName("name".to_owned())])
-        .await?;
-
-    let patch = event_log.diff_events(previous_commit.as_ref()).await?;
-    assert_eq!(1, patch.len());
-
-    Ok(())
-}

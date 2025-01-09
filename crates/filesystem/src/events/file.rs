@@ -85,10 +85,6 @@ pub type FolderEventLog = DiscEventLog<WriteEvent>;
 #[cfg(feature = "files")]
 pub type FileEventLog = DiscEventLog<FileEvent>;
 
-/// Event log for changes to a folder that writes to memory.
-pub type MemoryFolderLog =
-    FileSystemEventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>;
-
 /// Type of an event log file iterator.
 type Iter = Box<dyn FormatStreamIterator<EventLogRecord> + Send + Sync>;
 

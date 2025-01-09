@@ -19,7 +19,7 @@ pub use reducer::FileReducer;
 
 pub use file::{
     AccountEventLog, DeviceEventLog, DiscData, DiscEventLog, DiscLog,
-    EventLogExt, FolderEventLog, MemoryData, MemoryFolderLog, MemoryLog,
+    EventLogExt, FolderEventLog, MemoryData, MemoryLog,
 };
 pub use reducer::DeviceReducer;
 
