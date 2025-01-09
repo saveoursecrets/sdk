@@ -16,9 +16,8 @@
 use crate::{
     folder::FolderReducer,
     formats::{
-        read_file_identity_bytes,
-        stream::{MemoryBuffer, MemoryInner},
-        EventLogRecord, FileItem, FormatStream, FormatStreamIterator,
+        read_file_identity_bytes, EventLogRecord, FileItem, FormatStream,
+        FormatStreamIterator,
     },
     Error, IntoRecord, Result,
 };
@@ -62,12 +61,6 @@ pub type DiscLog = Compat<File>;
 
 /// Associated data when writing event logs to disc.
 pub type DiscData = PathBuf;
-
-/// Type for logging events to memory.
-pub type MemoryLog = MemoryBuffer;
-
-/// Associated data when writing event logs to memory.
-pub type MemoryData = MemoryInner;
 
 /// Event log that writes to disc.
 pub type DiscEventLog<E> = FileSystemEventLog<E, DiscLog, DiscLog, PathBuf>;
@@ -861,92 +854,6 @@ impl FileSystemEventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
             version: None,
             phantom: std::marker::PhantomData,
         })
-    }
-}
-
-#[async_trait]
-impl EventLogExt<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>
-    for FileSystemEventLog<
-        WriteEvent,
-        MemoryBuffer,
-        MemoryBuffer,
-        MemoryInner,
-    >
-{
-    async fn iter(&self, reverse: bool) -> Result<Iter> {
-        let content_offset = self.header_len() as u64;
-        let read_stream = MemoryBuffer { inner: self.data() };
-        let it: Iter = Box::new(
-            FormatStream::<EventLogRecord, MemoryBuffer>::new_buffer(
-                read_stream,
-                self.identity,
-                true,
-                Some(content_offset),
-                reverse,
-            )
-            .await?,
-        );
-
-        Ok(it)
-    }
-
-    fn tree(&self) -> &CommitTree {
-        &self.tree
-    }
-
-    fn tree_mut(&mut self) -> &mut CommitTree {
-        &mut self.tree
-    }
-
-    fn identity(&self) -> &'static [u8] {
-        self.identity
-    }
-
-    fn version(&self) -> Option<u16> {
-        self.version
-    }
-
-    fn file(&self) -> Arc<Mutex<(MemoryBuffer, MemoryBuffer)>> {
-        Arc::clone(&self.file)
-    }
-
-    fn data(&self) -> MemoryInner {
-        self.data.clone()
-    }
-
-    fn data_any(&self) -> &dyn std::any::Any {
-        &self.data
-    }
-
-    async fn truncate(&mut self) -> Result<()> {
-        unimplemented!("truncate on memory event log");
-    }
-
-    async fn rewind(
-        &mut self,
-        _commit: &CommitHash,
-    ) -> Result<Vec<EventRecord>> {
-        unimplemented!("rewind on memory event log");
-    }
-}
-
-impl FileSystemEventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner> {
-    /// Create a new folder event log writing to memory.
-    pub fn new() -> Self {
-        use sos_core::constants::FOLDER_EVENT_LOG_IDENTITY;
-
-        let reader = MemoryBuffer::new();
-        let writer = reader.clone();
-        let inner = Arc::clone(&reader.inner);
-
-        Self {
-            file: Arc::new(Mutex::new((reader, writer))),
-            data: inner,
-            tree: Default::default(),
-            identity: &FOLDER_EVENT_LOG_IDENTITY,
-            version: None,
-            phantom: std::marker::PhantomData,
-        }
     }
 }
 
