@@ -134,38 +134,3 @@ mod files {
 
 #[cfg(feature = "files")]
 pub use files::FileReducer;
-
-/*
-/// Reduce account events to a collection of folders.
-pub struct AccountReducer<'a> {
-    log: &'a mut AccountEventLog,
-}
-
-impl<'a> AccountReducer<'a> {
-    /// Create a new account reducer.
-    pub fn new(log: &'a mut AccountEventLog) -> Self {
-        Self { log }
-    }
-
-    /// Reduce account events to a canonical collection
-    /// of folders.
-    pub async fn reduce(self) -> Result<HashSet<VaultId>> {
-        let mut folders = HashSet::new();
-        let events = self.log.diff_records(None).await?;
-        for record in events {
-            let event = record.decode_event::<AccountEvent>().await?;
-            match event {
-                AccountEvent::UpdateFolder(id, _)
-                | AccountEvent::CreateFolder(id, _) => {
-                    folders.insert(id);
-                }
-                AccountEvent::DeleteFolder(id) => {
-                    folders.remove(&id);
-                }
-                _ => {}
-            }
-        }
-        Ok(folders)
-    }
-}
-*/

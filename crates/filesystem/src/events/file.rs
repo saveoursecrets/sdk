@@ -122,32 +122,11 @@ where
 {
     type Error = Error;
 
-    /*
-    async fn iter(&self, reverse: bool) -> Result<Iter> {
-        let content_offset = self.header_len() as u64;
-        let read_stream = File::open(&self.data).await?.compat();
-        let it: Iter = Box::new(
-            FormatStream::<EventLogRecord, Compat<File>>::new_file(
-                read_stream,
-                self.identity,
-                true,
-                Some(content_offset),
-                reverse,
-            )
-            .await?,
-        );
-        Ok(it)
-    }
-    */
-
     async fn stream(
         &self,
         reverse: bool,
     ) -> BoxStream<'static, Result<(EventRecord, E)>> {
-        let mut it = self
-            .iter(reverse)
-            .await
-            .expect("failed to initialize stream");
+        let mut it = self.iter(reverse).await.expect("to initialize stream");
 
         let handle = self.file();
         Box::pin(try_stream! {
@@ -531,7 +510,7 @@ where
         Ok(event)
     }
 
-    /// Iterate the log records.
+    /// Iterate the event records.
     pub async fn iter(&self, reverse: bool) -> Result<Iter> {
         let content_offset = self.header_len() as u64;
         let read_stream = File::open(&self.data).await?.compat();

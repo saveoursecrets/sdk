@@ -1,10 +1,10 @@
 use crate::events::FolderEventLog;
 use crate::{Error, Result};
+use futures::{pin_mut, StreamExt};
 use indexmap::IndexMap;
-use sos_core::commit::CommitHash;
 use sos_core::{
-    crypto::AeadPack, decode, events::WriteEvent, SecretId, VaultCommit,
-    VaultFlags,
+    commit::CommitHash, crypto::AeadPack, decode, events::EventLog,
+    events::WriteEvent, SecretId, VaultCommit, VaultFlags,
 };
 use sos_vault::Vault;
 
@@ -62,9 +62,12 @@ impl FolderReducer {
         mut self,
         event_log: &FolderEventLog,
     ) -> Result<FolderReducer> {
-        let mut it = event_log.iter(false).await?;
-        if let Some(log) = it.next().await? {
-            let event = event_log.decode_event(&log).await?;
+        let stream = event_log.stream(false).await;
+        pin_mut!(stream);
+
+        if let Some(result) = stream.next().await {
+            let (record, event) = result?;
+            // let event = event_log.decode_event(&log).await?;
 
             if let WriteEvent::CreateVault(vault) = event {
                 self.vault = Some(vault.clone());
@@ -72,13 +75,13 @@ impl FolderReducer {
                 // If we are only reading until the first commit
                 // hash return early.
                 if let Some(until) = &self.until_commit {
-                    if until.0 == log.commit() {
+                    if &until.0 == record.commit().as_ref() {
                         return Ok(self);
                     }
                 }
 
-                while let Some(log) = it.next().await? {
-                    let event = event_log.decode_event(&log).await?;
+                while let Some(result) = stream.next().await {
+                    let (record, event) = result?;
                     match event {
                         WriteEvent::CreateVault(_) => {
                             return Err(Error::CreateEventOnlyFirst)
@@ -107,7 +110,7 @@ impl FolderReducer {
                     // If we are reading to a particular commit hash
                     // we are done.
                     if let Some(until) = &self.until_commit {
-                        if until.0 == log.commit() {
+                        if &until.0 == record.commit().as_ref() {
                             break;
                         }
                     }
