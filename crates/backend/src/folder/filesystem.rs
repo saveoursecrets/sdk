@@ -1,10 +1,11 @@
 //! Folder implementation backed by the filesystem.
 use super::GenericFolder;
 use crate::reducers::FolderReducer;
+use crate::Error;
 use sos_core::events::EventLog;
 use sos_core::{constants::EVENT_LOG_EXT, decode};
 use sos_filesystem::{
-    events::FolderEventLog, Error, FileSystemGateKeeper, VaultFileWriter,
+    events::FolderEventLog, FileSystemGateKeeper, VaultFileWriter,
 };
 use sos_vault::Vault;
 use sos_vfs as vfs;

@@ -4,6 +4,7 @@ mod folder;
 pub use filesystem::DiscFolder;
 use folder::Folder as GenericFolder;
 
+use crate::Error;
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -36,33 +37,13 @@ impl Folder {
         self.keeper().vault()
     }
 
-    /// GateKeeper for this folder.
-    pub fn keeper<E>(&self) -> &GateKeeper<E>
-    where
-        E: std::error::Error
-            + std::fmt::Debug
-            + From<sos_core::Error>
-            + From<sos_vault::Error>
-            + From<std::io::Error>
-            + Send
-            + Sync
-            + 'static,
-    {
+    /// Gate keeper for this folder.
+    pub fn keeper(&self) -> &GateKeeper<Error> {
         todo!();
     }
 
-    /// Mutable gatekeeper for this folder.
-    pub fn keeper_mut<E>(&mut self) -> &mut GateKeeper<E>
-    where
-        E: std::error::Error
-            + std::fmt::Debug
-            + From<sos_core::Error>
-            + From<sos_vault::Error>
-            + From<std::io::Error>
-            + Send
-            + Sync
-            + 'static,
-    {
+    /// Mutable gate keeper for this folder.
+    pub fn keeper_mut(&mut self) -> &mut GateKeeper<Error> {
         todo!();
     }
 
