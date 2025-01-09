@@ -59,10 +59,7 @@ pub use device::DeviceReducer;
 
 #[cfg(feature = "files")]
 mod files {
-    use crate::{
-        events::{EventLog, FileEventLog},
-        Result,
-    };
+    use crate::events::EventLog;
     use futures::{pin_mut, stream::StreamExt};
     use indexmap::IndexSet;
     use sos_core::commit::CommitHash;
@@ -70,13 +67,21 @@ mod files {
     use sos_core::ExternalFile;
 
     /// Reduce file events to a collection of external files.
-    pub struct FileReducer<'a> {
-        log: &'a FileEventLog,
+    pub struct FileReducer<'a, L, E>
+    where
+        L: EventLog<FileEvent, Error = E>,
+        E: std::error::Error + std::fmt::Debug + From<sos_core::Error>,
+    {
+        log: &'a L,
     }
 
-    impl<'a> FileReducer<'a> {
+    impl<'a, L, E> FileReducer<'a, L, E>
+    where
+        L: EventLog<FileEvent, Error = E>,
+        E: std::error::Error + std::fmt::Debug + From<sos_core::Error>,
+    {
         /// Create a new file reducer.
-        pub fn new(log: &'a FileEventLog) -> Self {
+        pub fn new(log: &'a L) -> Self {
             Self { log }
         }
 
@@ -107,7 +112,7 @@ mod files {
         pub async fn reduce(
             self,
             from: Option<&CommitHash>,
-        ) -> Result<IndexSet<ExternalFile>> {
+        ) -> Result<IndexSet<ExternalFile>, E> {
             let mut files: IndexSet<ExternalFile> = IndexSet::new();
 
             // Reduce from the target commit.

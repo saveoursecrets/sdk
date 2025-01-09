@@ -69,7 +69,7 @@ pub trait StorageEventLogs: Send + Sync + 'static {
         let event_log = files.read().await;
 
         // Canonical list of external files.
-        let reducer = FileReducer::new(&event_log);
+        let reducer = FileReducer::new(&*event_log);
         Ok(reducer.reduce(None).await?)
     }
 

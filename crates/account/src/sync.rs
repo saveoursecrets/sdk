@@ -400,7 +400,7 @@ impl Merge for LocalAccount {
         let (checked_patch, external_files) =
             if is_init_diff && event_log.tree().is_empty() {
                 event_log.patch_unchecked(&diff.patch).await?;
-                let reducer = FileReducer::new(&event_log);
+                let reducer = FileReducer::new(&*event_log);
                 let external_files = reducer.reduce(None).await?;
 
                 let proof = event_log.tree().head()?;
@@ -409,7 +409,7 @@ impl Merge for LocalAccount {
                 let checked_patch = event_log
                     .patch_checked(&diff.checkpoint, &diff.patch)
                     .await?;
-                let reducer = FileReducer::new(&event_log);
+                let reducer = FileReducer::new(&*event_log);
                 let external_files =
                     reducer.reduce(diff.last_commit.as_ref()).await?;
                 (checked_patch, external_files)
