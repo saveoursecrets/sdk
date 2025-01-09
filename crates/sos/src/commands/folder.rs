@@ -12,7 +12,7 @@ use human_bytes::human_bytes;
 use sos_account::{Account, FolderCreate};
 use sos_core::events::LogEvent;
 use sos_database::StorageError;
-use sos_sdk::{events::EventLogExt, identity::AccountRef, vault::FolderRef};
+use sos_sdk::{events::EventLog, identity::AccountRef, vault::FolderRef};
 
 #[derive(Subcommand, Debug)]
 pub enum Command {

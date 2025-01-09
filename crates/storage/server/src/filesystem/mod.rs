@@ -11,7 +11,7 @@ use sos_core::{
 };
 use sos_filesystem::{
     events::{
-        AccountEventLog, DeviceEventLog, DeviceReducer, EventLogExt,
+        AccountEventLog, DeviceEventLog, DeviceReducer, EventLog,
         FileEventLog, FolderEventLog,
     },
     folder::FolderReducer,

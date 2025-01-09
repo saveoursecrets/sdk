@@ -1,7 +1,7 @@
 //! Storage backed by the filesystem.
 use crate::folder::FolderReducer;
 use crate::{
-    events::{EventLogExt, FolderEventLog},
+    events::{EventLog, FolderEventLog},
     FileSystemGatekeeper, Result, VaultFileWriter,
 };
 use sos_core::{
@@ -28,7 +28,7 @@ pub type DiscFolder = Folder<FolderEventLog>;
 /// Folder is a combined vault and event log.
 pub struct Folder<T>
 where
-    T: EventLogExt<WriteEvent> + Send + Sync + 'static,
+    T: EventLog<WriteEvent> + Send + Sync + 'static,
 {
     pub(crate) keeper: FileSystemGatekeeper,
     events: Arc<RwLock<T>>,
@@ -36,7 +36,7 @@ where
 
 impl<T> Folder<T>
 where
-    T: EventLogExt<WriteEvent> + Send + Sync + 'static,
+    T: EventLog<WriteEvent> + Send + Sync + 'static,
 {
     /// Create a new folder.
     fn init(keeper: FileSystemGatekeeper, events: T) -> Self {

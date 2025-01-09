@@ -4,7 +4,7 @@ use sos_core::events::{
     patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff, Patch},
     AccountEvent, DeviceEvent, EventRecord, WriteEvent,
 };
-use sos_filesystem::events::{DiscEventLog, EventLogExt};
+use sos_filesystem::events::{DiscEventLog, EventLog};
 use sos_protocol::{
     DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
     ScanResponse,

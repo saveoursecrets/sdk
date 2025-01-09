@@ -17,7 +17,7 @@ use sos_protocol::{
 use sos_sdk::{
     constants::{FILES_DIR, VAULT_EXT},
     crypto::AccessKey,
-    events::EventLogExt,
+    events::EventLog,
     vault::{Summary, VaultId},
     vfs, Paths,
 };

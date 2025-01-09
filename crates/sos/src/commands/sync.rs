@@ -11,7 +11,7 @@ use sos_core::{
 use sos_database::StorageError;
 use sos_net::NetworkAccount;
 use sos_protocol::{AccountSync, SyncOptions};
-use sos_sdk::{events::EventLogExt, identity::AccountRef};
+use sos_sdk::{events::EventLog, identity::AccountRef};
 use sos_sync::{StorageEventLogs, SyncStatus, SyncStorage};
 use url::Url;
 

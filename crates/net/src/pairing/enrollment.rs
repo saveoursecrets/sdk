@@ -12,7 +12,7 @@ use sos_core::{
     AccountId, Origin, VaultId,
 };
 use sos_filesystem::{
-    events::{AccountEventLog, DeviceEventLog, EventLogExt, FolderEventLog},
+    events::{AccountEventLog, DeviceEventLog, EventLog, FolderEventLog},
     folder::FolderReducer,
     VaultFileWriter,
 };

@@ -22,7 +22,7 @@ use sos_protocol::{
 use sos_sdk::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
-    events::{EventLogExt, EventRecord},
+    events::{EventLog, EventRecord},
     identity::{AccountRef, PublicIdentity},
     vault::{
         secret::{Secret, SecretMeta, SecretRow},

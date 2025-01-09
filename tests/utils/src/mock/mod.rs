@@ -17,7 +17,7 @@ use sos_core::{
     AccountId, SecretId, VaultEntry,
 };
 use sos_database::db::{AccountEntity, FolderEntity};
-use sos_filesystem::events::{EventLogExt, FolderEventLog};
+use sos_filesystem::events::{EventLog, FolderEventLog};
 use sos_password::diceware::generate_passphrase;
 use sos_vault::{
     secret::{FileContent, IdentityKind, Secret, SecretMeta},

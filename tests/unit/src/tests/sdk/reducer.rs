@@ -3,7 +3,7 @@ use secrecy::ExposeSecret;
 use sos_core::{
     crypto::PrivateKey, decode, SecretId, VaultCommit, VaultEntry,
 };
-use sos_filesystem::events::{EventLogExt, FolderEventLog};
+use sos_filesystem::events::{EventLog, FolderEventLog};
 use sos_filesystem::folder::FolderReducer;
 use sos_test_utils::mock;
 use sos_vault::{

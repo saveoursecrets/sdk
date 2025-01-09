@@ -13,7 +13,7 @@ use sos_core::Origin;
 use sos_core::{commit::CommitHash, Paths, SecretId};
 use sos_filesystem::formats::FormatStreamIterator;
 use sos_sdk::prelude::{
-    decode, encode, vfs, AccountEventLog, DeviceEventLog, EventLogExt,
+    decode, encode, vfs, AccountEventLog, DeviceEventLog, EventLog,
     EventRecord, FolderEventLog, Identity, PublicIdentity, Vault,
     VaultCommit, VaultEntry,
 };

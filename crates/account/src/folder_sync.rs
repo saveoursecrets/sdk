@@ -10,7 +10,7 @@ use sos_core::{
 };
 use sos_filesystem::folder::{Folder, FolderReducer};
 use sos_sdk::{
-    events::EventLogExt, identity::IdentityFolder, vault::secret::SecretRow,
+    events::EventLog, identity::IdentityFolder, vault::secret::SecretRow,
 };
 
 /// Options for folder merge.
@@ -52,7 +52,7 @@ pub(crate) trait FolderMerge {
 #[async_trait]
 impl<T> IdentityFolderMerge for IdentityFolder<T>
 where
-    T: EventLogExt<WriteEvent> + Send + Sync,
+    T: EventLog<WriteEvent> + Send + Sync,
 {
     async fn merge(
         &mut self,
@@ -74,7 +74,7 @@ where
 #[async_trait]
 impl<T> FolderMerge for Folder<T>
 where
-    T: EventLogExt<WriteEvent> + Send + Sync,
+    T: EventLog<WriteEvent> + Send + Sync,
 {
     async fn merge<'a>(
         &mut self,

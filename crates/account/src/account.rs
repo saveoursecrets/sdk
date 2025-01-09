@@ -13,7 +13,7 @@ use sos_core::{
 use sos_database::StorageError;
 use sos_filesystem::{folder::FolderReducer, FileSystemGatekeeper};
 use sos_sdk::{
-    events::{AccountEventLog, EventLogExt, EventRecord, FolderEventLog},
+    events::{AccountEventLog, EventLog, EventRecord, FolderEventLog},
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     vault::{
         secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},

@@ -1,6 +1,6 @@
 mod device {
     use crate::{
-        events::{DeviceEventLog, EventLogExt},
+        events::{DeviceEventLog, EventLog},
         Result,
     };
     use futures::{pin_mut, stream::StreamExt};
@@ -55,7 +55,7 @@ pub use device::DeviceReducer;
 #[cfg(feature = "files")]
 mod files {
     use crate::{
-        events::{EventLogExt, FileEventLog},
+        events::{EventLog, FileEventLog},
         Result,
     };
     use futures::{pin_mut, stream::StreamExt};

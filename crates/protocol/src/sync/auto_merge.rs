@@ -16,7 +16,7 @@ use sos_core::{
     },
     VaultId,
 };
-use sos_filesystem::events::EventLogExt;
+use sos_filesystem::events::EventLog;
 use sos_sync::{
     EventLogType, ForceMerge, MaybeConflict, Merge, MergeOutcome,
     StorageEventLogs, SyncDirection, SyncStatus,

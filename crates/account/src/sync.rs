@@ -17,7 +17,7 @@ use sos_core::{
 use sos_database::StorageError;
 use sos_sdk::{
     decode,
-    events::{DeviceReducer, EventLogExt},
+    events::{DeviceReducer, EventLog},
     vault::Vault,
 };
 use sos_sync::{

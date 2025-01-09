@@ -5,7 +5,7 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use sos_core::AccountId;
 use sos_sdk::{
-    events::{AccountEvent, EventLogExt, WriteEvent},
+    events::{AccountEvent, EventLog, WriteEvent},
     prelude::{ErrorExt, Paths},
     vault::VaultId,
 };

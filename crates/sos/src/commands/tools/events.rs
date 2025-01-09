@@ -7,7 +7,7 @@ use sos_core::events::LogEvent;
 use sos_sdk::{
     events::{
         AccountEvent, AccountEventLog, DeviceEvent, DeviceEventLog,
-        DiscEventLog, EventLogExt, FileEvent, FileEventLog, FolderEventLog,
+        DiscEventLog, EventLog, FileEvent, FileEventLog, FolderEventLog,
         WriteEvent,
     },
     vfs,

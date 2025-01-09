@@ -16,7 +16,7 @@ use sos_core::{
     decode, encode, AccountId, Paths,
 };
 use sos_filesystem::{
-    events::{EventLogExt, FolderEventLog},
+    events::{EventLog, FolderEventLog},
     folder::{DiscFolder, Folder},
     FileSystemGatekeeper, VaultFileWriter,
 };
@@ -44,7 +44,7 @@ pub type DiscIdentityFolder = IdentityFolder<FolderEventLog>;
 /// asymmetric encryption key and delegated passwords.
 pub struct IdentityFolder<T>
 where
-    T: EventLogExt<WriteEvent> + Send + Sync + 'static,
+    T: EventLog<WriteEvent> + Send + Sync + 'static,
 {
     /// Folder storage.
     #[doc(hidden)]
@@ -59,7 +59,7 @@ where
 
 impl<T> IdentityFolder<T>
 where
-    T: EventLogExt<WriteEvent> + Send + Sync + 'static,
+    T: EventLog<WriteEvent> + Send + Sync + 'static,
 {
     /// Private identity.
     pub fn private_identity(&self) -> &PrivateIdentity {

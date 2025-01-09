@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 use sos_core::{
     commit::Comparison, events::patch::FolderDiff, Origin, VaultId,
 };
-use sos_sdk::events::EventLogExt;
+use sos_sdk::events::EventLog;
 use sos_sync::{
     MaybeDiff, StorageEventLogs, SyncDiff, SyncStatus, SyncStorage,
 };

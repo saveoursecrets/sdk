@@ -19,7 +19,7 @@ use sos_filesystem::folder::{DiscFolder, FolderReducer};
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
     events::{
-        AccountEventLog, EventLogExt, EventRecord, FolderEventLog, IntoRecord,
+        AccountEventLog, EventLog, EventRecord, FolderEventLog, IntoRecord,
     },
     identity::FolderKeys,
     vfs, Paths,

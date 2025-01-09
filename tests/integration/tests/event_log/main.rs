@@ -1,7 +1,7 @@
 use anyhow::Result;
 use binary_stream::futures::{Decodable, Encodable};
 use sos_core::{commit::CommitHash, events::LogEvent};
-use sos_sdk::{events::DiscEventLog, events::EventLogExt};
+use sos_sdk::{events::DiscEventLog, events::EventLog};
 
 mod account_events;
 mod change_password;

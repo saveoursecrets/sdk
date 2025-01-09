@@ -10,7 +10,7 @@ use sos_database::files::{
     FileSource, FileStorageDiff, FileStorageResult,
 };
 use sos_sdk::{
-    events::EventLogExt,
+    events::EventLog,
     vault::{
         secret::{FileContent, Secret, SecretRow, UserData},
         Summary,

@@ -7,7 +7,7 @@ use hex;
 use sos_core::commit::CommitTree;
 use sos_core::encoding::encoding_options;
 use sos_filesystem::{
-    events::{EventLogExt, FolderEventLog},
+    events::{EventLog, FolderEventLog},
     formats::{EventLogRecord, FileItem},
 };
 use sos_vfs as vfs;

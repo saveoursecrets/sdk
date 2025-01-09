@@ -12,7 +12,7 @@ use sos_core::{
 use sos_core::{AccountId, Paths};
 use sos_filesystem::VaultFileWriter;
 use sos_filesystem::{
-    events::{EventLogExt, FolderEventLog},
+    events::{EventLog, FolderEventLog},
     folder::FolderReducer,
 };
 use sos_login::{DiscIdentityFolder, Identity, PublicIdentity};

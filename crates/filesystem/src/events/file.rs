@@ -98,7 +98,7 @@ where
 
 /// Event log iterator, stream and diff support.
 #[async_trait]
-pub trait EventLogExt<E>: Send + Sync
+pub trait EventLog<E>: Send + Sync
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
 {
@@ -260,7 +260,7 @@ where
 }
 
 #[async_trait]
-impl<E> EventLogExt<E> for FileSystemEventLog<E>
+impl<E> EventLog<E> for FileSystemEventLog<E>
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
 {

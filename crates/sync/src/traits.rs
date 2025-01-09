@@ -11,7 +11,7 @@ use sos_core::{
     VaultId,
 };
 use sos_filesystem::events::{
-    AccountEventLog, DeviceEventLog, EventLogExt, FolderEventLog,
+    AccountEventLog, DeviceEventLog, EventLog, FolderEventLog,
 };
 use sos_vault::Summary;
 use std::{
