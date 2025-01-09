@@ -33,6 +33,7 @@ sos-sync = { workspace = true, features = ["full"] }
 sos-server-storage = { workspace = true, features = ["full"] }
 sos-test-utils.workspace = true
 sos-vault.workspace = true
+sos-vfs.workspace = true
 
 anyhow.workspace = true
 tempfile.workspace = true

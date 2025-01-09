@@ -17,11 +17,8 @@ use sos_core::{
     decode, encode, AccountId, Paths,
 };
 use sos_filesystem::{
-    events::{
-        DiscData, DiscLog, EventLogExt, FolderEventLog, MemoryData,
-        MemoryFolderLog, MemoryLog,
-    },
-    folder::{DiscFolder, Folder, MemoryFolder},
+    events::{DiscData, DiscLog, EventLogExt, FolderEventLog},
+    folder::{DiscFolder, Folder},
     FileSystemGatekeeper, VaultFileWriter,
 };
 use sos_password::diceware::generate_passphrase_words;
@@ -44,10 +41,6 @@ const VAULT_PASSPHRASE_WORDS: usize = 12;
 /// Identity folder that reads and writes to disc.
 pub type DiscIdentityFolder =
     IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData>;
-
-/// Identity folder that reads and writes to memory.
-pub type MemoryIdentityFolder =
-    IdentityFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData>;
 
 /// Identity vault stores the account signing key,
 /// asymmetric encryption key and delegated passwords.
@@ -630,42 +623,6 @@ impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
         key: &AccessKey,
     ) -> Result<Self> {
         let mut folder = DiscFolder::new(path).await?;
-
-        if !folder
-            .keeper()
-            .vault()
-            .flags()
-            .contains(VaultFlags::IDENTITY)
-        {
-            return Err(Error::NotIdentityFolder);
-        }
-
-        folder.unlock(key).await?;
-
-        let (index, private_identity) =
-            Self::login_private_identity(*account_id, folder.keeper())
-                .await?;
-
-        Ok(Self {
-            folder,
-            index,
-            private_identity,
-            devices: None,
-        })
-    }
-}
-
-impl IdentityFolder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
-    /// Attempt to login using a buffer.
-    ///
-    /// The purpose of buffer login is to verify that a user
-    /// can access the identity folder stored in a backup archive.
-    pub async fn login(
-        account_id: &AccountId,
-        buffer: impl AsRef<[u8]>,
-        key: &AccessKey,
-    ) -> Result<Self> {
-        let mut folder = MemoryFolder::new(buffer).await?;
 
         if !folder
             .keeper()

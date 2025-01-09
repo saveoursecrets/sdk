@@ -5591,6 +5591,7 @@ dependencies = [
  "sos-sync",
  "sos-test-utils",
  "sos-vault",
+ "sos-vfs",
  "tempfile",
  "time",
  "tokio",

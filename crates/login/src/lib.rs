@@ -1,7 +1,8 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Account identity management.
+//! Identity folder protects delegated passwords and
+//! is used to authenticate an account.
 
 pub mod device;
 mod error;
@@ -11,9 +12,7 @@ mod private_identity;
 mod public_identity;
 
 pub use identity::*;
-pub use identity_folder::{
-    DiscIdentityFolder, IdentityFolder, MemoryIdentityFolder,
-};
+pub use identity_folder::{DiscIdentityFolder, IdentityFolder};
 pub use private_identity::PrivateIdentity;
 pub use public_identity::{AccountRef, PublicIdentity};
 

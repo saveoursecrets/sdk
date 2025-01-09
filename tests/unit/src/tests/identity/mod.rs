@@ -5,9 +5,11 @@ use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
     crypto::AccessKey,
     encode,
-    identity::MemoryIdentityFolder,
+    identity::DiscIdentityFolder,
     vault::{BuilderCredentials, Vault, VaultBuilder, VaultFlags},
 };
+use sos_vfs as vfs;
+use tempfile::NamedTempFile;
 
 #[tokio::test]
 async fn identity_not_identity_vault() -> Result<()> {
@@ -17,9 +19,12 @@ async fn identity_not_identity_vault() -> Result<()> {
         .build(BuilderCredentials::Password(password.clone(), None))
         .await?;
     let buffer = encode(&vault).await?;
+    let file = NamedTempFile::new()?;
+    vfs::write(file.path(), &buffer).await?;
 
     let key: AccessKey = password.into();
-    let result = MemoryIdentityFolder::login(&account_id, buffer, &key).await;
+    let result =
+        DiscIdentityFolder::login(&account_id, file.path(), &key).await;
 
     if let Err(sos_login::Error::NotIdentityFolder) = result {
         Ok(())
@@ -44,9 +49,12 @@ async fn no_identity_key() -> Result<()> {
 
     let vault: Vault = keeper.into();
     let buffer = encode(&vault).await?;
+    let file = NamedTempFile::new()?;
+    vfs::write(file.path(), &buffer).await?;
 
     let key: AccessKey = password.into();
-    let result = MemoryIdentityFolder::login(&account_id, buffer, &key).await;
+    let result =
+        DiscIdentityFolder::login(&account_id, file.path(), &key).await;
 
     if let Err(sos_login::Error::NoIdentityKey) = result {
         Ok(())
