@@ -22,10 +22,6 @@ where
     /// Commit tree contains the in-memory merkle tree.
     fn tree(&self) -> &CommitTree;
 
-    /// Mutable commit tree.
-    #[doc(hidden)]
-    fn tree_mut(&mut self) -> &mut CommitTree;
-
     /// Identity bytes.
     #[doc(hidden)]
     fn identity(&self) -> &'static [u8];
@@ -50,11 +46,6 @@ where
 
     /// Truncate the backing storage to an empty file.
     async fn truncate(&mut self) -> Result<(), Self::Error>;
-
-    /*
-    /// Event log iterator.
-    async fn iter(&self, reverse: bool) -> Result<Self::Iter, Self::Error>;
-    */
 
     /// Load data from storage to build a commit tree in memory.
     async fn load_tree(&mut self) -> Result<(), Self::Error>;
@@ -157,15 +148,6 @@ where
         &self,
         commit: Option<&CommitHash>,
     ) -> Result<Vec<EventRecord>, Self::Error>;
-
-    /*
-    /// Read the event data from an item.
-    #[doc(hidden)]
-    async fn decode_event(
-        &self,
-        item: &EventLogRecord,
-    ) -> Result<E, Self::Error>;
-    */
 
     /// Read encoding version from the backing storage.
     #[doc(hidden)]
