@@ -12,6 +12,7 @@ mod account;
 mod device;
 mod event;
 mod event_kind;
+mod event_log;
 #[cfg(feature = "files")]
 mod file;
 pub mod patch;
