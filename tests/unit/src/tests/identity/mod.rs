@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sos_core::AccountId;
-use sos_filesystem::FileSystemGatekeeper;
+use sos_filesystem::FileSystemGateKeeper;
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
     crypto::AccessKey,
@@ -43,7 +43,7 @@ async fn no_identity_key() -> Result<()> {
         .build(BuilderCredentials::Password(password.clone(), None))
         .await?;
 
-    let mut keeper = FileSystemGatekeeper::new(vault);
+    let mut keeper = FileSystemGateKeeper::new(vault);
     let key = password.clone().into();
     keeper.unlock(&key).await?;
 

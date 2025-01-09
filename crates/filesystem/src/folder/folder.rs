@@ -2,7 +2,7 @@
 use crate::folder::FolderReducer;
 use crate::{
     events::{EventLog, FolderEventLog},
-    FileSystemGatekeeper, Result, VaultFileWriter,
+    FileSystemGateKeeper, Result, VaultFileWriter,
 };
 use sos_core::{
     commit::{CommitHash, CommitState},
@@ -27,13 +27,13 @@ pub type DiscFolder = Folder;
 
 /// Folder is a combined vault and event log.
 pub struct Folder {
-    pub(crate) keeper: FileSystemGatekeeper,
+    pub(crate) keeper: FileSystemGateKeeper,
     events: Arc<RwLock<FolderEventLog>>,
 }
 
 impl Folder {
     /// Create a new folder.
-    fn init(keeper: FileSystemGatekeeper, events: FolderEventLog) -> Self {
+    fn init(keeper: FileSystemGateKeeper, events: FolderEventLog) -> Self {
         Self {
             keeper,
             events: Arc::new(RwLock::new(events)),
@@ -45,13 +45,13 @@ impl Folder {
         self.keeper.id()
     }
 
-    /// Gatekeeper for this folder.
-    pub fn keeper(&self) -> &FileSystemGatekeeper {
+    /// GateKeeper for this folder.
+    pub fn keeper(&self) -> &FileSystemGateKeeper {
         &self.keeper
     }
 
     /// Mutable gatekeeper for this folder.
-    pub fn keeper_mut(&mut self) -> &mut FileSystemGatekeeper {
+    pub fn keeper_mut(&mut self) -> &mut FileSystemGateKeeper {
         &mut self.keeper
     }
 
@@ -199,7 +199,7 @@ impl Folder {
         Ok(())
     }
 
-    /// Apply event recordds to the event log.
+    /// Apply event records to the event log.
     pub async fn apply_records(
         &mut self,
         records: Vec<EventRecord>,
@@ -248,7 +248,7 @@ impl Folder {
 
         let mirror = VaultFileWriter::new(path.as_ref()).await?;
         let keeper =
-            FileSystemGatekeeper::new_mirror(vault, Box::new(mirror));
+            FileSystemGateKeeper::new_mirror(vault, Box::new(mirror));
 
         Ok(Self::init(keeper, event_log))
     }

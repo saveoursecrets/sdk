@@ -14,7 +14,7 @@ use sos_sdk::{
     identity::{FolderKeys, Identity, IdentityFolder},
     vault::{
         secret::{Secret, SecretId, SecretMeta, SecretRow},
-        BuilderCredentials, Gatekeeper, Vault, VaultBuilder, VaultFlags,
+        BuilderCredentials, GateKeeper, Vault, VaultBuilder, VaultFlags,
     },
 };
 use std::{collections::HashMap, path::PathBuf};
@@ -227,7 +227,7 @@ impl AccountBuilder {
 
         // Save the master passphrase in the default vault
         if save_passphrase {
-            let mut keeper = Gatekeeper::<Error>::new(default_folder);
+            let mut keeper = GateKeeper::<Error>::new(default_folder);
             let key: AccessKey = vault_passphrase.clone().into();
             keeper.unlock(&key).await?;
 

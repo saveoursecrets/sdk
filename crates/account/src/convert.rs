@@ -5,7 +5,7 @@ use sos_sdk::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
     vault::{
-        secret::SecretRow, BuilderCredentials, Gatekeeper, Summary, Vault,
+        secret::SecretRow, BuilderCredentials, GateKeeper, Summary, Vault,
         VaultBuilder,
     },
     vfs,
@@ -137,7 +137,7 @@ impl LocalAccount {
 
         let seed = input_vault.seed().cloned();
         let name = input_vault.name().to_owned();
-        let mut input = Gatekeeper::<Error>::new(input_vault);
+        let mut input = GateKeeper::<Error>::new(input_vault);
         input.unlock(key).await?;
         let meta = input.vault_meta().await?;
 
@@ -163,7 +163,7 @@ impl LocalAccount {
             }
         };
 
-        let mut output = Gatekeeper::<Error>::new(output_vault);
+        let mut output = GateKeeper::<Error>::new(output_vault);
         output.unlock(key).await?;
 
         for key in input.vault().keys() {

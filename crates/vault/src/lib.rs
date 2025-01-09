@@ -13,7 +13,7 @@ mod vault;
 pub use builder::{BuilderCredentials, VaultBuilder};
 pub use change::ChangePassword;
 pub use error::Error;
-pub use gatekeeper::Gatekeeper;
+pub use gatekeeper::GateKeeper;
 pub use vault::{
     FolderRef, Header, SharedAccess, Summary, Vault, VaultAccess, VaultMeta,
 };

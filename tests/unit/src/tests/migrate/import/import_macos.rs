@@ -5,7 +5,7 @@ use sos_migrate::Convert;
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
     crypto::AccessKey,
-    vault::{BuilderCredentials, Gatekeeper, VaultBuilder},
+    vault::{BuilderCredentials, GateKeeper, VaultBuilder},
 };
 use url::Url;
 
@@ -46,7 +46,7 @@ async fn macos_passwords_csv_convert() -> Result<()> {
         .await?;
 
     let mut search = SearchIndex::new();
-    let mut keeper = Gatekeeper::new(vault);
+    let mut keeper = GateKeeper::new(vault);
     keeper.unlock(&key).await?;
     search.add_folder(&keeper).await?;
 
@@ -84,7 +84,7 @@ async fn macos_passwords_notes_csv_convert() -> Result<()> {
         .await?;
 
     let mut search = SearchIndex::new();
-    let mut keeper = Gatekeeper::new(vault);
+    let mut keeper = GateKeeper::new(vault);
     keeper.unlock(&key).await?;
     search.add_folder(&keeper).await?;
 

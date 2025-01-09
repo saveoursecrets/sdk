@@ -12,7 +12,7 @@ pub use sos_vault::{
         FileContent, IdentityKind, Secret, SecretFlags, SecretMeta,
         SecretRef, SecretRow, SecretSigner, SecretType, UserData,
     },
-    BuilderCredentials, ChangePassword, Contents, FolderRef, Gatekeeper,
+    BuilderCredentials, ChangePassword, Contents, FolderRef, GateKeeper,
     Header, Summary, Vault, VaultAccess, VaultBuilder,
 };
 pub use sos_vfs as vfs;

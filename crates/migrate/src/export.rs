@@ -5,7 +5,7 @@ use async_zip::{tokio::write::ZipFileWriter, Compression, ZipEntryBuilder};
 use secrecy::{ExposeSecret, SecretBox};
 use serde::{Deserialize, Serialize};
 use sos_core::{SecretId, VaultId};
-use sos_filesystem::FileSystemGatekeeper;
+use sos_filesystem::FileSystemGateKeeper;
 use sos_vault::{
     secret::{FileContent, Secret, SecretMeta},
     Summary, VaultMeta,
@@ -43,9 +43,9 @@ impl<W: AsyncWrite + Unpin> PublicExport<W> {
 
     /// Add the secrets in a vault to this migration.
     ///
-    /// The passed `Gatekeeper` must already be unlocked so the
+    /// The passed `GateKeeper` must already be unlocked so the
     /// secrets can be decrypted.
-    pub async fn add(&mut self, access: &FileSystemGatekeeper) -> Result<()> {
+    pub async fn add(&mut self, access: &FileSystemGateKeeper) -> Result<()> {
         // This verifies decryption early, if the keeper is locked
         // it will error here
         let meta = access.vault_meta().await?;

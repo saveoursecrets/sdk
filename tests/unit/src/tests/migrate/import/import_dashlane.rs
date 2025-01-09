@@ -7,7 +7,7 @@ use sos_migrate::Convert;
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
     crypto::AccessKey,
-    vault::{secret::Secret, BuilderCredentials, Gatekeeper, VaultBuilder},
+    vault::{secret::Secret, BuilderCredentials, GateKeeper, VaultBuilder},
 };
 use url::Url;
 
@@ -49,7 +49,7 @@ async fn dashlane_csv_convert() -> Result<()> {
         .await?;
 
     let mut search = SearchIndex::new();
-    let mut keeper = Gatekeeper::new(vault);
+    let mut keeper = GateKeeper::new(vault);
     keeper.unlock(&key).await?;
     search.add_folder(&keeper).await?;
 

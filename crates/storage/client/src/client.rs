@@ -715,7 +715,7 @@ impl ClientStorage {
     ///
     /// If a new access key is given and the target
     /// folder is the currently open folder then the
-    /// in-memory `Gatekeeper` is updated to use the new
+    /// in-memory `GateKeeper` is updated to use the new
     /// access key.
     async fn refresh_vault(
         &mut self,

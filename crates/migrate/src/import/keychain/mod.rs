@@ -16,7 +16,7 @@ use security_framework::{
 };
 use sos_core::crypto::AccessKey;
 use sos_database::search::SearchIndex;
-use sos_filesystem::FileSystemGatekeeper;
+use sos_filesystem::FileSystemGateKeeper;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},
     Vault,
@@ -111,7 +111,7 @@ impl KeychainImport {
 }
 
 async fn rename_label(
-    keeper: &mut FileSystemGatekeeper,
+    keeper: &mut FileSystemGateKeeper,
     label: String,
     duplicates: &mut HashMap<String, usize>,
     index: &SearchIndex,
@@ -145,7 +145,7 @@ impl Convert for KeychainImport {
         let list = parser.parse()?;
 
         let mut index = SearchIndex::new();
-        let mut keeper = FileSystemGatekeeper::new(vault);
+        let mut keeper = FileSystemGateKeeper::new(vault);
         keeper.unlock(&key).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();

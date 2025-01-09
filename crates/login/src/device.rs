@@ -4,7 +4,7 @@ use sos_core::{
     device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
     encode,
 };
-use sos_filesystem::FileSystemGatekeeper;
+use sos_filesystem::FileSystemGateKeeper;
 use sos_signer::ed25519::{BoxedEd25519Signer, SingleParty};
 use sos_vault::Vault;
 
@@ -64,7 +64,7 @@ pub struct DeviceManager {
     signer: DeviceSigner,
     /// Access to the vault that stores the device
     /// signing key.
-    keeper: FileSystemGatekeeper,
+    keeper: FileSystemGateKeeper,
 }
 
 impl DeviceManager {
@@ -74,7 +74,7 @@ impl DeviceManager {
     /// device manager.
     pub(super) fn new(
         signer: DeviceSigner,
-        keeper: FileSystemGatekeeper,
+        keeper: FileSystemGateKeeper,
     ) -> Self {
         Self { signer, keeper }
     }

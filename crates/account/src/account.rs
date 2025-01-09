@@ -12,7 +12,7 @@ use sos_core::{
     AccountId, SecretId, VaultId,
 };
 use sos_database::StorageError;
-use sos_filesystem::{folder::FolderReducer, FileSystemGatekeeper};
+use sos_filesystem::{folder::FolderReducer, FileSystemGateKeeper};
 use sos_sdk::{
     events::{AccountEventLog, EventLog, EventRecord, FolderEventLog},
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
@@ -852,14 +852,14 @@ pub trait Account {
 
 /// Read-only view created from a specific event log commit.
 pub struct DetachedView {
-    keeper: FileSystemGatekeeper,
+    keeper: FileSystemGateKeeper,
     #[cfg(feature = "search")]
     index: Arc<RwLock<SearchIndex>>,
 }
 
 impl DetachedView {
     /// Read-only access to the folder.
-    pub fn keeper(&self) -> &FileSystemGatekeeper {
+    pub fn keeper(&self) -> &FileSystemGateKeeper {
         &self.keeper
     }
 
@@ -1844,7 +1844,7 @@ impl Account for LocalAccount {
             .await?;
 
         let account_key: AccessKey = password.into();
-        let mut output = FileSystemGatekeeper::new(vault);
+        let mut output = FileSystemGateKeeper::new(vault);
         output.unlock(&account_key).await?;
 
         for key in input.vault().keys() {
@@ -2171,7 +2171,7 @@ impl Account for LocalAccount {
         summary: &Summary,
         commit: CommitHash,
     ) -> Result<DetachedView> {
-        use sos_filesystem::FileSystemGatekeeper;
+        use sos_filesystem::FileSystemGateKeeper;
 
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
 
@@ -2196,7 +2196,7 @@ impl Account for LocalAccount {
             .build(true)
             .await?;
 
-        let mut keeper = FileSystemGatekeeper::new(vault);
+        let mut keeper = FileSystemGateKeeper::new(vault);
         keeper.unlock(&key).await?;
 
         {
@@ -3025,7 +3025,7 @@ impl Account for LocalAccount {
             .ok_or(Error::NoFolderPassword(*contacts.id()))?;
         let (vault, _) =
             Identity::load_local_vault(&self.paths, contacts.id()).await?;
-        let mut keeper = FileSystemGatekeeper::new(vault);
+        let mut keeper = FileSystemGateKeeper::new(vault);
         let key: AccessKey = contacts_passphrase.into();
         keeper.unlock(&key).await?;
 
@@ -3140,7 +3140,7 @@ impl Account for LocalAccount {
                 .await?
                 .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
-            let mut keeper = FileSystemGatekeeper::new(vault);
+            let mut keeper = FileSystemGateKeeper::new(vault);
             keeper.unlock(&vault_passphrase).await?;
 
             // Add the secrets for the vault to the migration

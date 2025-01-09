@@ -17,7 +17,7 @@ use sos_core::{
 use sos_filesystem::{
     events::FolderEventLog,
     folder::{DiscFolder, Folder},
-    FileSystemGatekeeper, VaultFileWriter,
+    FileSystemGateKeeper, VaultFileWriter,
 };
 use sos_password::diceware::generate_passphrase_words;
 use sos_signer::ed25519;
@@ -70,7 +70,7 @@ impl IdentityFolder {
     }
 
     /// Get the gatekeeper.
-    pub fn keeper(&self) -> &FileSystemGatekeeper {
+    pub fn keeper(&self) -> &FileSystemGateKeeper {
         self.folder.keeper()
     }
 
@@ -156,7 +156,7 @@ impl IdentityFolder {
 
         let mirror = VaultFileWriter::new(&device_vault_path).await?;
         let mut device_keeper =
-            FileSystemGatekeeper::new_mirror(vault, Box::new(mirror));
+            FileSystemGateKeeper::new_mirror(vault, Box::new(mirror));
         let key: AccessKey = device_password.into();
         device_keeper.unlock(&key).await?;
 
@@ -224,9 +224,9 @@ impl IdentityFolder {
             let buffer = encode(&vault).await?;
             vfs::write_exclusive(&device_vault_path, &buffer).await?;
             let mirror = VaultFileWriter::new(&device_vault_path).await?;
-            FileSystemGatekeeper::new_mirror(vault, Box::new(mirror))
+            FileSystemGateKeeper::new_mirror(vault, Box::new(mirror))
         } else {
-            FileSystemGatekeeper::new(vault)
+            FileSystemGateKeeper::new(vault)
         };
         device_keeper.unlock(&key).await?;
 
@@ -434,7 +434,7 @@ impl IdentityFolder {
     /// the URN lookup index which maps URNs to the
     /// corresponding secret identifiers.
     async fn lookup_identity_secrets(
-        keeper: &FileSystemGatekeeper,
+        keeper: &FileSystemGateKeeper,
     ) -> Result<(UrnLookup, Option<Secret>)> {
         let mut index: UrnLookup = Default::default();
 
@@ -463,7 +463,7 @@ impl IdentityFolder {
 
     async fn login_private_identity(
         account_id: AccountId,
-        keeper: &FileSystemGatekeeper,
+        keeper: &FileSystemGateKeeper,
     ) -> Result<(UrnLookup, PrivateIdentity)> {
         let (index, identity_secret) =
             Self::lookup_identity_secrets(keeper).await?;

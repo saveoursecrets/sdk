@@ -17,7 +17,7 @@ async fn create_mock_migration<W: AsyncWrite + AsyncSeek + Unpin>(
 
     let key: AccessKey = passphrase.into();
     let mut migration = PublicExport::new(writer);
-    let mut keeper = Gatekeeper::new(vault);
+    let mut keeper = GateKeeper::new(vault);
     keeper.unlock(&key).await?;
 
     let (meta, secret, _, _) =
