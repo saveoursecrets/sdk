@@ -24,10 +24,7 @@ use crate::{
 use async_stream::try_stream;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, Decodable, Encodable};
-use futures::io::{
-    AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, BufReader,
-    Cursor,
-};
+use futures::io::{AsyncReadExt, AsyncSeekExt, BufReader, Cursor};
 use futures::stream::BoxStream;
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree, Comparison},
@@ -44,7 +41,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tempfile::NamedTempFile;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{Mutex, MutexGuard};
 use tokio_util::compat::Compat;
@@ -56,7 +52,7 @@ use sos_core::events::FileEvent;
 pub use sos_core::events::EventLog;
 
 /// Event log that writes to disc.
-pub type DiscEventLog<E> = FileSystemEventLog<E>;
+pub type DiscEventLog<T> = FileSystemEventLog<T>;
 
 /// Event log for changes to an account.
 pub type AccountEventLog = DiscEventLog<AccountEvent>;
@@ -76,14 +72,10 @@ type Iter = Box<dyn FormatStreamIterator<EventLogRecord> + Send + Sync>;
 
 /// Read the bytes for the encoded event
 /// inside the log record.
-async fn read_event_buffer<R, W>(
-    handle: Arc<Mutex<(R, W)>>,
+async fn read_event_buffer(
+    handle: Arc<Mutex<(Compat<File>, Compat<File>)>>,
     record: &EventLogRecord,
-) -> Result<Vec<u8>>
-where
-    R: AsyncRead + AsyncSeek + Unpin + Send,
-    W: AsyncWrite + Unpin + Send,
-{
+) -> Result<Vec<u8>> {
     let mut file = MutexGuard::map(handle.lock().await, |f| &mut f.0);
 
     let offset = record.value();
@@ -102,29 +94,29 @@ where
 /// Appends events to an append-only writer and reads events
 /// via a reader whilst managing an in-memory merkle tree
 /// of event hashes.
-pub struct FileSystemEventLog<E>
+pub struct FileSystemEventLog<T>
 where
-    E: Default + Encodable + Decodable + Send + Sync,
+    T: Default + Encodable + Decodable + Send + Sync,
 {
     file: Arc<Mutex<(Compat<File>, Compat<File>)>>,
     tree: CommitTree,
     data: PathBuf,
     identity: &'static [u8],
     version: Option<u16>,
-    phantom: std::marker::PhantomData<E>,
+    phantom: std::marker::PhantomData<T>,
 }
 
 #[async_trait]
-impl<E> EventLog<E> for FileSystemEventLog<E>
+impl<T> EventLog<T> for FileSystemEventLog<T>
 where
-    E: Default + Encodable + Decodable + Send + Sync + 'static,
+    T: Default + Encodable + Decodable + Send + Sync + 'static,
 {
     type Error = Error;
 
     async fn stream(
         &self,
         reverse: bool,
-    ) -> BoxStream<'static, Result<(EventRecord, E)>> {
+    ) -> BoxStream<'static, Result<(EventRecord, T)>> {
         let mut it = self.iter(reverse).await.expect("to initialize stream");
 
         let handle = self.file();
@@ -133,7 +125,7 @@ where
                 let event_buffer = read_event_buffer(
                     handle.clone(), &record).await?;
                 let event_record = record.into_event_record(event_buffer);
-                let event = event_record.decode_event::<E>().await?;
+                let event = event_record.decode_event::<T>().await?;
                 yield (event_record, event);
             }
         })
@@ -143,18 +135,18 @@ where
         &self,
         commit: Option<CommitHash>,
         checkpoint: CommitProof,
-    ) -> Result<Diff<E>> {
+    ) -> Result<Diff<T>> {
         let patch = self.diff_events(commit.as_ref()).await?;
-        Ok(Diff::<E> {
+        Ok(Diff::<T> {
             last_commit: commit,
             patch,
             checkpoint,
         })
     }
 
-    async fn diff_unchecked(&self) -> Result<Diff<E>> {
+    async fn diff_unchecked(&self) -> Result<Diff<T>> {
         let patch = self.diff_events(None).await?;
-        Ok(Diff::<E> {
+        Ok(Diff::<T> {
             last_commit: None,
             patch,
             checkpoint: self.tree().head()?,
@@ -164,7 +156,7 @@ where
     async fn diff_events(
         &self,
         commit: Option<&CommitHash>,
-    ) -> Result<Patch<E>> {
+    ) -> Result<Patch<T>> {
         let records = self.diff_records(commit).await?;
         Ok(Patch::new(records))
     }
@@ -298,7 +290,7 @@ where
         Ok(())
     }
 
-    async fn apply(&mut self, events: Vec<&E>) -> Result<()> {
+    async fn apply(&mut self, events: Vec<&T>) -> Result<()> {
         let mut records = Vec::with_capacity(events.len());
         for event in events {
             records.push(event.default_record().await?);
@@ -356,7 +348,7 @@ where
     async fn patch_checked(
         &mut self,
         commit_proof: &CommitProof,
-        patch: &Patch<E>,
+        patch: &Patch<T>,
     ) -> Result<CheckedPatch> {
         let comparison = self.tree().compare(commit_proof)?;
 
@@ -384,7 +376,7 @@ where
         }
     }
 
-    async fn patch_replace(&mut self, diff: &Diff<E>) -> Result<()> {
+    async fn patch_replace(&mut self, diff: &Diff<T>) -> Result<()> {
         // Create a snapshot for disc-based implementations
         let snapshot = self.try_create_snapshot().await?;
 
@@ -424,7 +416,7 @@ where
         }
     }
 
-    async fn patch_unchecked(&mut self, patch: &Patch<E>) -> Result<()> {
+    async fn patch_unchecked(&mut self, patch: &Patch<T>) -> Result<()> {
         /*
         if let Some(record) = patch.records().first() {
             self.check_event_time_ahead(record).await?;
@@ -486,9 +478,9 @@ where
     }
 }
 
-impl<E> FileSystemEventLog<E>
+impl<T> FileSystemEventLog<T>
 where
-    E: Default + Encodable + Decodable + Send + Sync + 'static,
+    T: Default + Encodable + Decodable + Send + Sync + 'static,
 {
     /// Path to the event log file.
     pub fn file_path(&self) -> &PathBuf {
@@ -497,7 +489,7 @@ where
 
     /// Read the event data from an item.
     #[doc(hidden)]
-    pub async fn decode_event(&self, item: &EventLogRecord) -> Result<E> {
+    pub async fn decode_event(&self, item: &EventLogRecord) -> Result<T> {
         let value = item.value();
 
         let rw = self.file();
@@ -509,7 +501,7 @@ where
 
         let mut stream = BufReader::new(Cursor::new(&mut buffer));
         let mut reader = BinaryReader::new(&mut stream, encoding_options());
-        let mut event: E = Default::default();
+        let mut event: T = Default::default();
         event.decode(&mut reader).await?;
         Ok(event)
     }
