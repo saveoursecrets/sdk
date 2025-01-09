@@ -1,0 +1,32 @@
+[package]
+name = "sos-backend"
+version = "0.16.0"
+edition = "2021"
+description = "Backend storage abstraction for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+
+[features]
+full = ["files"]
+files = [
+  "sos-core/files",
+  "sos-database/files",
+  "sos-filesystem/files",
+]
+
+[dependencies]
+sos-core.workspace = true
+sos-database.workspace = true
+sos-filesystem.workspace = true
+sos-vault.workspace = true
+sos-vfs.workspace = true
+
+thiserror.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+binary-stream.workspace = true
+uuid.workspace = true
+tracing.workspace = true
+indexmap.workspace = true

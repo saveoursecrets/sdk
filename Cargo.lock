@@ -4907,6 +4907,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-backend"
+version = "0.16.0"
+dependencies = [
+ "async-trait",
+ "binary-stream",
+ "futures",
+ "indexmap 2.7.0",
+ "sos-core",
+ "sos-database",
+ "sos-filesystem",
+ "sos-vault",
+ "sos-vfs",
+ "thiserror 2.0.9",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "sos-backup-archive"
 version = "0.16.0"
 dependencies = [
@@ -5089,6 +5109,7 @@ dependencies = [
  "sos-account",
  "sos-account-extras",
  "sos-audit",
+ "sos-backend",
  "sos-backup-archive",
  "sos-client-storage",
  "sos-core",

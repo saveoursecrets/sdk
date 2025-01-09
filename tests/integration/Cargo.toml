@@ -14,6 +14,7 @@ sos-audit.workspace = true
 sos-core.workspace = true
 sos-account = { workspace = true, features = ["full"] }
 sos-account-extras = { workspace = true, features = ["full"] }
+sos-backend = { workspace = true, features = ["full"] }
 sos-backup-archive = { workspace = true, features = ["full"] }
 sos-database = { workspace = true, features = ["full"] }
 sos-login = { workspace = true, features = ["full"] }
