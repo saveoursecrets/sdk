@@ -1,39 +1,51 @@
-//! Storage backed by the filesystem.
-use crate::folder::FolderReducer;
-use crate::{
-    events::FolderEventLog, FileSystemGateKeeper, Result, VaultFileWriter,
-};
+//! Folder implementation combining a gatekeeper with an event log.
 use sos_core::{
     commit::{CommitHash, CommitState},
     events::EventLog,
     VaultFlags,
 };
 use sos_core::{
-    constants::EVENT_LOG_EXT,
     crypto::AccessKey,
-    decode,
     events::{EventRecord, ReadEvent, WriteEvent},
 };
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},
-    Vault, VaultCommit, VaultId, VaultMeta,
+    GateKeeper, VaultCommit, VaultId, VaultMeta,
 };
-use sos_vfs as vfs;
-use std::{borrow::Cow, path::Path, sync::Arc};
+use std::{borrow::Cow, sync::Arc};
 use tokio::sync::RwLock;
 
-/// Folder that writes events to disc.
-pub type DiscFolder = Folder;
-
 /// Folder is a combined vault and event log.
-pub struct Folder {
-    pub(crate) keeper: FileSystemGateKeeper,
-    events: Arc<RwLock<FolderEventLog>>,
+pub struct Folder<L, E>
+where
+    L: EventLog<WriteEvent, Error = E>,
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<sos_vault::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    pub(crate) keeper: GateKeeper<E>,
+    events: Arc<RwLock<L>>,
 }
 
-impl Folder {
+impl<L, E> Folder<L, E>
+where
+    L: EventLog<WriteEvent, Error = E>,
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<sos_vault::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     /// Create a new folder.
-    fn init(keeper: FileSystemGateKeeper, events: FolderEventLog) -> Self {
+    pub(super) fn init(keeper: GateKeeper<E>, events: L) -> Self {
         Self {
             keeper,
             events: Arc::new(RwLock::new(events)),
@@ -46,22 +58,22 @@ impl Folder {
     }
 
     /// GateKeeper for this folder.
-    pub fn keeper(&self) -> &FileSystemGateKeeper {
+    pub fn keeper(&self) -> &GateKeeper<E> {
         &self.keeper
     }
 
     /// Mutable gatekeeper for this folder.
-    pub fn keeper_mut(&mut self) -> &mut FileSystemGateKeeper {
+    pub fn keeper_mut(&mut self) -> &mut GateKeeper<E> {
         &mut self.keeper
     }
 
     /// Clone of the event log.
-    pub fn event_log(&self) -> Arc<RwLock<FolderEventLog>> {
+    pub fn event_log(&self) -> Arc<RwLock<L>> {
         Arc::clone(&self.events)
     }
 
     /// Unlock using the folder access key.
-    pub async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta> {
+    pub async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta, E> {
         Ok(self.keeper.unlock(key).await?)
     }
 
@@ -74,7 +86,7 @@ impl Folder {
     pub async fn create_secret(
         &mut self,
         secret_data: &SecretRow,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, E> {
         let event = self.keeper.create_secret(secret_data).await?;
         let mut events = self.events.write().await;
         events.apply(vec![&event]).await?;
@@ -85,7 +97,7 @@ impl Folder {
     pub async fn read_secret(
         &self,
         id: &SecretId,
-    ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
+    ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>, E> {
         Ok(self.keeper.read_secret(id).await?)
     }
 
@@ -93,7 +105,7 @@ impl Folder {
     pub async fn raw_secret(
         &self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'_, VaultCommit>>, ReadEvent)> {
+    ) -> Result<(Option<Cow<'_, VaultCommit>>, ReadEvent), E> {
         Ok(self.keeper.raw_secret(id).await?)
     }
 
@@ -103,7 +115,7 @@ impl Folder {
         id: &SecretId,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<Option<WriteEvent>> {
+    ) -> Result<Option<WriteEvent>, E> {
         if let Some(event) =
             self.keeper.update_secret(id, secret_meta, secret).await?
         {
@@ -119,7 +131,7 @@ impl Folder {
     pub async fn delete_secret(
         &mut self,
         id: &SecretId,
-    ) -> Result<Option<WriteEvent>> {
+    ) -> Result<Option<WriteEvent>, E> {
         if let Some(event) = self.keeper.delete_secret(id).await? {
             let mut events = self.events.write().await;
             events.apply(vec![&event]).await?;
@@ -133,7 +145,7 @@ impl Folder {
     pub async fn rename_folder(
         &mut self,
         name: impl AsRef<str>,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, E> {
         self.keeper.set_vault_name(name.as_ref().to_owned()).await?;
         let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
         let mut events = self.events.write().await;
@@ -145,7 +157,7 @@ impl Folder {
     pub async fn update_folder_flags(
         &mut self,
         flags: VaultFlags,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, E> {
         self.keeper.set_vault_flags(flags.clone()).await?;
         let event = WriteEvent::SetVaultFlags(flags);
         let mut events = self.events.write().await;
@@ -154,7 +166,7 @@ impl Folder {
     }
 
     /// Description of this folder.
-    pub async fn description(&self) -> Result<String> {
+    pub async fn description(&self) -> Result<String, E> {
         let meta = self.keeper.vault_meta().await?;
         Ok(meta.description().to_owned())
     }
@@ -163,14 +175,17 @@ impl Folder {
     pub async fn set_description(
         &mut self,
         description: impl AsRef<str>,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, E> {
         let mut meta = self.keeper.vault_meta().await?;
         meta.set_description(description.as_ref().to_owned());
         self.set_meta(&meta).await
     }
 
     /// Set the folder meta data.
-    pub async fn set_meta(&mut self, meta: &VaultMeta) -> Result<WriteEvent> {
+    pub async fn set_meta(
+        &mut self,
+        meta: &VaultMeta,
+    ) -> Result<WriteEvent, E> {
         let event = self.keeper.set_vault_meta(meta).await?;
         let mut events = self.events.write().await;
         events.apply(vec![&event]).await?;
@@ -178,13 +193,13 @@ impl Folder {
     }
 
     /// Folder commit state.
-    pub async fn commit_state(&self) -> Result<CommitState> {
+    pub async fn commit_state(&self) -> Result<CommitState, E> {
         let event_log = self.events.read().await;
         Ok(event_log.tree().commit_state()?)
     }
 
     /// Folder root commit hash.
-    pub async fn root_hash(&self) -> Result<CommitHash> {
+    pub async fn root_hash(&self) -> Result<CommitHash, E> {
         let event_log = self.events.read().await;
         Ok(event_log
             .tree()
@@ -193,7 +208,7 @@ impl Folder {
     }
 
     /// Apply events to the event log.
-    pub async fn apply(&mut self, events: Vec<&WriteEvent>) -> Result<()> {
+    pub async fn apply(&mut self, events: Vec<&WriteEvent>) -> Result<(), E> {
         let mut event_log = self.events.write().await;
         event_log.apply(events).await?;
         Ok(())
@@ -203,69 +218,16 @@ impl Folder {
     pub async fn apply_records(
         &mut self,
         records: Vec<EventRecord>,
-    ) -> Result<()> {
+    ) -> Result<(), E> {
         let mut event_log = self.events.write().await;
         event_log.apply_records(records).await?;
         Ok(())
     }
 
     /// Clear events from the event log.
-    pub async fn clear(&mut self) -> Result<()> {
+    pub async fn clear(&mut self) -> Result<(), E> {
         let mut event_log = self.events.write().await;
         event_log.clear().await?;
         Ok(())
-    }
-}
-
-impl Folder {
-    /// Create a new folder from a vault file on disc.
-    ///
-    /// Changes to the in-memory vault are mirrored to disc and
-    /// and if an event log does not exist it is created.
-    pub async fn new(path: impl AsRef<Path>) -> Result<Self> {
-        let mut events_path = path.as_ref().to_owned();
-        events_path.set_extension(EVENT_LOG_EXT);
-
-        let mut event_log = FolderEventLog::new(events_path).await?;
-        event_log.load_tree().await?;
-        let needs_init = event_log.tree().root().is_none();
-
-        let vault = if needs_init {
-            // For the client-side we must split the events
-            // out but keep the existing vault data (not the head-only)
-            // version so that the event log here will match what the
-            // server will have when an account is first synced
-            let buffer = vfs::read(path.as_ref()).await?;
-            let vault: Vault = decode(&buffer).await?;
-            let (_, events) = FolderReducer::split(vault.clone()).await?;
-            event_log.apply(events.iter().collect()).await?;
-            vault
-        } else {
-            let buffer = vfs::read(path.as_ref()).await?;
-            let vault: Vault = decode(&buffer).await?;
-            vault
-        };
-
-        let mirror = VaultFileWriter::new(path.as_ref()).await?;
-        let keeper =
-            FileSystemGateKeeper::new_mirror(vault, Box::new(mirror));
-
-        Ok(Self::init(keeper, event_log))
-    }
-
-    /// Load an identity folder event log from the given paths.
-    pub async fn new_event_log(
-        path: impl AsRef<Path>,
-    ) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let mut event_log =
-            FolderEventLog::new(path.as_ref().to_owned()).await?;
-        event_log.load_tree().await?;
-        Ok(Arc::new(RwLock::new(event_log)))
-    }
-}
-
-impl From<Folder> for Vault {
-    fn from(value: Folder) -> Self {
-        value.keeper.into()
     }
 }

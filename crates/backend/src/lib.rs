@@ -1,5 +1,6 @@
 pub mod compact;
 mod error;
+pub mod folder;
 pub mod reducers;
 
 pub use error::Error;

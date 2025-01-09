@@ -43,16 +43,19 @@ impl FolderReducer {
     ///
     /// The truncated vault represents the header of the vault and
     /// has no contents.
-    pub async fn split(vault: Vault) -> Result<(Vault, Vec<WriteEvent>)> {
+    pub async fn split<E>(
+        vault: Vault,
+    ) -> std::result::Result<(Vault, Vec<WriteEvent>), E>
+    where
+        E: From<sos_vault::Error>,
+    {
         let mut events = Vec::with_capacity(vault.len() + 1);
         let header = vault.header().clone();
         let head: Vault = header.into();
-
         events.push(head.into_event().await?);
         for (id, entry) in vault {
             events.push(WriteEvent::CreateSecret(id, entry));
         }
-
         Ok((head, events))
     }
 
