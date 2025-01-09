@@ -13,6 +13,7 @@
 //!
 //! The first row must always contain a last commit hash that is all zero.
 //!
+use super::EventRecord;
 use crate::{
     folder::FolderReducer,
     formats::{
@@ -22,13 +23,15 @@ use crate::{
     Error, IntoRecord, Result,
 };
 use async_stream::try_stream;
+use async_trait::async_trait;
+use binary_stream::futures::{BinaryReader, Decodable, Encodable};
 use futures::io::{
     AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, BufReader,
     Cursor,
 };
 use futures::stream::BoxStream;
-use sos_core::commit::{CommitHash, CommitProof, CommitTree, Comparison};
 use sos_core::{
+    commit::{CommitHash, CommitProof, CommitTree, Comparison},
     encode,
     encoding::{encoding_options, VERSION1},
     events::{
@@ -37,27 +40,19 @@ use sos_core::{
     },
 };
 use sos_vfs::{self as vfs, File, OpenOptions};
-use tokio::io::AsyncWriteExt;
-
-#[cfg(feature = "files")]
-use sos_core::events::FileEvent;
-
-use async_trait::async_trait;
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tempfile::NamedTempFile;
+use tokio::io::AsyncWriteExt;
 use tokio::sync::{Mutex, MutexGuard};
 use tokio_util::compat::Compat;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
-use binary_stream::futures::{BinaryReader, Decodable, Encodable};
-use tempfile::NamedTempFile;
-
-use super::{EventRecord /*, FolderReducer*/};
-
-type DiscLog = Compat<File>;
+#[cfg(feature = "files")]
+use sos_core::events::FileEvent;
 
 /// Event log that writes to disc.
 pub type DiscEventLog<E> = FileSystemEventLog<E>;
@@ -107,22 +102,12 @@ pub trait EventLogExt<E>: Send + Sync
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
 {
-    /// Delete all events from the log file on disc
-    /// and in-memory.
-    async fn clear(&mut self) -> Result<()>;
-
     /// Commit tree contains the in-memory merkle tree.
     fn tree(&self) -> &CommitTree;
 
     /// Mutable commit tree.
     #[doc(hidden)]
     fn tree_mut(&mut self) -> &mut CommitTree;
-
-    /*
-    /// File reader and writer.
-    #[doc(hidden)]
-    fn file(&self) -> Arc<Mutex<(R, W)>>;
-    */
 
     /// Identity bytes.
     #[doc(hidden)]
@@ -131,6 +116,10 @@ where
     /// Encoding version.
     #[doc(hidden)]
     fn version(&self) -> Option<u16>;
+
+    /// Delete all events from the log file on disc
+    /// and in-memory.
+    async fn clear(&mut self) -> Result<()>;
 
     /// Rewind this event log discarding commits after
     /// the specific commit.
@@ -689,7 +678,7 @@ impl<E> FileSystemEventLog<E>
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
 {
-    fn file(&self) -> Arc<Mutex<(DiscLog, DiscLog)>> {
+    fn file(&self) -> Arc<Mutex<(Compat<File>, Compat<File>)>> {
         Arc::clone(&self.file)
     }
 
@@ -734,7 +723,7 @@ where
         path: P,
         identity: &'static [u8],
         encoding_version: Option<u16>,
-    ) -> Result<DiscLog> {
+    ) -> Result<Compat<File>> {
         let file = OpenOptions::new()
             .create(true)
             .append(true)
@@ -762,7 +751,7 @@ where
     }
 
     /// Create the reader for an event log file.
-    async fn create_reader<P: AsRef<Path>>(path: P) -> Result<DiscLog> {
+    async fn create_reader<P: AsRef<Path>>(path: P) -> Result<Compat<File>> {
         Ok(File::open(path).await?.compat())
     }
 
