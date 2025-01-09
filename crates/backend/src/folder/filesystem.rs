@@ -13,20 +13,18 @@ use std::{path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
 /// Folder that writes events to disc.
-pub type DiscFolder = GenericFolder<FolderEventLog, Error>;
+pub type DiscFolder = GenericFolder<FolderEventLog<Error>, Error>;
 
-impl GenericFolder<FolderEventLog, Error> {
+impl GenericFolder<FolderEventLog<Error>, Error> {
     /// Create a new folder from a vault file on disc.
     ///
     /// Changes to the in-memory vault are mirrored to disc and
     /// and if an event log does not exist it is created.
-    pub async fn new(
-        path: impl AsRef<Path>,
-    ) -> Result<Self, sos_filesystem::Error> {
+    pub async fn new(path: impl AsRef<Path>) -> Result<Self, Error> {
         let mut events_path = path.as_ref().to_owned();
         events_path.set_extension(EVENT_LOG_EXT);
 
-        let mut event_log = FolderEventLog::new(events_path).await?;
+        let mut event_log = FolderEventLog::<Error>::new(events_path).await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
@@ -57,18 +55,16 @@ impl GenericFolder<FolderEventLog, Error> {
     /// Load an identity folder event log from the given paths.
     pub async fn new_event_log(
         path: impl AsRef<Path>,
-    ) -> Result<Arc<RwLock<FolderEventLog>>, sos_filesystem::Error> {
+    ) -> Result<Arc<RwLock<FolderEventLog<Error>>>, Error> {
         let mut event_log =
-            FolderEventLog::new(path.as_ref().to_owned()).await?;
+            FolderEventLog::<Error>::new(path.as_ref().to_owned()).await?;
         event_log.load_tree().await?;
         Ok(Arc::new(RwLock::new(event_log)))
     }
 }
 
-impl From<GenericFolder<FolderEventLog, sos_filesystem::Error>> for Vault {
-    fn from(
-        value: GenericFolder<FolderEventLog, sos_filesystem::Error>,
-    ) -> Self {
+impl From<GenericFolder<FolderEventLog<Error>, Error>> for Vault {
+    fn from(value: GenericFolder<FolderEventLog<Error>, Error>) -> Self {
         value.keeper.into()
     }
 }

@@ -1,3 +1,4 @@
+use crate::Error;
 use crate::{reducers::FolderReducer, Result};
 use sos_core::events::EventLog;
 use sos_filesystem::events::FolderEventLog;
@@ -6,8 +7,8 @@ use tempfile::NamedTempFile;
 
 /// Compact a filesystem folder event log.
 pub async fn compact_filesystem_folder(
-    event_log: &FolderEventLog,
-) -> Result<(FolderEventLog, u64, u64)> {
+    event_log: &FolderEventLog<Error>,
+) -> Result<(FolderEventLog<Error>, u64, u64)> {
     let file = event_log.file_path().to_owned();
     let old_size = file.metadata()?.len();
 
@@ -20,7 +21,8 @@ pub async fn compact_filesystem_folder(
     let temp = NamedTempFile::new()?;
 
     // Apply them to a temporary event log file
-    let mut temp_event_log = FolderEventLog::new(temp.path()).await?;
+    let mut temp_event_log =
+        FolderEventLog::<Error>::new(temp.path()).await?;
     temp_event_log.apply(events.iter().collect()).await?;
 
     let new_size = file.metadata()?.len();
@@ -39,7 +41,7 @@ pub async fn compact_filesystem_folder(
 
     // Need to recreate the event log file and load the updated
     // commit tree
-    let mut new_event_log = FolderEventLog::new(&file).await?;
+    let mut new_event_log = FolderEventLog::<Error>::new(&file).await?;
     new_event_log.load_tree().await?;
 
     Ok((new_event_log, old_size, new_size))

@@ -36,6 +36,7 @@ use sos_core::{
     },
 };
 use sos_vfs::{self as vfs, File, OpenOptions};
+use std::result::Result as StdResult;
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
@@ -51,21 +52,18 @@ use sos_core::events::FileEvent;
 
 pub use sos_core::events::EventLog;
 
-/// Event log that writes to disc.
-pub type DiscEventLog<T> = FileSystemEventLog<T>;
-
 /// Event log for changes to an account.
-pub type AccountEventLog = DiscEventLog<AccountEvent>;
+pub type AccountEventLog<E> = FileSystemEventLog<AccountEvent, E>;
 
 /// Event log for devices.
-pub type DeviceEventLog = DiscEventLog<DeviceEvent>;
+pub type DeviceEventLog<E> = FileSystemEventLog<DeviceEvent, E>;
 
 /// Event log for changes to a folder.
-pub type FolderEventLog = DiscEventLog<WriteEvent>;
+pub type FolderEventLog<E> = FileSystemEventLog<WriteEvent, E>;
 
 /// Event log for changes to external files.
 #[cfg(feature = "files")]
-pub type FileEventLog = DiscEventLog<FileEvent>;
+pub type FileEventLog<E> = FileSystemEventLog<FileEvent, E>;
 
 /// Type of an event log file iterator.
 type Iter = Box<dyn FormatStreamIterator<EventLogRecord> + Send + Sync>;
@@ -94,29 +92,45 @@ async fn read_event_buffer(
 /// Appends events to an append-only writer and reads events
 /// via a reader whilst managing an in-memory merkle tree
 /// of event hashes.
-pub struct FileSystemEventLog<T>
+pub struct FileSystemEventLog<T, E>
 where
     T: Default + Encodable + Decodable + Send + Sync,
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
 {
     file: Arc<Mutex<(Compat<File>, Compat<File>)>>,
     tree: CommitTree,
     data: PathBuf,
     identity: &'static [u8],
     version: Option<u16>,
-    phantom: std::marker::PhantomData<T>,
+    phantom: std::marker::PhantomData<(T, E)>,
 }
 
 #[async_trait]
-impl<T> EventLog<T> for FileSystemEventLog<T>
+impl<T, E> EventLog<T> for FileSystemEventLog<T, E>
 where
     T: Default + Encodable + Decodable + Send + Sync + 'static,
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
 {
-    type Error = Error;
+    type Error = E;
 
     async fn stream(
         &self,
         reverse: bool,
-    ) -> BoxStream<'static, Result<(EventRecord, T)>> {
+    ) -> BoxStream<'static, StdResult<(EventRecord, T), Self::Error>> {
         let mut it = self.iter(reverse).await.expect("to initialize stream");
 
         let handle = self.file();
@@ -135,7 +149,7 @@ where
         &self,
         commit: Option<CommitHash>,
         checkpoint: CommitProof,
-    ) -> Result<Diff<T>> {
+    ) -> StdResult<Diff<T>, E> {
         let patch = self.diff_events(commit.as_ref()).await?;
         Ok(Diff::<T> {
             last_commit: commit,
@@ -144,7 +158,7 @@ where
         })
     }
 
-    async fn diff_unchecked(&self) -> Result<Diff<T>> {
+    async fn diff_unchecked(&self) -> StdResult<Diff<T>, Self::Error> {
         let patch = self.diff_events(None).await?;
         Ok(Diff::<T> {
             last_commit: None,
@@ -156,7 +170,7 @@ where
     async fn diff_events(
         &self,
         commit: Option<&CommitHash>,
-    ) -> Result<Patch<T>> {
+    ) -> StdResult<Patch<T>, Self::Error> {
         let records = self.diff_records(commit).await?;
         Ok(Patch::new(records))
     }
@@ -173,7 +187,7 @@ where
         self.version
     }
 
-    async fn truncate(&mut self) -> Result<()> {
+    async fn truncate(&mut self) -> StdResult<(), Self::Error> {
         use tokio::io::{
             AsyncSeekExt as TokioAsyncSeekExt,
             AsyncWriteExt as TokioAsyncWriteExt,
@@ -203,7 +217,7 @@ where
     async fn rewind(
         &mut self,
         commit: &CommitHash,
-    ) -> Result<Vec<EventRecord>> {
+    ) -> StdResult<Vec<EventRecord>, Self::Error> {
         let mut length = vfs::metadata(&self.data).await?.len();
         // Iterate backwards and track how many commits are pruned
         let mut it = self.iter(true).await?;
@@ -230,7 +244,7 @@ where
                     tree.commit();
                     self.tree = tree;
                 } else {
-                    return Err(Error::RewindLeavesLength);
+                    return Err(Error::RewindLeavesLength.into());
                 }
 
                 // Truncate the file to the new length
@@ -267,10 +281,10 @@ where
             );
         }
 
-        Err(Error::CommitNotFound(*commit))
+        Err(Error::CommitNotFound(*commit).into())
     }
 
-    async fn load_tree(&mut self) -> Result<()> {
+    async fn load_tree(&mut self) -> StdResult<(), Self::Error> {
         let mut commits = Vec::new();
 
         let mut it = self.iter(false).await?;
@@ -284,13 +298,13 @@ where
         Ok(())
     }
 
-    async fn clear(&mut self) -> Result<()> {
+    async fn clear(&mut self) -> StdResult<(), Self::Error> {
         self.truncate().await?;
         self.tree = CommitTree::new();
         Ok(())
     }
 
-    async fn apply(&mut self, events: Vec<&T>) -> Result<()> {
+    async fn apply(&mut self, events: Vec<&T>) -> StdResult<(), Self::Error> {
         let mut records = Vec::with_capacity(events.len());
         for event in events {
             records.push(event.default_record().await?);
@@ -301,7 +315,7 @@ where
     async fn apply_records(
         &mut self,
         records: Vec<EventRecord>,
-    ) -> Result<()> {
+    ) -> StdResult<(), Self::Error> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut commits = Vec::new();
         let mut last_commit_hash = self.tree().last_commit();
@@ -349,7 +363,7 @@ where
         &mut self,
         commit_proof: &CommitProof,
         patch: &Patch<T>,
-    ) -> Result<CheckedPatch> {
+    ) -> StdResult<CheckedPatch, Self::Error> {
         let comparison = self.tree().compare(commit_proof)?;
 
         match comparison {
@@ -376,7 +390,10 @@ where
         }
     }
 
-    async fn patch_replace(&mut self, diff: &Diff<T>) -> Result<()> {
+    async fn patch_replace(
+        &mut self,
+        diff: &Diff<T>,
+    ) -> StdResult<(), Self::Error> {
         // Create a snapshot for disc-based implementations
         let snapshot = self.try_create_snapshot().await?;
 
@@ -412,11 +429,15 @@ where
                 computed: computed.root,
                 snapshot,
                 rollback_completed,
-            })
+            }
+            .into())
         }
     }
 
-    async fn patch_unchecked(&mut self, patch: &Patch<T>) -> Result<()> {
+    async fn patch_unchecked(
+        &mut self,
+        patch: &Patch<T>,
+    ) -> StdResult<(), Self::Error> {
         /*
         if let Some(record) = patch.records().first() {
             self.check_event_time_ahead(record).await?;
@@ -428,7 +449,7 @@ where
     async fn diff_records(
         &self,
         commit: Option<&CommitHash>,
-    ) -> Result<Vec<EventRecord>> {
+    ) -> StdResult<Vec<EventRecord>, Self::Error> {
         let mut events = Vec::new();
         let file = self.file();
         let mut it = self.iter(true).await?;
@@ -452,14 +473,14 @@ where
         // but it doesn't exist we error otherwise we would return
         // all the events
         if let Some(commit) = commit {
-            return Err(Error::CommitNotFound(*commit));
+            return Err(Error::CommitNotFound(*commit).into());
         }
 
         Ok(events)
     }
 
     #[doc(hidden)]
-    async fn read_file_version(&self) -> Result<u16> {
+    async fn read_file_version(&self) -> StdResult<u16, Self::Error> {
         if self.version().is_some() {
             let rw = self.file();
             let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.0);
@@ -467,7 +488,8 @@ where
                 .await?;
             let mut buf = [0; 2];
             file.read_exact(&mut buf).await?;
-            let version_bytes: [u8; 2] = buf.as_slice().try_into()?;
+            let version_bytes: [u8; 2] =
+                buf.as_slice().try_into().map_err(crate::Error::from)?;
             let version = u16::from_le_bytes(version_bytes);
             Ok(version)
         // Backwards compatible with formats without
@@ -478,9 +500,17 @@ where
     }
 }
 
-impl<T> FileSystemEventLog<T>
+impl<T, E> FileSystemEventLog<T, E>
 where
     T: Default + Encodable + Decodable + Send + Sync + 'static,
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
 {
     /// Path to the event log file.
     pub fn file_path(&self) -> &PathBuf {
@@ -489,7 +519,10 @@ where
 
     /// Read the event data from an item.
     #[doc(hidden)]
-    pub async fn decode_event(&self, item: &EventLogRecord) -> Result<T> {
+    pub async fn decode_event(
+        &self,
+        item: &EventLogRecord,
+    ) -> StdResult<T, E> {
         let value = item.value();
 
         let rw = self.file();
@@ -507,7 +540,7 @@ where
     }
 
     /// Iterate the event records.
-    pub async fn iter(&self, reverse: bool) -> Result<Iter> {
+    pub async fn iter(&self, reverse: bool) -> StdResult<Iter, E> {
         let content_offset = self.header_len() as u64;
         let read_stream = File::open(&self.data).await?.compat();
         let it: Iter = Box::new(
@@ -568,7 +601,7 @@ where
         path: P,
         identity: &'static [u8],
         encoding_version: Option<u16>,
-    ) -> Result<Compat<File>> {
+    ) -> StdResult<Compat<File>, E> {
         let file = OpenOptions::new()
             .create(true)
             .append(true)
@@ -596,12 +629,14 @@ where
     }
 
     /// Create the reader for an event log file.
-    async fn create_reader<P: AsRef<Path>>(path: P) -> Result<Compat<File>> {
+    async fn create_reader<P: AsRef<Path>>(
+        path: P,
+    ) -> StdResult<Compat<File>, E> {
         Ok(File::open(path).await?.compat())
     }
 
     #[doc(hidden)]
-    async fn try_create_snapshot(&self) -> Result<Option<PathBuf>> {
+    async fn try_create_snapshot(&self) -> StdResult<Option<PathBuf>, E> {
         let file = self.file();
         let _guard = file.lock().await;
 
@@ -629,7 +664,7 @@ where
     async fn try_rollback_snapshot(
         &mut self,
         snapshot_path: &PathBuf,
-    ) -> Result<()> {
+    ) -> StdResult<(), E> {
         let source_path = self.data.clone();
 
         let file = self.file();
@@ -651,9 +686,19 @@ where
     }
 }
 
-impl FileSystemEventLog<WriteEvent> {
+impl<E> FileSystemEventLog<WriteEvent, E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     /// Create a new folder event log file.
-    pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub async fn new<P: AsRef<Path>>(path: P) -> StdResult<Self, E> {
         use sos_core::constants::FOLDER_EVENT_LOG_IDENTITY;
         // Note that for backwards compatibility we don't
         // encode a version, later we will need to upgrade
@@ -681,9 +726,19 @@ impl FileSystemEventLog<WriteEvent> {
     }
 }
 
-impl FileSystemEventLog<AccountEvent> {
+impl<E> FileSystemEventLog<AccountEvent, E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     /// Create a new account event log file.
-    pub async fn new_account<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub async fn new_account<P: AsRef<Path>>(path: P) -> StdResult<Self, E> {
         use sos_core::{
             constants::ACCOUNT_EVENT_LOG_IDENTITY, encoding::VERSION,
         };
@@ -710,9 +765,19 @@ impl FileSystemEventLog<AccountEvent> {
     }
 }
 
-impl FileSystemEventLog<DeviceEvent> {
+impl<E> FileSystemEventLog<DeviceEvent, E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     /// Create a new device event log file.
-    pub async fn new_device(path: impl AsRef<Path>) -> Result<Self> {
+    pub async fn new_device(path: impl AsRef<Path>) -> StdResult<Self, E> {
         use sos_core::{
             constants::DEVICE_EVENT_LOG_IDENTITY, encoding::VERSION,
         };
@@ -740,9 +805,19 @@ impl FileSystemEventLog<DeviceEvent> {
 }
 
 #[cfg(feature = "files")]
-impl FileSystemEventLog<FileEvent> {
+impl<E> FileSystemEventLog<FileEvent, E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     /// Create a new file event log file.
-    pub async fn new_file(path: impl AsRef<Path>) -> Result<Self> {
+    pub async fn new_file(path: impl AsRef<Path>) -> StdResult<Self, E> {
         use sos_core::{
             constants::FILE_EVENT_LOG_IDENTITY, encoding::VERSION,
         };

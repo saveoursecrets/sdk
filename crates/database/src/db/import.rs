@@ -17,7 +17,11 @@ use sos_core::{
     VaultCommit, VaultEntry,
 };
 use sos_filesystem::{
-    events::{AccountEventLog, DeviceEventLog, FolderEventLog},
+    events::{
+        AccountEventLog as FsAccountEventLog,
+        DeviceEventLog as FsDeviceEventLog,
+        FolderEventLog as FsFolderEventLog,
+    },
     formats::FormatStreamIterator,
 };
 use sos_vault::list_local_folders;
@@ -28,8 +32,14 @@ use std::{collections::HashMap, path::Path};
 #[cfg(feature = "files")]
 use {
     super::FileEntity, crate::files::list_external_files,
-    sos_filesystem::events::FileEventLog,
+    sos_filesystem::events::FileEventLog as FsFileEventLog,
 };
+
+type AccountEventLog = FsAccountEventLog<sos_filesystem::Error>;
+type DeviceEventLog = FsDeviceEventLog<sos_filesystem::Error>;
+type FolderEventLog = FsFolderEventLog<sos_filesystem::Error>;
+#[cfg(feature = "files")]
+type FileEventLog = FsFileEventLog<sos_filesystem::Error>;
 
 /// Create global values in the database.
 pub(crate) async fn import_globals(
