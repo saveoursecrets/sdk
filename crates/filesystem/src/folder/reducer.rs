@@ -62,9 +62,6 @@ impl FolderReducer {
         mut self,
         event_log: &FolderEventLog,
     ) -> Result<FolderReducer> {
-        // TODO: use event_log.stream() !
-        //
-
         let mut it = event_log.iter(false).await?;
         if let Some(log) = it.next().await? {
             let event = event_log.decode_event(&log).await?;

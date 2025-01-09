@@ -20,8 +20,5 @@ pub async fn migrate_client(client: &mut Client) -> Result<Report> {
             Ok(())
         })
         .await?;
-
-    let res = rx.await;
-    let report = res.unwrap()?;
-    Ok(report)
+    Ok(rx.await.unwrap()?)
 }
