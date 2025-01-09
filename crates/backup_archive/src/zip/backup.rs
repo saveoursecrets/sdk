@@ -15,13 +15,14 @@ use sos_filesystem::{
     events::{EventLogExt, FolderEventLog},
     folder::FolderReducer,
 };
-use sos_login::{Identity, MemoryIdentityFolder, PublicIdentity};
+use sos_login::{DiscIdentityFolder, Identity, PublicIdentity};
 use sos_vault::{Summary, Vault, VaultAccess};
 use sos_vfs::{self as vfs, File};
 use std::{
     io::Cursor,
     path::{Path, PathBuf},
 };
+use tempfile::NamedTempFile;
 use tokio::io::{AsyncBufRead, AsyncSeek, BufReader};
 use uuid::Uuid;
 use walkdir::WalkDir;
@@ -594,12 +595,8 @@ impl AccountBackup {
         user.login(&manifest.account_id, &identity_vault_file, &key)
             .await?;
 
-        let restored_user = MemoryIdentityFolder::login(
-            &manifest.account_id,
-            &identity.1,
-            &key,
-        )
-        .await?;
+        let restored_user =
+            try_restore_user(&manifest.account_id, &identity.1, &key).await?;
 
         // Prepare the vaults directory
         let vaults_dir = paths.vaults_dir();
@@ -687,12 +684,9 @@ impl AccountBackup {
             // and get the signing address from the identity folder
             // and verify it matches the manifest address
             let key: AccessKey = passphrase.clone().into();
-            let restored_user = MemoryIdentityFolder::login(
-                &manifest.account_id,
-                &identity.1,
-                &key,
-            )
-            .await?;
+            let restored_user =
+                try_restore_user(&manifest.account_id, &identity.1, &key)
+                    .await?;
 
             let account_id = restored_user.account_id();
             if account_id != &manifest.account_id {
@@ -717,4 +711,19 @@ impl AccountBackup {
             remotes,
         })
     }
+}
+
+/// Try to authenticate an identity folder using a
+/// vault written to a temp file.
+async fn try_restore_user(
+    account_id: &AccountId,
+    vault: &[u8],
+    access_key: &AccessKey,
+) -> Result<DiscIdentityFolder> {
+    let file = NamedTempFile::new()?;
+    vfs::write(file.path(), vault).await?;
+    let restored_user =
+        DiscIdentityFolder::login(account_id, file.path(), access_key)
+            .await?;
+    Ok(restored_user)
 }

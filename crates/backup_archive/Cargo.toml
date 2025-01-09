@@ -27,6 +27,7 @@ zip = [
   "hex",
   "time",
   "secrecy",
+  "tempfile",
 ]
 
 [dependencies]
@@ -52,6 +53,7 @@ walkdir = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 sanitize-filename = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
 
 [build-dependencies]
 rustc_version.workspace = true
