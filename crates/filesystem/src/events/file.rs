@@ -54,6 +54,8 @@ use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 #[cfg(feature = "files")]
 use sos_core::events::FileEvent;
 
+pub use sos_core::events::EventLog;
+
 /// Event log that writes to disc.
 pub type DiscEventLog<E> = FileSystemEventLog<E>;
 
@@ -96,6 +98,7 @@ where
     Ok(buf)
 }
 
+/*
 /// Event log iterator, stream and diff support.
 #[async_trait]
 pub trait EventLog<E>: Send + Sync
@@ -241,6 +244,7 @@ where
     #[doc(hidden)]
     async fn read_file_version(&self) -> Result<u16>;
 }
+*/
 
 /// Filesystem event log.
 ///
@@ -264,6 +268,9 @@ impl<E> EventLog<E> for FileSystemEventLog<E>
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
 {
+    type Error = Error;
+
+    /*
     async fn iter(&self, reverse: bool) -> Result<Iter> {
         let content_offset = self.header_len() as u64;
         let read_stream = File::open(&self.data).await?.compat();
@@ -279,6 +286,7 @@ where
         );
         Ok(it)
     }
+    */
 
     async fn stream(
         &self,
@@ -635,25 +643,6 @@ where
         Ok(events)
     }
 
-    /// Read the event data from an item.
-    #[doc(hidden)]
-    async fn decode_event(&self, item: &EventLogRecord) -> Result<E> {
-        let value = item.value();
-
-        let rw = self.file();
-        let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.0);
-
-        file.seek(SeekFrom::Start(value.start)).await?;
-        let mut buffer = vec![0; (value.end - value.start) as usize];
-        file.read_exact(buffer.as_mut_slice()).await?;
-
-        let mut stream = BufReader::new(Cursor::new(&mut buffer));
-        let mut reader = BinaryReader::new(&mut stream, encoding_options());
-        let mut event: E = Default::default();
-        event.decode(&mut reader).await?;
-        Ok(event)
-    }
-
     #[doc(hidden)]
     async fn read_file_version(&self) -> Result<u16> {
         if self.version().is_some() {
@@ -678,6 +667,42 @@ impl<E> FileSystemEventLog<E>
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
 {
+    /// Read the event data from an item.
+    #[doc(hidden)]
+    pub async fn decode_event(&self, item: &EventLogRecord) -> Result<E> {
+        let value = item.value();
+
+        let rw = self.file();
+        let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.0);
+
+        file.seek(SeekFrom::Start(value.start)).await?;
+        let mut buffer = vec![0; (value.end - value.start) as usize];
+        file.read_exact(buffer.as_mut_slice()).await?;
+
+        let mut stream = BufReader::new(Cursor::new(&mut buffer));
+        let mut reader = BinaryReader::new(&mut stream, encoding_options());
+        let mut event: E = Default::default();
+        event.decode(&mut reader).await?;
+        Ok(event)
+    }
+
+    /// Iterate the log records.
+    pub async fn iter(&self, reverse: bool) -> Result<Iter> {
+        let content_offset = self.header_len() as u64;
+        let read_stream = File::open(&self.data).await?.compat();
+        let it: Iter = Box::new(
+            FormatStream::<EventLogRecord, Compat<File>>::new_file(
+                read_stream,
+                self.identity,
+                true,
+                Some(content_offset),
+                reverse,
+            )
+            .await?,
+        );
+        Ok(it)
+    }
+
     fn file(&self) -> Arc<Mutex<(Compat<File>, Compat<File>)>> {
         Arc::clone(&self.file)
     }

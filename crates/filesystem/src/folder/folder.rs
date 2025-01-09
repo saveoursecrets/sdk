@@ -23,23 +23,17 @@ use std::{borrow::Cow, path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
 /// Folder that writes events to disc.
-pub type DiscFolder = Folder<FolderEventLog>;
+pub type DiscFolder = Folder;
 
 /// Folder is a combined vault and event log.
-pub struct Folder<T>
-where
-    T: EventLog<WriteEvent> + Send + Sync + 'static,
-{
+pub struct Folder {
     pub(crate) keeper: FileSystemGatekeeper,
-    events: Arc<RwLock<T>>,
+    events: Arc<RwLock<FolderEventLog>>,
 }
 
-impl<T> Folder<T>
-where
-    T: EventLog<WriteEvent> + Send + Sync + 'static,
-{
+impl Folder {
     /// Create a new folder.
-    fn init(keeper: FileSystemGatekeeper, events: T) -> Self {
+    fn init(keeper: FileSystemGatekeeper, events: FolderEventLog) -> Self {
         Self {
             keeper,
             events: Arc::new(RwLock::new(events)),
@@ -62,7 +56,7 @@ where
     }
 
     /// Clone of the event log.
-    pub fn event_log(&self) -> Arc<RwLock<T>> {
+    pub fn event_log(&self) -> Arc<RwLock<FolderEventLog>> {
         Arc::clone(&self.events)
     }
 
@@ -223,7 +217,7 @@ where
     }
 }
 
-impl Folder<FolderEventLog> {
+impl Folder {
     /// Create a new folder from a vault file on disc.
     ///
     /// Changes to the in-memory vault are mirrored to disc and
@@ -270,8 +264,8 @@ impl Folder<FolderEventLog> {
     }
 }
 
-impl From<Folder<FolderEventLog>> for Vault {
-    fn from(value: Folder<FolderEventLog>) -> Self {
+impl From<Folder> for Vault {
+    fn from(value: Folder) -> Self {
         value.keeper.into()
     }
 }

@@ -16,6 +16,7 @@ pub trait EventLog<E>: Send + Sync
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
 {
+    /// Error type.
     type Error: std::error::Error + std::fmt::Debug + From<Error>;
 
     /// Commit tree contains the in-memory merkle tree.

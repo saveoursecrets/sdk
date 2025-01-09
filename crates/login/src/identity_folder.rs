@@ -9,14 +9,13 @@
 use crate::device::{DeviceManager, DeviceSigner};
 use crate::{Error, PrivateIdentity, Result, UrnLookup};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
-use sos_core::events::WriteEvent;
 use sos_core::{
     constants::LOGIN_AGE_KEY_URN,
     crypto::{AccessKey, KeyDerivation},
     decode, encode, AccountId, Paths,
 };
 use sos_filesystem::{
-    events::{EventLog, FolderEventLog},
+    events::FolderEventLog,
     folder::{DiscFolder, Folder},
     FileSystemGatekeeper, VaultFileWriter,
 };
@@ -38,17 +37,14 @@ use urn::Urn;
 const VAULT_PASSPHRASE_WORDS: usize = 12;
 
 /// Identity folder that reads and writes to disc.
-pub type DiscIdentityFolder = IdentityFolder<FolderEventLog>;
+pub type DiscIdentityFolder = IdentityFolder;
 
 /// Identity vault stores the account signing key,
 /// asymmetric encryption key and delegated passwords.
-pub struct IdentityFolder<T>
-where
-    T: EventLog<WriteEvent> + Send + Sync + 'static,
-{
+pub struct IdentityFolder {
     /// Folder storage.
     #[doc(hidden)]
-    pub folder: Folder<T>,
+    pub folder: Folder,
     /// Lookup table.
     #[doc(hidden)]
     pub index: UrnLookup,
@@ -57,10 +53,7 @@ where
     pub(super) devices: Option<crate::device::DeviceManager>,
 }
 
-impl<T> IdentityFolder<T>
-where
-    T: EventLog<WriteEvent> + Send + Sync + 'static,
-{
+impl IdentityFolder {
     /// Private identity.
     pub fn private_identity(&self) -> &PrivateIdentity {
         &self.private_identity
@@ -82,7 +75,7 @@ where
     }
 
     /// Get the event log.
-    pub fn event_log(&self) -> Arc<RwLock<T>> {
+    pub fn event_log(&self) -> Arc<RwLock<FolderEventLog>> {
         self.folder.event_log()
     }
 
@@ -504,13 +497,13 @@ where
     }
 }
 
-impl From<IdentityFolder<FolderEventLog>> for Vault {
-    fn from(value: IdentityFolder<FolderEventLog>) -> Self {
+impl From<IdentityFolder> for Vault {
+    fn from(value: IdentityFolder) -> Self {
         value.folder.into()
     }
 }
 
-impl IdentityFolder<FolderEventLog> {
+impl IdentityFolder {
     /// Create a new identity folder with a primary password.
     ///
     /// Generates a new random single party signing key and

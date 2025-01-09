@@ -50,10 +50,7 @@ pub(crate) trait FolderMerge {
 }
 
 #[async_trait]
-impl<T> IdentityFolderMerge for IdentityFolder<T>
-where
-    T: EventLog<WriteEvent> + Send + Sync,
-{
+impl IdentityFolderMerge for IdentityFolder {
     async fn merge(
         &mut self,
         diff: &FolderDiff,
@@ -72,10 +69,7 @@ where
 }
 
 #[async_trait]
-impl<T> FolderMerge for Folder<T>
-where
-    T: EventLog<WriteEvent> + Send + Sync,
-{
+impl FolderMerge for Folder {
     async fn merge<'a>(
         &mut self,
         diff: &FolderDiff,

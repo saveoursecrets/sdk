@@ -1,4 +1,5 @@
-use crate::{events::EventLog, Error, Result};
+use crate::events::FolderEventLog;
+use crate::{Error, Result};
 use indexmap::IndexMap;
 use sos_core::commit::CommitHash;
 use sos_core::{
@@ -57,10 +58,10 @@ impl FolderReducer {
     }
 
     /// Reduce the events in the given event log.
-    pub async fn reduce<T>(mut self, event_log: &T) -> Result<FolderReducer>
-    where
-        T: EventLog<WriteEvent> + Send + Sync + 'static,
-    {
+    pub async fn reduce(
+        mut self,
+        event_log: &FolderEventLog,
+    ) -> Result<FolderReducer> {
         // TODO: use event_log.stream() !
         //
 

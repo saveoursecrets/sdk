@@ -24,6 +24,7 @@ pub use account::AccountEvent;
 pub use device::DeviceEvent;
 pub use event::Event;
 pub use event_kind::EventKind;
+pub use event_log::EventLog;
 #[cfg(feature = "files")]
 pub use file::FileEvent;
 pub use read::ReadEvent;
