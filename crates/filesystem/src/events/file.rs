@@ -72,14 +72,6 @@ pub type MemoryData = MemoryInner;
 /// Event log that writes to disc.
 pub type DiscEventLog<E> = FileSystemEventLog<E, DiscLog, DiscLog, PathBuf>;
 
-/// Event log that writes to memory.
-pub type MemoryEventLog<E> =
-    FileSystemEventLog<E, MemoryBuffer, MemoryBuffer, MemoryInner>;
-
-/// Event log for changes to a folder that writes to memory.
-pub type MemoryFolderLog =
-    FileSystemEventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>;
-
 /// Event log for changes to an account.
 pub type AccountEventLog = DiscEventLog<AccountEvent>;
 
@@ -92,6 +84,10 @@ pub type FolderEventLog = DiscEventLog<WriteEvent>;
 /// Event log for changes to external files.
 #[cfg(feature = "files")]
 pub type FileEventLog = DiscEventLog<FileEvent>;
+
+/// Event log for changes to a folder that writes to memory.
+pub type MemoryFolderLog =
+    FileSystemEventLog<WriteEvent, MemoryBuffer, MemoryBuffer, MemoryInner>;
 
 /// Type of an event log file iterator.
 type Iter = Box<dyn FormatStreamIterator<EventLogRecord> + Send + Sync>;

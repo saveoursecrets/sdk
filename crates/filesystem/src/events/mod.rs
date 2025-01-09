@@ -1,15 +1,4 @@
-//! Event log types and traits.
-//!
-//! Events represent changes to accounts, folders and files.
-//!
-//! Events may be appended to *event log* files for persistence.
-//!
-//! Event logs maintain an in-memory merkle tree of commits to
-//! enable syncing of data between devices.
-//!
-//! They are also used for some read events to maintain
-//! an audit trail of actions.
-
+//! File system append-only event logs.
 use crate::Result;
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
@@ -30,8 +19,7 @@ pub use reducer::FileReducer;
 
 pub use file::{
     AccountEventLog, DeviceEventLog, DiscData, DiscEventLog, DiscLog,
-    EventLogExt, FolderEventLog, MemoryData, MemoryEventLog, MemoryFolderLog,
-    MemoryLog,
+    EventLogExt, FolderEventLog, MemoryData, MemoryFolderLog, MemoryLog,
 };
 pub use reducer::DeviceReducer;
 
