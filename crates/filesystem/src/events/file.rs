@@ -60,11 +60,8 @@ use super::{EventRecord /*, FolderReducer*/};
 /// Type for logging events to a file.
 pub type DiscLog = Compat<File>;
 
-/// Associated data when writing event logs to disc.
-pub type DiscData = PathBuf;
-
 /// Event log that writes to disc.
-pub type DiscEventLog<E> = FileSystemEventLog<E, DiscLog, DiscLog, PathBuf>;
+pub type DiscEventLog<E> = FileSystemEventLog<E, DiscLog, DiscLog>;
 
 /// Event log for changes to an account.
 pub type AccountEventLog = DiscEventLog<AccountEvent>;
@@ -107,12 +104,11 @@ where
 
 /// Event log iterator, stream and diff support.
 #[async_trait]
-pub trait EventLogExt<E, R, W, D>: Send + Sync
+pub trait EventLogExt<E, R, W>: Send + Sync
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
     W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
-    D: Clone,
 {
     /// Delete all events from the log file on disc
     /// and in-memory.
@@ -263,7 +259,7 @@ where
 /// Appends events to an append-only writer and reads events
 /// via a reader whilst managing an in-memory merkle tree
 /// of event hashes.
-pub struct FileSystemEventLog<E, R, W, D>
+pub struct FileSystemEventLog<E, R, W>
 where
     E: Default + Encodable + Decodable + Send + Sync,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
@@ -274,12 +270,12 @@ where
     data: PathBuf,
     identity: &'static [u8],
     version: Option<u16>,
-    phantom: std::marker::PhantomData<(E, D)>,
+    phantom: std::marker::PhantomData<E>,
 }
 
 #[async_trait]
-impl<E> EventLogExt<E, DiscLog, DiscLog, PathBuf>
-    for FileSystemEventLog<E, DiscLog, DiscLog, PathBuf>
+impl<E> EventLogExt<E, DiscLog, DiscLog>
+    for FileSystemEventLog<E, DiscLog, DiscLog>
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
 {
@@ -697,7 +693,7 @@ where
     }
 }
 
-impl<E> FileSystemEventLog<E, DiscLog, DiscLog, PathBuf>
+impl<E> FileSystemEventLog<E, DiscLog, DiscLog>
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
 {
@@ -825,7 +821,7 @@ where
     }
 }
 
-impl FileSystemEventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
+impl FileSystemEventLog<WriteEvent, DiscLog, DiscLog> {
     /// Create a new folder event log file.
     pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         use sos_core::constants::FOLDER_EVENT_LOG_IDENTITY;
@@ -855,7 +851,7 @@ impl FileSystemEventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
     }
 }
 
-impl FileSystemEventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
+impl FileSystemEventLog<WriteEvent, DiscLog, DiscLog> {
     /// Get a copy of this event log compacted.
     pub async fn compact(&self) -> Result<(Self, u64, u64)> {
         let old_size = self.data.metadata()?.len();
@@ -892,7 +888,7 @@ impl FileSystemEventLog<WriteEvent, DiscLog, DiscLog, PathBuf> {
     }
 }
 
-impl FileSystemEventLog<AccountEvent, DiscLog, DiscLog, PathBuf> {
+impl FileSystemEventLog<AccountEvent, DiscLog, DiscLog> {
     /// Create a new account event log file.
     pub async fn new_account<P: AsRef<Path>>(path: P) -> Result<Self> {
         use sos_core::{
@@ -921,7 +917,7 @@ impl FileSystemEventLog<AccountEvent, DiscLog, DiscLog, PathBuf> {
     }
 }
 
-impl FileSystemEventLog<DeviceEvent, DiscLog, DiscLog, PathBuf> {
+impl FileSystemEventLog<DeviceEvent, DiscLog, DiscLog> {
     /// Create a new device event log file.
     pub async fn new_device(path: impl AsRef<Path>) -> Result<Self> {
         use sos_core::{
@@ -951,7 +947,7 @@ impl FileSystemEventLog<DeviceEvent, DiscLog, DiscLog, PathBuf> {
 }
 
 #[cfg(feature = "files")]
-impl FileSystemEventLog<FileEvent, DiscLog, DiscLog, PathBuf> {
+impl FileSystemEventLog<FileEvent, DiscLog, DiscLog> {
     /// Create a new file event log file.
     pub async fn new_file(path: impl AsRef<Path>) -> Result<Self> {
         use sos_core::{

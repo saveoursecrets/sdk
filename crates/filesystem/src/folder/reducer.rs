@@ -58,15 +58,14 @@ impl FolderReducer {
     }
 
     /// Reduce the events in the given event log.
-    pub async fn reduce<T, R, W, D>(
+    pub async fn reduce<T, R, W>(
         mut self,
         event_log: &T,
     ) -> Result<FolderReducer>
     where
-        T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
+        T: EventLogExt<WriteEvent, R, W> + Send + Sync + 'static,
         R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
         W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
-        D: Clone + Send + Sync,
     {
         // TODO: use event_log.stream() !
         //

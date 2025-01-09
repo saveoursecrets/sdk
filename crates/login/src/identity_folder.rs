@@ -17,7 +17,7 @@ use sos_core::{
     decode, encode, AccountId, Paths,
 };
 use sos_filesystem::{
-    events::{DiscData, DiscLog, EventLogExt, FolderEventLog},
+    events::{DiscLog, EventLogExt, FolderEventLog},
     folder::{DiscFolder, Folder},
     FileSystemGatekeeper, VaultFileWriter,
 };
@@ -40,20 +40,19 @@ const VAULT_PASSPHRASE_WORDS: usize = 12;
 
 /// Identity folder that reads and writes to disc.
 pub type DiscIdentityFolder =
-    IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData>;
+    IdentityFolder<FolderEventLog, DiscLog, DiscLog>;
 
 /// Identity vault stores the account signing key,
 /// asymmetric encryption key and delegated passwords.
-pub struct IdentityFolder<T, R, W, D>
+pub struct IdentityFolder<T, R, W>
 where
-    T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
+    T: EventLogExt<WriteEvent, R, W> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
     W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
-    D: Clone + Send + Sync,
 {
     /// Folder storage.
     #[doc(hidden)]
-    pub folder: Folder<T, R, W, D>,
+    pub folder: Folder<T, R, W>,
     /// Lookup table.
     #[doc(hidden)]
     pub index: UrnLookup,
@@ -62,12 +61,11 @@ where
     pub(super) devices: Option<crate::device::DeviceManager>,
 }
 
-impl<T, R, W, D> IdentityFolder<T, R, W, D>
+impl<T, R, W> IdentityFolder<T, R, W>
 where
-    T: EventLogExt<WriteEvent, R, W, D> + Send + Sync + 'static,
+    T: EventLogExt<WriteEvent, R, W> + Send + Sync + 'static,
     R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
     W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
-    D: Clone + Send + Sync,
 {
     /// Private identity.
     pub fn private_identity(&self) -> &PrivateIdentity {
@@ -512,17 +510,13 @@ where
     }
 }
 
-impl From<IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData>>
-    for Vault
-{
-    fn from(
-        value: IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData>,
-    ) -> Self {
+impl From<IdentityFolder<FolderEventLog, DiscLog, DiscLog>> for Vault {
+    fn from(value: IdentityFolder<FolderEventLog, DiscLog, DiscLog>) -> Self {
         value.folder.into()
     }
 }
 
-impl IdentityFolder<FolderEventLog, DiscLog, DiscLog, DiscData> {
+impl IdentityFolder<FolderEventLog, DiscLog, DiscLog> {
     /// Create a new identity folder with a primary password.
     ///
     /// Generates a new random single party signing key and

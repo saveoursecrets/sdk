@@ -18,8 +18,8 @@ pub use file::FileEventLog;
 pub use reducer::FileReducer;
 
 pub use file::{
-    AccountEventLog, DeviceEventLog, DiscData, DiscEventLog, DiscLog,
-    EventLogExt, FolderEventLog,
+    AccountEventLog, DeviceEventLog, DiscEventLog, DiscLog, EventLogExt,
+    FolderEventLog,
 };
 pub use reducer::DeviceReducer;
 
