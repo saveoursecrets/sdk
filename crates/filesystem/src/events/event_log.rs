@@ -15,7 +15,6 @@
 //!
 use super::EventRecord;
 use crate::{
-    folder::FolderReducer,
     formats::{
         read_file_identity_bytes, EventLogRecord, FileItem, FormatStream,
         FormatStreamIterator,
@@ -491,6 +490,11 @@ impl<E> FileSystemEventLog<E>
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
 {
+    /// Path to the event log file.
+    pub fn file_path(&self) -> &PathBuf {
+        &self.data
+    }
+
     /// Read the event data from an item.
     #[doc(hidden)]
     pub async fn decode_event(&self, item: &EventLogRecord) -> Result<E> {
@@ -682,43 +686,6 @@ impl FileSystemEventLog<WriteEvent> {
             version: None,
             phantom: std::marker::PhantomData,
         })
-    }
-}
-
-impl FileSystemEventLog<WriteEvent> {
-    /// Get a copy of this event log compacted.
-    pub async fn compact(&self) -> Result<(Self, u64, u64)> {
-        let old_size = self.data.metadata()?.len();
-
-        // Get the reduced set of events
-        let events =
-            FolderReducer::new().reduce(self).await?.compact().await?;
-        let temp = NamedTempFile::new()?;
-
-        // Apply them to a temporary event log file
-        let mut temp_event_log = Self::new(temp.path()).await?;
-        temp_event_log.apply(events.iter().collect()).await?;
-
-        let new_size = self.data.metadata()?.len();
-
-        // Remove the existing event log file
-        vfs::remove_file(&self.data).await?;
-
-        // Move the temp file into place
-        //
-        // NOTE: we would prefer to rename but on linux we
-        // NOTE: can hit ErrorKind::CrossesDevices
-        //
-        // But it's a nightly only variant so can't use it yet to
-        // determine whether to rename or copy.
-        vfs::copy(temp.path(), &self.data).await?;
-
-        // Need to recreate the event log file and load the updated
-        // commit tree
-        let mut new_event_log = Self::new(&self.data).await?;
-        new_event_log.load_tree().await?;
-
-        Ok((new_event_log, old_size, new_size))
     }
 }
 

@@ -1,5 +1,6 @@
 //! Account storage and search index.
 use crate::{convert::CipherComparison, AccountBuilder, Error, Result};
+use sos_backend::compact::compact_filesystem_folder;
 use sos_client_storage::{
     AccessOptions, AccountPack, ClientStorage, NewFolderOptions,
 };
@@ -2063,7 +2064,7 @@ impl Account for LocalAccount {
             let mut log_file = event_log.write().await;
 
             let (compact_event_log, old_size, new_size) =
-                log_file.compact().await?;
+                compact_filesystem_folder(&*log_file).await?;
 
             let vault = FolderReducer::new()
                 .reduce(&compact_event_log)

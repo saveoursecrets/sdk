@@ -30,3 +30,4 @@ binary-stream.workspace = true
 uuid.workspace = true
 tracing.workspace = true
 indexmap.workspace = true
+tempfile.workspace = true
