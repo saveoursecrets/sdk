@@ -6,6 +6,7 @@ use super::folder_sync::{
 use crate::{Account, LocalAccount, Result};
 use async_trait::async_trait;
 use indexmap::IndexMap;
+use sos_backend::reducers::DeviceReducer;
 use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
     events::{
@@ -14,16 +15,13 @@ use sos_core::{
     },
     VaultId,
 };
+use sos_core::{decode, events::EventLog};
 use sos_database::StorageError;
-use sos_sdk::{
-    decode,
-    events::{DeviceReducer, EventLog},
-    vault::Vault,
-};
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
     SyncStorage, TrackedChanges,
 };
+use sos_vault::Vault;
 use std::collections::HashSet;
 
 #[cfg(feature = "files")]
@@ -381,7 +379,7 @@ impl Merge for LocalAccount {
         diff: FileDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        use sos_sdk::events::FileReducer;
+        use sos_backend::reducers::FileReducer;
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),

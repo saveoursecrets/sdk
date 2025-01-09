@@ -43,7 +43,8 @@ use sos_core::{
     events::DeviceEvent,
 };
 
-use sos_filesystem::events::{DeviceEventLog, DeviceReducer};
+use sos_backend::reducers::DeviceReducer;
+use sos_filesystem::events::DeviceEventLog;
 
 #[cfg(feature = "files")]
 use {

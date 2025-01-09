@@ -31,7 +31,7 @@ contacts = ["dep:vcard4"]
 migrate = ["sos-migrate/import", "sos-migrate/export"]
 files =[
   "sos-sdk/files",
-  "sos-database/files",
+  "sos-backend/files",
   "sos-login/files",
   "sos-client-storage/files",
   "dep:walkdir",
@@ -42,6 +42,7 @@ search = ["sos-database/search", "sos-client-storage/search"]
 sos-audit = { workspace = true, optional = true }
 sos-core.workspace = true
 sos-sdk.workspace = true
+sos-backend.workspace = true
 sos-database = { workspace = true, features = ["client"] }
 sos-filesystem.workspace = true
 sos-login.workspace = true

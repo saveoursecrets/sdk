@@ -30,6 +30,7 @@ search = [
 sos-audit = { workspace = true, optional = true }
 sos-backup-archive = { workspace = true, optional = true }
 sos-core.workspace = true
+sos-backend.workspace = true
 sos-database.workspace = true
 sos-password.workspace = true
 sos-filesystem.workspace = true

@@ -11,7 +11,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 full = ["audit", "files"]
 audit = ["sos-audit"]
 files = [
-  "sos-database/files",
+  "sos-backend/files",
   "sos-sdk/files",
   "sos-sync/files",
 ]
@@ -19,6 +19,7 @@ files = [
 [dependencies]
 sos-audit = { workspace = true, optional = true }
 sos-core.workspace = true
+sos-backend.workspace = true
 sos-database.workspace = true
 sos-filesystem.workspace = true
 sos-protocol.workspace = true

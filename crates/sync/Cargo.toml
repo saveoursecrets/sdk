@@ -13,10 +13,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 full = ["files"]
-files = ["sos-filesystem/files"]
+files = [
+  "sos-backend/files",
+]
 
 [dependencies]
 sos-core.workspace = true
+sos-backend.workspace = true
 sos-filesystem.workspace = true
 sos-vault.workspace = true
 

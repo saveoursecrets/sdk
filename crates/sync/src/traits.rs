@@ -64,7 +64,7 @@ pub trait StorageEventLogs: Send + Sync + 'static {
     async fn canonical_files(
         &self,
     ) -> Result<IndexSet<ExternalFile>, Self::Error> {
-        use sos_filesystem::events::FileReducer;
+        use sos_backend::reducers::FileReducer;
         let files = self.file_log().await?;
         let event_log = files.read().await;
 

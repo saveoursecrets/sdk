@@ -8,20 +8,14 @@ use sos_core::{
     encode,
 };
 
-mod file;
-mod reducer;
+mod event_log;
 
-#[cfg(feature = "files")]
-pub use file::FileEventLog;
-
-#[cfg(feature = "files")]
-pub use reducer::FileReducer;
-
-pub use file::{
-    AccountEventLog, DeviceEventLog, DiscEventLog, EventLog,
-    FolderEventLog,
+pub use event_log::{
+    AccountEventLog, DeviceEventLog, DiscEventLog, EventLog, FolderEventLog,
 };
-pub use reducer::DeviceReducer;
+
+#[cfg(feature = "files")]
+pub use event_log::FileEventLog;
 
 /// Encode an event into a record.
 #[async_trait]

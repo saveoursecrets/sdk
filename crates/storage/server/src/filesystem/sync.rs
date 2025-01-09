@@ -3,25 +3,26 @@ use crate::{filesystem::ServerFileStorage, ServerAccountStorage};
 use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
-use sos_core::events::LogEvent;
+use sos_backend::reducers::DeviceReducer;
 use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
-    VaultId,
-};
-use sos_core::{
     encode,
     events::{
         patch::{
             AccountDiff, CheckedPatch, DeviceDiff, FileDiff, FolderDiff,
         },
-        AccountEvent, WriteEvent,
+        AccountEvent, LogEvent, WriteEvent,
     },
+    VaultId,
 };
-use sos_filesystem::events::{
-    AccountEventLog, DeviceEventLog, DeviceReducer, EventLog, FileEventLog,
-    FolderEventLog,
+use sos_filesystem::{
+    events::{
+        AccountEventLog, DeviceEventLog, EventLog, FileEventLog,
+        FolderEventLog,
+    },
+    folder::FolderReducer,
+    VaultFileWriter,
 };
-use sos_filesystem::{folder::FolderReducer, VaultFileWriter};
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
     SyncStorage, TrackedChanges,

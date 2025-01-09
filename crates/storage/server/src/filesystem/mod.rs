@@ -2,6 +2,7 @@
 use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
+use sos_backend::reducers::DeviceReducer;
 use sos_core::events::{patch::FolderPatch, AccountEvent, FileEvent};
 use sos_core::{
     constants::VAULT_EXT,
@@ -11,8 +12,8 @@ use sos_core::{
 };
 use sos_filesystem::{
     events::{
-        AccountEventLog, DeviceEventLog, DeviceReducer, EventLog,
-        FileEventLog, FolderEventLog,
+        AccountEventLog, DeviceEventLog, EventLog, FileEventLog,
+        FolderEventLog,
     },
     folder::FolderReducer,
     VaultFileWriter,
