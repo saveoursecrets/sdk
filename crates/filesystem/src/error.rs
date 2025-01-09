@@ -20,12 +20,14 @@ pub enum Error {
 
     /// Error generated when a a event log file does not begin with a create vault event.
     #[error("first record in an event log must be a create vault event")]
+    #[deprecated]
     CreateEventMustBeFirst,
 
     /// Error generated when a event log create vault event is not the first record.
     #[error(
         "got an event log create vault event that is not the first record"
     )]
+    #[deprecated]
     CreateEventOnlyFirst,
 
     /// Error generated when replacing events in an event log

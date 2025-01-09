@@ -58,6 +58,15 @@ pub enum Error {
     #[error("buffer passed for identity check is too short")]
     IdentityLength,
 
+    /// Error generated when a a event log file does
+    /// not begin with a create vault event.
+    #[error("first record in an event log must be a create vault event")]
+    CreateEventMustBeFirst,
+
+    /// Error generated when a event log create vault event is not the first record.
+    #[error("event log create vault event must only be the first record")]
+    CreateEventOnlyFirst,
+
     /// Generic boxed error.
     #[error(transparent)]
     Boxed(#[from] Box<dyn std::error::Error + Send + Sync>),
