@@ -1,5 +1,4 @@
 use crate::{events::EventLogExt, Error, Result};
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use indexmap::IndexMap;
 use sos_core::commit::CommitHash;
 use sos_core::{
@@ -58,14 +57,9 @@ impl FolderReducer {
     }
 
     /// Reduce the events in the given event log.
-    pub async fn reduce<T, R, W>(
-        mut self,
-        event_log: &T,
-    ) -> Result<FolderReducer>
+    pub async fn reduce<T>(mut self, event_log: &T) -> Result<FolderReducer>
     where
-        T: EventLogExt<WriteEvent, R, W> + Send + Sync + 'static,
-        R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-        W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
+        T: EventLogExt<WriteEvent> + Send + Sync + 'static,
     {
         // TODO: use event_log.stream() !
         //

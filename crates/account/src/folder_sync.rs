@@ -1,7 +1,6 @@
 //! Implements merging for folders.
 use crate::Result;
 use async_trait::async_trait;
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use sos_core::{
     events::{
         patch::{CheckedPatch, FolderDiff},
@@ -51,11 +50,9 @@ pub(crate) trait FolderMerge {
 }
 
 #[async_trait]
-impl<T, R, W> IdentityFolderMerge for IdentityFolder<T, R, W>
+impl<T> IdentityFolderMerge for IdentityFolder<T>
 where
-    T: EventLogExt<WriteEvent, R, W> + Send + Sync,
-    R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
-    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync,
+    T: EventLogExt<WriteEvent> + Send + Sync,
 {
     async fn merge(
         &mut self,
@@ -75,11 +72,9 @@ where
 }
 
 #[async_trait]
-impl<T, R, W> FolderMerge for Folder<T, R, W>
+impl<T> FolderMerge for Folder<T>
 where
-    T: EventLogExt<WriteEvent, R, W> + Send + Sync,
-    R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
-    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync,
+    T: EventLogExt<WriteEvent> + Send + Sync,
 {
     async fn merge<'a>(
         &mut self,

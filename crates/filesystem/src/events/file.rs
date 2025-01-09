@@ -57,11 +57,10 @@ use tempfile::NamedTempFile;
 
 use super::{EventRecord /*, FolderReducer*/};
 
-/// Type for logging events to a file.
-pub type DiscLog = Compat<File>;
+type DiscLog = Compat<File>;
 
 /// Event log that writes to disc.
-pub type DiscEventLog<E> = FileSystemEventLog<E, DiscLog, DiscLog>;
+pub type DiscEventLog<E> = FileSystemEventLog<E>;
 
 /// Event log for changes to an account.
 pub type AccountEventLog = DiscEventLog<AccountEvent>;
@@ -104,11 +103,9 @@ where
 
 /// Event log iterator, stream and diff support.
 #[async_trait]
-pub trait EventLogExt<E, R, W>: Send + Sync
+pub trait EventLogExt<E>: Send + Sync
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
-    R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
 {
     /// Delete all events from the log file on disc
     /// and in-memory.
@@ -121,9 +118,11 @@ where
     #[doc(hidden)]
     fn tree_mut(&mut self) -> &mut CommitTree;
 
+    /*
     /// File reader and writer.
     #[doc(hidden)]
     fn file(&self) -> Arc<Mutex<(R, W)>>;
+    */
 
     /// Identity bytes.
     #[doc(hidden)]
@@ -259,13 +258,11 @@ where
 /// Appends events to an append-only writer and reads events
 /// via a reader whilst managing an in-memory merkle tree
 /// of event hashes.
-pub struct FileSystemEventLog<E, R, W>
+pub struct FileSystemEventLog<E>
 where
     E: Default + Encodable + Decodable + Send + Sync,
-    R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
-    W: AsyncWrite + Unpin + Send + Sync,
 {
-    file: Arc<Mutex<(R, W)>>,
+    file: Arc<Mutex<(Compat<File>, Compat<File>)>>,
     tree: CommitTree,
     data: PathBuf,
     identity: &'static [u8],
@@ -274,8 +271,7 @@ where
 }
 
 #[async_trait]
-impl<E> EventLogExt<E, DiscLog, DiscLog>
-    for FileSystemEventLog<E, DiscLog, DiscLog>
+impl<E> EventLogExt<E> for FileSystemEventLog<E>
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
 {
@@ -360,10 +356,6 @@ where
 
     fn version(&self) -> Option<u16> {
         self.version
-    }
-
-    fn file(&self) -> Arc<Mutex<(DiscLog, DiscLog)>> {
-        Arc::clone(&self.file)
     }
 
     async fn truncate(&mut self) -> Result<()> {
@@ -693,10 +685,14 @@ where
     }
 }
 
-impl<E> FileSystemEventLog<E, DiscLog, DiscLog>
+impl<E> FileSystemEventLog<E>
 where
     E: Default + Encodable + Decodable + Send + Sync + 'static,
 {
+    fn file(&self) -> Arc<Mutex<(DiscLog, DiscLog)>> {
+        Arc::clone(&self.file)
+    }
+
     /// Length of the file magic bytes and optional
     /// encoding version.
     #[doc(hidden)]
@@ -821,7 +817,7 @@ where
     }
 }
 
-impl FileSystemEventLog<WriteEvent, DiscLog, DiscLog> {
+impl FileSystemEventLog<WriteEvent> {
     /// Create a new folder event log file.
     pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         use sos_core::constants::FOLDER_EVENT_LOG_IDENTITY;
@@ -851,7 +847,7 @@ impl FileSystemEventLog<WriteEvent, DiscLog, DiscLog> {
     }
 }
 
-impl FileSystemEventLog<WriteEvent, DiscLog, DiscLog> {
+impl FileSystemEventLog<WriteEvent> {
     /// Get a copy of this event log compacted.
     pub async fn compact(&self) -> Result<(Self, u64, u64)> {
         let old_size = self.data.metadata()?.len();
@@ -888,7 +884,7 @@ impl FileSystemEventLog<WriteEvent, DiscLog, DiscLog> {
     }
 }
 
-impl FileSystemEventLog<AccountEvent, DiscLog, DiscLog> {
+impl FileSystemEventLog<AccountEvent> {
     /// Create a new account event log file.
     pub async fn new_account<P: AsRef<Path>>(path: P) -> Result<Self> {
         use sos_core::{
@@ -917,7 +913,7 @@ impl FileSystemEventLog<AccountEvent, DiscLog, DiscLog> {
     }
 }
 
-impl FileSystemEventLog<DeviceEvent, DiscLog, DiscLog> {
+impl FileSystemEventLog<DeviceEvent> {
     /// Create a new device event log file.
     pub async fn new_device(path: impl AsRef<Path>) -> Result<Self> {
         use sos_core::{
@@ -947,7 +943,7 @@ impl FileSystemEventLog<DeviceEvent, DiscLog, DiscLog> {
 }
 
 #[cfg(feature = "files")]
-impl FileSystemEventLog<FileEvent, DiscLog, DiscLog> {
+impl FileSystemEventLog<FileEvent> {
     /// Create a new file event log file.
     pub async fn new_file(path: impl AsRef<Path>) -> Result<Self> {
         use sos_core::{

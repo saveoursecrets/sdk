@@ -1,10 +1,9 @@
 //! Storage backed by the filesystem.
 use crate::folder::FolderReducer;
 use crate::{
-    events::{DiscLog, EventLogExt, FolderEventLog},
+    events::{EventLogExt, FolderEventLog},
     FileSystemGatekeeper, Result, VaultFileWriter,
 };
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use sos_core::{
     commit::{CommitHash, CommitState},
     VaultFlags,
@@ -24,32 +23,26 @@ use std::{borrow::Cow, path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
 /// Folder that writes events to disc.
-pub type DiscFolder = Folder<FolderEventLog, DiscLog, DiscLog>;
+pub type DiscFolder = Folder<FolderEventLog>;
 
 /// Folder is a combined vault and event log.
-pub struct Folder<T, R, W>
+pub struct Folder<T>
 where
-    T: EventLogExt<WriteEvent, R, W> + Send + Sync + 'static,
-    R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
+    T: EventLogExt<WriteEvent> + Send + Sync + 'static,
 {
     pub(crate) keeper: FileSystemGatekeeper,
     events: Arc<RwLock<T>>,
-    marker: std::marker::PhantomData<(R, W)>,
 }
 
-impl<T, R, W> Folder<T, R, W>
+impl<T> Folder<T>
 where
-    T: EventLogExt<WriteEvent, R, W> + Send + Sync + 'static,
-    R: AsyncRead + AsyncSeek + Unpin + Send + Sync + 'static,
-    W: AsyncWrite + AsyncSeek + Unpin + Send + Sync + 'static,
+    T: EventLogExt<WriteEvent> + Send + Sync + 'static,
 {
     /// Create a new folder.
     fn init(keeper: FileSystemGatekeeper, events: T) -> Self {
         Self {
             keeper,
             events: Arc::new(RwLock::new(events)),
-            marker: std::marker::PhantomData,
         }
     }
 
@@ -230,7 +223,7 @@ where
     }
 }
 
-impl Folder<FolderEventLog, DiscLog, DiscLog> {
+impl Folder<FolderEventLog> {
     /// Create a new folder from a vault file on disc.
     ///
     /// Changes to the in-memory vault are mirrored to disc and
@@ -277,8 +270,8 @@ impl Folder<FolderEventLog, DiscLog, DiscLog> {
     }
 }
 
-impl From<Folder<FolderEventLog, DiscLog, DiscLog>> for Vault {
-    fn from(value: Folder<FolderEventLog, DiscLog, DiscLog>) -> Self {
+impl From<Folder<FolderEventLog>> for Vault {
+    fn from(value: Folder<FolderEventLog>) -> Self {
         value.keeper.into()
     }
 }
