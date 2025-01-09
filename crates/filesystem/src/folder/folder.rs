@@ -1,10 +1,7 @@
 //! Storage backed by the filesystem.
 use crate::folder::FolderReducer;
 use crate::{
-    events::{
-        DiscData, DiscLog, EventLogExt, FolderEventLog, MemoryData,
-        MemoryFolderLog, MemoryLog,
-    },
+    events::{DiscData, DiscLog, EventLogExt, FolderEventLog},
     FileSystemGatekeeper, Result, VaultFileWriter,
 };
 use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
@@ -28,10 +25,6 @@ use tokio::sync::RwLock;
 
 /// Folder that writes events to disc.
 pub type DiscFolder = Folder<FolderEventLog, DiscLog, DiscLog, DiscData>;
-
-/// Folder that writes events to memory.
-pub type MemoryFolder =
-    Folder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData>;
 
 /// Folder is a combined vault and event log.
 pub struct Folder<T, R, W, D>
@@ -283,16 +276,6 @@ impl Folder<FolderEventLog, DiscLog, DiscLog, DiscData> {
             FolderEventLog::new(path.as_ref().to_owned()).await?;
         event_log.load_tree().await?;
         Ok(Arc::new(RwLock::new(event_log)))
-    }
-}
-
-impl Folder<MemoryFolderLog, MemoryLog, MemoryLog, MemoryData> {
-    /// Create a new folder from a vault buffer
-    /// that writes to memory.
-    pub async fn new(buffer: impl AsRef<[u8]>) -> Result<Self> {
-        let vault: Vault = decode(buffer.as_ref()).await?;
-        let keeper = FileSystemGatekeeper::new(vault);
-        Ok(Self::init(keeper, MemoryFolderLog::new()))
     }
 }
 
