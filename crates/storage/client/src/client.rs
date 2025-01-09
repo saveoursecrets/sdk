@@ -1,6 +1,8 @@
 //! Storage backed by the filesystem.
 use crate::{AccessOptions, AccountPack, Error, NewFolderOptions, Result};
 use indexmap::IndexSet;
+use sos_backend::folder::DiscFolder;
+use sos_backend::reducers::FolderReducer;
 use sos_core::{
     commit::{CommitHash, CommitState},
     SecretId, VaultId,
@@ -15,7 +17,6 @@ use sos_core::{
     AccountId, UtcDateTime,
 };
 use sos_database::StorageError;
-use sos_filesystem::folder::{DiscFolder, FolderReducer};
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
     events::{

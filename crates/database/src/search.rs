@@ -2,13 +2,11 @@
 use crate::{Error, Result};
 use probly_search::{score::bm25, Index, QueryResult};
 use serde::{Deserialize, Serialize};
+use sos_core::crypto::AccessKey;
 use sos_filesystem::FileSystemGateKeeper;
-use sos_sdk::{
-    crypto::AccessKey,
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRef, SecretType},
-        Summary, Vault, VaultId,
-    },
+use sos_vault::{
+    secret::{Secret, SecretId, SecretMeta, SecretRef, SecretType},
+    Summary, Vault, VaultId,
 };
 use std::{
     borrow::Cow,

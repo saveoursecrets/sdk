@@ -2,9 +2,9 @@ use crate::{Error, Result};
 use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
 };
-use sos_core::VaultFlags;
-use sos_core::{commit::CommitHash, SecretId, VaultId};
-use sos_sdk::UtcDateTime;
+use sos_core::{
+    commit::CommitHash, SecretId, UtcDateTime, VaultFlags, VaultId,
+};
 use sos_vault::Summary;
 use std::collections::HashMap;
 use std::ops::Deref;

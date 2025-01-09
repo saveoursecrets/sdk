@@ -6,18 +6,17 @@
 //!
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single primary password.
-use crate::device::{DeviceManager, DeviceSigner};
-use crate::{Error, PrivateIdentity, Result, UrnLookup};
+use crate::device::{DeviceManager, DeviceSigner, Result};
+use crate::{Error, PrivateIdentity, UrnLookup};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
+use sos_backend::folder::Folder;
 use sos_core::{
     constants::LOGIN_AGE_KEY_URN,
     crypto::{AccessKey, KeyDerivation},
     decode, encode, AccountId, Paths,
 };
 use sos_filesystem::{
-    events::FolderEventLog,
-    folder::{DiscFolder, Folder},
-    FileSystemGateKeeper, VaultFileWriter,
+    events::FolderEventLog, FileSystemGateKeeper, VaultFileWriter,
 };
 use sos_password::diceware::generate_passphrase_words;
 use sos_signer::ed25519;

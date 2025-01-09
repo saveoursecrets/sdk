@@ -12,6 +12,7 @@ use std::{
 
 /// Public account identity information.
 #[typeshare::typeshare]
+#[deprecated]
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct PublicIdentity {
     /// Account identifier.
@@ -43,6 +44,7 @@ impl PublicIdentity {
     }
 
     /// List account information for the identity vaults.
+    #[deprecated]
     pub async fn list_accounts(
         paths: Option<&Paths>,
     ) -> Result<Vec<PublicIdentity>> {
@@ -66,6 +68,7 @@ impl PublicIdentity {
     }
 
     /// Read the public identity from an identity vault file.
+    #[deprecated]
     pub async fn read_public_identity(
         path: impl AsRef<Path>,
     ) -> Result<Option<PublicIdentity>> {
@@ -104,6 +107,7 @@ impl PublicIdentity {
 
     /// List the folders in an account by inspecting
     /// the vault files in the vaults directory.
+    #[deprecated]
     pub(crate) async fn list_local_folders(
         paths: &Paths,
     ) -> Result<Vec<(Summary, PathBuf)>> {
@@ -137,6 +141,7 @@ impl From<PublicIdentity> for AccountRef {
 
 /// Reference to an account using an address or a named label.
 #[derive(Debug, Clone)]
+#[deprecated]
 pub enum AccountRef {
     /// Account identifier.
     Id(AccountId),

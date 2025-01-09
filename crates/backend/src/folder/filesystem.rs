@@ -1,5 +1,5 @@
 //! Folder implementation backed by the filesystem.
-use super::Folder;
+use super::GenericFolder;
 use crate::reducers::FolderReducer;
 use sos_core::events::EventLog;
 use sos_core::{constants::EVENT_LOG_EXT, decode};
@@ -12,9 +12,9 @@ use std::{path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
 /// Folder that writes events to disc.
-pub type DiscFolder = Folder<FileSystemGateKeeper, FolderEventLog>;
+pub type DiscFolder = GenericFolder<FolderEventLog, Error>;
 
-impl Folder<FolderEventLog, Error> {
+impl GenericFolder<FolderEventLog, Error> {
     /// Create a new folder from a vault file on disc.
     ///
     /// Changes to the in-memory vault are mirrored to disc and
@@ -64,8 +64,10 @@ impl Folder<FolderEventLog, Error> {
     }
 }
 
-impl From<Folder<FolderEventLog, sos_filesystem::Error>> for Vault {
-    fn from(value: Folder<FolderEventLog, sos_filesystem::Error>) -> Self {
+impl From<GenericFolder<FolderEventLog, sos_filesystem::Error>> for Vault {
+    fn from(
+        value: GenericFolder<FolderEventLog, sos_filesystem::Error>,
+    ) -> Self {
         value.keeper.into()
     }
 }

@@ -1,8 +1,8 @@
 //! Import filesystem backed accounts into a database.
 use crate::{db, migrations::migrate_client, Error, Result};
 use async_sqlite::Client;
-use sos_core::Paths;
-use sos_sdk::prelude::{Identity, PublicIdentity};
+use sos_core::{Paths, PublicIdentity};
+use sos_vault::list_accounts;
 use std::path::PathBuf;
 
 /// Create the database for an existing account from account paths.
@@ -36,7 +36,7 @@ pub async fn import_accounts(data_dir: PathBuf) -> Result<()> {
 
     db::import_globals(&mut client, &paths).await?;
 
-    let accounts = Identity::list_accounts(Some(&paths)).await?;
+    let accounts = list_accounts(Some(&paths)).await?;
     for account in accounts {
         let account_paths = Paths::new(
             paths.documents_dir(),

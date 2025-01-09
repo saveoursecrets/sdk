@@ -14,6 +14,7 @@ mod error;
 pub mod events;
 mod file;
 pub mod file_identity;
+mod identity;
 mod origin;
 mod paths;
 
@@ -24,6 +25,7 @@ pub use date_time::UtcDateTime;
 pub use encoding::{decode, encode};
 pub use error::{Error, ErrorExt};
 pub use file::{ExternalFile, ExternalFileName};
+pub use identity::{AccountRef, PublicIdentity};
 pub use origin::Origin;
 pub use paths::Paths;
 pub use rs_merkle as merkle;

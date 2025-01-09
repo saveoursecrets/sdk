@@ -10,19 +10,25 @@ use async_sqlite::{
 use futures::{pin_mut, StreamExt};
 use sos_audit::fs::{audit_stream, AuditLogFile};
 use sos_core::Origin;
-use sos_core::{commit::CommitHash, Paths, SecretId};
-use sos_filesystem::formats::FormatStreamIterator;
-use sos_sdk::prelude::{
-    decode, encode, vfs, AccountEventLog, DeviceEventLog, EventLog,
-    EventRecord, FolderEventLog, Identity, PublicIdentity, Vault,
+use sos_core::{commit::CommitHash, Paths, PublicIdentity, SecretId};
+use sos_core::{
+    decode, encode,
+    events::{EventLog, EventRecord},
     VaultCommit, VaultEntry,
 };
+use sos_filesystem::{
+    events::{AccountEventLog, DeviceEventLog, FolderEventLog},
+    formats::FormatStreamIterator,
+};
+use sos_vault::list_local_folders;
+use sos_vault::Vault;
+use sos_vfs as vfs;
 use std::{collections::HashMap, path::Path};
 
 #[cfg(feature = "files")]
 use {
     super::FileEntity, crate::files::list_external_files,
-    sos_sdk::events::FileEventLog,
+    sos_filesystem::events::FileEventLog,
 };
 
 /// Create global values in the database.
@@ -117,7 +123,7 @@ pub(crate) async fn import_account(
 
     // User folders
     let mut folders = Vec::new();
-    let user_folders = Identity::list_local_folders(paths).await?;
+    let user_folders = list_local_folders(paths).await?;
     for (summary, path) in user_folders {
         let buffer = vfs::read(path).await?;
         let vault: Vault = decode(&buffer).await?;

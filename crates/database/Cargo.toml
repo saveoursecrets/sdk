@@ -18,7 +18,7 @@ full = [
   "search",
   "sqlite",
 ]
-files = ["sos-sdk/files", "sos-filesystem/files"]
+files = ["sos-filesystem/files"]
 search = [
   "dep:probly-search",
   "dep:unicode-segmentation",
@@ -31,10 +31,9 @@ client = []
 [dependencies]
 sos-audit.workspace = true
 sos-core.workspace = true
-sos-sdk.workspace = true
-sos-login.workspace = true
 sos-filesystem.workspace = true
 sos-vault.workspace = true
+sos-vfs.workspace = true
 
 thiserror.workspace = true
 futures.workspace = true

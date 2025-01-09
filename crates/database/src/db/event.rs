@@ -2,7 +2,7 @@ use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError,
 };
 use sos_core::commit::CommitHash;
-use sos_sdk::events::EventRecord;
+use sos_core::events::EventRecord;
 use std::ops::Deref;
 
 type EventSourceRow = (String, CommitHash, EventRecord);

@@ -5,7 +5,8 @@ use sos_core::events::FileEvent;
 use sos_core::{
     ExternalFile, ExternalFileName, Paths, SecretId, SecretPath, VaultId,
 };
-use sos_sdk::{vault::secret::Secret, vfs};
+use sos_vault::secret::Secret;
+use sos_vfs as vfs;
 use std::path::{Path, PathBuf};
 
 /// Meta data about an encrypted file.

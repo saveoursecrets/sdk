@@ -5,7 +5,6 @@
 mod encoding;
 mod error;
 pub mod events;
-pub mod folder;
 pub mod formats;
 pub mod vault_writer;
 
