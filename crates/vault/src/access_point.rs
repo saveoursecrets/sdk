@@ -67,9 +67,6 @@ pub trait SecretAccess {
         path: P,
     ) -> Result<(), Self::Error>;
 
-    /// Set the vault.
-    fn set_vault(&mut self, vault: Vault);
-
     /// Vault summary information.
     fn summary(&self) -> &Summary;
 
@@ -293,10 +290,6 @@ where
         }
         self.vault = vault;
         Ok(())
-    }
-
-    fn set_vault(&mut self, vault: Vault) {
-        self.vault = vault;
     }
 
     fn summary(&self) -> &Summary {

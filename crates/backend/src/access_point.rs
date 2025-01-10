@@ -109,13 +109,6 @@ impl SecretAccess for BackendAccessPoint {
         })
     }
 
-    fn set_vault(&mut self, vault: Vault) {
-        match self {
-            BackendAccessPoint::Database(inner) => inner.set_vault(vault),
-            BackendAccessPoint::FileSystem(inner) => inner.set_vault(vault),
-        }
-    }
-
     fn summary(&self) -> &Summary {
         match self {
             BackendAccessPoint::Database(inner) => inner.summary(),
