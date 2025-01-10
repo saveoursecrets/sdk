@@ -68,7 +68,7 @@ bitflags = { version = "2", features = ["serde"] }
 enum-iterator = "2"
 tempfile = "3.5"
 prost = "0.13"
-clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
+clap = { version = "4.5.26", features = ["derive", "wrap_help", "env"] }
 colored = "2"
 arboard = { version = "3", default-features = false }
 zeroize = "1"
