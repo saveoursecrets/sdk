@@ -1,14 +1,15 @@
+mod access_point;
 pub mod compact;
 mod error;
 mod event_log;
 mod folder;
-mod gate_keeper;
 pub mod reducers;
 #[cfg(feature = "search")]
 pub mod search;
 
 pub use error::Error;
 
+pub use access_point::BackendAccessPoint;
 pub use event_log::{
     BackendAccountEventLog as AccountEventLog,
     BackendDeviceEventLog as DeviceEventLog,
@@ -16,7 +17,6 @@ pub use event_log::{
 };
 pub use event_log::{BackendEventLog, BackendFolderEventLog};
 pub use folder::Folder;
-pub use gate_keeper::BackendAccessPoint;
 
 #[cfg(feature = "files")]
 pub use event_log::BackendFileEventLog as FileEventLog;

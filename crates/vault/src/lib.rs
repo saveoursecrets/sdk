@@ -2,20 +2,21 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Vault encrypted storage and access.
+mod access_point;
 mod builder;
 mod change;
 mod encoding;
 mod error;
-mod gate_keeper;
 pub mod secret;
 mod vault;
 
+pub use access_point::{AccessPoint, SecretAccess};
 pub use builder::{BuilderCredentials, VaultBuilder};
 pub use change::ChangePassword;
 pub use error::Error;
-pub use gate_keeper::{AccessPoint, SecretAccess};
 pub use vault::{
-    FolderRef, Header, SharedAccess, Summary, Vault, EncryptedEntry, VaultMeta,
+    EncryptedEntry, FolderRef, Header, SharedAccess, Summary, Vault,
+    VaultMeta,
 };
 
 // DO NOT USE: these re-exports will be removed in the future

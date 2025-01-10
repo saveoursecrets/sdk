@@ -14,7 +14,10 @@ use sos_core::{
     crypto::AccessKey, decode, events::Event, AccountId, Paths, SecretId,
     VaultId,
 };
-use sos_vault::{list_accounts, list_local_folders, Header, Summary, Vault};
+use sos_vault::{
+    list_accounts, list_local_folders, read_public_identity, Header, Summary,
+    Vault,
+};
 use sos_vfs as vfs;
 use std::{
     collections::HashMap,
@@ -56,6 +59,21 @@ impl Identity {
         Ok(list_accounts(paths).await?)
     }
 
+    /// Read the public identity from an identity vault file.
+    pub async fn read_public_identity(
+        path: impl AsRef<Path>,
+    ) -> Result<Option<PublicIdentity>> {
+        Ok(read_public_identity(path).await?)
+    }
+
+    /// List the folders in an account by inspecting
+    /// the vault files in the vaults directory.
+    pub async fn list_local_folders(
+        paths: &Paths,
+    ) -> Result<Vec<(Summary, PathBuf)>> {
+        Ok(list_local_folders(paths).await?)
+    }
+
     /// Find and load a vault.
     pub async fn load_local_vault(
         paths: &Paths,
@@ -69,36 +87,6 @@ impl Identity {
         let buffer = vfs::read(&path).await?;
         let vault: Vault = decode(&buffer).await?;
         Ok((vault, path))
-    }
-
-    /// Read the public identity from an identity vault file.
-    pub async fn read_public_identity(
-        path: impl AsRef<Path>,
-    ) -> Result<Option<PublicIdentity>> {
-        if let (Some(extension), Some(file_stem)) =
-            (path.as_ref().extension(), path.as_ref().file_stem())
-        {
-            if extension == VAULT_EXT {
-                let summary =
-                    Header::read_summary_file(path.as_ref()).await?;
-                return Ok(Some(PublicIdentity::new(
-                    file_stem.to_string_lossy().parse()?,
-                    summary.name().to_owned(),
-                )));
-            } else {
-                Ok(None)
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// List the folders in an account by inspecting
-    /// the vault files in the vaults directory.
-    pub async fn list_local_folders(
-        paths: &Paths,
-    ) -> Result<Vec<(Summary, PathBuf)>> {
-        Ok(list_local_folders(paths).await?)
     }
 
     /// Create a new unauthenticated user.
