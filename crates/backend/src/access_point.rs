@@ -60,15 +60,24 @@ impl SecretAccess for BackendAccessPoint {
     type Error = Error;
 
     fn is_mirror(&self) -> bool {
-        todo!();
+        match self {
+            BackendAccessPoint::Database(inner) => inner.is_mirror(),
+            BackendAccessPoint::FileSystem(inner) => inner.is_mirror(),
+        }
     }
 
     fn vault(&self) -> &Vault {
-        todo!();
+        match self {
+            BackendAccessPoint::Database(inner) => inner.vault(),
+            BackendAccessPoint::FileSystem(inner) => inner.vault(),
+        }
     }
 
     fn vault_mut(&mut self) -> &mut Vault {
-        todo!();
+        match self {
+            BackendAccessPoint::Database(inner) => inner.vault_mut(),
+            BackendAccessPoint::FileSystem(inner) => inner.vault_mut(),
+        }
     }
 
     async fn replace_vault(
@@ -76,45 +85,90 @@ impl SecretAccess for BackendAccessPoint {
         vault: Vault,
         mirror_changes: bool,
     ) -> Result<()> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => {
+                inner.replace_vault(vault, mirror_changes).await?
+            }
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.replace_vault(vault, mirror_changes).await?
+            }
+        })
     }
 
     async fn reload_vault<P: AsRef<Path> + Send>(
         &mut self,
         path: P,
     ) -> Result<()> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => {
+                inner.reload_vault(path).await?
+            }
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.reload_vault(path).await?
+            }
+        })
     }
 
     fn set_vault(&mut self, vault: Vault) {
-        todo!();
+        match self {
+            BackendAccessPoint::Database(inner) => inner.set_vault(vault),
+            BackendAccessPoint::FileSystem(inner) => inner.set_vault(vault),
+        }
     }
 
     fn summary(&self) -> &Summary {
-        todo!();
+        match self {
+            BackendAccessPoint::Database(inner) => inner.summary(),
+            BackendAccessPoint::FileSystem(inner) => inner.summary(),
+        }
     }
 
     fn id(&self) -> &VaultId {
-        todo!();
+        match self {
+            BackendAccessPoint::Database(inner) => inner.id(),
+            BackendAccessPoint::FileSystem(inner) => inner.id(),
+        }
     }
 
     fn name(&self) -> &str {
-        todo!();
+        match self {
+            BackendAccessPoint::Database(inner) => inner.name(),
+            BackendAccessPoint::FileSystem(inner) => inner.name(),
+        }
     }
 
     async fn set_vault_name(&mut self, name: String) -> Result<WriteEvent> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => {
+                inner.set_vault_name(name).await?
+            }
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.set_vault_name(name).await?
+            }
+        })
     }
 
     async fn set_vault_flags(
         &mut self,
         flags: VaultFlags,
     ) -> Result<WriteEvent> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => {
+                inner.set_vault_flags(flags).await?
+            }
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.set_vault_flags(flags).await?
+            }
+        })
     }
 
     async fn vault_meta(&self) -> Result<VaultMeta> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => inner.vault_meta().await?,
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.vault_meta().await?
+            }
+        })
     }
 
     /// Set the meta data for the vault.
@@ -122,11 +176,25 @@ impl SecretAccess for BackendAccessPoint {
         &mut self,
         meta_data: &VaultMeta,
     ) -> Result<WriteEvent> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => {
+                inner.set_vault_meta(meta_data).await?
+            }
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.set_vault_meta(meta_data).await?
+            }
+        })
     }
 
     async fn decrypt_meta(&self, meta_aead: &AeadPack) -> Result<VaultMeta> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => {
+                inner.decrypt_meta(meta_aead).await?
+            }
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.decrypt_meta(meta_aead).await?
+            }
+        })
     }
 
     async fn decrypt_secret(
@@ -134,56 +202,111 @@ impl SecretAccess for BackendAccessPoint {
         vault_commit: &VaultCommit,
         private_key: Option<&PrivateKey>,
     ) -> Result<(SecretMeta, Secret)> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => {
+                inner.decrypt_secret(vault_commit, private_key).await?
+            }
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.decrypt_secret(vault_commit, private_key).await?
+            }
+        })
     }
 
     async fn create_secret(
         &mut self,
         secret_data: &SecretRow,
     ) -> Result<WriteEvent> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => {
+                inner.create_secret(secret_data).await?
+            }
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.create_secret(secret_data).await?
+            }
+        })
     }
 
     async fn raw_secret(
         &self,
         id: &SecretId,
     ) -> Result<(Option<Cow<'_, VaultCommit>>, ReadEvent)> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => {
+                inner.raw_secret(id).await?
+            }
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.raw_secret(id).await?
+            }
+        })
     }
 
     async fn read_secret(
         &self,
         id: &SecretId,
     ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => {
+                inner.read_secret(id).await?
+            }
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.read_secret(id).await?
+            }
+        })
     }
 
     async fn update_secret(
         &mut self,
         id: &SecretId,
-        secret_meta: SecretMeta,
+        meta: SecretMeta,
         secret: Secret,
     ) -> Result<Option<WriteEvent>> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => {
+                inner.update_secret(id, meta, secret).await?
+            }
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.update_secret(id, meta, secret).await?
+            }
+        })
     }
 
     async fn delete_secret(
         &mut self,
         id: &SecretId,
     ) -> Result<Option<WriteEvent>> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => {
+                inner.delete_secret(id).await?
+            }
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.delete_secret(id).await?
+            }
+        })
     }
 
     async fn verify(&self, key: &AccessKey) -> Result<()> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => inner.verify(key).await?,
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.verify(key).await?
+            }
+        })
     }
 
     async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta> {
-        todo!();
+        Ok(match self {
+            BackendAccessPoint::Database(inner) => inner.unlock(key).await?,
+            BackendAccessPoint::FileSystem(inner) => {
+                inner.unlock(key).await?
+            }
+        })
     }
 
     fn lock(&mut self) {
-        todo!();
+        match self {
+            BackendAccessPoint::Database(inner) => inner.lock(),
+            BackendAccessPoint::FileSystem(inner) => inner.lock(),
+        }
     }
 }
 
