@@ -3,7 +3,7 @@ use hex;
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use sos_account::Account;
-use sos_backend::BackendGateKeeper;
+use sos_backend::BackendVaultAccess;
 use sos_password::generator::measure_entropy;
 use sos_vault::{
     secret::{Secret, SecretId, SecretType},
@@ -243,7 +243,7 @@ pub struct SecurityReportRecord {
 
 pub(super) async fn secret_security_report<E>(
     secret_id: &SecretId,
-    keeper: &BackendGateKeeper,
+    keeper: &BackendVaultAccess,
     password_hashes: &mut Vec<(
         SecretId,
         (Option<Entropy>, Vec<u8>),

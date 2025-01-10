@@ -1,6 +1,6 @@
 //! Types for device support.
 use crate::{Error, Result};
-use sos_backend::BackendGateKeeper;
+use sos_backend::BackendVaultAccess;
 use sos_core::{
     device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
     encode,
@@ -64,7 +64,7 @@ pub struct DeviceManager {
     signer: DeviceSigner,
     /// Access to the vault that stores the device
     /// signing key.
-    keeper: BackendGateKeeper,
+    keeper: BackendVaultAccess,
 }
 
 impl DeviceManager {
@@ -74,7 +74,7 @@ impl DeviceManager {
     /// device manager.
     pub(super) fn new(
         signer: DeviceSigner,
-        keeper: BackendGateKeeper,
+        keeper: BackendVaultAccess,
     ) -> Self {
         Self { signer, keeper }
     }

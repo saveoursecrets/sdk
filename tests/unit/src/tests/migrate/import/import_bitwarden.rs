@@ -7,7 +7,7 @@ mod test {
     use sos_password::diceware::generate_passphrase;
     use sos_sdk::{
         crypto::AccessKey,
-        vault::{BuilderCredentials, GateKeeper, VaultBuilder},
+        vault::{BuilderCredentials, VaultAccess, VaultBuilder},
     };
     use url::Url;
 
@@ -50,7 +50,7 @@ mod test {
             .await?;
 
         let mut search = SearchIndex::new();
-        let mut keeper = GateKeeper::new(vault);
+        let mut keeper = VaultAccess::new(vault);
         keeper.unlock(&key).await?;
         search.add_folder(&keeper).await?;
 

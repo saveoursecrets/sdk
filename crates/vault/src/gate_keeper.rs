@@ -1,4 +1,4 @@
-//! GateKeeper manages access to a vault.
+//! VaultAccess manages access to a vault.
 use crate::{
     secret::{Secret, SecretMeta, SecretRow},
     Error, SharedAccess, Summary, Vault, EncryptedEntry, VaultMeta,
@@ -152,7 +152,7 @@ pub trait Keeper {
     /// Unlock the vault using the access key.
     ///
     /// The derived private key is stored in memory
-    /// until [GateKeeper::lock] is called.
+    /// until [VaultAccess::lock] is called.
     async fn unlock(
         &mut self,
         key: &AccessKey,
@@ -179,7 +179,7 @@ pub trait Keeper {
 /// a very poor user experience and would lead to confusion so the
 /// gatekeeper is also responsible for ensuring the same private key
 /// is used to encrypt the different chunks.
-pub struct GateKeeper<E>
+pub struct VaultAccess<E>
 where
     E: std::error::Error
         + std::fmt::Debug
@@ -198,7 +198,7 @@ where
     mirror: Option<VaultMirror<E>>,
 }
 
-impl<E> GateKeeper<E>
+impl<E> VaultAccess<E>
 where
     E: std::error::Error
         + std::fmt::Debug
@@ -245,7 +245,7 @@ where
 }
 
 #[async_trait]
-impl<E> Keeper for GateKeeper<E>
+impl<E> Keeper for VaultAccess<E>
 where
     E: std::error::Error
         + std::fmt::Debug
@@ -532,7 +532,7 @@ where
     }
 }
 
-impl<E> From<Vault> for GateKeeper<E>
+impl<E> From<Vault> for VaultAccess<E>
 where
     E: std::error::Error
         + std::fmt::Debug
@@ -544,11 +544,11 @@ where
         + 'static,
 {
     fn from(value: Vault) -> Self {
-        GateKeeper::<E>::new(value)
+        VaultAccess::<E>::new(value)
     }
 }
 
-impl<E> From<GateKeeper<E>> for Vault
+impl<E> From<VaultAccess<E>> for Vault
 where
     E: std::error::Error
         + std::fmt::Debug
@@ -559,7 +559,7 @@ where
         + Sync
         + 'static,
 {
-    fn from(value: GateKeeper<E>) -> Self {
+    fn from(value: VaultAccess<E>) -> Self {
         value.vault
     }
 }

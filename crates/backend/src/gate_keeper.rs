@@ -7,26 +7,26 @@ use sos_core::{
 };
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    GateKeeper, Keeper, Summary, Vault, VaultMeta,
+    VaultAccess, Keeper, Summary, Vault, VaultMeta,
 };
 use std::borrow::Cow;
 use std::path::Path;
 
 /// Backend gate keeper implementation.
-pub enum BackendGateKeeper {
+pub enum BackendVaultAccess {
     /// File system.
-    FileSystem(GateKeeper<Error>),
+    FileSystem(VaultAccess<Error>),
 }
 
-impl BackendGateKeeper {
+impl BackendVaultAccess {
     /// New gate keeper from a vault.
     pub fn new_vault(vault: Vault) -> Self {
-        Self::FileSystem(GateKeeper::<Error>::new(vault))
+        Self::FileSystem(VaultAccess::<Error>::new(vault))
     }
 }
 
 #[async_trait]
-impl Keeper for BackendGateKeeper {
+impl Keeper for BackendVaultAccess {
     type Error = Error;
 
     fn is_mirror(&self) -> bool {
@@ -157,10 +157,10 @@ impl Keeper for BackendGateKeeper {
     }
 }
 
-impl From<BackendGateKeeper> for Vault {
-    fn from(value: BackendGateKeeper) -> Self {
+impl From<BackendVaultAccess> for Vault {
+    fn from(value: BackendVaultAccess) -> Self {
         match value {
-            BackendGateKeeper::FileSystem(inner) => inner.into(),
+            BackendVaultAccess::FileSystem(inner) => inner.into(),
         }
     }
 }

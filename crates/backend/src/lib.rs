@@ -16,7 +16,7 @@ pub use event_log::{
 };
 pub use event_log::{BackendEventLog, BackendFolderEventLog};
 pub use folder::Folder;
-pub use gate_keeper::BackendGateKeeper;
+pub use gate_keeper::BackendVaultAccess;
 
 #[cfg(feature = "files")]
 pub use event_log::BackendFileEventLog as FileEventLog;

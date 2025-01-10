@@ -5,7 +5,7 @@ use sos_migrate::{import::csv::GenericPasswordRecord, Convert};
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
     crypto::AccessKey,
-    vault::{BuilderCredentials, GateKeeper, VaultBuilder},
+    vault::{BuilderCredentials, VaultAccess, VaultBuilder},
 };
 use url::Url;
 
@@ -63,7 +63,7 @@ async fn chrome_passwords_csv_convert() -> Result<()> {
         .await?;
 
     let mut search = SearchIndex::new();
-    let mut keeper = GateKeeper::new(vault);
+    let mut keeper = VaultAccess::new(vault);
     keeper.unlock(&key).await?;
     search.add_folder(&keeper).await?;
 
@@ -93,7 +93,7 @@ async fn chrome_passwords_note_csv_convert() -> Result<()> {
         .await?;
 
     let mut search = SearchIndex::new();
-    let mut keeper = GateKeeper::new(vault);
+    let mut keeper = VaultAccess::new(vault);
     keeper.unlock(&key).await?;
     search.add_folder(&keeper).await?;
 

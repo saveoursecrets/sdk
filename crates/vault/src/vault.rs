@@ -160,7 +160,7 @@ pub trait EncryptedEntry {
     /// Insert an encrypted secret to the vault with the given id.
     ///
     /// Used internally to support consistent identifiers when
-    /// mirroring in the `GateKeeper` implementation.
+    /// mirroring in the `VaultAccess` implementation.
     #[doc(hidden)]
     async fn insert_secret(
         &mut self,

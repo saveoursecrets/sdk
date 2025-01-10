@@ -11,7 +11,7 @@ use crate::{Convert, Error};
 use async_trait::async_trait;
 use sos_backend::search::SearchIndex;
 use sos_core::{crypto::AccessKey, UtcDateTime};
-use sos_filesystem::FileSystemGateKeeper;
+use sos_filesystem::FileSystemVaultAccess;
 use sos_vault::{
     secret::{
         IdentityKind, Secret, SecretId, SecretMeta, SecretRow, UserData,
@@ -302,7 +302,7 @@ impl Convert for GenericCsvConvert {
         key: &AccessKey,
     ) -> crate::Result<Vault> {
         let mut index = SearchIndex::new();
-        let mut keeper = FileSystemGateKeeper::<Error>::new(vault);
+        let mut keeper = FileSystemVaultAccess::<Error>::new(vault);
         keeper.unlock(key).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();

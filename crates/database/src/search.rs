@@ -3,7 +3,7 @@ use crate::{Error, Result};
 use probly_search::{score::bm25, Index, QueryResult};
 use serde::{Deserialize, Serialize};
 use sos_core::crypto::AccessKey;
-use sos_filesystem::FileSystemGateKeeper;
+use sos_filesystem::FileSystemVaultAccess;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRef, SecretType},
     Keeper, Summary, Vault, VaultId,
@@ -610,7 +610,7 @@ impl SearchIndex {
     /// to this search index.
     pub async fn add_folder(
         &mut self,
-        folder: &FileSystemGateKeeper<Error>,
+        folder: &FileSystemVaultAccess<Error>,
     ) -> Result<()> {
         let vault = folder.vault();
         for id in vault.keys() {
@@ -626,7 +626,7 @@ impl SearchIndex {
     /// Remove the meta data from the entries in a folder.
     pub async fn remove_folder(
         &mut self,
-        folder: &FileSystemGateKeeper<Error>,
+        folder: &FileSystemVaultAccess<Error>,
     ) -> Result<()> {
         let vault = folder.vault();
         for id in vault.keys() {
@@ -768,7 +768,7 @@ impl AccountSearch {
     /// Add a folder which must be unlocked.
     pub async fn add_folder(
         &self,
-        folder: &FileSystemGateKeeper<Error>,
+        folder: &FileSystemVaultAccess<Error>,
     ) -> Result<()> {
         let mut index = self.search_index.write().await;
         index.add_folder(folder).await
@@ -788,7 +788,7 @@ impl AccountSearch {
         key: &AccessKey,
     ) -> Result<()> {
         let mut index = self.search_index.write().await;
-        let mut keeper = FileSystemGateKeeper::new(vault);
+        let mut keeper = FileSystemVaultAccess::new(vault);
         keeper.unlock(key).await?;
         index.add_folder(&keeper).await?;
         keeper.lock();

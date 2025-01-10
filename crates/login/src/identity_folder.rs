@@ -10,13 +10,13 @@ use crate::device::{DeviceManager, DeviceSigner};
 use crate::{Error, PrivateIdentity, Result, UrnLookup};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use sos_backend::Folder;
-use sos_backend::{BackendFolderEventLog, BackendGateKeeper};
+use sos_backend::{BackendFolderEventLog, BackendVaultAccess};
 use sos_core::{
     constants::LOGIN_AGE_KEY_URN,
     crypto::{AccessKey, KeyDerivation},
     decode, encode, AccountId, Paths,
 };
-use sos_filesystem::{FileSystemGateKeeper, VaultFileWriter};
+use sos_filesystem::{FileSystemVaultAccess, VaultFileWriter};
 use sos_password::diceware::generate_passphrase_words;
 use sos_signer::ed25519;
 use sos_vault::{
@@ -68,7 +68,7 @@ impl IdentityFolder {
     }
 
     /// Get the gatekeeper.
-    pub fn keeper(&self) -> &BackendGateKeeper {
+    pub fn keeper(&self) -> &BackendVaultAccess {
         self.folder.keeper()
     }
 
@@ -154,7 +154,7 @@ impl IdentityFolder {
 
         let mirror = VaultFileWriter::new(&device_vault_path).await?;
         let mut device_keeper =
-            FileSystemGateKeeper::new_mirror(vault, Box::new(mirror));
+            FileSystemVaultAccess::new_mirror(vault, Box::new(mirror));
         let key: AccessKey = device_password.into();
         device_keeper.unlock(&key).await?;
 
@@ -183,7 +183,7 @@ impl IdentityFolder {
                 data.expose_secret().as_slice().try_into()?;
             Ok(DeviceManager::new(
                 key.into(),
-                BackendGateKeeper::FileSystem(device_keeper),
+                BackendVaultAccess::FileSystem(device_keeper),
             ))
         } else {
             Err(Error::VaultEntryKind(device_key_urn.to_string()))
@@ -225,9 +225,9 @@ impl IdentityFolder {
             let buffer = encode(&vault).await?;
             vfs::write_exclusive(&device_vault_path, &buffer).await?;
             let mirror = VaultFileWriter::new(&device_vault_path).await?;
-            FileSystemGateKeeper::new_mirror(vault, Box::new(mirror))
+            FileSystemVaultAccess::new_mirror(vault, Box::new(mirror))
         } else {
-            FileSystemGateKeeper::new(vault)
+            FileSystemVaultAccess::new(vault)
         };
         device_keeper.unlock(&key).await?;
 
@@ -251,7 +251,7 @@ impl IdentityFolder {
 
         Ok(DeviceManager::new(
             signer,
-            BackendGateKeeper::FileSystem(device_keeper),
+            BackendVaultAccess::FileSystem(device_keeper),
         ))
     }
 
@@ -438,7 +438,7 @@ impl IdentityFolder {
     /// the URN lookup index which maps URNs to the
     /// corresponding secret identifiers.
     async fn lookup_identity_secrets(
-        keeper: &BackendGateKeeper,
+        keeper: &BackendVaultAccess,
     ) -> Result<(UrnLookup, Option<Secret>)> {
         let mut index: UrnLookup = Default::default();
 
@@ -467,7 +467,7 @@ impl IdentityFolder {
 
     async fn login_private_identity(
         account_id: AccountId,
-        keeper: &BackendGateKeeper,
+        keeper: &BackendVaultAccess,
     ) -> Result<(UrnLookup, PrivateIdentity)> {
         let (index, identity_secret) =
             Self::lookup_identity_secrets(keeper).await?;

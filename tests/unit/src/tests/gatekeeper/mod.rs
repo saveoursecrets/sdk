@@ -1,6 +1,6 @@
 use anyhow::Result;
 use secrecy::SecretString;
-use sos_backend::BackendGateKeeper;
+use sos_backend::BackendVaultAccess;
 use sos_core::SecretId;
 use sos_core::{
     constants::DEFAULT_VAULT_NAME, crypto::AccessKey, events::WriteEvent,
@@ -22,7 +22,7 @@ async fn gatekeeper_secret_note() -> Result<()> {
         .build(BuilderCredentials::Password(passphrase.clone(), None))
         .await?;
 
-    let mut keeper = BackendGateKeeper::new_vault(vault);
+    let mut keeper = BackendVaultAccess::new_vault(vault);
     let key: AccessKey = passphrase.into();
     keeper.unlock(&key).await?;
 
@@ -71,7 +71,7 @@ async fn gatekeeper_secret_account() -> Result<()> {
         .build(BuilderCredentials::Password(passphrase.clone(), None))
         .await?;
 
-    let mut keeper = BackendGateKeeper::new_vault(vault);
+    let mut keeper = BackendVaultAccess::new_vault(vault);
     let key: AccessKey = passphrase.into();
     keeper.unlock(&key).await?;
 

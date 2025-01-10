@@ -11,8 +11,8 @@ pub mod vault_writer;
 pub use error::Error;
 pub use vault_writer::VaultFileWriter;
 
-/// GateKeeper that mirrors changes to a vault on disc.
-pub type FileSystemGateKeeper<E> = sos_vault::GateKeeper<E>;
+/// VaultAccess that mirrors changes to a vault on disc.
+pub type FileSystemVaultAccess<E> = sos_vault::VaultAccess<E>;
 
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
