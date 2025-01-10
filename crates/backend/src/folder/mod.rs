@@ -3,7 +3,7 @@ mod folder;
 
 pub use folder::Folder as GenericFolder;
 
-use crate::{BackendFolderEventLog, BackendAccessPoint, Error};
+use crate::{BackendAccessPoint, Error, FolderEventLog};
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -47,7 +47,7 @@ impl Folder {
     }
 
     /// Clone of the event log.
-    pub fn event_log(&self) -> Arc<RwLock<BackendFolderEventLog>> {
+    pub fn event_log(&self) -> Arc<RwLock<FolderEventLog>> {
         todo!();
     }
 

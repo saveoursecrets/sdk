@@ -11,7 +11,7 @@ use crate::{Error, PrivateIdentity, Result, UrnLookup};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use sos_backend::Folder;
 use sos_backend::VaultWriter;
-use sos_backend::{BackendAccessPoint, BackendFolderEventLog};
+use sos_backend::{BackendAccessPoint, FolderEventLog};
 use sos_core::{
     constants::LOGIN_AGE_KEY_URN,
     crypto::{AccessKey, KeyDerivation},
@@ -75,7 +75,7 @@ impl IdentityFolder {
     }
 
     /// Get the event log.
-    pub fn event_log(&self) -> Arc<RwLock<BackendFolderEventLog>> {
+    pub fn event_log(&self) -> Arc<RwLock<FolderEventLog>> {
         self.folder.event_log()
     }
 
