@@ -3,21 +3,20 @@ use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::reducers::DeviceReducer;
-use sos_core::events::{patch::FolderPatch, AccountEvent, FileEvent};
+use sos_backend::reducers::FolderReducer;
+use sos_backend::{
+    AccountEventLog, DeviceEventLog, FileEventLog, FolderEventLog,
+};
+use sos_core::events::{
+    patch::FolderPatch, AccountEvent, EventLog, FileEvent,
+};
 use sos_core::{
     constants::VAULT_EXT,
     decode,
     device::{DevicePublicKey, TrustedDevice},
     encode, AccountId, Paths, VaultId,
 };
-use sos_filesystem::{
-    events::{
-        AccountEventLog, DeviceEventLog, EventLog, FileEventLog,
-        FolderEventLog,
-    },
-    folder::FolderReducer,
-    VaultFileWriter,
-};
+use sos_filesystem::VaultFileWriter;
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
 use sos_vault::{Header, Summary, Vault, VaultAccess};
 use sos_vfs as vfs;
@@ -90,7 +89,8 @@ impl ServerFileStorage {
         paths.ensure().await?;
 
         let log_file = paths.account_events();
-        let mut event_log = AccountEventLog::new_account(log_file).await?;
+        let mut event_log =
+            AccountEventLog::new_file_system_account(log_file).await?;
         event_log.load_tree().await?;
         let account_log = Arc::new(RwLock::new(event_log));
 
@@ -115,7 +115,8 @@ impl ServerFileStorage {
         paths: &Paths,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
         let log_file = paths.device_events();
-        let mut event_log = DeviceEventLog::new_device(log_file).await?;
+        let mut event_log =
+            DeviceEventLog::new_file_system_device(log_file).await?;
         event_log.load_tree().await?;
 
         let reducer = DeviceReducer::new(&event_log);
@@ -129,7 +130,8 @@ impl ServerFileStorage {
 
         let log_file = paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;
-        let mut event_log = FileEventLog::new_file(log_file).await?;
+        let mut event_log =
+            FileEventLog::new_file_system_file(log_file).await?;
 
         tracing::debug!(needs_init = %needs_init, "file_log");
 
@@ -149,7 +151,8 @@ impl ServerFileStorage {
     /// Create new event log cache entries.
     async fn create_cache_entry(&mut self, id: &VaultId) -> Result<()> {
         let event_log_path = self.paths.event_log_path(id);
-        let mut event_log = FolderEventLog::new(&event_log_path).await?;
+        let mut event_log =
+            FolderEventLog::new_file_system_file(&event_log_path).await?;
         event_log.load_tree().await?;
         self.cache.insert(*id, Arc::new(RwLock::new(event_log)));
         Ok(())
@@ -184,7 +187,8 @@ impl ServerFileStorage {
         identity_patch: &FolderPatch,
     ) -> Result<FolderEventLog> {
         let mut event_log =
-            FolderEventLog::new(paths.identity_events()).await?;
+            FolderEventLog::new_file_system_folder(paths.identity_events())
+                .await?;
         event_log.clear().await?;
         event_log.patch_unchecked(identity_patch).await?;
 
@@ -246,7 +250,8 @@ impl ServerAccountStorage for ServerFileStorage {
             let vault_path = self.paths.vault_path(id);
             let events_path = self.paths.event_log_path(id);
 
-            let mut event_log = FolderEventLog::new(events_path).await?;
+            let mut event_log =
+                FolderEventLog::new_file_system_folder(events_path).await?;
             event_log.patch_unchecked(folder).await?;
 
             let vault = FolderReducer::new()
@@ -329,7 +334,7 @@ impl ServerAccountStorage for ServerFileStorage {
         let exists = self.cache.get(id).is_some();
 
         let vault: Vault = decode(buffer).await?;
-        let (vault, events) = FolderReducer::split(vault).await?;
+        let (vault, events) = FolderReducer::split::<Error>(vault).await?;
 
         if id != vault.id() {
             return Err(
@@ -402,7 +407,7 @@ impl ServerAccountStorage for ServerFileStorage {
     ) -> Result<()> {
         // Update the vault on disc
         let vault_path = self.paths.vault_path(id);
-        let mut access = VaultFileWriter::new(vault_path).await?;
+        let mut access = VaultFileWriter::<Error>::new(vault_path).await?;
         access.set_vault_name(name.to_owned()).await?;
 
         #[cfg(feature = "audit")]

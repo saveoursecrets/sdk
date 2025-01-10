@@ -1,21 +1,18 @@
+use crate::{Error, FileEventError, Result};
 use notify::{
     recommended_watcher, Event, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use sos_core::AccountId;
-use sos_sdk::{
+use sos_account::{Account, AccountSwitcher};
+use sos_core::{
     events::{AccountEvent, EventLog, WriteEvent},
-    prelude::{ErrorExt, Paths},
-    vault::VaultId,
+    AccountId, ErrorExt, Paths, VaultId,
 };
 use sos_sync::SyncStorage;
+use sos_vault::Keeper;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, RwLock};
-
-use sos_account::{Account, AccountSwitcher};
-
-use crate::{Error, FileEventError, Result};
 
 /// Event broadcast when an account changes on disc.
 #[typeshare::typeshare]
@@ -58,7 +55,7 @@ where
         + From<sos_core::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
@@ -80,7 +77,7 @@ where
         + From<sos_core::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
@@ -106,7 +103,7 @@ where
         + From<sos_core::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
@@ -224,7 +221,7 @@ where
         + From<sos_core::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
@@ -250,7 +247,7 @@ where
         + From<sos_core::Error>
         + From<sos_account::Error>
         + From<sos_database::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
@@ -395,7 +392,7 @@ where
         + From<sos_core::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
@@ -558,7 +555,7 @@ where
         + From<sos_core::Error>
         + From<sos_account::Error>
         + From<sos_database::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send

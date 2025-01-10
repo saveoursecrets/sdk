@@ -1,6 +1,8 @@
 //! Implements merging for folders.
 use crate::Result;
 use async_trait::async_trait;
+use sos_backend::reducers::FolderReducer;
+use sos_backend::Folder;
 use sos_core::{
     events::{
         patch::{CheckedPatch, FolderDiff},
@@ -8,10 +10,10 @@ use sos_core::{
     },
     VaultId,
 };
-use sos_filesystem::folder::{Folder, FolderReducer};
 use sos_sdk::{
     events::EventLog, identity::IdentityFolder, vault::secret::SecretRow,
 };
+use sos_vault::Keeper;
 
 /// Options for folder merge.
 pub(crate) enum FolderMergeOptions<'a> {
@@ -19,7 +21,7 @@ pub(crate) enum FolderMergeOptions<'a> {
     Urn(VaultId, &'a mut sos_sdk::identity::UrnLookup),
     /// Update a search index when merging.
     #[cfg(feature = "search")]
-    Search(VaultId, &'a mut sos_database::search::SearchIndex),
+    Search(VaultId, &'a mut sos_backend::search::SearchIndex),
 }
 
 /// Merge operations for the identity folder.

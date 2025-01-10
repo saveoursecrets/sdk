@@ -3,11 +3,11 @@ use hex;
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use sos_account::Account;
-use sos_filesystem::FileSystemGateKeeper;
+use sos_backend::BackendGateKeeper;
 use sos_password::generator::measure_entropy;
 use sos_vault::{
     secret::{Secret, SecretId, SecretType},
-    Summary, VaultId,
+    Keeper, Summary, VaultId,
 };
 use zxcvbn::{Entropy, Score};
 
@@ -24,7 +24,7 @@ where
         + From<sos_account::Error>
         + From<sos_core::Error>
         + From<sos_vault::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<std::io::Error>
         + From<sos_database::StorageError>
         + Send
@@ -243,7 +243,7 @@ pub struct SecurityReportRecord {
 
 pub(super) async fn secret_security_report<E>(
     secret_id: &SecretId,
-    keeper: &FileSystemGateKeeper,
+    keeper: &BackendGateKeeper,
     password_hashes: &mut Vec<(
         SecretId,
         (Option<Entropy>, Vec<u8>),
@@ -254,7 +254,7 @@ pub(super) async fn secret_security_report<E>(
 where
     E: From<sos_vault::Error>
         + From<sos_database::StorageError>
-        + From<sos_filesystem::Error>,
+        + From<sos_backend::Error>,
 {
     if let Some((_meta, secret, _)) = keeper.read_secret(secret_id).await? {
         for field in secret.user_data().fields().iter().filter(|field| {

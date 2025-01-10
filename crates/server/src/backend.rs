@@ -1,6 +1,6 @@
 use super::{Error, Result};
+use sos_backend::Folder;
 use sos_core::{device::DevicePublicKey, AccountId, Paths};
-use sos_filesystem::folder::DiscFolder;
 use sos_server_storage::{
     filesystem::ServerFileStorage, ServerAccountStorage, ServerStorage,
 };
@@ -86,7 +86,7 @@ impl Backend {
                             self.directory.clone(),
                             owner.to_string(),
                         );
-                        let identity_log = DiscFolder::new_event_log(
+                        let identity_log = Folder::new_event_log(
                             user_paths.identity_events(),
                         )
                         .await?;

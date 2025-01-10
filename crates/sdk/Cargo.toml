@@ -25,7 +25,6 @@ files = ["sos-core/files"]
 
 [dependencies]
 sos-core.workspace = true
-sos-filesystem.workspace = true
 sos-login.workspace = true
 sos-password.workspace = true
 sos-signer.workspace = true

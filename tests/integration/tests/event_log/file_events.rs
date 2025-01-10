@@ -4,6 +4,7 @@ use anyhow::Result;
 use sos_account::{
     Account, FolderCreate, LocalAccount, SecretChange, SecretMove,
 };
+use sos_backend::FileEventLog;
 use sos_client_storage::AccessOptions;
 use sos_sdk::prelude::*;
 
@@ -86,7 +87,7 @@ async fn event_log_file() -> Result<()> {
     // Store the file events log so we can delete and re-create
     let file_events = account.paths().file_events();
 
-    let event_log = FileEventLog::new_file(&file_events).await?;
+    let event_log = FileEventLog::new_file_system_file(&file_events).await?;
     let patch = event_log.diff_events(None).await?;
     let events: Vec<FileEvent> = patch.into_events().await?;
     assert_eq!(5, events.len());

@@ -4,18 +4,20 @@ use crate::{
     NetworkAccount,
 };
 use sos_account::Account;
+use sos_backend::{
+    reducers::FolderReducer, AccountEventLog, DeviceEventLog, FolderEventLog,
+};
 use sos_core::{
     crypto::AccessKey,
     encode,
-    events::patch::{AccountPatch, DevicePatch, FolderPatch},
     events::AccountEvent,
+    events::{
+        patch::{AccountPatch, DevicePatch, FolderPatch},
+        EventLog,
+    },
     AccountId, Origin, VaultId,
 };
-use sos_filesystem::{
-    events::{AccountEventLog, DeviceEventLog, EventLog, FolderEventLog},
-    folder::FolderReducer,
-    VaultFileWriter,
-};
+use sos_filesystem::VaultFileWriter;
 use sos_protocol::{network_client::HttpClient, SyncClient};
 use sos_sdk::{
     device::DeviceSigner, identity::PublicIdentity, vault::VaultAccess, vfs,
@@ -122,7 +124,7 @@ impl DeviceEnrollment {
         // of the identity vault
         if let Some(account_name) = self.account_name.take() {
             let path = self.paths.identity_vault();
-            let mut file = VaultFileWriter::new(&path).await?;
+            let mut file = VaultFileWriter::<Error>::new(&path).await?;
             file.set_vault_name(account_name).await?;
         }
 
@@ -179,7 +181,8 @@ impl DeviceEnrollment {
 
     async fn create_account(&mut self, patch: AccountPatch) -> Result<()> {
         let file = self.paths.account_events();
-        let mut event_log = AccountEventLog::new_account(file).await?;
+        let mut event_log =
+            AccountEventLog::new_file_system_account(file).await?;
         event_log.clear().await?;
 
         // let events: Vec<AccountEvent> = patch.into();
@@ -195,7 +198,8 @@ impl DeviceEnrollment {
 
     async fn create_device(&self, patch: DevicePatch) -> Result<()> {
         let file = self.paths.device_events();
-        let mut event_log = DeviceEventLog::new_device(file).await?;
+        let mut event_log =
+            DeviceEventLog::new_file_system_device(file).await?;
         event_log.clear().await?;
 
         // let events: Vec<DeviceEvent> = patch.into();
@@ -219,7 +223,9 @@ impl DeviceEnrollment {
         vault_path: impl AsRef<Path>,
         patch: FolderPatch,
     ) -> Result<()> {
-        let mut event_log = FolderEventLog::new(events_path.as_ref()).await?;
+        let mut event_log =
+            FolderEventLog::new_file_system_folder(events_path.as_ref())
+                .await?;
         event_log.clear().await?;
 
         // let events: Vec<WriteEvent> = patch.into();

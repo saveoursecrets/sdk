@@ -140,7 +140,7 @@ impl SyncComparison {
         E: std::error::Error
             + std::fmt::Debug
             + From<<S as StorageEventLogs>::Error>
-            + From<sos_filesystem::Error>
+            + From<sos_backend::Error>
             + From<sos_database::StorageError>
             + From<sos_core::Error>,
     {
@@ -383,7 +383,7 @@ where
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>
         + From<sos_core::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_database::StorageError>
         + Send
         + Sync

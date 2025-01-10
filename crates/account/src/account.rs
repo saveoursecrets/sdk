@@ -1,6 +1,8 @@
 //! Account storage and search index.
 use crate::{convert::CipherComparison, AccountBuilder, Error, Result};
 use sos_backend::compact::compact_filesystem_folder;
+use sos_backend::{reducers::FolderReducer, BackendGateKeeper};
+use sos_backend::{AccountEventLog, FolderEventLog};
 use sos_client_storage::{
     AccessOptions, AccountPack, ClientStorage, NewFolderOptions,
 };
@@ -9,21 +11,20 @@ use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
     events::{AccountEvent, Event, EventKind, ReadEvent, WriteEvent},
-    AccountId, SecretId, VaultId,
+    events::{EventLog, EventRecord},
+    AccountId, SecretId, VaultCommit, VaultId,
 };
 use sos_database::StorageError;
-use sos_filesystem::{folder::FolderReducer, FileSystemGateKeeper};
 use sos_sdk::{
-    events::{AccountEventLog, EventLog, EventRecord, FolderEventLog},
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
-    vault::{
-        secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
-        BuilderCredentials, Header, Summary, Vault, VaultBuilder,
-        VaultCommit, VaultFlags,
-    },
     vfs, Paths, UtcDateTime,
 };
 use sos_sync::{CreateSet, StorageEventLogs};
+use sos_vault::{
+    secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
+    BuilderCredentials, Header, Keeper, Summary, Vault, VaultBuilder,
+    VaultFlags,
+};
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -32,7 +33,7 @@ use std::{
 };
 
 #[cfg(feature = "search")]
-use sos_database::search::{DocumentCount, SearchIndex};
+use sos_backend::search::{DocumentCount, SearchIndex};
 
 #[cfg(feature = "audit")]
 use sos_audit::{append_audit_events, AuditData, AuditEvent};
@@ -40,17 +41,17 @@ use sos_audit::{append_audit_events, AuditData, AuditEvent};
 #[cfg(feature = "archive")]
 use crate::archive::{Inventory, RestoreOptions};
 
+use sos_backend::DeviceEventLog;
 use sos_core::device::{DevicePublicKey, TrustedDevice};
-use sos_filesystem::events::DeviceEventLog;
 use sos_login::device::{DeviceManager, DeviceSigner};
 
 use indexmap::IndexSet;
 
 #[cfg(feature = "files")]
-use {sos_database::files::FileMutationEvent, sos_sdk::events::FileEventLog};
+use {sos_backend::FileEventLog, sos_database::files::FileMutationEvent};
 
 #[cfg(feature = "search")]
-use sos_database::search::*;
+use sos_backend::search::*;
 
 #[cfg(feature = "migrate")]
 use sos_migrate::{
@@ -852,14 +853,14 @@ pub trait Account {
 
 /// Read-only view created from a specific event log commit.
 pub struct DetachedView {
-    keeper: FileSystemGateKeeper,
+    keeper: BackendGateKeeper,
     #[cfg(feature = "search")]
     index: Arc<RwLock<SearchIndex>>,
 }
 
 impl DetachedView {
     /// Read-only access to the folder.
-    pub fn keeper(&self) -> &FileSystemGateKeeper {
+    pub fn keeper(&self) -> &BackendGateKeeper {
         &self.keeper
     }
 
@@ -1148,7 +1149,7 @@ impl LocalAccount {
         let mut event_log = event_log.write().await;
         event_log.clear().await?;
 
-        let (_, events) = FolderReducer::split(vault).await?;
+        let (_, events) = FolderReducer::split::<Error>(vault).await?;
         event_log.apply(events.iter().collect()).await?;
 
         Ok(AccountEvent::UpdateIdentity(buffer))
@@ -1844,7 +1845,7 @@ impl Account for LocalAccount {
             .await?;
 
         let account_key: AccessKey = password.into();
-        let mut output = FileSystemGateKeeper::new(vault);
+        let mut output = BackendGateKeeper::new_vault(vault);
         output.unlock(&account_key).await?;
 
         for key in input.vault().keys() {
@@ -2196,7 +2197,7 @@ impl Account for LocalAccount {
             .build(true)
             .await?;
 
-        let mut keeper = FileSystemGateKeeper::new(vault);
+        let mut keeper = BackendGateKeeper::new_vault(vault);
         keeper.unlock(&key).await?;
 
         {
@@ -3025,7 +3026,7 @@ impl Account for LocalAccount {
             .ok_or(Error::NoFolderPassword(*contacts.id()))?;
         let (vault, _) =
             Identity::load_local_vault(&self.paths, contacts.id()).await?;
-        let mut keeper = FileSystemGateKeeper::new(vault);
+        let mut keeper = BackendGateKeeper::new_vault(vault);
         let key: AccessKey = contacts_passphrase.into();
         keeper.unlock(&key).await?;
 
@@ -3140,7 +3141,7 @@ impl Account for LocalAccount {
                 .await?
                 .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
-            let mut keeper = FileSystemGateKeeper::new(vault);
+            let mut keeper = BackendGateKeeper::new_vault(vault);
             keeper.unlock(&vault_passphrase).await?;
 
             // Add the secrets for the vault to the migration

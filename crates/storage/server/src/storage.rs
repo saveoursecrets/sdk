@@ -1,6 +1,9 @@
 use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
+use sos_backend::{
+    AccountEventLog, DeviceEventLog, FileEventLog, FolderEventLog,
+};
 use sos_core::{
     commit::{CommitState, Comparison},
     device::DevicePublicKey,
@@ -11,9 +14,6 @@ use sos_core::{
         WriteEvent,
     },
     AccountId, Paths, VaultId,
-};
-use sos_filesystem::events::{
-    AccountEventLog, DeviceEventLog, FileEventLog, FolderEventLog,
 };
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,

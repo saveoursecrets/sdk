@@ -2,6 +2,7 @@ use super::last_log_event;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
+use sos_backend::AccountEventLog;
 use sos_sdk::prelude::*;
 
 /// Tests the account events after changing the encryption
@@ -41,7 +42,8 @@ async fn event_log_change_password() -> Result<()> {
     let new_key: AccessKey = new_password.into();
 
     let account_events = account.paths().account_events();
-    let mut event_log = AccountEventLog::new_account(&account_events).await?;
+    let mut event_log =
+        AccountEventLog::new_file_system_account(&account_events).await?;
     let commit = event_log.tree().last_commit();
 
     // Change the folder password

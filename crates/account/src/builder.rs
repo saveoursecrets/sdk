@@ -8,14 +8,12 @@ use sos_core::{
         DEFAULT_CONTACTS_VAULT_NAME,
     },
     crypto::AccessKey,
-    AccountId, Paths,
+    AccountId, Paths, SecretId, VaultFlags,
 };
-use sos_sdk::{
-    identity::{FolderKeys, Identity, IdentityFolder},
-    vault::{
-        secret::{Secret, SecretId, SecretMeta, SecretRow},
-        BuilderCredentials, GateKeeper, Vault, VaultBuilder, VaultFlags,
-    },
+use sos_sdk::identity::{FolderKeys, Identity, IdentityFolder};
+use sos_vault::{
+    secret::{Secret, SecretMeta, SecretRow},
+    BuilderCredentials, GateKeeper, Keeper, Vault, VaultBuilder,
 };
 use std::{collections::HashMap, path::PathBuf};
 

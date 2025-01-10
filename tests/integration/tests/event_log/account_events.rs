@@ -2,6 +2,7 @@ use super::last_log_event;
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount};
+use sos_backend::AccountEventLog;
 use sos_sdk::prelude::*;
 
 /// Tests that basic account events are being logged.
@@ -27,7 +28,8 @@ async fn event_log_account() -> Result<()> {
     account.sign_in(&key).await?;
 
     let account_events = account.paths().account_events();
-    let mut event_log = AccountEventLog::new_account(&account_events).await?;
+    let mut event_log =
+        AccountEventLog::new_file_system_account(&account_events).await?;
     let patch = event_log.diff_events(None).await?;
     assert_eq!(1, patch.len());
 

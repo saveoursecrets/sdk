@@ -35,7 +35,7 @@ where
         + From<sos_core::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
@@ -63,7 +63,7 @@ where
         + From<sos_core::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
@@ -102,7 +102,7 @@ where
         + From<sos_core::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
@@ -136,7 +136,7 @@ where
         + From<sos_core::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
@@ -177,7 +177,7 @@ where
         + From<sos_core::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
@@ -229,7 +229,7 @@ where
         + From<sos_core::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
@@ -301,7 +301,7 @@ where
         + From<sos_core::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
@@ -335,7 +335,7 @@ where
         + From<sos_core::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send
@@ -360,7 +360,7 @@ where
         + From<sos_core::Error>
         + From<sos_database::Error>
         + From<sos_account::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_vault::Error>
         + From<std::io::Error>
         + Send

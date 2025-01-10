@@ -23,6 +23,7 @@ system-messages = []
 
 [dependencies]
 sos-core.workspace = true
+sos-backend.workspace = true
 sos-login.workspace = true
 sos-signer.workspace = true
 sos-sdk.workspace = true

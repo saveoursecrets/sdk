@@ -2,14 +2,15 @@ use crate::{Error, Result};
 use binary_stream::futures::{Decodable, Encodable};
 use clap::Subcommand;
 use futures::{pin_mut, stream::StreamExt};
+use sos_backend::{
+    AccountEventLog, BackendEventLog, DeviceEventLog, FileEventLog,
+    FolderEventLog,
+};
 use sos_core::commit::{CommitHash, CommitTree};
 use sos_core::events::LogEvent;
+
 use sos_sdk::{
-    events::{
-        AccountEvent, AccountEventLog, DeviceEvent, DeviceEventLog,
-        DiscEventLog, EventLog, FileEvent, FileEventLog, FolderEventLog,
-        WriteEvent,
-    },
+    events::{AccountEvent, DeviceEvent, EventLog, FileEvent, WriteEvent},
     vfs,
 };
 use std::path::PathBuf;
@@ -60,28 +61,31 @@ pub async fn run(cmd: Command) -> Result<()> {
             if !vfs::metadata(&file).await?.is_file() {
                 return Err(Error::NotFile(file));
             }
-            let event_log = AccountEventLog::new_account(&file).await?;
+            let event_log =
+                AccountEventLog::new_file_system_account(&file).await?;
             print_events::<AccountEvent>(event_log, until_commit).await?;
         }
         Command::Device { file, until_commit } => {
             if !vfs::metadata(&file).await?.is_file() {
                 return Err(Error::NotFile(file));
             }
-            let event_log = DeviceEventLog::new_device(&file).await?;
+            let event_log =
+                DeviceEventLog::new_file_system_device(&file).await?;
             print_events::<DeviceEvent>(event_log, until_commit).await?;
         }
         Command::Folder { file, until_commit } => {
             if !vfs::metadata(&file).await?.is_file() {
                 return Err(Error::NotFile(file));
             }
-            let event_log = FolderEventLog::new(&file).await?;
+            let event_log =
+                FolderEventLog::new_file_system_folder(&file).await?;
             print_events::<WriteEvent>(event_log, until_commit).await?;
         }
         Command::File { file, until_commit } => {
             if !vfs::metadata(&file).await?.is_file() {
                 return Err(Error::NotFile(file));
             }
-            let event_log = FileEventLog::new_file(&file).await?;
+            let event_log = FileEventLog::new_file_system_file(&file).await?;
             print_events::<FileEvent>(event_log, until_commit).await?;
         }
     }
@@ -93,7 +97,7 @@ pub async fn run(cmd: Command) -> Result<()> {
 async fn print_events<
     T: Default + Encodable + Decodable + LogEvent + Send + Sync + 'static,
 >(
-    event_log: DiscEventLog<T>,
+    event_log: BackendEventLog<T>,
     until_commit: Option<CommitHash>,
 ) -> Result<()> {
     let version = event_log.read_file_version().await?;

@@ -37,7 +37,13 @@ pub trait LogEvent {
     fn event_kind(&self) -> EventKind;
 }
 
-/*
+use crate::{
+    commit::{CommitHash, CommitTree},
+    encode, Result,
+};
+use async_trait::async_trait;
+use binary_stream::futures::{Decodable, Encodable};
+
 /// Encode an event into a record.
 #[async_trait]
 pub trait IntoRecord {
@@ -62,4 +68,3 @@ where
         ))
     }
 }
-*/

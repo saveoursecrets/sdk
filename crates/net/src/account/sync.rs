@@ -2,14 +2,12 @@
 use crate::{NetworkAccount, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
+use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
 use sos_core::events::WriteEvent;
 use sos_core::{
     commit::{CommitState, Comparison},
     events::patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
     Origin, VaultId,
-};
-use sos_filesystem::events::{
-    AccountEventLog, DeviceEventLog, FolderEventLog,
 };
 use sos_protocol::{
     AccountSync, RemoteSync, SyncClient, SyncOptions, SyncResult,
@@ -27,8 +25,8 @@ use tokio::sync::RwLock;
 
 #[cfg(feature = "files")]
 use {
+    sos_backend::FileEventLog,
     sos_core::events::patch::FileDiff,
-    sos_filesystem::events::FileEventLog,
     sos_protocol::transfer::{FileSet, FileSyncClient, FileTransfersSet},
 };
 

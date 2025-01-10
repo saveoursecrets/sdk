@@ -4,6 +4,10 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
 use sos_backend::reducers::DeviceReducer;
+use sos_backend::{
+    reducers::FolderReducer, AccountEventLog, DeviceEventLog, FileEventLog,
+    FolderEventLog,
+};
 use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
     encode,
@@ -11,18 +15,11 @@ use sos_core::{
         patch::{
             AccountDiff, CheckedPatch, DeviceDiff, FileDiff, FolderDiff,
         },
-        AccountEvent, LogEvent, WriteEvent,
+        AccountEvent, EventLog, LogEvent, WriteEvent,
     },
     VaultId,
 };
-use sos_filesystem::{
-    events::{
-        AccountEventLog, DeviceEventLog, EventLog, FileEventLog,
-        FolderEventLog,
-    },
-    folder::FolderReducer,
-    VaultFileWriter,
-};
+use sos_filesystem::VaultFileWriter;
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
     SyncStorage, TrackedChanges,
@@ -162,7 +159,8 @@ impl ForceMerge for ServerFileStorage {
         let vault_path = self.paths.vault_path(folder_id);
         let events_path = self.paths.event_log_path(folder_id);
 
-        let mut event_log = FolderEventLog::new(events_path).await?;
+        let mut event_log =
+            FolderEventLog::new_file_system_folder(events_path).await?;
         event_log.patch_replace(&diff).await?;
 
         let vault = FolderReducer::new()
@@ -253,7 +251,8 @@ impl Merge for ServerFileStorage {
                     }
                     AccountEvent::RenameAccount(name) => {
                         let path = self.paths.identity_vault();
-                        let mut file = VaultFileWriter::new(path).await?;
+                        let mut file =
+                            VaultFileWriter::<Error>::new(path).await?;
                         file.set_vault_name(name.to_owned()).await?;
                     }
                     AccountEvent::UpdateIdentity(_) => {
@@ -414,7 +413,8 @@ impl Merge for ServerFileStorage {
             for event in events {
                 if let WriteEvent::SetVaultFlags(flags) = event {
                     let path = self.paths.vault_path(folder_id);
-                    let mut writer = VaultFileWriter::new(path).await?;
+                    let mut writer =
+                        VaultFileWriter::<Error>::new(path).await?;
                     writer.set_vault_flags(flags).await?;
                 }
             }

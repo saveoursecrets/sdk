@@ -8,10 +8,11 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sos_backend::reducers::FolderReducer;
 use sos_core::{
-    constants::VAULT_EXT, crypto::AccessKey, decode, SecretId, VaultId,
+    constants::VAULT_EXT, crypto::AccessKey, decode, events::EventLog,
+    SecretId, VaultId,
 };
 use sos_core::{AccountId, Paths};
-use sos_filesystem::events::{EventLog, FolderEventLog};
+use sos_filesystem::events::FolderEventLog;
 use sos_filesystem::VaultFileWriter;
 use sos_login::{DiscIdentityFolder, Identity, PublicIdentity};
 use sos_vault::{Summary, Vault, VaultAccess};

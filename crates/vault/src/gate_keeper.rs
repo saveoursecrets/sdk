@@ -11,7 +11,7 @@ use sos_core::{
     SecretId, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
 use sos_vfs as vfs;
-use std::{borrow::Cow, path::PathBuf};
+use std::{borrow::Cow, path::Path};
 
 pub type VaultMirror<E> =
     Box<dyn VaultAccess<Error = E> + Send + Sync + 'static>;
@@ -62,9 +62,9 @@ pub trait Keeper {
     /// has been modified in a different process.
     ///
     /// Assumes the private key for the folder has not changed.
-    async fn reload_vault(
+    async fn reload_vault<P: AsRef<Path> + Send>(
         &mut self,
-        path: &PathBuf,
+        path: P,
     ) -> Result<(), Self::Error>;
 
     /// Set the vault.
@@ -106,6 +106,19 @@ pub trait Keeper {
         &mut self,
         secret_data: &SecretRow,
     ) -> Result<WriteEvent, Self::Error>;
+
+    #[doc(hidden)]
+    async fn decrypt_meta(
+        &self,
+        meta_aead: &AeadPack,
+    ) -> Result<VaultMeta, Self::Error>;
+
+    #[doc(hidden)]
+    async fn decrypt_secret(
+        &self,
+        vault_commit: &VaultCommit,
+        private_key: Option<&PrivateKey>,
+    ) -> Result<(SecretMeta, Secret), Self::Error>;
 
     /// Read the encrypted contents of a secret.
     async fn raw_secret(
@@ -215,42 +228,6 @@ where
         }
     }
 
-    #[doc(hidden)]
-    pub async fn decrypt_meta(
-        &self,
-        meta_aead: &AeadPack,
-    ) -> Result<VaultMeta, E> {
-        let private_key =
-            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
-        let meta_blob = self
-            .vault
-            .decrypt(private_key, meta_aead)
-            .await
-            .map_err(|_| Error::PassphraseVerification)?;
-        Ok(decode(&meta_blob).await?)
-    }
-
-    #[doc(hidden)]
-    pub async fn decrypt_secret(
-        &self,
-        vault_commit: &VaultCommit,
-        private_key: Option<&PrivateKey>,
-    ) -> Result<(SecretMeta, Secret), E> {
-        let private_key = private_key
-            .or(self.private_key.as_ref())
-            .ok_or(Error::VaultLocked)?;
-
-        let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
-            vault_commit;
-        let meta_blob = self.vault.decrypt(private_key, meta_aead).await?;
-        let secret_meta: SecretMeta = decode(&meta_blob).await?;
-
-        let secret_blob =
-            self.vault.decrypt(private_key, secret_aead).await?;
-        let secret: Secret = decode(&secret_blob).await?;
-        Ok((secret_meta, secret))
-    }
-
     /// Ensure that if shared access is set to readonly that
     /// this user is allowed to write.
     async fn enforce_shared_readonly(
@@ -305,8 +282,11 @@ where
         Ok(())
     }
 
-    async fn reload_vault(&mut self, path: &PathBuf) -> Result<(), E> {
-        let buffer = vfs::read(path).await?;
+    async fn reload_vault<P: AsRef<Path> + Send>(
+        &mut self,
+        path: P,
+    ) -> Result<(), E> {
+        let buffer = vfs::read(path.as_ref()).await?;
         let vault: Vault = decode(&buffer).await?;
         if let Some(mirror) = &mut self.mirror {
             mirror.replace_vault(&vault).await?;
@@ -371,6 +351,40 @@ where
             mirror.set_vault_meta(meta_aead.clone()).await?;
         }
         Ok(self.vault.set_vault_meta(meta_aead).await?)
+    }
+
+    async fn decrypt_meta(
+        &self,
+        meta_aead: &AeadPack,
+    ) -> Result<VaultMeta, E> {
+        let private_key =
+            self.private_key.as_ref().ok_or(Error::VaultLocked)?;
+        let meta_blob = self
+            .vault
+            .decrypt(private_key, meta_aead)
+            .await
+            .map_err(|_| Error::PassphraseVerification)?;
+        Ok(decode(&meta_blob).await?)
+    }
+
+    async fn decrypt_secret(
+        &self,
+        vault_commit: &VaultCommit,
+        private_key: Option<&PrivateKey>,
+    ) -> Result<(SecretMeta, Secret), E> {
+        let private_key = private_key
+            .or(self.private_key.as_ref())
+            .ok_or(Error::VaultLocked)?;
+
+        let VaultCommit(_commit, VaultEntry(meta_aead, secret_aead)) =
+            vault_commit;
+        let meta_blob = self.vault.decrypt(private_key, meta_aead).await?;
+        let secret_meta: SecretMeta = decode(&meta_blob).await?;
+
+        let secret_blob =
+            self.vault.decrypt(private_key, secret_aead).await?;
+        let secret: Secret = decode(&secret_blob).await?;
+        Ok((secret_meta, secret))
     }
 
     async fn create_secret(

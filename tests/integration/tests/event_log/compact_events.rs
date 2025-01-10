@@ -2,6 +2,7 @@ use super::last_log_event;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
+use sos_backend::{AccountEventLog, FolderEventLog};
 use sos_sdk::prelude::*;
 
 /// Tests compacting a folder event log.
@@ -44,7 +45,8 @@ async fn event_log_compact() -> Result<()> {
     account.delete_secret(&card, Default::default()).await?;
 
     let folder_events = account.paths().event_log_path(default_folder.id());
-    let event_log = FolderEventLog::new(&folder_events).await?;
+    let event_log =
+        FolderEventLog::new_file_system_folder(&folder_events).await?;
     let patch = event_log.diff_events(None).await?;
     // One create vault event, three create secret events
     // and two delete events
@@ -78,7 +80,8 @@ async fn event_log_compact() -> Result<()> {
 
     // Check the account event log registered the compact event
     let account_events = account.paths().account_events();
-    let mut event_log = AccountEventLog::new_account(&account_events).await?;
+    let mut event_log =
+        AccountEventLog::new_file_system_account(&account_events).await?;
     let event = last_log_event(&mut event_log, None).await?;
     assert!(matches!(event, Some(AccountEvent::CompactFolder(_, _))));
 

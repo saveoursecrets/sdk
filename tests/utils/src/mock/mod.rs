@@ -8,16 +8,16 @@ use pem as pem_encoding;
 use secrecy::SecretBox;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
+use sos_backend::FolderEventLog;
 use sos_core::{
     commit::CommitHash,
     crypto::{KeyDerivation, PrivateKey},
     device::TrustedDevice,
     encode,
-    events::WriteEvent,
+    events::{EventLog, WriteEvent},
     AccountId, SecretId, VaultEntry,
 };
 use sos_database::db::{AccountEntity, FolderEntity};
-use sos_filesystem::events::{EventLog, FolderEventLog};
 use sos_password::diceware::generate_passphrase;
 use sos_vault::{
     secret::{FileContent, IdentityKind, Secret, SecretMeta},
@@ -149,7 +149,8 @@ pub async fn event_log_file(
     let (_, mut vault) = vault_file().await?;
 
     let temp = NamedTempFile::new()?;
-    let mut event_log = FolderEventLog::new(temp.path()).await?;
+    let mut event_log =
+        FolderEventLog::new_file_system_folder(temp.path()).await?;
 
     // Create the vault
     let event = vault.into_event().await?;

@@ -1,10 +1,11 @@
 //! Helper functions for server implementations.
 use binary_stream::futures::{Decodable, Encodable};
+use sos_backend::BackendEventLog;
+use sos_core::events::EventLog;
 use sos_core::events::{
     patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff, Patch},
     AccountEvent, DeviceEvent, EventRecord, WriteEvent,
 };
-use sos_filesystem::events::{DiscEventLog, EventLog};
 use sos_protocol::{
     DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
     ScanResponse,
@@ -27,7 +28,7 @@ where
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>
         + From<sos_core::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + From<sos_database::StorageError>
         + Send
         + Sync
@@ -80,7 +81,7 @@ where
     S: SyncStorage,
     E: From<<S as StorageEventLogs>::Error>
         + From<sos_core::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + Send
         + Sync
         + 'static,
@@ -118,12 +119,12 @@ where
 /// Create a diff response from a request and target event log.
 async fn diff_log<T, E>(
     req: &DiffRequest,
-    event_log: &DiscEventLog<T>,
+    event_log: &BackendEventLog<T>,
 ) -> std::result::Result<DiffResponse, E>
 where
     T: Default + Encodable + Decodable + Send + Sync + 'static,
     E: From<sos_core::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + Send
         + Sync
         + 'static,
@@ -142,7 +143,7 @@ pub async fn event_scan<S, E>(
 where
     S: SyncStorage,
     E: From<<S as StorageEventLogs>::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + Send
         + Sync
         + 'static,
@@ -182,8 +183,8 @@ where
 /// Scan an event log.
 async fn scan_log<T>(
     req: &ScanRequest,
-    event_log: &DiscEventLog<T>,
-) -> Result<ScanResponse, sos_filesystem::Error>
+    event_log: &BackendEventLog<T>,
+) -> Result<ScanResponse, sos_backend::Error>
 where
     T: Default + Encodable + Decodable + Send + Sync + 'static,
 {
@@ -211,6 +212,9 @@ where
         return Ok(res);
     }
 
+    todo!("restore iter usage in scan code");
+
+    /*
     let mut it = event_log.iter(true).await?;
     let mut skip = 0;
 
@@ -240,6 +244,7 @@ where
         }
     }
     Ok(res)
+    */
 }
 
 /// Apply a patch of events rewinding to an optional checkpoint commit
@@ -253,7 +258,7 @@ where
     E: std::error::Error
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + Send
         + Sync
         + 'static,
@@ -404,7 +409,7 @@ where
     E: std::error::Error
         + std::fmt::Debug
         + From<<S as StorageEventLogs>::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + Send
         + Sync
         + 'static,

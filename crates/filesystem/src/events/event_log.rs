@@ -13,13 +13,12 @@
 //!
 //! The first row must always contain a last commit hash that is all zero.
 //!
-use super::EventRecord;
 use crate::{
     formats::{
         read_file_identity_bytes, EventLogRecord, FileItem, FormatStream,
         FormatStreamIterator,
     },
-    Error, IntoRecord, Result,
+    Error, Result,
 };
 use async_stream::try_stream;
 use async_trait::async_trait;
@@ -32,7 +31,7 @@ use sos_core::{
     encoding::{encoding_options, VERSION1},
     events::{
         patch::{CheckedPatch, Diff, Patch},
-        AccountEvent, DeviceEvent, WriteEvent,
+        AccountEvent, DeviceEvent, EventRecord, IntoRecord, WriteEvent,
     },
 };
 use sos_vfs::{self as vfs, File, OpenOptions};

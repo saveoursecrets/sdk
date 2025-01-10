@@ -9,13 +9,12 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_account::Account;
+use sos_backend::{reducers::FolderReducer, FolderEventLog};
 use sos_core::VaultId;
-use sos_filesystem::folder::FolderReducer;
 use sos_sdk::{
     constants::EVENT_LOG_EXT,
     crypto::{AccessKey, Cipher, KeyDerivation},
     encode,
-    events::FolderEventLog,
     identity::AccountRef,
     vfs, Paths,
 };
@@ -202,7 +201,10 @@ pub async fn run(cmd: Command) -> Result<()> {
                         verify_events(events_file.clone(), false).await?;
 
                         let event_log =
-                            FolderEventLog::new(&events_file).await?;
+                            FolderEventLog::new_file_system_folder(
+                                &events_file,
+                            )
+                            .await?;
 
                         let vault = FolderReducer::new()
                             .reduce(&event_log)

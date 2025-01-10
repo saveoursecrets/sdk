@@ -24,9 +24,9 @@
 //!
 
 pub mod device;
-pub mod events;
 pub mod prelude;
 
+pub use sos_core::events;
 pub use sos_core::Paths;
 pub use sos_core::{decode, encode};
 

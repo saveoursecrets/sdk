@@ -8,6 +8,7 @@ publish = false
 [dependencies]
 sos-audit.workspace = true
 sos-sdk.workspace = true
+sos-backend.workspace = true
 sos-net = { workspace = true, features = ["full"] }
 sos-account = { workspace = true, features = ["full"] }
 sos-core.workspace = true

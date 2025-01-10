@@ -4,6 +4,7 @@ use crate::event_log::BackendEventLog;
 use crate::reducers::FolderReducer;
 use crate::BackendGateKeeper;
 use crate::Error;
+use crate::FolderEventLog as BackendFolderEventLog;
 use sos_core::events::EventLog;
 use sos_core::{constants::EVENT_LOG_EXT, decode};
 use sos_filesystem::{
@@ -63,10 +64,12 @@ impl Folder {
     /// Load an identity folder event log from the given paths.
     pub async fn new_event_log(
         path: impl AsRef<Path>,
-    ) -> Result<Arc<RwLock<FolderEventLog<Error>>>, Error> {
+    ) -> Result<Arc<RwLock<BackendFolderEventLog>>, Error> {
         let mut event_log =
             FolderEventLog::<Error>::new(path.as_ref().to_owned()).await?;
         event_log.load_tree().await?;
-        Ok(Arc::new(RwLock::new(event_log)))
+        Ok(Arc::new(RwLock::new(BackendFolderEventLog::FileSystem(
+            event_log,
+        ))))
     }
 }

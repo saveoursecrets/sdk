@@ -1,7 +1,7 @@
 use crate::{Error, Result};
 use async_trait::async_trait;
 use sos_core::{
-    crypto::AccessKey,
+    crypto::{AccessKey, AeadPack, PrivateKey},
     events::{ReadEvent, WriteEvent},
     SecretId, VaultCommit, VaultFlags, VaultId,
 };
@@ -10,7 +10,7 @@ use sos_vault::{
     GateKeeper, Keeper, Summary, Vault, VaultMeta,
 };
 use std::borrow::Cow;
-use std::path::PathBuf;
+use std::path::Path;
 
 /// Backend gate keeper implementation.
 pub enum BackendGateKeeper {
@@ -49,7 +49,10 @@ impl Keeper for BackendGateKeeper {
         todo!();
     }
 
-    async fn reload_vault(&mut self, path: &PathBuf) -> Result<()> {
+    async fn reload_vault<P: AsRef<Path> + Send>(
+        &mut self,
+        path: P,
+    ) -> Result<()> {
         todo!();
     }
 
@@ -89,6 +92,18 @@ impl Keeper for BackendGateKeeper {
         &mut self,
         meta_data: &VaultMeta,
     ) -> Result<WriteEvent> {
+        todo!();
+    }
+
+    async fn decrypt_meta(&self, meta_aead: &AeadPack) -> Result<VaultMeta> {
+        todo!();
+    }
+
+    async fn decrypt_secret(
+        &self,
+        vault_commit: &VaultCommit,
+        private_key: Option<&PrivateKey>,
+    ) -> Result<(SecretMeta, Secret)> {
         todo!();
     }
 

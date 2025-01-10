@@ -45,7 +45,7 @@ use {
 };
 
 #[cfg(feature = "search")]
-use sos_database::search::{
+use sos_backend::search::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
     QueryFilter, SearchIndex,
 };

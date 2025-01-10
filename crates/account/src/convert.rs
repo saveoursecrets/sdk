@@ -1,15 +1,16 @@
 //! Convert account data.
 use crate::{Account, Error, LocalAccount, Result};
 use serde::{Deserialize, Serialize};
+use sos_backend::BackendGateKeeper;
 use sos_sdk::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
-    vault::{
-        secret::SecretRow, BuilderCredentials, GateKeeper, Summary, Vault,
-        VaultBuilder,
-    },
-    vfs,
 };
+use sos_vault::{
+    secret::SecretRow, BuilderCredentials, Keeper, Summary, Vault,
+    VaultBuilder,
+};
+use sos_vfs as vfs;
 
 /// Comparison between an existing cipher and a
 /// target cipher.
@@ -137,7 +138,7 @@ impl LocalAccount {
 
         let seed = input_vault.seed().cloned();
         let name = input_vault.name().to_owned();
-        let mut input = GateKeeper::<Error>::new(input_vault);
+        let mut input = BackendGateKeeper::new_vault(input_vault);
         input.unlock(key).await?;
         let meta = input.vault_meta().await?;
 
@@ -163,7 +164,7 @@ impl LocalAccount {
             }
         };
 
-        let mut output = GateKeeper::<Error>::new(output_vault);
+        let mut output = BackendGateKeeper::new_vault(output_vault);
         output.unlock(key).await?;
 
         for key in input.vault().keys() {

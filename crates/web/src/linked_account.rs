@@ -8,6 +8,7 @@ use sos_account::{
     FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
     SecretDelete, SecretInsert, SecretMove,
 };
+use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
 use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_core::{
     commit::{CommitHash, CommitState, Comparison},
@@ -16,9 +17,6 @@ use sos_core::{
         WriteEvent,
     },
     AccountId, Origin, SecretId, VaultId,
-};
-use sos_filesystem::events::{
-    AccountEventLog, DeviceEventLog, FolderEventLog,
 };
 use sos_protocol::{
     network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
@@ -49,7 +47,7 @@ use {
 };
 
 #[cfg(feature = "search")]
-use sos_database::search::{
+use sos_backend::search::{
     AccountStatistics, ArchiveFilter, Document, DocumentCount, DocumentView,
     QueryFilter, SearchIndex,
 };
@@ -68,7 +66,7 @@ use sos_migrate::import::ImportTarget;
 
 #[cfg(feature = "files")]
 use {
-    sos_core::events::patch::FileDiff, sos_filesystem::events::FileEventLog,
+    sos_backend::FileEventLog, sos_core::events::patch::FileDiff,
     sos_protocol::transfer::FileTransferQueueSender,
 };
 

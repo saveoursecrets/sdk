@@ -12,11 +12,10 @@ use sos_core::{
         patch::{
             AccountDiff, CheckedPatch, DeviceDiff, Diff, FolderDiff, Patch,
         },
-        AccountEvent, DeviceEvent, EventRecord, WriteEvent,
+        AccountEvent, DeviceEvent, EventLog, EventRecord, WriteEvent,
     },
     VaultId,
 };
-use sos_filesystem::events::EventLog;
 use sos_sync::{
     EventLogType, ForceMerge, MaybeConflict, Merge, MergeOutcome,
     StorageEventLogs, SyncDirection, SyncStatus,
