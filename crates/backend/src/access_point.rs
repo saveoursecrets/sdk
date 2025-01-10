@@ -45,13 +45,13 @@ impl BackendAccessPoint {
         vault: Vault,
         client: Client,
         folder_id: VaultId,
-    ) -> Result<Self> {
+    ) -> Self {
         let mirror =
             VaultDatabaseWriter::<Error>::new(client, folder_id).await;
-        Ok(Self::FileSystem(AccessPoint::<Error>::new_mirror(
+        Self::FileSystem(AccessPoint::<Error>::new_mirror(
             vault,
             Box::new(mirror),
-        )))
+        ))
     }
 }
 
