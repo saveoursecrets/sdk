@@ -10,6 +10,7 @@ use crate::device::{DeviceManager, DeviceSigner};
 use crate::{Error, PrivateIdentity, Result, UrnLookup};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use sos_backend::folder::DiscFolder;
+use sos_backend::{BackendFolderEventLog, BackendGateKeeper};
 use sos_core::{
     constants::LOGIN_AGE_KEY_URN,
     crypto::{AccessKey, KeyDerivation},
@@ -69,12 +70,12 @@ impl IdentityFolder {
     }
 
     /// Get the gatekeeper.
-    pub fn keeper(&self) -> &GateKeeper<sos_backend::Error> {
+    pub fn keeper(&self) -> &BackendGateKeeper {
         self.folder.keeper()
     }
 
     /// Get the event log.
-    pub fn event_log(&self) -> Arc<RwLock<FolderEventLog>> {
+    pub fn event_log(&self) -> Arc<RwLock<BackendFolderEventLog>> {
         self.folder.event_log()
     }
 

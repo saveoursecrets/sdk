@@ -1,5 +1,4 @@
 //! Implements random access to a single vault file on disc.
-use crate::{Error, Result};
 use async_trait::async_trait;
 use binary_stream::futures::{stream_length, BinaryReader, BinaryWriter};
 use futures::io::{BufWriter, Cursor};
@@ -27,25 +26,50 @@ use tokio::{
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
 /// Write changes to a vault file on disc.
-pub struct VaultFileWriter {
+pub struct VaultFileWriter<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<sos_vault::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     pub(crate) file_path: PathBuf,
     stream: Mutex<Compat<File>>,
+    marker: std::marker::PhantomData<E>,
 }
 
-impl VaultFileWriter {
+impl<E> VaultFileWriter<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<sos_vault::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     /// Create a new vault file writer.
     ///
     /// The underlying file should already exist and be a valid vault.
-    pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self, E> {
         let file = OpenOptions::new().read(true).open(path.as_ref()).await?;
         let stream = Mutex::new(file.compat_write());
         let file_path = path.as_ref().to_path_buf();
-        Ok(Self { file_path, stream })
+        Ok(Self {
+            file_path,
+            stream,
+            marker: std::marker::PhantomData,
+        })
     }
 
     /// Check the identity bytes and return the byte offset of the
     /// beginning of the vault content area.
-    async fn check_identity(&self) -> Result<u64> {
+    async fn check_identity(&self) -> Result<u64, E> {
         Ok(Header::read_content_offset(&self.file_path).await?)
     }
 
@@ -54,7 +78,7 @@ impl VaultFileWriter {
         &self,
         content_offset: u64,
         header: &Header,
-    ) -> Result<()> {
+    ) -> Result<(), E> {
         let head = encode(header).await?;
         let mut file = OpenOptions::new()
             .read(true)
@@ -91,7 +115,7 @@ impl VaultFileWriter {
         head: Range<u64>,
         tail: Range<u64>,
         content: Option<&[u8]>,
-    ) -> Result<()> {
+    ) -> Result<(), E> {
         let mut file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -136,7 +160,7 @@ impl VaultFileWriter {
     async fn find_row(
         &self,
         id: &SecretId,
-    ) -> Result<(u64, Option<(u64, u32)>)> {
+    ) -> Result<(u64, Option<(u64, u32)>), E> {
         let content_offset = self.check_identity().await?;
 
         let mut stream = self.stream.lock().await;
@@ -146,8 +170,12 @@ impl VaultFileWriter {
         // Scan all the rows
         let mut current_pos = reader.stream_position().await?;
         while let Ok(row_len) = reader.read_u32().await {
-            let row_id: [u8; 16] =
-                reader.read_bytes(16).await?.as_slice().try_into()?;
+            let row_id: [u8; 16] = reader
+                .read_bytes(16)
+                .await?
+                .as_slice()
+                .try_into()
+                .map_err(sos_core::Error::from)?;
             let row_id = SecretId::from_bytes(row_id);
             if id == &row_id {
                 // Need to backtrack as we just read the row length and UUID;
@@ -168,20 +196,33 @@ impl VaultFileWriter {
 }
 
 #[async_trait]
-impl VaultAccess for VaultFileWriter {
-    type Error = Error;
+impl<E> VaultAccess for VaultFileWriter<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_vault::Error>
+        + From<sos_core::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    type Error = E;
 
-    async fn summary(&self) -> Result<Summary> {
+    async fn summary(&self) -> Result<Summary, Self::Error> {
         Ok(Header::read_summary_file(&self.file_path).await?)
     }
 
-    async fn vault_name(&self) -> Result<Cow<'_, str>> {
+    async fn vault_name(&self) -> Result<Cow<'_, str>, Self::Error> {
         let header = Header::read_header_file(&self.file_path).await?;
         let name = header.name().to_string();
         Ok(Cow::Owned(name))
     }
 
-    async fn set_vault_name(&mut self, name: String) -> Result<WriteEvent> {
+    async fn set_vault_name(
+        &mut self,
+        name: String,
+    ) -> Result<WriteEvent, Self::Error> {
         let content_offset = self.check_identity().await?;
         let mut header = Header::read_header_file(&self.file_path).await?;
         header.set_name(name.clone());
@@ -192,7 +233,7 @@ impl VaultAccess for VaultFileWriter {
     async fn set_vault_flags(
         &mut self,
         flags: VaultFlags,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, Self::Error> {
         let content_offset = self.check_identity().await?;
         let mut header = Header::read_header_file(&self.file_path).await?;
         *header.flags_mut() = flags.clone();
@@ -203,7 +244,7 @@ impl VaultAccess for VaultFileWriter {
     async fn set_vault_meta(
         &mut self,
         meta_data: AeadPack,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, Self::Error> {
         let content_offset = self.check_identity().await?;
         let mut header = Header::read_header_file(&self.file_path).await?;
         header.set_meta(Some(meta_data.clone()));
@@ -215,7 +256,7 @@ impl VaultAccess for VaultFileWriter {
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, Self::Error> {
         let id = SecretId::new_v4();
         self.insert_secret(id, commit, secret).await
     }
@@ -225,7 +266,7 @@ impl VaultAccess for VaultFileWriter {
         id: SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, Self::Error> {
         let _summary = self.summary().await?;
         let _stream = self.stream.lock().await;
 
@@ -254,7 +295,7 @@ impl VaultAccess for VaultFileWriter {
     async fn read_secret<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)> {
+    ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent), Self::Error> {
         let _summary = self.summary().await?;
         let event = ReadEvent::ReadSecret(*id);
         let (_, row) = self.find_row(id).await?;
@@ -275,7 +316,7 @@ impl VaultAccess for VaultFileWriter {
         id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Option<WriteEvent>> {
+    ) -> Result<Option<WriteEvent>, Self::Error> {
         let _summary = self.summary().await?;
         let (_content_offset, row) = self.find_row(id).await?;
         if let Some((row_offset, row_len)) = row {
@@ -308,7 +349,7 @@ impl VaultAccess for VaultFileWriter {
     async fn delete_secret(
         &mut self,
         id: &SecretId,
-    ) -> Result<Option<WriteEvent>> {
+    ) -> Result<Option<WriteEvent>, Self::Error> {
         let _summary = self.summary().await?;
         let (_content_offset, row) = self.find_row(id).await?;
         if let Some((row_offset, row_len)) = row {
@@ -330,7 +371,10 @@ impl VaultAccess for VaultFileWriter {
         }
     }
 
-    async fn replace_vault(&mut self, vault: &Vault) -> Result<()> {
+    async fn replace_vault(
+        &mut self,
+        vault: &Vault,
+    ) -> Result<(), Self::Error> {
         let buffer = encode(vault).await?;
         vfs::write_exclusive(&self.file_path, &buffer).await?;
         Ok(())

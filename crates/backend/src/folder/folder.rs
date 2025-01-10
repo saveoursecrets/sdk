@@ -1,4 +1,5 @@
 //! Folder implementation combining a gatekeeper with an event log.
+use crate::BackendGateKeeper;
 use sos_core::{
     commit::{CommitHash, CommitState},
     events::EventLog,
@@ -10,7 +11,7 @@ use sos_core::{
 };
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},
-    GateKeeper, VaultCommit, VaultId, VaultMeta,
+    Keeper, VaultCommit, VaultId, VaultMeta,
 };
 use std::{borrow::Cow, sync::Arc};
 use tokio::sync::RwLock;
@@ -28,7 +29,7 @@ where
         + Sync
         + 'static,
 {
-    pub(crate) keeper: GateKeeper<E>,
+    pub(crate) keeper: BackendGateKeeper,
     events: Arc<RwLock<L>>,
 }
 
@@ -45,7 +46,7 @@ where
         + 'static,
 {
     /// Create a new folder.
-    pub(super) fn init(keeper: GateKeeper<E>, events: L) -> Self {
+    pub(super) fn init(keeper: BackendGateKeeper, events: L) -> Self {
         Self {
             keeper,
             events: Arc::new(RwLock::new(events)),
@@ -58,12 +59,12 @@ where
     }
 
     /// GateKeeper for this folder.
-    pub fn keeper(&self) -> &GateKeeper<E> {
+    pub fn keeper(&self) -> &BackendGateKeeper {
         &self.keeper
     }
 
     /// Mutable gatekeeper for this folder.
-    pub fn keeper_mut(&mut self) -> &mut GateKeeper<E> {
+    pub fn keeper_mut(&mut self) -> &mut BackendGateKeeper {
         &mut self.keeper
     }
 
@@ -73,7 +74,10 @@ where
     }
 
     /// Unlock using the folder access key.
-    pub async fn unlock(&mut self, key: &AccessKey) -> Result<VaultMeta, E> {
+    pub async fn unlock(
+        &mut self,
+        key: &AccessKey,
+    ) -> crate::Result<VaultMeta> {
         Ok(self.keeper.unlock(key).await?)
     }
 
@@ -86,7 +90,7 @@ where
     pub async fn create_secret(
         &mut self,
         secret_data: &SecretRow,
-    ) -> Result<WriteEvent, E> {
+    ) -> crate::Result<WriteEvent> {
         let event = self.keeper.create_secret(secret_data).await?;
         let mut events = self.events.write().await;
         events.apply(vec![&event]).await?;
@@ -97,7 +101,7 @@ where
     pub async fn read_secret(
         &self,
         id: &SecretId,
-    ) -> Result<Option<(SecretMeta, Secret, ReadEvent)>, E> {
+    ) -> crate::Result<Option<(SecretMeta, Secret, ReadEvent)>> {
         Ok(self.keeper.read_secret(id).await?)
     }
 
@@ -105,7 +109,7 @@ where
     pub async fn raw_secret(
         &self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'_, VaultCommit>>, ReadEvent), E> {
+    ) -> crate::Result<(Option<Cow<'_, VaultCommit>>, ReadEvent)> {
         Ok(self.keeper.raw_secret(id).await?)
     }
 
@@ -115,7 +119,7 @@ where
         id: &SecretId,
         secret_meta: SecretMeta,
         secret: Secret,
-    ) -> Result<Option<WriteEvent>, E> {
+    ) -> crate::Result<Option<WriteEvent>> {
         if let Some(event) =
             self.keeper.update_secret(id, secret_meta, secret).await?
         {

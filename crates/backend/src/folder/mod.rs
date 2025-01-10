@@ -13,7 +13,7 @@ use sos_core::{
 };
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    GateKeeper, Vault, VaultMeta,
+    GateKeeper, Keeper, Vault, VaultMeta,
 };
 use std::{borrow::Cow, sync::Arc};
 use tokio::sync::RwLock;

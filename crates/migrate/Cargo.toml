@@ -25,6 +25,7 @@ interactive-keychain-tests = []
 
 [dependencies]
 sos-core.workspace = true
+sos-backend = { workspace = true, features = ["full"] }
 sos-database = { workspace = true, features = ["search"] }
 sos-filesystem.workspace = true
 sos-vault.workspace = true

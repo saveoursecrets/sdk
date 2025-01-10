@@ -1,6 +1,7 @@
 //! Folder implementation backed by the filesystem.
 use super::GenericFolder;
 use crate::reducers::FolderReducer;
+use crate::BackendGateKeeper;
 use crate::Error;
 use sos_core::events::EventLog;
 use sos_core::{constants::EVENT_LOG_EXT, decode};
@@ -45,11 +46,13 @@ impl GenericFolder<FolderEventLog<Error>, Error> {
             vault
         };
 
-        let mirror = VaultFileWriter::new(path.as_ref()).await?;
-        let keeper =
-            FileSystemGateKeeper::new_mirror(vault, Box::new(mirror));
+        let mirror = VaultFileWriter::<Error>::new(path.as_ref()).await?;
+        let keeper = FileSystemGateKeeper::<Error>::new_mirror(
+            vault,
+            Box::new(mirror),
+        );
 
-        Ok(Self::init(keeper, event_log))
+        Ok(Self::init(BackendGateKeeper::FileSystem(keeper), event_log))
     }
 
     /// Load an identity folder event log from the given paths.

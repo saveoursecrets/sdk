@@ -1,9 +1,11 @@
 pub mod compact;
 mod error;
 pub mod folder;
+mod gate_keeper;
 pub mod reducers;
 
 pub use error::Error;
+pub use gate_keeper::BackendGateKeeper;
 
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;

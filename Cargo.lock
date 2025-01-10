@@ -5260,6 +5260,7 @@ dependencies = [
  "security-framework 3.1.0",
  "serde",
  "serde_json",
+ "sos-backend",
  "sos-core",
  "sos-database",
  "sos-filesystem",
