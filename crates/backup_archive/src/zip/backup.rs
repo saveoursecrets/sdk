@@ -470,7 +470,7 @@ impl AccountBackup {
         Self::restore_user_folders(&paths, &restore_targets.vaults).await?;
 
         let account =
-            PublicIdentity::new(label, restore_targets.manifest.account_id);
+            PublicIdentity::new(restore_targets.manifest.account_id, label);
         Ok((restore_targets, account))
     }
 

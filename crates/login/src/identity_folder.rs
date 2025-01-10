@@ -16,15 +16,12 @@ use sos_core::{
     crypto::{AccessKey, KeyDerivation},
     decode, encode, AccountId, Paths,
 };
-use sos_filesystem::{
-    events::FolderEventLog, FileSystemGateKeeper, VaultFileWriter,
-};
+use sos_filesystem::{FileSystemGateKeeper, VaultFileWriter};
 use sos_password::diceware::generate_passphrase_words;
 use sos_signer::ed25519;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
-    BuilderCredentials, GateKeeper, Keeper, Vault, VaultBuilder, VaultFlags,
-    VaultId,
+    BuilderCredentials, Keeper, Vault, VaultBuilder, VaultFlags, VaultId,
 };
 use sos_vfs as vfs;
 use std::{

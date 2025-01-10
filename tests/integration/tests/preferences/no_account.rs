@@ -14,7 +14,7 @@ async fn preferences_no_account() -> Result<()> {
     let data_dir = dirs.clients.remove(0);
 
     let account_id = AccountId::random();
-    let identity = PublicIdentity::new("mock-user".to_owned(), account_id);
+    let identity = PublicIdentity::new(account_id, "mock-user".to_owned());
 
     // Ensure paths exist
     Paths::scaffold(Some(data_dir.clone())).await?;

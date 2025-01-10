@@ -9,10 +9,12 @@
 use crate::device::DeviceManager;
 use crate::{DiscIdentityFolder, Error, PublicIdentity, Result};
 use secrecy::SecretString;
+use sos_core::constants::VAULT_EXT;
 use sos_core::{
-    crypto::AccessKey, events::Event, AccountId, Paths, SecretId, VaultId,
+    crypto::AccessKey, decode, events::Event, AccountId, Paths, SecretId,
+    VaultId,
 };
-use sos_vault::{Summary, Vault};
+use sos_vault::{list_accounts, list_local_folders, Header, Summary, Vault};
 use sos_vfs as vfs;
 use std::{
     collections::HashMap,
@@ -51,7 +53,7 @@ impl Identity {
     pub async fn list_accounts(
         paths: Option<&Paths>,
     ) -> Result<Vec<PublicIdentity>> {
-        PublicIdentity::list_accounts(paths).await
+        Ok(list_accounts(paths).await?)
     }
 
     /// Find and load a vault.
@@ -59,7 +61,36 @@ impl Identity {
         paths: &Paths,
         id: &VaultId,
     ) -> Result<(Vault, PathBuf)> {
-        PublicIdentity::load_local_vault(paths, id).await
+        let folders = list_local_folders(paths).await?;
+        let (_summary, path) = folders
+            .into_iter()
+            .find(|(s, _)| s.id() == id)
+            .ok_or_else(|| Error::NoVaultFile(id.to_string()))?;
+        let buffer = vfs::read(&path).await?;
+        let vault: Vault = decode(&buffer).await?;
+        Ok((vault, path))
+    }
+
+    /// Read the public identity from an identity vault file.
+    pub async fn read_public_identity(
+        path: impl AsRef<Path>,
+    ) -> Result<Option<PublicIdentity>> {
+        if let (Some(extension), Some(file_stem)) =
+            (path.as_ref().extension(), path.as_ref().file_stem())
+        {
+            if extension == VAULT_EXT {
+                let summary =
+                    Header::read_summary_file(path.as_ref()).await?;
+                return Ok(Some(PublicIdentity::new(
+                    file_stem.to_string_lossy().parse()?,
+                    summary.name().to_owned(),
+                )));
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
     }
 
     /// List the folders in an account by inspecting
@@ -67,7 +98,7 @@ impl Identity {
     pub async fn list_local_folders(
         paths: &Paths,
     ) -> Result<Vec<(Summary, PathBuf)>> {
-        PublicIdentity::list_local_folders(paths).await
+        Ok(list_local_folders(paths).await?)
     }
 
     /// Create a new unauthenticated user.

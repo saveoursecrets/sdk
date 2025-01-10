@@ -20,8 +20,10 @@ use sos_core::{
 use sos_filesystem::VaultFileWriter;
 use sos_protocol::{network_client::HttpClient, SyncClient};
 use sos_sdk::{
-    device::DeviceSigner, identity::PublicIdentity, vault::VaultAccess, vfs,
-    Paths,
+    device::DeviceSigner,
+    identity::{Identity, PublicIdentity},
+    vault::VaultAccess,
+    vfs, Paths,
 };
 use sos_signer::ed25519::BoxedEd25519Signer;
 use std::{
@@ -212,8 +214,7 @@ impl DeviceEnrollment {
         let events = self.paths.identity_events();
         let vault = self.paths.identity_vault();
         self.create_folder(events, &vault, patch).await?;
-        self.public_identity =
-            PublicIdentity::read_public_identity(vault).await?;
+        self.public_identity = Identity::read_public_identity(vault).await?;
         Ok(())
     }
 

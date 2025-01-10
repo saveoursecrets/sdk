@@ -9,12 +9,13 @@ mod error;
 mod identity;
 mod identity_folder;
 mod private_identity;
-mod public_identity;
 
 pub use identity::*;
 pub use identity_folder::{DiscIdentityFolder, IdentityFolder};
 pub use private_identity::PrivateIdentity;
-pub use public_identity::{AccountRef, PublicIdentity};
+
+// DO NOT USE - backwards compatible re-exports
+pub use sos_core::{AccountRef, PublicIdentity};
 
 pub use error::Error;
 
