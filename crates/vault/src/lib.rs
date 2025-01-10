@@ -6,14 +6,14 @@ mod builder;
 mod change;
 mod encoding;
 mod error;
-mod gatekeeper;
+mod gate_keeper;
 pub mod secret;
 mod vault;
 
 pub use builder::{BuilderCredentials, VaultBuilder};
 pub use change::ChangePassword;
 pub use error::Error;
-pub use gatekeeper::{GateKeeper, Keeper};
+pub use gate_keeper::{GateKeeper, Keeper};
 pub use vault::{
     FolderRef, Header, SharedAccess, Summary, Vault, VaultAccess, VaultMeta,
 };
