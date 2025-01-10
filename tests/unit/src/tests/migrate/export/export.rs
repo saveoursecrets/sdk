@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_backend::BackendAccessPoint;
+use sos_backend::AccessPoint;
 use sos_migrate::export::PublicExport;
 use sos_sdk::prelude::*;
 use sos_test_utils::mock;
@@ -19,7 +19,7 @@ async fn create_mock_migration<W: AsyncWrite + AsyncSeek + Unpin>(
 
     let key: AccessKey = passphrase.into();
     let mut migration = PublicExport::new(writer);
-    let mut keeper = BackendAccessPoint::new_vault(vault);
+    let mut keeper = AccessPoint::new_vault(vault);
     keeper.unlock(&key).await?;
 
     let (meta, secret, _, _) =

@@ -2,7 +2,7 @@
 use super::{Folder, GenericFolder};
 use crate::event_log::BackendEventLog;
 use crate::reducers::FolderReducer;
-use crate::BackendAccessPoint;
+use crate::AccessPoint;
 use crate::Error;
 use crate::FolderEventLog as BackendFolderEventLog;
 use sos_core::events::EventLog;
@@ -54,7 +54,7 @@ impl Folder {
         );
 
         let inner = GenericFolder::init(
-            BackendAccessPoint::FileSystem(keeper),
+            AccessPoint::FileSystem(keeper),
             BackendEventLog::FileSystem(event_log),
         );
 

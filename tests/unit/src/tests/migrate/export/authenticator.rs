@@ -1,6 +1,6 @@
 use anyhow::Result;
 use secrecy::SecretString;
-use sos_backend::BackendAccessPoint;
+use sos_backend::AccessPoint;
 use sos_migrate::{export_authenticator, import_authenticator};
 use sos_sdk::prelude::*;
 use sos_test_utils::mock;
@@ -8,7 +8,7 @@ use sos_vault::SecretAccess;
 use tempfile::NamedTempFile;
 
 async fn create_mock_authenticator(
-) -> Result<(BackendAccessPoint, SecretString, SecretRow)> {
+) -> Result<(AccessPoint, SecretString, SecretRow)> {
     let (folder_key, _) = generate_passphrase()?;
     let vault = VaultBuilder::new()
         .flags(VaultFlags::AUTHENTICATOR)
@@ -16,7 +16,7 @@ async fn create_mock_authenticator(
         .await?;
 
     let key: AccessKey = folder_key.clone().into();
-    let mut keeper = BackendAccessPoint::new_vault(vault);
+    let mut keeper = AccessPoint::new_vault(vault);
     keeper.unlock(&key).await?;
 
     let (meta, secret) = mock::totp("mock@example.com");
@@ -40,7 +40,7 @@ async fn authenticator_export_import() -> Result<()> {
         .await?;
 
     let key: AccessKey = folder_password.into();
-    let mut keeper = BackendAccessPoint::new_vault(vault);
+    let mut keeper = AccessPoint::new_vault(vault);
     keeper.unlock(&key).await?;
 
     import_authenticator(archive.path(), &mut keeper).await?;

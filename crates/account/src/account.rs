@@ -1,7 +1,7 @@
 //! Account storage and search index.
 use crate::{convert::CipherComparison, AccountBuilder, Error, Result};
 use sos_backend::compact::compact_filesystem_folder;
-use sos_backend::{reducers::FolderReducer, BackendAccessPoint};
+use sos_backend::{reducers::FolderReducer, AccessPoint};
 use sos_backend::{AccountEventLog, FolderEventLog};
 use sos_client_storage::{
     AccessOptions, AccountPack, ClientStorage, NewFolderOptions,
@@ -853,14 +853,14 @@ pub trait Account {
 
 /// Read-only view created from a specific event log commit.
 pub struct DetachedView {
-    keeper: BackendAccessPoint,
+    keeper: AccessPoint,
     #[cfg(feature = "search")]
     index: Arc<RwLock<SearchIndex>>,
 }
 
 impl DetachedView {
     /// Read-only access to the folder.
-    pub fn keeper(&self) -> &BackendAccessPoint {
+    pub fn keeper(&self) -> &AccessPoint {
         &self.keeper
     }
 
@@ -1845,7 +1845,7 @@ impl Account for LocalAccount {
             .await?;
 
         let account_key: AccessKey = password.into();
-        let mut output = BackendAccessPoint::new_vault(vault);
+        let mut output = AccessPoint::new_vault(vault);
         output.unlock(&account_key).await?;
 
         for key in input.vault().keys() {
@@ -2195,7 +2195,7 @@ impl Account for LocalAccount {
             .build(true)
             .await?;
 
-        let mut keeper = BackendAccessPoint::new_vault(vault);
+        let mut keeper = AccessPoint::new_vault(vault);
         keeper.unlock(&key).await?;
 
         {
@@ -3024,7 +3024,7 @@ impl Account for LocalAccount {
             .ok_or(Error::NoFolderPassword(*contacts.id()))?;
         let (vault, _) =
             Identity::load_local_vault(&self.paths, contacts.id()).await?;
-        let mut keeper = BackendAccessPoint::new_vault(vault);
+        let mut keeper = AccessPoint::new_vault(vault);
         let key: AccessKey = contacts_passphrase.into();
         keeper.unlock(&key).await?;
 
@@ -3139,7 +3139,7 @@ impl Account for LocalAccount {
                 .await?
                 .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
-            let mut keeper = BackendAccessPoint::new_vault(vault);
+            let mut keeper = AccessPoint::new_vault(vault);
             keeper.unlock(&vault_passphrase).await?;
 
             // Add the secrets for the vault to the migration

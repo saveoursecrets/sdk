@@ -5,23 +5,53 @@ use sos_core::{
     events::{ReadEvent, WriteEvent},
     SecretId, VaultCommit, VaultFlags, VaultId,
 };
+use sos_database::{async_sqlite::Client, VaultDatabaseWriter};
+use sos_filesystem::VaultFileWriter;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    SecretAccess, Summary, Vault, AccessPoint, VaultMeta,
+    AccessPoint, SecretAccess, Summary, Vault, VaultMeta,
 };
 use std::borrow::Cow;
 use std::path::Path;
 
 /// Backend access point implementation.
 pub enum BackendAccessPoint {
-    /// File system.
+    /// Database access point.
+    Database(AccessPoint<Error>),
+    /// File system access point.
     FileSystem(AccessPoint<Error>),
 }
 
 impl BackendAccessPoint {
-    /// New access point from a vault.
+    /// In-memory access point from a vault.
     pub fn new_vault(vault: Vault) -> Self {
         Self::FileSystem(AccessPoint::<Error>::new(vault))
+    }
+
+    /// Access point that mirrors to disc.
+    pub async fn new_fs<P: AsRef<Path>>(
+        vault: Vault,
+        path: P,
+    ) -> Result<Self> {
+        let mirror = VaultFileWriter::<Error>::new(path).await?;
+        Ok(Self::FileSystem(AccessPoint::<Error>::new_mirror(
+            vault,
+            Box::new(mirror),
+        )))
+    }
+
+    /// Access point that mirrors to a database table.
+    pub async fn new_db(
+        vault: Vault,
+        client: Client,
+        folder_id: VaultId,
+    ) -> Result<Self> {
+        let mirror =
+            VaultDatabaseWriter::<Error>::new(client, folder_id).await;
+        Ok(Self::FileSystem(AccessPoint::<Error>::new_mirror(
+            vault,
+            Box::new(mirror),
+        )))
     }
 }
 
@@ -160,6 +190,7 @@ impl SecretAccess for BackendAccessPoint {
 impl From<BackendAccessPoint> for Vault {
     fn from(value: BackendAccessPoint) -> Self {
         match value {
+            BackendAccessPoint::Database(inner) => inner.into(),
             BackendAccessPoint::FileSystem(inner) => inner.into(),
         }
     }

@@ -10,11 +10,10 @@ mod vault_writer;
 
 pub use error::Error;
 
-pub use access_point::BackendAccessPoint;
-pub use event_log::BackendEventLog;
+pub use access_point::BackendAccessPoint as AccessPoint;
 pub use event_log::{
     BackendAccountEventLog as AccountEventLog,
-    BackendDeviceEventLog as DeviceEventLog,
+    BackendDeviceEventLog as DeviceEventLog, BackendEventLog,
     BackendFolderEventLog as FolderEventLog,
 };
 pub use folder::Folder;

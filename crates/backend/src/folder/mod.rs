@@ -3,7 +3,7 @@ mod folder;
 
 pub use folder::Folder as GenericFolder;
 
-use crate::{BackendAccessPoint, Error, FolderEventLog};
+use crate::{AccessPoint, Error, FolderEventLog};
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -37,12 +37,12 @@ impl Folder {
     }
 
     /// Access point for this folder.
-    pub fn keeper(&self) -> &BackendAccessPoint {
+    pub fn keeper(&self) -> &AccessPoint {
         todo!();
     }
 
     /// Mutable access point for this folder.
-    pub fn keeper_mut(&mut self) -> &mut BackendAccessPoint {
+    pub fn keeper_mut(&mut self) -> &mut AccessPoint {
         todo!();
     }
 

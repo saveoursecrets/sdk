@@ -1,5 +1,5 @@
 //! Search provides an in-memory index for secret meta data.
-use crate::BackendAccessPoint;
+use crate::AccessPoint;
 use crate::{Error, Result};
 use probly_search::{score::bm25, Index, QueryResult};
 use serde::{Deserialize, Serialize};
@@ -608,10 +608,7 @@ impl SearchIndex {
 
     /// Add the meta data from the entries in a folder
     /// to this search index.
-    pub async fn add_folder(
-        &mut self,
-        folder: &BackendAccessPoint,
-    ) -> Result<()> {
+    pub async fn add_folder(&mut self, folder: &AccessPoint) -> Result<()> {
         let vault = folder.vault();
         for id in vault.keys() {
             let (meta, secret, _) = folder
@@ -626,7 +623,7 @@ impl SearchIndex {
     /// Remove the meta data from the entries in a folder.
     pub async fn remove_folder(
         &mut self,
-        folder: &BackendAccessPoint,
+        folder: &AccessPoint,
     ) -> Result<()> {
         let vault = folder.vault();
         for id in vault.keys() {
@@ -766,7 +763,7 @@ impl AccountSearch {
     }
 
     /// Add a folder which must be unlocked.
-    pub async fn add_folder(&self, folder: &BackendAccessPoint) -> Result<()> {
+    pub async fn add_folder(&self, folder: &AccessPoint) -> Result<()> {
         let mut index = self.search_index.write().await;
         index.add_folder(folder).await
     }
@@ -785,7 +782,7 @@ impl AccountSearch {
         key: &AccessKey,
     ) -> Result<()> {
         let mut index = self.search_index.write().await;
-        let mut keeper = BackendAccessPoint::new_vault(vault);
+        let mut keeper = AccessPoint::new_vault(vault);
         keeper.unlock(key).await?;
         index.add_folder(&keeper).await?;
         keeper.lock();

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_backend::BackendAccessPoint;
+use sos_backend::AccessPoint;
 use sos_core::AccountId;
 use sos_core::{crypto::AccessKey, encode};
 use sos_login::DiscIdentityFolder;
@@ -42,7 +42,7 @@ async fn no_identity_key() -> Result<()> {
         .build(BuilderCredentials::Password(password.clone(), None))
         .await?;
 
-    let mut keeper = BackendAccessPoint::new_vault(vault);
+    let mut keeper = AccessPoint::new_vault(vault);
     let key = password.clone().into();
     keeper.unlock(&key).await?;
 
