@@ -185,7 +185,7 @@ impl IdentityFolder {
                 data.expose_secret().as_slice().try_into()?;
             Ok(DeviceManager::new(
                 key.into(),
-                AccessPoint::FileSystem(device_keeper),
+                AccessPoint::new(device_keeper),
             ))
         } else {
             Err(Error::VaultEntryKind(device_key_urn.to_string()))
@@ -251,10 +251,7 @@ impl IdentityFolder {
             self.index.insert((*device_keeper.id(), device_key_urn), id);
         }
 
-        Ok(DeviceManager::new(
-            signer,
-            AccessPoint::FileSystem(device_keeper),
-        ))
+        Ok(DeviceManager::new(signer, AccessPoint::new(device_keeper)))
     }
 
     /// Generate a folder password.

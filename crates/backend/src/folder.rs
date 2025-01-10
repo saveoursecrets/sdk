@@ -70,7 +70,7 @@ impl Folder {
         );
 
         Ok(Self::init(
-            AccessPoint::FileSystem(keeper),
+            AccessPoint::new(keeper),
             BackendEventLog::FileSystem(event_log),
         ))
     }
