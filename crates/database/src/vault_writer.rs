@@ -12,7 +12,7 @@ use sos_core::{
     events::{ReadEvent, WriteEvent},
     SecretId, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
-use sos_vault::{Summary, Vault, VaultAccess};
+use sos_vault::{Summary, Vault, EncryptedEntry};
 use std::borrow::Cow;
 
 /// Write changes to a vault in the database.
@@ -29,7 +29,7 @@ impl VaultDatabaseWriter {
 }
 
 #[async_trait]
-impl VaultAccess for VaultDatabaseWriter {
+impl EncryptedEntry for VaultDatabaseWriter {
     type Error = Error;
 
     async fn summary(&self) -> Result<Summary> {

@@ -24,7 +24,7 @@ pub(crate) async fn get_vault_entry(
 }
 
 pub(crate) async fn create_secure_note(
-    vault_access: &mut impl VaultAccess,
+    vault_access: &mut impl EncryptedEntry,
     vault: &Vault,
     encryption_key: &PrivateKey,
     secret_label: &str,

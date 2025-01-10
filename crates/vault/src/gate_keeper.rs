@@ -1,7 +1,7 @@
 //! GateKeeper manages access to a vault.
 use crate::{
     secret::{Secret, SecretMeta, SecretRow},
-    Error, SharedAccess, Summary, Vault, VaultAccess, VaultMeta,
+    Error, SharedAccess, Summary, Vault, EncryptedEntry, VaultMeta,
 };
 use async_trait::async_trait;
 use sos_core::{
@@ -14,7 +14,7 @@ use sos_vfs as vfs;
 use std::{borrow::Cow, path::Path};
 
 pub type VaultMirror<E> =
-    Box<dyn VaultAccess<Error = E> + Send + Sync + 'static>;
+    Box<dyn EncryptedEntry<Error = E> + Send + Sync + 'static>;
 
 /// Trait for types that manage read and write access to a vault.
 #[async_trait]

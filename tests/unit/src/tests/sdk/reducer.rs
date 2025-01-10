@@ -9,7 +9,7 @@ use sos_core::{
 use sos_test_utils::mock;
 use sos_vault::{
     secret::{Secret, SecretMeta},
-    VaultAccess,
+    EncryptedEntry,
 };
 use tempfile::NamedTempFile;
 

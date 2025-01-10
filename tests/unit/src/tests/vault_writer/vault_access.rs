@@ -6,7 +6,7 @@ use sos_sdk::prelude::*;
 use sos_test_utils::mock;
 use uuid::Uuid;
 
-/// Test the VaultAccess implementation for the filesystem.
+/// Test the EncryptedEntry implementation for the filesystem.
 #[tokio::test]
 async fn vault_access_filesystem() -> Result<()> {
     let (encryption_key, _, _) = mock::encryption_key()?;
@@ -17,7 +17,7 @@ async fn vault_access_filesystem() -> Result<()> {
     Ok(())
 }
 
-/// Test the VaultAccess implementation for the database.
+/// Test the EncryptedEntry implementation for the database.
 #[tokio::test]
 async fn vault_access_database() -> Result<()> {
     let (encryption_key, _, _) = mock::encryption_key()?;
@@ -31,7 +31,7 @@ async fn vault_access_database() -> Result<()> {
 }
 
 async fn test_vault_access(
-    vault_access: &mut impl VaultAccess,
+    vault_access: &mut impl EncryptedEntry,
     vault: Vault,
     encryption_key: &PrivateKey,
 ) -> Result<()> {

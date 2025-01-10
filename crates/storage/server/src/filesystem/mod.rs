@@ -18,7 +18,7 @@ use sos_core::{
 };
 use sos_filesystem::VaultFileWriter;
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
-use sos_vault::{Header, Summary, Vault, VaultAccess};
+use sos_vault::{Header, Summary, Vault, EncryptedEntry};
 use sos_vfs as vfs;
 use std::collections::HashSet;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};

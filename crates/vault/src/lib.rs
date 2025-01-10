@@ -15,7 +15,7 @@ pub use change::ChangePassword;
 pub use error::Error;
 pub use gate_keeper::{GateKeeper, Keeper};
 pub use vault::{
-    FolderRef, Header, SharedAccess, Summary, Vault, VaultAccess, VaultMeta,
+    FolderRef, Header, SharedAccess, Summary, Vault, EncryptedEntry, VaultMeta,
 };
 
 // DO NOT USE: these re-exports will be removed in the future

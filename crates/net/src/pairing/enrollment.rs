@@ -22,7 +22,7 @@ use sos_protocol::{network_client::HttpClient, SyncClient};
 use sos_sdk::{
     device::DeviceSigner,
     identity::{Identity, PublicIdentity},
-    vault::VaultAccess,
+    vault::EncryptedEntry,
     vfs, Paths,
 };
 use sos_signer::ed25519::BoxedEd25519Signer;

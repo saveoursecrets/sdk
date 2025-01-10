@@ -10,7 +10,7 @@ use sos_core::{
     events::{ReadEvent, WriteEvent},
     SecretId, VaultCommit, VaultEntry, VaultFlags,
 };
-use sos_vault::{Contents, Header, Summary, Vault, VaultAccess};
+use sos_vault::{Contents, Header, Summary, Vault, EncryptedEntry};
 use sos_vfs::{self as vfs, File, OpenOptions};
 use std::{
     borrow::Cow,
@@ -196,7 +196,7 @@ where
 }
 
 #[async_trait]
-impl<E> VaultAccess for VaultFileWriter<E>
+impl<E> EncryptedEntry for VaultFileWriter<E>
 where
     E: std::error::Error
         + std::fmt::Debug

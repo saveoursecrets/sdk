@@ -24,7 +24,7 @@ use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
     SyncStorage, TrackedChanges,
 };
-use sos_vault::{Header, Summary, VaultAccess};
+use sos_vault::{Header, Summary, EncryptedEntry};
 use sos_vfs as vfs;
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;

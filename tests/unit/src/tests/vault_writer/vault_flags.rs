@@ -24,7 +24,7 @@ async fn vault_flags_database() -> Result<()> {
     Ok(())
 }
 
-async fn test_vault_flags(vault_access: &mut impl VaultAccess) -> Result<()> {
+async fn test_vault_flags(vault_access: &mut impl EncryptedEntry) -> Result<()> {
     let flags = VaultFlags::NO_SYNC;
     vault_access.set_vault_flags(flags.clone()).await?;
     let summary = vault_access.summary().await?;

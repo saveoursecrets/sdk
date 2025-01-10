@@ -1,4 +1,4 @@
-use crate::{Result, Vault, VaultAccess, VaultFlags, VaultMeta};
+use crate::{Result, Vault, EncryptedEntry, VaultFlags, VaultMeta};
 use age::x25519::{Identity, Recipient};
 use secrecy::SecretString;
 use sos_core::{

@@ -21,7 +21,7 @@ use sos_database::db::{AccountEntity, FolderEntity};
 use sos_password::diceware::generate_passphrase;
 use sos_vault::{
     secret::{FileContent, IdentityKind, Secret, SecretMeta},
-    BuilderCredentials, Vault, VaultAccess, VaultBuilder,
+    BuilderCredentials, Vault, EncryptedEntry, VaultBuilder,
 };
 use std::collections::HashMap;
 use std::io::Write;

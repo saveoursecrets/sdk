@@ -105,17 +105,16 @@ pub struct VaultEntry(pub AeadPack, pub AeadPack);
 pub struct VaultCommit(pub CommitHash, pub VaultEntry);
 */
 
-/// Trait that defines the operations on an encrypted vault.
+/// Read and write encrypted data to a vault.
 ///
 /// The storage may be in-memory, backed by a file on disc or another
 /// destination for the encrypted bytes.
 ///
-/// Use `Cow` smart pointers because when we are reading
+/// Uses `Cow` smart pointers because when we are reading
 /// from an in-memory `Vault` we can return references whereas
 /// other containers such as file access would return owned data.
-///
 #[async_trait]
-pub trait VaultAccess {
+pub trait EncryptedEntry {
     /// Error type for vault access.
     type Error: std::error::Error
         + std::fmt::Debug
@@ -973,7 +972,7 @@ impl IntoIterator for Vault {
 }
 
 #[async_trait]
-impl VaultAccess for Vault {
+impl EncryptedEntry for Vault {
     type Error = Error;
 
     async fn summary(&self) -> Result<Summary> {
