@@ -38,8 +38,8 @@ pub trait SecretAccess {
 
     /// Replace this vault with a new updated vault.
     ///
-    /// Setting `mirror_changes` will write a new buffer to disc
-    /// only when a mirror is enabled.
+    /// Setting `mirror_changes` will update a mirror if
+    /// this access point is mirroring to storage.
     ///
     /// Callers should take care to lock beforehand and
     /// unlock again afterwards if the vault access key
@@ -158,7 +158,7 @@ pub trait SecretAccess {
     fn lock(&mut self);
 }
 
-/// Access to an in-memory vault optionally mirroring changes to disc.
+/// Access to an in-memory vault optionally mirroring changes to storage.
 ///
 /// It stores the derived private key in memory so should only be
 /// used on client implementations.
