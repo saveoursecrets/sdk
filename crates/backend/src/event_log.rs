@@ -6,18 +6,53 @@ use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree},
     events::{
         patch::{CheckedPatch, Diff, Patch},
-        EventLog, EventRecord, WriteEvent,
+        AccountEvent, DeviceEvent, EventLog, EventRecord, WriteEvent,
     },
 };
 use sos_filesystem::events::FileSystemEventLog;
+use std::path::Path;
 
 pub type BackendFolderEventLog = BackendEventLog<WriteEvent>;
+pub type BackendAccountEventLog = BackendEventLog<AccountEvent>;
+pub type BackendDeviceEventLog = BackendEventLog<DeviceEvent>;
+
+#[cfg(feature = "files")]
+pub type BackendFileEventLog = BackendEventLog<sos_core::events::FileEvent>;
 
 pub enum BackendEventLog<T>
 where
     T: Default + Encodable + Decodable + Send + Sync,
 {
     FileSystem(FileSystemEventLog<T, Error>),
+}
+
+impl<T> BackendEventLog<T>
+where
+    T: Default + Encodable + Decodable + Send + Sync + 'static,
+{
+    pub async fn new_file_system_folder<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<Self, Error> {
+        todo!();
+    }
+
+    pub async fn new_file_system_account<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<Self, Error> {
+        todo!();
+    }
+
+    pub async fn new_file_system_device<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<Self, Error> {
+        todo!();
+    }
+
+    pub async fn new_file_system_file<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<Self, Error> {
+        todo!();
+    }
 }
 
 #[async_trait]

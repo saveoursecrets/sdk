@@ -4993,6 +4993,7 @@ dependencies = [
  "sos-signer",
  "sos-sync",
  "sos-vault",
+ "sos-vfs",
  "thiserror 2.0.9",
  "tokio",
  "tokio-util",

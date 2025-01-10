@@ -4,8 +4,8 @@ use async_zip::{
     tokio::write::ZipFileWriter, Compression, ZipDateTimeBuilder,
     ZipEntryBuilder,
 };
-use sos_filesystem::FileSystemGateKeeper;
-use sos_vault::secret::Secret;
+use sos_backend::BackendGateKeeper;
+use sos_vault::{secret::Secret, Keeper};
 use sos_vfs as vfs;
 use std::{collections::HashMap, path::Path};
 use time::OffsetDateTime;
@@ -16,7 +16,7 @@ use url::Url;
 /// The gatekeeper for the vault must be unlocked.
 pub async fn export_authenticator(
     path: impl AsRef<Path>,
-    source: &FileSystemGateKeeper,
+    source: &BackendGateKeeper,
     include_qr_codes: bool,
 ) -> Result<()> {
     // Gather TOTP secrets

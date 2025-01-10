@@ -3,7 +3,7 @@ mod folder;
 
 pub use folder::Folder as GenericFolder;
 
-use crate::{BackendGateKeeper, Error};
+use crate::{BackendFolderEventLog, BackendGateKeeper, Error};
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -12,7 +12,7 @@ use sos_core::{
 };
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    GateKeeper, Keeper, Vault, VaultMeta,
+    Keeper, Vault, VaultMeta,
 };
 use std::{borrow::Cow, sync::Arc};
 use tokio::sync::RwLock;
@@ -47,7 +47,7 @@ impl Folder {
     }
 
     /// Clone of the event log.
-    pub fn event_log<L>(&self) -> Arc<RwLock<L>> {
+    pub fn event_log(&self) -> Arc<RwLock<BackendFolderEventLog>> {
         todo!();
     }
 

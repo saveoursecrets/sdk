@@ -19,7 +19,7 @@ use sos_database::search::SearchIndex;
 use sos_filesystem::FileSystemGateKeeper;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},
-    Vault,
+    Keeper, Vault,
 };
 use std::{
     collections::HashMap,
@@ -111,7 +111,7 @@ impl KeychainImport {
 }
 
 async fn rename_label(
-    keeper: &mut FileSystemGateKeeper,
+    keeper: &mut FileSystemGateKeeper<Error>,
     label: String,
     duplicates: &mut HashMap<String, usize>,
     index: &SearchIndex,

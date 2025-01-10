@@ -1,8 +1,10 @@
 //! Storage backed by the filesystem.
 use crate::{AccessOptions, AccountPack, Error, NewFolderOptions, Result};
+use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
-use sos_backend::folder::DiscFolder;
 use sos_backend::reducers::FolderReducer;
+use sos_backend::Folder;
+use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
 use sos_core::{
     commit::{CommitHash, CommitState},
     SecretId, VaultId,
@@ -14,22 +16,20 @@ use sos_core::{
     events::{
         patch::FolderPatch, AccountEvent, Event, ReadEvent, WriteEvent,
     },
-    AccountId, UtcDateTime,
+    AccountId, Paths, UtcDateTime,
 };
 use sos_database::StorageError;
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
-    events::{
-        AccountEventLog, EventLog, EventRecord, FolderEventLog, IntoRecord,
-    },
+    events::{EventLog, EventRecord, IntoRecord},
     identity::FolderKeys,
-    vfs, Paths,
 };
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    BuilderCredentials, ChangePassword, FolderRef, Header, Summary, Vault,
-    VaultBuilder, VaultCommit, VaultFlags,
+    BuilderCredentials, ChangePassword, FolderRef, Header, Keeper, Summary,
+    Vault, VaultBuilder, VaultCommit, VaultFlags,
 };
+use sos_vfs as vfs;
 use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -47,12 +47,11 @@ use sos_core::{
 use sos_backend::{
     compact::compact_filesystem_folder, reducers::DeviceReducer,
 };
-use sos_filesystem::events::DeviceEventLog;
 
 #[cfg(feature = "files")]
 use {
-    sos_core::events::FileEvent, sos_database::files::FileMutationEvent,
-    sos_filesystem::events::FileEventLog,
+    sos_backend::FileEventLog, sos_core::events::FileEvent,
+    sos_database::files::FileMutationEvent,
 };
 
 #[cfg(feature = "search")]
@@ -98,7 +97,7 @@ pub struct ClientStorage {
     pub account_log: Arc<RwLock<AccountEventLog>>,
 
     /// Folder event logs.
-    pub cache: HashMap<VaultId, DiscFolder>,
+    pub cache: HashMap<VaultId, Folder>,
 
     /// Device event log.
     pub device_log: Arc<RwLock<DeviceEventLog>>,
@@ -124,20 +123,23 @@ impl ClientStorage {
         paths.ensure().await?;
 
         let identity_log = Arc::new(RwLock::new(
-            FolderEventLog::new(paths.identity_events()).await?,
+            FolderEventLog::new_file_system_folder(paths.identity_events())
+                .await?,
         ));
 
         let account_log = Arc::new(RwLock::new(
-            AccountEventLog::new_account(paths.account_events()).await?,
+            AccountEventLog::new_file_system_account(paths.account_events())
+                .await?,
         ));
 
         let device_log = Arc::new(RwLock::new(
-            DeviceEventLog::new_device(paths.device_events()).await?,
+            DeviceEventLog::new_file_system_device(paths.device_events())
+                .await?,
         ));
 
         #[cfg(feature = "files")]
         let file_log = Arc::new(RwLock::new(
-            FileEventLog::new_file(paths.file_events()).await?,
+            FileEventLog::new_file_system_file(paths.file_events()).await?,
         ));
 
         let mut storage = Self {
@@ -197,7 +199,8 @@ impl ClientStorage {
         paths.ensure().await?;
 
         let log_file = paths.account_events();
-        let mut event_log = AccountEventLog::new_account(log_file).await?;
+        let mut event_log =
+            AccountEventLog::new_file_system_account(log_file).await?;
         event_log.load_tree().await?;
         let account_log = Arc::new(RwLock::new(event_log));
 
@@ -237,7 +240,8 @@ impl ClientStorage {
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
         let log_file = paths.device_events();
 
-        let mut event_log = DeviceEventLog::new_device(log_file).await?;
+        let mut event_log =
+            DeviceEventLog::new_file_system_device(log_file).await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
@@ -277,7 +281,8 @@ impl ClientStorage {
     async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
         let log_file = paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;
-        let mut event_log = FileEventLog::new_file(log_file).await?;
+        let mut event_log =
+            FileEventLog::new_file_system_file(log_file).await?;
         event_log.load_tree().await?;
 
         tracing::debug!(needs_init = %needs_init, "file_log");
@@ -309,12 +314,12 @@ impl ClientStorage {
     }
 
     /// Cache of in-memory event logs.
-    pub fn cache(&self) -> &HashMap<VaultId, DiscFolder> {
+    pub fn cache(&self) -> &HashMap<VaultId, Folder> {
         &self.cache
     }
 
     /// Mutable in-memory event logs.
-    pub fn cache_mut(&mut self) -> &mut HashMap<VaultId, DiscFolder> {
+    pub fn cache_mut(&mut self) -> &mut HashMap<VaultId, Folder> {
         &mut self.cache
     }
 
@@ -484,7 +489,7 @@ impl ClientStorage {
         &mut self,
         folder_id: &VaultId,
         records: Vec<EventRecord>,
-    ) -> Result<(DiscFolder, Vault)> {
+    ) -> Result<(Folder, Vault)> {
         let vault_path = self.paths.vault_path(folder_id);
 
         // Prepare the vault file on disc
@@ -495,7 +500,7 @@ impl ClientStorage {
             let buffer = encode(&vault).await?;
             self.write_vault_file(folder_id, buffer).await?;
 
-            let folder = DiscFolder::new(&vault_path).await?;
+            let folder = Folder::new_file_system(&vault_path).await?;
             let event_log = folder.event_log();
             let mut event_log = event_log.write().await;
             event_log.clear().await?;
@@ -515,7 +520,7 @@ impl ClientStorage {
 
         // Setup the folder access to the latest vault information
         // and load the merkle tree
-        let folder = DiscFolder::new(&vault_path).await?;
+        let folder = Folder::new_file_system(&vault_path).await?;
         let event_log = folder.event_log();
         let mut event_log = event_log.write().await;
         event_log.load_tree().await?;
@@ -570,7 +575,8 @@ impl ClientStorage {
 
         for (_, vault) in vaults {
             // Prepare a fresh log of event log events
-            let (vault, events) = FolderReducer::split(vault.clone()).await?;
+            let (vault, events) =
+                FolderReducer::split::<Error>(vault.clone()).await?;
 
             self.update_vault(vault.summary(), &vault, events).await?;
 
@@ -602,14 +608,14 @@ impl ClientStorage {
         creation_time: Option<&UtcDateTime>,
     ) -> Result<()> {
         let vault_path = self.paths.vault_path(summary.id());
-        let mut event_log = DiscFolder::new(&vault_path).await?;
+        let mut event_log = Folder::new_file_system(&vault_path).await?;
 
         if let Some(vault) = vault {
             // Must truncate the event log so that importing vaults
             // does not end up with multiple create vault events
             event_log.clear().await?;
 
-            let (_, events) = FolderReducer::split(vault).await?;
+            let (_, events) = FolderReducer::split::<Error>(vault).await?;
 
             let mut records = Vec::with_capacity(events.len());
             for event in events.iter() {
@@ -636,13 +642,13 @@ impl ClientStorage {
         creation_time: Option<&UtcDateTime>,
     ) -> Result<()> {
         let vault_path = self.paths.pending_vault_path(summary.id());
-        let mut event_log = DiscFolder::new(&vault_path).await?;
+        let mut event_log = Folder::new_file_system(&vault_path).await?;
 
         // Must truncate the event log so that importing vaults
         // does not end up with multiple create vault events
         event_log.clear().await?;
 
-        let (_, events) = FolderReducer::split(vault).await?;
+        let (_, events) = FolderReducer::split::<Error>(vault).await?;
 
         let mut records = Vec::with_capacity(events.len());
         for event in events.iter() {
@@ -699,7 +705,7 @@ impl ClientStorage {
             vfs::rename(&pending_event, &event).await?;
 
             let summary = Header::read_summary_file(&vault).await?;
-            let folder = DiscFolder::new(&vault).await?;
+            let folder = Folder::new_file_system(&vault).await?;
             let event_log = folder.event_log();
             let mut event_log = event_log.write().await;
             event_log.load_tree().await?;
@@ -1434,11 +1440,12 @@ impl ClientStorage {
         let log_file = event_log.read().await;
         let mut records = Vec::new();
 
-        // TODO: prefer stream() here
-        let mut it = log_file.iter(false).await?;
-        while let Some(record) = it.next().await? {
-            let event = log_file.decode_event(&record).await?;
-            let commit = CommitHash(record.commit());
+        let stream = log_file.stream(false).await;
+        pin_mut!(stream);
+
+        while let Some(result) = stream.next().await {
+            let (record, event) = result?;
+            let commit = *record.commit();
             let time = record.time().clone();
             records.push((commit, time, event));
         }

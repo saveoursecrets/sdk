@@ -4,14 +4,15 @@ use crate::{
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
+use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
 use sos_core::events::WriteEvent;
 use sos_core::{
     commit::{CommitState, Comparison},
-    events::patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
+    events::{
+        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
+        EventLog,
+    },
     VaultId,
-};
-use sos_filesystem::events::{
-    AccountEventLog, DeviceEventLog, EventLog, FolderEventLog,
 };
 use sos_vault::Summary;
 use std::{
@@ -22,8 +23,8 @@ use tokio::sync::RwLock;
 
 #[cfg(feature = "files")]
 use {
+    sos_backend::FileEventLog,
     sos_core::{events::patch::FileDiff, ExternalFile},
-    sos_filesystem::events::FileEventLog,
 };
 
 /// References to the storage event logs.
@@ -33,7 +34,7 @@ pub trait StorageEventLogs: Send + Sync + 'static {
     /// Error type for storage event logs.
     type Error: std::error::Error
         + From<sos_core::Error>
-        + From<sos_filesystem::Error>
+        + From<sos_backend::Error>
         + Send
         + Sync
         + 'static;
