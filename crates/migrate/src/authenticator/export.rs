@@ -13,7 +13,7 @@ use url::Url;
 
 /// Export an authenticator vault to a zip archive.
 ///
-/// The gatekeeper for the vault must be unlocked.
+/// The access point for the vault must be unlocked.
 pub async fn export_authenticator(
     path: impl AsRef<Path>,
     source: &AccessPoint,

@@ -5,7 +5,7 @@ mod crypto;
 mod database;
 mod date_time;
 mod file;
-mod gatekeeper;
+mod access point;
 mod identity;
 mod integrity;
 mod keychain;

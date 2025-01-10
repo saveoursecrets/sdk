@@ -56,7 +56,7 @@ impl From<SingleParty> for DeviceSigner {
     }
 }
 
-/// Manages the gatekeeper that protects the device signing key.
+/// Manages the access point that protects the device signing key.
 ///
 /// Call [DeviceManager::sign_out] to lock the device vault.
 pub struct DeviceManager {
@@ -70,7 +70,7 @@ pub struct DeviceManager {
 impl DeviceManager {
     /// Create a new device manager.
     ///
-    /// The gatekeeper should be unlocked before assigning to a
+    /// The access point should be unlocked before assigning to a
     /// device manager.
     pub(super) fn new(signer: DeviceSigner, keeper: AccessPoint) -> Self {
         Self { signer, keeper }

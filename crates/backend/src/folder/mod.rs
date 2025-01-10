@@ -19,7 +19,7 @@ use tokio::sync::RwLock;
 
 use crate::Result;
 
-/// Folder combines a gatekeeper and an event log.
+/// Folder combines a access point and an event log.
 pub enum Folder {
     /// Folder stored on disc.
     FileSystem(GenericFolder),

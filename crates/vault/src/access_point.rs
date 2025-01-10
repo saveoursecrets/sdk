@@ -29,15 +29,12 @@ pub trait SecretAccess {
         + Sync
         + 'static;
 
-    /// Indicates whether the gatekeeper is mirroring
-    /// changes to disc.
+    /// Indicates whether the access point is mirroring
+    /// changes to storage.
     fn is_mirror(&self) -> bool;
 
-    /// Get the vault.
+    /// In-memory vault.
     fn vault(&self) -> &Vault;
-
-    /// Mutable reference to the vault.
-    fn vault_mut(&mut self) -> &mut Vault;
 
     /// Replace this vault with a new updated vault.
     ///
@@ -89,7 +86,7 @@ pub trait SecretAccess {
     ) -> Result<WriteEvent, Self::Error>;
 
     /// Attempt to decrypt the meta data for the vault
-    /// using the key assigned to this gatekeeper.
+    /// using the key assigned to this access point.
     async fn vault_meta(&self) -> Result<VaultMeta, Self::Error>;
 
     /// Set the meta data for the vault.
@@ -174,7 +171,7 @@ pub trait SecretAccess {
 /// technically it would be possible to use different private keys for
 /// different secrets and for the meta data however this would be
 /// a very poor user experience and would lead to confusion so the
-/// gatekeeper is also responsible for ensuring the same private key
+/// access point is also responsible for ensuring the same private key
 /// is used to encrypt the different chunks.
 pub struct AccessPoint<E>
 where
@@ -206,7 +203,7 @@ where
         + Sync
         + 'static,
 {
-    /// Create a new gatekeeper.
+    /// Create a new access point.
     pub fn new(vault: Vault) -> Self {
         Self {
             vault,
@@ -215,7 +212,7 @@ where
         }
     }
 
-    /// Create a new gatekeeper that writes in-memory
+    /// Create a new access point that writes in-memory
     /// changes to a mirror.
     pub fn new_mirror(vault: Vault, mirror: VaultMirror<E>) -> Self {
         Self {
@@ -261,10 +258,6 @@ where
 
     fn vault(&self) -> &Vault {
         &self.vault
-    }
-
-    fn vault_mut(&mut self) -> &mut Vault {
-        &mut self.vault
     }
 
     async fn replace_vault(

@@ -302,7 +302,7 @@ where
                                 .await?;
 
                             // Now the storage should have the folder so
-                            // we can access the gatekeeper and add it to
+                            // we can access the access point and add it to
                             // the search index
                             let storage = account.storage().await.unwrap();
                             let storage = storage.read().await;

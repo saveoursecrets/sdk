@@ -69,7 +69,7 @@ impl IdentityFolder {
         self.folder.keeper().vault()
     }
 
-    /// Get the gatekeeper.
+    /// Get the access point.
     pub fn keeper(&self) -> &AccessPoint {
         self.folder.keeper()
     }

@@ -73,13 +73,6 @@ impl SecretAccess for BackendAccessPoint {
         }
     }
 
-    fn vault_mut(&mut self) -> &mut Vault {
-        match self {
-            BackendAccessPoint::Database(inner) => inner.vault_mut(),
-            BackendAccessPoint::FileSystem(inner) => inner.vault_mut(),
-        }
-    }
-
     async fn replace_vault(
         &mut self,
         vault: Vault,

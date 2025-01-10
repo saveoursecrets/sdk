@@ -11,7 +11,7 @@ use sos_vault::{
 };
 
 #[tokio::test]
-async fn gatekeeper_secret_note() -> Result<()> {
+async fn access point_secret_note() -> Result<()> {
     let passphrase: SecretString = "mock-passphrase".to_owned().into();
     let name = String::from(DEFAULT_VAULT_NAME);
     let description = String::from("Mock Vault Description");
@@ -60,7 +60,7 @@ async fn gatekeeper_secret_note() -> Result<()> {
 }
 
 #[tokio::test]
-async fn gatekeeper_secret_account() -> Result<()> {
+async fn access point_secret_account() -> Result<()> {
     let passphrase: SecretString = "mock-passphrase".to_owned().into();
     let name = String::from(DEFAULT_VAULT_NAME);
     let description = String::from("Mock Vault Description");

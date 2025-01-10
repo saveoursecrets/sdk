@@ -1,4 +1,4 @@
-//! Folder implementation combining a gatekeeper with an event log.
+//! Folder implementation combining a access point with an event log.
 use crate::{event_log::BackendFolderEventLog, AccessPoint, Result};
 use sos_core::{
     commit::{CommitHash, CommitState},
@@ -44,7 +44,7 @@ impl Folder {
         &self.keeper
     }
 
-    /// Mutable gatekeeper for this folder.
+    /// Mutable access point for this folder.
     pub fn keeper_mut(&mut self) -> &mut AccessPoint {
         &mut self.keeper
     }
