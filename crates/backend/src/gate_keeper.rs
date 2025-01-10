@@ -7,26 +7,26 @@ use sos_core::{
 };
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    VaultAccess, SecretAccess, Summary, Vault, VaultMeta,
+    SecretAccess, Summary, Vault, AccessPoint, VaultMeta,
 };
 use std::borrow::Cow;
 use std::path::Path;
 
-/// Backend gate keeper implementation.
-pub enum BackendVaultAccess {
+/// Backend access point implementation.
+pub enum BackendAccessPoint {
     /// File system.
-    FileSystem(VaultAccess<Error>),
+    FileSystem(AccessPoint<Error>),
 }
 
-impl BackendVaultAccess {
-    /// New gate keeper from a vault.
+impl BackendAccessPoint {
+    /// New access point from a vault.
     pub fn new_vault(vault: Vault) -> Self {
-        Self::FileSystem(VaultAccess::<Error>::new(vault))
+        Self::FileSystem(AccessPoint::<Error>::new(vault))
     }
 }
 
 #[async_trait]
-impl SecretAccess for BackendVaultAccess {
+impl SecretAccess for BackendAccessPoint {
     type Error = Error;
 
     fn is_mirror(&self) -> bool {
@@ -44,7 +44,7 @@ impl SecretAccess for BackendVaultAccess {
     async fn replace_vault(
         &mut self,
         vault: Vault,
-        write_disc: bool,
+        mirror_changes: bool,
     ) -> Result<()> {
         todo!();
     }
@@ -157,10 +157,10 @@ impl SecretAccess for BackendVaultAccess {
     }
 }
 
-impl From<BackendVaultAccess> for Vault {
-    fn from(value: BackendVaultAccess) -> Self {
+impl From<BackendAccessPoint> for Vault {
+    fn from(value: BackendAccessPoint) -> Self {
         match value {
-            BackendVaultAccess::FileSystem(inner) => inner.into(),
+            BackendAccessPoint::FileSystem(inner) => inner.into(),
         }
     }
 }

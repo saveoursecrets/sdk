@@ -1,7 +1,7 @@
-//! VaultAccess manages access to a vault.
+//! AccessPoint manages access to a vault.
 use crate::{
     secret::{Secret, SecretMeta, SecretRow},
-    Error, SharedAccess, Summary, Vault, EncryptedEntry, VaultMeta,
+    EncryptedEntry, Error, SharedAccess, Summary, Vault, VaultMeta,
 };
 use async_trait::async_trait;
 use sos_core::{
@@ -16,7 +16,7 @@ use std::{borrow::Cow, path::Path};
 pub type VaultMirror<E> =
     Box<dyn EncryptedEntry<Error = E> + Send + Sync + 'static>;
 
-/// Trait for types that manage read and write access to a vault.
+/// Read and write vault secrets.
 #[async_trait]
 pub trait SecretAccess {
     /// Error type.
@@ -41,7 +41,7 @@ pub trait SecretAccess {
 
     /// Replace this vault with a new updated vault.
     ///
-    /// Setting `write_disc` will write a new buffer to disc
+    /// Setting `mirror_changes` will write a new buffer to disc
     /// only when a mirror is enabled.
     ///
     /// Callers should take care to lock beforehand and
@@ -50,7 +50,7 @@ pub trait SecretAccess {
     async fn replace_vault(
         &mut self,
         vault: Vault,
-        write_disc: bool,
+        mirror_changes: bool,
     ) -> Result<(), Self::Error>;
 
     /// Reload the vault from disc.
@@ -152,7 +152,7 @@ pub trait SecretAccess {
     /// Unlock the vault using the access key.
     ///
     /// The derived private key is stored in memory
-    /// until [VaultAccess::lock] is called.
+    /// until [AccessPoint::lock] is called.
     async fn unlock(
         &mut self,
         key: &AccessKey,
@@ -179,7 +179,7 @@ pub trait SecretAccess {
 /// a very poor user experience and would lead to confusion so the
 /// gatekeeper is also responsible for ensuring the same private key
 /// is used to encrypt the different chunks.
-pub struct VaultAccess<E>
+pub struct AccessPoint<E>
 where
     E: std::error::Error
         + std::fmt::Debug
@@ -198,7 +198,7 @@ where
     mirror: Option<VaultMirror<E>>,
 }
 
-impl<E> VaultAccess<E>
+impl<E> AccessPoint<E>
 where
     E: std::error::Error
         + std::fmt::Debug
@@ -245,7 +245,7 @@ where
 }
 
 #[async_trait]
-impl<E> SecretAccess for VaultAccess<E>
+impl<E> SecretAccess for AccessPoint<E>
 where
     E: std::error::Error
         + std::fmt::Debug
@@ -273,9 +273,9 @@ where
     async fn replace_vault(
         &mut self,
         vault: Vault,
-        write_disc: bool,
+        mirror_changes: bool,
     ) -> Result<(), E> {
-        if let (true, Some(mirror)) = (write_disc, &mut self.mirror) {
+        if let (true, Some(mirror)) = (mirror_changes, &mut self.mirror) {
             mirror.replace_vault(&vault).await?;
         }
         self.vault = vault;
@@ -532,7 +532,7 @@ where
     }
 }
 
-impl<E> From<Vault> for VaultAccess<E>
+impl<E> From<Vault> for AccessPoint<E>
 where
     E: std::error::Error
         + std::fmt::Debug
@@ -544,11 +544,11 @@ where
         + 'static,
 {
     fn from(value: Vault) -> Self {
-        VaultAccess::<E>::new(value)
+        AccessPoint::<E>::new(value)
     }
 }
 
-impl<E> From<VaultAccess<E>> for Vault
+impl<E> From<AccessPoint<E>> for Vault
 where
     E: std::error::Error
         + std::fmt::Debug
@@ -559,7 +559,7 @@ where
         + Sync
         + 'static,
 {
-    fn from(value: VaultAccess<E>) -> Self {
+    fn from(value: AccessPoint<E>) -> Self {
         value.vault
     }
 }

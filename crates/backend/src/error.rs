@@ -15,7 +15,7 @@ pub enum Error {
     /// Error generated when attempting to verify a password fails.
     ///
     /// This can happen when calling `verify()` on a `Vault` or `unlock()`
-    /// on a `VaultAccess`.
+    /// on a `AccessPoint`.
     #[error("password verification failed")]
     PassphraseVerification,
 

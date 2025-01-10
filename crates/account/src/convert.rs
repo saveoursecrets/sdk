@@ -1,7 +1,7 @@
 //! Convert account data.
 use crate::{Account, Error, LocalAccount, Result};
 use serde::{Deserialize, Serialize};
-use sos_backend::BackendVaultAccess;
+use sos_backend::BackendAccessPoint;
 use sos_sdk::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
@@ -138,7 +138,7 @@ impl LocalAccount {
 
         let seed = input_vault.seed().cloned();
         let name = input_vault.name().to_owned();
-        let mut input = BackendVaultAccess::new_vault(input_vault);
+        let mut input = BackendAccessPoint::new_vault(input_vault);
         input.unlock(key).await?;
         let meta = input.vault_meta().await?;
 
@@ -164,7 +164,7 @@ impl LocalAccount {
             }
         };
 
-        let mut output = BackendVaultAccess::new_vault(output_vault);
+        let mut output = BackendAccessPoint::new_vault(output_vault);
         output.unlock(key).await?;
 
         for key in input.vault().keys() {

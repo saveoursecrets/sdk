@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_backend::BackendVaultAccess;
+use sos_backend::BackendAccessPoint;
 use sos_sdk::prelude::*;
 use sos_test_utils::*;
 use sos_vault::SecretAccess;
@@ -11,7 +11,7 @@ async fn change_password() -> Result<()> {
         .build(BuilderCredentials::Password(current_key.clone(), None))
         .await?;
 
-    let mut keeper = BackendVaultAccess::new_vault(mock_vault);
+    let mut keeper = BackendAccessPoint::new_vault(mock_vault);
     let key: AccessKey = current_key.clone().into();
     keeper.unlock(&key).await?;
 

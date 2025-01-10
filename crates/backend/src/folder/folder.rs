@@ -1,5 +1,5 @@
 //! Folder implementation combining a gatekeeper with an event log.
-use crate::{event_log::BackendFolderEventLog, BackendVaultAccess, Result};
+use crate::{event_log::BackendFolderEventLog, BackendAccessPoint, Result};
 use sos_core::{
     commit::{CommitHash, CommitState},
     events::EventLog,
@@ -18,14 +18,14 @@ use tokio::sync::RwLock;
 
 /// Folder is a combined vault and event log.
 pub struct Folder {
-    pub(crate) keeper: BackendVaultAccess,
+    pub(crate) keeper: BackendAccessPoint,
     events: Arc<RwLock<BackendFolderEventLog>>,
 }
 
 impl Folder {
     /// Create a new folder.
     pub(super) fn init(
-        keeper: BackendVaultAccess,
+        keeper: BackendAccessPoint,
         events: BackendFolderEventLog,
     ) -> Self {
         Self {
@@ -39,13 +39,13 @@ impl Folder {
         self.keeper.id()
     }
 
-    /// VaultAccess for this folder.
-    pub fn keeper(&self) -> &BackendVaultAccess {
+    /// AccessPoint for this folder.
+    pub fn keeper(&self) -> &BackendAccessPoint {
         &self.keeper
     }
 
     /// Mutable gatekeeper for this folder.
-    pub fn keeper_mut(&mut self) -> &mut BackendVaultAccess {
+    pub fn keeper_mut(&mut self) -> &mut BackendAccessPoint {
         &mut self.keeper
     }
 

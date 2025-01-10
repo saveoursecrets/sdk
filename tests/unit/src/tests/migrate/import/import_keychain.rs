@@ -63,7 +63,7 @@ mod test {
 
         // Assert on the data
         let keys: Vec<_> = vault.keys().copied().collect();
-        let mut keeper = VaultAccess::new(vault);
+        let mut keeper = AccessPoint::new(vault);
         keeper.unlock(&AccessKey::Password(vault_password)).await?;
 
         for key in &keys {

@@ -3,7 +3,7 @@ mod folder;
 
 pub use folder::Folder as GenericFolder;
 
-use crate::{BackendFolderEventLog, BackendVaultAccess, Error};
+use crate::{BackendFolderEventLog, BackendAccessPoint, Error};
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -31,18 +31,18 @@ impl Folder {
         todo!();
     }
 
-    /// VaultAccess for this folder.
+    /// AccessPoint for this folder.
     pub fn vault(&self) -> &Vault {
         self.keeper().vault()
     }
 
-    /// Gate keeper for this folder.
-    pub fn keeper(&self) -> &BackendVaultAccess {
+    /// Access point for this folder.
+    pub fn keeper(&self) -> &BackendAccessPoint {
         todo!();
     }
 
-    /// Mutable gate keeper for this folder.
-    pub fn keeper_mut(&mut self) -> &mut BackendVaultAccess {
+    /// Mutable access point for this folder.
+    pub fn keeper_mut(&mut self) -> &mut BackendAccessPoint {
         todo!();
     }
 

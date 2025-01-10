@@ -11,8 +11,8 @@ pub mod vault_writer;
 pub use error::Error;
 pub use vault_writer::VaultFileWriter;
 
-/// VaultAccess that mirrors changes to a vault on disc.
-pub type FileSystemVaultAccess<E> = sos_vault::VaultAccess<E>;
+/// AccessPoint that mirrors changes to a vault on disc.
+pub type FileSystemAccessPoint<E> = sos_vault::AccessPoint<E>;
 
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;

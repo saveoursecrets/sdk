@@ -2,13 +2,13 @@
 use super::{Folder, GenericFolder};
 use crate::event_log::BackendEventLog;
 use crate::reducers::FolderReducer;
-use crate::BackendVaultAccess;
+use crate::BackendAccessPoint;
 use crate::Error;
 use crate::FolderEventLog as BackendFolderEventLog;
 use sos_core::events::EventLog;
 use sos_core::{constants::EVENT_LOG_EXT, decode};
 use sos_filesystem::{
-    events::FolderEventLog, FileSystemVaultAccess, VaultFileWriter,
+    events::FolderEventLog, FileSystemAccessPoint, VaultFileWriter,
 };
 use sos_vault::Vault;
 use sos_vfs as vfs;
@@ -48,13 +48,13 @@ impl Folder {
         };
 
         let mirror = VaultFileWriter::<Error>::new(path.as_ref()).await?;
-        let keeper = FileSystemVaultAccess::<Error>::new_mirror(
+        let keeper = FileSystemAccessPoint::<Error>::new_mirror(
             vault,
             Box::new(mirror),
         );
 
         let inner = GenericFolder::init(
-            BackendVaultAccess::FileSystem(keeper),
+            BackendAccessPoint::FileSystem(keeper),
             BackendEventLog::FileSystem(event_log),
         );
 
