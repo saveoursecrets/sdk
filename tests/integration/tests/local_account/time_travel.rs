@@ -3,7 +3,7 @@ use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange};
 use sos_core::commit::CommitState;
 use sos_sdk::prelude::*;
-use sos_vault::Keeper;
+use sos_vault::SecretAccess;
 
 /// Tests creating a detached view at a point in time of a
 /// folder's commit history.

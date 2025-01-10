@@ -3,7 +3,7 @@ use sos_backend::BackendVaultAccess;
 use sos_migrate::export::PublicExport;
 use sos_sdk::prelude::*;
 use sos_test_utils::mock;
-use sos_vault::Keeper;
+use sos_vault::SecretAccess;
 use std::io::Cursor;
 use tokio::io::{AsyncSeek, AsyncWrite};
 

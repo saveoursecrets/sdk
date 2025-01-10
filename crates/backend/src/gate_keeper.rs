@@ -7,7 +7,7 @@ use sos_core::{
 };
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    VaultAccess, Keeper, Summary, Vault, VaultMeta,
+    VaultAccess, SecretAccess, Summary, Vault, VaultMeta,
 };
 use std::borrow::Cow;
 use std::path::Path;
@@ -26,7 +26,7 @@ impl BackendVaultAccess {
 }
 
 #[async_trait]
-impl Keeper for BackendVaultAccess {
+impl SecretAccess for BackendVaultAccess {
     type Error = Error;
 
     fn is_mirror(&self) -> bool {

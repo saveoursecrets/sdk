@@ -12,7 +12,7 @@ use sos_core::{
 };
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    Keeper, Vault, VaultMeta,
+    SecretAccess, Vault, VaultMeta,
 };
 use std::{borrow::Cow, sync::Arc};
 use tokio::sync::RwLock;

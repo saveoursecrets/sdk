@@ -16,7 +16,7 @@ use sos_vault::{
     secret::{
         IdentityKind, Secret, SecretId, SecretMeta, SecretRow, UserData,
     },
-    Keeper, Vault,
+    SecretAccess, Vault,
 };
 use std::collections::{HashMap, HashSet};
 use url::Url;

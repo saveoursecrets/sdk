@@ -19,7 +19,7 @@ use sos_core::crypto::AccessKey;
 use sos_filesystem::FileSystemVaultAccess;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},
-    Keeper, Vault,
+    SecretAccess, Vault,
 };
 use std::{
     collections::HashMap,

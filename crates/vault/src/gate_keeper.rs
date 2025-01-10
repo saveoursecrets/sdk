@@ -18,7 +18,7 @@ pub type VaultMirror<E> =
 
 /// Trait for types that manage read and write access to a vault.
 #[async_trait]
-pub trait Keeper {
+pub trait SecretAccess {
     /// Error type.
     type Error: std::error::Error
         + std::fmt::Debug
@@ -245,7 +245,7 @@ where
 }
 
 #[async_trait]
-impl<E> Keeper for VaultAccess<E>
+impl<E> SecretAccess for VaultAccess<E>
 where
     E: std::error::Error
         + std::fmt::Debug

@@ -7,7 +7,7 @@ use sos_core::{
 };
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    BuilderCredentials, Keeper, VaultBuilder,
+    BuilderCredentials, SecretAccess, VaultBuilder,
 };
 
 #[tokio::test]

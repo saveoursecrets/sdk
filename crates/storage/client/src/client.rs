@@ -26,7 +26,7 @@ use sos_sdk::{
 };
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    BuilderCredentials, ChangePassword, FolderRef, Header, Keeper, Summary,
+    BuilderCredentials, ChangePassword, FolderRef, Header, SecretAccess, Summary,
     Vault, VaultBuilder, VaultCommit, VaultFlags,
 };
 use sos_vfs as vfs;

@@ -7,7 +7,7 @@ use sos_backend::BackendVaultAccess;
 use sos_password::generator::measure_entropy;
 use sos_vault::{
     secret::{Secret, SecretId, SecretType},
-    Keeper, Summary, VaultId,
+    SecretAccess, Summary, VaultId,
 };
 use zxcvbn::{Entropy, Score};
 

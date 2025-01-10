@@ -10,7 +10,7 @@ use sos_core::{
     AccountId, ErrorExt, Paths, VaultId,
 };
 use sos_sync::SyncStorage;
-use sos_vault::Keeper;
+use sos_vault::SecretAccess;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, RwLock};
 

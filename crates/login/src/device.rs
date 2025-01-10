@@ -6,7 +6,7 @@ use sos_core::{
     encode,
 };
 use sos_signer::ed25519::{BoxedEd25519Signer, SingleParty};
-use sos_vault::{Keeper, Vault};
+use sos_vault::{SecretAccess, Vault};
 
 /// Signing key for a device.
 #[derive(Clone)]

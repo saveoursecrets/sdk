@@ -7,7 +7,7 @@ use sos_sdk::{
     decode, encode,
 };
 use sos_vault::{
-    secret::SecretRow, BuilderCredentials, Keeper, Summary, Vault,
+    secret::SecretRow, BuilderCredentials, SecretAccess, Summary, Vault,
     VaultBuilder,
 };
 use sos_vfs as vfs;

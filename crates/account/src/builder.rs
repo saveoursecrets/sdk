@@ -13,7 +13,7 @@ use sos_core::{
 use sos_sdk::identity::{FolderKeys, Identity, IdentityFolder};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    BuilderCredentials, VaultAccess, Keeper, Vault, VaultBuilder,
+    BuilderCredentials, VaultAccess, SecretAccess, Vault, VaultBuilder,
 };
 use std::{collections::HashMap, path::PathBuf};
 

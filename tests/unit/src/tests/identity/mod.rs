@@ -5,7 +5,7 @@ use sos_core::{crypto::AccessKey, encode};
 use sos_login::DiscIdentityFolder;
 use sos_password::diceware::generate_passphrase;
 use sos_vault::{
-    BuilderCredentials, Keeper, Vault, VaultBuilder, VaultFlags,
+    BuilderCredentials, SecretAccess, Vault, VaultBuilder, VaultFlags,
 };
 use sos_vfs as vfs;
 use tempfile::NamedTempFile;

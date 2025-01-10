@@ -8,7 +8,7 @@ use sos_backend::BackendVaultAccess;
 use sos_core::{SecretId, VaultId};
 use sos_vault::{
     secret::{FileContent, Secret, SecretMeta},
-    Keeper, Summary, VaultMeta,
+    SecretAccess, Summary, VaultMeta,
 };
 use std::collections::HashMap;
 use tokio::io::AsyncWrite;

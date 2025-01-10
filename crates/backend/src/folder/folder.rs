@@ -11,7 +11,7 @@ use sos_core::{
 };
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},
-    Keeper, VaultCommit, VaultId, VaultMeta,
+    SecretAccess, VaultCommit, VaultId, VaultMeta,
 };
 use std::{borrow::Cow, sync::Arc};
 use tokio::sync::RwLock;

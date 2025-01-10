@@ -4,7 +4,7 @@ use sos_backend::BackendVaultAccess;
 use sos_migrate::{export_authenticator, import_authenticator};
 use sos_sdk::prelude::*;
 use sos_test_utils::mock;
-use sos_vault::Keeper;
+use sos_vault::SecretAccess;
 use tempfile::NamedTempFile;
 
 async fn create_mock_authenticator(

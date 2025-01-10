@@ -6,7 +6,7 @@ use sos_core::crypto::AccessKey;
 use sos_filesystem::FileSystemVaultAccess;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRef, SecretType},
-    Keeper, Summary, Vault, VaultId,
+    SecretAccess, Summary, Vault, VaultId,
 };
 use std::{
     borrow::Cow,

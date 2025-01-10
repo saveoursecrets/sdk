@@ -4,7 +4,7 @@ use async_zip::tokio::read::seek::ZipFileReader;
 use sos_backend::BackendVaultAccess;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    Keeper,
+    SecretAccess,
 };
 use sos_vfs as vfs;
 use std::path::Path;

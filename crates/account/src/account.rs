@@ -22,7 +22,7 @@ use sos_sdk::{
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
-    BuilderCredentials, Header, Keeper, Summary, Vault, VaultBuilder,
+    BuilderCredentials, Header, SecretAccess, Summary, Vault, VaultBuilder,
     VaultFlags,
 };
 use std::{

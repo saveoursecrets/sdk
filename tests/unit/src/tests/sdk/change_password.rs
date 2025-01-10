@@ -2,7 +2,7 @@ use anyhow::Result;
 use sos_backend::BackendVaultAccess;
 use sos_sdk::prelude::*;
 use sos_test_utils::*;
-use sos_vault::Keeper;
+use sos_vault::SecretAccess;
 
 #[tokio::test]
 async fn change_password() -> Result<()> {

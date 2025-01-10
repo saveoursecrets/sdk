@@ -13,7 +13,7 @@ use sos_core::{
 use sos_sdk::{
     events::EventLog, identity::IdentityFolder, vault::secret::SecretRow,
 };
-use sos_vault::Keeper;
+use sos_vault::SecretAccess;
 
 /// Options for folder merge.
 pub(crate) enum FolderMergeOptions<'a> {
