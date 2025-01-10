@@ -1,13 +1,11 @@
 //! Folder implementation combining a access point with an event log.
-use crate::{event_log::BackendFolderEventLog, AccessPoint, Result};
+use crate::{AccessPoint, FolderEventLog, Result};
 use sos_core::{
     commit::{CommitHash, CommitState},
-    events::EventLog,
-    VaultFlags,
-};
-use sos_core::{
     crypto::AccessKey,
+    events::EventLog,
     events::{EventRecord, ReadEvent, WriteEvent},
+    VaultFlags,
 };
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},
@@ -19,15 +17,12 @@ use tokio::sync::RwLock;
 /// Folder is a combined vault and event log.
 pub struct Folder {
     pub(crate) keeper: AccessPoint,
-    events: Arc<RwLock<BackendFolderEventLog>>,
+    events: Arc<RwLock<FolderEventLog>>,
 }
 
 impl Folder {
     /// Create a new folder.
-    pub(super) fn init(
-        keeper: AccessPoint,
-        events: BackendFolderEventLog,
-    ) -> Self {
+    pub(super) fn init(keeper: AccessPoint, events: FolderEventLog) -> Self {
         Self {
             keeper,
             events: Arc::new(RwLock::new(events)),
@@ -50,7 +45,7 @@ impl Folder {
     }
 
     /// Clone of the event log.
-    pub fn event_log(&self) -> Arc<RwLock<BackendFolderEventLog>> {
+    pub fn event_log(&self) -> Arc<RwLock<FolderEventLog>> {
         Arc::clone(&self.events)
     }
 

@@ -26,8 +26,8 @@ use sos_sdk::{
 };
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    BuilderCredentials, ChangePassword, FolderRef, Header, SecretAccess, Summary,
-    Vault, VaultBuilder, VaultCommit, VaultFlags,
+    BuilderCredentials, ChangePassword, FolderRef, Header, SecretAccess,
+    Summary, Vault, VaultBuilder, VaultCommit, VaultFlags,
 };
 use sos_vfs as vfs;
 use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
@@ -500,7 +500,7 @@ impl ClientStorage {
             let buffer = encode(&vault).await?;
             self.write_vault_file(folder_id, buffer).await?;
 
-            let folder = Folder::new_file_system(&vault_path).await?;
+            let folder = Folder::new_fs(&vault_path).await?;
             let event_log = folder.event_log();
             let mut event_log = event_log.write().await;
             event_log.clear().await?;
@@ -520,7 +520,7 @@ impl ClientStorage {
 
         // Setup the folder access to the latest vault information
         // and load the merkle tree
-        let folder = Folder::new_file_system(&vault_path).await?;
+        let folder = Folder::new_fs(&vault_path).await?;
         let event_log = folder.event_log();
         let mut event_log = event_log.write().await;
         event_log.load_tree().await?;
@@ -608,7 +608,7 @@ impl ClientStorage {
         creation_time: Option<&UtcDateTime>,
     ) -> Result<()> {
         let vault_path = self.paths.vault_path(summary.id());
-        let mut event_log = Folder::new_file_system(&vault_path).await?;
+        let mut event_log = Folder::new_fs(&vault_path).await?;
 
         if let Some(vault) = vault {
             // Must truncate the event log so that importing vaults
@@ -642,7 +642,7 @@ impl ClientStorage {
         creation_time: Option<&UtcDateTime>,
     ) -> Result<()> {
         let vault_path = self.paths.pending_vault_path(summary.id());
-        let mut event_log = Folder::new_file_system(&vault_path).await?;
+        let mut event_log = Folder::new_fs(&vault_path).await?;
 
         // Must truncate the event log so that importing vaults
         // does not end up with multiple create vault events
@@ -705,7 +705,7 @@ impl ClientStorage {
             vfs::rename(&pending_event, &event).await?;
 
             let summary = Header::read_summary_file(&vault).await?;
-            let folder = Folder::new_file_system(&vault).await?;
+            let folder = Folder::new_fs(&vault).await?;
             let event_log = folder.event_log();
             let mut event_log = event_log.write().await;
             event_log.load_tree().await?;

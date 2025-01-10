@@ -542,8 +542,7 @@ impl IdentityFolder {
         let buffer = encode(&vault).await?;
         vfs::write_exclusive(paths.identity_vault(), buffer).await?;
 
-        let mut folder =
-            Folder::new_file_system(paths.identity_vault()).await?;
+        let mut folder = Folder::new_fs(paths.identity_vault()).await?;
         let key: AccessKey = password.into();
         folder.unlock(&key).await?;
 
@@ -610,7 +609,7 @@ impl IdentityFolder {
         path: impl AsRef<Path>,
         key: &AccessKey,
     ) -> Result<Self> {
-        let mut folder = Folder::new_file_system(path).await?;
+        let mut folder = Folder::new_fs(path).await?;
 
         if !folder
             .keeper()

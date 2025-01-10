@@ -86,7 +86,7 @@ impl Backend {
                             self.directory.clone(),
                             owner.to_string(),
                         );
-                        let identity_log = Folder::new_event_log(
+                        let identity_log = Folder::new_fs_event_log(
                             user_paths.identity_events(),
                         )
                         .await?;

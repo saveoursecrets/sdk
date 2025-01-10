@@ -20,9 +20,7 @@ impl Folder {
     ///
     /// Changes to the in-memory vault are mirrored to disc and
     /// and if an event log does not exist it is created.
-    pub async fn new_file_system(
-        path: impl AsRef<Path>,
-    ) -> Result<Self, Error> {
+    pub async fn new_fs(path: impl AsRef<Path>) -> Result<Self, Error> {
         let mut events_path = path.as_ref().to_owned();
         events_path.set_extension(EVENT_LOG_EXT);
 
@@ -61,8 +59,8 @@ impl Folder {
         Ok(Folder::FileSystem(inner))
     }
 
-    /// Load an identity folder event log from the given paths.
-    pub async fn new_event_log(
+    /// Load a folder event log from the given path.
+    pub async fn new_fs_event_log(
         path: impl AsRef<Path>,
     ) -> Result<Arc<RwLock<BackendFolderEventLog>>, Error> {
         let mut event_log =

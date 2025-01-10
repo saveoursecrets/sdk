@@ -140,7 +140,7 @@ pub trait SecretAccess {
         id: &SecretId,
     ) -> Result<Option<WriteEvent>, Self::Error>;
 
-    /// Verify an encryption passphrase.
+    /// Verify an encryption password.
     async fn verify(&self, key: &AccessKey) -> Result<(), Self::Error>;
 
     /// Unlock the vault using the access key.
@@ -152,8 +152,8 @@ pub trait SecretAccess {
         key: &AccessKey,
     ) -> Result<VaultMeta, Self::Error>;
 
-    /// Lock the vault by deleting the stored passphrase
-    /// associated with the vault, securely zeroing the
+    /// Lock the vault by deleting the stored private key
+    /// associated with the vault and securely zeroing the
     /// underlying memory.
     fn lock(&mut self);
 }

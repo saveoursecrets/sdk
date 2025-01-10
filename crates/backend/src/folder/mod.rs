@@ -1,7 +1,7 @@
 mod filesystem;
 mod folder;
 
-pub use folder::Folder as GenericFolder;
+pub(crate) use folder::Folder as GenericFolder;
 
 use crate::{AccessPoint, Error, FolderEventLog};
 use sos_core::{
@@ -19,8 +19,10 @@ use tokio::sync::RwLock;
 
 use crate::Result;
 
-/// Folder combines a access point and an event log.
+/// Folder combines an access point and an event log.
 pub enum Folder {
+    /// Folder stored in a database table.
+    Database(GenericFolder),
     /// Folder stored on disc.
     FileSystem(GenericFolder),
 }
@@ -169,6 +171,7 @@ impl Folder {
 impl From<Folder> for Vault {
     fn from(value: Folder) -> Self {
         match value {
+            Folder::Database(inner) => inner.keeper.into(),
             Folder::FileSystem(inner) => inner.keeper.into(),
         }
     }
