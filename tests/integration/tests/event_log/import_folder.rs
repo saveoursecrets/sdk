@@ -46,7 +46,7 @@ async fn event_log_import_folder() -> Result<()> {
 
     let account_events = account.paths().account_events();
     let mut event_log =
-        AccountEventLog::new_file_system_account(&account_events).await?;
+        AccountEventLog::new_fs_account(&account_events).await?;
 
     // Import overwriting the existing data
     let commit = event_log.tree().last_commit();

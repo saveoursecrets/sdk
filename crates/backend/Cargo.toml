@@ -6,6 +6,10 @@ description = "Backend storage abstraction for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 full = ["files", "search"]
 files = [
@@ -46,3 +50,6 @@ unicode-segmentation = { workspace = true, optional = true }
 probly-search = { workspace = true, optional = true }
 url  = { workspace = true, optional = true }
 vcard4 = { workspace = true, optional = true }
+
+[build-dependencies]
+rustc_version.workspace = true

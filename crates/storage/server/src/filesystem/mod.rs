@@ -90,7 +90,7 @@ impl ServerFileStorage {
 
         let log_file = paths.account_events();
         let mut event_log =
-            AccountEventLog::new_file_system_account(log_file).await?;
+            AccountEventLog::new_fs_account(log_file).await?;
         event_log.load_tree().await?;
         let account_log = Arc::new(RwLock::new(event_log));
 
@@ -116,7 +116,7 @@ impl ServerFileStorage {
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
         let log_file = paths.device_events();
         let mut event_log =
-            DeviceEventLog::new_file_system_device(log_file).await?;
+            DeviceEventLog::new_fs_device(log_file).await?;
         event_log.load_tree().await?;
 
         let reducer = DeviceReducer::new(&event_log);
@@ -131,7 +131,7 @@ impl ServerFileStorage {
         let log_file = paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;
         let mut event_log =
-            FileEventLog::new_file_system_file(log_file).await?;
+            FileEventLog::new_fs_file(log_file).await?;
 
         tracing::debug!(needs_init = %needs_init, "file_log");
 
@@ -152,7 +152,7 @@ impl ServerFileStorage {
     async fn create_cache_entry(&mut self, id: &VaultId) -> Result<()> {
         let event_log_path = self.paths.event_log_path(id);
         let mut event_log =
-            FolderEventLog::new_file_system_file(&event_log_path).await?;
+            FolderEventLog::new_fs_file(&event_log_path).await?;
         event_log.load_tree().await?;
         self.cache.insert(*id, Arc::new(RwLock::new(event_log)));
         Ok(())
@@ -187,7 +187,7 @@ impl ServerFileStorage {
         identity_patch: &FolderPatch,
     ) -> Result<FolderEventLog> {
         let mut event_log =
-            FolderEventLog::new_file_system_folder(paths.identity_events())
+            FolderEventLog::new_fs_folder(paths.identity_events())
                 .await?;
         event_log.clear().await?;
         event_log.patch_unchecked(identity_patch).await?;
@@ -251,7 +251,7 @@ impl ServerAccountStorage for ServerFileStorage {
             let events_path = self.paths.event_log_path(id);
 
             let mut event_log =
-                FolderEventLog::new_file_system_folder(events_path).await?;
+                FolderEventLog::new_fs_folder(events_path).await?;
             event_log.patch_unchecked(folder).await?;
 
             let vault = FolderReducer::new()

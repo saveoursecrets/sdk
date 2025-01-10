@@ -46,7 +46,7 @@ async fn event_log_compact() -> Result<()> {
 
     let folder_events = account.paths().event_log_path(default_folder.id());
     let event_log =
-        FolderEventLog::new_file_system_folder(&folder_events).await?;
+        FolderEventLog::new_fs_folder(&folder_events).await?;
     let patch = event_log.diff_events(None).await?;
     // One create vault event, three create secret events
     // and two delete events
@@ -81,7 +81,7 @@ async fn event_log_compact() -> Result<()> {
     // Check the account event log registered the compact event
     let account_events = account.paths().account_events();
     let mut event_log =
-        AccountEventLog::new_file_system_account(&account_events).await?;
+        AccountEventLog::new_fs_account(&account_events).await?;
     let event = last_log_event(&mut event_log, None).await?;
     assert!(matches!(event, Some(AccountEvent::CompactFolder(_, _))));
 

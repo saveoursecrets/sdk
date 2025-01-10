@@ -43,7 +43,7 @@ async fn event_log_change_password() -> Result<()> {
 
     let account_events = account.paths().account_events();
     let mut event_log =
-        AccountEventLog::new_file_system_account(&account_events).await?;
+        AccountEventLog::new_fs_account(&account_events).await?;
     let commit = event_log.tree().last_commit();
 
     // Change the folder password

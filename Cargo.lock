@@ -4917,6 +4917,7 @@ dependencies = [
  "futures",
  "indexmap 2.7.0",
  "probly-search",
+ "rustc_version",
  "serde",
  "sos-core",
  "sos-database",

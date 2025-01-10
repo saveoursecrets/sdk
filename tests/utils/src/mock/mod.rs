@@ -150,7 +150,7 @@ pub async fn event_log_file(
 
     let temp = NamedTempFile::new()?;
     let mut event_log =
-        FolderEventLog::new_file_system_folder(temp.path()).await?;
+        FolderEventLog::new_fs_folder(temp.path()).await?;
 
     // Create the vault
     let event = vault.into_event().await?;

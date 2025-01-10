@@ -1,3 +1,4 @@
+//! Compact folders.
 use crate::BackendEventLog;
 use crate::Error;
 use crate::FolderEventLog;

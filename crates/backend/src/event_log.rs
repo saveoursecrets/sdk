@@ -12,17 +12,23 @@ use sos_core::{
 use sos_filesystem::events::FileSystemEventLog;
 use std::path::Path;
 
-pub type BackendFolderEventLog = BackendEventLog<WriteEvent>;
+/// Event log for account events.
 pub type BackendAccountEventLog = BackendEventLog<AccountEvent>;
+/// Event log for device events.
 pub type BackendDeviceEventLog = BackendEventLog<DeviceEvent>;
+/// Event log for folder events.
+pub type BackendFolderEventLog = BackendEventLog<WriteEvent>;
 
 #[cfg(feature = "files")]
+/// Event log for file events.
 pub type BackendFileEventLog = BackendEventLog<sos_core::events::FileEvent>;
 
+/// Generic event log.
 pub enum BackendEventLog<T>
 where
     T: Default + Encodable + Decodable + Send + Sync,
 {
+    /// File system event log.
     FileSystem(FileSystemEventLog<T, Error>),
 }
 
@@ -30,27 +36,30 @@ impl<T> BackendEventLog<T>
 where
     T: Default + Encodable + Decodable + Send + Sync + 'static,
 {
-    pub async fn new_file_system_folder<P: AsRef<Path>>(
+    /// Create a file system folder event log.
+    pub async fn new_fs_folder<P: AsRef<Path>>(
         path: P,
     ) -> Result<Self, Error> {
         todo!();
     }
 
-    pub async fn new_file_system_account<P: AsRef<Path>>(
+    /// Create a file system account event log.
+    pub async fn new_fs_account<P: AsRef<Path>>(
         path: P,
     ) -> Result<Self, Error> {
         todo!();
     }
 
-    pub async fn new_file_system_device<P: AsRef<Path>>(
+    /// Create a file system device event log.
+    pub async fn new_fs_device<P: AsRef<Path>>(
         path: P,
     ) -> Result<Self, Error> {
         todo!();
     }
 
-    pub async fn new_file_system_file<P: AsRef<Path>>(
-        path: P,
-    ) -> Result<Self, Error> {
+    #[cfg(feature = "files")]
+    /// Create a file system file event log.
+    pub async fn new_fs_file<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         todo!();
     }
 }

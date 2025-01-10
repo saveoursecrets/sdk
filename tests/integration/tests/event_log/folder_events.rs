@@ -32,7 +32,7 @@ async fn event_log_folder() -> Result<()> {
 
     // Just has the create vault event to begin with
     let mut event_log =
-        FolderEventLog::new_file_system_folder(&folder_events).await?;
+        FolderEventLog::new_fs_folder(&folder_events).await?;
     let event = last_log_event(&mut event_log, None).await?;
     assert!(matches!(event, Some(WriteEvent::CreateVault(_))));
 

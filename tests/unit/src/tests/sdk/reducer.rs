@@ -75,7 +75,7 @@ async fn event_log_reduce_compact() -> Result<()> {
 
     let compact_temp = NamedTempFile::new()?;
     let mut compact =
-        FolderEventLog::new_file_system_folder(compact_temp.path()).await?;
+        FolderEventLog::new_fs_folder(compact_temp.path()).await?;
     for event in events {
         compact.apply(vec![&event]).await?;
     }
@@ -97,7 +97,7 @@ async fn mock_event_log_file(
 
     let temp = NamedTempFile::new()?;
     let mut event_log =
-        FolderEventLog::new_file_system_folder(temp.path()).await?;
+        FolderEventLog::new_fs_folder(temp.path()).await?;
 
     // Create the vault
     let event = vault.into_event().await?;

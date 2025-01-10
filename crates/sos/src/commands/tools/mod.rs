@@ -201,7 +201,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         verify_events(events_file.clone(), false).await?;
 
                         let event_log =
-                            FolderEventLog::new_file_system_folder(
+                            FolderEventLog::new_fs_folder(
                                 &events_file,
                             )
                             .await?;

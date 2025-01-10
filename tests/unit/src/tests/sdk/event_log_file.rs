@@ -9,14 +9,14 @@ async fn mock_account_event_log() -> Result<(NamedTempFile, AccountEventLog)>
 {
     let temp = NamedTempFile::new()?;
     let event_log =
-        AccountEventLog::new_file_system_account(temp.path()).await?;
+        AccountEventLog::new_fs_account(temp.path()).await?;
     Ok((temp, event_log))
 }
 
 async fn mock_folder_event_log() -> Result<(NamedTempFile, FolderEventLog)> {
     let temp = NamedTempFile::new()?;
     let event_log =
-        FolderEventLog::new_file_system_folder(temp.path()).await?;
+        FolderEventLog::new_fs_folder(temp.path()).await?;
     Ok((temp, event_log))
 }
 

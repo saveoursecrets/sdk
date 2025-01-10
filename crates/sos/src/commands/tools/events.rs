@@ -62,7 +62,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 return Err(Error::NotFile(file));
             }
             let event_log =
-                AccountEventLog::new_file_system_account(&file).await?;
+                AccountEventLog::new_fs_account(&file).await?;
             print_events::<AccountEvent>(event_log, until_commit).await?;
         }
         Command::Device { file, until_commit } => {
@@ -70,7 +70,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 return Err(Error::NotFile(file));
             }
             let event_log =
-                DeviceEventLog::new_file_system_device(&file).await?;
+                DeviceEventLog::new_fs_device(&file).await?;
             print_events::<DeviceEvent>(event_log, until_commit).await?;
         }
         Command::Folder { file, until_commit } => {
@@ -78,14 +78,14 @@ pub async fn run(cmd: Command) -> Result<()> {
                 return Err(Error::NotFile(file));
             }
             let event_log =
-                FolderEventLog::new_file_system_folder(&file).await?;
+                FolderEventLog::new_fs_folder(&file).await?;
             print_events::<WriteEvent>(event_log, until_commit).await?;
         }
         Command::File { file, until_commit } => {
             if !vfs::metadata(&file).await?.is_file() {
                 return Err(Error::NotFile(file));
             }
-            let event_log = FileEventLog::new_file_system_file(&file).await?;
+            let event_log = FileEventLog::new_fs_file(&file).await?;
             print_events::<FileEvent>(event_log, until_commit).await?;
         }
     }

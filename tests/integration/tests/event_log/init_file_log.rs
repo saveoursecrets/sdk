@@ -36,7 +36,7 @@ async fn event_log_init_file_log() -> Result<()> {
     // Store the file events log so we can delete and re-create
     let file_events = account.paths().file_events();
 
-    let event_log = FileEventLog::new_file_system_file(&file_events).await?;
+    let event_log = FileEventLog::new_fs_file(&file_events).await?;
     let patch = event_log.diff_events(None).await?;
     assert_eq!(1, patch.len());
     let events = patch.into_events().await?;
@@ -54,7 +54,7 @@ async fn event_log_init_file_log() -> Result<()> {
 
     // Check the event log was initialized from the files on disc
     let mut event_log =
-        FileEventLog::new_file_system_file(&file_events).await?;
+        FileEventLog::new_fs_file(&file_events).await?;
     let event = last_log_event(&mut event_log, None).await?;
     assert!(matches!(event, Some(FileEvent::CreateFile(_, _))));
 

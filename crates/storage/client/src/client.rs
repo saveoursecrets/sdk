@@ -123,23 +123,23 @@ impl ClientStorage {
         paths.ensure().await?;
 
         let identity_log = Arc::new(RwLock::new(
-            FolderEventLog::new_file_system_folder(paths.identity_events())
+            FolderEventLog::new_fs_folder(paths.identity_events())
                 .await?,
         ));
 
         let account_log = Arc::new(RwLock::new(
-            AccountEventLog::new_file_system_account(paths.account_events())
+            AccountEventLog::new_fs_account(paths.account_events())
                 .await?,
         ));
 
         let device_log = Arc::new(RwLock::new(
-            DeviceEventLog::new_file_system_device(paths.device_events())
+            DeviceEventLog::new_fs_device(paths.device_events())
                 .await?,
         ));
 
         #[cfg(feature = "files")]
         let file_log = Arc::new(RwLock::new(
-            FileEventLog::new_file_system_file(paths.file_events()).await?,
+            FileEventLog::new_fs_file(paths.file_events()).await?,
         ));
 
         let mut storage = Self {
@@ -200,7 +200,7 @@ impl ClientStorage {
 
         let log_file = paths.account_events();
         let mut event_log =
-            AccountEventLog::new_file_system_account(log_file).await?;
+            AccountEventLog::new_fs_account(log_file).await?;
         event_log.load_tree().await?;
         let account_log = Arc::new(RwLock::new(event_log));
 
@@ -241,7 +241,7 @@ impl ClientStorage {
         let log_file = paths.device_events();
 
         let mut event_log =
-            DeviceEventLog::new_file_system_device(log_file).await?;
+            DeviceEventLog::new_fs_device(log_file).await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
@@ -282,7 +282,7 @@ impl ClientStorage {
         let log_file = paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;
         let mut event_log =
-            FileEventLog::new_file_system_file(log_file).await?;
+            FileEventLog::new_fs_file(log_file).await?;
         event_log.load_tree().await?;
 
         tracing::debug!(needs_init = %needs_init, "file_log");

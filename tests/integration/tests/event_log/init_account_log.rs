@@ -30,7 +30,7 @@ async fn event_log_init_account_log() -> Result<()> {
 
     let account_events = account.paths().account_events();
     let event_log =
-        AccountEventLog::new_file_system_account(&account_events).await?;
+        AccountEventLog::new_fs_account(&account_events).await?;
     let patch = event_log.diff_events(None).await?;
     let events = patch.into_events().await?;
     assert_eq!(1, events.len());

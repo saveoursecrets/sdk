@@ -160,7 +160,7 @@ impl ForceMerge for ServerFileStorage {
         let events_path = self.paths.event_log_path(folder_id);
 
         let mut event_log =
-            FolderEventLog::new_file_system_folder(events_path).await?;
+            FolderEventLog::new_fs_folder(events_path).await?;
         event_log.patch_replace(&diff).await?;
 
         let vault = FolderReducer::new()

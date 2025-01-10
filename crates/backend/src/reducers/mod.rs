@@ -1,3 +1,4 @@
+//! Event reducers.
 mod device;
 #[cfg(feature = "files")]
 mod files;

@@ -30,7 +30,7 @@ async fn mock_event_log_standalone(
 
     // Create a simple event log
     let mut event_log =
-        FolderEventLog::new_file_system_folder(path.as_ref()).await?;
+        FolderEventLog::new_fs_folder(path.as_ref()).await?;
     event_log
         .apply(vec![
             &WriteEvent::CreateVault(vault_buffer),
@@ -64,7 +64,7 @@ async fn mock_event_log_server_client(
 
     // Create a simple event log
     let mut server =
-        FolderEventLog::new_file_system_folder(server_file).await?;
+        FolderEventLog::new_fs_folder(server_file).await?;
     server
         .apply(vec![
             &WriteEvent::CreateVault(vault_buffer),
@@ -74,7 +74,7 @@ async fn mock_event_log_server_client(
 
     // Duplicate the server events on the client
     let mut client =
-        FolderEventLog::new_file_system_folder(client_file).await?;
+        FolderEventLog::new_fs_folder(client_file).await?;
     let stream = server.stream(false).await;
     pin_mut!(stream);
     while let Some(result) = stream.next().await {
@@ -131,7 +131,7 @@ async fn event_log_file_load() -> Result<()> {
     let path = "target/event_log_file_load.events";
     mock_event_log_standalone(path).await?;
 
-    let event_log = FolderEventLog::new_file_system_folder(path).await?;
+    let event_log = FolderEventLog::new_fs_folder(path).await?;
     let stream = event_log.stream(false).await;
     pin_mut!(stream);
     while let Some(result) = stream.next().await {
@@ -149,7 +149,7 @@ async fn event_log_rewind() -> Result<()> {
         vfs::remove_file(path).await?;
     }
 
-    let mut event_log = FolderEventLog::new_file_system_folder(path).await?;
+    let mut event_log = FolderEventLog::new_fs_folder(path).await?;
 
     let vault: Vault = Default::default();
     let vault_buffer = encode(&vault).await?;
@@ -186,7 +186,7 @@ async fn event_log_rewind() -> Result<()> {
     // Make sure the file truncation is correct
     {
         let mut new_event_log =
-            FolderEventLog::new_file_system_folder(path).await?;
+            FolderEventLog::new_fs_folder(path).await?;
         new_event_log.load_tree().await?;
 
         let reloaded_root = new_event_log.tree().root().unwrap();

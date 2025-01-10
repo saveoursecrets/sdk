@@ -184,7 +184,7 @@ impl DeviceEnrollment {
     async fn create_account(&mut self, patch: AccountPatch) -> Result<()> {
         let file = self.paths.account_events();
         let mut event_log =
-            AccountEventLog::new_file_system_account(file).await?;
+            AccountEventLog::new_fs_account(file).await?;
         event_log.clear().await?;
 
         // let events: Vec<AccountEvent> = patch.into();
@@ -201,7 +201,7 @@ impl DeviceEnrollment {
     async fn create_device(&self, patch: DevicePatch) -> Result<()> {
         let file = self.paths.device_events();
         let mut event_log =
-            DeviceEventLog::new_file_system_device(file).await?;
+            DeviceEventLog::new_fs_device(file).await?;
         event_log.clear().await?;
 
         // let events: Vec<DeviceEvent> = patch.into();
@@ -225,7 +225,7 @@ impl DeviceEnrollment {
         patch: FolderPatch,
     ) -> Result<()> {
         let mut event_log =
-            FolderEventLog::new_file_system_folder(events_path.as_ref())
+            FolderEventLog::new_fs_folder(events_path.as_ref())
                 .await?;
         event_log.clear().await?;
 
