@@ -1,5 +1,6 @@
 //! Folder implementation backed by the filesystem.
-use super::GenericFolder;
+use super::{Folder, GenericFolder};
+use crate::event_log::BackendEventLog;
 use crate::reducers::FolderReducer;
 use crate::BackendGateKeeper;
 use crate::Error;
@@ -13,15 +14,14 @@ use sos_vfs as vfs;
 use std::{path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
-/// Folder that writes events to disc.
-pub type DiscFolder = GenericFolder<FolderEventLog<Error>, Error>;
-
-impl GenericFolder<FolderEventLog<Error>, Error> {
+impl Folder {
     /// Create a new folder from a vault file on disc.
     ///
     /// Changes to the in-memory vault are mirrored to disc and
     /// and if an event log does not exist it is created.
-    pub async fn new(path: impl AsRef<Path>) -> Result<Self, Error> {
+    pub async fn new_file_system(
+        path: impl AsRef<Path>,
+    ) -> Result<Self, Error> {
         let mut events_path = path.as_ref().to_owned();
         events_path.set_extension(EVENT_LOG_EXT);
 
@@ -52,7 +52,12 @@ impl GenericFolder<FolderEventLog<Error>, Error> {
             Box::new(mirror),
         );
 
-        Ok(Self::init(BackendGateKeeper::FileSystem(keeper), event_log))
+        let inner = GenericFolder::init(
+            BackendGateKeeper::FileSystem(keeper),
+            BackendEventLog::FileSystem(event_log),
+        );
+
+        Ok(Folder::FileSystem(inner))
     }
 
     /// Load an identity folder event log from the given paths.
@@ -63,11 +68,5 @@ impl GenericFolder<FolderEventLog<Error>, Error> {
             FolderEventLog::<Error>::new(path.as_ref().to_owned()).await?;
         event_log.load_tree().await?;
         Ok(Arc::new(RwLock::new(event_log)))
-    }
-}
-
-impl From<GenericFolder<FolderEventLog<Error>, Error>> for Vault {
-    fn from(value: GenericFolder<FolderEventLog<Error>, Error>) -> Self {
-        value.keeper.into()
     }
 }

@@ -6,15 +6,13 @@ use hex;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use sos_backend::reducers::FolderReducer;
 use sos_core::{
     constants::VAULT_EXT, crypto::AccessKey, decode, SecretId, VaultId,
 };
 use sos_core::{AccountId, Paths};
+use sos_filesystem::events::{EventLog, FolderEventLog};
 use sos_filesystem::VaultFileWriter;
-use sos_filesystem::{
-    events::{EventLog, FolderEventLog},
-    folder::FolderReducer,
-};
 use sos_login::{DiscIdentityFolder, Identity, PublicIdentity};
 use sos_vault::{Summary, Vault, VaultAccess};
 use sos_vfs::{self as vfs, File};
@@ -455,7 +453,7 @@ impl AccountBackup {
             let identity_vault_file = paths.identity_vault();
 
             let mut access =
-                VaultFileWriter::new(identity_vault_file).await?;
+                VaultFileWriter::<Error>::new(identity_vault_file).await?;
             access.set_vault_name(name.clone()).await?;
 
             name
@@ -487,10 +485,12 @@ impl AccountBackup {
             // Write out the vault buffer
             vfs::write_exclusive(&vault_path, buffer).await?;
 
-            let (_, events) = FolderReducer::split(vault.clone()).await?;
+            let (_, events) =
+                FolderReducer::split::<Error>(vault.clone()).await?;
 
             // Write out the event log file
-            let mut event_log = FolderEventLog::new(event_log_path).await?;
+            let mut event_log =
+                FolderEventLog::<Error>::new(event_log_path).await?;
             event_log.apply(events.iter().collect()).await?;
         }
 

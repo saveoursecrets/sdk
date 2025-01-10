@@ -9,7 +9,7 @@
 use crate::device::{DeviceManager, DeviceSigner};
 use crate::{Error, PrivateIdentity, Result, UrnLookup};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
-use sos_backend::folder::DiscFolder;
+use sos_backend::Folder;
 use sos_backend::{BackendFolderEventLog, BackendGateKeeper};
 use sos_core::{
     constants::LOGIN_AGE_KEY_URN,
@@ -23,7 +23,8 @@ use sos_password::diceware::generate_passphrase_words;
 use sos_signer::ed25519;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
-    BuilderCredentials, GateKeeper, Vault, VaultBuilder, VaultFlags, VaultId,
+    BuilderCredentials, GateKeeper, Keeper, Vault, VaultBuilder, VaultFlags,
+    VaultId,
 };
 use sos_vfs as vfs;
 use std::{
@@ -44,7 +45,7 @@ pub type DiscIdentityFolder = IdentityFolder;
 pub struct IdentityFolder {
     /// Folder storage.
     #[doc(hidden)]
-    pub folder: DiscFolder,
+    pub folder: Folder,
     /// Lookup table.
     #[doc(hidden)]
     pub index: UrnLookup,
@@ -183,7 +184,10 @@ impl IdentityFolder {
         {
             let key: ed25519::SingleParty =
                 data.expose_secret().as_slice().try_into()?;
-            Ok(DeviceManager::new(key.into(), device_keeper))
+            Ok(DeviceManager::new(
+                key.into(),
+                BackendGateKeeper::FileSystem(device_keeper),
+            ))
         } else {
             Err(Error::VaultEntryKind(device_key_urn.to_string()))
         }
@@ -248,7 +252,10 @@ impl IdentityFolder {
             self.index.insert((*device_keeper.id(), device_key_urn), id);
         }
 
-        Ok(DeviceManager::new(signer, device_keeper))
+        Ok(DeviceManager::new(
+            signer,
+            BackendGateKeeper::FileSystem(device_keeper),
+        ))
     }
 
     /// Generate a folder password.
@@ -359,7 +366,7 @@ impl IdentityFolder {
 
     /// Rebuild the index lookup for folder passwords.
     pub async fn rebuild_lookup_index(&mut self) -> Result<()> {
-        let keeper = self.folder.keeper();
+        let keeper = self.keeper();
         let (index, _) = Self::lookup_identity_secrets(keeper).await?;
         self.index = index;
         Ok(())
@@ -434,7 +441,7 @@ impl IdentityFolder {
     /// the URN lookup index which maps URNs to the
     /// corresponding secret identifiers.
     async fn lookup_identity_secrets(
-        keeper: &FileSystemGateKeeper,
+        keeper: &BackendGateKeeper,
     ) -> Result<(UrnLookup, Option<Secret>)> {
         let mut index: UrnLookup = Default::default();
 
@@ -463,7 +470,7 @@ impl IdentityFolder {
 
     async fn login_private_identity(
         account_id: AccountId,
-        keeper: &FileSystemGateKeeper,
+        keeper: &BackendGateKeeper,
     ) -> Result<(UrnLookup, PrivateIdentity)> {
         let (index, identity_secret) =
             Self::lookup_identity_secrets(keeper).await?;
@@ -536,7 +543,8 @@ impl IdentityFolder {
         let buffer = encode(&vault).await?;
         vfs::write_exclusive(paths.identity_vault(), buffer).await?;
 
-        let mut folder = DiscFolder::new(paths.identity_vault()).await?;
+        let mut folder =
+            Folder::new_file_system(paths.identity_vault()).await?;
         let key: AccessKey = password.into();
         folder.unlock(&key).await?;
 
@@ -603,7 +611,7 @@ impl IdentityFolder {
         path: impl AsRef<Path>,
         key: &AccessKey,
     ) -> Result<Self> {
-        let mut folder = DiscFolder::new(path).await?;
+        let mut folder = Folder::new_file_system(path).await?;
 
         if !folder
             .keeper()

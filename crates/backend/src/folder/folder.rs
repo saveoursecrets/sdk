@@ -1,5 +1,5 @@
 //! Folder implementation combining a gatekeeper with an event log.
-use crate::BackendGateKeeper;
+use crate::{event_log::BackendFolderEventLog, BackendGateKeeper, Result};
 use sos_core::{
     commit::{CommitHash, CommitState},
     events::EventLog,
@@ -17,36 +17,17 @@ use std::{borrow::Cow, sync::Arc};
 use tokio::sync::RwLock;
 
 /// Folder is a combined vault and event log.
-pub struct Folder<L, E>
-where
-    L: EventLog<WriteEvent, Error = E>,
-    E: std::error::Error
-        + std::fmt::Debug
-        + From<sos_core::Error>
-        + From<sos_vault::Error>
-        + From<std::io::Error>
-        + Send
-        + Sync
-        + 'static,
-{
+pub struct Folder {
     pub(crate) keeper: BackendGateKeeper,
-    events: Arc<RwLock<L>>,
+    events: Arc<RwLock<BackendFolderEventLog>>,
 }
 
-impl<L, E> Folder<L, E>
-where
-    L: EventLog<WriteEvent, Error = E>,
-    E: std::error::Error
-        + std::fmt::Debug
-        + From<sos_core::Error>
-        + From<sos_vault::Error>
-        + From<std::io::Error>
-        + Send
-        + Sync
-        + 'static,
-{
+impl Folder {
     /// Create a new folder.
-    pub(super) fn init(keeper: BackendGateKeeper, events: L) -> Self {
+    pub(super) fn init(
+        keeper: BackendGateKeeper,
+        events: BackendFolderEventLog,
+    ) -> Self {
         Self {
             keeper,
             events: Arc::new(RwLock::new(events)),
@@ -69,7 +50,7 @@ where
     }
 
     /// Clone of the event log.
-    pub fn event_log(&self) -> Arc<RwLock<L>> {
+    pub fn event_log(&self) -> Arc<RwLock<BackendFolderEventLog>> {
         Arc::clone(&self.events)
     }
 
@@ -135,7 +116,7 @@ where
     pub async fn delete_secret(
         &mut self,
         id: &SecretId,
-    ) -> Result<Option<WriteEvent>, E> {
+    ) -> Result<Option<WriteEvent>> {
         if let Some(event) = self.keeper.delete_secret(id).await? {
             let mut events = self.events.write().await;
             events.apply(vec![&event]).await?;
@@ -149,7 +130,7 @@ where
     pub async fn rename_folder(
         &mut self,
         name: impl AsRef<str>,
-    ) -> Result<WriteEvent, E> {
+    ) -> Result<WriteEvent> {
         self.keeper.set_vault_name(name.as_ref().to_owned()).await?;
         let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
         let mut events = self.events.write().await;
@@ -161,7 +142,7 @@ where
     pub async fn update_folder_flags(
         &mut self,
         flags: VaultFlags,
-    ) -> Result<WriteEvent, E> {
+    ) -> Result<WriteEvent> {
         self.keeper.set_vault_flags(flags.clone()).await?;
         let event = WriteEvent::SetVaultFlags(flags);
         let mut events = self.events.write().await;
@@ -170,7 +151,7 @@ where
     }
 
     /// Description of this folder.
-    pub async fn description(&self) -> Result<String, E> {
+    pub async fn description(&self) -> Result<String> {
         let meta = self.keeper.vault_meta().await?;
         Ok(meta.description().to_owned())
     }
@@ -179,17 +160,14 @@ where
     pub async fn set_description(
         &mut self,
         description: impl AsRef<str>,
-    ) -> Result<WriteEvent, E> {
+    ) -> Result<WriteEvent> {
         let mut meta = self.keeper.vault_meta().await?;
         meta.set_description(description.as_ref().to_owned());
         self.set_meta(&meta).await
     }
 
     /// Set the folder meta data.
-    pub async fn set_meta(
-        &mut self,
-        meta: &VaultMeta,
-    ) -> Result<WriteEvent, E> {
+    pub async fn set_meta(&mut self, meta: &VaultMeta) -> Result<WriteEvent> {
         let event = self.keeper.set_vault_meta(meta).await?;
         let mut events = self.events.write().await;
         events.apply(vec![&event]).await?;
@@ -197,13 +175,13 @@ where
     }
 
     /// Folder commit state.
-    pub async fn commit_state(&self) -> Result<CommitState, E> {
+    pub async fn commit_state(&self) -> Result<CommitState> {
         let event_log = self.events.read().await;
         Ok(event_log.tree().commit_state()?)
     }
 
     /// Folder root commit hash.
-    pub async fn root_hash(&self) -> Result<CommitHash, E> {
+    pub async fn root_hash(&self) -> Result<CommitHash> {
         let event_log = self.events.read().await;
         Ok(event_log
             .tree()
@@ -212,7 +190,7 @@ where
     }
 
     /// Apply events to the event log.
-    pub async fn apply(&mut self, events: Vec<&WriteEvent>) -> Result<(), E> {
+    pub async fn apply(&mut self, events: Vec<&WriteEvent>) -> Result<()> {
         let mut event_log = self.events.write().await;
         event_log.apply(events).await?;
         Ok(())
@@ -222,14 +200,14 @@ where
     pub async fn apply_records(
         &mut self,
         records: Vec<EventRecord>,
-    ) -> Result<(), E> {
+    ) -> Result<()> {
         let mut event_log = self.events.write().await;
         event_log.apply_records(records).await?;
         Ok(())
     }
 
     /// Clear events from the event log.
-    pub async fn clear(&mut self) -> Result<(), E> {
+    pub async fn clear(&mut self) -> Result<()> {
         let mut event_log = self.events.write().await;
         event_log.clear().await?;
         Ok(())

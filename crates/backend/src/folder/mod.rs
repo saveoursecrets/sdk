@@ -1,10 +1,9 @@
 mod filesystem;
 mod folder;
 
-pub use filesystem::DiscFolder;
-use folder::Folder as GenericFolder;
+pub use folder::Folder as GenericFolder;
 
-use crate::Error;
+use crate::{BackendGateKeeper, Error};
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -23,7 +22,7 @@ use crate::Result;
 /// Folder combines a gatekeeper and an event log.
 pub enum Folder {
     /// Folder stored on disc.
-    FileSystem(DiscFolder),
+    FileSystem(GenericFolder),
 }
 
 impl Folder {
@@ -38,12 +37,12 @@ impl Folder {
     }
 
     /// Gate keeper for this folder.
-    pub fn keeper(&self) -> &GateKeeper<Error> {
+    pub fn keeper(&self) -> &BackendGateKeeper {
         todo!();
     }
 
     /// Mutable gate keeper for this folder.
-    pub fn keeper_mut(&mut self) -> &mut GateKeeper<Error> {
+    pub fn keeper_mut(&mut self) -> &mut BackendGateKeeper {
         todo!();
     }
 
@@ -164,5 +163,13 @@ impl Folder {
     /// Clear events from the event log.
     pub async fn clear(&mut self) -> Result<()> {
         todo!();
+    }
+}
+
+impl From<Folder> for Vault {
+    fn from(value: Folder) -> Self {
+        match value {
+            Folder::FileSystem(inner) => inner.keeper.into(),
+        }
     }
 }

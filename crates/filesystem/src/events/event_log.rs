@@ -149,7 +149,7 @@ where
         &self,
         commit: Option<CommitHash>,
         checkpoint: CommitProof,
-    ) -> StdResult<Diff<T>, E> {
+    ) -> StdResult<Diff<T>, Self::Error> {
         let patch = self.diff_events(commit.as_ref()).await?;
         Ok(Diff::<T> {
             last_commit: commit,

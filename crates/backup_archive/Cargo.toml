@@ -32,6 +32,7 @@ zip = [
 
 [dependencies]
 sos-core.workspace = true
+sos-backend.workspace = true
 sos-vault.workspace = true
 thiserror.workspace = true
 serde.workspace = true

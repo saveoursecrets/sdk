@@ -11,7 +11,8 @@ use sos_core::{
 mod event_log;
 
 pub use event_log::{
-    AccountEventLog, DeviceEventLog, EventLog, FolderEventLog,
+    AccountEventLog, DeviceEventLog, EventLog, FileSystemEventLog,
+    FolderEventLog,
 };
 
 #[cfg(feature = "files")]
