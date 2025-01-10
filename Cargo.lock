@@ -4915,6 +4915,8 @@ dependencies = [
  "binary-stream",
  "futures",
  "indexmap 2.7.0",
+ "probly-search",
+ "serde",
  "sos-core",
  "sos-database",
  "sos-filesystem",
@@ -4925,7 +4927,11 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "typeshare",
+ "unicode-segmentation",
+ "url",
  "uuid",
+ "vcard4",
 ]
 
 [[package]]
@@ -4977,7 +4983,6 @@ dependencies = [
  "futures",
  "hex",
  "indexmap 2.7.0",
- "probly-search",
  "rustc_version",
  "secrecy",
  "serde",
@@ -4998,10 +5003,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
- "unicode-segmentation",
- "url",
  "uuid",
- "vcard4",
 ]
 
 [[package]]
@@ -5048,7 +5050,6 @@ dependencies = [
  "async-trait",
  "futures",
  "indexmap 2.7.0",
- "probly-search",
  "refinery",
  "rustc_version",
  "secrecy",
@@ -5064,10 +5065,7 @@ dependencies = [
  "tokio",
  "tracing",
  "typeshare",
- "unicode-segmentation",
- "url",
  "uuid",
- "vcard4",
 ]
 
 [[package]]
@@ -5189,6 +5187,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "sos-account",
+ "sos-backend",
  "sos-client-storage",
  "sos-core",
  "sos-database",
@@ -5301,6 +5300,7 @@ dependencies = [
  "snow",
  "sos-account",
  "sos-account-extras",
+ "sos-backend",
  "sos-client-storage",
  "sos-core",
  "sos-database",
@@ -5690,6 +5690,7 @@ dependencies = [
  "rustc_version",
  "secrecy",
  "sos-account",
+ "sos-backend",
  "sos-client-storage",
  "sos-core",
  "sos-database",

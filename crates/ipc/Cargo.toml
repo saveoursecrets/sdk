@@ -25,7 +25,7 @@ clipboard = ["sos-account/clipboard"]
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = ["sos-sdk/files", "sos-protocol/files"]
 migrate = ["sos-account/migrate"]
-search = ["sos-database/search", "sos-protocol/search"]
+search = ["sos-backend/search", "sos-protocol/search"]
 extension-helper-server = [
   "memory-http-server",
   "open",
@@ -56,6 +56,7 @@ extension-helper-client = [
 sos-account.workspace = true
 sos-core.workspace = true
 sos-client-storage.workspace = true
+sos-backend.workspace = true
 sos-database = { workspace = true, features = ["client"] }
 sos-filesystem.workspace = true
 sos-protocol.workspace = true

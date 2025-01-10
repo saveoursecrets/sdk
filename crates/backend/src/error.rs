@@ -27,6 +27,11 @@ pub enum Error {
     #[error("permission denied")]
     PermissionDenied,
 
+    /// Error generated when a vault does not contain a secret by identifier.
+    #[cfg(feature = "search")]
+    #[error("vault {0} does not contain {1}")]
+    NoSecretId(sos_core::VaultId, sos_core::SecretId),
+
     /// Error generated converting to fixed length slice.
     #[error(transparent)]
     TryFromSlice(#[from] std::array::TryFromSliceError),

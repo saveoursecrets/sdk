@@ -17,6 +17,7 @@ pub enum Error {
 
     /// Error generated when a vault does not contain a secret by identifier.
     #[cfg(feature = "search")]
+    #[deprecated]
     #[error("vault {0} does not contain {1}")]
     NoSecretId(VaultId, sos_core::SecretId),
 

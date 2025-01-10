@@ -18,9 +18,6 @@ pub use vault_writer::VaultDatabaseWriter;
 #[cfg(feature = "files")]
 pub mod files;
 
-#[cfg(feature = "search")]
-pub mod search;
-
 mod error;
 pub use error::{Error, StorageError};
 

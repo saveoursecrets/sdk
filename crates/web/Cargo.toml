@@ -25,11 +25,12 @@ clipboard = []
 contacts = ["sos-account/contacts", "sos-protocol/contacts"]
 files = []
 migrate = ["sos-account/migrate", "sos-migrate"]
-search = ["sos-database/search", "sos-protocol/search"]
+search = ["sos-backend/search", "sos-protocol/search"]
 
 [dependencies]
 sos-core.workspace = true
 sos-account.workspace = true
+sos-backend.workspace = true
 sos-database = { workspace = true, features = ["client"] }
 sos-filesystem.workspace = true
 sos-client-storage.workspace = true

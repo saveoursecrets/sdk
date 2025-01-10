@@ -18,6 +18,13 @@ pub enum BackendGateKeeper {
     FileSystem(GateKeeper<Error>),
 }
 
+impl BackendGateKeeper {
+    /// New gate keeper from a vault.
+    pub fn new_vault(vault: Vault) -> Self {
+        Self::FileSystem(GateKeeper::<Error>::new(vault))
+    }
+}
+
 #[async_trait]
 impl Keeper for BackendGateKeeper {
     type Error = Error;

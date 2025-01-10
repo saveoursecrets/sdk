@@ -9,8 +9,8 @@ pub mod one_password;
 
 use crate::{Convert, Error};
 use async_trait::async_trait;
+use sos_backend::search::SearchIndex;
 use sos_core::{crypto::AccessKey, UtcDateTime};
-use sos_database::search::SearchIndex;
 use sos_filesystem::FileSystemGateKeeper;
 use sos_vault::{
     secret::{

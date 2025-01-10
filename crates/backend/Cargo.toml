@@ -7,11 +7,18 @@ homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 
 [features]
-full = ["files"]
+full = ["files", "search"]
 files = [
   "sos-core/files",
   "sos-database/files",
   "sos-filesystem/files",
+]
+search = [
+  "dep:serde",
+  "dep:probly-search",
+  "dep:unicode-segmentation",
+  "dep:url",
+  "dep:vcard4",
 ]
 
 [dependencies]
@@ -31,3 +38,11 @@ uuid.workspace = true
 tracing.workspace = true
 indexmap.workspace = true
 tempfile.workspace = true
+typeshare.workspace = true
+
+# search
+serde = { workspace = true, optional = true }
+unicode-segmentation = { workspace = true, optional = true }
+probly-search = { workspace = true, optional = true }
+url  = { workspace = true, optional = true }
+vcard4 = { workspace = true, optional = true }

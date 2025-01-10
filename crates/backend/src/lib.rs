@@ -4,6 +4,8 @@ mod event_log;
 mod folder;
 mod gate_keeper;
 pub mod reducers;
+#[cfg(feature = "search")]
+pub mod search;
 
 pub use error::Error;
 

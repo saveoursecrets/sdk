@@ -19,11 +19,11 @@ files = [
   "dep:binary-stream",
 ]
 search = [
-  "sos-database/search",
-  "dep:probly-search",
-  "dep:unicode-segmentation",
-  "dep:url",
-  "dep:vcard4",
+  "sos-backend/search",
+  # "dep:probly-search",
+  # "dep:unicode-segmentation",
+  # "dep:url",
+  # "dep:vcard4",
 ]
 
 [dependencies]
@@ -57,10 +57,10 @@ tokio-util = { workspace = true, optional = true }
 age  = { workspace = true, optional = true }
 
 # search
-unicode-segmentation = { workspace = true, optional = true }
-probly-search = { workspace = true, optional = true }
-url  = { workspace = true, optional = true }
-vcard4 = { workspace = true, optional = true }
+# unicode-segmentation = { workspace = true, optional = true }
+# probly-search = { workspace = true, optional = true }
+# url  = { workspace = true, optional = true }
+# vcard4 = { workspace = true, optional = true }
 
 [build-dependencies]
 rustc_version.workspace = true
