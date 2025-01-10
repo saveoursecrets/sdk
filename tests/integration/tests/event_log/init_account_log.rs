@@ -1,6 +1,7 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
+use sos_backend::AccountEventLog;
 use sos_sdk::prelude::*;
 
 /// Tests lazy initialization of the account events log.
@@ -28,7 +29,8 @@ async fn event_log_init_account_log() -> Result<()> {
     account.sign_in(&key).await?;
 
     let account_events = account.paths().account_events();
-    let event_log = AccountEventLog::new_account(&account_events).await?;
+    let event_log =
+        AccountEventLog::new_file_system_account(&account_events).await?;
     let patch = event_log.diff_events(None).await?;
     let events = patch.into_events().await?;
     assert_eq!(1, events.len());

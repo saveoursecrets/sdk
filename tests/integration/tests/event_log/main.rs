@@ -1,7 +1,10 @@
 use anyhow::Result;
 use binary_stream::futures::{Decodable, Encodable};
-use sos_core::{commit::CommitHash, events::LogEvent};
-use sos_sdk::{events::DiscEventLog, events::EventLog};
+use sos_backend::BackendEventLog;
+use sos_core::{
+    commit::CommitHash,
+    events::{EventLog, LogEvent},
+};
 
 mod account_events;
 mod change_password;
@@ -20,7 +23,7 @@ pub use sos_test_utils as test_utils;
 async fn last_log_event<
     T: LogEvent + Encodable + Decodable + Default + Send + Sync + 'static,
 >(
-    event_log: &mut DiscEventLog<T>,
+    event_log: &mut BackendEventLog<T>,
     commit: Option<&CommitHash>,
 ) -> Result<Option<T>> {
     let patch = event_log.diff_events(commit).await?;
@@ -32,7 +35,7 @@ async fn last_log_event<
 async fn all_events<
     T: LogEvent + Encodable + Decodable + Default + Send + Sync + 'static,
 >(
-    event_log: &mut DiscEventLog<T>,
+    event_log: &mut BackendEventLog<T>,
 ) -> Result<Vec<T>> {
     let patch = event_log.diff_events(None).await?;
     Ok(patch.into_events().await?)

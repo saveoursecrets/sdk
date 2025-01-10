@@ -1,10 +1,11 @@
 use anyhow::Result;
 use secrecy::ExposeSecret;
+use sos_backend::reducers::FolderReducer;
+use sos_backend::FolderEventLog;
 use sos_core::{
-    crypto::PrivateKey, decode, SecretId, VaultCommit, VaultEntry,
+    crypto::PrivateKey, decode, events::EventLog, SecretId, VaultCommit,
+    VaultEntry,
 };
-use sos_filesystem::events::{EventLog, FolderEventLog};
-use sos_filesystem::folder::FolderReducer;
 use sos_test_utils::mock;
 use sos_vault::{
     secret::{Secret, SecretMeta},
@@ -73,7 +74,8 @@ async fn event_log_reduce_compact() -> Result<()> {
     assert_eq!(2, events.len());
 
     let compact_temp = NamedTempFile::new()?;
-    let mut compact = FolderEventLog::new(compact_temp.path()).await?;
+    let mut compact =
+        FolderEventLog::new_file_system_folder(compact_temp.path()).await?;
     for event in events {
         compact.apply(vec![&event]).await?;
     }
@@ -94,7 +96,8 @@ async fn mock_event_log_file(
     let (_, mut vault) = mock::vault_file().await?;
 
     let temp = NamedTempFile::new()?;
-    let mut event_log = FolderEventLog::new(temp.path()).await?;
+    let mut event_log =
+        FolderEventLog::new_file_system_folder(temp.path()).await?;
 
     // Create the vault
     let event = vault.into_event().await?;

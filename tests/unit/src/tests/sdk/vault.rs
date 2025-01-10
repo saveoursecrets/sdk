@@ -1,7 +1,7 @@
 use anyhow::Result;
 use secrecy::ExposeSecret;
+use sos_backend::BackendGateKeeper;
 use sos_core::{crypto::AccessKey, decode, encode, SecretId};
-use sos_filesystem::FileSystemGateKeeper;
 use sos_password::diceware::generate_passphrase;
 use sos_test_utils::mock;
 use sos_vault::{secret::*, *};
@@ -83,7 +83,7 @@ async fn vault_shared_folder_writable() -> Result<()> {
         .await?;
 
     // Owner adds a secret
-    let mut keeper = FileSystemGateKeeper::new(vault);
+    let mut keeper = BackendGateKeeper::new_vault(vault);
     let key = AccessKey::Identity(owner.clone());
     keeper.unlock(&key).await?;
     let (meta, secret, _, _) =
@@ -100,7 +100,7 @@ async fn vault_shared_folder_writable() -> Result<()> {
     let encoded = encode(&vault).await?;
     let vault: Vault = decode(&encoded).await?;
 
-    let mut keeper_1 = FileSystemGateKeeper::new(vault);
+    let mut keeper_1 = BackendGateKeeper::new_vault(vault);
     let key = AccessKey::Identity(other_1.clone());
     keeper_1.unlock(&key).await?;
     if let Some((read_meta, read_secret, _)) =
@@ -124,7 +124,7 @@ async fn vault_shared_folder_writable() -> Result<()> {
     let vault: Vault = keeper_1.into();
 
     // Check the owner can see the updated secret
-    let mut keeper = FileSystemGateKeeper::new(vault);
+    let mut keeper = BackendGateKeeper::new_vault(vault);
     let key = AccessKey::Identity(owner.clone());
     keeper.unlock(&key).await?;
     if let Some((read_meta, read_secret, _)) = keeper.read_secret(&id).await?
@@ -155,7 +155,7 @@ async fn vault_shared_folder_readonly() -> Result<()> {
         .await?;
 
     // Owner adds a secret
-    let mut keeper = FileSystemGateKeeper::new(vault);
+    let mut keeper = BackendGateKeeper::new_vault(vault);
     let key = AccessKey::Identity(owner.clone());
     keeper.unlock(&key).await?;
     let (meta, secret, _, _) =
@@ -180,7 +180,7 @@ async fn vault_shared_folder_readonly() -> Result<()> {
     let encoded = encode(&vault).await?;
     let vault: Vault = decode(&encoded).await?;
 
-    let mut keeper_1 = FileSystemGateKeeper::new(vault);
+    let mut keeper_1 = BackendGateKeeper::new_vault(vault);
     let key = AccessKey::Identity(other_1.clone());
     keeper_1.unlock(&key).await?;
 
@@ -206,7 +206,7 @@ async fn vault_shared_folder_readonly() -> Result<()> {
         .await;
     assert!(matches!(
         result,
-        Err(sos_filesystem::Error::Vault(Error::PermissionDenied))
+        Err(sos_backend::Error::Vault(Error::PermissionDenied))
     ));
 
     // Trying to create a secret is also denied
@@ -216,14 +216,14 @@ async fn vault_shared_folder_readonly() -> Result<()> {
     let result = keeper_1.create_secret(&secret_data).await;
     assert!(matches!(
         result,
-        Err(sos_filesystem::Error::Vault(Error::PermissionDenied))
+        Err(sos_backend::Error::Vault(Error::PermissionDenied))
     ));
 
     // Trying to delete a secret is also denied
     let result = keeper_1.delete_secret(&id).await;
     assert!(matches!(
         result,
-        Err(sos_filesystem::Error::Vault(Error::PermissionDenied))
+        Err(sos_backend::Error::Vault(Error::PermissionDenied))
     ));
 
     Ok(())

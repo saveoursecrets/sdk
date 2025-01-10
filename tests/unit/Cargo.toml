@@ -15,6 +15,7 @@ xclipboard.workspace = true
 
 sos-account = { workspace = true, features = ["full"] }
 sos-artifact.workspace = true
+sos-backend.workspace = true
 sos-backup-archive = { workspace = true, features = ["full"] }
 sos-core.workspace = true
 sos-client-storage = { workspace = true, features = ["full"] }

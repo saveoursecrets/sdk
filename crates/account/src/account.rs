@@ -2172,8 +2172,6 @@ impl Account for LocalAccount {
         summary: &Summary,
         commit: CommitHash,
     ) -> Result<DetachedView> {
-        use sos_filesystem::FileSystemGateKeeper;
-
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
 
         let storage = self.storage.as_ref().ok_or(StorageError::NoStorage)?;

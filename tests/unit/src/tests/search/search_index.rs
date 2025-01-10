@@ -1,4 +1,4 @@
-use sos_database::search::*;
+use sos_backend::search::*;
 use sos_sdk::vault::secret::{Secret, SecretMeta, SecretType};
 use uuid::Uuid;
 

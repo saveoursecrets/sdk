@@ -1,7 +1,7 @@
 use super::create_secure_note;
 use anyhow::Result;
 use sos_database::VaultDatabaseWriter;
-use sos_filesystem::VaultFileWriter;
+use sos_filesystem::{Error, VaultFileWriter};
 use sos_sdk::prelude::*;
 use sos_test_utils::mock;
 use uuid::Uuid;
@@ -11,7 +11,7 @@ use uuid::Uuid;
 async fn vault_access_filesystem() -> Result<()> {
     let (encryption_key, _, _) = mock::encryption_key()?;
     let (temp, vault) = mock::vault_file().await?;
-    let mut vault_access = VaultFileWriter::new(temp.path()).await?;
+    let mut vault_access = VaultFileWriter::<Error>::new(temp.path()).await?;
     test_vault_access(&mut vault_access, vault, &encryption_key).await?;
     temp.close()?;
     Ok(())

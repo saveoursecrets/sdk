@@ -1,15 +1,13 @@
 use anyhow::Result;
 use secrecy::SecretString;
+use sos_backend::BackendGateKeeper;
 use sos_core::SecretId;
-use sos_filesystem::FileSystemGateKeeper;
-use sos_sdk::{
-    constants::DEFAULT_VAULT_NAME,
-    crypto::AccessKey,
-    events::WriteEvent,
-    vault::{
-        secret::{Secret, SecretMeta, SecretRow},
-        BuilderCredentials, VaultBuilder,
-    },
+use sos_core::{
+    constants::DEFAULT_VAULT_NAME, crypto::AccessKey, events::WriteEvent,
+};
+use sos_vault::{
+    secret::{Secret, SecretMeta, SecretRow},
+    BuilderCredentials, Keeper, VaultBuilder,
 };
 
 #[tokio::test]
@@ -24,7 +22,7 @@ async fn gatekeeper_secret_note() -> Result<()> {
         .build(BuilderCredentials::Password(passphrase.clone(), None))
         .await?;
 
-    let mut keeper = FileSystemGateKeeper::new(vault);
+    let mut keeper = BackendGateKeeper::new_vault(vault);
     let key: AccessKey = passphrase.into();
     keeper.unlock(&key).await?;
 
@@ -73,7 +71,7 @@ async fn gatekeeper_secret_account() -> Result<()> {
         .build(BuilderCredentials::Password(passphrase.clone(), None))
         .await?;
 
-    let mut keeper = FileSystemGateKeeper::new(vault);
+    let mut keeper = BackendGateKeeper::new_vault(vault);
     let key: AccessKey = passphrase.into();
     keeper.unlock(&key).await?;
 

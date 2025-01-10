@@ -29,7 +29,7 @@ sos-signer.workspace = true
 sos-sync = { workspace = true, features = ["full"] }
 sos-net = { workspace = true, features = ["full"] }
 sos-server = { workspace = true, features = ["listen", "audit", "pairing"] }
-
+sos-vault.workspace = true
 sos-sdk = { workspace = true, features = ["full"] }
 
 tokio = { workspace = true, features = ["rt-multi-thread"] }

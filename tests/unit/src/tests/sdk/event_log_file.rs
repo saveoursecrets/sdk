@@ -1,4 +1,6 @@
 use anyhow::Result;
+use futures::{pin_mut, StreamExt};
+use sos_backend::{AccountEventLog, FolderEventLog};
 use sos_sdk::prelude::*;
 use sos_test_utils::mock;
 use tempfile::NamedTempFile;
@@ -6,13 +8,15 @@ use tempfile::NamedTempFile;
 async fn mock_account_event_log() -> Result<(NamedTempFile, AccountEventLog)>
 {
     let temp = NamedTempFile::new()?;
-    let event_log = AccountEventLog::new_account(temp.path()).await?;
+    let event_log =
+        AccountEventLog::new_file_system_account(temp.path()).await?;
     Ok((temp, event_log))
 }
 
 async fn mock_folder_event_log() -> Result<(NamedTempFile, FolderEventLog)> {
     let temp = NamedTempFile::new()?;
-    let event_log = FolderEventLog::new(temp.path()).await?;
+    let event_log =
+        FolderEventLog::new_file_system_folder(temp.path()).await?;
     Ok((temp, event_log))
 }
 
@@ -55,11 +59,12 @@ async fn mock_event_log_file() -> Result<(NamedTempFile, FolderEventLog)> {
 #[tokio::test]
 async fn folder_event_log_iter_forward() -> Result<()> {
     let (temp, event_log) = mock_event_log_file().await?;
-    let mut it = event_log.iter(false).await?;
-    assert!(it.next().await?.is_some());
-    assert!(it.next().await?.is_some());
-    assert!(it.next().await?.is_some());
-    assert!(it.next().await?.is_none());
+    let stream = event_log.stream(false).await;
+    pin_mut!(stream);
+    assert!(stream.next().await.is_some());
+    assert!(stream.next().await.is_some());
+    assert!(stream.next().await.is_some());
+    assert!(stream.next().await.is_none());
     temp.close()?;
     Ok(())
 }
@@ -67,11 +72,12 @@ async fn folder_event_log_iter_forward() -> Result<()> {
 #[tokio::test]
 async fn folder_event_log_iter_backward() -> Result<()> {
     let (temp, event_log) = mock_event_log_file().await?;
-    let mut it = event_log.iter(true).await?;
-    assert!(it.next().await?.is_some());
-    assert!(it.next().await?.is_some());
-    assert!(it.next().await?.is_some());
-    assert!(it.next().await?.is_none());
+    let stream = event_log.stream(true).await;
+    pin_mut!(stream);
+    assert!(stream.next().await.is_some());
+    assert!(stream.next().await.is_some());
+    assert!(stream.next().await.is_some());
+    assert!(stream.next().await.is_none());
     temp.close()?;
     Ok(())
 }

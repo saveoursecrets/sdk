@@ -2,6 +2,7 @@ use super::all_events;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
+use sos_backend::{AccountEventLog, FolderEventLog};
 use sos_sdk::prelude::*;
 
 /// Tests events after moving a folder between accounts.
@@ -71,7 +72,8 @@ async fn event_log_move_folder() -> Result<()> {
         .await?;
 
     let account_events = account2.paths().account_events();
-    let mut event_log = AccountEventLog::new_account(&account_events).await?;
+    let mut event_log =
+        AccountEventLog::new_file_system_account(&account_events).await?;
     let events = all_events(&mut event_log).await?;
     // The account should have two create folder events now,
     // one for the default folder and one for the imported folder
@@ -91,7 +93,8 @@ async fn event_log_move_folder() -> Result<()> {
 
     // Check the folder event log
     let folder_events = account2.paths().event_log_path(&folder_id);
-    let mut event_log = FolderEventLog::new(&folder_events).await?;
+    let mut event_log =
+        FolderEventLog::new_file_system_folder(&folder_events).await?;
     let events = all_events(&mut event_log).await?;
     // Should have the create vault and 3 create secret events
     assert_eq!(4, events.len());

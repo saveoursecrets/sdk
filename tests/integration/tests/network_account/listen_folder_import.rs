@@ -5,6 +5,7 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
 use sos_sdk::prelude::*;
+use sos_vault::Keeper;
 
 /// Tests syncing update folder events between two clients
 /// where the second client listens for changes emitted

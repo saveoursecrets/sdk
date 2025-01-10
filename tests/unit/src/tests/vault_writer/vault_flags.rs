@@ -1,13 +1,13 @@
 use anyhow::Result;
 use sos_database::VaultDatabaseWriter;
-use sos_filesystem::VaultFileWriter;
+use sos_filesystem::{Error, VaultFileWriter};
 use sos_sdk::prelude::*;
 use sos_test_utils::mock;
 
 #[tokio::test]
 async fn vault_flags_filesystem() -> Result<()> {
     let (temp, _) = mock::vault_file().await?;
-    let mut vault_access = VaultFileWriter::new(temp.path()).await?;
+    let mut vault_access = VaultFileWriter::<Error>::new(temp.path()).await?;
     test_vault_flags(&mut vault_access).await?;
     temp.close()?;
     Ok(())

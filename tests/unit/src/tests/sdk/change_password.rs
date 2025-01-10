@@ -1,7 +1,8 @@
 use anyhow::Result;
-use sos_filesystem::FileSystemGateKeeper;
+use sos_backend::BackendGateKeeper;
 use sos_sdk::prelude::*;
 use sos_test_utils::*;
+use sos_vault::Keeper;
 
 #[tokio::test]
 async fn change_password() -> Result<()> {
@@ -10,7 +11,7 @@ async fn change_password() -> Result<()> {
         .build(BuilderCredentials::Password(current_key.clone(), None))
         .await?;
 
-    let mut keeper = FileSystemGateKeeper::new(mock_vault);
+    let mut keeper = BackendGateKeeper::new_vault(mock_vault);
     let key: AccessKey = current_key.clone().into();
     keeper.unlock(&key).await?;
 

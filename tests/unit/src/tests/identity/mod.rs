@@ -1,12 +1,11 @@
 use anyhow::Result;
+use sos_backend::BackendGateKeeper;
 use sos_core::AccountId;
-use sos_filesystem::FileSystemGateKeeper;
+use sos_core::{crypto::AccessKey, encode};
+use sos_login::DiscIdentityFolder;
 use sos_password::diceware::generate_passphrase;
-use sos_sdk::{
-    crypto::AccessKey,
-    encode,
-    identity::DiscIdentityFolder,
-    vault::{BuilderCredentials, Vault, VaultBuilder, VaultFlags},
+use sos_vault::{
+    BuilderCredentials, Keeper, Vault, VaultBuilder, VaultFlags,
 };
 use sos_vfs as vfs;
 use tempfile::NamedTempFile;
@@ -43,7 +42,7 @@ async fn no_identity_key() -> Result<()> {
         .build(BuilderCredentials::Password(password.clone(), None))
         .await?;
 
-    let mut keeper = FileSystemGateKeeper::new(vault);
+    let mut keeper = BackendGateKeeper::new_vault(vault);
     let key = password.clone().into();
     keeper.unlock(&key).await?;
 

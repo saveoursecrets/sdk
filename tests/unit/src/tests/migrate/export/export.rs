@@ -1,7 +1,9 @@
 use anyhow::Result;
+use sos_backend::BackendGateKeeper;
 use sos_migrate::export::PublicExport;
 use sos_sdk::prelude::*;
 use sos_test_utils::mock;
+use sos_vault::Keeper;
 use std::io::Cursor;
 use tokio::io::{AsyncSeek, AsyncWrite};
 
@@ -17,7 +19,7 @@ async fn create_mock_migration<W: AsyncWrite + AsyncSeek + Unpin>(
 
     let key: AccessKey = passphrase.into();
     let mut migration = PublicExport::new(writer);
-    let mut keeper = GateKeeper::new(vault);
+    let mut keeper = BackendGateKeeper::new_vault(vault);
     keeper.unlock(&key).await?;
 
     let (meta, secret, _, _) =

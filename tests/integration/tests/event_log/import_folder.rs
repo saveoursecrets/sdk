@@ -2,6 +2,7 @@ use super::last_log_event;
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
+use sos_backend::AccountEventLog;
 use sos_sdk::prelude::*;
 
 /// Tests the update folder event when importing a folder
@@ -44,7 +45,8 @@ async fn event_log_import_folder() -> Result<()> {
         .await?;
 
     let account_events = account.paths().account_events();
-    let mut event_log = AccountEventLog::new_account(&account_events).await?;
+    let mut event_log =
+        AccountEventLog::new_file_system_account(&account_events).await?;
 
     // Import overwriting the existing data
     let commit = event_log.tree().last_commit();
