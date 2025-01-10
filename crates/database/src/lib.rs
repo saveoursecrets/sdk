@@ -19,6 +19,7 @@ pub use vault_writer::VaultDatabaseWriter;
 pub mod files;
 
 mod error;
+pub use async_sqlite;
 pub use error::{Error, StorageError};
 
 /// Result type for the library.

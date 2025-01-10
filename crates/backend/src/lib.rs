@@ -6,6 +6,7 @@ mod folder;
 pub mod reducers;
 #[cfg(feature = "search")]
 pub mod search;
+mod vault_writer;
 
 pub use error::Error;
 
@@ -17,6 +18,7 @@ pub use event_log::{
 };
 pub use event_log::{BackendEventLog, BackendFolderEventLog};
 pub use folder::Folder;
+pub use vault_writer::VaultWriter;
 
 #[cfg(feature = "files")]
 pub use event_log::BackendFileEventLog as FileEventLog;

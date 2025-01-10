@@ -9,14 +9,12 @@
 use crate::device::DeviceManager;
 use crate::{DiscIdentityFolder, Error, PublicIdentity, Result};
 use secrecy::SecretString;
-use sos_core::constants::VAULT_EXT;
 use sos_core::{
     crypto::AccessKey, decode, events::Event, AccountId, Paths, SecretId,
     VaultId,
 };
 use sos_vault::{
-    list_accounts, list_local_folders, read_public_identity, Header, Summary,
-    Vault,
+    list_accounts, list_local_folders, read_public_identity, Summary, Vault,
 };
 use sos_vfs as vfs;
 use std::{

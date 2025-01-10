@@ -1,7 +1,7 @@
-//! Implements random access to a single vault file in the database.
+//! Write vault changes to a database.
 use crate::{
     db::{FolderEntity, FolderRecord},
-    Error, Result,
+    Error,
 };
 use async_sqlite::Client;
 use async_trait::async_trait;
@@ -12,27 +12,62 @@ use sos_core::{
     events::{ReadEvent, WriteEvent},
     SecretId, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
-use sos_vault::{Summary, Vault, EncryptedEntry};
+use sos_vault::{EncryptedEntry, Summary, Vault};
 use std::borrow::Cow;
 
 /// Write changes to a vault in the database.
-pub struct VaultDatabaseWriter {
+pub struct VaultDatabaseWriter<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<sos_vault::Error>
+        + From<Error>
+        + Send
+        + Sync
+        + 'static,
+{
     client: Client,
     folder_id: VaultId,
+    marker: std::marker::PhantomData<E>,
 }
 
-impl VaultDatabaseWriter {
+impl<E> VaultDatabaseWriter<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<sos_vault::Error>
+        + From<Error>
+        + Send
+        + Sync
+        + 'static,
+{
     /// Create a new vault database writer.
     pub async fn new(client: Client, folder_id: VaultId) -> Self {
-        Self { client, folder_id }
+        Self {
+            client,
+            folder_id,
+            marker: std::marker::PhantomData,
+        }
     }
 }
 
 #[async_trait]
-impl EncryptedEntry for VaultDatabaseWriter {
-    type Error = Error;
+impl<E> EncryptedEntry for VaultDatabaseWriter<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<sos_vault::Error>
+        + From<Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    type Error = E;
 
-    async fn summary(&self) -> Result<Summary> {
+    async fn summary(&self) -> Result<Summary, Self::Error> {
         let folder_id = self.folder_id.clone();
         let row = self
             .client
@@ -41,18 +76,22 @@ impl EncryptedEntry for VaultDatabaseWriter {
                 let row = folder.find_optional(&folder_id)?;
                 Ok(row)
             })
-            .await?;
+            .await
+            .map_err(Error::from)?;
         let row = row.ok_or(Error::DatabaseFolderNotFound(folder_id))?;
         let record: FolderRecord = row.try_into()?;
         Ok(record.summary)
     }
 
-    async fn vault_name(&self) -> Result<Cow<'_, str>> {
+    async fn vault_name(&self) -> Result<Cow<'_, str>, Self::Error> {
         let summary = self.summary().await?;
         Ok(Cow::Owned(summary.name().to_string()))
     }
 
-    async fn set_vault_name(&mut self, name: String) -> Result<WriteEvent> {
+    async fn set_vault_name(
+        &mut self,
+        name: String,
+    ) -> Result<WriteEvent, Self::Error> {
         let folder_id = self.folder_id.clone();
         let folder_name = name.clone();
         self.client
@@ -61,14 +100,15 @@ impl EncryptedEntry for VaultDatabaseWriter {
                 folder.update_name(&folder_id, &folder_name)?;
                 Ok(())
             })
-            .await?;
+            .await
+            .map_err(Error::from)?;
         Ok(WriteEvent::SetVaultName(name))
     }
 
     async fn set_vault_flags(
         &mut self,
         flags: VaultFlags,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, Self::Error> {
         let folder_id = self.folder_id.clone();
         let folder_flags = flags.bits().to_le_bytes();
         self.client
@@ -77,14 +117,15 @@ impl EncryptedEntry for VaultDatabaseWriter {
                 folder.update_flags(&folder_id, folder_flags.as_slice())?;
                 Ok(())
             })
-            .await?;
+            .await
+            .map_err(Error::from)?;
         Ok(WriteEvent::SetVaultFlags(flags))
     }
 
     async fn set_vault_meta(
         &mut self,
         meta_data: AeadPack,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, Self::Error> {
         let folder_id = self.folder_id.clone();
         let folder_meta = encode(&meta_data).await?;
         self.client
@@ -93,7 +134,8 @@ impl EncryptedEntry for VaultDatabaseWriter {
                 folder.update_meta(&folder_id, folder_meta.as_slice())?;
                 Ok(())
             })
-            .await?;
+            .await
+            .map_err(Error::from)?;
         Ok(WriteEvent::SetVaultMeta(meta_data))
     }
 
@@ -101,7 +143,7 @@ impl EncryptedEntry for VaultDatabaseWriter {
         &mut self,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, Self::Error> {
         self.insert_secret(SecretId::new_v4(), commit, secret).await
     }
 
@@ -110,7 +152,7 @@ impl EncryptedEntry for VaultDatabaseWriter {
         secret_id: SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<WriteEvent> {
+    ) -> Result<WriteEvent, Self::Error> {
         let folder_id = self.folder_id.clone();
         let VaultEntry(entry_meta, entry_secret) = &secret;
         let meta_blob = encode(entry_meta).await?;
@@ -127,7 +169,8 @@ impl EncryptedEntry for VaultDatabaseWriter {
                 )?;
                 Ok(())
             })
-            .await?;
+            .await
+            .map_err(Error::from)?;
         Ok(WriteEvent::CreateSecret(
             secret_id,
             VaultCommit(commit, secret),
@@ -137,7 +180,7 @@ impl EncryptedEntry for VaultDatabaseWriter {
     async fn read_secret<'a>(
         &'a self,
         secret_id: &SecretId,
-    ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)> {
+    ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent), Self::Error> {
         let folder_id = self.folder_id.clone();
         let folder_secret_id = *secret_id;
         let secret_row = self
@@ -146,11 +189,14 @@ impl EncryptedEntry for VaultDatabaseWriter {
                 let folder = FolderEntity::new(&conn);
                 Ok(folder.find_secret(&folder_id, &folder_secret_id)?)
             })
-            .await?;
+            .await
+            .map_err(Error::from)?;
 
         let event = ReadEvent::ReadSecret(*secret_id);
         if let Some(row) = secret_row {
-            let commit_hash = CommitHash(row.commit.as_slice().try_into()?);
+            let commit_hash = CommitHash(
+                row.commit.as_slice().try_into().map_err(Error::from)?,
+            );
             let meta: AeadPack = decode(&row.meta).await?;
             let secret: AeadPack = decode(&row.secret).await?;
             let entry = VaultEntry(meta, secret);
@@ -166,7 +212,7 @@ impl EncryptedEntry for VaultDatabaseWriter {
         secret_id: &SecretId,
         commit: CommitHash,
         secret: VaultEntry,
-    ) -> Result<Option<WriteEvent>> {
+    ) -> Result<Option<WriteEvent>, Self::Error> {
         let folder_id = self.folder_id.clone();
         let folder_secret_id = *secret_id;
         let VaultEntry(entry_meta, entry_secret) = &secret;
@@ -184,7 +230,8 @@ impl EncryptedEntry for VaultDatabaseWriter {
                     secret_blob.as_slice(),
                 )?)
             })
-            .await?;
+            .await
+            .map_err(Error::from)?;
         Ok(updated.then_some(WriteEvent::UpdateSecret(
             *secret_id,
             VaultCommit(commit, secret),
@@ -194,7 +241,7 @@ impl EncryptedEntry for VaultDatabaseWriter {
     async fn delete_secret(
         &mut self,
         secret_id: &SecretId,
-    ) -> Result<Option<WriteEvent>> {
+    ) -> Result<Option<WriteEvent>, Self::Error> {
         let folder_id = self.folder_id.clone();
         let folder_secret_id = *secret_id;
         let deleted = self
@@ -203,11 +250,15 @@ impl EncryptedEntry for VaultDatabaseWriter {
                 let folder = FolderEntity::new(&conn);
                 Ok(folder.delete_secret(&folder_id, &folder_secret_id)?)
             })
-            .await?;
+            .await
+            .map_err(Error::from)?;
         Ok(deleted.then_some(WriteEvent::DeleteSecret(*secret_id)))
     }
 
-    async fn replace_vault(&mut self, vault: &Vault) -> Result<()> {
+    async fn replace_vault(
+        &mut self,
+        vault: &Vault,
+    ) -> Result<(), Self::Error> {
         let folder_id = self.folder_id.clone();
 
         let mut insert_secrets = Vec::new();
@@ -243,7 +294,8 @@ impl EncryptedEntry for VaultDatabaseWriter {
                 tx.commit()?;
                 Ok(())
             })
-            .await?;
+            .await
+            .map_err(Error::from)?;
         Ok(())
     }
 }

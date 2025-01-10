@@ -1,4 +1,4 @@
-//! Implements random access to a single vault file on disc.
+//! Write vault changes to a file on disc.
 use async_trait::async_trait;
 use binary_stream::futures::{stream_length, BinaryReader, BinaryWriter};
 use futures::io::{BufWriter, Cursor};
@@ -10,7 +10,7 @@ use sos_core::{
     events::{ReadEvent, WriteEvent},
     SecretId, VaultCommit, VaultEntry, VaultFlags,
 };
-use sos_vault::{Contents, Header, Summary, Vault, EncryptedEntry};
+use sos_vault::{Contents, EncryptedEntry, Header, Summary, Vault};
 use sos_vfs::{self as vfs, File, OpenOptions};
 use std::{
     borrow::Cow,
