@@ -10,7 +10,8 @@ use crate::device::{DeviceManager, DeviceSigner};
 use crate::{Error, PrivateIdentity, Result, UrnLookup};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use sos_backend::Folder;
-use sos_backend::{BackendFolderEventLog, BackendAccessPoint};
+use sos_backend::VaultWriter;
+use sos_backend::{BackendAccessPoint, BackendFolderEventLog};
 use sos_core::{
     constants::LOGIN_AGE_KEY_URN,
     crypto::{AccessKey, KeyDerivation},
@@ -21,7 +22,8 @@ use sos_password::diceware::generate_passphrase_words;
 use sos_signer::ed25519;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow, SecretSigner},
-    BuilderCredentials, SecretAccess, Vault, VaultBuilder, VaultFlags, VaultId,
+    BuilderCredentials, SecretAccess, Vault, VaultBuilder, VaultFlags,
+    VaultId,
 };
 use sos_vfs as vfs;
 use std::{
@@ -152,7 +154,7 @@ impl IdentityFolder {
             .await?
             .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
-        let mirror = VaultFileWriter::new(&device_vault_path).await?;
+        let mirror = VaultWriter::new_fs(&device_vault_path).await?;
         let mut device_keeper =
             FileSystemAccessPoint::new_mirror(vault, Box::new(mirror));
         let key: AccessKey = device_password.into();
@@ -224,7 +226,7 @@ impl IdentityFolder {
         let mut device_keeper = if mirror {
             let buffer = encode(&vault).await?;
             vfs::write_exclusive(&device_vault_path, &buffer).await?;
-            let mirror = VaultFileWriter::new(&device_vault_path).await?;
+            let mirror = VaultWriter::new_fs(&device_vault_path).await?;
             FileSystemAccessPoint::new_mirror(vault, Box::new(mirror))
         } else {
             FileSystemAccessPoint::new(vault)

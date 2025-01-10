@@ -4,6 +4,7 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
 use sos_backend::reducers::DeviceReducer;
+use sos_backend::VaultWriter;
 use sos_backend::{
     reducers::FolderReducer, AccountEventLog, DeviceEventLog, FileEventLog,
     FolderEventLog,
@@ -19,12 +20,11 @@ use sos_core::{
     },
     VaultId,
 };
-use sos_filesystem::VaultFileWriter;
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
     SyncStorage, TrackedChanges,
 };
-use sos_vault::{Header, Summary, EncryptedEntry};
+use sos_vault::{EncryptedEntry, Header, Summary};
 use sos_vfs as vfs;
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
@@ -251,8 +251,7 @@ impl Merge for ServerFileStorage {
                     }
                     AccountEvent::RenameAccount(name) => {
                         let path = self.paths.identity_vault();
-                        let mut file =
-                            VaultFileWriter::<Error>::new(path).await?;
+                        let mut file = VaultWriter::new_fs(path).await?;
                         file.set_vault_name(name.to_owned()).await?;
                     }
                     AccountEvent::UpdateIdentity(_) => {
@@ -413,8 +412,7 @@ impl Merge for ServerFileStorage {
             for event in events {
                 if let WriteEvent::SetVaultFlags(flags) = event {
                     let path = self.paths.vault_path(folder_id);
-                    let mut writer =
-                        VaultFileWriter::<Error>::new(path).await?;
+                    let mut writer = VaultWriter::new_fs(path).await?;
                     writer.set_vault_flags(flags).await?;
                 }
             }

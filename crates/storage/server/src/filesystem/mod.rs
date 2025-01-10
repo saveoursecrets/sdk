@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::reducers::DeviceReducer;
 use sos_backend::reducers::FolderReducer;
+use sos_backend::VaultWriter;
 use sos_backend::{
     AccountEventLog, DeviceEventLog, FileEventLog, FolderEventLog,
 };
@@ -16,9 +17,8 @@ use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
     encode, AccountId, Paths, VaultId,
 };
-use sos_filesystem::VaultFileWriter;
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
-use sos_vault::{Header, Summary, Vault, EncryptedEntry};
+use sos_vault::{EncryptedEntry, Header, Summary, Vault};
 use sos_vfs as vfs;
 use std::collections::HashSet;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
@@ -407,7 +407,7 @@ impl ServerAccountStorage for ServerFileStorage {
     ) -> Result<()> {
         // Update the vault on disc
         let vault_path = self.paths.vault_path(id);
-        let mut access = VaultFileWriter::<Error>::new(vault_path).await?;
+        let mut access = VaultWriter::new_fs(vault_path).await?;
         access.set_vault_name(name.to_owned()).await?;
 
         #[cfg(feature = "audit")]

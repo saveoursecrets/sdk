@@ -4,6 +4,7 @@ use crate::{
     NetworkAccount,
 };
 use sos_account::Account;
+use sos_backend::VaultWriter;
 use sos_backend::{
     reducers::FolderReducer, AccountEventLog, DeviceEventLog, FolderEventLog,
 };
@@ -17,7 +18,6 @@ use sos_core::{
     },
     AccountId, Origin, VaultId,
 };
-use sos_filesystem::VaultFileWriter;
 use sos_protocol::{network_client::HttpClient, SyncClient};
 use sos_sdk::{
     device::DeviceSigner,
@@ -126,7 +126,7 @@ impl DeviceEnrollment {
         // of the identity vault
         if let Some(account_name) = self.account_name.take() {
             let path = self.paths.identity_vault();
-            let mut file = VaultFileWriter::<Error>::new(&path).await?;
+            let mut file = VaultWriter::new_fs(&path).await?;
             file.set_vault_name(account_name).await?;
         }
 
