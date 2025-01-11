@@ -80,7 +80,7 @@ where
         table: EventTable,
         account_id: i64,
         events: Vec<EventSourceRow>,
-    ) -> Result<(), SqlError> {
+    ) -> Result<Vec<i64>, SqlError> {
         let stmt = match table {
             EventTable::AccountEvents => {
                 self.conn.prepare_cached(&format!(
@@ -121,7 +121,7 @@ where
                 "file_events"
             ))?,
         };
-        create_events(stmt, account_id, events)
+        self.create_events(stmt, account_id, events)
     }
 
     /// Create account events in the database.
@@ -129,7 +129,7 @@ where
         &self,
         account_id: i64,
         events: Vec<EventSourceRow>,
-    ) -> Result<(), SqlError> {
+    ) -> Result<Vec<i64>, SqlError> {
         self.insert_events(EventTable::AccountEvents, account_id, events)
     }
 
@@ -138,7 +138,7 @@ where
         &self,
         folder_id: i64,
         events: Vec<EventSourceRow>,
-    ) -> Result<(), SqlError> {
+    ) -> Result<Vec<i64>, SqlError> {
         self.insert_events(EventTable::FolderEvents, folder_id, events)
     }
 
@@ -147,7 +147,7 @@ where
         &self,
         account_id: i64,
         events: Vec<EventSourceRow>,
-    ) -> Result<(), SqlError> {
+    ) -> Result<Vec<i64>, SqlError> {
         self.insert_events(EventTable::DeviceEvents, account_id, events)
     }
 
@@ -156,7 +156,7 @@ where
         &self,
         account_id: i64,
         events: Vec<EventSourceRow>,
-    ) -> Result<(), SqlError> {
+    ) -> Result<Vec<i64>, SqlError> {
         self.insert_events(EventTable::FileEvents, account_id, events)
     }
 
@@ -290,20 +290,23 @@ where
         };
         Ok(stmt.execute([id])?)
     }
-}
 
-fn create_events(
-    mut stmt: CachedStatement<'_>,
-    id: i64,
-    events: Vec<EventSourceRow>,
-) -> Result<(), SqlError> {
-    for (time, record) in events {
-        stmt.execute((
-            &id,
-            time,
-            record.commit().as_ref(),
-            record.event_bytes(),
-        ))?;
+    fn create_events(
+        &self,
+        mut stmt: CachedStatement<'_>,
+        id: i64,
+        events: Vec<EventSourceRow>,
+    ) -> Result<Vec<i64>, SqlError> {
+        let mut ids = Vec::new();
+        for (time, record) in events {
+            stmt.execute((
+                &id,
+                time,
+                record.commit().as_ref(),
+                record.event_bytes(),
+            ))?;
+            ids.push(self.conn.last_insert_rowid());
+        }
+        Ok(ids)
     }
-    Ok(())
 }

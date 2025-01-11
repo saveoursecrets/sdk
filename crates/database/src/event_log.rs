@@ -12,6 +12,7 @@ use binary_stream::futures::{Decodable, Encodable};
 use futures::stream::BoxStream;
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree},
+    encode,
     events::{
         patch::{CheckedPatch, Diff, Patch},
         AccountEvent, DeviceEvent, EventLog, EventRecord, WriteEvent,
@@ -321,7 +322,41 @@ where
         &mut self,
         records: Vec<EventRecord>,
     ) -> Result<(), Self::Error> {
-        todo!();
+        let table = self.table.clone();
+        let account_id = self.account_id.clone();
+
+        let mut insert_rows = Vec::new();
+        let mut commits = Vec::new();
+        let mut last_commit_hash = self.tree().last_commit();
+        for mut record in records {
+            record.set_last_commit(last_commit_hash);
+            commits.push(*record.commit());
+            last_commit_hash = Some(*record.commit());
+            insert_rows.push((record.time().to_rfc3339()?, record));
+        }
+
+        // Insert into the database.
+        let mut ids = self
+            .client
+            .conn(move |conn| {
+                let events = EventEntity::new(&conn);
+                let ids =
+                    events.insert_events(table, account_id, insert_rows)?;
+                Ok(ids)
+            })
+            .await
+            .map_err(Error::from)?;
+
+        // Update the in-memory merkle tree
+        let mut hashes =
+            commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
+        self.tree.append(&mut hashes);
+        self.tree.commit();
+
+        // Update row id cache (used for iteration)
+        self.ids.append(&mut ids);
+
+        Ok(())
     }
 
     async fn patch_checked(
