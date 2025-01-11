@@ -178,41 +178,6 @@ where
         &self.tree
     }
 
-    fn identity(&self) -> &'static [u8] {
-        self.identity
-    }
-
-    fn version(&self) -> Option<u16> {
-        self.version
-    }
-
-    async fn truncate(&mut self) -> StdResult<(), Self::Error> {
-        use tokio::io::{
-            AsyncSeekExt as TokioAsyncSeekExt,
-            AsyncWriteExt as TokioAsyncWriteExt,
-        };
-        let _ = self.file.lock().await;
-
-        // Workaround for set_len(0) failing with "Access Denied" on Windows
-        // SEE: https://github.com/rust-lang/rust/issues/105437
-        let mut file = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .open(&self.data)
-            .await?;
-
-        file.seek(SeekFrom::Start(0)).await?;
-
-        let mut guard = vfs::lock_write(file).await?;
-        guard.write_all(self.identity).await?;
-        if let Some(version) = self.version() {
-            guard.write_all(&version.to_le_bytes()).await?;
-        }
-        guard.flush().await?;
-
-        Ok(())
-    }
-
     async fn rewind(
         &mut self,
         commit: &CommitHash,
@@ -480,10 +445,10 @@ where
 
     #[doc(hidden)]
     async fn read_file_version(&self) -> StdResult<u16, Self::Error> {
-        if self.version().is_some() {
+        if self.version.is_some() {
             let rw = self.file();
             let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.0);
-            file.seek(SeekFrom::Start(self.identity().len() as u64))
+            file.seek(SeekFrom::Start(self.identity.len() as u64))
                 .await?;
             let mut buf = [0; 2];
             file.read_exact(&mut buf).await?;
@@ -514,6 +479,33 @@ where
     /// Path to the event log file.
     pub fn file_path(&self) -> &PathBuf {
         &self.data
+    }
+
+    async fn truncate(&mut self) -> StdResult<(), E> {
+        use tokio::io::{
+            AsyncSeekExt as TokioAsyncSeekExt,
+            AsyncWriteExt as TokioAsyncWriteExt,
+        };
+        let _ = self.file.lock().await;
+
+        // Workaround for set_len(0) failing with "Access Denied" on Windows
+        // SEE: https://github.com/rust-lang/rust/issues/105437
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&self.data)
+            .await?;
+
+        file.seek(SeekFrom::Start(0)).await?;
+
+        let mut guard = vfs::lock_write(file).await?;
+        guard.write_all(self.identity).await?;
+        if let Some(version) = self.version {
+            guard.write_all(&version.to_le_bytes()).await?;
+        }
+        guard.flush().await?;
+
+        Ok(())
     }
 
     /// Read the event data from an item.
@@ -563,8 +555,8 @@ where
     /// encoding version.
     #[doc(hidden)]
     fn header_len(&self) -> usize {
-        let mut len = self.identity().len();
-        if self.version().is_some() {
+        let mut len = self.identity.len();
+        if self.version.is_some() {
             len += (u16::BITS / 8) as usize;
         }
         len

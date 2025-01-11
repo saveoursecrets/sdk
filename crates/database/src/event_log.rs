@@ -78,18 +78,6 @@ where
         &self.tree
     }
 
-    fn identity(&self) -> &'static [u8] {
-        todo!();
-    }
-
-    fn version(&self) -> Option<u16> {
-        todo!();
-    }
-
-    async fn truncate(&mut self) -> Result<(), Self::Error> {
-        todo!();
-    }
-
     async fn rewind(
         &mut self,
         commit: &CommitHash,

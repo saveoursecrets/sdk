@@ -139,6 +139,7 @@ where
         }
     }
 
+    /*
     fn identity(&self) -> &'static [u8] {
         match self {
             Self::Database(inner) => inner.identity(),
@@ -152,13 +153,16 @@ where
             Self::FileSystem(inner) => inner.version(),
         }
     }
+    */
 
+    /*
     async fn truncate(&mut self) -> Result<(), Self::Error> {
         match self {
             Self::Database(inner) => inner.truncate().await,
             Self::FileSystem(inner) => inner.truncate().await,
         }
     }
+    */
 
     async fn rewind(
         &mut self,
