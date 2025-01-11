@@ -5,6 +5,8 @@
 #[cfg(feature = "sqlite")]
 pub mod db;
 #[cfg(feature = "sqlite")]
+pub mod event_log;
+#[cfg(feature = "sqlite")]
 pub mod importer;
 #[cfg(feature = "sqlite")]
 pub mod migrations;
@@ -12,6 +14,8 @@ pub mod migrations;
 #[cfg(feature = "sqlite")]
 mod vault_writer;
 
+#[cfg(feature = "sqlite")]
+pub use event_log::DatabaseEventLog;
 #[cfg(feature = "sqlite")]
 pub use vault_writer::VaultDatabaseWriter;
 

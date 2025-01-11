@@ -5050,6 +5050,7 @@ version = "0.16.0"
 dependencies = [
  "async-sqlite",
  "async-trait",
+ "binary-stream",
  "futures",
  "indexmap 2.7.0",
  "refinery",
