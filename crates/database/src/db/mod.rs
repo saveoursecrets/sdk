@@ -9,9 +9,9 @@ mod import;
 mod preference;
 mod server;
 
-pub use account::AccountEntity;
+pub use account::{AccountEntity, AccountRecord};
 pub use audit::AuditEntity;
-pub use event::{CommitRecord, EventEntity};
+pub use event::{CommitRecord, EventEntity, EventTable};
 #[cfg(feature = "files")]
 pub use file::FileEntity;
 pub use folder::{FolderEntity, FolderRecord};

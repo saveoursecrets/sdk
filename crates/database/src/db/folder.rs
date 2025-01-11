@@ -43,6 +43,18 @@ impl<'a> TryFrom<&Row<'a>> for FolderRow {
     }
 }
 
+/// Folder record from the database.
+pub struct FolderRecord {
+    /// Row identifier.
+    pub row_id: i64,
+    /// Created date and time.
+    pub created_at: UtcDateTime,
+    /// Modified date and time.
+    pub modified_at: UtcDateTime,
+    /// Folder summary.
+    pub summary: Summary,
+}
+
 impl TryFrom<FolderRow> for FolderRecord {
     type Error = Error;
 
@@ -67,18 +79,6 @@ impl TryFrom<FolderRow> for FolderRecord {
             summary,
         })
     }
-}
-
-/// Folder record from the database.
-pub struct FolderRecord {
-    /// Row identifier.
-    pub row_id: i64,
-    /// Created date and time.
-    pub created_at: UtcDateTime,
-    /// Modified date and time.
-    pub modified_at: UtcDateTime,
-    /// Folder summary.
-    pub summary: Summary,
 }
 
 /// Secret row from the database.
@@ -148,6 +148,7 @@ where
     /// Find a folder in the database.
     pub fn find_one(
         &self,
+        // FIXME: require account_id?
         folder_id: &VaultId,
     ) -> StdResult<FolderRow, SqlError> {
         let mut stmt = self.find_folder_statement()?;
@@ -158,6 +159,7 @@ where
     /// Find an optional folder in the database.
     pub fn find_optional(
         &self,
+        // FIXME: require account_id?
         folder_id: &VaultId,
     ) -> StdResult<Option<FolderRow>, SqlError> {
         let mut stmt = self.find_folder_statement()?;

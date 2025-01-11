@@ -1,6 +1,9 @@
 //! Event log backed by a database table.
 use crate::{
-    db::{CommitRecord, EventEntity},
+    db::{
+        AccountEntity, AccountRecord, CommitRecord, EventEntity, EventTable,
+        FolderEntity, FolderRecord,
+    },
     Error,
 };
 use async_sqlite::Client;
@@ -13,7 +16,7 @@ use sos_core::{
         patch::{CheckedPatch, Diff, Patch},
         AccountEvent, DeviceEvent, EventLog, EventRecord, WriteEvent,
     },
-    VaultId,
+    AccountId, VaultId,
 };
 
 #[cfg(feature = "files")]
@@ -32,11 +35,54 @@ where
         + Sync
         + 'static,
 {
-    folder_id: VaultId,
+    account_id: i64,
+    folder_id: Option<i64>,
     client: Client,
     ids: Vec<i64>,
+    table: EventTable,
     tree: CommitTree,
     marker: std::marker::PhantomData<(T, E)>,
+}
+
+impl<T, E> DatabaseEventLog<T, E>
+where
+    T: Default + Encodable + Decodable + Send + Sync,
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    async fn lookup_account(
+        client: &Client,
+        account_id: AccountId,
+    ) -> Result<AccountRecord, Error> {
+        let account = client
+            .conn(move |conn| {
+                let account = AccountEntity::new(&conn);
+                Ok(account.find_one(&account_id)?)
+            })
+            .await
+            .map_err(Error::from)?;
+        Ok(account.try_into()?)
+    }
+
+    async fn lookup_folder(
+        client: &Client,
+        folder_id: VaultId,
+    ) -> Result<FolderRecord, Error> {
+        let folder = client
+            .conn(move |conn| {
+                let folder = FolderEntity::new(&conn);
+                Ok(folder.find_one(&folder_id)?)
+            })
+            .await
+            .map_err(Error::from)?;
+        Ok(folder.try_into()?)
+    }
 }
 
 impl<E> DatabaseEventLog<AccountEvent, E>
@@ -51,14 +97,20 @@ where
         + 'static,
 {
     /// Create a new account event log.
-    pub fn new_account(client: Client, folder_id: VaultId) -> Self {
-        Self {
-            folder_id,
+    pub async fn new_account(
+        client: Client,
+        account_id: AccountId,
+    ) -> Result<Self, E> {
+        let account = Self::lookup_account(&client, account_id).await?;
+        Ok(Self {
+            account_id: account.row_id,
+            folder_id: None,
             client,
             ids: Vec::new(),
+            table: EventTable::AccountEvents,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
-        }
+        })
     }
 }
 
@@ -74,14 +126,22 @@ where
         + 'static,
 {
     /// Create a new folder event log.
-    pub fn new_folder(client: Client, folder_id: VaultId) -> Self {
-        Self {
-            folder_id,
+    pub async fn new_folder(
+        client: Client,
+        account_id: AccountId,
+        folder_id: VaultId,
+    ) -> Result<Self, E> {
+        let account = Self::lookup_account(&client, account_id).await?;
+        let folder = Self::lookup_folder(&client, folder_id).await?;
+        Ok(Self {
+            account_id: account.row_id,
+            folder_id: Some(folder.row_id),
             client,
             ids: Vec::new(),
+            table: EventTable::FolderEvents,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
-        }
+        })
     }
 }
 
@@ -97,14 +157,20 @@ where
         + 'static,
 {
     /// Create a new device event log.
-    pub fn new_device(client: Client, folder_id: VaultId) -> Self {
-        Self {
-            folder_id,
+    pub async fn new_device(
+        client: Client,
+        account_id: AccountId,
+    ) -> Result<Self, E> {
+        let account = Self::lookup_account(&client, account_id).await?;
+        Ok(Self {
+            account_id: account.row_id,
+            folder_id: None,
             client,
             ids: Vec::new(),
+            table: EventTable::DeviceEvents,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
-        }
+        })
     }
 }
 
@@ -121,14 +187,20 @@ where
         + 'static,
 {
     /// Create a new file event log.
-    pub fn new_file(client: Client, folder_id: VaultId) -> Self {
-        Self {
-            folder_id,
+    pub async fn new_file(
+        client: Client,
+        account_id: AccountId,
+    ) -> Result<Self, Error> {
+        let account = Self::lookup_account(&client, account_id).await?;
+        Ok(Self {
+            account_id: account.row_id,
+            folder_id: None,
             client,
             ids: Vec::new(),
+            table: EventTable::FileEvents,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
-        }
+        })
     }
 }
 
@@ -198,12 +270,15 @@ where
     }
 
     async fn load_tree(&mut self) -> Result<(), Self::Error> {
+        let table = self.table.clone();
+        let account_id = self.account_id.clone();
         let folder_id = self.folder_id.clone();
         let commits = self
             .client
             .conn(move |conn| {
                 let events = EventEntity::new(&conn);
-                let commits = events.load_commits(&folder_id)?;
+                let commits =
+                    events.load_commits(table, account_id, folder_id)?;
                 Ok(commits)
             })
             .await
@@ -218,11 +293,13 @@ where
     }
 
     async fn clear(&mut self) -> Result<(), Self::Error> {
+        let table = self.table.clone();
+        let account_id = self.account_id.clone();
         let folder_id = self.folder_id.clone();
         self.client
             .conn(move |conn| {
                 let events = EventEntity::new(&conn);
-                events.delete_all_events(&folder_id)?;
+                events.delete_all_events(table, account_id, folder_id)?;
                 Ok(())
             })
             .await

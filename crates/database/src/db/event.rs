@@ -5,6 +5,19 @@ use async_sqlite::rusqlite::{
 use sos_core::{commit::CommitHash, events::EventRecord, VaultId};
 use std::ops::Deref;
 
+/// Enumeration of tables for events.
+#[derive(Debug, Copy, Clone)]
+pub enum EventTable {
+    /// Account events table.
+    AccountEvents,
+    /// Folder events table.
+    FolderEvents,
+    /// Device events table.
+    DeviceEvents,
+    /// File events table.
+    FileEvents,
+}
+
 type EventSourceRow = (String, EventRecord);
 
 /// Commit row.
@@ -61,19 +74,54 @@ where
         Self { conn }
     }
 
-    /// Create folder events in the database.
-    pub fn insert_folder_events(
+    /// Insert events into an event log table.
+    pub fn insert_events(
         &self,
-        folder_id: i64,
+        table: EventTable,
+        account_id: i64,
         events: Vec<EventSourceRow>,
     ) -> Result<(), SqlError> {
-        let stmt = self.conn.prepare_cached(
-            r#"
-              INSERT INTO folder_events
-              (folder_id, created_at, commit_hash, event)
-              VALUES (?1, ?2, ?3, ?4)"#,
-        )?;
-        create_events(stmt, folder_id, events)
+        let stmt = match table {
+            EventTable::AccountEvents => {
+                self.conn.prepare_cached(&format!(
+                    r#"
+                      INSERT INTO {}
+                        (account_id, created_at, commit_hash, event)
+                        VALUES (?1, ?2, ?3, ?4)
+                    "#,
+                    "account_events"
+                ))?
+            }
+            EventTable::FolderEvents => {
+                self.conn.prepare_cached(&format!(
+                    r#"
+                      INSERT INTO {}
+                        (folder_id, created_at, commit_hash, event)
+                        VALUES (?1, ?2, ?3, ?4)
+                    "#,
+                    "folder_events"
+                ))?
+            }
+            EventTable::DeviceEvents => {
+                self.conn.prepare_cached(&format!(
+                    r#"
+                      INSERT INTO {}
+                        (account_id, created_at, commit_hash, event)
+                        VALUES (?1, ?2, ?3, ?4)
+                    "#,
+                    "device_events"
+                ))?
+            }
+            EventTable::FileEvents => self.conn.prepare_cached(&format!(
+                r#"
+                      INSERT INTO {}
+                        (account_id, created_at, commit_hash, event)
+                        VALUES (?1, ?2, ?3, ?4)
+                    "#,
+                "file_events"
+            ))?,
+        };
+        create_events(stmt, account_id, events)
     }
 
     /// Create account events in the database.
@@ -82,14 +130,16 @@ where
         account_id: i64,
         events: Vec<EventSourceRow>,
     ) -> Result<(), SqlError> {
-        let stmt = self.conn.prepare_cached(
-            r#"
-          INSERT INTO account_events
-            (account_id, created_at, commit_hash, event)
-            VALUES (?1, ?2, ?3, ?4)
-        "#,
-        )?;
-        create_events(stmt, account_id, events)
+        self.insert_events(EventTable::AccountEvents, account_id, events)
+    }
+
+    /// Create folder events in the database.
+    pub fn insert_folder_events(
+        &self,
+        folder_id: i64,
+        events: Vec<EventSourceRow>,
+    ) -> Result<(), SqlError> {
+        self.insert_events(EventTable::FolderEvents, folder_id, events)
     }
 
     /// Create device events in the database.
@@ -98,14 +148,7 @@ where
         account_id: i64,
         events: Vec<EventSourceRow>,
     ) -> Result<(), SqlError> {
-        let stmt = self.conn.prepare_cached(
-            r#"
-              INSERT INTO device_events
-                (account_id, created_at, commit_hash, event)
-                VALUES (?1, ?2, ?3, ?4)
-            "#,
-        )?;
-        create_events(stmt, account_id, events)
+        self.insert_events(EventTable::DeviceEvents, account_id, events)
     }
 
     /// Create file events in the database.
@@ -114,35 +157,74 @@ where
         account_id: i64,
         events: Vec<EventSourceRow>,
     ) -> Result<(), SqlError> {
-        let stmt = self.conn.prepare_cached(
-            r#"
-              INSERT INTO file_events
-                (account_id, created_at, commit_hash, event)
-                VALUES (?1, ?2, ?3, ?4)
-            "#,
-        )?;
-        create_events(stmt, account_id, events)
+        self.insert_events(EventTable::FileEvents, account_id, events)
     }
 
     /// Load commits and identifiers for a folder.
     pub fn load_commits(
         &self,
-        folder_id: &VaultId,
+        table: EventTable,
+        account_id: i64,
+        folder_id: Option<i64>,
     ) -> Result<Vec<CommitRow>, SqlError> {
-        let folder = FolderEntity::new(self.conn);
-        let row = folder.find_one(folder_id)?;
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                SELECT
-                    event_id,
-                    commit_hash
-                    FROM folder_events
-                    WHERE folder_id=?1
-                    ORDER BY event_id ASC
-            "#,
-        )?;
+        let (mut stmt, id) = match (table, folder_id) {
+            (EventTable::AccountEvents, None) => {
+                let stmt = self.conn.prepare_cached(
+                    r#"
+                        SELECT
+                            event_id,
+                            commit_hash
+                        FROM account_events
+                        WHERE account_id=?1
+                        ORDER BY event_id ASC
+                    "#,
+                )?;
+                (stmt, account_id)
+            }
+            (EventTable::FolderEvents, Some(folder_id)) => {
+                let stmt = self.conn.prepare_cached(
+                    r#"
+                        SELECT
+                            event_id,
+                            commit_hash
+                        FROM folder_events
+                        WHERE folder_id=?1
+                        ORDER BY event_id ASC
+                    "#,
+                )?;
+                (stmt, folder_id)
+            }
+            (EventTable::DeviceEvents, None) => {
+                let stmt = self.conn.prepare_cached(
+                    r#"
+                        SELECT
+                            event_id,
+                            commit_hash
+                        FROM device_events
+                        WHERE account_id=?1
+                        ORDER BY event_id ASC
+                    "#,
+                )?;
+                (stmt, account_id)
+            }
+            (EventTable::FileEvents, None) => {
+                let stmt = self.conn.prepare_cached(
+                    r#"
+                        SELECT
+                            event_id,
+                            commit_hash
+                        FROM file_events
+                        WHERE account_id=?1
+                        ORDER BY event_id ASC
+                    "#,
+                )?;
+                (stmt, account_id)
+            }
+            _ => unreachable!(),
+        };
+
         let rows =
-            stmt.query_map([row.row_id], |row| Ok((row.get(0), row.get(1))))?;
+            stmt.query_map([id], |row| Ok((row.get(0), row.get(1))))?;
 
         let mut commits = Vec::new();
         for row in rows {
@@ -156,21 +238,57 @@ where
         Ok(commits)
     }
 
-    /// Delete all folder events.
+    /// Delete all event logs.
     pub fn delete_all_events(
         &self,
-        folder_id: &VaultId,
+        table: EventTable,
+        account_id: i64,
+        folder_id: Option<i64>,
     ) -> Result<usize, SqlError> {
-        let folder = FolderEntity::new(self.conn);
-        let row = folder.find_one(folder_id)?;
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                DELETE
-                    FROM folder_events
-                    WHERE folder_id=?1
-            "#,
-        )?;
-        Ok(stmt.execute([row.row_id])?)
+        let (mut stmt, id) = match (table, folder_id) {
+            (EventTable::AccountEvents, None) => {
+                let stmt = self.conn.prepare_cached(
+                    r#"
+                        DELETE
+                            FROM account_events
+                            WHERE account_id=?1
+                    "#,
+                )?;
+                (stmt, account_id)
+            }
+            (EventTable::FolderEvents, Some(folder_id)) => {
+                let stmt = self.conn.prepare_cached(
+                    r#"
+                        DELETE
+                            FROM folder_events
+                            WHERE folder_id=?1
+                    "#,
+                )?;
+                (stmt, folder_id)
+            }
+            (EventTable::DeviceEvents, None) => {
+                let stmt = self.conn.prepare_cached(
+                    r#"
+                        DELETE
+                            FROM device_events
+                            WHERE account_id=?1
+                    "#,
+                )?;
+                (stmt, account_id)
+            }
+            (EventTable::FileEvents, None) => {
+                let stmt = self.conn.prepare_cached(
+                    r#"
+                        DELETE
+                            FROM file_events
+                            WHERE account_id=?1
+                    "#,
+                )?;
+                (stmt, account_id)
+            }
+            _ => unreachable!(),
+        };
+        Ok(stmt.execute([id])?)
     }
 }
 

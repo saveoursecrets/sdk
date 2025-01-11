@@ -8,7 +8,7 @@ use sos_core::{
         patch::{CheckedPatch, Diff, Patch},
         AccountEvent, DeviceEvent, EventLog, EventRecord, WriteEvent,
     },
-    VaultId,
+    AccountId, VaultId,
 };
 use sos_database::{async_sqlite::Client, DatabaseEventLog};
 use sos_filesystem::FileSystemEventLog;
@@ -51,12 +51,16 @@ impl BackendEventLog<AccountEvent> {
     }
 
     /// Create a database account event log.
-    pub async fn new_db_account(client: Client, folder_id: VaultId) -> Self {
-        BackendEventLog::Database(
+    pub async fn new_db_account(
+        client: Client,
+        account_id: AccountId,
+    ) -> Result<Self, Error> {
+        Ok(BackendEventLog::Database(
             DatabaseEventLog::<AccountEvent, Error>::new_account(
-                client, folder_id,
-            ),
-        )
+                client, account_id,
+            )
+            .await?,
+        ))
     }
 }
 
@@ -71,12 +75,17 @@ impl BackendEventLog<WriteEvent> {
     }
 
     /// Create a database folder event log.
-    pub async fn new_db_folder(client: Client, folder_id: VaultId) -> Self {
-        BackendEventLog::Database(
+    pub async fn new_db_folder(
+        client: Client,
+        account_id: AccountId,
+        folder_id: VaultId,
+    ) -> Result<Self, Error> {
+        Ok(BackendEventLog::Database(
             DatabaseEventLog::<WriteEvent, Error>::new_folder(
-                client, folder_id,
-            ),
-        )
+                client, account_id, folder_id,
+            )
+            .await?,
+        ))
     }
 }
 
@@ -92,12 +101,16 @@ impl BackendEventLog<DeviceEvent> {
     }
 
     /// Create a database device event log.
-    pub async fn new_db_device(client: Client, folder_id: VaultId) -> Self {
-        BackendEventLog::Database(
+    pub async fn new_db_device(
+        client: Client,
+        account_id: AccountId,
+    ) -> Result<Self, Error> {
+        Ok(BackendEventLog::Database(
             DatabaseEventLog::<DeviceEvent, Error>::new_device(
-                client, folder_id,
-            ),
-        )
+                client, account_id,
+            )
+            .await?,
+        ))
     }
 }
 
@@ -111,10 +124,16 @@ impl BackendEventLog<FileEvent> {
     }
 
     /// Create a database file event log.
-    pub async fn new_db_file(client: Client, folder_id: VaultId) -> Self {
-        BackendEventLog::Database(
-            DatabaseEventLog::<FileEvent, Error>::new_file(client, folder_id),
-        )
+    pub async fn new_db_file(
+        client: Client,
+        account_id: AccountId,
+    ) -> Result<Self, Error> {
+        Ok(BackendEventLog::Database(
+            DatabaseEventLog::<FileEvent, Error>::new_file(
+                client, account_id,
+            )
+            .await?,
+        ))
     }
 }
 
