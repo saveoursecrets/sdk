@@ -9,7 +9,7 @@ use sos_vfs as vfs;
 use tempfile::NamedTempFile;
 
 /// Compact a filesystem folder event log.
-pub async fn compact_filesystem_folder(
+pub async fn compact_folder(
     event_log: &FolderEventLog,
 ) -> Result<(FolderEventLog, u64, u64)> {
     match event_log {

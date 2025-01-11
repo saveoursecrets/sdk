@@ -45,7 +45,7 @@ use sos_core::{
 };
 
 use sos_backend::{
-    compact::compact_filesystem_folder, reducers::DeviceReducer,
+    compact::compact_folder, reducers::DeviceReducer,
 };
 
 #[cfg(feature = "files")]
@@ -1128,7 +1128,7 @@ impl ClientStorage {
             let mut log_file = event_log.write().await;
 
             let (compact_event_log, old_size, new_size) =
-                compact_filesystem_folder(&*log_file).await?;
+                compact_folder(&*log_file).await?;
 
             // Need to recreate the event log file and load the updated
             // commit tree
