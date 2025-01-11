@@ -1,6 +1,6 @@
 use crate::Error;
 use async_sqlite::rusqlite::{
-    CachedStatement, Connection, Error as SqlError, Row,
+    params_from_iter, CachedStatement, Connection, Error as SqlError, Row,
 };
 use sos_core::{commit::CommitHash, events::EventRecord, UtcDateTime};
 use std::ops::Deref;
@@ -120,51 +120,91 @@ where
         let mut stmt = match table {
             EventTable::AccountEvents => self.conn.prepare_cached(
                 r#"
-                        SELECT
-                            event_id,
-                            created_at,
-                            commit_hash,
-                            event
-                        FROM account_events
-                        WHERE event_id=?1
-                    "#,
+                    SELECT
+                        event_id,
+                        created_at,
+                        commit_hash,
+                        event
+                    FROM account_events
+                    WHERE event_id=?1
+                "#,
             )?,
             EventTable::FolderEvents => self.conn.prepare_cached(
                 r#"
-                        SELECT
-                            event_id,
-                            created_at,
-                            commit_hash,
-                            event
-                        FROM folder_events
-                        WHERE event_id=?1
-                    "#,
+                    SELECT
+                        event_id,
+                        created_at,
+                        commit_hash,
+                        event
+                    FROM folder_events
+                    WHERE event_id=?1
+                "#,
             )?,
             EventTable::DeviceEvents => self.conn.prepare_cached(
                 r#"
-                        SELECT
-                            event_id,
-                            created_at,
-                            commit_hash,
-                            event
-                        FROM device_events
-                        WHERE event_id=?1
-                    "#,
+                    SELECT
+                        event_id,
+                        created_at,
+                        commit_hash,
+                        event
+                    FROM device_events
+                    WHERE event_id=?1
+                "#,
             )?,
             EventTable::FileEvents => self.conn.prepare_cached(
                 r#"
-                        SELECT
-                            event_id,
-                            created_at,
-                            commit_hash,
-                            event
-                        FROM file_events
-                        WHERE event_id=?1
-                    "#,
+                    SELECT
+                        event_id,
+                        created_at,
+                        commit_hash,
+                        event
+                    FROM file_events
+                    WHERE event_id=?1
+                "#,
             )?,
         };
 
         Ok(stmt.query_row([event_id], |row| Ok(row.try_into()?))?)
+    }
+
+    /// Delete an event from the database table.
+    pub fn delete_one(
+        &self,
+        table: EventTable,
+        event_id: i64,
+    ) -> Result<(), SqlError> {
+        let mut stmt = match table {
+            EventTable::AccountEvents => self.conn.prepare_cached(
+                r#"
+                    DELETE
+                    FROM account_events
+                    WHERE event_id=?1
+                    "#,
+            )?,
+            EventTable::FolderEvents => self.conn.prepare_cached(
+                r#"
+                    DELETE
+                    FROM folder_events
+                    WHERE event_id=?1
+                    "#,
+            )?,
+            EventTable::DeviceEvents => self.conn.prepare_cached(
+                r#"
+                    DELETE
+                    FROM device_events
+                    WHERE event_id=?1
+                    "#,
+            )?,
+            EventTable::FileEvents => self.conn.prepare_cached(
+                r#"
+                    DELETE
+                    FROM file_events
+                    WHERE event_id=?1
+                    "#,
+            )?,
+        };
+        stmt.execute([event_id])?;
+        Ok(())
     }
 
     /// Insert events into an event log table.

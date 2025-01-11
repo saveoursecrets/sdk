@@ -313,7 +313,62 @@ where
         &mut self,
         commit: &CommitHash,
     ) -> Result<Vec<EventRecord>, Self::Error> {
-        todo!();
+        let (records, tree, new_len) = {
+            let stream = self.record_stream(true).await;
+            pin_mut!(stream);
+
+            let mut records = Vec::new();
+            let mut tree = CommitTree::new();
+            let mut new_len = 0;
+
+            while let Some(record) = stream.next().await {
+                let record = record?;
+                if record.commit() == commit {
+                    let mut leaves = self.tree().leaves().unwrap_or_default();
+                    new_len = leaves.len() - records.len();
+                    leaves.truncate(new_len);
+
+                    tree.append(&mut leaves);
+                    tree.commit();
+
+                    break;
+                }
+                records.push(record);
+            }
+
+            if new_len == 0 {
+                return Err(Error::CommitNotFound(*commit).into());
+            }
+
+            (records, tree, new_len)
+        };
+
+        let mut ids = self.ids.clone();
+        let delete_ids = ids.split_off(new_len);
+
+        // Delete from the database
+        let table = self.table.clone();
+        self.client
+            .conn_mut(move |conn| {
+                let tx = conn.transaction()?;
+                let events = EventEntity::new(&tx);
+                for id in delete_ids {
+                    events.delete_one(table, id)?;
+                }
+                tx.commit()?;
+                Ok(())
+            })
+            .await
+            .map_err(Error::from)?;
+
+        // Update identifier cache
+        ids.truncate(new_len);
+        self.ids = ids;
+
+        // Update merkle tree
+        self.tree = tree;
+
+        Ok(records)
     }
 
     async fn load_tree(&mut self) -> Result<(), Self::Error> {
