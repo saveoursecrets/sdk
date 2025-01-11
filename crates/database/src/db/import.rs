@@ -17,12 +17,8 @@ use sos_core::{
     VaultCommit, VaultEntry,
 };
 use sos_filesystem::{
-    events::{
-        AccountEventLog as FsAccountEventLog,
-        DeviceEventLog as FsDeviceEventLog,
-        FolderEventLog as FsFolderEventLog,
-    },
-    formats::FormatStreamIterator,
+    formats::FormatStreamIterator, AccountEventLog as FsAccountEventLog,
+    DeviceEventLog as FsDeviceEventLog, FolderEventLog as FsFolderEventLog,
 };
 use sos_vault::list_local_folders;
 use sos_vault::Vault;
@@ -32,7 +28,7 @@ use std::{collections::HashMap, path::Path};
 #[cfg(feature = "files")]
 use {
     super::FileEntity, crate::files::list_external_files,
-    sos_filesystem::events::FileEventLog as FsFileEventLog,
+    sos_filesystem::FileEventLog as FsFileEventLog,
 };
 
 type AccountEventLog = FsAccountEventLog<sos_filesystem::Error>;

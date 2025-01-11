@@ -7,8 +7,8 @@ use hex;
 use sos_core::commit::CommitTree;
 use sos_core::encoding::encoding_options;
 use sos_filesystem::{
-    events::FolderEventLog,
     formats::{EventLogRecord, FileItem},
+    FolderEventLog,
 };
 use sos_vfs as vfs;
 use std::{io::SeekFrom, path::Path};

@@ -10,7 +10,7 @@ use sos_core::{
     },
 };
 use sos_database::DatabaseEventLog;
-use sos_filesystem::events::FileSystemEventLog;
+use sos_filesystem::FileSystemEventLog;
 use std::path::Path;
 
 /// Event log for account events.

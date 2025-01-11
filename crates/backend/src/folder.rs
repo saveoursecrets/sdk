@@ -13,7 +13,7 @@ use sos_core::{
 };
 use sos_core::{constants::EVENT_LOG_EXT, decode};
 use sos_filesystem::{
-    events::FolderEventLog as FsFolderEventLog, FileSystemAccessPoint,
+    FileSystemAccessPoint, FolderEventLog as FsFolderEventLog,
     VaultFileWriter,
 };
 use sos_vault::Vault;

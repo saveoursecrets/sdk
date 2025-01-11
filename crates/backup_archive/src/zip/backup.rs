@@ -12,10 +12,9 @@ use sos_core::{
     SecretId, VaultId,
 };
 use sos_core::{AccountId, Paths};
-use sos_filesystem::events::FolderEventLog;
-use sos_filesystem::VaultFileWriter;
+use sos_filesystem::{FolderEventLog, VaultFileWriter};
 use sos_login::{DiscIdentityFolder, Identity, PublicIdentity};
-use sos_vault::{Summary, Vault, EncryptedEntry};
+use sos_vault::{EncryptedEntry, Summary, Vault};
 use sos_vfs::{self as vfs, File};
 use std::{
     io::Cursor,
