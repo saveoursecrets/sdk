@@ -55,7 +55,7 @@ use {
 };
 
 #[cfg(feature = "search")]
-use sos_backend::search::{AccountSearch, DocumentCount};
+use sos_search::{AccountSearch, DocumentCount};
 
 /// Storage change event with an optional
 /// collection of file mutation events.

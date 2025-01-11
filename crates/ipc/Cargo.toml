@@ -25,7 +25,7 @@ clipboard = ["sos-account/clipboard"]
 contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
 files = ["sos-sdk/files", "sos-protocol/files"]
 migrate = ["sos-account/migrate"]
-search = ["sos-backend/search", "sos-protocol/search"]
+search = ["sos-search", "sos-protocol/search"]
 extension-helper-server = [
   "memory-http-server",
   "open",
@@ -78,6 +78,7 @@ tokio.workspace = true
 tokio-util = { workspace = true, features = ["codec"] }
 futures-util = { workspace = true, features = ["sink"] }
 
+sos-search = { workspace = true, optional = true }
 sos-logs = { workspace = true, optional = true }
 sos-platform-authenticator = { workspace = true, optional = true }
 

@@ -122,6 +122,7 @@ impl LocalMemoryServer {
             + From<sos_account::Error>
             + From<sos_backend::Error>
             + From<sos_vault::Error>
+            + From<sos_search::Error>
             + From<std::io::Error>
             + Send
             + Sync

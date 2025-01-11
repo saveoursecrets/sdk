@@ -57,6 +57,7 @@ where
         + From<sos_account::Error>
         + From<sos_backend::Error>
         + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -79,6 +80,7 @@ where
         + From<sos_account::Error>
         + From<sos_backend::Error>
         + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -105,6 +107,7 @@ where
         + From<sos_account::Error>
         + From<sos_backend::Error>
         + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -223,6 +226,7 @@ where
         + From<sos_account::Error>
         + From<sos_backend::Error>
         + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -249,6 +253,7 @@ where
         + From<sos_database::Error>
         + From<sos_backend::Error>
         + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -394,6 +399,7 @@ where
         + From<sos_account::Error>
         + From<sos_backend::Error>
         + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -557,6 +563,7 @@ where
         + From<sos_database::Error>
         + From<sos_backend::Error>
         + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync

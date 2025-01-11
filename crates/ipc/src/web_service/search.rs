@@ -3,8 +3,8 @@
 use http::{Request, Response, StatusCode};
 use serde::Deserialize;
 use sos_account::Account;
-use sos_backend::search::{ArchiveFilter, DocumentView, QueryFilter};
 use sos_sdk::prelude::ErrorExt;
+use sos_search::{ArchiveFilter, DocumentView, QueryFilter};
 use sos_sync::SyncStorage;
 use std::collections::HashMap;
 
@@ -41,6 +41,7 @@ where
         + From<sos_account::Error>
         + From<sos_backend::Error>
         + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync
@@ -79,6 +80,7 @@ where
         + From<sos_account::Error>
         + From<sos_backend::Error>
         + From<sos_vault::Error>
+        + From<sos_search::Error>
         + From<std::io::Error>
         + Send
         + Sync

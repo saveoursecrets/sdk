@@ -8,8 +8,6 @@ mod error;
 mod event_log;
 mod folder;
 pub mod reducers;
-#[cfg(feature = "search")]
-pub mod search;
 mod vault_writer;
 
 pub use error::Error;

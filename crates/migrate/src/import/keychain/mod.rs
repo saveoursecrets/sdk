@@ -14,7 +14,7 @@ use security_framework::{
     item::{ItemClass, ItemSearchOptions},
     os::macos::{item::ItemSearchOptionsExt, keychain::SecKeychain},
 };
-use sos_backend::search::SearchIndex;
+use sos_search::SearchIndex;
 use sos_core::crypto::AccessKey;
 use sos_filesystem::FileSystemAccessPoint;
 use sos_vault::{

@@ -6,7 +6,7 @@ use std::pin::Pin;
 use std::{collections::HashMap, future::Future};
 
 #[cfg(feature = "search")]
-use sos_backend::search::{
+use sos_search::{
     ArchiveFilter, Document, DocumentView, QueryFilter,
 };
 

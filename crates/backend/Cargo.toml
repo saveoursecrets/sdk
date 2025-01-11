@@ -17,13 +17,7 @@ files = [
   "sos-database/files",
   "sos-filesystem/files",
 ]
-search = [
-  "dep:serde",
-  "dep:probly-search",
-  "dep:unicode-segmentation",
-  "dep:url",
-  "dep:vcard4",
-]
+search = []
 
 [dependencies]
 sos-core.workspace = true
@@ -42,14 +36,6 @@ uuid.workspace = true
 tracing.workspace = true
 indexmap.workspace = true
 tempfile.workspace = true
-typeshare.workspace = true
-
-# search
-serde = { workspace = true, optional = true }
-unicode-segmentation = { workspace = true, optional = true }
-probly-search = { workspace = true, optional = true }
-url  = { workspace = true, optional = true }
-vcard4 = { workspace = true, optional = true }
 
 [build-dependencies]
 rustc_version.workspace = true

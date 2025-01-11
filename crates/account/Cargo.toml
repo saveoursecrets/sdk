@@ -36,7 +36,7 @@ files =[
   "sos-client-storage/files",
   "dep:walkdir",
 ]
-search = ["sos-backend/search", "sos-client-storage/search"]
+search = ["sos-search", "sos-client-storage/search"]
 
 [dependencies]
 sos-audit = { workspace = true, optional = true }

@@ -33,7 +33,7 @@ use std::{
 };
 
 #[cfg(feature = "search")]
-use sos_backend::search::{DocumentCount, SearchIndex};
+use sos_search::{DocumentCount, SearchIndex};
 
 #[cfg(feature = "audit")]
 use sos_audit::{append_audit_events, AuditData, AuditEvent};
@@ -51,7 +51,7 @@ use indexmap::IndexSet;
 use {sos_backend::FileEventLog, sos_database::files::FileMutationEvent};
 
 #[cfg(feature = "search")]
-use sos_backend::search::*;
+use sos_search::*;
 
 #[cfg(feature = "migrate")]
 use sos_migrate::{

@@ -21,7 +21,7 @@ pub(crate) enum FolderMergeOptions<'a> {
     Urn(VaultId, &'a mut sos_sdk::identity::UrnLookup),
     /// Update a search index when merging.
     #[cfg(feature = "search")]
-    Search(VaultId, &'a mut sos_backend::search::SearchIndex),
+    Search(VaultId, &'a mut sos_search::SearchIndex),
 }
 
 /// Merge operations for the identity folder.
