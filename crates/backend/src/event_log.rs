@@ -8,8 +8,9 @@ use sos_core::{
         patch::{CheckedPatch, Diff, Patch},
         AccountEvent, DeviceEvent, EventLog, EventRecord, WriteEvent,
     },
+    VaultId,
 };
-use sos_database::DatabaseEventLog;
+use sos_database::{async_sqlite::Client, DatabaseEventLog};
 use sos_filesystem::FileSystemEventLog;
 use std::path::Path;
 
@@ -48,6 +49,15 @@ impl BackendEventLog<AccountEvent> {
                 .await?,
         ))
     }
+
+    /// Create a database account event log.
+    pub async fn new_db_account(client: Client, folder_id: VaultId) -> Self {
+        BackendEventLog::Database(
+            DatabaseEventLog::<AccountEvent, Error>::new_account(
+                client, folder_id,
+            ),
+        )
+    }
 }
 
 impl BackendEventLog<WriteEvent> {
@@ -58,6 +68,15 @@ impl BackendEventLog<WriteEvent> {
         Ok(BackendEventLog::FileSystem(
             FileSystemEventLog::<WriteEvent, Error>::new_folder(path).await?,
         ))
+    }
+
+    /// Create a database folder event log.
+    pub async fn new_db_folder(client: Client, folder_id: VaultId) -> Self {
+        BackendEventLog::Database(
+            DatabaseEventLog::<WriteEvent, Error>::new_folder(
+                client, folder_id,
+            ),
+        )
     }
 }
 
@@ -71,6 +90,15 @@ impl BackendEventLog<DeviceEvent> {
                 .await?,
         ))
     }
+
+    /// Create a database device event log.
+    pub async fn new_db_device(client: Client, folder_id: VaultId) -> Self {
+        BackendEventLog::Database(
+            DatabaseEventLog::<DeviceEvent, Error>::new_device(
+                client, folder_id,
+            ),
+        )
+    }
 }
 
 #[cfg(feature = "files")]
@@ -80,6 +108,13 @@ impl BackendEventLog<FileEvent> {
         Ok(BackendEventLog::FileSystem(
             FileSystemEventLog::<FileEvent, Error>::new_file(path).await?,
         ))
+    }
+
+    /// Create a database file event log.
+    pub async fn new_db_file(client: Client, folder_id: VaultId) -> Self {
+        BackendEventLog::Database(
+            DatabaseEventLog::<FileEvent, Error>::new_file(client, folder_id),
+        )
     }
 }
 

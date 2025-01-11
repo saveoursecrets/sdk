@@ -1,4 +1,5 @@
 //! Event log backed by a database table.
+use async_sqlite::Client;
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use futures::stream::BoxStream;
@@ -6,9 +7,13 @@ use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree},
     events::{
         patch::{CheckedPatch, Diff, Patch},
-        EventLog, EventRecord,
+        AccountEvent, DeviceEvent, EventLog, EventRecord, WriteEvent,
     },
+    VaultId,
 };
+
+#[cfg(feature = "files")]
+use sos_core::events::FileEvent;
 
 /// Database event log.
 pub struct DatabaseEventLog<T, E>
@@ -23,8 +28,99 @@ where
         + Sync
         + 'static,
 {
+    folder_id: VaultId,
+    client: Client,
     tree: CommitTree,
     marker: std::marker::PhantomData<(T, E)>,
+}
+
+impl<E> DatabaseEventLog<AccountEvent, E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    /// Create a new account event log.
+    pub fn new_account(client: Client, folder_id: VaultId) -> Self {
+        Self {
+            folder_id,
+            client,
+            tree: CommitTree::new(),
+            marker: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<E> DatabaseEventLog<WriteEvent, E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    /// Create a new folder event log.
+    pub fn new_folder(client: Client, folder_id: VaultId) -> Self {
+        Self {
+            folder_id,
+            client,
+            tree: CommitTree::new(),
+            marker: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<E> DatabaseEventLog<DeviceEvent, E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    /// Create a new device event log.
+    pub fn new_device(client: Client, folder_id: VaultId) -> Self {
+        Self {
+            folder_id,
+            client,
+            tree: CommitTree::new(),
+            marker: std::marker::PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "files")]
+impl<E> DatabaseEventLog<FileEvent, E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_core::Error>
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    /// Create a new file event log.
+    pub fn new_file(client: Client, folder_id: VaultId) -> Self {
+        Self {
+            folder_id,
+            client,
+            tree: CommitTree::new(),
+            marker: std::marker::PhantomData,
+        }
+    }
 }
 
 #[async_trait]
