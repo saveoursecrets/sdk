@@ -8,15 +8,13 @@ use tempfile::NamedTempFile;
 async fn mock_account_event_log() -> Result<(NamedTempFile, AccountEventLog)>
 {
     let temp = NamedTempFile::new()?;
-    let event_log =
-        AccountEventLog::new_fs_account(temp.path()).await?;
+    let event_log = AccountEventLog::new_fs_account(temp.path()).await?;
     Ok((temp, event_log))
 }
 
 async fn mock_folder_event_log() -> Result<(NamedTempFile, FolderEventLog)> {
     let temp = NamedTempFile::new()?;
-    let event_log =
-        FolderEventLog::new_fs_folder(temp.path()).await?;
+    let event_log = FolderEventLog::new_fs_folder(temp.path()).await?;
     Ok((temp, event_log))
 }
 
@@ -59,7 +57,7 @@ async fn mock_event_log_file() -> Result<(NamedTempFile, FolderEventLog)> {
 #[tokio::test]
 async fn folder_event_log_iter_forward() -> Result<()> {
     let (temp, event_log) = mock_event_log_file().await?;
-    let stream = event_log.stream(false).await;
+    let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
     assert!(stream.next().await.is_some());
     assert!(stream.next().await.is_some());
@@ -72,7 +70,7 @@ async fn folder_event_log_iter_forward() -> Result<()> {
 #[tokio::test]
 async fn folder_event_log_iter_backward() -> Result<()> {
     let (temp, event_log) = mock_event_log_file().await?;
-    let stream = event_log.stream(true).await;
+    let stream = event_log.event_stream(true).await;
     pin_mut!(stream);
     assert!(stream.next().await.is_some());
     assert!(stream.next().await.is_some());

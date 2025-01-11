@@ -282,7 +282,7 @@ async fn collect_account_events(
 ) -> Result<Vec<(String, CommitHash, EventRecord)>> {
     let mut events = Vec::new();
     let event_log = AccountEventLog::new_account(path).await?;
-    let stream = event_log.stream(false).await;
+    let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {
         events.push(convert_event_row(record?.0)?);
@@ -295,7 +295,7 @@ async fn collect_folder_events(
 ) -> Result<Vec<(String, CommitHash, EventRecord)>> {
     let mut events = Vec::new();
     let event_log = FolderEventLog::new_folder(path).await?;
-    let stream = event_log.stream(false).await;
+    let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {
         events.push(convert_event_row(record?.0)?);
@@ -308,7 +308,7 @@ async fn collect_device_events(
 ) -> Result<Vec<(String, CommitHash, EventRecord)>> {
     let mut events = Vec::new();
     let event_log = DeviceEventLog::new_device(path).await?;
-    let stream = event_log.stream(false).await;
+    let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {
         events.push(convert_event_row(record?.0)?);
@@ -322,7 +322,7 @@ async fn collect_file_events(
 ) -> Result<Vec<(String, CommitHash, EventRecord)>> {
     let mut events = Vec::new();
     let event_log = FileEventLog::new_file(path).await?;
-    let stream = event_log.stream(false).await;
+    let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {
         events.push(convert_event_row(record?.0)?);

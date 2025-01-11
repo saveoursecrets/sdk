@@ -90,13 +90,23 @@ where
 {
     type Error = Error;
 
-    async fn stream(
+    async fn record_stream(
+        &self,
+        reverse: bool,
+    ) -> BoxStream<'static, Result<EventRecord, Self::Error>> {
+        match self {
+            Self::Database(inner) => inner.record_stream(reverse).await,
+            Self::FileSystem(inner) => inner.record_stream(reverse).await,
+        }
+    }
+
+    async fn event_stream(
         &self,
         reverse: bool,
     ) -> BoxStream<'static, Result<(EventRecord, T), Self::Error>> {
         match self {
-            Self::Database(inner) => inner.stream(reverse).await,
-            Self::FileSystem(inner) => inner.stream(reverse).await,
+            Self::Database(inner) => inner.event_stream(reverse).await,
+            Self::FileSystem(inner) => inner.event_stream(reverse).await,
         }
     }
 

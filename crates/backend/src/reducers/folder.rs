@@ -68,7 +68,7 @@ impl FolderReducer {
         L: EventLog<WriteEvent, Error = E>,
         E: std::error::Error + std::fmt::Debug + From<sos_core::Error>,
     {
-        let stream = event_log.stream(false).await;
+        let stream = event_log.event_stream(false).await;
         pin_mut!(stream);
 
         if let Some(result) = stream.next().await {

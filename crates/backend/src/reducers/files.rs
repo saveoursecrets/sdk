@@ -68,7 +68,7 @@ where
                 self.add_file_event(event, &mut files);
             }
         } else {
-            let stream = self.log.stream(false).await;
+            let stream = self.log.event_stream(false).await;
             pin_mut!(stream);
 
             while let Some(event) = stream.next().await {

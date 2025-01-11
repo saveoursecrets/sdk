@@ -61,24 +61,21 @@ pub async fn run(cmd: Command) -> Result<()> {
             if !vfs::metadata(&file).await?.is_file() {
                 return Err(Error::NotFile(file));
             }
-            let event_log =
-                AccountEventLog::new_fs_account(&file).await?;
+            let event_log = AccountEventLog::new_fs_account(&file).await?;
             print_events::<AccountEvent>(event_log, until_commit).await?;
         }
         Command::Device { file, until_commit } => {
             if !vfs::metadata(&file).await?.is_file() {
                 return Err(Error::NotFile(file));
             }
-            let event_log =
-                DeviceEventLog::new_fs_device(&file).await?;
+            let event_log = DeviceEventLog::new_fs_device(&file).await?;
             print_events::<DeviceEvent>(event_log, until_commit).await?;
         }
         Command::Folder { file, until_commit } => {
             if !vfs::metadata(&file).await?.is_file() {
                 return Err(Error::NotFile(file));
             }
-            let event_log =
-                FolderEventLog::new_fs_folder(&file).await?;
+            let event_log = FolderEventLog::new_fs_folder(&file).await?;
             print_events::<WriteEvent>(event_log, until_commit).await?;
         }
         Command::File { file, until_commit } => {
@@ -103,7 +100,7 @@ async fn print_events<
     let version = event_log.read_file_version().await?;
     let divider = "-".repeat(73);
 
-    let stream = event_log.stream(false).await;
+    let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
 
     let mut tree = CommitTree::new();

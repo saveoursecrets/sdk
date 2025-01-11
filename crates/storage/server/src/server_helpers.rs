@@ -1,5 +1,6 @@
 //! Helper functions for server implementations.
 use binary_stream::futures::{Decodable, Encodable};
+use futures::{pin_mut, StreamExt};
 use sos_backend::BackendEventLog;
 use sos_core::events::EventLog;
 use sos_core::events::{
@@ -212,14 +213,12 @@ where
         return Ok(res);
     }
 
-    todo!("restore iter usage in scan code");
+    let stream = event_log.record_stream(true).await;
+    pin_mut!(stream);
 
-    /*
-    let mut it = event_log.iter(true).await?;
     let mut skip = 0;
-
     loop {
-        let event = it.next().await?;
+        let record = stream.next().await;
         if offset > 0 && skip < offset {
             if index > 0 {
                 index -= 1;
@@ -227,7 +226,7 @@ where
             skip += 1;
             continue;
         }
-        if let Some(_event) = event {
+        if record.is_some() {
             let proof = event_log.tree().proof(&[index])?;
             res.proofs.insert(0, proof);
             res.offset = offset + res.proofs.len() as u64;
@@ -244,7 +243,6 @@ where
         }
     }
     Ok(res)
-    */
 }
 
 /// Apply a patch of events rewinding to an optional checkpoint commit

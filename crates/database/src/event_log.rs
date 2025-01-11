@@ -42,7 +42,14 @@ where
 {
     type Error = E;
 
-    async fn stream(
+    async fn record_stream(
+        &self,
+        reverse: bool,
+    ) -> BoxStream<'static, Result<EventRecord, Self::Error>> {
+        todo!();
+    }
+
+    async fn event_stream(
         &self,
         reverse: bool,
     ) -> BoxStream<'static, Result<(EventRecord, T), Self::Error>> {

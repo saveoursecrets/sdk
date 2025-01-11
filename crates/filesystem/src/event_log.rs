@@ -25,6 +25,7 @@ use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, Decodable, Encodable};
 use futures::io::{AsyncReadExt, AsyncSeekExt, BufReader, Cursor};
 use futures::stream::BoxStream;
+use futures::{pin_mut, stream::TryStreamExt};
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree, Comparison},
     encode,
@@ -126,11 +127,29 @@ where
 {
     type Error = E;
 
-    async fn stream(
+    async fn record_stream(
+        &self,
+        reverse: bool,
+    ) -> BoxStream<'static, StdResult<EventRecord, Self::Error>> {
+        let mut it =
+            self.iter(reverse).await.expect("to initialize iterator");
+        let handle = self.file();
+        Box::pin(try_stream! {
+            while let Some(record) = it.next().await? {
+                let event_buffer = read_event_buffer(
+                    handle.clone(), &record).await?;
+                let event_record = record.into_event_record(event_buffer);
+                yield event_record;
+            }
+        })
+    }
+
+    async fn event_stream(
         &self,
         reverse: bool,
     ) -> BoxStream<'static, StdResult<(EventRecord, T), Self::Error>> {
-        let mut it = self.iter(reverse).await.expect("to initialize stream");
+        let mut it =
+            self.iter(reverse).await.expect("to initialize iterator");
 
         let handle = self.file();
         Box::pin(try_stream! {

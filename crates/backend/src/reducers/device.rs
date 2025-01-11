@@ -27,7 +27,7 @@ where
     pub async fn reduce(self) -> Result<IndexSet<TrustedDevice>, E> {
         let mut devices = IndexSet::new();
 
-        let stream = self.log.stream(false).await;
+        let stream = self.log.event_stream(false).await;
         pin_mut!(stream);
 
         while let Some(event) = stream.next().await {

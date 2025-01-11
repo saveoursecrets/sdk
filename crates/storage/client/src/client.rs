@@ -123,18 +123,15 @@ impl ClientStorage {
         paths.ensure().await?;
 
         let identity_log = Arc::new(RwLock::new(
-            FolderEventLog::new_fs_folder(paths.identity_events())
-                .await?,
+            FolderEventLog::new_fs_folder(paths.identity_events()).await?,
         ));
 
         let account_log = Arc::new(RwLock::new(
-            AccountEventLog::new_fs_account(paths.account_events())
-                .await?,
+            AccountEventLog::new_fs_account(paths.account_events()).await?,
         ));
 
         let device_log = Arc::new(RwLock::new(
-            DeviceEventLog::new_fs_device(paths.device_events())
-                .await?,
+            DeviceEventLog::new_fs_device(paths.device_events()).await?,
         ));
 
         #[cfg(feature = "files")]
@@ -199,8 +196,7 @@ impl ClientStorage {
         paths.ensure().await?;
 
         let log_file = paths.account_events();
-        let mut event_log =
-            AccountEventLog::new_fs_account(log_file).await?;
+        let mut event_log = AccountEventLog::new_fs_account(log_file).await?;
         event_log.load_tree().await?;
         let account_log = Arc::new(RwLock::new(event_log));
 
@@ -240,8 +236,7 @@ impl ClientStorage {
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
         let log_file = paths.device_events();
 
-        let mut event_log =
-            DeviceEventLog::new_fs_device(log_file).await?;
+        let mut event_log = DeviceEventLog::new_fs_device(log_file).await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
@@ -281,8 +276,7 @@ impl ClientStorage {
     async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
         let log_file = paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;
-        let mut event_log =
-            FileEventLog::new_fs_file(log_file).await?;
+        let mut event_log = FileEventLog::new_fs_file(log_file).await?;
         event_log.load_tree().await?;
 
         tracing::debug!(needs_init = %needs_init, "file_log");
@@ -1440,7 +1434,7 @@ impl ClientStorage {
         let log_file = event_log.read().await;
         let mut records = Vec::new();
 
-        let stream = log_file.stream(false).await;
+        let stream = log_file.event_stream(false).await;
         pin_mut!(stream);
 
         while let Some(result) = stream.next().await {

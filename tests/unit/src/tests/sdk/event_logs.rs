@@ -29,8 +29,7 @@ async fn mock_event_log_standalone(
     let (id, data) = mock_secret().await?;
 
     // Create a simple event log
-    let mut event_log =
-        FolderEventLog::new_fs_folder(path.as_ref()).await?;
+    let mut event_log = FolderEventLog::new_fs_folder(path.as_ref()).await?;
     event_log
         .apply(vec![
             &WriteEvent::CreateVault(vault_buffer),
@@ -63,8 +62,7 @@ async fn mock_event_log_server_client(
     let (id, data) = mock_secret().await?;
 
     // Create a simple event log
-    let mut server =
-        FolderEventLog::new_fs_folder(server_file).await?;
+    let mut server = FolderEventLog::new_fs_folder(server_file).await?;
     server
         .apply(vec![
             &WriteEvent::CreateVault(vault_buffer),
@@ -73,9 +71,8 @@ async fn mock_event_log_server_client(
         .await?;
 
     // Duplicate the server events on the client
-    let mut client =
-        FolderEventLog::new_fs_folder(client_file).await?;
-    let stream = server.stream(false).await;
+    let mut client = FolderEventLog::new_fs_folder(client_file).await?;
+    let stream = server.event_stream(false).await;
     pin_mut!(stream);
     while let Some(result) = stream.next().await {
         let (_, event) = result?;
@@ -132,7 +129,7 @@ async fn event_log_file_load() -> Result<()> {
     mock_event_log_standalone(path).await?;
 
     let event_log = FolderEventLog::new_fs_folder(path).await?;
-    let stream = event_log.stream(false).await;
+    let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
     while let Some(result) = stream.next().await {
         result?;
@@ -185,8 +182,7 @@ async fn event_log_rewind() -> Result<()> {
 
     // Make sure the file truncation is correct
     {
-        let mut new_event_log =
-            FolderEventLog::new_fs_folder(path).await?;
+        let mut new_event_log = FolderEventLog::new_fs_folder(path).await?;
         new_event_log.load_tree().await?;
 
         let reloaded_root = new_event_log.tree().root().unwrap();

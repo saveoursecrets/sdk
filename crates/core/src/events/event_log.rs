@@ -39,12 +39,22 @@ where
     /// Load data from storage to build a commit tree in memory.
     async fn load_tree(&mut self) -> Result<(), Self::Error>;
 
+    /// Stream of event records.
+    ///
+    /// # Panics
+    ///
+    /// If the iterator cannot be initialized.
+    async fn record_stream(
+        &self,
+        reverse: bool,
+    ) -> BoxStream<'static, Result<EventRecord, Self::Error>>;
+
     /// Stream of event records and decoded events.
     ///
     /// # Panics
     ///
-    /// If the file iterator cannot read the event log file.
-    async fn stream(
+    /// If the iterator cannot be initialized.
+    async fn event_stream(
         &self,
         reverse: bool,
     ) -> BoxStream<'static, Result<(EventRecord, E), Self::Error>>;
