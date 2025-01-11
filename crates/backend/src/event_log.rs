@@ -147,7 +147,7 @@ where
     async fn record_stream(
         &self,
         reverse: bool,
-    ) -> BoxStream<'static, Result<EventRecord, Self::Error>> {
+    ) -> BoxStream<'async_trait, Result<EventRecord, Self::Error>> {
         match self {
             Self::Database(inner) => inner.record_stream(reverse).await,
             Self::FileSystem(inner) => inner.record_stream(reverse).await,
@@ -157,7 +157,7 @@ where
     async fn event_stream(
         &self,
         reverse: bool,
-    ) -> BoxStream<'static, Result<(EventRecord, T), Self::Error>> {
+    ) -> BoxStream<'async_trait, Result<(EventRecord, T), Self::Error>> {
         match self {
             Self::Database(inner) => inner.event_stream(reverse).await,
             Self::FileSystem(inner) => inner.event_stream(reverse).await,

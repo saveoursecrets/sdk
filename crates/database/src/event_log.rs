@@ -9,7 +9,10 @@ use crate::{
 use async_sqlite::Client;
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
-use futures::stream::BoxStream;
+use futures::{
+    pin_mut,
+    stream::{self, BoxStream, StreamExt, TryStreamExt},
+};
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree},
     encode,
@@ -223,15 +226,53 @@ where
     async fn record_stream(
         &self,
         reverse: bool,
-    ) -> BoxStream<'static, Result<EventRecord, Self::Error>> {
-        todo!();
+    ) -> BoxStream<'async_trait, Result<EventRecord, Self::Error>> {
+        let mut ids = self.ids.clone();
+        if reverse {
+            ids.reverse();
+        }
+        let items = ids
+            .into_iter()
+            .map(|id| Ok((self.client.clone(), self.table, id)));
+        Box::pin(stream::iter(items).try_filter_map(
+            |(client, table, id)| async move {
+                let row = client
+                    .conn(move |conn| {
+                        let events = EventEntity::new(&conn);
+                        Ok(events.find_one(table, id)?)
+                    })
+                    .await
+                    .map_err(Error::from)?;
+                Ok(Some(row.try_into()?))
+            },
+        ))
     }
 
     async fn event_stream(
         &self,
         reverse: bool,
-    ) -> BoxStream<'static, Result<(EventRecord, T), Self::Error>> {
-        todo!();
+    ) -> BoxStream<'async_trait, Result<(EventRecord, T), Self::Error>> {
+        let mut ids = self.ids.clone();
+        if reverse {
+            ids.reverse();
+        }
+        let items = ids
+            .into_iter()
+            .map(|id| Ok((self.client.clone(), self.table, id)));
+        Box::pin(stream::iter(items).try_filter_map(
+            |(client, table, id)| async move {
+                let row = client
+                    .conn(move |conn| {
+                        let events = EventEntity::new(&conn);
+                        Ok(events.find_one(table, id)?)
+                    })
+                    .await
+                    .map_err(Error::from)?;
+                let record: EventRecord = row.try_into()?;
+                let event = record.decode_event::<T>().await?;
+                Ok(Some((record, event)))
+            },
+        ))
     }
 
     async fn diff_checked(
@@ -385,7 +426,33 @@ where
         &self,
         commit: Option<&CommitHash>,
     ) -> Result<Vec<EventRecord>, Self::Error> {
-        todo!();
+        let mut events = Vec::new();
+
+        let stream = self.record_stream(true).await;
+        pin_mut!(stream);
+
+        while let Some(record) = stream.next().await {
+            let record = record?;
+            if let Some(commit) = commit {
+                if record.commit() == commit {
+                    return Ok(events);
+                }
+            }
+            // Iterating in reverse order as we would typically
+            // be looking for commits near the end of the event log
+            // but we want the patch events in the order they were
+            // appended so insert at the beginning to reverse the list
+            events.insert(0, record);
+        }
+
+        // If the caller wanted to patch until a particular commit
+        // but it doesn't exist we error otherwise we would return
+        // all the events
+        if let Some(commit) = commit {
+            return Err(Error::CommitNotFound(*commit).into());
+        }
+
+        Ok(events)
     }
 
     #[doc(hidden)]

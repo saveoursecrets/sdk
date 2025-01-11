@@ -129,7 +129,7 @@ where
     async fn record_stream(
         &self,
         reverse: bool,
-    ) -> BoxStream<'static, StdResult<EventRecord, Self::Error>> {
+    ) -> BoxStream<'async_trait, StdResult<EventRecord, Self::Error>> {
         let mut it =
             self.iter(reverse).await.expect("to initialize iterator");
         let handle = self.file();
@@ -146,7 +146,8 @@ where
     async fn event_stream(
         &self,
         reverse: bool,
-    ) -> BoxStream<'static, StdResult<(EventRecord, T), Self::Error>> {
+    ) -> BoxStream<'async_trait, StdResult<(EventRecord, T), Self::Error>>
+    {
         let mut it =
             self.iter(reverse).await.expect("to initialize iterator");
 

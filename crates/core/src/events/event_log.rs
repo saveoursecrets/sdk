@@ -47,7 +47,7 @@ where
     async fn record_stream(
         &self,
         reverse: bool,
-    ) -> BoxStream<'static, Result<EventRecord, Self::Error>>;
+    ) -> BoxStream<'async_trait, Result<EventRecord, Self::Error>>;
 
     /// Stream of event records and decoded events.
     ///
@@ -57,7 +57,7 @@ where
     async fn event_stream(
         &self,
         reverse: bool,
-    ) -> BoxStream<'static, Result<(EventRecord, E), Self::Error>>;
+    ) -> BoxStream<'async_trait, Result<(EventRecord, E), Self::Error>>;
 
     /// Create a checked diff from a commit.
     ///

@@ -72,11 +72,13 @@ async fn mock_event_log_server_client(
 
     // Duplicate the server events on the client
     let mut client = FolderEventLog::new_fs_folder(client_file).await?;
-    let stream = server.event_stream(false).await;
-    pin_mut!(stream);
-    while let Some(result) = stream.next().await {
-        let (_, event) = result?;
-        client.apply(vec![&event]).await?;
+    {
+        let stream = server.event_stream(false).await;
+        pin_mut!(stream);
+        while let Some(result) = stream.next().await {
+            let (_, event) = result?;
+            client.apply(vec![&event]).await?;
+        }
     }
 
     let proof = client.tree().head()?;
@@ -84,6 +86,7 @@ async fn mock_event_log_server_client(
     assert_eq!(Comparison::Equal, comparison);
 
     assert_eq!(server.tree().len(), client.tree().len());
+
     Ok((server, client, id))
 }
 

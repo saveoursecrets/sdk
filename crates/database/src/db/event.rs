@@ -1,8 +1,8 @@
-use crate::{db::FolderEntity, Error};
+use crate::Error;
 use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, Row,
 };
-use sos_core::{commit::CommitHash, events::EventRecord, VaultId};
+use sos_core::{commit::CommitHash, events::EventRecord, UtcDateTime};
 use std::ops::Deref;
 
 /// Enumeration of tables for events.
@@ -57,6 +57,43 @@ impl TryFrom<CommitRow> for CommitRecord {
     }
 }
 
+/// Commit record row.
+pub struct EventRecordRow {
+    /// Row identifier.
+    pub row_id: i64,
+    /// Row created date and time.
+    pub created_at: String,
+    /// Commit hash.
+    pub commit_hash: Vec<u8>,
+    /// Event bytes.
+    pub event_bytes: Vec<u8>,
+}
+
+impl<'a> TryFrom<&Row<'a>> for EventRecordRow {
+    type Error = SqlError;
+    fn try_from(row: &Row<'a>) -> Result<Self, Self::Error> {
+        Ok(EventRecordRow {
+            row_id: row.get(0)?,
+            created_at: row.get(1)?,
+            commit_hash: row.get(2)?,
+            event_bytes: row.get(3)?,
+        })
+    }
+}
+
+impl TryFrom<EventRecordRow> for EventRecord {
+    type Error = Error;
+
+    fn try_from(value: EventRecordRow) -> Result<Self, Self::Error> {
+        Ok(EventRecord::new(
+            UtcDateTime::parse_utc_iso8601(&value.created_at)?,
+            Default::default(),
+            CommitHash(value.commit_hash.as_slice().try_into()?),
+            value.event_bytes,
+        ))
+    }
+}
+
 /// Event entity.
 pub struct EventEntity<'conn, C>
 where
@@ -72,6 +109,62 @@ where
     /// Create a new event entity.
     pub fn new(conn: &'conn C) -> Self {
         Self { conn }
+    }
+
+    /// Find a event record in the database.
+    pub fn find_one(
+        &self,
+        table: EventTable,
+        event_id: i64,
+    ) -> Result<EventRecordRow, SqlError> {
+        let mut stmt = match table {
+            EventTable::AccountEvents => self.conn.prepare_cached(
+                r#"
+                        SELECT
+                            event_id,
+                            created_at,
+                            commit_hash,
+                            event
+                        FROM account_events
+                        WHERE event_id=?1
+                    "#,
+            )?,
+            EventTable::FolderEvents => self.conn.prepare_cached(
+                r#"
+                        SELECT
+                            event_id,
+                            created_at,
+                            commit_hash,
+                            event
+                        FROM folder_events
+                        WHERE event_id=?1
+                    "#,
+            )?,
+            EventTable::DeviceEvents => self.conn.prepare_cached(
+                r#"
+                        SELECT
+                            event_id,
+                            created_at,
+                            commit_hash,
+                            event
+                        FROM device_events
+                        WHERE event_id=?1
+                    "#,
+            )?,
+            EventTable::FileEvents => self.conn.prepare_cached(
+                r#"
+                        SELECT
+                            event_id,
+                            created_at,
+                            commit_hash,
+                            event
+                        FROM file_events
+                        WHERE event_id=?1
+                    "#,
+            )?,
+        };
+
+        Ok(stmt.query_row([event_id], |row| Ok(row.try_into()?))?)
     }
 
     /// Insert events into an event log table.

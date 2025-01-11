@@ -39,7 +39,6 @@ async-trait.workspace = true
 secrecy.workspace = true
 sha2.workspace = true
 serde.workspace = true
-typeshare.workspace = true
 tokio.workspace = true
 
 # sqlite
