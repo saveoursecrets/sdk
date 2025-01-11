@@ -94,7 +94,10 @@ where
         &self,
         reverse: bool,
     ) -> BoxStream<'static, Result<(EventRecord, T), Self::Error>> {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.stream(reverse).await,
+            Self::FileSystem(inner) => inner.stream(reverse).await,
+        }
     }
 
     async fn diff_checked(
@@ -102,60 +105,100 @@ where
         commit: Option<CommitHash>,
         checkpoint: CommitProof,
     ) -> Result<Diff<T>, Self::Error> {
-        todo!();
+        match self {
+            Self::Database(inner) => {
+                inner.diff_checked(commit, checkpoint).await
+            }
+            Self::FileSystem(inner) => {
+                inner.diff_checked(commit, checkpoint).await
+            }
+        }
     }
 
     async fn diff_unchecked(&self) -> Result<Diff<T>, Self::Error> {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.diff_unchecked().await,
+            Self::FileSystem(inner) => inner.diff_unchecked().await,
+        }
     }
 
     async fn diff_events(
         &self,
         commit: Option<&CommitHash>,
     ) -> Result<Patch<T>, Self::Error> {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.diff_events(commit).await,
+            Self::FileSystem(inner) => inner.diff_events(commit).await,
+        }
     }
 
     fn tree(&self) -> &CommitTree {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.tree(),
+            Self::FileSystem(inner) => inner.tree(),
+        }
     }
 
     fn identity(&self) -> &'static [u8] {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.identity(),
+            Self::FileSystem(inner) => inner.identity(),
+        }
     }
 
     fn version(&self) -> Option<u16> {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.version(),
+            Self::FileSystem(inner) => inner.version(),
+        }
     }
 
     async fn truncate(&mut self) -> Result<(), Self::Error> {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.truncate().await,
+            Self::FileSystem(inner) => inner.truncate().await,
+        }
     }
 
     async fn rewind(
         &mut self,
         commit: &CommitHash,
     ) -> Result<Vec<EventRecord>, Self::Error> {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.rewind(commit).await,
+            Self::FileSystem(inner) => inner.rewind(commit).await,
+        }
     }
 
     async fn load_tree(&mut self) -> Result<(), Self::Error> {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.load_tree().await,
+            Self::FileSystem(inner) => inner.load_tree().await,
+        }
     }
 
     async fn clear(&mut self) -> Result<(), Self::Error> {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.clear().await,
+            Self::FileSystem(inner) => inner.clear().await,
+        }
     }
 
     async fn apply(&mut self, events: Vec<&T>) -> Result<(), Self::Error> {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.apply(events).await,
+            Self::FileSystem(inner) => inner.apply(events).await,
+        }
     }
 
     async fn apply_records(
         &mut self,
         records: Vec<EventRecord>,
     ) -> Result<(), Self::Error> {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.apply_records(records).await,
+            Self::FileSystem(inner) => inner.apply_records(records).await,
+        }
     }
 
     async fn patch_checked(
@@ -163,32 +206,51 @@ where
         commit_proof: &CommitProof,
         patch: &Patch<T>,
     ) -> Result<CheckedPatch, Self::Error> {
-        todo!();
+        match self {
+            Self::Database(inner) => {
+                inner.patch_checked(commit_proof, patch).await
+            }
+            Self::FileSystem(inner) => {
+                inner.patch_checked(commit_proof, patch).await
+            }
+        }
     }
 
     async fn patch_replace(
         &mut self,
         diff: &Diff<T>,
     ) -> Result<(), Self::Error> {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.patch_replace(diff).await,
+            Self::FileSystem(inner) => inner.patch_replace(diff).await,
+        }
     }
 
     async fn patch_unchecked(
         &mut self,
         patch: &Patch<T>,
     ) -> Result<(), Self::Error> {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.patch_unchecked(patch).await,
+            Self::FileSystem(inner) => inner.patch_unchecked(patch).await,
+        }
     }
 
     async fn diff_records(
         &self,
         commit: Option<&CommitHash>,
     ) -> Result<Vec<EventRecord>, Self::Error> {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.diff_records(commit).await,
+            Self::FileSystem(inner) => inner.diff_records(commit).await,
+        }
     }
 
     #[doc(hidden)]
     async fn read_file_version(&self) -> Result<u16, Self::Error> {
-        todo!();
+        match self {
+            Self::Database(inner) => inner.read_file_version().await,
+            Self::FileSystem(inner) => inner.read_file_version().await,
+        }
     }
 }
