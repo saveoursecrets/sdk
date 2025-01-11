@@ -314,11 +314,10 @@ where
         }
     }
 
-    #[doc(hidden)]
-    async fn read_file_version(&self) -> Result<u16, Self::Error> {
+    fn version(&self) -> u16 {
         match self {
-            Self::Database(inner) => inner.read_file_version().await,
-            Self::FileSystem(inner) => inner.read_file_version().await,
+            Self::Database(inner) => inner.version(),
+            Self::FileSystem(inner) => inner.version(),
         }
     }
 }

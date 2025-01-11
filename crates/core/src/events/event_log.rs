@@ -148,7 +148,6 @@ where
         commit: Option<&CommitHash>,
     ) -> Result<Vec<EventRecord>, Self::Error>;
 
-    /// Read encoding version from the backing storage.
-    #[doc(hidden)]
-    async fn read_file_version(&self) -> Result<u16, Self::Error>;
+    /// Encoding version.
+    fn version(&self) -> u16;
 }

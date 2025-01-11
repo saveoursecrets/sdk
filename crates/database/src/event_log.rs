@@ -14,8 +14,8 @@ use futures::{
     stream::{self, BoxStream, StreamExt, TryStreamExt},
 };
 use sos_core::{
-    commit::{CommitHash, CommitProof, CommitTree},
-    encode,
+    commit::{CommitHash, CommitProof, CommitTree, Comparison},
+    encoding::VERSION1,
     events::{
         patch::{CheckedPatch, Diff, Patch},
         AccountEvent, DeviceEvent, EventLog, EventRecord, WriteEvent,
@@ -40,7 +40,7 @@ where
         + 'static,
 {
     account_id: i64,
-    folder_id: Option<i64>,
+    folder: Option<FolderRecord>,
     client: Client,
     ids: Vec<i64>,
     table: EventTable,
@@ -108,7 +108,7 @@ where
         let account = Self::lookup_account(&client, account_id).await?;
         Ok(Self {
             account_id: account.row_id,
-            folder_id: None,
+            folder: None,
             client,
             ids: Vec::new(),
             table: EventTable::AccountEvents,
@@ -139,7 +139,7 @@ where
         let folder = Self::lookup_folder(&client, folder_id).await?;
         Ok(Self {
             account_id: account.row_id,
-            folder_id: Some(folder.row_id),
+            folder: Some(folder),
             client,
             ids: Vec::new(),
             table: EventTable::FolderEvents,
@@ -168,7 +168,7 @@ where
         let account = Self::lookup_account(&client, account_id).await?;
         Ok(Self {
             account_id: account.row_id,
-            folder_id: None,
+            folder: None,
             client,
             ids: Vec::new(),
             table: EventTable::DeviceEvents,
@@ -198,7 +198,7 @@ where
         let account = Self::lookup_account(&client, account_id).await?;
         Ok(Self {
             account_id: account.row_id,
-            folder_id: None,
+            folder: None,
             client,
             ids: Vec::new(),
             table: EventTable::FileEvents,
@@ -280,7 +280,12 @@ where
         commit: Option<CommitHash>,
         checkpoint: CommitProof,
     ) -> Result<Diff<T>, Self::Error> {
-        todo!();
+        let patch = self.diff_events(commit.as_ref()).await?;
+        Ok(Diff::<T> {
+            last_commit: commit,
+            patch,
+            checkpoint,
+        })
     }
 
     async fn diff_unchecked(&self) -> Result<Diff<T>, Self::Error> {
@@ -314,7 +319,7 @@ where
     async fn load_tree(&mut self) -> Result<(), Self::Error> {
         let table = self.table.clone();
         let account_id = self.account_id.clone();
-        let folder_id = self.folder_id.clone();
+        let folder_id = self.folder.as_ref().map(|f| f.row_id);
         let commits = self
             .client
             .conn(move |conn| {
@@ -337,7 +342,7 @@ where
     async fn clear(&mut self) -> Result<(), Self::Error> {
         let table = self.table.clone();
         let account_id = self.account_id.clone();
-        let folder_id = self.folder_id.clone();
+        let folder_id = self.folder.as_ref().map(|f| f.row_id);
         self.client
             .conn(move |conn| {
                 let events = EventEntity::new(&conn);
@@ -405,7 +410,29 @@ where
         commit_proof: &CommitProof,
         patch: &Patch<T>,
     ) -> Result<CheckedPatch, Self::Error> {
-        todo!();
+        let comparison = self.tree().compare(commit_proof)?;
+        match comparison {
+            Comparison::Equal => {
+                self.patch_unchecked(patch).await?;
+                let proof = self.tree().head()?;
+                Ok(CheckedPatch::Success(proof))
+            }
+            Comparison::Contains(indices) => {
+                let head = self.tree().head()?;
+                let contains = self.tree().proof(&indices)?;
+                Ok(CheckedPatch::Conflict {
+                    head,
+                    contains: Some(contains),
+                })
+            }
+            Comparison::Unknown => {
+                let head = self.tree().head()?;
+                Ok(CheckedPatch::Conflict {
+                    head,
+                    contains: None,
+                })
+            }
+        }
     }
 
     async fn patch_replace(
@@ -419,7 +446,7 @@ where
         &mut self,
         patch: &Patch<T>,
     ) -> Result<(), Self::Error> {
-        todo!();
+        self.apply_records(patch.records().to_vec()).await
     }
 
     async fn diff_records(
@@ -455,8 +482,10 @@ where
         Ok(events)
     }
 
-    #[doc(hidden)]
-    async fn read_file_version(&self) -> Result<u16, Self::Error> {
-        todo!();
+    fn version(&self) -> u16 {
+        self.folder
+            .as_ref()
+            .map(|f| *f.summary.version())
+            .unwrap_or(VERSION1)
     }
 }

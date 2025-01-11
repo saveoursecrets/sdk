@@ -462,24 +462,8 @@ where
         Ok(events)
     }
 
-    #[doc(hidden)]
-    async fn read_file_version(&self) -> StdResult<u16, Self::Error> {
-        if self.version.is_some() {
-            let rw = self.file();
-            let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.0);
-            file.seek(SeekFrom::Start(self.identity.len() as u64))
-                .await?;
-            let mut buf = [0; 2];
-            file.read_exact(&mut buf).await?;
-            let version_bytes: [u8; 2] =
-                buf.as_slice().try_into().map_err(crate::Error::from)?;
-            let version = u16::from_le_bytes(version_bytes);
-            Ok(version)
-        // Backwards compatible with formats without
-        // version information, just return the default version
-        } else {
-            Ok(VERSION1)
-        }
+    fn version(&self) -> u16 {
+        self.version.unwrap_or(VERSION1)
     }
 }
 

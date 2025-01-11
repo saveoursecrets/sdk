@@ -97,7 +97,7 @@ async fn print_events<
     event_log: BackendEventLog<T>,
     until_commit: Option<CommitHash>,
 ) -> Result<()> {
-    let version = event_log.read_file_version().await?;
+    let version = event_log.version();
     let divider = "-".repeat(73);
 
     let stream = event_log.event_stream(false).await;
