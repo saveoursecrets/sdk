@@ -279,7 +279,7 @@ async fn collect_vault_rows(
 
 async fn collect_account_events(
     path: impl AsRef<Path>,
-) -> Result<Vec<(String, CommitHash, EventRecord)>> {
+) -> Result<Vec<(String, EventRecord)>> {
     let mut events = Vec::new();
     let event_log = AccountEventLog::new_account(path).await?;
     let stream = event_log.event_stream(false).await;
@@ -292,7 +292,7 @@ async fn collect_account_events(
 
 async fn collect_folder_events(
     path: impl AsRef<Path>,
-) -> Result<Vec<(String, CommitHash, EventRecord)>> {
+) -> Result<Vec<(String, EventRecord)>> {
     let mut events = Vec::new();
     let event_log = FolderEventLog::new_folder(path).await?;
     let stream = event_log.event_stream(false).await;
@@ -305,7 +305,7 @@ async fn collect_folder_events(
 
 async fn collect_device_events(
     path: impl AsRef<Path>,
-) -> Result<Vec<(String, CommitHash, EventRecord)>> {
+) -> Result<Vec<(String, EventRecord)>> {
     let mut events = Vec::new();
     let event_log = DeviceEventLog::new_device(path).await?;
     let stream = event_log.event_stream(false).await;
@@ -319,7 +319,7 @@ async fn collect_device_events(
 #[cfg(feature = "files")]
 async fn collect_file_events(
     path: impl AsRef<Path>,
-) -> Result<Vec<(String, CommitHash, EventRecord)>> {
+) -> Result<Vec<(String, EventRecord)>> {
     let mut events = Vec::new();
     let event_log = FileEventLog::new_file(path).await?;
     let stream = event_log.event_stream(false).await;
@@ -330,10 +330,8 @@ async fn collect_file_events(
     Ok(events)
 }
 
-fn convert_event_row(
-    record: EventRecord,
-) -> Result<(String, CommitHash, EventRecord)> {
-    Ok((record.time().to_rfc3339()?, *record.commit(), record))
+fn convert_event_row(record: EventRecord) -> Result<(String, EventRecord)> {
+    Ok((record.time().to_rfc3339()?, record))
 }
 
 fn create_folder(
@@ -342,7 +340,7 @@ fn create_folder(
     vault: Vault,
     meta: Option<Vec<u8>>,
     rows: Vec<(SecretId, CommitHash, Vec<u8>, Vec<u8>)>,
-    events: Option<Vec<(String, CommitHash, EventRecord)>>,
+    events: Option<Vec<(String, EventRecord)>>,
 ) -> std::result::Result<(i64, HashMap<SecretId, i64>), SqlError> {
     let folder_entity = FolderEntity::new(tx);
     let folder_id =

@@ -5,7 +5,7 @@ use async_sqlite::rusqlite::{
 use sos_core::{commit::CommitHash, events::EventRecord, VaultId};
 use std::ops::Deref;
 
-type EventSourceRow = (String, CommitHash, EventRecord);
+type EventSourceRow = (String, EventRecord);
 
 /// Commit row.
 pub struct CommitRow {
@@ -96,7 +96,7 @@ where
     pub fn insert_device_events(
         &self,
         account_id: i64,
-        events: Vec<(String, CommitHash, EventRecord)>,
+        events: Vec<EventSourceRow>,
     ) -> Result<(), SqlError> {
         let stmt = self.conn.prepare_cached(
             r#"
@@ -179,8 +179,13 @@ fn create_events(
     id: i64,
     events: Vec<EventSourceRow>,
 ) -> Result<(), SqlError> {
-    for (time, commit, record) in events {
-        stmt.execute((&id, time, commit.as_ref(), record.event_bytes()))?;
+    for (time, record) in events {
+        stmt.execute((
+            &id,
+            time,
+            record.commit().as_ref(),
+            record.event_bytes(),
+        ))?;
     }
     Ok(())
 }
