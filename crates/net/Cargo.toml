@@ -56,11 +56,13 @@ sos-database = { workspace = true, features = ["client", "sqlite"] }
 sos-client-storage.workspace = true
 sos-login.workspace = true
 sos-protocol = { workspace = true, features = ["network-client"] }
-sos-migrate = { workspace = true, optional = true }
-sos-account-extras = { workspace = true, optional = true }
 sos-signer.workspace = true
 sos-sync.workspace = true
 sos-vault.workspace = true
+
+sos-search = { workspace = true, optional = true }
+sos-migrate = { workspace = true, optional = true }
+sos-account-extras = { workspace = true, optional = true }
 
 tokio-util.workspace = true
 thiserror.workspace = true

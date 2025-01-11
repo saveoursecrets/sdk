@@ -35,11 +35,13 @@ sos-database = { workspace = true, features = ["client"] }
 sos-client-storage.workspace = true
 sos-login.workspace = true
 sos-protocol = { workspace = true, features = ["network-client"] }
-sos-migrate = { workspace = true, optional = true }
 sos-signer.workspace = true
 sos-sdk.workspace = true
 sos-sync.workspace = true
 sos-vfs.workspace = true
+
+sos-search = { workspace = true, optional = true }
+sos-migrate = { workspace = true, optional = true }
 
 thiserror.workspace = true
 tracing.workspace = true

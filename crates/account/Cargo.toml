@@ -65,6 +65,7 @@ time.workspace = true
 hex.workspace = true
 serde_json.workspace = true
 
+sos-search = { workspace = true, optional = true }
 sos-backup-archive = { workspace = true, optional = true, features = ["zip"] }
 
 sha2 = { workspace = true, optional = true }
