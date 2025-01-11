@@ -697,6 +697,12 @@ where
         + 'static,
 {
     /// Create a new folder event log file.
+    pub async fn new_folder<P: AsRef<Path>>(path: P) -> StdResult<Self, E> {
+        Self::new(path).await
+    }
+
+    /// Create a new folder event log file.
+    #[deprecated]
     pub async fn new<P: AsRef<Path>>(path: P) -> StdResult<Self, E> {
         use sos_core::constants::FOLDER_EVENT_LOG_IDENTITY;
         // Note that for backwards compatibility we don't

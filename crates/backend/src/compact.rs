@@ -12,6 +12,9 @@ pub async fn compact_filesystem_folder(
     event_log: &FolderEventLog,
 ) -> Result<(FolderEventLog, u64, u64)> {
     match event_log {
+        BackendEventLog::Database(event_log) => {
+            todo!("handle compacting database folder...");
+        }
         BackendEventLog::FileSystem(event_log) => {
             let file = event_log.file_path().to_owned();
             let old_size = file.metadata()?.len();
