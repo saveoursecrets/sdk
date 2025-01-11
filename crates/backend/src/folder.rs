@@ -42,7 +42,7 @@ impl Folder {
         events_path.set_extension(EVENT_LOG_EXT);
 
         let mut event_log =
-            FsFolderEventLog::<Error>::new(events_path).await?;
+            FsFolderEventLog::<Error>::new_folder(events_path).await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
@@ -80,7 +80,8 @@ impl Folder {
         path: impl AsRef<Path>,
     ) -> Result<Arc<RwLock<BackendFolderEventLog>>> {
         let mut event_log =
-            FsFolderEventLog::<Error>::new(path.as_ref().to_owned()).await?;
+            FsFolderEventLog::<Error>::new_folder(path.as_ref().to_owned())
+                .await?;
         event_log.load_tree().await?;
         Ok(Arc::new(RwLock::new(BackendFolderEventLog::FileSystem(
             event_log,

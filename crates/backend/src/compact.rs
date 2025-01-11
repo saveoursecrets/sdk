@@ -30,7 +30,7 @@ pub async fn compact_filesystem_folder(
 
             // Apply them to a temporary event log file
             let mut temp_event_log =
-                FsFolderEventLog::<Error>::new(temp.path()).await?;
+                FsFolderEventLog::<Error>::new_folder(temp.path()).await?;
             temp_event_log.apply(events.iter().collect()).await?;
 
             let new_size = file.metadata()?.len();
@@ -50,7 +50,7 @@ pub async fn compact_filesystem_folder(
             // Need to recreate the event log file and load the updated
             // commit tree
             let mut new_event_log =
-                FsFolderEventLog::<Error>::new(&file).await?;
+                FsFolderEventLog::<Error>::new_folder(&file).await?;
             new_event_log.load_tree().await?;
 
             Ok((

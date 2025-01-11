@@ -294,7 +294,7 @@ async fn collect_folder_events(
     path: impl AsRef<Path>,
 ) -> Result<Vec<(String, CommitHash, EventRecord)>> {
     let mut events = Vec::new();
-    let event_log = FolderEventLog::new(path).await?;
+    let event_log = FolderEventLog::new_folder(path).await?;
     let stream = event_log.stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {

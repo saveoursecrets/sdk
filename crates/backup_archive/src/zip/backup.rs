@@ -490,7 +490,7 @@ impl AccountBackup {
 
             // Write out the event log file
             let mut event_log =
-                FolderEventLog::<Error>::new(event_log_path).await?;
+                FolderEventLog::<Error>::new_folder(event_log_path).await?;
             event_log.apply(events.iter().collect()).await?;
         }
 
