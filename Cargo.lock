@@ -5427,6 +5427,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-search"
+version = "0.16.0"
+dependencies = [
+ "probly-search",
+ "rustc_version",
+ "serde",
+ "sos-backend",
+ "sos-core",
+ "sos-vault",
+ "thiserror 2.0.9",
+ "tokio",
+ "tracing",
+ "typeshare",
+ "unicode-segmentation",
+ "url",
+ "vcard4",
+]
+
+[[package]]
 name = "sos-server"
 version = "0.16.1"
 dependencies = [

@@ -1,0 +1,29 @@
+[package]
+name = "sos-search"
+version = "0.16.0"
+edition = "2021"
+description = "In-memory meta data search index the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+sos-core.workspace = true
+sos-backend.workspace = true
+sos-vault.workspace = true
+
+thiserror.workspace = true
+serde.workspace = true
+unicode-segmentation.workspace = true
+probly-search.workspace = true
+url.workspace = true
+vcard4.workspace = true
+tokio.workspace = true
+typeshare.workspace = true
+tracing.workspace = true
+
+[build-dependencies]
+rustc_version.workspace = true
