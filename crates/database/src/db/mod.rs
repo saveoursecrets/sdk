@@ -11,7 +11,7 @@ mod server;
 
 pub use account::AccountEntity;
 pub use audit::AuditEntity;
-pub use event::EventEntity;
+pub use event::{CommitRecord, EventEntity};
 #[cfg(feature = "files")]
 pub use file::FileEntity;
 pub use folder::{FolderEntity, FolderRecord};

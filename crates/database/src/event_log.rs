@@ -1,4 +1,8 @@
 //! Event log backed by a database table.
+use crate::{
+    db::{CommitRecord, EventEntity},
+    Error,
+};
 use async_sqlite::Client;
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
@@ -30,6 +34,7 @@ where
 {
     folder_id: VaultId,
     client: Client,
+    ids: Vec<i64>,
     tree: CommitTree,
     marker: std::marker::PhantomData<(T, E)>,
 }
@@ -50,6 +55,7 @@ where
         Self {
             folder_id,
             client,
+            ids: Vec::new(),
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
         }
@@ -72,6 +78,7 @@ where
         Self {
             folder_id,
             client,
+            ids: Vec::new(),
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
         }
@@ -94,6 +101,7 @@ where
         Self {
             folder_id,
             client,
+            ids: Vec::new(),
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
         }
@@ -117,6 +125,7 @@ where
         Self {
             folder_id,
             client,
+            ids: Vec::new(),
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
         }
@@ -189,15 +198,46 @@ where
     }
 
     async fn load_tree(&mut self) -> Result<(), Self::Error> {
-        todo!();
+        let folder_id = self.folder_id.clone();
+        let commits = self
+            .client
+            .conn(move |conn| {
+                let events = EventEntity::new(&conn);
+                let commits = events.load_commits(&folder_id)?;
+                Ok(commits)
+            })
+            .await
+            .map_err(Error::from)?;
+        for commit in commits {
+            let record: CommitRecord = commit.try_into()?;
+            self.ids.push(record.row_id);
+            self.tree.insert(*record.commit_hash.as_ref());
+        }
+        self.tree.commit();
+        Ok(())
     }
 
     async fn clear(&mut self) -> Result<(), Self::Error> {
-        todo!();
+        let folder_id = self.folder_id.clone();
+        self.client
+            .conn(move |conn| {
+                let events = EventEntity::new(&conn);
+                events.delete_all_events(&folder_id)?;
+                Ok(())
+            })
+            .await
+            .map_err(Error::from)?;
+        self.tree = CommitTree::new();
+        self.ids = Vec::new();
+        Ok(())
     }
 
     async fn apply(&mut self, events: Vec<&T>) -> Result<(), Self::Error> {
-        todo!();
+        let mut records = Vec::with_capacity(events.len());
+        for event in events {
+            records.push(EventRecord::encode_event(event).await?);
+        }
+        self.apply_records(records).await
     }
 
     async fn apply_records(

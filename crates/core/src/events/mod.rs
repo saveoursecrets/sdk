@@ -36,35 +36,3 @@ pub trait LogEvent {
     /// Get the event kind for this event.
     fn event_kind(&self) -> EventKind;
 }
-
-use crate::{
-    commit::{CommitHash, CommitTree},
-    encode, Result,
-};
-use async_trait::async_trait;
-use binary_stream::futures::{Decodable, Encodable};
-
-/// Encode an event into a record.
-#[async_trait]
-pub trait IntoRecord {
-    /// Encode an event into a record using a zero last commit
-    /// and a date time from now.
-    async fn default_record(&self) -> Result<EventRecord>;
-}
-
-#[async_trait]
-impl<'a, T> IntoRecord for &'a T
-where
-    T: Default + Encodable + Decodable + Send + Sync,
-{
-    async fn default_record(&self) -> Result<EventRecord> {
-        let bytes = encode(*self).await?;
-        let commit = CommitHash(CommitTree::hash(&bytes));
-        Ok(EventRecord(
-            Default::default(),
-            Default::default(),
-            commit,
-            bytes,
-        ))
-    }
-}

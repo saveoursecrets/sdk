@@ -25,14 +25,13 @@ use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, Decodable, Encodable};
 use futures::io::{AsyncReadExt, AsyncSeekExt, BufReader, Cursor};
 use futures::stream::BoxStream;
-use futures::{pin_mut, stream::TryStreamExt};
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree, Comparison},
     encode,
     encoding::{encoding_options, VERSION1},
     events::{
         patch::{CheckedPatch, Diff, Patch},
-        AccountEvent, DeviceEvent, EventRecord, IntoRecord, WriteEvent,
+        AccountEvent, DeviceEvent, EventRecord, WriteEvent,
     },
 };
 use sos_vfs::{self as vfs, File, OpenOptions};
@@ -290,7 +289,7 @@ where
     async fn apply(&mut self, events: Vec<&T>) -> StdResult<(), Self::Error> {
         let mut records = Vec::with_capacity(events.len());
         for event in events {
-            records.push(event.default_record().await?);
+            records.push(EventRecord::encode_event(event).await?);
         }
         self.apply_records(records).await
     }

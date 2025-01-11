@@ -21,7 +21,7 @@ use sos_core::{
 use sos_database::StorageError;
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
-    events::{EventLog, EventRecord, IntoRecord},
+    events::{EventLog, EventRecord},
     identity::FolderKeys,
 };
 use sos_vault::{
@@ -613,7 +613,7 @@ impl ClientStorage {
 
             let mut records = Vec::with_capacity(events.len());
             for event in events.iter() {
-                records.push(event.default_record().await?);
+                records.push(EventRecord::encode_event(event).await?);
             }
             if let (Some(creation_time), Some(event)) =
                 (creation_time, records.get_mut(0))
@@ -646,7 +646,7 @@ impl ClientStorage {
 
         let mut records = Vec::with_capacity(events.len());
         for event in events.iter() {
-            records.push(event.default_record().await?);
+            records.push(EventRecord::encode_event(event).await?);
         }
 
         if let (Some(creation_time), Some(event)) =

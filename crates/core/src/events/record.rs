@@ -1,5 +1,8 @@
-use crate::{commit::CommitHash, decode, Result, UtcDateTime};
-use binary_stream::futures::Decodable;
+use crate::{
+    commit::{CommitHash, CommitTree},
+    decode, encode, Result, UtcDateTime,
+};
+use binary_stream::futures::{Decodable, Encodable};
 
 /// Record for a row in an event log.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
@@ -60,20 +63,24 @@ impl EventRecord {
     pub async fn decode_event<T: Default + Decodable>(&self) -> Result<T> {
         Ok(decode(&self.3).await?)
     }
-}
 
-/*
-impl From<(EventLogRecord, Vec<u8>)> for EventRecord {
-    fn from(value: (EventLogRecord, Vec<u8>)) -> Self {
-        Self(
-            value.0.time,
-            CommitHash(value.0.last_commit),
-            CommitHash(value.0.commit),
-            value.1,
-        )
+    /// Encode an event into an event record.
+    ///
+    /// Encodes using a zero last commit and now
+    /// as the date time.
+    pub async fn encode_event<T: Default + Encodable>(
+        event: &T,
+    ) -> Result<Self> {
+        let bytes = encode(event).await?;
+        let commit = CommitHash(CommitTree::hash(&bytes));
+        Ok(EventRecord(
+            Default::default(),
+            Default::default(),
+            commit,
+            bytes,
+        ))
     }
 }
-*/
 
 impl From<EventRecord> for (UtcDateTime, CommitHash, CommitHash, Vec<u8>) {
     fn from(value: EventRecord) -> Self {
