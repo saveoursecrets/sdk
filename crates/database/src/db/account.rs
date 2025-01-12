@@ -84,7 +84,7 @@ where
                     created_at,
                     modified_at,
                     identifier,
-                    name,
+                    name
                 FROM accounts
                 WHERE identifier=?1
             "#,

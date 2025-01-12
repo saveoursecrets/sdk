@@ -21,7 +21,7 @@ use sos_database::db::{AccountEntity, FolderEntity};
 use sos_password::diceware::generate_passphrase;
 use sos_vault::{
     secret::{FileContent, IdentityKind, Secret, SecretMeta},
-    BuilderCredentials, Vault, EncryptedEntry, VaultBuilder,
+    BuilderCredentials, EncryptedEntry, Vault, VaultBuilder,
 };
 use std::collections::HashMap;
 use std::io::Write;
@@ -149,8 +149,7 @@ pub async fn event_log_file(
     let (_, mut vault) = vault_file().await?;
 
     let temp = NamedTempFile::new()?;
-    let mut event_log =
-        FolderEventLog::new_fs_folder(temp.path()).await?;
+    let mut event_log = FolderEventLog::new_fs_folder(temp.path()).await?;
 
     // Create the vault
     let event = vault.into_event().await?;
@@ -193,7 +192,7 @@ pub async fn memory_database() -> Result<Client> {
 pub async fn insert_database_vault(
     client: &mut Client,
     vault: &Vault,
-) -> Result<i64> {
+) -> Result<(AccountId, i64, i64)> {
     let vault = vault.clone();
     Ok(client
         .conn_mut(move |conn| {
@@ -206,7 +205,7 @@ pub async fn insert_database_vault(
             let folder_id =
                 folder.insert_folder(account_id, vault.summary(), None)?;
             tx.commit()?;
-            Ok(folder_id)
+            Ok((account_identifier, account_id, folder_id))
         })
         .await?)
 }

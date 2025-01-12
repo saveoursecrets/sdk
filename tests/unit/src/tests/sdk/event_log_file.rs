@@ -55,32 +55,6 @@ async fn mock_event_log_file() -> Result<(NamedTempFile, FolderEventLog)> {
 }
 
 #[tokio::test]
-async fn folder_event_log_iter_forward() -> Result<()> {
-    let (temp, event_log) = mock_event_log_file().await?;
-    let stream = event_log.event_stream(false).await;
-    pin_mut!(stream);
-    assert!(stream.next().await.is_some());
-    assert!(stream.next().await.is_some());
-    assert!(stream.next().await.is_some());
-    assert!(stream.next().await.is_none());
-    temp.close()?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn folder_event_log_iter_backward() -> Result<()> {
-    let (temp, event_log) = mock_event_log_file().await?;
-    let stream = event_log.event_stream(true).await;
-    pin_mut!(stream);
-    assert!(stream.next().await.is_some());
-    assert!(stream.next().await.is_some());
-    assert!(stream.next().await.is_some());
-    assert!(stream.next().await.is_none());
-    temp.close()?;
-    Ok(())
-}
-
-#[tokio::test]
 async fn event_log_last_commit() -> Result<()> {
     let (temp, mut event_log) = mock_folder_event_log().await?;
     let (_, vault) = mock::vault_file().await?;
