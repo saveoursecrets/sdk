@@ -5,6 +5,7 @@ use std::ops::Deref;
 
 /// Account row from the database.
 #[doc(hidden)]
+#[derive(Debug)]
 pub struct AccountRow {
     pub row_id: i64,
     pub created_at: String,

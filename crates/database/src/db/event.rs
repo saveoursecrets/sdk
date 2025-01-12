@@ -21,6 +21,7 @@ pub enum EventTable {
 type EventSourceRow = (String, EventRecord);
 
 /// Commit row.
+#[derive(Debug)]
 pub struct CommitRow {
     /// Row identifier.
     pub row_id: i64,
@@ -58,6 +59,7 @@ impl TryFrom<CommitRow> for CommitRecord {
 }
 
 /// Commit record row.
+#[derive(Debug)]
 pub struct EventRecordRow {
     /// Row identifier.
     pub row_id: i64,
@@ -86,7 +88,7 @@ impl TryFrom<EventRecordRow> for EventRecord {
 
     fn try_from(value: EventRecordRow) -> Result<Self, Self::Error> {
         Ok(EventRecord::new(
-            UtcDateTime::parse_utc_iso8601(&value.created_at)?,
+            UtcDateTime::parse_rfc3339(&value.created_at)?,
             Default::default(),
             CommitHash(value.commit_hash.as_slice().try_into()?),
             value.event_bytes,

@@ -6,31 +6,6 @@ use sos_test_utils::mock::memory_database;
 
 use super::mock;
 
-async fn assert_records(
-    stream: BoxStream<'_, std::result::Result<EventRecord, Error>>,
-) {
-    pin_mut!(stream);
-
-    assert!(stream.next().await.is_some());
-    assert!(stream.next().await.is_some());
-    assert!(stream.next().await.is_some());
-    assert!(stream.next().await.is_none());
-}
-
-async fn assert_events(
-    stream: BoxStream<
-        '_,
-        std::result::Result<(EventRecord, WriteEvent), Error>,
-    >,
-) {
-    pin_mut!(stream);
-
-    assert!(stream.next().await.is_some());
-    assert!(stream.next().await.is_some());
-    assert!(stream.next().await.is_some());
-    assert!(stream.next().await.is_none());
-}
-
 #[tokio::test]
 async fn fs_event_stream_forward() -> Result<()> {
     let (temp, event_log) = mock::fs_event_log_file().await?;
@@ -101,4 +76,29 @@ async fn db_record_stream_backward() -> Result<()> {
     let stream = event_log.record_stream(true).await;
     assert_records(stream).await;
     Ok(())
+}
+
+async fn assert_records(
+    stream: BoxStream<'_, std::result::Result<EventRecord, Error>>,
+) {
+    pin_mut!(stream);
+
+    assert!(stream.next().await.is_some());
+    assert!(stream.next().await.is_some());
+    assert!(stream.next().await.is_some());
+    assert!(stream.next().await.is_none());
+}
+
+async fn assert_events(
+    stream: BoxStream<
+        '_,
+        std::result::Result<(EventRecord, WriteEvent), Error>,
+    >,
+) {
+    pin_mut!(stream);
+
+    assert!(stream.next().await.is_some());
+    assert!(stream.next().await.is_some());
+    assert!(stream.next().await.is_some());
+    assert!(stream.next().await.is_none());
 }

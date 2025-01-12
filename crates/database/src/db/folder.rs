@@ -12,6 +12,7 @@ use std::result::Result as StdResult;
 
 /// Folder row from the database.
 #[doc(hidden)]
+#[derive(Debug)]
 pub struct FolderRow {
     pub row_id: i64,
     pub created_at: String,
@@ -83,6 +84,7 @@ impl TryFrom<FolderRow> for FolderRecord {
 
 /// Secret row from the database.
 #[doc(hidden)]
+#[derive(Debug)]
 pub struct SecretRow {
     pub row_id: i64,
     pub created_at: String,

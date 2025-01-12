@@ -1,5 +1,4 @@
 use anyhow::Result;
-use futures::{pin_mut, StreamExt};
 use sos_backend::{AccountEventLog, FolderEventLog};
 use sos_sdk::prelude::*;
 use sos_test_utils::mock;
