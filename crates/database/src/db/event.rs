@@ -1,6 +1,6 @@
 use crate::Error;
 use async_sqlite::rusqlite::{
-    params_from_iter, CachedStatement, Connection, Error as SqlError, Row,
+    CachedStatement, Connection, Error as SqlError, Row,
 };
 use sos_core::{commit::CommitHash, events::EventRecord, UtcDateTime};
 use std::ops::Deref;

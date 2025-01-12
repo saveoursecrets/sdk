@@ -87,6 +87,54 @@ where
             .map_err(Error::from)?;
         Ok(folder.try_into()?)
     }
+
+    async fn insert_records(
+        &mut self,
+        records: Vec<EventRecord>,
+        delete_before: bool,
+    ) -> Result<(), E> {
+        let table = self.table.clone();
+        let account_id = self.account_id.clone();
+        let folder_id = self.folder.as_ref().map(|f| f.row_id);
+
+        let mut insert_rows = Vec::new();
+        let mut commits = Vec::new();
+        // let mut last_commit_hash = self.tree().last_commit().clone();
+        for record in records {
+            // record.set_last_commit(last_commit_hash);
+            commits.push(*record.commit());
+            // last_commit_hash = Some(*record.commit());
+            insert_rows.push((record.time().to_rfc3339()?, record));
+        }
+
+        // Insert into the database.
+        let mut ids = self
+            .client
+            .conn_mut(move |conn| {
+                let tx = conn.transaction()?;
+                let events = EventEntity::new(&tx);
+                if delete_before {
+                    events.delete_all_events(table, account_id, folder_id)?;
+                }
+                let ids =
+                    events.insert_events(table, account_id, insert_rows)?;
+                tx.commit()?;
+                Ok(ids)
+            })
+            .await
+            .map_err(Error::from)?;
+
+        // Update the in-memory merkle tree
+        let mut hashes =
+            commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
+        self.tree.append(&mut hashes);
+        self.tree.commit();
+
+        // Update row id cache (used for iteration)
+        self.ids.append(&mut ids);
+
+        Ok(())
+    }
 }
 
 impl<E> DatabaseEventLog<AccountEvent, E>
@@ -399,9 +447,11 @@ where
         let account_id = self.account_id.clone();
         let folder_id = self.folder.as_ref().map(|f| f.row_id);
         self.client
-            .conn(move |conn| {
-                let events = EventEntity::new(&conn);
+            .conn_mut(move |conn| {
+                let tx = conn.transaction()?;
+                let events = EventEntity::new(&tx);
                 events.delete_all_events(table, account_id, folder_id)?;
+                tx.commit()?;
                 Ok(())
             })
             .await
@@ -423,41 +473,7 @@ where
         &mut self,
         records: Vec<EventRecord>,
     ) -> Result<(), Self::Error> {
-        let table = self.table.clone();
-        let account_id = self.account_id.clone();
-
-        let mut insert_rows = Vec::new();
-        let mut commits = Vec::new();
-        let mut last_commit_hash = self.tree().last_commit();
-        for mut record in records {
-            record.set_last_commit(last_commit_hash);
-            commits.push(*record.commit());
-            last_commit_hash = Some(*record.commit());
-            insert_rows.push((record.time().to_rfc3339()?, record));
-        }
-
-        // Insert into the database.
-        let mut ids = self
-            .client
-            .conn(move |conn| {
-                let events = EventEntity::new(&conn);
-                let ids =
-                    events.insert_events(table, account_id, insert_rows)?;
-                Ok(ids)
-            })
-            .await
-            .map_err(Error::from)?;
-
-        // Update the in-memory merkle tree
-        let mut hashes =
-            commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
-        self.tree.append(&mut hashes);
-        self.tree.commit();
-
-        // Update row id cache (used for iteration)
-        self.ids.append(&mut ids);
-
-        Ok(())
+        self.insert_records(records, false).await
     }
 
     async fn patch_checked(
@@ -494,7 +510,8 @@ where
         &mut self,
         diff: &Diff<T>,
     ) -> Result<(), Self::Error> {
-        todo!();
+        let records = diff.patch.records().to_vec();
+        self.insert_records(records, true).await
     }
 
     async fn patch_unchecked(
