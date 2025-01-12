@@ -2,6 +2,7 @@ mod compare;
 mod diff_events;
 mod last_commit;
 mod load_tree;
+mod rewind;
 mod stream;
 
 pub mod mock {
@@ -118,7 +119,7 @@ pub mod mock {
         Ok(())
     }
 
-    async fn mock_secret<'a>() -> Result<(SecretId, VaultCommit)> {
+    pub async fn mock_secret() -> Result<(SecretId, VaultCommit)> {
         let id = Uuid::new_v4();
         let entry = VaultEntry(Default::default(), Default::default());
         let buffer = encode(&entry).await?;
