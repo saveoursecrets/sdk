@@ -32,7 +32,8 @@ async fn db_event_log_compare() -> Result<()> {
     let mut client = memory_database().await?;
     let (server_log, client_log, secret_id) =
         mock::db_event_log_server_client(&mut client).await?;
-    let (unknown_log, _) = mock::db_event_log_standalone(&mut client).await?;
+    let (unknown_log, _, _, _) =
+        mock::db_event_log_standalone(&mut client).await?;
     assert_client_server_compare(
         server_log,
         client_log,

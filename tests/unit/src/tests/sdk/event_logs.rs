@@ -1,7 +1,6 @@
 use anyhow::Result;
-use futures::{pin_mut, StreamExt};
 use sos_backend::FolderEventLog;
-use sos_core::commit::{CommitHash, CommitTree, Comparison};
+use sos_core::commit::{CommitHash, CommitTree};
 use sos_sdk::prelude::*;
 use std::path::Path;
 use uuid::Uuid;
@@ -38,21 +37,6 @@ async fn mock_event_log_standalone(
         .await?;
 
     Ok((event_log, id))
-}
-
-#[tokio::test]
-async fn event_log_file_load() -> Result<()> {
-    let path = "target/event_log_file_load.events";
-    mock_event_log_standalone(path).await?;
-
-    let event_log = FolderEventLog::new_fs_folder(path).await?;
-    let stream = event_log.event_stream(false).await;
-    pin_mut!(stream);
-    while let Some(result) = stream.next().await {
-        result?;
-    }
-
-    Ok(())
 }
 
 #[tokio::test]

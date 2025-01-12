@@ -1,6 +1,7 @@
 mod compare;
 mod diff_events;
 mod last_commit;
+mod load_tree;
 mod stream;
 
 pub mod mock {
@@ -198,7 +199,7 @@ pub mod mock {
 
     pub async fn db_event_log_standalone(
         client: &mut Client,
-    ) -> Result<(FolderEventLog, SecretId)> {
+    ) -> Result<(FolderEventLog, AccountId, VaultId, SecretId)> {
         let mut vault: Vault = Default::default();
         vault.set_name(String::from("Standalone vault"));
 
@@ -222,7 +223,7 @@ pub mod mock {
             ])
             .await?;
 
-        Ok((event_log, id))
+        Ok((event_log, account_id, *vault.id(), id))
     }
 
     pub async fn db_event_log_server_client(

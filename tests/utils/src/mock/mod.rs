@@ -17,7 +17,7 @@ use sos_core::{
     events::{EventLog, WriteEvent},
     AccountId, SecretId, VaultEntry,
 };
-use sos_database::db::{AccountEntity, FolderEntity};
+use sos_database::db::{open_file, AccountEntity, FolderEntity};
 use sos_password::diceware::generate_passphrase;
 use sos_vault::{
     secret::{FileContent, IdentityKind, Secret, SecretMeta},
@@ -179,6 +179,14 @@ pub async fn event_log_file(
     }
 
     Ok((temp, event_log, encryption_key))
+}
+
+/// Create a database file and run migrations.
+pub async fn file_database() -> Result<(NamedTempFile, Client)> {
+    let temp = NamedTempFile::new()?;
+    let mut client = open_file(temp.path()).await?;
+    sos_database::migrations::migrate_client(&mut client).await?;
+    Ok((temp, client))
 }
 
 /// Create an in-memory database and run migrations.
