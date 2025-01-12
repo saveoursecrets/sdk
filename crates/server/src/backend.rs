@@ -1,6 +1,6 @@
 use super::{Error, Result};
-use sos_backend::Folder;
-use sos_core::{device::DevicePublicKey, AccountId, Paths};
+use sos_backend::FolderEventLog;
+use sos_core::{device::DevicePublicKey, events::EventLog, AccountId, Paths};
 use sos_server_storage::{
     filesystem::ServerFileStorage, ServerAccountStorage, ServerStorage,
 };
@@ -86,10 +86,13 @@ impl Backend {
                             self.directory.clone(),
                             owner.to_string(),
                         );
-                        let identity_log = Folder::new_fs_event_log(
+
+                        let mut event_log = FolderEventLog::new_fs_folder(
                             user_paths.identity_events(),
                         )
                         .await?;
+                        event_log.load_tree().await?;
+                        let identity_log = Arc::new(RwLock::new(event_log));
 
                         let account = ServerStorage::FileSystem(
                             ServerFileStorage::new(

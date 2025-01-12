@@ -1,25 +1,22 @@
 //! Folder combines an access point with an event log.
-use crate::event_log::BackendEventLog;
-use crate::reducers::FolderReducer;
-use crate::Error;
-use crate::FolderEventLog as BackendFolderEventLog;
-use crate::{AccessPoint, FolderEventLog, Result};
+use crate::{
+    reducers::FolderReducer, AccessPoint, Error, FolderEventLog, Result,
+};
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     events::EventLog,
     events::{EventRecord, ReadEvent, WriteEvent},
-    VaultFlags,
+    AccountId, VaultFlags,
 };
 use sos_core::{constants::EVENT_LOG_EXT, decode};
-use sos_filesystem::{
-    FileSystemAccessPoint, FolderEventLog as FsFolderEventLog,
-    VaultFileWriter,
-};
+use sos_database::{async_sqlite::Client, VaultDatabaseWriter};
+use sos_filesystem::VaultFileWriter;
 use sos_vault::Vault;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},
-    SecretAccess, VaultCommit, VaultId, VaultMeta,
+    AccessPoint as VaultAccessPoint, SecretAccess, VaultCommit, VaultId,
+    VaultMeta,
 };
 use sos_vfs as vfs;
 use std::path::Path;
@@ -42,7 +39,7 @@ impl Folder {
         events_path.set_extension(EVENT_LOG_EXT);
 
         let mut event_log =
-            FsFolderEventLog::<Error>::new_folder(events_path).await?;
+            FolderEventLog::new_fs_folder(events_path).await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
@@ -64,28 +61,37 @@ impl Folder {
         };
 
         let mirror = VaultFileWriter::<Error>::new(path.as_ref()).await?;
-        let keeper = FileSystemAccessPoint::<Error>::new_mirror(
-            vault,
-            Box::new(mirror),
-        );
+        let keeper =
+            VaultAccessPoint::<Error>::new_mirror(vault, Box::new(mirror));
 
-        Ok(Self::init(
-            AccessPoint::new(keeper),
-            BackendEventLog::FileSystem(event_log),
-        ))
+        Ok(Self::init(AccessPoint::new(keeper), event_log))
     }
 
-    /// Load a folder event log from the given path.
-    pub async fn new_fs_event_log(
-        path: impl AsRef<Path>,
-    ) -> Result<Arc<RwLock<BackendFolderEventLog>>> {
-        let mut event_log =
-            FsFolderEventLog::<Error>::new_folder(path.as_ref().to_owned())
-                .await?;
+    /// Create a new folder from a database table.
+    ///
+    /// Changes to the in-memory vault are mirrored to the database.
+    pub async fn new_db(
+        client: Client,
+        account_id: AccountId,
+        folder_id: VaultId,
+    ) -> Result<Self> {
+        // TODO: load vault data into memory
+        let vault: Vault = Default::default();
+
+        let mut event_log = FolderEventLog::new_db_folder(
+            client.clone(),
+            account_id,
+            folder_id,
+        )
+        .await?;
         event_log.load_tree().await?;
-        Ok(Arc::new(RwLock::new(BackendFolderEventLog::FileSystem(
-            event_log,
-        ))))
+
+        let mirror =
+            VaultDatabaseWriter::<Error>::new(client, folder_id).await;
+        let keeper =
+            VaultAccessPoint::<Error>::new_mirror(vault, Box::new(mirror));
+
+        Ok(Self::init(AccessPoint::new(keeper), event_log))
     }
 
     /// Create a new folder.
