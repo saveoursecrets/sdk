@@ -42,7 +42,7 @@ use std::{
     sync::Arc,
 };
 use tokio::io::AsyncWriteExt;
-use tokio::sync::{Mutex, MutexGuard};
+use tokio::sync::Mutex;
 use tokio_util::compat::Compat;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
@@ -70,10 +70,10 @@ type Iter = Box<dyn FormatStreamIterator<EventLogRecord> + Send + Sync>;
 /// Read the bytes for the encoded event
 /// inside the log record.
 async fn read_event_buffer(
-    handle: Arc<Mutex<(Compat<File>, Compat<File>)>>,
+    handle: Arc<Mutex<Compat<File>>>,
     record: &EventLogRecord,
 ) -> Result<Vec<u8>> {
-    let mut file = MutexGuard::map(handle.lock().await, |f| &mut f.0);
+    let mut file = handle.lock().await;
 
     let offset = record.value();
     let row_len = offset.end - offset.start;
@@ -103,7 +103,7 @@ where
         + Sync
         + 'static,
 {
-    file: Arc<Mutex<(Compat<File>, Compat<File>)>>,
+    file: Arc<Mutex<Compat<File>>>,
     tree: CommitTree,
     data: PathBuf,
     identity: &'static [u8],
@@ -520,7 +520,7 @@ where
         let value = item.value();
 
         let rw = self.file();
-        let mut file = MutexGuard::map(rw.lock().await, |f| &mut f.0);
+        let mut file = rw.lock().await;
 
         file.seek(SeekFrom::Start(value.start)).await?;
         let mut buffer = vec![0; (value.end - value.start) as usize];
@@ -550,7 +550,7 @@ where
         Ok(it)
     }
 
-    fn file(&self) -> Arc<Mutex<(Compat<File>, Compat<File>)>> {
+    fn file(&self) -> Arc<Mutex<Compat<File>>> {
         Arc::clone(&self.file)
     }
 
@@ -598,6 +598,7 @@ where
     ) -> StdResult<Compat<File>, E> {
         let file = OpenOptions::new()
             .create(true)
+            .read(true)
             .append(true)
             .open(path.as_ref())
             .await?;
@@ -620,13 +621,6 @@ where
         }
 
         Ok(file.compat_write())
-    }
-
-    /// Create the reader for an event log file.
-    async fn create_reader<P: AsRef<Path>>(
-        path: P,
-    ) -> StdResult<Compat<File>, E> {
-        Ok(File::open(path).await?.compat())
     }
 
     #[doc(hidden)]
@@ -707,10 +701,8 @@ where
         read_file_identity_bytes(path.as_ref(), &FOLDER_EVENT_LOG_IDENTITY)
             .await?;
 
-        let reader = Self::create_reader(path.as_ref()).await?;
-
         Ok(Self {
-            file: Arc::new(Mutex::new((reader, writer))),
+            file: Arc::new(Mutex::new(writer)),
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &FOLDER_EVENT_LOG_IDENTITY,
@@ -746,10 +738,8 @@ where
         read_file_identity_bytes(path.as_ref(), &ACCOUNT_EVENT_LOG_IDENTITY)
             .await?;
 
-        let reader = Self::create_reader(path.as_ref()).await?;
-
         Ok(Self {
-            file: Arc::new(Mutex::new((reader, writer))),
+            file: Arc::new(Mutex::new(writer)),
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &ACCOUNT_EVENT_LOG_IDENTITY,
@@ -785,10 +775,8 @@ where
         read_file_identity_bytes(path.as_ref(), &DEVICE_EVENT_LOG_IDENTITY)
             .await?;
 
-        let reader = Self::create_reader(path.as_ref()).await?;
-
         Ok(Self {
-            file: Arc::new(Mutex::new((reader, writer))),
+            file: Arc::new(Mutex::new(writer)),
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &DEVICE_EVENT_LOG_IDENTITY,
@@ -825,10 +813,8 @@ where
         read_file_identity_bytes(path.as_ref(), &FILE_EVENT_LOG_IDENTITY)
             .await?;
 
-        let reader = Self::create_reader(path.as_ref()).await?;
-
         Ok(Self {
-            file: Arc::new(Mutex::new((reader, writer))),
+            file: Arc::new(Mutex::new(writer)),
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &FILE_EVENT_LOG_IDENTITY,
