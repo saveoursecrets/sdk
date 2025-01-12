@@ -5,7 +5,7 @@ use sos_test_utils::mock;
 
 #[tokio::test]
 async fn vault_flags_filesystem() -> Result<()> {
-    let (temp, _) = mock::vault_file().await?;
+    let (temp, _, _) = mock::vault_file().await?;
     let mut vault_access = VaultWriter::new_fs(temp.path()).await?;
     test_vault_flags(&mut vault_access).await?;
     temp.close()?;

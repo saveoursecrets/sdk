@@ -1407,7 +1407,7 @@ impl Account for NetworkAccount {
         &self,
         folder_id: &VaultId,
         secret_id: &SecretId,
-    ) -> std::result::Result<(Option<VaultCommit>, ReadEvent), Self::Error>
+    ) -> std::result::Result<Option<(VaultCommit, ReadEvent)>, Self::Error>
     {
         let account = self.account.lock().await;
         Ok(account.raw_secret(folder_id, secret_id).await?)

@@ -152,7 +152,7 @@ impl Folder {
     pub async fn raw_secret(
         &self,
         id: &SecretId,
-    ) -> crate::Result<(Option<Cow<'_, VaultCommit>>, ReadEvent)> {
+    ) -> crate::Result<Option<(Cow<'_, VaultCommit>, ReadEvent)>> {
         Ok(self.keeper.raw_secret(id).await?)
     }
 

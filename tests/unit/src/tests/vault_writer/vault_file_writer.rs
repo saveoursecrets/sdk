@@ -8,7 +8,7 @@ use sos_test_utils::mock;
 #[tokio::test]
 async fn vault_file_del_splice() -> Result<()> {
     let (encryption_key, _, _) = mock::encryption_key()?;
-    let (temp, vault) = mock::vault_file().await?;
+    let (temp, vault, _) = mock::vault_file().await?;
 
     let mut vault_access = VaultFileWriter::<Error>::new(temp.path()).await?;
 

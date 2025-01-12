@@ -626,7 +626,7 @@ pub trait Account {
         &self,
         folder_id: &VaultId,
         secret_id: &SecretId,
-    ) -> std::result::Result<(Option<VaultCommit>, ReadEvent), Self::Error>;
+    ) -> std::result::Result<Option<(VaultCommit, ReadEvent)>, Self::Error>;
 
     /// Delete a secret and remove any external files.
     async fn delete_secret(
@@ -2456,13 +2456,13 @@ impl Account for LocalAccount {
         &self,
         folder_id: &VaultId,
         secret_id: &SecretId,
-    ) -> std::result::Result<(Option<VaultCommit>, ReadEvent), Self::Error>
+    ) -> std::result::Result<Option<(VaultCommit, ReadEvent)>, Self::Error>
     {
         let storage = self.storage.as_ref().ok_or(StorageError::NoStorage)?;
         let reader = storage.read().await;
         Ok(match reader.raw_secret(folder_id, secret_id).await? {
-            (Some(commit), event) => (Some(commit.into_owned()), event),
-            (None, event) => (None, event),
+            Some((commit, event)) => Some((commit.into_owned(), event)),
+            None => None,
         })
     }
 

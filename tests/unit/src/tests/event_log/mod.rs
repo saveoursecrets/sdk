@@ -63,7 +63,7 @@ pub mod mock {
         client: &mut Client,
     ) -> Result<(AccountId, FolderEventLog)> {
         let (encryption_key, _, _) = mock::encryption_key()?;
-        let (_, vault) = mock::vault_file().await?;
+        let (_, vault, _) = mock::vault_file().await?;
 
         let (account_id, mut event_log) =
             db_folder_event_log(client, &vault).await?;
@@ -75,7 +75,7 @@ pub mod mock {
     pub async fn fs_event_log_file() -> Result<(NamedTempFile, FolderEventLog)>
     {
         let (encryption_key, _, _) = mock::encryption_key()?;
-        let (_, vault) = mock::vault_file().await?;
+        let (_, vault, _) = mock::vault_file().await?;
         let (temp, mut event_log) = fs_folder_event_log().await?;
         insert_mock_folder_events(encryption_key, vault, &mut event_log)
             .await?;

@@ -93,11 +93,10 @@ async fn event_log_reduce_compact() -> Result<()> {
 async fn mock_event_log_file(
 ) -> Result<(NamedTempFile, FolderEventLog, PrivateKey, SecretId)> {
     let (encryption_key, _, _) = mock::encryption_key()?;
-    let (_, mut vault) = mock::vault_file().await?;
+    let (_, mut vault, _) = mock::vault_file().await?;
 
     let temp = NamedTempFile::new()?;
-    let mut event_log =
-        FolderEventLog::new_fs_folder(temp.path()).await?;
+    let mut event_log = FolderEventLog::new_fs_folder(temp.path()).await?;
 
     // Create the vault
     let event = vault.into_event().await?;

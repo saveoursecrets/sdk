@@ -1523,7 +1523,7 @@ impl ClientStorage {
         &self,
         folder_id: &VaultId,
         secret_id: &SecretId,
-    ) -> Result<(Option<Cow<'_, VaultCommit>>, ReadEvent)> {
+    ) -> Result<Option<(Cow<'_, VaultCommit>, ReadEvent)>> {
         let folder = self
             .cache
             .get(folder_id)

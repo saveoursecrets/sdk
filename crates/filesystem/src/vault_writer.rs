@@ -295,7 +295,7 @@ where
     async fn read_secret<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent), Self::Error> {
+    ) -> Result<Option<(Cow<'a, VaultCommit>, ReadEvent)>, Self::Error> {
         let _summary = self.summary().await?;
         let event = ReadEvent::ReadSecret(*id);
         let (_, row) = self.find_row(id).await?;
@@ -305,9 +305,9 @@ where
                 BinaryReader::new(&mut *stream, encoding_options());
             reader.seek(SeekFrom::Start(row_offset)).await?;
             let (_, value) = Contents::decode_row(&mut reader).await?;
-            Ok((Some(Cow::Owned(value)), event))
+            Ok(Some((Cow::Owned(value), event)))
         } else {
-            Ok((None, event))
+            Ok(None)
         }
     }
 

@@ -136,7 +136,7 @@ impl SecretAccess for BackendAccessPoint {
     async fn raw_secret(
         &self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'_, VaultCommit>>, ReadEvent)> {
+    ) -> Result<Option<(Cow<'_, VaultCommit>, ReadEvent)>> {
         Ok(self.0.raw_secret(id).await?)
     }
 

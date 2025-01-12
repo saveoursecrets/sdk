@@ -630,7 +630,7 @@ impl Account for LinkedAccount {
         &self,
         folder_id: &VaultId,
         secret_id: &SecretId,
-    ) -> Result<(Option<VaultCommit>, ReadEvent)> {
+    ) -> Result<Option<(VaultCommit, ReadEvent)>> {
         let account = self.account.lock().await;
         Ok(account.raw_secret(folder_id, secret_id).await?)
     }

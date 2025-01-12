@@ -93,7 +93,6 @@ pub async fn vault_note(
         secret_note(label, note).await?;
 
     let meta_aead = vault.encrypt(encryption_key, &meta_bytes).await?;
-
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes).await?;
 
     let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead).await?;
@@ -130,23 +129,23 @@ pub async fn vault_note_update(
 }
 
 /// Create a mock vault in a temp file.
-pub async fn vault_file() -> Result<(NamedTempFile, Vault)> {
+pub async fn vault_file() -> Result<(NamedTempFile, Vault, SecretString)> {
     let mut temp = NamedTempFile::new()?;
-    let (passphrase, _) = generate_passphrase()?;
+    let (password, _) = generate_passphrase()?;
     let vault = VaultBuilder::new()
-        .build(BuilderCredentials::Password(passphrase, None))
+        .build(BuilderCredentials::Password(password.clone(), None))
         .await?;
 
     let buffer = encode(&vault).await?;
     temp.write_all(&buffer)?;
-    Ok((temp, vault))
+    Ok((temp, vault, password))
 }
 
 /// Create a mock event log in a temp file.
 pub async fn event_log_file(
 ) -> Result<(NamedTempFile, FolderEventLog, PrivateKey)> {
     let (encryption_key, _, _) = encryption_key()?;
-    let (_, mut vault) = vault_file().await?;
+    let (_, mut vault, _) = vault_file().await?;
 
     let temp = NamedTempFile::new()?;
     let mut event_log = FolderEventLog::new_fs_folder(temp.path()).await?;

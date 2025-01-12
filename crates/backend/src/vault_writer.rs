@@ -102,7 +102,7 @@ impl EncryptedEntry for VaultWriter {
     async fn read_secret<'a>(
         &'a self,
         secret_id: &SecretId,
-    ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)> {
+    ) -> Result<Option<(Cow<'a, VaultCommit>, ReadEvent)>> {
         Ok(match self {
             Self::Database(inner) => inner.read_secret(secret_id).await?,
             Self::FileSystem(inner) => inner.read_secret(secret_id).await?,

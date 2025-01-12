@@ -174,7 +174,7 @@ pub trait EncryptedEntry {
         &'a self,
         id: &SecretId,
     ) -> std::result::Result<
-        (Option<Cow<'a, VaultCommit>>, ReadEvent),
+        Option<(Cow<'a, VaultCommit>, ReadEvent)>,
         Self::Error,
     >;
 
@@ -1030,9 +1030,13 @@ impl EncryptedEntry for Vault {
     async fn read_secret<'a>(
         &'a self,
         id: &SecretId,
-    ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent)> {
-        let result = self.contents.data.get(id).map(Cow::Borrowed);
-        Ok((result, ReadEvent::ReadSecret(*id)))
+    ) -> Result<Option<(Cow<'a, VaultCommit>, ReadEvent)>> {
+        let result = self
+            .contents
+            .data
+            .get(id)
+            .map(|c| (Cow::Borrowed(c), ReadEvent::ReadSecret(*id)));
+        Ok(result)
     }
 
     async fn update_secret(

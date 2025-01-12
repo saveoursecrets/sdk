@@ -6,7 +6,7 @@ use sos_test_utils::mock::{memory_database, vault_file};
 
 #[tokio::test]
 async fn fs_event_log_last_commit() -> Result<()> {
-    let (_, vault) = vault_file().await?;
+    let (_, vault, _) = vault_file().await?;
     let event = vault.into_event().await?;
     let (temp, event_log) = mock::fs_folder_event_log().await?;
     assert_last_commit(event_log, event).await?;
@@ -16,7 +16,7 @@ async fn fs_event_log_last_commit() -> Result<()> {
 
 #[tokio::test]
 async fn db_event_log_last_commit() -> Result<()> {
-    let (_, vault) = vault_file().await?;
+    let (_, vault, _) = vault_file().await?;
     let event = vault.into_event().await?;
     let mut client = memory_database().await?;
     let (_, event_log) =

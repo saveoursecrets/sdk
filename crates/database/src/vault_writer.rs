@@ -180,7 +180,7 @@ where
     async fn read_secret<'a>(
         &'a self,
         secret_id: &SecretId,
-    ) -> Result<(Option<Cow<'a, VaultCommit>>, ReadEvent), Self::Error> {
+    ) -> Result<Option<(Cow<'a, VaultCommit>, ReadEvent)>, Self::Error> {
         let folder_id = self.folder_id.clone();
         let folder_secret_id = *secret_id;
         let secret_row = self
@@ -201,9 +201,9 @@ where
             let secret: AeadPack = decode(&row.secret).await?;
             let entry = VaultEntry(meta, secret);
             let commit = VaultCommit(commit_hash, entry);
-            Ok((Some(Cow::Owned(commit)), event))
+            Ok(Some((Cow::Owned(commit), event)))
         } else {
-            Ok((None, event))
+            Ok(None)
         }
     }
 

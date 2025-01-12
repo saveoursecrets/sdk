@@ -9,7 +9,7 @@ use uuid::Uuid;
 #[tokio::test]
 async fn vault_access_filesystem() -> Result<()> {
     let (encryption_key, _, _) = mock::encryption_key()?;
-    let (temp, vault) = mock::vault_file().await?;
+    let (temp, vault, _) = mock::vault_file().await?;
     let mut vault_access = VaultWriter::new_fs(temp.path()).await?;
     test_vault_access(&mut vault_access, vault, &encryption_key).await?;
     temp.close()?;
@@ -35,7 +35,7 @@ async fn test_vault_access(
 ) -> Result<()> {
     // Missing row should not exist
     let missing_id = Uuid::new_v4();
-    let (row, _) = vault_access.read_secret(&missing_id).await?;
+    let row = vault_access.read_secret(&missing_id).await?;
     assert!(row.is_none());
 
     // Create a secret note
@@ -51,14 +51,14 @@ async fn test_vault_access(
     .await?;
 
     // Verify the secret exists
-    let (row, _) = vault_access.read_secret(&secret_id).await?;
+    let row = vault_access.read_secret(&secret_id).await?;
     assert!(row.is_some());
 
     // Delete the secret
     let _ = vault_access.delete_secret(&secret_id).await?;
 
     // Verify it does not exist after deletion
-    let (row, _) = vault_access.read_secret(&secret_id).await?;
+    let row = vault_access.read_secret(&secret_id).await?;
     assert!(row.is_none());
 
     // Create a new secure note so we can update it

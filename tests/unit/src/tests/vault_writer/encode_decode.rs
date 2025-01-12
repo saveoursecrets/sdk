@@ -10,7 +10,7 @@ use sos_test_utils::mock;
 #[tokio::test]
 async fn vault_encode_decode_row() -> Result<()> {
     let (encryption_key, _, _) = mock::encryption_key()?;
-    let (_temp, vault) = mock::vault_file().await?;
+    let (_temp, vault, _) = mock::vault_file().await?;
 
     let secret_label = "Test note";
     let secret_note = "Super secret note for you to read.";

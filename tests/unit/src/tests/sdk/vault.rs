@@ -42,9 +42,9 @@ async fn vault_encode_decode_secret_note() -> Result<()> {
     let decoded: Vault = decode(&buffer).await?;
     assert_eq!(vault, decoded);
 
-    let (row, _) = decoded.read_secret(&secret_id).await?;
+    let row = decoded.read_secret(&secret_id).await?;
 
-    let value = row.unwrap();
+    let value = row.unwrap().0;
     let VaultCommit(_, VaultEntry(row_meta, row_secret)) = value.as_ref();
 
     let row_meta = vault.decrypt(&encryption_key, row_meta).await?;

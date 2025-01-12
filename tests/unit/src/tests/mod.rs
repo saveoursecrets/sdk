@@ -7,6 +7,7 @@ mod database;
 mod date_time;
 mod event_log;
 mod file_blob;
+mod folder;
 mod identity;
 mod integrity;
 mod keychain;
