@@ -26,6 +26,19 @@ use sos_core::{
 #[cfg(feature = "files")]
 use sos_core::events::FileEvent;
 
+/// Event log for changes to an account.
+pub type AccountEventLog<E> = DatabaseEventLog<AccountEvent, E>;
+
+/// Event log for devices.
+pub type DeviceEventLog<E> = DatabaseEventLog<DeviceEvent, E>;
+
+/// Event log for changes to a folder.
+pub type FolderEventLog<E> = DatabaseEventLog<WriteEvent, E>;
+
+/// Event log for changes to external files.
+#[cfg(feature = "files")]
+pub type FileEventLog<E> = DatabaseEventLog<FileEvent, E>;
+
 /// Database event log.
 pub struct DatabaseEventLog<T, E>
 where
@@ -60,6 +73,23 @@ where
         + Sync
         + 'static,
 {
+    /// Create a copy of this event log using a fresh
+    /// commit tree and a different client.
+    ///
+    /// Typically used to create a clone using
+    /// a temporary in-memory database.
+    pub fn with_new_client(&self, client: Client) -> Self {
+        Self {
+            account_id: self.account_id,
+            folder: self.folder.clone(),
+            client,
+            ids: Vec::new(),
+            table: self.table,
+            tree: CommitTree::new(),
+            marker: std::marker::PhantomData,
+        }
+    }
+
     async fn lookup_account(
         client: &Client,
         account_id: AccountId,

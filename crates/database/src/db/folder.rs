@@ -45,6 +45,7 @@ impl<'a> TryFrom<&Row<'a>> for FolderRow {
 }
 
 /// Folder record from the database.
+#[derive(Debug, Clone)]
 pub struct FolderRecord {
     /// Row identifier.
     pub row_id: i64,

@@ -364,7 +364,7 @@ impl Account for LinkedAccount {
 
     async fn compact_account(
         &mut self,
-    ) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
+    ) -> Result<HashMap<Summary, AccountEvent>> {
         let mut account = self.account.lock().await;
         Ok(account.compact_account().await?)
     }
@@ -372,7 +372,7 @@ impl Account for LinkedAccount {
     async fn compact_folder(
         &mut self,
         summary: &Summary,
-    ) -> Result<(AccountEvent, u64, u64)> {
+    ) -> Result<AccountEvent> {
         let mut account = self.account.lock().await;
         Ok(account.compact_folder(summary).await?)
     }

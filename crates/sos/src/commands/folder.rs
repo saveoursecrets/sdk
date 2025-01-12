@@ -8,7 +8,6 @@ use crate::{
 };
 use clap::Subcommand;
 use hex;
-use human_bytes::human_bytes;
 use sos_account::{Account, FolderCreate};
 use sos_core::events::LogEvent;
 use sos_database::StorageError;
@@ -361,10 +360,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                         let owner = owner
                             .selected_account_mut()
                             .ok_or(Error::NoSelectedAccount)?;
-                        let (_, old_size, new_size) =
-                            owner.compact_folder(&summary).await?;
-                        println!("Old: {}", human_bytes(old_size as f64));
-                        println!("New: {}", human_bytes(new_size as f64));
+                        owner.compact_folder(&summary).await?;
+                        println!("Folder compacted");
                     }
                 }
                 History::Check { .. } => {

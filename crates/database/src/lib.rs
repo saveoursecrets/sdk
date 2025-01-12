@@ -15,12 +15,17 @@ pub mod migrations;
 mod vault_writer;
 
 #[cfg(feature = "sqlite")]
-pub use event_log::DatabaseEventLog;
+pub use event_log::{
+    AccountEventLog, DatabaseEventLog, DeviceEventLog, FolderEventLog,
+};
 #[cfg(feature = "sqlite")]
 pub use vault_writer::VaultDatabaseWriter;
 
 #[cfg(feature = "files")]
 pub mod files;
+
+#[cfg(all(feature = "sqlite", feature = "files"))]
+pub use event_log::FileEventLog;
 
 mod error;
 pub use async_sqlite;

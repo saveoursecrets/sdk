@@ -191,9 +191,7 @@ pub async fn file_database() -> Result<(NamedTempFile, Client)> {
 
 /// Create an in-memory database and run migrations.
 pub async fn memory_database() -> Result<Client> {
-    let mut client = ClientBuilder::new().open().await?;
-    sos_database::migrations::migrate_client(&mut client).await?;
-    Ok(client)
+    Ok(sos_database::db::open_memory().await?)
 }
 
 /// Create a database account.

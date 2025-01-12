@@ -44,9 +44,7 @@ use sos_core::{
     events::DeviceEvent,
 };
 
-use sos_backend::{
-    compact::compact_folder, reducers::DeviceReducer,
-};
+use sos_backend::{compact::compact_folder, reducers::DeviceReducer};
 
 #[cfg(feature = "files")]
 use {
@@ -1118,8 +1116,8 @@ impl ClientStorage {
         &mut self,
         summary: &Summary,
         key: &AccessKey,
-    ) -> Result<(AccountEvent, u64, u64)> {
-        let (old_size, new_size) = {
+    ) -> Result<AccountEvent> {
+        {
             let folder = self
                 .cache
                 .get_mut(summary.id())
@@ -1127,15 +1125,8 @@ impl ClientStorage {
             let event_log = folder.event_log();
             let mut log_file = event_log.write().await;
 
-            let (compact_event_log, old_size, new_size) =
-                compact_folder(&*log_file).await?;
-
-            // Need to recreate the event log file and load the updated
-            // commit tree
-            *log_file = compact_event_log;
-
-            (old_size, new_size)
-        };
+            compact_folder(&mut *log_file).await?;
+        }
 
         // Refresh in-memory vault and mirrored copy
         let buffer = self.refresh_vault(summary, key).await?;
@@ -1146,7 +1137,7 @@ impl ClientStorage {
         let mut account_log = self.account_log.write().await;
         account_log.apply(vec![&account_event]).await?;
 
-        Ok((account_event, old_size, new_size))
+        Ok(account_event)
     }
 
     /// Load a vault by reducing it from the event log stored on disc.

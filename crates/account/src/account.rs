@@ -475,16 +475,13 @@ pub trait Account {
     /// Compact the identity folder and all user folders.
     async fn compact_account(
         &mut self,
-    ) -> std::result::Result<
-        HashMap<Summary, (AccountEvent, u64, u64)>,
-        Self::Error,
-    >;
+    ) -> std::result::Result<HashMap<Summary, AccountEvent>, Self::Error>;
 
     /// Compact the event log file for a folder.
     async fn compact_folder(
         &mut self,
         summary: &Summary,
-    ) -> std::result::Result<(AccountEvent, u64, u64), Self::Error>;
+    ) -> std::result::Result<AccountEvent, Self::Error>;
 
     /// Restore a folder from an event log.
     async fn restore_folder(
@@ -2050,7 +2047,7 @@ impl Account for LocalAccount {
 
     async fn compact_account(
         &mut self,
-    ) -> Result<HashMap<Summary, (AccountEvent, u64, u64)>> {
+    ) -> Result<HashMap<Summary, AccountEvent>> {
         let mut output = HashMap::new();
         let folders = self.list_folders().await?;
 
@@ -2060,24 +2057,19 @@ impl Account for LocalAccount {
         }
 
         let identity = self.identity_folder_summary().await?;
-        let (vault, old_size, new_size) = {
+        let vault = {
             let event_log = self.identity_log().await?;
             let mut log_file = event_log.write().await;
 
-            let (compact_event_log, old_size, new_size) =
-                compact_folder(&*log_file).await?;
+            compact_folder(&mut *log_file).await?;
 
             let vault = FolderReducer::new()
-                .reduce(&compact_event_log)
+                .reduce(&*log_file)
                 .await?
                 .build(true)
                 .await?;
 
-            // Need to recreate the event log file and load the updated
-            // commit tree
-            *log_file = compact_event_log;
-
-            (vault, old_size, new_size)
+            vault
         };
 
         let event = {
@@ -2088,29 +2080,28 @@ impl Account for LocalAccount {
             event
         };
 
-        output.insert(identity, (event, old_size, new_size));
-
+        output.insert(identity, event);
         Ok(output)
     }
 
     async fn compact_folder(
         &mut self,
         summary: &Summary,
-    ) -> Result<(AccountEvent, u64, u64)> {
+    ) -> Result<AccountEvent> {
         let key = self
             .user()?
             .find_folder_password(summary.id())
             .await?
             .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
-        let (event, old_size, new_size) = {
+        let event = {
             let storage =
                 self.storage.as_mut().ok_or(StorageError::NoStorage)?;
             let mut writer = storage.write().await;
             writer.compact_folder(summary, &key).await?
         };
 
-        Ok((event, old_size, new_size))
+        Ok(event)
     }
 
     async fn restore_folder(

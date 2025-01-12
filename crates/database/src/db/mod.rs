@@ -32,3 +32,10 @@ pub async fn open_file(path: impl AsRef<Path>) -> Result<Client> {
         .open()
         .await?)
 }
+
+/// Open an in-memory database and run migrations.
+pub async fn open_memory() -> Result<Client> {
+    let mut client = ClientBuilder::new().open().await?;
+    crate::migrations::migrate_client(&mut client).await?;
+    Ok(client)
+}

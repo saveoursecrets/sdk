@@ -1,17 +1,17 @@
 //! Compact folders.
-use crate::BackendEventLog;
-use crate::Error;
-use crate::FolderEventLog;
-use crate::{reducers::FolderReducer, Result};
-use sos_core::events::EventLog;
+use crate::{
+    reducers::FolderReducer, BackendEventLog, Error, FolderEventLog, Result,
+};
+use sos_core::events::{
+    patch::{FolderDiff, Patch},
+    EventLog, EventRecord,
+};
+use sos_database::db::open_memory;
 use sos_filesystem::FolderEventLog as FsFolderEventLog;
-use sos_vfs as vfs;
 use tempfile::NamedTempFile;
 
 /// Compact a folder event log.
-pub async fn compact_folder(
-    event_log: &FolderEventLog,
-) -> Result<(FolderEventLog, u64, u64)> {
+pub async fn compact_folder(event_log: &mut FolderEventLog) -> Result<()> {
     match event_log {
         BackendEventLog::Database(event_log) => {
             // Get the reduced set of events
@@ -21,52 +21,60 @@ pub async fn compact_folder(
                 .compact()
                 .await?;
 
-            // event_log.replace_all_events(diff).await?;
+            // Apply them to a temporary event log file so we can compute
+            // a checkpoint for the diff
+            let client = open_memory().await?;
+            let mut temp_event_log = event_log.with_new_client(client);
+            temp_event_log.apply(events.iter().collect()).await?;
 
-            todo!("handle compacting database folder...");
+            let mut records = Vec::new();
+            for event in &events {
+                records.push(EventRecord::encode_event(event).await?);
+            }
+
+            let diff = FolderDiff::new(
+                Patch::new(records),
+                temp_event_log
+                    .tree()
+                    .proof(&[temp_event_log.tree().len() - 1])?,
+                None,
+            );
+            event_log.replace_all_events(&diff).await?;
+
+            Ok(())
         }
         BackendEventLog::FileSystem(event_log) => {
-            let file = event_log.file_path().to_owned();
-            let old_size = file.metadata()?.len();
-
             // Get the reduced set of events
             let events = FolderReducer::new()
                 .reduce(event_log)
                 .await?
                 .compact()
                 .await?;
-            let temp = NamedTempFile::new()?;
 
             // Apply them to a temporary event log file
+            let temp = NamedTempFile::new()?;
             let mut temp_event_log =
                 FsFolderEventLog::<Error>::new_folder(temp.path()).await?;
             temp_event_log.apply(events.iter().collect()).await?;
 
-            let new_size = file.metadata()?.len();
+            let mut records = Vec::new();
+            for event in &events {
+                records.push(EventRecord::encode_event(event).await?);
+            }
 
-            // Remove the existing event log file
-            vfs::remove_file(&file).await?;
+            let diff = FolderDiff::new(
+                Patch::new(records),
+                temp_event_log
+                    .tree()
+                    .proof(&[temp_event_log.tree().len() - 1])?,
+                None,
+            );
 
-            // Move the temp file into place
-            //
-            // NOTE: we would prefer to rename but on linux we
-            // NOTE: can hit ErrorKind::CrossesDevices
-            //
-            // But it's a nightly only variant so can't use it yet to
-            // determine whether to rename or copy.
-            vfs::copy(temp.path(), &file).await?;
+            event_log.replace_all_events(&diff).await?;
 
-            // Need to recreate the event log file and load the updated
-            // commit tree
-            let mut new_event_log =
-                FsFolderEventLog::<Error>::new_folder(&file).await?;
-            new_event_log.load_tree().await?;
+            temp.close()?;
 
-            Ok((
-                BackendEventLog::FileSystem(new_event_log),
-                old_size,
-                new_size,
-            ))
+            Ok(())
         }
     }
 }
