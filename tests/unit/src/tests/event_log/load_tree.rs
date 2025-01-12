@@ -23,6 +23,7 @@ async fn db_event_log_load_tree() -> Result<()> {
         let (mock_event_log, account_id, folder_id, _) =
             mock::db_event_log_standalone(&mut client).await?;
         let expected_root = mock_event_log.tree().root().unwrap();
+        client.close().await?;
         (temp, expected_root, account_id, folder_id)
     };
 
