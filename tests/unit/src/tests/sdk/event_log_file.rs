@@ -18,42 +18,6 @@ async fn mock_folder_event_log() -> Result<(NamedTempFile, FolderEventLog)> {
     Ok((temp, event_log))
 }
 
-async fn mock_event_log_file() -> Result<(NamedTempFile, FolderEventLog)> {
-    let (encryption_key, _, _) = mock::encryption_key()?;
-    let (_, mut vault) = mock::vault_file().await?;
-
-    let (temp, mut event_log) = mock_folder_event_log().await?;
-
-    // Create the vault
-    let event = vault.into_event().await?;
-    event_log.apply(vec![&event]).await?;
-
-    // Create a secret
-    let (secret_id, _, _, _, event) = mock::vault_note(
-        &mut vault,
-        &encryption_key,
-        "event log Note",
-        "This a event log note secret.",
-    )
-    .await?;
-    event_log.apply(vec![&event]).await?;
-
-    // Update the secret
-    let (_, _, _, event) = mock::vault_note_update(
-        &mut vault,
-        &encryption_key,
-        &secret_id,
-        "event log Note Edited",
-        "This a event log note secret that was edited.",
-    )
-    .await?;
-    if let Some(event) = event {
-        event_log.apply(vec![&event]).await?;
-    }
-
-    Ok((temp, event_log))
-}
-
 #[tokio::test]
 async fn event_log_last_commit() -> Result<()> {
     let (temp, mut event_log) = mock_folder_event_log().await?;
