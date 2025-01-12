@@ -3,6 +3,7 @@ use anyhow::Result;
 use futures::{pin_mut, StreamExt};
 use sos_backend::FolderEventLog;
 use sos_core::{commit::CommitHash, events::EventLog};
+use sos_database::db::open_file;
 use sos_test_utils::mock::file_database;
 
 #[tokio::test]
@@ -21,6 +22,7 @@ async fn db_event_log_load_tree() -> Result<()> {
     let (mock_event_log, account_id, folder_id, _) =
         mock::db_event_log_standalone(&mut client).await?;
     let expected_root = mock_event_log.tree().root().unwrap();
+    let client = open_file(temp.path()).await?;
     let event_log =
         FolderEventLog::new_db_folder(client, account_id, folder_id).await?;
     assert_load_tree(event_log, expected_root).await?;
