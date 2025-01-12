@@ -3,7 +3,7 @@
 use age as age_encryption;
 use anyhow::Result;
 use argon2::password_hash::SaltString;
-use async_sqlite::{Client, ClientBuilder};
+use async_sqlite::Client;
 use pem as pem_encoding;
 use secrecy::SecretBox;
 use secrecy::SecretString;

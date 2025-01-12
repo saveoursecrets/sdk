@@ -3,8 +3,7 @@ use anyhow::Result;
 use futures::{pin_mut, StreamExt};
 use sos_backend::FolderEventLog;
 use sos_core::{commit::CommitHash, events::EventLog};
-use sos_database::db::{open_file, open_memory};
-use sos_test_utils::mock::{file_database, insert_database_vault};
+use sos_test_utils::mock::file_database;
 
 #[tokio::test]
 async fn fs_event_log_load_tree() -> Result<()> {
