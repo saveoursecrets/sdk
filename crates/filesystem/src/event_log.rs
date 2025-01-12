@@ -75,6 +75,8 @@ async fn read_event_buffer(
 ) -> Result<Vec<u8>> {
     let mut file = handle.lock().await;
 
+    // let _guard = file.lock().await;
+
     let offset = record.value();
     let row_len = offset.end - offset.start;
 

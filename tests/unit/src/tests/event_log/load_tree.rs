@@ -19,15 +19,16 @@ async fn fs_event_log_load_tree() -> Result<()> {
 #[tokio::test]
 async fn db_event_log_load_tree() -> Result<()> {
     let (temp, mut client) = file_database().await?;
-    client.conn(|conn| conn.execute_batch("PRAGMA locking_mode = OFF;")).await?;
-    let (mut event_log, account_id, folder_id, _, vault) =
+    let (event_log, account_id, _, _, vault) =
         mock::db_event_log_standalone(&mut client).await?;
     let expected_root = event_log.tree().root().unwrap();
 
-    let mut client = open_memory().await?;
-    let (account_id, _, _) =
-        insert_database_vault(&mut client, &vault).await?;
-    let event_log = FolderEventLog::new_db_folder(client.clone(), account_id, folder_id).await?;
+    let event_log = FolderEventLog::new_db_folder(
+        client.clone(),
+        account_id,
+        *vault.id(),
+    )
+    .await?;
     assert_load_tree(event_log, expected_root).await?;
     temp.close()?;
     Ok(())
@@ -37,8 +38,12 @@ async fn assert_load_tree(
     mut event_log: FolderEventLog,
     expected_root: CommitHash,
 ) -> Result<()> {
+    println!("TREE IS LOADING");
+
     // Load the commit hashes and build the merkle tree
     event_log.load_tree().await?;
+
+    println!("TREE WAS LOADED");
 
     // Ensure the new root matches the original tree
     assert_eq!(Some(&expected_root), event_log.tree().root().as_ref());
