@@ -29,6 +29,8 @@ async fn db_event_log_load_tree() -> Result<()> {
     )
     .await?;
     assert_load_tree(event_log, expected_root).await?;
+    // Must close the client before the temp file otherwise
+    // we will get an error on windows
     client.close().await?;
     temp.close()?;
     Ok(())
