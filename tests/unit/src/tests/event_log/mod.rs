@@ -1,4 +1,5 @@
 mod compare;
+mod last_commit;
 mod stream;
 
 pub mod mock {
