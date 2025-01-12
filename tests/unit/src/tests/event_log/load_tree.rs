@@ -3,8 +3,8 @@ use anyhow::Result;
 use futures::{pin_mut, StreamExt};
 use sos_backend::FolderEventLog;
 use sos_core::{commit::CommitHash, events::EventLog};
-use sos_database::db::open_file;
-use sos_test_utils::mock::file_database;
+use sos_database::db::{open_file, open_memory};
+use sos_test_utils::mock::{file_database, insert_database_vault};
 
 #[tokio::test]
 async fn fs_event_log_load_tree() -> Result<()> {
@@ -18,18 +18,16 @@ async fn fs_event_log_load_tree() -> Result<()> {
 
 #[tokio::test]
 async fn db_event_log_load_tree() -> Result<()> {
-    let (temp, expected_root, account_id, folder_id) = {
-        let (temp, mut client) = file_database().await?;
-        let (mock_event_log, account_id, folder_id, _) =
-            mock::db_event_log_standalone(&mut client).await?;
-        let expected_root = mock_event_log.tree().root().unwrap();
-        client.close().await?;
-        (temp, expected_root, account_id, folder_id)
-    };
+    let (temp, mut client) = file_database().await?;
+    client.conn(|conn| conn.execute_batch("PRAGMA locking_mode = OFF;")).await?;
+    let (mut event_log, account_id, folder_id, _, vault) =
+        mock::db_event_log_standalone(&mut client).await?;
+    let expected_root = event_log.tree().root().unwrap();
 
-    let client = open_file(temp.path()).await?;
-    let event_log =
-        FolderEventLog::new_db_folder(client, account_id, folder_id).await?;
+    let mut client = open_memory().await?;
+    let (account_id, _, _) =
+        insert_database_vault(&mut client, &vault).await?;
+    let event_log = FolderEventLog::new_db_folder(client.clone(), account_id, folder_id).await?;
     assert_load_tree(event_log, expected_root).await?;
     temp.close()?;
     Ok(())
