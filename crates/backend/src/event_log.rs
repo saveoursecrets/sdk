@@ -284,13 +284,13 @@ where
         }
     }
 
-    async fn patch_replace(
+    async fn replace_all_events(
         &mut self,
         diff: &Diff<T>,
     ) -> Result<(), Self::Error> {
         match self {
-            Self::Database(inner) => inner.patch_replace(diff).await,
-            Self::FileSystem(inner) => inner.patch_replace(diff).await,
+            Self::Database(inner) => inner.replace_all_events(diff).await,
+            Self::FileSystem(inner) => inner.replace_all_events(diff).await,
         }
     }
 

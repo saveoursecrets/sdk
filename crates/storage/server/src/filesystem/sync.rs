@@ -45,7 +45,7 @@ impl ForceMerge for ServerFileStorage {
         );
 
         let mut event_log = self.identity_log.write().await;
-        event_log.patch_replace(&diff).await?;
+        event_log.replace_all_events(&diff).await?;
 
         // Rebuild the head-only identity vault
         let vault = FolderReducer::new()
@@ -78,7 +78,7 @@ impl ForceMerge for ServerFileStorage {
         );
 
         let mut event_log = self.account_log.write().await;
-        event_log.patch_replace(&diff).await?;
+        event_log.replace_all_events(&diff).await?;
 
         outcome.changes += len;
         outcome.tracked.account =
@@ -102,7 +102,7 @@ impl ForceMerge for ServerFileStorage {
 
         let event_log = self.device_log().await?;
         let mut event_log = event_log.write().await;
-        event_log.patch_replace(&diff).await?;
+        event_log.replace_all_events(&diff).await?;
 
         // Update in-memory cache of trusted devices
         let reducer = DeviceReducer::new(&*event_log);
@@ -132,7 +132,7 @@ impl ForceMerge for ServerFileStorage {
 
         let event_log = self.file_log().await?;
         let mut event_log = event_log.write().await;
-        event_log.patch_replace(&diff).await?;
+        event_log.replace_all_events(&diff).await?;
 
         outcome.changes += len;
         outcome.tracked.files =
@@ -161,7 +161,7 @@ impl ForceMerge for ServerFileStorage {
 
         let mut event_log =
             FolderEventLog::new_fs_folder(events_path).await?;
-        event_log.patch_replace(&diff).await?;
+        event_log.replace_all_events(&diff).await?;
 
         let vault = FolderReducer::new()
             .reduce(&event_log)

@@ -65,7 +65,7 @@ impl ForceMerge for LocalAccount {
 
         let event_log = self.account_log().await?;
         let mut event_log = event_log.write().await;
-        event_log.patch_replace(&diff).await?;
+        event_log.replace_all_events(&diff).await?;
 
         outcome.changes += len;
         outcome.tracked.account =
@@ -89,7 +89,7 @@ impl ForceMerge for LocalAccount {
 
         let event_log = self.device_log().await?;
         let mut event_log = event_log.write().await;
-        event_log.patch_replace(&diff).await?;
+        event_log.replace_all_events(&diff).await?;
 
         outcome.changes += len;
         outcome.tracked.device =
@@ -115,7 +115,7 @@ impl ForceMerge for LocalAccount {
 
         let event_log = self.file_log().await?;
         let mut event_log = event_log.write().await;
-        event_log.patch_replace(&diff).await?;
+        event_log.replace_all_events(&diff).await?;
 
         outcome.changes += len;
         outcome.tracked.files =

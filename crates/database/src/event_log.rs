@@ -506,7 +506,7 @@ where
         }
     }
 
-    async fn patch_replace(
+    async fn replace_all_events(
         &mut self,
         diff: &Diff<T>,
     ) -> Result<(), Self::Error> {
