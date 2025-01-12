@@ -1,4 +1,5 @@
 mod compare;
+mod diff_events;
 mod last_commit;
 mod stream;
 
@@ -6,7 +7,7 @@ pub mod mock {
     use anyhow::Result;
     use futures::{pin_mut, StreamExt};
     use sos_backend::{AccountEventLog, FolderEventLog};
-    use sos_core::commit::{CommitHash, CommitTree, Comparison};
+    use sos_core::commit::{CommitHash, CommitTree};
     use sos_core::{events::EventLog, AccountId};
     use sos_database::async_sqlite::Client;
     use sos_sdk::crypto::PrivateKey;
@@ -17,14 +18,22 @@ pub mod mock {
     use tempfile::NamedTempFile;
     use uuid::Uuid;
 
-    /*
     pub async fn fs_account_event_log(
     ) -> Result<(NamedTempFile, AccountEventLog)> {
         let temp = NamedTempFile::new()?;
         let event_log = AccountEventLog::new_fs_account(temp.path()).await?;
         Ok((temp, event_log))
     }
-    */
+
+    pub async fn db_account_event_log(
+        client: &mut Client,
+    ) -> Result<(AccountId, AccountEventLog)> {
+        let (account_id, _) = mock::insert_database_account(client).await?;
+        let event_log =
+            AccountEventLog::new_db_account(client.clone(), account_id)
+                .await?;
+        Ok((account_id, event_log))
+    }
 
     pub async fn fs_folder_event_log(
     ) -> Result<(NamedTempFile, FolderEventLog)> {

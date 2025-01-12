@@ -188,12 +188,10 @@ pub async fn memory_database() -> Result<Client> {
     Ok(client)
 }
 
-/// Create a database folder for a vault.
-pub async fn insert_database_vault(
+/// Create a database account.
+pub async fn insert_database_account(
     client: &mut Client,
-    vault: &Vault,
-) -> Result<(AccountId, i64, i64)> {
-    let vault = vault.clone();
+) -> Result<(AccountId, i64)> {
     Ok(client
         .conn_mut(move |conn| {
             let tx = conn.transaction()?;
@@ -201,6 +199,23 @@ pub async fn insert_database_vault(
             let account_identifier = AccountId::random();
             let account_id = account
                 .insert(&account_identifier.to_string(), "mock-account")?;
+            tx.commit()?;
+            Ok((account_identifier, account_id))
+        })
+        .await?)
+}
+
+/// Create a database account and folder for a vault.
+pub async fn insert_database_vault(
+    client: &mut Client,
+    vault: &Vault,
+) -> Result<(AccountId, i64, i64)> {
+    let (account_identifier, account_id) =
+        insert_database_account(client).await?;
+    let vault = vault.clone();
+    Ok(client
+        .conn_mut(move |conn| {
+            let tx = conn.transaction()?;
             let folder = FolderEntity::new(&tx);
             let folder_id =
                 folder.insert_folder(account_id, vault.summary(), None)?;
