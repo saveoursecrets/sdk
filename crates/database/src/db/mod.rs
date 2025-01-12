@@ -14,7 +14,7 @@ pub use audit::AuditEntity;
 pub use event::{CommitRecord, EventEntity, EventTable};
 #[cfg(feature = "files")]
 pub use file::FileEntity;
-pub use folder::{FolderEntity, FolderRecord};
+pub use folder::{FolderEntity, FolderRecord, SecretRecord};
 pub use preference::PreferenceEntity;
 pub use server::ServerEntity;
 

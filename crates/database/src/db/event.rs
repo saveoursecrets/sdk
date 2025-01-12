@@ -301,7 +301,7 @@ where
         table: EventTable,
         account_id: i64,
         folder_id: Option<i64>,
-    ) -> Result<Vec<CommitRow>, SqlError> {
+    ) -> crate::Result<Vec<CommitRow>> {
         let (mut stmt, id) = match (table, folder_id) {
             (EventTable::AccountEvents, None) => {
                 let stmt = self.conn.prepare_cached(
@@ -358,17 +358,17 @@ where
             _ => unreachable!(),
         };
 
-        let rows =
-            stmt.query_map([id], |row| Ok((row.get(0), row.get(1))))?;
+        fn convert_row(row: &Row<'_>) -> Result<CommitRow, crate::Error> {
+            Ok(row.try_into()?)
+        }
+
+        let rows = stmt.query_and_then([id], |row| {
+            Ok::<_, crate::Error>(convert_row(row)?)
+        })?;
 
         let mut commits = Vec::new();
         for row in rows {
-            let res = row?;
-            let commit = CommitRow {
-                row_id: res.0?,
-                commit_hash: res.1?,
-            };
-            commits.push(commit);
+            commits.push(row?);
         }
         Ok(commits)
     }

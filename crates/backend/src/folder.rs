@@ -10,17 +10,19 @@ use sos_core::{
     AccountId, VaultFlags,
 };
 use sos_core::{constants::EVENT_LOG_EXT, decode};
-use sos_database::{async_sqlite::Client, VaultDatabaseWriter};
+use sos_database::{
+    async_sqlite::Client,
+    db::{FolderEntity, FolderRecord, SecretRecord},
+    VaultDatabaseWriter,
+};
 use sos_filesystem::VaultFileWriter;
-use sos_vault::Vault;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},
-    AccessPoint as VaultAccessPoint, SecretAccess, VaultCommit, VaultId,
-    VaultMeta,
+    AccessPoint as VaultAccessPoint, EncryptedEntry, SecretAccess, Vault,
+    VaultCommit, VaultId, VaultMeta,
 };
 use sos_vfs as vfs;
-use std::path::Path;
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
 /// Folder is a combined vault and event log.
@@ -75,8 +77,31 @@ impl Folder {
         account_id: AccountId,
         folder_id: VaultId,
     ) -> Result<Self> {
-        // TODO: load vault data into memory
-        let vault: Vault = Default::default();
+        let folder_row = client
+            .conn(move |conn| {
+                let folder = FolderEntity::new(&conn);
+                Ok(folder.find_one(&folder_id)?)
+            })
+            .await
+            .map_err(sos_database::Error::from)?;
+        let folder_record: FolderRecord = folder_row.try_into()?;
+
+        let summary = folder_record.summary;
+        let mut vault: Vault = summary.into();
+
+        let secrets = client
+            .conn_and_then(move |conn| {
+                let folder = FolderEntity::new(&conn);
+                let secrets = folder.load_secrets(folder_record.row_id)?;
+                Ok::<_, sos_database::Error>(secrets)
+            })
+            .await?;
+
+        for secret in secrets {
+            let record = SecretRecord::from_row(secret).await?;
+            let VaultCommit(commit, entry) = record.commit;
+            vault.insert_secret(record.secret_id, commit, entry).await?;
+        }
 
         let mut event_log = FolderEventLog::new_db_folder(
             client.clone(),

@@ -455,14 +455,13 @@ where
         let folder_id = self.folder.as_ref().map(|f| f.row_id);
         let commits = self
             .client
-            .conn(move |conn| {
+            .conn_and_then(move |conn| {
                 let events = EventEntity::new(&conn);
                 let commits =
                     events.load_commits(table, account_id, folder_id)?;
-                Ok(commits)
+                Ok::<_, Error>(commits)
             })
-            .await
-            .map_err(Error::from)?;
+            .await?;
         for commit in commits {
             let record: CommitRecord = commit.try_into()?;
             self.ids.push(record.row_id);

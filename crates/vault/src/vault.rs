@@ -330,6 +330,26 @@ impl From<Summary> for VaultId {
     }
 }
 
+impl From<Summary> for Header {
+    fn from(value: Summary) -> Self {
+        Header::new(
+            value.id,
+            value.name,
+            value.cipher,
+            value.kdf,
+            value.flags,
+        )
+    }
+}
+
+impl From<Summary> for Vault {
+    fn from(value: Summary) -> Self {
+        let mut vault: Vault = Default::default();
+        vault.header = value.into();
+        vault
+    }
+}
+
 /// File header, identifier and version information
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Header {

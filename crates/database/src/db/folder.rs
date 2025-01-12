@@ -3,7 +3,8 @@ use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
 };
 use sos_core::{
-    commit::CommitHash, SecretId, UtcDateTime, VaultFlags, VaultId,
+    commit::CommitHash, crypto::AeadPack, decode, SecretId, UtcDateTime,
+    VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
 use sos_vault::Summary;
 use std::collections::HashMap;
@@ -107,6 +108,38 @@ impl<'a> TryFrom<&Row<'a>> for SecretRow {
             commit: row.get(4)?,
             meta: row.get(5)?,
             secret: row.get(6)?,
+        })
+    }
+}
+
+/// Secret record from the database.
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct SecretRecord {
+    pub row_id: i64,
+    pub created_at: UtcDateTime,
+    pub modified_at: UtcDateTime,
+    pub secret_id: VaultId,
+    pub commit: VaultCommit,
+}
+
+impl SecretRecord {
+    /// Convert from a secret row.
+    pub async fn from_row(value: SecretRow) -> Result<Self> {
+        let created_at = UtcDateTime::parse_utc_iso8601(&value.created_at)?;
+        let modified_at = UtcDateTime::parse_utc_iso8601(&value.modified_at)?;
+        let secret_id: SecretId = value.identifier.parse()?;
+        let commit_hash = CommitHash(value.commit.as_slice().try_into()?);
+        let meta: AeadPack = decode(&value.meta).await?;
+        let secret: AeadPack = decode(&value.secret).await?;
+        let commit = VaultCommit(commit_hash, VaultEntry(meta, secret));
+
+        Ok(SecretRecord {
+            row_id: value.row_id,
+            created_at,
+            modified_at,
+            secret_id,
+            commit,
         })
     }
 }
@@ -385,6 +418,37 @@ where
             &secret_id.to_string(),
         ))?;
         Ok(affected_rows > 0)
+    }
+
+    /// Load secret rows.
+    pub fn load_secrets(&self, folder_row_id: i64) -> Result<Vec<SecretRow>> {
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+                SELECT
+                    secret_id,
+                    created_at,
+                    modified_at,
+                    identifier,
+                    commit,
+                    meta,
+                    secret
+                FROM folder_secrets
+                WHERE folder_id=?1
+            "#,
+        )?;
+
+        fn convert_row(row: &Row<'_>) -> Result<SecretRow> {
+            Ok(row.try_into()?)
+        }
+
+        let rows = stmt.query_and_then([folder_row_id], |row| {
+            Ok::<_, crate::Error>(convert_row(row)?)
+        })?;
+        let mut secrets = Vec::new();
+        for row in rows {
+            secrets.push(row?);
+        }
+        Ok(secrets)
     }
 
     /// Delete folder secret.
