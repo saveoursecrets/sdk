@@ -30,6 +30,7 @@ async fn db_event_log_load_tree() -> Result<()> {
     )
     .await?;
     assert_load_tree(event_log, expected_root).await?;
+    client.close().await?;
     temp.close()?;
     Ok(())
 }
@@ -38,12 +39,8 @@ async fn assert_load_tree(
     mut event_log: FolderEventLog,
     expected_root: CommitHash,
 ) -> Result<()> {
-    println!("TREE IS LOADING");
-
     // Load the commit hashes and build the merkle tree
     event_log.load_tree().await?;
-
-    println!("TREE WAS LOADED");
 
     // Ensure the new root matches the original tree
     assert_eq!(Some(&expected_root), event_log.tree().root().as_ref());
