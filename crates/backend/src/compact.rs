@@ -8,12 +8,21 @@ use sos_filesystem::FolderEventLog as FsFolderEventLog;
 use sos_vfs as vfs;
 use tempfile::NamedTempFile;
 
-/// Compact a filesystem folder event log.
+/// Compact a folder event log.
 pub async fn compact_folder(
     event_log: &FolderEventLog,
 ) -> Result<(FolderEventLog, u64, u64)> {
     match event_log {
         BackendEventLog::Database(event_log) => {
+            // Get the reduced set of events
+            let events = FolderReducer::new()
+                .reduce(event_log)
+                .await?
+                .compact()
+                .await?;
+
+            // event_log.replace_all_events(diff).await?;
+
             todo!("handle compacting database folder...");
         }
         BackendEventLog::FileSystem(event_log) => {

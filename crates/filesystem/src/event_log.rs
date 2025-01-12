@@ -404,17 +404,17 @@ where
             _ => {}
         }
 
-        if verified {
-            Ok(())
-        } else {
-            Err(Error::CheckpointVerification {
+        if !verified {
+            return Err(Error::CheckpointVerification {
                 checkpoint: diff.checkpoint.root,
                 computed: computed.root,
                 snapshot,
                 rollback_completed,
             }
-            .into())
+            .into());
         }
+
+        Ok(())
     }
 
     async fn patch_unchecked(

@@ -511,7 +511,19 @@ where
         diff: &Diff<T>,
     ) -> Result<(), Self::Error> {
         let records = diff.patch.records().to_vec();
-        self.insert_records(records, true).await
+        self.insert_records(records, true).await?;
+
+        let computed = self.tree().head()?;
+        let verified = computed == diff.checkpoint;
+        if !verified {
+            return Err(Error::CheckpointVerification {
+                checkpoint: diff.checkpoint.root,
+                computed: computed.root,
+            }
+            .into());
+        }
+
+        Ok(())
     }
 
     async fn patch_unchecked(
