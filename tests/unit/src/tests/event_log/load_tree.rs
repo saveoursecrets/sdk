@@ -18,10 +18,14 @@ async fn fs_event_log_load_tree() -> Result<()> {
 
 #[tokio::test]
 async fn db_event_log_load_tree() -> Result<()> {
-    let (temp, mut client) = file_database().await?;
-    let (mock_event_log, account_id, folder_id, _) =
-        mock::db_event_log_standalone(&mut client).await?;
-    let expected_root = mock_event_log.tree().root().unwrap();
+    let (temp, expected_root, account_id, folder_id) = {
+        let (temp, mut client) = file_database().await?;
+        let (mock_event_log, account_id, folder_id, _) =
+            mock::db_event_log_standalone(&mut client).await?;
+        let expected_root = mock_event_log.tree().root().unwrap();
+        (temp, expected_root, account_id, folder_id)
+    };
+
     let client = open_file(temp.path()).await?;
     let event_log =
         FolderEventLog::new_db_folder(client, account_id, folder_id).await?;
