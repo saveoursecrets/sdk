@@ -21,6 +21,7 @@ members = [
   "crates/net",
   "crates/password",
   "crates/platform_authenticator",
+  "crates/preferences",
   "crates/protocol",
   "crates/recovery",
   "crates/sdk",
@@ -65,6 +66,7 @@ sos-search = { version = "0.16", path = "crates/search" }
 sos-server = { version = "0.16", path = "crates/server" }
 sos-client-storage = { version = "0.16", path = "crates/storage/client" }
 sos-server-storage = { version = "0.16", path = "crates/storage/server" }
+sos-preferences = { version = "0.16", path = "crates/preferences" }
 sos-signer = { version = "0.16", path = "crates/signer" }
 sos-sync = { version = "0.16", path = "crates/sync" }
 sos-sdk = { version = "0.16", path = "crates/sdk" }

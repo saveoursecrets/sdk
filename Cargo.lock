@@ -5351,6 +5351,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-preferences"
+version = "0.16.0"
+dependencies = [
+ "async-trait",
+ "rustc_version",
+ "serde",
+ "sos-core",
+ "thiserror 2.0.9",
+ "tokio",
+]
+
+[[package]]
 name = "sos-protocol"
 version = "0.16.3"
 dependencies = [
