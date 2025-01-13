@@ -342,9 +342,14 @@ fn create_folder(
     rows: Vec<(SecretId, CommitHash, Vec<u8>, Vec<u8>)>,
     events: Option<Vec<(String, EventRecord)>>,
 ) -> std::result::Result<(i64, HashMap<SecretId, i64>), SqlError> {
+    let salt = vault.salt().cloned();
     let folder_entity = FolderEntity::new(tx);
-    let folder_id =
-        folder_entity.insert_folder(account_id, vault.summary(), meta)?;
+    let folder_id = folder_entity.insert_folder(
+        account_id,
+        vault.summary(),
+        salt,
+        meta,
+    )?;
     let secret_ids = folder_entity.insert_folder_secrets(folder_id, rows)?;
     if let Some(events) = events {
         // Insert the event rows

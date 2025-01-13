@@ -204,7 +204,7 @@ pub trait EncryptedEntry {
 pub struct Auth {
     /// Salt used to derive a secret key from the passphrase.
     pub(crate) salt: Option<String>,
-    /// Additional entropy to concatenate with the vault passphrase
+    /// Additional entropy to concatenate with the vault password
     /// before deriving the secret key.
     pub(crate) seed: Option<Seed>,
 }
@@ -412,6 +412,11 @@ impl Header {
     /// Set the public name for this vault.
     pub fn set_name(&mut self, name: String) {
         self.summary.set_name(name);
+    }
+
+    /// Set the salt for key derivation.
+    pub fn set_salt(&mut self, salt: Option<String>) {
+        self.auth.salt = salt;
     }
 
     /// Get the encrypted meta data for the vault.

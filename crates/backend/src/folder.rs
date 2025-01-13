@@ -5,6 +5,7 @@ use crate::{
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
+    encode,
     events::EventLog,
     events::{EventRecord, ReadEvent, WriteEvent},
     AccountId, VaultFlags,
@@ -84,10 +85,16 @@ impl Folder {
             })
             .await
             .map_err(sos_database::Error::from)?;
-        let folder_record: FolderRecord = folder_row.try_into()?;
+        let folder_record = FolderRecord::from_row(folder_row).await?;
 
         let summary = folder_record.summary;
         let mut vault: Vault = summary.into();
+
+        // Salt and meta so the vault can be unlocked
+        vault.header_mut().set_salt(folder_record.salt);
+        if let Some(meta) = folder_record.meta {
+            vault.set_vault_meta(meta).await?;
+        }
 
         let secrets = client
             .conn_and_then(move |conn| {
@@ -109,7 +116,14 @@ impl Folder {
             folder_id,
         )
         .await?;
+
         event_log.load_tree().await?;
+
+        if event_log.tree().len() == 0 {
+            let buffer = encode(&vault).await?;
+            let event = WriteEvent::CreateVault(buffer);
+            event_log.apply(vec![&event]).await?;
+        }
 
         let mirror =
             VaultDatabaseWriter::<Error>::new(client, folder_id).await;

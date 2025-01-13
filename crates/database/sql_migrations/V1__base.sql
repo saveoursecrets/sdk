@@ -66,6 +66,9 @@ CREATE TABLE IF NOT EXISTS folders
     -- name
     name                  TEXT                NOT NULL,
 
+    -- Salt for key derivation
+    salt                  TEXT,
+
     -- AEAD encrypted meta data
     meta                  BLOB,
 

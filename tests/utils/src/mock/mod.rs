@@ -131,14 +131,19 @@ pub async fn vault_note_update(
 /// Create a mock vault in a temp file.
 pub async fn vault_file() -> Result<(NamedTempFile, Vault, SecretString)> {
     let mut temp = NamedTempFile::new()?;
+    let (vault, password) = vault_memory().await?;
+    let buffer = encode(&vault).await?;
+    temp.write_all(&buffer)?;
+    Ok((temp, vault, password))
+}
+
+/// Create a mock vault in memory.
+pub async fn vault_memory() -> Result<(Vault, SecretString)> {
     let (password, _) = generate_passphrase()?;
     let vault = VaultBuilder::new()
         .build(BuilderCredentials::Password(password.clone(), None))
         .await?;
-
-    let buffer = encode(&vault).await?;
-    temp.write_all(&buffer)?;
-    Ok((temp, vault, password))
+    Ok((vault, password))
 }
 
 /// Create a mock event log in a temp file.
@@ -218,12 +223,22 @@ pub async fn insert_database_vault(
     let (account_identifier, account_id) =
         insert_database_account(client).await?;
     let vault = vault.clone();
+    let salt = vault.salt().cloned();
+    let meta = if let Some(meta) = vault.header().meta() {
+        Some(encode(meta).await?)
+    } else {
+        None
+    };
     Ok(client
         .conn_mut(move |conn| {
             let tx = conn.transaction()?;
             let folder = FolderEntity::new(&tx);
-            let folder_id =
-                folder.insert_folder(account_id, vault.summary(), None)?;
+            let folder_id = folder.insert_folder(
+                account_id,
+                vault.summary(),
+                salt,
+                meta,
+            )?;
             tx.commit()?;
             Ok((account_identifier, account_id, folder_id))
         })

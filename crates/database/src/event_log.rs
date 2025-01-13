@@ -115,7 +115,7 @@ where
             })
             .await
             .map_err(Error::from)?;
-        Ok(folder.try_into()?)
+        Ok(FolderRecord::from_row(folder).await?)
     }
 
     async fn insert_records(

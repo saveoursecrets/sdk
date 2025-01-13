@@ -20,6 +20,7 @@ pub struct FolderRow {
     pub modified_at: String,
     pub identifier: String,
     pub name: String,
+    pub salt: Option<String>,
     pub meta: Option<Vec<u8>>,
     pub version: i64,
     pub cipher: String,
@@ -36,11 +37,12 @@ impl<'a> TryFrom<&Row<'a>> for FolderRow {
             modified_at: row.get(2)?,
             identifier: row.get(3)?,
             name: row.get(4)?,
-            meta: row.get(5)?,
-            version: row.get(6)?,
-            cipher: row.get(7)?,
-            kdf: row.get(8)?,
-            flags: row.get(9)?,
+            salt: row.get(5)?,
+            meta: row.get(6)?,
+            version: row.get(7)?,
+            cipher: row.get(8)?,
+            kdf: row.get(9)?,
+            flags: row.get(10)?,
         })
     }
 }
@@ -54,14 +56,17 @@ pub struct FolderRecord {
     pub created_at: UtcDateTime,
     /// Modified date and time.
     pub modified_at: UtcDateTime,
+    /// Key derivation salt.
+    pub salt: Option<String>,
+    /// Folder meta data.
+    pub meta: Option<AeadPack>,
     /// Folder summary.
     pub summary: Summary,
 }
 
-impl TryFrom<FolderRow> for FolderRecord {
-    type Error = Error;
-
-    fn try_from(value: FolderRow) -> Result<Self> {
+impl FolderRecord {
+    /// Convert from a folder row.
+    pub async fn from_row(value: FolderRow) -> Result<Self> {
         let created_at = UtcDateTime::parse_utc_iso8601(&value.created_at)?;
         let modified_at = UtcDateTime::parse_utc_iso8601(&value.modified_at)?;
         let folder_id: VaultId = value.identifier.parse()?;
@@ -72,6 +77,19 @@ impl TryFrom<FolderRow> for FolderRecord {
         let bits = u64::from_le_bytes(bytes);
         let flags = VaultFlags::from_bits(bits)
             .ok_or(sos_vault::Error::InvalidVaultFlags)?;
+
+        let salt = if let Some(salt) = value.salt {
+            Some(salt)
+        } else {
+            None
+        };
+
+        let meta = if let Some(meta) = &value.meta {
+            Some(decode(meta).await?)
+        } else {
+            None
+        };
+
         let summary =
             Summary::new(version, folder_id, value.name, cipher, kdf, flags);
 
@@ -79,6 +97,8 @@ impl TryFrom<FolderRow> for FolderRecord {
             row_id: value.row_id,
             created_at,
             modified_at,
+            salt,
+            meta,
             summary,
         })
     }
@@ -170,6 +190,7 @@ where
                     modified_at,
                     identifier,
                     name,
+                    salt,
                     meta,
                     version,
                     cipher,
@@ -266,6 +287,7 @@ where
         &self,
         account_id: i64,
         summary: &Summary,
+        salt: Option<String>,
         meta: Option<Vec<u8>>,
     ) -> StdResult<i64, SqlError> {
         let identifier = summary.id().to_string();
@@ -278,14 +300,15 @@ where
         let mut stmt = self.conn.prepare_cached(
             r#"
               INSERT INTO folders
-                (account_id, identifier, name, meta, version, cipher, kdf, flags)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                (account_id, identifier, name, salt, meta, version, cipher, kdf, flags)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
             "#,
         )?;
         stmt.execute((
             &account_id,
             &identifier,
             &name,
+            &salt,
             &meta,
             &version,
             &cipher,
@@ -429,7 +452,7 @@ where
                     created_at,
                     modified_at,
                     identifier,
-                    commit,
+                    commit_hash,
                     meta,
                     secret
                 FROM folder_secrets

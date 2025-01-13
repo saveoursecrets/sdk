@@ -5,7 +5,9 @@ use sos_backend::{Folder, FolderEventLog};
 use sos_core::{
     crypto::AccessKey, encode, events::EventLog, SecretId, VaultFlags,
 };
-use sos_test_utils::mock::{self, vault_file};
+use sos_test_utils::mock::{
+    self, file_database, insert_database_vault, vault_file, vault_memory,
+};
 use sos_vault::secret::{Secret, SecretRow};
 use sos_vfs as vfs;
 use std::sync::Arc;
@@ -21,6 +23,26 @@ async fn fs_folder_lifecycle() -> Result<()> {
     let key: AccessKey = password.into();
     assert_folder(&mut folder, key).await?;
 
+    temp.close()?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn db_folder_lifecycle() -> Result<()> {
+    let (vault, password) = vault_memory().await?;
+    let (temp, mut client) = file_database().await?;
+    let (account_id, _, _) =
+        insert_database_vault(&mut client, &vault).await?;
+
+    let buffer = encode(&vault).await?;
+    vfs::write(temp.path(), &buffer).await?;
+
+    let mut folder =
+        Folder::new_db(client.clone(), account_id, *vault.id()).await?;
+    let key: AccessKey = password.into();
+    assert_folder(&mut folder, key).await?;
+
+    client.close().await?;
     temp.close()?;
     Ok(())
 }

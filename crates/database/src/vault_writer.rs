@@ -79,7 +79,7 @@ where
             .await
             .map_err(Error::from)?;
         let row = row.ok_or(Error::DatabaseFolderNotFound(folder_id))?;
-        let record: FolderRecord = row.try_into()?;
+        let record = FolderRecord::from_row(row).await?;
         Ok(record.summary)
     }
 
