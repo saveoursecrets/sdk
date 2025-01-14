@@ -26,7 +26,7 @@ pub use encoding::{decode, encode};
 pub use error::{Error, ErrorExt};
 pub use file::{ExternalFile, ExternalFileName};
 pub use identity::{AccountRef, PublicIdentity};
-pub use origin::Origin;
+pub use origin::{Origin, RemoteOrigins};
 pub use paths::Paths;
 pub use rs_merkle as merkle;
 

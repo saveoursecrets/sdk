@@ -8,11 +8,13 @@ mod event_log;
 pub mod formats;
 #[cfg(feature = "preferences")]
 mod preferences;
+mod server_origins;
 mod vault_writer;
 
 pub use error::Error;
 #[cfg(feature = "preferences")]
 pub use preferences::*;
+pub use server_origins::ServerOrigins;
 pub use vault_writer::VaultFileWriter;
 
 /// AccessPoint that mirrors changes to a vault on disc.

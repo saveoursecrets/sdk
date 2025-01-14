@@ -1,5 +1,7 @@
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashSet,
     fmt,
     hash::{Hash, Hasher},
 };
@@ -52,4 +54,21 @@ impl From<Url> for Origin {
         let name = url.authority().to_owned();
         Self { name, url }
     }
+}
+
+/// Managae a collection of server origins.
+#[async_trait]
+pub trait RemoteOrigins {
+    /// Error type.
+    type Error: std::error::Error + std::fmt::Debug;
+
+    /// Load server origins from the backing storage.
+    async fn load_servers(&self) -> Result<HashSet<Origin>, Self::Error>;
+
+    /// Add a server origin to the backing storage.
+    async fn add_server(&self, origin: Origin) -> Result<(), Self::Error>;
+
+    /// Remove a server origin from the backing storage.
+    async fn remove_server(&self, origin: &Origin)
+        -> Result<(), Self::Error>;
 }
