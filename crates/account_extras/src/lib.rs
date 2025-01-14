@@ -11,9 +11,6 @@ pub use error::Error;
 /// Result type for the extras library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
-#[cfg(feature = "preferences")]
-pub mod preferences;
-
 #[cfg(feature = "security-report")]
 pub mod security_report;
 

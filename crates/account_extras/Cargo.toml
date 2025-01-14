@@ -13,11 +13,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 full = [
-  "preferences",
   "security-report",
   "system-messages",
 ]
-preferences = []
 security-report = ["dep:zxcvbn", "dep:sha1", "dep:secrecy"]
 system-messages = []
 

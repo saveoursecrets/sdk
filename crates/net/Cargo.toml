@@ -42,7 +42,7 @@ keychain-access = ["sos-migrate/keychain-access"]
 pairing = ["dep:snow", "sos-protocol/pairing"]
 search = ["sos-search", "sos-protocol/search"]
 
-preferences = ["sos-account-extras/preferences"]
+preferences = ["sos-backend/preferences"]
 security-report = ["sos-account-extras/security-report"]
 system-messages = ["sos-account-extras/system-messages"]
 

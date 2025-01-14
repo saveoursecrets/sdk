@@ -3,7 +3,8 @@ use crate::{
     test_utils::{setup, teardown},
 };
 use anyhow::Result;
-use sos_net::extras::preferences::*;
+use sos_backend::Preferences;
+use sos_preferences::PreferenceManager;
 
 /// Tests the global preferences for all accounts.
 #[tokio::test]
@@ -14,7 +15,8 @@ async fn preferences_global() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
 
-    let mut preferences = CachedPreferences::new(Some(data_dir.clone()))?;
+    let mut preferences =
+        Preferences::new_fs_directory(Some(data_dir.clone()))?;
     preferences.load_global_preferences().await?;
 
     let prefs = preferences.global_preferences();

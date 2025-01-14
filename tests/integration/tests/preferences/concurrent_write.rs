@@ -3,7 +3,8 @@ use crate::{
     test_utils::{setup, teardown},
 };
 use anyhow::Result;
-use sos_net::extras::preferences::*;
+use sos_backend::Preferences;
+use sos_preferences::*;
 use sos_sdk::prelude::Paths;
 use tokio::process::Command;
 
@@ -37,7 +38,8 @@ async fn preferences_concurrent_write() -> Result<()> {
     }
     futures::future::try_join_all(futures).await?;
 
-    let mut preferences = CachedPreferences::new(Some(data_dir.clone()))?;
+    let mut preferences =
+        Preferences::new_fs_directory(Some(data_dir.clone()))?;
     preferences.load_global_preferences().await?;
     let prefs = preferences.global_preferences();
     let prefs = prefs.lock().await;

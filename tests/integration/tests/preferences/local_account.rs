@@ -4,7 +4,8 @@ use crate::{
 };
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
-use sos_net::extras::preferences::*;
+use sos_backend::Preferences;
+use sos_preferences::PreferenceManager;
 use sos_sdk::prelude::*;
 
 /// Tests the preferences in the context of a local account.
@@ -32,7 +33,7 @@ async fn preferences_local_account() -> Result<()> {
     let identity = account.public_identity().await?.clone();
     let identities = vec![identity];
 
-    let preferences = CachedPreferences::new(Some(data_dir.clone()))?;
+    let preferences = Preferences::new_fs_directory(Some(data_dir.clone()))?;
     preferences.load_account_preferences(&identities).await?;
 
     let prefs = preferences.account_preferences(account.account_id()).await;

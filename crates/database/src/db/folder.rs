@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::Result;
 use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
 };

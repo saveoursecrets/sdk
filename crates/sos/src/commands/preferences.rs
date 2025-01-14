@@ -7,7 +7,8 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_account::Account;
-use sos_net::extras::preferences::*;
+use sos_backend::Preferences;
+use sos_preferences::{Preference, PreferenceManager};
 use sos_sdk::prelude::AccountRef;
 
 #[derive(Subcommand, Debug)]
@@ -106,7 +107,11 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let paths = owner.paths();
-            let mut prefs = Preferences::new(&paths);
+            let prefs = Preferences::new_fs(paths.clone());
+            prefs.new_account(owner.account_id()).await?;
+            let prefs =
+                prefs.account_preferences(owner.account_id()).await.unwrap();
+            let mut prefs = prefs.lock().await;
             prefs.load().await?;
             if prefs.is_empty() {
                 println!("No preferences yet");
@@ -122,7 +127,11 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let paths = owner.paths();
-            let mut prefs = Preferences::new(&paths);
+            let prefs = Preferences::new_fs(paths.clone());
+            prefs.new_account(owner.account_id()).await?;
+            let prefs =
+                prefs.account_preferences(owner.account_id()).await.unwrap();
+            let mut prefs = prefs.lock().await;
             prefs.load().await?;
             if let Some(pref) = prefs.get_unchecked(&key) {
                 println!("{}={}", key, pref);
@@ -136,7 +145,11 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let paths = owner.paths();
-            let mut prefs = Preferences::new(&paths);
+            let prefs = Preferences::new_fs(paths.clone());
+            prefs.new_account(owner.account_id()).await?;
+            let prefs =
+                prefs.account_preferences(owner.account_id()).await.unwrap();
+            let mut prefs = prefs.lock().await;
             prefs.load().await?;
             let pref = prefs.remove(&key).await?;
             if pref.is_some() {
@@ -180,7 +193,11 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let paths = owner.paths();
-            let mut prefs = Preferences::new(&paths);
+            let prefs = Preferences::new_fs(paths.clone());
+            prefs.new_account(owner.account_id()).await?;
+            let prefs =
+                prefs.account_preferences(owner.account_id()).await.unwrap();
+            let mut prefs = prefs.lock().await;
             prefs.clear().await?;
             success("Cleared all preferences");
         }
@@ -197,7 +214,10 @@ async fn set_pref(
     let owner = user.read().await;
     let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
     let paths = owner.paths();
-    let mut prefs = Preferences::new(&paths);
+    let prefs = Preferences::new_fs(paths.clone());
+    prefs.new_account(owner.account_id()).await?;
+    let prefs = prefs.account_preferences(owner.account_id()).await.unwrap();
+    let mut prefs = prefs.lock().await;
     prefs.load().await?;
     prefs.insert(key.clone(), pref).await?;
     success(format!("Set {}", key));

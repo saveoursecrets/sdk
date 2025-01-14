@@ -1,4 +1,5 @@
-use sos_account_extras::preferences::CachedPreferences;
+use sos_backend::Preferences;
+use sos_preferences::PreferenceManager;
 use std::path::PathBuf;
 
 /// Helper executable used to test concurrent writes
@@ -15,7 +16,7 @@ pub async fn main() -> anyhow::Result<()> {
     // Value to write
     let value = args.pop().unwrap();
 
-    let mut preferences = CachedPreferences::new(data_dir)?;
+    let mut preferences = Preferences::new_fs_directory(data_dir)?;
     preferences.load_global_preferences().await?;
 
     let prefs = preferences.global_preferences();

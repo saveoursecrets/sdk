@@ -1,7 +1,8 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
+use sos_backend::Preferences;
 use sos_core::AccountId;
-use sos_net::extras::preferences::*;
+use sos_preferences::{Preference, PreferenceManager};
 use sos_sdk::prelude::*;
 
 /// Tests the cached preferences without any accounts or authentication.
@@ -23,7 +24,7 @@ async fn preferences_no_account() -> Result<()> {
 
     // Prepare the preferences
     let accounts = vec![identity];
-    let preferences = CachedPreferences::new(Some(data_dir.clone()))?;
+    let preferences = Preferences::new_fs_directory(Some(data_dir.clone()))?;
     preferences
         .load_account_preferences(accounts.as_slice())
         .await?;

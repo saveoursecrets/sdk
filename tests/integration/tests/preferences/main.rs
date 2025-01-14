@@ -2,9 +2,9 @@ mod concurrent_write;
 mod global_preferences;
 mod local_account;
 mod no_account;
-pub use sos_test_utils as test_utils;
 
-use sos_net::extras::preferences::{Preference, Preferences};
+use sos_preferences::{Preference, Preferences};
+pub use sos_test_utils as test_utils;
 
 pub fn test_preferences_concurrency<'a>(
     data_dir: &'a str,
@@ -23,9 +23,17 @@ pub fn test_preferences_concurrency<'a>(
     (command, arguments)
 }
 
-pub(crate) async fn assert_preferences(
-    prefs: &mut Preferences,
-) -> anyhow::Result<()> {
+pub(crate) async fn assert_preferences<E>(
+    prefs: &mut Preferences<E>,
+) -> anyhow::Result<()>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<sos_preferences::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     // Create preferences
     prefs.insert("mock.bool".to_owned(), true.into()).await?;
 
