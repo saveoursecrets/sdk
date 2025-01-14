@@ -17,8 +17,9 @@ use sos_protocol::{
     pairing_message,
     tokio_tungstenite::{
         connect_async,
-        tungstenite::protocol::{
-            frame::coding::CloseCode, CloseFrame, Message,
+        tungstenite::{
+            protocol::{frame::coding::CloseCode, CloseFrame, Message},
+            Utf8Bytes,
         },
         MaybeTlsStream, WebSocketStream,
     },
@@ -28,7 +29,7 @@ use sos_protocol::{
 };
 use sos_sdk::device::{DeviceMetaData, DevicePublicKey, TrustedDevice};
 use std::collections::HashSet;
-use std::{borrow::Cow, path::PathBuf};
+use std::path::PathBuf;
 use tokio::{net::TcpStream, sync::mpsc};
 use url::Url;
 
@@ -233,7 +234,7 @@ impl<'a> OfferPairing<'a> {
                     if event.is_some() {
                         let _ = self.tx.send(Message::Close(Some(CloseFrame {
                             code: CloseCode::Normal,
-                            reason: Cow::Borrowed("closed"),
+                            reason: Utf8Bytes::from_static("closed"),
                         }))).await;
                         break;
                     }
@@ -325,7 +326,7 @@ impl<'a> OfferPairing<'a> {
             IncomingAction::Reply(next_state, reply) => {
                 self.state = next_state;
                 let buffer = reply.encode_prefixed().await?;
-                self.tx.send(Message::Binary(buffer)).await?;
+                self.tx.send(Message::Binary(buffer.into())).await?;
             }
             IncomingAction::HandleMessage(msg) => {
                 let msg = msg.inner.unwrap();
@@ -363,7 +364,7 @@ impl<'a> OfferPairing<'a> {
                     };
 
                     let buffer = reply.encode_prefixed().await?;
-                    self.tx.send(Message::Binary(buffer)).await?;
+                    self.tx.send(Message::Binary(buffer.into())).await?;
                 } else if let pairing_message::Inner::Request(message) = msg {
                     tracing::debug!("<- device");
 
@@ -419,7 +420,7 @@ impl<'a> OfferPairing<'a> {
 
                     tracing::debug!("-> private-key");
                     let buffer = reply.encode_prefixed().await?;
-                    self.tx.send(Message::Binary(buffer)).await?;
+                    self.tx.send(Message::Binary(buffer.into())).await?;
                     self.state = PairProtocolState::Done;
                 } else {
                     return Err(Error::BadState);
@@ -652,7 +653,7 @@ impl<'a> AcceptPairing<'a> {
                     if event.is_some() {
                         let _ = self.tx.send(Message::Close(Some(CloseFrame {
                             code: CloseCode::Normal,
-                            reason: Cow::Borrowed("closed"),
+                            reason: Utf8Bytes::from_static("closed"),
                         }))).await;
                         break;
                     }
@@ -756,7 +757,7 @@ impl<'a> AcceptPairing<'a> {
                 self.state = next_state;
 
                 let buffer = reply.encode_prefixed().await?;
-                self.tx.send(Message::Binary(buffer)).await?;
+                self.tx.send(Message::Binary(buffer.into())).await?;
             }
             IncomingAction::HandleMessage(msg) => {
                 let msg = msg.inner.unwrap();
@@ -801,7 +802,7 @@ impl<'a> AcceptPairing<'a> {
                         };
                         tracing::debug!("-> device");
                         let buffer = reply.encode_prefixed().await?;
-                        self.tx.send(Message::Binary(buffer)).await?;
+                        self.tx.send(Message::Binary(buffer.into())).await?;
                     } else {
                         unreachable!();
                     }
@@ -946,7 +947,7 @@ trait NoiseTunnel {
         } else {
             unreachable!();
         };
-        self.send(Message::Binary(buffer)).await?;
+        self.send(Message::Binary(buffer.into())).await?;
         Ok(())
     }
 

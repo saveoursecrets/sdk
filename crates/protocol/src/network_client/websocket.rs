@@ -11,13 +11,16 @@ use futures::{
 use prost::bytes::Bytes;
 use sos_core::{AccountId, Origin};
 use sos_signer::ed25519::BoxedEd25519Signer;
-use std::{borrow::Cow, pin::Pin};
+use std::pin::Pin;
 use tokio::{net::TcpStream, sync::watch, time::Duration};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
         self,
-        protocol::{frame::coding::CloseCode, CloseFrame, Message},
+        protocol::{
+            frame::{coding::CloseCode, Utf8Bytes},
+            CloseFrame, Message,
+        },
     },
     MaybeTlsStream, WebSocketStream,
 };
@@ -241,7 +244,7 @@ impl WebSocketChangeListener {
                     // Perform close handshake
                     if let Err(error) = stream.close(Some(CloseFrame {
                         code: CloseCode::Normal,
-                        reason: Cow::Borrowed("closed"),
+                        reason: Utf8Bytes::from_static("closed"),
                     })).await {
                         tracing::warn!(error = ?error);
                     }
