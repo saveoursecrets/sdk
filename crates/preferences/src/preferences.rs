@@ -34,22 +34,25 @@ pub trait PreferencesStorage {
     /// Insert preference into storage.
     async fn insert_preference(
         &self,
+        account_id: Option<&AccountId>,
+        preferences: &PreferenceMap,
         key: &str,
         pref: &Preference,
-        account_id: Option<&AccountId>,
     ) -> Result<(), Self::Error>;
 
     /// Remove preference from storage.
     async fn remove_preference(
         &self,
-        key: &str,
         account_id: Option<&AccountId>,
+        preferences: &PreferenceMap,
+        key: &str,
     ) -> Result<(), Self::Error>;
 
     /// Remove all preferences from storage.
     async fn clear_preferences(
         &self,
         account_id: Option<&AccountId>,
+        preferences: &PreferenceMap,
     ) -> Result<(), Self::Error>;
 }
 
@@ -330,10 +333,15 @@ where
         key: String,
         value: Preference,
     ) -> Result<(), E> {
+        self.values.0.insert(key.clone(), value.clone());
         self.provider
-            .insert_preference(&key, &value, self.account_id.as_ref())
+            .insert_preference(
+                self.account_id.as_ref(),
+                &self.values,
+                &key,
+                &value,
+            )
             .await?;
-        self.values.0.insert(key, value);
         Ok(())
     }
 
@@ -342,18 +350,23 @@ where
         &mut self,
         key: impl AsRef<str>,
     ) -> Result<Option<Preference>, E> {
+        let pref = self.values.0.remove(key.as_ref());
         self.provider
-            .remove_preference(key.as_ref(), self.account_id.as_ref())
+            .remove_preference(
+                self.account_id.as_ref(),
+                &self.values,
+                key.as_ref(),
+            )
             .await?;
-        Ok(self.values.0.remove(key.as_ref()))
+        Ok(pref)
     }
 
     /// Clear all preferences.
     pub async fn clear(&mut self) -> Result<(), E> {
-        self.provider
-            .clear_preferences(self.account_id.as_ref())
-            .await?;
         self.values = Default::default();
+        self.provider
+            .clear_preferences(self.account_id.as_ref(), &self.values)
+            .await?;
         Ok(())
     }
 }

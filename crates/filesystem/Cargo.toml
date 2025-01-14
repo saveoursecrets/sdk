@@ -8,11 +8,13 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [features]
-full = ["files"]
+full = ["files", "preferences"]
 files = ["sos-core/files"]
+preferences = ["serde_json"]
 
 [dependencies]
 sos-core.workspace = true
+sos-preferences.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 
@@ -27,6 +29,8 @@ parking_lot.workspace = true
 indexmap.workspace = true
 tempfile.workspace = true
 tracing.workspace = true
+
+serde_json = { workspace = true, optional = true }
 
 [build-dependencies]
 rustc_version.workspace = true
