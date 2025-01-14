@@ -13,7 +13,45 @@ use tokio::sync::Mutex;
 
 /// Boxed storage provider.
 pub type PreferenceStorageProvider<E> =
-    Box<dyn PreferencesStorage<Error = E> + Send + 'static>;
+    Box<dyn PreferencesStorage<Error = E> + Send + Sync + 'static>;
+
+/// Preference manager for global and account preferences.
+#[async_trait]
+pub trait PreferenceManager<'s> {
+    /// Error type.
+    type Error: std::error::Error
+        + std::fmt::Debug
+        + From<Error>
+        + Send
+        + 'static;
+
+    /// Load global preferences.
+    async fn load_global_preferences(&mut self) -> Result<(), Self::Error>;
+
+    /// Load and initialize preferences for a list of accounts.
+    async fn load_account_preferences(
+        &self,
+        accounts: &[PublicIdentity],
+    ) -> Result<(), Self::Error>;
+
+    /// Global preferences for all accounts.
+    fn global_preferences(&self) -> Arc<Mutex<Preferences<'s, Self::Error>>>;
+
+    /// Preferences for an account.
+    async fn account_preferences(
+        &'s self,
+        account_id: &AccountId,
+    ) -> Option<Arc<Mutex<Preferences<Self::Error>>>>;
+
+    /// Add a new account to the preference manager.
+    ///
+    /// If preferences exist for an account they are loaded
+    /// into memory otherwise empty preferences are used.
+    async fn new_account(
+        &self,
+        account_id: &AccountId,
+    ) -> Result<(), Self::Error>;
+}
 
 /// Storage provider for account preferences.
 #[async_trait]
@@ -66,6 +104,60 @@ where
     accounts: Mutex<HashMap<AccountId, Arc<Mutex<Preferences<'s, E>>>>>,
 }
 
+#[async_trait]
+impl<'s, E> PreferenceManager<'s> for CachedPreferences<'s, E>
+where
+    E: std::error::Error + std::fmt::Debug + From<Error> + Send + 'static,
+{
+    type Error = E;
+
+    /// Load global preferences.
+    async fn load_global_preferences(&mut self) -> Result<(), E> {
+        let globals = self.globals.lock().await;
+        globals.provider.load_preferences(None).await?;
+        Ok(())
+    }
+
+    /// Load and initialize account preferences from disc.
+    async fn load_account_preferences(
+        &self,
+        accounts: &[PublicIdentity],
+    ) -> Result<(), E> {
+        for account in accounts {
+            self.new_account(account.account_id()).await?;
+        }
+        Ok(())
+    }
+
+    /// Global preferences for all accounts.
+    fn global_preferences(&self) -> Arc<Mutex<Preferences<'s, E>>> {
+        self.globals.clone()
+    }
+
+    /// Preferences for an account.
+    async fn account_preferences(
+        &'s self,
+        account_id: &AccountId,
+    ) -> Option<Arc<Mutex<Preferences<'s, E>>>> {
+        let cache = self.accounts.lock().await;
+        cache.get(account_id).map(Arc::clone)
+    }
+
+    /// Add a new account to the cached preferences.
+    ///
+    /// If a preferences file exists for an account it is loaded
+    /// into memory otherwise empty preferences are used.
+    async fn new_account(&self, account_id: &AccountId) -> Result<(), E> {
+        let mut prefs =
+            Preferences::<E>::new(&self.provider, Some(*account_id));
+        prefs.load().await?;
+
+        let mut cache = self.accounts.lock().await;
+        cache.insert(*account_id, Arc::new(Mutex::new(prefs)));
+        Ok(())
+    }
+}
+
 impl<'s, E> CachedPreferences<'s, E>
 where
     E: std::error::Error + std::fmt::Debug + From<Error> + Send + 'static,
@@ -79,52 +171,6 @@ where
             accounts: Mutex::new(HashMap::new()),
             provider,
         }
-    }
-
-    /// Load global preferences.
-    pub async fn load_global_preferences(&mut self) -> Result<(), E> {
-        let globals = self.globals.lock().await;
-        globals.provider.load_preferences(None).await?;
-        Ok(())
-    }
-
-    /// Load and initialize account preferences from disc.
-    pub async fn load_account_preferences(
-        &self,
-        accounts: &[PublicIdentity],
-    ) -> Result<(), E> {
-        for account in accounts {
-            self.new_account(account.account_id()).await?;
-        }
-        Ok(())
-    }
-
-    /// Global preferences for all accounts.
-    pub fn global_preferences(&self) -> Arc<Mutex<Preferences<'s, E>>> {
-        self.globals.clone()
-    }
-
-    /// Preferences for an account.
-    pub async fn account_preferences(
-        &'s self,
-        account_id: &AccountId,
-    ) -> Option<Arc<Mutex<Preferences<E>>>> {
-        let cache = self.accounts.lock().await;
-        cache.get(account_id).map(Arc::clone)
-    }
-
-    /// Add a new account to the cached preferences.
-    ///
-    /// If a preferences file exists for an account it is loaded
-    /// into memory otherwise empty preferences are used.
-    pub async fn new_account(&self, account_id: &AccountId) -> Result<(), E> {
-        let mut prefs =
-            Preferences::<E>::new(&self.provider, Some(*account_id));
-        prefs.load().await?;
-
-        let mut cache = self.accounts.lock().await;
-        cache.insert(*account_id, Arc::new(Mutex::new(prefs)));
-        Ok(())
     }
 }
 

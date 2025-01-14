@@ -4920,6 +4920,7 @@ dependencies = [
  "sos-core",
  "sos-database",
  "sos-filesystem",
+ "sos-preferences",
  "sos-vault",
  "sos-vfs",
  "tempfile",

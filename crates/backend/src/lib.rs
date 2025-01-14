@@ -7,6 +7,8 @@ pub mod compact;
 mod error;
 mod event_log;
 mod folder;
+#[cfg(feature = "preferences")]
+mod preferences;
 pub mod reducers;
 mod vault_writer;
 
@@ -19,6 +21,8 @@ pub use event_log::{
     BackendFolderEventLog as FolderEventLog,
 };
 pub use folder::Folder;
+#[cfg(feature = "preferences")]
+pub use preferences::BackendPreferences as Preferences;
 pub use vault_writer::VaultWriter;
 
 #[cfg(feature = "files")]

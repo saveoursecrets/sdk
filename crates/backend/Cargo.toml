@@ -11,11 +11,16 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-full = ["files", "search"]
+full = ["files", "preferences", "search"]
 files = [
   "sos-core/files",
   "sos-database/files",
   "sos-filesystem/files",
+]
+preferences = [
+  "sos-preferences",
+  "sos-database/preferences",
+  "sos-filesystem/preferences",
 ]
 search = []
 
@@ -25,6 +30,8 @@ sos-database.workspace = true
 sos-filesystem.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
+
+sos-preferences = { workspace = true, optional = true }
 
 thiserror.workspace = true
 async-trait.workspace = true

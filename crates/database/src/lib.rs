@@ -20,6 +20,10 @@ mod vault_writer;
 pub use event_log::{
     AccountEventLog, DatabaseEventLog, DeviceEventLog, FolderEventLog,
 };
+
+#[cfg(all(feature = "sqlite", feature = "preferences"))]
+pub use preferences::PreferenceProvider;
+
 #[cfg(feature = "sqlite")]
 pub use vault_writer::VaultDatabaseWriter;
 
