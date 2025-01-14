@@ -15,13 +15,13 @@ use std::{
 };
 use tokio::sync::Mutex;
 
-static DB: OnceLock<PreferenceStorageProvider<Error>> = OnceLock::new();
-static FS: OnceLock<PreferenceStorageProvider<Error>> = OnceLock::new();
+static DB: OnceLock<Arc<PreferenceStorageProvider<Error>>> = OnceLock::new();
+static FS: OnceLock<Arc<PreferenceStorageProvider<Error>>> = OnceLock::new();
 
 /// Backend preferences.
-pub struct BackendPreferences<'s>(CachedPreferences<'s, Error>);
+pub struct BackendPreferences(CachedPreferences<Error>);
 
-impl<'s> BackendPreferences<'s> {
+impl BackendPreferences {
     /// Create file system preferences from a data directory.
     pub fn new_fs_directory(
         data_dir: Option<PathBuf>,
@@ -37,21 +37,23 @@ impl<'s> BackendPreferences<'s> {
 
     /// Create preferences using JSON files on disc.
     pub fn new_fs(paths: Arc<Paths>) -> Self {
-        let provider =
-            FS.get_or_init(|| Box::new(FsPreferenceProvider::new(paths)));
-        Self(CachedPreferences::new(provider))
+        let provider = FS.get_or_init(|| {
+            Arc::new(Box::new(FsPreferenceProvider::new(paths)))
+        });
+        Self(CachedPreferences::new(provider.clone()))
     }
 
     /// Create preferences using a database table.
     pub fn new_db(client: Client) -> Self {
-        let provider =
-            DB.get_or_init(|| Box::new(DbPreferenceProvider::new(client)));
-        Self(CachedPreferences::new(provider))
+        let provider = DB.get_or_init(|| {
+            Arc::new(Box::new(DbPreferenceProvider::new(client)))
+        });
+        Self(CachedPreferences::new(provider.clone()))
     }
 }
 
 #[async_trait]
-impl<'s> PreferenceManager<'s> for BackendPreferences<'s> {
+impl PreferenceManager for BackendPreferences {
     type Error = Error;
 
     async fn load_global_preferences(&mut self) -> Result<(), Self::Error> {
@@ -65,12 +67,12 @@ impl<'s> PreferenceManager<'s> for BackendPreferences<'s> {
         self.0.load_account_preferences(accounts).await
     }
 
-    fn global_preferences(&self) -> Arc<Mutex<Preferences<'s, Self::Error>>> {
+    fn global_preferences(&self) -> Arc<Mutex<Preferences<Self::Error>>> {
         self.0.global_preferences()
     }
 
     async fn account_preferences(
-        &'s self,
+        &self,
         account_id: &AccountId,
     ) -> Option<Arc<Mutex<Preferences<Self::Error>>>> {
         self.0.account_preferences(account_id).await

@@ -17,7 +17,7 @@ pub type PreferenceStorageProvider<E> =
 
 /// Preference manager for global and account preferences.
 #[async_trait]
-pub trait PreferenceManager<'s> {
+pub trait PreferenceManager {
     /// Error type.
     type Error: std::error::Error
         + std::fmt::Debug
@@ -35,11 +35,11 @@ pub trait PreferenceManager<'s> {
     ) -> Result<(), Self::Error>;
 
     /// Global preferences for all accounts.
-    fn global_preferences(&self) -> Arc<Mutex<Preferences<'s, Self::Error>>>;
+    fn global_preferences(&self) -> Arc<Mutex<Preferences<Self::Error>>>;
 
     /// Preferences for an account.
     async fn account_preferences(
-        &'s self,
+        &self,
         account_id: &AccountId,
     ) -> Option<Arc<Mutex<Preferences<Self::Error>>>>;
 
@@ -95,17 +95,17 @@ pub trait PreferencesStorage {
 }
 
 /// Global preferences and account preferences loaded into memory.
-pub struct CachedPreferences<'s, E>
+pub struct CachedPreferences<E>
 where
     E: std::error::Error + std::fmt::Debug + From<Error> + Send + 'static,
 {
-    provider: &'s PreferenceStorageProvider<E>,
-    globals: Arc<Mutex<Preferences<'s, E>>>,
-    accounts: Mutex<HashMap<AccountId, Arc<Mutex<Preferences<'s, E>>>>>,
+    provider: Arc<PreferenceStorageProvider<E>>,
+    globals: Arc<Mutex<Preferences<E>>>,
+    accounts: Mutex<HashMap<AccountId, Arc<Mutex<Preferences<E>>>>>,
 }
 
 #[async_trait]
-impl<'s, E> PreferenceManager<'s> for CachedPreferences<'s, E>
+impl<E> PreferenceManager for CachedPreferences<E>
 where
     E: std::error::Error + std::fmt::Debug + From<Error> + Send + 'static,
 {
@@ -130,15 +130,15 @@ where
     }
 
     /// Global preferences for all accounts.
-    fn global_preferences(&self) -> Arc<Mutex<Preferences<'s, E>>> {
+    fn global_preferences(&self) -> Arc<Mutex<Preferences<E>>> {
         self.globals.clone()
     }
 
     /// Preferences for an account.
     async fn account_preferences(
-        &'s self,
+        &self,
         account_id: &AccountId,
-    ) -> Option<Arc<Mutex<Preferences<'s, E>>>> {
+    ) -> Option<Arc<Mutex<Preferences<E>>>> {
         let cache = self.accounts.lock().await;
         cache.get(account_id).map(Arc::clone)
     }
@@ -149,7 +149,7 @@ where
     /// into memory otherwise empty preferences are used.
     async fn new_account(&self, account_id: &AccountId) -> Result<(), E> {
         let mut prefs =
-            Preferences::<E>::new(&self.provider, Some(*account_id));
+            Preferences::<E>::new(self.provider.clone(), Some(*account_id));
         prefs.load().await?;
 
         let mut cache = self.accounts.lock().await;
@@ -158,15 +158,16 @@ where
     }
 }
 
-impl<'s, E> CachedPreferences<'s, E>
+impl<E> CachedPreferences<E>
 where
     E: std::error::Error + std::fmt::Debug + From<Error> + Send + 'static,
 {
     /// Create new cached preferences.
-    pub fn new(provider: &'s PreferenceStorageProvider<E>) -> Self {
+    pub fn new(provider: Arc<PreferenceStorageProvider<E>>) -> Self {
         Self {
             globals: Arc::new(Mutex::new(Preferences::<E>::new(
-                provider, None,
+                provider.clone(),
+                None,
             ))),
             accounts: Mutex::new(HashMap::new()),
             provider,
@@ -242,8 +243,17 @@ impl From<Vec<String>> for Preference {
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct PreferenceMap(HashMap<String, Preference>);
 
+impl PreferenceMap {
+    /// Map iterator.
+    pub fn iter(
+        &self,
+    ) -> std::collections::hash_map::Iter<'_, String, Preference> {
+        self.0.iter()
+    }
+}
+
 /// Preferences collection with a backing storage provider.
-pub struct Preferences<'s, E>
+pub struct Preferences<E>
 where
     E: std::error::Error + std::fmt::Debug + From<Error> + Send + 'static,
 {
@@ -252,16 +262,16 @@ where
     /// Preference values.
     values: PreferenceMap,
     /// Storage provider.
-    provider: &'s PreferenceStorageProvider<E>,
+    provider: Arc<PreferenceStorageProvider<E>>,
 }
 
-impl<'s, E> Preferences<'s, E>
+impl<E> Preferences<E>
 where
     E: std::error::Error + std::fmt::Debug + From<Error> + Send + 'static,
 {
     /// Create new preferences using the given storage provider.
     pub fn new(
-        provider: &'s PreferenceStorageProvider<E>,
+        provider: Arc<PreferenceStorageProvider<E>>,
         account_id: Option<AccountId>,
     ) -> Self {
         Self {
