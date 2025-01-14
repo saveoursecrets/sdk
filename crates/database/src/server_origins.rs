@@ -89,6 +89,11 @@ where
         Ok(())
     }
 
+    async fn update_server(&self, origin: Origin) -> Result<(), Self::Error> {
+        todo!();
+        Ok(())
+    }
+
     async fn remove_server(
         &self,
         origin: &Origin,

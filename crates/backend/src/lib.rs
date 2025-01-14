@@ -10,6 +10,7 @@ mod folder;
 #[cfg(feature = "preferences")]
 mod preferences;
 pub mod reducers;
+mod server_origins;
 mod vault_writer;
 
 pub use error::Error;
@@ -23,6 +24,7 @@ pub use event_log::{
 pub use folder::Folder;
 #[cfg(feature = "preferences")]
 pub use preferences::BackendPreferences as Preferences;
+pub use server_origins::ServerOrigins;
 pub use vault_writer::VaultWriter;
 
 #[cfg(feature = "files")]

@@ -8,11 +8,12 @@ use sos_account::{
     FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
     SecretDelete, SecretInsert, SecretMove,
 };
+use sos_backend::ServerOrigins;
 use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_core::events::{AccountEvent, ReadEvent};
 use sos_core::{
     commit::{CommitHash, CommitState},
-    AccountId, Origin, SecretId, VaultId,
+    AccountId, Origin, RemoteOrigins, SecretId, VaultId,
 };
 use sos_database::StorageError;
 use sos_protocol::{
@@ -110,6 +111,9 @@ pub struct NetworkAccount {
     /// Remote targets for synchronization.
     pub(super) remotes: Arc<RwLock<Remotes>>,
 
+    /// Server origins for this account.
+    server_origins: Option<ServerOrigins>,
+
     /// Lock to prevent write to local storage
     /// whilst a sync operation is in progress.
     pub(super) sync_lock: Arc<Mutex<()>>,
@@ -157,34 +161,24 @@ impl NetworkAccount {
             self.connection_id = self.client_connection_id().await.ok();
         }
 
-        // Load origins from disc and create remote definitions
-        if let Some(origins) = self.load_servers().await? {
-            let mut remotes: Remotes = Default::default();
+        let server_origins = ServerOrigins::new_fs(self.paths());
+        let servers = server_origins.load_servers().await?;
 
-            for origin in origins {
+        // Initialize remote bridges for each server origin
+        if !servers.is_empty() {
+            let mut remotes: Remotes = Default::default();
+            for origin in servers {
                 let remote = self.remote_bridge(&origin).await?;
                 remotes.insert(origin, remote);
             }
-
             self.remotes = Arc::new(RwLock::new(remotes));
         }
 
+        self.server_origins = Some(server_origins);
         self.activate().await?;
 
         Ok(folders)
     }
-
-    /*
-    /// Copy of the HTTP client for a remote.
-    ///
-    /// This is an internal function used for testing
-    /// only, do not use.
-    #[doc(hidden)]
-    pub async fn remote_client(&self, origin: &Origin) -> Option<HttpClient> {
-        let remotes = self.remotes.read().await;
-        remotes.get(origin).map(|r| r.client().clone())
-    }
-    */
 
     /// Deactive this account by closing down long-running tasks.
     ///
@@ -329,7 +323,12 @@ impl NetworkAccount {
                 self.proxy_remote_file_queue(handle, &remote).await;
             }
             remotes.insert(origin.clone(), remote);
-            self.save_remotes(&*remotes).await?;
+            self.server_origins
+                .as_ref()
+                .unwrap()
+                .add_server(origin.clone())
+                .await?;
+            // self.save_remotes(&*remotes).await?;
         }
 
         let mut sync_error = None;
@@ -364,8 +363,12 @@ impl NetworkAccount {
         // the url for it's Hash implementation
         let mut remotes = self.remotes.write().await;
         if let Some(remote) = remotes.remove(&origin) {
-            remotes.insert(origin, remote);
-            self.save_remotes(&*remotes).await?;
+            remotes.insert(origin.clone(), remote);
+            self.server_origins
+                .as_ref()
+                .unwrap()
+                .update_server(origin)
+                .await?;
             Ok(true)
         } else {
             Ok(false)
@@ -386,7 +389,11 @@ impl NetworkAccount {
                 if let Some(file_transfers) = self.file_transfers.as_mut() {
                     file_transfers.remove_client(remote.client()).await;
                 }
-                self.save_remotes(&*remotes).await?;
+                self.server_origins
+                    .as_ref()
+                    .unwrap()
+                    .remove_server(origin)
+                    .await?;
             }
             remote
         };
@@ -466,6 +473,7 @@ impl NetworkAccount {
         self.restore_folder(folder_id, response.patch).await
     }
 
+    /*
     /// Load origin servers from disc.
     async fn load_servers(&self) -> Result<Option<HashSet<Origin>>> {
         let remotes_file = self.paths().remote_origins();
@@ -486,6 +494,7 @@ impl NetworkAccount {
         vfs::write_exclusive(file, data).await?;
         Ok(())
     }
+    */
 
     /// Spawn a task to handle file transfers.
     #[cfg(feature = "files")]
@@ -576,6 +585,7 @@ impl NetworkAccount {
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             remotes: Arc::new(RwLock::new(Default::default())),
+            server_origins: None,
             sync_lock: Arc::new(Mutex::new(())),
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
@@ -641,6 +651,7 @@ impl NetworkAccount {
             paths: account.paths(),
             account: Arc::new(Mutex::new(account)),
             remotes: Arc::new(RwLock::new(Default::default())),
+            server_origins: None,
             sync_lock: Arc::new(Mutex::new(())),
             #[cfg(feature = "listen")]
             listeners: Mutex::new(Default::default()),
@@ -922,6 +933,7 @@ impl Account for NetworkAccount {
     async fn sign_out(&mut self) -> Result<()> {
         self.deactivate().await;
         self.remotes = Default::default();
+        self.server_origins = None;
 
         #[cfg(feature = "files")]
         {

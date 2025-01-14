@@ -82,6 +82,18 @@ where
         Ok(())
     }
 
+    async fn update_server(&self, origin: Origin) -> Result<(), Self::Error> {
+        /*
+        let mut origins = self.load_origins().await?;
+        // if let Some(origin) = origins.get(&origin) {
+        //     self.remove_server(origin).await?;
+        // }
+        self.add_server(origin).await?;
+        */
+        todo!();
+        Ok(())
+    }
+
     async fn remove_server(
         &self,
         origin: &Origin,
