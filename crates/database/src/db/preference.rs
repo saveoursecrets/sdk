@@ -18,6 +18,22 @@ where
         Self { conn }
     }
 
+    /// Load preferences from the database.
+    ///
+    /// When no `account_id` is specified the preferences
+    /// are global.
+    pub fn load_preferences(
+        &self,
+        account_id: Option<i64>,
+    ) -> std::result::Result<String, SqlError> {
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+                SELECT json_data FROM preferences WHERE account_id=?1
+            "#,
+        )?;
+        Ok(stmt.query_row([account_id], |row| Ok(row.get(0)?))?)
+    }
+
     /// Create preferences in the database.
     ///
     /// When no `account_id` is specified the preferences

@@ -15,11 +15,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 full = [
   "client",
   "files",
+  "preferences",
   "sqlite",
 ]
 files = ["sos-filesystem/files"]
-sqlite = ["dep:async-sqlite", "dep:refinery"]
 client = []
+preferences = ["sos-preferences"]
+sqlite = ["dep:async-sqlite", "dep:refinery"]
 
 [dependencies]
 sos-audit.workspace = true
@@ -27,6 +29,8 @@ sos-core.workspace = true
 sos-filesystem.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
+
+sos-preferences = { workspace = true, optional = true }
 
 thiserror.workspace = true
 futures.workspace = true

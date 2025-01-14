@@ -5057,6 +5057,7 @@ dependencies = [
  "sos-audit",
  "sos-core",
  "sos-filesystem",
+ "sos-preferences",
  "sos-vault",
  "sos-vfs",
  "thiserror 2.0.9",

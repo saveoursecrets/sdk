@@ -10,6 +10,8 @@ pub mod event_log;
 pub mod importer;
 #[cfg(feature = "sqlite")]
 pub mod migrations;
+#[cfg(all(feature = "sqlite", feature = "preferences"))]
+mod preferences;
 
 #[cfg(feature = "sqlite")]
 mod vault_writer;

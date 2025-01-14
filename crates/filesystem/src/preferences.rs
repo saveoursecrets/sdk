@@ -32,7 +32,7 @@ where
         + Sync
         + 'static,
 {
-    /// Create a new prefernces file provider.
+    /// Create a new preferences file provider.
     pub fn new(paths: Arc<Paths>) -> Self {
         Self {
             paths,
