@@ -37,7 +37,7 @@ where
         }
     }
 
-    async fn load_origins(&self) -> Result<HashSet<Origin>, E> {
+    async fn list_origins(&self) -> Result<HashSet<Origin>, E> {
         let remotes_file = self.paths.remote_origins();
         if vfs::try_exists(&remotes_file).await? {
             let contents = vfs::read_exclusive(&remotes_file).await?;
@@ -71,15 +71,15 @@ where
 {
     type Error = E;
 
-    async fn load_servers(&self) -> Result<HashSet<Origin>, Self::Error> {
-        self.load_origins().await
+    async fn list_servers(&self) -> Result<HashSet<Origin>, Self::Error> {
+        self.list_origins().await
     }
 
     async fn add_server(
         &mut self,
         origin: Origin,
     ) -> Result<(), Self::Error> {
-        let mut origins = self.load_origins().await?;
+        let mut origins = self.list_origins().await?;
         origins.insert(origin);
         self.save_origins(&origins).await?;
         Ok(())
@@ -99,7 +99,7 @@ where
         &mut self,
         origin: &Origin,
     ) -> Result<(), Self::Error> {
-        let mut origins = self.load_origins().await?;
+        let mut origins = self.list_origins().await?;
         origins.remove(origin);
         self.save_origins(&origins).await?;
         Ok(())

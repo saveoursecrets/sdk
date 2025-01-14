@@ -17,21 +17,21 @@ pub async fn assert_server_origins(
     servers.add_server(first_origin.clone()).await?;
     servers.add_server(second_origin.clone()).await?;
 
-    let origins = servers.load_servers().await?;
+    let origins = servers.list_servers().await?;
     assert_eq!(2, origins.len());
 
     // Adding with the same URL should not create multiple
     // entries but behave like a set
     servers.add_server(second_origin.clone()).await?;
-    let origins = servers.load_servers().await?;
+    let origins = servers.list_servers().await?;
     assert_eq!(2, origins.len());
 
     servers.remove_server(&second_origin).await?;
-    let origins = servers.load_servers().await?;
+    let origins = servers.list_servers().await?;
     assert_eq!(1, origins.len());
 
     servers.replace_server(&first_origin, second_origin).await?;
-    let origins = servers.load_servers().await?;
+    let origins = servers.list_servers().await?;
     assert_eq!(1, origins.len());
     assert_eq!("second", origins.iter().next().unwrap().name());
 

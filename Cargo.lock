@@ -5590,6 +5590,7 @@ dependencies = [
 name = "sos-system-messages"
 version = "0.16.0"
 dependencies = [
+ "async-trait",
  "rustc_version",
  "serde",
  "serde_with",

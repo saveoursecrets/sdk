@@ -40,7 +40,7 @@ where
         }
     }
 
-    async fn load_origins(&self) -> Result<HashSet<Origin>, E> {
+    async fn list_origins(&self) -> Result<HashSet<Origin>, E> {
         let account_id = self.account_id.clone();
         let servers = self
             .client
@@ -101,8 +101,8 @@ where
 {
     type Error = E;
 
-    async fn load_servers(&self) -> Result<HashSet<Origin>, Self::Error> {
-        self.load_origins().await
+    async fn list_servers(&self) -> Result<HashSet<Origin>, Self::Error> {
+        self.list_origins().await
     }
 
     async fn add_server(

@@ -12,7 +12,8 @@ use crate::{
         ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DATABASE_FILE,
         DEVICE_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS,
         IDENTITY_DIR, JSON_EXT, LOCAL_DIR, LOGS_DIR, PENDING_DIR,
-        REMOTES_FILE, REMOTE_DIR, VAULTS_DIR, VAULT_EXT,
+        REMOTES_FILE, REMOTE_DIR, SYSTEM_MESSAGES_FILE, VAULTS_DIR,
+        VAULT_EXT,
     },
     SecretId, VaultId,
 };
@@ -220,13 +221,27 @@ impl Paths {
     /// Path to the file used to store global or
     /// account-level preferences.
     pub fn preferences_file(&self) -> PathBuf {
-        let mut preferences_path = if self.is_global() {
+        let mut path = if self.is_global() {
             self.documents_dir().join(PREFERENCES_FILE)
         } else {
             self.user_dir().join(PREFERENCES_FILE)
         };
-        preferences_path.set_extension(JSON_EXT);
-        preferences_path
+        path.set_extension(JSON_EXT);
+        path
+    }
+
+    /// Path to the file used to store account-level system messages.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    pub fn system_messages_file(paths: &Paths) -> PathBuf {
+        if paths.is_global() {
+            panic!("system messages are not accessible for global paths");
+        }
+        let mut path = paths.user_dir().join(SYSTEM_MESSAGES_FILE);
+        path.set_extension(JSON_EXT);
+        path
     }
 
     /// User specific storage directory.

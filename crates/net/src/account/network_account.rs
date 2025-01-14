@@ -162,7 +162,7 @@ impl NetworkAccount {
         }
 
         let server_origins = ServerOrigins::new_fs(self.paths());
-        let servers = server_origins.load_servers().await?;
+        let servers = server_origins.list_servers().await?;
 
         // Initialize remote bridges for each server origin
         if !servers.is_empty() {

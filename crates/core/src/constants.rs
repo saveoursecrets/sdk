@@ -84,8 +84,8 @@ mod urn {
     pub const DEVICE_KEY_URN: &str = "urn:sos:device:key";
 }
 
-/// Constants for directory names.
-mod folders {
+/// Constants for directory and file names.
+mod files {
     /// Directory to store vaults.
     pub const VAULTS_DIR: &str = "vaults";
 
@@ -130,15 +130,15 @@ mod folders {
 
     /// Name of the file for preferences.
     pub const PREFERENCES_FILE: &str = "preferences";
-}
 
-/// File names.
-mod files {
     /// Database file.
     pub const DATABASE_FILE: &str = "accounts.db";
 
     /// Manifest file for archives.
     pub const ARCHIVE_MANIFEST: &str = "sos-manifest.json";
+
+    /// File thats stores account-level system messages.
+    pub const SYSTEM_MESSAGES_FILE: &str = "system-messages";
 }
 
 /// Environment variables.
@@ -158,6 +158,5 @@ pub use self::urn::*;
 pub use env_vars::*;
 pub use extensions::*;
 pub use files::*;
-pub use folders::*;
 pub use identity::*;
 pub use vault::*;

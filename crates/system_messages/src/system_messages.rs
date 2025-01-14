@@ -1,28 +1,57 @@
 use crate::{Error, Result};
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use sos_core::{constants::JSON_EXT, Paths};
-
-use std::{cmp::Ordering, collections::HashMap, path::PathBuf};
+use sos_core::AccountId;
+use std::{cmp::Ordering, collections::HashMap};
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use urn::Urn;
 
-/// File thats stores account-level system messages.
-pub const SYSTEM_MESSAGES_FILE: &str = "system-messages";
+/// Boxed storage provider.
+pub type SystemMessageStorageProvider<E> =
+    Box<dyn SystemMessageStorage<Error = E> + Send + Sync + 'static>;
 
-/// Path to the file used to store account-level system messages.
-///
-/// # Panics
-///
-/// If this set of paths are global (no user identifier).
-pub fn system_messages_path(paths: &Paths) -> PathBuf {
-    if paths.is_global() {
-        panic!("system messages are not accessible for global paths");
-    }
-    let mut vault_path = paths.user_dir().join(SYSTEM_MESSAGES_FILE);
-    vault_path.set_extension(JSON_EXT);
-    vault_path
+/// Storage for system messages.
+#[async_trait]
+pub trait SystemMessageStorage {
+    /// Error type.
+    type Error: std::error::Error + std::fmt::Debug;
+
+    /// List system messages for an account.
+    async fn list_system_messages(
+        &self,
+        account_id: &AccountId,
+    ) -> std::result::Result<SystemMessageMap, Self::Error>;
+
+    /// Add a system message to an account.
+    async fn insert_system_message(
+        &self,
+        account_id: &AccountId,
+        key: Urn,
+        message: SysMessage,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Remove a system message from an account.
+    async fn remove_system_message(
+        &self,
+        account_id: &AccountId,
+        key: &Urn,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Mark a system message as read or unread.
+    async fn mark_system_message(
+        &self,
+        account_id: &AccountId,
+        key: &Urn,
+        flag: bool,
+    ) -> std::result::Result<(), Self::Error>;
+
+    /// Delete all system messages for an account.
+    async fn clear_system_messages(
+        &self,
+        account_id: &AccountId,
+    ) -> std::result::Result<(), Self::Error>;
 }
 
 /// System messages count.
@@ -141,31 +170,34 @@ fn stream_channel() -> broadcast::Sender<SysMessageCount> {
     stream
 }
 
-/// Persistent system message notifications.
+/// Collection of system messages.
 #[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct SystemMessageMap(
+    #[serde_as(as = "HashMap<DisplayFromStr, _>")] HashMap<Urn, SysMessage>,
+);
+
+impl SystemMessageMap {
+    /// Map iterator.
+    pub fn iter(
+        &self,
+    ) -> std::collections::hash_map::Iter<'_, Urn, SysMessage> {
+        self.0.iter()
+    }
+}
+
+/// Persistent system message notifications.
+#[derive(Debug)]
 pub struct SystemMessages {
-    #[serde_as(as = "HashMap<DisplayFromStr, _>")]
-    #[serde(flatten)]
-    messages: HashMap<Urn, SysMessage>,
-    /// Path to the file on disc.
-    #[serde(skip)]
-    path: PathBuf,
+    messages: SystemMessageMap,
     /// Broadcast channel.
-    #[serde(skip, default = "stream_channel")]
     channel: broadcast::Sender<SysMessageCount>,
 }
 
 impl SystemMessages {
-    /// Create new system messages using the given paths.
-    ///
-    /// # Panics
-    ///
-    /// If the given paths are global.
-    ///
-    pub fn new(paths: &Paths) -> Self {
+    /// Create new system messages.
+    pub fn new() -> Self {
         Self {
-            path: system_messages_path(paths),
             messages: Default::default(),
             channel: stream_channel(),
         }
@@ -193,19 +225,19 @@ impl SystemMessages {
 
     /// Number of system messages.
     pub fn len(&self) -> usize {
-        self.messages.len()
+        self.messages.0.len()
     }
 
     /// Whether the system messages collection is empty.
     pub fn is_empty(&self) -> bool {
-        self.messages.is_empty()
+        self.messages.0.is_empty()
     }
 
     /// Message counts.
     pub fn counts(&self) -> SysMessageCount {
         let mut counts: SysMessageCount = Default::default();
-        counts.total = self.messages.len();
-        for item in self.messages.values() {
+        counts.total = self.messages.0.len();
+        for item in self.messages.0.values() {
             if !item.is_read {
                 counts.unread += 1;
                 if matches!(item.level, SysMessageLevel::Info) {
@@ -235,7 +267,7 @@ impl SystemMessages {
         key: Urn,
         message: SysMessage,
     ) -> Result<()> {
-        self.messages.insert(key, message);
+        self.messages.0.insert(key, message);
         self.save().await
     }
 
@@ -243,7 +275,7 @@ impl SystemMessages {
     ///
     /// Changes are written to disc.
     pub async fn mark_read(&mut self, key: &Urn) -> Result<()> {
-        let updated = if let Some(message) = self.messages.get_mut(key) {
+        let updated = if let Some(message) = self.messages.0.get_mut(key) {
             message.is_read = true;
             true
         } else {
@@ -259,14 +291,14 @@ impl SystemMessages {
 
     /// Get a message.
     pub fn get(&self, key: &Urn) -> Option<&SysMessage> {
-        self.messages.get(key)
+        self.messages.0.get(key)
     }
 
     /// Remove a system message.
     ///
     /// Changes are written to disc.
     pub async fn remove(&mut self, key: &Urn) -> Result<()> {
-        self.messages.remove(key);
+        self.messages.0.remove(key);
         self.save().await
     }
 

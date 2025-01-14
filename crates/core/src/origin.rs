@@ -62,8 +62,8 @@ pub trait RemoteOrigins {
     /// Error type.
     type Error: std::error::Error + std::fmt::Debug;
 
-    /// Load server origins from the backing storage.
-    async fn load_servers(&self) -> Result<HashSet<Origin>, Self::Error>;
+    /// List server origins from the backing storage.
+    async fn list_servers(&self) -> Result<HashSet<Origin>, Self::Error>;
 
     /// Add a server origin to the backing storage.
     async fn add_server(&mut self, origin: Origin)

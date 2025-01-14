@@ -27,8 +27,8 @@ impl ServerOrigins {
 impl RemoteOrigins for ServerOrigins {
     type Error = Error;
 
-    async fn load_servers(&self) -> Result<HashSet<Origin>, Self::Error> {
-        self.0.load_servers().await
+    async fn list_servers(&self) -> Result<HashSet<Origin>, Self::Error> {
+        self.0.list_servers().await
     }
 
     async fn add_server(

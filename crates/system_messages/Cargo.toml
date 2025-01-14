@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 sos-core.workspace = true
 
+async-trait.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 time.workspace = true
