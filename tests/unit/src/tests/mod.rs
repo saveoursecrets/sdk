@@ -19,5 +19,6 @@ mod protocol;
 mod recovery;
 mod sdk;
 mod search;
+mod server_origins;
 mod signer;
 mod vault_writer;

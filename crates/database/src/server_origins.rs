@@ -71,13 +71,17 @@ where
                 let accounts = AccountEntity::new(&tx);
                 let account_row = accounts.find_one(&account_id)?;
                 let servers = ServerEntity::new(&tx);
+
                 if let Some(remove) = remove {
                     let server_row =
                         servers.find_one(account_row.row_id, remove.url())?;
                     servers.delete_server(server_row.row_id)?;
                 }
 
-                Ok(servers.insert_server(account_row.row_id, origin)?)
+                servers.insert_server(account_row.row_id, origin)?;
+
+                tx.commit()?;
+                Ok(())
             })
             .await
             .map_err(Error::from)?;
@@ -105,7 +109,26 @@ where
         &mut self,
         origin: Origin,
     ) -> Result<(), Self::Error> {
-        self.insert_server(origin, None).await
+        let account_id = self.account_id.clone();
+        let url = origin.url().clone();
+        let server_row = self
+            .client
+            .conn(move |conn| {
+                let accounts = AccountEntity::new(&conn);
+                let account_row = accounts.find_one(&account_id)?;
+                let servers = ServerEntity::new(&conn);
+                Ok(servers.find_optional(account_row.row_id, &url)?)
+            })
+            .await
+            .map_err(Error::from)?;
+
+        match server_row {
+            Some(row) => {
+                let old_origin: Origin = row.try_into()?;
+                self.insert_server(origin, Some(&old_origin)).await
+            }
+            None => self.insert_server(origin, None).await,
+        }
     }
 
     async fn replace_server(
@@ -123,13 +146,16 @@ where
         let account_id = self.account_id.clone();
         let origin = origin.clone();
         self.client
-            .conn(move |conn| {
-                let accounts = AccountEntity::new(&conn);
+            .conn_mut(move |conn| {
+                let tx = conn.transaction()?;
+                let accounts = AccountEntity::new(&tx);
                 let account_row = accounts.find_one(&account_id)?;
-                let servers = ServerEntity::new(&conn);
+                let servers = ServerEntity::new(&tx);
                 let server_row =
                     servers.find_one(account_row.row_id, origin.url())?;
-                Ok(servers.delete_server(server_row.row_id)?)
+                servers.delete_server(server_row.row_id)?;
+                tx.commit()?;
+                Ok(())
             })
             .await
             .map_err(Error::from)?;

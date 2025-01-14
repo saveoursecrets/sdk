@@ -39,3 +39,27 @@ pub async fn open_memory() -> Result<Client> {
     crate::migrations::migrate_client(&mut client).await?;
     Ok(client)
 }
+
+#[cfg(debug_assertions)]
+#[allow(dead_code)]
+pub(crate) fn dump_rows<C>(
+    conn: C,
+    table: &str,
+) -> std::result::Result<(), async_sqlite::rusqlite::Error>
+where
+    C: std::ops::Deref<Target = async_sqlite::rusqlite::Connection>,
+{
+    println!("--- BEGIN DUMP ---");
+    let mut stmt = conn.prepare(&format!(
+        r#"
+            SELECT * FROM {}
+        "#,
+        table
+    ))?;
+    let mut rows = stmt.query([])?;
+    while let Ok(Some(row)) = rows.next() {
+        println!("{:#?}", row);
+    }
+    println!("--- END DUMP ---");
+    Ok(())
+}

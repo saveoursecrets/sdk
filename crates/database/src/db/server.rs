@@ -1,5 +1,7 @@
 use crate::Result;
-use async_sqlite::rusqlite::{Connection, Error as SqlError, Row};
+use async_sqlite::rusqlite::{
+    CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
+};
 use sos_core::Origin;
 use std::ops::Deref;
 use url::Url;
@@ -52,13 +54,10 @@ where
         Self { conn }
     }
 
-    /// Find a server in the database.
-    pub fn find_one(
+    fn find_server_statement(
         &self,
-        account_id: i64,
-        url: &Url,
-    ) -> std::result::Result<ServerRow, SqlError> {
-        let mut stmt = self.conn.prepare_cached(
+    ) -> std::result::Result<CachedStatement, SqlError> {
+        Ok(self.conn.prepare_cached(
             r#"
                 SELECT
                     server_id,
@@ -69,10 +68,33 @@ where
                 FROM servers
                 WHERE account_id=?1 AND url=?2
             "#,
-        )?;
+        )?)
+    }
+
+    /// Find a server in the database.
+    pub fn find_one(
+        &self,
+        account_id: i64,
+        url: &Url,
+    ) -> std::result::Result<ServerRow, SqlError> {
+        let mut stmt = self.find_server_statement()?;
         Ok(stmt.query_row((account_id, url.to_string()), |row| {
             Ok(row.try_into()?)
         })?)
+    }
+
+    /// Find an optional server in the database.
+    pub fn find_optional(
+        &self,
+        account_id: i64,
+        url: &Url,
+    ) -> std::result::Result<Option<ServerRow>, SqlError> {
+        let mut stmt = self.find_server_statement()?;
+        Ok(stmt
+            .query_row((account_id, url.to_string()), |row| {
+                Ok(row.try_into()?)
+            })
+            .optional()?)
     }
 
     /// Load servers for an account.
@@ -132,6 +154,7 @@ where
             "#,
         )?;
         stmt.execute((account_id, server.name(), server.url().to_string()))?;
+
         Ok(())
     }
 
