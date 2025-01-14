@@ -14,6 +14,9 @@ pub mod migrations;
 mod preferences;
 
 #[cfg(feature = "sqlite")]
+mod server_origins;
+
+#[cfg(feature = "sqlite")]
 mod vault_writer;
 
 #[cfg(feature = "sqlite")]
@@ -23,6 +26,9 @@ pub use event_log::{
 
 #[cfg(all(feature = "sqlite", feature = "preferences"))]
 pub use preferences::PreferenceProvider;
+
+#[cfg(feature = "sqlite")]
+pub use server_origins::ServerOrigins;
 
 #[cfg(feature = "sqlite")]
 pub use vault_writer::VaultDatabaseWriter;

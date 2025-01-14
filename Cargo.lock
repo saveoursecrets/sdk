@@ -5073,6 +5073,7 @@ dependencies = [
  "thiserror 2.0.11",
  "tokio",
  "tracing",
+ "url",
  "uuid",
 ]
 

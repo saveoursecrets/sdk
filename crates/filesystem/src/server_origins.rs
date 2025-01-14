@@ -29,6 +29,14 @@ where
         + Sync
         + 'static,
 {
+    /// Create new server origins.
+    pub fn new(paths: Arc<Paths>) -> Self {
+        Self {
+            paths,
+            marker: std::marker::PhantomData,
+        }
+    }
+
     async fn load_origins(&self) -> Result<HashSet<Origin>, E> {
         let remotes_file = self.paths.remote_origins();
         if vfs::try_exists(&remotes_file).await? {
