@@ -66,12 +66,19 @@ pub trait RemoteOrigins {
     async fn load_servers(&self) -> Result<HashSet<Origin>, Self::Error>;
 
     /// Add a server origin to the backing storage.
-    async fn add_server(&self, origin: Origin) -> Result<(), Self::Error>;
+    async fn add_server(&mut self, origin: Origin)
+        -> Result<(), Self::Error>;
 
     /// Update a server origin in the backing storage.
-    async fn update_server(&self, origin: Origin) -> Result<(), Self::Error>;
+    async fn replace_server(
+        &mut self,
+        old_origin: &Origin,
+        new_origin: Origin,
+    ) -> Result<(), Self::Error>;
 
     /// Remove a server origin from the backing storage.
-    async fn remove_server(&self, origin: &Origin)
-        -> Result<(), Self::Error>;
+    async fn remove_server(
+        &mut self,
+        origin: &Origin,
+    ) -> Result<(), Self::Error>;
 }

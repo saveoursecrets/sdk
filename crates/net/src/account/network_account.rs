@@ -324,7 +324,7 @@ impl NetworkAccount {
             }
             remotes.insert(origin.clone(), remote);
             self.server_origins
-                .as_ref()
+                .as_mut()
                 .unwrap()
                 .add_server(origin.clone())
                 .await?;
@@ -357,17 +357,21 @@ impl NetworkAccount {
         Ok(sync_error)
     }
 
-    /// Update server origin information.
-    pub async fn update_server(&mut self, origin: Origin) -> Result<bool> {
+    /// Replace a server origin with updated origin information.
+    pub async fn replace_server(
+        &mut self,
+        old_origin: &Origin,
+        new_origin: Origin,
+    ) -> Result<bool> {
         // Note that this works because Origin only includes
         // the url for it's Hash implementation
         let mut remotes = self.remotes.write().await;
-        if let Some(remote) = remotes.remove(&origin) {
-            remotes.insert(origin.clone(), remote);
+        if let Some(remote) = remotes.remove(&old_origin) {
+            remotes.insert(new_origin.clone(), remote);
             self.server_origins
-                .as_ref()
+                .as_mut()
                 .unwrap()
-                .update_server(origin)
+                .replace_server(old_origin, new_origin)
                 .await?;
             Ok(true)
         } else {
@@ -390,7 +394,7 @@ impl NetworkAccount {
                     file_transfers.remove_client(remote.client()).await;
                 }
                 self.server_origins
-                    .as_ref()
+                    .as_mut()
                     .unwrap()
                     .remove_server(origin)
                     .await?;

@@ -31,16 +31,23 @@ impl RemoteOrigins for ServerOrigins {
         self.0.load_servers().await
     }
 
-    async fn add_server(&self, origin: Origin) -> Result<(), Self::Error> {
+    async fn add_server(
+        &mut self,
+        origin: Origin,
+    ) -> Result<(), Self::Error> {
         self.0.add_server(origin).await
     }
 
-    async fn update_server(&self, origin: Origin) -> Result<(), Self::Error> {
-        self.0.update_server(origin).await
+    async fn replace_server(
+        &mut self,
+        old_origin: &Origin,
+        new_origin: Origin,
+    ) -> Result<(), Self::Error> {
+        self.0.replace_server(old_origin, new_origin).await
     }
 
     async fn remove_server(
-        &self,
+        &mut self,
         origin: &Origin,
     ) -> Result<(), Self::Error> {
         self.0.remove_server(origin).await

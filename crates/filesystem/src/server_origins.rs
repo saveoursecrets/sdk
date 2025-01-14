@@ -75,27 +75,28 @@ where
         self.load_origins().await
     }
 
-    async fn add_server(&self, origin: Origin) -> Result<(), Self::Error> {
+    async fn add_server(
+        &mut self,
+        origin: Origin,
+    ) -> Result<(), Self::Error> {
         let mut origins = self.load_origins().await?;
         origins.insert(origin);
         self.save_origins(&origins).await?;
         Ok(())
     }
 
-    async fn update_server(&self, origin: Origin) -> Result<(), Self::Error> {
-        /*
-        let mut origins = self.load_origins().await?;
-        // if let Some(origin) = origins.get(&origin) {
-        //     self.remove_server(origin).await?;
-        // }
-        self.add_server(origin).await?;
-        */
-        todo!();
+    async fn replace_server(
+        &mut self,
+        old_origin: &Origin,
+        new_origin: Origin,
+    ) -> Result<(), Self::Error> {
+        self.remove_server(old_origin).await?;
+        self.add_server(new_origin).await?;
         Ok(())
     }
 
     async fn remove_server(
-        &self,
+        &mut self,
         origin: &Origin,
     ) -> Result<(), Self::Error> {
         let mut origins = self.load_origins().await?;
