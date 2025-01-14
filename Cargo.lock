@@ -5587,6 +5587,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-system-messages"
+version = "0.16.0"
+dependencies = [
+ "rustc_version",
+ "serde",
+ "serde_with",
+ "sos-core",
+ "thiserror 2.0.11",
+ "time",
+ "tokio",
+ "urn",
+]
+
+[[package]]
 name = "sos-test-utils"
 version = "0.1.0"
 dependencies = [

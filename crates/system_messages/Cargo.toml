@@ -1,0 +1,17 @@
+[package]
+name = "sos-system-messages"
+version = "0.16.0"
+edition = "2021"
+
+[dependencies]
+sos-core.workspace = true
+
+thiserror.workspace = true
+serde.workspace = true
+time.workspace = true
+tokio.workspace = true
+urn.workspace = true
+serde_with.workspace = true
+
+[build-dependencies]
+rustc_version.workspace = true
