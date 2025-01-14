@@ -174,7 +174,7 @@ unicode-segmentation = "1.10"
 probly-search = "2.0.1"
 
 # database
-async-sqlite = { version = "0.3", path = "../../forks/async-sqlite/"}
+async-sqlite = "0.4"
 refinery = { version = "0.8", git = "https://github.com/rust-db/refinery", features = ["rusqlite"] }
 
 # keychain parser

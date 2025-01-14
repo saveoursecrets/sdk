@@ -54,7 +54,7 @@ where
                     let account = AccountEntity::new(&conn);
                     let account_row = account.find_one(&account_id)?;
                     let prefs = PreferenceEntity::new(&conn);
-                    prefs.insert_preferences(
+                    prefs.upsert_preferences(
                         Some(account_row.row_id),
                         json_data,
                     )?;
@@ -62,7 +62,7 @@ where
                 }
                 None => {
                     let prefs = PreferenceEntity::new(&conn);
-                    prefs.insert_preferences(None, json_data)?;
+                    prefs.upsert_preferences(None, json_data)?;
                     Ok(())
                 }
             })
@@ -106,8 +106,12 @@ where
             })
             .await
             .map_err(Error::from)?;
-        Ok(serde_json::from_str::<PreferenceMap>(&json_data)
-            .map_err(Error::from)?)
+        Ok(if let Some(json_data) = json_data {
+            serde_json::from_str::<PreferenceMap>(&json_data)
+                .map_err(Error::from)?
+        } else {
+            Default::default()
+        })
     }
 
     async fn insert_preference(

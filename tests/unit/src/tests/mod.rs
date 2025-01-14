@@ -14,6 +14,7 @@ mod keychain;
 mod migrate;
 mod pairing;
 mod password;
+mod preferences;
 mod protocol;
 mod recovery;
 mod sdk;

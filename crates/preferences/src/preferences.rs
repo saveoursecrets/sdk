@@ -240,7 +240,7 @@ impl From<Vec<String>> for Preference {
 }
 
 /// Collection of preferences.
-#[derive(Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct PreferenceMap(HashMap<String, Preference>);
 
 impl PreferenceMap {

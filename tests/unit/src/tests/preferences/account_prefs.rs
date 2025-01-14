@@ -1,0 +1,36 @@
+use anyhow::Result;
+use sos_backend::Preferences;
+use sos_core::{AccountId, Paths};
+use sos_preferences::PreferenceManager;
+use sos_test_utils::{
+    assert::assert_preferences,
+    mock::{insert_database_account, memory_database},
+};
+use std::sync::Arc;
+use tempfile::tempdir_in;
+
+#[tokio::test]
+async fn fs_account_preferences() -> Result<()> {
+    let temp = tempdir_in("target")?;
+    let account_id = AccountId::random();
+    let paths = Paths::new(temp.path(), account_id.to_string());
+    paths.ensure().await?;
+    let prefs = Preferences::new_fs(Arc::new(paths));
+    prefs.new_account(&account_id).await?;
+    let prefs = prefs.account_preferences(&account_id).await.unwrap();
+    let mut prefs = prefs.lock().await;
+    assert_preferences(&mut *prefs).await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn db_account_preferences() -> Result<()> {
+    let mut client = memory_database().await?;
+    let (account_id, _) = insert_database_account(&mut client).await?;
+    let prefs = Preferences::new_db(client);
+    prefs.new_account(&account_id).await?;
+    let prefs = prefs.account_preferences(&account_id).await.unwrap();
+    let mut prefs = prefs.lock().await;
+    assert_preferences(&mut *prefs).await?;
+    Ok(())
+}

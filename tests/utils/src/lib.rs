@@ -18,6 +18,7 @@ use std::{
 use tokio::sync::{oneshot, RwLock};
 use url::Url;
 
+pub mod assert;
 pub mod mock;
 mod network;
 mod pairing;
