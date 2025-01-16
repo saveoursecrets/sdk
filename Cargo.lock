@@ -4876,7 +4876,6 @@ dependencies = [
  "sos-signer",
  "sos-vault",
  "sos-vfs",
- "thiserror 2.0.11",
  "time",
  "tokio",
  "tracing",
@@ -4910,7 +4909,6 @@ dependencies = [
  "sos-signer",
  "sos-vault",
  "sos-vfs",
- "thiserror 2.0.11",
  "tokio",
  "tokio-util",
 ]

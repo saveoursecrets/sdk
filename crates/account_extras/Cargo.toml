@@ -29,7 +29,6 @@ sos-database = { workspace = true, features = ["client"] }
 sos-vault.workspace = true
 sos-vfs.workspace = true
 
-thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_with.workspace = true

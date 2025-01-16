@@ -15,6 +15,7 @@ mod error;
 /// strange errors with the tokio FramedRead typically
 /// something like "frame size too big" because we have
 /// inadvertently written a bad length prefix to stdout.
+#[doc(hidden)]
 #[macro_export]
 #[allow(missing_fragment_specifier)]
 macro_rules! println {

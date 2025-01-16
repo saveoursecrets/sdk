@@ -13,7 +13,6 @@ sos-signer.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 
-thiserror.workspace = true
 async-trait.workspace = true
 bitflags.workspace = true
 serde.workspace = true

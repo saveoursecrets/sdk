@@ -7,10 +7,6 @@ homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 authors = ["saveoursecrets-developers <dev@saveoursecrets.com>"]
 
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
-
 [dependencies]
 serde.workspace = true
 clap.workspace = true

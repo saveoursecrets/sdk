@@ -15,7 +15,7 @@ use zxcvbn::{Entropy, Score};
 pub async fn generate_security_report<A, E, T, D, R>(
     account: &A,
     options: SecurityReportOptions<T, D, R>,
-) -> std::result::Result<SecurityReport<T>, E>
+) -> Result<SecurityReport<T>, E>
 where
     A: Account,
     D: Fn(Vec<String>) -> R + Send + Sync,
@@ -250,7 +250,7 @@ pub(super) async fn secret_security_report<E>(
         Option<SecretId>,
     )>,
     target_field: Option<&SecretId>,
-) -> std::result::Result<(), E>
+) -> Result<(), E>
 where
     E: From<sos_vault::Error>
         + From<sos_database::StorageError>
@@ -290,7 +290,7 @@ where
 /// types will yield `None.`
 pub fn check_password<E>(
     secret: &Secret,
-) -> std::result::Result<Option<(Option<Entropy>, Vec<u8>)>, E>
+) -> Result<Option<(Option<Entropy>, Vec<u8>)>, E>
 where
     E: From<sos_vault::Error> + From<sos_database::StorageError>,
 {
