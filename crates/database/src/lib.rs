@@ -12,6 +12,8 @@ pub mod importer;
 pub mod migrations;
 #[cfg(all(feature = "sqlite", feature = "preferences"))]
 mod preferences;
+#[cfg(all(feature = "sqlite", feature = "system-messages"))]
+mod system_messages;
 
 #[cfg(feature = "sqlite")]
 mod server_origins;
@@ -26,6 +28,9 @@ pub use event_log::{
 
 #[cfg(all(feature = "sqlite", feature = "preferences"))]
 pub use preferences::PreferenceProvider;
+
+#[cfg(all(feature = "sqlite", feature = "system-messages"))]
+pub use system_messages::SystemMessagesProvider;
 
 #[cfg(feature = "sqlite")]
 pub use server_origins::ServerOrigins;

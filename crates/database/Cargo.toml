@@ -17,10 +17,12 @@ full = [
   "files",
   "preferences",
   "sqlite",
+  "system-messages",
 ]
 files = ["sos-filesystem/files"]
 client = []
 preferences = ["sos-preferences"]
+system-messages = ["sos-system-messages", "urn"]
 sqlite = ["dep:async-sqlite", "dep:refinery"]
 
 [dependencies]
@@ -31,6 +33,7 @@ sos-vault.workspace = true
 sos-vfs.workspace = true
 
 sos-preferences = { workspace = true, optional = true }
+sos-system-messages = { workspace = true, optional = true }
 
 thiserror.workspace = true
 futures.workspace = true
@@ -49,6 +52,9 @@ url.workspace = true
 # sqlite
 async-sqlite = { workspace = true, optional = true }
 refinery = { workspace = true, optional = true }
+
+# system-messages
+urn = { workspace = true, optional = true }
 
 [build-dependencies]
 rustc_version.workspace = true
