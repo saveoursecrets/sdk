@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::Error;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
@@ -16,13 +16,18 @@ pub type SystemMessageStorageProvider<E> =
 #[async_trait]
 pub trait SystemMessageStorage {
     /// Error type.
-    type Error: std::error::Error + std::fmt::Debug;
+    type Error: std::error::Error
+        + std::fmt::Debug
+        + From<Error>
+        + Send
+        + Sync
+        + 'static;
 
     /// List system messages for an account.
     async fn list_system_messages(
         &self,
         account_id: &AccountId,
-    ) -> std::result::Result<SystemMessageMap, Self::Error>;
+    ) -> Result<SystemMessageMap, Self::Error>;
 
     /// Add a system message to an account.
     async fn insert_system_message(
@@ -30,28 +35,28 @@ pub trait SystemMessageStorage {
         account_id: &AccountId,
         key: Urn,
         message: SysMessage,
-    ) -> std::result::Result<(), Self::Error>;
+    ) -> Result<(), Self::Error>;
 
     /// Remove a system message from an account.
     async fn remove_system_message(
         &self,
         account_id: &AccountId,
         key: &Urn,
-    ) -> std::result::Result<(), Self::Error>;
+    ) -> Result<(), Self::Error>;
 
     /// Mark a system message as read or unread.
     async fn mark_system_message(
         &self,
         account_id: &AccountId,
         key: &Urn,
-        flag: bool,
-    ) -> std::result::Result<(), Self::Error>;
+        is_read: bool,
+    ) -> Result<(), Self::Error>;
 
     /// Delete all system messages for an account.
     async fn clear_system_messages(
         &self,
         account_id: &AccountId,
-    ) -> std::result::Result<(), Self::Error>;
+    ) -> Result<(), Self::Error>;
 }
 
 /// System messages count.
@@ -71,7 +76,15 @@ pub struct SysMessageCount {
 
 /// Level for system messages.
 #[derive(
-    Debug, Default, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq,
+    Debug,
+    Default,
+    Clone,
+    Serialize,
+    Deserialize,
+    Ord,
+    PartialOrd,
+    Eq,
+    PartialEq,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum SysMessageLevel {
@@ -93,7 +106,7 @@ pub enum SysMessageLevel {
 /// Higher priority messages are sorted before
 /// lower priority messages, if priorities are
 /// equal sorting uses the created date and time.
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SysMessage {
     /// Optional identifier for the message.
@@ -165,16 +178,12 @@ impl Ord for SysMessage {
     }
 }
 
-fn stream_channel() -> broadcast::Sender<SysMessageCount> {
-    let (stream, _) = broadcast::channel(8);
-    stream
-}
-
 /// Collection of system messages.
 #[serde_as]
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct SystemMessageMap(
-    #[serde_as(as = "HashMap<DisplayFromStr, _>")] HashMap<Urn, SysMessage>,
+    #[serde_as(as = "HashMap<DisplayFromStr, _>")]
+    pub  HashMap<Urn, SysMessage>,
 );
 
 impl SystemMessageMap {
@@ -187,35 +196,55 @@ impl SystemMessageMap {
 }
 
 /// Persistent system message notifications.
-#[derive(Debug)]
-pub struct SystemMessages {
+pub struct SystemMessages<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    account_id: AccountId,
+    provider: SystemMessageStorageProvider<E>,
     messages: SystemMessageMap,
-    /// Broadcast channel.
     channel: broadcast::Sender<SysMessageCount>,
 }
 
-impl SystemMessages {
+impl<E> SystemMessages<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<Error>
+        + Send
+        + Sync
+        + 'static,
+{
     /// Create new system messages.
-    pub fn new() -> Self {
+    pub fn new(
+        account_id: AccountId,
+        provider: SystemMessageStorageProvider<E>,
+    ) -> Self {
+        let (channel, _) = broadcast::channel(8);
         Self {
+            account_id,
+            provider,
             messages: Default::default(),
-            channel: stream_channel(),
+            channel,
         }
     }
 
-    /// Load the system messages stored on disc into memory.
-    ///
-    /// If the file does not exist this is a noop.
-    pub async fn load(&mut self) -> Result<()> {
-        /*
-        if vfs::try_exists(&self.path).await? {
-            let content = vfs::read_exclusive(&self.path).await?;
-            let sys: SystemMessages = serde_json::from_slice(&content)?;
-            self.messages = sys.messages;
+    fn send_counts(&self) {
+        if let Err(e) = self.channel.send(self.counts()) {
+            tracing::error!(error = %e, "system_messages::send");
         }
+    }
+
+    /// Load the system messages into memory.
+    pub async fn load(&mut self) -> Result<(), E> {
+        self.messages =
+            self.provider.list_system_messages(&self.account_id).await?;
         Ok(())
-        */
-        todo!();
     }
 
     /// Subscribe to the broadcast channel.
@@ -260,32 +289,34 @@ impl SystemMessages {
     }
 
     /// Create or overwrite a system message.
-    ///
-    /// Changes are written to disc.
     pub async fn insert(
         &mut self,
         key: Urn,
         message: SysMessage,
-    ) -> Result<()> {
-        self.messages.0.insert(key, message);
-        self.save().await
+    ) -> Result<(), E> {
+        self.messages.0.insert(key.clone(), message.clone());
+        self.provider
+            .insert_system_message(&self.account_id, key, message)
+            .await?;
+        self.send_counts();
+        Ok(())
     }
 
     /// Mark a message as read.
-    ///
-    /// Changes are written to disc.
-    pub async fn mark_read(&mut self, key: &Urn) -> Result<()> {
-        let updated = if let Some(message) = self.messages.0.get_mut(key) {
+    pub async fn mark_read(
+        &mut self,
+        key: &Urn,
+        is_read: bool,
+    ) -> Result<(), E> {
+        if let Some(message) = self.messages.0.get_mut(key) {
             message.is_read = true;
-            true
+            self.provider
+                .mark_system_message(&self.account_id, key, is_read)
+                .await?;
+            self.send_counts();
+            Ok(())
         } else {
-            false
-        };
-
-        if updated {
-            self.save().await
-        } else {
-            Err(Error::NoSysMessage(key.to_string()))
+            Err(Error::NoSysMessage(key.to_string()).into())
         }
     }
 
@@ -297,17 +328,23 @@ impl SystemMessages {
     /// Remove a system message.
     ///
     /// Changes are written to disc.
-    pub async fn remove(&mut self, key: &Urn) -> Result<()> {
+    pub async fn remove(&mut self, key: &Urn) -> Result<(), E> {
         self.messages.0.remove(key);
-        self.save().await
+        self.provider
+            .remove_system_message(&self.account_id, key)
+            .await?;
+        self.send_counts();
+        Ok(())
     }
 
     /// Clear all system messages.
-    ///
-    /// Changes are written to disc.
-    pub async fn clear(&mut self) -> Result<()> {
+    pub async fn clear(&mut self) -> Result<(), E> {
         self.messages = Default::default();
-        self.save().await
+        self.provider
+            .clear_system_messages(&self.account_id)
+            .await?;
+        self.send_counts();
+        Ok(())
     }
 
     /// Sorted list of system messages.
@@ -315,16 +352,5 @@ impl SystemMessages {
         let mut messages: Vec<_> = self.messages.iter().collect();
         messages.sort_by(|a, b| a.1.cmp(b.1));
         messages
-    }
-
-    /// Save system messages to disc.
-    async fn save(&self) -> Result<()> {
-        /*
-        let buf = serde_json::to_vec_pretty(self)?;
-        vfs::write_exclusive(&self.path, buf).await?;
-        let _ = self.channel.send(self.counts());
-        Ok(())
-        */
-        todo!();
     }
 }

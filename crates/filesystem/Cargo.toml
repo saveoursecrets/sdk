@@ -8,15 +8,17 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [features]
-full = ["files", "preferences"]
+full = ["files", "preferences", "system-messages"]
 files = ["sos-core/files"]
 preferences = ["sos-preferences", "serde_json"]
+system-messages = ["sos-system-messages", "serde_json", "urn"]
 
 [dependencies]
 sos-core.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 
+sos-system-messages = { workspace = true, optional = true }
 sos-preferences = { workspace = true, optional = true }
 
 thiserror.workspace = true
@@ -31,6 +33,7 @@ indexmap.workspace = true
 tempfile.workspace = true
 tracing.workspace = true
 
+urn = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 
 [build-dependencies]

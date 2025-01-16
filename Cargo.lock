@@ -5091,6 +5091,7 @@ dependencies = [
  "serde_json",
  "sos-core",
  "sos-preferences",
+ "sos-system-messages",
  "sos-vault",
  "sos-vfs",
  "tempfile",
@@ -5098,6 +5099,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "urn",
 ]
 
 [[package]]
@@ -5598,6 +5600,7 @@ dependencies = [
  "thiserror 2.0.11",
  "time",
  "tokio",
+ "tracing",
  "urn",
 ]
 

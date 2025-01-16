@@ -235,11 +235,11 @@ impl Paths {
     /// # Panics
     ///
     /// If this set of paths are global (no user identifier).
-    pub fn system_messages_file(paths: &Paths) -> PathBuf {
-        if paths.is_global() {
+    pub fn system_messages_file(&self) -> PathBuf {
+        if self.is_global() {
             panic!("system messages are not accessible for global paths");
         }
-        let mut path = paths.user_dir().join(SYSTEM_MESSAGES_FILE);
+        let mut path = self.user_dir().join(SYSTEM_MESSAGES_FILE);
         path.set_extension(JSON_EXT);
         path
     }
