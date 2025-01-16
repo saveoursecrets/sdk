@@ -18,8 +18,8 @@ impl ServerOrigins {
     }
 
     /// Create database server origins.
-    pub fn new_db(client: Client, account_id: AccountId) -> Self {
-        Self(Box::new(DbServerOrigins::new(client, account_id)))
+    pub fn new_db(account_id: AccountId, client: Client) -> Self {
+        Self(Box::new(DbServerOrigins::new(account_id, client)))
     }
 }
 

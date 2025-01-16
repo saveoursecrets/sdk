@@ -23,7 +23,7 @@ async fn fs_server_origins() -> Result<()> {
 async fn db_server_origins() -> Result<()> {
     let mut client = memory_database().await?;
     let (account_id, _) = insert_database_account(&mut client).await?;
-    let mut servers = ServerOrigins::new_db(client, account_id);
+    let mut servers = ServerOrigins::new_db(account_id, client);
     assert_server_origins(&mut servers).await?;
     Ok(())
 }

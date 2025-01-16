@@ -11,7 +11,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-full = ["files", "preferences", "search"]
+full = ["files", "preferences", "search", "system-messages"]
 files = [
   "sos-core/files",
   "sos-database/files",
@@ -23,6 +23,12 @@ preferences = [
   "sos-filesystem/preferences",
 ]
 search = []
+system-messages = [
+  "sos-system-messages",
+  "sos-database/system-messages",
+  "sos-filesystem/system-messages",
+  "urn",
+]
 
 [dependencies]
 sos-core.workspace = true
@@ -32,6 +38,7 @@ sos-vault.workspace = true
 sos-vfs.workspace = true
 
 sos-preferences = { workspace = true, optional = true }
+sos-system-messages = { workspace = true, optional = true }
 
 thiserror.workspace = true
 async-trait.workspace = true
@@ -43,6 +50,9 @@ uuid.workspace = true
 tracing.workspace = true
 indexmap.workspace = true
 tempfile.workspace = true
+
+# system-messages
+urn = { workspace = true, optional = true }
 
 [build-dependencies]
 rustc_version.workspace = true

@@ -4930,6 +4930,7 @@ dependencies = [
  "sos-database",
  "sos-filesystem",
  "sos-preferences",
+ "sos-system-messages",
  "sos-vault",
  "sos-vfs",
  "tempfile",
@@ -4937,6 +4938,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "urn",
  "uuid",
 ]
 
@@ -5598,7 +5600,6 @@ dependencies = [
  "rustc_version",
  "serde",
  "serde_with",
- "sos-core",
  "thiserror 2.0.11",
  "time",
  "tokio",

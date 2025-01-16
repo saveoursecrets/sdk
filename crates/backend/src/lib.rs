@@ -11,6 +11,8 @@ mod folder;
 mod preferences;
 pub mod reducers;
 mod server_origins;
+#[cfg(feature = "system-messages")]
+mod system_messages;
 mod vault_writer;
 
 pub use error::Error;
@@ -25,6 +27,8 @@ pub use folder::Folder;
 #[cfg(feature = "preferences")]
 pub use preferences::BackendPreferences as Preferences;
 pub use server_origins::ServerOrigins;
+#[cfg(feature = "system-messages")]
+pub use system_messages::SystemMessages;
 pub use vault_writer::VaultWriter;
 
 #[cfg(feature = "files")]

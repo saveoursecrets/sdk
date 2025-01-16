@@ -4,8 +4,6 @@ version = "0.16.0"
 edition = "2021"
 
 [dependencies]
-sos-core.workspace = true
-
 async-trait.workspace = true
 thiserror.workspace = true
 serde.workspace = true

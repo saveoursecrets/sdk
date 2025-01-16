@@ -1,7 +1,7 @@
 //! System messages provider for the file system.
 use crate::Error;
 use async_trait::async_trait;
-use sos_core::{AccountId, Paths};
+use sos_core::Paths;
 use sos_system_messages::{
     SysMessage, SystemMessageMap, SystemMessageStorage,
 };
@@ -52,7 +52,7 @@ where
     }
 }
 
-#[async_trait()]
+#[async_trait]
 impl<E> SystemMessageStorage for SystemMessagesProvider<E>
 where
     E: std::error::Error
@@ -68,7 +68,6 @@ where
 
     async fn list_system_messages(
         &self,
-        _account_id: &AccountId,
     ) -> Result<SystemMessageMap, Self::Error> {
         if vfs::try_exists(&self.path).await? {
             let content = vfs::read_exclusive(&self.path).await?;
@@ -80,35 +79,32 @@ where
     }
 
     async fn insert_system_message(
-        &self,
-        account_id: &AccountId,
+        &mut self,
         key: Urn,
         message: SysMessage,
     ) -> Result<(), Self::Error> {
-        let mut messages = self.list_system_messages(account_id).await?;
+        let mut messages = self.list_system_messages().await?;
         messages.0.insert(key, message);
         self.save(&messages).await?;
         Ok(())
     }
 
     async fn remove_system_message(
-        &self,
-        account_id: &AccountId,
+        &mut self,
         key: &Urn,
     ) -> Result<(), Self::Error> {
-        let mut messages = self.list_system_messages(account_id).await?;
+        let mut messages = self.list_system_messages().await?;
         messages.0.remove(key);
         self.save(&messages).await?;
         Ok(())
     }
 
     async fn mark_system_message(
-        &self,
-        account_id: &AccountId,
+        &mut self,
         key: &Urn,
         is_read: bool,
     ) -> Result<(), Self::Error> {
-        let mut messages = self.list_system_messages(account_id).await?;
+        let mut messages = self.list_system_messages().await?;
         if let Some(msg) = messages.0.get_mut(key) {
             msg.is_read = is_read;
             self.save(&messages).await?;
@@ -116,10 +112,7 @@ where
         Ok(())
     }
 
-    async fn clear_system_messages(
-        &self,
-        _account_id: &AccountId,
-    ) -> Result<(), Self::Error> {
+    async fn clear_system_messages(&mut self) -> Result<(), Self::Error> {
         self.save(&Default::default()).await
     }
 }

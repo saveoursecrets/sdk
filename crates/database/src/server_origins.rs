@@ -32,7 +32,7 @@ where
         + 'static,
 {
     /// Create new server origins.
-    pub fn new(client: Client, account_id: AccountId) -> Self {
+    pub fn new(account_id: AccountId, client: Client) -> Self {
         Self {
             client,
             account_id,

@@ -2,7 +2,6 @@ use crate::Error;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use sos_core::AccountId;
 use std::{cmp::Ordering, collections::HashMap};
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -11,6 +10,42 @@ use urn::Urn;
 /// Boxed storage provider.
 pub type SystemMessageStorageProvider<E> =
     Box<dyn SystemMessageStorage<Error = E> + Send + Sync + 'static>;
+
+/// Manages system messages.
+#[async_trait]
+pub trait SystemMessageManager {
+    /// Error type.
+    type Error: std::error::Error
+        + std::fmt::Debug
+        + From<Error>
+        + Send
+        + Sync
+        + 'static;
+
+    /// Load system messages for an account into memory.
+    async fn load_system_messages(&mut self) -> Result<(), Self::Error>;
+
+    /// Subscribe to the broadcast channel.
+    fn subscribe(&self) -> broadcast::Receiver<SysMessageCount>;
+
+    /// Number of system messages.
+    fn len(&self) -> usize;
+
+    /// Whether the system messages collection is empty.
+    fn is_empty(&self) -> bool;
+
+    /// Message counts.
+    fn counts(&self) -> SysMessageCount;
+
+    /// Iterator of the system messages.
+    fn iter(&self) -> impl Iterator<Item = (&Urn, &SysMessage)>;
+
+    /// Get a message.
+    fn get(&self, key: &Urn) -> Option<&SysMessage>;
+
+    /// Sorted list of system messages.
+    fn sorted_list(&self) -> Vec<(&Urn, &SysMessage)>;
+}
 
 /// Storage for system messages.
 #[async_trait]
@@ -26,37 +61,30 @@ pub trait SystemMessageStorage {
     /// List system messages for an account.
     async fn list_system_messages(
         &self,
-        account_id: &AccountId,
     ) -> Result<SystemMessageMap, Self::Error>;
 
     /// Add a system message to an account.
     async fn insert_system_message(
-        &self,
-        account_id: &AccountId,
+        &mut self,
         key: Urn,
         message: SysMessage,
     ) -> Result<(), Self::Error>;
 
     /// Remove a system message from an account.
     async fn remove_system_message(
-        &self,
-        account_id: &AccountId,
+        &mut self,
         key: &Urn,
     ) -> Result<(), Self::Error>;
 
     /// Mark a system message as read or unread.
     async fn mark_system_message(
-        &self,
-        account_id: &AccountId,
+        &mut self,
         key: &Urn,
         is_read: bool,
     ) -> Result<(), Self::Error>;
 
     /// Delete all system messages for an account.
-    async fn clear_system_messages(
-        &self,
-        account_id: &AccountId,
-    ) -> Result<(), Self::Error>;
+    async fn clear_system_messages(&mut self) -> Result<(), Self::Error>;
 }
 
 /// System messages count.
@@ -180,7 +208,7 @@ impl Ord for SysMessage {
 
 /// Collection of system messages.
 #[serde_as]
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct SystemMessageMap(
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     pub  HashMap<Urn, SysMessage>,
@@ -205,7 +233,6 @@ where
         + Sync
         + 'static,
 {
-    account_id: AccountId,
     provider: SystemMessageStorageProvider<E>,
     messages: SystemMessageMap,
     channel: broadcast::Sender<SysMessageCount>,
@@ -221,13 +248,9 @@ where
         + 'static,
 {
     /// Create new system messages.
-    pub fn new(
-        account_id: AccountId,
-        provider: SystemMessageStorageProvider<E>,
-    ) -> Self {
+    pub fn new(provider: SystemMessageStorageProvider<E>) -> Self {
         let (channel, _) = broadcast::channel(8);
         Self {
-            account_id,
             provider,
             messages: Default::default(),
             channel,
@@ -239,31 +262,38 @@ where
             tracing::error!(error = %e, "system_messages::send");
         }
     }
+}
 
-    /// Load the system messages into memory.
-    pub async fn load(&mut self) -> Result<(), E> {
-        self.messages =
-            self.provider.list_system_messages(&self.account_id).await?;
+#[async_trait]
+impl<E> SystemMessageManager for SystemMessages<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    type Error = E;
+
+    async fn load_system_messages(&mut self) -> Result<(), E> {
+        self.messages = self.provider.list_system_messages().await?;
         Ok(())
     }
 
-    /// Subscribe to the broadcast channel.
-    pub fn subscribe(&self) -> broadcast::Receiver<SysMessageCount> {
+    fn subscribe(&self) -> broadcast::Receiver<SysMessageCount> {
         self.channel.subscribe()
     }
 
-    /// Number of system messages.
-    pub fn len(&self) -> usize {
+    fn len(&self) -> usize {
         self.messages.0.len()
     }
 
-    /// Whether the system messages collection is empty.
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.messages.0.is_empty()
     }
 
-    /// Message counts.
-    pub fn counts(&self) -> SysMessageCount {
+    fn counts(&self) -> SysMessageCount {
         let mut counts: SysMessageCount = Default::default();
         counts.total = self.messages.0.len();
         for item in self.messages.0.values() {
@@ -283,36 +313,68 @@ where
         counts
     }
 
-    /// Iterator of the system messages.
-    pub fn iter(&self) -> impl Iterator<Item = (&Urn, &SysMessage)> {
+    fn iter(&self) -> impl Iterator<Item = (&Urn, &SysMessage)> {
         self.messages.iter()
     }
 
-    /// Create or overwrite a system message.
-    pub async fn insert(
+    fn get(&self, key: &Urn) -> Option<&SysMessage> {
+        self.messages.0.get(key)
+    }
+
+    fn sorted_list(&self) -> Vec<(&Urn, &SysMessage)> {
+        let mut messages: Vec<_> = self.messages.iter().collect();
+        messages.sort_by(|a, b| a.1.cmp(b.1));
+        messages
+    }
+}
+
+#[async_trait]
+impl<E> SystemMessageStorage for SystemMessages<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    type Error = E;
+
+    async fn list_system_messages(
+        &self,
+    ) -> Result<SystemMessageMap, Self::Error> {
+        self.provider.list_system_messages().await
+    }
+
+    async fn insert_system_message(
         &mut self,
         key: Urn,
         message: SysMessage,
-    ) -> Result<(), E> {
+    ) -> Result<(), Self::Error> {
         self.messages.0.insert(key.clone(), message.clone());
-        self.provider
-            .insert_system_message(&self.account_id, key, message)
-            .await?;
+        self.provider.insert_system_message(key, message).await?;
         self.send_counts();
         Ok(())
     }
 
-    /// Mark a message as read.
-    pub async fn mark_read(
+    async fn remove_system_message(
+        &mut self,
+        key: &Urn,
+    ) -> Result<(), Self::Error> {
+        self.messages.0.remove(key);
+        self.provider.remove_system_message(key).await?;
+        self.send_counts();
+        Ok(())
+    }
+
+    async fn mark_system_message(
         &mut self,
         key: &Urn,
         is_read: bool,
-    ) -> Result<(), E> {
+    ) -> Result<(), Self::Error> {
         if let Some(message) = self.messages.0.get_mut(key) {
             message.is_read = true;
-            self.provider
-                .mark_system_message(&self.account_id, key, is_read)
-                .await?;
+            self.provider.mark_system_message(key, is_read).await?;
             self.send_counts();
             Ok(())
         } else {
@@ -320,37 +382,10 @@ where
         }
     }
 
-    /// Get a message.
-    pub fn get(&self, key: &Urn) -> Option<&SysMessage> {
-        self.messages.0.get(key)
-    }
-
-    /// Remove a system message.
-    ///
-    /// Changes are written to disc.
-    pub async fn remove(&mut self, key: &Urn) -> Result<(), E> {
-        self.messages.0.remove(key);
-        self.provider
-            .remove_system_message(&self.account_id, key)
-            .await?;
-        self.send_counts();
-        Ok(())
-    }
-
-    /// Clear all system messages.
-    pub async fn clear(&mut self) -> Result<(), E> {
+    async fn clear_system_messages(&mut self) -> Result<(), Self::Error> {
         self.messages = Default::default();
-        self.provider
-            .clear_system_messages(&self.account_id)
-            .await?;
+        self.provider.clear_system_messages().await?;
         self.send_counts();
         Ok(())
-    }
-
-    /// Sorted list of system messages.
-    pub fn sorted_list(&self) -> Vec<(&Urn, &SysMessage)> {
-        let mut messages: Vec<_> = self.messages.iter().collect();
-        messages.sort_by(|a, b| a.1.cmp(b.1));
-        messages
     }
 }
