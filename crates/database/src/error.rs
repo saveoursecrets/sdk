@@ -86,18 +86,3 @@ pub enum Error {
     #[error(transparent)]
     Urn(#[from] urn::Error),
 }
-
-/// Generic storage error shared between the client and server.
-#[derive(Debug, Error)]
-pub enum StorageError {
-    #[cfg(feature = "client")]
-    /// Error generated when no storage is configured.
-    #[error(
-        "account is empty, you may need to initialize the account or sign in"
-    )]
-    NoStorage,
-
-    /// Error generated attempting to access a vault that is not available.
-    #[error("cache not available for {0}")]
-    CacheNotAvailable(Uuid),
-}

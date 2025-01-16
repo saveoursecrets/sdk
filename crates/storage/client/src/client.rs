@@ -4,6 +4,7 @@ use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use sos_backend::reducers::FolderReducer;
 use sos_backend::Folder;
+use sos_backend::StorageError;
 use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
 use sos_core::{
     commit::{CommitHash, CommitState},
@@ -18,7 +19,6 @@ use sos_core::{
     },
     AccountId, Paths, UtcDateTime,
 };
-use sos_database::StorageError;
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
     events::{EventLog, EventRecord},

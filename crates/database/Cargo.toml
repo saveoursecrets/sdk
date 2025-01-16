@@ -14,7 +14,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 full = [
   "audit",
-  "client",
   "files",
   "preferences",
   "sqlite",
@@ -22,7 +21,6 @@ full = [
 ]
 audit = ["sos-audit", "sos-filesystem/audit"]
 files = ["sos-filesystem/files"]
-client = []
 preferences = ["sos-preferences"]
 system-messages = ["sos-system-messages", "urn"]
 sqlite = ["dep:async-sqlite", "dep:refinery"]

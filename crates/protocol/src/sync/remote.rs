@@ -34,7 +34,7 @@ pub trait RemoteSyncHandler {
         + From<ConflictError>
         + From<crate::Error>
         + From<sos_core::Error>
-        + From<sos_database::StorageError>
+        + From<sos_backend::StorageError>
         + From<sos_account::Error>
         + From<sos_backend::Error>
         + From<std::io::Error>

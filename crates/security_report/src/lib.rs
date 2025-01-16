@@ -1,4 +1,4 @@
-//! Types for security report generation.
+//! Helpers for security report generation.
 use hex;
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
@@ -241,7 +241,7 @@ pub struct SecurityReportRecord {
     pub entropy: Option<Entropy>,
 }
 
-pub(super) async fn secret_security_report<E>(
+async fn secret_security_report<E>(
     secret_id: &SecretId,
     keeper: &AccessPoint,
     password_hashes: &mut Vec<(

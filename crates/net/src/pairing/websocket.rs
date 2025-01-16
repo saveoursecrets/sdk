@@ -9,9 +9,9 @@ use futures::{
 use prost::bytes::Bytes;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use sos_account::Account;
+use sos_backend::StorageError;
 use sos_core::events::DeviceEvent;
 use sos_core::{AccountId, Origin};
-use sos_database::StorageError;
 use sos_protocol::{
     network_client::WebSocketRequest,
     pairing_message,

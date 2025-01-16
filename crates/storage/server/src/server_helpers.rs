@@ -30,7 +30,7 @@ where
         + From<<S as StorageEventLogs>::Error>
         + From<sos_core::Error>
         + From<sos_backend::Error>
-        + From<sos_database::StorageError>
+        + From<sos_backend::StorageError>
         + Send
         + Sync
         + 'static,

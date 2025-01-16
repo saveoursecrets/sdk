@@ -39,7 +39,7 @@ members = [
 
   "tests/integration",
   "tests/unit",
-  "tests/utils",]
+  "tests/utils", "crates/security_report",]
 
 [workspace.dependencies]
 sos-account = { version = "0.16", path = "crates/account" }

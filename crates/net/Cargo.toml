@@ -51,7 +51,7 @@ sos-account.workspace = true
 sos-core.workspace = true
 sos-sdk.workspace = true
 sos-backend.workspace = true
-sos-database = { workspace = true, features = ["client", "sqlite"] }
+sos-database = { workspace = true, features = ["sqlite"] }
 sos-client-storage.workspace = true
 sos-login.workspace = true
 sos-protocol = { workspace = true, features = ["network-client"] }

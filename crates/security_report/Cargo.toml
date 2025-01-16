@@ -1,0 +1,17 @@
+[package]
+name = "sos-security_report"
+version = "0.16.0"
+edition = "2021"
+
+[dependencies]
+sos-account.workspace = true
+sos-backend.workspace = true
+sos-core.workspace = true
+sos-password.workspace = true
+sos-vault.workspace = true
+
+sha1.workspace = true
+serde.workspace = true
+hex.workspace = true
+zxcvbn.workspace = true
+secrecy.workspace = true

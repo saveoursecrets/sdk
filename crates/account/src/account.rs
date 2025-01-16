@@ -1,6 +1,7 @@
 //! Account storage and search index.
 use crate::{convert::CipherComparison, AccountBuilder, Error, Result};
 use sos_backend::compact::compact_folder;
+use sos_backend::StorageError;
 use sos_backend::{reducers::FolderReducer, AccessPoint};
 use sos_backend::{AccountEventLog, FolderEventLog};
 use sos_client_storage::{
@@ -14,7 +15,6 @@ use sos_core::{
     events::{EventLog, EventRecord},
     AccountId, SecretId, VaultCommit, VaultId,
 };
-use sos_database::StorageError;
 use sos_sdk::{
     identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
     vfs, Paths, UtcDateTime,
@@ -3443,47 +3443,32 @@ impl StorageEventLogs for LocalAccount {
     type Error = Error;
 
     async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let storage = self
-            .storage
-            .as_ref()
-            .ok_or(sos_client_storage::Error::NoStorage)?;
+        let storage = self.storage.as_ref().ok_or(StorageError::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.identity_log))
     }
 
     async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
-        let storage = self
-            .storage
-            .as_ref()
-            .ok_or(sos_client_storage::Error::NoStorage)?;
+        let storage = self.storage.as_ref().ok_or(StorageError::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.account_log))
     }
 
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
-        let storage = self
-            .storage
-            .as_ref()
-            .ok_or(sos_client_storage::Error::NoStorage)?;
+        let storage = self.storage.as_ref().ok_or(StorageError::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.device_log))
     }
 
     #[cfg(feature = "files")]
     async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
-        let storage = self
-            .storage
-            .as_ref()
-            .ok_or(sos_client_storage::Error::NoStorage)?;
+        let storage = self.storage.as_ref().ok_or(StorageError::NoStorage)?;
         let storage = storage.read().await;
         Ok(Arc::clone(&storage.file_log))
     }
 
     async fn folder_details(&self) -> Result<IndexSet<Summary>> {
-        let storage = self
-            .storage
-            .as_ref()
-            .ok_or(sos_client_storage::Error::NoStorage)?;
+        let storage = self.storage.as_ref().ok_or(StorageError::NoStorage)?;
         let storage = storage.read().await;
         let folders = storage.list_folders();
         Ok(folders.into_iter().cloned().collect())
@@ -3493,10 +3478,7 @@ impl StorageEventLogs for LocalAccount {
         &self,
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let storage = self
-            .storage
-            .as_ref()
-            .ok_or(sos_client_storage::Error::NoStorage)?;
+        let storage = self.storage.as_ref().ok_or(StorageError::NoStorage)?;
         let storage = storage.read().await;
         let folder = storage
             .cache()

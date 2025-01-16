@@ -141,7 +141,7 @@ impl SyncComparison {
             + std::fmt::Debug
             + From<<S as StorageEventLogs>::Error>
             + From<sos_backend::Error>
-            + From<sos_database::StorageError>
+            + From<sos_backend::StorageError>
             + From<sos_core::Error>,
     {
         let mut diff: SyncDiff = Default::default();
@@ -309,7 +309,7 @@ impl SyncComparison {
         for (id, folder) in &self.folders {
             let commit_state =
                 self.remote_status.folders.get(id).ok_or(
-                    sos_database::StorageError::CacheNotAvailable(*id),
+                    sos_backend::StorageError::CacheNotAvailable(*id),
                 )?;
 
             match folder {
@@ -384,7 +384,7 @@ where
         + From<<S as StorageEventLogs>::Error>
         + From<sos_core::Error>
         + From<sos_backend::Error>
-        + From<sos_database::StorageError>
+        + From<sos_backend::StorageError>
         + Send
         + Sync
         + 'static,

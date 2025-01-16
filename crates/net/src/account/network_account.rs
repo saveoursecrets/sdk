@@ -9,13 +9,13 @@ use sos_account::{
     SecretDelete, SecretInsert, SecretMove,
 };
 use sos_backend::ServerOrigins;
+use sos_backend::StorageError;
 use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_core::events::{AccountEvent, ReadEvent};
 use sos_core::{
     commit::{CommitHash, CommitState},
     AccountId, Origin, RemoteOrigins, SecretId, VaultId,
 };
-use sos_database::StorageError;
 use sos_protocol::{
     AccountSync, DiffRequest, RemoteSync, RemoteSyncHandler, SyncClient,
     SyncOptions, SyncResult,

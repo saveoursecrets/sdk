@@ -8,8 +8,8 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use secrecy::{ExposeSecret, SecretString};
 use sos_account::Account;
+use sos_backend::StorageError;
 use sos_core::AccountId;
-use sos_database::StorageError;
 use sos_net::{NetworkAccount, NetworkAccountSwitcher};
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{

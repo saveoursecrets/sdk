@@ -5472,6 +5472,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-security_report"
+version = "0.16.0"
+dependencies = [
+ "hex",
+ "secrecy",
+ "serde",
+ "sha1",
+ "sos-account",
+ "sos-backend",
+ "sos-core",
+ "sos-password",
+ "sos-vault",
+ "zxcvbn",
+]
+
+[[package]]
 name = "sos-server"
 version = "0.16.1"
 dependencies = [

@@ -43,7 +43,7 @@ sos-audit = { workspace = true, optional = true }
 sos-core.workspace = true
 sos-sdk.workspace = true
 sos-backend.workspace = true
-sos-database = { workspace = true, features = ["client"] }
+sos-database.workspace = true
 sos-login.workspace = true
 sos-sync.workspace = true
 sos-client-storage.workspace = true

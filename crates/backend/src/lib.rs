@@ -17,7 +17,7 @@ mod server_origins;
 mod system_messages;
 mod vault_writer;
 
-pub use error::Error;
+pub use error::{Error, StorageError};
 
 pub use access_point::BackendAccessPoint as AccessPoint;
 #[cfg(feature = "audit")]
