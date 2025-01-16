@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
   "crates/account",
-  "crates/account_extras",
   "crates/artifact",
   "crates/audit",
   "crates/backend",
@@ -45,7 +44,6 @@ members = [
 
 [workspace.dependencies]
 sos-account = { version = "0.16", path = "crates/account" }
-sos-account-extras = { version = "0.16", path = "crates/account_extras" }
 sos-artifact = { version = "0.8", path = "crates/artifact" }
 sos-audit = { version = "0.16", path = "crates/audit" }
 sos-backend  = { version = "0.16", path = "crates/backend" }
