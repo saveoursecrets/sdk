@@ -26,13 +26,6 @@ pub type RemoteResult = sos_protocol::RemoteResult<Error>;
 /// Sync result.
 pub type SyncResult = sos_protocol::SyncResult<Error>;
 
-#[cfg(any(
-    feature = "preferences",
-    feature = "security-report",
-    feature = "system-messages"
-))]
-pub use sos_account_extras as extras;
-
 /// Result type for the client module.
 pub(crate) type Result<T> = std::result::Result<T, error::Error>;
 

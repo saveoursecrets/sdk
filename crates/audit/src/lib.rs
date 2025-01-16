@@ -1,6 +1,5 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Core types and traits for audit trail logging.
 mod encoding;
 mod event;

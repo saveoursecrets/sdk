@@ -22,11 +22,8 @@ full = [
   "listen",
   "migrate",
   "pairing",
-  "preferences",
   "search",
-  "security-report",
   "keychain-access",
-  "system-messages",
   "clipboard",
 ]
 
@@ -42,9 +39,9 @@ keychain-access = ["sos-migrate/keychain-access"]
 pairing = ["dep:snow", "sos-protocol/pairing"]
 search = ["sos-search", "sos-protocol/search"]
 
-preferences = ["sos-backend/preferences"]
-security-report = ["sos-account-extras/security-report"]
-system-messages = ["sos-backend/system-messages"]
+# preferences = ["sos-backend/preferences"]
+# security-report = ["sos-security-report"]
+# system-messages = ["sos-backend/system-messages"]
 
 [dependencies]
 sos-account.workspace = true
@@ -61,7 +58,6 @@ sos-vault.workspace = true
 
 sos-search = { workspace = true, optional = true }
 sos-migrate = { workspace = true, optional = true }
-sos-account-extras = { workspace = true, optional = true }
 
 tokio-util.workspace = true
 thiserror.workspace = true

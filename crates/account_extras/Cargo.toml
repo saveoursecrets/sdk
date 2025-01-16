@@ -1,46 +1,8 @@
 [package]
 name = "sos-account-extras"
-version = "0.16.2"
+version = "0.16.3"
 edition = "2021"
 description = "Extra features for Save Our Secrets local accounts."
 homepage = "https://saveoursecrets.com"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
-
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
-
-[features]
-full = [
-  "security-report",
-]
-security-report = ["dep:zxcvbn", "dep:sha1", "dep:secrecy"]
-
-[dependencies]
-sos-core.workspace = true
-sos-backend.workspace = true
-sos-login.workspace = true
-sos-signer.workspace = true
-sos-sdk.workspace = true
-sos-account.workspace = true
-sos-password.workspace = true
-sos-database.workspace = true
-sos-vault.workspace = true
-sos-vfs.workspace = true
-
-serde.workspace = true
-serde_json.workspace = true
-serde_with.workspace = true
-tokio.workspace = true
-tracing.workspace = true
-hex.workspace = true
-time.workspace = true
-urn.workspace = true
-
-zxcvbn = { workspace = true, optional = true }
-sha1 = { workspace = true, optional = true }
-secrecy = { workspace = true, optional = true }
-
-[build-dependencies]
-rustc_version.workspace = true

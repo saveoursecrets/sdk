@@ -13,7 +13,6 @@ enable-cli-tests = []
 sos-audit.workspace = true
 sos-core.workspace = true
 sos-account = { workspace = true, features = ["full"] }
-sos-account-extras = { workspace = true, features = ["full"] }
 sos-backend = { workspace = true, features = ["full"] }
 sos-backup-archive = { workspace = true, features = ["full"] }
 sos-database = { workspace = true, features = ["full"] }
@@ -26,6 +25,7 @@ sos-server-storage = { workspace = true, features = ["full"] }
 sos-web = { workspace = true, features = ["full"] }
 sos-protocol = { workspace = true, features = ["full"] }
 sos-preferences.workspace = true
+sos-security-report.workspace = true
 sos-search.workspace = true
 sos-signer.workspace = true
 sos-sync = { workspace = true, features = ["full"] }

@@ -4797,6 +4797,7 @@ dependencies = [
  "sos-protocol",
  "sos-sdk",
  "sos-search",
+ "sos-security-report",
  "sos-sync",
  "sos-vault",
  "sos-vfs",
@@ -4857,31 +4858,7 @@ dependencies = [
 
 [[package]]
 name = "sos-account-extras"
-version = "0.16.2"
-dependencies = [
- "hex",
- "rustc_version",
- "secrecy",
- "serde",
- "serde_json",
- "serde_with",
- "sha1",
- "sos-account",
- "sos-backend",
- "sos-core",
- "sos-database",
- "sos-login",
- "sos-password",
- "sos-sdk",
- "sos-signer",
- "sos-vault",
- "sos-vfs",
- "time",
- "tokio",
- "tracing",
- "urn",
- "zxcvbn",
-]
+version = "0.16.3"
 
 [[package]]
 name = "sos-artifact"
@@ -5125,7 +5102,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sos-account",
- "sos-account-extras",
  "sos-audit",
  "sos-backend",
  "sos-backup-archive",
@@ -5142,6 +5118,7 @@ dependencies = [
  "sos-protocol",
  "sos-sdk",
  "sos-search",
+ "sos-security-report",
  "sos-server",
  "sos-server-storage",
  "sos-signer",
@@ -5316,7 +5293,6 @@ dependencies = [
  "sha3",
  "snow",
  "sos-account",
- "sos-account-extras",
  "sos-backend",
  "sos-client-storage",
  "sos-core",
@@ -5472,7 +5448,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sos-security_report"
+name = "sos-security-report"
 version = "0.16.0"
 dependencies = [
  "hex",

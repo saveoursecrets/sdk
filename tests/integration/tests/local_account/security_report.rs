@@ -2,8 +2,8 @@ use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use secrecy::SecretString;
 use sos_account::{Account, LocalAccount, SecretChange};
-use sos_net::extras::security_report::*;
 use sos_sdk::prelude::*;
+use sos_security_report::*;
 use zxcvbn::Score;
 
 #[tokio::test]

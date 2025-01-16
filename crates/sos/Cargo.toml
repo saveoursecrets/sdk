@@ -35,6 +35,7 @@ sos-net = { workspace = true, features = ["full"] }
 sos-migrate.workspace = true
 sos-sdk = { workspace = true, features = ["full"] }
 sos-preferences.workspace = true
+sos-security-report.workspace = true
 sos-search.workspace = true
 sos-sync.workspace = true
 sos-vault.workspace = true
