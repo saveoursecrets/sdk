@@ -74,7 +74,7 @@ pub(crate) async fn import_globals(
             audit_entity.insert_audit_logs(audit_events)?;
             if let Some(json_data) = global_preferences {
                 let pref_entity = PreferenceEntity::new(&tx);
-                pref_entity.insert_preferences(None, json_data)?;
+                pref_entity.insert_preferences(None, &json_data)?;
             }
             tx.commit()?;
             Ok(())
@@ -247,7 +247,7 @@ pub(crate) async fn import_account(
             if let Some(json_data) = account_preferences {
                 let pref_entity = PreferenceEntity::new(&tx);
                 pref_entity
-                    .insert_preferences(Some(account_id), json_data)?;
+                    .insert_preferences(Some(account_id), &json_data)?;
             }
 
             if let Some(servers) = remote_servers {

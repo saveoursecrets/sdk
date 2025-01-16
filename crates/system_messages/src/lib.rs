@@ -21,6 +21,3 @@ mod system_messages;
 
 pub use error::Error;
 pub use system_messages::*;
-
-/// Result type for the library.
-pub(crate) type Result<T> = std::result::Result<T, Error>;

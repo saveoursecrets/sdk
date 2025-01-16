@@ -56,13 +56,13 @@ where
                     let prefs = PreferenceEntity::new(&conn);
                     prefs.upsert_preferences(
                         Some(account_row.row_id),
-                        json_data,
+                        &json_data,
                     )?;
                     Ok(())
                 }
                 None => {
                     let prefs = PreferenceEntity::new(&conn);
-                    prefs.upsert_preferences(None, json_data)?;
+                    prefs.upsert_preferences(None, &json_data)?;
                     Ok(())
                 }
             })

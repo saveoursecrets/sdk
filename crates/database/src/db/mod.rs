@@ -6,8 +6,11 @@ mod event;
 mod file;
 mod folder;
 mod import;
+#[cfg(feature = "preferences")]
 mod preference;
 mod server;
+#[cfg(feature = "system-messages")]
+mod system_message;
 
 pub use account::{AccountEntity, AccountRecord};
 pub use audit::AuditEntity;
@@ -15,8 +18,11 @@ pub use event::{CommitRecord, EventEntity, EventTable};
 #[cfg(feature = "files")]
 pub use file::FileEntity;
 pub use folder::{FolderEntity, FolderRecord, SecretRecord};
+#[cfg(feature = "preferences")]
 pub use preference::PreferenceEntity;
 pub use server::ServerEntity;
+#[cfg(feature = "system-messages")]
+pub use system_message::SystemMessageEntity;
 
 pub(crate) use import::{import_account, import_globals};
 

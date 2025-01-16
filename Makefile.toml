@@ -13,6 +13,13 @@ BUILD_TARGET = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
 # tests take a while due to so many exec calls
 RUST_TEST_TIME_INTEGRATION = "120000,240000"
 
+[tasks.publishers]
+command = "cargo"
+args = [
+  "supply-chain",
+  "publishers",
+]
+
 [tasks.typegen]
 script = '''
 RUST_LOG=debug typeshare crates/account crates/database crates/login crates/sdk crates/ipc crates/protocol --lang=typescript --output-file=packages/types/types.ts && cat packages/types/preamble.ts packages/types/types.ts > packages/types/index.ts

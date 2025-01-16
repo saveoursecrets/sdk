@@ -214,6 +214,12 @@ pub struct SystemMessageMap(
     pub  HashMap<Urn, SysMessage>,
 );
 
+impl From<HashMap<Urn, SysMessage>> for SystemMessageMap {
+    fn from(value: HashMap<Urn, SysMessage>) -> Self {
+        Self(value)
+    }
+}
+
 impl SystemMessageMap {
     /// Map iterator.
     pub fn iter(

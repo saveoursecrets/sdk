@@ -275,3 +275,21 @@ BEGIN UPDATE servers
   SET modified_at = datetime('now')
   WHERE server_id = NEW.server_id;
 END;
+
+-- System messages
+CREATE TABLE IF NOT EXISTS system_messages
+(
+    system_message_id     INTEGER             PRIMARY KEY NOT NULL,
+    account_id            INTEGER             NOT NULL,
+    created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
+    modified_at           DATETIME            DEFAULT CURRENT_TIMESTAMP,
+
+    -- URN message key
+    key                   TEXT                NOT NULL,
+
+    -- JSON encoded message data
+    json_data             TEXT                NOT NULL,
+
+    FOREIGN KEY (account_id) REFERENCES accounts (account_id)
+      ON DELETE CASCADE
+);

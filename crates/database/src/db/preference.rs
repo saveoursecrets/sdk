@@ -88,7 +88,7 @@ where
     pub fn insert_preferences(
         &self,
         account_id: Option<i64>,
-        json_data: String,
+        json_data: &str,
     ) -> std::result::Result<(), SqlError> {
         let mut stmt = self.conn.prepare_cached(
             r#"
@@ -108,7 +108,7 @@ where
     pub fn update_preferences(
         &self,
         account_id: Option<i64>,
-        json_data: String,
+        json_data: &str,
     ) -> std::result::Result<(), SqlError> {
         let mut stmt = self.conn.prepare_cached(
             r#"
@@ -128,7 +128,7 @@ where
     pub fn upsert_preferences(
         &self,
         account_id: Option<i64>,
-        json_data: String,
+        json_data: &str,
     ) -> std::result::Result<(), SqlError> {
         let pref_row = self.find_optional(account_id)?;
         match pref_row {
