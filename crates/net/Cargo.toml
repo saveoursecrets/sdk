@@ -44,12 +44,11 @@ search = ["sos-search", "sos-protocol/search"]
 
 preferences = ["sos-backend/preferences"]
 security-report = ["sos-account-extras/security-report"]
-system-messages = ["sos-account-extras/system-messages"]
+system-messages = ["sos-backend/system-messages"]
 
 [dependencies]
 sos-account.workspace = true
 sos-core.workspace = true
-sos-filesystem.workspace = true
 sos-sdk.workspace = true
 sos-backend.workspace = true
 sos-database = { workspace = true, features = ["client", "sqlite"] }
