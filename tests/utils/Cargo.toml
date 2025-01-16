@@ -20,6 +20,7 @@ sos-client-storage.workspace = true
 sos-database.workspace = true
 sos-preferences.workspace = true
 sos-server.workspace = true
+sos-system-messages.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 
@@ -42,6 +43,7 @@ url.workspace = true
 totp-rs.workspace = true
 vcard4.workspace = true
 async-sqlite.workspace = true
+urn.workspace = true
 
 tokio = { version = "1", default-features = false, features = ["rt", "fs", "io-util", "sync"] }
 pretty_assertions = "1.4"

@@ -5638,6 +5638,7 @@ dependencies = [
  "sos-sdk",
  "sos-server",
  "sos-sync",
+ "sos-system-messages",
  "sos-vault",
  "sos-vfs",
  "tempfile",
@@ -5647,6 +5648,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "urn",
  "uuid",
  "vcard4",
 ]

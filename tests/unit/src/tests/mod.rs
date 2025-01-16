@@ -21,4 +21,5 @@ mod sdk;
 mod search;
 mod server_origins;
 mod signer;
+mod system_messages;
 mod vault_writer;
