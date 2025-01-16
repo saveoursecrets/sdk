@@ -36,7 +36,10 @@ use std::{
 use sos_search::{DocumentCount, SearchIndex};
 
 #[cfg(feature = "audit")]
-use sos_audit::{append_audit_events, AuditData, AuditEvent};
+use {
+    sos_audit::{AuditData, AuditEvent},
+    sos_backend::append_audit_events,
+};
 
 #[cfg(feature = "archive")]
 use crate::archive::{Inventory, RestoreOptions};

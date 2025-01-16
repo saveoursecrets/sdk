@@ -3,6 +3,8 @@
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Backend database and file system storage.
 mod access_point;
+#[cfg(feature = "audit")]
+mod audit_provider;
 pub mod compact;
 mod error;
 mod event_log;
@@ -18,6 +20,8 @@ mod vault_writer;
 pub use error::Error;
 
 pub use access_point::BackendAccessPoint as AccessPoint;
+#[cfg(feature = "audit")]
+pub use audit_provider::*;
 pub use event_log::{
     BackendAccountEventLog as AccountEventLog,
     BackendDeviceEventLog as DeviceEventLog, BackendEventLog,

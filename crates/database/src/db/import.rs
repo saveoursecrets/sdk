@@ -8,7 +8,6 @@ use async_sqlite::{
     Client,
 };
 use futures::{pin_mut, StreamExt};
-use sos_audit::fs::{audit_stream, AuditLogFile};
 use sos_core::Origin;
 use sos_core::{commit::CommitHash, Paths, PublicIdentity, SecretId};
 use sos_core::{
@@ -16,6 +15,7 @@ use sos_core::{
     events::{EventLog, EventRecord},
     VaultCommit, VaultEntry,
 };
+use sos_filesystem::audit_provider::{audit_stream, AuditLogFile};
 use sos_filesystem::{
     formats::FormatStreamIterator, AccountEventLog as FsAccountEventLog,
     DeviceEventLog as FsDeviceEventLog, FolderEventLog as FsFolderEventLog,

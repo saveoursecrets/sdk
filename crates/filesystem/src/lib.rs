@@ -1,7 +1,9 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
-//! Events logs backed by the file system.
+//! File system backend.
+#[cfg(feature = "audit")]
+pub mod audit_provider;
 mod encoding;
 mod error;
 mod event_log;
@@ -20,9 +22,6 @@ pub use server_origins::ServerOrigins;
 #[cfg(feature = "system-messages")]
 pub use system_messages::SystemMessagesProvider;
 pub use vault_writer::VaultFileWriter;
-
-/// AccessPoint that mirrors changes to a vault on disc.
-pub type FileSystemAccessPoint<E> = sos_vault::AccessPoint<E>;
 
 pub use event_log::{
     AccountEventLog, DeviceEventLog, FileSystemEventLog, FolderEventLog,

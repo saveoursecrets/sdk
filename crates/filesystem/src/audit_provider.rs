@@ -1,17 +1,39 @@
-use crate::{fs::audit_stream, Result};
-use crate::{AuditEvent, AuditSink};
+//! File system audit log file and provider.
+use crate::formats::{
+    read_file_identity_bytes, FileItem, FileRecord, FormatStream,
+};
+use crate::Result;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter};
+use binary_stream::futures::{Decodable, Encodable};
+use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use futures::io::{BufReader, BufWriter, Cursor};
+use sos_audit::{AuditEvent, AuditSink};
 use sos_core::{constants::AUDIT_IDENTITY, encoding::encoding_options};
-use sos_filesystem::formats::{FileItem, FileRecord, FormatStream};
 use sos_vfs::{self as vfs, File};
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
 };
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
-use tokio_util::compat::Compat;
+use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
+
+/// Stream of records in an audit file.
+pub async fn audit_stream<P: AsRef<Path>>(
+    path: P,
+    reverse: bool,
+) -> Result<FormatStream<FileRecord, Compat<File>>> {
+    read_file_identity_bytes(path.as_ref(), &AUDIT_IDENTITY).await?;
+    let read_stream = File::open(path.as_ref()).await?.compat();
+    Ok(FormatStream::<FileRecord, Compat<File>>::new_file(
+        read_stream,
+        &AUDIT_IDENTITY,
+        false,
+        None,
+        reverse,
+    )
+    .await?)
+}
 
 /// Represents an audit log file.
 pub struct AuditLogFile {
@@ -36,6 +58,47 @@ impl AuditLogFile {
         reverse: bool,
     ) -> Result<FormatStream<FileRecord, Compat<File>>> {
         Ok(audit_stream(&self.file_path, reverse).await?)
+    }
+
+    /// Encodable an audit log event record.
+    async fn encode_row<W: AsyncWrite + AsyncSeek + Unpin + Send>(
+        writer: &mut BinaryWriter<W>,
+        event: &AuditEvent,
+    ) -> Result<()> {
+        // Set up the leading row length
+        let size_pos = writer.stream_position().await?;
+        writer.write_u32(0).await?;
+
+        // Encodable the event data for the row
+        event.encode(&mut *writer).await?;
+
+        // Backtrack to size_pos and write new length
+        let row_pos = writer.stream_position().await?;
+        let row_len = row_pos - (size_pos + 4);
+        writer.seek(SeekFrom::Start(size_pos)).await?;
+        writer.write_u32(row_len as u32).await?;
+        writer.seek(SeekFrom::Start(row_pos)).await?;
+
+        // Write out the row len at the end of the record too
+        // so we can support double ended iteration
+        writer.write_u32(row_len as u32).await?;
+
+        Ok(())
+    }
+
+    /// Decodable an audit log event record.
+    async fn decode_row<R: AsyncRead + AsyncSeek + Unpin + Send>(
+        reader: &mut BinaryReader<R>,
+    ) -> Result<AuditEvent> {
+        // Read in the row length
+        let _ = reader.read_u32().await?;
+
+        let mut event: AuditEvent = Default::default();
+        event.decode(&mut *reader).await?;
+
+        // Read in the row length appended to the end of the record
+        let _ = reader.read_u32().await?;
+        Ok(event)
     }
 
     /// Create the file used to store audit logs.
@@ -83,24 +146,56 @@ impl AuditLogFile {
 }
 
 /// Audit file provider.
-pub struct AuditFileProvider {
+pub struct AuditFileProvider<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     file_path: PathBuf,
+    marker: std::marker::PhantomData<E>,
 }
 
-impl AuditFileProvider {
+impl<E> AuditFileProvider<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
     /// Create a new audit file provider.
     pub fn new(file_path: impl AsRef<Path>) -> Self {
         Self {
             file_path: file_path.as_ref().to_owned(),
+            marker: std::marker::PhantomData,
         }
     }
 }
 
 #[async_trait]
-impl AuditSink for AuditFileProvider {
-    type Error = crate::Error;
+impl<E> AuditSink for AuditFileProvider<E>
+where
+    E: std::error::Error
+        + std::fmt::Debug
+        + From<crate::Error>
+        + From<std::io::Error>
+        + Send
+        + Sync
+        + 'static,
+{
+    type Error = E;
 
-    async fn append_audit_events(&self, events: &[AuditEvent]) -> Result<()> {
+    async fn append_audit_events(
+        &self,
+        events: &[AuditEvent],
+    ) -> std::result::Result<(), Self::Error> {
         // Make a single buffer of all audit events
         let buffer: Vec<u8> = {
             let mut buffer = Vec::new();

@@ -13,12 +13,14 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 full = [
+  "audit",
   "client",
   "files",
   "preferences",
   "sqlite",
   "system-messages",
 ]
+audit = ["sos-audit", "sos-filesystem/audit"]
 files = ["sos-filesystem/files"]
 client = []
 preferences = ["sos-preferences"]
@@ -26,12 +28,12 @@ system-messages = ["sos-system-messages", "urn"]
 sqlite = ["dep:async-sqlite", "dep:refinery"]
 
 [dependencies]
-sos-audit.workspace = true
 sos-core.workspace = true
 sos-filesystem.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 
+sos-audit = { workspace = true, optional = true }
 sos-preferences = { workspace = true, optional = true }
 sos-system-messages = { workspace = true, optional = true }
 

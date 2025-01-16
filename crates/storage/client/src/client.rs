@@ -37,7 +37,7 @@ use tokio::sync::RwLock;
 use sos_backup_archive::RestoreTargets;
 
 #[cfg(feature = "audit")]
-use sos_audit::{append_audit_events, AuditEvent};
+use {sos_audit::AuditEvent, sos_backend::append_audit_events};
 
 use sos_core::{
     device::{DevicePublicKey, TrustedDevice},

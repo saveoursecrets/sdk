@@ -25,7 +25,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "audit")]
-use sos_audit::{append_audit_events, AuditEvent};
+use {sos_audit::AuditEvent, sos_backend::append_audit_events};
 
 mod sync;
 

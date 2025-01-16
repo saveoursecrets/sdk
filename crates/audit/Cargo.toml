@@ -9,7 +9,6 @@ repository = "https://github.com/saveoursecrets/sdk"
 
 [dependencies]
 sos-core.workspace = true
-sos-filesystem.workspace = true
 sos-signer.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true

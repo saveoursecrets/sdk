@@ -10,7 +10,7 @@ repository = "https://github.com/saveoursecrets/sdk"
 [features]
 full = ["audit", "files", "archive", "search"]
 archive = ["sos-backup-archive"]
-audit = ["sos-audit"]
+audit = ["sos-audit", "sos-backend/audit"]
 files = [
   "sos-sdk/files",
   "sos-sync/files",

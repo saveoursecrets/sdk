@@ -8,7 +8,8 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/saveoursecrets/sdk"
 
 [features]
-full = ["files", "preferences", "system-messages"]
+full = ["audit", "files", "preferences", "system-messages"]
+audit = ["sos-audit"]
 files = ["sos-core/files"]
 preferences = ["sos-preferences", "serde_json"]
 system-messages = ["sos-system-messages", "serde_json", "urn"]
@@ -18,6 +19,7 @@ sos-core.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 
+sos-audit = { workspace = true, optional = true }
 sos-system-messages = { workspace = true, optional = true }
 sos-preferences = { workspace = true, optional = true }
 
