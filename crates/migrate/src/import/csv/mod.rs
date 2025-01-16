@@ -7,11 +7,11 @@ pub mod firefox;
 pub mod macos;
 pub mod one_password;
 
-use crate::{Convert, Error};
+use crate::Convert;
 use async_trait::async_trait;
-use sos_search::SearchIndex;
+use sos_backend::AccessPoint;
 use sos_core::{crypto::AccessKey, UtcDateTime};
-use sos_filesystem::FileSystemAccessPoint;
+use sos_search::SearchIndex;
 use sos_vault::{
     secret::{
         IdentityKind, Secret, SecretId, SecretMeta, SecretRow, UserData,
@@ -302,7 +302,7 @@ impl Convert for GenericCsvConvert {
         key: &AccessKey,
     ) -> crate::Result<Vault> {
         let mut index = SearchIndex::new();
-        let mut keeper = FileSystemAccessPoint::<Error>::new(vault);
+        let mut keeper = AccessPoint::new_vault(vault);
         keeper.unlock(key).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();

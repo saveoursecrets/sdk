@@ -20,7 +20,6 @@ files = [
 [dependencies]
 sos-core.workspace = true
 sos-backend.workspace = true
-sos-filesystem.workspace = true
 sos-vault.workspace = true
 
 thiserror.workspace = true

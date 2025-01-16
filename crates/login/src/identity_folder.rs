@@ -10,14 +10,12 @@ use crate::device::{DeviceManager, DeviceSigner};
 use crate::{Error, PrivateIdentity, Result, UrnLookup};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use sos_backend::Folder;
-use sos_backend::VaultWriter;
 use sos_backend::{AccessPoint, FolderEventLog};
 use sos_core::{
     constants::LOGIN_AGE_KEY_URN,
     crypto::{AccessKey, KeyDerivation},
     decode, encode, AccountId, Paths,
 };
-use sos_filesystem::FileSystemAccessPoint;
 use sos_password::diceware::generate_passphrase_words;
 use sos_signer::ed25519;
 use sos_vault::{
@@ -154,9 +152,8 @@ impl IdentityFolder {
             .await?
             .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
-        let mirror = VaultWriter::new_fs(&device_vault_path).await?;
         let mut device_keeper =
-            FileSystemAccessPoint::new_mirror(vault, Box::new(mirror));
+            AccessPoint::new_fs(vault, &device_vault_path).await?;
         let key: AccessKey = device_password.into();
         device_keeper.unlock(&key).await?;
 
@@ -183,10 +180,7 @@ impl IdentityFolder {
         {
             let key: ed25519::SingleParty =
                 data.expose_secret().as_slice().try_into()?;
-            Ok(DeviceManager::new(
-                key.into(),
-                AccessPoint::new(device_keeper),
-            ))
+            Ok(DeviceManager::new(key.into(), device_keeper))
         } else {
             Err(Error::VaultEntryKind(device_key_urn.to_string()))
         }
@@ -226,10 +220,9 @@ impl IdentityFolder {
         let mut device_keeper = if mirror {
             let buffer = encode(&vault).await?;
             vfs::write_exclusive(&device_vault_path, &buffer).await?;
-            let mirror = VaultWriter::new_fs(&device_vault_path).await?;
-            FileSystemAccessPoint::new_mirror(vault, Box::new(mirror))
+            AccessPoint::new_fs(vault, &device_vault_path).await?
         } else {
-            FileSystemAccessPoint::new(vault)
+            AccessPoint::new_vault(vault)
         };
         device_keeper.unlock(&key).await?;
 
@@ -251,7 +244,7 @@ impl IdentityFolder {
             self.index.insert((*device_keeper.id(), device_key_urn), id);
         }
 
-        Ok(DeviceManager::new(signer, AccessPoint::new(device_keeper)))
+        Ok(DeviceManager::new(signer, device_keeper))
     }
 
     /// Generate a folder password.

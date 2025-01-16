@@ -14,9 +14,9 @@ use security_framework::{
     item::{ItemClass, ItemSearchOptions},
     os::macos::{item::ItemSearchOptionsExt, keychain::SecKeychain},
 };
-use sos_search::SearchIndex;
+use sos_backend::AccessPoint;
 use sos_core::crypto::AccessKey;
-use sos_filesystem::FileSystemAccessPoint;
+use sos_search::SearchIndex;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},
     SecretAccess, Vault,
@@ -111,7 +111,7 @@ impl KeychainImport {
 }
 
 async fn rename_label(
-    keeper: &mut FileSystemAccessPoint<Error>,
+    keeper: &mut AccessPoint,
     label: String,
     duplicates: &mut HashMap<String, usize>,
     index: &SearchIndex,
@@ -145,7 +145,7 @@ impl Convert for KeychainImport {
         let list = parser.parse()?;
 
         let mut index = SearchIndex::new();
-        let mut keeper = FileSystemAccessPoint::new(vault);
+        let mut keeper = AccessPoint::new_vault(vault);
         keeper.unlock(&key).await?;
 
         let mut duplicates: HashMap<String, usize> = HashMap::new();
