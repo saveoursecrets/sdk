@@ -28,7 +28,6 @@ use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 /// Represents an audit log file.
 pub struct AuditLogFile {
     file_path: PathBuf,
-    guard: RwLockWriteGuard<File>,
 }
 
 impl AuditLogFile {
@@ -38,6 +37,7 @@ impl AuditLogFile {
 
         // TODO:(muji): error if acquiring the lock would block
 
+        /*
         let mut file = vfs::OpenOptions::new()
             .create(true)
             .read(true)
@@ -52,7 +52,9 @@ impl AuditLogFile {
         }
 
         let guard = file.lock_write().await.map_err(|e| e.error)?;
-        Ok(Self { file_path, guard })
+        */
+
+        Ok(Self { file_path })
     }
 
     /// Log file path.
@@ -106,23 +108,17 @@ impl AuditLogFile {
         &mut self,
         record: &FileRecord,
     ) -> Result<AuditEvent> {
-        let buf = self.read_event_buffer(record).await?;
+        let mut file = File::open(&self.file_path).await?;
+
+        let offset = record.offset();
+        let row_len = offset.end - offset.start;
+        file.seek(SeekFrom::Start(offset.start)).await?;
+        let mut buf = vec![0u8; row_len as usize];
+        file.read_exact(&mut buf).await?;
+
         let mut stream = BufReader::new(Cursor::new(&buf));
         let mut reader = BinaryReader::new(&mut stream, encoding_options());
         Ok(Self::decode_row(&mut reader).await?)
-    }
-
-    /// Read the event buffer from the underlying file.
-    async fn read_event_buffer(
-        &mut self,
-        record: &FileRecord,
-    ) -> Result<Vec<u8>> {
-        let offset = record.offset();
-        let row_len = offset.end - offset.start;
-        self.guard.seek(SeekFrom::Start(offset.start)).await?;
-        let mut buf = vec![0u8; row_len as usize];
-        self.guard.read_exact(&mut buf).await?;
-        Ok(buf)
     }
 }
 
@@ -193,9 +189,25 @@ where
             buffer
         };
 
-        let mut file = self.file.lock().await;
-        file.guard.write_all(&buffer).await?;
-        file.guard.flush().await?;
+        let file = self.file.lock().await;
+        let file_path = file.file_path().to_owned();
+
+        let mut file = vfs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .append(true)
+            .open(&file_path)
+            .await?;
+
+        let size = file.metadata().await?.len();
+        if size == 0 {
+            file.write_all(&AUDIT_IDENTITY).await?;
+            file.flush().await?;
+        }
+
+        let mut guard = file.lock_write().await.map_err(|e| e.error)?;
+        guard.write_all(&buffer).await?;
+        guard.flush().await?;
 
         Ok(())
     }
