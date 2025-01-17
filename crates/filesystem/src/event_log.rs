@@ -301,6 +301,10 @@ where
 
         #[allow(unused_mut)]
         let mut file = OpenOptions::new()
+            // NOTE: must also set read() for Windows advisory locks
+            // NOTE: otherwise we will get "Access denied (OS error 5)"
+            // SEE: https://github.com/rust-lang/rust/issues/54118
+            .read(true)
             .write(true)
             .append(true)
             .open(&self.data)
@@ -313,7 +317,6 @@ where
         }
 
         let mut guard = file.lock_write().await.map_err(|e| e.error)?;
-
         match guard.write_all(&buffer).await {
             Ok(_) => {
                 guard.flush().await?;
