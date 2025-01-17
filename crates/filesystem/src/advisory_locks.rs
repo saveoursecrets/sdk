@@ -1,7 +1,7 @@
-use async_fd_lock::{LockWrite, RwLockWriteGuard};
+use async_fd_lock::LockWrite;
 use std::path::Path;
-use tokio::fs::{File, OpenOptions};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::fs::OpenOptions;
+use tokio::io::AsyncWriteExt;
 
 /// Write a file acquiring an exclusive lock.
 ///
