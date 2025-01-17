@@ -4,7 +4,7 @@ use crate::formats::{
     FormatStreamIterator,
 };
 use crate::Result;
-use async_fd_lock::{LockWrite, RwLockWriteGuard};
+use async_fd_lock::{LockRead, LockWrite};
 use async_stream::try_stream;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter};
@@ -109,12 +109,13 @@ impl AuditLogFile {
         record: &FileRecord,
     ) -> Result<AuditEvent> {
         let mut file = File::open(&self.file_path).await?;
+        let mut guard = file.lock_read().await.map_err(|e| e.error)?;
 
         let offset = record.offset();
         let row_len = offset.end - offset.start;
-        file.seek(SeekFrom::Start(offset.start)).await?;
+        guard.seek(SeekFrom::Start(offset.start)).await?;
         let mut buf = vec![0u8; row_len as usize];
-        file.read_exact(&mut buf).await?;
+        guard.read_exact(&mut buf).await?;
 
         let mut stream = BufReader::new(Cursor::new(&buf));
         let mut reader = BinaryReader::new(&mut stream, encoding_options());
