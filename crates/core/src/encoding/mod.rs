@@ -12,7 +12,7 @@ use binary_stream::{
     futures::{BinaryReader, Decodable, Encodable},
     Endian, Options,
 };
-use futures::io::{AsyncRead, AsyncSeek};
+use tokio::io::{AsyncRead, AsyncSeek};
 
 /// Helper for mapping an encoding error.
 pub fn encoding_error(

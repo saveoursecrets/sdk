@@ -37,6 +37,7 @@ bitflags.workspace = true
 secrecy.workspace = true
 serde_with.workspace = true
 typeshare.workspace = true
+tokio.workspace = true
 
 # crypto
 sha2.workspace = true

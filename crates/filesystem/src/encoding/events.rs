@@ -1,9 +1,9 @@
 use crate::formats::{EventLogRecord, FileRecord, VaultRecord};
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, Decodable};
-use futures::io::{AsyncRead, AsyncSeek};
 use sos_core::encoding::encoding_error;
 use std::io::Result;
+use tokio::io::{AsyncRead, AsyncSeek};
 
 #[async_trait]
 impl Decodable for EventLogRecord {

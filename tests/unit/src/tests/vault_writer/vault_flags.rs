@@ -4,7 +4,7 @@ use sos_sdk::prelude::*;
 use sos_test_utils::mock;
 
 #[tokio::test]
-async fn vault_flags_filesystem() -> Result<()> {
+async fn vault_writer_flags_filesystem() -> Result<()> {
     let (temp, _, _) = mock::vault_file().await?;
     let mut vault_access = VaultWriter::new_fs(temp.path()).await?;
     test_vault_flags(&mut vault_access).await?;
@@ -13,7 +13,7 @@ async fn vault_flags_filesystem() -> Result<()> {
 }
 
 #[tokio::test]
-async fn vault_flags_database() -> Result<()> {
+async fn vault_writer_flags_database() -> Result<()> {
     let mut db_client = mock::memory_database().await?;
     let vault: Vault = Default::default();
     mock::insert_database_vault(&mut db_client, &vault).await?;

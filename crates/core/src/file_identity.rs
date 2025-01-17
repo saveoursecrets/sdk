@@ -2,7 +2,7 @@
 //! bytes for file formats.
 use crate::{Error, Result};
 use binary_stream::futures::BinaryReader;
-use futures::io::{AsyncReadExt, AsyncSeek};
+use tokio::io::{AsyncReadExt, AsyncSeek};
 
 /// String of formatted identity bytes for error messages.
 #[doc(hidden)]

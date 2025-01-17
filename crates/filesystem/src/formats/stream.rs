@@ -2,11 +2,10 @@
 use crate::{formats::FileItem, Result};
 use async_trait::async_trait;
 use binary_stream::futures::{stream_length, BinaryReader};
-use futures::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use sos_core::encoding::encoding_options;
 use sos_vfs::File;
 use std::{io::SeekFrom, ops::Range};
-use tokio_util::compat::Compat;
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 
 /// Trait for file format iterators.
 #[async_trait]
@@ -58,10 +57,10 @@ where
     marker: std::marker::PhantomData<T>,
 }
 
-impl<T: FileItem + Send> FormatStream<T, Compat<File>> {
+impl<T: FileItem + Send> FormatStream<T, File> {
     /// Create a new file iterator.
     pub async fn new_file(
-        mut read_stream: Compat<File>,
+        mut read_stream: File,
         identity: &'static [u8],
         data_length_prefix: bool,
         header_offset: Option<u64>,
@@ -83,9 +82,7 @@ impl<T: FileItem + Send> FormatStream<T, Compat<File>> {
 }
 
 #[async_trait]
-impl<T: FileItem + Send> FormatStreamIterator<T>
-    for FormatStream<T, Compat<File>>
-{
+impl<T: FileItem + Send> FormatStreamIterator<T> for FormatStream<T, File> {
     async fn next(&mut self) -> Result<Option<T>> {
         if self.reverse {
             self.next_back().await

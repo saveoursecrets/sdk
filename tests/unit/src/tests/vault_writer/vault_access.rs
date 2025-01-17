@@ -7,28 +7,28 @@ use uuid::Uuid;
 
 /// Test the EncryptedEntry implementation for the filesystem.
 #[tokio::test]
-async fn vault_access_filesystem() -> Result<()> {
+async fn vault_writer_access_filesystem() -> Result<()> {
     let (encryption_key, _, _) = mock::encryption_key()?;
     let (temp, vault, _) = mock::vault_file().await?;
     let mut vault_access = VaultWriter::new_fs(temp.path()).await?;
-    test_vault_access(&mut vault_access, vault, &encryption_key).await?;
+    assert_encrypted_entry(&mut vault_access, vault, &encryption_key).await?;
     temp.close()?;
     Ok(())
 }
 
 /// Test the EncryptedEntry implementation for the database.
 #[tokio::test]
-async fn vault_access_database() -> Result<()> {
+async fn vault_writer_access_database() -> Result<()> {
     let (encryption_key, _, _) = mock::encryption_key()?;
     let mut db_client = mock::memory_database().await?;
     let vault: Vault = Default::default();
     mock::insert_database_vault(&mut db_client, &vault).await?;
     let mut vault_access = VaultWriter::new_db(db_client, *vault.id()).await;
-    test_vault_access(&mut vault_access, vault, &encryption_key).await?;
+    assert_encrypted_entry(&mut vault_access, vault, &encryption_key).await?;
     Ok(())
 }
 
-async fn test_vault_access(
+async fn assert_encrypted_entry(
     vault_access: &mut impl EncryptedEntry,
     vault: Vault,
     encryption_key: &PrivateKey,

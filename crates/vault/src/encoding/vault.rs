@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use sos_core::{
     constants::VAULT_IDENTITY,
     crypto::{AeadPack, SEED_SIZE},
@@ -15,6 +14,7 @@ use sos_core::{
     SecretId, UtcDateTime,
 };
 use std::io::{Error, ErrorKind, Result, SeekFrom};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 #[async_trait]
 impl Encodable for VaultMeta {

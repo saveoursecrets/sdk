@@ -1,7 +1,7 @@
 //! Write vault changes to a file on disc.
+use async_fd_lock::{LockRead, LockWrite};
 use async_trait::async_trait;
-use binary_stream::futures::{stream_length, BinaryReader, BinaryWriter};
-use futures::io::{BufWriter, Cursor};
+use binary_stream::futures::{BinaryReader, BinaryWriter};
 use sos_core::{
     commit::CommitHash,
     crypto::AeadPack,
@@ -12,18 +12,10 @@ use sos_core::{
 };
 use sos_vault::{Contents, EncryptedEntry, Header, Summary, Vault};
 use sos_vfs::{self as vfs, File, OpenOptions};
-use std::{
-    borrow::Cow,
-    io::SeekFrom,
-    ops::{DerefMut, Range},
-    path::Path,
-    path::PathBuf,
-};
-use tokio::{
-    io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
-    sync::Mutex,
-};
-use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
+use std::io::Cursor;
+use std::{borrow::Cow, io::SeekFrom, ops::Range, path::Path, path::PathBuf};
+use tokio::io::BufWriter;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 /// Write changes to a vault file on disc.
 pub struct VaultFileWriter<E>
@@ -38,7 +30,6 @@ where
         + 'static,
 {
     pub(crate) file_path: PathBuf,
-    stream: Mutex<Compat<File>>,
     marker: std::marker::PhantomData<E>,
 }
 
@@ -54,15 +45,10 @@ where
         + 'static,
 {
     /// Create a new vault file writer.
-    ///
-    /// The underlying file should already exist and be a valid vault.
     pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self, E> {
-        let file = OpenOptions::new().read(true).open(path.as_ref()).await?;
-        let stream = Mutex::new(file.compat_write());
         let file_path = path.as_ref().to_path_buf();
         Ok(Self {
             file_path,
-            stream,
             marker: std::marker::PhantomData,
         })
     }
@@ -95,14 +81,13 @@ where
         file.rewind().await?;
         file.set_len(0).await?;
 
-        let mut guard = vfs::lock_write(file).await?;
+        let mut guard = file.lock_write().await.map_err(|e| e.error)?;
 
         // Write out the header
         guard.write_all(&head).await?;
 
         // Write out the content
         guard.write_all(&content).await?;
-
         guard.flush().await?;
 
         Ok(())
@@ -116,29 +101,34 @@ where
         tail: Range<u64>,
         content: Option<&[u8]>,
     ) -> Result<(), E> {
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(&self.file_path)
-            .await?;
+        let end = {
+            let file =
+                OpenOptions::new().read(true).open(&self.file_path).await?;
+            let mut guard = file.lock_read().await.map_err(|e| e.error)?;
 
-        // Read the tail into memory
-        file.seek(SeekFrom::Start(tail.start)).await?;
-        let mut end = Vec::new();
-        file.read_to_end(&mut end).await?;
+            // Read the tail into memory
+            guard.seek(SeekFrom::Start(tail.start)).await?;
+            let mut end = Vec::new();
+            guard.read_to_end(&mut end).await?;
+
+            end
+        };
+
+        let file =
+            OpenOptions::new().write(true).open(&self.file_path).await?;
+
+        let mut guard = file.lock_write().await.map_err(|e| e.error)?;
 
         if head.start == 0 {
             // Rewind and truncate the file to the head
-            file.rewind().await?;
-            file.set_len(head.end).await?;
+            guard.rewind().await?;
+            guard.inner_mut().set_len(head.end).await?;
         } else {
             unreachable!("file splice head range always starts at zero");
         }
 
         // Must seek to the end before writing out the content or tail
-        file.seek(SeekFrom::End(0)).await?;
-
-        let mut guard = vfs::lock_write(file).await?;
+        guard.seek(SeekFrom::End(0)).await?;
 
         // Inject the content if necessary
         if let Some(content) = content {
@@ -147,7 +137,6 @@ where
 
         // Write out the end portion
         guard.write_all(&end).await?;
-
         guard.flush().await?;
 
         Ok(())
@@ -163,8 +152,11 @@ where
     ) -> Result<(u64, Option<(u64, u32)>), E> {
         let content_offset = self.check_identity().await?;
 
-        let mut stream = self.stream.lock().await;
-        let mut reader = BinaryReader::new(&mut *stream, encoding_options());
+        let file =
+            OpenOptions::new().read(true).open(&self.file_path).await?;
+        let mut guard = file.lock_read().await.map_err(|e| e.error)?;
+
+        let mut reader = BinaryReader::new(&mut guard, encoding_options());
         reader.seek(SeekFrom::Start(content_offset)).await?;
 
         // Scan all the rows
@@ -268,7 +260,6 @@ where
         secret: VaultEntry,
     ) -> Result<WriteEvent, Self::Error> {
         let _summary = self.summary().await?;
-        let _stream = self.stream.lock().await;
 
         // Encode the row into a buffer
         let mut buffer = Vec::new();
@@ -285,7 +276,7 @@ where
             .append(true)
             .open(&self.file_path)
             .await?;
-        let mut guard = vfs::lock_write(file).await?;
+        let mut guard = file.lock_write().await.map_err(|e| e.error)?;
         guard.write_all(&buffer).await?;
         guard.flush().await?;
 
@@ -300,9 +291,12 @@ where
         let event = ReadEvent::ReadSecret(*id);
         let (_, row) = self.find_row(id).await?;
         if let Some((row_offset, _)) = row {
-            let mut stream = self.stream.lock().await;
+            let file =
+                OpenOptions::new().read(true).open(&self.file_path).await?;
+            let mut guard = file.lock_read().await.map_err(|e| e.error)?;
+
             let mut reader =
-                BinaryReader::new(&mut *stream, encoding_options());
+                BinaryReader::new(&mut guard, encoding_options());
             reader.seek(SeekFrom::Start(row_offset)).await?;
             let (_, value) = Contents::decode_row(&mut reader).await?;
             Ok(Some((Cow::Owned(value), event)))
@@ -353,10 +347,7 @@ where
         let _summary = self.summary().await?;
         let (_content_offset, row) = self.find_row(id).await?;
         if let Some((row_offset, row_len)) = row {
-            let length = {
-                let mut stream = self.stream.lock().await;
-                stream_length(stream.deref_mut()).await?
-            };
+            let length = vfs::metadata(&self.file_path).await?.len();
 
             let head = 0..row_offset;
             // Row offset is before the row length u32 so we
@@ -376,7 +367,13 @@ where
         vault: &Vault,
     ) -> Result<(), Self::Error> {
         let buffer = encode(vault).await?;
-        vfs::write_exclusive(&self.file_path, &buffer).await?;
+
+        let file =
+            OpenOptions::new().write(true).open(&self.file_path).await?;
+        let mut guard = file.lock_write().await.map_err(|e| e.error)?;
+        guard.write_all(&buffer).await?;
+        guard.flush().await?;
+
         Ok(())
     }
 }

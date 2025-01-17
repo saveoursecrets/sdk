@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use secrecy::ExposeSecret;
 use sos_core::{
     encoding::{decode_uuid, encoding_error},
@@ -16,6 +15,7 @@ use std::{
     collections::HashMap,
     io::{Error, ErrorKind, Result},
 };
+use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use totp_rs::TOTP;
 use url::Url;
 use vcard4::{self};

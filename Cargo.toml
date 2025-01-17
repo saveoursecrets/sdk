@@ -102,7 +102,7 @@ pem = { version = "3", features = ["serde"] }
 snow = "0.9"
 
 urn = { version = "0.7", features = ["serde"] }
-async-fd-lock = "0.2"
+async-fd-lock = { version = "0.2", path = "../../forks/async-fd-lock/"}
 thiserror = "2"
 anyhow = "1"
 tracing = "0.1"
@@ -195,8 +195,8 @@ prost-build = "0.13"
 protoc-bin-vendored = "3"
 
 [workspace.dependencies.binary-stream]
-version = "9.1.0"
-features = ["async"]
+version = "10"
+features = ["async", "tokio"]
 #path = "../../../../binary-stream"
 
 [profile.release]

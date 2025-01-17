@@ -7,8 +7,8 @@ use crate::{
 #[cfg(feature = "files")]
 use crate::{events::FileEvent, SecretPath};
 
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::{Error, ErrorKind, Result};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 use async_trait::async_trait;
 use binary_stream::futures::{

@@ -3,13 +3,13 @@ use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use secrecy::ExposeSecret;
 use sos_core::{
     crypto::SEED_SIZE,
     encoding::{decode_uuid, encoding_error},
 };
 use std::io::Result;
+use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 #[async_trait]
 impl Encodable for RecoveryData {

@@ -23,7 +23,6 @@ use crate::{
 use async_stream::try_stream;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, Decodable, Encodable};
-use futures::io::{AsyncReadExt, AsyncSeekExt, BufReader, Cursor};
 use futures::stream::BoxStream;
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree, Comparison},
@@ -35,16 +34,15 @@ use sos_core::{
     },
 };
 use sos_vfs::{self as vfs, File, OpenOptions};
+use std::io::Cursor;
 use std::result::Result as StdResult;
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
 use tokio::sync::Mutex;
-use tokio_util::compat::Compat;
-use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
 #[cfg(feature = "files")]
 use sos_core::events::FileEvent;
@@ -70,7 +68,7 @@ type Iter = Box<dyn FormatStreamIterator<EventLogRecord> + Send + Sync>;
 /// Read the bytes for the encoded event
 /// inside the log record.
 async fn read_event_buffer(
-    handle: Arc<Mutex<Compat<File>>>,
+    handle: Arc<Mutex<File>>,
     record: &EventLogRecord,
 ) -> Result<Vec<u8>> {
     let mut file = handle.lock().await;
@@ -105,7 +103,7 @@ where
         + Sync
         + 'static,
 {
-    file: Arc<Mutex<Compat<File>>>,
+    file: Arc<Mutex<File>>,
     tree: CommitTree,
     data: PathBuf,
     identity: &'static [u8],
@@ -538,9 +536,9 @@ where
     /// Iterate the event records.
     pub async fn iter(&self, reverse: bool) -> StdResult<Iter, E> {
         let content_offset = self.header_len() as u64;
-        let read_stream = File::open(&self.data).await?.compat();
+        let read_stream = File::open(&self.data).await?;
         let it: Iter = Box::new(
-            FormatStream::<EventLogRecord, Compat<File>>::new_file(
+            FormatStream::<EventLogRecord, File>::new_file(
                 read_stream,
                 self.identity,
                 true,
@@ -552,7 +550,7 @@ where
         Ok(it)
     }
 
-    fn file(&self) -> Arc<Mutex<Compat<File>>> {
+    fn file(&self) -> Arc<Mutex<File>> {
         Arc::clone(&self.file)
     }
 
@@ -597,7 +595,7 @@ where
         path: P,
         identity: &'static [u8],
         encoding_version: Option<u16>,
-    ) -> StdResult<Compat<File>, E> {
+    ) -> StdResult<File, E> {
         let file = OpenOptions::new()
             .create(true)
             .read(true)
@@ -622,7 +620,7 @@ where
             guard.flush().await?;
         }
 
-        Ok(file.compat_write())
+        Ok(file)
     }
 
     #[doc(hidden)]

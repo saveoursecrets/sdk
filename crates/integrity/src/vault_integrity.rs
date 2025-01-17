@@ -12,7 +12,6 @@ use sos_filesystem::formats::{
 use sos_vault::Header;
 use sos_vfs as vfs;
 use std::{io::SeekFrom, path::Path};
-use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
 /// Integrity check for a vault file comparing the precomputed
 /// checksums with the encrypted content of each row.
@@ -23,12 +22,12 @@ pub fn vault_integrity(
       read_file_identity_bytes(path.as_ref(), &VAULT_IDENTITY).await?;
 
       // Use an additional reader to read in the row values
-      let mut file = vfs::File::open(path.as_ref()).await?.compat();
+      let mut file = vfs::File::open(path.as_ref()).await?;
       let mut reader = BinaryReader::new(&mut file, encoding_options());
 
-      let stream = vfs::File::open(path.as_ref()).await?.compat();
+      let stream = vfs::File::open(path.as_ref()).await?;
       let content_offset = Header::read_content_offset(path.as_ref()).await?;
-      let mut it = FormatStream::<VaultRecord, Compat<vfs::File>>::new_file(
+      let mut it = FormatStream::<VaultRecord, vfs::File>::new_file(
           stream,
           &VAULT_IDENTITY,
           true,

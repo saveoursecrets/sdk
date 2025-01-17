@@ -6,7 +6,7 @@ use sos_test_utils::mock;
 
 /// Test file writer deletion and splice logic.
 #[tokio::test]
-async fn vault_file_del_splice() -> Result<()> {
+async fn vault_writer_file_del_splice() -> Result<()> {
     let (encryption_key, _, _) = mock::encryption_key()?;
     let (temp, vault, _) = mock::vault_file().await?;
 

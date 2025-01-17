@@ -3,9 +3,9 @@ use async_trait::async_trait;
 use binary_stream::futures::{
     BinaryReader, BinaryWriter, Decodable, Encodable,
 };
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use std::io::Result;
 use time::{Duration, OffsetDateTime};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 #[async_trait]
 impl Encodable for UtcDateTime {

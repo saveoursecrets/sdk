@@ -9,18 +9,17 @@ use async_stream::try_stream;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter};
 use binary_stream::futures::{Decodable, Encodable};
-use futures::io::{
-    AsyncRead, AsyncSeek, AsyncWrite, BufReader, BufWriter, Cursor,
-};
 use futures::stream::BoxStream;
 use sos_audit::{AuditEvent, AuditStreamSink};
 use sos_core::{constants::AUDIT_IDENTITY, encoding::encoding_options};
 use sos_vfs::{self as vfs, File};
+use std::io::Cursor;
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite, BufReader, BufWriter};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tokio::sync::Mutex;
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
@@ -204,8 +203,8 @@ where
             file.file_path().to_owned()
         };
         read_file_identity_bytes(&file_path, &AUDIT_IDENTITY).await?;
-        let read_stream = File::open(file_path).await?.compat();
-        let mut it = FormatStream::<FileRecord, Compat<File>>::new_file(
+        let read_stream = File::open(file_path).await?;
+        let mut it = FormatStream::<FileRecord, File>::new_file(
             read_stream,
             &AUDIT_IDENTITY,
             false,

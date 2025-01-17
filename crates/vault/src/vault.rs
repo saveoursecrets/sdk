@@ -2,7 +2,6 @@ use crate::{Error, Result};
 use age::x25519::{Identity, Recipient};
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, Decodable};
-use futures::io::{AsyncReadExt, AsyncSeek, BufReader, Cursor};
 use indexmap::IndexMap;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
@@ -20,10 +19,12 @@ use sos_core::{
     SecretId, UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
 use sos_vfs::File;
+use std::io::Cursor;
 use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, path::Path,
     str::FromStr,
 };
+use tokio::io::{AsyncReadExt, AsyncSeek, BufReader};
 use tokio_util::compat::TokioAsyncReadCompatExt;
 use typeshare::typeshare;
 use urn::Urn;
@@ -432,7 +433,7 @@ impl Header {
     /// Read the content offset for a vault file verifying
     /// the identity bytes first.
     pub async fn read_content_offset<P: AsRef<Path>>(path: P) -> Result<u64> {
-        let mut stream = File::open(path.as_ref()).await?.compat();
+        let mut stream = File::open(path.as_ref()).await?;
         Header::read_content_offset_stream(&mut stream).await
     }
 
@@ -462,7 +463,7 @@ impl Header {
     pub async fn read_summary_file<P: AsRef<Path>>(
         file: P,
     ) -> Result<Summary> {
-        let mut stream = File::open(file.as_ref()).await?.compat();
+        let mut stream = File::open(file.as_ref()).await?;
         Header::read_summary_stream(&mut stream).await
     }
 
@@ -495,7 +496,7 @@ impl Header {
 
     /// Read the header for a vault from a file.
     pub async fn read_header_file<P: AsRef<Path>>(file: P) -> Result<Header> {
-        let mut stream = File::open(file.as_ref()).await?.compat();
+        let mut stream = File::open(file.as_ref()).await?;
         Header::read_header_stream(&mut stream).await
     }
 

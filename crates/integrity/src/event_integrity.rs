@@ -12,7 +12,6 @@ use sos_filesystem::{
 };
 use sos_vfs as vfs;
 use std::{io::SeekFrom, path::Path};
-use tokio_util::compat::TokioAsyncReadCompatExt;
 
 /// Integrity check for an event log comparing the precomputed
 /// checksums with the encrypted content of each row.
@@ -20,7 +19,7 @@ pub fn event_integrity(
     path: impl AsRef<Path>,
 ) -> impl Stream<Item = Result<Result<EventLogRecord>>> {
     try_stream! {
-        let mut file = vfs::File::open(path.as_ref()).await?.compat();
+        let mut file = vfs::File::open(path.as_ref()).await?;
         let mut reader = BinaryReader::new(&mut file, encoding_options());
 
         let event_log = FolderEventLog::<Error>::new_folder(path.as_ref()).await?;
