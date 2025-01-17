@@ -4,7 +4,7 @@ use crate::formats::{
     FormatStreamIterator,
 };
 use crate::Result;
-use async_fd_lock::RwLockWriteGuard;
+use async_fd_lock::{LockWrite, RwLockWriteGuard};
 use async_stream::try_stream;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter};
@@ -51,7 +51,7 @@ impl AuditLogFile {
             file.flush().await?;
         }
 
-        let guard = vfs::lock_write(file).await?;
+        let guard = file.lock_write().await.map_err(|e| e.error)?;
         Ok(Self { file_path, guard })
     }
 
