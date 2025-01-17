@@ -26,35 +26,15 @@ use tokio::sync::Mutex;
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
 /// Represents an audit log file.
-pub struct AuditLogFile {
+struct AuditLogFile {
     file_path: PathBuf,
 }
 
 impl AuditLogFile {
     /// Create an audit log file.
-    pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
         let file_path = path.as_ref().to_path_buf();
-
-        // TODO:(muji): error if acquiring the lock would block
-
-        /*
-        let mut file = vfs::OpenOptions::new()
-            .create(true)
-            .read(true)
-            .append(true)
-            .open(&path)
-            .await?;
-
-        let size = file.metadata().await?.len();
-        if size == 0 {
-            file.write_all(&AUDIT_IDENTITY).await?;
-            file.flush().await?;
-        }
-
-        let guard = file.lock_write().await.map_err(|e| e.error)?;
-        */
-
-        Ok(Self { file_path })
+        Self { file_path }
     }
 
     /// Log file path.
@@ -108,7 +88,7 @@ impl AuditLogFile {
         &mut self,
         record: &FileRecord,
     ) -> Result<AuditEvent> {
-        let mut file = File::open(&self.file_path).await?;
+        let file = File::open(&self.file_path).await?;
         let mut guard = file.lock_read().await.map_err(|e| e.error)?;
 
         let offset = record.offset();
@@ -149,14 +129,13 @@ where
         + 'static,
 {
     /// Create a new audit file provider.
-    pub async fn new(file_path: impl AsRef<Path>) -> Result<Self> {
-        let file = Arc::new(Mutex::new(
-            AuditLogFile::new(file_path.as_ref()).await?,
-        ));
-        Ok(Self {
+    pub fn new(file_path: impl AsRef<Path>) -> Self {
+        let file =
+            Arc::new(Mutex::new(AuditLogFile::new(file_path.as_ref())));
+        Self {
             file,
             marker: std::marker::PhantomData,
-        })
+        }
     }
 }
 

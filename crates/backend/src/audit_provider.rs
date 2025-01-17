@@ -44,19 +44,13 @@ pub async fn append_audit_events(events: Vec<AuditEvent>) -> Result<()> {
 }
 
 /// Create a database audit trail provider.
-pub fn new_db_audit_provider(
-    client: Client,
-) -> impl AuditStreamSink<Error = Error> {
+pub fn new_db_audit_provider(client: Client) -> AuditProvider {
     use sos_database::audit_provider::AuditDatabaseProvider;
-    AuditDatabaseProvider::<Error>::new(client)
+    Box::new(AuditDatabaseProvider::<Error>::new(client))
 }
 
 /// Create a file system audit trail provider.
-pub async fn new_fs_audit_provider(
-    path: impl AsRef<Path>,
-) -> Result<AuditProvider> {
+pub fn new_fs_audit_provider(path: impl AsRef<Path>) -> AuditProvider {
     use sos_filesystem::audit_provider::AuditFileProvider;
-    Ok(Box::new(
-        AuditFileProvider::<Error>::new(path.as_ref()).await?,
-    ))
+    Box::new(AuditFileProvider::<Error>::new(path.as_ref()))
 }

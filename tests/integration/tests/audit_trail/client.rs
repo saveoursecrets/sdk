@@ -25,8 +25,7 @@ async fn audit_trail_client() -> Result<()> {
     let paths = Paths::new_global(data_dir.clone());
     paths.ensure().await?;
     let provider =
-        sos_backend::new_fs_audit_provider(paths.audit_file().to_owned())
-            .await?;
+        sos_backend::new_fs_audit_provider(paths.audit_file().to_owned());
     sos_backend::init_audit_providers(vec![provider]);
 
     let account_name = TEST_ID.to_string();

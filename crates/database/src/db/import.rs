@@ -18,8 +18,8 @@ use sos_core::{
 };
 use sos_filesystem::audit_provider::AuditFileProvider;
 use sos_filesystem::{
-    formats::FormatStreamIterator, AccountEventLog as FsAccountEventLog,
-    DeviceEventLog as FsDeviceEventLog, FolderEventLog as FsFolderEventLog,
+    AccountEventLog as FsAccountEventLog, DeviceEventLog as FsDeviceEventLog,
+    FolderEventLog as FsFolderEventLog,
 };
 use sos_vault::list_local_folders;
 use sos_vault::Vault;
@@ -56,8 +56,7 @@ pub(crate) async fn import_globals(
     if vfs::try_exists(paths.audit_file()).await? {
         let log_file = AuditFileProvider::<sos_filesystem::Error>::new(
             paths.audit_file(),
-        )
-        .await?;
+        );
         let stream = log_file.audit_stream(false).await?;
         pin_mut!(stream);
         while let Some(event) = stream.next().await {
