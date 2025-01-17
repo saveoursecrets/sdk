@@ -102,7 +102,7 @@ pem = { version = "3", features = ["serde"] }
 snow = "0.9"
 
 urn = { version = "0.7", features = ["serde"] }
-async-fd-lock = { version = "0.2", path = "../../forks/async-fd-lock/"}
+async-fd-lock = "0.2"
 thiserror = "2"
 anyhow = "1"
 tracing = "0.1"
@@ -204,3 +204,6 @@ codegen-units = 1
 lto = true
 strip = true
 opt-level = "z"
+
+[patch.crates-io]
+async-fd-lock = { git = "https://github.com/tmpfs/async-fd-lock.git", branch = "seek"}
