@@ -20,7 +20,7 @@ use crate::{
     },
     Error, Result,
 };
-use async_fd_lock::LockWrite;
+use async_fd_lock::{LockRead, LockWrite};
 use async_stream::try_stream;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, Decodable, Encodable};
@@ -40,10 +40,8 @@ use std::result::Result as StdResult;
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
-use tokio::sync::Mutex;
 
 #[cfg(feature = "files")]
 use sos_core::events::FileEvent;
@@ -69,20 +67,19 @@ type Iter = Box<dyn FormatStreamIterator<EventLogRecord> + Send + Sync>;
 /// Read the bytes for the encoded event
 /// inside the log record.
 async fn read_event_buffer(
-    handle: Arc<Mutex<File>>,
+    file_path: impl AsRef<Path>,
     record: &EventLogRecord,
 ) -> Result<Vec<u8>> {
-    let mut file = handle.lock().await;
-
-    // let _guard = file.lock().await;
+    let file = File::open(file_path.as_ref()).await?;
+    let mut guard = file.lock_read().await.map_err(|e| e.error)?;
 
     let offset = record.value();
     let row_len = offset.end - offset.start;
 
-    file.seek(SeekFrom::Start(offset.start)).await?;
+    guard.seek(SeekFrom::Start(offset.start)).await?;
 
     let mut buf = vec![0u8; row_len as usize];
-    file.read_exact(&mut buf).await?;
+    guard.read_exact(&mut buf).await?;
 
     Ok(buf)
 }
@@ -104,7 +101,6 @@ where
         + Sync
         + 'static,
 {
-    file: Arc<Mutex<File>>,
     tree: CommitTree,
     data: PathBuf,
     identity: &'static [u8],
@@ -133,11 +129,11 @@ where
     ) -> BoxStream<'async_trait, StdResult<EventRecord, Self::Error>> {
         let mut it =
             self.iter(reverse).await.expect("to initialize iterator");
-        let handle = self.file();
+        let file_path = self.data.clone();
         Box::pin(try_stream! {
             while let Some(record) = it.next().await? {
                 let event_buffer = read_event_buffer(
-                    handle.clone(), &record).await?;
+                    file_path.clone(), &record).await?;
                 let event_record = record.into_event_record(event_buffer);
                 yield event_record;
             }
@@ -152,11 +148,11 @@ where
         let mut it =
             self.iter(reverse).await.expect("to initialize iterator");
 
-        let handle = self.file();
+        let file_path = self.data.clone();
         Box::pin(try_stream! {
             while let Some(record) = it.next().await? {
                 let event_buffer = read_event_buffer(
-                    handle.clone(), &record).await?;
+                    file_path.clone(), &record).await?;
                 let event_record = record.into_event_record(event_buffer);
                 let event = event_record.decode_event::<T>().await?;
                 yield (event_record, event);
@@ -208,16 +204,11 @@ where
 
         tracing::trace!(length = %length, "event_log::rewind");
 
-        let handle = self.file();
         let mut records = Vec::new();
 
         while let Some(record) = it.next().await? {
             // Found the target commit
             if &record.commit() == commit.as_ref() {
-                // Acquire file lock as we will truncate
-                let file = self.file();
-                let _guard = file.lock().await;
-
                 // Rewrite the in-memory tree
                 let mut leaves = self.tree().leaves().unwrap_or_default();
                 if leaves.len() > records.len() {
@@ -237,7 +228,6 @@ where
                 let mut guard =
                     file.lock_write().await.map_err(|e| e.error)?;
                 guard.inner_mut().set_len(length).await?;
-                // file.set_len(length).await?;
 
                 return Ok(records);
             }
@@ -249,8 +239,7 @@ where
                 length -= byte_length;
             }
 
-            let event_buffer =
-                read_event_buffer(handle.clone(), &record).await?;
+            let event_buffer = read_event_buffer(&self.data, &record).await?;
 
             let event_record = record.into_event_record(event_buffer);
             records.push(event_record);
@@ -309,9 +298,6 @@ where
             last_commit_hash = Some(*record.commit());
             commits.push(*record.commit());
         }
-
-        let rw = self.file();
-        let _lock = rw.lock().await;
 
         #[allow(unused_mut)]
         let mut file = OpenOptions::new()
@@ -433,7 +419,7 @@ where
         commit: Option<&CommitHash>,
     ) -> StdResult<Vec<EventRecord>, Self::Error> {
         let mut events = Vec::new();
-        let file = self.file();
+        // let file = self.file();
         let mut it = self.iter(true).await?;
         while let Some(record) = it.next().await? {
             if let Some(commit) = commit {
@@ -441,8 +427,7 @@ where
                     return Ok(events);
                 }
             }
-            let buffer =
-                read_event_buffer(Arc::clone(&file), &record).await?;
+            let buffer = read_event_buffer(&self.data, &record).await?;
             // Iterating in reverse order as we would typically
             // be looking for commits near the end of the event log
             // but we want the patch events in the order they were
@@ -488,7 +473,6 @@ where
             AsyncSeekExt as TokioAsyncSeekExt,
             AsyncWriteExt as TokioAsyncWriteExt,
         };
-        let _ = self.file.lock().await;
 
         // Workaround for set_len(0) failing with "Access Denied" on Windows
         // SEE: https://github.com/rust-lang/rust/issues/105437
@@ -518,12 +502,12 @@ where
     ) -> StdResult<T, E> {
         let value = item.value();
 
-        let rw = self.file();
-        let mut file = rw.lock().await;
+        let file = File::open(&self.data).await?;
+        let mut guard = file.lock_read().await.map_err(|e| e.error)?;
 
-        file.seek(SeekFrom::Start(value.start)).await?;
+        guard.seek(SeekFrom::Start(value.start)).await?;
         let mut buffer = vec![0; (value.end - value.start) as usize];
-        file.read_exact(buffer.as_mut_slice()).await?;
+        guard.read_exact(buffer.as_mut_slice()).await?;
 
         let mut stream = BufReader::new(Cursor::new(&mut buffer));
         let mut reader = BinaryReader::new(&mut stream, encoding_options());
@@ -547,10 +531,6 @@ where
             .await?,
         );
         Ok(it)
-    }
-
-    fn file(&self) -> Arc<Mutex<File>> {
-        Arc::clone(&self.file)
     }
 
     /// Length of the file magic bytes and optional
@@ -589,26 +569,23 @@ where
     }
     */
 
-    /// Create the writer for an event log file.
-    async fn create_writer<P: AsRef<Path>>(
+    /// Create an event log file if it does not exist.
+    ///
+    /// Ensure the identity bytes are written when the file
+    /// length is zero.
+    async fn initialize_event_log<P: AsRef<Path>>(
         path: P,
         identity: &'static [u8],
         encoding_version: Option<u16>,
-    ) -> StdResult<File, E> {
+    ) -> StdResult<(), E> {
         let file = OpenOptions::new()
             .create(true)
-            .read(true)
-            .append(true)
+            .write(true)
             .open(path.as_ref())
             .await?;
 
         let size = vfs::metadata(path.as_ref()).await?.len();
         if size == 0 {
-            let file = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(path.as_ref())
-                .await?;
             let mut guard = file.lock_write().await.map_err(|e| e.error)?;
             let mut header = identity.to_vec();
             if let Some(version) = encoding_version {
@@ -618,14 +595,11 @@ where
             guard.flush().await?;
         }
 
-        Ok(file)
+        Ok(())
     }
 
     #[doc(hidden)]
     async fn try_create_snapshot(&self) -> StdResult<Option<PathBuf>, E> {
-        let file = self.file();
-        let _guard = file.lock().await;
-
         if let Some(root) = self.tree().root() {
             let mut snapshot_path = self.data.clone();
             snapshot_path.set_extension(&format!("snapshot-{}", root));
@@ -652,9 +626,6 @@ where
         snapshot_path: &PathBuf,
     ) -> StdResult<(), E> {
         let source_path = self.data.clone();
-
-        let file = self.file();
-        let _guard = file.lock().await;
 
         let metadata = vfs::metadata(snapshot_path).await?;
         tracing::debug!(
@@ -689,7 +660,7 @@ where
         // Note that for backwards compatibility we don't
         // encode a version, later we will need to upgrade
         // the encoding to include a version
-        let writer = Self::create_writer(
+        Self::initialize_event_log(
             path.as_ref(),
             &FOLDER_EVENT_LOG_IDENTITY,
             None,
@@ -700,7 +671,6 @@ where
             .await?;
 
         Ok(Self {
-            file: Arc::new(Mutex::new(writer)),
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &FOLDER_EVENT_LOG_IDENTITY,
@@ -726,7 +696,7 @@ where
         use sos_core::{
             constants::ACCOUNT_EVENT_LOG_IDENTITY, encoding::VERSION,
         };
-        let writer = Self::create_writer(
+        Self::initialize_event_log(
             path.as_ref(),
             &ACCOUNT_EVENT_LOG_IDENTITY,
             Some(VERSION),
@@ -737,7 +707,6 @@ where
             .await?;
 
         Ok(Self {
-            file: Arc::new(Mutex::new(writer)),
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &ACCOUNT_EVENT_LOG_IDENTITY,
@@ -763,7 +732,8 @@ where
         use sos_core::{
             constants::DEVICE_EVENT_LOG_IDENTITY, encoding::VERSION,
         };
-        let writer = Self::create_writer(
+
+        Self::initialize_event_log(
             path.as_ref(),
             &DEVICE_EVENT_LOG_IDENTITY,
             Some(VERSION),
@@ -774,7 +744,6 @@ where
             .await?;
 
         Ok(Self {
-            file: Arc::new(Mutex::new(writer)),
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &DEVICE_EVENT_LOG_IDENTITY,
@@ -801,7 +770,8 @@ where
         use sos_core::{
             constants::FILE_EVENT_LOG_IDENTITY, encoding::VERSION,
         };
-        let writer = Self::create_writer(
+
+        Self::initialize_event_log(
             path.as_ref(),
             &FILE_EVENT_LOG_IDENTITY,
             Some(VERSION),
@@ -812,7 +782,6 @@ where
             .await?;
 
         Ok(Self {
-            file: Arc::new(Mutex::new(writer)),
             data: path.as_ref().to_path_buf(),
             tree: Default::default(),
             identity: &FILE_EVENT_LOG_IDENTITY,
