@@ -4,6 +4,7 @@ use crate::Error;
 use serde::{Deserialize, Serialize};
 
 use std::fmt;
+use std::str::FromStr;
 
 /// Type identifier for a noop.
 const NOOP: u16 = 0;
@@ -284,5 +285,49 @@ impl fmt::Display for EventKind {
                 EventKind::RenameAccount => "RENAME_ACCOUNT",
             }
         })
+    }
+}
+
+impl FromStr for EventKind {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "NOOP" => Ok(EventKind::Noop),
+            "CREATE_ACCOUNT" => Ok(EventKind::CreateAccount),
+            "DELETE_ACCOUNT" => Ok(EventKind::DeleteAccount),
+            "LIST_FOLDERS" => Ok(EventKind::ListVaults),
+            "CREATE_FOLDER" => Ok(EventKind::CreateVault),
+            "READ_FOLDER" => Ok(EventKind::ReadVault),
+            "UPDATE_FOLDER" => Ok(EventKind::UpdateVault),
+            "DELETE_FOLDER" => Ok(EventKind::DeleteVault),
+            "GET_FOLDER_NAME" => Ok(EventKind::GetVaultName),
+            "SET_FOLDER_NAME" => Ok(EventKind::SetVaultName),
+            "SET_FOLDER_FLAGS" => Ok(EventKind::SetVaultFlags),
+            "SET_FOLDER_META" => Ok(EventKind::SetVaultMeta),
+            "CREATE_SECRET" => Ok(EventKind::CreateSecret),
+            "READ_SECRET" => Ok(EventKind::ReadSecret),
+            "UPDATE_SECRET" => Ok(EventKind::UpdateSecret),
+            "DELETE_SECRET" => Ok(EventKind::DeleteSecret),
+            "MOVE_SECRET" => Ok(EventKind::MoveSecret),
+            "READ_EVENT_LOG" => Ok(EventKind::ReadEventLog),
+            "EXPORT_FOLDER" => Ok(EventKind::ExportVault),
+            "EXPORT_BACKUP_ARCHIVE" => Ok(EventKind::ExportBackupArchive),
+            "IMPORT_BACKUP_ARCHIVE" => Ok(EventKind::ImportBackupArchive),
+            "EXPORT_UNSAFE" => Ok(EventKind::ExportUnsafe),
+            "IMPORT_UNSAFE" => Ok(EventKind::ImportUnsafe),
+            "EXPORT_CONTACTS" => Ok(EventKind::ExportContacts),
+            "IMPORT_CONTACTS" => Ok(EventKind::ImportContacts),
+            "CREATE_FILE" => Ok(EventKind::CreateFile),
+            "MOVE_FILE" => Ok(EventKind::MoveFile),
+            "DELETE_FILE" => Ok(EventKind::DeleteFile),
+            "COMPACT_FOLDER" => Ok(EventKind::CompactVault),
+            "CHANGE_PASSWORD" => Ok(EventKind::ChangePassword),
+            "TRUST_DEVICE" => Ok(EventKind::TrustDevice),
+            "REVOKE_DEVICE" => Ok(EventKind::RevokeDevice),
+            "UPDATE_IDENTITY" => Ok(EventKind::UpdateIdentity),
+            "RENAME_ACCOUNT" => Ok(EventKind::RenameAccount),
+            _ => Err(Error::UnknownEventKind(s.to_string())),
+        }
     }
 }
