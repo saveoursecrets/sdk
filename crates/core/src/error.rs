@@ -20,6 +20,10 @@ pub enum Error {
     #[error("unknown event kind {0}")]
     UnknownEventKind(u16),
 
+    /// Error generated when the kind identifier of an event is unknown.
+    #[error("unknown event type {0}")]
+    UnknownEventType(String),
+
     /// Error generated when attempting to use an asymmetric
     /// private key with a symmetric cipher.
     #[error("symmetric private key required for symmetric cipher")]

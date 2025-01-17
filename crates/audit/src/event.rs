@@ -53,12 +53,13 @@ pub struct AuditEvent {
 impl AuditEvent {
     /// Create a new audit log event.
     pub fn new(
+        date_time: UtcDateTime,
         event_kind: EventKind,
         account_id: AccountId,
         data: Option<AuditData>,
     ) -> Self {
         Self {
-            time: Default::default(),
+            time: date_time,
             event_kind,
             account_id,
             data,
@@ -112,15 +113,21 @@ impl From<(&AccountId, &Event)> for AuditEvent {
     fn from(value: (&AccountId, &Event)) -> Self {
         let (account_id, event) = value;
         match event {
-            Event::CreateAccount(account_id) => {
-                AuditEvent::new(EventKind::CreateAccount, *account_id, None)
-            }
+            Event::CreateAccount(account_id) => AuditEvent::new(
+                Default::default(),
+                EventKind::CreateAccount,
+                *account_id,
+                None,
+            ),
             Event::MoveSecret(_, _, _) => {
                 panic!("move secret audit event must be constructed")
             }
-            Event::DeleteAccount(account_id) => {
-                AuditEvent::new(EventKind::DeleteAccount, *account_id, None)
-            }
+            Event::DeleteAccount(account_id) => AuditEvent::new(
+                Default::default(),
+                EventKind::DeleteAccount,
+                *account_id,
+                None,
+            ),
             _ => {
                 let audit_data = match event {
                     Event::Account(event) => {
@@ -161,6 +168,7 @@ impl From<(&AccountId, &Event)> for AuditEvent {
 
                 if let Some(audit_data) = audit_data {
                     AuditEvent::new(
+                        Default::default(),
                         event.event_kind(),
                         *account_id,
                         Some(audit_data),
@@ -177,7 +185,12 @@ impl From<(&AccountId, &AccountEvent)> for AuditEvent {
     fn from(value: (&AccountId, &AccountEvent)) -> Self {
         let (account_id, event) = value;
         let audit_data = event.folder_id().map(AuditData::Vault);
-        AuditEvent::new(event.event_kind(), *account_id, audit_data)
+        AuditEvent::new(
+            Default::default(),
+            event.event_kind(),
+            *account_id,
+            audit_data,
+        )
     }
 }
 

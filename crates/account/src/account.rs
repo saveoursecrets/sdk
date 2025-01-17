@@ -1317,6 +1317,7 @@ impl LocalAccount {
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(
+                Default::default(),
                 EventKind::MoveSecret,
                 *self.account_id(),
                 Some(AuditData::MoveSecret {
@@ -1383,6 +1384,7 @@ impl LocalAccount {
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(
+                Default::default(),
                 EventKind::ImportUnsafe,
                 *self.account_id(),
                 None,
@@ -2903,6 +2905,7 @@ impl Account for LocalAccount {
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(
+                Default::default(),
                 EventKind::ExportVault,
                 *self.account_id(),
                 Some(AuditData::Vault(*summary.id())),
@@ -2991,6 +2994,7 @@ impl Account for LocalAccount {
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(
+                Default::default(),
                 EventKind::ExportContacts,
                 *self.account_id(),
                 Some(AuditData::Secret(*current_folder.id(), *secret_id)),
@@ -3036,6 +3040,7 @@ impl Account for LocalAccount {
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(
+                Default::default(),
                 EventKind::ExportContacts,
                 *self.account_id(),
                 None,
@@ -3102,6 +3107,7 @@ impl Account for LocalAccount {
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(
+                Default::default(),
                 EventKind::ImportContacts,
                 *self.account_id(),
                 None,
@@ -3154,6 +3160,7 @@ impl Account for LocalAccount {
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(
+                Default::default(),
                 EventKind::ExportUnsafe,
                 *self.account_id(),
                 None,
@@ -3236,6 +3243,7 @@ impl Account for LocalAccount {
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(
+                Default::default(),
                 EventKind::ExportBackupArchive,
                 *self.account_id(),
                 None,
@@ -3280,6 +3288,7 @@ impl Account for LocalAccount {
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(
+                Default::default(),
                 EventKind::ImportBackupArchive,
                 *account.account_id(),
                 None,
@@ -3337,6 +3346,7 @@ impl Account for LocalAccount {
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(
+                Default::default(),
                 EventKind::ImportBackupArchive,
                 *self.account_id(),
                 None,

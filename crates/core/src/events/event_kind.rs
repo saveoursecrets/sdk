@@ -327,7 +327,7 @@ impl FromStr for EventKind {
             "REVOKE_DEVICE" => Ok(EventKind::RevokeDevice),
             "UPDATE_IDENTITY" => Ok(EventKind::UpdateIdentity),
             "RENAME_ACCOUNT" => Ok(EventKind::RenameAccount),
-            _ => Err(Error::UnknownEventKind(s.to_string())),
+            _ => Err(Error::UnknownEventType(s.to_string())),
         }
     }
 }

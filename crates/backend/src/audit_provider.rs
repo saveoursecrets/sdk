@@ -1,6 +1,7 @@
 //! Audit provider backend functions.
 use crate::{Error, Result};
 use sos_audit::{AuditEvent, AuditSink};
+use sos_database::async_sqlite::Client;
 use std::{path::Path, sync::OnceLock};
 
 type AuditProviders =
@@ -22,6 +23,14 @@ pub async fn append_audit_events(events: Vec<AuditEvent>) -> Result<()> {
         provider.append_audit_events(events.as_slice()).await?;
     }
     Ok(())
+}
+
+/// Create a database audit trail provider.
+pub fn new_db_audit_provider(
+    client: Client,
+) -> impl AuditSink<Error = Error> {
+    use sos_database::audit_provider::AuditDatabaseProvider;
+    AuditDatabaseProvider::<Error>::new(client)
 }
 
 /// Create a file system audit trail provider.

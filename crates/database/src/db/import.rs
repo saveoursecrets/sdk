@@ -58,12 +58,7 @@ pub(crate) async fn import_globals(
         let mut it = audit_stream(paths.audit_file(), false).await?;
         while let Some(record) = it.next().await? {
             let event = log_file.read_event(&mut file, &record).await?;
-            let data = if let Some(data) = event.data() {
-                Some(serde_json::to_string(data)?)
-            } else {
-                None
-            };
-            audit_events.push((event.time().to_rfc3339()?, event, data));
+            audit_events.push((&event).try_into()?);
         }
     }
 
