@@ -5730,7 +5730,6 @@ name = "sos-vfs"
 version = "0.2.5"
 dependencies = [
  "anyhow",
- "async-fd-lock",
  "async-recursion",
  "bitflags 2.7.0",
  "futures",

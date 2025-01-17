@@ -16,6 +16,7 @@ use futures::io::{AsyncReadExt, BufReader};
 use hex;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
+use sos_backend::write_exclusive;
 use sos_database::files::EncryptedFile;
 use sos_sdk::{
     vault::{secret::SecretId, VaultId},
@@ -55,7 +56,7 @@ impl FileStorage {
         let dest = PathBuf::from(target.as_ref()).join(file_name);
         let size = encrypted.len() as u64;
 
-        vfs::write_exclusive(dest, encrypted).await?;
+        write_exclusive(dest, encrypted).await?;
 
         Ok((digest.to_vec(), size))
     }

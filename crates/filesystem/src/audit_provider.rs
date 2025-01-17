@@ -22,7 +22,6 @@ use std::{
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite, BufReader, BufWriter};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tokio::sync::Mutex;
-use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
 /// Represents an audit log file.
 struct AuditLogFile {

@@ -23,8 +23,5 @@ tokio = { workspace = true, features = ["rt", "sync"] }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { workspace = true, features = ["rt", "fs", "sync", "io-util", "macros"] }
 
-[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "ios"), not(target_os = "android")))'.dependencies]
-async-fd-lock.workspace = true
-
 [dev-dependencies]
 anyhow.workspace = true

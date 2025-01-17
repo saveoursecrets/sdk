@@ -20,6 +20,7 @@ use crate::{
     },
     Error, Result,
 };
+use async_fd_lock::LockWrite;
 use async_stream::try_stream;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, Decodable, Encodable};
@@ -233,12 +234,10 @@ where
                 // Truncate the file to the new length
                 let file =
                     OpenOptions::new().write(true).open(&self.data).await?;
-                file.set_len(length).await?;
-
-                /*
-                let mut guard = vfs::lock_write(file).await?;
+                let mut guard =
+                    file.lock_write().await.map_err(|e| e.error)?;
                 guard.inner_mut().set_len(length).await?;
-                */
+                // file.set_len(length).await?;
 
                 return Ok(records);
             }
@@ -327,7 +326,7 @@ where
             file.seek(SeekFrom::End(0)).await?;
         }
 
-        let mut guard = vfs::lock_write(file).await?;
+        let mut guard = file.lock_write().await.map_err(|e| e.error)?;
 
         match guard.write_all(&buffer).await {
             Ok(_) => {
@@ -501,7 +500,7 @@ where
 
         file.seek(SeekFrom::Start(0)).await?;
 
-        let mut guard = vfs::lock_write(file).await?;
+        let mut guard = file.lock_write().await.map_err(|e| e.error)?;
         guard.write_all(self.identity).await?;
         if let Some(version) = self.version {
             guard.write_all(&version.to_le_bytes()).await?;
@@ -605,13 +604,12 @@ where
 
         let size = vfs::metadata(path.as_ref()).await?.len();
         if size == 0 {
-            use tokio::io::AsyncWriteExt as TokioAsyncWriteExt;
             let file = OpenOptions::new()
                 .create(true)
                 .append(true)
                 .open(path.as_ref())
                 .await?;
-            let mut guard = vfs::lock_write(file).await?;
+            let mut guard = file.lock_write().await.map_err(|e| e.error)?;
             let mut header = identity.to_vec();
             if let Some(version) = encoding_version {
                 header.extend_from_slice(&version.to_le_bytes());

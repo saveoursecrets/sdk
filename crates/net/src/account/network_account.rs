@@ -477,29 +477,6 @@ impl NetworkAccount {
         self.restore_folder(folder_id, response.patch).await
     }
 
-    /*
-    /// Load origin servers from disc.
-    async fn load_servers(&self) -> Result<Option<HashSet<Origin>>> {
-        let remotes_file = self.paths().remote_origins();
-        if vfs::try_exists(&remotes_file).await? {
-            let contents = vfs::read(&remotes_file).await?;
-            let origins: HashSet<Origin> = serde_json::from_slice(&contents)?;
-            Ok(Some(origins))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Save remote definitions to disc.
-    async fn save_remotes(&self, remotes: &Remotes) -> Result<()> {
-        let origins = remotes.keys().collect::<Vec<_>>();
-        let data = serde_json::to_vec_pretty(&origins)?;
-        let file = self.paths().remote_origins();
-        vfs::write_exclusive(file, data).await?;
-        Ok(())
-    }
-    */
-
     /// Spawn a task to handle file transfers.
     #[cfg(feature = "files")]
     async fn start_file_transfers(&mut self) -> Result<()> {

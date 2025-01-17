@@ -25,7 +25,6 @@ use std::{
     str::FromStr,
 };
 use tokio::io::{AsyncReadExt, AsyncSeek, BufReader};
-use tokio_util::compat::TokioAsyncReadCompatExt;
 use typeshare::typeshare;
 use urn::Urn;
 use uuid::Uuid;

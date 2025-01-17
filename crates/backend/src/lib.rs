@@ -18,6 +18,7 @@ mod system_messages;
 mod vault_writer;
 
 pub use error::{Error, StorageError};
+pub use sos_filesystem::write_exclusive;
 
 pub use access_point::BackendAccessPoint as AccessPoint;
 #[cfg(feature = "audit")]

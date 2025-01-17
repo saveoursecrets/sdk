@@ -4,10 +4,10 @@ use crate::{
     NetworkAccount,
 };
 use sos_account::Account;
-use sos_backend::VaultWriter;
 use sos_backend::{
     reducers::FolderReducer, AccountEventLog, DeviceEventLog, FolderEventLog,
 };
+use sos_backend::{write_exclusive, VaultWriter};
 use sos_core::{
     crypto::AccessKey,
     encode,
@@ -131,8 +131,7 @@ impl DeviceEnrollment {
         }
 
         // Write the vault containing the device signing key
-        vfs::write_exclusive(self.paths.device_file(), &self.device_vault)
-            .await?;
+        write_exclusive(self.paths.device_file(), &self.device_vault).await?;
 
         // Add origin servers early so that they will be registered
         // as remotes when the enrollment is finished and the account
@@ -165,7 +164,7 @@ impl DeviceEnrollment {
     async fn add_origin_servers(&self) -> Result<()> {
         let remotes_file = self.paths.remote_origins();
         let data = serde_json::to_vec_pretty(&self.servers)?;
-        vfs::write_exclusive(remotes_file, data).await?;
+        write_exclusive(remotes_file, data).await?;
         Ok(())
     }
 
@@ -183,8 +182,7 @@ impl DeviceEnrollment {
 
     async fn create_account(&mut self, patch: AccountPatch) -> Result<()> {
         let file = self.paths.account_events();
-        let mut event_log =
-            AccountEventLog::new_fs_account(file).await?;
+        let mut event_log = AccountEventLog::new_fs_account(file).await?;
         event_log.clear().await?;
 
         // let events: Vec<AccountEvent> = patch.into();
@@ -200,8 +198,7 @@ impl DeviceEnrollment {
 
     async fn create_device(&self, patch: DevicePatch) -> Result<()> {
         let file = self.paths.device_events();
-        let mut event_log =
-            DeviceEventLog::new_fs_device(file).await?;
+        let mut event_log = DeviceEventLog::new_fs_device(file).await?;
         event_log.clear().await?;
 
         // let events: Vec<DeviceEvent> = patch.into();
@@ -225,8 +222,7 @@ impl DeviceEnrollment {
         patch: FolderPatch,
     ) -> Result<()> {
         let mut event_log =
-            FolderEventLog::new_fs_folder(events_path.as_ref())
-                .await?;
+            FolderEventLog::new_fs_folder(events_path.as_ref()).await?;
         event_log.clear().await?;
 
         // let events: Vec<WriteEvent> = patch.into();
@@ -239,7 +235,7 @@ impl DeviceEnrollment {
             .await?;
 
         let buffer = encode(&vault).await?;
-        vfs::write_exclusive(vault_path.as_ref(), buffer).await?;
+        write_exclusive(vault_path.as_ref(), buffer).await?;
 
         Ok(())
     }

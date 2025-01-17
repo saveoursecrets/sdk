@@ -1,12 +1,14 @@
 //! System messages provider for the file system.
-use crate::Error;
+use crate::{write_exclusive, Error};
+use async_fd_lock::LockRead;
 use async_trait::async_trait;
 use sos_core::Paths;
 use sos_system_messages::{
     SysMessage, SystemMessageMap, SystemMessageStorage,
 };
-use sos_vfs as vfs;
+use sos_vfs::{self as vfs, File};
 use std::{path::PathBuf, sync::Arc};
+use tokio::io::AsyncReadExt;
 use urn::Urn;
 
 /// File system storage provider for system messages.
@@ -47,7 +49,7 @@ where
     /// Save system messages to disc.
     async fn save(&self, messages: &SystemMessageMap) -> Result<(), E> {
         let buf = serde_json::to_vec_pretty(messages).map_err(Error::from)?;
-        vfs::write_exclusive(&self.path, buf).await?;
+        write_exclusive(&self.path, buf).await?;
         Ok(())
     }
 }
@@ -70,7 +72,11 @@ where
         &self,
     ) -> Result<SystemMessageMap, Self::Error> {
         if vfs::try_exists(&self.path).await? {
-            let content = vfs::read_exclusive(&self.path).await?;
+            let file = File::open(&self.path).await?;
+            let mut guard = file.lock_read().await.map_err(|e| e.error)?;
+            let mut content = Vec::new();
+            guard.read_to_end(&mut content).await?;
+
             Ok(serde_json::from_slice::<SystemMessageMap>(&content)
                 .map_err(Error::from)?)
         } else {

@@ -1,8 +1,10 @@
-use crate::Error;
+use crate::{write_exclusive, Error};
+use async_fd_lock::LockRead;
 use async_trait::async_trait;
 use sos_core::{Origin, Paths, RemoteOrigins};
-use sos_vfs as vfs;
+use sos_vfs::{self as vfs, File};
 use std::{collections::HashSet, sync::Arc};
+use tokio::io::AsyncReadExt;
 
 /// Collection of server origins.
 pub struct ServerOrigins<E>
@@ -40,9 +42,13 @@ where
     async fn list_origins(&self) -> Result<HashSet<Origin>, E> {
         let remotes_file = self.paths.remote_origins();
         if vfs::try_exists(&remotes_file).await? {
-            let contents = vfs::read_exclusive(&remotes_file).await?;
+            let file = File::open(&remotes_file).await?;
+            let mut guard = file.lock_read().await.map_err(|e| e.error)?;
+            let mut content = Vec::new();
+            guard.read_to_end(&mut content).await?;
+
             let origins: HashSet<Origin> =
-                serde_json::from_slice(&contents).map_err(Error::from)?;
+                serde_json::from_slice(&content).map_err(Error::from)?;
             Ok(origins)
         } else {
             Ok(Default::default())
@@ -53,7 +59,7 @@ where
         let data =
             serde_json::to_vec_pretty(&origins).map_err(Error::from)?;
         let file = self.paths.remote_origins();
-        vfs::write_exclusive(file, data).await?;
+        write_exclusive(file, data).await?;
         Ok(())
     }
 }

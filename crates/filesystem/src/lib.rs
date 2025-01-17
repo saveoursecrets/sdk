@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! File system backend.
+mod advisory_locks;
 #[cfg(feature = "audit")]
 pub mod audit_provider;
 mod encoding;
@@ -15,6 +16,7 @@ mod server_origins;
 mod system_messages;
 mod vault_writer;
 
+pub use advisory_locks::write_exclusive;
 pub use error::Error;
 #[cfg(feature = "preferences")]
 pub use preferences::*;

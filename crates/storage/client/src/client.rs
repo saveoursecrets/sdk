@@ -2,9 +2,9 @@
 use crate::{AccessOptions, AccountPack, Error, NewFolderOptions, Result};
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
-use sos_backend::reducers::FolderReducer;
-use sos_backend::Folder;
-use sos_backend::StorageError;
+use sos_backend::{
+    reducers::FolderReducer, write_exclusive, Folder, StorageError,
+};
 use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
 use sos_core::{
     commit::{CommitHash, CommitState},
@@ -756,7 +756,7 @@ impl ClientStorage {
         buffer: impl AsRef<[u8]>,
     ) -> Result<()> {
         let vault_path = self.paths.vault_path(vault_id);
-        vfs::write_exclusive(vault_path, buffer.as_ref()).await?;
+        write_exclusive(vault_path, buffer.as_ref()).await?;
         Ok(())
     }
 
@@ -767,7 +767,7 @@ impl ClientStorage {
         buffer: impl AsRef<[u8]>,
     ) -> Result<()> {
         let vault_path = self.paths.pending_vault_path(vault_id);
-        vfs::write_exclusive(vault_path, buffer.as_ref()).await?;
+        write_exclusive(vault_path, buffer.as_ref()).await?;
         Ok(())
     }
 

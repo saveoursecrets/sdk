@@ -11,7 +11,7 @@ use sos_core::{
     SecretId, VaultCommit, VaultEntry, VaultFlags,
 };
 use sos_vault::{Contents, EncryptedEntry, Header, Summary, Vault};
-use sos_vfs::{self as vfs, File, OpenOptions};
+use sos_vfs::{self as vfs, OpenOptions};
 use std::io::Cursor;
 use std::{borrow::Cow, io::SeekFrom, ops::Range, path::Path, path::PathBuf};
 use tokio::io::BufWriter;

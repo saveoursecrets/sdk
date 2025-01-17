@@ -6,7 +6,7 @@ use hex;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sos_backend::reducers::FolderReducer;
+use sos_backend::{reducers::FolderReducer, write_exclusive};
 use sos_core::{
     constants::VAULT_EXT, crypto::AccessKey, decode, events::EventLog,
     SecretId, VaultId,
@@ -483,7 +483,7 @@ impl AccountBackup {
             let event_log_path = paths.event_log_path(vault.id());
 
             // Write out the vault buffer
-            vfs::write_exclusive(&vault_path, buffer).await?;
+            write_exclusive(&vault_path, buffer).await?;
 
             let (_, events) =
                 FolderReducer::split::<Error>(vault.clone()).await?;
@@ -513,28 +513,28 @@ impl AccountBackup {
 
         // Restore account events
         if let Some(buffer) = account_events {
-            vfs::write_exclusive(paths.account_events(), buffer).await?;
+            write_exclusive(paths.account_events(), buffer).await?;
         }
 
         // Restore device events and vault
         if let Some((vault, events)) = devices {
-            vfs::write_exclusive(paths.device_file(), vault).await?;
-            vfs::write_exclusive(paths.device_events(), events).await?;
+            write_exclusive(paths.device_file(), vault).await?;
+            write_exclusive(paths.device_events(), events).await?;
         }
 
         // Restore file events
         if let Some(buffer) = files {
-            vfs::write_exclusive(paths.file_events(), buffer).await?;
+            write_exclusive(paths.file_events(), buffer).await?;
         }
 
         // Restore account preferences
         if let Some(buffer) = preferences {
-            vfs::write_exclusive(paths.preferences_file(), buffer).await?;
+            write_exclusive(paths.preferences_file(), buffer).await?;
         }
 
         // Restore remote server origins
         if let Some(buffer) = remotes {
-            vfs::write_exclusive(paths.remote_origins(), buffer).await?;
+            write_exclusive(paths.remote_origins(), buffer).await?;
         }
 
         Ok(())

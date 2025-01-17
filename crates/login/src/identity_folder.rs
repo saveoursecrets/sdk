@@ -9,8 +9,7 @@
 use crate::device::{DeviceManager, DeviceSigner};
 use crate::{Error, PrivateIdentity, Result, UrnLookup};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
-use sos_backend::Folder;
-use sos_backend::{AccessPoint, FolderEventLog};
+use sos_backend::{write_exclusive, AccessPoint, Folder, FolderEventLog};
 use sos_core::{
     constants::LOGIN_AGE_KEY_URN,
     crypto::{AccessKey, KeyDerivation},
@@ -219,7 +218,7 @@ impl IdentityFolder {
         let key: AccessKey = device_password.into();
         let mut device_keeper = if mirror {
             let buffer = encode(&vault).await?;
-            vfs::write_exclusive(&device_vault_path, &buffer).await?;
+            write_exclusive(&device_vault_path, &buffer).await?;
             AccessPoint::new_fs(vault, &device_vault_path).await?
         } else {
             AccessPoint::new_vault(vault)
@@ -530,7 +529,7 @@ impl IdentityFolder {
             .await?;
 
         let buffer = encode(&vault).await?;
-        vfs::write_exclusive(paths.identity_vault(), buffer).await?;
+        write_exclusive(paths.identity_vault(), buffer).await?;
 
         let mut folder = Folder::new_fs(paths.identity_vault()).await?;
         let key: AccessKey = password.into();
