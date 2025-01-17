@@ -109,10 +109,13 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "json"] }
 secrecy = { version = "0.10", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
+
 tokio = { version = "1", features = ["rt", "macros", "time", "sync"]}
+tokio-util = { version = "0.7", default-features = false, features = ["io", "compat"] }
+tokio-stream = "0.1"
+
 serde_json = "1"
 serde_with = { version = "3", features = ["base64"] }
-tokio-util = { version = "0.7", default-features = false, features = ["io", "compat"] }
 async-trait = "0.1"
 async-recursion = "1"
 typeshare = "1"

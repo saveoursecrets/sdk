@@ -1,9 +1,13 @@
 //! Database audit log provider.
-use crate::{db::AuditEntity, Error};
+use crate::{
+    db::{AuditEntity, AuditRecord, AuditRow},
+    Error,
+};
 use async_sqlite::Client;
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 use sos_audit::{AuditEvent, AuditStreamSink};
+use tokio_stream::wrappers::ReceiverStream;
 
 /// Audit provider that appends to a database table.
 pub struct AuditDatabaseProvider<E>
@@ -76,6 +80,36 @@ where
         BoxStream<'static, std::result::Result<AuditEvent, Self::Error>>,
         Self::Error,
     > {
-        todo!();
+        let (tx, rx) = tokio::sync::mpsc::channel::<
+            std::result::Result<AuditEvent, Self::Error>,
+        >(16);
+
+        self.client
+            .conn_and_then(move |conn| {
+                let mut stmt = if reverse {
+                    conn.prepare("SELECT * FROM audit_logs ORDER DESC")?
+                } else {
+                    conn.prepare("SELECT * FROM audit_logs ORDER ASC")?
+                };
+                let mut rows = stmt.query([])?;
+
+                while let Some(row) = rows.next()? {
+                    let row: AuditRow = row.try_into()?;
+                    let record: AuditRecord = row.try_into()?;
+                    let inner_tx = tx.clone();
+                    futures::executor::block_on(async move {
+                        if let Err(e) = inner_tx.send(Ok(record.event)).await
+                        {
+                            tracing::error!(error = %e);
+                        }
+                    });
+                }
+
+                Ok::<_, Error>(())
+            })
+            .await
+            .map_err(Error::from)?;
+
+        Ok(Box::pin(ReceiverStream::new(rx)))
     }
 }

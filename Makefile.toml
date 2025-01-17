@@ -85,7 +85,9 @@ args = [
   "--workspace",
   "--all-features",
   "--open",
-  "--no-deps"
+  "--no-deps",
+  "--exclude",
+  "sos-vfs",
 ]
 dependencies = ["clean-doc"]
 
