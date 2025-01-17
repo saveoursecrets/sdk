@@ -189,8 +189,9 @@ mod cli {
                 let paths = Paths::new_global_server(backend.directory());
                 let provider = sos_backend::new_fs_audit_provider(
                     paths.audit_file().to_owned(),
-                );
-                sos_backend::init_audit_providers(vec![Box::new(provider)]);
+                )
+                .await?;
+                sos_backend::init_audit_providers(vec![provider]);
             }
 
             let state = Arc::new(RwLock::new(State::new(config)));

@@ -6,9 +6,11 @@ mod event;
 
 pub use event::*;
 
-/// Trait for types that append to an audit log.
+use futures::stream::BoxStream;
+
+/// Trait for types that read and write audit logs.
 #[async_trait::async_trait]
-pub trait AuditSink {
+pub trait AuditStreamSink {
     /// Error type for this implementation.
     type Error: std::error::Error + std::fmt::Debug;
 
@@ -17,4 +19,13 @@ pub trait AuditSink {
         &self,
         events: &[AuditEvent],
     ) -> std::result::Result<(), Self::Error>;
+
+    /// Stream of audit log records.
+    async fn audit_stream(
+        &self,
+        reverse: bool,
+    ) -> Result<
+        BoxStream<'static, Result<AuditEvent, Self::Error>>,
+        Self::Error,
+    >;
 }

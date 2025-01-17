@@ -34,6 +34,7 @@ parking_lot.workspace = true
 indexmap.workspace = true
 tempfile.workspace = true
 tracing.workspace = true
+async-fd-lock.workspace = true
 
 urn = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }

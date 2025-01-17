@@ -5055,6 +5055,7 @@ dependencies = [
 name = "sos-filesystem"
 version = "0.16.0"
 dependencies = [
+ "async-fd-lock",
  "async-stream",
  "async-trait",
  "binary-stream",

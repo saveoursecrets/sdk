@@ -8,6 +8,7 @@ use async_sqlite::{
     Client,
 };
 use futures::{pin_mut, StreamExt};
+use sos_audit::AuditStreamSink;
 use sos_core::Origin;
 use sos_core::{commit::CommitHash, Paths, PublicIdentity, SecretId};
 use sos_core::{
@@ -15,7 +16,7 @@ use sos_core::{
     events::{EventLog, EventRecord},
     VaultCommit, VaultEntry,
 };
-use sos_filesystem::audit_provider::{audit_stream, AuditLogFile};
+use sos_filesystem::audit_provider::AuditFileProvider;
 use sos_filesystem::{
     formats::FormatStreamIterator, AccountEventLog as FsAccountEventLog,
     DeviceEventLog as FsDeviceEventLog, FolderEventLog as FsFolderEventLog,
@@ -53,11 +54,14 @@ pub(crate) async fn import_globals(
 
     let mut audit_events = Vec::new();
     if vfs::try_exists(paths.audit_file()).await? {
-        let log_file = AuditLogFile::new(paths.audit_file()).await?;
-        let mut file = vfs::File::open(paths.audit_file()).await?;
-        let mut it = audit_stream(paths.audit_file(), false).await?;
-        while let Some(record) = it.next().await? {
-            let event = log_file.read_event(&mut file, &record).await?;
+        let log_file = AuditFileProvider::<sos_filesystem::Error>::new(
+            paths.audit_file(),
+        )
+        .await?;
+        let stream = log_file.audit_stream(false).await?;
+        pin_mut!(stream);
+        while let Some(event) = stream.next().await {
+            let event = event?;
             audit_events.push((&event).try_into()?);
         }
     }

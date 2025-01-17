@@ -252,11 +252,6 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
         let _ = vfs::remove_dir_all(&client).await;
         vfs::create_dir_all(&client).await?;
 
-        let paths = Paths::new_global(client.clone());
-        let provider =
-            sos_backend::new_fs_audit_provider(paths.audit_file().to_owned());
-        sos_backend::init_audit_providers(vec![Box::new(provider)]);
-
         clients.push(client);
     }
 

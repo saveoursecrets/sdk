@@ -1,13 +1,13 @@
 use anyhow::Result;
 
 use crate::test_utils::{mock, setup, teardown};
+use futures::{pin_mut, StreamExt};
 use secrecy::SecretString;
 use sos_account::{
     archive::RestoreOptions, Account, FolderCreate, LocalAccount,
     SecretChange,
 };
 use sos_audit::AuditEvent;
-use sos_filesystem::formats::FormatStreamIterator;
 use sos_migrate::import::ImportTarget;
 use sos_sdk::prelude::*;
 use std::path::{Path, PathBuf};
@@ -15,10 +15,19 @@ use std::path::{Path, PathBuf};
 #[tokio::test]
 async fn audit_trail_client() -> Result<()> {
     const TEST_ID: &str = "audit_trail_client";
-    crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
+    //
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+
+    // Configure the audit provider
+    let paths = Paths::new_global(data_dir.clone());
+    paths.ensure().await?;
+    let provider =
+        sos_backend::new_fs_audit_provider(paths.audit_file().to_owned())
+            .await?;
+    sos_backend::init_audit_providers(vec![provider]);
 
     let account_name = TEST_ID.to_string();
     let (passphrase, _) = generate_passphrase()?;
@@ -45,10 +54,7 @@ async fn audit_trail_client() -> Result<()> {
     simulate_session(&mut account, &summary, passphrase, &data_dir).await?;
 
     // Read in the audit log events
-    let paths = account.paths();
-    let audit_log = paths.audit_file();
-
-    let events = read_audit_events(audit_log).await?;
+    let events = read_audit_events().await?;
     let mut kinds: Vec<_> = events.iter().map(|e| e.event_kind()).collect();
 
     //println!("events {:#?}", events);
@@ -114,6 +120,8 @@ async fn audit_trail_client() -> Result<()> {
 
     // Deleted the account
     assert!(matches!(kinds.remove(0), EventKind::DeleteAccount));
+
+    println!("TEARDOWN TEST");
 
     teardown(TEST_ID).await;
 
@@ -238,17 +246,16 @@ async fn simulate_session(
     Ok(())
 }
 
-async fn read_audit_events(
-    audit_log: impl AsRef<Path>,
-) -> Result<Vec<AuditEvent>> {
-    let mut events = Vec::new();
-    let log_file =
-        sos_filesystem::audit_provider::AuditLogFile::new(audit_log.as_ref())
-            .await?;
-    let mut file = vfs::File::open(audit_log.as_ref()).await?;
-    let mut it = log_file.iter(false).await?;
-    while let Some(record) = it.next().await? {
-        events.push(log_file.read_event(&mut file, &record).await?);
+async fn read_audit_events() -> Result<Vec<AuditEvent>> {
+    let provider = sos_backend::audit_providers().unwrap().get(0).unwrap();
+
+    let stream = provider.audit_stream(false).await?;
+    pin_mut!(stream);
+
+    let events = stream.collect::<Vec<_>>().await;
+    let mut audit_events = Vec::new();
+    for event in events {
+        audit_events.push(event?);
     }
-    Ok(events)
+    Ok(audit_events)
 }

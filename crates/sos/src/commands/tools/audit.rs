@@ -1,15 +1,14 @@
 use crate::{helpers::messages::info, Error, Result};
 use clap::Subcommand;
+use futures::{pin_mut, StreamExt};
 use sos_audit::{AuditData, AuditEvent};
 use sos_core::AccountId;
-use sos_filesystem::audit_provider::AuditLogFile;
-use sos_filesystem::formats::FormatStreamIterator;
-use sos_vfs::{self as vfs, File};
-use std::{path::PathBuf, thread, time};
+use sos_vfs::{self as vfs};
+// use std::path::PathBuf;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    /// Print the events in an audit log file
+    /// Print the events for the configured audit providers.
     Logs {
         /// Print each event as a line of JSON
         #[clap(short, long)]
@@ -26,125 +25,65 @@ pub enum Command {
         /// Filter to events that match the given account identifier.
         #[clap(short, long)]
         account_id: Vec<AccountId>,
-
+        /*
         /// Audit log file
         audit_log: PathBuf,
-    },
-    /// Monitor changes to an audit log file
-    Monitor {
-        /// Print each event as a line of JSON
-        #[clap(short, long)]
-        json: bool,
-
-        /// Filter to events that match the given account identifiers.
-        #[clap(short, long)]
-        account_id: Vec<AccountId>,
-
-        /// Audit log file
-        audit_log: PathBuf,
+        */
     },
 }
 
 pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
         Command::Logs {
-            audit_log,
+            // audit_log,
             json,
             account_id,
             reverse,
             count,
         } => {
-            logs(audit_log, json, account_id, reverse, count).await?;
-        }
-        Command::Monitor {
-            audit_log,
-            json,
-            account_id,
-        } => {
-            monitor(audit_log, json, account_id).await?;
+            logs(json, account_id, reverse, count).await?;
         }
     }
     Ok(())
 }
 
-/// Monitor changes in an audit log file.
-pub async fn monitor(
-    audit_log: PathBuf,
-    json: bool,
-    account_id: Vec<AccountId>,
-) -> Result<()> {
-    if !vfs::metadata(&audit_log).await?.is_file() {
-        return Err(Error::NotFile(audit_log));
-    }
-
-    // File for iterating
-    let log_file = AuditLogFile::new(&audit_log).await?;
-
-    // File for reading event data
-    let mut file = File::open(&audit_log).await?;
-
-    let mut it = log_file.iter(false).await?;
-    let mut offset = audit_log.metadata()?.len();
-    // Push iteration constraint to the end of the file
-    it.set_offset(offset);
-
-    loop {
-        let step = time::Duration::from_millis(100);
-        thread::sleep(step);
-
-        let len = audit_log.metadata()?.len();
-        if len > offset {
-            while let Some(record) = it.next().await? {
-                let event = log_file.read_event(&mut file, &record).await?;
-                if !account_id.is_empty()
-                    && !is_account_id_match(&event, &account_id)
-                {
-                    continue;
-                }
-                print_event(event, json)?;
-            }
-
-            offset = len;
-
-            // Adjust the iterator constraint for the consumer records
-            it.set_offset(len);
-        }
-    }
-}
-
 /// Print events in an audit log file.
 async fn logs(
-    audit_log: PathBuf,
+    // audit_log: PathBuf,
     json: bool,
     account_id: Vec<AccountId>,
     reverse: bool,
     count: Option<usize>,
 ) -> Result<()> {
+    /*
     if !vfs::metadata(&audit_log).await?.is_file() {
         return Err(Error::NotFile(audit_log));
     }
+    */
 
-    // File for iterating
-    let log_file = AuditLogFile::new(&audit_log).await?;
+    let providers = sos_backend::audit_providers();
+    if let Some(providers) = providers {
+        for provider in providers {
+            let count = count.unwrap_or(usize::MAX);
+            let mut c = 0;
 
-    // File for reading event data
-    let mut file = File::open(&audit_log).await?;
+            let stream = provider.audit_stream(reverse).await?;
+            pin_mut!(stream);
+            while let Some(event) = stream.next().await {
+                let event = event?;
 
-    let count = count.unwrap_or(usize::MAX);
-    let mut c = 0;
+                if !account_id.is_empty()
+                    && !is_account_id_match(&event, &account_id)
+                {
+                    continue;
+                }
+                c += 1;
+                print_event(event, json)?;
 
-    let mut it = log_file.iter(reverse).await?;
-    while let Some(record) = it.next().await? {
-        let event = log_file.read_event(&mut file, &record).await?;
-        if !account_id.is_empty() && !is_account_id_match(&event, &account_id)
-        {
-            continue;
-        }
-        c += 1;
-        print_event(event, json)?;
-
-        if c >= count {
-            break;
+                if c >= count {
+                    break;
+                }
+            }
         }
     }
 

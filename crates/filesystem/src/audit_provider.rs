@@ -1,63 +1,63 @@
 //! File system audit log file and provider.
 use crate::formats::{
     read_file_identity_bytes, FileItem, FileRecord, FormatStream,
+    FormatStreamIterator,
 };
 use crate::Result;
+use async_fd_lock::RwLockWriteGuard;
+use async_stream::try_stream;
 use async_trait::async_trait;
 use binary_stream::futures::{BinaryReader, BinaryWriter};
 use binary_stream::futures::{Decodable, Encodable};
-use futures::io::{AsyncRead, AsyncSeek, AsyncWrite};
-use futures::io::{BufReader, BufWriter, Cursor};
-use sos_audit::{AuditEvent, AuditSink};
+use futures::io::{
+    AsyncRead, AsyncSeek, AsyncWrite, BufReader, BufWriter, Cursor,
+};
+use futures::stream::BoxStream;
+use sos_audit::{AuditEvent, AuditStreamSink};
 use sos_core::{constants::AUDIT_IDENTITY, encoding::encoding_options};
 use sos_vfs::{self as vfs, File};
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio::sync::Mutex;
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
-
-/// Stream of records in an audit file.
-pub async fn audit_stream<P: AsRef<Path>>(
-    path: P,
-    reverse: bool,
-) -> Result<FormatStream<FileRecord, Compat<File>>> {
-    read_file_identity_bytes(path.as_ref(), &AUDIT_IDENTITY).await?;
-    let read_stream = File::open(path.as_ref()).await?.compat();
-    Ok(FormatStream::<FileRecord, Compat<File>>::new_file(
-        read_stream,
-        &AUDIT_IDENTITY,
-        false,
-        None,
-        reverse,
-    )
-    .await?)
-}
 
 /// Represents an audit log file.
 pub struct AuditLogFile {
     file_path: PathBuf,
+    guard: RwLockWriteGuard<File>,
 }
 
 impl AuditLogFile {
     /// Create an audit log file.
     pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file_path = path.as_ref().to_path_buf();
-        Ok(Self { file_path })
+
+        // TODO:(muji): error if acquiring the lock would block
+
+        let mut file = vfs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .append(true)
+            .open(&path)
+            .await?;
+
+        let size = file.metadata().await?.len();
+        if size == 0 {
+            file.write_all(&AUDIT_IDENTITY).await?;
+            file.flush().await?;
+        }
+
+        let guard = vfs::lock_write(file).await?;
+        Ok(Self { file_path, guard })
     }
 
     /// Log file path.
     pub fn file_path(&self) -> &PathBuf {
         &self.file_path
-    }
-
-    /// Get an audit log file iterator.
-    pub async fn iter(
-        &self,
-        reverse: bool,
-    ) -> Result<FormatStream<FileRecord, Compat<File>>> {
-        Ok(audit_stream(&self.file_path, reverse).await?)
     }
 
     /// Encodable an audit log event record.
@@ -101,46 +101,27 @@ impl AuditLogFile {
         Ok(event)
     }
 
-    /// Create the file used to store audit logs.
-    async fn create<P: AsRef<Path>>(path: P) -> Result<vfs::File> {
-        let mut file = vfs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .append(true)
-            .open(path.as_ref())
-            .await?;
-
-        let size = file.metadata().await?.len();
-        if size == 0 {
-            file.write_all(&AUDIT_IDENTITY).await?;
-            file.flush().await?;
-        }
-        Ok(file)
-    }
-
     /// Read an event from a file.
     pub async fn read_event(
-        &self,
-        file: &mut vfs::File,
+        &mut self,
         record: &FileRecord,
     ) -> Result<AuditEvent> {
-        let buf = self.read_event_buffer(file, record).await?;
+        let buf = self.read_event_buffer(record).await?;
         let mut stream = BufReader::new(Cursor::new(&buf));
         let mut reader = BinaryReader::new(&mut stream, encoding_options());
-        Ok(AuditLogFile::decode_row(&mut reader).await?)
+        Ok(Self::decode_row(&mut reader).await?)
     }
 
-    /// Read the event buffer from a file.
-    pub async fn read_event_buffer(
-        &self,
-        file: &mut vfs::File,
+    /// Read the event buffer from the underlying file.
+    async fn read_event_buffer(
+        &mut self,
         record: &FileRecord,
     ) -> Result<Vec<u8>> {
         let offset = record.offset();
         let row_len = offset.end - offset.start;
-        file.seek(SeekFrom::Start(offset.start)).await?;
+        self.guard.seek(SeekFrom::Start(offset.start)).await?;
         let mut buf = vec![0u8; row_len as usize];
-        file.read_exact(&mut buf).await?;
+        self.guard.read_exact(&mut buf).await?;
         Ok(buf)
     }
 }
@@ -156,7 +137,7 @@ where
         + Sync
         + 'static,
 {
-    file_path: PathBuf,
+    file: Arc<Mutex<AuditLogFile>>,
     marker: std::marker::PhantomData<E>,
 }
 
@@ -171,16 +152,19 @@ where
         + 'static,
 {
     /// Create a new audit file provider.
-    pub fn new(file_path: impl AsRef<Path>) -> Self {
-        Self {
-            file_path: file_path.as_ref().to_owned(),
+    pub async fn new(file_path: impl AsRef<Path>) -> Result<Self> {
+        let file = Arc::new(Mutex::new(
+            AuditLogFile::new(file_path.as_ref()).await?,
+        ));
+        Ok(Self {
+            file,
             marker: std::marker::PhantomData,
-        }
+        })
     }
 }
 
 #[async_trait]
-impl<E> AuditSink for AuditFileProvider<E>
+impl<E> AuditStreamSink for AuditFileProvider<E>
 where
     E: std::error::Error
         + std::fmt::Debug
@@ -209,11 +193,42 @@ where
             buffer
         };
 
-        let file = AuditLogFile::create(&self.file_path).await?;
-        let mut guard = vfs::lock_write(file).await?;
-        guard.write_all(&buffer).await?;
-        guard.flush().await?;
+        let mut file = self.file.lock().await;
+        file.guard.write_all(&buffer).await?;
+        file.guard.flush().await?;
 
         Ok(())
+    }
+
+    async fn audit_stream(
+        &self,
+        reverse: bool,
+    ) -> std::result::Result<
+        BoxStream<'static, std::result::Result<AuditEvent, Self::Error>>,
+        Self::Error,
+    > {
+        let file_path = {
+            let file = self.file.lock().await;
+            file.file_path().to_owned()
+        };
+        read_file_identity_bytes(&file_path, &AUDIT_IDENTITY).await?;
+        let read_stream = File::open(file_path).await?.compat();
+        let mut it = FormatStream::<FileRecord, Compat<File>>::new_file(
+            read_stream,
+            &AUDIT_IDENTITY,
+            false,
+            None,
+            reverse,
+        )
+        .await?;
+
+        let it_file = self.file.clone();
+        Ok(Box::pin(try_stream! {
+            while let Some(record) = it.next().await? {
+                let mut inner = it_file.lock().await;
+                let event = inner.read_event(&record).await?;
+                yield event;
+            }
+        }))
     }
 }

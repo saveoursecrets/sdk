@@ -2,7 +2,8 @@
 use crate::{db::AuditEntity, Error};
 use async_sqlite::Client;
 use async_trait::async_trait;
-use sos_audit::{AuditEvent, AuditSink};
+use futures::stream::BoxStream;
+use sos_audit::{AuditEvent, AuditStreamSink};
 
 /// Audit provider that appends to a database table.
 pub struct AuditDatabaseProvider<E>
@@ -37,11 +38,12 @@ where
 }
 
 #[async_trait]
-impl<E> AuditSink for AuditDatabaseProvider<E>
+impl<E> AuditStreamSink for AuditDatabaseProvider<E>
 where
     E: std::error::Error
         + std::fmt::Debug
         + From<crate::Error>
+        + From<std::io::Error>
         + Send
         + Sync
         + 'static,
@@ -65,5 +67,15 @@ where
             .await
             .map_err(Error::from)?;
         Ok(())
+    }
+
+    async fn audit_stream(
+        &self,
+        reverse: bool,
+    ) -> std::result::Result<
+        BoxStream<'static, std::result::Result<AuditEvent, Self::Error>>,
+        Self::Error,
+    > {
+        todo!();
     }
 }

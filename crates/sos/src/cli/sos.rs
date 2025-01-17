@@ -144,8 +144,9 @@ pub async fn run() -> Result<()> {
     Paths::scaffold(args.storage).await?;
     let paths = Paths::new_global(Paths::data_dir()?);
     let provider =
-        sos_backend::new_fs_audit_provider(paths.audit_file().to_owned());
-    sos_backend::init_audit_providers(vec![Box::new(provider)]);
+        sos_backend::new_fs_audit_provider(paths.audit_file().to_owned())
+            .await?;
+    sos_backend::init_audit_providers(vec![provider]);
 
     let user_agent = format!("sos-cli/{}", env!("CARGO_PKG_VERSION"));
     set_user_agent(user_agent);
