@@ -403,7 +403,7 @@ impl ServerAccountStorage for ServerFileStorage {
     ) -> Result<()> {
         // Update the vault on disc
         let vault_path = self.paths.vault_path(id);
-        let mut access = VaultWriter::new_fs(vault_path).await?;
+        let mut access = VaultWriter::new_fs(vault_path);
         access.set_vault_name(name.to_owned()).await?;
 
         #[cfg(feature = "audit")]

@@ -251,7 +251,7 @@ impl Merge for ServerFileStorage {
                     }
                     AccountEvent::RenameAccount(name) => {
                         let path = self.paths.identity_vault();
-                        let mut file = VaultWriter::new_fs(path).await?;
+                        let mut file = VaultWriter::new_fs(path);
                         file.set_vault_name(name.to_owned()).await?;
                     }
                     AccountEvent::UpdateIdentity(_) => {
@@ -412,7 +412,7 @@ impl Merge for ServerFileStorage {
             for event in events {
                 if let WriteEvent::SetVaultFlags(flags) = event {
                     let path = self.paths.vault_path(folder_id);
-                    let mut writer = VaultWriter::new_fs(path).await?;
+                    let mut writer = VaultWriter::new_fs(path);
                     writer.set_vault_flags(flags).await?;
                 }
             }

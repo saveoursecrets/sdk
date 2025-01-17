@@ -10,7 +10,7 @@ async fn vault_writer_file_del_splice() -> Result<()> {
     let (encryption_key, _, _) = mock::encryption_key()?;
     let (temp, vault, _) = mock::vault_file().await?;
 
-    let mut vault_access = VaultFileWriter::<Error>::new(temp.path()).await?;
+    let mut vault_access = VaultFileWriter::<Error>::new(temp.path());
 
     let secrets = [
         ("Note one", "First note"),

@@ -45,12 +45,12 @@ where
         + 'static,
 {
     /// Create a new vault file writer.
-    pub async fn new<P: AsRef<Path>>(path: P) -> Result<Self, E> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
         let file_path = path.as_ref().to_path_buf();
-        Ok(Self {
+        Self {
             file_path,
             marker: std::marker::PhantomData,
-        })
+        }
     }
 
     /// Check the identity bytes and return the byte offset of the

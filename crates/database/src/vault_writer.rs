@@ -44,7 +44,7 @@ where
         + 'static,
 {
     /// Create a new vault database writer.
-    pub async fn new(client: Client, folder_id: VaultId) -> Self {
+    pub fn new(client: Client, folder_id: VaultId) -> Self {
         Self {
             client,
             folder_id,

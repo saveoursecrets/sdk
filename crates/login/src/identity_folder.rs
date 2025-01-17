@@ -152,7 +152,7 @@ impl IdentityFolder {
             .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
         let mut device_keeper =
-            AccessPoint::new_fs(vault, &device_vault_path).await?;
+            AccessPoint::new_fs(vault, &device_vault_path);
         let key: AccessKey = device_password.into();
         device_keeper.unlock(&key).await?;
 
@@ -219,7 +219,7 @@ impl IdentityFolder {
         let mut device_keeper = if mirror {
             let buffer = encode(&vault).await?;
             write_exclusive(&device_vault_path, &buffer).await?;
-            AccessPoint::new_fs(vault, &device_vault_path).await?
+            AccessPoint::new_fs(vault, &device_vault_path)
         } else {
             AccessPoint::new_vault(vault)
         };

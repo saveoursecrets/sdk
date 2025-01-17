@@ -63,7 +63,7 @@ impl Folder {
             vault
         };
 
-        let mirror = VaultFileWriter::<Error>::new(path.as_ref()).await?;
+        let mirror = VaultFileWriter::<Error>::new(path.as_ref());
         let keeper =
             VaultAccessPoint::<Error>::new_mirror(vault, Box::new(mirror));
 
@@ -125,8 +125,7 @@ impl Folder {
             event_log.apply(vec![&event]).await?;
         }
 
-        let mirror =
-            VaultDatabaseWriter::<Error>::new(client, folder_id).await;
+        let mirror = VaultDatabaseWriter::<Error>::new(client, folder_id);
         let keeper =
             VaultAccessPoint::<Error>::new_mirror(vault, Box::new(mirror));
 

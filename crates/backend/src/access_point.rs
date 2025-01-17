@@ -29,15 +29,9 @@ impl BackendAccessPoint {
     }
 
     /// Access point that mirrors to disc.
-    pub async fn new_fs<P: AsRef<Path>>(
-        vault: Vault,
-        path: P,
-    ) -> Result<Self> {
-        let mirror = VaultFileWriter::<Error>::new(path).await?;
-        Ok(Self(AccessPoint::<Error>::new_mirror(
-            vault,
-            Box::new(mirror),
-        )))
+    pub fn new_fs<P: AsRef<Path>>(vault: Vault, path: P) -> Self {
+        let mirror = VaultFileWriter::<Error>::new(path);
+        Self(AccessPoint::<Error>::new_mirror(vault, Box::new(mirror)))
     }
 
     /// Access point that mirrors to a database table.
@@ -46,8 +40,7 @@ impl BackendAccessPoint {
         client: Client,
         folder_id: VaultId,
     ) -> Self {
-        let mirror =
-            VaultDatabaseWriter::<Error>::new(client, folder_id).await;
+        let mirror = VaultDatabaseWriter::<Error>::new(client, folder_id);
         Self(AccessPoint::<Error>::new_mirror(vault, Box::new(mirror)))
     }
 }

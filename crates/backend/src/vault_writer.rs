@@ -21,15 +21,13 @@ pub enum VaultWriter {
 
 impl VaultWriter {
     /// Create a new database vault writer.
-    pub async fn new_db(client: Client, folder_id: VaultId) -> Self {
-        Self::Database(
-            VaultDatabaseWriter::<Error>::new(client, folder_id).await,
-        )
+    pub fn new_db(client: Client, folder_id: VaultId) -> Self {
+        Self::Database(VaultDatabaseWriter::<Error>::new(client, folder_id))
     }
 
     /// Create a new file system vault writer.
-    pub async fn new_fs<P: AsRef<Path>>(path: P) -> Result<Self> {
-        Ok(Self::FileSystem(VaultFileWriter::<Error>::new(path).await?))
+    pub fn new_fs<P: AsRef<Path>>(path: P) -> Self {
+        Self::FileSystem(VaultFileWriter::<Error>::new(path))
     }
 }
 

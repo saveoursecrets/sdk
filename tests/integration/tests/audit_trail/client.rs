@@ -10,7 +10,7 @@ use sos_account::{
 use sos_audit::AuditEvent;
 use sos_migrate::import::ImportTarget;
 use sos_sdk::prelude::*;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[tokio::test]
 async fn audit_trail_client() -> Result<()> {
