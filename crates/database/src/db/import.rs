@@ -27,10 +27,7 @@ use sos_vfs as vfs;
 use std::{collections::HashMap, path::Path};
 
 #[cfg(feature = "files")]
-use {
-    super::FileEntity, crate::files::list_external_files,
-    sos_filesystem::FileEventLog as FsFileEventLog,
-};
+use sos_filesystem::FileEventLog as FsFileEventLog;
 
 type AccountEventLog = FsAccountEventLog<sos_filesystem::Error>;
 type DeviceEventLog = FsDeviceEventLog<sos_filesystem::Error>;
@@ -142,22 +139,6 @@ pub(crate) async fn import_account(
         folders.push((vault, vault_meta, rows, events));
     }
 
-    #[cfg(feature = "files")]
-    let user_files = {
-        let mut user_files = Vec::new();
-        let files = list_external_files(&paths).await?;
-        for file in files {
-            let path = paths.file_location(
-                file.vault_id(),
-                file.secret_id(),
-                file.file_name().to_string(),
-            );
-            let buffer = vfs::read(path).await?;
-            user_files.push((file, buffer));
-        }
-        user_files
-    };
-
     let account_preferences =
         if vfs::try_exists(paths.preferences_file()).await? {
             Some(vfs::read_to_string(paths.preferences_file()).await?)
@@ -236,10 +217,6 @@ pub(crate) async fn import_account(
             {
                 // Create the file events
                 event_entity.insert_file_events(account_id, file_events)?;
-
-                // Create the file blobs
-                let file_entity = FileEntity::new(&tx);
-                file_entity.insert_files(&folder_ids, user_files)?;
             }
 
             if let Some(json_data) = account_preferences {

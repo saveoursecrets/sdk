@@ -143,37 +143,6 @@ CREATE TABLE IF NOT EXISTS folder_events
 CREATE INDEX IF NOT EXISTS folder_events_commit_hash_idx
   ON folder_events (commit_hash);
 
--- External files for a secret
-CREATE TABLE IF NOT EXISTS folder_files
-(
-    file_id               INTEGER             PRIMARY KEY NOT NULL,
-    folder_id             INTEGER             NOT NULL,
-    secret_id             INTEGER             NOT NULL,
-    created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
-    modified_at           DATETIME            DEFAULT CURRENT_TIMESTAMP,
-    -- SHA256 hash of the encrypted file contents
-    checksum              BLOB(32)            NOT NULL,
-    -- Encrypted file contents
-    contents              BLOB                NOT NULL,
-
-    FOREIGN KEY (folder_id) REFERENCES folders (folder_id)
-      ON DELETE CASCADE,
-
-    FOREIGN KEY (secret_id) REFERENCES folder_secrets (secret_id)
-      ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS folder_files_checksum_idx
-  ON folder_files (checksum);
-
-CREATE TRIGGER
-  update_folder_file_modified_at
-AFTER UPDATE OF checksum ON folder_files
-FOR EACH ROW
-BEGIN UPDATE folder_files
-  SET modified_at = datetime('now')
-  WHERE file_id = NEW.file_id;
-END;
-
 -- Account level events
 CREATE TABLE IF NOT EXISTS account_events 
 (

@@ -2,8 +2,8 @@
 mod account;
 mod audit;
 mod event;
-#[cfg(feature = "files")]
-mod file;
+// #[cfg(feature = "files")]
+// mod file;
 mod folder;
 mod import;
 #[cfg(feature = "preferences")]
@@ -16,8 +16,8 @@ pub use account::{AccountEntity, AccountRecord};
 pub(crate) use audit::AuditRow;
 pub use audit::{AuditEntity, AuditRecord};
 pub use event::{CommitRecord, EventEntity, EventTable};
-#[cfg(feature = "files")]
-pub use file::FileEntity;
+// #[cfg(feature = "files")]
+// pub use file::FileEntity;
 pub use folder::{FolderEntity, FolderRecord, SecretRecord};
 #[cfg(feature = "preferences")]
 pub use preference::PreferenceEntity;
