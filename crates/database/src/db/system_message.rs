@@ -54,50 +54,6 @@ where
         Self { conn }
     }
 
-    /*
-    fn find_server_statement(
-        &self,
-    ) -> std::result::Result<CachedStatement, SqlError> {
-        Ok(self.conn.prepare_cached(
-            r#"
-                SELECT
-                    system_message_id,
-                    created_at,
-                    modified_at,
-                    key,
-                    json_data
-                FROM system_messages
-                WHERE account_id=?1
-            "#,
-        )?)
-    }
-
-    /// Find a system message in the database.
-    pub fn find_one(
-        &self,
-        account_id: i64,
-    ) -> std::result::Result<SystemMessageRow, SqlError> {
-        let mut stmt = self.find_server_statement()?;
-        Ok(stmt.query_row((account_id), |row| {
-            Ok(row.try_into()?)
-        })?)
-    }
-
-    /// Find an optional server in the database.
-    pub fn find_optional(
-        &self,
-        account_id: i64,
-        url: &Url,
-    ) -> std::result::Result<Option<SystemMessageRow>, SqlError> {
-        let mut stmt = self.find_server_statement()?;
-        Ok(stmt
-            .query_row((account_id, url.to_string()), |row| {
-                Ok(row.try_into()?)
-            })
-            .optional()?)
-    }
-    */
-
     /// Load system messages for an account.
     pub fn load_system_messages(
         &self,

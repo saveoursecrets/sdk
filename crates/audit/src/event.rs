@@ -1,6 +1,7 @@
 //! Audit trail event.
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
+use sos_core::device::DevicePublicKey;
 use sos_core::events::{
     AccountEvent, Event, EventKind, ReadEvent, WriteEvent,
 };
@@ -17,6 +18,8 @@ bitflags! {
         const DATA_SECRET = 0b00000100;
         /// Indicates the data has a move event.
         const MOVE_SECRET = 0b00001000;
+        /// Indicates the data is for a device event.
+        const DEVICE = 0b00010000;
     }
 }
 
@@ -100,6 +103,9 @@ impl AuditEvent {
                 }
                 AuditData::MoveSecret { .. } => {
                     flags.set(AuditLogFlags::MOVE_SECRET, true);
+                }
+                AuditData::Device { .. } => {
+                    flags.set(AuditLogFlags::DEVICE, true);
                 }
             }
             flags
@@ -213,6 +219,8 @@ pub enum AuditData {
         /// New secret identifier.
         to_secret_id: SecretId,
     },
+    /// Device trust or revoke events.
+    Device(DevicePublicKey),
 }
 
 impl Default for AuditData {

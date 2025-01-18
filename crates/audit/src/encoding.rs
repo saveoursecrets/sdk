@@ -113,6 +113,9 @@ impl Encodable for AuditData {
                 writer.write_bytes(to_vault_id.as_bytes()).await?;
                 writer.write_bytes(to_secret_id.as_bytes()).await?;
             }
+            AuditData::Device(public_key) => {
+                writer.write_bytes(public_key.as_ref()).await?;
+            }
         }
         Ok(())
     }

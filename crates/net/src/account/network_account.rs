@@ -68,6 +68,13 @@ use sos_migrate::import::ImportTarget;
 #[cfg(feature = "listen")]
 use sos_protocol::network_client::WebSocketHandle;
 
+#[cfg(feature = "audit")]
+use {
+    sos_audit::{AuditData, AuditEvent},
+    sos_backend::audit::append_audit_events,
+    sos_core::events::EventKind,
+};
+
 /*
 #[cfg(feature = "security-report")]
 use crate::sdk::account::security_report::{
@@ -246,6 +253,17 @@ impl NetworkAccount {
                 account.storage().await.ok_or(StorageError::NoStorage)?;
             let mut storage = storage.write().await;
             storage.revoke_device(device_key).await?;
+        }
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                Default::default(),
+                EventKind::RevokeDevice,
+                *self.account_id(),
+                Some(AuditData::Device(*device_key)),
+            );
+            append_audit_events(&[audit_event]).await?;
         }
 
         // Send the device event logs to the remote servers

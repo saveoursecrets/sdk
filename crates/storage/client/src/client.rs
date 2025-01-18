@@ -37,7 +37,11 @@ use tokio::sync::RwLock;
 use sos_backup_archive::RestoreTargets;
 
 #[cfg(feature = "audit")]
-use {sos_audit::AuditEvent, sos_backend::audit::append_audit_events};
+use {
+    sos_audit::{AuditData, AuditEvent},
+    sos_backend::audit::append_audit_events,
+    sos_core::events::EventKind,
+};
 
 use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
@@ -1738,6 +1742,7 @@ impl ClientStorage {
         &mut self,
         events: Vec<DeviceEvent>,
     ) -> Result<()> {
+        // Update the event log
         let mut event_log = self.device_log.write().await;
         event_log.apply(events.iter().collect()).await?;
 
@@ -1745,6 +1750,25 @@ impl ClientStorage {
         let reducer = DeviceReducer::new(&*event_log);
         let devices = reducer.reduce().await?;
         self.devices = devices;
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_events = events
+                .iter()
+                .filter_map(|event| match event {
+                    DeviceEvent::Trust(device) => Some(AuditEvent::new(
+                        Default::default(),
+                        EventKind::TrustDevice,
+                        *self.account_id(),
+                        Some(AuditData::Device(*device.public_key())),
+                    )),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            if !audit_events.is_empty() {
+                append_audit_events(audit_events.as_slice()).await?;
+            }
+        }
 
         Ok(())
     }

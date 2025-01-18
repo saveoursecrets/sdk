@@ -5292,6 +5292,7 @@ dependencies = [
  "sha3",
  "snow",
  "sos-account",
+ "sos-audit",
  "sos-backend",
  "sos-client-storage",
  "sos-core",

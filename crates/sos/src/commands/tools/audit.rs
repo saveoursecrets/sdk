@@ -123,6 +123,15 @@ fn print_event(event: AuditEvent, json: bool) -> Result<()> {
                     to_secret_id,
                 ));
             }
+            AuditData::Device(public_key) => {
+                info(format!(
+                    "{} {} by {}, device = {}",
+                    event.time().to_rfc3339()?,
+                    event.event_kind(),
+                    event.account_id(),
+                    public_key,
+                ));
+            }
         }
     } else {
         info(format!(
