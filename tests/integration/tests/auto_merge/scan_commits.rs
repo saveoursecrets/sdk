@@ -1,10 +1,10 @@
 use crate::test_utils::{mock, simulate_device, spawn, teardown};
 use anyhow::Result;
 use sos_account::Account;
-use sos_core::commit::Comparison;
+use sos_core::{commit::Comparison, events::EventLogType};
 use sos_protocol::{RemoteSyncHandler, ScanRequest, SyncClient};
 use sos_sdk::prelude::*;
-use sos_sync::{EventLogType, StorageEventLogs};
+use sos_sync::StorageEventLogs;
 
 /// Tests scanning commit hashes on remote servers.
 #[tokio::test]

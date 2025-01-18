@@ -12,7 +12,7 @@ use sos_core::{
             AccountDiff, AccountPatch, DeviceDiff, DevicePatch, FolderDiff,
             FolderPatch,
         },
-        AccountEvent, DeviceEvent, WriteEvent,
+        AccountEvent, DeviceEvent, EventLogType, WriteEvent,
     },
 };
 use std::collections::HashMap;
@@ -25,22 +25,6 @@ use sos_core::{
     },
     ExternalFile, ExternalFileName, SecretPath,
 };
-
-/// Types of event logs.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum EventLogType {
-    /// Identity folder event log.
-    Identity,
-    /// Account event log.
-    Account,
-    /// Device event log.
-    Device,
-    /// Files event log.
-    #[cfg(feature = "files")]
-    Files,
-    /// Folder event log.
-    Folder(VaultId),
-}
 
 /// Combined sync status, diff and comparisons.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

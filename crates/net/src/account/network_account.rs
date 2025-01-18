@@ -16,22 +16,23 @@ use sos_core::{
     commit::{CommitHash, CommitState},
     AccountId, Origin, RemoteOrigins, SecretId, VaultId,
 };
+use sos_core::{
+    crypto::{AccessKey, Cipher, KeyDerivation},
+    device::{DevicePublicKey, TrustedDevice},
+    events::{EventLog, EventLogType, EventRecord},
+    AccountRef, Paths, PublicIdentity,
+};
+use sos_login::device::{DeviceManager, DeviceSigner};
 use sos_protocol::{
     AccountSync, DiffRequest, RemoteSync, RemoteSyncHandler, SyncClient,
     SyncOptions, SyncResult,
 };
-use sos_sdk::{
-    crypto::{AccessKey, Cipher, KeyDerivation},
-    device::{DeviceManager, DevicePublicKey, DeviceSigner, TrustedDevice},
-    events::{EventLog, EventRecord},
-    identity::{AccountRef, PublicIdentity},
-    vault::{
-        secret::{Secret, SecretMeta, SecretRow},
-        Summary, Vault, VaultCommit, VaultFlags,
-    },
-    vfs, Paths,
+use sos_sync::{CreateSet, StorageEventLogs, UpdateSet};
+use sos_vault::{
+    secret::{Secret, SecretMeta, SecretRow},
+    Summary, Vault, VaultCommit, VaultFlags,
 };
-use sos_sync::{CreateSet, EventLogType, StorageEventLogs, UpdateSet};
+use sos_vfs as vfs;
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},

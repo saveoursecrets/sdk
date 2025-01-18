@@ -7,6 +7,7 @@ use sos_core::events::{
 };
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitState},
+    events::EventLogType,
     AccountId, Origin, SecretPath, UtcDateTime, VaultId,
 };
 use sos_protocol::{
@@ -14,8 +15,8 @@ use sos_protocol::{
     ScanResponse, WireEncodeDecode,
 };
 use sos_sync::{
-    CreateSet, EventLogType, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff,
-    SyncPacket, SyncStatus, UpdateSet,
+    CreateSet, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff, SyncPacket,
+    SyncStatus, UpdateSet,
 };
 
 const HASH: &str =

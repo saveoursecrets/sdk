@@ -31,6 +31,22 @@ pub use read::ReadEvent;
 pub use record::EventRecord;
 pub use write::WriteEvent;
 
+/// Types of event logs.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum EventLogType {
+    /// Identity folder event log.
+    Identity,
+    /// Account event log.
+    Account,
+    /// Device event log.
+    Device,
+    /// Files event log.
+    #[cfg(feature = "files")]
+    Files,
+    /// Folder event log.
+    Folder(crate::VaultId),
+}
+
 /// Trait for events that can be written to an event log.
 pub trait LogEvent {
     /// Get the event kind for this event.

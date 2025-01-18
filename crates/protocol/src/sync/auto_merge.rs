@@ -12,13 +12,14 @@ use sos_core::{
         patch::{
             AccountDiff, CheckedPatch, DeviceDiff, Diff, FolderDiff, Patch,
         },
-        AccountEvent, DeviceEvent, EventLog, EventRecord, WriteEvent,
+        AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
+        WriteEvent,
     },
     VaultId,
 };
 use sos_sync::{
-    EventLogType, ForceMerge, MaybeConflict, Merge, MergeOutcome,
-    StorageEventLogs, SyncDirection, SyncStatus,
+    ForceMerge, MaybeConflict, Merge, MergeOutcome, StorageEventLogs,
+    SyncDirection, SyncStatus,
 };
 use std::collections::HashSet;
 use tracing::instrument;

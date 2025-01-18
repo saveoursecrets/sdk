@@ -3,9 +3,8 @@ include!(concat!(env!("OUT_DIR"), "/diff.rs"));
 use crate::{Error, ProtoBinding, Result};
 use sos_core::{
     commit::{CommitHash, CommitProof},
-    events::EventRecord,
+    events::{EventLogType, EventRecord},
 };
-use sos_sync::EventLogType;
 
 /// Request commit diff from an event log.
 #[derive(Debug, Clone, PartialEq, Eq)]

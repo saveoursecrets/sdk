@@ -2,18 +2,16 @@
 use binary_stream::futures::{Decodable, Encodable};
 use futures::{pin_mut, StreamExt};
 use sos_backend::BackendEventLog;
-use sos_core::events::EventLog;
 use sos_core::events::{
     patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff, Patch},
-    AccountEvent, DeviceEvent, EventRecord, WriteEvent,
+    AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
+    WriteEvent,
 };
 use sos_protocol::{
     DiffRequest, DiffResponse, PatchRequest, PatchResponse, ScanRequest,
     ScanResponse,
 };
-use sos_sync::{
-    EventLogType, MergeOutcome, StorageEventLogs, SyncPacket, SyncStorage,
-};
+use sos_sync::{MergeOutcome, StorageEventLogs, SyncPacket, SyncStorage};
 
 #[cfg(feature = "files")]
 use sos_core::events::{patch::FileDiff, FileEvent};
