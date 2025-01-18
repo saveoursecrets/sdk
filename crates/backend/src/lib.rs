@@ -4,7 +4,7 @@
 //! Backend database and file system storage.
 mod access_point;
 #[cfg(feature = "audit")]
-mod audit_provider;
+pub mod audit;
 pub mod compact;
 mod error;
 mod event_log;
@@ -21,8 +21,6 @@ pub use error::{Error, StorageError};
 pub use sos_filesystem::write_exclusive;
 
 pub use access_point::BackendAccessPoint as AccessPoint;
-#[cfg(feature = "audit")]
-pub use audit_provider::*;
 pub use event_log::{
     BackendAccountEventLog as AccountEventLog,
     BackendDeviceEventLog as DeviceEventLog, BackendEventLog,

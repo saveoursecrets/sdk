@@ -58,7 +58,7 @@ async fn file_logs(
         return Err(Error::NotFile(audit_log));
     }
 
-    let provider = sos_backend::new_fs_audit_provider(&audit_log);
+    let provider = sos_backend::audit::new_fs_provider(&audit_log);
     let count = count.unwrap_or(usize::MAX);
     let mut c = 0;
 

@@ -1,6 +1,7 @@
 mod access_point;
 mod account_backup_archive_zip;
 mod artifact_releases;
+mod audit_provider;
 mod clipboard;
 mod crypto;
 mod database_migrations;

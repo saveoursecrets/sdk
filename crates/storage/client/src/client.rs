@@ -37,7 +37,7 @@ use tokio::sync::RwLock;
 use sos_backup_archive::RestoreTargets;
 
 #[cfg(feature = "audit")]
-use {sos_audit::AuditEvent, sos_backend::append_audit_events};
+use {sos_audit::AuditEvent, sos_backend::audit::append_audit_events};
 
 use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
@@ -429,7 +429,7 @@ impl ClientStorage {
         {
             let audit_event: AuditEvent =
                 (self.account_id(), &create_account).into();
-            append_audit_events(vec![audit_event]).await?;
+            append_audit_events(&[audit_event]).await?;
         }
 
         // Import folders
@@ -971,7 +971,7 @@ impl ClientStorage {
         {
             let audit_event: AuditEvent =
                 (self.account_id(), &account_event).into();
-            append_audit_events(vec![audit_event]).await?;
+            append_audit_events(&[audit_event]).await?;
         }
 
         let event = Event::Folder(account_event, write_event);
@@ -1012,7 +1012,7 @@ impl ClientStorage {
         {
             let audit_event: AuditEvent =
                 (self.account_id(), &account_event).into();
-            append_audit_events(vec![audit_event]).await?;
+            append_audit_events(&[audit_event]).await?;
         }
 
         Ok((buf, key, summary, account_event))
@@ -1226,7 +1226,7 @@ impl ClientStorage {
         {
             let audit_event: AuditEvent =
                 (self.account_id(), &account_event).into();
-            append_audit_events(vec![audit_event]).await?;
+            append_audit_events(&[audit_event]).await?;
         }
 
         events.insert(0, Event::Account(account_event));
@@ -1306,7 +1306,7 @@ impl ClientStorage {
         {
             let audit_event: AuditEvent =
                 (self.account_id(), &account_event).into();
-            append_audit_events(vec![audit_event]).await?;
+            append_audit_events(&[audit_event]).await?;
         }
 
         Ok(Event::Account(account_event))
@@ -1332,7 +1332,7 @@ impl ClientStorage {
         #[cfg(feature = "audit")]
         {
             let audit_event: AuditEvent = (self.account_id(), &event).into();
-            append_audit_events(vec![audit_event]).await?;
+            append_audit_events(&[audit_event]).await?;
         }
 
         Ok(event)

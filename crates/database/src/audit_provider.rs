@@ -87,9 +87,13 @@ where
         self.client
             .conn_and_then(move |conn| {
                 let mut stmt = if reverse {
-                    conn.prepare("SELECT * FROM audit_logs ORDER DESC")?
+                    conn.prepare(
+                        "SELECT * FROM audit_logs ORDER BY log_id DESC",
+                    )?
                 } else {
-                    conn.prepare("SELECT * FROM audit_logs ORDER ASC")?
+                    conn.prepare(
+                        "SELECT * FROM audit_logs ORDER BY log_id ASC",
+                    )?
                 };
                 let mut rows = stmt.query([])?;
 
