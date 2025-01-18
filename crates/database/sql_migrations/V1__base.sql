@@ -79,15 +79,6 @@ CREATE TABLE IF NOT EXISTS folders
 CREATE INDEX IF NOT EXISTS folders_identifier_idx ON folders (identifier);
 CREATE INDEX IF NOT EXISTS folders_name_idx       ON folders (name);
 
-CREATE TRIGGER
-  update_folder_modified_at
-AFTER UPDATE OF name, version, cipher, kdf, flags ON folders
-FOR EACH ROW
-BEGIN UPDATE folders
-  SET modified_at = datetime('now')
-  WHERE folder_id = NEW.folder_id;
-END;
-
 CREATE TABLE IF NOT EXISTS folder_secrets 
 (
     secret_id             INTEGER             PRIMARY KEY NOT NULL,
@@ -108,15 +99,6 @@ CREATE TABLE IF NOT EXISTS folder_secrets
 );
 CREATE INDEX IF NOT EXISTS folder_secrets_identifier_idx
   ON folder_secrets (identifier);
-
-CREATE TRIGGER
-  update_folder_secrets_modified_at
-AFTER UPDATE OF meta, secret ON folder_secrets
-FOR EACH ROW
-BEGIN UPDATE folder_secrets
-  SET modified_at = datetime('now')
-  WHERE secret_id = NEW.secret_id;
-END;
 
 -- Event logs for a folder
 CREATE TABLE IF NOT EXISTS folder_events 
@@ -202,15 +184,6 @@ CREATE TABLE IF NOT EXISTS preferences
       ON DELETE CASCADE
 );
 
-CREATE TRIGGER
-  update_preferences_modified_at
-AFTER UPDATE OF json_data ON preferences
-FOR EACH ROW
-BEGIN UPDATE preferences
-  SET modified_at = datetime('now')
-  WHERE preference_id = NEW.preference_id;
-END;
-
 -- Server remote origins for an account
 CREATE TABLE IF NOT EXISTS servers
 (
@@ -227,15 +200,6 @@ CREATE TABLE IF NOT EXISTS servers
     FOREIGN KEY (account_id) REFERENCES accounts (account_id)
       ON DELETE CASCADE
 );
-
-CREATE TRIGGER
-  update_servers_modified_at
-AFTER UPDATE OF name, url ON servers
-FOR EACH ROW
-BEGIN UPDATE servers
-  SET modified_at = datetime('now')
-  WHERE server_id = NEW.server_id;
-END;
 
 -- System messages
 CREATE TABLE IF NOT EXISTS system_messages

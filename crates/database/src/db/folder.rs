@@ -16,16 +16,16 @@ use std::result::Result as StdResult;
 #[derive(Debug)]
 pub struct FolderRow {
     pub row_id: i64,
-    pub created_at: String,
-    pub modified_at: String,
-    pub identifier: String,
-    pub name: String,
-    pub salt: Option<String>,
-    pub meta: Option<Vec<u8>>,
-    pub version: i64,
-    pub cipher: String,
-    pub kdf: String,
-    pub flags: Vec<u8>,
+    created_at: String,
+    modified_at: String,
+    identifier: String,
+    name: String,
+    salt: Option<String>,
+    meta: Option<Vec<u8>>,
+    version: i64,
+    cipher: String,
+    kdf: String,
+    flags: Vec<u8>,
 }
 
 impl<'a> TryFrom<&Row<'a>> for FolderRow {
@@ -67,8 +67,8 @@ pub struct FolderRecord {
 impl FolderRecord {
     /// Convert from a folder row.
     pub async fn from_row(value: FolderRow) -> Result<Self> {
-        let created_at = UtcDateTime::parse_utc_iso8601(&value.created_at)?;
-        let modified_at = UtcDateTime::parse_utc_iso8601(&value.modified_at)?;
+        let created_at = UtcDateTime::parse_rfc3339(&value.created_at)?;
+        let modified_at = UtcDateTime::parse_rfc3339(&value.modified_at)?;
         let folder_id: VaultId = value.identifier.parse()?;
         let version: u16 = value.version.try_into()?;
         let cipher = value.cipher.parse()?;
@@ -109,7 +109,7 @@ impl FolderRecord {
 #[derive(Debug)]
 pub struct SecretRow {
     pub row_id: i64,
-    pub created_at: String,
+    created_at: String,
     pub modified_at: String,
     pub identifier: String,
     pub commit: Vec<u8>,
@@ -146,8 +146,8 @@ pub struct SecretRecord {
 impl SecretRecord {
     /// Convert from a secret row.
     pub async fn from_row(value: SecretRow) -> Result<Self> {
-        let created_at = UtcDateTime::parse_utc_iso8601(&value.created_at)?;
-        let modified_at = UtcDateTime::parse_utc_iso8601(&value.modified_at)?;
+        let created_at = UtcDateTime::parse_rfc3339(&value.created_at)?;
+        let modified_at = UtcDateTime::parse_rfc3339(&value.modified_at)?;
         let secret_id: SecretId = value.identifier.parse()?;
         let commit_hash = CommitHash(value.commit.as_slice().try_into()?);
         let meta: AeadPack = decode(&value.meta).await?;

@@ -12,7 +12,7 @@ use time::{
         self,
         well_known::{Rfc2822, Rfc3339},
     },
-    Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset,
+    Date, Month, OffsetDateTime, Time, UtcOffset,
 };
 use time_tz::{OffsetDateTimeExt, TimeZone};
 
