@@ -1,9 +1,6 @@
 use anyhow::Result;
 use sos_backend::audit;
-use sos_test_utils::{
-    assert::assert_audit_provider,
-    mock::{insert_database_account, memory_database},
-};
+use sos_test_utils::{assert::assert_audit_provider, mock::memory_database};
 use tempfile::NamedTempFile;
 
 #[tokio::test]

@@ -60,8 +60,8 @@ impl TryFrom<AccountRow> for AccountRecord {
     type Error = Error;
 
     fn try_from(value: AccountRow) -> Result<Self, Self::Error> {
-        let created_at = UtcDateTime::parse_utc_iso8601(&value.created_at)?;
-        let modified_at = UtcDateTime::parse_utc_iso8601(&value.modified_at)?;
+        let created_at = UtcDateTime::parse_rfc3339(&value.created_at)?;
+        let modified_at = UtcDateTime::parse_rfc3339(&value.modified_at)?;
         let account_id: AccountId = value.identifier.parse()?;
 
         Ok(AccountRecord {

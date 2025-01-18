@@ -82,22 +82,6 @@ impl UtcDateTime {
         Ok(Self(OffsetDateTime::parse(value, &Rfc3339)?))
     }
 
-    /// Parse as a loose ISO8601 subset YYYY-MM-DD HH:MM:SS;
-    /// UTC offset is assumed.
-    ///
-    /// This is the format that SQLite stores DATETIME columns in
-    /// without the T separator required by ISO8601.
-    pub fn parse_utc_iso8601(value: &str) -> Result<Self> {
-        let format = format_description::parse(
-            "[year]-[month]-[day] [hour]:[minute]:[second]",
-        )?;
-        let date_time = PrimitiveDateTime::parse(value, &format)?;
-        Ok(Self(OffsetDateTime::new_utc(
-            date_time.date(),
-            date_time.time(),
-        )))
-    }
-
     /// Convert to a short human-readable date and time without
     /// the timezone offset.
     pub fn to_date_time(&self) -> Result<String> {
