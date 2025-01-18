@@ -2322,7 +2322,21 @@ impl Account for LocalAccount {
     ) -> Result<Vec<u8>> {
         let storage = self.storage.as_ref().ok_or(StorageError::NoStorage)?;
         let reader = storage.read().await;
-        Ok(reader.download_file(vault_id, secret_id, file_name).await?)
+        let buffer =
+            reader.download_file(vault_id, secret_id, file_name).await?;
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                Default::default(),
+                EventKind::DownloadFile,
+                *self.account_id(),
+                Some(AuditData::Secret(*vault_id, *secret_id)),
+            );
+            append_audit_events(&[audit_event]).await?;
+        }
+
+        Ok(buffer)
     }
 
     async fn create_secret(
