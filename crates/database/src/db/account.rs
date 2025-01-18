@@ -5,13 +5,30 @@ use std::ops::Deref;
 
 /// Account row from the database.
 #[doc(hidden)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct AccountRow {
+    /// Row identifier.
     pub row_id: i64,
+    /// RFC3339 date and time.
     pub created_at: String,
+    /// RFC3339 date and time.
     pub modified_at: String,
+    /// Account identifier.
     pub identifier: String,
+    /// Account name.
     pub name: String,
+}
+
+impl AccountRow {
+    pub fn new(identifier: String, name: String) -> Result<Self, Error> {
+        Ok(AccountRow {
+            identifier,
+            name,
+            created_at: UtcDateTime::default().to_rfc3339()?,
+            modified_at: UtcDateTime::default().to_rfc3339()?,
+            ..Default::default()
+        })
+    }
 }
 
 impl<'a> TryFrom<&Row<'a>> for AccountRow {
@@ -97,15 +114,21 @@ where
     /// Create the account entity in the database.
     pub fn insert(
         &self,
-        account_identifier: &str,
-        account_name: &str,
+        row: &AccountRow,
+        // account_identifier: &str,
+        // account_name: &str,
     ) -> Result<i64, SqlError> {
         self.conn.execute(
             r#"
-            INSERT INTO accounts (identifier, name)
-            VALUES (?1, ?2)
+            INSERT INTO accounts (identifier, name, created_at, modified_at)
+            VALUES (?1, ?2, ?3, ?4)
           "#,
-            (account_identifier, account_name),
+            (
+                &row.identifier,
+                &row.name,
+                &row.created_at,
+                &row.modified_at,
+            ),
         )?;
         Ok(self.conn.last_insert_rowid())
     }

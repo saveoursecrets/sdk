@@ -1,8 +1,8 @@
 //! Event log backed by a database table.
 use crate::{
     db::{
-        AccountEntity, AccountRecord, CommitRecord, EventEntity, EventTable,
-        FolderEntity, FolderRecord,
+        AccountEntity, AccountRecord, CommitRecord, EventEntity,
+        EventRecordRow, EventTable, FolderEntity, FolderRecord,
     },
     Error,
 };
@@ -120,7 +120,7 @@ where
 
     async fn insert_records(
         &mut self,
-        records: Vec<EventRecord>,
+        records: &[EventRecord],
         delete_before: bool,
     ) -> Result<(), E> {
         let table = self.table.clone();
@@ -131,10 +131,8 @@ where
         let mut commits = Vec::new();
         // let mut last_commit_hash = self.tree().last_commit().clone();
         for record in records {
-            // record.set_last_commit(last_commit_hash);
             commits.push(*record.commit());
-            // last_commit_hash = Some(*record.commit());
-            insert_rows.push((record.time().to_rfc3339()?, record));
+            insert_rows.push(EventRecordRow::new(&record)?);
         }
 
         // Insert into the database.
@@ -146,8 +144,11 @@ where
                 if delete_before {
                     events.delete_all_events(table, account_id, folder_id)?;
                 }
-                let ids =
-                    events.insert_events(table, account_id, insert_rows)?;
+                let ids = events.insert_events(
+                    table,
+                    account_id,
+                    insert_rows.as_slice(),
+                )?;
                 tx.commit()?;
                 Ok(ids)
             })
@@ -502,7 +503,7 @@ where
         &mut self,
         records: Vec<EventRecord>,
     ) -> Result<(), Self::Error> {
-        self.insert_records(records, false).await
+        self.insert_records(records.as_slice(), false).await
     }
 
     async fn patch_checked(
@@ -540,7 +541,7 @@ where
         diff: &Diff<T>,
     ) -> Result<(), Self::Error> {
         let records = diff.patch.records().to_vec();
-        self.insert_records(records, true).await?;
+        self.insert_records(records.as_slice(), true).await?;
 
         let computed = self.tree().head()?;
         let verified = computed == diff.checkpoint;

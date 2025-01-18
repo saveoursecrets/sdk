@@ -22,14 +22,6 @@ CREATE INDEX IF NOT EXISTS accounts_identifier_idx
   ON accounts (identifier);
 CREATE INDEX IF NOT EXISTS accounts_name_idx
   ON accounts (name);
-CREATE TRIGGER
-  update_account_modified_at
-AFTER UPDATE OF name ON accounts
-FOR EACH ROW
-BEGIN UPDATE accounts
-  SET modified_at = datetime('now')
-  WHERE account_id = NEW.account_id;
-END;
 
 -- Account identity login folder
 CREATE TABLE IF NOT EXISTS account_login_folder

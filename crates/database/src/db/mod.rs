@@ -12,10 +12,9 @@ mod server;
 #[cfg(feature = "system-messages")]
 mod system_message;
 
-pub use account::{AccountEntity, AccountRecord};
-pub(crate) use audit::AuditRow;
-pub use audit::{AuditEntity, AuditRecord};
-pub use event::{CommitRecord, EventEntity, EventTable};
+pub use account::{AccountEntity, AccountRecord, AccountRow};
+pub use audit::{AuditEntity, AuditRecord, AuditRow};
+pub use event::{CommitRecord, EventEntity, EventRecordRow, EventTable};
 // #[cfg(feature = "files")]
 // pub use file::FileEntity;
 pub use folder::{FolderEntity, FolderRecord, SecretRecord};

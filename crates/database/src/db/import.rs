@@ -1,6 +1,6 @@
 use super::{
-    AccountEntity, AuditEntity, EventEntity, FolderEntity, PreferenceEntity,
-    ServerEntity,
+    AccountEntity, AccountRow, AuditEntity, EventEntity, EventRecordRow,
+    FolderEntity, PreferenceEntity, ServerEntity,
 };
 use crate::Result;
 use async_sqlite::{
@@ -66,7 +66,7 @@ pub(crate) async fn import_globals(
         .conn_mut(move |conn| {
             let tx = conn.transaction()?;
             let audit_entity = AuditEntity::new(&tx);
-            audit_entity.insert_audit_logs(audit_events)?;
+            audit_entity.insert_audit_logs(audit_events.as_slice())?;
             if let Some(json_data) = global_preferences {
                 let pref_entity = PreferenceEntity::new(&tx);
                 pref_entity.insert_preferences(None, &json_data)?;
@@ -87,6 +87,7 @@ pub(crate) async fn import_account(
 ) -> Result<()> {
     let account_identifier = account.account_id().to_string();
     let account_name = account.label().to_owned();
+    let account_row = AccountRow::new(account_identifier, account_name)?;
 
     // Identity folder
     let buffer = vfs::read(paths.identity_vault()).await?;
@@ -159,8 +160,7 @@ pub(crate) async fn import_account(
 
             // Create the account
             let account_entity = AccountEntity::new(&tx);
-            let account_id =
-                account_entity.insert(&account_identifier, &account_name)?;
+            let account_id = account_entity.insert(&account_row)?;
 
             // Create the identity login folder
             let (identity_folder_id, _) = create_folder(
@@ -193,10 +193,14 @@ pub(crate) async fn import_account(
 
             // Create the account events
             let event_entity = EventEntity::new(&tx);
-            event_entity.insert_account_events(account_id, account_events)?;
+            event_entity.insert_account_events(
+                account_id,
+                account_events.as_slice(),
+            )?;
 
             // Create the device events
-            event_entity.insert_device_events(account_id, device_events)?;
+            event_entity
+                .insert_device_events(account_id, device_events.as_slice())?;
 
             // Create user folders
             let mut folder_ids = HashMap::new();
@@ -216,7 +220,8 @@ pub(crate) async fn import_account(
             #[cfg(feature = "files")]
             {
                 // Create the file events
-                event_entity.insert_file_events(account_id, file_events)?;
+                event_entity
+                    .insert_file_events(account_id, file_events.as_slice())?;
             }
 
             if let Some(json_data) = account_preferences {
@@ -254,39 +259,39 @@ async fn collect_vault_rows(
 
 async fn collect_account_events(
     path: impl AsRef<Path>,
-) -> Result<Vec<(String, EventRecord)>> {
+) -> Result<Vec<EventRecordRow>> {
     let mut events = Vec::new();
     let event_log = AccountEventLog::new_account(path).await?;
     let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {
-        events.push(convert_event_row(record?.0)?);
+        events.push(convert_event_row(&record?.0)?);
     }
     Ok(events)
 }
 
 async fn collect_folder_events(
     path: impl AsRef<Path>,
-) -> Result<Vec<(String, EventRecord)>> {
+) -> Result<Vec<EventRecordRow>> {
     let mut events = Vec::new();
     let event_log = FolderEventLog::new_folder(path).await?;
     let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {
-        events.push(convert_event_row(record?.0)?);
+        events.push(convert_event_row(&record?.0)?);
     }
     Ok(events)
 }
 
 async fn collect_device_events(
     path: impl AsRef<Path>,
-) -> Result<Vec<(String, EventRecord)>> {
+) -> Result<Vec<EventRecordRow>> {
     let mut events = Vec::new();
     let event_log = DeviceEventLog::new_device(path).await?;
     let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {
-        events.push(convert_event_row(record?.0)?);
+        events.push(convert_event_row(&record?.0)?);
     }
     Ok(events)
 }
@@ -294,19 +299,19 @@ async fn collect_device_events(
 #[cfg(feature = "files")]
 async fn collect_file_events(
     path: impl AsRef<Path>,
-) -> Result<Vec<(String, EventRecord)>> {
+) -> Result<Vec<EventRecordRow>> {
     let mut events = Vec::new();
     let event_log = FileEventLog::new_file(path).await?;
     let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {
-        events.push(convert_event_row(record?.0)?);
+        events.push(convert_event_row(&record?.0)?);
     }
     Ok(events)
 }
 
-fn convert_event_row(record: EventRecord) -> Result<(String, EventRecord)> {
-    Ok((record.time().to_rfc3339()?, record))
+fn convert_event_row(record: &EventRecord) -> Result<EventRecordRow> {
+    Ok(EventRecordRow::new(record)?)
 }
 
 fn create_folder(
@@ -315,7 +320,7 @@ fn create_folder(
     vault: Vault,
     meta: Option<Vec<u8>>,
     rows: Vec<(SecretId, CommitHash, Vec<u8>, Vec<u8>)>,
-    events: Option<Vec<(String, EventRecord)>>,
+    events: Option<Vec<EventRecordRow>>,
 ) -> std::result::Result<(i64, HashMap<SecretId, i64>), SqlError> {
     let salt = vault.salt().cloned();
     let folder_entity = FolderEntity::new(tx);
@@ -329,7 +334,7 @@ fn create_folder(
     if let Some(events) = events {
         // Insert the event rows
         let event_entity = EventEntity::new(tx);
-        event_entity.insert_folder_events(folder_id, events)?;
+        event_entity.insert_folder_events(folder_id, events.as_slice())?;
     }
     Ok((folder_id, secret_ids))
 }

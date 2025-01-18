@@ -18,7 +18,7 @@ pub enum EventTable {
     FileEvents,
 }
 
-type EventSourceRow = (String, EventRecord);
+// type EventSourceRow = (String, EventRecord);
 
 /// Commit row.
 #[derive(Debug)]
@@ -59,7 +59,7 @@ impl TryFrom<CommitRow> for CommitRecord {
 }
 
 /// Commit record row.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct EventRecordRow {
     /// Row identifier.
     pub row_id: i64,
@@ -69,6 +69,18 @@ pub struct EventRecordRow {
     pub commit_hash: Vec<u8>,
     /// Event bytes.
     pub event_bytes: Vec<u8>,
+}
+
+impl EventRecordRow {
+    /// Create a new event record row for insertion.
+    pub fn new(record: &EventRecord) -> Result<Self, Error> {
+        Ok(Self {
+            created_at: record.time().to_rfc3339()?,
+            commit_hash: record.commit().as_ref().to_vec(),
+            event_bytes: record.event_bytes().to_vec(),
+            ..Default::default()
+        })
+    }
 }
 
 impl<'a> TryFrom<&Row<'a>> for EventRecordRow {
@@ -214,7 +226,7 @@ where
         &self,
         table: EventTable,
         account_id: i64,
-        events: Vec<EventSourceRow>,
+        events: &[EventRecordRow],
     ) -> Result<Vec<i64>, SqlError> {
         let stmt = match table {
             EventTable::AccountEvents => {
@@ -263,7 +275,7 @@ where
     pub fn insert_account_events(
         &self,
         account_id: i64,
-        events: Vec<EventSourceRow>,
+        events: &[EventRecordRow],
     ) -> Result<Vec<i64>, SqlError> {
         self.insert_events(EventTable::AccountEvents, account_id, events)
     }
@@ -272,7 +284,7 @@ where
     pub fn insert_folder_events(
         &self,
         folder_id: i64,
-        events: Vec<EventSourceRow>,
+        events: &[EventRecordRow],
     ) -> Result<Vec<i64>, SqlError> {
         self.insert_events(EventTable::FolderEvents, folder_id, events)
     }
@@ -281,7 +293,7 @@ where
     pub fn insert_device_events(
         &self,
         account_id: i64,
-        events: Vec<EventSourceRow>,
+        events: &[EventRecordRow],
     ) -> Result<Vec<i64>, SqlError> {
         self.insert_events(EventTable::DeviceEvents, account_id, events)
     }
@@ -290,7 +302,7 @@ where
     pub fn insert_file_events(
         &self,
         account_id: i64,
-        events: Vec<EventSourceRow>,
+        events: &[EventRecordRow],
     ) -> Result<Vec<i64>, SqlError> {
         self.insert_events(EventTable::FileEvents, account_id, events)
     }
@@ -430,15 +442,15 @@ where
         &self,
         mut stmt: CachedStatement<'_>,
         id: i64,
-        events: Vec<EventSourceRow>,
+        events: &[EventRecordRow],
     ) -> Result<Vec<i64>, SqlError> {
         let mut ids = Vec::new();
-        for (time, record) in events {
+        for record in events {
             stmt.execute((
                 &id,
-                time,
-                record.commit().as_ref(),
-                record.event_bytes(),
+                &record.created_at,
+                &record.commit_hash,
+                &record.event_bytes,
             ))?;
             ids.push(self.conn.last_insert_rowid());
         }

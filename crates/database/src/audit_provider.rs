@@ -65,7 +65,7 @@ where
         self.client
             .conn(move |conn| {
                 let audit = AuditEntity::new(&conn);
-                audit.insert_audit_logs(audit_events)?;
+                audit.insert_audit_logs(audit_events.as_slice())?;
                 Ok(())
             })
             .await

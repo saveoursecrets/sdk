@@ -5,6 +5,8 @@ use sos_core::{events::EventKind, AccountId, UtcDateTime};
 use std::ops::Deref;
 
 /// Audit row.
+#[doc(hidden)]
+#[derive(Default, Debug)]
 pub struct AuditRow {
     /// Row identifier.
     pub row_id: i64,
@@ -28,11 +30,11 @@ impl TryFrom<&AuditEvent> for AuditRow {
             None
         };
         Ok(Self {
-            row_id: 0,
             created_at: value.time().to_rfc3339()?,
             account_id: value.account_id().to_string(),
             event_kind: value.event_kind().to_string(),
             data,
+            ..Default::default()
         })
     }
 }
@@ -98,9 +100,9 @@ where
     }
 
     /// Create audit logs in the database.
-    pub fn insert_audit_logs(
+    pub fn insert_audit_log(
         &self,
-        events: Vec<AuditRow>,
+        event: &AuditRow,
     ) -> std::result::Result<(), SqlError> {
         let mut stmt = self.conn.prepare_cached(
             r#"
@@ -109,13 +111,23 @@ where
                 VALUES (?1, ?2, ?3, ?4)
             "#,
         )?;
-        for source in events {
-            stmt.execute((
-                source.created_at,
-                source.account_id,
-                source.event_kind,
-                source.data,
-            ))?;
+        stmt.execute((
+            &event.created_at,
+            &event.account_id,
+            &event.event_kind,
+            &event.data,
+        ))?;
+
+        Ok(())
+    }
+
+    /// Create audit logs in the database.
+    pub fn insert_audit_logs(
+        &self,
+        events: &[AuditRow],
+    ) -> std::result::Result<(), SqlError> {
+        for event in events {
+            self.insert_audit_log(event)?;
         }
         Ok(())
     }
