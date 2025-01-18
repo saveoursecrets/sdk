@@ -3,8 +3,8 @@ use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
 };
 use sos_core::{
-    commit::CommitHash, crypto::AeadPack, decode, SecretId, UtcDateTime,
-    VaultCommit, VaultEntry, VaultFlags, VaultId,
+    commit::CommitHash, crypto::AeadPack, decode, encode, SecretId,
+    UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
 use sos_vault::Summary;
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ use std::result::Result as StdResult;
 
 /// Folder row from the database.
 #[doc(hidden)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct FolderRow {
     pub row_id: i64,
     created_at: String,
@@ -26,6 +26,29 @@ pub struct FolderRow {
     cipher: String,
     kdf: String,
     flags: Vec<u8>,
+}
+
+impl FolderRow {
+    /// Create a new folder row to be inserted.
+    pub fn new_insert(
+        summary: &Summary,
+        salt: Option<String>,
+        meta: Option<Vec<u8>>,
+    ) -> Result<Self> {
+        Ok(Self {
+            created_at: UtcDateTime::default().to_rfc3339()?,
+            modified_at: UtcDateTime::default().to_rfc3339()?,
+            identifier: summary.id().to_string(),
+            name: summary.name().to_string(),
+            salt,
+            meta,
+            version: *summary.version() as i64,
+            cipher: summary.cipher().to_string(),
+            kdf: summary.kdf().to_string(),
+            flags: summary.flags().bits().to_le_bytes().to_vec(),
+            ..Default::default()
+        })
+    }
 }
 
 impl<'a> TryFrom<&Row<'a>> for FolderRow {
@@ -106,15 +129,37 @@ impl FolderRecord {
 
 /// Secret row from the database.
 #[doc(hidden)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SecretRow {
     pub row_id: i64,
     created_at: String,
-    pub modified_at: String,
-    pub identifier: String,
-    pub commit: Vec<u8>,
-    pub meta: Vec<u8>,
-    pub secret: Vec<u8>,
+    modified_at: String,
+    identifier: String,
+    commit: Vec<u8>,
+    meta: Vec<u8>,
+    secret: Vec<u8>,
+}
+
+impl SecretRow {
+    /// Create a new secret row for insertion.
+    pub async fn new(
+        secret_id: &SecretId,
+        commit: &CommitHash,
+        entry: &VaultEntry,
+    ) -> Result<Self> {
+        let VaultEntry(meta, secret) = entry;
+        let meta = encode(meta).await?;
+        let secret = encode(secret).await?;
+        Ok(Self {
+            created_at: UtcDateTime::default().to_rfc3339()?,
+            modified_at: UtcDateTime::default().to_rfc3339()?,
+            identifier: secret_id.to_string(),
+            commit: commit.as_ref().to_vec(),
+            meta,
+            secret,
+            ..Default::default()
+        })
+    }
 }
 
 impl<'a> TryFrom<&Row<'a>> for SecretRow {
@@ -286,34 +331,39 @@ where
     pub fn insert_folder(
         &self,
         account_id: i64,
-        summary: &Summary,
-        salt: Option<String>,
-        meta: Option<Vec<u8>>,
+        folder_row: &FolderRow,
     ) -> StdResult<i64, SqlError> {
-        let identifier = summary.id().to_string();
-        let name = summary.name().to_string();
-        let version = summary.version();
-        let cipher = summary.cipher().to_string();
-        let kdf = summary.kdf().to_string();
-        let flags = summary.flags().bits().to_le_bytes();
-
         let mut stmt = self.conn.prepare_cached(
             r#"
               INSERT INTO folders
-                (account_id, identifier, name, salt, meta, version, cipher, kdf, flags)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                (
+                    account_id,
+                    created_at,
+                    modified_at,
+                    identifier,
+                    name,
+                    salt,
+                    meta,
+                    version,
+                    cipher,
+                    kdf,
+                    flags
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
             "#,
         )?;
         stmt.execute((
             &account_id,
-            &identifier,
-            &name,
-            &salt,
-            &meta,
-            &version,
-            &cipher,
-            &kdf,
-            &flags,
+            &folder_row.created_at,
+            &folder_row.modified_at,
+            &folder_row.identifier,
+            &folder_row.name,
+            &folder_row.salt,
+            &folder_row.meta,
+            &folder_row.version,
+            &folder_row.cipher,
+            &folder_row.kdf,
+            &folder_row.flags,
         ))?;
 
         Ok(self.conn.last_insert_rowid())
@@ -323,17 +373,12 @@ where
     pub fn insert_folder_secrets(
         &self,
         folder_id: i64,
-        rows: Vec<(SecretId, CommitHash, Vec<u8>, Vec<u8>)>,
+        rows: Vec<(SecretId, SecretRow)>,
     ) -> StdResult<HashMap<SecretId, i64>, SqlError> {
         let mut secret_ids = HashMap::new();
-        for (identifier, commit_hash, meta, secret) in rows {
-            let secret_id = self.insert_secret_by_row_id(
-                folder_id,
-                &identifier,
-                &commit_hash,
-                &meta,
-                &secret,
-            )?;
+        for (identifier, secret_row) in rows {
+            let secret_id =
+                self.insert_secret_by_row_id(folder_id, &secret_row)?;
             secret_ids.insert(identifier, secret_id);
         }
         Ok(secret_ids)
@@ -343,39 +388,33 @@ where
     pub fn insert_secret(
         &self,
         folder_id: &VaultId,
-        secret_id: &SecretId,
-        commit: &CommitHash,
-        meta: &[u8],
-        secret: &[u8],
+        secret_row: &SecretRow,
     ) -> StdResult<i64, SqlError> {
         let row = self.find_one(folder_id)?;
-        Ok(self.insert_secret_by_row_id(
-            row.row_id, secret_id, commit, meta, secret,
-        )?)
+        Ok(self.insert_secret_by_row_id(row.row_id, secret_row)?)
     }
 
     /// Insert a secret using the folder row id.
     pub fn insert_secret_by_row_id(
         &self,
         folder_id: i64,
-        secret_id: &SecretId,
-        commit: &CommitHash,
-        meta: &[u8],
-        secret: &[u8],
+        secret_row: &SecretRow,
     ) -> StdResult<i64, SqlError> {
         let mut stmt = self.conn.prepare_cached(
             r#"
             INSERT INTO folder_secrets
-              (folder_id, identifier, commit_hash, meta, secret)
-              VALUES (?1, ?2, ?3, ?4, ?5)
+              (folder_id, identifier, commit_hash, meta, secret, created_at, modified_at)
+              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
           "#,
         )?;
         stmt.execute((
             &folder_id,
-            &secret_id.to_string(),
-            commit.as_ref(),
-            meta,
-            secret,
+            &secret_row.identifier,
+            &secret_row.commit,
+            &secret_row.meta,
+            &secret_row.secret,
+            &secret_row.created_at,
+            &secret_row.modified_at,
         ))?;
         Ok(self.conn.last_insert_rowid())
     }
@@ -417,10 +456,7 @@ where
     pub fn update_secret(
         &self,
         folder_id: &VaultId,
-        secret_id: &SecretId,
-        commit: &CommitHash,
-        meta: &[u8],
-        secret: &[u8],
+        secret_row: &SecretRow,
     ) -> StdResult<bool, SqlError> {
         let row = self.find_one(folder_id)?;
         let mut stmt = self.conn.prepare_cached(
@@ -434,11 +470,11 @@ where
           "#,
         )?;
         let affected_rows = stmt.execute((
-            commit.as_ref(),
-            meta,
-            secret,
+            &secret_row.commit,
+            &secret_row.meta,
+            &secret_row.secret,
             row.row_id,
-            &secret_id.to_string(),
+            &secret_row.identifier,
         ))?;
         Ok(affected_rows > 0)
     }

@@ -64,11 +64,11 @@ pub struct EventRecordRow {
     /// Row identifier.
     pub row_id: i64,
     /// Row created date and time.
-    pub created_at: String,
+    created_at: String,
     /// Commit hash.
-    pub commit_hash: Vec<u8>,
+    commit_hash: Vec<u8>,
     /// Event bytes.
-    pub event_bytes: Vec<u8>,
+    event_bytes: Vec<u8>,
 }
 
 impl EventRecordRow {

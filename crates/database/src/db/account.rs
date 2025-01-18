@@ -10,19 +10,23 @@ pub struct AccountRow {
     /// Row identifier.
     pub row_id: i64,
     /// RFC3339 date and time.
-    pub created_at: String,
+    created_at: String,
     /// RFC3339 date and time.
-    pub modified_at: String,
+    modified_at: String,
     /// Account identifier.
-    pub identifier: String,
+    identifier: String,
     /// Account name.
-    pub name: String,
+    name: String,
 }
 
 impl AccountRow {
-    pub fn new(identifier: String, name: String) -> Result<Self, Error> {
+    /// Create an account row for insertion.
+    pub fn new_insert(
+        account_id: &AccountId,
+        name: String,
+    ) -> Result<Self, Error> {
         Ok(AccountRow {
-            identifier,
+            identifier: account_id.to_string(),
             name,
             created_at: UtcDateTime::default().to_rfc3339()?,
             modified_at: UtcDateTime::default().to_rfc3339()?,
@@ -63,7 +67,6 @@ impl TryFrom<AccountRow> for AccountRecord {
         let created_at = UtcDateTime::parse_rfc3339(&value.created_at)?;
         let modified_at = UtcDateTime::parse_rfc3339(&value.modified_at)?;
         let account_id: AccountId = value.identifier.parse()?;
-
         Ok(AccountRecord {
             row_id: value.row_id,
             created_at,

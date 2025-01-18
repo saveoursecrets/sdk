@@ -11,13 +11,13 @@ pub struct AuditRow {
     /// Row identifier.
     pub row_id: i64,
     /// RFC3339 date and time.
-    pub created_at: String,
+    created_at: String,
     /// Account identifier.
-    pub account_id: String,
+    account_id: String,
     /// Event kind string.
-    pub event_kind: String,
+    event_kind: String,
     /// Associated data encoded as JSON.
-    pub data: Option<String>,
+    data: Option<String>,
 }
 
 impl TryFrom<&AuditEvent> for AuditRow {

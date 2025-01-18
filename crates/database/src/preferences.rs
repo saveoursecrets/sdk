@@ -1,5 +1,5 @@
 use crate::{
-    db::{AccountEntity, PreferenceEntity},
+    db::{AccountEntity, PreferenceEntity, PreferenceRow},
     Error,
 };
 use async_sqlite::Client;
@@ -45,25 +45,28 @@ where
         &self,
         account_id: Option<&AccountId>,
         values: &PreferenceMap,
-    ) -> Result<(), E> {
+    ) -> Result<(), Error> {
         let account_id = account_id.cloned();
         let json_data = serde_json::to_string(values).map_err(Error::from)?;
         self.client
-            .conn(move |conn| match account_id {
+            .conn_and_then(move |conn| match account_id {
                 Some(account_id) => {
                     let account = AccountEntity::new(&conn);
                     let account_row = account.find_one(&account_id)?;
                     let prefs = PreferenceEntity::new(&conn);
                     prefs.upsert_preferences(
                         Some(account_row.row_id),
-                        &json_data,
+                        &PreferenceRow::new_update(json_data)?,
                     )?;
-                    Ok(())
+                    Ok::<_, Error>(())
                 }
                 None => {
                     let prefs = PreferenceEntity::new(&conn);
-                    prefs.upsert_preferences(None, &json_data)?;
-                    Ok(())
+                    prefs.upsert_preferences(
+                        None,
+                        &PreferenceRow::new_update(json_data)?,
+                    )?;
+                    Ok::<_, Error>(())
                 }
             })
             .await

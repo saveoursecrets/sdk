@@ -1,16 +1,39 @@
 use async_sqlite::rusqlite::{
     Connection, Error as SqlError, OptionalExtension, Row,
 };
+use sos_core::UtcDateTime;
+use sos_preferences::PreferenceMap;
 use std::ops::Deref;
 
 /// Preference row from the database.
 #[doc(hidden)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PreferenceRow {
     pub row_id: i64,
-    pub created_at: String,
-    pub modified_at: String,
-    pub json_data: String,
+    created_at: String,
+    modified_at: String,
+    json_data: String,
+}
+
+impl PreferenceRow {
+    /// Create a preference row to be inserted.
+    pub fn new_insert(map: &PreferenceMap) -> crate::Result<Self> {
+        Ok(Self {
+            created_at: UtcDateTime::default().to_rfc3339()?,
+            modified_at: UtcDateTime::default().to_rfc3339()?,
+            json_data: serde_json::to_string(map)?,
+            ..Default::default()
+        })
+    }
+
+    /// Create a preference row to be updated.
+    pub fn new_update(json_data: String) -> crate::Result<Self> {
+        Ok(Self {
+            modified_at: UtcDateTime::default().to_rfc3339()?,
+            json_data,
+            ..Default::default()
+        })
+    }
 }
 
 impl<'a> TryFrom<&Row<'a>> for PreferenceRow {
@@ -88,16 +111,26 @@ where
     pub fn insert_preferences(
         &self,
         account_id: Option<i64>,
-        json_data: &str,
+        row: &PreferenceRow,
     ) -> std::result::Result<(), SqlError> {
         let mut stmt = self.conn.prepare_cached(
             r#"
               INSERT INTO preferences
-                (account_id, json_data)
-                VALUES (?1, ?2)
+                (
+                    account_id,
+                    created_at,
+                    modified_at,
+                    json_data
+                )
+                VALUES (?1, ?2, ?3, ?4)
             "#,
         )?;
-        stmt.execute((account_id, json_data))?;
+        stmt.execute((
+            account_id,
+            &row.created_at,
+            &row.modified_at,
+            &row.json_data,
+        ))?;
         Ok(())
     }
 
@@ -108,16 +141,20 @@ where
     pub fn update_preferences(
         &self,
         account_id: Option<i64>,
-        json_data: &str,
+        row: &PreferenceRow,
     ) -> std::result::Result<(), SqlError> {
         let mut stmt = self.conn.prepare_cached(
             r#"
-              UPDATE preferences
-                SET json_data=?1
-                WHERE account_id=?2
+              UPDATE
+                    preferences
+                SET
+                    json_data=?1,
+                    modified_at=?2
+                WHERE
+                    account_id=?3
             "#,
         )?;
-        stmt.execute((json_data, account_id))?;
+        stmt.execute((&row.json_data, &row.modified_at, account_id))?;
         Ok(())
     }
 
@@ -128,14 +165,14 @@ where
     pub fn upsert_preferences(
         &self,
         account_id: Option<i64>,
-        json_data: &str,
+        row: &PreferenceRow,
     ) -> std::result::Result<(), SqlError> {
         let pref_row = self.find_optional(account_id)?;
         match pref_row {
             Some(_) => {
-                self.update_preferences(account_id, json_data)?;
+                self.update_preferences(account_id, row)?;
             }
-            None => self.insert_preferences(account_id, json_data)?,
+            None => self.insert_preferences(account_id, row)?,
         }
         Ok(())
     }

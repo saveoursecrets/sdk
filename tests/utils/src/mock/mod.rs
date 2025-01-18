@@ -17,7 +17,9 @@ use sos_core::{
     events::{EventLog, WriteEvent},
     AccountId, SecretId, VaultEntry,
 };
-use sos_database::db::{open_file, AccountEntity, AccountRow, FolderEntity};
+use sos_database::db::{
+    open_file, AccountEntity, AccountRow, FolderEntity, FolderRow,
+};
 use sos_password::diceware::generate_passphrase;
 use sos_vault::{
     secret::{FileContent, IdentityKind, Secret, SecretMeta},
@@ -203,8 +205,8 @@ pub async fn insert_database_account(
     client: &mut Client,
 ) -> Result<(AccountId, i64)> {
     let account_identifier = AccountId::random();
-    let account_row = AccountRow::new(
-        account_identifier.to_string(),
+    let account_row = AccountRow::new_insert(
+        &account_identifier,
         "mock-account".to_owned(),
     )?;
     Ok(client
@@ -231,15 +233,17 @@ pub async fn insert_database_vault(
         None
     };
     Ok(client
-        .conn_mut(move |conn| {
+        .conn_mut_and_then(move |conn| {
             let folder = FolderEntity::new(&conn);
             let folder_id = folder.insert_folder(
                 account_id,
-                vault.summary(),
-                salt,
-                meta,
+                &FolderRow::new_insert(vault.summary(), salt, meta)?,
             )?;
-            Ok((account_identifier, account_id, folder_id))
+            Ok::<_, anyhow::Error>((
+                account_identifier,
+                account_id,
+                folder_id,
+            ))
         })
         .await?)
 }

@@ -17,9 +17,11 @@ pub use audit::{AuditEntity, AuditRecord, AuditRow};
 pub use event::{CommitRecord, EventEntity, EventRecordRow, EventTable};
 // #[cfg(feature = "files")]
 // pub use file::FileEntity;
-pub use folder::{FolderEntity, FolderRecord, SecretRecord};
+pub use folder::{
+    FolderEntity, FolderRecord, FolderRow, SecretRecord, SecretRow,
+};
 #[cfg(feature = "preferences")]
-pub use preference::PreferenceEntity;
+pub use preference::{PreferenceEntity, PreferenceRow};
 pub use server::ServerEntity;
 #[cfg(feature = "system-messages")]
 pub use system_message::SystemMessageEntity;

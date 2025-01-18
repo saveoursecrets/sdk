@@ -12,7 +12,7 @@ use sos_core::{
             AccountDiff, AccountPatch, DeviceDiff, DevicePatch, FolderDiff,
             FolderPatch,
         },
-        AccountEvent, DeviceEvent, EventLogType, WriteEvent,
+        AccountEvent, DeviceEvent, WriteEvent,
     },
 };
 use std::collections::HashMap;

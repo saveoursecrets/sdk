@@ -1,6 +1,6 @@
 //! Write vault changes to a database.
 use crate::{
-    db::{FolderEntity, FolderRecord},
+    db::{FolderEntity, FolderRecord, SecretRecord, SecretRow},
     Error,
 };
 use async_sqlite::Client;
@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use sos_core::{
     commit::CommitHash,
     crypto::AeadPack,
-    decode, encode,
+    encode,
     events::{ReadEvent, WriteEvent},
     SecretId, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
@@ -154,19 +154,11 @@ where
         secret: VaultEntry,
     ) -> Result<WriteEvent, Self::Error> {
         let folder_id = self.folder_id.clone();
-        let VaultEntry(entry_meta, entry_secret) = &secret;
-        let meta_blob = encode(entry_meta).await?;
-        let secret_blob = encode(entry_secret).await?;
+        let secret_row = SecretRow::new(&secret_id, &commit, &secret).await?;
         self.client
             .conn(move |conn| {
                 let folder = FolderEntity::new(&conn);
-                folder.insert_secret(
-                    &folder_id,
-                    &secret_id,
-                    &commit,
-                    meta_blob.as_slice(),
-                    secret_blob.as_slice(),
-                )?;
+                folder.insert_secret(&folder_id, &secret_row)?;
                 Ok(())
             })
             .await
@@ -194,14 +186,8 @@ where
 
         let event = ReadEvent::ReadSecret(*secret_id);
         if let Some(row) = secret_row {
-            let commit_hash = CommitHash(
-                row.commit.as_slice().try_into().map_err(Error::from)?,
-            );
-            let meta: AeadPack = decode(&row.meta).await?;
-            let secret: AeadPack = decode(&row.secret).await?;
-            let entry = VaultEntry(meta, secret);
-            let commit = VaultCommit(commit_hash, entry);
-            Ok(Some((Cow::Owned(commit), event)))
+            let record = SecretRecord::from_row(row).await?;
+            Ok(Some((Cow::Owned(record.commit), event)))
         } else {
             Ok(None)
         }
@@ -214,21 +200,12 @@ where
         secret: VaultEntry,
     ) -> Result<Option<WriteEvent>, Self::Error> {
         let folder_id = self.folder_id.clone();
-        let folder_secret_id = *secret_id;
-        let VaultEntry(entry_meta, entry_secret) = &secret;
-        let meta_blob = encode(entry_meta).await?;
-        let secret_blob = encode(entry_secret).await?;
+        let secret_row = SecretRow::new(secret_id, &commit, &secret).await?;
         let updated = self
             .client
             .conn(move |conn| {
                 let folder = FolderEntity::new(&conn);
-                Ok(folder.update_secret(
-                    &folder_id,
-                    &folder_secret_id,
-                    &commit,
-                    meta_blob.as_slice(),
-                    secret_blob.as_slice(),
-                )?)
+                Ok(folder.update_secret(&folder_id, &secret_row)?)
             })
             .await
             .map_err(Error::from)?;
@@ -260,20 +237,11 @@ where
         vault: &Vault,
     ) -> Result<(), Self::Error> {
         let folder_id = self.folder_id.clone();
-
         let mut insert_secrets = Vec::new();
-        for (secret_id, secret) in vault.iter() {
-            let VaultCommit(commit, VaultEntry(entry_meta, entry_secret)) =
-                &secret;
-            let meta_blob = encode(entry_meta).await?;
-            let secret_blob = encode(entry_secret).await?;
-
-            insert_secrets.push((
-                *secret_id,
-                *commit,
-                meta_blob,
-                secret_blob,
-            ));
+        for (secret_id, commit) in vault.iter() {
+            let VaultCommit(commit, entry) = commit;
+            insert_secrets
+                .push(SecretRow::new(secret_id, commit, entry).await?);
         }
 
         self.client
@@ -282,13 +250,10 @@ where
                 let folder = FolderEntity::new(&tx);
                 let folder_row = folder.find_one(&folder_id)?;
                 folder.delete_all_secrets(&folder_id)?;
-                for (secret_id, commit, meta, secret) in insert_secrets {
+                for secret_row in insert_secrets {
                     folder.insert_secret_by_row_id(
                         folder_row.row_id,
-                        &secret_id,
-                        &commit,
-                        meta.as_slice(),
-                        secret.as_slice(),
+                        &secret_row,
                     )?;
                 }
                 tx.commit()?;

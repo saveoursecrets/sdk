@@ -1,28 +1,25 @@
 use super::{
     AccountEntity, AccountRow, AuditEntity, EventEntity, EventRecordRow,
-    FolderEntity, PreferenceEntity, ServerEntity,
+    FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, SecretRow,
+    ServerEntity,
 };
-use crate::Result;
-use async_sqlite::{
-    rusqlite::{Error as SqlError, Transaction},
-    Client,
-};
+use crate::{Error, Result};
+use async_sqlite::{rusqlite::Transaction, Client};
 use futures::{pin_mut, StreamExt};
 use sos_audit::AuditStreamSink;
-use sos_core::Origin;
-use sos_core::{commit::CommitHash, Paths, PublicIdentity, SecretId};
 use sos_core::{
     decode, encode,
     events::{EventLog, EventRecord},
-    VaultCommit, VaultEntry,
 };
+use sos_core::{Origin, VaultCommit};
+use sos_core::{Paths, PublicIdentity, SecretId};
 use sos_filesystem::audit_provider::AuditFileProvider;
 use sos_filesystem::{
     AccountEventLog as FsAccountEventLog, DeviceEventLog as FsDeviceEventLog,
     FolderEventLog as FsFolderEventLog,
 };
-use sos_vault::list_local_folders;
-use sos_vault::Vault;
+use sos_preferences::PreferenceMap;
+use sos_vault::{list_local_folders, Vault};
 use sos_vfs as vfs;
 use std::{collections::HashMap, path::Path};
 
@@ -44,7 +41,9 @@ pub(crate) async fn import_globals(
         Paths::new_global(paths.documents_dir().to_owned())
             .preferences_file();
     let global_preferences = if vfs::try_exists(&global_preferences).await? {
-        Some(vfs::read_to_string(global_preferences).await?)
+        let contents = vfs::read_to_string(global_preferences).await?;
+        let map: PreferenceMap = serde_json::from_str(&contents)?;
+        Some(PreferenceRow::new_insert(&map)?)
     } else {
         None
     };
@@ -85,9 +84,9 @@ pub(crate) async fn import_account(
     paths: &Paths,
     account: &PublicIdentity,
 ) -> Result<()> {
-    let account_identifier = account.account_id().to_string();
     let account_name = account.label().to_owned();
-    let account_row = AccountRow::new(account_identifier, account_name)?;
+    let account_row =
+        AccountRow::new_insert(account.account_id(), account_name)?;
 
     // Identity folder
     let buffer = vfs::read(paths.identity_vault()).await?;
@@ -140,12 +139,15 @@ pub(crate) async fn import_account(
         folders.push((vault, vault_meta, rows, events));
     }
 
-    let account_preferences =
-        if vfs::try_exists(paths.preferences_file()).await? {
-            Some(vfs::read_to_string(paths.preferences_file()).await?)
-        } else {
-            None
-        };
+    let account_preferences = if vfs::try_exists(paths.preferences_file())
+        .await?
+    {
+        let contents = vfs::read_to_string(paths.preferences_file()).await?;
+        let map: PreferenceMap = serde_json::from_str(&contents)?;
+        Some(PreferenceRow::new_insert(&map)?)
+    } else {
+        None
+    };
 
     let remote_servers = if vfs::try_exists(paths.remote_origins()).await? {
         let buffer = vfs::read(paths.remote_origins()).await?;
@@ -155,7 +157,7 @@ pub(crate) async fn import_account(
     };
 
     client
-        .conn_mut(move |conn| {
+        .conn_mut_and_then(move |conn| {
             let tx = conn.transaction()?;
 
             // Create the account
@@ -236,7 +238,7 @@ pub(crate) async fn import_account(
             }
 
             tx.commit()?;
-            Ok(())
+            Ok::<_, Error>(())
         })
         .await?;
 
@@ -245,14 +247,14 @@ pub(crate) async fn import_account(
 
 async fn collect_vault_rows(
     vault: &Vault,
-) -> Result<Vec<(SecretId, CommitHash, Vec<u8>, Vec<u8>)>> {
+) -> Result<Vec<(SecretId, SecretRow)>> {
     let mut rows = Vec::new();
-    for (identifier, commit) in vault.iter() {
-        let VaultCommit(hash, entry) = commit;
-        let VaultEntry(meta, secret) = entry;
-        let meta = encode(meta).await?;
-        let secret = encode(secret).await?;
-        rows.push((*identifier, *hash, meta, secret));
+    for (secret_id, commit) in vault.iter() {
+        let VaultCommit(commit, entry) = commit;
+        rows.push((
+            *secret_id,
+            SecretRow::new(secret_id, commit, entry).await?,
+        ));
     }
     Ok(rows)
 }
@@ -319,16 +321,14 @@ fn create_folder(
     account_id: i64,
     vault: Vault,
     meta: Option<Vec<u8>>,
-    rows: Vec<(SecretId, CommitHash, Vec<u8>, Vec<u8>)>,
+    rows: Vec<(SecretId, SecretRow)>,
     events: Option<Vec<EventRecordRow>>,
-) -> std::result::Result<(i64, HashMap<SecretId, i64>), SqlError> {
+) -> Result<(i64, HashMap<SecretId, i64>)> {
     let salt = vault.salt().cloned();
     let folder_entity = FolderEntity::new(tx);
     let folder_id = folder_entity.insert_folder(
         account_id,
-        vault.summary(),
-        salt,
-        meta,
+        &FolderRow::new_insert(vault.summary(), salt, meta)?,
     )?;
     let secret_ids = folder_entity.insert_folder_secrets(folder_id, rows)?;
     if let Some(events) = events {
