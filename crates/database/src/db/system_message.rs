@@ -165,7 +165,7 @@ where
                     created_at,
                     modified_at,
                     key,
-                    json_data,
+                    json_data
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5)
             "#,
