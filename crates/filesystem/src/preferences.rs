@@ -100,27 +100,28 @@ where
     async fn insert_preference(
         &self,
         account_id: Option<&AccountId>,
-        preferences: &PreferenceMap,
-        _key: &str,
-        _pref: &Preference,
+        key: &str,
+        pref: &Preference,
     ) -> Result<(), Self::Error> {
-        Ok(self.save(account_id, preferences).await?)
+        let mut prefs = self.load_preferences(account_id).await?;
+        prefs.inner_mut().insert(key.to_owned(), pref.clone());
+        Ok(self.save(account_id, &prefs).await?)
     }
 
     async fn remove_preference(
         &self,
         account_id: Option<&AccountId>,
-        preferences: &PreferenceMap,
-        _key: &str,
+        key: &str,
     ) -> Result<(), Self::Error> {
-        Ok(self.save(account_id, preferences).await?)
+        let mut prefs = self.load_preferences(account_id).await?;
+        prefs.inner_mut().remove(key);
+        Ok(self.save(account_id, &prefs).await?)
     }
 
     async fn clear_preferences(
         &self,
         account_id: Option<&AccountId>,
-        preferences: &PreferenceMap,
     ) -> Result<(), Self::Error> {
-        Ok(self.save(account_id, preferences).await?)
+        Ok(self.save(account_id, &Default::default()).await?)
     }
 }

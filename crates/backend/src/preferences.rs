@@ -9,14 +9,8 @@ use sos_preferences::{
     CachedPreferences, PreferenceManager, PreferenceStorageProvider,
     Preferences,
 };
-use std::{
-    path::PathBuf,
-    sync::{Arc, OnceLock},
-};
+use std::{path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
-
-static DB: OnceLock<Arc<PreferenceStorageProvider<Error>>> = OnceLock::new();
-static FS: OnceLock<Arc<PreferenceStorageProvider<Error>>> = OnceLock::new();
 
 /// Backend preferences.
 pub struct BackendPreferences(CachedPreferences<Error>);
@@ -37,18 +31,16 @@ impl BackendPreferences {
 
     /// Create preferences using JSON files on disc.
     pub fn new_fs(paths: Arc<Paths>) -> Self {
-        let provider = FS.get_or_init(|| {
-            Arc::new(Box::new(FsPreferenceProvider::new(paths)))
-        });
-        Self(CachedPreferences::new(provider.clone()))
+        let provider: PreferenceStorageProvider<Error> =
+            Box::new(FsPreferenceProvider::new(paths));
+        Self(CachedPreferences::new(Arc::new(provider)))
     }
 
     /// Create preferences using a database table.
     pub fn new_db(client: Client) -> Self {
-        let provider = DB.get_or_init(|| {
-            Arc::new(Box::new(DbPreferenceProvider::new(client)))
-        });
-        Self(CachedPreferences::new(provider.clone()))
+        let provider: PreferenceStorageProvider<Error> =
+            Box::new(DbPreferenceProvider::new(client));
+        Self(CachedPreferences::new(Arc::new(provider)))
     }
 }
 

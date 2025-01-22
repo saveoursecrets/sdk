@@ -13,10 +13,12 @@ use tempfile::tempdir_in;
 async fn fs_account_preferences() -> Result<()> {
     let temp = tempdir_in("target")?;
     let account_id = AccountId::random();
+
     let paths = Paths::new(temp.path(), account_id.to_string());
     paths.ensure().await?;
     let prefs = Preferences::new_fs(Arc::new(paths));
     prefs.new_account(&account_id).await?;
+
     let prefs = prefs.account_preferences(&account_id).await.unwrap();
     let mut prefs = prefs.lock().await;
     assert_preferences(&mut *prefs).await?;

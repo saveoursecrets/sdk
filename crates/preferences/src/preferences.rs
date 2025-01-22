@@ -73,7 +73,7 @@ pub trait PreferencesStorage {
     async fn insert_preference(
         &self,
         account_id: Option<&AccountId>,
-        preferences: &PreferenceMap,
+        // preferences: &PreferenceMap,
         key: &str,
         pref: &Preference,
     ) -> Result<(), Self::Error>;
@@ -82,7 +82,7 @@ pub trait PreferencesStorage {
     async fn remove_preference(
         &self,
         account_id: Option<&AccountId>,
-        preferences: &PreferenceMap,
+        // preferences: &PreferenceMap,
         key: &str,
     ) -> Result<(), Self::Error>;
 
@@ -90,7 +90,7 @@ pub trait PreferencesStorage {
     async fn clear_preferences(
         &self,
         account_id: Option<&AccountId>,
-        preferences: &PreferenceMap,
+        // preferences: &PreferenceMap,
     ) -> Result<(), Self::Error>;
 }
 
@@ -244,7 +244,17 @@ impl From<Vec<String>> for Preference {
 pub struct PreferenceMap(HashMap<String, Preference>);
 
 impl PreferenceMap {
-    /// Map iterator.
+    /// Inner hash map.
+    pub fn inner(&self) -> &HashMap<String, Preference> {
+        &self.0
+    }
+
+    /// Mutable inner hash map.
+    pub fn inner_mut(&mut self) -> &mut HashMap<String, Preference> {
+        &mut self.0
+    }
+
+    /// Borrowed iterator.
     pub fn iter(
         &self,
     ) -> std::collections::hash_map::Iter<'_, String, Preference> {
@@ -389,15 +399,10 @@ where
         key: String,
         value: Preference,
     ) -> Result<(), E> {
-        self.values.0.insert(key.clone(), value.clone());
         self.provider
-            .insert_preference(
-                self.account_id.as_ref(),
-                &self.values,
-                &key,
-                &value,
-            )
+            .insert_preference(self.account_id.as_ref(), &key, &value)
             .await?;
+        self.values.0.insert(key, value);
         Ok(())
     }
 
@@ -408,11 +413,7 @@ where
     ) -> Result<Option<Preference>, E> {
         let pref = self.values.0.remove(key.as_ref());
         self.provider
-            .remove_preference(
-                self.account_id.as_ref(),
-                &self.values,
-                key.as_ref(),
-            )
+            .remove_preference(self.account_id.as_ref(), key.as_ref())
             .await?;
         Ok(pref)
     }
@@ -421,7 +422,7 @@ where
     pub async fn clear(&mut self) -> Result<(), E> {
         self.values = Default::default();
         self.provider
-            .clear_preferences(self.account_id.as_ref(), &self.values)
+            .clear_preferences(self.account_id.as_ref())
             .await?;
         Ok(())
     }

@@ -177,7 +177,11 @@ CREATE TABLE IF NOT EXISTS preferences
     account_id            INTEGER,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
     modified_at           DATETIME            DEFAULT CURRENT_TIMESTAMP,
-    -- JSON encoded data for the preferences
+
+    -- String preference key
+    key                   TEXT                NOT NULL,
+
+    -- JSON encoded data for the preference
     json_data             TEXT                NOT NULL,
 
     FOREIGN KEY (account_id) REFERENCES accounts (account_id)
@@ -194,6 +198,7 @@ CREATE TABLE IF NOT EXISTS servers
 
     -- Server name
     name                  TEXT                NOT NULL,
+
     -- Server URL
     url                   TEXT                NOT NULL,
 

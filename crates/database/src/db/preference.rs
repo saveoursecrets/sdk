@@ -1,8 +1,9 @@
+use crate::{Error, Result};
 use async_sqlite::rusqlite::{
     Connection, Error as SqlError, OptionalExtension, Row,
 };
 use sos_core::UtcDateTime;
-use sos_preferences::PreferenceMap;
+use sos_preferences::Preference;
 use std::ops::Deref;
 
 /// Preference row from the database.
@@ -12,25 +13,28 @@ pub struct PreferenceRow {
     pub row_id: i64,
     created_at: String,
     modified_at: String,
+    key: String,
     json_data: String,
 }
 
 impl PreferenceRow {
     /// Create a preference row to be inserted.
-    pub fn new_insert(map: &PreferenceMap) -> crate::Result<Self> {
+    pub fn new_insert(key: &str, value: &Preference) -> Result<Self> {
         Ok(Self {
             created_at: UtcDateTime::default().to_rfc3339()?,
             modified_at: UtcDateTime::default().to_rfc3339()?,
-            json_data: serde_json::to_string(map)?,
+            key: key.to_owned(),
+            json_data: serde_json::to_string(value)?,
             ..Default::default()
         })
     }
 
     /// Create a preference row to be updated.
-    pub fn new_update(json_data: String) -> crate::Result<Self> {
+    pub fn new_update(key: &str, value: &Preference) -> Result<Self> {
         Ok(Self {
             modified_at: UtcDateTime::default().to_rfc3339()?,
-            json_data,
+            key: key.to_owned(),
+            json_data: serde_json::to_string(value)?,
             ..Default::default()
         })
     }
@@ -38,13 +42,23 @@ impl PreferenceRow {
 
 impl<'a> TryFrom<&Row<'a>> for PreferenceRow {
     type Error = SqlError;
-    fn try_from(row: &Row<'a>) -> Result<Self, Self::Error> {
+    fn try_from(row: &Row<'a>) -> std::result::Result<Self, Self::Error> {
         Ok(PreferenceRow {
             row_id: row.get(0)?,
             created_at: row.get(1)?,
             modified_at: row.get(2)?,
-            json_data: row.get(3)?,
+            key: row.get(3)?,
+            json_data: row.get(4)?,
         })
+    }
+}
+
+impl TryFrom<PreferenceRow> for (String, Preference) {
+    type Error = Error;
+
+    fn try_from(value: PreferenceRow) -> Result<Self> {
+        let pref: Preference = serde_json::from_str(&value.json_data)?;
+        Ok((value.key, pref))
     }
 }
 
@@ -65,24 +79,26 @@ where
         Self { conn }
     }
 
-    /// Find a collection of preferences in the database.
+    /// Find a preference in the database.
     pub fn find_optional(
         &self,
         account_id: Option<i64>,
-    ) -> Result<Option<PreferenceRow>, SqlError> {
+        key: &str,
+    ) -> std::result::Result<Option<PreferenceRow>, SqlError> {
         let mut stmt = self.conn.prepare_cached(
             r#"
                 SELECT
                     preference_id,
                     created_at,
                     modified_at,
+                    key,
                     json_data
                 FROM preferences
-                WHERE account_id=?1
+                WHERE account_id=?1 AND key=?2
             "#,
         )?;
         Ok(stmt
-            .query_row([account_id], |row| Ok(row.try_into()?))
+            .query_row((account_id, key), |row| Ok(row.try_into()?))
             .optional()?)
     }
 
@@ -93,22 +109,39 @@ where
     pub fn load_preferences(
         &self,
         account_id: Option<i64>,
-    ) -> std::result::Result<Option<String>, SqlError> {
+    ) -> Result<Vec<PreferenceRow>> {
         let mut stmt = self.conn.prepare_cached(
             r#"
-                SELECT json_data FROM preferences WHERE account_id=?1
+                SELECT
+                    preference_id,
+                    created_at,
+                    modified_at,
+                    key,
+                    json_data
+                FROM preferences
+                WHERE account_id=?1
             "#,
         )?;
-        Ok(stmt
-            .query_row([account_id], |row| Ok(row.get(0)?))
-            .optional()?)
+
+        fn convert_row(row: &Row<'_>) -> Result<PreferenceRow> {
+            Ok(row.try_into()?)
+        }
+
+        let rows = stmt.query_and_then([account_id], |row| {
+            Ok::<_, crate::Error>(convert_row(row)?)
+        })?;
+        let mut preferences = Vec::new();
+        for row in rows {
+            preferences.push(row?);
+        }
+        Ok(preferences)
     }
 
     /// Create preferences in the database.
     ///
     /// When no `account_id` is specified the preferences
     /// are global.
-    pub fn insert_preferences(
+    pub fn insert_preference(
         &self,
         account_id: Option<i64>,
         row: &PreferenceRow,
@@ -120,25 +153,42 @@ where
                     account_id,
                     created_at,
                     modified_at,
+                    key,
                     json_data
                 )
-                VALUES (?1, ?2, ?3, ?4)
+                VALUES (?1, ?2, ?3, ?4, ?5)
             "#,
         )?;
         stmt.execute((
             account_id,
             &row.created_at,
             &row.modified_at,
+            &row.key,
             &row.json_data,
         ))?;
         Ok(())
     }
 
-    /// Update preferences in the database.
+    /// Create preferences in the database.
     ///
     /// When no `account_id` is specified the preferences
     /// are global.
-    pub fn update_preferences(
+    pub fn insert_preferences(
+        &self,
+        account_id: Option<i64>,
+        rows: &[PreferenceRow],
+    ) -> std::result::Result<(), SqlError> {
+        for row in rows {
+            self.insert_preference(account_id, row)?;
+        }
+        Ok(())
+    }
+
+    /// Update preference in the database.
+    ///
+    /// When no `account_id` is specified the preferences
+    /// are global.
+    pub fn update_preference(
         &self,
         account_id: Option<i64>,
         row: &PreferenceRow,
@@ -151,10 +201,15 @@ where
                     json_data=?1,
                     modified_at=?2
                 WHERE
-                    account_id=?3
+                    account_id=?3 AND key=?4
             "#,
         )?;
-        stmt.execute((&row.json_data, &row.modified_at, account_id))?;
+        stmt.execute((
+            &row.json_data,
+            &row.modified_at,
+            account_id,
+            &row.key,
+        ))?;
         Ok(())
     }
 
@@ -162,18 +217,47 @@ where
     ///
     /// When no `account_id` is specified the preferences
     /// are global.
-    pub fn upsert_preferences(
+    pub fn upsert_preference(
         &self,
         account_id: Option<i64>,
         row: &PreferenceRow,
     ) -> std::result::Result<(), SqlError> {
-        let pref_row = self.find_optional(account_id)?;
+        let pref_row = self.find_optional(account_id, &row.key)?;
         match pref_row {
             Some(_) => {
-                self.update_preferences(account_id, row)?;
+                self.update_preference(account_id, row)?;
             }
-            None => self.insert_preferences(account_id, row)?,
+            None => self.insert_preference(account_id, row)?,
         }
+        Ok(())
+    }
+
+    /// Delete a preference from the database.
+    pub fn delete_preference(
+        &self,
+        account_id: Option<i64>,
+        key: &str,
+    ) -> std::result::Result<(), SqlError> {
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+                DELETE FROM preferences WHERE account_id=?1 AND key=?2
+            "#,
+        )?;
+        stmt.execute((account_id, key))?;
+        Ok(())
+    }
+
+    /// Delete all preferences from the database.
+    pub fn delete_all_preferences(
+        &self,
+        account_id: Option<i64>,
+    ) -> std::result::Result<(), SqlError> {
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+                DELETE FROM preferences WHERE account_id=?1
+            "#,
+        )?;
+        stmt.execute([account_id])?;
         Ok(())
     }
 }

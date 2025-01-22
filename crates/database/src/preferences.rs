@@ -39,40 +39,6 @@ where
             marker: std::marker::PhantomData,
         }
     }
-
-    /// Save these preferences to disc.
-    async fn save(
-        &self,
-        account_id: Option<&AccountId>,
-        values: &PreferenceMap,
-    ) -> Result<(), Error> {
-        let account_id = account_id.cloned();
-        let json_data = serde_json::to_string(values).map_err(Error::from)?;
-        self.client
-            .conn_and_then(move |conn| match account_id {
-                Some(account_id) => {
-                    let account = AccountEntity::new(&conn);
-                    let account_row = account.find_one(&account_id)?;
-                    let prefs = PreferenceEntity::new(&conn);
-                    prefs.upsert_preferences(
-                        Some(account_row.row_id),
-                        &PreferenceRow::new_update(json_data)?,
-                    )?;
-                    Ok::<_, Error>(())
-                }
-                None => {
-                    let prefs = PreferenceEntity::new(&conn);
-                    prefs.upsert_preferences(
-                        None,
-                        &PreferenceRow::new_update(json_data)?,
-                    )?;
-                    Ok::<_, Error>(())
-                }
-            })
-            .await
-            .map_err(Error::from)?;
-        Ok(())
-    }
 }
 
 #[async_trait]
@@ -93,54 +59,106 @@ where
         account_id: Option<&AccountId>,
     ) -> Result<PreferenceMap, Self::Error> {
         let account_id = account_id.cloned();
-        let json_data = self
+        let rows = self
+            .client
+            .conn_and_then(move |conn| match account_id {
+                Some(account_id) => {
+                    let account = AccountEntity::new(&conn);
+                    let account_row = account.find_one(&account_id)?;
+                    let prefs = PreferenceEntity::new(&conn);
+                    Ok::<_, Error>(
+                        prefs.load_preferences(Some(account_row.row_id))?,
+                    )
+                }
+                None => {
+                    let prefs = PreferenceEntity::new(&conn);
+                    Ok::<_, Error>(prefs.load_preferences(None)?)
+                }
+            })
+            .await?;
+
+        let mut map: PreferenceMap = Default::default();
+        for row in rows {
+            let (key, pref) = row.try_into()?;
+            map.inner_mut().insert(key, pref);
+        }
+        Ok(map)
+    }
+
+    async fn insert_preference(
+        &self,
+        account_id: Option<&AccountId>,
+        key: &str,
+        pref: &Preference,
+    ) -> Result<(), Self::Error> {
+        let account_id = account_id.cloned();
+        let row = PreferenceRow::new_update(key, pref)?;
+        Ok(self
             .client
             .conn(move |conn| match account_id {
                 Some(account_id) => {
                     let account = AccountEntity::new(&conn);
                     let account_row = account.find_one(&account_id)?;
                     let prefs = PreferenceEntity::new(&conn);
-                    Ok(prefs.load_preferences(Some(account_row.row_id))?)
+                    Ok(prefs
+                        .upsert_preference(Some(account_row.row_id), &row)?)
                 }
                 None => {
                     let prefs = PreferenceEntity::new(&conn);
-                    Ok(prefs.load_preferences(None)?)
+                    Ok(prefs.upsert_preference(None, &row)?)
                 }
             })
             .await
-            .map_err(Error::from)?;
-        Ok(if let Some(json_data) = json_data {
-            serde_json::from_str::<PreferenceMap>(&json_data)
-                .map_err(Error::from)?
-        } else {
-            Default::default()
-        })
-    }
-
-    async fn insert_preference(
-        &self,
-        account_id: Option<&AccountId>,
-        preferences: &PreferenceMap,
-        _key: &str,
-        _pref: &Preference,
-    ) -> Result<(), Self::Error> {
-        Ok(self.save(account_id, preferences).await?)
+            .map_err(Error::from)?)
     }
 
     async fn remove_preference(
         &self,
         account_id: Option<&AccountId>,
-        preferences: &PreferenceMap,
-        _key: &str,
+        key: &str,
     ) -> Result<(), Self::Error> {
-        Ok(self.save(account_id, preferences).await?)
+        let account_id = account_id.cloned();
+        let key = key.to_owned();
+        Ok(self
+            .client
+            .conn(move |conn| match account_id {
+                Some(account_id) => {
+                    let account = AccountEntity::new(&conn);
+                    let account_row = account.find_one(&account_id)?;
+                    let prefs = PreferenceEntity::new(&conn);
+                    Ok(prefs
+                        .delete_preference(Some(account_row.row_id), &key)?)
+                }
+                None => {
+                    let prefs = PreferenceEntity::new(&conn);
+                    Ok(prefs.delete_preference(None, &key)?)
+                }
+            })
+            .await
+            .map_err(Error::from)?)
     }
 
     async fn clear_preferences(
         &self,
         account_id: Option<&AccountId>,
-        preferences: &PreferenceMap,
     ) -> Result<(), Self::Error> {
-        Ok(self.save(account_id, preferences).await?)
+        let account_id = account_id.cloned();
+        Ok(self
+            .client
+            .conn(move |conn| match account_id {
+                Some(account_id) => {
+                    let account = AccountEntity::new(&conn);
+                    let account_row = account.find_one(&account_id)?;
+                    let prefs = PreferenceEntity::new(&conn);
+                    Ok(prefs
+                        .delete_all_preferences(Some(account_row.row_id))?)
+                }
+                None => {
+                    let prefs = PreferenceEntity::new(&conn);
+                    Ok(prefs.delete_all_preferences(None)?)
+                }
+            })
+            .await
+            .map_err(Error::from)?)
     }
 }

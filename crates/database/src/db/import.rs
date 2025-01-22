@@ -44,7 +44,11 @@ pub(crate) async fn import_globals(
     let global_preferences = if vfs::try_exists(&global_preferences).await? {
         let contents = vfs::read_to_string(global_preferences).await?;
         let map: PreferenceMap = serde_json::from_str(&contents)?;
-        Some(PreferenceRow::new_insert(&map)?)
+        let mut rows = Vec::new();
+        for (key, value) in map.iter() {
+            rows.push(PreferenceRow::new_insert(&key, &value)?);
+        }
+        Some(rows)
     } else {
         None
     };
@@ -67,9 +71,9 @@ pub(crate) async fn import_globals(
             let tx = conn.transaction()?;
             let audit_entity = AuditEntity::new(&tx);
             audit_entity.insert_audit_logs(audit_events.as_slice())?;
-            if let Some(json_data) = global_preferences {
+            if let Some(rows) = global_preferences {
                 let pref_entity = PreferenceEntity::new(&tx);
-                pref_entity.insert_preferences(None, &json_data)?;
+                pref_entity.insert_preferences(None, rows.as_slice())?;
             }
             tx.commit()?;
             Ok(())
@@ -145,7 +149,11 @@ pub(crate) async fn import_account(
     {
         let contents = vfs::read_to_string(paths.preferences_file()).await?;
         let map: PreferenceMap = serde_json::from_str(&contents)?;
-        Some(PreferenceRow::new_insert(&map)?)
+        let mut rows = Vec::new();
+        for (key, value) in map.iter() {
+            rows.push(PreferenceRow::new_insert(&key, &value)?);
+        }
+        Some(rows)
     } else {
         None
     };
