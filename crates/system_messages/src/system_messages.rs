@@ -221,11 +221,18 @@ impl From<HashMap<Urn, SysMessage>> for SystemMessageMap {
 }
 
 impl SystemMessageMap {
-    /// Map iterator.
+    /// Borrowed iterator.
     pub fn iter(
         &self,
     ) -> std::collections::hash_map::Iter<'_, Urn, SysMessage> {
         self.0.iter()
+    }
+
+    /// Owned iterator.
+    pub fn into_iter(
+        self,
+    ) -> std::collections::hash_map::IntoIter<Urn, SysMessage> {
+        self.0.into_iter()
     }
 }
 

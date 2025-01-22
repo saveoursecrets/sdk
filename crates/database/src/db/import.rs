@@ -1,9 +1,9 @@
 use super::{
     AccountEntity, AccountRow, AuditEntity, EventEntity, EventRecordRow,
     FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, SecretRow,
-    ServerEntity,
+    ServerEntity, SystemMessageEntity,
 };
-use crate::{Error, Result};
+use crate::{db::SystemMessageRow, Error, Result};
 use async_sqlite::{rusqlite::Transaction, Client};
 use futures::{pin_mut, StreamExt};
 use sos_audit::AuditStreamSink;
@@ -19,6 +19,7 @@ use sos_filesystem::{
     FolderEventLog as FsFolderEventLog,
 };
 use sos_preferences::PreferenceMap;
+use sos_system_messages::SystemMessageMap;
 use sos_vault::{list_local_folders, Vault};
 use sos_vfs as vfs;
 use std::{collections::HashMap, path::Path};
@@ -149,9 +150,29 @@ pub(crate) async fn import_account(
         None
     };
 
+    let account_messages =
+        if vfs::try_exists(paths.system_messages_file()).await? {
+            let contents =
+                vfs::read_to_string(paths.system_messages_file()).await?;
+            let map: SystemMessageMap = serde_json::from_str(&contents)?;
+
+            let mut rows: Vec<SystemMessageRow> = Vec::new();
+            for item in map.into_iter() {
+                rows.push(item.try_into()?);
+            }
+            Some(rows)
+        } else {
+            None
+        };
+
     let remote_servers = if vfs::try_exists(paths.remote_origins()).await? {
         let buffer = vfs::read(paths.remote_origins()).await?;
-        Some(serde_json::from_slice::<Vec<Origin>>(&buffer)?)
+        let origins = serde_json::from_slice::<Vec<Origin>>(&buffer)?;
+        let mut rows = Vec::new();
+        for origin in origins {
+            rows.push(origin.try_into()?);
+        }
+        Some(rows)
     } else {
         None
     };
@@ -232,9 +253,16 @@ pub(crate) async fn import_account(
                     .insert_preferences(Some(account_id), &json_data)?;
             }
 
+            if let Some(rows) = account_messages {
+                let msg_entity = SystemMessageEntity::new(&tx);
+                msg_entity
+                    .insert_system_messages(account_id, &rows.as_slice())?;
+            }
+
             if let Some(servers) = remote_servers {
                 let server_entity = ServerEntity::new(&tx);
-                server_entity.insert_servers(account_id, servers)?;
+                server_entity
+                    .insert_servers(account_id, servers.as_slice())?;
             }
 
             tx.commit()?;

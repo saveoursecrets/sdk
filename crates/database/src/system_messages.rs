@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    db::{AccountEntity, SystemMessageEntity},
+    db::{AccountEntity, SystemMessageEntity, SystemMessageRow},
     Error,
 };
 use async_sqlite::Client;
@@ -97,19 +97,15 @@ where
         message: SysMessage,
     ) -> Result<(), Self::Error> {
         let account_id = self.account_id.clone();
-        let key = key.to_string();
-        let message = serde_json::to_string(&message).map_err(Error::from)?;
+        let row: SystemMessageRow = (key, message).try_into()?;
         Ok(self
             .client
             .conn(move |conn| {
                 let account = AccountEntity::new(&conn);
                 let account_row = account.find_one(&account_id)?;
                 let messages = SystemMessageEntity::new(&conn);
-                Ok(messages.insert_system_message(
-                    account_row.row_id,
-                    &key,
-                    &message,
-                )?)
+                Ok(messages
+                    .insert_system_message(account_row.row_id, &row)?)
             })
             .await
             .map_err(Error::from)?)

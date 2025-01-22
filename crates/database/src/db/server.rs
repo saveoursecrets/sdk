@@ -2,19 +2,19 @@ use crate::Result;
 use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
 };
-use sos_core::Origin;
+use sos_core::{Origin, UtcDateTime};
 use std::ops::Deref;
 use url::Url;
 
 /// Server row from the database.
 #[doc(hidden)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ServerRow {
     pub row_id: i64,
-    pub created_at: String,
-    pub modified_at: String,
-    pub name: String,
-    pub url: String,
+    created_at: String,
+    modified_at: String,
+    name: String,
+    url: String,
 }
 
 impl<'a> TryFrom<&Row<'a>> for ServerRow {
@@ -34,6 +34,19 @@ impl TryFrom<ServerRow> for Origin {
     type Error = crate::Error;
     fn try_from(row: ServerRow) -> std::result::Result<Self, Self::Error> {
         Ok(Origin::new(row.name, row.url.parse()?))
+    }
+}
+
+impl TryFrom<Origin> for ServerRow {
+    type Error = crate::Error;
+    fn try_from(value: Origin) -> std::result::Result<Self, Self::Error> {
+        Ok(Self {
+            created_at: UtcDateTime::default().to_rfc3339()?,
+            modified_at: UtcDateTime::default().to_rfc3339()?,
+            name: value.name().to_string(),
+            url: value.url().to_string(),
+            ..Default::default()
+        })
     }
 }
 
@@ -144,16 +157,22 @@ where
     pub fn insert_server(
         &self,
         account_id: i64,
-        server: Origin,
+        server: &ServerRow,
     ) -> std::result::Result<(), SqlError> {
         let mut stmt = self.conn.prepare_cached(
             r#"
               INSERT INTO servers
-                (account_id, name, url)
-                VALUES (?1, ?2, ?3)
+                (account_id, created_at, modified_at, name, url)
+                VALUES (?1, ?2, ?3, ?4, ?5)
             "#,
         )?;
-        stmt.execute((account_id, server.name(), server.url().to_string()))?;
+        stmt.execute((
+            account_id,
+            &server.created_at,
+            &server.modified_at,
+            &server.name,
+            &server.url,
+        ))?;
 
         Ok(())
     }
@@ -162,7 +181,7 @@ where
     pub fn insert_servers(
         &self,
         account_id: i64,
-        servers: Vec<Origin>,
+        servers: &[ServerRow],
     ) -> std::result::Result<(), SqlError> {
         for server in servers {
             self.insert_server(account_id, server)?;

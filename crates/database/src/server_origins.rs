@@ -1,5 +1,5 @@
 use crate::{
-    db::{AccountEntity, ServerEntity},
+    db::{AccountEntity, ServerEntity, ServerRow},
     Error,
 };
 use async_sqlite::Client;
@@ -65,6 +65,7 @@ where
     ) -> Result<(), E> {
         let account_id = self.account_id.clone();
         let remove = remove.cloned();
+        let server_row: ServerRow = origin.try_into()?;
         self.client
             .conn_mut(move |conn| {
                 let tx = conn.transaction()?;
@@ -78,7 +79,7 @@ where
                     servers.delete_server(server_row.row_id)?;
                 }
 
-                servers.insert_server(account_row.row_id, origin)?;
+                servers.insert_server(account_row.row_id, &server_row)?;
 
                 tx.commit()?;
                 Ok(())

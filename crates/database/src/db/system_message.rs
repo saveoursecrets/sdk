@@ -1,18 +1,19 @@
 use crate::Result;
 use async_sqlite::rusqlite::{Connection, Error as SqlError, Row};
+use sos_core::UtcDateTime;
 use sos_system_messages::SysMessage;
 use std::ops::Deref;
 use urn::Urn;
 
 /// SystemMessage row from the database.
 #[doc(hidden)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SystemMessageRow {
     pub row_id: i64,
-    pub created_at: String,
-    pub modified_at: String,
-    pub key: String,
-    pub json_data: String,
+    created_at: String,
+    modified_at: String,
+    key: String,
+    json_data: String,
 }
 
 impl<'a> TryFrom<&Row<'a>> for SystemMessageRow {
@@ -34,6 +35,21 @@ impl TryFrom<SystemMessageRow> for (Urn, SysMessage) {
         row: SystemMessageRow,
     ) -> std::result::Result<Self, Self::Error> {
         Ok((row.key.parse()?, serde_json::from_str(&row.json_data)?))
+    }
+}
+
+impl TryFrom<(Urn, SysMessage)> for SystemMessageRow {
+    type Error = crate::Error;
+    fn try_from(
+        value: (Urn, SysMessage),
+    ) -> std::result::Result<Self, Self::Error> {
+        Ok(Self {
+            created_at: UtcDateTime::default().to_rfc3339()?,
+            modified_at: UtcDateTime::default().to_rfc3339()?,
+            key: value.0.to_string(),
+            json_data: serde_json::to_string(&value.1)?,
+            ..Default::default()
+        })
     }
 }
 
@@ -139,17 +155,28 @@ where
     pub fn insert_system_message(
         &self,
         account_id: i64,
-        key: &str,
-        json_data: &str,
+        row: &SystemMessageRow,
     ) -> std::result::Result<(), SqlError> {
         let mut stmt = self.conn.prepare_cached(
             r#"
               INSERT INTO system_messages
-                (account_id, key, json_data)
-                VALUES (?1, ?2, ?3)
+                (
+                    account_id,
+                    created_at,
+                    modified_at,
+                    key,
+                    json_data,
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5)
             "#,
         )?;
-        stmt.execute((account_id, key, json_data))?;
+        stmt.execute((
+            account_id,
+            &row.created_at,
+            &row.modified_at,
+            &row.key,
+            &row.json_data,
+        ))?;
         Ok(())
     }
 
@@ -157,10 +184,10 @@ where
     pub fn insert_system_messages(
         &self,
         account_id: i64,
-        system_messages: Vec<(&str, &str)>,
+        system_messages: &[SystemMessageRow],
     ) -> std::result::Result<(), SqlError> {
-        for (key, json_data) in system_messages {
-            self.insert_system_message(account_id, key, json_data)?;
+        for row in system_messages {
+            self.insert_system_message(account_id, row)?;
         }
         Ok(())
     }

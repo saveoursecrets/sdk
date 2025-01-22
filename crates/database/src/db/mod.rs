@@ -22,9 +22,9 @@ pub use folder::{
 };
 #[cfg(feature = "preferences")]
 pub use preference::{PreferenceEntity, PreferenceRow};
-pub use server::ServerEntity;
+pub use server::{ServerEntity, ServerRow};
 #[cfg(feature = "system-messages")]
-pub use system_message::SystemMessageEntity;
+pub use system_message::{SystemMessageEntity, SystemMessageRow};
 
 pub(crate) use import::{import_account, import_globals};
 
