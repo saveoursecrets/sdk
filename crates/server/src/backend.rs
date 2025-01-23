@@ -1,9 +1,6 @@
 use super::{Error, Result};
-use sos_backend::FolderEventLog;
-use sos_core::{device::DevicePublicKey, events::EventLog, AccountId, Paths};
-use sos_server_storage::{
-    filesystem::ServerFileStorage, ServerAccountStorage, ServerStorage,
-};
+use sos_core::{device::DevicePublicKey, AccountId, Paths};
+use sos_server_storage::{ServerAccountStorage, ServerStorage};
 use sos_signer::ed25519::{self, Verifier, VerifyingKey};
 use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
 use sos_vfs as vfs;
@@ -60,7 +57,7 @@ impl Backend {
         }
 
         tracing::debug!(
-            directory = %self.directory.display(), "backend::read_dir");
+            directory = %self.directory.display(), "server_backend::read_dir");
 
         Paths::scaffold(Some(self.directory.clone())).await?;
         let paths = Paths::new_global_server(self.directory.clone());
@@ -74,38 +71,23 @@ impl Backend {
             let path = entry.path();
             if vfs::metadata(&path).await?.is_dir() {
                 if let Some(name) = path.file_stem() {
-                    if let Ok(owner) =
+                    if let Ok(account_id) =
                         name.to_string_lossy().parse::<AccountId>()
                     {
                         tracing::debug!(
-                            account = %owner,
-                            "backend::read_dir",
+                            account_id = %account_id,
+                            "server_backend::read_dir",
                         );
 
-                        let user_paths = Paths::new_server(
-                            self.directory.clone(),
-                            owner.to_string(),
-                        );
-
-                        let mut event_log = FolderEventLog::new_fs_folder(
-                            user_paths.identity_events(),
+                        let account = ServerStorage::new_fs(
+                            &self.directory,
+                            &account_id,
                         )
                         .await?;
-                        event_log.load_tree().await?;
-                        let identity_log = Arc::new(RwLock::new(event_log));
-
-                        let account = ServerStorage::FileSystem(
-                            ServerFileStorage::new(
-                                owner.clone(),
-                                Some(self.directory.clone()),
-                                identity_log,
-                            )
-                            .await?,
-                        );
 
                         let mut accounts = self.accounts.write().await;
                         let account = accounts
-                            .entry(owner.clone())
+                            .entry(account_id)
                             .or_insert(Arc::new(RwLock::new(account)));
                         let mut writer = account.write().await;
                         writer.load_folders().await?;
@@ -119,54 +101,48 @@ impl Backend {
     /// Create an account.
     pub async fn create_account(
         &mut self,
-        owner: &AccountId,
+        account_id: &AccountId,
         account_data: CreateSet,
     ) -> Result<()> {
         {
             let accounts = self.accounts.read().await;
-            let account = accounts.get(owner);
-
+            let account = accounts.get(account_id);
             if account.is_some() {
-                return Err(Error::AccountExists(*owner));
+                return Err(Error::AccountExists(*account_id));
             }
         }
 
-        tracing::debug!(address = %owner, "backend::create_account");
+        tracing::debug!(
+            account_id = %account_id,
+            "server_backend::create_account",
+        );
 
-        let paths =
-            Paths::new_server(self.directory.clone(), owner.to_string());
-        paths.ensure().await?;
-
-        let identity_log = ServerFileStorage::initialize_account(
-            &paths,
-            &account_data.identity,
+        let account = ServerStorage::create_fs_account(
+            &self.directory,
+            account_id,
+            &account_data,
         )
         .await?;
 
-        let mut storage = ServerFileStorage::new(
-            owner.clone(),
-            Some(self.directory.clone()),
-            Arc::new(RwLock::new(identity_log)),
-        )
-        .await?;
-        storage.import_account(&account_data).await?;
-
-        let account = ServerStorage::FileSystem(storage);
         let mut accounts = self.accounts.write().await;
         accounts
-            .entry(owner.clone())
+            .entry(*account_id)
             .or_insert(Arc::new(RwLock::new(account)));
 
         Ok(())
     }
 
     /// Delete an account.
-    pub async fn delete_account(&mut self, owner: &AccountId) -> Result<()> {
-        tracing::debug!(address = %owner, "backend::delete_account");
+    pub async fn delete_account(
+        &mut self,
+        account_id: &AccountId,
+    ) -> Result<()> {
+        tracing::debug!(address = %account_id, "server_backend::delete_account");
 
         let mut accounts = self.accounts.write().await;
-        let account =
-            accounts.get_mut(owner).ok_or(Error::NoAccount(*owner))?;
+        let account = accounts
+            .get_mut(account_id)
+            .ok_or(Error::NoAccount(*account_id))?;
 
         let mut account = account.write().await;
         account.delete_account().await?;
@@ -177,16 +153,17 @@ impl Backend {
     /// Update an account.
     pub async fn update_account(
         &mut self,
-        owner: &AccountId,
+        account_id: &AccountId,
         account_data: UpdateSet,
     ) -> Result<MergeOutcome> {
-        tracing::debug!(address = %owner, "backend::update_account");
+        tracing::debug!(address = %account_id, "server_backend::update_account");
 
         let mut outcome = MergeOutcome::default();
 
         let mut accounts = self.accounts.write().await;
-        let account =
-            accounts.get_mut(owner).ok_or(Error::NoAccount(*owner))?;
+        let account = accounts
+            .get_mut(account_id)
+            .ok_or(Error::NoAccount(*account_id))?;
 
         let mut account = account.write().await;
         account.update_account(account_data, &mut outcome).await?;
@@ -196,12 +173,17 @@ impl Backend {
     /// Fetch an existing account.
     pub async fn fetch_account(
         &self,
-        owner: &AccountId,
+        account_id: &AccountId,
     ) -> Result<CreateSet> {
-        tracing::debug!(address = %owner, "backend::fetch_account");
+        tracing::debug!(
+            address = %account_id,
+            "server_backend::fetch_account",
+        );
 
         let accounts = self.accounts.read().await;
-        let account = accounts.get(owner).ok_or(Error::NoAccount(*owner))?;
+        let account = accounts
+            .get(account_id)
+            .ok_or(Error::NoAccount(*account_id))?;
 
         let reader = account.read().await;
         let change_set = reader.change_set().await?;
@@ -212,12 +194,12 @@ impl Backend {
     /// Verify a device is allowed to access an account.
     pub(crate) async fn verify_device(
         &self,
-        owner: &AccountId,
+        account_id: &AccountId,
         device_signature: &ed25519::Signature,
         message_body: &[u8],
     ) -> Result<()> {
         let accounts = self.accounts.read().await;
-        if let Some(account) = accounts.get(owner) {
+        if let Some(account) = accounts.get(account_id) {
             let reader = account.read().await;
             let account_devices = reader.list_device_keys();
             for device_key in account_devices {
@@ -236,8 +218,11 @@ impl Backend {
     }
 
     /// Determine if an account exists.
-    pub async fn account_exists(&self, owner: &AccountId) -> Result<bool> {
+    pub async fn account_exists(
+        &self,
+        account_id: &AccountId,
+    ) -> Result<bool> {
         let accounts = self.accounts.read().await;
-        Ok(accounts.get(owner).is_some())
+        Ok(accounts.get(account_id).is_some())
     }
 }

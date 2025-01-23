@@ -1,4 +1,4 @@
-//! AccessPoint manages access to a vault.
+//! Access point manages access to a vault.
 use crate::{
     secret::{Secret, SecretMeta, SecretRow},
     EncryptedEntry, Error, SharedAccess, Summary, Vault, VaultMeta,

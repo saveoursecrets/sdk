@@ -1,4 +1,7 @@
-use crate::{Error, Result, ServerAccountStorage};
+use crate::{
+    database::ServerDatabaseStorage, filesystem::ServerFileStorage, Error,
+    Result, ServerAccountStorage,
+};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::{
@@ -11,7 +14,7 @@ use sos_core::{
         patch::{
             AccountDiff, CheckedPatch, DeviceDiff, FileDiff, FolderDiff,
         },
-        WriteEvent,
+        EventLog, WriteEvent,
     },
     AccountId, Paths, VaultId,
 };
@@ -20,16 +23,68 @@ use sos_sync::{
     SyncStorage, UpdateSet,
 };
 use sos_vault::Summary;
-use std::collections::HashSet;
-use std::sync::Arc;
+use std::{collections::HashSet, path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
 /// Server storage backed by filesystem or database.
 pub enum ServerStorage {
     /// Filesystem storage.
-    FileSystem(crate::filesystem::ServerFileStorage),
-    /// TODO: Database storage.
-    Database(crate::filesystem::ServerFileStorage),
+    FileSystem(ServerFileStorage),
+    /// Database storage.
+    Database(ServerDatabaseStorage),
+}
+
+impl ServerStorage {
+    /// Create new file system storage.
+    pub async fn new_fs(
+        directory: impl AsRef<Path>,
+        account_id: &AccountId,
+    ) -> Result<Self> {
+        let user_paths =
+            Paths::new_server(directory.as_ref(), account_id.to_string());
+
+        let mut event_log =
+            FolderEventLog::new_fs_folder(user_paths.identity_events())
+                .await?;
+        event_log.load_tree().await?;
+        let identity_log = Arc::new(RwLock::new(event_log));
+
+        Ok(Self::FileSystem(
+            ServerFileStorage::new(
+                *account_id,
+                Some(directory.as_ref().to_owned()),
+                identity_log,
+            )
+            .await?,
+        ))
+    }
+
+    /// Create a new file system account.
+    pub async fn create_fs_account(
+        directory: impl AsRef<Path>,
+        account_id: &AccountId,
+        account_data: &CreateSet,
+    ) -> Result<Self> {
+        let paths =
+            Paths::new_server(directory.as_ref(), account_id.to_string());
+        paths.ensure().await?;
+
+        let identity_log = ServerFileStorage::initialize_account(
+            &paths,
+            &account_data.identity,
+        )
+        .await?;
+
+        let mut storage = ServerFileStorage::new(
+            *account_id,
+            Some(directory.as_ref().to_owned()),
+            Arc::new(RwLock::new(identity_log)),
+        )
+        .await?;
+        storage.import_account(&account_data).await?;
+
+        Ok(Self::FileSystem(storage))
+    }
 }
 
 #[async_trait]

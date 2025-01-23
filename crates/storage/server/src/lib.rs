@@ -4,7 +4,8 @@
 //! Server storage backed by the file system.
 mod error;
 
-pub mod filesystem;
+mod database;
+mod filesystem;
 pub mod server_helpers;
 mod storage;
 mod traits;
