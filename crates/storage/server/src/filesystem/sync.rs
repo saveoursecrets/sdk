@@ -10,7 +10,6 @@ use sos_backend::{
     FolderEventLog,
 };
 use sos_core::{
-    commit::{CommitState, Comparison},
     encode,
     events::{
         patch::{
@@ -69,25 +68,6 @@ impl ForceMerge for ServerFileStorage {
         diff: DeviceDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        /*
-        let len = diff.patch.len() as u64;
-
-        tracing::debug!(
-            checkpoint = ?diff.checkpoint,
-            num_events = len,
-            "force_merge::device",
-        );
-
-        let event_log = self.device_log().await?;
-        let mut event_log = event_log.write().await;
-        event_log.replace_all_events(&diff).await?;
-
-        outcome.changes += len;
-        outcome.tracked.device =
-            TrackedChanges::new_device_records(&diff.patch).await?;
-
-        */
-
         <ServerFileStorage as ForceMerge>::force_merge_device(
             self, diff, outcome,
         )
@@ -173,14 +153,6 @@ impl Merge for ServerFileStorage {
         Ok(checked_patch)
     }
 
-    async fn compare_identity(
-        &self,
-        state: &CommitState,
-    ) -> Result<Comparison> {
-        let reader = self.identity_log.read().await;
-        Ok(reader.tree().compare(&state.1)?)
-    }
-
     async fn merge_account(
         &mut self,
         diff: AccountDiff,
@@ -254,14 +226,6 @@ impl Merge for ServerFileStorage {
         Ok((checked_patch, deleted_folders))
     }
 
-    async fn compare_account(
-        &self,
-        state: &CommitState,
-    ) -> Result<Comparison> {
-        let reader = self.account_log.read().await;
-        Ok(reader.tree().compare(&state.1)?)
-    }
-
     async fn merge_device(
         &mut self,
         diff: DeviceDiff,
@@ -292,14 +256,6 @@ impl Merge for ServerFileStorage {
         }
 
         Ok(checked_patch)
-    }
-
-    async fn compare_device(
-        &self,
-        state: &CommitState,
-    ) -> Result<Comparison> {
-        let reader = self.device_log.read().await;
-        Ok(reader.tree().compare(&state.1)?)
     }
 
     async fn merge_files(
@@ -336,11 +292,6 @@ impl Merge for ServerFileStorage {
         }
 
         Ok(checked_patch)
-    }
-
-    async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
-        let reader = self.file_log.read().await;
-        Ok(reader.tree().compare(&state.1)?)
     }
 
     async fn merge_folder(
@@ -387,18 +338,6 @@ impl Merge for ServerFileStorage {
         }
 
         Ok((checked_patch, vec![]))
-    }
-
-    async fn compare_folder(
-        &self,
-        folder_id: &VaultId,
-        state: &CommitState,
-    ) -> Result<Comparison> {
-        let log = self.cache.get(folder_id).ok_or_else(|| {
-            sos_backend::StorageError::CacheNotAvailable(*folder_id)
-        })?;
-        let log = log.read().await;
-        Ok(log.tree().compare(&state.1)?)
     }
 }
 

@@ -105,7 +105,11 @@ pub trait Merge: StorageEventLogs {
     async fn compare_identity(
         &self,
         state: &CommitState,
-    ) -> std::result::Result<Comparison, Self::Error>;
+    ) -> std::result::Result<Comparison, Self::Error> {
+        let log = self.identity_log().await?;
+        let event_log = log.read().await;
+        Ok(event_log.tree().compare(&state.1)?)
+    }
 
     /// Merge changes to the account event log.
     async fn merge_account(
@@ -118,7 +122,11 @@ pub trait Merge: StorageEventLogs {
     async fn compare_account(
         &self,
         state: &CommitState,
-    ) -> std::result::Result<Comparison, Self::Error>;
+    ) -> std::result::Result<Comparison, Self::Error> {
+        let log = self.account_log().await?;
+        let event_log = log.read().await;
+        Ok(event_log.tree().compare(&state.1)?)
+    }
 
     /// Merge changes to the devices event log.
     async fn merge_device(
@@ -131,7 +139,11 @@ pub trait Merge: StorageEventLogs {
     async fn compare_device(
         &self,
         state: &CommitState,
-    ) -> std::result::Result<Comparison, Self::Error>;
+    ) -> std::result::Result<Comparison, Self::Error> {
+        let log = self.device_log().await?;
+        let event_log = log.read().await;
+        Ok(event_log.tree().compare(&state.1)?)
+    }
 
     /// Merge changes to the files event log.
     #[cfg(feature = "files")]
@@ -146,7 +158,11 @@ pub trait Merge: StorageEventLogs {
     async fn compare_files(
         &self,
         state: &CommitState,
-    ) -> std::result::Result<Comparison, Self::Error>;
+    ) -> std::result::Result<Comparison, Self::Error> {
+        let log = self.file_log().await?;
+        let event_log = log.read().await;
+        Ok(event_log.tree().compare(&state.1)?)
+    }
 
     /// Merge changes to a folder.
     async fn merge_folder(
@@ -161,7 +177,11 @@ pub trait Merge: StorageEventLogs {
         &self,
         folder_id: &VaultId,
         state: &CommitState,
-    ) -> std::result::Result<Comparison, Self::Error>;
+    ) -> std::result::Result<Comparison, Self::Error> {
+        let event_log = self.folder_log(folder_id).await?;
+        let reader = event_log.read().await;
+        Ok(reader.tree().compare(&state.1)?)
+    }
 
     /// Compare the local state to a remote status.
     async fn compare(

@@ -10,7 +10,6 @@ use sos_backend::{
     FolderEventLog,
 };
 use sos_core::{
-    commit::{CommitState, Comparison},
     encode,
     events::{
         patch::{
@@ -162,14 +161,6 @@ impl Merge for ServerDatabaseStorage {
         Ok(checked_patch)
     }
 
-    async fn compare_identity(
-        &self,
-        state: &CommitState,
-    ) -> Result<Comparison> {
-        let reader = self.identity_log.read().await;
-        Ok(reader.tree().compare(&state.1)?)
-    }
-
     async fn merge_account(
         &mut self,
         diff: AccountDiff,
@@ -243,14 +234,6 @@ impl Merge for ServerDatabaseStorage {
         Ok((checked_patch, deleted_folders))
     }
 
-    async fn compare_account(
-        &self,
-        state: &CommitState,
-    ) -> Result<Comparison> {
-        let reader = self.account_log.read().await;
-        Ok(reader.tree().compare(&state.1)?)
-    }
-
     async fn merge_device(
         &mut self,
         diff: DeviceDiff,
@@ -281,14 +264,6 @@ impl Merge for ServerDatabaseStorage {
         }
 
         Ok(checked_patch)
-    }
-
-    async fn compare_device(
-        &self,
-        state: &CommitState,
-    ) -> Result<Comparison> {
-        let reader = self.device_log.read().await;
-        Ok(reader.tree().compare(&state.1)?)
     }
 
     async fn merge_files(
@@ -325,11 +300,6 @@ impl Merge for ServerDatabaseStorage {
         }
 
         Ok(checked_patch)
-    }
-
-    async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
-        let reader = self.file_log.read().await;
-        Ok(reader.tree().compare(&state.1)?)
     }
 
     async fn merge_folder(
@@ -376,18 +346,6 @@ impl Merge for ServerDatabaseStorage {
         }
 
         Ok((checked_patch, vec![]))
-    }
-
-    async fn compare_folder(
-        &self,
-        folder_id: &VaultId,
-        state: &CommitState,
-    ) -> Result<Comparison> {
-        let log = self.cache.get(folder_id).ok_or_else(|| {
-            sos_backend::StorageError::CacheNotAvailable(*folder_id)
-        })?;
-        let log = log.read().await;
-        Ok(log.tree().compare(&state.1)?)
     }
 }
 

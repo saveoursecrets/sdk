@@ -6,15 +6,14 @@ use crate::{Account, LocalAccount, Result};
 use async_trait::async_trait;
 use sos_backend::reducers::DeviceReducer;
 use sos_backend::StorageError;
+use sos_core::{decode, events::EventLog};
 use sos_core::{
-    commit::{CommitState, Comparison},
     events::{
         patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
         AccountEvent, LogEvent, WriteEvent,
     },
     VaultId,
 };
-use sos_core::{decode, events::EventLog};
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
     TrackedChanges,
@@ -109,15 +108,6 @@ impl Merge for LocalAccount {
         }
 
         Ok(checked_patch)
-    }
-
-    async fn compare_identity(
-        &self,
-        state: &CommitState,
-    ) -> Result<Comparison> {
-        let log = self.identity_log().await?;
-        let event_log = log.read().await;
-        Ok(event_log.tree().compare(&state.1)?)
     }
 
     async fn merge_account(
@@ -236,15 +226,6 @@ impl Merge for LocalAccount {
         Ok((checked_patch, deleted_folders))
     }
 
-    async fn compare_account(
-        &self,
-        state: &CommitState,
-    ) -> Result<Comparison> {
-        let log = self.account_log().await?;
-        let event_log = log.read().await;
-        Ok(event_log.tree().compare(&state.1)?)
-    }
-
     async fn merge_device(
         &mut self,
         diff: DeviceDiff,
@@ -287,15 +268,6 @@ impl Merge for LocalAccount {
         }
 
         Ok(checked_patch)
-    }
-
-    async fn compare_device(
-        &self,
-        state: &CommitState,
-    ) -> Result<Comparison> {
-        let log = self.device_log().await?;
-        let event_log = log.read().await;
-        Ok(event_log.tree().compare(&state.1)?)
     }
 
     #[cfg(feature = "files")]
@@ -344,13 +316,6 @@ impl Merge for LocalAccount {
         }
 
         Ok(checked_patch)
-    }
-
-    #[cfg(feature = "files")]
-    async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
-        let log = self.file_log().await?;
-        let event_log = log.read().await;
-        Ok(event_log.tree().compare(&state.1)?)
     }
 
     async fn merge_folder(
@@ -446,23 +411,6 @@ impl Merge for LocalAccount {
         }
 
         Ok((checked_patch, events))
-    }
-
-    async fn compare_folder(
-        &self,
-        folder_id: &VaultId,
-        state: &CommitState,
-    ) -> Result<Comparison> {
-        let storage = self.storage().await.ok_or(StorageError::NoStorage)?;
-        let storage = storage.read().await;
-
-        let folder = storage
-            .cache()
-            .get(folder_id)
-            .ok_or_else(|| StorageError::CacheNotAvailable(*folder_id))?;
-        let event_log = folder.event_log();
-        let reader = event_log.read().await;
-        Ok(reader.tree().compare(&state.1)?)
     }
 }
 
