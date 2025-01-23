@@ -104,8 +104,19 @@ impl RemoteSyncHandler for RemoteBridge {
             account.canonical_files().await?
         };
 
+        tracing::debug!(
+            canonical_len = %external_files.len(),
+            "sync_file_transfers",
+        );
+
         let file_set = FileSet(external_files);
         let file_transfers = self.client().compare_files(file_set).await?;
+
+        tracing::debug!(
+            uploads_len = %file_transfers.uploads.0.len(),
+            downloads_len = %file_transfers.downloads.0.len(),
+            "sync_file_transfers",
+        );
 
         let mut ops = Vec::new();
         for file in file_transfers.uploads.0 {
@@ -115,6 +126,12 @@ impl RemoteSyncHandler for RemoteBridge {
         for file in file_transfers.downloads.0 {
             ops.push(FileOperation(file, TransferOperation::Download));
         }
+
+        tracing::debug!(
+            operations_len = %ops.len(),
+            receiver_count = %self.file_transfer_queue.receiver_count(),
+            "sync_file_transfers",
+        );
 
         if !ops.is_empty() && self.file_transfer_queue.receiver_count() > 0 {
             let _ = self.file_transfer_queue.send(ops);

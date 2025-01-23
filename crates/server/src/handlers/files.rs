@@ -626,7 +626,13 @@ mod handlers {
 
         let local_files = FileSet::decode(body).await?;
         let local_set = local_files.0;
+        tracing::debug!(
+            local_set_len = %local_set.len(), "compare_files");
+
         let remote_set = list_external_files(&*paths).await?;
+        tracing::debug!(
+            remote_set_len = %remote_set.len(), "compare_files");
+
         let uploads = local_set
             .difference(&remote_set)
             .cloned()
@@ -635,6 +641,13 @@ mod handlers {
             .difference(&local_set)
             .cloned()
             .collect::<IndexSet<_>>();
+
+        tracing::debug!(
+            uploads_len = %uploads.len(),
+            downloads_len = %downloads.len(),
+            "compare_files",
+        );
+
         let transfers = FileTransfersSet {
             uploads: FileSet(uploads),
             downloads: FileSet(downloads),
