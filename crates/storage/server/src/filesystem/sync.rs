@@ -21,8 +21,8 @@ use sos_core::{
     VaultId,
 };
 use sos_sync::{
-    ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
-    SyncStorage, TrackedChanges,
+    ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
+    TrackedChanges,
 };
 use sos_vault::{EncryptedEntry, Header, Summary};
 use sos_vfs as vfs;
@@ -485,9 +485,5 @@ impl StorageEventLogs for ServerFileStorage {
 impl SyncStorage for ServerFileStorage {
     fn is_client_storage(&self) -> bool {
         false
-    }
-
-    async fn sync_status(&self) -> Result<SyncStatus> {
-        sos_sync::compute_sync_status(self).await
     }
 }

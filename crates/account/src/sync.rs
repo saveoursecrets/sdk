@@ -1,5 +1,4 @@
 //! Implements merging into a local account.
-
 use super::folder_sync::{
     FolderMerge, FolderMergeOptions, IdentityFolderMerge,
 };
@@ -17,8 +16,8 @@ use sos_core::{
 };
 use sos_core::{decode, events::EventLog};
 use sos_sync::{
-    ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
-    SyncStorage, TrackedChanges,
+    ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
+    TrackedChanges,
 };
 use sos_vault::Vault;
 use std::collections::HashSet;
@@ -545,9 +544,5 @@ impl Merge for LocalAccount {
 impl SyncStorage for LocalAccount {
     fn is_client_storage(&self) -> bool {
         true
-    }
-
-    async fn sync_status(&self) -> crate::Result<SyncStatus> {
-        sos_sync::compute_sync_status(self).await
     }
 }
