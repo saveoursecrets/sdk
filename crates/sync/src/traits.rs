@@ -341,7 +341,25 @@ pub trait ForceMerge: Merge {
         &mut self,
         diff: FileDiff,
         outcome: &mut MergeOutcome,
-    ) -> std::result::Result<(), Self::Error>;
+    ) -> std::result::Result<(), Self::Error> {
+        let len = diff.patch.len() as u64;
+
+        tracing::debug!(
+            checkpoint = ?diff.checkpoint,
+            num_events = len,
+            "force_merge::files",
+        );
+
+        let event_log = self.file_log().await?;
+        let mut event_log = event_log.write().await;
+        event_log.replace_all_events(&diff).await?;
+
+        outcome.changes += len;
+        outcome.tracked.files =
+            TrackedChanges::new_file_records(&diff.patch).await?;
+
+        Ok(())
+    }
 
     /// Force merge changes to a folder.
     async fn force_merge_folder(
