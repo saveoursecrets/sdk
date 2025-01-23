@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS account_login_folder
 );
 
 -- Account device folder
+--
+-- Device folders only exist on the client storage so there 
+-- won't be a join on the server storage.
 CREATE TABLE IF NOT EXISTS account_device_folder
 (
     account_id          INTEGER             NOT NULL,

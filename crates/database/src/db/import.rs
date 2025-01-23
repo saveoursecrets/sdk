@@ -88,6 +88,7 @@ pub(crate) async fn import_account(
     client: &mut Client,
     paths: &Paths,
     account: &PublicIdentity,
+    is_server: bool,
 ) -> Result<()> {
     let account_name = account.label().to_owned();
     let account_row =
@@ -111,14 +112,21 @@ pub(crate) async fn import_account(
         collect_account_events(paths.account_events()).await?;
 
     // Device vault
-    let buffer = vfs::read(paths.device_file()).await?;
-    let device_vault: Vault = decode(&buffer).await?;
-    let device_vault_meta = if let Some(meta) = device_vault.header().meta() {
-        Some(encode(meta).await?)
+    //
+    let device_info = if !is_server {
+        let buffer = vfs::read(paths.device_file()).await?;
+        let device_vault: Vault = decode(&buffer).await?;
+        let device_vault_meta =
+            if let Some(meta) = device_vault.header().meta() {
+                Some(encode(meta).await?)
+            } else {
+                None
+            };
+        let device_rows = collect_vault_rows(&device_vault).await?;
+        Some((device_vault, device_vault_meta, device_rows))
     } else {
         None
     };
-    let device_rows = collect_vault_rows(&device_vault).await?;
 
     // Device events
     let device_events = collect_device_events(paths.device_events()).await?;
@@ -209,18 +217,22 @@ pub(crate) async fn import_account(
 
             // Create the device folder without events
             // as it is configured for SYSTEM | DEVICE | NO_SYNC
-            let (device_folder_id, _) = create_folder(
-                &tx,
-                account_id,
-                device_vault,
-                device_vault_meta,
-                device_rows,
-                None,
-            )?;
+            if !is_server {
+                let (device_vault, device_vault_meta, device_rows) =
+                    device_info.unwrap();
+                let (device_folder_id, _) = create_folder(
+                    &tx,
+                    account_id,
+                    device_vault,
+                    device_vault_meta,
+                    device_rows,
+                    None,
+                )?;
 
-            // Create the join entry for the device folder
-            account_entity
-                .insert_device_folder(account_id, device_folder_id)?;
+                // Create the join entry for the device folder
+                account_entity
+                    .insert_device_folder(account_id, device_folder_id)?;
+            }
 
             // Create the account events
             let event_entity = EventEntity::new(&tx);
