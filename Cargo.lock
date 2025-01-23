@@ -5039,6 +5039,7 @@ dependencies = [
  "sha2",
  "sos-audit",
  "sos-core",
+ "sos-external-files",
  "sos-filesystem",
  "sos-preferences",
  "sos-system-messages",
@@ -5051,6 +5052,17 @@ dependencies = [
  "url",
  "urn",
  "uuid",
+]
+
+[[package]]
+name = "sos-external-files"
+version = "0.16.0"
+dependencies = [
+ "indexmap 2.7.1",
+ "sos-core",
+ "sos-vault",
+ "sos-vfs",
+ "tracing",
 ]
 
 [[package]]

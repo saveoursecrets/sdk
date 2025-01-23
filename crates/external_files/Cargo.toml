@@ -1,0 +1,12 @@
+[package]
+name = "sos-external-files"
+version = "0.16.0"
+edition = "2021"
+
+[dependencies]
+sos-core.workspace = true
+sos-vault.workspace = true
+sos-vfs.workspace = true
+
+indexmap.workspace = true
+tracing.workspace = true

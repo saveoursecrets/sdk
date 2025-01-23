@@ -41,7 +41,7 @@ pub use server_origins::ServerOrigins;
 pub use vault_writer::VaultDatabaseWriter;
 
 #[cfg(feature = "files")]
-pub mod files;
+pub use sos_external_files as files;
 
 #[cfg(all(feature = "sqlite", feature = "files"))]
 pub use event_log::FileEventLog;

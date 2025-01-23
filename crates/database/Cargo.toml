@@ -27,6 +27,7 @@ sqlite = ["dep:async-sqlite", "dep:refinery"]
 
 [dependencies]
 sos-core.workspace = true
+sos-external-files.workspace = true
 sos-filesystem.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
