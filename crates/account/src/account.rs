@@ -52,7 +52,7 @@ use sos_login::device::{DeviceManager, DeviceSigner};
 use indexmap::IndexSet;
 
 #[cfg(feature = "files")]
-use {sos_backend::FileEventLog, sos_database::files::FileMutationEvent};
+use {sos_backend::FileEventLog, sos_external_files::FileMutationEvent};
 
 #[cfg(feature = "search")]
 use sos_search::*;

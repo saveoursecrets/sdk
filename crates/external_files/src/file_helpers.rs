@@ -1,12 +1,10 @@
-//! Types for file management.
+//! Helper functions for file management.
 use indexmap::IndexSet;
 use sos_core::{
-    events::FileEvent, ExternalFile, ExternalFileName, Paths, SecretId,
-    SecretPath, VaultId,
+    ExternalFile, ExternalFileName, Paths, SecretId, SecretPath, VaultId,
 };
-use sos_vault::secret::Secret;
 use sos_vfs as vfs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 type Result<T> = std::result::Result<T, sos_core::Error>;
 

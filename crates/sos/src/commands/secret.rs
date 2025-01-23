@@ -24,7 +24,7 @@ use kdam::{term, tqdm, BarExt, Column, RichProgress, Spinner};
 use sos_account::Account;
 use sos_backend::StorageError;
 use sos_client_storage::AccessOptions;
-use sos_database::files::FileProgress;
+use sos_external_files::FileProgress;
 use sos_sdk::prelude::*;
 use sos_search::{ArchiveFilter, Document, DocumentView};
 use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};

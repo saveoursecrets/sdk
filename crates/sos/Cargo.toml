@@ -25,6 +25,7 @@ sos-core.workspace = true
 sos-cli-helpers.workspace = true
 sos-client-storage.workspace = true
 sos-database = { workspace = true, features = ["full"] }
+sos-external-files.workspace = true
 sos-filesystem.workspace = true
 sos-integrity.workspace = true
 sos-login.workspace = true

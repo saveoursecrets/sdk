@@ -17,7 +17,7 @@ use hex;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use sos_backend::write_exclusive;
-use sos_database::files::EncryptedFile;
+use sos_external_files::EncryptedFile;
 use sos_sdk::{
     vault::{secret::SecretId, VaultId},
     vfs::{self, File},

@@ -14,7 +14,7 @@ use sos_account::{Account, FolderCreate, LocalAccount, SecretMove};
 use sos_client_storage::AccessOptions;
 use sos_core::commit::ZERO;
 use sos_core::ExternalFileName;
-use sos_database::files::FileProgress;
+use sos_external_files::FileProgress;
 use sos_sdk::prelude::*;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};

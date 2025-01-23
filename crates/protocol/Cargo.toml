@@ -27,7 +27,7 @@ hashcheck = ["reqwest"]
 network-client = ["reqwest", "bs58", "async-stream", "tokio-util"]
 pairing = []
 contacts = ["sos-sdk/contacts"]
-files = ["sos-sdk/files", "sos-account/files"]
+files = ["sos-external-files", "sos-sdk/files", "sos-account/files"]
 migrate = ["sos-account/migrate"]
 search = ["sos-account/search"]
 
@@ -41,6 +41,8 @@ sos-client-storage.workspace = true
 sos-signer.workspace = true
 sos-sync.workspace = true
 sos-vfs.workspace = true
+
+sos-external-files = { workspace = true, optional = true }
 
 thiserror.workspace = true
 tracing.workspace = true

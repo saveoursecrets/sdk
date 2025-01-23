@@ -1,14 +1,7 @@
 //! Types for file management.
-use indexmap::IndexSet;
-use sos_core::{
-    events::FileEvent, ExternalFile, ExternalFileName, Paths, SecretId,
-    SecretPath, VaultId,
-};
+use sos_core::events::FileEvent;
 use sos_vault::secret::Secret;
-use sos_vfs as vfs;
-use std::path::{Path, PathBuf};
-
-type Result<T> = std::result::Result<T, sos_core::Error>;
+use std::path::PathBuf;
 
 /// Meta data about an encrypted file.
 #[derive(Debug, Clone)]

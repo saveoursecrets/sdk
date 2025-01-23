@@ -376,7 +376,7 @@ mod handlers {
     use indexmap::IndexSet;
     use sha2::{Digest, Sha256};
     use sos_core::{ExternalFileName, SecretId, VaultId};
-    use sos_database::files::list_external_files;
+    use sos_external_files::list_external_files;
     use sos_protocol::{
         constants::MIME_TYPE_PROTOBUF,
         transfer::{FileSet, FileTransfersSet},

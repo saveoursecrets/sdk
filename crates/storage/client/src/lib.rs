@@ -56,7 +56,7 @@ pub struct AccessOptions {
     /// Channel for file progress operations.
     #[cfg(feature = "files")]
     pub file_progress:
-        Option<tokio::sync::mpsc::Sender<sos_database::files::FileProgress>>,
+        Option<tokio::sync::mpsc::Sender<sos_external_files::FileProgress>>,
 }
 
 impl From<Summary> for AccessOptions {

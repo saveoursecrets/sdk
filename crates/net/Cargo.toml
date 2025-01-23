@@ -31,7 +31,7 @@ audit = ["sos-audit", "sos-account/audit"]
 listen = ["sos-protocol/listen"]
 hashcheck = ["sos-protocol/hashcheck"]
 archive = ["sos-account/archive"]
-files = ["sos-sdk/files", "sos-protocol/files"]
+files = ["sos-external-files", "sos-sdk/files", "sos-protocol/files"]
 clipboard = ["sos-account/clipboard"]
 contacts = ["sos-account/contacts", "sos-protocol/contacts"]
 migrate = ["sos-account/migrate", "sos-migrate"]
@@ -58,6 +58,7 @@ sos-vault.workspace = true
 sos-vfs.workspace = true
 
 sos-audit = { workspace = true, optional = true }
+sos-external-files = { workspace = true, optional = true }
 sos-search = { workspace = true, optional = true }
 sos-migrate = { workspace = true, optional = true }
 

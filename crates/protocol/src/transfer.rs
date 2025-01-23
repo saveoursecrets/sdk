@@ -25,7 +25,7 @@ mod files {
     use sos_core::events::FileEvent;
 
     use sos_core::ExternalFile;
-    use sos_database::files::FileMutationEvent;
+    use sos_external_files::FileMutationEvent;
 
     use crate::transfer::CancelReason;
     use async_trait::async_trait;

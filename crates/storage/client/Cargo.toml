@@ -12,6 +12,7 @@ full = ["audit", "files", "archive", "search"]
 archive = ["sos-backup-archive"]
 audit = ["sos-audit", "sos-backend/audit"]
 files = [
+  "sos-external-files",
   "sos-sdk/files",
   "sos-sync/files",
   "dep:tokio-util",
@@ -34,6 +35,7 @@ sos-sdk.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 
+sos-external-files = { workspace = true, optional = true }
 sos-search = { workspace = true, optional = true }
 sos-audit = { workspace = true, optional = true }
 sos-backup-archive = { workspace = true, optional = true }

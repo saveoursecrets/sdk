@@ -29,7 +29,8 @@ archive = [
 clipboard = ["dep:xclipboard", "dep:serde_json_path", "dep:time-tz"]
 contacts = ["dep:vcard4"]
 migrate = ["sos-migrate/import", "sos-migrate/export"]
-files =[
+files = [
+  "sos-external-files",
   "sos-sdk/files",
   "sos-backend/files",
   "sos-login/files",
@@ -39,7 +40,6 @@ files =[
 search = ["sos-search", "sos-client-storage/search"]
 
 [dependencies]
-sos-audit = { workspace = true, optional = true }
 sos-core.workspace = true
 sos-sdk.workspace = true
 sos-backend.workspace = true
@@ -47,10 +47,13 @@ sos-database.workspace = true
 sos-login.workspace = true
 sos-sync.workspace = true
 sos-client-storage.workspace = true
-sos-migrate = { workspace = true, optional = true }
 sos-signer.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
+
+sos-audit = { workspace = true, optional = true }
+sos-external-files = { workspace = true, optional = true }
+sos-migrate = { workspace = true, optional = true }
 
 thiserror.workspace = true
 secrecy.workspace = true

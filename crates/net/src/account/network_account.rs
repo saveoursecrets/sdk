@@ -91,7 +91,7 @@ use {
         FileTransferSettings, FileTransfers, FileTransfersHandle,
         InflightTransfers,
     },
-    sos_database::files::FileMutationEvent,
+    sos_external_files::FileMutationEvent,
     sos_protocol::{network_client::HttpClient, transfer::FileOperation},
 };
 

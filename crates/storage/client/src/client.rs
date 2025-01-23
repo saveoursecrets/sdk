@@ -53,7 +53,7 @@ use sos_backend::{compact::compact_folder, reducers::DeviceReducer};
 #[cfg(feature = "files")]
 use {
     sos_backend::FileEventLog, sos_core::events::FileEvent,
-    sos_database::files::FileMutationEvent,
+    sos_external_files::FileMutationEvent,
 };
 
 #[cfg(feature = "search")]
@@ -285,7 +285,7 @@ impl ClientStorage {
 
         if needs_init {
             let files =
-                sos_database::files::list_external_files(paths).await?;
+                sos_external_files::list_external_files(paths).await?;
             let events: Vec<FileEvent> =
                 files.into_iter().map(|f| f.into()).collect();
 

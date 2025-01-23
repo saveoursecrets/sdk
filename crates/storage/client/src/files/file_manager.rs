@@ -5,7 +5,7 @@ use crate::{files::FileStorage, ClientStorage, Error, Result};
 use hex;
 use sos_core::events::FileEvent;
 use sos_core::{basename, SecretId, SecretPath, VaultId};
-use sos_database::files::{
+use sos_external_files::{
     list_folder_files, EncryptedFile, FileMutationEvent, FileProgress,
     FileSource, FileStorageDiff, FileStorageResult,
 };
