@@ -43,17 +43,17 @@ pub struct ServerFileStorage {
     /// Account event log.
     pub(super) account_log: Arc<RwLock<AccountEventLog>>,
 
-    /// Folder event logs.
-    pub(super) cache: HashMap<VaultId, Arc<RwLock<FolderEventLog>>>,
-
     /// Device event log.
     pub(super) device_log: Arc<RwLock<DeviceEventLog>>,
 
-    /// Reduced collection of devices.
-    pub(super) devices: IndexSet<TrustedDevice>,
-
     /// File event log.
     pub(super) file_log: Arc<RwLock<FileEventLog>>,
+
+    /// Folder event logs.
+    pub(super) cache: HashMap<VaultId, Arc<RwLock<FolderEventLog>>>,
+
+    /// Reduced collection of devices.
+    pub(super) devices: IndexSet<TrustedDevice>,
 }
 
 impl ServerFileStorage {

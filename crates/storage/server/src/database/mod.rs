@@ -2,8 +2,7 @@
 use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
-use sos_backend::reducers::DeviceReducer;
-use sos_backend::reducers::FolderReducer;
+use sos_backend::reducers::{DeviceReducer, FolderReducer};
 use sos_backend::VaultWriter;
 use sos_backend::{
     AccountEventLog, DeviceEventLog, FileEventLog, FolderEventLog,
@@ -12,13 +11,13 @@ use sos_core::events::{
     patch::FolderPatch, AccountEvent, EventLog, FileEvent,
 };
 use sos_core::{
-    constants::VAULT_EXT,
     decode,
     device::{DevicePublicKey, TrustedDevice},
     encode, AccountId, Paths, VaultId,
 };
+use sos_database::async_sqlite::Client;
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
-use sos_vault::{EncryptedEntry, Header, Summary, Vault};
+use sos_vault::{EncryptedEntry, Summary, Vault};
 use sos_vfs as vfs;
 use std::collections::HashSet;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
@@ -29,13 +28,16 @@ use {sos_audit::AuditEvent, sos_backend::audit::append_audit_events};
 
 mod sync;
 
-/// Server folders loaded into memory and mirrored to disc.
+/// Server folders loaded into memory and mirrored to the database.
 pub struct ServerDatabaseStorage {
     /// Account identifier.
     pub(super) account_id: AccountId,
 
-    /// Directories for file storage.
+    /// Directories for storage.
     pub(super) paths: Arc<Paths>,
+
+    /// Database client.
+    pub(super) client: Client,
 
     /// Identity folder event log.
     pub(super) identity_log: Arc<RwLock<FolderEventLog>>,
@@ -43,21 +45,21 @@ pub struct ServerDatabaseStorage {
     /// Account event log.
     pub(super) account_log: Arc<RwLock<AccountEventLog>>,
 
-    /// Folder event logs.
-    pub(super) cache: HashMap<VaultId, Arc<RwLock<FolderEventLog>>>,
-
     /// Device event log.
     pub(super) device_log: Arc<RwLock<DeviceEventLog>>,
 
-    /// Reduced collection of devices.
-    pub(super) devices: IndexSet<TrustedDevice>,
-
     /// File event log.
     pub(super) file_log: Arc<RwLock<FileEventLog>>,
+
+    /// Folder event logs.
+    pub(super) cache: HashMap<VaultId, Arc<RwLock<FolderEventLog>>>,
+
+    /// Reduced collection of devices.
+    pub(super) devices: IndexSet<TrustedDevice>,
 }
 
 impl ServerDatabaseStorage {
-    /// Create folder storage for server-side access.
+    /// Create database storage for server-side access.
     pub async fn new(
         account_id: AccountId,
         data_dir: Option<PathBuf>,
@@ -70,11 +72,11 @@ impl ServerDatabaseStorage {
         };
 
         let dirs = Paths::new_server(data_dir, account_id.to_string());
-        Self::new_paths(Arc::new(dirs), account_id, identity_log).await
+        Self::new_client(Arc::new(dirs), account_id, identity_log).await
     }
 
-    /// Create new storage backed by files on disc.
-    async fn new_paths(
+    /// Create new storage backed by a database file on disc.
+    async fn new_client(
         paths: Arc<Paths>,
         account_id: AccountId,
         identity_log: Arc<RwLock<FolderEventLog>>,
@@ -88,33 +90,39 @@ impl ServerDatabaseStorage {
 
         paths.ensure().await?;
 
-        let log_file = paths.account_events();
-        let mut event_log = AccountEventLog::new_fs_account(log_file).await?;
+        let client =
+            sos_database::db::open_file(paths.database_file()).await?;
+
+        let mut event_log =
+            AccountEventLog::new_db_account(client.clone(), account_id)
+                .await?;
         event_log.load_tree().await?;
         let account_log = Arc::new(RwLock::new(event_log));
 
         let (device_log, devices) =
-            Self::initialize_device_log(&*paths).await?;
+            Self::initialize_device_log(client.clone(), account_id).await?;
 
         let file_log = Self::initialize_file_log(&paths).await?;
 
         Ok(Self {
             account_id,
-            cache: Default::default(),
             paths,
+            client,
             identity_log,
             account_log,
             device_log: Arc::new(RwLock::new(device_log)),
-            devices,
             file_log: Arc::new(RwLock::new(file_log)),
+            cache: Default::default(),
+            devices,
         })
     }
 
     async fn initialize_device_log(
-        paths: &Paths,
+        client: Client,
+        account_id: AccountId,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
-        let log_file = paths.device_events();
-        let mut event_log = DeviceEventLog::new_fs_device(log_file).await?;
+        let mut event_log =
+            DeviceEventLog::new_db_device(client, account_id).await?;
         event_log.load_tree().await?;
 
         let reducer = DeviceReducer::new(&event_log);
@@ -147,9 +155,12 @@ impl ServerDatabaseStorage {
 
     /// Create new event log cache entries.
     async fn create_cache_entry(&mut self, id: &VaultId) -> Result<()> {
-        let event_log_path = self.paths.event_log_path(id);
-        let mut event_log =
-            FolderEventLog::new_fs_folder(&event_log_path).await?;
+        let mut event_log = FolderEventLog::new_db_folder(
+            self.client.clone(),
+            self.account_id.clone(),
+            *id,
+        )
+        .await?;
         event_log.load_tree().await?;
         self.cache.insert(*id, Arc::new(RwLock::new(event_log)));
         Ok(())
@@ -157,6 +168,9 @@ impl ServerDatabaseStorage {
 
     /// Remove a vault file and event log file.
     async fn remove_vault_file(&self, id: &VaultId) -> Result<()> {
+        todo!("delete folder from the database");
+
+        /*
         // Remove local vault mirror if it exists
         let vault_path = self.paths.vault_path(id);
         if vfs::try_exists(&vault_path).await? {
@@ -168,6 +182,7 @@ impl ServerDatabaseStorage {
         if vfs::try_exists(&event_log_path).await? {
             vfs::remove_file(&event_log_path).await?;
         }
+        */
         Ok(())
     }
 
@@ -183,6 +198,9 @@ impl ServerDatabaseStorage {
         paths: &Paths,
         identity_patch: &FolderPatch,
     ) -> Result<FolderEventLog> {
+        todo!("create identity folder when initializing the account");
+
+        /*
         let mut event_log =
             FolderEventLog::new_fs_folder(paths.identity_events()).await?;
         event_log.clear().await?;
@@ -198,6 +216,7 @@ impl ServerDatabaseStorage {
         vfs::write(paths.identity_vault(), buffer).await?;
 
         Ok(event_log)
+        */
     }
 
     fn cache_mut(
@@ -244,10 +263,13 @@ impl ServerAccountStorage for ServerDatabaseStorage {
 
         for (id, folder) in &account_data.folders {
             let vault_path = self.paths.vault_path(id);
-            let events_path = self.paths.event_log_path(id);
 
-            let mut event_log =
-                FolderEventLog::new_fs_folder(events_path).await?;
+            let mut event_log = FolderEventLog::new_db_folder(
+                self.client.clone(),
+                self.account_id.clone(),
+                *id,
+            )
+            .await?;
             event_log.patch_unchecked(folder).await?;
 
             let vault = FolderReducer::new()
@@ -295,6 +317,9 @@ impl ServerAccountStorage for ServerDatabaseStorage {
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {
+        todo!("load folder summaries from the database");
+
+        /*
         let storage = self.paths.vaults_dir();
         let mut summaries = Vec::new();
         let mut contents = vfs::read_dir(&storage).await?;
@@ -320,6 +345,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
             }
         }
         Ok(summaries)
+        */
     }
 
     async fn import_folder(
@@ -401,9 +427,8 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         id: &VaultId,
         name: &str,
     ) -> Result<()> {
-        // Update the vault on disc
-        let vault_path = self.paths.vault_path(id);
-        let mut access = VaultWriter::new_fs(vault_path);
+        // Update the vault in the database
+        let mut access = VaultWriter::new_db(self.client.clone(), *id);
         access.set_vault_name(name.to_owned()).await?;
 
         #[cfg(feature = "audit")]
@@ -419,6 +444,9 @@ impl ServerAccountStorage for ServerDatabaseStorage {
     }
 
     async fn delete_account(&mut self) -> Result<()> {
+        todo!("delete the account from the database");
+
+        /*
         let user_dir = self.paths.user_dir();
         let identity_vault = self.paths.identity_vault();
         let identity_event = self.paths.identity_events();
@@ -426,5 +454,6 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         vfs::remove_file(&identity_vault).await?;
         vfs::remove_file(&identity_event).await?;
         Ok(())
+        */
     }
 }
