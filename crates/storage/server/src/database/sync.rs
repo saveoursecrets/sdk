@@ -54,6 +54,7 @@ impl ForceMerge for ServerDatabaseStorage {
             .build(false)
             .await?;
 
+        /*
         let buffer = encode(&vault).await?;
         vfs::write(self.paths.identity_vault(), buffer).await?;
 
@@ -62,29 +63,9 @@ impl ForceMerge for ServerDatabaseStorage {
             TrackedChanges::new_folder_records(&diff.patch).await?;
 
         Ok(())
-    }
+        */
 
-    async fn force_merge_account(
-        &mut self,
-        diff: AccountDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<()> {
-        let len = diff.patch.len() as u64;
-
-        tracing::debug!(
-            checkpoint = ?diff.checkpoint,
-            num_events = len,
-            "force_merge::account",
-        );
-
-        let mut event_log = self.account_log.write().await;
-        event_log.replace_all_events(&diff).await?;
-
-        outcome.changes += len;
-        outcome.tracked.account =
-            TrackedChanges::new_account_records(&diff.patch).await?;
-
-        Ok(())
+        todo!();
     }
 
     async fn force_merge_device(

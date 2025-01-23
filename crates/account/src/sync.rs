@@ -48,6 +48,7 @@ impl ForceMerge for LocalAccount {
         Ok(())
     }
 
+    /*
     async fn force_merge_account(
         &mut self,
         diff: AccountDiff,
@@ -71,6 +72,7 @@ impl ForceMerge for LocalAccount {
 
         Ok(())
     }
+    */
 
     async fn force_merge_device(
         &mut self,
