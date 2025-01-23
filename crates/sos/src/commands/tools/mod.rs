@@ -24,15 +24,15 @@ use terminal_banner::{Banner, Padding};
 mod audit;
 mod authenticator;
 mod check;
+mod db;
 mod events;
-// mod ipc;
 mod security_report;
 
 use audit::Command as AuditCommand;
 use authenticator::Command as AuthenticatorCommand;
 use check::{verify_events, Command as CheckCommand};
+use db::Command as DbCommand;
 use events::Command as EventsCommand;
-// use ipc::Command as IpcCommand;
 use security_report::SecurityReportFormat;
 
 #[derive(Subcommand, Debug)]
@@ -72,13 +72,6 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: EventsCommand,
     },
-    /*
-    /// Inter-process communication utilities.
-    Ipc {
-        #[clap(subcommand)]
-        cmd: IpcCommand,
-    },
-    */
     /// Repair a vault from a corresponding events file.
     RepairVault {
         /// Account name or address.
@@ -115,6 +108,11 @@ pub enum Command {
 
         /// Write report to this file.
         file: PathBuf,
+    },
+    /// Backend database management tools.
+    Db {
+        #[clap(subcommand)]
+        cmd: DbCommand,
     },
 }
 
@@ -201,10 +199,8 @@ pub async fn run(cmd: Command) -> Result<()> {
                         verify_events(events_file.clone(), false).await?;
 
                         let event_log =
-                            FolderEventLog::new_fs_folder(
-                                &events_file,
-                            )
-                            .await?;
+                            FolderEventLog::new_fs_folder(&events_file)
+                                .await?;
 
                         let vault = FolderReducer::new()
                             .reduce(&event_log)
@@ -231,6 +227,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             security_report::run(account, force, format, include_all, file)
                 .await?
         }
+        Command::Db { cmd } => db::run(cmd).await?,
     }
     Ok(())
 }

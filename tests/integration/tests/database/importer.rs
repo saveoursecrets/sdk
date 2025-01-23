@@ -48,7 +48,8 @@ async fn database_importer() -> Result<()> {
     .await?;
 
     // Import the file system accounts into the db
-    import_accounts(data_dir).await?;
+    let paths = Paths::new_global(data_dir);
+    import_accounts(&paths).await?;
 
     teardown(TEST_ID).await;
 
