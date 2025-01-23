@@ -2,6 +2,10 @@
 name = "sos-external-files"
 version = "0.16.0"
 edition = "2021"
+description = "External file blob support for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
 
 [dependencies]
 sos-core.workspace = true

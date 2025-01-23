@@ -9,11 +9,11 @@ use etcetera::{
 
 use crate::{
     constants::{
-        ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, DATABASE_FILE,
-        DEVICE_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR, FILE_EVENTS,
-        IDENTITY_DIR, JSON_EXT, LOCAL_DIR, LOGS_DIR, PENDING_DIR,
-        REMOTES_FILE, REMOTE_DIR, SYSTEM_MESSAGES_FILE, VAULTS_DIR,
-        VAULT_EXT,
+        ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, BLOBS_DIR,
+        DATABASE_FILE, DEVICE_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR,
+        FILE_EVENTS, IDENTITY_DIR, JSON_EXT, LOCAL_DIR, LOGS_DIR,
+        PENDING_DIR, REMOTES_FILE, REMOTE_DIR, SYSTEM_MESSAGES_FILE,
+        VAULTS_DIR, VAULT_EXT,
     },
     SecretId, VaultId,
 };
@@ -60,6 +60,8 @@ pub struct Paths {
     audit_file: PathBuf,
     /// User segregated storage.
     user_dir: PathBuf,
+    /// External file blob storage.
+    blobs_dir: PathBuf,
     /// User file storage.
     files_dir: PathBuf,
     /// User vault storage.
@@ -114,21 +116,26 @@ impl Paths {
         let identity_dir = documents_dir.join(IDENTITY_DIR);
         let audit_file = local_dir.join(AUDIT_FILE_NAME);
         let user_dir = local_dir.join(user_id.as_ref());
+
         let files_dir = user_dir.join(FILES_DIR);
         let vaults_dir = user_dir.join(VAULTS_DIR);
         let pending_dir = user_dir.join(PENDING_DIR);
         let device_file =
             user_dir.join(format!("{}.{}", DEVICE_FILE, VAULT_EXT));
 
-        let database_file = local_dir.join(DATABASE_FILE);
+        // Version 2 of the account storage backend (SQLite)
+        let blobs_dir = documents_dir.join(BLOBS_DIR);
+        let database_file = documents_dir.join(DATABASE_FILE);
 
         Self {
             user_id: user_id.as_ref().to_owned(),
             documents_dir,
             database_file,
+            blobs_dir,
+            logs_dir,
+
             identity_dir,
             local_dir,
-            logs_dir,
             audit_file,
             user_dir,
             files_dir,
@@ -143,12 +150,21 @@ impl Paths {
     /// If a user identifier is available this will
     /// also create some user-specific directories.
     pub async fn ensure(&self) -> Result<()> {
+        // Version 1 needs to local/remote directory
         vfs::create_dir_all(&self.local_dir).await?;
+
+        // Version 2 just needs the blobs directory
+        vfs::create_dir_all(&self.blobs_dir).await?;
+
         if !self.is_global() {
+            // Version 1 file system - needs to be removed eventually
             vfs::create_dir_all(&self.user_dir).await?;
             vfs::create_dir_all(&self.files_dir).await?;
             vfs::create_dir_all(&self.vaults_dir).await?;
             vfs::create_dir_all(&self.pending_dir).await?;
+
+            // Version 2 database backend needs a blobs folder
+            vfs::create_dir_all(self.blobs_dir.join(self.user_id())).await?;
         }
         Ok(())
     }
@@ -178,6 +194,46 @@ impl Paths {
     /// If the paths are global.
     pub fn database_file(&self) -> &PathBuf {
         &self.database_file
+    }
+
+    /// External file blobs directory.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    pub fn blobs_dir(&self) -> &PathBuf {
+        if self.is_global() {
+            panic!("blobs directory is not accessible for global paths");
+        }
+        &self.blobs_dir
+    }
+
+    /// Expected location for the directory containing
+    /// all the external files for a folder.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    pub fn blob_folder_location(&self, vault_id: &VaultId) -> PathBuf {
+        self.blobs_dir()
+            .join(self.user_id())
+            .join(vault_id.to_string())
+    }
+
+    /// Expected location for an external file blob.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    pub fn blob_location(
+        &self,
+        vault_id: &VaultId,
+        secret_id: &SecretId,
+        file_name: impl AsRef<str>,
+    ) -> PathBuf {
+        self.blob_folder_location(vault_id)
+            .join(secret_id.to_string())
+            .join(file_name.as_ref())
     }
 
     /// User identifier.

@@ -109,6 +109,12 @@ mod files {
     /// Directory to store files.
     pub const FILES_DIR: &str = "files";
 
+    /// Directory to store external file blobs.
+    ///
+    /// Supercedes the obsolete `FILES_DIR` for file
+    /// system based accounts.
+    pub const BLOBS_DIR: &str = "blobs";
+
     /// Directory to store log files.
     pub const LOGS_DIR: &str = "logs";
 
