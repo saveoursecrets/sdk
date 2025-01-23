@@ -2,7 +2,7 @@
 use crate::{filesystem::ServerFileStorage, ServerAccountStorage};
 use crate::{Error, Result};
 use async_trait::async_trait;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexSet;
 use sos_backend::reducers::DeviceReducer;
 use sos_backend::VaultWriter;
 use sos_backend::{
@@ -10,7 +10,7 @@ use sos_backend::{
     FolderEventLog,
 };
 use sos_core::{
-    commit::{CommitState, CommitTree, Comparison},
+    commit::{CommitState, Comparison},
     encode,
     events::{
         patch::{
@@ -488,75 +488,6 @@ impl SyncStorage for ServerFileStorage {
     }
 
     async fn sync_status(&self) -> Result<SyncStatus> {
-        // NOTE: the order for computing the cumulative
-        // NOTE: root hash must be identical to the logic
-        // NOTE: in the client implementation and the folders
-        // NOTE: collection must be sorted so that the folders
-        // NOTE: root hash is deterministic
-
-        let identity = {
-            let reader = self.identity_log.read().await;
-            reader.tree().commit_state()?
-        };
-
-        let account = {
-            let reader = self.account_log.read().await;
-            reader.tree().commit_state()?
-        };
-
-        let device = {
-            let reader = self.device_log.read().await;
-            reader.tree().commit_state()?
-        };
-
-        let files = {
-            let reader = self.file_log.read().await;
-            if reader.tree().is_empty() {
-                None
-            } else {
-                Some(reader.tree().commit_state()?)
-            }
-        };
-
-        let mut folders = IndexMap::new();
-        let mut folder_roots: Vec<(&VaultId, [u8; 32])> =
-            Vec::with_capacity(self.cache.len());
-        for (id, event_log) in &self.cache {
-            let event_log = event_log.read().await;
-            let commit_state = event_log.tree().commit_state()?;
-            folder_roots.push((id, commit_state.1.root().into()));
-            folders.insert(*id, commit_state);
-        }
-
-        // Compute a root hash of all the trees for an account
-        let mut root_tree = CommitTree::new();
-        let mut root_commits = vec![
-            identity.1.root().into(),
-            account.1.root().into(),
-            device.1.root().into(),
-        ];
-
-        if let Some(files) = &files {
-            root_commits.push(files.1.root().into());
-        }
-
-        folder_roots.sort_by(|a, b| a.0.cmp(b.0));
-        let mut folder_roots =
-            folder_roots.into_iter().map(|f| f.1).collect::<Vec<_>>();
-
-        root_commits.append(&mut folder_roots);
-        root_tree.append(&mut root_commits);
-        root_tree.commit();
-
-        let root = root_tree.root().ok_or(sos_core::Error::NoRootCommit)?;
-
-        Ok(SyncStatus {
-            root,
-            identity,
-            account,
-            device,
-            files,
-            folders,
-        })
+        sos_sync::compute_sync_status(self).await
     }
 }

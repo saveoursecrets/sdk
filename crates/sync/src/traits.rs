@@ -33,6 +33,7 @@ use {
 pub trait StorageEventLogs: Send + Sync + 'static {
     /// Error type for storage event logs.
     type Error: std::error::Error
+        + std::fmt::Debug
         + From<sos_core::Error>
         + From<sos_backend::Error>
         + Send

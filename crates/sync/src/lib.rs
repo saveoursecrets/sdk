@@ -4,11 +4,13 @@
 //! Core types and traits for sync and merge operations; part of the
 //! [Save Our Secrets](https://saveoursecrets.com) SDK.
 mod error;
+mod status;
 mod traits;
 mod types;
 
 pub use error::Error;
 
+pub use status::compute_sync_status;
 pub use traits::*;
 pub use types::*;
 

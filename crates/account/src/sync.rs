@@ -5,11 +5,10 @@ use super::folder_sync::{
 };
 use crate::{Account, LocalAccount, Result};
 use async_trait::async_trait;
-use indexmap::IndexMap;
 use sos_backend::reducers::DeviceReducer;
 use sos_backend::StorageError;
 use sos_core::{
-    commit::{CommitState, CommitTree, Comparison},
+    commit::{CommitState, Comparison},
     events::{
         patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
         AccountEvent, LogEvent, WriteEvent,
@@ -549,83 +548,6 @@ impl SyncStorage for LocalAccount {
     }
 
     async fn sync_status(&self) -> crate::Result<SyncStatus> {
-        // NOTE: the order for computing the cumulative
-        // NOTE: root hash must be identical to the logic
-        // NOTE: in the server implementation and the folders
-        // NOTE: collection must be sorted so that the folders
-        // NOTE: root hash is deterministic
-
-        let storage = self.storage().await.ok_or(StorageError::NoStorage)?;
-        let storage = storage.read().await;
-        let summaries = storage.list_folders().to_vec();
-
-        let identity = {
-            let reader = storage.identity_log.read().await;
-            reader.tree().commit_state()?
-        };
-
-        let account = {
-            let reader = storage.account_log.read().await;
-            reader.tree().commit_state()?
-        };
-
-        let device = {
-            let reader = storage.device_log.read().await;
-            reader.tree().commit_state()?
-        };
-
-        #[cfg(feature = "files")]
-        let files = {
-            let reader = storage.file_log.read().await;
-            if reader.tree().is_empty() {
-                None
-            } else {
-                Some(reader.tree().commit_state()?)
-            }
-        };
-
-        let mut folders = IndexMap::new();
-        let mut folder_roots: Vec<(&VaultId, [u8; 32])> = Vec::new();
-        for summary in &summaries {
-            let folder = storage
-                .cache()
-                .get(summary.id())
-                .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
-
-            let commit_state = folder.commit_state().await?;
-            folder_roots.push((summary.id(), commit_state.1.root().into()));
-            folders.insert(*summary.id(), commit_state);
-        }
-
-        // Compute a root hash of all the trees for an account
-        let mut root_tree = CommitTree::new();
-        let mut root_commits = vec![
-            identity.1.root().into(),
-            account.1.root().into(),
-            device.1.root().into(),
-        ];
-        #[cfg(feature = "files")]
-        if let Some(files) = &files {
-            root_commits.push(files.1.root().into());
-        }
-
-        folder_roots.sort_by(|a, b| a.0.cmp(b.0));
-        let mut folder_roots =
-            folder_roots.into_iter().map(|f| f.1).collect::<Vec<_>>();
-        root_commits.append(&mut folder_roots);
-        root_tree.append(&mut root_commits);
-        root_tree.commit();
-
-        let root = root_tree.root().ok_or(sos_core::Error::NoRootCommit)?;
-
-        Ok(SyncStatus {
-            root,
-            identity,
-            account,
-            device,
-            #[cfg(feature = "files")]
-            files,
-            folders,
-        })
+        sos_sync::compute_sync_status(self).await
     }
 }
