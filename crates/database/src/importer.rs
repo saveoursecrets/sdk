@@ -127,7 +127,8 @@ async fn move_file_blobs(
     accounts: &[PublicIdentity],
     options: &UpgradeOptions,
 ) -> Result<()> {
-    Ok(())
+    todo!("move file blobs");
+    // Ok(())
 }
 
 async fn delete_stale_files(

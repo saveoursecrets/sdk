@@ -114,7 +114,7 @@ impl ForceMerge for ServerFileStorage {
         let buffer = encode(&vault).await?;
         vfs::write(vault_path, buffer).await?;
 
-        self.cache_mut()
+        self.folders_mut()
             .insert(*folder_id, Arc::new(RwLock::new(event_log)));
 
         outcome.changes += len;
@@ -200,15 +200,21 @@ impl Merge for ServerFileStorage {
                         self.import_folder(id, buf).await?;
                     }
                     AccountEvent::RenameFolder(id, name) => {
-                        let id =
-                            self.cache.keys().find(|&fid| fid == id).cloned();
+                        let id = self
+                            .folders
+                            .keys()
+                            .find(|&fid| fid == id)
+                            .cloned();
                         if let Some(id) = &id {
                             self.rename_folder(id, name).await?;
                         }
                     }
                     AccountEvent::DeleteFolder(id) => {
-                        let id =
-                            self.cache.keys().find(|&fid| fid == id).cloned();
+                        let id = self
+                            .folders
+                            .keys()
+                            .find(|&fid| fid == id)
+                            .cloned();
                         if let Some(id) = &id {
                             self.delete_folder(id).await?;
                             deleted_folders.insert(*id);
@@ -309,7 +315,7 @@ impl Merge for ServerFileStorage {
             "folder",
         );
 
-        let log = self.cache.get_mut(folder_id).ok_or_else(|| {
+        let log = self.folders.get_mut(folder_id).ok_or_else(|| {
             sos_backend::StorageError::CacheNotAvailable(*folder_id)
         })?;
         let mut log = log.write().await;
@@ -346,23 +352,23 @@ impl StorageEventLogs for ServerFileStorage {
     type Error = Error;
 
     async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
-        Ok(Arc::clone(&self.identity_log))
+        Ok(self.identity_log.clone())
     }
 
     async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
-        Ok(Arc::clone(&self.account_log))
+        Ok(self.account_log.clone())
     }
 
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
-        Ok(Arc::clone(&self.device_log))
+        Ok(self.device_log.clone())
     }
 
     async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
-        Ok(Arc::clone(&self.file_log))
+        Ok(self.file_log.clone())
     }
 
     async fn folder_details(&self) -> Result<IndexSet<Summary>> {
-        let ids = self.cache.keys().copied().collect::<Vec<_>>();
+        let ids = self.folders.keys().copied().collect::<Vec<_>>();
         let mut output = IndexSet::new();
         for id in &ids {
             let path = self.paths.vault_path(id);
@@ -376,7 +382,7 @@ impl StorageEventLogs for ServerFileStorage {
         &self,
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
-        Ok(Arc::clone(self.cache.get(id).ok_or(
+        Ok(Arc::clone(self.folders.get(id).ok_or(
             sos_backend::StorageError::CacheNotAvailable(*id),
         )?))
     }

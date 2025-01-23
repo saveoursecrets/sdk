@@ -50,7 +50,7 @@ pub struct ServerFileStorage {
     pub(super) file_log: Arc<RwLock<FileEventLog>>,
 
     /// Folder event logs.
-    pub(super) cache: HashMap<VaultId, Arc<RwLock<FolderEventLog>>>,
+    pub(super) folders: HashMap<VaultId, Arc<RwLock<FolderEventLog>>>,
 
     /// Reduced collection of devices.
     pub(super) devices: IndexSet<TrustedDevice>,
@@ -100,13 +100,13 @@ impl ServerFileStorage {
 
         Ok(Self {
             account_id,
-            cache: Default::default(),
             paths,
             identity_log,
             account_log,
             device_log: Arc::new(RwLock::new(device_log)),
-            devices,
             file_log: Arc::new(RwLock::new(file_log)),
+            folders: Default::default(),
+            devices,
         })
     }
 
@@ -146,12 +146,12 @@ impl ServerFileStorage {
     }
 
     /// Create new event log cache entries.
-    async fn create_cache_entry(&mut self, id: &VaultId) -> Result<()> {
+    async fn create_folder_entry(&mut self, id: &VaultId) -> Result<()> {
         let event_log_path = self.paths.event_log_path(id);
         let mut event_log =
             FolderEventLog::new_fs_folder(&event_log_path).await?;
         event_log.load_tree().await?;
-        self.cache.insert(*id, Arc::new(RwLock::new(event_log)));
+        self.folders.insert(*id, Arc::new(RwLock::new(event_log)));
         Ok(())
     }
 
@@ -200,10 +200,10 @@ impl ServerFileStorage {
         Ok(event_log)
     }
 
-    fn cache_mut(
+    fn folders_mut(
         &mut self,
     ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
-        &mut self.cache
+        &mut self.folders
     }
 }
 
@@ -259,7 +259,7 @@ impl ServerAccountStorage for ServerFileStorage {
             let buffer = encode(&vault).await?;
             vfs::write(vault_path, buffer).await?;
 
-            self.cache_mut()
+            self.folders_mut()
                 .insert(*id, Arc::new(RwLock::new(event_log)));
         }
 
@@ -311,12 +311,10 @@ impl ServerAccountStorage for ServerFileStorage {
             }
         }
 
-        // Create a cache entry for each summary if it does not
-        // already exist.
         for summary in &summaries {
             // Ensure we don't overwrite existing data
-            if self.cache.get(summary.id()).is_none() {
-                self.create_cache_entry(summary.id()).await?;
+            if self.folders.get(summary.id()).is_none() {
+                self.create_folder_entry(summary.id()).await?;
             }
         }
         Ok(summaries)
@@ -327,7 +325,7 @@ impl ServerAccountStorage for ServerFileStorage {
         id: &VaultId,
         buffer: &[u8],
     ) -> Result<()> {
-        let exists = self.cache.get(id).is_some();
+        let exists = self.folders.get(id).is_some();
 
         let vault: Vault = decode(buffer).await?;
         let (vault, events) = FolderReducer::split::<Error>(vault).await?;
@@ -342,10 +340,10 @@ impl ServerAccountStorage for ServerFileStorage {
         let buffer = encode(&vault).await?;
         vfs::write(vault_path, &buffer).await?;
 
-        self.create_cache_entry(id).await?;
+        self.create_folder_entry(id).await?;
 
         {
-            let event_log = self.cache.get_mut(id).unwrap();
+            let event_log = self.folders.get_mut(id).unwrap();
             let mut event_log = event_log.write().await;
             event_log.clear().await?;
             event_log.apply(events.iter().collect()).await?;
@@ -376,7 +374,7 @@ impl ServerAccountStorage for ServerFileStorage {
         self.remove_vault_file(id).await?;
 
         // Remove local state
-        self.cache.remove(id);
+        self.folders.remove(id);
 
         {
             let files_folder = self.paths.files_dir().join(id.to_string());
