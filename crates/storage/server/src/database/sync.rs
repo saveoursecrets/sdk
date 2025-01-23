@@ -47,6 +47,10 @@ impl ForceMerge for ServerDatabaseStorage {
         let mut event_log = self.identity_log.write().await;
         event_log.replace_all_events(&diff).await?;
 
+        outcome.changes += len;
+        outcome.tracked.identity =
+            TrackedChanges::new_folder_records(&diff.patch).await?;
+
         // Rebuild the head-only identity vault
         let vault = FolderReducer::new()
             .reduce(&*event_log)
@@ -73,26 +77,17 @@ impl ForceMerge for ServerDatabaseStorage {
         diff: DeviceDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let len = diff.patch.len() as u64;
-
-        tracing::debug!(
-            checkpoint = ?diff.checkpoint,
-            num_events = len,
-            "force_merge::device",
-        );
-
-        let event_log = self.device_log().await?;
-        let mut event_log = event_log.write().await;
-        event_log.replace_all_events(&diff).await?;
+        <ServerDatabaseStorage as ForceMerge>::force_merge_device(
+            self, diff, outcome,
+        )
+        .await?;
 
         // Update in-memory cache of trusted devices
+        let event_log = self.device_log().await?;
+        let event_log = event_log.read().await;
         let reducer = DeviceReducer::new(&*event_log);
         let devices = reducer.reduce().await?;
         self.devices = devices;
-
-        outcome.changes += len;
-        outcome.tracked.device =
-            TrackedChanges::new_device_records(&diff.patch).await?;
 
         Ok(())
     }

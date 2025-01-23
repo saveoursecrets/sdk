@@ -48,30 +48,6 @@ impl ForceMerge for LocalAccount {
         Ok(())
     }
 
-    async fn force_merge_device(
-        &mut self,
-        diff: DeviceDiff,
-        outcome: &mut MergeOutcome,
-    ) -> Result<()> {
-        let len = diff.patch.len() as u64;
-
-        tracing::debug!(
-            checkpoint = ?diff.checkpoint,
-            num_events = len,
-            "force_merge::device",
-        );
-
-        let event_log = self.device_log().await?;
-        let mut event_log = event_log.write().await;
-        event_log.replace_all_events(&diff).await?;
-
-        outcome.changes += len;
-        outcome.tracked.device =
-            TrackedChanges::new_device_records(&diff.patch).await?;
-
-        Ok(())
-    }
-
     /// Force merge changes to the files event log.
     async fn force_merge_folder(
         &mut self,

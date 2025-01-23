@@ -69,6 +69,7 @@ impl ForceMerge for ServerFileStorage {
         diff: DeviceDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
+        /*
         let len = diff.patch.len() as u64;
 
         tracing::debug!(
@@ -81,14 +82,23 @@ impl ForceMerge for ServerFileStorage {
         let mut event_log = event_log.write().await;
         event_log.replace_all_events(&diff).await?;
 
-        // Update in-memory cache of trusted devices
-        let reducer = DeviceReducer::new(&*event_log);
-        let devices = reducer.reduce().await?;
-        self.devices = devices;
-
         outcome.changes += len;
         outcome.tracked.device =
             TrackedChanges::new_device_records(&diff.patch).await?;
+
+        */
+
+        <ServerFileStorage as ForceMerge>::force_merge_device(
+            self, diff, outcome,
+        )
+        .await?;
+
+        // Update in-memory cache of trusted devices
+        let event_log = self.device_log().await?;
+        let event_log = event_log.read().await;
+        let reducer = DeviceReducer::new(&*event_log);
+        let devices = reducer.reduce().await?;
+        self.devices = devices;
 
         Ok(())
     }
