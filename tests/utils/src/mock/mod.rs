@@ -17,10 +17,14 @@ use sos_core::{
     events::{EventLog, WriteEvent},
     AccountId, SecretId, VaultEntry,
 };
+use sos_database::db::EventEntity;
+use sos_database::db::EventRecordRow;
+use sos_database::db::EventTable;
 use sos_database::db::{
     open_file, AccountEntity, AccountRow, FolderEntity, FolderRow,
 };
 use sos_password::diceware::generate_passphrase;
+use sos_sdk::events::EventRecord;
 use sos_vault::{
     secret::{FileContent, IdentityKind, Secret, SecretMeta},
     BuilderCredentials, EncryptedEntry, Vault, VaultBuilder,
@@ -232,6 +236,11 @@ pub async fn insert_database_vault(
     } else {
         None
     };
+
+    let event = WriteEvent::CreateVault(encode(&vault).await?);
+    let record = EventRecord::encode_event(&event).await?;
+    let event_rows = vec![EventRecordRow::new(&record)?];
+
     Ok(client
         .conn_mut_and_then(move |conn| {
             let folder = FolderEntity::new(&conn);
@@ -246,6 +255,13 @@ pub async fn insert_database_vault(
                 let account = AccountEntity::new(&conn);
                 account.insert_login_folder(account_id, folder_id)?;
             }
+
+            let events = EventEntity::new(&conn);
+            events.insert_events(
+                EventTable::FolderEvents,
+                folder_id,
+                event_rows.as_slice(),
+            )?;
 
             Ok::<_, anyhow::Error>((
                 account_identifier,

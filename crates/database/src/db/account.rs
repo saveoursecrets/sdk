@@ -163,12 +163,7 @@ where
     }
 
     /// Create the account entity in the database.
-    pub fn insert(
-        &self,
-        row: &AccountRow,
-        // account_identifier: &str,
-        // account_name: &str,
-    ) -> Result<i64, SqlError> {
+    pub fn insert(&self, row: &AccountRow) -> Result<i64, SqlError> {
         self.conn.execute(
             r#"
             INSERT INTO accounts (identifier, name, created_at, modified_at)

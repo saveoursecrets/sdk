@@ -1,6 +1,7 @@
 //! Server storage backed by a database.
 use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
+use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use sos_backend::reducers::{DeviceReducer, FolderReducer};
 use sos_backend::VaultWriter;
@@ -16,7 +17,10 @@ use sos_core::{
     encode, AccountId, Paths, VaultId,
 };
 use sos_database::async_sqlite::Client;
-use sos_database::db::AccountEntity;
+use sos_database::db::{
+    AccountEntity, AccountRecord, AccountRow, FolderEntity, FolderRow,
+};
+use sos_sdk::events::{EventRecord, WriteEvent};
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
 use sos_vault::{EncryptedEntry, Summary, Vault};
 use sos_vfs as vfs;
@@ -36,6 +40,12 @@ mod sync;
 pub struct ServerDatabaseStorage {
     /// Account identifier.
     pub(super) account_id: AccountId,
+
+    /// Account name.
+    pub(super) account_name: String,
+
+    /// Account database id.
+    pub(super) account_row_id: i64,
 
     /// Directories for storage.
     pub(super) paths: Arc<Paths>,
@@ -83,7 +93,7 @@ impl ServerDatabaseStorage {
 
     /// Create new storage backed by a database file on disc.
     async fn new_client(
-        client: Client,
+        mut client: Client,
         paths: Arc<Paths>,
         account_id: AccountId,
         identity_log: Arc<RwLock<FolderEventLog>>,
@@ -96,6 +106,13 @@ impl ServerDatabaseStorage {
         }
 
         paths.ensure().await?;
+
+        let vault = Self::extract_vault_event_log(identity_log.clone())
+            .await?
+            .ok_or_else(|| Error::NoVaultEvent)?;
+
+        let account_row =
+            Self::lookup_account(&mut client, &account_id).await?;
 
         // let client =
         //     sos_database::db::open_file(paths.database_file()).await?;
@@ -114,6 +131,8 @@ impl ServerDatabaseStorage {
 
         Ok(Self {
             account_id,
+            account_name: vault.name().to_owned(),
+            account_row_id: account_row.row_id,
             paths,
             client,
             identity_log,
@@ -170,6 +189,23 @@ impl ServerDatabaseStorage {
         Ok(event_log)
         */
     }
+
+    /*
+    // Create the account in the database
+    let account_row = AccountRow::new_insert(
+        &self.account_id,
+        self.account_name.clone(),
+    )?;
+
+    let account_id = self
+        .client
+        .conn(move |conn| {
+            let account = AccountEntity::new(&conn);
+            Ok(account.insert(&account_row)?)
+        })
+        .await
+        .map_err(sos_database::Error::from)?;
+    */
 
     /// Create new event log cache entries.
     async fn create_folder_entry(&mut self, id: &VaultId) -> Result<()> {
@@ -242,6 +278,48 @@ impl ServerDatabaseStorage {
     ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
         &mut self.folders
     }
+
+    async fn lookup_account(
+        client: &mut Client,
+        account_id: &AccountId,
+    ) -> Result<AccountRow> {
+        let account_id = *account_id;
+        Ok(client
+            .conn(move |conn| {
+                let account = AccountEntity::new(&conn);
+                Ok(account.find_one(&account_id)?)
+            })
+            .await
+            .map_err(sos_database::Error::from)?)
+    }
+
+    /// Extract a vault from the first write event in
+    /// a collection of records.
+    async fn extract_vault(records: &[EventRecord]) -> Result<Option<Vault>> {
+        let first_record = records.get(0);
+        Ok(if let Some(record) = first_record {
+            let event: WriteEvent = record.decode_event().await?;
+            let WriteEvent::CreateVault(buf) = event else {
+                return Err(sos_core::Error::CreateEventMustBeFirst.into());
+            };
+            let vault: Vault = decode(&buf).await?;
+            Some(vault)
+        } else {
+            None
+        })
+    }
+
+    /// Extract a vault from the first event in a folder event log.
+    async fn extract_vault_event_log(
+        event_log: Arc<RwLock<FolderEventLog>>,
+    ) -> Result<Option<Vault>> {
+        let event_log = event_log.read().await;
+        let stream = event_log.record_stream(false).await;
+        pin_mut!(stream);
+        let first_record =
+            stream.next().await.ok_or_else(|| Error::NoVaultEvent)??;
+        Self::extract_vault(&[first_record]).await
+    }
 }
 
 #[async_trait]
@@ -262,6 +340,8 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         &mut self,
         account_data: &CreateSet,
     ) -> Result<()> {
+        let account_id = self.account_row_id;
+
         {
             let mut writer = self.account_log.write().await;
             writer.patch_unchecked(&account_data.account).await?;
@@ -280,27 +360,36 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         }
 
         for (id, folder) in &account_data.folders {
-            let vault_path = self.paths.vault_path(id);
+            if let Some(vault) = Self::extract_vault(folder.records()).await?
+            {
+                let meta = if let Some(meta) = vault.header().meta() {
+                    Some(encode(meta).await?)
+                } else {
+                    None
+                };
+                let salt = vault.salt().cloned();
+                let folder_row =
+                    FolderRow::new_insert(vault.summary(), salt, meta)?;
 
-            let mut event_log = FolderEventLog::new_db_folder(
-                self.client.clone(),
-                self.account_id.clone(),
-                *id,
-            )
-            .await?;
-            event_log.patch_unchecked(folder).await?;
+                self.client
+                    .conn(move |conn| {
+                        let folder = FolderEntity::new(&conn);
+                        folder.insert_folder(account_id, &folder_row)
+                    })
+                    .await
+                    .map_err(sos_database::Error::from)?;
 
-            let vault = FolderReducer::new()
-                .reduce(&event_log)
-                .await?
-                .build(false)
+                let mut event_log = FolderEventLog::new_db_folder(
+                    self.client.clone(),
+                    self.account_id.clone(),
+                    *id,
+                )
                 .await?;
+                event_log.patch_unchecked(folder).await?;
 
-            let buffer = encode(&vault).await?;
-            vfs::write(vault_path, buffer).await?;
-
-            self.folders_mut()
-                .insert(*id, Arc::new(RwLock::new(event_log)));
+                self.folders_mut()
+                    .insert(*id, Arc::new(RwLock::new(event_log)));
+            }
         }
 
         Ok(())

@@ -1,5 +1,6 @@
 use anyhow::Result;
-use sos_core::{AccountId, Paths, VaultFlags};
+use sos_core::{encode, AccountId, Paths, VaultFlags};
+use sos_sdk::events::{patch::Patch, EventRecord, WriteEvent};
 use sos_server_storage::{ServerAccountStorage, ServerStorage};
 use sos_sync::{CreateSet, MergeOutcome, UpdateSet};
 use sos_test_utils::mock::{insert_database_vault, memory_database};
@@ -45,14 +46,26 @@ async fn assert_server_storage(
     let paths = storage.paths();
     paths.ensure().await?;
 
-    let account_data = CreateSet::default();
+    let vault = Vault::default();
+    let mut account_data = CreateSet::default();
+    let event = WriteEvent::CreateVault(encode(&vault).await?);
+    let record = EventRecord::encode_event(&event).await?;
+
+    account_data
+        .folders
+        .insert(*vault.id(), Patch::new(vec![record]));
     storage.import_account(&account_data).await?;
+
+    /*
+    // Create set used when importing the account has one folder
+    let summaries = storage.load_folders().await?;
+    assert_eq!(1, summaries.len());
+    */
 
     let mut outcome = MergeOutcome::default();
     let account_data = UpdateSet::default();
     storage.update_account(account_data, &mut outcome).await?;
 
-    // Delete the account
     storage.delete_account().await?;
 
     Ok(())

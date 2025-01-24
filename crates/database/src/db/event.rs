@@ -225,7 +225,7 @@ where
     pub fn insert_events(
         &self,
         table: EventTable,
-        account_id: i64,
+        account_or_folder_id: i64,
         events: &[EventRecordRow],
     ) -> Result<Vec<i64>, SqlError> {
         let stmt = match table {
@@ -268,7 +268,7 @@ where
                 "file_events"
             ))?,
         };
-        self.create_events(stmt, account_id, events)
+        self.create_events(stmt, account_or_folder_id, events)
     }
 
     /// Create account events in the database.

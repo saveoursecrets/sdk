@@ -17,6 +17,12 @@ pub enum Error {
     #[error("could not find login folder for '{0}'")]
     NoLoginFolder(AccountId),
 
+    /// Error generated if we could not find a create vault event
+    /// in a collection of event records or as the first event in
+    /// a folder event log.
+    #[error("could not find create vault event")]
+    NoVaultEvent,
+
     /// Error generated when vault identifiers must match.
     #[error("identifier '{0}' does not match '{1}'")]
     VaultIdentifierMismatch(VaultId, VaultId),
