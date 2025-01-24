@@ -1,4 +1,7 @@
-use crate::Error;
+use crate::{
+    db::{FolderEntity, FolderRow},
+    Error,
+};
 use async_sqlite::rusqlite::{Connection, Error as SqlError, Row};
 use sos_core::{AccountId, PublicIdentity, UtcDateTime};
 use std::ops::Deref;
@@ -76,6 +79,26 @@ impl TryFrom<AccountRow> for AccountRecord {
     }
 }
 
+/// Account folder join.
+#[doc(hidden)]
+#[derive(Debug, Default)]
+pub struct AccountFolderJoin {
+    /// Account identifier.
+    pub account_id: i64,
+    /// Folder identifier.
+    pub folder_id: i64,
+}
+
+impl<'a> TryFrom<&Row<'a>> for AccountFolderJoin {
+    type Error = SqlError;
+    fn try_from(row: &Row<'a>) -> Result<Self, Self::Error> {
+        Ok(AccountFolderJoin {
+            account_id: row.get(0)?,
+            folder_id: row.get(1)?,
+        })
+    }
+}
+
 /// Account entity.
 pub struct AccountEntity<'conn, C>
 where
@@ -114,6 +137,31 @@ where
             .query_row([account_id.to_string()], |row| Ok(row.try_into()?))?)
     }
 
+    /// Try to find a login folder for an account.
+    pub fn find_login_folder(
+        &self,
+        account_id: &AccountId,
+    ) -> Result<(AccountRow, FolderRow), SqlError> {
+        let account_row = self.find_one(account_id)?;
+
+        // TODO: proper join query here!
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+                SELECT
+                    account_id,
+                    folder_id
+                FROM account_login_folder
+                WHERE account_id=?1
+            "#,
+        )?;
+        let join_row: AccountFolderJoin =
+            stmt.query_row([account_row.row_id], |row| Ok(row.try_into()?))?;
+
+        let folder = FolderEntity::new(self.conn);
+        let folder_row = folder.find_by_row_id(join_row.folder_id)?;
+        Ok((account_row, folder_row))
+    }
+
     /// Create the account entity in the database.
     pub fn insert(
         &self,
@@ -147,7 +195,7 @@ where
               INSERT INTO account_login_folder (account_id, folder_id) 
               VALUES (?1, ?2)
             "#,
-            (&account_id, &folder_id),
+            [account_id, folder_id],
         )?;
         Ok(self.conn.last_insert_rowid())
     }
@@ -163,8 +211,23 @@ where
               INSERT INTO account_device_folder (account_id, folder_id) 
               VALUES (?1, ?2)
             "#,
-            (&account_id, &folder_id),
+            [account_id, folder_id],
         )?;
         Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Delete the account from the database.
+    pub fn delete_account(
+        &self,
+        account_id: &AccountId,
+    ) -> Result<(), SqlError> {
+        let account_row = self.find_one(account_id)?;
+        self.conn.execute(
+            r#"
+              DELETE FROM accounts WHERE account_id=?1
+            "#,
+            [account_row.row_id],
+        )?;
+        Ok(())
     }
 }

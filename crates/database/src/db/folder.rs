@@ -226,8 +226,11 @@ where
         Self { conn }
     }
 
-    fn find_folder_statement(&self) -> StdResult<CachedStatement, SqlError> {
-        Ok(self.conn.prepare_cached(
+    fn find_folder_statement(
+        &self,
+        where_column: &str,
+    ) -> StdResult<CachedStatement, SqlError> {
+        Ok(self.conn.prepare_cached(&format!(
             r#"
                 SELECT
                     folder_id,
@@ -242,9 +245,10 @@ where
                     kdf,
                     flags
                 FROM folders
-                WHERE identifier=?1
+                WHERE {}=?1
             "#,
-        )?)
+            where_column
+        ))?)
     }
 
     /// Find a folder in the database.
@@ -253,7 +257,7 @@ where
         // FIXME: require account_id?
         folder_id: &VaultId,
     ) -> StdResult<FolderRow, SqlError> {
-        let mut stmt = self.find_folder_statement()?;
+        let mut stmt = self.find_folder_statement("identifier")?;
         Ok(stmt
             .query_row([folder_id.to_string()], |row| Ok(row.try_into()?))?)
     }
@@ -264,13 +268,22 @@ where
         // FIXME: require account_id?
         folder_id: &VaultId,
     ) -> StdResult<Option<FolderRow>, SqlError> {
-        let mut stmt = self.find_folder_statement()?;
+        let mut stmt = self.find_folder_statement("identifier")?;
         Ok(stmt
             .query_row([folder_id.to_string()], |row| {
                 let row: FolderRow = row.try_into()?;
                 Ok(row)
             })
             .optional()?)
+    }
+
+    /// Find a folder in the database by primary key.
+    pub fn find_by_row_id(
+        &self,
+        folder_id: i64,
+    ) -> StdResult<FolderRow, SqlError> {
+        let mut stmt = self.find_folder_statement("folder_id")?;
+        Ok(stmt.query_row([folder_id], |row| Ok(row.try_into()?))?)
     }
 
     /// Update the name of a folder.

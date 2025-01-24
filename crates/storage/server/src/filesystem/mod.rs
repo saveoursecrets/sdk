@@ -420,8 +420,14 @@ impl ServerAccountStorage for ServerFileStorage {
         let user_dir = self.paths.user_dir();
         let identity_vault = self.paths.identity_vault();
         let identity_event = self.paths.identity_events();
+
         vfs::remove_dir_all(&user_dir).await?;
-        vfs::remove_file(&identity_vault).await?;
+
+        // In some test specs we don't necessarily want to mock
+        // this file
+        if vfs::try_exists(&identity_vault).await? {
+            vfs::remove_file(&identity_vault).await?;
+        }
         vfs::remove_file(&identity_event).await?;
         Ok(())
     }

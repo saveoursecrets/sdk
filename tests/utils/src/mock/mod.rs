@@ -239,6 +239,14 @@ pub async fn insert_database_vault(
                 account_id,
                 &FolderRow::new_insert(vault.summary(), salt, meta)?,
             )?;
+
+            // If the vault is an identity vault create
+            // the join entry
+            if vault.summary().flags().is_identity() {
+                let account = AccountEntity::new(&conn);
+                account.insert_login_folder(account_id, folder_id)?;
+            }
+
             Ok::<_, anyhow::Error>((
                 account_identifier,
                 account_id,

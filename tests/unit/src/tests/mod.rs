@@ -21,6 +21,7 @@ mod recovery;
 mod sdk;
 mod search;
 mod server_origins;
+mod server_storage;
 mod signer;
 mod system_messages;
 mod vault_writer;

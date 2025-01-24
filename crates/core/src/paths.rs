@@ -209,15 +209,23 @@ impl Paths {
     }
 
     /// Expected location for the directory containing
+    /// all the external file blobs for an account.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    pub fn blobs_account_dir(&self) -> PathBuf {
+        self.blobs_dir().join(self.user_id())
+    }
+
+    /// Expected location for the directory containing
     /// all the external files for a folder.
     ///
     /// # Panics
     ///
     /// If this set of paths are global (no user identifier).
     pub fn blob_folder_location(&self, vault_id: &VaultId) -> PathBuf {
-        self.blobs_dir()
-            .join(self.user_id())
-            .join(vault_id.to_string())
+        self.blobs_account_dir().join(vault_id.to_string())
     }
 
     /// Expected location for an external file blob.

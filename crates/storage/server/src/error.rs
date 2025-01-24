@@ -1,4 +1,4 @@
-use sos_core::VaultId;
+use sos_core::{AccountId, VaultId};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -12,6 +12,11 @@ pub enum Error {
     /// Error generated if we could not determine a cache directory.
     #[error("could not determine cache directory")]
     NoCache,
+
+    /// Error generated if we could not find a login folder for an account.
+    #[error("could not find login folder for '{0}'")]
+    NoLoginFolder(AccountId),
+
     /// Error generated when vault identifiers must match.
     #[error("identifier '{0}' does not match '{1}'")]
     VaultIdentifierMismatch(VaultId, VaultId),

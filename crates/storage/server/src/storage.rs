@@ -18,6 +18,10 @@ use sos_core::{
     },
     AccountId, Paths, VaultId,
 };
+use sos_database::{
+    async_sqlite::Client,
+    db::{AccountEntity, FolderRecord},
+};
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
     SyncStorage, UpdateSet,
@@ -84,6 +88,46 @@ impl ServerStorage {
         storage.import_account(&account_data).await?;
 
         Ok(Self::FileSystem(storage))
+    }
+
+    /// Create new database storage.
+    pub async fn new_db(
+        client: Client,
+        account_id: &AccountId,
+        directory: impl AsRef<Path>,
+    ) -> Result<Self> {
+        let folder_account_id = *account_id;
+
+        let login_folder = client
+            .conn(move |conn| {
+                let account = AccountEntity::new(&conn);
+                Ok(account.find_login_folder(&folder_account_id)?)
+            })
+            .await
+            .map_err(sos_database::Error::from)?;
+
+        let (_account_row, folder_row) = login_folder;
+        let login_record = FolderRecord::from_row(folder_row).await?;
+
+        let mut event_log = FolderEventLog::new_db_folder(
+            client.clone(),
+            *account_id,
+            *login_record.summary.id(),
+        )
+        .await?;
+
+        event_log.load_tree().await?;
+        let identity_log = Arc::new(RwLock::new(event_log));
+
+        Ok(Self::Database(
+            ServerDatabaseStorage::new(
+                client,
+                *account_id,
+                Some(directory.as_ref().to_owned()),
+                identity_log,
+            )
+            .await?,
+        ))
     }
 }
 

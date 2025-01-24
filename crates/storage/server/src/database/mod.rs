@@ -16,6 +16,7 @@ use sos_core::{
     encode, AccountId, Paths, VaultId,
 };
 use sos_database::async_sqlite::Client;
+use sos_database::db::AccountEntity;
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
 use sos_vault::{EncryptedEntry, Summary, Vault};
 use sos_vfs as vfs;
@@ -64,6 +65,7 @@ pub struct ServerDatabaseStorage {
 impl ServerDatabaseStorage {
     /// Create database storage for server-side access.
     pub async fn new(
+        client: Client,
         account_id: AccountId,
         data_dir: Option<PathBuf>,
         identity_log: Arc<RwLock<FolderEventLog>>,
@@ -75,11 +77,13 @@ impl ServerDatabaseStorage {
         };
 
         let dirs = Paths::new_server(data_dir, account_id.to_string());
-        Self::new_client(Arc::new(dirs), account_id, identity_log).await
+        Self::new_client(client, Arc::new(dirs), account_id, identity_log)
+            .await
     }
 
     /// Create new storage backed by a database file on disc.
     async fn new_client(
+        client: Client,
         paths: Arc<Paths>,
         account_id: AccountId,
         identity_log: Arc<RwLock<FolderEventLog>>,
@@ -93,8 +97,8 @@ impl ServerDatabaseStorage {
 
         paths.ensure().await?;
 
-        let client =
-            sos_database::db::open_file(paths.database_file()).await?;
+        // let client =
+        //     sos_database::db::open_file(paths.database_file()).await?;
 
         let mut event_log =
             AccountEventLog::new_db_account(client.clone(), account_id)
@@ -103,9 +107,10 @@ impl ServerDatabaseStorage {
         let account_log = Arc::new(RwLock::new(event_log));
 
         let (device_log, devices) =
-            Self::initialize_device_log(client.clone(), account_id).await?;
+            Self::initialize_device_log(&client, &account_id).await?;
 
-        let file_log = Self::initialize_file_log(&paths).await?;
+        let file_log =
+            Self::initialize_file_log(&*paths, &client, &account_id).await?;
 
         Ok(Self {
             account_id,
@@ -121,11 +126,12 @@ impl ServerDatabaseStorage {
     }
 
     async fn initialize_device_log(
-        client: Client,
-        account_id: AccountId,
+        client: &Client,
+        account_id: &AccountId,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
         let mut event_log =
-            DeviceEventLog::new_db_device(client, account_id).await?;
+            DeviceEventLog::new_db_device(client.clone(), *account_id)
+                .await?;
         event_log.load_tree().await?;
 
         let reducer = DeviceReducer::new(&event_log);
@@ -134,13 +140,21 @@ impl ServerDatabaseStorage {
         Ok((event_log, devices))
     }
 
-    async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
+    async fn initialize_file_log(
+        paths: &Paths,
+        client: &Client,
+        account_id: &AccountId,
+    ) -> Result<FileEventLog> {
         use sos_external_files::list_external_files;
 
-        let log_file = paths.file_events();
-        let needs_init = !vfs::try_exists(&log_file).await?;
-        let mut event_log = FileEventLog::new_fs_file(log_file).await?;
+        let mut event_log =
+            FileEventLog::new_db_file(client.clone(), *account_id).await?;
 
+        // todo!("determine if file events need initializing");
+
+        Ok(event_log)
+
+        /*
         tracing::debug!(needs_init = %needs_init, "file_log");
 
         if needs_init {
@@ -154,6 +168,7 @@ impl ServerDatabaseStorage {
         }
 
         Ok(event_log)
+        */
     }
 
     /// Create new event log cache entries.
@@ -447,16 +462,22 @@ impl ServerAccountStorage for ServerDatabaseStorage {
     }
 
     async fn delete_account(&mut self) -> Result<()> {
-        todo!("delete the account from the database");
+        // Remove all account data from the database
+        let account_id = self.account_id.clone();
+        self.client
+            .conn_mut(move |conn| {
+                let account = AccountEntity::new(&conn);
+                account.delete_account(&account_id)
+            })
+            .await
+            .map_err(sos_database::Error::from)?;
 
-        /*
-        let user_dir = self.paths.user_dir();
-        let identity_vault = self.paths.identity_vault();
-        let identity_event = self.paths.identity_events();
-        vfs::remove_dir_all(&user_dir).await?;
-        vfs::remove_file(&identity_vault).await?;
-        vfs::remove_file(&identity_event).await?;
+        // Delete all file blobs for the account
+        let blobs_dir = self.paths.blobs_account_dir();
+        if vfs::try_exists(&blobs_dir).await? {
+            vfs::remove_dir_all(&blobs_dir).await?;
+        }
+
         Ok(())
-        */
     }
 }
