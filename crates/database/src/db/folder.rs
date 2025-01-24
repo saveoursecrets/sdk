@@ -286,6 +286,41 @@ where
         Ok(stmt.query_row([folder_id], |row| Ok(row.try_into()?))?)
     }
 
+    /// List folders for an account.
+    pub fn list_folders(&self, account_id: i64) -> Result<Vec<FolderRow>> {
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+                SELECT
+                    folder_id,
+                    created_at,
+                    modified_at,
+                    identifier,
+                    name,
+                    salt,
+                    meta,
+                    version,
+                    cipher,
+                    kdf,
+                    flags
+                FROM folders
+                WHERE account_id=?1
+            "#,
+        )?;
+
+        fn convert_row(row: &Row<'_>) -> Result<FolderRow> {
+            Ok(row.try_into()?)
+        }
+
+        let rows = stmt.query_and_then([account_id], |row| {
+            Ok::<_, crate::Error>(convert_row(row)?)
+        })?;
+        let mut folders = Vec::new();
+        for row in rows {
+            folders.push(row?);
+        }
+        Ok(folders)
+    }
+
     /// Update the name of a folder.
     pub fn update_name(
         &self,
@@ -521,6 +556,23 @@ where
             secrets.push(row?);
         }
         Ok(secrets)
+    }
+
+    /// Delete a folder.
+    pub fn delete_folder(
+        &self,
+        folder_id: &VaultId,
+    ) -> StdResult<bool, SqlError> {
+        let row = self.find_one(folder_id)?;
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+                DELETE
+                    FROM folders
+                    WHERE folder_id=?1
+            "#,
+        )?;
+        let affected_rows = stmt.execute([row.row_id])?;
+        Ok(affected_rows > 0)
     }
 
     /// Delete folder secret.

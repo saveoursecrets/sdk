@@ -19,6 +19,7 @@ use sos_core::{
     },
     VaultId,
 };
+use sos_database::db::{FolderEntity, FolderRecord};
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
     TrackedChanges,
@@ -68,7 +69,7 @@ impl ForceMerge for ServerDatabaseStorage {
         Ok(())
         */
 
-        todo!();
+        todo!("force merge identity in db impl");
     }
 
     async fn force_merge_device(
@@ -376,18 +377,21 @@ impl StorageEventLogs for ServerDatabaseStorage {
     }
 
     async fn folder_details(&self) -> Result<IndexSet<Summary>> {
-        todo!("load summaries from the database");
-
-        /*
         let ids = self.folders.keys().copied().collect::<Vec<_>>();
         let mut output = IndexSet::new();
-        for id in &ids {
-            let path = self.paths.vault_path(id);
-            let summary = Header::read_summary_file(path).await?;
-            output.insert(summary);
+        // TODO: we could use a find_many() with "IN (id1, id2, ..)" here
+        for id in ids {
+            let row = self
+                .client
+                .conn(move |conn| {
+                    let folder = FolderEntity::new(&conn);
+                    Ok(folder.find_one(&id)?)
+                })
+                .await?;
+            let record = FolderRecord::from_row(row).await?;
+            output.insert(record.summary);
         }
         Ok(output)
-        */
     }
 
     async fn folder_log(

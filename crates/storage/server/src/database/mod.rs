@@ -18,7 +18,8 @@ use sos_core::{
 };
 use sos_database::async_sqlite::Client;
 use sos_database::db::{
-    AccountEntity, AccountRecord, AccountRow, FolderEntity, FolderRow,
+    AccountEntity, AccountRecord, AccountRow, FolderEntity, FolderRecord,
+    FolderRow,
 };
 use sos_sdk::events::{EventRecord, WriteEvent};
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
@@ -40,9 +41,6 @@ mod sync;
 pub struct ServerDatabaseStorage {
     /// Account identifier.
     pub(super) account_id: AccountId,
-
-    /// Account name.
-    pub(super) account_name: String,
 
     /// Account database id.
     pub(super) account_row_id: i64,
@@ -107,15 +105,14 @@ impl ServerDatabaseStorage {
 
         paths.ensure().await?;
 
+        /*
         let vault = Self::extract_vault_event_log(identity_log.clone())
             .await?
             .ok_or_else(|| Error::NoVaultEvent)?;
+        */
 
         let account_row =
             Self::lookup_account(&mut client, &account_id).await?;
-
-        // let client =
-        //     sos_database::db::open_file(paths.database_file()).await?;
 
         let mut event_log =
             AccountEventLog::new_db_account(client.clone(), account_id)
@@ -131,7 +128,6 @@ impl ServerDatabaseStorage {
 
         Ok(Self {
             account_id,
-            account_name: vault.name().to_owned(),
             account_row_id: account_row.row_id,
             paths,
             client,
@@ -220,23 +216,16 @@ impl ServerDatabaseStorage {
         Ok(())
     }
 
-    /// Remove a vault file and event log file.
-    async fn remove_vault_file(&self, id: &VaultId) -> Result<()> {
-        todo!("delete folder from the database");
-
-        /*
-        // Remove local vault mirror if it exists
-        let vault_path = self.paths.vault_path(id);
-        if vfs::try_exists(&vault_path).await? {
-            vfs::remove_file(&vault_path).await?;
-        }
-
-        // Remove the local event log file
-        let event_log_path = self.paths.event_log_path(id);
-        if vfs::try_exists(&event_log_path).await? {
-            vfs::remove_file(&event_log_path).await?;
-        }
-        */
+    /// Remove a folder.
+    async fn remove_vault_file(&self, folder_id: &VaultId) -> Result<()> {
+        let folder_id = *folder_id;
+        self.client
+            .conn(move |conn| {
+                let folder = FolderEntity::new(&conn);
+                folder.delete_folder(&folder_id)
+            })
+            .await
+            .map_err(sos_database::Error::from)?;
         Ok(())
     }
 
@@ -309,6 +298,7 @@ impl ServerDatabaseStorage {
         })
     }
 
+    /*
     /// Extract a vault from the first event in a folder event log.
     async fn extract_vault_event_log(
         event_log: Arc<RwLock<FolderEventLog>>,
@@ -320,6 +310,7 @@ impl ServerDatabaseStorage {
             stream.next().await.ok_or_else(|| Error::NoVaultEvent)??;
         Self::extract_vault(&[first_record]).await
     }
+    */
 }
 
 #[async_trait]
@@ -424,35 +415,39 @@ impl ServerAccountStorage for ServerDatabaseStorage {
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {
-        todo!("load folder summaries from the database");
+        let account_id = self.account_row_id;
+        let rows = self
+            .client
+            .conn_and_then(move |conn| {
+                let folders = FolderEntity::new(&conn);
+                Ok::<_, sos_database::Error>(
+                    folders.list_folders(account_id)?,
+                )
+            })
+            .await?;
 
-        /*
-        let storage = self.paths.vaults_dir();
-        let mut summaries = Vec::new();
-        let mut contents = vfs::read_dir(&storage).await?;
-        while let Some(entry) = contents.next_entry().await? {
-            let path = entry.path();
-            if let Some(extension) = path.extension() {
-                if extension == VAULT_EXT {
-                    let summary = Header::read_summary_file(path).await?;
-                    if summary.flags().is_system() {
-                        continue;
-                    }
-                    summaries.push(summary);
-                }
+        let mut folders = Vec::new();
+        for row in rows {
+            let record = FolderRecord::from_row(row).await?;
+            if record.summary.flags().is_identity() {
+                continue;
             }
+            folders.push(record);
         }
+
+        let folders =
+            folders.into_iter().map(|f| f.summary).collect::<Vec<_>>();
 
         // Create a cache entry for each summary if it does not
         // already exist.
-        for summary in &summaries {
+        for summary in &folders {
             // Ensure we don't overwrite existing data
-            if self.cache.get(summary.id()).is_none() {
+            if self.folders.get(summary.id()).is_none() {
                 self.create_folder_entry(summary.id()).await?;
             }
         }
-        Ok(summaries)
-        */
+
+        Ok(folders)
     }
 
     async fn import_folder(
@@ -505,16 +500,17 @@ impl ServerAccountStorage for ServerDatabaseStorage {
     }
 
     async fn delete_folder(&mut self, id: &VaultId) -> Result<()> {
-        // Remove the files
+        // Remove from the database
         self.remove_vault_file(id).await?;
 
         // Remove local state
         self.folders.remove(id);
 
+        #[cfg(feature = "files")]
         {
-            let files_folder = self.paths.files_dir().join(id.to_string());
-            if vfs::try_exists(&files_folder).await? {
-                vfs::remove_dir_all(&files_folder).await?;
+            let blob_folder = self.paths.blob_folder_location(&id);
+            if vfs::try_exists(&blob_folder).await? {
+                vfs::remove_dir_all(&blob_folder).await?;
             }
         }
 
@@ -554,7 +550,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         // Remove all account data from the database
         let account_id = self.account_id.clone();
         self.client
-            .conn_mut(move |conn| {
+            .conn(move |conn| {
                 let account = AccountEntity::new(&conn);
                 account.delete_account(&account_id)
             })

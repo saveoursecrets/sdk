@@ -376,8 +376,9 @@ impl ServerAccountStorage for ServerFileStorage {
         // Remove local state
         self.folders.remove(id);
 
+        #[cfg(feature = "files")]
         {
-            let files_folder = self.paths.files_dir().join(id.to_string());
+            let files_folder = self.paths.file_folder_location(id);
             if vfs::try_exists(&files_folder).await? {
                 vfs::remove_dir_all(&files_folder).await?;
             }

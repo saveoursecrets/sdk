@@ -47,6 +47,7 @@ async fn assert_server_storage(
     paths.ensure().await?;
 
     let vault = Vault::default();
+    let folder_id = *vault.id();
     let mut account_data = CreateSet::default();
     let event = WriteEvent::CreateVault(encode(&vault).await?);
     let record = EventRecord::encode_event(&event).await?;
@@ -56,15 +57,15 @@ async fn assert_server_storage(
         .insert(*vault.id(), Patch::new(vec![record]));
     storage.import_account(&account_data).await?;
 
-    /*
     // Create set used when importing the account has one folder
     let summaries = storage.load_folders().await?;
     assert_eq!(1, summaries.len());
-    */
 
     let mut outcome = MergeOutcome::default();
     let account_data = UpdateSet::default();
     storage.update_account(account_data, &mut outcome).await?;
+
+    storage.delete_folder(&folder_id).await?;
 
     storage.delete_account().await?;
 
