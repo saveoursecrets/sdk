@@ -32,7 +32,7 @@ async fn db_folder_lifecycle() -> Result<()> {
     let (vault, password) = vault_memory().await?;
     let (temp, mut client) = file_database().await?;
     let (account_id, _, _) =
-        insert_database_vault(&mut client, &vault).await?;
+        insert_database_vault(&mut client, &vault, false).await?;
 
     let buffer = encode(&vault).await?;
     vfs::write(temp.path(), &buffer).await?;

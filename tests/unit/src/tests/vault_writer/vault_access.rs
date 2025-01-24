@@ -22,7 +22,7 @@ async fn vault_writer_access_database() -> Result<()> {
     let (encryption_key, _, _) = mock::encryption_key()?;
     let mut db_client = mock::memory_database().await?;
     let vault: Vault = Default::default();
-    mock::insert_database_vault(&mut db_client, &vault).await?;
+    mock::insert_database_vault(&mut db_client, &vault, false).await?;
     let mut vault_access = VaultWriter::new_db(db_client, *vault.id());
     assert_encrypted_entry(&mut vault_access, vault, &encryption_key).await?;
     Ok(())

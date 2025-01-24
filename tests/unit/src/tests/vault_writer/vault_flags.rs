@@ -16,7 +16,7 @@ async fn vault_writer_flags_filesystem() -> Result<()> {
 async fn vault_writer_flags_database() -> Result<()> {
     let mut db_client = mock::memory_database().await?;
     let vault: Vault = Default::default();
-    mock::insert_database_vault(&mut db_client, &vault).await?;
+    mock::insert_database_vault(&mut db_client, &vault, false).await?;
     let mut vault_access = VaultWriter::new_db(db_client, *vault.id());
     test_vault_flags(&mut vault_access).await?;
     Ok(())

@@ -49,7 +49,7 @@ pub mod mock {
         vault: &Vault,
     ) -> Result<(AccountId, FolderEventLog)> {
         let (account_id, _, _) =
-            mock::insert_database_vault(client, vault).await?;
+            mock::insert_database_vault(client, vault, false).await?;
         let event_log = FolderEventLog::new_db_folder(
             client.clone(),
             account_id,
@@ -205,7 +205,7 @@ pub mod mock {
         vault.set_name(String::from("Standalone vault"));
 
         let (account_id, _, _) =
-            mock::insert_database_vault(client, &vault).await?;
+            mock::insert_database_vault(client, &vault, false).await?;
 
         // Create a simple event log
         let mut event_log = FolderEventLog::new_db_folder(
@@ -232,7 +232,7 @@ pub mod mock {
     ) -> Result<(FolderEventLog, FolderEventLog, SecretId)> {
         let vault: Vault = Default::default();
         let (account_id, _, _) =
-            mock::insert_database_vault(client, &vault).await?;
+            mock::insert_database_vault(client, &vault, false).await?;
 
         // Create a simple event log
         let mut server = FolderEventLog::new_db_folder(

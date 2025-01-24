@@ -27,7 +27,7 @@ async fn db_server_storage() -> Result<()> {
     let mut vault: Vault = Default::default();
     *vault.flags_mut() = VaultFlags::IDENTITY;
     let (account_id, _, _) =
-        insert_database_vault(&mut client, &vault).await?;
+        insert_database_vault(&mut client, &vault, true).await?;
 
     let mut storage =
         ServerStorage::new_db(client, &account_id, temp.path()).await?;

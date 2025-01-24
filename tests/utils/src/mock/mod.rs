@@ -226,6 +226,7 @@ pub async fn insert_database_account(
 pub async fn insert_database_vault(
     client: &mut Client,
     vault: &Vault,
+    insert_folder_events: bool,
 ) -> Result<(AccountId, i64, i64)> {
     let (account_identifier, account_id) =
         insert_database_account(client).await?;
@@ -256,12 +257,14 @@ pub async fn insert_database_vault(
                 account.insert_login_folder(account_id, folder_id)?;
             }
 
-            let events = EventEntity::new(&conn);
-            events.insert_events(
-                EventTable::FolderEvents,
-                folder_id,
-                event_rows.as_slice(),
-            )?;
+            if insert_folder_events {
+                let events = EventEntity::new(&conn);
+                events.insert_events(
+                    EventTable::FolderEvents,
+                    folder_id,
+                    event_rows.as_slice(),
+                )?;
+            }
 
             Ok::<_, anyhow::Error>((
                 account_identifier,
