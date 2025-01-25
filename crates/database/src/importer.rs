@@ -52,20 +52,9 @@ pub struct UpgradeResult {
 
 /// Import all accounts found on disc.
 async fn import_accounts(
-    data_dir: impl AsRef<Path>,
+    paths: &Paths,
     options: &UpgradeOptions,
 ) -> Result<Vec<PublicIdentity>> {
-    let paths = if options.server {
-        Paths::new_global_server(data_dir.as_ref())
-    } else {
-        Paths::new_global(data_dir.as_ref())
-    };
-
-    let db_file = paths.database_file();
-    if db_file.exists() && !options.dry_run {
-        return Err(Error::DatabaseExists(db_file.to_owned()));
-    }
-
     let mut client = if !options.dry_run {
         let db_file =
             options.db_file.as_ref().unwrap_or(paths.database_file());
@@ -76,9 +65,9 @@ async fn import_accounts(
         db::open_memory().await?
     };
 
-    db::import_globals(&mut client, &paths).await?;
+    db::import_globals(&mut client, paths).await?;
 
-    let accounts = list_accounts(Some(&paths)).await?;
+    let accounts = list_accounts(Some(paths)).await?;
     for account in &accounts {
         let account_paths = if options.server {
             Paths::new_server(
@@ -114,11 +103,18 @@ pub async fn upgrade_accounts(
         Paths::new_global(data_dir.as_ref())
     };
 
+    //paths.ensure().await?;
+
+    let db_file = paths.database_file();
+    if db_file.exists() && !options.dry_run {
+        return Err(Error::DatabaseExists(db_file.to_owned()));
+    }
+
     let db_temp = NamedTempFile::new()?;
     options.db_file = Some(db_temp.path().to_owned());
 
     let mut result = UpgradeResult::default();
-    let accounts = import_accounts(data_dir, &options).await?;
+    let accounts = import_accounts(&paths, &options).await?;
 
     if options.move_file_blobs {
         move_file_blobs(&paths, accounts.as_slice(), &options).await?;
@@ -140,7 +136,7 @@ pub async fn upgrade_accounts(
     #[cfg(target_os = "linux")]
     {
         let mut source = tokio::fs::File::open(db_temp.path()).await?;
-        let mut dest = tokio::fs::File::open(paths.database_file()).await?;
+        let mut dest = tokio::fs::File::create(paths.database_file()).await?;
         tokio::io::copy(&mut source, &mut dest).await?;
     }
 
