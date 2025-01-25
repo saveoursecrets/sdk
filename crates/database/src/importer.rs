@@ -133,7 +133,16 @@ pub async fn upgrade_accounts(
     result.database_file = paths.database_file().to_owned();
 
     // Move the temp file into place
+    #[cfg(not(target_os = "linux"))]
     vfs::rename(db_temp.path(), paths.database_file()).await?;
+
+    // On Linux we have to copy to avoid cross-device link error
+    #[cfg(target_os = "linux")]
+    {
+        let mut source = tokio::fs::File::open(db_temp.path()).await?;
+        let mut dest = tokio::fs::File::open(paths.database_file()).await?;
+        tokio::io::copy(&mut source, &mut dest).await?;
+    }
 
     Ok(result)
 }
