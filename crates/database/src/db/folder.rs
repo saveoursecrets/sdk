@@ -6,7 +6,7 @@ use sos_core::{
     commit::CommitHash, crypto::AeadPack, decode, encode, SecretId,
     UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
-use sos_vault::Summary;
+use sos_vault::{Summary, Vault};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::result::Result as StdResult;
@@ -29,8 +29,19 @@ pub struct FolderRow {
 }
 
 impl FolderRow {
-    /// Create a new folder row to be inserted.
-    pub fn new_insert(
+    /// Create a new folder row to insert.
+    pub async fn new_insert(vault: &Vault) -> Result<Self> {
+        let meta = if let Some(meta) = vault.header().meta() {
+            Some(encode(meta).await?)
+        } else {
+            None
+        };
+        let salt = vault.salt().cloned();
+        Self::new_insert_parts(vault.summary(), salt, meta)
+    }
+
+    /// Create a new folder row to be inserted from parts.
+    pub fn new_insert_parts(
         summary: &Summary,
         salt: Option<String>,
         meta: Option<Vec<u8>>,

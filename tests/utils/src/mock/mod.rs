@@ -230,29 +230,22 @@ pub async fn insert_database_vault(
 ) -> Result<(AccountId, i64, i64)> {
     let (account_identifier, account_id) =
         insert_database_account(client).await?;
-    let vault = vault.clone();
-    let salt = vault.salt().cloned();
-    let meta = if let Some(meta) = vault.header().meta() {
-        Some(encode(meta).await?)
-    } else {
-        None
-    };
 
-    let event = WriteEvent::CreateVault(encode(&vault).await?);
+    let folder_row = FolderRow::new_insert(vault).await?;
+    let is_identity = vault.summary().flags().is_identity();
+
+    let event = WriteEvent::CreateVault(encode(vault).await?);
     let record = EventRecord::encode_event(&event).await?;
     let event_rows = vec![EventRecordRow::new(&record)?];
 
     Ok(client
         .conn_mut_and_then(move |conn| {
             let folder = FolderEntity::new(&conn);
-            let folder_id = folder.insert_folder(
-                account_id,
-                &FolderRow::new_insert(vault.summary(), salt, meta)?,
-            )?;
+            let folder_id = folder.insert_folder(account_id, &folder_row)?;
 
             // If the vault is an identity vault create
             // the join entry
-            if vault.summary().flags().is_identity() {
+            if is_identity {
                 let account = AccountEntity::new(&conn);
                 account.insert_login_folder(account_id, folder_id)?;
             }

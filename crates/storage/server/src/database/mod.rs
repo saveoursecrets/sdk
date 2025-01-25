@@ -231,28 +231,48 @@ impl ServerDatabaseStorage {
 
     /// Create a new account.
     pub async fn initialize_account(
-        paths: &Paths,
+        client: &mut Client,
+        account_id: &AccountId,
         identity_patch: &FolderPatch,
     ) -> Result<FolderEventLog> {
-        todo!("create identity folder when initializing the account");
+        let vault = Self::extract_vault(identity_patch.records())
+            .await?
+            .ok_or(Error::NoVaultEvent)?;
 
-        /*
-        let mut event_log =
-            FolderEventLog::new_db_folder(paths.identity_events()).await?;
+        let account_row =
+            AccountRow::new_insert(account_id, vault.name().to_string())?;
+        let folder_row = FolderRow::new_insert(&vault).await?;
+        client
+            .conn_mut(move |conn| {
+                let tx = conn.transaction()?;
+
+                // Create the account
+                let account = AccountEntity::new(&tx);
+                let account_id = account.insert(&account_row)?;
+
+                // Create the folder
+                let folder = FolderEntity::new(&tx);
+                let folder_id =
+                    folder.insert_folder(account_id, &folder_row)?;
+
+                // Create the join
+                account.insert_login_folder(account_id, folder_id)?;
+
+                tx.commit()?;
+                Ok(())
+            })
+            .await
+            .map_err(sos_database::Error::from)?;
+
+        let mut event_log = FolderEventLog::new_db_folder(
+            client.clone(),
+            *account_id,
+            *vault.id(),
+        )
+        .await?;
         event_log.clear().await?;
         event_log.patch_unchecked(identity_patch).await?;
-
-        let vault = FolderReducer::new()
-            .reduce(&event_log)
-            .await?
-            .build(false)
-            .await?;
-
-        // let buffer = encode(&vault).await?;
-        // vfs::write(paths.identity_vault(), buffer).await?;
-
         Ok(event_log)
-        */
     }
 
     fn folders_mut(
@@ -346,14 +366,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         for (id, folder) in &account_data.folders {
             if let Some(vault) = Self::extract_vault(folder.records()).await?
             {
-                let meta = if let Some(meta) = vault.header().meta() {
-                    Some(encode(meta).await?)
-                } else {
-                    None
-                };
-                let salt = vault.salt().cloned();
-                let folder_row =
-                    FolderRow::new_insert(vault.summary(), salt, meta)?;
+                let folder_row = FolderRow::new_insert(&vault).await?;
 
                 self.client
                     .conn(move |conn| {

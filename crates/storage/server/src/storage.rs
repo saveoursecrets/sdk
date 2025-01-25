@@ -129,6 +129,36 @@ impl ServerStorage {
             .await?,
         ))
     }
+
+    /// Create a new database account.
+    pub async fn create_db_account(
+        directory: impl AsRef<Path>,
+        mut client: Client,
+        account_id: &AccountId,
+        account_data: &CreateSet,
+    ) -> Result<Self> {
+        let paths =
+            Paths::new_server(directory.as_ref(), account_id.to_string());
+        paths.ensure().await?;
+
+        let identity_log = ServerDatabaseStorage::initialize_account(
+            &mut client,
+            account_id,
+            &account_data.identity,
+        )
+        .await?;
+
+        let mut storage = ServerDatabaseStorage::new(
+            client,
+            *account_id,
+            Some(directory.as_ref().to_owned()),
+            Arc::new(RwLock::new(identity_log)),
+        )
+        .await?;
+        storage.import_account(&account_data).await?;
+
+        Ok(Self::Database(storage))
+    }
 }
 
 #[async_trait]

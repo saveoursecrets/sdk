@@ -376,7 +376,7 @@ fn create_folder(
     let folder_entity = FolderEntity::new(tx);
     let folder_id = folder_entity.insert_folder(
         account_id,
-        &FolderRow::new_insert(vault.summary(), salt, meta)?,
+        &FolderRow::new_insert_parts(vault.summary(), salt, meta)?,
     )?;
     let secret_ids = folder_entity.insert_folder_secrets(folder_id, rows)?;
     if let Some(events) = events {
