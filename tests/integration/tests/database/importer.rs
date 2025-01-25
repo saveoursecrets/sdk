@@ -5,7 +5,7 @@ use sos_account::{
     archive::{AccountBackup, ExtractFilesLocation, Inventory},
     Account, LocalAccount,
 };
-use sos_database::importer::{import_accounts, UpgradeOptions};
+use sos_database::importer::{upgrade_accounts, UpgradeOptions};
 use sos_sdk::prelude::{vfs, Paths};
 use tokio::io::BufReader;
 
@@ -47,8 +47,8 @@ async fn database_importer() -> Result<()> {
     )
     .await?;
 
-    // Import the file system accounts into the db
-    import_accounts(data_dir, &UpgradeOptions::default()).await?;
+    // Upgrade the file system accounts into the db
+    upgrade_accounts(data_dir, UpgradeOptions::default()).await?;
 
     teardown(TEST_ID).await;
 

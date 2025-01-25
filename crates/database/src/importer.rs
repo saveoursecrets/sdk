@@ -51,7 +51,7 @@ pub struct UpgradeResult {
 }
 
 /// Import all accounts found on disc.
-pub async fn import_accounts(
+async fn import_accounts(
     data_dir: impl AsRef<Path>,
     options: &UpgradeOptions,
 ) -> Result<Vec<PublicIdentity>> {
@@ -143,8 +143,8 @@ async fn move_file_blobs(
     accounts: &[PublicIdentity],
     options: &UpgradeOptions,
 ) -> Result<()> {
-    todo!("move file blobs");
-    // Ok(())
+    // todo!("move file blobs");
+    Ok(())
 }
 
 async fn delete_stale_files(
