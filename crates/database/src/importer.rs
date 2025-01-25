@@ -4,6 +4,7 @@ use sos_core::{Paths, PublicIdentity};
 use sos_vault::list_accounts;
 use sos_vfs as vfs;
 use std::path::{Path, PathBuf};
+use tempfile::NamedTempFile;
 
 /// Options for upgrading to SQLite backend.
 #[derive(Debug)]
@@ -58,8 +59,9 @@ pub async fn import_accounts(
         return Err(Error::DatabaseExists(db_file.to_owned()));
     }
 
+    let db_temp = NamedTempFile::new()?;
     let mut client = if !options.dry_run {
-        let mut client = db::open_file(paths.database_file()).await?;
+        let mut client = db::open_file(db_temp.path()).await?;
         migrate_client(&mut client).await?;
         client
     } else {
@@ -90,6 +92,8 @@ pub async fn import_accounts(
         )
         .await?;
     }
+    // Move the temp file into place
+    vfs::rename(db_temp.path(), paths.database_file()).await?;
     Ok(accounts)
 }
 
