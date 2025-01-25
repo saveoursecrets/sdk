@@ -11,6 +11,12 @@ use tempfile::NamedTempFile;
 pub struct UpgradeOptions {
     /// Perform a dry run.
     pub dry_run: bool,
+    /// Database file to write to.
+    ///
+    /// When dry run is enabled this is ignored; if no
+    /// path is specified and dry run is not enabled this
+    /// will write to the expected location for a database file.
+    pub db_file: Option<PathBuf>,
     /// Accounts are server-side storage.
     pub server: bool,
     /// Keep the old files on disc.
@@ -23,6 +29,7 @@ impl Default for UpgradeOptions {
     fn default() -> Self {
         Self {
             dry_run: true,
+            db_file: None,
             server: false,
             keep_stale_files: false,
             move_file_blobs: true,
@@ -59,9 +66,10 @@ pub async fn import_accounts(
         return Err(Error::DatabaseExists(db_file.to_owned()));
     }
 
-    let db_temp = NamedTempFile::new()?;
     let mut client = if !options.dry_run {
-        let mut client = db::open_file(db_temp.path()).await?;
+        let db_file =
+            options.db_file.as_ref().unwrap_or(paths.database_file());
+        let mut client = db::open_file(db_file).await?;
         migrate_client(&mut client).await?;
         client
     } else {
@@ -92,21 +100,22 @@ pub async fn import_accounts(
         )
         .await?;
     }
-    // Move the temp file into place
-    vfs::rename(db_temp.path(), paths.database_file()).await?;
     Ok(accounts)
 }
 
 /// Upgrade all accounts found on disc.
 pub async fn upgrade_accounts(
     data_dir: impl AsRef<Path>,
-    options: UpgradeOptions,
+    mut options: UpgradeOptions,
 ) -> Result<UpgradeResult> {
     let paths = if options.server {
         Paths::new_global_server(data_dir.as_ref())
     } else {
         Paths::new_global(data_dir.as_ref())
     };
+
+    let db_temp = NamedTempFile::new()?;
+    options.db_file = Some(db_temp.path().to_owned());
 
     let mut result = UpgradeResult::default();
     let accounts = import_accounts(data_dir, &options).await?;
@@ -122,6 +131,9 @@ pub async fn upgrade_accounts(
 
     result.accounts = accounts;
     result.database_file = paths.database_file().to_owned();
+
+    // Move the temp file into place
+    vfs::rename(db_temp.path(), paths.database_file()).await?;
 
     Ok(result)
 }

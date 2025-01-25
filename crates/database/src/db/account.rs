@@ -1,7 +1,4 @@
-use crate::{
-    db::{FolderEntity, FolderRow},
-    Error,
-};
+use crate::Error;
 use async_sqlite::rusqlite::{Connection, Error as SqlError, Row};
 use sos_core::{AccountId, PublicIdentity, UtcDateTime};
 use std::ops::Deref;
@@ -79,6 +76,7 @@ impl TryFrom<AccountRow> for AccountRecord {
     }
 }
 
+/*
 /// Account folder join.
 #[doc(hidden)]
 #[derive(Debug, Default)]
@@ -98,6 +96,7 @@ impl<'a> TryFrom<&Row<'a>> for AccountFolderJoin {
         })
     }
 }
+*/
 
 /// Account entity.
 pub struct AccountEntity<'conn, C>

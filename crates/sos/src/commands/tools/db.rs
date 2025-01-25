@@ -68,6 +68,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 server,
                 keep_stale_files,
                 move_file_blobs: false,
+                ..Default::default()
             };
             let result = upgrade_accounts(&directory, options).await?;
 
