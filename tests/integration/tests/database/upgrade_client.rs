@@ -10,7 +10,7 @@ use sos_sdk::prelude::{vfs, Paths};
 use tokio::io::BufReader;
 
 #[tokio::test]
-async fn database_importer() -> Result<()> {
+async fn database_upgrade_client() -> Result<()> {
     const TEST_ID: &str = "database_importer";
     //crate::test_utils::init_tracing();
 
