@@ -421,18 +421,14 @@ impl ServerAccountStorage for ServerDatabaseStorage {
             .conn_and_then(move |conn| {
                 let folders = FolderEntity::new(&conn);
                 Ok::<_, sos_database::Error>(
-                    folders.list_folders(account_id)?,
+                    folders.list_user_folders(account_id)?,
                 )
             })
             .await?;
 
         let mut folders = Vec::new();
         for row in rows {
-            let record = FolderRecord::from_row(row).await?;
-            if record.summary.flags().is_identity() {
-                continue;
-            }
-            folders.push(record);
+            folders.push(FolderRecord::from_row(row).await?);
         }
 
         let folders =
