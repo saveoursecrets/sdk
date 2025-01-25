@@ -369,6 +369,27 @@ impl ServerAccountStorage for ServerFileStorage {
         Ok(())
     }
 
+    async fn rename_folder(
+        &mut self,
+        id: &VaultId,
+        name: &str,
+    ) -> Result<()> {
+        let vault_path = self.paths.vault_path(id);
+        let mut access = VaultWriter::new_fs(vault_path);
+        access.set_vault_name(name.to_owned()).await?;
+
+        #[cfg(feature = "audit")]
+        {
+            let account_event =
+                AccountEvent::RenameFolder(*id, name.to_owned());
+            let audit_event: AuditEvent =
+                (self.account_id(), &account_event).into();
+            append_audit_events(&[audit_event]).await?;
+        }
+
+        Ok(())
+    }
+
     async fn delete_folder(&mut self, id: &VaultId) -> Result<()> {
         // Remove the files
         self.remove_vault_file(id).await?;
@@ -387,28 +408,6 @@ impl ServerAccountStorage for ServerFileStorage {
         #[cfg(feature = "audit")]
         {
             let account_event = AccountEvent::DeleteFolder(*id);
-            let audit_event: AuditEvent =
-                (self.account_id(), &account_event).into();
-            append_audit_events(&[audit_event]).await?;
-        }
-
-        Ok(())
-    }
-
-    async fn rename_folder(
-        &mut self,
-        id: &VaultId,
-        name: &str,
-    ) -> Result<()> {
-        // Update the vault on disc
-        let vault_path = self.paths.vault_path(id);
-        let mut access = VaultWriter::new_fs(vault_path);
-        access.set_vault_name(name.to_owned()).await?;
-
-        #[cfg(feature = "audit")]
-        {
-            let account_event =
-                AccountEvent::RenameFolder(*id, name.to_owned());
             let audit_event: AuditEvent =
                 (self.account_id(), &account_event).into();
             append_audit_events(&[audit_event]).await?;

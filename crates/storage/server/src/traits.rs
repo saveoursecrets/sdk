@@ -64,12 +64,12 @@ pub trait ServerAccountStorage: SyncStorage {
         buffer: &[u8],
     ) -> Result<()>;
 
-    /// Delete a folder.
-    async fn delete_folder(&mut self, id: &VaultId) -> Result<()>;
-
     /// Set the name of a folder.
     async fn rename_folder(&mut self, id: &VaultId, name: &str)
         -> Result<()>;
+
+    /// Delete a folder.
+    async fn delete_folder(&mut self, id: &VaultId) -> Result<()>;
 
     /// Delete this account.
     async fn delete_account(&mut self) -> Result<()>;

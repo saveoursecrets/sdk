@@ -65,6 +65,11 @@ async fn assert_server_storage(
     let account_data = UpdateSet::default();
     storage.update_account(account_data, &mut outcome).await?;
 
+    let name = "Folder Name";
+    storage.rename_folder(vault.id(), name).await?;
+    let summaries = storage.load_folders().await?;
+    assert_eq!(name, summaries.get(0).unwrap().name());
+
     storage.delete_folder(&folder_id).await?;
 
     storage.delete_account().await?;

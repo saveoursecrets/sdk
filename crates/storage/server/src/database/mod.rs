@@ -530,7 +530,6 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         id: &VaultId,
         name: &str,
     ) -> Result<()> {
-        // Update the vault in the database
         let mut access = VaultWriter::new_db(self.client.clone(), *id);
         access.set_vault_name(name.to_owned()).await?;
 

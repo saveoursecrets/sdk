@@ -203,13 +203,6 @@ impl ServerAccountStorage for ServerStorage {
         }
     }
 
-    async fn delete_folder(&mut self, id: &VaultId) -> Result<()> {
-        match self {
-            ServerStorage::FileSystem(fs) => fs.delete_folder(id).await,
-            ServerStorage::Database(db) => db.delete_folder(id).await,
-        }
-    }
-
     async fn rename_folder(
         &mut self,
         id: &VaultId,
@@ -218,6 +211,13 @@ impl ServerAccountStorage for ServerStorage {
         match self {
             ServerStorage::FileSystem(fs) => fs.rename_folder(id, name).await,
             ServerStorage::Database(db) => db.rename_folder(id, name).await,
+        }
+    }
+
+    async fn delete_folder(&mut self, id: &VaultId) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.delete_folder(id).await,
+            ServerStorage::Database(db) => db.delete_folder(id).await,
         }
     }
 
