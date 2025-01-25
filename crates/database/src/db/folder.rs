@@ -286,6 +286,35 @@ where
         Ok(stmt.query_row([folder_id], |row| Ok(row.try_into()?))?)
     }
 
+    /// Try to find a login folder for an account.
+    pub fn find_login_folder(
+        &self,
+        account_id: i64,
+    ) -> StdResult<FolderRow, SqlError> {
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+                SELECT
+                    folders.folder_id,
+                    folders.created_at,
+                    folders.modified_at,
+                    folders.identifier,
+                    folders.name,
+                    folders.salt,
+                    folders.meta,
+                    folders.version,
+                    folders.cipher,
+                    folders.kdf,
+                    folders.flags
+                FROM folders
+                LEFT JOIN account_login_folder
+                    ON folders.folder_id = account_login_folder.folder_id
+                WHERE folders.account_id=?1
+                    AND account_login_folder.account_id=?1
+            "#,
+        )?;
+        Ok(stmt.query_row([account_id], |row| Ok(row.try_into()?))?)
+    }
+
     /// List user folders for an account.
     ///
     /// Does not include the identity and device folders.

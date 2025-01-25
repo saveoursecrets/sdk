@@ -137,31 +137,6 @@ where
             .query_row([account_id.to_string()], |row| Ok(row.try_into()?))?)
     }
 
-    /// Try to find a login folder for an account.
-    pub fn find_login_folder(
-        &self,
-        account_id: &AccountId,
-    ) -> Result<(AccountRow, FolderRow), SqlError> {
-        let account_row = self.find_one(account_id)?;
-
-        // TODO: proper join query here!
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                SELECT
-                    account_id,
-                    folder_id
-                FROM account_login_folder
-                WHERE account_id=?1
-            "#,
-        )?;
-        let join_row: AccountFolderJoin =
-            stmt.query_row([account_row.row_id], |row| Ok(row.try_into()?))?;
-
-        let folder = FolderEntity::new(self.conn);
-        let folder_row = folder.find_by_row_id(join_row.folder_id)?;
-        Ok((account_row, folder_row))
-    }
-
     /// Create the account entity in the database.
     pub fn insert(&self, row: &AccountRow) -> Result<i64, SqlError> {
         self.conn.execute(

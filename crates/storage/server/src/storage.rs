@@ -20,7 +20,7 @@ use sos_core::{
 };
 use sos_database::{
     async_sqlite::Client,
-    db::{AccountEntity, FolderRecord},
+    db::{AccountEntity, FolderEntity, FolderRecord},
 };
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
@@ -101,14 +101,14 @@ impl ServerStorage {
         let login_folder = client
             .conn(move |conn| {
                 let account = AccountEntity::new(&conn);
-                Ok(account.find_login_folder(&folder_account_id)?)
+                let account_row = account.find_one(&folder_account_id)?;
+                let folders = FolderEntity::new(&conn);
+                Ok(folders.find_login_folder(account_row.row_id)?)
             })
             .await
             .map_err(sos_database::Error::from)?;
 
-        let (_account_row, folder_row) = login_folder;
-        let login_record = FolderRecord::from_row(folder_row).await?;
-
+        let login_record = FolderRecord::from_row(login_folder).await?;
         let mut event_log = FolderEventLog::new_db_folder(
             client.clone(),
             *account_id,
