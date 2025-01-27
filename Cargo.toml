@@ -183,6 +183,7 @@ probly-search = "2.0.1"
 # database
 async-sqlite = "0.4"
 refinery = { version = "0.8", git = "https://github.com/rust-db/refinery", features = ["rusqlite"] }
+sql_query_builder = { version = "2", features = ["sqlite"]}
 
 # keychain parser
 logos = { version = "0.15", features = ["export_derive"] }

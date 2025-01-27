@@ -8,6 +8,7 @@ use sos_core::{
     UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
 use sos_vault::{Summary, Vault};
+use sql_query_builder as sql;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::result::Result as StdResult;
@@ -261,10 +262,40 @@ where
         Self { conn }
     }
 
-    fn find_folder_statement(
+    fn folder_select_columns(&self, sql: sql::Select) -> sql::Select {
+        sql.select(
+            r#"
+                folders.folder_id,
+                folders.created_at,
+                folders.modified_at,
+                folders.identifier,
+                folders.name,
+                folders.salt,
+                folders.meta,
+                folders.version,
+                folders.cipher,
+                folders.kdf,
+                folders.flags
+            "#,
+        )
+    }
+
+    fn select_folder(
         &self,
-        where_column: &str,
+        use_identifier: bool,
     ) -> StdResult<CachedStatement, SqlError> {
+        let query = self
+            .folder_select_columns(sql::Select::new())
+            .from("folders");
+
+        let query = if use_identifier {
+            query.where_clause("identifier = ?1")
+        } else {
+            query.where_clause("folder_id = ?1")
+        };
+        Ok(self.conn.prepare_cached(&query.as_string())?)
+
+        /*
         Ok(self.conn.prepare_cached(&format!(
             r#"
                 SELECT
@@ -284,6 +315,7 @@ where
             "#,
             where_column
         ))?)
+        */
     }
 
     /// Find a folder in the database.
@@ -292,7 +324,7 @@ where
         // FIXME: require account_id?
         folder_id: &VaultId,
     ) -> StdResult<FolderRow, SqlError> {
-        let mut stmt = self.find_folder_statement("identifier")?;
+        let mut stmt = self.select_folder(true)?;
         Ok(stmt
             .query_row([folder_id.to_string()], |row| Ok(row.try_into()?))?)
     }
@@ -303,7 +335,7 @@ where
         // FIXME: require account_id?
         folder_id: &VaultId,
     ) -> StdResult<Option<FolderRow>, SqlError> {
-        let mut stmt = self.find_folder_statement("identifier")?;
+        let mut stmt = self.select_folder(true)?;
         Ok(stmt
             .query_row([folder_id.to_string()], |row| {
                 let row: FolderRow = row.try_into()?;
@@ -317,7 +349,7 @@ where
         &self,
         folder_id: i64,
     ) -> StdResult<FolderRow, SqlError> {
-        let mut stmt = self.find_folder_statement("folder_id")?;
+        let mut stmt = self.select_folder(false)?;
         Ok(stmt.query_row([folder_id], |row| Ok(row.try_into()?))?)
     }
 
@@ -326,27 +358,16 @@ where
         &self,
         account_id: i64,
     ) -> StdResult<FolderRow, SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                SELECT
-                    folders.folder_id,
-                    folders.created_at,
-                    folders.modified_at,
-                    folders.identifier,
-                    folders.name,
-                    folders.salt,
-                    folders.meta,
-                    folders.version,
-                    folders.cipher,
-                    folders.kdf,
-                    folders.flags
-                FROM folders
-                LEFT JOIN account_login_folder
-                    ON folders.folder_id = account_login_folder.folder_id
-                WHERE folders.account_id=?1
-                    AND account_login_folder.account_id=?1
-            "#,
-        )?;
+        let query = self
+            .folder_select_columns(sql::Select::new())
+            .from("folders")
+            .left_join(
+                "account_login_folder login ON folders.folder_id = login.folder_id",
+            )
+            .where_clause("folders.account_id=?1")
+            .where_and("login.account_id=?1");
+
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         Ok(stmt.query_row([account_id], |row| Ok(row.try_into()?))?)
     }
 
@@ -357,30 +378,20 @@ where
         &self,
         account_id: i64,
     ) -> Result<Vec<FolderRow>> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                SELECT
-                    folders.folder_id,
-                    folders.created_at,
-                    folders.modified_at,
-                    folders.identifier,
-                    folders.name,
-                    folders.salt,
-                    folders.meta,
-                    folders.version,
-                    folders.cipher,
-                    folders.kdf,
-                    folders.flags
-                FROM folders
-                LEFT JOIN account_login_folder
-                    ON folders.folder_id = account_login_folder.folder_id
-                LEFT JOIN account_device_folder
-                    ON folders.folder_id = account_device_folder.folder_id
-                WHERE folders.account_id=?1
-                    AND account_login_folder.folder_id IS NULL
-                    AND account_device_folder.folder_id IS NULL
-            "#,
-        )?;
+        let query = self
+            .folder_select_columns(sql::Select::new())
+            .from("folders")
+            .left_join(
+                "account_login_folder login ON folders.folder_id = login.folder_id",
+            )
+            .left_join(
+                "account_device_folder device ON folders.folder_id = device.folder_id",
+            )
+            .where_clause("folders.account_id=?1")
+            .where_and("login.folder_id IS NULL")
+            .where_and("device.folder_id IS NULL");
+
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
 
         fn convert_row(row: &Row<'_>) -> Result<FolderRow> {
             Ok(row.try_into()?)

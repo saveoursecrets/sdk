@@ -23,7 +23,7 @@ audit = ["sos-audit", "sos-filesystem/audit"]
 files = ["sos-filesystem/files"]
 preferences = ["sos-preferences"]
 system-messages = ["sos-system-messages", "urn"]
-sqlite = ["dep:async-sqlite", "dep:refinery"]
+sqlite = ["dep:async-sqlite", "dep:refinery", "dep:sql_query_builder"]
 
 [dependencies]
 sos-core.workspace = true
@@ -55,6 +55,7 @@ tempfile.workspace = true
 # sqlite
 async-sqlite = { workspace = true, optional = true }
 refinery = { workspace = true, optional = true }
+sql_query_builder = { workspace = true, optional = true }
 
 # system-messages
 urn = { workspace = true, optional = true }
