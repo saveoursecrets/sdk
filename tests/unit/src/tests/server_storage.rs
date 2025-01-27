@@ -1,6 +1,10 @@
 use anyhow::Result;
+use rand::{rngs::OsRng, Rng};
 use sos_core::{encode, AccountId, Paths, VaultFlags};
-use sos_sdk::events::{patch::Patch, EventRecord, WriteEvent};
+use sos_sdk::{
+    device::{DevicePublicKey, TrustedDevice},
+    events::{patch::Patch, DeviceEvent, EventRecord, WriteEvent},
+};
 use sos_server_storage::{ServerAccountStorage, ServerStorage};
 use sos_sync::{CreateSet, MergeOutcome, UpdateSet};
 use sos_test_utils::mock::{insert_database_vault, memory_database};
@@ -52,10 +56,19 @@ async fn assert_server_storage(
     let event = WriteEvent::CreateVault(encode(&vault).await?);
     let record = EventRecord::encode_event(&event).await?;
 
+    let mock_key: [u8; 32] = OsRng.gen();
+    let public_key: DevicePublicKey = mock_key.try_into()?;
+    let device = TrustedDevice::new(public_key.clone(), None, None);
+    let device_event = DeviceEvent::Trust(device.clone());
+    let device_record = EventRecord::encode_event(&device_event).await?;
+
+    account_data.device = Patch::new(vec![device_record]);
     account_data
         .folders
         .insert(*vault.id(), Patch::new(vec![record]));
     storage.import_account(&account_data).await?;
+
+    assert_eq!(1, storage.list_device_keys().len());
 
     // Create set used when importing the account has one folder
     let summaries = storage.load_folders().await?;

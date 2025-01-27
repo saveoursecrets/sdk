@@ -5678,6 +5678,7 @@ dependencies = [
  "k256",
  "keychain_parser",
  "pem",
+ "rand",
  "secrecy",
  "serde",
  "serde_json",
