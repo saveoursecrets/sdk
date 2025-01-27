@@ -2,11 +2,15 @@ use anyhow::Result;
 use rand::{rngs::OsRng, Rng};
 use sos_core::{encode, AccountId, Paths, VaultFlags};
 use sos_sdk::{
+    crypto::AeadPack,
     device::{DevicePublicKey, TrustedDevice},
-    events::{patch::Patch, DeviceEvent, EventRecord, WriteEvent},
+    events::{
+        patch::{Diff, Patch},
+        DeviceEvent, EventLog, EventRecord, WriteEvent,
+    },
 };
 use sos_server_storage::{ServerAccountStorage, ServerStorage};
-use sos_sync::{CreateSet, MergeOutcome, UpdateSet};
+use sos_sync::{CreateSet, MergeOutcome, StorageEventLogs, UpdateSet};
 use sos_test_utils::mock::{insert_database_vault, memory_database};
 use sos_vault::Vault;
 use tempfile::tempdir_in;
@@ -65,7 +69,7 @@ async fn assert_server_storage(
     account_data.device = Patch::new(vec![device_record]);
     account_data
         .folders
-        .insert(*vault.id(), Patch::new(vec![record]));
+        .insert(*vault.id(), Patch::new(vec![record.clone()]));
     storage.import_account(&account_data).await?;
 
     assert_eq!(1, storage.list_device_keys().len());
@@ -75,7 +79,28 @@ async fn assert_server_storage(
     assert_eq!(1, summaries.len());
 
     let mut outcome = MergeOutcome::default();
-    let account_data = UpdateSet::default();
+    let mut account_data = UpdateSet::default();
+
+    let event = WriteEvent::SetVaultMeta(AeadPack::default());
+    let update_record = EventRecord::encode_event(&event).await?;
+
+    let folder_checkpoint_proof = {
+        let folder_log = storage.folder_log(vault.id()).await?;
+        let mut event_log = folder_log.write().await;
+        // Need to append the event to the log so we can compute the
+        // expected checkpoint after the force merge operation
+        event_log.apply_records(vec![update_record.clone()]).await?;
+        event_log.tree().head()?
+    };
+
+    let diff = Diff::new(
+        Patch::new(vec![record, update_record]),
+        folder_checkpoint_proof,
+        None,
+    );
+    account_data.folders.insert(*vault.id(), diff);
+
+    // Updating an account triggers the force merge flow
     storage.update_account(account_data, &mut outcome).await?;
 
     let name = "Folder Name";

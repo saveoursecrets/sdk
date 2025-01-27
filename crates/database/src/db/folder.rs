@@ -1,7 +1,8 @@
-use crate::Result;
+use crate::{Error, Result};
 use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
 };
+use async_sqlite::Client;
 use sos_core::{
     commit::CommitHash, crypto::AeadPack, decode, encode, SecretId,
     UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
@@ -48,6 +49,29 @@ impl FolderRow {
     ) -> Result<Self> {
         Ok(Self {
             created_at: UtcDateTime::default().to_rfc3339()?,
+            modified_at: UtcDateTime::default().to_rfc3339()?,
+            identifier: summary.id().to_string(),
+            name: summary.name().to_string(),
+            salt,
+            meta,
+            version: *summary.version() as i64,
+            cipher: summary.cipher().to_string(),
+            kdf: summary.kdf().to_string(),
+            flags: summary.flags().bits().to_le_bytes().to_vec(),
+            ..Default::default()
+        })
+    }
+
+    /// Create a new folder row to update.
+    pub async fn new_update(vault: &Vault) -> Result<Self> {
+        let summary = vault.summary();
+        let meta = if let Some(meta) = vault.header().meta() {
+            Some(encode(meta).await?)
+        } else {
+            None
+        };
+        let salt = vault.salt().cloned();
+        Ok(Self {
             modified_at: UtcDateTime::default().to_rfc3339()?,
             identifier: summary.id().to_string(),
             name: summary.name().to_string(),
@@ -468,6 +492,44 @@ where
         Ok(self.conn.last_insert_rowid())
     }
 
+    /// Update the folder entity in the database.
+    pub fn update_folder(
+        &self,
+        folder_id: &VaultId,
+        folder_row: &FolderRow,
+    ) -> StdResult<(), SqlError> {
+        let mut stmt = self.conn.prepare_cached(
+            r#"
+              UPDATE folders
+                SET
+                    modified_at = ?1,
+                    identifier = ?2,
+                    name = ?3,
+                    salt = ?4,
+                    meta = ?5,
+                    version = ?6,
+                    cipher = ?7,
+                    kdf = ?8,
+                    flags = ?9
+                WHERE identifier=?10
+            "#,
+        )?;
+        stmt.execute((
+            &folder_row.modified_at,
+            &folder_row.identifier,
+            &folder_row.name,
+            &folder_row.salt,
+            &folder_row.meta,
+            &folder_row.version,
+            &folder_row.cipher,
+            &folder_row.kdf,
+            &folder_row.flags,
+            folder_id.to_string(),
+        ))?;
+
+        Ok(())
+    }
+
     /// Create folder secret rows.
     pub fn insert_folder_secrets(
         &self,
@@ -491,6 +553,42 @@ where
     ) -> StdResult<i64, SqlError> {
         let row = self.find_one(folder_id)?;
         Ok(self.insert_secret_by_row_id(row.row_id, secret_row)?)
+    }
+
+    /// Replace all secrets for a folder using a transaction.
+    pub async fn replace_all_secrets(
+        client: Client,
+        folder_id: &VaultId,
+        vault: &Vault,
+    ) -> Result<()> {
+        let folder_id = folder_id.clone();
+        let mut insert_secrets = Vec::new();
+        for (secret_id, commit) in vault.iter() {
+            let VaultCommit(commit, entry) = commit;
+            insert_secrets
+                .push(SecretRow::new(secret_id, commit, entry).await?);
+        }
+
+        // TODO: update folder meta data!!!
+
+        client
+            .conn_mut(move |conn| {
+                let tx = conn.transaction()?;
+                let folder = FolderEntity::new(&tx);
+                let folder_row = folder.find_one(&folder_id)?;
+                folder.delete_all_secrets(&folder_id)?;
+                for secret_row in insert_secrets {
+                    folder.insert_secret_by_row_id(
+                        folder_row.row_id,
+                        &secret_row,
+                    )?;
+                }
+                tx.commit()?;
+                Ok(())
+            })
+            .await
+            .map_err(Error::from)?;
+        Ok(())
     }
 
     /// Insert a secret using the folder row id.

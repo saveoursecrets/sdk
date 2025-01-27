@@ -10,7 +10,6 @@ use sos_backend::{
     FolderEventLog,
 };
 use sos_core::{
-    encode,
     events::{
         patch::{
             AccountDiff, CheckedPatch, DeviceDiff, FileDiff, FolderDiff,
@@ -19,13 +18,13 @@ use sos_core::{
     },
     VaultId,
 };
-use sos_database::db::{FolderEntity, FolderRecord};
+use sos_database::async_sqlite;
+use sos_database::db::{FolderEntity, FolderRecord, FolderRow};
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
     TrackedChanges,
 };
 use sos_vault::{EncryptedEntry, Summary};
-use sos_vfs as vfs;
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -51,25 +50,27 @@ impl ForceMerge for ServerDatabaseStorage {
         outcome.tracked.identity =
             TrackedChanges::new_folder_records(&diff.patch).await?;
 
-        // Rebuild the head-only identity vault
+        // Rebuild the identity folder
         let vault = FolderReducer::new()
             .reduce(&*event_log)
             .await?
             .build(false)
             .await?;
 
-        /*
-        let buffer = encode(&vault).await?;
-        vfs::write(self.paths.identity_vault(), buffer).await?;
+        let identity_id = *vault.id();
+        let identity_row = FolderRow::new_update(&vault).await?;
+        self.client
+            .conn(move |conn| {
+                let folder = FolderEntity::new(&conn);
+                Ok(folder.update_folder(&identity_id, &identity_row)?)
+            })
+            .await?;
 
         outcome.changes += len;
         outcome.tracked.identity =
             TrackedChanges::new_folder_records(&diff.patch).await?;
 
         Ok(())
-        */
-
-        todo!("force merge identity in db impl");
     }
 
     async fn force_merge_device(
@@ -107,11 +108,12 @@ impl ForceMerge for ServerDatabaseStorage {
             "force_merge::folder",
         );
 
-        let vault_path = self.paths.vault_path(folder_id);
-        let events_path = self.paths.event_log_path(folder_id);
-
-        let mut event_log =
-            FolderEventLog::new_fs_folder(events_path).await?;
+        let mut event_log = FolderEventLog::new_db_folder(
+            self.client.clone(),
+            self.account_id.clone(),
+            *folder_id,
+        )
+        .await?;
         event_log.replace_all_events(&diff).await?;
 
         let vault = FolderReducer::new()
@@ -120,8 +122,12 @@ impl ForceMerge for ServerDatabaseStorage {
             .build(false)
             .await?;
 
-        let buffer = encode(&vault).await?;
-        vfs::write(vault_path, buffer).await?;
+        FolderEntity::<async_sqlite::rusqlite::Transaction>::replace_all_secrets(
+            self.client.clone(),
+            folder_id,
+            &vault,
+        )
+        .await?;
 
         self.folders_mut()
             .insert(*folder_id, Arc::new(RwLock::new(event_log)));
@@ -193,9 +199,14 @@ impl Merge for ServerDatabaseStorage {
                         tracing::warn!("merge got noop event (server)");
                     }
                     AccountEvent::RenameAccount(name) => {
-                        let path = self.paths.identity_vault();
-                        let mut file = VaultWriter::new_fs(path);
+                        // let path = self.paths.identity_vault();
+
+                        /*
+                        let mut file = VaultWriter::new_db(self.client.clone(), *fol);
                         file.set_vault_name(name.to_owned()).await?;
+                        */
+
+                        todo!("update identity vault name, needs the vault identifier");
                     }
                     AccountEvent::UpdateIdentity(_) => {
                         // This event is handled on the server
@@ -339,8 +350,8 @@ impl Merge for ServerDatabaseStorage {
             let events = diff.patch.into_events::<WriteEvent>().await?;
             for event in events {
                 if let WriteEvent::SetVaultFlags(flags) = event {
-                    let path = self.paths.vault_path(folder_id);
-                    let mut writer = VaultWriter::new_fs(path);
+                    let mut writer =
+                        VaultWriter::new_db(self.client.clone(), *folder_id);
                     writer.set_vault_flags(flags).await?;
                 }
             }
