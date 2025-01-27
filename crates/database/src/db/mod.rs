@@ -14,7 +14,7 @@ mod system_message;
 
 pub use account::{AccountEntity, AccountRecord, AccountRow};
 pub use audit::{AuditEntity, AuditRecord, AuditRow};
-pub use event::{CommitRecord, EventEntity, EventRecordRow, EventTable};
+pub use event::{CommitRecord, EventEntity, EventRecordRow};
 // #[cfg(feature = "files")]
 // pub use file::FileEntity;
 pub use folder::{

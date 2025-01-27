@@ -2,12 +2,17 @@ use crate::Error;
 use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, Row,
 };
-use sos_core::{commit::CommitHash, events::EventRecord, UtcDateTime};
+use sos_core::{
+    commit::CommitHash,
+    events::{EventLogType, EventRecord},
+    UtcDateTime,
+};
+use sql_query_builder as sql;
 use std::ops::Deref;
 
 /// Enumeration of tables for events.
 #[derive(Debug, Copy, Clone)]
-pub enum EventTable {
+enum EventTable {
     /// Account events table.
     AccountEvents,
     /// Folder events table.
@@ -18,7 +23,40 @@ pub enum EventTable {
     FileEvents,
 }
 
-// type EventSourceRow = (String, EventRecord);
+impl From<EventLogType> for EventTable {
+    fn from(value: EventLogType) -> Self {
+        match value {
+            EventLogType::Account => Self::AccountEvents,
+            EventLogType::Identity => Self::FolderEvents,
+            EventLogType::Device => Self::DeviceEvents,
+            EventLogType::Files => Self::FileEvents,
+            EventLogType::Folder(_) => Self::FolderEvents,
+        }
+    }
+}
+
+impl EventTable {
+    /// Table name.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            EventTable::AccountEvents => "account_events",
+            EventTable::FolderEvents => "folder_events",
+            EventTable::DeviceEvents => "device_events",
+            EventTable::FileEvents => "file_events",
+        }
+    }
+
+    /// Identifier column name.
+    ///
+    /// Events for a folder belong to a folder, other event logs
+    /// belong to the account.
+    pub fn id_column(&self) -> &'static str {
+        match self {
+            EventTable::FolderEvents => "folder_id",
+            _ => "account_id",
+        }
+    }
+}
 
 /// Commit row.
 #[derive(Debug)]
@@ -128,95 +166,29 @@ where
     /// Find a event record in the database.
     pub fn find_one(
         &self,
-        table: EventTable,
+        log_type: EventLogType,
         event_id: i64,
     ) -> Result<EventRecordRow, SqlError> {
-        let mut stmt = match table {
-            EventTable::AccountEvents => self.conn.prepare_cached(
-                r#"
-                    SELECT
-                        event_id,
-                        created_at,
-                        commit_hash,
-                        event
-                    FROM account_events
-                    WHERE event_id=?1
-                "#,
-            )?,
-            EventTable::FolderEvents => self.conn.prepare_cached(
-                r#"
-                    SELECT
-                        event_id,
-                        created_at,
-                        commit_hash,
-                        event
-                    FROM folder_events
-                    WHERE event_id=?1
-                "#,
-            )?,
-            EventTable::DeviceEvents => self.conn.prepare_cached(
-                r#"
-                    SELECT
-                        event_id,
-                        created_at,
-                        commit_hash,
-                        event
-                    FROM device_events
-                    WHERE event_id=?1
-                "#,
-            )?,
-            EventTable::FileEvents => self.conn.prepare_cached(
-                r#"
-                    SELECT
-                        event_id,
-                        created_at,
-                        commit_hash,
-                        event
-                    FROM file_events
-                    WHERE event_id=?1
-                "#,
-            )?,
-        };
-
+        let table: EventTable = log_type.into();
+        let query = sql::Select::new()
+            .select("event_id, created_at, commit_hash, event")
+            .from(table.as_str())
+            .where_clause("event_id=?1");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         Ok(stmt.query_row([event_id], |row| Ok(row.try_into()?))?)
     }
 
     /// Delete an event from the database table.
     pub fn delete_one(
         &self,
-        table: EventTable,
+        log_type: EventLogType,
         event_id: i64,
     ) -> Result<(), SqlError> {
-        let mut stmt = match table {
-            EventTable::AccountEvents => self.conn.prepare_cached(
-                r#"
-                    DELETE
-                    FROM account_events
-                    WHERE event_id=?1
-                    "#,
-            )?,
-            EventTable::FolderEvents => self.conn.prepare_cached(
-                r#"
-                    DELETE
-                    FROM folder_events
-                    WHERE event_id=?1
-                    "#,
-            )?,
-            EventTable::DeviceEvents => self.conn.prepare_cached(
-                r#"
-                    DELETE
-                    FROM device_events
-                    WHERE event_id=?1
-                    "#,
-            )?,
-            EventTable::FileEvents => self.conn.prepare_cached(
-                r#"
-                    DELETE
-                    FROM file_events
-                    WHERE event_id=?1
-                    "#,
-            )?,
-        };
+        let table: EventTable = log_type.into();
+        let query = sql::Delete::new()
+            .delete_from(table.as_str())
+            .where_clause("event_id = ?1");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute([event_id])?;
         Ok(())
     }
@@ -224,50 +196,19 @@ where
     /// Insert events into an event log table.
     pub fn insert_events(
         &self,
-        table: EventTable,
+        log_type: EventLogType,
         account_or_folder_id: i64,
         events: &[EventRecordRow],
     ) -> Result<Vec<i64>, SqlError> {
-        let stmt = match table {
-            EventTable::AccountEvents => {
-                self.conn.prepare_cached(&format!(
-                    r#"
-                      INSERT INTO {}
-                        (account_id, created_at, commit_hash, event)
-                        VALUES (?1, ?2, ?3, ?4)
-                    "#,
-                    "account_events"
-                ))?
-            }
-            EventTable::FolderEvents => {
-                self.conn.prepare_cached(&format!(
-                    r#"
-                      INSERT INTO {}
-                        (folder_id, created_at, commit_hash, event)
-                        VALUES (?1, ?2, ?3, ?4)
-                    "#,
-                    "folder_events"
-                ))?
-            }
-            EventTable::DeviceEvents => {
-                self.conn.prepare_cached(&format!(
-                    r#"
-                      INSERT INTO {}
-                        (account_id, created_at, commit_hash, event)
-                        VALUES (?1, ?2, ?3, ?4)
-                    "#,
-                    "device_events"
-                ))?
-            }
-            EventTable::FileEvents => self.conn.prepare_cached(&format!(
-                r#"
-                      INSERT INTO {}
-                        (account_id, created_at, commit_hash, event)
-                        VALUES (?1, ?2, ?3, ?4)
-                    "#,
-                "file_events"
-            ))?,
-        };
+        let table: EventTable = log_type.into();
+        let query = sql::Insert::new()
+            .insert_into(&format!(
+                "{} ({}, created_at, commit_hash, event)",
+                table.as_str(),
+                table.id_column()
+            ))
+            .values("(?1, ?2, ?3, ?4)");
+        let stmt = self.conn.prepare_cached(&query.as_string())?;
         self.create_events(stmt, account_or_folder_id, events)
     }
 
@@ -277,7 +218,7 @@ where
         account_id: i64,
         events: &[EventRecordRow],
     ) -> Result<Vec<i64>, SqlError> {
-        self.insert_events(EventTable::AccountEvents, account_id, events)
+        self.insert_events(EventLogType::Account, account_id, events)
     }
 
     /// Create folder events in the database.
@@ -286,7 +227,7 @@ where
         folder_id: i64,
         events: &[EventRecordRow],
     ) -> Result<Vec<i64>, SqlError> {
-        self.insert_events(EventTable::FolderEvents, folder_id, events)
+        self.insert_events(EventLogType::Identity, folder_id, events)
     }
 
     /// Create device events in the database.
@@ -295,7 +236,7 @@ where
         account_id: i64,
         events: &[EventRecordRow],
     ) -> Result<Vec<i64>, SqlError> {
-        self.insert_events(EventTable::DeviceEvents, account_id, events)
+        self.insert_events(EventLogType::Device, account_id, events)
     }
 
     /// Create file events in the database.
@@ -304,71 +245,25 @@ where
         account_id: i64,
         events: &[EventRecordRow],
     ) -> Result<Vec<i64>, SqlError> {
-        self.insert_events(EventTable::FileEvents, account_id, events)
+        self.insert_events(EventLogType::Files, account_id, events)
     }
 
     /// Load commits and identifiers for a folder.
     pub fn load_commits(
         &self,
-        table: EventTable,
+        log_type: EventLogType,
         account_id: i64,
         folder_id: Option<i64>,
     ) -> crate::Result<Vec<CommitRow>> {
-        let (mut stmt, id) = match (table, folder_id) {
-            (EventTable::AccountEvents, None) => {
-                let stmt = self.conn.prepare_cached(
-                    r#"
-                        SELECT
-                            event_id,
-                            commit_hash
-                        FROM account_events
-                        WHERE account_id=?1
-                        ORDER BY event_id ASC
-                    "#,
-                )?;
-                (stmt, account_id)
-            }
-            (EventTable::FolderEvents, Some(folder_id)) => {
-                let stmt = self.conn.prepare_cached(
-                    r#"
-                        SELECT
-                            event_id,
-                            commit_hash
-                        FROM folder_events
-                        WHERE folder_id=?1
-                        ORDER BY event_id ASC
-                    "#,
-                )?;
-                (stmt, folder_id)
-            }
-            (EventTable::DeviceEvents, None) => {
-                let stmt = self.conn.prepare_cached(
-                    r#"
-                        SELECT
-                            event_id,
-                            commit_hash
-                        FROM device_events
-                        WHERE account_id=?1
-                        ORDER BY event_id ASC
-                    "#,
-                )?;
-                (stmt, account_id)
-            }
-            (EventTable::FileEvents, None) => {
-                let stmt = self.conn.prepare_cached(
-                    r#"
-                        SELECT
-                            event_id,
-                            commit_hash
-                        FROM file_events
-                        WHERE account_id=?1
-                        ORDER BY event_id ASC
-                    "#,
-                )?;
-                (stmt, account_id)
-            }
-            _ => unreachable!(),
-        };
+        let id = folder_id.unwrap_or(account_id);
+        let table: EventTable = log_type.into();
+        let query = sql::Select::new()
+            .select("event_id, commit_hash")
+            .from(table.as_str())
+            .where_clause(&format!("{}=?1", table.id_column()))
+            .order_by("event_id ASC");
+
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
 
         fn convert_row(row: &Row<'_>) -> Result<CommitRow, crate::Error> {
             Ok(row.try_into()?)
@@ -388,53 +283,16 @@ where
     /// Delete all event logs.
     pub fn delete_all_events(
         &self,
-        table: EventTable,
+        log_type: EventLogType,
         account_id: i64,
         folder_id: Option<i64>,
     ) -> Result<usize, SqlError> {
-        let (mut stmt, id) = match (table, folder_id) {
-            (EventTable::AccountEvents, None) => {
-                let stmt = self.conn.prepare_cached(
-                    r#"
-                        DELETE
-                            FROM account_events
-                            WHERE account_id=?1
-                    "#,
-                )?;
-                (stmt, account_id)
-            }
-            (EventTable::FolderEvents, Some(folder_id)) => {
-                let stmt = self.conn.prepare_cached(
-                    r#"
-                        DELETE
-                            FROM folder_events
-                            WHERE folder_id=?1
-                    "#,
-                )?;
-                (stmt, folder_id)
-            }
-            (EventTable::DeviceEvents, None) => {
-                let stmt = self.conn.prepare_cached(
-                    r#"
-                        DELETE
-                            FROM device_events
-                            WHERE account_id=?1
-                    "#,
-                )?;
-                (stmt, account_id)
-            }
-            (EventTable::FileEvents, None) => {
-                let stmt = self.conn.prepare_cached(
-                    r#"
-                        DELETE
-                            FROM file_events
-                            WHERE account_id=?1
-                    "#,
-                )?;
-                (stmt, account_id)
-            }
-            _ => unreachable!(),
-        };
+        let id = folder_id.unwrap_or(account_id);
+        let table: EventTable = log_type.into();
+        let query = sql::Delete::new()
+            .delete_from(table.as_str())
+            .where_clause(&format!("{}=?1", table.id_column()));
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         Ok(stmt.execute([id])?)
     }
 

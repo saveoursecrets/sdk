@@ -1,8 +1,9 @@
 use crate::Result;
 use async_sqlite::rusqlite::{
-    CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
+    Connection, Error as SqlError, OptionalExtension, Row,
 };
 use sos_core::{Origin, UtcDateTime};
+use sql_query_builder as sql;
 use std::ops::Deref;
 use url::Url;
 
@@ -67,21 +68,23 @@ where
         Self { conn }
     }
 
-    fn find_server_statement(
-        &self,
-    ) -> std::result::Result<CachedStatement, SqlError> {
-        Ok(self.conn.prepare_cached(
-            r#"
-                SELECT
+    fn find_server_select(&self, select_one: bool) -> sql::Select {
+        let mut query = sql::Select::new()
+            .select(
+                r#"
                     server_id,
                     created_at,
                     modified_at,
                     name,
                     url
-                FROM servers
-                WHERE account_id=?1 AND url=?2
-            "#,
-        )?)
+                "#,
+            )
+            .from("servers")
+            .where_clause("account_id=?1");
+        if select_one {
+            query = query.where_and("url=?2");
+        }
+        query
     }
 
     /// Find a server in the database.
@@ -90,7 +93,9 @@ where
         account_id: i64,
         url: &Url,
     ) -> std::result::Result<ServerRow, SqlError> {
-        let mut stmt = self.find_server_statement()?;
+        let mut stmt = self
+            .conn
+            .prepare_cached(&self.find_server_select(true).as_string())?;
         Ok(stmt.query_row((account_id, url.to_string()), |row| {
             Ok(row.try_into()?)
         })?)
@@ -102,7 +107,9 @@ where
         account_id: i64,
         url: &Url,
     ) -> std::result::Result<Option<ServerRow>, SqlError> {
-        let mut stmt = self.find_server_statement()?;
+        let mut stmt = self
+            .conn
+            .prepare_cached(&self.find_server_select(true).as_string())?;
         Ok(stmt
             .query_row((account_id, url.to_string()), |row| {
                 Ok(row.try_into()?)
@@ -112,18 +119,8 @@ where
 
     /// Load servers for an account.
     pub fn load_servers(&self, account_id: i64) -> Result<Vec<ServerRow>> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                SELECT
-                    server_id,
-                    created_at,
-                    modified_at,
-                    name,
-                    url
-                FROM servers
-                WHERE account_id=?1
-            "#,
-        )?;
+        let query = self.find_server_select(false);
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
 
         fn convert_row(row: &Row<'_>) -> Result<ServerRow> {
             Ok(row.try_into()?)
@@ -144,11 +141,10 @@ where
         &self,
         server_id: i64,
     ) -> std::result::Result<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                DELETE FROM servers WHERE server_id=?1
-            "#,
-        )?;
+        let query = sql::Delete::new()
+            .delete_from("servers")
+            .where_clause("server_id = ?1");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute([server_id])?;
         Ok(())
     }
@@ -159,13 +155,12 @@ where
         account_id: i64,
         server: &ServerRow,
     ) -> std::result::Result<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-              INSERT INTO servers
-                (account_id, created_at, modified_at, name, url)
-                VALUES (?1, ?2, ?3, ?4, ?5)
-            "#,
-        )?;
+        let query = sql::Insert::new()
+            .insert_into(
+                "servers (account_id, created_at, modified_at, name, url)",
+            )
+            .values("(?1, ?2, ?3, ?4, ?5)");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
             account_id,
             &server.created_at,

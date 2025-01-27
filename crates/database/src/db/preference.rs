@@ -4,6 +4,7 @@ use async_sqlite::rusqlite::{
 };
 use sos_core::UtcDateTime;
 use sos_preferences::Preference;
+use sql_query_builder as sql;
 use std::ops::Deref;
 
 /// Preference row from the database.
@@ -79,24 +80,33 @@ where
         Self { conn }
     }
 
+    fn find_preference_select(&self, select_one: bool) -> sql::Select {
+        let mut query = sql::Select::new()
+            .select(
+                r#"
+                    preference_id,
+                    created_at,
+                    modified_at,
+                    key,
+                    json_data
+                "#,
+            )
+            .from("preferences")
+            .where_clause("account_id=?1");
+        if select_one {
+            query = query.where_and("key=?2");
+        }
+        query
+    }
+
     /// Find a preference in the database.
     pub fn find_optional(
         &self,
         account_id: Option<i64>,
         key: &str,
     ) -> std::result::Result<Option<PreferenceRow>, SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                SELECT
-                    preference_id,
-                    created_at,
-                    modified_at,
-                    key,
-                    json_data
-                FROM preferences
-                WHERE account_id=?1 AND key=?2
-            "#,
-        )?;
+        let query = self.find_preference_select(true);
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         Ok(stmt
             .query_row((account_id, key), |row| Ok(row.try_into()?))
             .optional()?)
@@ -110,18 +120,8 @@ where
         &self,
         account_id: Option<i64>,
     ) -> Result<Vec<PreferenceRow>> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                SELECT
-                    preference_id,
-                    created_at,
-                    modified_at,
-                    key,
-                    json_data
-                FROM preferences
-                WHERE account_id=?1
-            "#,
-        )?;
+        let query = self.find_preference_select(false);
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
 
         fn convert_row(row: &Row<'_>) -> Result<PreferenceRow> {
             Ok(row.try_into()?)
@@ -146,9 +146,10 @@ where
         account_id: Option<i64>,
         row: &PreferenceRow,
     ) -> std::result::Result<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-              INSERT INTO preferences
+        let query = sql::Insert::new()
+            .insert_into(
+                r#"
+                preferences
                 (
                     account_id,
                     created_at,
@@ -156,9 +157,10 @@ where
                     key,
                     json_data
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5)
-            "#,
-        )?;
+                "#,
+            )
+            .values("(?1, ?2, ?3, ?4, ?5)");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
             account_id,
             &row.created_at,
@@ -193,17 +195,12 @@ where
         account_id: Option<i64>,
         row: &PreferenceRow,
     ) -> std::result::Result<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-              UPDATE
-                    preferences
-                SET
-                    json_data=?1,
-                    modified_at=?2
-                WHERE
-                    account_id=?3 AND key=?4
-            "#,
-        )?;
+        let query = sql::Update::new()
+            .update("preferences")
+            .set("json_data = ?1, modified_at = ?2")
+            .where_clause("account_id = ?3")
+            .where_and("key = ?4");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
             &row.json_data,
             &row.modified_at,
@@ -238,11 +235,11 @@ where
         account_id: Option<i64>,
         key: &str,
     ) -> std::result::Result<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                DELETE FROM preferences WHERE account_id=?1 AND key=?2
-            "#,
-        )?;
+        let query = sql::Delete::new()
+            .delete_from("preferences")
+            .where_clause("account_id = ?1")
+            .where_and("key = ?2");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((account_id, key))?;
         Ok(())
     }
@@ -252,11 +249,10 @@ where
         &self,
         account_id: Option<i64>,
     ) -> std::result::Result<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                DELETE FROM preferences WHERE account_id=?1
-            "#,
-        )?;
+        let query = sql::Delete::new()
+            .delete_from("preferences")
+            .where_clause("account_id = ?1");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute([account_id])?;
         Ok(())
     }

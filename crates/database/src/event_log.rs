@@ -2,7 +2,7 @@
 use crate::{
     db::{
         AccountEntity, AccountRecord, CommitRecord, EventEntity,
-        EventRecordRow, EventTable, FolderEntity, FolderRecord,
+        EventRecordRow, FolderEntity, FolderRecord,
     },
     Error,
 };
@@ -18,7 +18,8 @@ use sos_core::{
     encoding::VERSION1,
     events::{
         patch::{CheckedPatch, Diff, Patch},
-        AccountEvent, DeviceEvent, EventLog, EventRecord, WriteEvent,
+        AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
+        WriteEvent,
     },
     AccountId, VaultId,
 };
@@ -56,7 +57,7 @@ where
     folder: Option<FolderRecord>,
     client: Client,
     ids: Vec<i64>,
-    table: EventTable,
+    log_type: EventLogType,
     tree: CommitTree,
     marker: std::marker::PhantomData<(T, E)>,
 }
@@ -84,7 +85,7 @@ where
             folder: self.folder.clone(),
             client,
             ids: Vec::new(),
-            table: self.table,
+            log_type: self.log_type,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
         }
@@ -123,7 +124,7 @@ where
         records: &[EventRecord],
         delete_before: bool,
     ) -> Result<(), E> {
-        let table = self.table.clone();
+        let log_type = self.log_type.clone();
         let account_id = self.account_id.clone();
         let folder_id = self.folder.as_ref().map(|f| f.row_id);
 
@@ -142,10 +143,11 @@ where
                 let tx = conn.transaction()?;
                 let events = EventEntity::new(&tx);
                 if delete_before {
-                    events.delete_all_events(table, account_id, folder_id)?;
+                    events
+                        .delete_all_events(log_type, account_id, folder_id)?;
                 }
                 let ids = events.insert_events(
-                    table,
+                    log_type,
                     account_id,
                     insert_rows.as_slice(),
                 )?;
@@ -190,7 +192,7 @@ where
             folder: None,
             client,
             ids: Vec::new(),
-            table: EventTable::AccountEvents,
+            log_type: EventLogType::Account,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
         })
@@ -221,7 +223,7 @@ where
             folder: Some(folder),
             client,
             ids: Vec::new(),
-            table: EventTable::FolderEvents,
+            log_type: EventLogType::Identity,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
         })
@@ -250,7 +252,7 @@ where
             folder: None,
             client,
             ids: Vec::new(),
-            table: EventTable::DeviceEvents,
+            log_type: EventLogType::Device,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
         })
@@ -280,7 +282,7 @@ where
             folder: None,
             client,
             ids: Vec::new(),
-            table: EventTable::FileEvents,
+            log_type: EventLogType::Files,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
         })
@@ -312,13 +314,13 @@ where
         }
         let items = ids
             .into_iter()
-            .map(|id| Ok((self.client.clone(), self.table, id)));
+            .map(|id| Ok((self.client.clone(), self.log_type, id)));
         Box::pin(stream::iter(items).try_filter_map(
-            |(client, table, id)| async move {
+            |(client, log_type, id)| async move {
                 let row = client
                     .conn(move |conn| {
                         let events = EventEntity::new(&conn);
-                        Ok(events.find_one(table, id)?)
+                        Ok(events.find_one(log_type, id)?)
                     })
                     .await
                     .map_err(Error::from)?;
@@ -337,13 +339,13 @@ where
         }
         let items = ids
             .into_iter()
-            .map(|id| Ok((self.client.clone(), self.table, id)));
+            .map(|id| Ok((self.client.clone(), self.log_type, id)));
         Box::pin(stream::iter(items).try_filter_map(
-            |(client, table, id)| async move {
+            |(client, log_type, id)| async move {
                 let row = client
                     .conn(move |conn| {
                         let events = EventEntity::new(&conn);
-                        Ok(events.find_one(table, id)?)
+                        Ok(events.find_one(log_type, id)?)
                     })
                     .await
                     .map_err(Error::from)?;
@@ -426,13 +428,13 @@ where
         let delete_ids = ids.split_off(new_len);
 
         // Delete from the database
-        let table = self.table.clone();
+        let log_type = self.log_type.clone();
         self.client
             .conn_mut(move |conn| {
                 let tx = conn.transaction()?;
                 let events = EventEntity::new(&tx);
                 for id in delete_ids {
-                    events.delete_one(table, id)?;
+                    events.delete_one(log_type, id)?;
                 }
                 tx.commit()?;
                 Ok(())
@@ -451,7 +453,7 @@ where
     }
 
     async fn load_tree(&mut self) -> Result<(), Self::Error> {
-        let table = self.table.clone();
+        let log_type = self.log_type.clone();
         let account_id = self.account_id.clone();
         let folder_id = self.folder.as_ref().map(|f| f.row_id);
         let commits = self
@@ -459,7 +461,7 @@ where
             .conn_and_then(move |conn| {
                 let events = EventEntity::new(&conn);
                 let commits =
-                    events.load_commits(table, account_id, folder_id)?;
+                    events.load_commits(log_type, account_id, folder_id)?;
                 Ok::<_, Error>(commits)
             })
             .await?;
@@ -473,14 +475,14 @@ where
     }
 
     async fn clear(&mut self) -> Result<(), Self::Error> {
-        let table = self.table.clone();
+        let log_type = self.log_type.clone();
         let account_id = self.account_id.clone();
         let folder_id = self.folder.as_ref().map(|f| f.row_id);
         self.client
             .conn_mut(move |conn| {
                 let tx = conn.transaction()?;
                 let events = EventEntity::new(&tx);
-                events.delete_all_events(table, account_id, folder_id)?;
+                events.delete_all_events(log_type, account_id, folder_id)?;
                 tx.commit()?;
                 Ok(())
             })

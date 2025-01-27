@@ -19,11 +19,11 @@ use sos_core::{
 };
 use sos_database::db::EventEntity;
 use sos_database::db::EventRecordRow;
-use sos_database::db::EventTable;
 use sos_database::db::{
     open_file, AccountEntity, AccountRow, FolderEntity, FolderRow,
 };
 use sos_password::diceware::generate_passphrase;
+use sos_sdk::events::EventLogType;
 use sos_sdk::events::EventRecord;
 use sos_vault::{
     secret::{FileContent, IdentityKind, Secret, SecretMeta},
@@ -253,7 +253,7 @@ pub async fn insert_database_vault(
             if insert_folder_events {
                 let events = EventEntity::new(&conn);
                 events.insert_events(
-                    EventTable::FolderEvents,
+                    EventLogType::Identity,
                     folder_id,
                     event_rows.as_slice(),
                 )?;

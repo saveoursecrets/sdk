@@ -139,18 +139,17 @@ where
         let key = key.to_string();
         Ok(self
             .client
-            .conn(move |conn| {
+            .conn_and_then(move |conn| {
                 let account = AccountEntity::new(&conn);
                 let account_row = account.find_one(&account_id)?;
                 let messages = SystemMessageEntity::new(&conn);
-                Ok(messages.mark_system_message(
+                messages.mark_system_message(
                     account_row.row_id,
                     &key,
                     is_read,
-                )?)
+                )
             })
-            .await
-            .map_err(Error::from)?)
+            .await?)
     }
 
     async fn clear_system_messages(&mut self) -> Result<(), Self::Error> {

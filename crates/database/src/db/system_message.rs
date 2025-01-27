@@ -2,6 +2,7 @@ use crate::Result;
 use async_sqlite::rusqlite::{Connection, Error as SqlError, Row};
 use sos_core::UtcDateTime;
 use sos_system_messages::SysMessage;
+use sql_query_builder as sql;
 use std::ops::Deref;
 use urn::Urn;
 
@@ -75,18 +76,19 @@ where
         &self,
         account_id: i64,
     ) -> Result<Vec<SystemMessageRow>> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                SELECT
+        let query = sql::Select::new()
+            .select(
+                r#"
                     system_message_id,
                     created_at,
                     modified_at,
                     key,
                     json_data
-                FROM system_messages
-                WHERE account_id=?1
-            "#,
-        )?;
+                "#,
+            )
+            .from("system_messages")
+            .where_clause("account_id = ?1");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
 
         fn convert_row(row: &Row<'_>) -> Result<SystemMessageRow> {
             Ok(row.try_into()?)
@@ -108,17 +110,20 @@ where
         account_id: i64,
         key: &str,
         is_read: bool,
-    ) -> std::result::Result<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                UPDATE system_messages
-                SET
-                  json_data = json_replace (json_data, '$.isRead', ?1)
-                WHERE account_id=?2 AND key=?3
-            "#,
-        )?;
-        stmt.execute((is_read, account_id, key))?;
-
+    ) -> Result<()> {
+        let modified_at = UtcDateTime::default().to_rfc3339()?;
+        let query = sql::Update::new()
+            .update("system_messages")
+            .set(
+                "
+                modified_at = ?1,
+                json_data = json_replace (json_data, '$.isRead', ?2)
+            ",
+            )
+            .where_clause("account_id = ?3")
+            .where_and("key = ?4");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
+        stmt.execute((modified_at, is_read, account_id, key))?;
         Ok(())
     }
 
@@ -128,11 +133,11 @@ where
         account_id: i64,
         key: &str,
     ) -> std::result::Result<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                DELETE FROM system_messages WHERE account_id=?1 AND key=?2
-            "#,
-        )?;
+        let query = sql::Delete::new()
+            .delete_from("system_messages")
+            .where_clause("account_id = ?1")
+            .where_and("key = ?2");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((account_id, key))?;
         Ok(())
     }
@@ -142,11 +147,10 @@ where
         &self,
         account_id: i64,
     ) -> std::result::Result<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                DELETE FROM system_messages WHERE account_id=?1
-            "#,
-        )?;
+        let query = sql::Delete::new()
+            .delete_from("system_messages")
+            .where_clause("account_id = ?1");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute([account_id])?;
         Ok(())
     }
@@ -157,9 +161,10 @@ where
         account_id: i64,
         row: &SystemMessageRow,
     ) -> std::result::Result<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-              INSERT INTO system_messages
+        let query = sql::Insert::new()
+            .insert_into(
+                r#"
+                system_messages
                 (
                     account_id,
                     created_at,
@@ -167,9 +172,10 @@ where
                     key,
                     json_data
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5)
-            "#,
-        )?;
+                "#,
+            )
+            .values("(?1, ?2, ?3, ?4, ?5)");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
             account_id,
             &row.created_at,
