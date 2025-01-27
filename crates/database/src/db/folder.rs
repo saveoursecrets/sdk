@@ -1,6 +1,7 @@
 use crate::{Error, Result};
 use async_sqlite::rusqlite::{
     CachedStatement, Connection, Error as SqlError, OptionalExtension, Row,
+    Transaction,
 };
 use async_sqlite::Client;
 use sos_core::{
@@ -253,6 +254,44 @@ where
     conn: &'conn C,
 }
 
+impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
+    /// Replace all secrets for a folder using a transaction.
+    pub async fn replace_all_secrets(
+        client: Client,
+        folder_id: &VaultId,
+        vault: &Vault,
+    ) -> Result<()> {
+        let folder_id = folder_id.clone();
+        let mut insert_secrets = Vec::new();
+        for (secret_id, commit) in vault.iter() {
+            let VaultCommit(commit, entry) = commit;
+            insert_secrets
+                .push(SecretRow::new(secret_id, commit, entry).await?);
+        }
+
+        // TODO: update folder meta data!!!
+
+        client
+            .conn_mut(move |conn| {
+                let tx = conn.transaction()?;
+                let folder = FolderEntity::new(&tx);
+                let folder_row = folder.find_one(&folder_id)?;
+                folder.delete_all_secrets(folder_row.row_id)?;
+                for secret_row in insert_secrets {
+                    folder.insert_secret_by_row_id(
+                        folder_row.row_id,
+                        &secret_row,
+                    )?;
+                }
+                tx.commit()?;
+                Ok(())
+            })
+            .await
+            .map_err(Error::from)?;
+        Ok(())
+    }
+}
+
 impl<'conn, C> FolderEntity<'conn, C>
 where
     C: Deref<Target = Connection>,
@@ -294,28 +333,6 @@ where
             query.where_clause("folder_id = ?1")
         };
         Ok(self.conn.prepare_cached(&query.as_string())?)
-
-        /*
-        Ok(self.conn.prepare_cached(&format!(
-            r#"
-                SELECT
-                    folder_id,
-                    created_at,
-                    modified_at,
-                    identifier,
-                    name,
-                    salt,
-                    meta,
-                    version,
-                    cipher,
-                    kdf,
-                    flags
-                FROM folders
-                WHERE {}=?1
-            "#,
-            where_column
-        ))?)
-        */
     }
 
     /// Find a folder in the database.
@@ -408,20 +425,14 @@ where
     }
 
     /// Update the name of a folder.
-    pub fn update_name(
-        &self,
-        folder_id: &VaultId,
-        name: &str,
-    ) -> StdResult<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-              UPDATE
-                folders
-                SET name=?1
-                WHERE identifier=?2
-            "#,
-        )?;
-        stmt.execute((name, folder_id.to_string()))?;
+    pub fn update_name(&self, folder_id: &VaultId, name: &str) -> Result<()> {
+        let modified_at = UtcDateTime::default().to_rfc3339()?;
+        let query = sql::Update::new()
+            .update("folders")
+            .set("name = ?1, modified_at = ?2")
+            .where_clause("identifier = ?3");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
+        stmt.execute((name, modified_at, folder_id.to_string()))?;
         Ok(())
     }
 
@@ -429,17 +440,16 @@ where
     pub fn update_flags(
         &self,
         folder_id: &VaultId,
-        flags: &[u8],
-    ) -> StdResult<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-              UPDATE
-                folders
-                SET flags=?1
-                WHERE identifier=?2
-            "#,
-        )?;
-        stmt.execute((flags, folder_id.to_string()))?;
+        flags: &VaultFlags,
+    ) -> Result<()> {
+        let flags = flags.bits().to_le_bytes();
+        let modified_at = UtcDateTime::default().to_rfc3339()?;
+        let query = sql::Update::new()
+            .update("folders")
+            .set("flags = ?1, modified_at = ?2")
+            .where_clause("identifier = ?3");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
+        stmt.execute((flags, modified_at, folder_id.to_string()))?;
         Ok(())
     }
 
@@ -448,16 +458,14 @@ where
         &self,
         folder_id: &VaultId,
         meta: &[u8],
-    ) -> StdResult<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-              UPDATE
-                folders
-                SET meta=?1
-                WHERE identifier=?2
-            "#,
-        )?;
-        stmt.execute((meta, folder_id.to_string()))?;
+    ) -> Result<()> {
+        let modified_at = UtcDateTime::default().to_rfc3339()?;
+        let query = sql::Update::new()
+            .update("folders")
+            .set("meta = ?1, modified_at = ?2")
+            .where_clause("identifier = ?3");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
+        stmt.execute((meta, modified_at, folder_id.to_string()))?;
         Ok(())
     }
 
@@ -467,9 +475,10 @@ where
         account_id: i64,
         folder_row: &FolderRow,
     ) -> StdResult<i64, SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-              INSERT INTO folders
+        let query = sql::Insert::new()
+            .insert_into(
+                r#"
+                folders
                 (
                     account_id,
                     created_at,
@@ -483,9 +492,11 @@ where
                     kdf,
                     flags
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
             "#,
-        )?;
+            )
+            .values("(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)");
+
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
             &account_id,
             &folder_row.created_at,
@@ -509,10 +520,10 @@ where
         folder_id: &VaultId,
         folder_row: &FolderRow,
     ) -> StdResult<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-              UPDATE folders
-                SET
+        let query = sql::Update::new()
+            .update("folders")
+            .set(
+                r#"
                     modified_at = ?1,
                     identifier = ?2,
                     name = ?3,
@@ -522,9 +533,10 @@ where
                     cipher = ?7,
                     kdf = ?8,
                     flags = ?9
-                WHERE identifier=?10
-            "#,
-        )?;
+                 "#,
+            )
+            .where_clause("identifier=?10");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
             &folder_row.modified_at,
             &folder_row.identifier,
@@ -566,55 +578,16 @@ where
         Ok(self.insert_secret_by_row_id(row.row_id, secret_row)?)
     }
 
-    /// Replace all secrets for a folder using a transaction.
-    pub async fn replace_all_secrets(
-        client: Client,
-        folder_id: &VaultId,
-        vault: &Vault,
-    ) -> Result<()> {
-        let folder_id = folder_id.clone();
-        let mut insert_secrets = Vec::new();
-        for (secret_id, commit) in vault.iter() {
-            let VaultCommit(commit, entry) = commit;
-            insert_secrets
-                .push(SecretRow::new(secret_id, commit, entry).await?);
-        }
-
-        // TODO: update folder meta data!!!
-
-        client
-            .conn_mut(move |conn| {
-                let tx = conn.transaction()?;
-                let folder = FolderEntity::new(&tx);
-                let folder_row = folder.find_one(&folder_id)?;
-                folder.delete_all_secrets(&folder_id)?;
-                for secret_row in insert_secrets {
-                    folder.insert_secret_by_row_id(
-                        folder_row.row_id,
-                        &secret_row,
-                    )?;
-                }
-                tx.commit()?;
-                Ok(())
-            })
-            .await
-            .map_err(Error::from)?;
-        Ok(())
-    }
-
     /// Insert a secret using the folder row id.
     pub fn insert_secret_by_row_id(
         &self,
         folder_id: i64,
         secret_row: &SecretRow,
     ) -> StdResult<i64, SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-            INSERT INTO folder_secrets
-              (folder_id, identifier, commit_hash, meta, secret, created_at, modified_at)
-              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-          "#,
-        )?;
+        let query = sql::Insert::new()
+            .insert_into("folder_secrets (folder_id, identifier, commit_hash, meta, secret, created_at, modified_at)")
+            .values("(?1, ?2, ?3, ?4, ?5, ?6, ?7)");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
             &folder_id,
             &secret_row.identifier,
@@ -627,21 +600,18 @@ where
         Ok(self.conn.last_insert_rowid())
     }
 
-    fn find_secret_statement(&self) -> StdResult<CachedStatement, SqlError> {
-        Ok(self.conn.prepare_cached(
+    fn secret_select_columns(&self, sql: sql::Select) -> sql::Select {
+        sql.select(
             r#"
-                SELECT
-                    secret_id,
-                    created_at,
-                    modified_at,
-                    identifier,
-                    commit_hash,
-                    meta,
-                    secret 
-                FROM folder_secrets
-                WHERE folder_id=?1 AND identifier=?2
+                secret_id,
+                created_at,
+                modified_at,
+                identifier,
+                commit_hash,
+                meta,
+                secret 
             "#,
-        )?)
+        )
     }
 
     /// Find a folder secret.
@@ -651,7 +621,13 @@ where
         secret_id: &SecretId,
     ) -> StdResult<Option<SecretRow>, SqlError> {
         let row = self.find_one(folder_id)?;
-        let mut stmt = self.find_secret_statement()?;
+        let query = self
+            .secret_select_columns(sql::Select::new())
+            .from("folder_secrets")
+            .where_clause("folder_id=?1")
+            .where_and("identifier=?2");
+
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         Ok(stmt
             .query_row((row.row_id, secret_id.to_string()), |row| {
                 let row: SecretRow = row.try_into()?;
@@ -665,19 +641,26 @@ where
         &self,
         folder_id: &VaultId,
         secret_row: &SecretRow,
-    ) -> StdResult<bool, SqlError> {
+    ) -> Result<bool> {
+        let modified_at = UtcDateTime::default().to_rfc3339()?;
         let row = self.find_one(folder_id)?;
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-            UPDATE folder_secrets
-                SET
-                    commit_hash=?1,
-                    meta=?2, 
-                    secret=?3
-                WHERE folder_id=?4 AND identifier=?5
-          "#,
-        )?;
+        let query = sql::Update::new()
+            .update("folder_secrets")
+            .set(
+                r#"
+
+                    modified_at=?1,
+                    commit_hash=?2,
+                    meta=?3, 
+                    secret=?4
+                 "#,
+            )
+            .where_clause("folder_id=?5")
+            .where_and("identifier = ?6");
+
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         let affected_rows = stmt.execute((
+            modified_at,
             &secret_row.commit,
             &secret_row.meta,
             &secret_row.secret,
@@ -689,20 +672,11 @@ where
 
     /// Load secret rows.
     pub fn load_secrets(&self, folder_row_id: i64) -> Result<Vec<SecretRow>> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                SELECT
-                    secret_id,
-                    created_at,
-                    modified_at,
-                    identifier,
-                    commit_hash,
-                    meta,
-                    secret
-                FROM folder_secrets
-                WHERE folder_id=?1
-            "#,
-        )?;
+        let query = self
+            .secret_select_columns(sql::Select::new())
+            .from("folder_secrets")
+            .where_clause("folder_id=?1");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
 
         fn convert_row(row: &Row<'_>) -> Result<SecretRow> {
             Ok(row.try_into()?)
@@ -724,13 +698,10 @@ where
         folder_id: &VaultId,
     ) -> StdResult<bool, SqlError> {
         let row = self.find_one(folder_id)?;
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                DELETE
-                    FROM folders
-                    WHERE folder_id=?1
-            "#,
-        )?;
+        let query = sql::Delete::new()
+            .delete_from("folders")
+            .where_clause("folder_id = ?1");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         let affected_rows = stmt.execute([row.row_id])?;
         Ok(affected_rows > 0)
     }
@@ -742,31 +713,25 @@ where
         secret_id: &SecretId,
     ) -> StdResult<bool, SqlError> {
         let row = self.find_one(folder_id)?;
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                DELETE
-                    FROM folder_secrets
-                    WHERE folder_id=?1 AND identifier=?2
-            "#,
-        )?;
+        let query = sql::Delete::new()
+            .delete_from("folder_secrets")
+            .where_clause("folder_id = ?1")
+            .where_and("identifier = ?2");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         let affected_rows =
             stmt.execute((row.row_id, secret_id.to_string()))?;
         Ok(affected_rows > 0)
     }
 
     /// Delete all folder secrets.
-    pub fn delete_all_secrets(
+    fn delete_all_secrets(
         &self,
-        folder_id: &VaultId,
+        folder_id: i64,
     ) -> StdResult<usize, SqlError> {
-        let row = self.find_one(folder_id)?;
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-                DELETE
-                    FROM folder_secrets
-                    WHERE folder_id=?1
-            "#,
-        )?;
-        Ok(stmt.execute([row.row_id])?)
+        let query = sql::Delete::new()
+            .delete_from("folder_secrets")
+            .where_clause("folder_id = ?1");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
+        Ok(stmt.execute([folder_id])?)
     }
 }

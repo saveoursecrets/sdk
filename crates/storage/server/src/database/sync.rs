@@ -122,7 +122,7 @@ impl ForceMerge for ServerDatabaseStorage {
             .build(false)
             .await?;
 
-        FolderEntity::<async_sqlite::rusqlite::Transaction>::replace_all_secrets(
+        FolderEntity::replace_all_secrets(
             self.client.clone(),
             folder_id,
             &vault,

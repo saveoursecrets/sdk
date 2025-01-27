@@ -95,13 +95,11 @@ where
         let folder_id = self.folder_id.clone();
         let folder_name = name.clone();
         self.client
-            .conn(move |conn| {
+            .conn_and_then(move |conn| {
                 let folder = FolderEntity::new(&conn);
-                folder.update_name(&folder_id, &folder_name)?;
-                Ok(())
+                folder.update_name(&folder_id, &folder_name)
             })
-            .await
-            .map_err(Error::from)?;
+            .await?;
         Ok(WriteEvent::SetVaultName(name))
     }
 
@@ -110,15 +108,13 @@ where
         flags: VaultFlags,
     ) -> Result<WriteEvent, Self::Error> {
         let folder_id = self.folder_id.clone();
-        let folder_flags = flags.bits().to_le_bytes();
+        let folder_flags = flags.clone();
         self.client
-            .conn(move |conn| {
+            .conn_and_then(move |conn| {
                 let folder = FolderEntity::new(&conn);
-                folder.update_flags(&folder_id, folder_flags.as_slice())?;
-                Ok(())
+                folder.update_flags(&folder_id, &folder_flags)
             })
-            .await
-            .map_err(Error::from)?;
+            .await?;
         Ok(WriteEvent::SetVaultFlags(flags))
     }
 
@@ -129,13 +125,11 @@ where
         let folder_id = self.folder_id.clone();
         let folder_meta = encode(&meta_data).await?;
         self.client
-            .conn(move |conn| {
+            .conn_and_then(move |conn| {
                 let folder = FolderEntity::new(&conn);
-                folder.update_meta(&folder_id, folder_meta.as_slice())?;
-                Ok(())
+                folder.update_meta(&folder_id, folder_meta.as_slice())
             })
-            .await
-            .map_err(Error::from)?;
+            .await?;
         Ok(WriteEvent::SetVaultMeta(meta_data))
     }
 
@@ -203,12 +197,11 @@ where
         let secret_row = SecretRow::new(secret_id, &commit, &secret).await?;
         let updated = self
             .client
-            .conn(move |conn| {
+            .conn_and_then(move |conn| {
                 let folder = FolderEntity::new(&conn);
-                Ok(folder.update_secret(&folder_id, &secret_row)?)
+                folder.update_secret(&folder_id, &secret_row)
             })
-            .await
-            .map_err(Error::from)?;
+            .await?;
         Ok(updated.then_some(WriteEvent::UpdateSecret(
             *secret_id,
             VaultCommit(commit, secret),
@@ -236,31 +229,11 @@ where
         &mut self,
         vault: &Vault,
     ) -> Result<(), Self::Error> {
-        let folder_id = self.folder_id.clone();
-        let mut insert_secrets = Vec::new();
-        for (secret_id, commit) in vault.iter() {
-            let VaultCommit(commit, entry) = commit;
-            insert_secrets
-                .push(SecretRow::new(secret_id, commit, entry).await?);
-        }
-
-        self.client
-            .conn_mut(move |conn| {
-                let tx = conn.transaction()?;
-                let folder = FolderEntity::new(&tx);
-                let folder_row = folder.find_one(&folder_id)?;
-                folder.delete_all_secrets(&folder_id)?;
-                for secret_row in insert_secrets {
-                    folder.insert_secret_by_row_id(
-                        folder_row.row_id,
-                        &secret_row,
-                    )?;
-                }
-                tx.commit()?;
-                Ok(())
-            })
-            .await
-            .map_err(Error::from)?;
-        Ok(())
+        Ok(FolderEntity::replace_all_secrets(
+            self.client.clone(),
+            &self.folder_id,
+            vault,
+        )
+        .await?)
     }
 }

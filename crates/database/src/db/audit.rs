@@ -2,6 +2,7 @@ use crate::Error;
 use async_sqlite::rusqlite::{Connection, Error as SqlError, Row};
 use sos_audit::AuditEvent;
 use sos_core::{events::EventKind, AccountId, UtcDateTime};
+use sql_query_builder as sql;
 use std::ops::Deref;
 
 /// Audit row.
@@ -104,13 +105,10 @@ where
         &self,
         event: &AuditRow,
     ) -> std::result::Result<(), SqlError> {
-        let mut stmt = self.conn.prepare_cached(
-            r#"
-              INSERT INTO audit_logs
-                (created_at, account_identifier, event_kind, event_data)
-                VALUES (?1, ?2, ?3, ?4)
-            "#,
-        )?;
+        let query = sql::Insert::new()
+            .insert_into("audit_logs (created_at, account_identifier, event_kind, event_data)")
+            .values("(?1, ?2, ?3, ?4)");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
             &event.created_at,
             &event.account_id,
