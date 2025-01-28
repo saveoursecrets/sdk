@@ -1,5 +1,5 @@
-use super::{Error, Result};
-use crate::{ArchiveItem, Manifest};
+use crate::{ArchiveItem, Manifest, ManifestVersion, ManifestVersion1};
+use crate::{Error, Result};
 use async_zip::{
     tokio::{read::seek::ZipFileReader, write::ZipFileWriter},
     Compression, ZipDateTimeBuilder, ZipEntryBuilder,
@@ -27,7 +27,7 @@ use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 /// verified to be valid vaults.
 pub struct Writer<W: AsyncWrite + Unpin> {
     writer: ZipFileWriter<W>,
-    manifest: Manifest,
+    manifest: ManifestVersion1,
 }
 
 impl<W: AsyncWrite + Unpin> Writer<W> {
@@ -35,7 +35,7 @@ impl<W: AsyncWrite + Unpin> Writer<W> {
     pub fn new(inner: W) -> Self {
         Self {
             writer: ZipFileWriter::with_tokio(inner),
-            manifest: Default::default(),
+            manifest: ManifestVersion1::default(),
         }
     }
 
@@ -231,7 +231,7 @@ impl<W: AsyncWrite + Unpin> Writer<W> {
 /// Inventory of an archive.
 pub struct Inventory {
     /// The archive manifest.
-    pub manifest: Manifest,
+    pub manifest: ManifestVersion1,
     /// Summary for the identity vault.
     pub identity: Summary,
     /// Summaries for the archived vaults.
@@ -244,7 +244,7 @@ pub struct Inventory {
 /// Read from an archive.
 pub struct Reader<R: AsyncBufRead + AsyncSeek + Unpin> {
     archive: ZipFileReader<R>,
-    manifest: Option<Manifest>,
+    manifest: Option<ManifestVersion1>,
 }
 
 impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
@@ -257,7 +257,7 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
     }
 
     /// Get the manifest.
-    pub fn manifest(&self) -> Option<&Manifest> {
+    pub fn manifest(&self) -> Option<&ManifestVersion1> {
         self.manifest.as_ref()
     }
 
@@ -318,9 +318,10 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
         Ok(None)
     }
 
-    async fn find_manifest(&mut self) -> Result<Option<Manifest>> {
+    async fn find_manifest(&mut self) -> Result<Option<ManifestVersion1>> {
         if let Some(buffer) = self.by_name(ARCHIVE_MANIFEST).await? {
-            let manifest_entry: Manifest = serde_json::from_slice(&buffer)?;
+            let manifest_entry: ManifestVersion1 =
+                serde_json::from_slice(&buffer)?;
             return Ok(Some(manifest_entry));
         }
         Ok(None)
@@ -421,7 +422,7 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
     pub async fn finish(
         mut self,
     ) -> Result<(
-        Manifest,
+        ManifestVersion1,
         ArchiveItem,
         Vec<ArchiveItem>,
         Option<(ArchiveItem, Vec<u8>)>,

@@ -1,7 +1,7 @@
 //! Account archive backup.
-use super::{Error, Result};
-use crate::zip::{Inventory, Reader, Writer};
+use crate::v1::zip::{Inventory, Reader, Writer};
 use crate::RestoreTargets;
+use crate::{Error, Result};
 use hex;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};

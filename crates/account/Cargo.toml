@@ -69,7 +69,7 @@ hex.workspace = true
 serde_json.workspace = true
 
 sos-search = { workspace = true, optional = true }
-sos-backup-archive = { workspace = true, optional = true, features = ["zip"] }
+sos-backup-archive = { workspace = true, optional = true }
 
 sha2 = { workspace = true, optional = true }
 # tokio-util = { workspace = true, optional = true }

@@ -2,7 +2,7 @@
 mod account;
 mod account_switcher;
 #[cfg(feature = "archive")]
-pub use sos_backup_archive::zip as archive;
+pub use sos_backup_archive as archive;
 mod builder;
 mod convert;
 mod error;
