@@ -8,7 +8,7 @@ use std::path::PathBuf;
 #[tokio::test]
 async fn database_upgrade_server() -> Result<()> {
     const TEST_ID: &str = "database_upgrade_server";
-    crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     let dirs = setup(TEST_ID, 0).await?;
     let data_dir = dirs.test_dir;

@@ -1,58 +1,44 @@
-use crate::test_utils::{setup, teardown};
+use crate::test_utils::{copy_dir, setup, teardown};
 use anyhow::Result;
-use sos_account::{
-    archive::RestoreOptions,
-    archive::{AccountBackup, ExtractFilesLocation, Inventory},
-    Account, LocalAccount,
-};
 use sos_database::importer::{upgrade_accounts, UpgradeOptions};
-use sos_sdk::prelude::{vfs, Paths};
-use tokio::io::BufReader;
+use sos_sdk::prelude::{IDENTITY_DIR, LOCAL_DIR};
+use std::path::PathBuf;
 
+/// Upgrade v1 accounts to the v2 backend for client-side storage.
 #[tokio::test]
 async fn database_upgrade_client() -> Result<()> {
     const TEST_ID: &str = "database_upgrade_client";
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
-    let mut dirs = setup(TEST_ID, 1).await?;
-    let data_dir = dirs.clients.remove(0);
-    Paths::scaffold(Some(data_dir.clone())).await?;
+    let dirs = setup(TEST_ID, 0).await?;
+    let data_dir = dirs.test_dir;
 
-    // Prepare to import to database file
-    // by restoring an account from a backup archive fixture
-    let archive =
-        "../fixtures/backups/v2/0xba0faea9bbc182e3f4fdb3eea7636b5bb31ea9ac.zip";
-    let reader = vfs::File::open(archive).await?;
-    let inventory: Inventory =
-        AccountBackup::restore_archive_inventory(BufReader::new(reader))
-            .await?;
+    let v1_account_files = PathBuf::from("../fixtures/accounts/v1/client");
+    let v1_identity_src = v1_account_files.join(IDENTITY_DIR);
+    let v1_local_src = v1_account_files.join(LOCAL_DIR);
 
-    let user_paths = Paths::new(
-        data_dir.clone(),
-        inventory.manifest.account_id.to_string(),
-    );
-    user_paths.ensure().await?;
+    let v1_identity_dest = data_dir.join(IDENTITY_DIR);
+    let v1_local_dest = data_dir.join(LOCAL_DIR);
 
-    let options = RestoreOptions {
-        selected: inventory.vaults,
-        files_dir: Some(ExtractFilesLocation::Path(
-            user_paths.files_dir().to_owned(),
-        )),
-    };
+    // If we disable the teardown we still want the test to work
+    if v1_identity_dest.exists() {
+        std::fs::remove_dir_all(&v1_identity_dest)?;
+    }
+    if v1_local_dest.exists() {
+        std::fs::remove_dir_all(&v1_local_dest)?;
+    }
 
-    LocalAccount::import_backup_archive(
-        &archive,
-        options,
-        Some(data_dir.clone()),
-    )
-    .await?;
+    // Copy fixtures into test location
+    copy_dir(&v1_identity_src, &v1_identity_dest)?;
+    copy_dir(&v1_local_src, &v1_local_dest)?;
 
     // Upgrade the file system accounts into the db
     let options = UpgradeOptions {
         dry_run: false,
         ..Default::default()
     };
-    upgrade_accounts(data_dir, options).await?;
+    let result = upgrade_accounts(data_dir, options).await?;
+    assert!(result.database_file.exists());
 
     teardown(TEST_ID).await;
 
