@@ -1,4 +1,4 @@
-use crate::{ArchiveItem, Manifest, ManifestVersion, ManifestVersion1};
+use crate::{ArchiveItem, ManifestVersion1};
 use crate::{Error, Result};
 use async_zip::{
     tokio::{read::seek::ZipFileReader, write::ZipFileWriter},
