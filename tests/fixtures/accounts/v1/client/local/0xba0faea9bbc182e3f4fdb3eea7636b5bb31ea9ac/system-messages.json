@@ -1,0 +1,11 @@
+{
+  "urn:sos:sync:http://127.0.0.1:5053/": {
+    "created": "2025-01-28 02:43:40.33353 +00:00:00",
+    "priority": 80,
+    "title": "Sync failed",
+    "subTitle": "http://127.0.0.1:5053/",
+    "content": "Error sending request for url (http://127.0.0.1:5053/api/v1/sync/account?connection_id=e50b728beccd1978903708223f3c05961cb6109b94b743187a9723927a94115b)\n\ncaused by: \n  0: client error (connect)\n  1: tcp connect error: connection refused (os error 61)\n  2: connection refused (os error 61)",
+    "isRead": false,
+    "level": "error"
+  }
+}
