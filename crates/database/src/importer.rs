@@ -1,8 +1,9 @@
 //! Import filesystem backed accounts into a database.
 use crate::{db, migrations::migrate_client, Error, Result};
 use sos_core::{Paths, PublicIdentity};
+use sos_external_files::list_external_files;
 use sos_vault::list_accounts;
-use sos_vfs as vfs;
+use sos_vfs::{self as vfs, File};
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 
@@ -44,8 +45,8 @@ pub struct UpgradeResult {
     pub database_file: PathBuf,
     /// List of migrated accounts.
     pub accounts: Vec<PublicIdentity>,
-    /// List of moved file blobs.
-    pub moved_blobs: Vec<PathBuf>,
+    /// List of copied file blobs.
+    pub copied_blobs: Vec<(PathBuf, PathBuf)>,
     /// List of deleted files.
     pub deleted_files: Vec<PathBuf>,
 }
@@ -117,7 +118,8 @@ pub async fn upgrade_accounts(
     let accounts = import_accounts(&paths, &options).await?;
 
     if options.copy_file_blobs {
-        copy_file_blobs(&paths, accounts.as_slice(), &options).await?;
+        result.copied_blobs =
+            copy_file_blobs(&paths, accounts.as_slice(), &options).await?;
     }
 
     if !options.keep_stale_files {
@@ -128,16 +130,18 @@ pub async fn upgrade_accounts(
     result.accounts = accounts;
     result.database_file = paths.database_file().to_owned();
 
-    // Move the temp file into place
-    #[cfg(not(target_os = "linux"))]
-    vfs::rename(db_temp.path(), paths.database_file()).await?;
+    if !options.dry_run {
+        // Move the temp file into place
+        #[cfg(not(target_os = "linux"))]
+        vfs::rename(db_temp.path(), paths.database_file()).await?;
 
-    // On Linux we have to copy to avoid cross-device link error
-    #[cfg(target_os = "linux")]
-    {
-        let mut source = tokio::fs::File::open(db_temp.path()).await?;
-        let mut dest = tokio::fs::File::create(paths.database_file()).await?;
-        tokio::io::copy(&mut source, &mut dest).await?;
+        // On Linux we have to copy to avoid cross-device link error
+        #[cfg(target_os = "linux")]
+        {
+            let mut source = File::open(db_temp.path()).await?;
+            let mut dest = File::create(paths.database_file()).await?;
+            tokio::io::copy(&mut source, &mut dest).await?;
+        }
     }
 
     Ok(result)
@@ -147,9 +151,49 @@ async fn copy_file_blobs(
     paths: &Paths,
     accounts: &[PublicIdentity],
     options: &UpgradeOptions,
-) -> Result<()> {
-    // todo!("move file blobs");
-    Ok(())
+) -> Result<Vec<(PathBuf, PathBuf)>> {
+    let mut copied = Vec::new();
+
+    for account in accounts {
+        let account_paths = if options.server {
+            Paths::new_server(
+                paths.documents_dir(),
+                account.account_id().to_string(),
+            )
+        } else {
+            Paths::new(
+                paths.documents_dir(),
+                account.account_id().to_string(),
+            )
+        };
+
+        let source_external_files =
+            list_external_files(&account_paths).await?;
+
+        for file in source_external_files {
+            let source = account_paths.file_location(
+                file.vault_id(),
+                file.secret_id(),
+                file.file_name().to_string(),
+            );
+
+            let dest = account_paths.blob_location(
+                file.vault_id(),
+                file.secret_id(),
+                file.file_name().to_string(),
+            );
+
+            if !options.dry_run {
+                let mut input = File::open(&source).await?;
+                let mut output = File::create(&dest).await?;
+                tokio::io::copy(&mut input, &mut output).await?;
+            }
+
+            copied.push((source, dest));
+        }
+    }
+
+    Ok(copied)
 }
 
 async fn delete_stale_files(
