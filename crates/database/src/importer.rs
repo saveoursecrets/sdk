@@ -39,8 +39,10 @@ impl Default for UpgradeOptions {
 }
 
 /// Result of upgrading to SQLite backend.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct UpgradeResult {
+    /// Global paths for the upgrade.
+    pub global_paths: Paths,
     /// Database file location.
     pub database_file: PathBuf,
     /// List of migrated accounts.
@@ -49,6 +51,18 @@ pub struct UpgradeResult {
     pub copied_blobs: Vec<(PathBuf, PathBuf)>,
     /// List of deleted files.
     pub deleted_files: Vec<PathBuf>,
+}
+
+impl UpgradeResult {
+    fn new(paths: Paths) -> Self {
+        Self {
+            database_file: paths.database_file().to_owned(),
+            global_paths: paths,
+            accounts: Vec::new(),
+            copied_blobs: Vec::new(),
+            deleted_files: Vec::new(),
+        }
+    }
 }
 
 /// Import all accounts found on disc.
@@ -98,13 +112,18 @@ pub async fn upgrade_accounts(
     data_dir: impl AsRef<Path>,
     mut options: UpgradeOptions,
 ) -> Result<UpgradeResult> {
+    tracing::debug!(
+      path = ?data_dir.as_ref(),
+      options = ?options,
+      "upgrade_accounts");
+
     let paths = if options.server {
         Paths::new_global_server(data_dir.as_ref())
     } else {
         Paths::new_global(data_dir.as_ref())
     };
 
-    //paths.ensure().await?;
+    paths.ensure().await?;
 
     let db_file = paths.database_file();
     if db_file.exists() && !options.dry_run {
@@ -114,15 +133,21 @@ pub async fn upgrade_accounts(
     let db_temp = NamedTempFile::new()?;
     options.db_file = Some(db_temp.path().to_owned());
 
-    let mut result = UpgradeResult::default();
+    tracing::debug!("upgrade_accounts::import_accounts");
+
+    let mut result = UpgradeResult::new(paths.clone());
     let accounts = import_accounts(&paths, &options).await?;
 
     if options.copy_file_blobs {
+        tracing::debug!("upgrade_accounts::copy_file_blobs");
+
         result.copied_blobs =
             copy_file_blobs(&paths, accounts.as_slice(), &options).await?;
     }
 
     if !options.keep_stale_files {
+        tracing::debug!("upgrade_accounts::delete_stale_files");
+
         result.deleted_files =
             delete_stale_files(&paths, accounts.as_slice(), &options).await?;
     }
@@ -131,6 +156,8 @@ pub async fn upgrade_accounts(
     result.database_file = paths.database_file().to_owned();
 
     if !options.dry_run {
+        tracing::debug!("upgrade_accounts::move_db_into_place");
+
         // Move the temp file into place
         #[cfg(not(target_os = "linux"))]
         vfs::rename(db_temp.path(), paths.database_file()).await?;
@@ -184,6 +211,17 @@ async fn copy_file_blobs(
             );
 
             if !options.dry_run {
+                tracing::debug!(
+                  source = ?source,
+                  dest = ?dest,
+                  "upgrade_accounts::copy_file");
+
+                if let Some(parent) = dest.parent() {
+                    if !vfs::try_exists(parent).await? {
+                        vfs::create_dir_all(parent).await?;
+                    }
+                }
+
                 let mut input = File::open(&source).await?;
                 let mut output = File::create(&dest).await?;
                 tokio::io::copy(&mut input, &mut output).await?;
@@ -214,6 +252,10 @@ async fn delete_stale_files(
 
     if !options.dry_run {
         for file in &files {
+            tracing::debug!(
+              file = ?file,
+              "upgrade_accounts::delete_file");
+
             if file.is_dir() {
                 vfs::remove_dir_all(file).await?;
             } else {

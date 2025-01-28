@@ -11,7 +11,7 @@ use tokio::io::BufReader;
 
 #[tokio::test]
 async fn database_upgrade_client() -> Result<()> {
-    const TEST_ID: &str = "database_importer";
+    const TEST_ID: &str = "database_upgrade_client";
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
@@ -48,7 +48,11 @@ async fn database_upgrade_client() -> Result<()> {
     .await?;
 
     // Upgrade the file system accounts into the db
-    upgrade_accounts(data_dir, UpgradeOptions::default()).await?;
+    let options = UpgradeOptions {
+        dry_run: false,
+        ..Default::default()
+    };
+    upgrade_accounts(data_dir, options).await?;
 
     teardown(TEST_ID).await;
 

@@ -4,7 +4,6 @@
 
 use anyhow::Result;
 use axum_server::Handle;
-use copy_dir::copy_dir;
 use sos_core::{AccountId, Origin, Paths};
 use sos_server::{Server, ServerConfig, State};
 use sos_vfs as vfs;
@@ -23,6 +22,7 @@ pub mod mock;
 mod network;
 mod pairing;
 
+pub use copy_dir::copy_dir;
 pub use network::*;
 pub use pairing::*;
 
@@ -230,8 +230,8 @@ pub async fn spawn_with_config(
 /// Test directory information.
 #[derive(Debug, Clone)]
 pub struct TestDirs {
-    /// Target directory.
-    pub target: PathBuf,
+    /// Test directory.
+    pub test_dir: PathBuf,
     /// Directory for each created client (local account).
     pub clients: Vec<PathBuf>,
 }
@@ -243,19 +243,19 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
     // NOTE: we run in the crates/integration_test cwd but
     // NOTE: want to use top-level target directory
     let target = current_dir.join("../../target/integration-test");
-    vfs::create_dir_all(&target).await?;
+    let test_dir = target.join(test_id);
+    vfs::create_dir_all(&test_dir).await?;
 
     let mut clients = Vec::new();
     for index in 0..num_clients {
-        let client =
-            target.join(test_id).join(&format!("client{}", index + 1));
+        let client = test_dir.join(&format!("client{}", index + 1));
         let _ = vfs::remove_dir_all(&client).await;
         vfs::create_dir_all(&client).await?;
 
         clients.push(client);
     }
 
-    Ok(TestDirs { target, clients })
+    Ok(TestDirs { test_dir, clients })
 }
 
 /// Copy account files removing the target directory first.
