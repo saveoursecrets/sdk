@@ -1,7 +1,6 @@
 //! Server storage backed by a database.
 use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
-use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use sos_backend::reducers::{DeviceReducer, FolderReducer};
 use sos_backend::VaultWriter;
@@ -18,8 +17,7 @@ use sos_core::{
 };
 use sos_database::async_sqlite::Client;
 use sos_database::db::{
-    AccountEntity, AccountRecord, AccountRow, FolderEntity, FolderRecord,
-    FolderRow,
+    AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
 };
 use sos_sdk::events::{EventRecord, WriteEvent};
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
@@ -105,12 +103,6 @@ impl ServerDatabaseStorage {
 
         paths.ensure().await?;
 
-        /*
-        let vault = Self::extract_vault_event_log(identity_log.clone())
-            .await?
-            .ok_or_else(|| Error::NoVaultEvent)?;
-        */
-
         let account_row =
             Self::lookup_account(&mut client, &account_id).await?;
 
@@ -185,23 +177,6 @@ impl ServerDatabaseStorage {
         Ok(event_log)
         */
     }
-
-    /*
-    // Create the account in the database
-    let account_row = AccountRow::new_insert(
-        &self.account_id,
-        self.account_name.clone(),
-    )?;
-
-    let account_id = self
-        .client
-        .conn(move |conn| {
-            let account = AccountEntity::new(&conn);
-            Ok(account.insert(&account_row)?)
-        })
-        .await
-        .map_err(sos_database::Error::from)?;
-    */
 
     /// Create new event log cache entries.
     async fn create_folder_entry(&mut self, id: &VaultId) -> Result<()> {
@@ -310,20 +285,6 @@ impl ServerDatabaseStorage {
             None
         })
     }
-
-    /*
-    /// Extract a vault from the first event in a folder event log.
-    async fn extract_vault_event_log(
-        event_log: Arc<RwLock<FolderEventLog>>,
-    ) -> Result<Option<Vault>> {
-        let event_log = event_log.read().await;
-        let stream = event_log.record_stream(false).await;
-        pin_mut!(stream);
-        let first_record =
-            stream.next().await.ok_or_else(|| Error::NoVaultEvent)??;
-        Self::extract_vault(&[first_record]).await
-    }
-    */
 }
 
 #[async_trait]

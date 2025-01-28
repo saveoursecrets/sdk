@@ -199,14 +199,22 @@ impl Merge for ServerDatabaseStorage {
                         tracing::warn!("merge got noop event (server)");
                     }
                     AccountEvent::RenameAccount(name) => {
-                        // let path = self.paths.identity_vault();
+                        let account_id = self.account_row_id.clone();
+                        let login_folder = self
+                            .client
+                            .conn(move |conn| {
+                                let folder = FolderEntity::new(&conn);
+                                Ok(folder.find_login_folder(account_id)?)
+                            })
+                            .await?;
+                        let login_folder =
+                            FolderRecord::from_row(login_folder).await?;
 
-                        /*
-                        let mut file = VaultWriter::new_db(self.client.clone(), *fol);
+                        let mut file = VaultWriter::new_db(
+                            self.client.clone(),
+                            *login_folder.summary.id(),
+                        );
                         file.set_vault_name(name.to_owned()).await?;
-                        */
-
-                        todo!("update identity vault name, needs the vault identifier");
                     }
                     AccountEvent::UpdateIdentity(_) => {
                         // This event is handled on the server
