@@ -1,10 +1,11 @@
-//! Helper functions for file management.
+//! Helper functions for reading external files from the
+//! file system.
 use indexmap::IndexSet;
 use sos_core::{
     ExternalFile, ExternalFileName, Paths, SecretId, SecretPath, VaultId,
 };
 use sos_vfs as vfs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 type Result<T> = std::result::Result<T, sos_core::Error>;
 
@@ -14,12 +15,62 @@ type Result<T> = std::result::Result<T, sos_core::Error>;
 /// If a directory name cannot be parsed to a folder or secret
 /// identifier or the file name cannot be converted to `[u8; 32]`
 /// the directory or file will be ignored.
-#[doc(hidden)]
+///
+/// This is an implementation for the v1 file system backend that
+/// stores external files in the account directories. For the newer
+/// v2 layout for the SQLite update use `list_external_blobs`.
 pub async fn list_external_files(
     paths: &Paths,
 ) -> Result<IndexSet<ExternalFile>> {
+    list_account(paths.files_dir(), |folder_id| {
+        paths.file_folder_location(&folder_id)
+    })
+    .await
+}
+
+#[doc(hidden)]
+pub async fn list_external_blobs(
+    paths: &Paths,
+) -> Result<IndexSet<ExternalFile>> {
+    list_account(paths.blobs_account_dir(), |folder_id| {
+        paths.blob_folder_location(&folder_id)
+    })
+    .await
+}
+
+#[doc(hidden)]
+pub async fn list_folder_blobs(
+    paths: &Paths,
+    folder_id: &VaultId,
+) -> Result<Vec<(SecretId, IndexSet<ExternalFileName>)>> {
+    list_folder(paths.blob_folder_location(folder_id)).await
+}
+
+/// List all the external files in a folder.
+///
+/// If a directory name cannot be parsed to a folder or secret
+/// identifier or the file name cannot be converted to `[u8; 32]`
+/// the directory or file will be ignored.
+///
+/// This is an implementation for the v1 file system backend that
+/// stores external files in the account directories. For the newer
+/// v2 layout for the SQLite update use `list_folder_blobs`.
+pub async fn list_folder_files(
+    paths: &Paths,
+    folder_id: &VaultId,
+) -> Result<Vec<(SecretId, IndexSet<ExternalFileName>)>> {
+    list_folder(paths.file_folder_location(folder_id)).await
+}
+
+async fn list_account<F>(
+    path: impl AsRef<Path>,
+    func: F,
+) -> Result<IndexSet<ExternalFile>>
+where
+    F: Fn(VaultId) -> PathBuf,
+{
     let mut files = IndexSet::new();
-    let mut dir = vfs::read_dir(paths.files_dir()).await?;
+    let mut dir = vfs::read_dir(path.as_ref()).await?;
     while let Some(entry) = dir.next_entry().await? {
         let path = entry.path();
         if path.is_dir() {
@@ -28,7 +79,8 @@ pub async fn list_external_files(
                     file_name.to_string_lossy().as_ref().parse::<VaultId>()
                 {
                     let mut folder_files =
-                        list_folder_files(paths, &folder_id).await?;
+                        list_folder(func(folder_id)).await?;
+
                     for (secret_id, mut external_files) in
                         folder_files.drain(..)
                     {
@@ -46,20 +98,12 @@ pub async fn list_external_files(
     Ok(files)
 }
 
-/// List all the external files in a folder.
-///
-/// If a directory name cannot be parsed to a folder or secret
-/// identifier or the file name cannot be converted to `[u8; 32]`
-/// the directory or file will be ignored.
-pub async fn list_folder_files(
-    paths: &Paths,
-    folder_id: &VaultId,
+async fn list_folder(
+    path: impl AsRef<Path>,
 ) -> Result<Vec<(SecretId, IndexSet<ExternalFileName>)>> {
     let mut files = Vec::new();
-    let path = paths.files_dir().join(folder_id.to_string());
-
-    if vfs::try_exists(&path).await? {
-        let mut folder_dir = vfs::read_dir(path).await?;
+    if vfs::try_exists(path.as_ref()).await? {
+        let mut folder_dir = vfs::read_dir(path.as_ref()).await?;
         while let Some(entry) = folder_dir.next_entry().await? {
             let path = entry.path();
             if path.is_dir() {
