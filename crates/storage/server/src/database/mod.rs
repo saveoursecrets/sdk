@@ -116,7 +116,7 @@ impl ServerDatabaseStorage {
             Self::initialize_device_log(&client, &account_id).await?;
 
         let file_log =
-            Self::initialize_file_log(&*paths, &client, &account_id).await?;
+            FileEventLog::new_db_file(client.clone(), account_id).await?;
 
         Ok(Self {
             account_id,
@@ -145,37 +145,6 @@ impl ServerDatabaseStorage {
         let devices = reducer.reduce().await?;
 
         Ok((event_log, devices))
-    }
-
-    async fn initialize_file_log(
-        paths: &Paths,
-        client: &Client,
-        account_id: &AccountId,
-    ) -> Result<FileEventLog> {
-        use sos_external_files::list_external_files;
-
-        let mut event_log =
-            FileEventLog::new_db_file(client.clone(), *account_id).await?;
-
-        // todo!("determine if file events need initializing");
-
-        Ok(event_log)
-
-        /*
-        tracing::debug!(needs_init = %needs_init, "file_log");
-
-        if needs_init {
-            let files = list_external_files(paths).await?;
-            let events: Vec<FileEvent> =
-                files.into_iter().map(|f| f.into()).collect();
-
-            tracing::debug!(init_events_len = %events.len());
-
-            event_log.apply(events.iter().collect()).await?;
-        }
-
-        Ok(event_log)
-        */
     }
 
     /// Create new event log cache entries.

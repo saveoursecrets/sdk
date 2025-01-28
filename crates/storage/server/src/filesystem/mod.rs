@@ -88,15 +88,15 @@ impl ServerFileStorage {
 
         paths.ensure().await?;
 
-        let log_file = paths.account_events();
-        let mut event_log = AccountEventLog::new_fs_account(log_file).await?;
+        let mut event_log =
+            AccountEventLog::new_fs_account(paths.account_events()).await?;
         event_log.load_tree().await?;
         let account_log = Arc::new(RwLock::new(event_log));
 
         let (device_log, devices) =
             Self::initialize_device_log(&*paths).await?;
 
-        let file_log = Self::initialize_file_log(&paths).await?;
+        let file_log = FileEventLog::new_fs_file(paths.file_events()).await?;
 
         Ok(Self {
             account_id,
@@ -121,28 +121,6 @@ impl ServerFileStorage {
         let devices = reducer.reduce().await?;
 
         Ok((event_log, devices))
-    }
-
-    async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
-        use sos_external_files::list_external_files;
-
-        let log_file = paths.file_events();
-        let needs_init = !vfs::try_exists(&log_file).await?;
-        let mut event_log = FileEventLog::new_fs_file(log_file).await?;
-
-        tracing::debug!(needs_init = %needs_init, "file_log");
-
-        if needs_init {
-            let files = list_external_files(paths).await?;
-            let events: Vec<FileEvent> =
-                files.into_iter().map(|f| f.into()).collect();
-
-            tracing::debug!(init_events_len = %events.len());
-
-            event_log.apply(events.iter().collect()).await?;
-        }
-
-        Ok(event_log)
     }
 
     /// Create new event log cache entries.
