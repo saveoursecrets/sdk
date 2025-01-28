@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{Error, Result};
 use async_sqlite::rusqlite::{Connection, Error as SqlError, Row};
 use sos_core::{AccountId, PublicIdentity, UtcDateTime};
 use sql_query_builder as sql;
@@ -22,10 +22,7 @@ pub struct AccountRow {
 
 impl AccountRow {
     /// Create an account row for insertion.
-    pub fn new_insert(
-        account_id: &AccountId,
-        name: String,
-    ) -> Result<Self, Error> {
+    pub fn new_insert(account_id: &AccountId, name: String) -> Result<Self> {
         Ok(AccountRow {
             identifier: account_id.to_string(),
             name,
@@ -38,7 +35,7 @@ impl AccountRow {
 
 impl<'a> TryFrom<&Row<'a>> for AccountRow {
     type Error = SqlError;
-    fn try_from(row: &Row<'a>) -> Result<Self, Self::Error> {
+    fn try_from(row: &Row<'a>) -> std::result::Result<Self, Self::Error> {
         Ok(AccountRow {
             row_id: row.get(0)?,
             created_at: row.get(1)?,
@@ -64,7 +61,7 @@ pub struct AccountRecord {
 impl TryFrom<AccountRow> for AccountRecord {
     type Error = Error;
 
-    fn try_from(value: AccountRow) -> Result<Self, Self::Error> {
+    fn try_from(value: AccountRow) -> std::result::Result<Self, Self::Error> {
         let created_at = UtcDateTime::parse_rfc3339(&value.created_at)?;
         let modified_at = UtcDateTime::parse_rfc3339(&value.modified_at)?;
         let account_id: AccountId = value.identifier.parse()?;
@@ -98,7 +95,7 @@ where
     pub fn find_one(
         &self,
         account_id: &AccountId,
-    ) -> Result<AccountRow, SqlError> {
+    ) -> std::result::Result<AccountRow, SqlError> {
         let query = sql::Select::new()
             .select("account_id, created_at, modified_at, identifier, name")
             .from("accounts")
@@ -109,7 +106,10 @@ where
     }
 
     /// Create the account entity in the database.
-    pub fn insert(&self, row: &AccountRow) -> Result<i64, SqlError> {
+    pub fn insert(
+        &self,
+        row: &AccountRow,
+    ) -> std::result::Result<i64, SqlError> {
         let query = sql::Insert::new()
             .insert_into(
                 "accounts (created_at, modified_at, identifier, name)",
@@ -132,7 +132,7 @@ where
         &self,
         account_id: i64,
         folder_id: i64,
-    ) -> Result<i64, SqlError> {
+    ) -> std::result::Result<i64, SqlError> {
         let query = sql::Insert::new()
             .insert_into("account_login_folder (account_id, folder_id)")
             .values("(?1, ?2)");
@@ -146,7 +146,7 @@ where
         &self,
         account_id: i64,
         folder_id: i64,
-    ) -> Result<i64, SqlError> {
+    ) -> std::result::Result<i64, SqlError> {
         let query = sql::Insert::new()
             .insert_into("account_device_folder (account_id, folder_id)")
             .values("(?1, ?2)");
@@ -155,11 +155,23 @@ where
         Ok(self.conn.last_insert_rowid())
     }
 
+    /// Rename the account.
+    pub fn rename_account(&self, account_id: i64, name: &str) -> Result<()> {
+        let modified_at = UtcDateTime::default().to_rfc3339()?;
+        let query = sql::Update::new()
+            .update("accounts")
+            .set("name = ?1, modified_at = ?2")
+            .where_clause("account_id = ?3");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
+        stmt.execute((name, modified_at, account_id))?;
+        Ok(())
+    }
+
     /// Delete the account from the database.
     pub fn delete_account(
         &self,
         account_id: &AccountId,
-    ) -> Result<(), SqlError> {
+    ) -> std::result::Result<(), SqlError> {
         let account_row = self.find_one(account_id)?;
         let query = sql::Delete::new()
             .delete_from("accounts")

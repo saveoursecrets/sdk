@@ -19,7 +19,9 @@ use sos_core::{
     VaultId,
 };
 use sos_database::async_sqlite;
-use sos_database::db::{FolderEntity, FolderRecord, FolderRow};
+use sos_database::db::{
+    AccountEntity, FolderEntity, FolderRecord, FolderRow,
+};
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
     TrackedChanges,
@@ -199,6 +201,7 @@ impl Merge for ServerDatabaseStorage {
                         tracing::warn!("merge got noop event (server)");
                     }
                     AccountEvent::RenameAccount(name) => {
+                        // Rename the folder (v1 logic)
                         let account_id = self.account_row_id.clone();
                         let login_folder = self
                             .client
@@ -215,6 +218,16 @@ impl Merge for ServerDatabaseStorage {
                             *login_folder.summary.id(),
                         );
                         file.set_vault_name(name.to_owned()).await?;
+
+                        // Update the accounts table (v2 logic)
+                        let account_id = self.account_row_id.clone();
+                        let name = name.to_owned();
+                        self.client
+                            .conn_and_then(move |conn| {
+                                let account = AccountEntity::new(&conn);
+                                account.rename_account(account_id, &name)
+                            })
+                            .await?;
                     }
                     AccountEvent::UpdateIdentity(_) => {
                         // This event is handled on the server

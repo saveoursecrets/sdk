@@ -22,7 +22,7 @@ pub struct UpgradeOptions {
     /// Keep the old files on disc.
     pub keep_stale_files: bool,
     /// Move file blobs.
-    pub move_file_blobs: bool,
+    pub copy_file_blobs: bool,
 }
 
 impl Default for UpgradeOptions {
@@ -32,7 +32,7 @@ impl Default for UpgradeOptions {
             db_file: None,
             server: false,
             keep_stale_files: false,
-            move_file_blobs: true,
+            copy_file_blobs: true,
         }
     }
 }
@@ -116,8 +116,8 @@ pub async fn upgrade_accounts(
     let mut result = UpgradeResult::default();
     let accounts = import_accounts(&paths, &options).await?;
 
-    if options.move_file_blobs {
-        move_file_blobs(&paths, accounts.as_slice(), &options).await?;
+    if options.copy_file_blobs {
+        copy_file_blobs(&paths, accounts.as_slice(), &options).await?;
     }
 
     if !options.keep_stale_files {
@@ -143,7 +143,7 @@ pub async fn upgrade_accounts(
     Ok(result)
 }
 
-async fn move_file_blobs(
+async fn copy_file_blobs(
     paths: &Paths,
     accounts: &[PublicIdentity],
     options: &UpgradeOptions,

@@ -269,8 +269,7 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
                 .push(SecretRow::new(secret_id, commit, entry).await?);
         }
 
-        // TODO: update folder meta data!!!
-
+        let folder_update_row = FolderRow::new_update(vault).await?;
         client
             .conn_mut(move |conn| {
                 let tx = conn.transaction()?;
@@ -283,6 +282,7 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
                         &secret_row,
                     )?;
                 }
+                folder.update_folder(&folder_id, &folder_update_row)?;
                 tx.commit()?;
                 Ok(())
             })

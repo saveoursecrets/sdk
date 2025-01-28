@@ -18,6 +18,10 @@ pub enum Command {
         #[clap(short, long)]
         keep_stale_files: bool,
 
+        /// Copy external files to new blob location.
+        #[clap(short, long, default_value = "true")]
+        copy_file_blobs: bool,
+
         /// Server accounts storage.
         #[clap(short, long)]
         server: bool,
@@ -34,6 +38,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             server,
             directory,
             keep_stale_files,
+            copy_file_blobs,
         } => {
             if !directory.is_dir() {
                 return Err(Error::NotDirectory(directory));
@@ -67,7 +72,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 dry_run: !apply_changes,
                 server,
                 keep_stale_files,
-                move_file_blobs: false,
+                copy_file_blobs,
                 ..Default::default()
             };
             let result = upgrade_accounts(&directory, options).await?;
