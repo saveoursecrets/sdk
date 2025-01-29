@@ -1,8 +1,6 @@
 //! Create and manage local accounts for the [Save Our Secrets](https://saveoursecrets.com) SDK.
 mod account;
 mod account_switcher;
-#[cfg(feature = "archive")]
-pub use sos_backup_archive as archive;
 mod builder;
 mod convert;
 mod error;

@@ -3,11 +3,9 @@ use anyhow::Result;
 use crate::test_utils::{mock, setup, teardown};
 use futures::{pin_mut, StreamExt};
 use secrecy::SecretString;
-use sos_account::{
-    archive::RestoreOptions, Account, FolderCreate, LocalAccount,
-    SecretChange,
-};
+use sos_account::{Account, FolderCreate, LocalAccount, SecretChange};
 use sos_audit::AuditEvent;
+use sos_filesystem::archive::RestoreOptions;
 use sos_migrate::import::ImportTarget;
 use sos_sdk::prelude::*;
 use std::path::PathBuf;

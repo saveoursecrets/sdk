@@ -7,7 +7,7 @@ use sos_vfs::{self as vfs, File};
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 
-// use sos_filesystem::archive::AccountBackup;
+use sos_filesystem::archive::AccountBackup;
 
 /// Options for upgrading to SQLite backend.
 #[derive(Debug)]
@@ -216,14 +216,12 @@ async fn create_backups(
             .join(account.account_id().to_string());
         backup_path.set_extension("zip");
 
-        /*
         AccountBackup::export_archive_file(
-            path,
+            &backup_path,
             account.account_id(),
             &account_paths,
         )
         .await?;
-        */
     }
 
     Ok(backup_files)

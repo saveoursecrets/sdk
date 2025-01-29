@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_account::archive::*;
+use sos_filesystem::archive::*;
 use sos_sdk::{encode, identity::IdentityFolder, vault::Vault, Paths};
 use std::io::Cursor;
 

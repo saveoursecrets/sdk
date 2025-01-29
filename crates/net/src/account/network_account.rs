@@ -53,7 +53,7 @@ use sos_search::{
 };
 
 #[cfg(feature = "archive")]
-use sos_account::archive::{Inventory, RestoreOptions};
+use sos_filesystem::archive::{Inventory, RestoreOptions};
 
 use indexmap::IndexSet;
 

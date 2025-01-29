@@ -43,7 +43,7 @@ use {
 };
 
 #[cfg(feature = "archive")]
-use crate::archive::{Inventory, RestoreOptions};
+use sos_filesystem::archive::{Inventory, RestoreOptions};
 
 use sos_backend::DeviceEventLog;
 use sos_core::device::{DevicePublicKey, TrustedDevice};
@@ -1429,7 +1429,7 @@ impl LocalAccount {
         mut options: RestoreOptions,
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
-        use super::archive::{AccountBackup, ExtractFilesLocation};
+        use sos_filesystem::archive::{AccountBackup, ExtractFilesLocation};
 
         if options.files_dir.is_none() {
             let files_dir =
@@ -3236,7 +3236,7 @@ impl Account for LocalAccount {
         &self,
         path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
-        use super::archive::AccountBackup;
+        use sos_filesystem::archive::AccountBackup;
 
         AccountBackup::export_archive_file(
             path,
@@ -3265,7 +3265,7 @@ impl Account for LocalAccount {
     >(
         buffer: R,
     ) -> Result<Inventory> {
-        use super::archive::AccountBackup;
+        use sos_filesystem::archive::AccountBackup;
 
         let mut inventory =
             AccountBackup::restore_archive_inventory(BufReader::new(buffer))

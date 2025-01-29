@@ -2,7 +2,7 @@ use crate::{
     helpers::{
         account::{
             find_account, list_accounts, new_account, resolve_account,
-            resolve_user, sign_in, verify, Owner, SHELL, USER,
+            resolve_user, verify, Owner, SHELL, USER,
         },
         messages::success,
         readline::read_flag,
@@ -11,11 +11,10 @@ use crate::{
 };
 use clap::Subcommand;
 use enum_iterator::all;
-use sos_account::{
-    archive::{
-        AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
-    },
-    Account,
+use sos_account::Account;
+
+use sos_filesystem::archive::{
+    AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
 };
 use sos_migrate::import::{ImportFormat, ImportTarget};
 use sos_net::NetworkAccount;

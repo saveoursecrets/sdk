@@ -4781,7 +4781,6 @@ dependencies = [
  "sos-account",
  "sos-audit",
  "sos-backend",
- "sos-backup-archive",
  "sos-cli-helpers",
  "sos-client-storage",
  "sos-core",
@@ -4833,11 +4832,11 @@ dependencies = [
  "sha2",
  "sos-audit",
  "sos-backend",
- "sos-backup-archive",
  "sos-client-storage",
  "sos-core",
  "sos-database",
  "sos-external-files",
+ "sos-filesystem",
  "sos-login",
  "sos-migrate",
  "sos-sdk",
@@ -4916,33 +4915,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sos-backup-archive"
-version = "0.16.0"
-dependencies = [
- "async-trait",
- "async_zip",
- "futures",
- "futures-util",
- "hex",
- "rustc_version",
- "sanitize-filename",
- "serde",
- "serde_json",
- "sha2",
- "sos-core",
- "sos-filesystem",
- "sos-reducers",
- "sos-vault",
- "sos-vfs",
- "thiserror 2.0.11",
- "time",
- "tokio",
- "tokio-util",
- "uuid",
- "walkdir",
-]
-
-[[package]]
 name = "sos-cli-helpers"
 version = "0.1.0"
 dependencies = [
@@ -4967,7 +4939,6 @@ dependencies = [
  "sha2",
  "sos-audit",
  "sos-backend",
- "sos-backup-archive",
  "sos-core",
  "sos-database",
  "sos-external-files",
@@ -5128,7 +5099,6 @@ dependencies = [
  "sos-account",
  "sos-audit",
  "sos-backend",
- "sos-backup-archive",
  "sos-client-storage",
  "sos-core",
  "sos-database",
@@ -5324,6 +5294,7 @@ dependencies = [
  "sos-core",
  "sos-database",
  "sos-external-files",
+ "sos-filesystem",
  "sos-login",
  "sos-migrate",
  "sos-protocol",
@@ -5707,7 +5678,6 @@ dependencies = [
  "sos-account",
  "sos-artifact",
  "sos-backend",
- "sos-backup-archive",
  "sos-client-storage",
  "sos-core",
  "sos-database",
@@ -5798,6 +5768,7 @@ dependencies = [
  "sos-client-storage",
  "sos-core",
  "sos-database",
+ "sos-filesystem",
  "sos-login",
  "sos-migrate",
  "sos-protocol",
