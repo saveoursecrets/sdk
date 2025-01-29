@@ -1,5 +1,6 @@
 //! Import filesystem backed accounts into a database.
 use crate::{db, migrations::migrate_client, Error, Result};
+use serde::{Deserialize, Serialize};
 use sos_core::{Paths, PublicIdentity};
 use sos_external_files::list_external_files;
 use sos_vault::list_accounts;
@@ -47,7 +48,7 @@ impl Default for UpgradeOptions {
 }
 
 /// Result of upgrading to SQLite backend.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct UpgradeResult {
     /// Global paths for the upgrade.
     pub global_paths: Paths,

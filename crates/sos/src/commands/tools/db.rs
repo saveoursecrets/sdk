@@ -82,8 +82,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 ..Default::default()
             };
             let result = upgrade_accounts(&directory, options).await?;
-
-            println!("{:#?}", result);
+            serde_json::to_writer_pretty(&mut std::io::stdout(), &result)?;
         }
     }
     Ok(())
