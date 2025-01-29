@@ -11,7 +11,6 @@ mod event_log;
 mod folder;
 #[cfg(feature = "preferences")]
 mod preferences;
-pub mod reducers;
 mod server_origins;
 #[cfg(feature = "system-messages")]
 mod system_messages;
@@ -19,6 +18,7 @@ mod vault_writer;
 
 pub use error::{Error, StorageError};
 pub use sos_filesystem::write_exclusive;
+pub use sos_reducers as reducers;
 
 pub use access_point::BackendAccessPoint as AccessPoint;
 pub use event_log::{

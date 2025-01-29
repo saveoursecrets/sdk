@@ -6,7 +6,7 @@ use crate::{
 use hex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sos_backend::reducers::FolderReducer;
+use sos_reducers::FolderReducer;
 use sos_core::{
     constants::VAULT_EXT, decode, events::EventLog, PublicIdentity, SecretId,
     VaultId,

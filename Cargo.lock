@@ -4902,6 +4902,7 @@ dependencies = [
  "sos-database",
  "sos-filesystem",
  "sos-preferences",
+ "sos-reducers",
  "sos-system-messages",
  "sos-vault",
  "sos-vfs",
@@ -4928,9 +4929,9 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "sos-backend",
  "sos-core",
  "sos-filesystem",
+ "sos-reducers",
  "sos-vault",
  "sos-vfs",
  "thiserror 2.0.11",
@@ -5431,6 +5432,18 @@ dependencies = [
  "tokio",
  "uuid",
  "vsss-rs",
+]
+
+[[package]]
+name = "sos-reducers"
+version = "0.16.0"
+dependencies = [
+ "futures",
+ "indexmap 2.7.1",
+ "rustc_version",
+ "sos-core",
+ "sos-vault",
+ "tracing",
 ]
 
 [[package]]

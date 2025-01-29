@@ -1,11 +1,12 @@
-use crate::Result;
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexMap;
 use sos_core::{
     commit::CommitHash, crypto::AeadPack, decode, events::EventLog,
     events::WriteEvent, SecretId, VaultCommit, VaultFlags,
 };
-use sos_vault::Vault;
+use sos_vault::{Error, Vault};
+
+type Result<T> = std::result::Result<T, Error>;
 
 /// Reduce log events to a vault.
 #[derive(Default)]

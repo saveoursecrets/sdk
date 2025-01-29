@@ -21,6 +21,7 @@ files = [
   "sos-core/files",
   "sos-database/files",
   "sos-filesystem/files",
+  "sos-reducers/files",
 ]
 preferences = [
   "sos-preferences",
@@ -39,6 +40,7 @@ system-messages = [
 sos-core.workspace = true
 sos-database.workspace = true
 sos-filesystem.workspace = true
+sos-reducers.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 
