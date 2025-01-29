@@ -24,7 +24,7 @@ pub struct UpgradeOptions {
     ///
     /// If the destination does not exist the upgrade will
     /// attempt to create the directory.
-    pub backup_location: Option<PathBuf>,
+    pub backup_directory: Option<PathBuf>,
     /// Accounts are server-side storage.
     pub server: bool,
     /// Keep the old files on disc.
@@ -38,7 +38,7 @@ impl Default for UpgradeOptions {
         Self {
             dry_run: true,
             db_file: None,
-            backup_location: None,
+            backup_directory: None,
             server: false,
             keep_stale_files: false,
             copy_file_blobs: true,
@@ -144,7 +144,7 @@ pub async fn upgrade_accounts(
     let mut result = UpgradeResult::new(paths.clone());
 
     if let (true, true) =
-        (!options.dry_run, options.backup_location.is_some())
+        (!options.dry_run, options.backup_directory.is_some())
     {
         tracing::debug!("upgrade_accounts::create_backups");
         result.backups = create_backups(&paths, &options).await?;
@@ -197,9 +197,9 @@ async fn create_backups(
     paths: &Paths,
     options: &UpgradeOptions,
 ) -> Result<Vec<PathBuf>> {
-    let backup_location = options.backup_location.as_ref().unwrap();
-    if !vfs::try_exists(&backup_location).await? {
-        vfs::create_dir_all(&backup_location).await?;
+    let backup_directory = options.backup_directory.as_ref().unwrap();
+    if !vfs::try_exists(&backup_directory).await? {
+        vfs::create_dir_all(&backup_directory).await?;
     }
 
     let mut backup_files = Vec::new();
@@ -218,7 +218,7 @@ async fn create_backups(
         };
 
         let mut backup_path =
-            backup_location.join(account.account_id().to_string());
+            backup_directory.join(account.account_id().to_string());
         backup_path.set_extension("zip");
 
         AccountBackup::export_archive_file(

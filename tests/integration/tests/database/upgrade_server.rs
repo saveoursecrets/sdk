@@ -37,7 +37,7 @@ async fn database_upgrade_server() -> Result<()> {
     let options = UpgradeOptions {
         server: true,
         dry_run: false,
-        backup_location: Some(backup_dir),
+        backup_directory: Some(backup_dir),
         ..Default::default()
     };
     let result = upgrade_accounts(data_dir, options).await?;

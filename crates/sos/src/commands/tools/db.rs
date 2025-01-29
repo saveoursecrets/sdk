@@ -26,6 +26,10 @@ pub enum Command {
         #[clap(short, long)]
         server: bool,
 
+        /// Directory for account backups.
+        #[clap(short, long)]
+        backup_directory: Option<PathBuf>,
+
         /// Root directory for the file system accounts.
         directory: PathBuf,
     },
@@ -39,6 +43,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             directory,
             keep_stale_files,
             copy_file_blobs,
+            backup_directory,
         } => {
             if !directory.is_dir() {
                 return Err(Error::NotDirectory(directory));
@@ -73,6 +78,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 server,
                 keep_stale_files,
                 copy_file_blobs,
+                backup_directory,
                 ..Default::default()
             };
             let result = upgrade_accounts(&directory, options).await?;
