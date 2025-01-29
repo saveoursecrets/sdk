@@ -1,7 +1,9 @@
 use futures::{pin_mut, stream::StreamExt};
 use indexmap::IndexSet;
-use sos_core::events::EventLog;
-use sos_core::{device::TrustedDevice, events::DeviceEvent};
+use sos_core::{
+    device::TrustedDevice,
+    events::{DeviceEvent, EventLog},
+};
 
 /// Reduce device events to a collection of devices.
 pub struct DeviceReducer<'a, L, E>

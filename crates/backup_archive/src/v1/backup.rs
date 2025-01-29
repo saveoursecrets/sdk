@@ -1,26 +1,26 @@
 //! Account archive backup.
-use crate::v1::zip::{Inventory, Reader, Writer};
-use crate::RestoreTargets;
-use crate::{Error, Result};
+use crate::{
+    v1::zip::{Inventory, Reader, Writer},
+    Error, RestoreTargets, Result,
+};
 use hex;
-use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sos_backend::{reducers::FolderReducer, write_exclusive};
+use sos_backend::reducers::FolderReducer;
 use sos_core::{
-    constants::VAULT_EXT, crypto::AccessKey, decode, events::EventLog,
-    SecretId, VaultId,
+    constants::VAULT_EXT, decode, events::EventLog, PublicIdentity, SecretId,
+    VaultId,
 };
 use sos_core::{AccountId, Paths};
-use sos_filesystem::{FolderEventLog, VaultFileWriter};
-use sos_login::{DiscIdentityFolder, Identity, PublicIdentity};
-use sos_vault::{EncryptedEntry, Summary, Vault};
+use sos_filesystem::{write_exclusive, FolderEventLog, VaultFileWriter};
+use sos_vault::{
+    list_accounts, list_local_folders, EncryptedEntry, Summary, Vault,
+};
 use sos_vfs::{self as vfs, File};
 use std::{
     io::Cursor,
     path::{Path, PathBuf},
 };
-use tempfile::NamedTempFile;
 use tokio::io::{AsyncBufRead, AsyncSeek, BufReader};
 use uuid::Uuid;
 use walkdir::WalkDir;
@@ -182,7 +182,7 @@ impl AccountBackup {
         manifest.entries.push(entry);
         total_size += size;
 
-        let vaults = Identity::list_local_folders(paths).await?;
+        let vaults = list_local_folders(paths).await?;
         for (summary, path) in vaults {
             if options.no_sync && summary.flags().is_sync_disabled() {
                 continue;
@@ -295,7 +295,7 @@ impl AccountBackup {
         }
         let identity = vfs::read(identity_path).await?;
 
-        let vaults = Identity::list_local_folders(paths).await?;
+        let vaults = list_local_folders(paths).await?;
 
         let mut archive = Vec::new();
         let writer = Writer::new(Cursor::new(&mut archive));
@@ -413,13 +413,12 @@ impl AccountBackup {
             Paths::data_dir()?
         };
 
-        let restore_targets =
-            Self::extract_verify_archive(buffer, &options, None).await?;
+        let restore_targets = Self::extract_archive(buffer, &options).await?;
 
         // The app should check the identity does not already exist
         // but we will double check here to be safe
         let paths = Paths::new_global(data_dir.clone());
-        let keys = Identity::list_accounts(Some(&paths)).await?;
+        let keys = list_accounts(Some(&paths)).await?;
         let existing_account = keys
             .iter()
             .find(|k| k.account_id() == &restore_targets.manifest.account_id);
@@ -540,92 +539,11 @@ impl AccountBackup {
         Ok(())
     }
 
-    /// Restore from an archive.
-    ///
-    /// The account owner must be signed in and supply the password
-    /// for the archive identity vault.
-    pub async fn restore_archive_reader<
-        R: AsyncBufRead + AsyncSeek + Unpin,
-    >(
-        reader: R,
-        options: RestoreOptions,
-        passphrase: SecretString,
-        mut data_dir: Option<PathBuf>,
-    ) -> Result<(RestoreTargets, PublicIdentity)> {
-        // FIXME: ensure we still have ONE vault marked as default vault!!!
-
-        let data_dir = if let Some(data_dir) = data_dir.take() {
-            data_dir
-        } else {
-            Paths::data_dir()?
-        };
-
-        let targets = Self::extract_verify_archive(
-            reader,
-            &options,
-            Some(passphrase.clone()),
-        )
-        .await?;
-
-        let RestoreTargets {
-            manifest,
-            identity,
-            vaults,
-            ..
-        } = &targets;
-
-        // The app should check the identity already exists
-        // but we will double check here to be safe
-        let paths = Paths::new_global(data_dir.clone());
-        let keys = Identity::list_accounts(Some(&paths)).await?;
-        let existing_account =
-            keys.iter().find(|k| k.account_id() == &manifest.account_id);
-
-        let account = existing_account
-            .ok_or_else(|| {
-                Error::NoArchiveAccount(manifest.account_id.to_string())
-            })?
-            .clone();
-
-        let account_id = manifest.account_id.to_string();
-        let paths = Paths::new(data_dir, &account_id);
-        let mut user = Identity::new(paths.clone());
-        let key: AccessKey = passphrase.clone().into();
-        let identity_vault_file = paths.identity_vault().clone();
-        user.login(&manifest.account_id, &identity_vault_file, &key)
-            .await?;
-
-        let restored_user =
-            try_restore_user(&manifest.account_id, &identity.1, &key).await?;
-
-        // Prepare the vaults directory
-        let vaults_dir = paths.vaults_dir();
-        vfs::create_dir_all(&vaults_dir).await?;
-
-        // Use the delegated passwords for the folders
-        // that were restored
-        for (_, vault) in vaults {
-            let vault_passphrase = restored_user
-                .find_folder_password(vault.id())
-                .await?
-                .ok_or(Error::NoFolderPassword(*vault.id()))?;
-
-            user.save_folder_password(vault.id(), vault_passphrase)
-                .await?;
-        }
-
-        Self::restore_system(&paths, &targets).await?;
-        Self::restore_user_folders(&paths, &targets.vaults).await?;
-
-        Ok((targets, account))
-    }
-
     /// Helper to extract from an archive and verify the archive
     /// contents against the restore options.
-    async fn extract_verify_archive<R: AsyncBufRead + AsyncSeek + Unpin>(
+    async fn extract_archive<R: AsyncBufRead + AsyncSeek + Unpin>(
         archive: R,
         options: &RestoreOptions,
-        password: Option<SecretString>,
     ) -> Result<RestoreTargets> {
         let mut reader = Reader::new(archive).await?.prepare().await?;
 
@@ -678,22 +596,6 @@ impl AccountBackup {
             decoded.push((item.1, vault));
         }
 
-        // Check all the decoded vaults can be decrypted
-        if let Some(passphrase) = &password {
-            // Check the identity vault can be unlocked
-            // and get the signing address from the identity folder
-            // and verify it matches the manifest address
-            let key: AccessKey = passphrase.clone().into();
-            let restored_user =
-                try_restore_user(&manifest.account_id, &identity.1, &key)
-                    .await?;
-
-            let account_id = restored_user.account_id();
-            if account_id != &manifest.account_id {
-                return Err(Error::ArchiveAccountIdMismatch);
-            }
-        }
-
         let devices = if let Some((vault_item, event_item)) = devices {
             Some((vault_item.1, event_item))
         } else {
@@ -711,19 +613,4 @@ impl AccountBackup {
             remotes,
         })
     }
-}
-
-/// Try to authenticate an identity folder using a
-/// vault written to a temp file.
-async fn try_restore_user(
-    account_id: &AccountId,
-    vault: &[u8],
-    access_key: &AccessKey,
-) -> Result<DiscIdentityFolder> {
-    let file = NamedTempFile::new()?;
-    vfs::write(file.path(), vault).await?;
-    let restored_user =
-        DiscIdentityFolder::login(account_id, file.path(), access_key)
-            .await?;
-    Ok(restored_user)
 }

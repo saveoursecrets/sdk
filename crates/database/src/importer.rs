@@ -140,7 +140,9 @@ pub async fn upgrade_accounts(
 
     let mut result = UpgradeResult::new(paths.clone());
 
-    if !options.dry_run {
+    if let (false, true) =
+        (!options.dry_run, options.backup_location.is_some())
+    {
         tracing::debug!("upgrade_accounts::create_backups");
         result.backups = create_backups(&paths, &options).await?;
     }

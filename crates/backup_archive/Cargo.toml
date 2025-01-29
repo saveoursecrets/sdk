@@ -11,11 +11,10 @@ repository = "https://github.com/saveoursecrets/sdk"
 sos-core.workspace = true
 sos-backend.workspace = true
 sos-vault.workspace = true
-thiserror.workspace = true
 sos-filesystem.workspace = true
-sos-login.workspace = true
 sos-vfs.workspace = true
 
+thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
@@ -24,14 +23,12 @@ futures.workspace = true
 sha2.workspace = true
 hex.workspace = true
 time.workspace = true
-secrecy.workspace = true
 tokio-util.workspace = true
 async_zip.workspace = true
 walkdir.workspace = true
 tokio.workspace = true
 sanitize-filename.workspace = true
 futures-util.workspace = true
-tempfile.workspace = true
 
 [build-dependencies]
 rustc_version.workspace = true
