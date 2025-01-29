@@ -37,7 +37,7 @@ tokio-rustls.workspace = true
 rustls.workspace = true
 
 human_bytes = "0.4"
-tempfile = "3.5"
+tempfile = "3.16"
 shell-words = "1"
 terminal-banner = { version = "0.4.1", features = ["color"] }
 unicode-width = "0.2"
