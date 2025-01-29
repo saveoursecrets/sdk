@@ -3,6 +3,8 @@
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! File system backend.
 mod advisory_locks;
+#[cfg(feature = "archive")]
+pub mod archive;
 #[cfg(feature = "audit")]
 pub mod audit_provider;
 mod encoding;
