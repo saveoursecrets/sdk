@@ -222,6 +222,8 @@ async fn create_backups(
             &account_paths,
         )
         .await?;
+
+        backup_files.push(backup_path);
     }
 
     Ok(backup_files)
