@@ -1,5 +1,4 @@
 mod import_backup_archive;
-mod restore_backup_archive;
 
 mod import_v1;
 mod import_v2;

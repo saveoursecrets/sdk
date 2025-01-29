@@ -7,6 +7,8 @@ use sos_vfs::{self as vfs, File};
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 
+// use sos_filesystem::archive::AccountBackup;
+
 /// Options for upgrading to SQLite backend.
 #[derive(Debug)]
 pub struct UpgradeOptions {
@@ -18,6 +20,8 @@ pub struct UpgradeOptions {
     /// path is specified and dry run is not enabled this
     /// will write to the expected location for a database file.
     pub db_file: Option<PathBuf>,
+    /// Backup accounts to this location before upgrade.
+    pub backup_location: Option<PathBuf>,
     /// Accounts are server-side storage.
     pub server: bool,
     /// Keep the old files on disc.
@@ -31,6 +35,7 @@ impl Default for UpgradeOptions {
         Self {
             dry_run: true,
             db_file: None,
+            backup_location: None,
             server: false,
             keep_stale_files: false,
             copy_file_blobs: true,
@@ -45,6 +50,8 @@ pub struct UpgradeResult {
     pub global_paths: Paths,
     /// Database file location.
     pub database_file: PathBuf,
+    /// Account backup locations.
+    pub backups: Vec<PathBuf>,
     /// List of migrated accounts.
     pub accounts: Vec<PublicIdentity>,
     /// List of copied file blobs.
@@ -58,6 +65,7 @@ impl UpgradeResult {
         Self {
             database_file: paths.database_file().to_owned(),
             global_paths: paths,
+            backups: Vec::new(),
             accounts: Vec::new(),
             copied_blobs: Vec::new(),
             deleted_files: Vec::new(),
@@ -130,12 +138,18 @@ pub async fn upgrade_accounts(
         return Err(Error::DatabaseExists(db_file.to_owned()));
     }
 
+    let mut result = UpgradeResult::new(paths.clone());
+
+    if !options.dry_run {
+        tracing::debug!("upgrade_accounts::create_backups");
+        result.backups = create_backups(&paths, &options).await?;
+    }
+
     let db_temp = NamedTempFile::new()?;
     options.db_file = Some(db_temp.path().to_owned());
 
     tracing::debug!("upgrade_accounts::import_accounts");
 
-    let mut result = UpgradeResult::new(paths.clone());
     let accounts = import_accounts(&paths, &options).await?;
 
     if options.copy_file_blobs {
@@ -172,6 +186,45 @@ pub async fn upgrade_accounts(
     }
 
     Ok(result)
+}
+
+async fn create_backups(
+    paths: &Paths,
+    options: &UpgradeOptions,
+) -> Result<Vec<PathBuf>> {
+    let mut backup_files = Vec::new();
+    let accounts = list_accounts(Some(paths)).await?;
+    for account in accounts {
+        let account_paths = if options.server {
+            Paths::new_server(
+                paths.documents_dir(),
+                account.account_id().to_string(),
+            )
+        } else {
+            Paths::new(
+                paths.documents_dir(),
+                account.account_id().to_string(),
+            )
+        };
+
+        let mut backup_path = options
+            .backup_location
+            .as_ref()
+            .unwrap()
+            .join(account.account_id().to_string());
+        backup_path.set_extension("zip");
+
+        /*
+        AccountBackup::export_archive_file(
+            path,
+            account.account_id(),
+            &account_paths,
+        )
+        .await?;
+        */
+    }
+
+    Ok(backup_files)
 }
 
 async fn copy_file_blobs(

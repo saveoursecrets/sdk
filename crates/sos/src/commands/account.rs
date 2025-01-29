@@ -408,37 +408,11 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
     let account_ref = AccountRef::Id(inventory.manifest.account_id);
 
     let account = find_account(&account_ref).await?;
+    if account.is_some() {
+        return Ok(None);
+    }
 
-    let mut password = if let Some(account) = account {
-        let confirmed = read_flag(Some(
-            "Overwrite all account data from backup? (y/n) ",
-        ))?;
-        if !confirmed {
-            return Ok(None);
-        }
-
-        let account = AccountRef::Name(account.label().to_owned());
-        let password = sign_in(&account).await?;
-        Some(password)
-    } else {
-        None
-    };
-
-    let account = if let Some(password) = password.take() {
-        let mut owner = USER.write().await;
-        let owner = owner
-            .selected_account_mut()
-            .ok_or(Error::NoSelectedAccount)?;
-        let paths = owner.paths();
-        let files_dir = paths.files_dir();
-        let options = RestoreOptions {
-            selected: inventory.vaults,
-            files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
-        };
-        owner
-            .restore_backup_archive(&input, password, options, None)
-            .await?
-    } else {
+    let account = {
         let account_id = inventory.manifest.account_id.to_string();
         let paths = Paths::new(Paths::data_dir()?, &account_id);
         let files_dir = paths.files_dir();

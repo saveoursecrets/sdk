@@ -1800,20 +1800,6 @@ impl Account for NetworkAccount {
             .await?)
     }
 
-    #[cfg(feature = "archive")]
-    async fn restore_backup_archive(
-        &mut self,
-        path: impl AsRef<Path> + Send + Sync,
-        password: SecretString,
-        options: RestoreOptions,
-        data_dir: Option<PathBuf>,
-    ) -> Result<PublicIdentity> {
-        let mut account = self.account.lock().await;
-        Ok(account
-            .restore_backup_archive(path, password, options, data_dir)
-            .await?)
-    }
-
     #[cfg(feature = "clipboard")]
     async fn copy_clipboard(
         &self,

@@ -985,17 +985,6 @@ impl Account for LinkedAccount {
         unimplemented!();
     }
 
-    #[cfg(feature = "archive")]
-    async fn restore_backup_archive(
-        &mut self,
-        _path: impl AsRef<Path> + Send + Sync,
-        _password: SecretString,
-        _options: RestoreOptions,
-        _data_dir: Option<PathBuf>,
-    ) -> Result<PublicIdentity> {
-        unimplemented!();
-    }
-
     #[cfg(feature = "clipboard")]
     async fn copy_clipboard(
         &self,

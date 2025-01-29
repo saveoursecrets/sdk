@@ -832,16 +832,6 @@ pub trait Account {
         data_dir: Option<PathBuf>,
     ) -> std::result::Result<PublicIdentity, Self::Error>;
 
-    /// Restore from a backup archive file.
-    #[cfg(feature = "archive")]
-    async fn restore_backup_archive(
-        &mut self,
-        path: impl AsRef<Path> + Send + Sync,
-        password: SecretString,
-        mut options: RestoreOptions,
-        data_dir: Option<PathBuf>,
-    ) -> std::result::Result<PublicIdentity, Self::Error>;
-
     /// Copy a secret to the clipboard.
     #[cfg(feature = "clipboard")]
     async fn copy_clipboard(
@@ -3306,64 +3296,6 @@ impl Account for LocalAccount {
                 Default::default(),
                 EventKind::ImportBackupArchive,
                 *account.account_id(),
-                None,
-            );
-            append_audit_events(&[audit_event]).await?;
-        }
-
-        Ok(account)
-    }
-
-    /// Restore from a backup archive file.
-    #[cfg(feature = "archive")]
-    async fn restore_backup_archive(
-        &mut self,
-        path: impl AsRef<Path> + Send + Sync,
-        password: SecretString,
-        mut options: RestoreOptions,
-        data_dir: Option<PathBuf>,
-    ) -> Result<PublicIdentity> {
-        use super::archive::{AccountBackup, ExtractFilesLocation};
-
-        let current_folder = self.current_folder().await?;
-
-        let files_dir =
-            ExtractFilesLocation::Path(self.paths().files_dir().clone());
-
-        options.files_dir = Some(files_dir);
-
-        let reader = vfs::File::open(path).await?;
-        let (targets, account) = AccountBackup::restore_archive_reader(
-            BufReader::new(reader),
-            options,
-            password,
-            data_dir,
-        )
-        .await?;
-
-        {
-            let keys = self.folder_keys().await?;
-            let storage =
-                self.storage.as_mut().ok_or(StorageError::NoStorage)?;
-            let mut writer = storage.write().await;
-            writer.restore_archive(&targets, &keys).await?;
-        }
-
-        #[cfg(feature = "search")]
-        self.build_search_index().await?;
-
-        if let Some(folder) = &current_folder {
-            // Note that we don't want the additional
-            // audit event here
-            self.open_vault(folder, false).await?;
-        }
-
-        #[cfg(feature = "audit")]
-        {
-            let audit_event = AuditEvent::new(
-                Default::default(),
-                EventKind::ImportBackupArchive,
-                *self.account_id(),
                 None,
             );
             append_audit_events(&[audit_event]).await?;

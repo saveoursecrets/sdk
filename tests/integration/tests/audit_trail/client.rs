@@ -98,7 +98,7 @@ async fn audit_trail_client() -> Result<()> {
     assert!(matches!(kinds.remove(0), EventKind::ExportBackupArchive));
 
     // Imported an account archive
-    assert!(matches!(kinds.remove(0), EventKind::ImportBackupArchive));
+    // assert!(matches!(kinds.remove(0), EventKind::ImportBackupArchive));
 
     // Exported an unsafe archive
     assert!(matches!(kinds.remove(0), EventKind::ExportUnsafe));
@@ -212,14 +212,14 @@ async fn simulate_session(
         files_dir: None,
     };
 
-    account
-        .restore_backup_archive(
-            archive,
-            passphrase.clone(),
-            restore_options,
-            Some(data_dir.clone()),
-        )
-        .await?;
+    // account
+    //     .restore_backup_archive(
+    //         archive,
+    //         passphrase.clone(),
+    //         restore_options,
+    //         Some(data_dir.clone()),
+    //     )
+    //     .await?;
 
     let unsafe_archive = "target/audit-trail-unsafe-archive.zip";
     account.export_unsafe_archive(unsafe_archive).await?;
