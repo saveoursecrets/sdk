@@ -7,9 +7,7 @@ use sos_backend::VaultWriter;
 use sos_backend::{
     AccountEventLog, DeviceEventLog, FileEventLog, FolderEventLog,
 };
-use sos_core::events::{
-    patch::FolderPatch, AccountEvent, EventLog, FileEvent,
-};
+use sos_core::events::{patch::FolderPatch, AccountEvent, EventLog};
 use sos_core::{
     decode,
     device::{DevicePublicKey, TrustedDevice},

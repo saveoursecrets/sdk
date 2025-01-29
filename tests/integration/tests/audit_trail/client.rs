@@ -2,7 +2,6 @@ use anyhow::Result;
 
 use crate::test_utils::{mock, setup, teardown};
 use futures::{pin_mut, StreamExt};
-use secrecy::SecretString;
 use sos_account::{Account, FolderCreate, LocalAccount, SecretChange};
 use sos_audit::AuditEvent;
 use sos_filesystem::archive::RestoreOptions;
@@ -48,7 +47,7 @@ async fn audit_trail_client() -> Result<()> {
     let summary = account.default_folder().await.unwrap();
 
     // Make changes to generate audit logs
-    simulate_session(&mut account, &summary, passphrase, &data_dir).await?;
+    simulate_session(&mut account, &summary, &data_dir).await?;
 
     // Read in the audit log events
     let events = read_audit_events().await?;
@@ -95,9 +94,6 @@ async fn audit_trail_client() -> Result<()> {
     // Exported an account archive
     assert!(matches!(kinds.remove(0), EventKind::ExportBackupArchive));
 
-    // Imported an account archive
-    // assert!(matches!(kinds.remove(0), EventKind::ImportBackupArchive));
-
     // Exported an unsafe archive
     assert!(matches!(kinds.remove(0), EventKind::ExportUnsafe));
 
@@ -118,7 +114,8 @@ async fn audit_trail_client() -> Result<()> {
     // Deleted the account
     assert!(matches!(kinds.remove(0), EventKind::DeleteAccount));
 
-    println!("TEARDOWN TEST");
+    // Imported an account archive
+    assert!(matches!(kinds.remove(0), EventKind::ImportBackupArchive));
 
     teardown(TEST_ID).await;
 
@@ -128,7 +125,6 @@ async fn audit_trail_client() -> Result<()> {
 async fn simulate_session(
     account: &mut LocalAccount,
     default_folder: &Summary,
-    passphrase: SecretString,
     data_dir: &PathBuf,
 ) -> Result<()> {
     // Create a secret
@@ -205,20 +201,6 @@ async fn simulate_session(
     let archive = "target/audit-trail-exported-archive.zip";
     account.export_backup_archive(archive).await?;
 
-    let restore_options = RestoreOptions {
-        selected: vec![default_folder.clone()],
-        files_dir: None,
-    };
-
-    // account
-    //     .restore_backup_archive(
-    //         archive,
-    //         passphrase.clone(),
-    //         restore_options,
-    //         Some(data_dir.clone()),
-    //     )
-    //     .await?;
-
     let unsafe_archive = "target/audit-trail-unsafe-archive.zip";
     account.export_unsafe_archive(unsafe_archive).await?;
 
@@ -239,6 +221,19 @@ async fn simulate_session(
 
     // Delete the account
     account.delete_account().await?;
+
+    // Import from a backup archive
+    let restore_options = RestoreOptions {
+        selected: vec![default_folder.clone()],
+        files_dir: None,
+    };
+
+    LocalAccount::import_backup_archive(
+        archive,
+        restore_options,
+        Some(data_dir.clone()),
+    )
+    .await?;
 
     Ok(())
 }

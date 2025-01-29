@@ -18,7 +18,6 @@ use sos_core::{
     },
     VaultId,
 };
-use sos_database::async_sqlite;
 use sos_database::db::{
     AccountEntity, FolderEntity, FolderRecord, FolderRow,
 };
