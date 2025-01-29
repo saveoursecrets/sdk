@@ -20,7 +20,10 @@ pub struct UpgradeOptions {
     /// path is specified and dry run is not enabled this
     /// will write to the expected location for a database file.
     pub db_file: Option<PathBuf>,
-    /// Backup accounts to this location before upgrade.
+    /// Backup accounts to this directory before upgrade.
+    ///
+    /// If the destination does not exist the upgrade will
+    /// attempt to create the directory.
     pub backup_location: Option<PathBuf>,
     /// Accounts are server-side storage.
     pub server: bool,
@@ -140,7 +143,7 @@ pub async fn upgrade_accounts(
 
     let mut result = UpgradeResult::new(paths.clone());
 
-    if let (false, true) =
+    if let (true, true) =
         (!options.dry_run, options.backup_location.is_some())
     {
         tracing::debug!("upgrade_accounts::create_backups");
@@ -194,6 +197,11 @@ async fn create_backups(
     paths: &Paths,
     options: &UpgradeOptions,
 ) -> Result<Vec<PathBuf>> {
+    let backup_location = options.backup_location.as_ref().unwrap();
+    if !vfs::try_exists(&backup_location).await? {
+        vfs::create_dir_all(&backup_location).await?;
+    }
+
     let mut backup_files = Vec::new();
     let accounts = list_accounts(Some(paths)).await?;
     for account in accounts {
@@ -209,11 +217,8 @@ async fn create_backups(
             )
         };
 
-        let mut backup_path = options
-            .backup_location
-            .as_ref()
-            .unwrap()
-            .join(account.account_id().to_string());
+        let mut backup_path =
+            backup_location.join(account.account_id().to_string());
         backup_path.set_extension("zip");
 
         AccountBackup::export_archive_file(

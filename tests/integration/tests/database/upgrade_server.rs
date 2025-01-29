@@ -12,6 +12,7 @@ async fn database_upgrade_server() -> Result<()> {
 
     let dirs = setup(TEST_ID, 0).await?;
     let data_dir = dirs.test_dir;
+    let backup_dir = data_dir.join("backups");
 
     let v1_account_files = PathBuf::from("../fixtures/accounts/v1/server");
     let v1_identity_src = v1_account_files.join(IDENTITY_DIR);
@@ -36,10 +37,16 @@ async fn database_upgrade_server() -> Result<()> {
     let options = UpgradeOptions {
         server: true,
         dry_run: false,
+        backup_location: Some(backup_dir),
         ..Default::default()
     };
     let result = upgrade_accounts(data_dir, options).await?;
     assert!(result.database_file.exists());
+
+    assert!(result.backups.len() > 0);
+    for file in &result.backups {
+        assert!(file.exists());
+    }
 
     teardown(TEST_ID).await;
 
