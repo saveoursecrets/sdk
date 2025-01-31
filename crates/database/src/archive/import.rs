@@ -52,8 +52,24 @@ impl<'conn> BackupImport<'conn> {
         Ok(crate::migrations::migrate_connection(&mut self.source_db)?)
     }
 
-    /// Try to import an account from the source to the target database.
-    pub fn import_account(&self) -> Result<()> {
+    /// Try to import an account from the source to the
+    /// target database.
+    ///
+    /// It is an error if the account already exists in
+    /// the target database.
+    pub fn import_account(
+        &self,
+        source_account: &AccountRecord,
+    ) -> Result<()> {
+        let accounts = AccountEntity::new(&self.target_db);
+        let account =
+            accounts.find_optional(source_account.identity.account_id())?;
+        if account.is_some() {
+            return Err(Error::AccountAlreadyExists(
+                *source_account.identity.account_id(),
+            ));
+        }
+
         todo!();
     }
 }

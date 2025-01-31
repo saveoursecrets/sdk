@@ -1,5 +1,7 @@
 use crate::{Error, Result};
-use async_sqlite::rusqlite::{Connection, Error as SqlError, Row};
+use async_sqlite::rusqlite::{
+    Connection, Error as SqlError, OptionalExtension, Row,
+};
 use sos_core::{AccountId, PublicIdentity, UtcDateTime};
 use sql_query_builder as sql;
 use std::ops::Deref;
@@ -115,6 +117,21 @@ where
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         Ok(stmt
             .query_row([account_id.to_string()], |row| Ok(row.try_into()?))?)
+    }
+
+    /// Find an optional account in the database.
+    pub fn find_optional(
+        &self,
+        account_id: &AccountId,
+    ) -> std::result::Result<Option<AccountRow>, SqlError> {
+        let query = self
+            .account_select_columns(sql::Select::new())
+            .from("accounts")
+            .where_clause("identifier = ?1");
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
+        Ok(stmt
+            .query_row([account_id.to_string()], |row| Ok(row.try_into()?))
+            .optional()?)
     }
 
     /// List accounts.
