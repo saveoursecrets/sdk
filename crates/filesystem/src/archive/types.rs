@@ -1,43 +1,24 @@
 //! Types for backup archives.
 use serde::{Deserialize, Serialize};
-use sos_core::{AccountId, VaultId};
+use sos_core::{AccountId, ArchiveManifestVersion, VaultId};
 use sos_vault::{Summary, Vault};
 use std::collections::HashMap;
 
 /// Vault reference extracted from an archive.
 pub type ArchiveItem = (Summary, Vec<u8>);
 
-/// Manifest for backup archives.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Manifest {
-    /// Version 1 backup archives correspond to the
-    /// v1 file system storage but do not include some
-    /// additional event logs which were added later
-    /// and are optional.
-    ///
-    /// A single backup archive includes only one account.
-    V1(ManifestVersion1),
-
-    /// Version 2 backup archives correspond to the
-    /// v1 file system storage and include all event
-    /// logs, preferences and remote origins.
-    ///
-    /// A single backup archive includes only one account.
-    V2(ManifestVersion1),
-
-    /// Version 3 backup archives include the SQLite
-    /// database and external file blobs and may contain
-    /// multiple accounts.
-    V3,
-}
-
-/// Version 1 manifest.
+/// Version 1 or 2 manifest.
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct ManifestVersion1 {
     /// Account identifier.
     #[serde(rename = "address")]
     pub account_id: AccountId,
+
+    /// Manifest version.
+    ///
+    /// When a manifest version is not set it should be assumed
+    /// to be V1.
+    pub version: Option<ArchiveManifestVersion>,
 
     /// Checksum of the identity vault.
     pub checksum: String,
@@ -64,6 +45,15 @@ pub struct ManifestVersion1 {
     /// Remote server settings.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remotes: Option<String>,
+}
+
+impl ManifestVersion1 {
+    /// Create a new manifest set to version 2.
+    pub fn new_v2() -> Self {
+        let mut manifest = ManifestVersion1::default();
+        manifest.version = Some(ArchiveManifestVersion::V2);
+        manifest
+    }
 }
 
 /// Buffers of data to restore after selected options

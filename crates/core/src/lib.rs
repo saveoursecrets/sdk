@@ -203,3 +203,28 @@ impl VaultFlags {
         self.contains(VaultFlags::SHARED)
     }
 }
+
+/// Manifest version for backup archives.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ArchiveManifestVersion {
+    /// Version 1 backup archives correspond to the
+    /// v1 file system storage but do not include some
+    /// additional event logs which were added later
+    /// and are optional.
+    ///
+    /// A single backup archive includes only one account.
+    V1,
+
+    /// Version 2 backup archives correspond to the
+    /// v1 file system storage and include all event
+    /// logs, preferences and remote origins.
+    ///
+    /// A single backup archive includes only one account.
+    V2,
+
+    /// Version 3 backup archives include the SQLite
+    /// database and external file blobs and may contain
+    /// multiple accounts.
+    V3,
+}

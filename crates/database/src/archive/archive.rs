@@ -14,6 +14,12 @@ use std::{
 use tempfile::NamedTempFile;
 
 /// Create a backup archive.
+///
+/// Performs an online backup of the database to a temporary file and
+/// then reads the backup database into a buffer and adds it to the zip
+/// archive.
+///
+/// External file blobs are read and added to the archive.
 pub(crate) async fn create(
     source_db: &Connection,
     paths: &Paths,
@@ -24,10 +30,11 @@ pub(crate) async fn create(
         return Err(Error::ArchiveFileExists(output.as_ref().to_owned()));
     }
 
-    let blobs = find_blobs(source_db, paths).await?;
-
     let zip_file = tokio::fs::File::create(output.as_ref()).await?;
     let mut zip_writer = Writer::new(zip_file);
+
+    // Find blobs that we need to add to the archive
+    let blobs = find_blobs(source_db, paths).await?;
 
     let db_temp = NamedTempFile::new()?;
     create_database_backup(source_db, db_temp.path(), |_| {})?;
@@ -35,6 +42,7 @@ pub(crate) async fn create(
     let db_buffer = vfs::read(db_temp.path()).await?;
     zip_writer.add_file(DATABASE_FILE, &db_buffer).await?;
 
+    // Add external file blobs to the archive
     for (account, files) in blobs {
         tracing::debug!(
             account_id = %account.identity.account_id(),

@@ -34,7 +34,7 @@ impl<W: AsyncWrite + Unpin> Writer<W> {
     pub fn new(inner: W) -> Self {
         Self {
             writer: ZipFileWriter::with_tokio(inner),
-            manifest: ManifestVersion1::default(),
+            manifest: ManifestVersion1::new_v2(),
         }
     }
 

@@ -9,7 +9,7 @@ use sos_core::constants::ARCHIVE_MANIFEST;
 use std::path::PathBuf;
 use time::OffsetDateTime;
 use tokio::io::{AsyncBufRead, AsyncSeek, AsyncWrite};
-use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
+use tokio_util::compat::Compat;
 
 /// Write to an archive.
 ///
@@ -25,7 +25,7 @@ impl<W: AsyncWrite + Unpin> Writer<W> {
     pub fn new(inner: W) -> Self {
         Self {
             writer: ZipFileWriter::with_tokio(inner),
-            manifest: ManifestVersion3::default(),
+            manifest: ManifestVersion3::new_v3(),
         }
     }
 
@@ -76,7 +76,6 @@ impl<W: AsyncWrite + Unpin> Writer<W> {
     }
 }
 
-/*
 /// Read from an archive.
 pub struct Reader<R: AsyncBufRead + AsyncSeek + Unpin> {
     archive: ZipFileReader<R>,
@@ -93,42 +92,8 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
     }
 
     /// Get the manifest.
-    pub fn manifest(&self) -> Option<&ManifestVersion1> {
+    pub fn manifest(&self) -> Option<&ManifestVersion3> {
         self.manifest.as_ref()
-    }
-
-    /// Read an inventory including the manifest and summary
-    /// of all the vaults.
-    ///
-    /// This is necessary for an import process which would first
-    /// need to determine the identity and which vaults might conflict
-    /// with existing vaults.
-    pub async fn inventory(&mut self) -> Result<Inventory> {
-        let manifest = self
-            .find_manifest()
-            .await?
-            .take()
-            .ok_or(Error::NoArchiveManifest)?;
-        let entry_name = format!("{}.{}", manifest.account_id, VAULT_EXT);
-        let checksum = hex::decode(&manifest.checksum)?;
-        let (identity, _) =
-            self.archive_folder(&entry_name, checksum).await?;
-
-        let mut vaults = Vec::with_capacity(manifest.vaults.len());
-        for (k, v) in &manifest.vaults {
-            let entry_name = format!("{}.{}", k, VAULT_EXT);
-            let checksum = hex::decode(v)?;
-            let (summary, _) =
-                self.archive_folder(&entry_name, checksum).await?;
-            vaults.push(summary);
-        }
-        vaults.sort_by(|a, b| a.name().cmp(b.name()));
-        Ok(Inventory {
-            manifest,
-            identity,
-            vaults,
-            exists_local: false,
-        })
     }
 
     /// Prepare the archive for reading by parsing the manifest.
@@ -154,42 +119,16 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
         Ok(None)
     }
 
-    async fn find_manifest(&mut self) -> Result<Option<ManifestVersion1>> {
+    async fn find_manifest(&mut self) -> Result<Option<ManifestVersion3>> {
         if let Some(buffer) = self.by_name(ARCHIVE_MANIFEST).await? {
-            let manifest_entry: ManifestVersion1 =
+            let manifest_entry: ManifestVersion3 =
                 serde_json::from_slice(&buffer)?;
             return Ok(Some(manifest_entry));
         }
         Ok(None)
     }
 
-    async fn archive_folder(
-        &mut self,
-        name: &str,
-        checksum: Vec<u8>,
-    ) -> Result<ArchiveItem> {
-        let data = self.by_name(name).await?.unwrap();
-        let digest = Sha256::digest(&data);
-        if checksum != digest.to_vec() {
-            return Err(Error::ArchiveChecksumMismatch(name.to_string()));
-        }
-        let summary = VaultHeader::read_summary_slice(&data).await?;
-        Ok((summary, data))
-    }
-
-    async fn archive_buffer(
-        &mut self,
-        name: &str,
-        checksum: Vec<u8>,
-    ) -> Result<Vec<u8>> {
-        let data = self.by_name(name).await?.unwrap();
-        let digest = Sha256::digest(&data);
-        if checksum != digest.to_vec() {
-            return Err(Error::ArchiveChecksumMismatch(name.to_string()));
-        }
-        Ok(data)
-    }
-
+    /*
     /// Extract files to a destination.
     pub async fn extract_files<P: AsRef<Path>>(
         &mut self,
@@ -247,28 +186,16 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
 
         Ok(())
     }
+    */
 
     /// Finish reading by validating entries against the manifest.
-    ///
-    /// This will verify the buffers match the checksums in
-    /// the manifest.
-    ///
-    /// It also extracts the vault summaries so we are confident
-    /// each buffer is a valid vault.
-    pub async fn finish(
-        mut self,
-    ) -> Result<(
-        ManifestVersion1,
-        ArchiveItem,
-        Vec<ArchiveItem>,
-        Option<(ArchiveItem, Vec<u8>)>,
-        Option<Vec<u8>>,
-        Option<Vec<u8>>,
-        Option<Vec<u8>>,
-        Option<Vec<u8>>,
-    )> {
+    pub async fn finish(mut self) -> Result<(ManifestVersion3,)> {
         let manifest =
             self.manifest.take().ok_or(Error::NoArchiveManifest)?;
+
+        todo!();
+
+        /*
         let entry_name = format!("{}.{}", manifest.account_id, VAULT_EXT);
         let checksum = hex::decode(&manifest.checksum)?;
         let identity = self.archive_folder(&entry_name, checksum).await?;
@@ -343,9 +270,9 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
             manifest, identity, vaults, devices, account, files, prefs,
             remotes,
         ))
+          */
     }
 }
-*/
 
 /// Returns a relative path without reserved names,
 /// redundant separators, ".", or "..".
