@@ -2,6 +2,8 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Database storage layer for the [Save Our Secrets](https://saveoursecrets.com) SDK.
+#[cfg(all(feature = "archive", feature = "sqlite"))]
+pub mod archive;
 #[cfg(all(feature = "audit", feature = "sqlite"))]
 pub mod audit_provider;
 #[cfg(feature = "sqlite")]

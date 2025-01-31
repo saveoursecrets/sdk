@@ -91,18 +91,52 @@ where
         Self { conn }
     }
 
+    fn account_select_columns(&self, sql: sql::Select) -> sql::Select {
+        sql.select(
+            r#"
+                account_id,
+                created_at,
+                modified_at,
+                identifier,
+                name
+            "#,
+        )
+    }
+
     /// Find an account in the database.
     pub fn find_one(
         &self,
         account_id: &AccountId,
     ) -> std::result::Result<AccountRow, SqlError> {
-        let query = sql::Select::new()
-            .select("account_id, created_at, modified_at, identifier, name")
+        let query = self
+            .account_select_columns(sql::Select::new())
             .from("accounts")
             .where_clause("identifier = ?1");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         Ok(stmt
             .query_row([account_id.to_string()], |row| Ok(row.try_into()?))?)
+    }
+
+    /// List accounts.
+    pub fn list_accounts(&self) -> Result<Vec<AccountRow>> {
+        let query = self
+            .account_select_columns(sql::Select::new())
+            .from("accounts");
+
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
+
+        fn convert_row(row: &Row<'_>) -> Result<AccountRow> {
+            Ok(row.try_into()?)
+        }
+
+        let rows = stmt.query_and_then([], |row| {
+            Ok::<_, crate::Error>(convert_row(row)?)
+        })?;
+        let mut accounts = Vec::new();
+        for row in rows {
+            accounts.push(row?);
+        }
+        Ok(accounts)
     }
 
     /// Create the account entity in the database.

@@ -5000,11 +5000,15 @@ version = "0.16.0"
 dependencies = [
  "async-sqlite",
  "async-trait",
+ "async_zip",
  "binary-stream",
  "futures",
+ "futures-util",
+ "hex",
  "indexmap 2.7.1",
  "refinery",
  "rustc_version",
+ "sanitize-filename",
  "secrecy",
  "serde",
  "serde_json",
@@ -5020,12 +5024,15 @@ dependencies = [
  "sql_query_builder",
  "tempfile",
  "thiserror 2.0.11",
+ "time",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "tracing",
  "url",
  "urn",
  "uuid",
+ "walkdir",
 ]
 
 [[package]]

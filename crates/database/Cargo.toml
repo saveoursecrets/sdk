@@ -13,11 +13,21 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 full = [
+  "archive",
   "audit",
   "files",
   "preferences",
   "sqlite",
   "system-messages",
+]
+archive = [
+  "dep:async_zip",
+  "dep:walkdir",
+  "dep:sanitize-filename",
+  "dep:time",
+  "dep:hex",
+  "dep:futures-util",
+  "dep:tokio-util",
 ]
 audit = ["sos-audit", "sos-filesystem/audit"]
 files = ["sos-filesystem/files"]
@@ -53,12 +63,21 @@ tokio-stream.workspace = true
 tempfile.workspace = true
 
 # sqlite
-async-sqlite = { workspace = true, optional = true }
+async-sqlite = { workspace = true, optional = true, features = ["backup"] }
 refinery = { workspace = true, optional = true }
 sql_query_builder = { workspace = true, optional = true }
 
 # system-messages
 urn = { workspace = true, optional = true }
+
+# archive
+async_zip = { workspace = true, optional = true }
+walkdir = { workspace = true, optional = true }
+sanitize-filename = { workspace = true, optional = true }
+time = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
+tokio-util = { workspace = true, optional = true }
 
 [build-dependencies]
 rustc_version.workspace = true
