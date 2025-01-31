@@ -205,8 +205,8 @@ impl VaultFlags {
 }
 
 /// Manifest version for backup archives.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ArchiveManifestVersion {
     /// Version 1 backup archives correspond to the
     /// v1 file system storage but do not include some
@@ -214,17 +214,47 @@ pub enum ArchiveManifestVersion {
     /// and are optional.
     ///
     /// A single backup archive includes only one account.
-    V1,
+    V1 = 1,
 
     /// Version 2 backup archives correspond to the
     /// v1 file system storage and include all event
     /// logs, preferences and remote origins.
     ///
     /// A single backup archive includes only one account.
-    V2,
+    V2 = 2,
 
     /// Version 3 backup archives include the SQLite
     /// database and external file blobs and may contain
     /// multiple accounts.
-    V3,
+    V3 = 3,
+}
+// Implement serialization manually
+impl Serialize for ArchiveManifestVersion {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_u8(*self as u8)
+    }
+}
+
+// Implement deserialization manually
+impl<'de> Deserialize<'de> for ArchiveManifestVersion {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = u8::deserialize(deserializer)?;
+        match value {
+            1 => Ok(ArchiveManifestVersion::V1),
+            2 => Ok(ArchiveManifestVersion::V2),
+            3 => Ok(ArchiveManifestVersion::V3),
+            _ => Err(serde::de::Error::custom(
+                "invalid archive manifest version",
+            )),
+        }
+    }
 }
