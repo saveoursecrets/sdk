@@ -30,7 +30,7 @@ pub(crate) async fn create(
         return Err(Error::ArchiveFileExists(output.as_ref().to_owned()));
     }
 
-    let zip_file = tokio::fs::File::create(output.as_ref()).await?;
+    let zip_file = vfs::File::create(output.as_ref()).await?;
     let mut zip_writer = Writer::new(zip_file);
 
     // Find blobs that we need to add to the archive
