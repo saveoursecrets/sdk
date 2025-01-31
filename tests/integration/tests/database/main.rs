@@ -1,3 +1,6 @@
+mod backup_archive_client;
+mod backup_archive_server;
+
 mod upgrade_client;
 mod upgrade_server;
 

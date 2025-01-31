@@ -89,7 +89,8 @@ async fn find_blobs(
                     file.secret_id(),
                     file.file_name().to_string(),
                 );
-                let name = file.to_string();
+                let name =
+                    format!("{}/{}", record.identity.account_id(), file);
                 (name, path)
             })
             .collect::<Vec<_>>();
