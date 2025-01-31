@@ -18,9 +18,11 @@ pub struct BackupImport<'conn> {
     source_db: Box<Connection>,
     target_db: &'conn mut Connection,
     paths: Paths,
+    #[allow(dead_code)]
     manifest: ManifestVersion3,
     // Ensure the temp file is not deleted
     // until this struct is dropped
+    #[allow(dead_code)]
     db_temp: NamedTempFile,
 }
 
