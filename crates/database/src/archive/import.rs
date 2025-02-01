@@ -1,12 +1,8 @@
 use super::{types::ManifestVersion3, zip::Reader, Error, Result};
-use crate::{
-    db::{
-        AccountEntity, AccountRecord, AccountRow, EventEntity,
-        EventRecordRow, FolderEntity, FolderRow, PreferenceEntity,
-        PreferenceRow, ServerEntity, ServerRow, SystemMessageEntity,
-        SystemMessageRow,
-    },
-    system_messages,
+use crate::db::{
+    AccountEntity, AccountRecord, AccountRow, EventEntity, EventRecordRow,
+    FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, ServerEntity,
+    ServerRow, SystemMessageEntity, SystemMessageRow,
 };
 use async_sqlite::rusqlite::Connection;
 use sos_core::{
@@ -22,9 +18,11 @@ use tokio::io::BufReader;
 /// Data source for an account import.
 struct ImportDataSource {
     account_row: AccountRow,
+    account_events: Vec<EventRecordRow>,
     login_folder: (FolderRow, Vec<EventRecordRow>),
     device_folder: Option<(FolderRow, Vec<EventRecordRow>)>,
     user_folders: Vec<(FolderRow, Vec<EventRecordRow>)>,
+    file_events: Vec<EventRecordRow>,
     servers: Vec<ServerRow>,
     account_preferences: Vec<PreferenceRow>,
     system_messages: Vec<SystemMessageRow>,
@@ -143,7 +141,7 @@ impl<'conn> BackupImport<'conn> {
             }
         }
 
-        todo!();
+        Ok(())
     }
 
     /// Read import data into memory from the source db.
@@ -159,6 +157,13 @@ impl<'conn> BackupImport<'conn> {
         let preference_entity = PreferenceEntity::new(&self.source_db);
         let system_messages_entity =
             SystemMessageEntity::new(&self.source_db);
+
+        // Account events
+        let account_events = event_entity.load_events(
+            EventLogType::Account,
+            account_id,
+            None,
+        )?;
 
         // Login folder
         let login_folder = folder_entity.find_login_folder(account_id)?;
@@ -193,6 +198,13 @@ impl<'conn> BackupImport<'conn> {
             user_folders.push((user_folder, folder_events));
         }
 
+        // File events
+        let file_events = event_entity.load_events(
+            EventLogType::Files,
+            account_id,
+            None,
+        )?;
+
         // Servers, preferences and system messages
         let servers = server_entity.load_servers(account_id)?;
         let account_preferences =
@@ -203,9 +215,11 @@ impl<'conn> BackupImport<'conn> {
         // Data source
         let data_source = ImportDataSource {
             account_row,
+            account_events,
             login_folder: (login_folder, login_events),
             device_folder,
             user_folders,
+            file_events,
             servers,
             account_preferences,
             system_messages,
@@ -221,9 +235,55 @@ impl<'conn> BackupImport<'conn> {
     ) -> Result<()> {
         let tx = self.target_db.transaction()?;
 
-        // Insert the account
         let account_entity = AccountEntity::new(&tx);
+        let folder_entity = FolderEntity::new(&tx);
+        let event_entity = EventEntity::new(&tx);
+        let server_entity = ServerEntity::new(&tx);
+        let preference_entity = PreferenceEntity::new(&tx);
+        let system_messages_entity = SystemMessageEntity::new(&tx);
+
+        // Insert the account
         let account_id = account_entity.insert(&data.account_row)?;
+
+        // Create account events
+        event_entity
+            .insert_account_events(account_id, &data.account_events)?;
+
+        // Login folder
+        let login_folder_id =
+            folder_entity.insert_folder(account_id, &data.login_folder.0)?;
+        event_entity
+            .insert_folder_events(login_folder_id, &data.login_folder.1)?;
+        account_entity.insert_login_folder(account_id, login_folder_id)?;
+
+        // Device folder
+        if let Some((device_folder, device_events)) = &data.device_folder {
+            let device_folder_id =
+                folder_entity.insert_folder(account_id, device_folder)?;
+            event_entity
+                .insert_device_events(device_folder_id, device_events)?;
+            account_entity
+                .insert_device_folder(account_id, device_folder_id)?;
+        }
+
+        // User folders
+        for (folder, events) in &data.user_folders {
+            let folder_id =
+                folder_entity.insert_folder(account_id, folder)?;
+            event_entity.insert_folder_events(folder_id, events)?;
+        }
+
+        // Create file events
+        event_entity.insert_file_events(account_id, &data.file_events)?;
+
+        // Servers, preferences and system messages
+        server_entity.insert_servers(account_id, &data.servers)?;
+        preference_entity.insert_preferences(
+            Some(account_id),
+            &data.account_preferences,
+        )?;
+        system_messages_entity
+            .insert_system_messages(account_id, &data.system_messages)?;
 
         tx.commit()?;
 
