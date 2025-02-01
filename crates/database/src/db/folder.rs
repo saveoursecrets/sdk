@@ -577,10 +577,11 @@ where
     pub fn insert_folder_secrets(
         &self,
         folder_id: i64,
-        rows: Vec<(SecretId, SecretRow)>,
-    ) -> StdResult<HashMap<SecretId, i64>, SqlError> {
+        rows: &[SecretRow],
+    ) -> Result<HashMap<SecretId, i64>> {
         let mut secret_ids = HashMap::new();
-        for (identifier, secret_row) in rows {
+        for secret_row in rows {
+            let identifier: SecretId = secret_row.identifier.parse()?;
             let secret_id =
                 self.insert_secret_by_row_id(folder_id, &secret_row)?;
             secret_ids.insert(identifier, secret_id);

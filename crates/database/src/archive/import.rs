@@ -1,8 +1,8 @@
 use super::{types::ManifestVersion3, zip::Reader, Error, Result};
 use crate::db::{
     AccountEntity, AccountRecord, AccountRow, EventEntity, EventRecordRow,
-    FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, ServerEntity,
-    ServerRow, SystemMessageEntity, SystemMessageRow,
+    FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, SecretRow,
+    ServerEntity, ServerRow, SystemMessageEntity, SystemMessageRow,
 };
 use async_sqlite::rusqlite::Connection;
 use sos_core::{
@@ -19,9 +19,9 @@ use tokio::io::BufReader;
 struct ImportDataSource {
     account_row: AccountRow,
     account_events: Vec<EventRecordRow>,
-    login_folder: (FolderRow, Vec<EventRecordRow>),
-    device_folder: Option<(FolderRow, Vec<EventRecordRow>)>,
-    user_folders: Vec<(FolderRow, Vec<EventRecordRow>)>,
+    login_folder: (FolderRow, Vec<SecretRow>, Vec<EventRecordRow>),
+    device_folder: Option<(FolderRow, Vec<SecretRow>, Vec<EventRecordRow>)>,
+    user_folders: Vec<(FolderRow, Vec<SecretRow>, Vec<EventRecordRow>)>,
     file_events: Vec<EventRecordRow>,
     servers: Vec<ServerRow>,
     account_preferences: Vec<PreferenceRow>,
@@ -176,6 +176,8 @@ impl<'conn> BackupImport<'conn> {
 
         // Login folder
         let login_folder = folder_entity.find_login_folder(account_id)?;
+        let login_secrets =
+            folder_entity.load_secrets(login_folder.row_id)?;
         let login_events = event_entity.load_events(
             EventLogType::Identity,
             account_id,
@@ -190,7 +192,9 @@ impl<'conn> BackupImport<'conn> {
                 account_id,
                 Some(device_folder.row_id),
             )?;
-            Some((device_folder, device_events))
+            let device_secrets =
+                folder_entity.load_secrets(device_folder.row_id)?;
+            Some((device_folder, device_secrets, device_events))
         } else {
             None
         };
@@ -204,7 +208,9 @@ impl<'conn> BackupImport<'conn> {
                 account_id,
                 Some(user_folder.row_id),
             )?;
-            user_folders.push((user_folder, folder_events));
+            let folder_secrets =
+                folder_entity.load_secrets(user_folder.row_id)?;
+            user_folders.push((user_folder, folder_secrets, folder_events));
         }
 
         // File events
@@ -225,7 +231,7 @@ impl<'conn> BackupImport<'conn> {
         let data_source = ImportDataSource {
             account_row,
             account_events,
-            login_folder: (login_folder, login_events),
+            login_folder: (login_folder, login_secrets, login_events),
             device_folder,
             user_folders,
             file_events,
@@ -261,14 +267,20 @@ impl<'conn> BackupImport<'conn> {
         // Login folder
         let login_folder_id =
             folder_entity.insert_folder(account_id, &data.login_folder.0)?;
+        folder_entity
+            .insert_folder_secrets(login_folder_id, &data.login_folder.1)?;
         event_entity
-            .insert_folder_events(login_folder_id, &data.login_folder.1)?;
+            .insert_folder_events(login_folder_id, &data.login_folder.2)?;
         account_entity.insert_login_folder(account_id, login_folder_id)?;
 
         // Device folder
-        if let Some((device_folder, device_events)) = &data.device_folder {
+        if let Some((device_folder, device_secrets, device_events)) =
+            &data.device_folder
+        {
             let device_folder_id =
                 folder_entity.insert_folder(account_id, device_folder)?;
+            folder_entity
+                .insert_folder_secrets(device_folder_id, device_secrets)?;
             event_entity
                 .insert_device_events(device_folder_id, device_events)?;
             account_entity
@@ -276,9 +288,10 @@ impl<'conn> BackupImport<'conn> {
         }
 
         // User folders
-        for (folder, events) in &data.user_folders {
+        for (folder, secrets, events) in &data.user_folders {
             let folder_id =
                 folder_entity.insert_folder(account_id, folder)?;
+            folder_entity.insert_folder_secrets(folder_id, secrets)?;
             event_entity.insert_folder_events(folder_id, events)?;
         }
 

@@ -190,6 +190,7 @@ CREATE TABLE IF NOT EXISTS preferences
     FOREIGN KEY (account_id) REFERENCES accounts (account_id)
       ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS preferences_key_idx ON preferences (key);
 
 -- Server remote origins for an account
 CREATE TABLE IF NOT EXISTS servers
@@ -208,6 +209,8 @@ CREATE TABLE IF NOT EXISTS servers
     FOREIGN KEY (account_id) REFERENCES accounts (account_id)
       ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS servers_name_idx ON servers (name);
+CREATE INDEX IF NOT EXISTS servers_url_idx ON servers (url);
 
 -- System messages
 CREATE TABLE IF NOT EXISTS system_messages
@@ -226,3 +229,4 @@ CREATE TABLE IF NOT EXISTS system_messages
     FOREIGN KEY (account_id) REFERENCES accounts (account_id)
       ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS system_messages_key_idx ON system_messages (key);

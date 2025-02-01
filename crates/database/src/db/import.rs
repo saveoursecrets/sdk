@@ -293,16 +293,11 @@ pub(crate) async fn import_account(
     Ok(())
 }
 
-async fn collect_vault_rows(
-    vault: &Vault,
-) -> Result<Vec<(SecretId, SecretRow)>> {
+async fn collect_vault_rows(vault: &Vault) -> Result<Vec<SecretRow>> {
     let mut rows = Vec::new();
     for (secret_id, commit) in vault.iter() {
         let VaultCommit(commit, entry) = commit;
-        rows.push((
-            *secret_id,
-            SecretRow::new(secret_id, commit, entry).await?,
-        ));
+        rows.push(SecretRow::new(secret_id, commit, entry).await?);
     }
     Ok(rows)
 }
@@ -369,7 +364,7 @@ fn create_folder(
     account_id: i64,
     vault: Vault,
     meta: Option<Vec<u8>>,
-    rows: Vec<(SecretId, SecretRow)>,
+    rows: Vec<SecretRow>,
     events: Option<Vec<EventRecordRow>>,
 ) -> Result<(i64, HashMap<SecretId, i64>)> {
     let salt = vault.salt().cloned();
@@ -378,7 +373,8 @@ fn create_folder(
         account_id,
         &FolderRow::new_insert_parts(vault.summary(), salt, meta)?,
     )?;
-    let secret_ids = folder_entity.insert_folder_secrets(folder_id, rows)?;
+    let secret_ids =
+        folder_entity.insert_folder_secrets(folder_id, rows.as_slice())?;
     if let Some(events) = events {
         // Insert the event rows
         let event_entity = EventEntity::new(tx);
