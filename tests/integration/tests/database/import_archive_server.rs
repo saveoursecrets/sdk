@@ -7,7 +7,6 @@ use sos_database::{
     async_sqlite::rusqlite::Connection,
     upgrader::{upgrade_accounts, UpgradeOptions},
 };
-use sos_external_files::list_external_blobs;
 
 /// Create and import a backup archive for server-side database storage.
 ///
