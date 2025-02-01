@@ -13,6 +13,8 @@ use sos_filesystem::archive::AccountBackup;
 /// Options for upgrading to SQLite backend.
 #[derive(Debug)]
 pub struct UpgradeOptions {
+    /// Storage paths.
+    pub paths: Paths,
     /// Perform a dry run.
     pub dry_run: bool,
     /// Database file to write to.
@@ -26,8 +28,6 @@ pub struct UpgradeOptions {
     /// If the destination does not exist the upgrade will
     /// attempt to create the directory.
     pub backup_directory: Option<PathBuf>,
-    /// Accounts are server-side storage.
-    pub server: bool,
     /// Keep the old files on disc.
     pub keep_stale_files: bool,
     /// Move file blobs.
@@ -37,10 +37,10 @@ pub struct UpgradeOptions {
 impl Default for UpgradeOptions {
     fn default() -> Self {
         Self {
+            paths: Default::default(),
             dry_run: true,
             db_file: None,
             backup_directory: None,
-            server: false,
             keep_stale_files: false,
             copy_file_blobs: true,
         }
@@ -79,12 +79,13 @@ impl UpgradeResult {
 
 /// Import all accounts found on disc.
 async fn import_accounts(
-    paths: &Paths,
     options: &UpgradeOptions,
 ) -> Result<Vec<PublicIdentity>> {
     let mut client = if !options.dry_run {
-        let db_file =
-            options.db_file.as_ref().unwrap_or(paths.database_file());
+        let db_file = options
+            .db_file
+            .as_ref()
+            .unwrap_or(options.paths.database_file());
         let mut client = db::open_file(db_file).await?;
         migrate_client(&mut client).await?;
         client
@@ -92,29 +93,14 @@ async fn import_accounts(
         db::open_memory().await?
     };
 
-    db::import_globals(&mut client, paths).await?;
+    db::import_globals(&mut client, &options.paths).await?;
 
-    let accounts = list_accounts(Some(paths)).await?;
+    let accounts = list_accounts(Some(&options.paths)).await?;
     for account in &accounts {
-        let account_paths = if options.server {
-            Paths::new_server(
-                paths.documents_dir(),
-                account.account_id().to_string(),
-            )
-        } else {
-            Paths::new(
-                paths.documents_dir(),
-                account.account_id().to_string(),
-            )
-        };
+        let account_paths =
+            options.paths.with_account_id(account.account_id());
 
-        db::import_account(
-            &mut client,
-            &account_paths,
-            &account,
-            options.server,
-        )
-        .await?;
+        db::import_account(&mut client, &account_paths, &account).await?;
     }
     Ok(accounts)
 }
@@ -129,26 +115,18 @@ pub async fn upgrade_accounts(
       options = ?options,
       "upgrade_accounts");
 
-    let paths = if options.server {
-        Paths::new_global_server(data_dir.as_ref())
-    } else {
-        Paths::new_global(data_dir.as_ref())
-    };
+    options.paths.ensure_db().await?;
 
-    paths.ensure().await?;
-
-    let db_file = paths.database_file();
+    let db_file = options.paths.database_file();
     if db_file.exists() && !options.dry_run {
         return Err(Error::DatabaseExists(db_file.to_owned()));
     }
 
-    let mut result = UpgradeResult::new(paths.clone());
+    let mut result = UpgradeResult::new(options.paths.clone());
 
-    if let (true, true) =
-        (!options.dry_run, options.backup_directory.is_some())
-    {
+    if !options.dry_run && options.backup_directory.is_some() {
         tracing::debug!("upgrade_accounts::create_backups");
-        result.backups = create_backups(&paths, &options).await?;
+        result.backups = create_backups(&options).await?;
     }
 
     let db_temp = NamedTempFile::new()?;
@@ -156,31 +134,31 @@ pub async fn upgrade_accounts(
 
     tracing::debug!("upgrade_accounts::import_accounts");
 
-    let accounts = import_accounts(&paths, &options).await?;
+    let accounts = import_accounts(&options).await?;
 
     if options.copy_file_blobs {
         tracing::debug!("upgrade_accounts::copy_file_blobs");
 
         result.copied_blobs =
-            copy_file_blobs(&paths, accounts.as_slice(), &options).await?;
+            copy_file_blobs(accounts.as_slice(), &options).await?;
     }
 
     if !options.keep_stale_files {
         tracing::debug!("upgrade_accounts::delete_stale_files");
 
         result.deleted_files =
-            delete_stale_files(&paths, accounts.as_slice(), &options).await?;
+            delete_stale_files(accounts.as_slice(), &options).await?;
     }
 
     result.accounts = accounts;
-    result.database_file = paths.database_file().to_owned();
+    result.database_file = options.paths.database_file().to_owned();
 
     if !options.dry_run {
         tracing::debug!("upgrade_accounts::move_db_into_place");
 
         // Move the temp file into place
         #[cfg(not(target_os = "linux"))]
-        vfs::rename(db_temp.path(), paths.database_file()).await?;
+        vfs::rename(db_temp.path(), options.paths.database_file()).await?;
 
         // On Linux we have to copy to avoid cross-device link error
         #[cfg(target_os = "linux")]
@@ -194,29 +172,17 @@ pub async fn upgrade_accounts(
     Ok(result)
 }
 
-async fn create_backups(
-    paths: &Paths,
-    options: &UpgradeOptions,
-) -> Result<Vec<PathBuf>> {
+async fn create_backups(options: &UpgradeOptions) -> Result<Vec<PathBuf>> {
     let backup_directory = options.backup_directory.as_ref().unwrap();
     if !vfs::try_exists(&backup_directory).await? {
         vfs::create_dir_all(&backup_directory).await?;
     }
 
     let mut backup_files = Vec::new();
-    let accounts = list_accounts(Some(paths)).await?;
+    let accounts = list_accounts(Some(&options.paths)).await?;
     for account in accounts {
-        let account_paths = if options.server {
-            Paths::new_server(
-                paths.documents_dir(),
-                account.account_id().to_string(),
-            )
-        } else {
-            Paths::new(
-                paths.documents_dir(),
-                account.account_id().to_string(),
-            )
-        };
+        let account_paths =
+            options.paths.with_account_id(account.account_id());
 
         let mut backup_path =
             backup_directory.join(account.account_id().to_string());
@@ -236,24 +202,14 @@ async fn create_backups(
 }
 
 async fn copy_file_blobs(
-    paths: &Paths,
     accounts: &[PublicIdentity],
     options: &UpgradeOptions,
 ) -> Result<Vec<(PathBuf, PathBuf)>> {
     let mut copied = Vec::new();
 
     for account in accounts {
-        let account_paths = if options.server {
-            Paths::new_server(
-                paths.documents_dir(),
-                account.account_id().to_string(),
-            )
-        } else {
-            Paths::new(
-                paths.documents_dir(),
-                account.account_id().to_string(),
-            )
-        };
+        let account_paths =
+            options.paths.with_account_id(account.account_id());
 
         let source_external_files =
             list_external_files(&account_paths).await?;
@@ -296,18 +252,19 @@ async fn copy_file_blobs(
 }
 
 async fn delete_stale_files(
-    paths: &Paths,
     accounts: &[PublicIdentity],
     options: &UpgradeOptions,
 ) -> Result<Vec<PathBuf>> {
     let mut files = vec![
-        paths.identity_dir().to_owned(),
-        paths.audit_file().to_owned(),
+        options.paths.identity_dir().to_owned(),
+        options.paths.audit_file().to_owned(),
     ];
 
     for account in accounts {
-        let account_path =
-            paths.local_dir().join(account.account_id().to_string());
+        let account_path = options
+            .paths
+            .local_dir()
+            .join(account.account_id().to_string());
         files.push(account_path);
     }
 

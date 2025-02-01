@@ -4,8 +4,11 @@ use async_zip::{
     tokio::{read::seek::ZipFileReader, write::ZipFileWriter},
     Compression, ZipDateTimeBuilder, ZipEntryBuilder,
 };
-use sos_core::constants::ARCHIVE_MANIFEST;
-use std::path::PathBuf;
+use sos_core::{
+    constants::{ARCHIVE_MANIFEST, BLOBS_DIR},
+    AccountId, ExternalFile, ExternalFileName, SecretId, SecretPath, VaultId,
+};
+use std::{collections::HashMap, path::PathBuf};
 use time::OffsetDateTime;
 use tokio::io::{AsyncBufRead, AsyncSeek, AsyncWrite};
 use tokio_util::compat::Compat;
@@ -115,65 +118,56 @@ impl<R: AsyncBufRead + AsyncSeek + Unpin> Reader<R> {
         Ok(None)
     }
 
-    /*
-    /// Extract files to a destination.
-    pub async fn extract_files<P: AsRef<Path>>(
+    /// Find blobs embedded in the archive.
+    pub fn find_blobs(
         &mut self,
-        target: P,
-        selected: &[Summary],
-    ) -> Result<()> {
+    ) -> Result<HashMap<AccountId, Vec<ExternalFile>>> {
+        let mut out = HashMap::new();
         for index in 0..self.archive.file().entries().len() {
             let entry = self.archive.file().entries().get(index).unwrap();
             let is_dir = entry.dir()?;
-
             if !is_dir {
                 let file_name = entry.filename();
-
                 let path = sanitize_file_path(file_name.as_str()?);
                 let mut it = path.iter();
-                if let (Some(first), Some(second)) = (it.next(), it.next()) {
+                if let (
+                    Some(first),
+                    Some(second),
+                    Some(third),
+                    Some(fourth),
+                    Some(fifth),
+                ) = (it.next(), it.next(), it.next(), it.next(), it.next())
+                {
                     if first == BLOBS_DIR {
-                        if let Ok(vault_id) =
-                            second.to_string_lossy().parse::<VaultId>()
+                        if let Ok(account_id) =
+                            second.to_string_lossy().parse::<AccountId>()
                         {
-                            // Only restore files for the selected vaults
-                            if selected.iter().any(|s| s.id() == &vault_id) {
-                                // The given target path should already
-                                // include any files/ prefix so we need
-                                // to skip it
-                                let mut relative = PathBuf::new();
-                                for part in path.iter().skip(1) {
-                                    relative = relative.join(part);
-                                }
-                                let destination =
-                                    target.as_ref().join(relative);
-                                if let Some(parent) = destination.parent() {
-                                    if !vfs::try_exists(&parent).await? {
-                                        vfs::create_dir_all(parent).await?;
-                                    }
-                                }
+                            let files =
+                                out.entry(account_id).or_insert(Vec::new());
 
-                                let mut reader = self
-                                    .archive
-                                    .reader_without_entry(index)
-                                    .await?;
-                                let output =
-                                    File::create(destination).await?;
-                                futures_util::io::copy(
-                                    &mut reader,
-                                    &mut output.compat_write(),
-                                )
-                                .await?;
+                            if let (
+                                Ok(folder_id),
+                                Ok(secret_id),
+                                Ok(file_name),
+                            ) = (
+                                third.to_string_lossy().parse::<VaultId>(),
+                                fourth.to_string_lossy().parse::<SecretId>(),
+                                fifth
+                                    .to_string_lossy()
+                                    .parse::<ExternalFileName>(),
+                            ) {
+                                files.push(ExternalFile::new(
+                                    SecretPath(folder_id, secret_id),
+                                    file_name,
+                                ));
                             }
                         }
                     }
                 }
             }
         }
-
-        Ok(())
+        Ok(out)
     }
-    */
 }
 
 /// Returns a relative path without reserved names,

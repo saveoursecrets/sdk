@@ -388,6 +388,26 @@ where
         Ok(stmt.query_row([account_id], |row| Ok(row.try_into()?))?)
     }
 
+    /// Try to find a device folder for an account.
+    pub fn find_device_folder(
+        &self,
+        account_id: i64,
+    ) -> StdResult<Option<FolderRow>, SqlError> {
+        let query = self
+            .folder_select_columns(sql::Select::new())
+            .from("folders")
+            .left_join(
+                "account_device_folder device ON folders.folder_id = device.folder_id",
+            )
+            .where_clause("folders.account_id=?1")
+            .where_and("device.account_id=?1");
+
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
+        Ok(stmt
+            .query_row([account_id], |row| Ok(row.try_into()?))
+            .optional()?)
+    }
+
     /// List user folders for an account.
     ///
     /// Does not include the identity and device folders.

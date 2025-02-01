@@ -2,7 +2,7 @@ use crate::{Error, Result};
 use clap::Subcommand;
 use sos_cli_helpers::messages::{info, warn};
 use sos_core::Paths;
-use sos_database::importer::{upgrade_accounts, UpgradeOptions};
+use sos_database::upgrader::{upgrade_accounts, UpgradeOptions};
 use sos_vault::list_accounts;
 use std::path::PathBuf;
 
@@ -73,9 +73,15 @@ pub async fn run(cmd: Command) -> Result<()> {
                 info(format!("{} {}", account.account_id(), account.label()));
             }
 
+            let paths = if server {
+                Paths::new_global_server(&directory)
+            } else {
+                Paths::new_global(&directory)
+            };
+
             let options = UpgradeOptions {
                 dry_run: !apply_changes,
-                server,
+                paths,
                 keep_stale_files,
                 copy_file_blobs,
                 backup_directory,

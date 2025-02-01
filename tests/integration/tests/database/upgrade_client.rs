@@ -1,7 +1,8 @@
 use super::prepare_client_for_upgrade;
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
-use sos_database::importer::{upgrade_accounts, UpgradeOptions};
+use sos_core::Paths;
+use sos_database::upgrader::{upgrade_accounts, UpgradeOptions};
 
 /// Upgrade v1 accounts to the v2 backend for client-side storage.
 #[tokio::test]
@@ -14,6 +15,7 @@ async fn database_upgrade_client() -> Result<()> {
 
     // Upgrade the file system accounts into the db
     let options = UpgradeOptions {
+        paths: Paths::new_global(&dirs.test_dir),
         dry_run: false,
         ..Default::default()
     };

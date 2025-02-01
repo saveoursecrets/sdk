@@ -248,6 +248,40 @@ where
         self.insert_events(EventLogType::Files, account_id, events)
     }
 
+    /// Load event records for a folder.
+    pub fn load_events(
+        &self,
+        log_type: EventLogType,
+        account_id: i64,
+        folder_id: Option<i64>,
+    ) -> crate::Result<Vec<EventRecordRow>> {
+        let id = folder_id.unwrap_or(account_id);
+        let table: EventTable = log_type.into();
+        let query = sql::Select::new()
+            .select("event_id, created_at, commit_hash, event")
+            .from(table.as_str())
+            .where_clause(&format!("{}=?1", table.id_column()))
+            .order_by("event_id ASC");
+
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
+
+        fn convert_row(
+            row: &Row<'_>,
+        ) -> Result<EventRecordRow, crate::Error> {
+            Ok(row.try_into()?)
+        }
+
+        let rows = stmt.query_and_then([id], |row| {
+            Ok::<_, crate::Error>(convert_row(row)?)
+        })?;
+
+        let mut events = Vec::new();
+        for row in rows {
+            events.push(row?);
+        }
+        Ok(events)
+    }
+
     /// Load commits and identifiers for a folder.
     pub fn load_commits(
         &self,

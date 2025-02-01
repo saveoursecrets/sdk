@@ -88,8 +88,8 @@ pub(crate) async fn import_account(
     client: &mut Client,
     paths: &Paths,
     account: &PublicIdentity,
-    is_server: bool,
 ) -> Result<()> {
+    let is_server = paths.is_server();
     let account_name = account.label().to_owned();
     let account_row =
         AccountRow::new_insert(account.account_id(), account_name)?;

@@ -11,8 +11,6 @@ pub mod db;
 #[cfg(feature = "sqlite")]
 pub mod event_log;
 #[cfg(feature = "sqlite")]
-pub mod importer;
-#[cfg(feature = "sqlite")]
 pub mod migrations;
 #[cfg(all(feature = "sqlite", feature = "preferences"))]
 mod preferences;
@@ -21,6 +19,9 @@ mod system_messages;
 
 #[cfg(feature = "sqlite")]
 mod server_origins;
+
+#[cfg(feature = "sqlite")]
+pub mod upgrader;
 
 #[cfg(feature = "sqlite")]
 mod vault_writer;

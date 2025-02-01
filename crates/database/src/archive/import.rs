@@ -1,15 +1,34 @@
-use crate::db::{AccountEntity, AccountRecord};
-
 use super::{types::ManifestVersion3, zip::Reader, Error, Result};
+use crate::{
+    db::{
+        AccountEntity, AccountRecord, AccountRow, EventEntity,
+        EventRecordRow, FolderEntity, FolderRow, PreferenceEntity,
+        PreferenceRow, ServerEntity, ServerRow, SystemMessageEntity,
+        SystemMessageRow,
+    },
+    system_messages,
+};
 use async_sqlite::rusqlite::Connection;
 use sos_core::{
     constants::{BLOBS_DIR, DATABASE_FILE},
-    Paths,
+    events::EventLogType,
+    AccountId, ExternalFile, Paths,
 };
 use sos_vfs as vfs;
-use std::{io::Write, path::Path};
+use std::{collections::HashMap, io::Write, path::Path};
 use tempfile::NamedTempFile;
 use tokio::io::BufReader;
+
+/// Data source for an account import.
+struct ImportDataSource {
+    account_row: AccountRow,
+    login_folder: (FolderRow, Vec<EventRecordRow>),
+    device_folder: Option<(FolderRow, Vec<EventRecordRow>)>,
+    user_folders: Vec<(FolderRow, Vec<EventRecordRow>)>,
+    servers: Vec<ServerRow>,
+    account_preferences: Vec<PreferenceRow>,
+    system_messages: Vec<SystemMessageRow>,
+}
 
 /// Backup import.
 pub struct BackupImport<'conn> {
@@ -24,6 +43,8 @@ pub struct BackupImport<'conn> {
     // until this struct is dropped
     #[allow(dead_code)]
     db_temp: NamedTempFile,
+    blobs: HashMap<AccountId, Vec<ExternalFile>>,
+    zip_reader: Reader<BufReader<vfs::File>>,
 }
 
 impl<'conn> BackupImport<'conn> {
@@ -59,20 +80,154 @@ impl<'conn> BackupImport<'conn> {
     ///
     /// It is an error if the account already exists in
     /// the target database.
-    pub fn import_account(
-        &self,
-        source_account: &AccountRecord,
+    pub async fn import_account(
+        &mut self,
+        record: &AccountRecord,
     ) -> Result<()> {
-        let accounts = AccountEntity::new(&self.target_db);
-        let account =
-            accounts.find_optional(source_account.identity.account_id())?;
-        if account.is_some() {
-            return Err(Error::AccountAlreadyExists(
-                *source_account.identity.account_id(),
-            ));
+        // Check account exists in the source db
+        let account_row = {
+            let accounts = AccountEntity::new(&self.source_db);
+            let account =
+                accounts.find_optional(record.identity.account_id())?;
+
+            let Some(account_row) = account else {
+                return Err(Error::ImportSourceNotExists(
+                    *record.identity.account_id(),
+                ));
+            };
+
+            account_row
+        };
+
+        // Check account does not exist in target
+        {
+            let accounts = AccountEntity::new(&self.target_db);
+            let target_account =
+                accounts.find_optional(record.identity.account_id())?;
+
+            if target_account.is_some() {
+                return Err(Error::ImportTargetExists(
+                    *record.identity.account_id(),
+                ));
+            }
+        }
+
+        let account_paths =
+            self.paths.with_account_id(record.identity.account_id());
+
+        // Read data from the source db
+        let data_source = self.read_import_data_source(account_row)?;
+
+        // Write data to the target db
+        self.write_import_data_source(data_source)?;
+
+        // Extract blobs for this account
+        if let Some(files) = self.blobs.get(record.identity.account_id()) {
+            for file in files {
+                let entry_name = format!(
+                    "{}/{}/{}/{}/{}",
+                    BLOBS_DIR,
+                    record.identity.account_id(),
+                    file.vault_id(),
+                    file.secret_id(),
+                    file.file_name(),
+                );
+                let target = account_paths.blob_location(
+                    file.vault_id(),
+                    file.secret_id(),
+                    file.file_name().to_string(),
+                );
+                let blob_buffer =
+                    self.zip_reader.by_name(&entry_name).await?.unwrap();
+                vfs::write(&target, &blob_buffer).await?;
+            }
         }
 
         todo!();
+    }
+
+    /// Read import data into memory from the source db.
+    fn read_import_data_source(
+        &self,
+        account_row: AccountRow,
+    ) -> Result<ImportDataSource> {
+        let account_id = account_row.row_id;
+
+        let folder_entity = FolderEntity::new(&self.source_db);
+        let event_entity = EventEntity::new(&self.source_db);
+        let server_entity = ServerEntity::new(&self.source_db);
+        let preference_entity = PreferenceEntity::new(&self.source_db);
+        let system_messages_entity =
+            SystemMessageEntity::new(&self.source_db);
+
+        // Login folder
+        let login_folder = folder_entity.find_login_folder(account_id)?;
+        let login_events = event_entity.load_events(
+            EventLogType::Identity,
+            account_id,
+            Some(login_folder.row_id),
+        )?;
+
+        // Device folder
+        let device_folder = folder_entity.find_device_folder(account_id)?;
+        let device_folder = if let Some(device_folder) = device_folder {
+            let device_events = event_entity.load_events(
+                EventLogType::Identity,
+                account_id,
+                Some(device_folder.row_id),
+            )?;
+            Some((device_folder, device_events))
+        } else {
+            None
+        };
+
+        // User defined folders
+        let folders = folder_entity.list_user_folders(account_id)?;
+        let mut user_folders = Vec::new();
+        for user_folder in folders {
+            let folder_events = event_entity.load_events(
+                EventLogType::Identity,
+                account_id,
+                Some(user_folder.row_id),
+            )?;
+            user_folders.push((user_folder, folder_events));
+        }
+
+        // Servers, preferences and system messages
+        let servers = server_entity.load_servers(account_id)?;
+        let account_preferences =
+            preference_entity.load_preferences(Some(account_id))?;
+        let system_messages =
+            system_messages_entity.load_system_messages(account_id)?;
+
+        // Data source
+        let data_source = ImportDataSource {
+            account_row,
+            login_folder: (login_folder, login_events),
+            device_folder,
+            user_folders,
+            servers,
+            account_preferences,
+            system_messages,
+        };
+
+        Ok(data_source)
+    }
+
+    /// Write import data source into the target db using a transaction.
+    fn write_import_data_source(
+        &mut self,
+        data: ImportDataSource,
+    ) -> Result<()> {
+        let tx = self.target_db.transaction()?;
+
+        // Insert the account
+        let account_entity = AccountEntity::new(&tx);
+        let account_id = account_entity.insert(&data.account_row)?;
+
+        tx.commit()?;
+
+        Ok(())
     }
 }
 
@@ -99,6 +254,7 @@ pub(crate) async fn start<'conn>(
     let manifest = zip_reader.find_manifest().await?.ok_or_else(|| {
         Error::InvalidArchiveManifest(input.as_ref().to_owned())
     })?;
+    let blobs = zip_reader.find_blobs()?;
 
     // Extract the database and write to a temp file
     let db_buffer =
@@ -112,13 +268,14 @@ pub(crate) async fn start<'conn>(
     db_temp.as_file_mut().write_all(&db_buffer)?;
 
     let source_db = Connection::open(db_temp.path())?;
-
     let import = BackupImport {
         target_db,
         paths: paths.clone(),
         manifest,
         db_temp,
         source_db: Box::new(source_db),
+        blobs,
+        zip_reader,
     };
 
     Ok(import)

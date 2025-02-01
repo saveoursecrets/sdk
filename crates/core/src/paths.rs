@@ -1,6 +1,6 @@
 //! File system paths for application level folders
 //! and user-specific account folders.
-use crate::{constants::PREFERENCES_FILE, Result};
+use crate::{constants::PREFERENCES_FILE, AccountId, Result};
 
 #[cfg(not(target_arch = "wasm32"))]
 use etcetera::{
@@ -43,6 +43,9 @@ static DATA_DIR: Lazy<RwLock<Option<PathBuf>>> =
 /// for details.
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Paths {
+    /// Whether these paths are for server storage.
+    server: bool,
+
     /// User identifier.
     user_id: String,
     /// Top-level documents folder.
@@ -78,7 +81,7 @@ impl Paths {
         documents_dir: impl AsRef<Path>,
         user_id: impl AsRef<str>,
     ) -> Self {
-        Self::new_with_prefix(documents_dir, user_id, LOCAL_DIR)
+        Self::new_with_prefix(false, documents_dir, user_id, LOCAL_DIR)
     }
 
     /// Create new paths for a server.
@@ -86,7 +89,7 @@ impl Paths {
         documents_dir: impl AsRef<Path>,
         user_id: impl AsRef<str>,
     ) -> Self {
-        Self::new_with_prefix(documents_dir, user_id, REMOTE_DIR)
+        Self::new_with_prefix(true, documents_dir, user_id, REMOTE_DIR)
     }
 
     /// Create new paths for a client with an empty user identifier.
@@ -106,6 +109,7 @@ impl Paths {
     }
 
     fn new_with_prefix(
+        server: bool,
         documents_dir: impl AsRef<Path>,
         user_id: impl AsRef<str>,
         prefix: impl AsRef<Path>,
@@ -128,6 +132,7 @@ impl Paths {
         let database_file = documents_dir.join(DATABASE_FILE);
 
         Self {
+            server,
             user_id: user_id.as_ref().to_owned(),
             documents_dir,
             database_file,
@@ -142,6 +147,20 @@ impl Paths {
             vaults_dir,
             pending_dir,
             device_file,
+        }
+    }
+
+    /// Whether these paths are for server-side storage.
+    pub fn is_server(&self) -> bool {
+        self.server
+    }
+
+    /// Clone of paths with an account identifier.
+    pub fn with_account_id(&self, account_id: &AccountId) -> Self {
+        if self.server {
+            Self::new_server(&self.documents_dir, account_id.to_string())
+        } else {
+            Self::new(&self.documents_dir, account_id.to_string())
         }
     }
 
@@ -163,6 +182,18 @@ impl Paths {
             vfs::create_dir_all(&self.vaults_dir).await?;
             vfs::create_dir_all(&self.pending_dir).await?;
 
+            // Version 2 database backend needs a blobs folder
+            vfs::create_dir_all(self.blobs_dir.join(self.user_id())).await?;
+        }
+        Ok(())
+    }
+
+    /// Ensure the local storage directory exists for version 2
+    /// database storage.
+    pub async fn ensure_db(&self) -> Result<()> {
+        // Version 2 just needs the blobs directory
+        vfs::create_dir_all(&self.blobs_dir).await?;
+        if !self.is_global() {
             // Version 2 database backend needs a blobs folder
             vfs::create_dir_all(self.blobs_dir.join(self.user_id())).await?;
         }

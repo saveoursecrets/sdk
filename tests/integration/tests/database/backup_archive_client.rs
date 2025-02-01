@@ -5,7 +5,7 @@ use sos_core::Paths;
 use sos_database::{
     archive,
     async_sqlite::rusqlite::Connection,
-    importer::{upgrade_accounts, UpgradeOptions},
+    upgrader::{upgrade_accounts, UpgradeOptions},
 };
 
 /// Create a backup archive for client-side database storage.
@@ -22,6 +22,7 @@ async fn database_backup_archive_client() -> Result<()> {
 
     // Upgrade the file system accounts into the db
     let options = UpgradeOptions {
+        paths: Paths::new_global(&dirs.test_dir),
         dry_run: false,
         ..Default::default()
     };
