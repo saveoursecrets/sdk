@@ -11,7 +11,7 @@ mod identity_folder;
 mod private_identity;
 
 pub use identity::*;
-pub use identity_folder::{DiscIdentityFolder, IdentityFolder};
+pub use identity_folder::IdentityFolder;
 pub use private_identity::PrivateIdentity;
 
 // DO NOT USE - backwards compatible re-exports

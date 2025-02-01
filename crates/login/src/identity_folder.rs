@@ -33,9 +33,6 @@ use urn::Urn;
 /// Number of words to use when generating passphrases for vaults.
 const VAULT_PASSPHRASE_WORDS: usize = 12;
 
-/// Identity folder that reads and writes to disc.
-pub type DiscIdentityFolder = IdentityFolder;
-
 /// Identity vault stores the account signing key,
 /// asymmetric encryption key and delegated passwords.
 pub struct IdentityFolder {

@@ -2,7 +2,7 @@ use anyhow::Result;
 use sos_backend::AccessPoint;
 use sos_core::AccountId;
 use sos_core::{crypto::AccessKey, encode};
-use sos_login::DiscIdentityFolder;
+use sos_login::IdentityFolder;
 use sos_password::diceware::generate_passphrase;
 use sos_vault::{
     BuilderCredentials, SecretAccess, Vault, VaultBuilder, VaultFlags,
@@ -22,8 +22,7 @@ async fn identity_not_identity_vault() -> Result<()> {
     vfs::write(file.path(), &buffer).await?;
 
     let key: AccessKey = password.into();
-    let result =
-        DiscIdentityFolder::login(&account_id, file.path(), &key).await;
+    let result = IdentityFolder::login(&account_id, file.path(), &key).await;
 
     if let Err(sos_login::Error::NotIdentityFolder) = result {
         Ok(())
@@ -52,8 +51,7 @@ async fn no_identity_key() -> Result<()> {
     vfs::write(file.path(), &buffer).await?;
 
     let key: AccessKey = password.into();
-    let result =
-        DiscIdentityFolder::login(&account_id, file.path(), &key).await;
+    let result = IdentityFolder::login(&account_id, file.path(), &key).await;
 
     if let Err(sos_login::Error::NoIdentityKey) = result {
         Ok(())

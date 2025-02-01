@@ -6,8 +6,9 @@
 //!
 //! This enables user interfaces to protect both the signing
 //! key and folder passwords using a single primary password.
-use crate::device::DeviceManager;
-use crate::{DiscIdentityFolder, Error, PublicIdentity, Result};
+use crate::{
+    device::DeviceManager, Error, IdentityFolder, PublicIdentity, Result,
+};
 use secrecy::SecretString;
 use sos_core::{
     crypto::AccessKey, decode, events::Event, AccountId, Paths, SecretId,
@@ -46,7 +47,7 @@ pub type UrnLookup = HashMap<(VaultId, Urn), SecretId>;
 pub struct Identity {
     paths: Arc<Paths>,
     account: Option<PublicIdentity>,
-    identity: Option<DiscIdentityFolder>,
+    identity: Option<IdentityFolder>,
 }
 
 impl Identity {
@@ -114,12 +115,12 @@ impl Identity {
     }
 
     /// Private identity.
-    pub fn identity(&self) -> Result<&DiscIdentityFolder> {
+    pub fn identity(&self) -> Result<&IdentityFolder> {
         self.identity.as_ref().ok_or(Error::NotAuthenticated)
     }
 
     #[doc(hidden)]
-    pub fn identity_mut(&mut self) -> Result<&mut DiscIdentityFolder> {
+    pub fn identity_mut(&mut self) -> Result<&mut IdentityFolder> {
         self.identity.as_mut().ok_or(Error::NotAuthenticated)
     }
 
@@ -216,7 +217,7 @@ impl Identity {
         key: &AccessKey,
     ) -> Result<()> {
         self.identity =
-            Some(DiscIdentityFolder::login(account_id, file, key).await?);
+            Some(IdentityFolder::login(account_id, file, key).await?);
 
         // Lazily create or retrieve a device specific signing key
         {
