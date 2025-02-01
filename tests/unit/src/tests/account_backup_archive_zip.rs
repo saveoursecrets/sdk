@@ -11,7 +11,7 @@ async fn archive_buffer_async() -> Result<()> {
 
     Paths::scaffold(Some(dir.path().to_owned())).await?;
 
-    let identity_vault = IdentityFolder::new(
+    let identity_vault = IdentityFolder::new_fs(
         "Mock".to_string(),
         "mock-password".to_string().into(),
         Some(dir.path().to_owned()),

@@ -19,7 +19,7 @@ async fn sign_in_identity_login() -> Result<()> {
     Paths::new_global(data_dir.clone());
 
     let path = data_dir.join("login.vault");
-    let identity_vault = IdentityFolder::new(
+    let identity_vault = IdentityFolder::new_fs(
         account_name,
         password.clone(),
         Some(data_dir.clone()),

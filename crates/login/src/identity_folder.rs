@@ -498,10 +498,9 @@ impl From<IdentityFolder> for Vault {
 impl IdentityFolder {
     /// Create a new identity folder with a primary password.
     ///
-    /// Generates a new random single party signing key and
-    /// a public identity key for asymmetric encryption and
-    /// stores them in the identity vault.
-    pub async fn new(
+    /// Generates a public identity key for asymmetric encryption and
+    /// stores it in the login vault.
+    pub async fn new_fs(
         name: String,
         password: SecretString,
         data_dir: Option<PathBuf>,

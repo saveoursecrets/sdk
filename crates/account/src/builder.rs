@@ -13,7 +13,7 @@ use sos_core::{
 use sos_sdk::identity::{FolderKeys, Identity, IdentityFolder};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    BuilderCredentials, AccessPoint, SecretAccess, Vault, VaultBuilder,
+    AccessPoint, BuilderCredentials, SecretAccess, Vault, VaultBuilder,
 };
 use std::{collections::HashMap, path::PathBuf};
 
@@ -177,7 +177,7 @@ impl AccountBuilder {
         Paths::scaffold(data_dir.clone()).await?;
 
         // Prepare the identity folder
-        let identity_folder = IdentityFolder::new(
+        let identity_folder = IdentityFolder::new_fs(
             account_name.clone(),
             passphrase.clone(),
             data_dir.clone(),
