@@ -200,7 +200,7 @@ impl AccountBuilder {
 
         let mut user = Identity::new(paths.clone());
         let key: AccessKey = passphrase.clone().into();
-        user.login(&account_id, paths.identity_vault(), &key)
+        user.login_fs(&account_id, paths.identity_vault(), &key)
             .await?;
 
         // Prepare the passphrase for the default vault

@@ -1807,7 +1807,7 @@ impl Account for LocalAccount {
         // Login again so in-memory data is up to date
         let identity_vault_path = self.paths().identity_vault();
         self.user_mut()?
-            .login(&account_id, &identity_vault_path, &account_key)
+            .login_fs(&account_id, &identity_vault_path, &account_key)
             .await?;
 
         Ok(conversion)
@@ -1853,7 +1853,7 @@ impl Account for LocalAccount {
         // Login again so in-memory data is up to date
         let identity_vault_path = self.paths().identity_vault();
         self.user_mut()?
-            .login(&account_id, &identity_vault_path, &account_key)
+            .login_fs(&account_id, &identity_vault_path, &account_key)
             .await?;
 
         Ok(())

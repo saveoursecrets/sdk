@@ -588,8 +588,8 @@ impl IdentityFolder {
         })
     }
 
-    /// Login to an identity vault.
-    pub async fn login(
+    /// Login to an identity folder.
+    pub async fn login_fs(
         account_id: &AccountId,
         path: impl AsRef<Path>,
         key: &AccessKey,

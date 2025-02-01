@@ -209,15 +209,15 @@ impl Identity {
         self.identity()?.find_file_encryption_password().await
     }
 
-    /// Login to an identity vault.
-    pub async fn login<P: AsRef<Path>>(
+    /// Login to an identity folder on disc.
+    pub async fn login_fs<P: AsRef<Path>>(
         &mut self,
         account_id: &AccountId,
         file: P,
         key: &AccessKey,
     ) -> Result<()> {
         self.identity =
-            Some(IdentityFolder::login(account_id, file, key).await?);
+            Some(IdentityFolder::login_fs(account_id, file, key).await?);
 
         // Lazily create or retrieve a device specific signing key
         {
@@ -244,7 +244,7 @@ impl Identity {
 
         tracing::debug!(identity_path = ?identity_path);
 
-        self.login(account_id, identity_path, key).await?;
+        self.login_fs(account_id, identity_path, key).await?;
 
         tracing::debug!("identity verified");
 
