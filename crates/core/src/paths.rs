@@ -195,7 +195,7 @@ impl Paths {
         vfs::create_dir_all(&self.blobs_dir).await?;
         if !self.is_global() {
             // Version 2 database backend needs a blobs folder
-            vfs::create_dir_all(self.blobs_dir.join(self.user_id())).await?;
+            vfs::create_dir_all(self.blobs_account_dir()).await?;
         }
         Ok(())
     }
@@ -228,14 +228,7 @@ impl Paths {
     }
 
     /// External file blobs directory.
-    ///
-    /// # Panics
-    ///
-    /// If this set of paths are global (no user identifier).
     pub fn blobs_dir(&self) -> &PathBuf {
-        if self.is_global() {
-            panic!("blobs directory is not accessible for global paths");
-        }
         &self.blobs_dir
     }
 
@@ -246,6 +239,11 @@ impl Paths {
     ///
     /// If this set of paths are global (no user identifier).
     pub fn blobs_account_dir(&self) -> PathBuf {
+        if self.is_global() {
+            panic!(
+                "blobs account directory is not accessible for global paths"
+            );
+        }
         self.blobs_dir().join(self.user_id())
     }
 

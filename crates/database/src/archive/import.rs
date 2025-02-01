@@ -69,8 +69,13 @@ impl<'conn> BackupImport<'conn> {
     }
 
     /// Run migrations on the temporary source database.
-    pub fn migrate(&mut self) -> Result<refinery::Report> {
+    pub fn migrate_source(&mut self) -> Result<refinery::Report> {
         Ok(crate::migrations::migrate_connection(&mut self.source_db)?)
+    }
+
+    /// Run migrations on the target database.
+    pub fn migrate_target(&mut self) -> Result<refinery::Report> {
+        Ok(crate::migrations::migrate_connection(self.target_db)?)
     }
 
     /// Try to import an account from the source to the
@@ -137,6 +142,10 @@ impl<'conn> BackupImport<'conn> {
                 );
                 let blob_buffer =
                     self.zip_reader.by_name(&entry_name).await?.unwrap();
+
+                if let Some(parent) = target.parent() {
+                    vfs::create_dir_all(parent).await?;
+                }
                 vfs::write(&target, &blob_buffer).await?;
             }
         }
@@ -314,6 +323,7 @@ pub(crate) async fn start<'conn>(
     let manifest = zip_reader.find_manifest().await?.ok_or_else(|| {
         Error::InvalidArchiveManifest(input.as_ref().to_owned())
     })?;
+
     let blobs = zip_reader.find_blobs()?;
 
     // Extract the database and write to a temp file

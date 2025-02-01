@@ -49,6 +49,7 @@ impl<'a> TryFrom<&Row<'a>> for AccountRow {
 }
 
 /// Account record from the database.
+#[derive(Debug)]
 pub struct AccountRecord {
     /// Row identifier.
     pub row_id: i64,
