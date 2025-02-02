@@ -1,5 +1,6 @@
 mod access_point;
 mod account_backup_archive_zip;
+mod account_builder;
 mod artifact_releases;
 mod audit_provider;
 mod clipboard;

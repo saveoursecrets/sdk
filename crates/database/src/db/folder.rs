@@ -162,6 +162,14 @@ impl FolderRecord {
             summary,
         })
     }
+
+    /// Convert a folder record into a vault.
+    pub fn into_vault(self) -> Result<Vault> {
+        let mut vault: Vault = self.summary.clone().into();
+        vault.header_mut().set_meta(self.meta);
+        vault.header_mut().set_salt(self.salt);
+        Ok(vault)
+    }
 }
 
 /// Secret row from the database.

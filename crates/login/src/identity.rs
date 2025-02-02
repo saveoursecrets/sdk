@@ -53,6 +53,7 @@ pub struct Identity {
 
 impl Identity {
     /// List account information for the identity vaults.
+    #[deprecated(note = "Use list_accounts() from sos_vault instead")]
     pub async fn list_accounts(
         paths: Option<&Paths>,
     ) -> Result<Vec<PublicIdentity>> {
@@ -68,6 +69,7 @@ impl Identity {
 
     /// List the folders in an account by inspecting
     /// the vault files in the vaults directory.
+    #[deprecated(note = "Use list_local_folders() from sos_vault instead")]
     pub async fn list_local_folders(
         paths: &Paths,
     ) -> Result<Vec<(Summary, PathBuf)>> {
@@ -221,10 +223,8 @@ impl Identity {
             Some(IdentityFolder::login_fs(account_id, key, file).await?);
 
         // Lazily create or retrieve a device specific signing key
-        {
-            let identity = self.identity.as_mut().unwrap();
-            identity.ensure_device_vault_fs(&self.paths).await?;
-        }
+        let identity = self.identity.as_mut().unwrap();
+        identity.ensure_device_vault_fs(&self.paths).await?;
 
         Ok(())
     }
@@ -240,10 +240,8 @@ impl Identity {
             Some(IdentityFolder::login_db(account_id, key, client).await?);
 
         // Lazily create or retrieve a device specific signing key
-        {
-            let identity = self.identity.as_mut().unwrap();
-            identity.ensure_device_vault_db(client).await?;
-        }
+        let identity = self.identity.as_mut().unwrap();
+        identity.ensure_device_vault_db(client).await?;
 
         Ok(())
     }

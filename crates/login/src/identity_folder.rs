@@ -13,7 +13,9 @@ use sos_backend::database::db::FolderRecord;
 use sos_backend::{
     database::{
         async_sqlite::Client,
-        db::{AccountEntity, AccountRow, FolderEntity, FolderRow},
+        db::{
+            AccountEntity, AccountRow, FolderEntity, FolderRow, SecretRecord,
+        },
     },
     write_exclusive, AccessPoint, Folder, FolderEventLog,
 };
@@ -123,16 +125,15 @@ impl IdentityFolder {
         };
 
         let device_manager = if let Some(vault) = device_vault {
-            self.read_device_vault_fs(paths, vault).await
+            let folder_id = *vault.id();
+            let device_keeper =
+                AccessPoint::new_fs(vault, paths.device_file());
+            self.read_device_manager(&folder_id, device_keeper).await?
         } else {
-            self.create_device_vault_fs(
-                paths,
-                DeviceSigner::new_random(),
-                true,
-            )
-            .await
+            self.new_device_manager_fs(DeviceSigner::new_random(), paths)
+                .await?
         };
-        self.devices = Some(device_manager?);
+        self.devices = Some(device_manager);
         Ok(())
     }
 
@@ -140,30 +141,107 @@ impl IdentityFolder {
         &mut self,
         client: &Client,
     ) -> Result<()> {
-        /*
-        let device_vault = if vfs::try_exists(paths.device_file()).await? {
-            let buffer = vfs::read(paths.device_file()).await?;
-            let vault: Vault = decode(&buffer).await?;
-            Some(vault)
-        } else {
-            None
-        };
+        let account_id = *self.private_identity.account_id();
+        let device_folder = client
+            .conn_and_then(move |conn| {
+                let account = AccountEntity::new(&conn);
+                let folder = FolderEntity::new(&conn);
+                let account_row = account.find_one(&account_id)?;
+                let device_folder =
+                    folder.find_device_folder(account_row.row_id)?;
+                let secrets = if let Some(device_folder) = &device_folder {
+                    Some(folder.load_secrets(device_folder.row_id)?)
+                } else {
+                    None
+                };
+                Ok::<_, sos_backend::database::Error>(
+                    device_folder.zip(secrets),
+                )
+            })
+            .await?;
 
-        let device_manager = if let Some(vault) = device_vault {
-            self.read_device_vault_fs(paths, vault).await
+        let device_manager = if let Some((folder, secret_rows)) =
+            device_folder
+        {
+            let record = FolderRecord::from_row(folder).await?;
+            let mut vault = record.into_vault()?;
+            for row in secret_rows {
+                let record = SecretRecord::from_row(row).await?;
+                let SecretRecord {
+                    secret_id, commit, ..
+                } = record;
+                vault.insert_entry(secret_id, commit);
+            }
+
+            let folder_id = *vault.id();
+            let device_keeper =
+                AccessPoint::new_db(vault, client.clone(), folder_id).await;
+            self.read_device_manager(&folder_id, device_keeper).await?
         } else {
-            self.create_device_vault_fs(
-                paths,
-                DeviceSigner::new_random(),
-                true,
-            )
-            .await
+            self.new_device_manager_db(DeviceSigner::new_random(), client)
+                .await?
         };
-        self.devices = Some(device_manager?);
+        self.devices = Some(device_manager);
         Ok(())
-        */
+    }
 
-        todo!();
+    /// Create a new file system device manager.
+    pub async fn new_device_manager_fs(
+        &mut self,
+        signer: DeviceSigner,
+        paths: &Paths,
+    ) -> Result<DeviceManager> {
+        let (device_password, device_vault) =
+            self.create_device_vault().await?;
+        let folder_id = *device_vault.id();
+        let buffer = encode(&device_vault).await?;
+        write_exclusive(paths.device_file(), &buffer).await?;
+
+        let device_keeper =
+            AccessPoint::new_fs(device_vault, paths.device_file());
+
+        self.create_device_manager(
+            signer,
+            &folder_id,
+            device_password,
+            device_keeper,
+        )
+        .await
+    }
+
+    /// Create a new database device manager.
+    pub async fn new_device_manager_db(
+        &mut self,
+        signer: DeviceSigner,
+        client: &Client,
+    ) -> Result<DeviceManager> {
+        let (device_password, device_vault) =
+            self.create_device_vault().await?;
+        let folder_id = *device_vault.id();
+
+        let account_id = *self.private_identity.account_id();
+        let folder_row = FolderRow::new_insert(&device_vault).await?;
+        client
+            .conn(move |conn| {
+                let account = AccountEntity::new(&conn);
+                let folder = FolderEntity::new(&conn);
+                let account_row = account.find_one(&account_id)?;
+                folder.insert_folder(account_row.row_id, &folder_row)
+            })
+            .await
+            .map_err(sos_backend::database::Error::from)?;
+
+        let device_keeper =
+            AccessPoint::new_db(device_vault, client.clone(), folder_id)
+                .await;
+
+        self.create_device_manager(
+            signer,
+            &folder_id,
+            device_password,
+            device_keeper,
+        )
+        .await
     }
 
     fn device_urn(&self) -> Result<Urn> {
@@ -171,24 +249,22 @@ impl IdentityFolder {
         Ok(DEVICE_KEY_URN.parse()?)
     }
 
-    async fn read_device_vault_fs(
+    async fn read_device_manager(
         &mut self,
-        paths: &Paths,
-        vault: Vault,
+        folder_id: &VaultId,
+        mut device_keeper: AccessPoint,
     ) -> Result<DeviceManager> {
         let device_key_urn = self.device_urn()?;
-        let device_vault_path = paths.device_file().to_owned();
 
-        tracing::debug!(urn = %device_key_urn, "read_device_vault::filesystem");
+        tracing::debug!(
+            urn = %device_key_urn,
+            "read_device_vault");
 
-        let summary = vault.summary().clone();
         let device_password = self
-            .find_folder_password(summary.id())
+            .find_folder_password(folder_id)
             .await?
-            .ok_or(Error::NoFolderPassword(*summary.id()))?;
+            .ok_or(Error::NoFolderPassword(*folder_id))?;
 
-        let mut device_keeper =
-            AccessPoint::new_fs(vault, &device_vault_path);
         let key: AccessKey = device_password.into();
         device_keeper.unlock(&key).await?;
 
@@ -221,16 +297,9 @@ impl IdentityFolder {
         }
     }
 
-    #[doc(hidden)]
-    pub async fn create_device_vault_fs(
-        &mut self,
-        paths: &Paths,
-        signer: DeviceSigner,
-        mirror: bool,
-    ) -> Result<DeviceManager> {
-        let device_vault_path = paths.device_file().to_owned();
+    async fn create_device_vault(&self) -> Result<(SecretString, Vault)> {
         // Prepare the password for the device vault
-        let device_password = self.generate_folder_password()?;
+        let password = self.generate_folder_password()?;
 
         // Prepare the device vault
         let vault = VaultBuilder::new()
@@ -239,26 +308,31 @@ impl IdentityFolder {
                 VaultFlags::SYSTEM | VaultFlags::DEVICE | VaultFlags::NO_SYNC,
             )
             .build(BuilderCredentials::Password(
-                device_password.clone().into(),
+                password.clone().into(),
                 None,
             ))
             .await?;
 
+        Ok((password, vault))
+    }
+
+    async fn create_device_manager(
+        &mut self,
+        signer: DeviceSigner,
+        folder_id: &VaultId,
+        device_password: SecretString,
+        mut device_keeper: AccessPoint,
+    ) -> Result<DeviceManager> {
         let device_key_urn = self.device_urn()?;
 
-        tracing::debug!(urn = %device_key_urn, mirror = %mirror, "create_device_vault");
+        tracing::debug!(
+            urn = %device_key_urn,
+            "create_device_manager");
 
-        self.save_folder_password(vault.id(), device_password.clone().into())
+        self.save_folder_password(folder_id, device_password.clone().into())
             .await?;
 
         let key: AccessKey = device_password.into();
-        let mut device_keeper = if mirror {
-            let buffer = encode(&vault).await?;
-            write_exclusive(&device_vault_path, &buffer).await?;
-            AccessPoint::new_fs(vault, &device_vault_path)
-        } else {
-            AccessPoint::new_vault(vault)
-        };
         device_keeper.unlock(&key).await?;
 
         let secret = Secret::Signer {
@@ -296,7 +370,11 @@ impl IdentityFolder {
         key: AccessKey,
     ) -> Result<()> {
         let urn = Vault::vault_urn(vault_id)?;
-        tracing::debug!(folder = %vault_id, urn = %urn, "save_folder_password");
+        tracing::debug!(
+            folder = %vault_id,
+            urn = %urn,
+            "save_folder_password",
+        );
 
         let secret = match key {
             AccessKey::Password(vault_passphrase) => Secret::Password {
@@ -526,15 +604,7 @@ impl IdentityFolder {
     pub fn folder_id(&self) -> &VaultId {
         self.folder.id()
     }
-}
 
-impl From<IdentityFolder> for Vault {
-    fn from(value: IdentityFolder) -> Self {
-        value.folder.into()
-    }
-}
-
-impl IdentityFolder {
     /// Create an identity vault.
     async fn create_identity_vault(
         name: String,
@@ -640,12 +710,17 @@ impl IdentityFolder {
         let folder_row = FolderRow::new_insert(&vault).await?;
         client
             .conn_mut(move |conn| {
-                let account = AccountEntity::new(&conn);
+                let tx = conn.transaction()?;
+                let account = AccountEntity::new(&tx);
+                let folder = FolderEntity::new(&tx);
+
                 let account_id = account.insert(&account_row)?;
-                let folder = FolderEntity::new(&conn);
                 let folder_id =
                     folder.insert_folder(account_id, &folder_row)?;
-                account.insert_login_folder(account_id, folder_id)
+                account.insert_login_folder(account_id, folder_id)?;
+
+                tx.commit()?;
+                Ok(())
             })
             .await
             .map_err(sos_backend::database::Error::from)?;
@@ -746,5 +821,11 @@ impl IdentityFolder {
             private_identity,
             devices: None,
         })
+    }
+}
+
+impl From<IdentityFolder> for Vault {
+    fn from(value: IdentityFolder) -> Self {
+        value.folder.into()
     }
 }

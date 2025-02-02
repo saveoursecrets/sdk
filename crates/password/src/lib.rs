@@ -11,6 +11,15 @@ pub use memorable::memorable_password;
 
 pub use zxcvbn;
 
+use secrecy::SecretString;
+
+/// Standard memorable password generation.
+///
+/// Uses three words.
+pub fn memorable() -> SecretString {
+    SecretString::new(memorable_password(3).into())
+}
+
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 

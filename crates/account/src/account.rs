@@ -1657,13 +1657,18 @@ impl Account for LocalAccount {
     async fn new_device_vault(
         &mut self,
     ) -> Result<(DeviceSigner, DeviceManager)> {
-        let paths = Arc::clone(&self.paths);
+        let paths = self.paths();
         let signer = DeviceSigner::new_random();
-        let manager = self
-            .user_mut()?
-            .identity_mut()?
-            .create_device_vault_fs(&*paths, signer.clone(), false)
-            .await?;
+
+        let manager = if paths.is_using_db() {
+            todo!("handle new_device_vault when db");
+        } else {
+            self.user_mut()?
+                .identity_mut()?
+                .new_device_manager_fs(signer.clone(), &*paths)
+                .await?
+        };
+
         Ok((signer, manager))
     }
 
