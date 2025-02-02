@@ -1531,10 +1531,16 @@ impl LocalAccount {
             "new_account",
         );
 
+        let paths = if let Some(data_dir) = &data_dir {
+            Paths::new_global(data_dir)
+        } else {
+            Paths::new_global(Paths::data_dir()?)
+        };
+
         let account_builder = builder(AccountBuilder::new(
             account_name,
             passphrase.clone(),
-            data_dir.clone(),
+            BackendTarget::FileSystem(paths),
         ));
         let new_account = account_builder.finish().await?;
 
@@ -1548,7 +1554,7 @@ impl LocalAccount {
 
         let mut storage = ClientStorage::new_authenticated(
             account_id,
-            data_dir.clone(),
+            data_dir,
             identity_log,
             new_account.user.identity()?.devices()?.current_device(None),
         )

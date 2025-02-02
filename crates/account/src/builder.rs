@@ -17,12 +17,10 @@ use sos_vault::{
     AccessPoint, BuilderCredentials, SecretAccess, Summary, Vault,
     VaultBuilder,
 };
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
 /// Private information about a new account.
 pub struct PrivateNewAccount {
-    /// Directory for the new account.
-    pub data_dir: Option<PathBuf>,
     /// Account identifier.
     pub account_id: AccountId,
     /// User identity.
@@ -63,7 +61,8 @@ impl From<PrivateNewAccount> for AccountPack {
 
 /// Create the data for a new account.
 pub struct AccountBuilder {
-    data_dir: Option<PathBuf>,
+    target: BackendTarget,
+    // data_dir: Option<PathBuf>,
     account_name: String,
     passphrase: SecretString,
     save_passphrase: bool,
@@ -75,7 +74,6 @@ pub struct AccountBuilder {
     archive_folder_name: Option<String>,
     authenticator_folder_name: Option<String>,
     contacts_folder_name: Option<String>,
-    database: Option<Client>,
 }
 
 impl AccountBuilder {
@@ -83,10 +81,10 @@ impl AccountBuilder {
     pub fn new(
         account_name: String,
         passphrase: SecretString,
-        data_dir: Option<PathBuf>,
+        target: BackendTarget,
     ) -> Self {
         Self {
-            data_dir,
+            target,
             account_name,
             passphrase,
             save_passphrase: false,
@@ -98,15 +96,7 @@ impl AccountBuilder {
             archive_folder_name: None,
             authenticator_folder_name: None,
             contacts_folder_name: None,
-            database: None,
         }
-    }
-
-    /// Set the database client for version 2 database
-    /// accounts.
-    pub fn with_database(mut self, client: Client) -> Self {
-        self.database = Some(client);
-        self
     }
 
     /// Enable saving the master passphrase in the default folder.
@@ -307,34 +297,29 @@ impl AccountBuilder {
 
     /// Create a new identity vault and account folders for the
     /// file system backend.
-    async fn build_fs(mut self) -> Result<PrivateNewAccount> {
+    async fn build_fs(mut self, paths: Paths) -> Result<PrivateNewAccount> {
         let AccountBuilder {
             #[cfg(feature = "files")]
             create_file_password,
             ..
         } = self;
 
-        Paths::scaffold(self.data_dir.clone()).await?;
+        Paths::scaffold(Some(paths.documents_dir().to_owned())).await?;
 
         // Prepare the identity folder
         let identity_folder = IdentityFolder::new_fs(
             self.account_name.clone(),
             self.passphrase.clone(),
-            self.data_dir.clone(),
+            Some(paths.documents_dir().clone()),
         )
         .await?;
+
+        // Needs to be account paths now
+        let paths = paths.with_account_id(identity_folder.account_id());
 
         let account_id = *identity_folder.account_id();
 
         let mut folder_keys = HashMap::new();
-
-        // Authenticate on the newly created identity vault so we
-        // can save delegated passwords
-        let paths = if let Some(data_dir) = &self.data_dir {
-            Paths::new(data_dir, account_id.to_string())
-        } else {
-            Paths::new(Paths::data_dir()?, account_id.to_string())
-        };
 
         paths.ensure().await?;
 
@@ -360,7 +345,6 @@ impl AccountBuilder {
             self.build_contacts(&mut user, &mut folder_keys).await?;
 
         Ok(PrivateNewAccount {
-            data_dir: self.data_dir,
             account_id,
             user,
             identity_vault: identity_folder.into(),
@@ -372,16 +356,12 @@ impl AccountBuilder {
         })
     }
 
-    async fn build_db(mut self) -> Result<PrivateNewAccount> {
-        let client = self.database.take().ok_or_else(|| Error::NoDatabase)?;
-
+    async fn build_db(mut self, client: Client) -> Result<PrivateNewAccount> {
         let AccountBuilder {
             #[cfg(feature = "files")]
             create_file_password,
             ..
         } = self;
-
-        Paths::scaffold_db(self.data_dir.clone()).await?;
 
         // Prepare the identity folder
         let identity_folder = IdentityFolder::new_db(
@@ -395,17 +375,7 @@ impl AccountBuilder {
 
         let mut folder_keys = HashMap::new();
 
-        // Authenticate on the newly created identity vault so we
-        // can save delegated passwords
-        let paths = if let Some(data_dir) = &self.data_dir {
-            Paths::new(data_dir, account_id.to_string())
-        } else {
-            Paths::new(Paths::data_dir()?, account_id.to_string())
-        };
-
-        paths.ensure_db().await?;
-
-        let mut user = Identity::new(BackendTarget::Database(client));
+        let mut user = Identity::new(self.target.clone());
         let key: AccessKey = self.passphrase.clone().into();
         user.login(&account_id, &key).await?;
 
@@ -426,7 +396,6 @@ impl AccountBuilder {
             self.build_contacts(&mut user, &mut folder_keys).await?;
 
         Ok(PrivateNewAccount {
-            data_dir: self.data_dir,
             account_id,
             user,
             identity_vault: identity_folder.into(),
@@ -440,16 +409,10 @@ impl AccountBuilder {
 
     /// Create a new account and write the identity vault to disc.
     pub async fn finish(self) -> Result<PrivateNewAccount> {
-        let paths = if let Some(data_dir) = &self.data_dir {
-            Paths::new_global(data_dir)
-        } else {
-            Paths::new_global(Paths::data_dir()?)
-        };
-
-        if paths.is_using_db() {
-            self.build_db().await
-        } else {
-            self.build_fs().await
+        let backend = self.target.clone();
+        match backend {
+            BackendTarget::FileSystem(paths) => self.build_fs(paths).await,
+            BackendTarget::Database(client) => self.build_db(client).await,
         }
     }
 }

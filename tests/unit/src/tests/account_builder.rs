@@ -20,23 +20,20 @@ async fn account_builder_fs() -> Result<()> {
     let account_name = "fs-account".to_owned();
     let password = memorable();
 
-    let new_account = AccountBuilder::new(
-        account_name,
-        password.clone(),
-        Some(dirs.test_dir.clone()),
-    )
-    .create_archive(true)
-    .create_authenticator(true)
-    .create_contacts(true)
-    .create_file_password(true)
-    .finish()
-    .await?;
+    let target = BackendTarget::FileSystem(paths.clone());
+    let new_account =
+        AccountBuilder::new(account_name, password.clone(), target.clone())
+            .create_archive(true)
+            .create_authenticator(true)
+            .create_contacts(true)
+            .create_file_password(true)
+            .finish()
+            .await?;
 
     let account_id = new_account.account_id;
+    let paths = paths.with_account_id(&account_id);
 
-    let account_paths = paths.with_account_id(&new_account.account_id);
-    let mut identity =
-        Identity::new(BackendTarget::FileSystem(account_paths));
+    let mut identity = Identity::new(BackendTarget::FileSystem(paths));
     let access_key: AccessKey = password.into();
     identity
         .sign_in(&new_account.account_id, &access_key)
@@ -69,20 +66,17 @@ async fn account_builder_db() -> Result<()> {
     let account_name = "db-account".to_owned();
     let password = memorable();
 
-    let new_account = AccountBuilder::new(
-        account_name,
-        password.clone(),
-        Some(dirs.test_dir.clone()),
-    )
-    .create_archive(true)
-    .create_authenticator(true)
-    .create_contacts(true)
-    .create_file_password(true)
-    .with_database(client.clone())
-    .finish()
-    .await?;
+    let target = BackendTarget::Database(client.clone());
+    let new_account =
+        AccountBuilder::new(account_name, password.clone(), target.clone())
+            .create_archive(true)
+            .create_authenticator(true)
+            .create_contacts(true)
+            .create_file_password(true)
+            .finish()
+            .await?;
 
-    let mut identity = Identity::new(BackendTarget::Database(client));
+    let mut identity = Identity::new(target);
     let access_key: AccessKey = password.into();
     identity
         .sign_in(&new_account.account_id, &access_key)
