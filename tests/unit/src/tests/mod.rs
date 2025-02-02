@@ -10,7 +10,6 @@ mod event_log;
 mod file_blob;
 mod folder;
 mod identity;
-mod integrity;
 mod keychain;
 mod migrate;
 mod pairing_share_url;

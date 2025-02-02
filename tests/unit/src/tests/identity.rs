@@ -23,7 +23,7 @@ async fn identity_not_identity_vault() -> Result<()> {
 
     let key: AccessKey = password.into();
     let result =
-        IdentityFolder::login_fs(&account_id, file.path(), &key).await;
+        IdentityFolder::login_fs(&account_id, &key, file.path()).await;
 
     if let Err(sos_login::Error::NotIdentityFolder) = result {
         Ok(())
@@ -53,7 +53,7 @@ async fn no_identity_key() -> Result<()> {
 
     let key: AccessKey = password.into();
     let result =
-        IdentityFolder::login_fs(&account_id, file.path(), &key).await;
+        IdentityFolder::login_fs(&account_id, &key, file.path()).await;
 
     if let Err(sos_login::Error::NoIdentityKey) = result {
         Ok(())

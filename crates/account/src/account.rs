@@ -1662,7 +1662,7 @@ impl Account for LocalAccount {
         let manager = self
             .user_mut()?
             .identity_mut()?
-            .create_device_vault(&*paths, signer.clone(), false)
+            .create_device_vault_fs(&*paths, signer.clone(), false)
             .await?;
         Ok((signer, manager))
     }
@@ -1807,7 +1807,7 @@ impl Account for LocalAccount {
         // Login again so in-memory data is up to date
         let identity_vault_path = self.paths().identity_vault();
         self.user_mut()?
-            .login_fs(&account_id, &identity_vault_path, &account_key)
+            .login_fs(&account_id, &account_key, &identity_vault_path)
             .await?;
 
         Ok(conversion)
@@ -1853,7 +1853,7 @@ impl Account for LocalAccount {
         // Login again so in-memory data is up to date
         let identity_vault_path = self.paths().identity_vault();
         self.user_mut()?
-            .login_fs(&account_id, &identity_vault_path, &account_key)
+            .login_fs(&account_id, &account_key, &identity_vault_path)
             .await?;
 
         Ok(())

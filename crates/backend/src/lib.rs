@@ -17,6 +17,7 @@ mod system_messages;
 mod vault_writer;
 
 pub use error::{Error, StorageError};
+pub use sos_database as database;
 pub use sos_filesystem::write_exclusive;
 pub use sos_reducers as reducers;
 

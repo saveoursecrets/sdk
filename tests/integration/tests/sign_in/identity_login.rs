@@ -37,7 +37,7 @@ async fn sign_in_identity_login() -> Result<()> {
     let mut identity = Identity::new(paths);
 
     let key: AccessKey = password.into();
-    identity.login_fs(&account_id, &path, &key).await?;
+    identity.login_fs(&account_id, &key, &path).await?;
 
     let folder = VaultId::new_v4();
     let access_key: AccessKey = identity.generate_folder_password()?.into();
@@ -52,7 +52,7 @@ async fn sign_in_identity_login() -> Result<()> {
 
     // Login again and check the secure access keys
     // are loaded at login
-    identity.login_fs(&account_id, &path, &key).await?;
+    identity.login_fs(&account_id, &key, &path).await?;
 
     // Remove the folder password
     identity.remove_folder_password(&folder).await?;

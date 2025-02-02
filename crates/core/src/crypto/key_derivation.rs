@@ -54,6 +54,7 @@ impl KeyDerivation {
     }
 
     /// Generate new random seed entropy.
+    #[deprecated]
     pub fn generate_seed() -> Seed {
         csprng().gen()
     }

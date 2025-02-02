@@ -10,6 +10,7 @@ use crate::{
     device::DeviceManager, Error, IdentityFolder, PublicIdentity, Result,
 };
 use secrecy::SecretString;
+use sos_backend::database::async_sqlite::Client;
 use sos_core::{
     crypto::AccessKey, decode, events::Event, AccountId, Paths, SecretId,
     VaultId,
@@ -213,16 +214,35 @@ impl Identity {
     pub async fn login_fs<P: AsRef<Path>>(
         &mut self,
         account_id: &AccountId,
-        file: P,
         key: &AccessKey,
+        file: P,
     ) -> Result<()> {
         self.identity =
-            Some(IdentityFolder::login_fs(account_id, file, key).await?);
+            Some(IdentityFolder::login_fs(account_id, key, file).await?);
 
         // Lazily create or retrieve a device specific signing key
         {
             let identity = self.identity.as_mut().unwrap();
-            identity.ensure_device_vault(&self.paths).await?;
+            identity.ensure_device_vault_fs(&self.paths).await?;
+        }
+
+        Ok(())
+    }
+
+    /// Login to an identity folder in a database.
+    pub async fn login_db(
+        &mut self,
+        account_id: &AccountId,
+        key: &AccessKey,
+        client: &Client,
+    ) -> Result<()> {
+        self.identity =
+            Some(IdentityFolder::login_db(account_id, key, client).await?);
+
+        // Lazily create or retrieve a device specific signing key
+        {
+            let identity = self.identity.as_mut().unwrap();
+            identity.ensure_device_vault_db(client).await?;
         }
 
         Ok(())
@@ -241,10 +261,8 @@ impl Identity {
             .ok_or_else(|| Error::NoAccount(account_id.to_string()))?;
 
         let identity_path = self.paths.identity_vault();
-
         tracing::debug!(identity_path = ?identity_path);
-
-        self.login_fs(account_id, identity_path, key).await?;
+        self.login_fs(account_id, key, identity_path).await?;
 
         tracing::debug!("identity verified");
 

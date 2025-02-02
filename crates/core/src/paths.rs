@@ -200,6 +200,11 @@ impl Paths {
         Ok(())
     }
 
+    /// Determine if a database file exists.
+    pub fn is_using_db(&self) -> bool {
+        self.database_file().exists()
+    }
+
     /// Try to determine if the account is ready to be used
     /// by checking for the presence of required files on disc.
     pub async fn is_usable(&self) -> Result<bool> {
@@ -534,7 +539,7 @@ impl Paths {
         vault_path
     }
 
-    /// Ensure the root directories exist.
+    /// Ensure the root directories exist for file system storage.
     pub async fn scaffold(data_dir: Option<PathBuf>) -> Result<()> {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
@@ -544,6 +549,19 @@ impl Paths {
         let paths = Self::new_global(data_dir);
         vfs::create_dir_all(paths.documents_dir()).await?;
         vfs::create_dir_all(paths.identity_dir()).await?;
+        vfs::create_dir_all(paths.logs_dir()).await?;
+        Ok(())
+    }
+
+    /// Ensure the root directories exist for database storage.
+    pub async fn scaffold_db(data_dir: Option<PathBuf>) -> Result<()> {
+        let data_dir = if let Some(data_dir) = data_dir {
+            data_dir
+        } else {
+            Paths::data_dir()?
+        };
+        let paths = Self::new_global(data_dir);
+        vfs::create_dir_all(paths.documents_dir()).await?;
         vfs::create_dir_all(paths.logs_dir()).await?;
         Ok(())
     }

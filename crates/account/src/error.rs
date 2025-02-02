@@ -16,6 +16,10 @@ pub enum Error {
     #[error("account not authenticated, sign in required")]
     NotAuthenticated,
 
+    /// Error generated when a database is required.
+    #[error("database client is required")]
+    NoDatabase,
+
     /// Error generated when a path is not a file.
     #[error("path {0} is not a file")]
     NotFile(PathBuf),
