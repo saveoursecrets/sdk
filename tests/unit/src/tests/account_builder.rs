@@ -32,6 +32,8 @@ async fn account_builder_fs() -> Result<()> {
     .finish()
     .await?;
 
+    let account_id = new_account.account_id;
+
     let account_paths = paths.with_account_id(&new_account.account_id);
     let mut identity =
         Identity::new(BackendTarget::FileSystem(account_paths));
@@ -41,6 +43,11 @@ async fn account_builder_fs() -> Result<()> {
         .await?;
 
     identity.sign_out().await?;
+
+    // Folders are not created until a new account
+    let target: BackendTarget = identity.into();
+    let folders = target.list_folders(&account_id).await?;
+    assert!(folders.is_empty());
 
     teardown(TEST_ID).await;
 
@@ -67,11 +74,11 @@ async fn account_builder_db() -> Result<()> {
         password.clone(),
         Some(dirs.test_dir.clone()),
     )
-    .with_database(client.clone())
     .create_archive(true)
     .create_authenticator(true)
     .create_contacts(true)
     .create_file_password(true)
+    .with_database(client.clone())
     .finish()
     .await?;
 
@@ -82,6 +89,13 @@ async fn account_builder_db() -> Result<()> {
         .await?;
 
     identity.sign_out().await?;
+
+    let account_id = new_account.account_id;
+
+    // Folders are not created until a new account
+    let target: BackendTarget = identity.into();
+    let folders = target.list_folders(&account_id).await?;
+    assert!(folders.is_empty());
 
     teardown(TEST_ID).await;
 

@@ -1526,7 +1526,10 @@ impl LocalAccount {
         data_dir: Option<PathBuf>,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
-        tracing::debug!(account_name = %account_name, "new_account");
+        tracing::debug!(
+            account_name = %account_name,
+            "new_account",
+        );
 
         let account_builder = builder(AccountBuilder::new(
             account_name,
@@ -1536,7 +1539,9 @@ impl LocalAccount {
         let new_account = account_builder.finish().await?;
 
         tracing::debug!(
-          account_id = %new_account.account_id, "created_account");
+          account_id = %new_account.account_id,
+          "new_account::created",
+        );
 
         let account_id = new_account.account_id;
         let identity_log = new_account.user.identity()?.event_log();
@@ -1549,13 +1554,13 @@ impl LocalAccount {
         )
         .await?;
 
-        tracing::debug!("prepared storage provider");
+        tracing::debug!("new_account::storage_provider");
 
         // Must import the new account before signing in
         let public_account: AccountPack = new_account.into();
         storage.create_account(&public_account).await?;
 
-        tracing::debug!("imported new account");
+        tracing::debug!("new_account::imported");
 
         let account = Self {
             account_id,

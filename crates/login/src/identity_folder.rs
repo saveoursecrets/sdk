@@ -226,7 +226,9 @@ impl IdentityFolder {
                 let account = AccountEntity::new(&conn);
                 let folder = FolderEntity::new(&conn);
                 let account_row = account.find_one(&account_id)?;
-                folder.insert_folder(account_row.row_id, &folder_row)
+                let folder_id =
+                    folder.insert_folder(account_row.row_id, &folder_row)?;
+                account.insert_device_folder(account_row.row_id, folder_id)
             })
             .await
             .map_err(sos_backend::database::Error::from)?;

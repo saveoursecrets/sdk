@@ -17,9 +17,11 @@ mod system_messages;
 mod vault_writer;
 
 pub use error::{Error, StorageError};
-use sos_core::PublicIdentity;
+use sos_core::{AccountId, PublicIdentity};
 pub use sos_database as database;
-use sos_database::db::{AccountEntity, AccountRecord};
+use sos_database::db::{
+    AccountEntity, AccountRecord, FolderEntity, FolderRecord,
+};
 pub use sos_filesystem::write_exclusive;
 pub use sos_reducers as reducers;
 
@@ -33,6 +35,7 @@ pub use folder::Folder;
 #[cfg(feature = "preferences")]
 pub use preferences::BackendPreferences as Preferences;
 pub use server_origins::ServerOrigins;
+use sos_vault::Summary;
 #[cfg(feature = "system-messages")]
 pub use system_messages::SystemMessages;
 pub use vault_writer::VaultWriter;
@@ -72,6 +75,40 @@ impl BackendTarget {
                     accounts.push(record.identity);
                 }
                 Ok(accounts)
+            }
+        }
+    }
+
+    /// List user folders for an account.
+    pub async fn list_folders(
+        &self,
+        account_id: &AccountId,
+    ) -> Result<Vec<Summary>> {
+        match self {
+            BackendTarget::FileSystem(paths) => {
+                let paths = paths.with_account_id(account_id);
+                Ok(sos_vault::list_local_folders(&paths)
+                    .await?
+                    .into_iter()
+                    .map(|(s, _)| s)
+                    .collect())
+            }
+            BackendTarget::Database(client) => {
+                let account_id = *account_id;
+                let folder_rows = client
+                    .conn_and_then(move |conn| {
+                        let account = AccountEntity::new(&conn);
+                        let folders = FolderEntity::new(&conn);
+                        let account_row = account.find_one(&account_id)?;
+                        folders.list_user_folders(account_row.row_id)
+                    })
+                    .await?;
+                let mut folders = Vec::new();
+                for row in folder_rows {
+                    let record = FolderRecord::from_row(row).await?;
+                    folders.push(record.summary);
+                }
+                Ok(folders)
             }
         }
     }

@@ -42,7 +42,6 @@ pub type UrnLookup = HashMap<(VaultId, Urn), SecretId>;
 /// Identity manages access to an identity vault
 /// and the private keys for a user.
 pub struct Identity {
-    // paths: Arc<Paths>,
     target: BackendTarget,
     account: Option<PublicIdentity>,
     identity: Option<IdentityFolder>,
@@ -276,5 +275,11 @@ impl Identity {
         self.account = None;
         self.identity = None;
         Ok(())
+    }
+}
+
+impl From<Identity> for BackendTarget {
+    fn from(value: Identity) -> Self {
+        value.target
     }
 }
