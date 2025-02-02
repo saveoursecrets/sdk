@@ -43,7 +43,7 @@ enum AccountPasswordOption {
 
 /// Choose an account.
 pub async fn choose_account() -> Result<Option<PublicIdentity>> {
-    let mut accounts = Identity::list_accounts(None).await?;
+    let mut accounts = sos_vault::list_accounts(None).await?;
     if accounts.is_empty() {
         Ok(None)
     } else if accounts.len() == 1 {
@@ -145,7 +145,7 @@ pub async fn resolve_account(
             }
         }
 
-        if let Ok(mut accounts) = Identity::list_accounts(None).await {
+        if let Ok(mut accounts) = sos_vault::list_accounts(None).await {
             if accounts.len() == 1 {
                 return Some(accounts.remove(0).into());
             }
@@ -161,7 +161,7 @@ pub async fn resolve_account_address(
         .await
         .ok_or_else(|| Error::NoAccountFound)?;
 
-    let accounts = Identity::list_accounts(None).await?;
+    let accounts = sos_vault::list_accounts(None).await?;
     for info in accounts {
         match account {
             AccountRef::Name(ref name) => {
@@ -247,7 +247,7 @@ pub async fn verify(user: Owner) -> Result<bool> {
 
 /// List local accounts.
 pub async fn list_accounts(verbose: bool) -> Result<()> {
-    let accounts = Identity::list_accounts(None).await?;
+    let accounts = sos_vault::list_accounts(None).await?;
     for account in &accounts {
         if verbose {
             println!("{} {}", account.account_id(), account.label());
@@ -264,7 +264,7 @@ pub async fn list_accounts(verbose: bool) -> Result<()> {
 pub async fn find_account(
     account: &AccountRef,
 ) -> Result<Option<PublicIdentity>> {
-    let accounts = Identity::list_accounts(None).await?;
+    let accounts = sos_vault::list_accounts(None).await?;
     match account {
         AccountRef::Id(id) => {
             Ok(accounts.into_iter().find(|a| a.account_id() == id))

@@ -19,7 +19,7 @@ async fn local_account_lifecycle() -> Result<()> {
 
     Paths::scaffold(Some(data_dir.clone())).await?;
     let paths = Paths::new_global(data_dir.clone());
-    let accounts = Identity::list_accounts(Some(&paths)).await?;
+    let accounts = sos_vault::list_accounts(Some(&paths)).await?;
     assert_eq!(0, accounts.len());
 
     let mut account = LocalAccount::new_account(
@@ -29,7 +29,7 @@ async fn local_account_lifecycle() -> Result<()> {
     )
     .await?;
 
-    let accounts = Identity::list_accounts(Some(&paths)).await?;
+    let accounts = sos_vault::list_accounts(Some(&paths)).await?;
     assert_eq!(1, accounts.len());
 
     let key: AccessKey = passphrase.into();

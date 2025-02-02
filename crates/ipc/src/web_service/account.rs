@@ -5,7 +5,7 @@ use secrecy::SecretString;
 use serde::Deserialize;
 use sos_account::Account;
 use sos_core::AccountId;
-use sos_sdk::prelude::{AccessKey, ErrorExt, Identity};
+use sos_sdk::prelude::{AccessKey, ErrorExt};
 use sos_sync::SyncStorage;
 use std::collections::HashMap;
 
@@ -44,7 +44,7 @@ where
         + 'static,
 {
     let accounts = accounts.as_ref().read().await;
-    match Identity::list_accounts(accounts.paths()).await {
+    match sos_vault::list_accounts(accounts.paths()).await {
         Ok(list) => json(StatusCode::OK, &list),
         Err(e) => internal_server_error(e),
     }

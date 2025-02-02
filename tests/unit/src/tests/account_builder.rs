@@ -1,5 +1,6 @@
 use anyhow::Result;
 use sos_account::AccountBuilder;
+use sos_backend::BackendTarget;
 use sos_core::Paths;
 use sos_database::{db::open_file, migrations::migrate_client};
 use sos_login::Identity;
@@ -32,7 +33,8 @@ async fn account_builder_fs() -> Result<()> {
     .await?;
 
     let account_paths = paths.with_account_id(&new_account.account_id);
-    let mut identity = Identity::new(account_paths);
+    let mut identity =
+        Identity::new(BackendTarget::FileSystem(account_paths));
     let access_key: AccessKey = password.into();
     identity
         .sign_in(&new_account.account_id, &access_key)
@@ -73,16 +75,13 @@ async fn account_builder_db() -> Result<()> {
     .finish()
     .await?;
 
-    /*
-    let account_paths = paths.with_account_id(&new_account.account_id);
-    let mut identity = Identity::new(account_paths);
+    let mut identity = Identity::new(BackendTarget::Database(client));
     let access_key: AccessKey = password.into();
     identity
         .sign_in(&new_account.account_id, &access_key)
         .await?;
 
     identity.sign_out().await?;
-    */
 
     teardown(TEST_ID).await;
 

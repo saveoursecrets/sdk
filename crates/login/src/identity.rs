@@ -1,28 +1,24 @@
 //! Login identity vault management.
 //!
 //! Provides access to an identity vault containing
-//! the account signing key and delegated passwords used
-//! for folders managed by an account.
+//! the delegated passwords used by folders managed by an account.
 //!
-//! This enables user interfaces to protect both the signing
-//! key and folder passwords using a single primary password.
+//! This enables user interfaces to protect folder passwords
+//! using a single primary password.
 use crate::{
     device::DeviceManager, Error, IdentityFolder, PublicIdentity, Result,
 };
 use secrecy::SecretString;
-use sos_backend::database::async_sqlite::Client;
+use sos_backend::{database::async_sqlite::Client, BackendTarget};
 use sos_core::{
     crypto::AccessKey, decode, events::Event, AccountId, Paths, SecretId,
     VaultId,
 };
-use sos_vault::{
-    list_accounts, list_local_folders, read_public_identity, Summary, Vault,
-};
+use sos_vault::{list_local_folders, read_public_identity, Summary, Vault};
 use sos_vfs as vfs;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 use urn::Urn;
 
@@ -46,34 +42,18 @@ pub type UrnLookup = HashMap<(VaultId, Urn), SecretId>;
 /// Identity manages access to an identity vault
 /// and the private keys for a user.
 pub struct Identity {
-    paths: Arc<Paths>,
+    // paths: Arc<Paths>,
+    target: BackendTarget,
     account: Option<PublicIdentity>,
     identity: Option<IdentityFolder>,
 }
 
 impl Identity {
-    /// List account information for the identity vaults.
-    #[deprecated(note = "Use list_accounts() from sos_vault instead")]
-    pub async fn list_accounts(
-        paths: Option<&Paths>,
-    ) -> Result<Vec<PublicIdentity>> {
-        Ok(list_accounts(paths).await?)
-    }
-
     /// Read the public identity from an identity vault file.
     pub async fn read_public_identity(
         path: impl AsRef<Path>,
     ) -> Result<Option<PublicIdentity>> {
         Ok(read_public_identity(path).await?)
-    }
-
-    /// List the folders in an account by inspecting
-    /// the vault files in the vaults directory.
-    #[deprecated(note = "Use list_local_folders() from sos_vault instead")]
-    pub async fn list_local_folders(
-        paths: &Paths,
-    ) -> Result<Vec<(Summary, PathBuf)>> {
-        Ok(list_local_folders(paths).await?)
     }
 
     /// Find and load a vault.
@@ -91,10 +71,10 @@ impl Identity {
         Ok((vault, path))
     }
 
-    /// Create a new unauthenticated user.
-    pub fn new(paths: Paths) -> Self {
+    /// Create a new unauthenticated login identity.
+    pub fn new(target: BackendTarget) -> Self {
         Self {
-            paths: Arc::new(paths),
+            target,
             identity: None,
             account: None,
         }
@@ -212,25 +192,45 @@ impl Identity {
         self.identity()?.find_file_encryption_password().await
     }
 
-    /// Login to an identity folder on disc.
-    pub async fn login_fs<P: AsRef<Path>>(
+    /// Login to an identity folder.
+    pub async fn login(
         &mut self,
         account_id: &AccountId,
         key: &AccessKey,
-        file: P,
     ) -> Result<()> {
-        self.identity =
-            Some(IdentityFolder::login_fs(account_id, key, file).await?);
+        let backend = self.target.clone();
+        match &backend {
+            BackendTarget::FileSystem(paths) => {
+                self.login_fs(account_id, key, paths).await
+            }
+            BackendTarget::Database(client) => {
+                self.login_db(account_id, key, client).await
+            }
+        }
+    }
+
+    /// Login to a file system identity folder.
+    async fn login_fs(
+        &mut self,
+        account_id: &AccountId,
+        key: &AccessKey,
+        paths: &Paths,
+        // file: P,
+    ) -> Result<()> {
+        self.identity = Some(
+            IdentityFolder::login_fs(account_id, key, paths.identity_vault())
+                .await?,
+        );
 
         // Lazily create or retrieve a device specific signing key
         let identity = self.identity.as_mut().unwrap();
-        identity.ensure_device_vault_fs(&self.paths).await?;
+        identity.ensure_device_vault_fs(paths).await?;
 
         Ok(())
     }
 
-    /// Login to an identity folder in a database.
-    pub async fn login_db(
+    /// Login to a database identity folder.
+    async fn login_db(
         &mut self,
         account_id: &AccountId,
         key: &AccessKey,
@@ -252,17 +252,15 @@ impl Identity {
         account_id: &AccountId,
         key: &AccessKey,
     ) -> Result<()> {
-        let accounts = Self::list_accounts(Some(&self.paths)).await?;
+        let accounts = self.target.list_accounts().await?;
         let account = accounts
             .into_iter()
             .find(|a| a.account_id() == account_id)
             .ok_or_else(|| Error::NoAccount(account_id.to_string()))?;
 
-        let identity_path = self.paths.identity_vault();
-        tracing::debug!(identity_path = ?identity_path);
-        self.login_fs(account_id, key, identity_path).await?;
-
-        tracing::debug!("identity verified");
+        tracing::debug!("identity::sign_in");
+        self.login(account_id, key).await?;
+        tracing::debug!("identity::verified");
 
         self.account = Some(account);
         Ok(())
@@ -270,7 +268,7 @@ impl Identity {
 
     /// Sign out this user by locking the account identity vault.
     pub async fn sign_out(&mut self) -> Result<()> {
-        tracing::debug!("identity vault sign out");
+        tracing::debug!("identity::sign_out");
 
         // Sign out the identity vault
         self.identity_mut()?.sign_out().await?;

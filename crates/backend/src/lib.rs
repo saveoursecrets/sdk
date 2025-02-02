@@ -17,7 +17,9 @@ mod system_messages;
 mod vault_writer;
 
 pub use error::{Error, StorageError};
+use sos_core::PublicIdentity;
 pub use sos_database as database;
+use sos_database::db::{AccountEntity, AccountRecord};
 pub use sos_filesystem::write_exclusive;
 pub use sos_reducers as reducers;
 
@@ -40,3 +42,37 @@ pub use event_log::BackendFileEventLog as FileEventLog;
 
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
+
+/// Target backend.
+#[derive(Clone)]
+pub enum BackendTarget {
+    /// File system backend
+    FileSystem(sos_core::Paths),
+    /// Database backend.
+    Database(sos_database::async_sqlite::Client),
+}
+
+impl BackendTarget {
+    /// List accounts.
+    pub async fn list_accounts(&self) -> Result<Vec<PublicIdentity>> {
+        match self {
+            BackendTarget::FileSystem(paths) => {
+                Ok(sos_vault::list_accounts(Some(paths)).await?)
+            }
+            BackendTarget::Database(client) => {
+                let account_rows = client
+                    .conn_and_then(move |conn| {
+                        let account = AccountEntity::new(&conn);
+                        account.list_accounts()
+                    })
+                    .await?;
+                let mut accounts = Vec::new();
+                for row in account_rows {
+                    let record: AccountRecord = row.try_into()?;
+                    accounts.push(record.identity);
+                }
+                Ok(accounts)
+            }
+        }
+    }
+}

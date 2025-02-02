@@ -22,6 +22,7 @@ use sos_sdk::{
 };
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
+    list_accounts, list_local_folders,
     secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
     BuilderCredentials, Header, SecretAccess, Summary, Vault, VaultBuilder,
     VaultFlags,
@@ -45,7 +46,7 @@ use {
 #[cfg(feature = "archive")]
 use sos_filesystem::archive::{Inventory, RestoreOptions};
 
-use sos_backend::DeviceEventLog;
+use sos_backend::{BackendTarget, DeviceEventLog};
 use sos_core::device::{DevicePublicKey, TrustedDevice};
 use sos_login::device::{DeviceManager, DeviceSigner};
 
@@ -911,7 +912,8 @@ impl LocalAccount {
 
         tracing::debug!(data_dir = ?paths.documents_dir(), "sign_in");
 
-        let mut user = Identity::new(paths.clone());
+        let mut user =
+            Identity::new(BackendTarget::FileSystem(paths.clone()));
         user.sign_in(self.account_id(), key).await?;
         tracing::debug!("sign_in success");
 
@@ -990,7 +992,7 @@ impl LocalAccount {
         // adding create folder events for every folder that
         // already exists
         if needs_init {
-            let folders: Vec<Summary> = Identity::list_local_folders(paths)
+            let folders: Vec<Summary> = list_local_folders(paths)
                 .await?
                 .into_iter()
                 .map(|(s, _)| s)
@@ -1383,7 +1385,7 @@ impl LocalAccount {
             append_audit_events(&[audit_event]).await?;
         }
 
-        let vaults = Identity::list_local_folders(&paths).await?;
+        let vaults = list_local_folders(&paths).await?;
         let existing_name =
             vaults.iter().find(|(s, _)| s.name() == folder_name);
 
@@ -1810,10 +1812,7 @@ impl Account for LocalAccount {
         self.convert_cipher(&conversion, account_key).await?;
 
         // Login again so in-memory data is up to date
-        let identity_vault_path = self.paths().identity_vault();
-        self.user_mut()?
-            .login_fs(&account_id, &account_key, &identity_vault_path)
-            .await?;
+        self.user_mut()?.login(&account_id, &account_key).await?;
 
         Ok(conversion)
     }
@@ -1856,10 +1855,7 @@ impl Account for LocalAccount {
         self.import_identity_folder(output.into()).await?;
 
         // Login again so in-memory data is up to date
-        let identity_vault_path = self.paths().identity_vault();
-        self.user_mut()?
-            .login_fs(&account_id, &account_key, &identity_vault_path)
-            .await?;
+        self.user_mut()?.login(&account_id, &account_key).await?;
 
         Ok(())
     }
@@ -3138,7 +3134,7 @@ impl Account for LocalAccount {
         let paths = self.paths();
         let mut archive = Vec::new();
         let mut migration = PublicExport::new(Cursor::new(&mut archive));
-        let vaults = Identity::list_local_folders(&paths).await?;
+        let vaults = list_local_folders(&paths).await?;
 
         for (summary, _) in vaults {
             let (vault, _) =
@@ -3275,7 +3271,7 @@ impl Account for LocalAccount {
         let mut inventory =
             AccountBackup::restore_archive_inventory(BufReader::new(buffer))
                 .await?;
-        let accounts = Identity::list_accounts(None).await?;
+        let accounts = list_accounts(None).await?;
         let exists_local = accounts.iter().any(|account| {
             account.account_id() == &inventory.manifest.account_id
         });

@@ -1,7 +1,7 @@
 //! Create a new local account.
 use crate::{Error, Result};
 use secrecy::SecretString;
-use sos_backend::database::async_sqlite::Client;
+use sos_backend::{database::async_sqlite::Client, BackendTarget};
 use sos_client_storage::AccountPack;
 use sos_core::{
     constants::{
@@ -338,10 +338,10 @@ impl AccountBuilder {
 
         paths.ensure().await?;
 
-        let mut user = Identity::new(paths.clone());
+        let mut user =
+            Identity::new(BackendTarget::FileSystem(paths.clone()));
         let key: AccessKey = self.passphrase.clone().into();
-        user.login_fs(&account_id, &key, paths.identity_vault())
-            .await?;
+        user.login(&account_id, &key).await?;
 
         let default_folder = self
             .build_default_folder(&mut user, &mut folder_keys)
@@ -405,9 +405,9 @@ impl AccountBuilder {
 
         paths.ensure_db().await?;
 
-        let mut user = Identity::new(paths.clone());
+        let mut user = Identity::new(BackendTarget::Database(client));
         let key: AccessKey = self.passphrase.clone().into();
-        user.login_db(&account_id, &key, &client).await?;
+        user.login(&account_id, &key).await?;
 
         let default_folder = self
             .build_default_folder(&mut user, &mut folder_keys)

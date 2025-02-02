@@ -34,10 +34,11 @@ async fn sign_in_identity_login() -> Result<()> {
 
     let paths = Paths::new(data_dir, account_id.to_string());
     paths.ensure().await?;
-    let mut identity = Identity::new(paths);
+    let mut identity =
+        Identity::new(sos_backend::BackendTarget::FileSystem(paths));
 
     let key: AccessKey = password.into();
-    identity.login_fs(&account_id, &key, &path).await?;
+    identity.login(&account_id, &key).await?;
 
     let folder = VaultId::new_v4();
     let access_key: AccessKey = identity.generate_folder_password()?.into();
@@ -52,7 +53,7 @@ async fn sign_in_identity_login() -> Result<()> {
 
     // Login again and check the secure access keys
     // are loaded at login
-    identity.login_fs(&account_id, &key, &path).await?;
+    identity.login(&account_id, &key).await?;
 
     // Remove the folder password
     identity.remove_folder_password(&folder).await?;

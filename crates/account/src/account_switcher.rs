@@ -1,14 +1,13 @@
 use crate::{Account, Error, LocalAccount, Result};
 use sos_core::AccountId;
-use sos_sdk::{identity::Identity, prelude::PublicIdentity, Paths};
+use sos_sdk::{prelude::PublicIdentity, Paths};
+use sos_vault::list_accounts;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::{collections::HashMap, future::Future};
 
 #[cfg(feature = "search")]
-use sos_search::{
-    ArchiveFilter, Document, DocumentView, QueryFilter,
-};
+use sos_search::{ArchiveFilter, Document, DocumentView, QueryFilter};
 
 #[cfg(feature = "clipboard")]
 use {crate::ClipboardCopyRequest, xclipboard::Clipboard};
@@ -102,7 +101,7 @@ where
     pub async fn load_accounts<B>(
         &mut self,
         builder: B,
-        paths: Option<PathBuf>,
+        data_dir: Option<PathBuf>,
     ) -> Result<()>
     where
         B: Fn(
@@ -110,9 +109,15 @@ where
         )
             -> Pin<Box<dyn Future<Output = std::result::Result<A, E>>>>,
     {
-        Paths::scaffold(paths.clone()).await?;
+        Paths::scaffold(data_dir.clone()).await?;
 
-        let identities = Identity::list_accounts(self.paths()).await?;
+        let paths = if let Some(data_dir) = data_dir {
+            Paths::new_global(data_dir)
+        } else {
+            Paths::new_global(Paths::data_dir()?)
+        };
+
+        let identities = list_accounts(Some(&paths)).await?;
 
         for identity in identities {
             tracing::info!(
