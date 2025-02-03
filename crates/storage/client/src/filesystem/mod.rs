@@ -104,7 +104,7 @@ pub struct ClientStorage {
     pub account_log: Arc<RwLock<AccountEventLog>>,
 
     /// Folder event logs.
-    pub cache: HashMap<VaultId, Folder>,
+    pub folders: HashMap<VaultId, Folder>,
 
     /// Device event log.
     pub device_log: Arc<RwLock<DeviceEventLog>>,
@@ -150,7 +150,7 @@ impl ClientStorage {
             account_id,
             summaries: Vec::new(),
             current: None,
-            cache: Default::default(),
+            folders: Default::default(),
             paths,
             identity_log,
             account_log,
@@ -203,9 +203,9 @@ impl ClientStorage {
         paths.ensure().await?;
 
         let log_file = paths.account_events();
-        let mut event_log = AccountEventLog::new_fs_account(log_file).await?;
-        event_log.load_tree().await?;
-        let account_log = Arc::new(RwLock::new(event_log));
+        let mut account_log =
+            AccountEventLog::new_fs_account(log_file).await?;
+        account_log.load_tree().await?;
 
         let (device_log, devices) =
             Self::initialize_device_log(&paths, device).await?;
@@ -217,10 +217,10 @@ impl ClientStorage {
             account_id,
             summaries: Vec::new(),
             current: None,
-            cache: Default::default(),
+            folders: Default::default(),
             paths,
             identity_log,
-            account_log,
+            account_log: Arc::new(RwLock::new(account_log)),
             #[cfg(feature = "search")]
             index: Some(AccountSearch::new()),
             device_log: Arc::new(RwLock::new(device_log)),
@@ -283,16 +283,6 @@ impl ClientStorage {
         Ok(event_log)
     }
 
-    /// Cache of in-memory event logs.
-    pub fn cache(&self) -> &HashMap<VaultId, Folder> {
-        &self.cache
-    }
-
-    /// Mutable in-memory event logs.
-    pub fn cache_mut(&mut self) -> &mut HashMap<VaultId, Folder> {
-        &mut self.cache
-    }
-
     /// Initialize a folder from an event log.
     ///
     /// If an event log exists for the folder identifer
@@ -341,7 +331,7 @@ impl ClientStorage {
     }
 
     /// Create new event log cache entries.
-    async fn create_cache_entry(
+    async fn create_folder_entry(
         &mut self,
         summary: &Summary,
         vault: Option<Vault>,
@@ -369,12 +359,13 @@ impl ClientStorage {
             event_log.apply_records(records).await?;
         }
 
-        self.cache.insert(*summary.id(), event_log);
+        self.folders.insert(*summary.id(), event_log);
 
         Ok(())
     }
 
     /// Create the event log on disc for a pending folder.
+    #[deprecated]
     async fn create_pending_event_log(
         &self,
         summary: &Summary,
@@ -425,6 +416,7 @@ impl ClientStorage {
     /// Returns a boolean indicating whether a folder was promoted
     /// or not.
     #[doc(hidden)]
+    #[deprecated]
     pub async fn try_promote_pending_folder(
         &mut self,
         folder_id: &VaultId,
@@ -449,7 +441,7 @@ impl ClientStorage {
             let event_log = folder.event_log();
             let mut event_log = event_log.write().await;
             event_log.load_tree().await?;
-            self.cache.insert(*summary.id(), folder);
+            self.folders.insert(*summary.id(), folder);
             self.add_summary(summary);
             Ok(true)
         } else {
@@ -475,7 +467,7 @@ impl ClientStorage {
         let buffer = encode(&vault).await?;
         self.write_vault_file(summary.id(), &buffer).await?;
 
-        if let Some(folder) = self.cache.get_mut(summary.id()) {
+        if let Some(folder) = self.folders.get_mut(summary.id()) {
             let keeper = folder.keeper_mut();
             keeper.lock();
             keeper.replace_vault(vault.clone(), false).await?;
@@ -518,15 +510,15 @@ impl ClientStorage {
     async fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
         for summary in summaries {
             // Ensure we don't overwrite existing data
-            if self.cache().get(summary.id()).is_none() {
-                self.create_cache_entry(summary, None, None).await?;
+            if self.folders.get(summary.id()).is_none() {
+                self.create_folder_entry(summary, None, None).await?;
             }
         }
         Ok(())
     }
 
     /// Remove the local cache for a vault.
-    fn remove_local_cache(&mut self, summary: &Summary) -> Result<()> {
+    fn remove_folder_entry(&mut self, summary: &Summary) -> Result<()> {
         let current_id = self.current_folder().map(|c| *c.id());
 
         // If the deleted vault is the currently selected
@@ -538,7 +530,7 @@ impl ClientStorage {
         }
 
         // Remove from our cache of managed vaults
-        self.cache.remove(summary.id());
+        self.folders.remove(summary.id());
 
         // Remove from the state of managed vaults
         self.remove_summary(summary);
@@ -607,7 +599,8 @@ impl ClientStorage {
         self.add_summary(summary.clone());
 
         // Initialize the local cache for the event log
-        self.create_cache_entry(&summary, Some(vault), None).await?;
+        self.create_folder_entry(&summary, Some(vault), None)
+            .await?;
 
         self.unlock_folder(summary.id(), &key).await?;
 
@@ -695,7 +688,7 @@ impl ClientStorage {
                 .await?;
         } else {
             // Initialize the local cache for event log
-            self.create_cache_entry(&summary, Some(vault), creation_time)
+            self.create_folder_entry(&summary, Some(vault), creation_time)
                 .await?;
 
             // Must ensure the folder is unlocked
@@ -720,7 +713,7 @@ impl ClientStorage {
 
         // Apply events to the event log
         let folder = self
-            .cache
+            .folders
             .get_mut(summary.id())
             .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
         folder.clear().await?;
@@ -732,7 +725,7 @@ impl ClientStorage {
     /// Load a vault by reducing it from the event log stored on disc.
     async fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault> {
         let folder = self
-            .cache
+            .folders
             .get_mut(summary.id())
             .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
         let event_log = folder.event_log();
@@ -790,7 +783,7 @@ impl ClientSecretStorage for ClientStorage {
 
         let event = {
             let folder = self
-                .cache
+                .folders
                 .get_mut(summary.id())
                 .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
             folder.create_secret(&secret_data).await?
@@ -828,7 +821,7 @@ impl ClientSecretStorage for ClientStorage {
         secret_id: &SecretId,
     ) -> Result<Option<(Cow<'_, VaultCommit>, ReadEvent)>> {
         let folder = self
-            .cache
+            .folders
             .get(folder_id)
             .ok_or(StorageError::CacheNotAvailable(*folder_id))?;
         Ok(folder.raw_secret(secret_id).await?)
@@ -840,7 +833,7 @@ impl ClientSecretStorage for ClientStorage {
     ) -> Result<(SecretMeta, Secret, ReadEvent)> {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
         let folder = self
-            .cache
+            .folders
             .get(summary.id())
             .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
         let result = folder
@@ -933,7 +926,7 @@ impl ClientSecretStorage for ClientStorage {
 
         let event = {
             let folder = self
-                .cache
+                .folders
                 .get_mut(summary.id())
                 .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
             let (_, meta, secret) = secret_data.into();
@@ -995,7 +988,7 @@ impl ClientSecretStorage for ClientStorage {
 
         let event = {
             let folder = self
-                .cache
+                .folders
                 .get_mut(summary.id())
                 .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
             folder
@@ -1017,6 +1010,14 @@ impl ClientSecretStorage for ClientStorage {
 
 #[async_trait]
 impl ClientFolderStorage for ClientStorage {
+    fn folders(&self) -> &HashMap<VaultId, Folder> {
+        &self.folders
+    }
+
+    fn folders_mut(&mut self) -> &mut HashMap<VaultId, Folder> {
+        &mut self.folders
+    }
+
     async fn create_folder(
         &mut self,
         name: String,
@@ -1099,7 +1100,7 @@ impl ClientFolderStorage for ClientStorage {
         self.remove_vault_file(summary).await?;
 
         // Remove local state
-        self.remove_local_cache(summary)?;
+        self.remove_folder_entry(summary)?;
 
         let mut events = Vec::new();
 
@@ -1142,7 +1143,7 @@ impl ClientFolderStorage for ClientStorage {
     async fn remove_folder(&mut self, folder_id: &VaultId) -> Result<bool> {
         let summary = self.find(|s| s.id() == folder_id).cloned();
         if let Some(summary) = summary {
-            self.remove_local_cache(&summary)?;
+            self.remove_folder_entry(&summary)?;
             Ok(true)
         } else {
             Ok(false)
@@ -1203,7 +1204,7 @@ impl ClientFolderStorage for ClientStorage {
                   "import_folder_patch");
             }
 
-            self.cache.insert(folder_id, folder);
+            self.folders.insert(folder_id, folder);
             let summary = vault.summary().to_owned();
             self.add_summary(summary.clone());
         }
@@ -1217,7 +1218,7 @@ impl ClientFolderStorage for ClientStorage {
     ) -> Result<AccountEvent> {
         {
             let folder = self
-                .cache
+                .folders
                 .get_mut(summary.id())
                 .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
             let event_log = folder.event_log();
@@ -1249,7 +1250,7 @@ impl ClientFolderStorage for ClientStorage {
 
         // Unlock the folder
         folder.unlock(key).await?;
-        self.cache.insert(*folder_id, folder);
+        self.folders.insert(*folder_id, folder);
 
         let summary = vault.summary().to_owned();
         self.add_summary(summary.clone());
@@ -1272,7 +1273,7 @@ impl ClientFolderStorage for ClientStorage {
         self.set_folder_name(summary, name.as_ref())?;
 
         let folder = self
-            .cache
+            .folders
             .get_mut(summary.id())
             .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
 
@@ -1305,7 +1306,7 @@ impl ClientFolderStorage for ClientStorage {
         self.set_folder_flags(summary, flags.clone())?;
 
         let folder = self
-            .cache
+            .folders
             .get_mut(summary.id())
             .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
 
@@ -1351,7 +1352,7 @@ impl ClientFolderStorage for ClientStorage {
 
     async fn description(&self) -> Result<String> {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
-        if let Some(folder) = self.cache.get(summary.id()) {
+        if let Some(folder) = self.folders.get(summary.id()) {
             Ok(folder.description().await?)
         } else {
             Err(StorageError::CacheNotAvailable(*summary.id()).into())
@@ -1363,7 +1364,7 @@ impl ClientFolderStorage for ClientStorage {
         description: impl AsRef<str> + Send,
     ) -> Result<WriteEvent> {
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
-        if let Some(folder) = self.cache.get_mut(summary.id()) {
+        if let Some(folder) = self.folders.get_mut(summary.id()) {
             Ok(folder.set_description(description).await?)
         } else {
             Err(StorageError::CacheNotAvailable(*summary.id()).into())
@@ -1391,7 +1392,7 @@ impl ClientFolderStorage for ClientStorage {
         // Refresh the in-memory and disc-based mirror
         self.refresh_vault(vault.summary(), &new_key).await?;
 
-        if let Some(folder) = self.cache.get_mut(vault.id()) {
+        if let Some(folder) = self.folders.get_mut(vault.id()) {
             let keeper = folder.keeper_mut();
             keeper.unlock(&new_key).await?;
         }
@@ -1475,7 +1476,7 @@ impl ClientAccountStorage for ClientStorage {
     }
 
     async fn unlock(&mut self, keys: &FolderKeys) -> Result<()> {
-        for (id, folder) in self.cache.iter_mut() {
+        for (id, folder) in self.folders.iter_mut() {
             if let Some(key) = keys.find(id) {
                 folder.unlock(key).await?;
             } else {
@@ -1489,7 +1490,7 @@ impl ClientAccountStorage for ClientStorage {
     }
 
     async fn lock(&mut self) {
-        for (_, folder) in self.cache.iter_mut() {
+        for (_, folder) in self.folders.iter_mut() {
             folder.lock();
         }
     }
@@ -1500,7 +1501,7 @@ impl ClientAccountStorage for ClientStorage {
         key: &AccessKey,
     ) -> Result<()> {
         let folder = self
-            .cache
+            .folders
             .get_mut(id)
             .ok_or(StorageError::CacheNotAvailable(*id))?;
         folder.unlock(key).await?;
@@ -1509,7 +1510,7 @@ impl ClientAccountStorage for ClientStorage {
 
     async fn lock_folder(&mut self, id: &VaultId) -> Result<()> {
         let folder = self
-            .cache
+            .folders
             .get_mut(id)
             .ok_or(StorageError::CacheNotAvailable(*id))?;
         folder.lock();
@@ -1559,7 +1560,7 @@ impl ClientAccountStorage for ClientStorage {
         summary: &Summary,
     ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
         let folder = self
-            .cache()
+            .folders
             .get(summary.id())
             .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
         let event_log = folder.event_log();
@@ -1590,7 +1591,7 @@ impl ClientAccountStorage for ClientStorage {
     /// The folder must have at least one commit.
     async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
         let folder = self
-            .cache
+            .folders
             .get(summary.id())
             .ok_or_else(|| StorageError::CacheNotAvailable(*summary.id()))?;
         let event_log = folder.event_log();
@@ -1688,7 +1689,7 @@ impl ClientAccountStorage for ClientStorage {
             writer.remove_all();
 
             for (summary, key) in &keys.0 {
-                if let Some(folder) = self.cache.get_mut(summary.id()) {
+                if let Some(folder) = self.folders.get_mut(summary.id()) {
                     let keeper = folder.keeper_mut();
                     keeper.unlock(key).await?;
                     writer.add_folder(keeper).await?;

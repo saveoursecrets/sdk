@@ -4,7 +4,7 @@ use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use sos_account::{Account, AccountBuilder};
-use sos_client_storage::ClientAccountStorage;
+use sos_client_storage::{ClientAccountStorage, ClientFolderStorage};
 use sos_core::{ExternalFile, Origin};
 use sos_net::{
     InflightNotification, InflightTransfers, NetworkAccount, RemoteBridge,
@@ -214,7 +214,7 @@ pub async fn num_events(
 ) -> usize {
     let storage = owner.storage().await;
     let reader = storage.read().await;
-    let folder = reader.cache().get(folder_id).unwrap();
+    let folder = reader.folders().get(folder_id).unwrap();
     let events = folder.event_log();
     let events = events.read().await;
     events.tree().len()

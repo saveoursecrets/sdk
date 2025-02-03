@@ -9,7 +9,7 @@ use crate::{
 use clap::Subcommand;
 use hex;
 use sos_account::{Account, FolderCreate};
-use sos_client_storage::ClientAccountStorage;
+use sos_client_storage::{ClientAccountStorage, ClientFolderStorage};
 use sos_core::events::LogEvent;
 use sos_sdk::{events::EventLog, identity::AccountRef, vault::FolderRef};
 
@@ -275,7 +275,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
             let storage = owner.storage().await;
             let reader = storage.read().await;
-            if let Some(folder) = reader.cache().get(summary.id()) {
+            if let Some(folder) = reader.folders().get(summary.id()) {
                 let event_log = folder.event_log();
                 let event_log = event_log.read().await;
                 let tree = event_log.tree();

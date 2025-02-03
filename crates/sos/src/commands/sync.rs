@@ -4,7 +4,7 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_account::Account;
-use sos_backend::StorageError;
+use sos_client_storage::ClientFolderStorage;
 use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
     Origin,
@@ -206,7 +206,7 @@ async fn print_status(
         let id = folder.id();
         let storage = owner.storage().await;
         let storage = storage.read().await;
-        let disc_folder = storage.cache().get(id).unwrap();
+        let disc_folder = storage.folders().get(id).unwrap();
         let log = disc_folder.event_log();
         let log = log.read().await;
         if let (Some(local_folder), Some(remote_folder)) =

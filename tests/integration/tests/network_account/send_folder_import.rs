@@ -42,7 +42,7 @@ async fn network_sync_folder_import() -> Result<()> {
     let mut vault = {
         let storage = device.owner.storage().await;
         let reader = storage.read().await;
-        let folder = reader.cache().get(new_folder.id()).unwrap();
+        let folder = reader.folders().get(new_folder.id()).unwrap();
         folder.keeper().vault().clone()
     };
 

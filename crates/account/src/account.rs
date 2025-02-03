@@ -1097,7 +1097,7 @@ impl LocalAccount {
                 .ok_or(Error::NoOpenFolder)?;
 
             let commit_state = reader
-                .cache()
+                .folders()
                 .get(folder.id())
                 .ok_or(StorageError::CacheNotAvailable(*folder.id()))?
                 .commit_state()
@@ -1989,8 +1989,8 @@ impl Account for LocalAccount {
 
     async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
         let reader = self.storage.read().await;
-        let cache = reader.cache();
-        let folder = cache
+        let folder = reader
+            .folders()
             .get(summary.id())
             .ok_or_else(|| StorageError::CacheNotAvailable(*summary.id()))?;
         let event_log = folder.event_log();
@@ -2125,8 +2125,8 @@ impl Account for LocalAccount {
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
 
         let reader = self.storage.read().await;
-        let cache = reader.cache();
-        let folder = cache
+        let folder = reader
+            .folders()
             .get(summary.id())
             .ok_or_else(|| StorageError::CacheNotAvailable(*summary.id()))?;
 
@@ -3365,7 +3365,7 @@ impl StorageEventLogs for LocalAccount {
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
         let storage = self.storage.read().await;
         let folder = storage
-            .cache()
+            .folders()
             .get(id)
             .ok_or(StorageError::CacheNotAvailable(*id))?;
         Ok(folder.event_log())

@@ -4,6 +4,7 @@ use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use sos_account::Account;
 use sos_backend::AccessPoint;
+use sos_client_storage::ClientFolderStorage;
 use sos_password::generator::measure_entropy;
 use sos_vault::{
     secret::{Secret, SecretId, SecretType},
@@ -48,7 +49,7 @@ where
         let storage = account.storage().await;
         let reader = storage.read().await;
 
-        let folder = reader.cache().get(target.id()).unwrap();
+        let folder = reader.folders().get(target.id()).unwrap();
         let keeper = folder.keeper();
 
         let vault = keeper.vault();

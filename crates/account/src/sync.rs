@@ -67,7 +67,7 @@ impl ForceMerge for LocalAccount {
         let mut storage = self.storage.write().await;
 
         let folder = storage
-            .cache_mut()
+            .folders_mut()
             .get_mut(folder_id)
             .ok_or_else(|| StorageError::CacheNotAvailable(*folder_id))?;
         folder.force_merge(&diff).await?;
@@ -341,7 +341,7 @@ impl Merge for LocalAccount {
             }
 
             let folder = storage
-                .cache_mut()
+                .folders_mut()
                 .get_mut(folder_id)
                 .ok_or_else(|| StorageError::CacheNotAvailable(*folder_id))?;
 

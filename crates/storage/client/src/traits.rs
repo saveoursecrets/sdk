@@ -5,6 +5,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
+use sos_backend::Folder;
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -54,6 +55,12 @@ pub trait ClientDeviceStorage {
 /// Folder management functions for client storage.
 #[async_trait]
 pub trait ClientFolderStorage {
+    /// In-memory folders.
+    fn folders(&self) -> &HashMap<VaultId, Folder>;
+
+    /// Mutable in-memory folders.
+    fn folders_mut(&mut self) -> &mut HashMap<VaultId, Folder>;
+
     /// Create a new folder.
     async fn create_folder(
         &mut self,

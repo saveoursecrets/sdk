@@ -313,7 +313,7 @@ where
                             let storage = account.storage().await;
                             let storage = storage.read().await;
                             if let Some(folder) =
-                                storage.cache().get(&folder_id)
+                                storage.folders().get(&folder_id)
                             {
                                 let keeper = folder.keeper();
                                 let mut index = index.write().await;
@@ -331,7 +331,8 @@ where
             ChangeRecords::Folder(folder_id, events) => {
                 let storage = account.storage().await;
                 let mut storage = storage.write().await;
-                if let Some(folder) = storage.cache_mut().get_mut(&folder_id)
+                if let Some(folder) =
+                    storage.folders_mut().get_mut(&folder_id)
                 {
                     let keeper = folder.keeper_mut();
 
@@ -498,7 +499,7 @@ where
                 let storage = account.storage().await;
                 let storage = storage.read().await;
                 let folder = storage
-                    .cache()
+                    .folders()
                     .get(&folder_id)
                     .ok_or(FileEventError::NoFolder(folder_id))?;
 

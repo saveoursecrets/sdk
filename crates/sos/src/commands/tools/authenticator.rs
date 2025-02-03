@@ -6,7 +6,7 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_account::{Account, FolderCreate};
-use sos_client_storage::NewFolderOptions;
+use sos_client_storage::{ClientFolderStorage, NewFolderOptions};
 use sos_migrate::{export_authenticator, import_authenticator};
 use sos_sdk::prelude::{AccountRef, VaultFlags};
 use std::path::PathBuf;
@@ -59,7 +59,7 @@ pub async fn run(cmd: Command) -> Result<()> {
 
             let storage = owner.storage().await;
             let storage = storage.read().await;
-            let folder = storage.cache().get(authenticator.id()).unwrap();
+            let folder = storage.folders().get(authenticator.id()).unwrap();
 
             export_authenticator(file, folder.keeper(), qr_codes).await?;
             success("authenticator TOTP secrets exported");
@@ -108,7 +108,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let storage = owner.storage().await;
                 let mut storage = storage.write().await;
                 let folder =
-                    storage.cache_mut().get_mut(folder.id()).unwrap();
+                    storage.folders_mut().get_mut(folder.id()).unwrap();
                 import_authenticator(file, folder.keeper_mut()).await?;
                 success("authenticator TOTP secrets imported");
             }

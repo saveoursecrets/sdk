@@ -5477,6 +5477,7 @@ dependencies = [
  "sha1",
  "sos-account",
  "sos-backend",
+ "sos-client-storage",
  "sos-core",
  "sos-password",
  "sos-vault",
