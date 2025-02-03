@@ -6,16 +6,18 @@ use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     AccountId,
 };
+use sos_sdk::events::WriteEvent;
 use sos_vault::{Summary, Vault, VaultFlags};
 
 mod error;
 #[cfg(feature = "files")]
 pub mod files;
 mod filesystem;
+mod storage;
 mod traits;
 
 pub use error::Error;
-pub use filesystem::ClientStorage;
+pub use filesystem::ClientFileStorage as ClientStorage;
 pub use traits::{
     ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage,
     ClientSecretStorage,
@@ -23,6 +25,9 @@ pub use traits::{
 
 /// Result type for the client module.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
+
+#[cfg(feature = "files")]
+use sos_external_files::FileMutationEvent;
 
 /// Options used when creating a new folder.
 #[derive(Debug, Default)]
@@ -72,4 +77,15 @@ impl From<Summary> for AccessOptions {
             file_progress: None,
         }
     }
+}
+
+/// Storage change event with an optional
+/// collection of file mutation events.
+#[doc(hidden)]
+pub struct StorageChangeEvent {
+    /// Write event.
+    pub event: WriteEvent,
+    /// Collection of file mutation events.
+    #[cfg(feature = "files")]
+    pub file_events: Vec<FileMutationEvent>,
 }

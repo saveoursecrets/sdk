@@ -2,7 +2,7 @@
 use crate::{
     AccessOptions, AccountPack, ClientAccountStorage, ClientDeviceStorage,
     ClientFolderStorage, ClientSecretStorage, Error, NewFolderOptions,
-    Result,
+    Result, StorageChangeEvent,
 };
 use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
@@ -66,19 +66,8 @@ use sos_search::{AccountSearch, DocumentCount};
 
 mod sync;
 
-/// Storage change event with an optional
-/// collection of file mutation events.
-#[doc(hidden)]
-pub struct StorageChangeEvent {
-    /// Write event.
-    pub event: WriteEvent,
-    /// Collection of file mutation events.
-    #[cfg(feature = "files")]
-    pub file_events: Vec<FileMutationEvent>,
-}
-
 /// Client storage for folders loaded into memory and mirrored to disc.
-pub struct ClientStorage {
+pub struct ClientFileStorage {
     /// Account identifier.
     pub(super) account_id: AccountId,
 
@@ -123,7 +112,7 @@ pub struct ClientStorage {
     pub(super) file_password: Option<secrecy::SecretString>,
 }
 
-impl ClientStorage {
+impl ClientFileStorage {
     /// Create unauthenticated folder storage for client-side access.
     pub async fn new_unauthenticated(
         account_id: AccountId,
@@ -760,8 +749,9 @@ impl ClientStorage {
     }
 }
 
-#[async_trait]
-impl ClientSecretStorage for ClientStorage {
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ClientSecretStorage for ClientFileStorage {
     async fn create_secret(
         &mut self,
         secret_data: SecretRow,
@@ -1010,8 +1000,9 @@ impl ClientSecretStorage for ClientStorage {
     }
 }
 
-#[async_trait]
-impl ClientFolderStorage for ClientStorage {
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ClientFolderStorage for ClientFileStorage {
     fn folders(&self) -> &HashMap<VaultId, Folder> {
         &self.folders
     }
@@ -1406,8 +1397,9 @@ impl ClientFolderStorage for ClientStorage {
     }
 }
 
-#[async_trait]
-impl ClientDeviceStorage for ClientStorage {
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ClientDeviceStorage for ClientFileStorage {
     fn devices(&self) -> &IndexSet<TrustedDevice> {
         &self.devices
     }
@@ -1471,8 +1463,9 @@ impl ClientDeviceStorage for ClientStorage {
     }
 }
 
-#[async_trait]
-impl ClientAccountStorage for ClientStorage {
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ClientAccountStorage for ClientFileStorage {
     fn account_id(&self) -> &AccountId {
         &self.account_id
     }

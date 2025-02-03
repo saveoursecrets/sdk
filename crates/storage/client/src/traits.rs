@@ -1,7 +1,6 @@
 //! Client storage implementations.
 use crate::{
-    filesystem::StorageChangeEvent, AccessOptions, AccountPack,
-    NewFolderOptions, Result,
+    AccessOptions, AccountPack, NewFolderOptions, Result, StorageChangeEvent,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -31,7 +30,8 @@ use sos_filesystem::archive::RestoreTargets;
 use sos_search::{AccountSearch, DocumentCount};
 
 /// Device management functions for client storage.
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientDeviceStorage {
     /// Collection of trusted devices.
     fn devices(&self) -> &IndexSet<TrustedDevice>;
@@ -53,7 +53,8 @@ pub trait ClientDeviceStorage {
 }
 
 /// Folder management functions for client storage.
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientFolderStorage {
     /// In-memory folders.
     fn folders(&self) -> &HashMap<VaultId, Folder>;
@@ -190,7 +191,8 @@ pub trait ClientFolderStorage {
 }
 
 /// Secret management functions for client storage.
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientSecretStorage {
     /// Create a secret in the currently open vault.
     async fn create_secret(
@@ -248,7 +250,8 @@ pub trait ClientSecretStorage {
 }
 
 /// Trait for client storage implementations.
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientAccountStorage:
     ClientDeviceStorage + ClientFolderStorage + ClientSecretStorage
 // TODO: + SyncStorage
