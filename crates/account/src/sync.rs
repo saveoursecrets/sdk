@@ -6,6 +6,7 @@ use crate::{Account, LocalAccount, Result};
 use async_trait::async_trait;
 use sos_backend::reducers::DeviceReducer;
 use sos_backend::StorageError;
+use sos_client_storage::ClientAccountStorage;
 use sos_core::{decode, events::EventLog};
 use sos_core::{
     events::{

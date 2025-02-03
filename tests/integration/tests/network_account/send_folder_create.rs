@@ -4,6 +4,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
+use sos_client_storage::ClientAccountStorage;
 use sos_sdk::prelude::*;
 
 /// Tests sending create folder events to a remote.

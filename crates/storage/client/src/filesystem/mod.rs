@@ -292,80 +292,6 @@ impl ClientStorage {
         &mut self.cache
     }
 
-    /// Mark a folder as the currently open folder.
-    pub async fn open_folder(
-        &mut self,
-        summary: &Summary,
-    ) -> Result<ReadEvent> {
-        self.find(|s| s.id() == summary.id())
-            .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
-
-        self.current = Some(summary.clone());
-        Ok(ReadEvent::ReadVault)
-    }
-
-    /// Close the current open folder.
-    pub fn close_folder(&mut self) {
-        self.current = None;
-    }
-
-    /// Create the data for a new account.
-    pub async fn create_account(
-        &mut self,
-        account: &AccountPack,
-    ) -> Result<Vec<Event>> {
-        let mut events = Vec::new();
-
-        let create_account = Event::CreateAccount(account.account_id.into());
-
-        #[cfg(feature = "audit")]
-        {
-            let audit_event: AuditEvent =
-                (self.account_id(), &create_account).into();
-            append_audit_events(&[audit_event]).await?;
-        }
-
-        // Import folders
-        for folder in &account.folders {
-            let buffer = encode(folder).await?;
-            let (event, _) =
-                self.import_folder(buffer, None, true, None).await?;
-            events.push(event);
-        }
-
-        events.insert(0, create_account);
-
-        Ok(events)
-    }
-
-    /// Create folders from a collection of folder patches.
-    ///
-    /// If the folders already exist they will be overwritten.
-    pub async fn import_folder_patches(
-        &mut self,
-        patches: HashMap<VaultId, FolderPatch>,
-    ) -> Result<()> {
-        for (folder_id, patch) in patches {
-            let records: Vec<EventRecord> = patch.into();
-            let (folder, vault) =
-                self.initialize_folder(&folder_id, records).await?;
-
-            {
-                let event_log = folder.event_log();
-                let event_log = event_log.read().await;
-                tracing::info!(
-                  folder_id = %folder_id,
-                  root = ?event_log.tree().root().map(|c| c.to_string()),
-                  "import_folder_patch");
-            }
-
-            self.cache.insert(folder_id, folder);
-            let summary = vault.summary().to_owned();
-            self.add_summary(summary.clone());
-        }
-        Ok(())
-    }
-
     /// Initialize a folder from an event log.
     ///
     /// If an event log exists for the folder identifer
@@ -411,78 +337,6 @@ impl ClientStorage {
         event_log.load_tree().await?;
 
         Ok((folder, vault))
-    }
-
-    /// Restore a folder from an event log.
-    pub async fn restore_folder(
-        &mut self,
-        folder_id: &VaultId,
-        records: Vec<EventRecord>,
-        key: &AccessKey,
-    ) -> Result<Summary> {
-        let (mut folder, vault) =
-            self.initialize_folder(folder_id, records).await?;
-
-        // Unlock the folder
-        folder.unlock(key).await?;
-        self.cache.insert(*folder_id, folder);
-
-        let summary = vault.summary().to_owned();
-        self.add_summary(summary.clone());
-
-        #[cfg(feature = "search")]
-        if let Some(index) = self.index.as_mut() {
-            // Ensure the imported secrets are in the search index
-            index.add_vault(vault, key).await?;
-        }
-
-        Ok(summary)
-    }
-
-    /// Restore vaults from an archive.
-    ///
-    /// Buffer is the compressed archive contents.
-    #[cfg(feature = "archive")]
-    pub async fn restore_archive(
-        &mut self,
-        targets: &RestoreTargets,
-        folder_keys: &FolderKeys,
-    ) -> Result<()> {
-        let RestoreTargets { vaults, .. } = targets;
-
-        // We may be restoring vaults that do not exist
-        // so we need to update the cache
-        let summaries = vaults
-            .iter()
-            .map(|(_, v)| v.summary().clone())
-            .collect::<Vec<_>>();
-        self.load_caches(&summaries).await?;
-
-        for (_, vault) in vaults {
-            // Prepare a fresh log of event log events
-            let (vault, events) =
-                FolderReducer::split::<Error>(vault.clone()).await?;
-
-            self.update_vault(vault.summary(), &vault, events).await?;
-
-            // Refresh the in-memory and disc-based mirror
-            let key = folder_keys
-                .find(vault.id())
-                .ok_or(Error::NoFolderPassword(*vault.id()))?;
-            self.refresh_vault(vault.summary(), key).await?;
-        }
-
-        Ok(())
-    }
-
-    /// List the folder summaries for this storage.
-    pub fn list_folders(&self) -> &[Summary] {
-        self.summaries.as_slice()
-    }
-
-    /// Reference to the currently open folder.
-    pub fn current_folder(&self) -> Option<Summary> {
-        self.current.clone()
     }
 
     /// Create new event log cache entries.
@@ -1068,79 +922,6 @@ impl ClientStorage {
         Ok(summaries)
     }
 
-    /// Read folders from the local disc and create the in-memory
-    /// event logs for each folder on disc.
-    pub async fn load_folders(&mut self) -> Result<&[Summary]> {
-        let summaries = self.read_folders().await?;
-        self.load_caches(&summaries).await?;
-        self.summaries = summaries;
-        Ok(self.list_folders())
-    }
-
-    /// Delete a folder.
-    pub async fn delete_folder(
-        &mut self,
-        summary: &Summary,
-        apply_event: bool,
-    ) -> Result<Vec<Event>> {
-        // Remove the files
-        self.remove_vault_file(summary).await?;
-
-        // Remove local state
-        self.remove_local_cache(summary)?;
-
-        let mut events = Vec::new();
-
-        #[cfg(feature = "files")]
-        {
-            let mut file_events =
-                self.delete_folder_files(summary.id()).await?;
-            let mut writer = self.file_log.write().await;
-            writer.apply(file_events.iter().collect()).await?;
-            for event in file_events.drain(..) {
-                events.push(Event::File(event));
-            }
-        }
-
-        // Clean the search index
-        #[cfg(feature = "search")]
-        if let Some(index) = self.index.as_mut() {
-            index.remove_folder(summary.id()).await;
-        }
-
-        let account_event = AccountEvent::DeleteFolder(*summary.id());
-
-        if apply_event {
-            let mut account_log = self.account_log.write().await;
-            account_log.apply(vec![&account_event]).await?;
-        }
-
-        #[cfg(feature = "audit")]
-        {
-            let audit_event: AuditEvent =
-                (self.account_id(), &account_event).into();
-            append_audit_events(&[audit_event]).await?;
-        }
-
-        events.insert(0, Event::Account(account_event));
-
-        Ok(events)
-    }
-
-    /// Remove a folder from the cache.
-    pub async fn remove_folder(
-        &mut self,
-        folder_id: &VaultId,
-    ) -> Result<bool> {
-        let summary = self.find(|s| s.id() == folder_id).cloned();
-        if let Some(summary) = summary {
-            self.remove_local_cache(&summary)?;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
     /// Update the in-memory name for a folder.
     pub fn set_folder_name(
         &mut self,
@@ -1290,20 +1071,6 @@ impl ClientStorage {
 
         Ok(new_key)
     }
-
-    /*
-    /// Verify an event log.
-    pub async fn verify(&self, summary: &Summary) -> Result<()> {
-        use crate::integrity::event_integrity;
-        let path = self.paths.event_log_path(summary.id());
-        let stream = event_integrity(&path);
-        pin_mut!(stream);
-        while let Some(event) = stream.next().await {
-            event??;
-        }
-        Ok(())
-    }
-    */
 
     /// Get the history of events for a vault.
     pub async fn history(
@@ -1693,6 +1460,14 @@ impl ClientAccountStorage for ClientStorage {
         &self.devices
     }
 
+    fn list_folders(&self) -> &[Summary] {
+        self.summaries.as_slice()
+    }
+
+    fn current_folder(&self) -> Option<Summary> {
+        self.current.clone()
+    }
+
     fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
         match vault {
             FolderRef::Name(name) => {
@@ -1711,6 +1486,204 @@ impl ClientAccountStorage for ClientStorage {
 
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
+    }
+
+    /// Mark a folder as the currently open folder.
+    async fn open_folder(&mut self, summary: &Summary) -> Result<ReadEvent> {
+        self.find(|s| s.id() == summary.id())
+            .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
+
+        self.current = Some(summary.clone());
+        Ok(ReadEvent::ReadVault)
+    }
+
+    /// Close the current open folder.
+    fn close_folder(&mut self) {
+        self.current = None;
+    }
+
+    /// Create the data for a new account.
+    async fn create_account(
+        &mut self,
+        account: &AccountPack,
+    ) -> Result<Vec<Event>> {
+        let mut events = Vec::new();
+
+        let create_account = Event::CreateAccount(account.account_id.into());
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent =
+                (self.account_id(), &create_account).into();
+            append_audit_events(&[audit_event]).await?;
+        }
+
+        // Import folders
+        for folder in &account.folders {
+            let buffer = encode(folder).await?;
+            let (event, _) =
+                self.import_folder(buffer, None, true, None).await?;
+            events.push(event);
+        }
+
+        events.insert(0, create_account);
+
+        Ok(events)
+    }
+
+    /// Create folders from a collection of folder patches.
+    ///
+    /// If the folders already exist they will be overwritten.
+    async fn import_folder_patches(
+        &mut self,
+        patches: HashMap<VaultId, FolderPatch>,
+    ) -> Result<()> {
+        for (folder_id, patch) in patches {
+            let records: Vec<EventRecord> = patch.into();
+            let (folder, vault) =
+                self.initialize_folder(&folder_id, records).await?;
+
+            {
+                let event_log = folder.event_log();
+                let event_log = event_log.read().await;
+                tracing::info!(
+                  folder_id = %folder_id,
+                  root = ?event_log.tree().root().map(|c| c.to_string()),
+                  "import_folder_patch");
+            }
+
+            self.cache.insert(folder_id, folder);
+            let summary = vault.summary().to_owned();
+            self.add_summary(summary.clone());
+        }
+        Ok(())
+    }
+
+    /// Restore a folder from an event log.
+    async fn restore_folder(
+        &mut self,
+        folder_id: &VaultId,
+        records: Vec<EventRecord>,
+        key: &AccessKey,
+    ) -> Result<Summary> {
+        let (mut folder, vault) =
+            self.initialize_folder(folder_id, records).await?;
+
+        // Unlock the folder
+        folder.unlock(key).await?;
+        self.cache.insert(*folder_id, folder);
+
+        let summary = vault.summary().to_owned();
+        self.add_summary(summary.clone());
+
+        #[cfg(feature = "search")]
+        if let Some(index) = self.index.as_mut() {
+            // Ensure the imported secrets are in the search index
+            index.add_vault(vault, key).await?;
+        }
+
+        Ok(summary)
+    }
+
+    async fn load_folders(&mut self) -> Result<&[Summary]> {
+        let summaries = self.read_folders().await?;
+        self.load_caches(&summaries).await?;
+        self.summaries = summaries;
+        Ok(self.list_folders())
+    }
+
+    async fn delete_folder(
+        &mut self,
+        summary: &Summary,
+        apply_event: bool,
+    ) -> Result<Vec<Event>> {
+        // Remove the files
+        self.remove_vault_file(summary).await?;
+
+        // Remove local state
+        self.remove_local_cache(summary)?;
+
+        let mut events = Vec::new();
+
+        #[cfg(feature = "files")]
+        {
+            let mut file_events =
+                self.delete_folder_files(summary.id()).await?;
+            let mut writer = self.file_log.write().await;
+            writer.apply(file_events.iter().collect()).await?;
+            for event in file_events.drain(..) {
+                events.push(Event::File(event));
+            }
+        }
+
+        // Clean the search index
+        #[cfg(feature = "search")]
+        if let Some(index) = self.index.as_mut() {
+            index.remove_folder(summary.id()).await;
+        }
+
+        let account_event = AccountEvent::DeleteFolder(*summary.id());
+
+        if apply_event {
+            let mut account_log = self.account_log.write().await;
+            account_log.apply(vec![&account_event]).await?;
+        }
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent =
+                (self.account_id(), &account_event).into();
+            append_audit_events(&[audit_event]).await?;
+        }
+
+        events.insert(0, Event::Account(account_event));
+
+        Ok(events)
+    }
+
+    /// Remove a folder from the cache.
+    async fn remove_folder(&mut self, folder_id: &VaultId) -> Result<bool> {
+        let summary = self.find(|s| s.id() == folder_id).cloned();
+        if let Some(summary) = summary {
+            self.remove_local_cache(&summary)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Restore vaults from an archive.
+    #[cfg(feature = "archive")]
+    async fn restore_archive(
+        &mut self,
+        targets: &RestoreTargets,
+        folder_keys: &FolderKeys,
+    ) -> Result<()> {
+        let RestoreTargets { vaults, .. } = targets;
+
+        // We may be restoring vaults that do not exist
+        // so we need to update the cache
+        let summaries = vaults
+            .iter()
+            .map(|(_, v)| v.summary().clone())
+            .collect::<Vec<_>>();
+        self.load_caches(&summaries).await?;
+
+        for (_, vault) in vaults {
+            // Prepare a fresh log of event log events
+            let (vault, events) =
+                FolderReducer::split::<Error>(vault.clone()).await?;
+
+            self.update_vault(vault.summary(), &vault, events).await?;
+
+            // Refresh the in-memory and disc-based mirror
+            let key = folder_keys
+                .find(vault.id())
+                .ok_or(Error::NoFolderPassword(*vault.id()))?;
+            self.refresh_vault(vault.summary(), key).await?;
+        }
+
+        Ok(())
     }
 
     #[cfg(feature = "files")]
