@@ -8,14 +8,14 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use secrecy::{ExposeSecret, SecretString};
 use sos_account::Account;
-use sos_backend::StorageError;
+use sos_client_storage::ClientAccountStorage;
 use sos_core::AccountId;
 use sos_net::{NetworkAccount, NetworkAccountSwitcher};
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
     constants::DEFAULT_VAULT_NAME,
     crypto::AccessKey,
-    identity::{AccountRef, Identity, PublicIdentity},
+    identity::{AccountRef, PublicIdentity},
     vault::{FolderRef, Summary},
     Paths,
 };

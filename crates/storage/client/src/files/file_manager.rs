@@ -1,7 +1,9 @@
 //! File manager to keep external files in sync
 //! as secrets are created, updated and moved.
 
-use crate::{files::FileStorage, ClientStorage, Error, Result};
+use crate::{
+    files::FileStorage, ClientAccountStorage, ClientStorage, Error, Result,
+};
 use hex;
 use sos_core::events::FileEvent;
 use sos_core::{basename, SecretId, SecretPath, VaultId};

@@ -6,7 +6,8 @@ use sos_backend::{
     FolderEventLog, StorageError,
 };
 use sos_client_storage::{
-    AccessOptions, AccountPack, ClientStorage, NewFolderOptions,
+    AccessOptions, AccountPack, ClientAccountStorage, ClientStorage,
+    NewFolderOptions,
 };
 use sos_core::{
     commit::{CommitHash, CommitState},

@@ -8,13 +8,15 @@ use sos_core::{
 };
 use sos_vault::{Summary, Vault, VaultFlags};
 
-mod client;
 mod error;
 #[cfg(feature = "files")]
 pub mod files;
+mod filesystem;
+mod traits;
 
-pub use client::ClientStorage;
 pub use error::Error;
+pub use filesystem::ClientStorage;
+pub use traits::ClientAccountStorage;
 
 /// Result type for the client module.
 pub(crate) type Result<T> = std::result::Result<T, Error>;

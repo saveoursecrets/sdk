@@ -1,5 +1,9 @@
 //! Storage backed by the filesystem.
-use crate::{AccessOptions, AccountPack, Error, NewFolderOptions, Result};
+use crate::{
+    AccessOptions, AccountPack, ClientAccountStorage, Error,
+    NewFolderOptions, Result,
+};
+use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use sos_backend::{
@@ -227,11 +231,6 @@ impl ClientStorage {
         })
     }
 
-    /// Account identifier.
-    pub fn account_id(&self) -> &AccountId {
-        &self.account_id
-    }
-
     async fn initialize_device_log(
         paths: &Paths,
         device: TrustedDevice,
@@ -260,20 +259,6 @@ impl ClientStorage {
         Ok((event_log, devices))
     }
 
-    /// Collection of trusted devices.
-    pub fn devices(&self) -> &IndexSet<TrustedDevice> {
-        &self.devices
-    }
-
-    /// Set the password for file encryption.
-    #[cfg(feature = "files")]
-    pub fn set_file_password(
-        &mut self,
-        file_password: Option<secrecy::SecretString>,
-    ) {
-        self.file_password = file_password;
-    }
-
     #[cfg(feature = "files")]
     async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
         let log_file = paths.file_events();
@@ -297,18 +282,6 @@ impl ClientStorage {
         Ok(event_log)
     }
 
-    /// Search index reference.
-    #[cfg(feature = "search")]
-    pub fn index(&self) -> Result<&AccountSearch> {
-        self.index.as_ref().ok_or(Error::NoSearchIndex)
-    }
-
-    /// Mutable search index reference.
-    #[cfg(feature = "search")]
-    pub fn index_mut(&mut self) -> Result<&mut AccountSearch> {
-        self.index.as_mut().ok_or(Error::NoSearchIndex)
-    }
-
     /// Cache of in-memory event logs.
     pub fn cache(&self) -> &HashMap<VaultId, Folder> {
         &self.cache
@@ -317,90 +290,6 @@ impl ClientStorage {
     /// Mutable in-memory event logs.
     pub fn cache_mut(&mut self) -> &mut HashMap<VaultId, Folder> {
         &mut self.cache
-    }
-
-    /// Find a summary in this storage.
-    pub fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
-        match vault {
-            FolderRef::Name(name) => {
-                self.summaries.iter().find(|s| s.name() == name)
-            }
-            FolderRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
-        }
-    }
-
-    /// Find a summary in this storage.
-    pub fn find<F>(&self, predicate: F) -> Option<&Summary>
-    where
-        F: FnMut(&&Summary) -> bool,
-    {
-        self.summaries.iter().find(predicate)
-    }
-
-    /// Computed storage paths.
-    pub fn paths(&self) -> Arc<Paths> {
-        Arc::clone(&self.paths)
-    }
-
-    /// Initialize the search index.
-    ///
-    /// This should be called after a user has signed in to
-    /// create the initial search index.
-    #[cfg(feature = "search")]
-    pub async fn initialize_search_index(
-        &mut self,
-        keys: &FolderKeys,
-    ) -> Result<(DocumentCount, Vec<Summary>)> {
-        // Find the id of an archive folder
-        let summaries = {
-            let summaries = self.list_folders();
-            let mut archive: Option<VaultId> = None;
-            for summary in summaries {
-                if summary.flags().is_archive() {
-                    archive = Some(*summary.id());
-                    break;
-                }
-            }
-            if let Some(index) = &self.index {
-                let mut writer = index.search_index.write().await;
-                writer.set_archive_id(archive);
-            }
-            summaries
-        };
-        let folders = summaries.to_vec();
-        Ok((self.build_search_index(keys).await?, folders))
-    }
-
-    /// Build the search index for all folders.
-    #[cfg(feature = "search")]
-    pub async fn build_search_index(
-        &mut self,
-        keys: &FolderKeys,
-    ) -> Result<DocumentCount> {
-        {
-            let index = self.index.as_ref().ok_or(Error::NoSearchIndex)?;
-            let search_index = index.search();
-            let mut writer = search_index.write().await;
-
-            // Clear search index first
-            writer.remove_all();
-
-            for (summary, key) in &keys.0 {
-                if let Some(folder) = self.cache.get_mut(summary.id()) {
-                    let keeper = folder.keeper_mut();
-                    keeper.unlock(key).await?;
-                    writer.add_folder(keeper).await?;
-                }
-            }
-        }
-
-        let count = if let Some(index) = &self.index {
-            index.document_count().await
-        } else {
-            Default::default()
-        };
-
-        Ok(count)
     }
 
     /// Mark a folder as the currently open folder.
@@ -1791,5 +1680,115 @@ impl ClientStorage {
         }
 
         Ok(())
+    }
+}
+
+#[async_trait]
+impl ClientAccountStorage for ClientStorage {
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
+    }
+
+    fn devices(&self) -> &IndexSet<TrustedDevice> {
+        &self.devices
+    }
+
+    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
+        match vault {
+            FolderRef::Name(name) => {
+                self.summaries.iter().find(|s| s.name() == name)
+            }
+            FolderRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
+        }
+    }
+
+    fn find<F>(&self, predicate: F) -> Option<&Summary>
+    where
+        F: FnMut(&&Summary) -> bool,
+    {
+        self.summaries.iter().find(predicate)
+    }
+
+    fn paths(&self) -> Arc<Paths> {
+        self.paths.clone()
+    }
+
+    #[cfg(feature = "files")]
+    fn set_file_password(
+        &mut self,
+        file_password: Option<secrecy::SecretString>,
+    ) {
+        self.file_password = file_password;
+    }
+
+    #[cfg(feature = "search")]
+    fn index(&self) -> Result<&AccountSearch> {
+        self.index.as_ref().ok_or(Error::NoSearchIndex)
+    }
+
+    #[cfg(feature = "search")]
+    fn index_mut(&mut self) -> Result<&mut AccountSearch> {
+        self.index.as_mut().ok_or(Error::NoSearchIndex)
+    }
+
+    /// Initialize the search index.
+    ///
+    /// This should be called after a user has signed in to
+    /// create the initial search index.
+    #[cfg(feature = "search")]
+    async fn initialize_search_index(
+        &mut self,
+        keys: &FolderKeys,
+    ) -> Result<(DocumentCount, Vec<Summary>)> {
+        // Find the id of an archive folder
+        let summaries = {
+            let summaries = self.list_folders();
+            let mut archive: Option<VaultId> = None;
+            for summary in summaries {
+                if summary.flags().is_archive() {
+                    archive = Some(*summary.id());
+                    break;
+                }
+            }
+            if let Some(index) = &self.index {
+                let mut writer = index.search_index.write().await;
+                writer.set_archive_id(archive);
+            }
+            summaries
+        };
+        let folders = summaries.to_vec();
+        Ok((self.build_search_index(keys).await?, folders))
+    }
+
+    /// Build the search index for all folders.
+    #[cfg(feature = "search")]
+    async fn build_search_index(
+        &mut self,
+        keys: &FolderKeys,
+    ) -> Result<DocumentCount> {
+        {
+            let index = self.index.as_ref().ok_or(Error::NoSearchIndex)?;
+            let search_index = index.search();
+            let mut writer = search_index.write().await;
+
+            // Clear search index first
+            writer.remove_all();
+
+            for (summary, key) in &keys.0 {
+                if let Some(folder) = self.cache.get_mut(summary.id()) {
+                    let keeper = folder.keeper_mut();
+                    keeper.unlock(key).await?;
+                    writer.add_folder(keeper).await?;
+                }
+            }
+        }
+
+        let count = if let Some(index) = &self.index {
+            index.document_count().await
+        } else {
+            Default::default()
+        };
+
+        Ok(count)
     }
 }
