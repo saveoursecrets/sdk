@@ -1,24 +1,22 @@
 //! Implements merging for folders.
 use crate::Result;
 use async_trait::async_trait;
-use sos_backend::reducers::FolderReducer;
 use sos_backend::Folder;
 use sos_core::{
     events::{
         patch::{CheckedPatch, FolderDiff},
-        LogEvent, WriteEvent,
+        EventLog, LogEvent, WriteEvent,
     },
     VaultId,
 };
-use sos_sdk::{
-    events::EventLog, identity::IdentityFolder, vault::secret::SecretRow,
-};
-use sos_vault::SecretAccess;
+use sos_login::IdentityFolder;
+use sos_reducers::FolderReducer;
+use sos_vault::{secret::SecretRow, SecretAccess};
 
 /// Options for folder merge.
 pub(crate) enum FolderMergeOptions<'a> {
     /// Update a URN lookup when merging.
-    Urn(VaultId, &'a mut sos_sdk::identity::UrnLookup),
+    Urn(VaultId, &'a mut sos_login::UrnLookup),
     /// Update a search index when merging.
     #[cfg(feature = "search")]
     Search(VaultId, &'a mut sos_search::SearchIndex),

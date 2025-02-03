@@ -1,9 +1,9 @@
 //! Account storage and search index.
 use crate::{convert::CipherComparison, AccountBuilder, Error, Result};
-use sos_backend::compact::compact_folder;
+use indexmap::IndexSet;
 use sos_backend::{
-    reducers::FolderReducer, write_exclusive, AccessPoint, AccountEventLog,
-    StorageError,
+    compact::compact_folder, write_exclusive, AccessPoint, AccountEventLog,
+    BackendTarget, StorageError,
 };
 use sos_client_storage::{
     AccessOptions, AccountPack, ClientAccountStorage, ClientDeviceStorage,
@@ -13,15 +13,20 @@ use sos_client_storage::{
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
-    decode, encode,
-    events::{AccountEvent, Event, EventKind, ReadEvent, WriteEvent},
-    events::{EventLog, EventRecord},
-    AccountId, SecretId, VaultCommit, VaultId,
+    decode,
+    device::{DevicePublicKey, TrustedDevice},
+    encode,
+    events::{
+        AccountEvent, Event, EventKind, EventLog, EventRecord, ReadEvent,
+        WriteEvent,
+    },
+    AccountId, Paths, SecretId, UtcDateTime, VaultCommit, VaultId,
 };
-use sos_sdk::{
-    identity::{AccountRef, FolderKeys, Identity, PublicIdentity},
-    vfs, Paths, UtcDateTime,
+use sos_login::{
+    device::{DeviceManager, DeviceSigner},
+    AccountRef, FolderKeys, Identity, PublicIdentity,
 };
+use sos_reducers::FolderReducer;
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
     list_accounts, list_local_folders,
@@ -29,6 +34,7 @@ use sos_vault::{
     BuilderCredentials, Header, SecretAccess, Summary, Vault, VaultBuilder,
     VaultFlags,
 };
+use sos_vfs as vfs;
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -47,12 +53,6 @@ use {
 
 #[cfg(feature = "archive")]
 use sos_filesystem::archive::{Inventory, RestoreOptions};
-
-use sos_backend::BackendTarget;
-use sos_core::device::{DevicePublicKey, TrustedDevice};
-use sos_login::device::{DeviceManager, DeviceSigner};
-
-use indexmap::IndexSet;
 
 #[cfg(feature = "files")]
 use sos_external_files::FileMutationEvent;
@@ -1028,7 +1028,7 @@ impl LocalAccount {
         vault_id: &VaultId,
         new_key: AccessKey,
     ) -> Result<Vec<u8>> {
-        use sos_sdk::vault::ChangePassword;
+        use sos_vault::ChangePassword;
         let paths = self.paths().clone();
         // Get the current vault passphrase from the identity vault
         let current_key = self

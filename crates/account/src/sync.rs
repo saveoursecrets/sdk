@@ -306,7 +306,7 @@ impl Merge for LocalAccount {
         diff: FileDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        use sos_backend::reducers::FileReducer;
+        use sos_reducers::FileReducer;
         tracing::debug!(
             checkpoint = ?diff.checkpoint,
             num_events = diff.patch.len(),

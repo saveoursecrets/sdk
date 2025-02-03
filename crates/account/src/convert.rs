@@ -2,7 +2,7 @@
 use crate::{Account, Error, LocalAccount, Result};
 use serde::{Deserialize, Serialize};
 use sos_backend::AccessPoint;
-use sos_sdk::{
+use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
 };

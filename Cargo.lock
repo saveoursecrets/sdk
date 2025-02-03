@@ -4840,7 +4840,6 @@ dependencies = [
  "sos-login",
  "sos-migrate",
  "sos-reducers",
- "sos-sdk",
  "sos-search",
  "sos-signer",
  "sos-sync",

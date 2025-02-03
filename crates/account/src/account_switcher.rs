@@ -1,6 +1,6 @@
 use crate::{Account, Error, LocalAccount, Result};
-use sos_core::AccountId;
-use sos_sdk::{prelude::PublicIdentity, Paths};
+use sos_core::{AccountId, Paths};
+use sos_login::PublicIdentity;
 use sos_vault::list_accounts;
 use std::path::PathBuf;
 use std::pin::Pin;
@@ -13,7 +13,7 @@ use sos_search::{ArchiveFilter, Document, DocumentView, QueryFilter};
 use {crate::ClipboardCopyRequest, xclipboard::Clipboard};
 
 #[cfg(feature = "clipboard")]
-use sos_sdk::prelude::SecretPath;
+use sos_core::SecretPath;
 
 /// Account switcher for local accounts.
 pub type LocalAccountSwitcher = AccountSwitcher<
