@@ -45,8 +45,7 @@ async fn event_log_compact() -> Result<()> {
     account.delete_secret(&card, Default::default()).await?;
 
     let folder_events = account.paths().event_log_path(default_folder.id());
-    let event_log =
-        FolderEventLog::new_fs_folder(&folder_events).await?;
+    let event_log = FolderEventLog::new_fs_folder(&folder_events).await?;
     let patch = event_log.diff_events(None).await?;
     // One create vault event, three create secret events
     // and two delete events
@@ -61,7 +60,7 @@ async fn event_log_compact() -> Result<()> {
 
     // Check the in-memory commit tree
     let new_root = {
-        let storage = account.storage().await.unwrap();
+        let storage = account.storage().await;
         let reader = storage.read().await;
         let folder = reader.cache().get(default_folder.id()).unwrap();
         let event_log = folder.event_log();

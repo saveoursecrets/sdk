@@ -314,15 +314,12 @@ impl Account for LinkedAccount {
         Ok(account.delete_account().await?)
     }
 
-    async fn storage(&self) -> Option<Arc<RwLock<ClientStorage>>> {
+    async fn storage(&self) -> Arc<RwLock<ClientStorage>> {
         let account = self.account.lock().await;
         account.storage().await
     }
 
-    async fn set_storage(
-        &mut self,
-        storage: Option<Arc<RwLock<ClientStorage>>>,
-    ) {
+    async fn set_storage(&mut self, storage: Arc<RwLock<ClientStorage>>) {
         let mut account = self.account.lock().await;
         account.set_storage(storage).await
     }

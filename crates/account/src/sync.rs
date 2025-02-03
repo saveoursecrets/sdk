@@ -63,8 +63,7 @@ impl ForceMerge for LocalAccount {
             "force_merge::folder",
         );
 
-        let storage = self.storage().await.ok_or(StorageError::NoStorage)?;
-        let mut storage = storage.write().await;
+        let mut storage = self.storage.write().await;
 
         let folder = storage
             .cache_mut()
@@ -171,11 +170,7 @@ impl Merge for LocalAccount {
                             // Must operate on the storage level otherwise
                             // we would duplicate identity events for folder
                             // password
-                            let storage = self
-                                .storage()
-                                .await
-                                .ok_or(StorageError::NoStorage)?;
-                            let mut storage = storage.write().await;
+                            let mut storage = self.storage.write().await;
                             storage
                                 .import_folder(
                                     buf,
@@ -189,11 +184,7 @@ impl Merge for LocalAccount {
                     AccountEvent::RenameFolder(id, name) => {
                         let summary = self.find(|s| s.id() == id).await;
                         if let Some(summary) = &summary {
-                            let storage = self
-                                .storage()
-                                .await
-                                .ok_or(StorageError::NoStorage)?;
-                            let mut storage = storage.write().await;
+                            let mut storage = self.storage.write().await;
                             // Note that this event is recorded at both
                             // the account level and the folder level so
                             // we only update the in-memory version here
@@ -205,11 +196,7 @@ impl Merge for LocalAccount {
                     AccountEvent::DeleteFolder(id) => {
                         let summary = self.find(|s| s.id() == id).await;
                         if let Some(summary) = &summary {
-                            let storage = self
-                                .storage()
-                                .await
-                                .ok_or(StorageError::NoStorage)?;
-                            let mut storage = storage.write().await;
+                            let mut storage = self.storage.write().await;
                             storage.delete_folder(summary, false).await?;
                             deleted_folders.insert(*id);
                         }
@@ -238,9 +225,7 @@ impl Merge for LocalAccount {
         );
 
         let checked_patch = {
-            let storage =
-                self.storage().await.ok_or(StorageError::NoStorage)?;
-            let storage = storage.read().await;
+            let storage = self.storage.read().await;
             let mut event_log = storage.device_log.write().await;
             event_log
                 .patch_checked(&diff.checkpoint, &diff.patch)
@@ -249,17 +234,13 @@ impl Merge for LocalAccount {
 
         if let CheckedPatch::Success(_) = &checked_patch {
             let devices = {
-                let storage =
-                    self.storage().await.ok_or(StorageError::NoStorage)?;
-                let storage = storage.read().await;
+                let storage = self.storage.read().await;
                 let event_log = storage.device_log.read().await;
                 let reducer = DeviceReducer::new(&*event_log);
                 reducer.reduce().await?
             };
 
-            let storage =
-                self.storage().await.ok_or(StorageError::NoStorage)?;
-            let mut storage = storage.write().await;
+            let mut storage = self.storage.write().await;
             storage.devices = devices;
 
             outcome.changes += diff.patch.len() as u64;
@@ -283,8 +264,7 @@ impl Merge for LocalAccount {
             "files",
         );
 
-        let storage = self.storage().await.ok_or(StorageError::NoStorage)?;
-        let storage = storage.read().await;
+        let storage = self.storage.read().await;
         let mut event_log = storage.file_log.write().await;
 
         // File events may not have a root commit
@@ -327,9 +307,7 @@ impl Merge for LocalAccount {
         let len = diff.patch.len() as u64;
 
         let (checked_patch, events) = {
-            let storage =
-                self.storage().await.ok_or(StorageError::NoStorage)?;
-            let mut storage = storage.write().await;
+            let mut storage = self.storage.write().await;
 
             #[cfg(feature = "search")]
             let search = {

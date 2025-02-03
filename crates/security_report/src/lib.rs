@@ -45,10 +45,7 @@ where
         .collect();
 
     for target in targets {
-        let storage = account
-            .storage()
-            .await
-            .ok_or(sos_backend::StorageError::NoStorage)?;
+        let storage = account.storage().await;
         let reader = storage.read().await;
 
         let folder = reader.cache().get(target.id()).unwrap();

@@ -75,7 +75,7 @@ pub trait AutoMerge: RemoteSyncHandler {
                 let exists = {
                     let account = self.account();
                     let account = account.lock().await;
-                    account.storage().await.is_some()
+                    account.paths().is_usable().await?
                 };
                 if exists {
                     self.perform_sync(options).await

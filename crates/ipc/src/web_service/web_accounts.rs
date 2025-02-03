@@ -309,7 +309,7 @@ where
                             // Now the storage should have the folder so
                             // we can access the access point and add it to
                             // the search index
-                            let storage = account.storage().await.unwrap();
+                            let storage = account.storage().await;
                             let storage = storage.read().await;
                             if let Some(folder) =
                                 storage.cache().get(&folder_id)
@@ -328,7 +328,7 @@ where
                 }
             }
             ChangeRecords::Folder(folder_id, events) => {
-                let storage = account.storage().await.unwrap();
+                let storage = account.storage().await;
                 let mut storage = storage.write().await;
                 if let Some(folder) = storage.cache_mut().get_mut(&folder_id)
                 {
@@ -482,7 +482,7 @@ where
                         .find(|a| a.account_id() == &account_id)
                         .ok_or(FileEventError::NoAccount(account_id))?;
 
-                    let storage = account.storage().await.unwrap();
+                    let storage = account.storage().await;
                     let mut storage = storage.write().await;
                     storage.remove_folder(&folder_id).await?;
                 }
@@ -494,7 +494,7 @@ where
                     .find(|a| a.account_id() == &account_id)
                     .ok_or(FileEventError::NoAccount(account_id))?;
 
-                let storage = account.storage().await.unwrap();
+                let storage = account.storage().await;
                 let storage = storage.read().await;
                 let folder = storage
                     .cache()
@@ -569,7 +569,7 @@ where
         + Sync
         + 'static,
 {
-    let storage = account.storage().await.unwrap();
+    let storage = account.storage().await;
     let storage = storage.read().await;
 
     let mut event_log = storage.account_log.write().await;

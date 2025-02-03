@@ -31,13 +31,6 @@ pub enum Error {
     #[error("could not find folder password for '{0}'")]
     NoFolderPassword(VaultId),
 
-    /*
-    /// Error generated when no storage is configured.
-    #[error(
-        "account is empty, you may need to initialize the account or sign in"
-    )]
-    NoStorage,
-    */
     /// Error generated when a file encryption password is required.
     #[error("no file password")]
     NoFilePassword,

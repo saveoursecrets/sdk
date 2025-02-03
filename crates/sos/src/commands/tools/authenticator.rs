@@ -58,8 +58,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .await
                 .ok_or(Error::NoAuthenticatorFolder)?;
 
-            let storage =
-                owner.storage().await.ok_or(StorageError::NoStorage)?;
+            let storage = owner.storage().await;
             let storage = storage.read().await;
             let folder = storage.cache().get(authenticator.id()).unwrap();
 
@@ -107,8 +106,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             };
 
             if let Some(folder) = folder {
-                let storage =
-                    owner.storage().await.ok_or(StorageError::NoStorage)?;
+                let storage = owner.storage().await;
                 let mut storage = storage.write().await;
                 let folder =
                     storage.cache_mut().get_mut(folder.id()).unwrap();

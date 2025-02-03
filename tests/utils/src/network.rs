@@ -212,7 +212,7 @@ pub async fn num_events(
     owner: &mut NetworkAccount,
     folder_id: &VaultId,
 ) -> usize {
-    let storage = owner.storage().await.unwrap();
+    let storage = owner.storage().await;
     let reader = storage.read().await;
     let folder = reader.cache().get(folder_id).unwrap();
     let events = folder.event_log();
@@ -234,7 +234,7 @@ pub async fn assert_local_remote_vaults_eq(
     owner: &mut NetworkAccount,
     _provider: &mut RemoteBridge,
 ) -> Result<()> {
-    let storage = owner.storage().await.ok_or(StorageError::NoStorage)?;
+    let storage = owner.storage().await;
     let reader = storage.read().await;
 
     // Compare vault buffers

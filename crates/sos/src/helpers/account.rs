@@ -187,7 +187,7 @@ pub async fn resolve_folder(
     let owner = user.read().await;
     let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
     if let Some(vault) = folder {
-        let storage = owner.storage().await.ok_or(StorageError::NoStorage)?;
+        let storage = owner.storage().await;
         let reader = storage.read().await;
         Ok(Some(
             reader
@@ -205,7 +205,7 @@ pub async fn resolve_folder(
             .ok_or(Error::NoVaultSelected)?;
         Ok(Some(summary.clone()))
     } else {
-        let storage = owner.storage().await.ok_or(StorageError::NoStorage)?;
+        let storage = owner.storage().await;
         let reader = storage.read().await;
         Ok(reader.find(|s| s.flags().is_default()).cloned())
     }
@@ -216,7 +216,7 @@ pub async fn cd_folder(folder: Option<&FolderRef>) -> Result<()> {
         let owner = USER.read().await;
         let owner =
             owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-        let storage = owner.storage().await.ok_or(StorageError::NoStorage)?;
+        let storage = owner.storage().await;
         let reader = storage.read().await;
         let summary = if let Some(vault) = folder {
             Some(

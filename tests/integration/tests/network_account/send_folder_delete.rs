@@ -49,7 +49,7 @@ async fn network_sync_folder_delete() -> Result<()> {
     assert!(sync_result.first_error().is_none());
 
     let updated_summaries: Vec<Summary> = {
-        let storage = device.owner.storage().await.unwrap();
+        let storage = device.owner.storage().await;
         let reader = storage.read().await;
         reader.list_folders().to_vec()
     };

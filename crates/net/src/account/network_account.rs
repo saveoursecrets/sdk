@@ -9,7 +9,6 @@ use sos_account::{
     SecretDelete, SecretInsert, SecretMove,
 };
 use sos_backend::ServerOrigins;
-use sos_backend::StorageError;
 use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_core::events::{AccountEvent, ReadEvent};
 use sos_core::{
@@ -250,8 +249,7 @@ impl NetworkAccount {
         // Update the local device event log
         {
             let account = self.account.lock().await;
-            let storage =
-                account.storage().await.ok_or(StorageError::NoStorage)?;
+            let storage = account.storage().await;
             let mut storage = storage.write().await;
             storage.revoke_device(device_key).await?;
         }
@@ -988,15 +986,12 @@ impl Account for NetworkAccount {
         account.find(predicate).await
     }
 
-    async fn storage(&self) -> Option<Arc<RwLock<ClientStorage>>> {
+    async fn storage(&self) -> Arc<RwLock<ClientStorage>> {
         let account = self.account.lock().await;
         account.storage().await
     }
 
-    async fn set_storage(
-        &mut self,
-        storage: Option<Arc<RwLock<ClientStorage>>>,
-    ) {
+    async fn set_storage(&mut self, storage: Arc<RwLock<ClientStorage>>) {
         let mut account = self.account.lock().await;
         account.set_storage(storage).await
     }
