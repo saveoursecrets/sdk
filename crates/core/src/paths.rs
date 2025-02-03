@@ -12,8 +12,8 @@ use crate::{
         ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, BLOBS_DIR,
         DATABASE_FILE, DEVICE_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR,
         FILE_EVENTS, IDENTITY_DIR, JSON_EXT, LOCAL_DIR, LOGS_DIR,
-        PENDING_DIR, REMOTES_FILE, REMOTE_DIR, SYSTEM_MESSAGES_FILE,
-        VAULTS_DIR, VAULT_EXT,
+        REMOTES_FILE, REMOTE_DIR, SYSTEM_MESSAGES_FILE, VAULTS_DIR,
+        VAULT_EXT,
     },
     SecretId, VaultId,
 };
@@ -69,8 +69,6 @@ pub struct Paths {
     files_dir: PathBuf,
     /// User vault storage.
     vaults_dir: PathBuf,
-    /// Pending folders dir.
-    pending_dir: PathBuf,
     /// User devices storage.
     device_file: PathBuf,
 }
@@ -123,7 +121,6 @@ impl Paths {
 
         let files_dir = user_dir.join(FILES_DIR);
         let vaults_dir = user_dir.join(VAULTS_DIR);
-        let pending_dir = user_dir.join(PENDING_DIR);
         let device_file =
             user_dir.join(format!("{}.{}", DEVICE_FILE, VAULT_EXT));
 
@@ -145,7 +142,6 @@ impl Paths {
             user_dir,
             files_dir,
             vaults_dir,
-            pending_dir,
             device_file,
         }
     }
@@ -180,7 +176,6 @@ impl Paths {
             vfs::create_dir_all(&self.user_dir).await?;
             vfs::create_dir_all(&self.files_dir).await?;
             vfs::create_dir_all(&self.vaults_dir).await?;
-            vfs::create_dir_all(&self.pending_dir).await?;
 
             // Version 2 database backend needs a blobs folder
             vfs::create_dir_all(self.blobs_dir.join(self.user_id())).await?;
@@ -451,20 +446,6 @@ impl Paths {
             panic!("vault path is not accessible for global paths");
         }
         let mut vault_path = self.vaults_dir.join(id.to_string());
-        vault_path.set_extension(VAULT_EXT);
-        vault_path
-    }
-
-    /// Path to a pending vault file from it's identifier.
-    ///
-    /// # Panics
-    ///
-    /// If this set of paths are global (no user identifier).
-    pub fn pending_vault_path(&self, id: &VaultId) -> PathBuf {
-        if self.is_global() {
-            panic!("pending vault path is not accessible for global paths");
-        }
-        let mut vault_path = self.pending_dir.join(id.to_string());
         vault_path.set_extension(VAULT_EXT);
         vault_path
     }

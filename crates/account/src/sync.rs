@@ -370,20 +370,6 @@ impl Merge for LocalAccount {
                 "folder",
             );
 
-            // Try to promote a pending folder when we receive
-            // events for a folder.
-            //
-            // Relies on the server never including events when
-            // the NO_SYNC flag has been set.
-            let promoted =
-                storage.try_promote_pending_folder(folder_id).await?;
-            if promoted {
-                let key = self.find_folder_password(folder_id).await?.ok_or(
-                    sos_client_storage::Error::NoFolderPassword(*folder_id),
-                )?;
-                storage.unlock_folder(folder_id, &key).await?;
-            }
-
             let folder = storage
                 .folders_mut()
                 .get_mut(folder_id)

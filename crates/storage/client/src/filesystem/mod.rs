@@ -352,91 +352,6 @@ impl ClientFileStorage {
         Ok(())
     }
 
-    /// Create the event log on disc for a pending folder.
-    #[deprecated]
-    async fn create_pending_event_log(
-        &self,
-        summary: &Summary,
-        vault: Vault,
-        creation_time: Option<&UtcDateTime>,
-    ) -> Result<()> {
-        let vault_path = self.paths.pending_vault_path(summary.id());
-        let mut event_log = Folder::new_fs(&vault_path).await?;
-
-        // Must truncate the event log so that importing vaults
-        // does not end up with multiple create vault events
-        event_log.clear().await?;
-
-        let (_, events) = FolderReducer::split::<Error>(vault).await?;
-
-        let mut records = Vec::with_capacity(events.len());
-        for event in events.iter() {
-            records.push(EventRecord::encode_event(event).await?);
-        }
-
-        if let (Some(creation_time), Some(event)) =
-            (creation_time, records.get_mut(0))
-        {
-            event.set_time(creation_time.to_owned());
-        }
-        event_log.apply_records(records).await?;
-
-        Ok(())
-    }
-
-    /// Promote a pending folder.
-    ///
-    /// A pending folder is one that was created with the `LOCAL`
-    /// and `NO_SYNC` flags set.
-    ///
-    /// The `LOCAL` flag indicates the folder is local-first and
-    /// other devices when they see the `LOCAL` flag set when an
-    /// [AccountEvent::CreateFolder] event is merged must create
-    /// stub files in the pending folder.
-    ///
-    /// Later, if a device decides to remove the `NO_SYNC` flag
-    /// then the server will include the folder in diff contents.
-    ///
-    /// Clients should then try to merge the diff contents but the
-    /// folder may not exist so they can
-    /// call `try_promote_pending_folder` first.
-    ///
-    /// Returns a boolean indicating whether a folder was promoted
-    /// or not.
-    #[doc(hidden)]
-    #[deprecated]
-    pub async fn try_promote_pending_folder(
-        &mut self,
-        folder_id: &VaultId,
-    ) -> Result<bool> {
-        let pending_vault = self.paths.pending_vault_path(folder_id);
-        let mut pending_event = pending_vault.clone();
-        pending_event.set_extension(EVENT_LOG_EXT);
-
-        let vault = self.paths.vault_path(folder_id);
-        let event = self.paths.event_log_path(folder_id);
-
-        let has_pending_folder = vfs::try_exists(&pending_vault).await?
-            && vfs::try_exists(&pending_event).await?;
-
-        if has_pending_folder {
-            // Move the files into place
-            vfs::rename(&pending_vault, &vault).await?;
-            vfs::rename(&pending_event, &event).await?;
-
-            let summary = Header::read_summary_file(&vault).await?;
-            let folder = Folder::new_fs(&vault).await?;
-            let event_log = folder.event_log();
-            let mut event_log = event_log.write().await;
-            event_log.load_tree().await?;
-            self.folders.insert(*summary.id(), folder);
-            self.add_summary(summary);
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
     /// Refresh the in-memory vault from the contents
     /// of the current event log file.
     ///
@@ -478,17 +393,6 @@ impl ClientFileStorage {
         buffer: impl AsRef<[u8]>,
     ) -> Result<()> {
         let vault_path = self.paths.vault_path(vault_id);
-        write_exclusive(vault_path, buffer.as_ref()).await?;
-        Ok(())
-    }
-
-    /// Write the buffer for a local vault placeholder to disc.
-    async fn write_pending_vault_file(
-        &self,
-        vault_id: &VaultId,
-        buffer: impl AsRef<[u8]>,
-    ) -> Result<()> {
-        let vault_path = self.paths.pending_vault_path(vault_id);
         write_exclusive(vault_path, buffer.as_ref()).await?;
         Ok(())
     }
@@ -628,9 +532,6 @@ impl ClientFileStorage {
         let exists = self.find(|s| s.id() == vault.id()).is_some();
         let summary = vault.summary().clone();
 
-        let is_local_folder =
-            summary.flags().is_local() && summary.flags().is_sync_disabled();
-
         #[cfg(feature = "search")]
         if exists {
             if let Some(index) = self.index.as_mut() {
@@ -639,50 +540,38 @@ impl ClientFileStorage {
             }
         }
 
-        // Always write out the updated buffer
-        if is_local_folder {
-            self.write_pending_vault_file(summary.id(), &buffer).await?;
+        self.write_vault_file(summary.id(), &buffer).await?;
+
+        if !exists {
+            // Add the summary to the vaults we are managing
+            self.add_summary(summary.clone());
         } else {
-            self.write_vault_file(summary.id(), &buffer).await?;
+            // Otherwise update with the new summary
+            if let Some(position) =
+                self.summaries.iter().position(|s| s.id() == summary.id())
+            {
+                let existing = self.summaries.get_mut(position).unwrap();
+                *existing = summary.clone();
+            }
         }
 
-        if !is_local_folder {
-            if !exists {
-                // Add the summary to the vaults we are managing
-                self.add_summary(summary.clone());
-            } else {
-                // Otherwise update with the new summary
-                if let Some(position) =
-                    self.summaries.iter().position(|s| s.id() == summary.id())
-                {
-                    let existing = self.summaries.get_mut(position).unwrap();
-                    *existing = summary.clone();
-                }
-            }
-
-            #[cfg(feature = "search")]
-            if let Some(key) = key {
-                if let Some(index) = self.index.as_mut() {
-                    // Ensure the imported secrets are in the search index
-                    index.add_vault(vault.clone(), key).await?;
-                }
+        #[cfg(feature = "search")]
+        if let Some(key) = key {
+            if let Some(index) = self.index.as_mut() {
+                // Ensure the imported secrets are in the search index
+                index.add_vault(vault.clone(), key).await?;
             }
         }
 
         let event = vault.into_event().await?;
 
-        if is_local_folder {
-            self.create_pending_event_log(&summary, vault, creation_time)
-                .await?;
-        } else {
-            // Initialize the local cache for event log
-            self.create_folder_entry(&summary, Some(vault), creation_time)
-                .await?;
+        // Initialize the local cache for event log
+        self.create_folder_entry(&summary, Some(vault), creation_time)
+            .await?;
 
-            // Must ensure the folder is unlocked
-            if let Some(key) = key {
-                self.unlock_folder(summary.id(), key).await?;
-            }
+        // Must ensure the folder is unlocked
+        if let Some(key) = key {
+            self.unlock_folder(summary.id(), key).await?;
         }
 
         Ok((exists, event, summary))
