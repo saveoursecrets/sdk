@@ -217,12 +217,6 @@ impl ServerDatabaseStorage {
         Ok(event_log)
     }
 
-    fn folders_mut(
-        &mut self,
-    ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
-        &mut self.folders
-    }
-
     async fn lookup_account(
         client: &mut Client,
         account_id: &AccountId,
@@ -312,8 +306,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
                 .await?;
                 event_log.patch_unchecked(folder).await?;
 
-                self.folders_mut()
-                    .insert(*id, Arc::new(RwLock::new(event_log)));
+                self.folders.insert(*id, Arc::new(RwLock::new(event_log)));
             }
         }
 

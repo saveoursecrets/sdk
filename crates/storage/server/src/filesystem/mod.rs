@@ -175,12 +175,6 @@ impl ServerFileStorage {
 
         Ok(event_log)
     }
-
-    fn folders_mut(
-        &mut self,
-    ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
-        &mut self.folders
-    }
 }
 
 #[async_trait]
@@ -235,8 +229,7 @@ impl ServerAccountStorage for ServerFileStorage {
             let buffer = encode(&vault).await?;
             vfs::write(vault_path, buffer).await?;
 
-            self.folders_mut()
-                .insert(*id, Arc::new(RwLock::new(event_log)));
+            self.folders.insert(*id, Arc::new(RwLock::new(event_log)));
         }
 
         Ok(())

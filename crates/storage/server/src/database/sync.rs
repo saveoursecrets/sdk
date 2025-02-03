@@ -130,7 +130,7 @@ impl ForceMerge for ServerDatabaseStorage {
         )
         .await?;
 
-        self.folders_mut()
+        self.folders
             .insert(*folder_id, Arc::new(RwLock::new(event_log)));
 
         outcome.changes += len;
