@@ -37,7 +37,7 @@ use sos_filesystem::archive::RestoreTargets;
 use sos_search::{AccountSearch, DocumentCount};
 
 #[cfg(feature = "files")]
-use {sos_backend::FileEventLog, sos_core::events::FileEvent};
+use sos_backend::FileEventLog;
 
 pub enum ClientStorage {
     /// Filesystem storage.
@@ -52,9 +52,16 @@ impl ClientSecretStorage for ClientStorage {
     async fn create_secret(
         &mut self,
         secret_data: SecretRow,
-        #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
+        options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.create_secret(secret_data, options).await
+            }
+            ClientStorage::Database(db) => {
+                db.create_secret(secret_data, options).await
+            }
+        }
     }
 
     async fn raw_secret(
@@ -62,14 +69,24 @@ impl ClientSecretStorage for ClientStorage {
         folder_id: &VaultId,
         secret_id: &SecretId,
     ) -> Result<Option<(Cow<'_, VaultCommit>, ReadEvent)>> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.raw_secret(folder_id, secret_id).await
+            }
+            ClientStorage::Database(db) => {
+                db.raw_secret(folder_id, secret_id).await
+            }
+        }
     }
 
     async fn read_secret(
         &self,
         id: &SecretId,
     ) -> Result<(SecretMeta, Secret, ReadEvent)> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.read_secret(id).await,
+            ClientStorage::Database(db) => db.read_secret(id).await,
+        }
     }
 
     async fn update_secret(
@@ -77,30 +94,54 @@ impl ClientSecretStorage for ClientStorage {
         secret_id: &SecretId,
         meta: SecretMeta,
         secret: Option<Secret>,
-        #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
+        options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.update_secret(secret_id, meta, secret, options).await
+            }
+            ClientStorage::Database(db) => {
+                db.update_secret(secret_id, meta, secret, options).await
+            }
+        }
     }
 
     async fn write_secret(
         &mut self,
         id: &SecretId,
-        mut secret_data: SecretRow,
-        #[allow(unused_variables)] is_update: bool,
+        secret_data: SecretRow,
+        is_update: bool,
     ) -> Result<WriteEvent> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.write_secret(id, secret_data, is_update).await
+            }
+            ClientStorage::Database(db) => {
+                db.write_secret(id, secret_data, is_update).await
+            }
+        }
     }
 
     async fn delete_secret(
         &mut self,
         secret_id: &SecretId,
-        #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
+        options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.delete_secret(secret_id, options).await
+            }
+            ClientStorage::Database(db) => {
+                db.delete_secret(secret_id, options).await
+            }
+        }
     }
 
     async fn remove_secret(&mut self, id: &SecretId) -> Result<WriteEvent> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.remove_secret(id).await,
+            ClientStorage::Database(db) => db.remove_secret(id).await,
+        }
     }
 }
 
@@ -108,11 +149,17 @@ impl ClientSecretStorage for ClientStorage {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ClientFolderStorage for ClientStorage {
     fn folders(&self) -> &HashMap<VaultId, Folder> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.folders(),
+            ClientStorage::Database(db) => db.folders(),
+        }
     }
 
     fn folders_mut(&mut self) -> &mut HashMap<VaultId, Folder> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.folders_mut(),
+            ClientStorage::Database(db) => db.folders_mut(),
+        }
     }
 
     async fn create_folder(
@@ -120,7 +167,14 @@ impl ClientFolderStorage for ClientStorage {
         name: String,
         options: NewFolderOptions,
     ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.create_folder(name, options).await
+            }
+            ClientStorage::Database(db) => {
+                db.create_folder(name, options).await
+            }
+        }
     }
 
     async fn import_folder(
@@ -130,11 +184,23 @@ impl ClientFolderStorage for ClientStorage {
         apply_event: bool,
         creation_time: Option<&UtcDateTime>,
     ) -> Result<(Event, Summary)> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.import_folder(buffer, key, apply_event, creation_time)
+                    .await
+            }
+            ClientStorage::Database(db) => {
+                db.import_folder(buffer, key, apply_event, creation_time)
+                    .await
+            }
+        }
     }
 
     async fn load_folders(&mut self) -> Result<&[Summary]> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.load_folders().await,
+            ClientStorage::Database(db) => db.load_folders().await,
+        }
     }
 
     async fn delete_folder(
@@ -142,45 +208,82 @@ impl ClientFolderStorage for ClientStorage {
         summary: &Summary,
         apply_event: bool,
     ) -> Result<Vec<Event>> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.delete_folder(summary, apply_event).await
+            }
+            ClientStorage::Database(db) => {
+                db.delete_folder(summary, apply_event).await
+            }
+        }
     }
 
     async fn remove_folder(&mut self, folder_id: &VaultId) -> Result<bool> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.remove_folder(folder_id).await
+            }
+            ClientStorage::Database(db) => db.remove_folder(folder_id).await,
+        }
     }
 
     fn list_folders(&self) -> &[Summary] {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.list_folders(),
+            ClientStorage::Database(db) => db.list_folders(),
+        }
     }
 
     fn current_folder(&self) -> Option<Summary> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.current_folder(),
+            ClientStorage::Database(db) => db.current_folder(),
+        }
     }
 
     fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.find_folder(vault),
+            ClientStorage::Database(db) => db.find_folder(vault),
+        }
     }
 
     fn find<F>(&self, predicate: F) -> Option<&Summary>
     where
         F: FnMut(&&Summary) -> bool,
     {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.find(predicate),
+            ClientStorage::Database(db) => db.find(predicate),
+        }
     }
 
     async fn open_folder(&mut self, summary: &Summary) -> Result<ReadEvent> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.open_folder(summary).await,
+            ClientStorage::Database(db) => db.open_folder(summary).await,
+        }
     }
 
     fn close_folder(&mut self) {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.close_folder(),
+            ClientStorage::Database(db) => db.close_folder(),
+        }
     }
 
     async fn import_folder_patches(
         &mut self,
         patches: HashMap<VaultId, FolderPatch>,
     ) -> Result<()> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.import_folder_patches(patches).await
+            }
+            ClientStorage::Database(db) => {
+                db.import_folder_patches(patches).await
+            }
+        }
     }
 
     async fn compact_folder(
@@ -188,7 +291,14 @@ impl ClientFolderStorage for ClientStorage {
         summary: &Summary,
         key: &AccessKey,
     ) -> Result<AccountEvent> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.compact_folder(summary, key).await
+            }
+            ClientStorage::Database(db) => {
+                db.compact_folder(summary, key).await
+            }
+        }
     }
 
     async fn restore_folder(
@@ -197,7 +307,14 @@ impl ClientFolderStorage for ClientStorage {
         records: Vec<EventRecord>,
         key: &AccessKey,
     ) -> Result<Summary> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.restore_folder(folder_id, records, key).await
+            }
+            ClientStorage::Database(db) => {
+                db.restore_folder(folder_id, records, key).await
+            }
+        }
     }
 
     async fn rename_folder(
@@ -205,7 +322,14 @@ impl ClientFolderStorage for ClientStorage {
         summary: &Summary,
         name: impl AsRef<str> + Send,
     ) -> Result<Event> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.rename_folder(summary, name).await
+            }
+            ClientStorage::Database(db) => {
+                db.rename_folder(summary, name).await
+            }
+        }
     }
 
     async fn update_folder_flags(
@@ -213,15 +337,27 @@ impl ClientFolderStorage for ClientStorage {
         summary: &Summary,
         flags: VaultFlags,
     ) -> Result<Event> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.update_folder_flags(summary, flags).await
+            }
+            ClientStorage::Database(db) => {
+                db.update_folder_flags(summary, flags).await
+            }
+        }
     }
 
     fn set_folder_name(
         &mut self,
         summary: &Summary,
-        name: impl AsRef<str>,
+        name: impl AsRef<str> + Send,
     ) -> Result<()> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.set_folder_name(summary, name)
+            }
+            ClientStorage::Database(db) => db.set_folder_name(summary, name),
+        }
     }
 
     fn set_folder_flags(
@@ -229,18 +365,35 @@ impl ClientFolderStorage for ClientStorage {
         summary: &Summary,
         flags: VaultFlags,
     ) -> Result<()> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.set_folder_flags(summary, flags)
+            }
+            ClientStorage::Database(db) => {
+                db.set_folder_flags(summary, flags)
+            }
+        }
     }
 
     async fn description(&self) -> Result<String> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.description().await,
+            ClientStorage::Database(db) => db.description().await,
+        }
     }
 
     async fn set_description(
         &mut self,
         description: impl AsRef<str> + Send,
     ) -> Result<WriteEvent> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.set_description(description).await
+            }
+            ClientStorage::Database(db) => {
+                db.set_description(description).await
+            }
+        }
     }
 
     async fn change_password(
@@ -249,7 +402,14 @@ impl ClientFolderStorage for ClientStorage {
         current_key: AccessKey,
         new_key: AccessKey,
     ) -> Result<AccessKey> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.change_password(vault, current_key, new_key).await
+            }
+            ClientStorage::Database(db) => {
+                db.change_password(vault, current_key, new_key).await
+            }
+        }
     }
 }
 
@@ -257,25 +417,43 @@ impl ClientFolderStorage for ClientStorage {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ClientDeviceStorage for ClientStorage {
     fn devices(&self) -> &IndexSet<TrustedDevice> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.devices(),
+            ClientStorage::Database(db) => db.devices(),
+        }
     }
 
     fn list_trusted_devices(&self) -> Vec<&TrustedDevice> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.list_trusted_devices(),
+            ClientStorage::Database(db) => db.list_trusted_devices(),
+        }
     }
 
     async fn patch_devices_unchecked(
         &mut self,
         events: Vec<DeviceEvent>,
     ) -> Result<()> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.patch_devices_unchecked(events).await
+            }
+            ClientStorage::Database(db) => {
+                db.patch_devices_unchecked(events).await
+            }
+        }
     }
 
     async fn revoke_device(
         &mut self,
         public_key: &DevicePublicKey,
     ) -> Result<()> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.revoke_device(public_key).await
+            }
+            ClientStorage::Database(db) => db.revoke_device(public_key).await,
+        }
     }
 }
 
@@ -283,15 +461,24 @@ impl ClientDeviceStorage for ClientStorage {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ClientAccountStorage for ClientStorage {
     fn account_id(&self) -> &AccountId {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.account_id(),
+            ClientStorage::Database(db) => db.account_id(),
+        }
     }
 
     async fn unlock(&mut self, keys: &FolderKeys) -> Result<()> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.unlock(keys).await,
+            ClientStorage::Database(db) => db.unlock(keys).await,
+        }
     }
 
     async fn lock(&mut self) {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.lock().await,
+            ClientStorage::Database(db) => db.lock().await,
+        }
     }
 
     async fn unlock_folder(
@@ -299,41 +486,65 @@ impl ClientAccountStorage for ClientStorage {
         id: &VaultId,
         key: &AccessKey,
     ) -> Result<()> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.unlock_folder(id, key).await,
+            ClientStorage::Database(db) => db.unlock_folder(id, key).await,
+        }
     }
 
     async fn lock_folder(&mut self, id: &VaultId) -> Result<()> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.lock_folder(id).await,
+            ClientStorage::Database(db) => db.lock_folder(id).await,
+        }
     }
 
     fn paths(&self) -> Arc<Paths> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.paths(),
+            ClientStorage::Database(db) => db.paths(),
+        }
     }
 
     async fn create_account(
         &mut self,
         account: &AccountPack,
     ) -> Result<Vec<Event>> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.create_account(account).await,
+            ClientStorage::Database(db) => db.create_account(account).await,
+        }
     }
 
     async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.read_vault(id).await,
+            ClientStorage::Database(db) => db.read_vault(id).await,
+        }
     }
 
     async fn history(
         &self,
         summary: &Summary,
     ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.history(summary).await,
+            ClientStorage::Database(db) => db.history(summary).await,
+        }
     }
 
     async fn identity_state(&self) -> Result<CommitState> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.identity_state().await,
+            ClientStorage::Database(db) => db.identity_state().await,
+        }
     }
 
     async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.commit_state(summary).await,
+            ClientStorage::Database(db) => db.commit_state(summary).await,
+        }
     }
 
     #[cfg(feature = "archive")]
@@ -342,7 +553,14 @@ impl ClientAccountStorage for ClientStorage {
         targets: &RestoreTargets,
         folder_keys: &FolderKeys,
     ) -> Result<()> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.restore_archive(targets, folder_keys).await
+            }
+            ClientStorage::Database(db) => {
+                db.restore_archive(targets, folder_keys).await
+            }
+        }
     }
 
     #[cfg(feature = "files")]
@@ -350,17 +568,30 @@ impl ClientAccountStorage for ClientStorage {
         &mut self,
         file_password: Option<secrecy::SecretString>,
     ) {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.set_file_password(file_password)
+            }
+            ClientStorage::Database(db) => {
+                db.set_file_password(file_password)
+            }
+        }
     }
 
     #[cfg(feature = "search")]
     fn index(&self) -> Result<&AccountSearch> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.index(),
+            ClientStorage::Database(db) => db.index(),
+        }
     }
 
     #[cfg(feature = "search")]
     fn index_mut(&mut self) -> Result<&mut AccountSearch> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.index_mut(),
+            ClientStorage::Database(db) => db.index_mut(),
+        }
     }
 
     #[cfg(feature = "search")]
@@ -368,7 +599,14 @@ impl ClientAccountStorage for ClientStorage {
         &mut self,
         keys: &FolderKeys,
     ) -> Result<(DocumentCount, Vec<Summary>)> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.initialize_search_index(keys).await
+            }
+            ClientStorage::Database(db) => {
+                db.initialize_search_index(keys).await
+            }
+        }
     }
 
     #[cfg(feature = "search")]
@@ -376,7 +614,12 @@ impl ClientAccountStorage for ClientStorage {
         &mut self,
         keys: &FolderKeys,
     ) -> Result<DocumentCount> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.build_search_index(keys).await
+            }
+            ClientStorage::Database(db) => db.build_search_index(keys).await,
+        }
     }
 }
 
@@ -386,30 +629,48 @@ impl StorageEventLogs for ClientStorage {
     type Error = Error;
 
     async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.identity_log().await,
+            ClientStorage::Database(db) => db.identity_log().await,
+        }
     }
 
     async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.account_log().await,
+            ClientStorage::Database(db) => db.account_log().await,
+        }
     }
 
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.device_log().await,
+            ClientStorage::Database(db) => db.device_log().await,
+        }
     }
 
     #[cfg(feature = "files")]
     async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.file_log().await,
+            ClientStorage::Database(db) => db.file_log().await,
+        }
     }
 
     async fn folder_details(&self) -> Result<IndexSet<Summary>> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.folder_details().await,
+            ClientStorage::Database(db) => db.folder_details().await,
+        }
     }
 
     async fn folder_log(
         &self,
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
-        todo!()
+        match self {
+            ClientStorage::FileSystem(fs) => fs.folder_log(id).await,
+            ClientStorage::Database(db) => db.folder_log(id).await,
+        }
     }
 }

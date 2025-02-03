@@ -56,10 +56,7 @@ use sos_core::{
 use sos_backend::{compact::compact_folder, reducers::DeviceReducer};
 
 #[cfg(feature = "files")]
-use {
-    sos_backend::FileEventLog, sos_core::events::FileEvent,
-    sos_external_files::FileMutationEvent,
-};
+use {sos_backend::FileEventLog, sos_core::events::FileEvent};
 
 #[cfg(feature = "search")]
 use sos_search::{AccountSearch, DocumentCount};
