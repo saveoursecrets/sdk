@@ -1,13 +1,12 @@
-use crate::AccessOptions;
 use crate::{
     filesystem::ClientFileStorage, ClientAccountStorage, ClientDeviceStorage,
     ClientFolderStorage, ClientSecretStorage, Error, Result,
     StorageChangeEvent,
 };
+use crate::{AccessOptions, AccountPack, NewFolderOptions};
 use async_trait::async_trait;
-use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
-use sos_backend::{reducers::FolderReducer, Folder, StorageError};
+use sos_backend::Folder;
 use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
 use sos_core::{
     commit::{CommitHash, CommitState},
@@ -15,24 +14,27 @@ use sos_core::{
 };
 use sos_core::{
     crypto::AccessKey,
-    decode, encode,
+    device::{DevicePublicKey, TrustedDevice},
     events::{
-        patch::FolderPatch, AccountEvent, Event, ReadEvent, WriteEvent,
+        patch::FolderPatch, AccountEvent, DeviceEvent, Event, EventRecord,
+        ReadEvent, WriteEvent,
     },
     AccountId, Paths, UtcDateTime,
 };
-use sos_sdk::{
-    events::{EventLog, EventRecord},
-    identity::FolderKeys,
-};
+use sos_login::FolderKeys;
 use sos_sync::StorageEventLogs;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    ChangePassword, FolderRef, SecretAccess, Summary, Vault, VaultCommit,
-    VaultFlags,
+    FolderRef, Summary, Vault, VaultCommit, VaultFlags,
 };
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
+
+#[cfg(feature = "archive")]
+use sos_filesystem::archive::RestoreTargets;
+
+#[cfg(feature = "search")]
+use sos_search::{AccountSearch, DocumentCount};
 
 #[cfg(feature = "files")]
 use {sos_backend::FileEventLog, sos_core::events::FileEvent};
