@@ -48,6 +48,7 @@ sos-filesystem.workspace = true
 sos-login.workspace = true
 sos-sync.workspace = true
 sos-client-storage.workspace = true
+sos-reducers.workspace = true
 sos-signer.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true

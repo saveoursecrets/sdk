@@ -64,6 +64,8 @@ use {
 #[cfg(feature = "search")]
 use sos_search::{AccountSearch, DocumentCount};
 
+mod sync;
+
 /// Storage change event with an optional
 /// collection of file mutation events.
 #[doc(hidden)]

@@ -3,7 +3,7 @@ use crate::{convert::CipherComparison, AccountBuilder, Error, Result};
 use sos_backend::compact::compact_folder;
 use sos_backend::{
     reducers::FolderReducer, write_exclusive, AccessPoint, AccountEventLog,
-    FolderEventLog, StorageError,
+    StorageError,
 };
 use sos_client_storage::{
     AccessOptions, AccountPack, ClientAccountStorage, ClientDeviceStorage,
@@ -48,14 +48,14 @@ use {
 #[cfg(feature = "archive")]
 use sos_filesystem::archive::{Inventory, RestoreOptions};
 
-use sos_backend::{BackendTarget, DeviceEventLog};
+use sos_backend::BackendTarget;
 use sos_core::device::{DevicePublicKey, TrustedDevice};
 use sos_login::device::{DeviceManager, DeviceSigner};
 
 use indexmap::IndexSet;
 
 #[cfg(feature = "files")]
-use {sos_backend::FileEventLog, sos_external_files::FileMutationEvent};
+use sos_external_files::FileMutationEvent;
 
 #[cfg(feature = "search")]
 use sos_search::*;
@@ -3324,50 +3324,5 @@ impl Account for LocalAccount {
             return Ok(true);
         }
         Ok(false)
-    }
-}
-
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl StorageEventLogs for LocalAccount {
-    type Error = Error;
-
-    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let storage = self.storage.read().await;
-        Ok(Arc::clone(&storage.identity_log))
-    }
-
-    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
-        let storage = self.storage.read().await;
-        Ok(Arc::clone(&storage.account_log))
-    }
-
-    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
-        let storage = self.storage.read().await;
-        Ok(Arc::clone(&storage.device_log))
-    }
-
-    #[cfg(feature = "files")]
-    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
-        let storage = self.storage.read().await;
-        Ok(Arc::clone(&storage.file_log))
-    }
-
-    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
-        let storage = self.storage.read().await;
-        let folders = storage.list_folders();
-        Ok(folders.into_iter().cloned().collect())
-    }
-
-    async fn folder_log(
-        &self,
-        id: &VaultId,
-    ) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let storage = self.storage.read().await;
-        let folder = storage
-            .folders()
-            .get(id)
-            .ok_or(StorageError::CacheNotAvailable(*id))?;
-        Ok(folder.event_log())
     }
 }

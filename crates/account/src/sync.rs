@@ -2,10 +2,12 @@
 use super::folder_sync::{
     FolderMerge, FolderMergeOptions, IdentityFolderMerge,
 };
-use crate::{Account, LocalAccount, Result};
+use crate::{Account, Error, LocalAccount, Result};
 use async_trait::async_trait;
-use sos_backend::reducers::DeviceReducer;
-use sos_backend::StorageError;
+use indexmap::IndexSet;
+use sos_backend::{
+    AccountEventLog, DeviceEventLog, FolderEventLog, StorageError,
+};
 use sos_client_storage::{ClientAccountStorage, ClientFolderStorage};
 use sos_core::{decode, events::EventLog};
 use sos_core::{
@@ -15,15 +17,57 @@ use sos_core::{
     },
     VaultId,
 };
+use sos_reducers::DeviceReducer;
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
     TrackedChanges,
 };
-use sos_vault::Vault;
-use std::collections::HashSet;
+use sos_vault::{Summary, Vault};
+use std::{collections::HashSet, sync::Arc};
+use tokio::sync::RwLock;
 
 #[cfg(feature = "files")]
-use sos_core::events::patch::FileDiff;
+use {sos_backend::FileEventLog, sos_core::events::patch::FileDiff};
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl StorageEventLogs for LocalAccount {
+    type Error = Error;
+
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
+        let storage = self.storage.read().await;
+        Ok(storage.identity_log().await?)
+    }
+
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
+        let storage = self.storage.read().await;
+        Ok(storage.account_log().await?)
+    }
+
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
+        let storage = self.storage.read().await;
+        Ok(storage.device_log().await?)
+    }
+
+    #[cfg(feature = "files")]
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
+        let storage = self.storage.read().await;
+        Ok(storage.file_log().await?)
+    }
+
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
+        let storage = self.storage.read().await;
+        Ok(storage.folder_details().await?)
+    }
+
+    async fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
+        let storage = self.storage.read().await;
+        Ok(storage.folder_log(id).await?)
+    }
+}
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

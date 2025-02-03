@@ -349,6 +349,7 @@ pub(crate) async fn start<'conn>(
         })?;
     let mut db_temp = NamedTempFile::new()?;
     db_temp.as_file_mut().write_all(&db_buffer)?;
+    db_temp.as_file_mut().flush()?;
 
     let source_db = Connection::open(db_temp.path())?;
     let import = BackupImport {
