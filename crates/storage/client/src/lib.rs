@@ -16,7 +16,10 @@ mod traits;
 
 pub use error::Error;
 pub use filesystem::ClientStorage;
-pub use traits::ClientAccountStorage;
+pub use traits::{
+    ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage,
+    ClientSecretStorage,
+};
 
 /// Result type for the client module.
 pub(crate) type Result<T> = std::result::Result<T, Error>;

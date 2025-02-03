@@ -22,7 +22,7 @@ use futures::{future::LocalBoxFuture, select, FutureExt};
 use human_bytes::human_bytes;
 use kdam::{term, tqdm, BarExt, Column, RichProgress, Spinner};
 use sos_account::Account;
-use sos_client_storage::{AccessOptions, ClientAccountStorage};
+use sos_client_storage::{AccessOptions, ClientFolderStorage};
 use sos_external_files::FileProgress;
 use sos_sdk::prelude::*;
 use sos_search::{ArchiveFilter, Document, DocumentView};

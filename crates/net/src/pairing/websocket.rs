@@ -9,6 +9,7 @@ use futures::{
 use prost::bytes::Bytes;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use sos_account::Account;
+use sos_client_storage::ClientDeviceStorage;
 use sos_core::events::DeviceEvent;
 use sos_core::{AccountId, Origin};
 use sos_protocol::{

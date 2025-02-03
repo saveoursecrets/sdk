@@ -9,6 +9,7 @@ use crate::{
 use clap::Subcommand;
 use hex;
 use sos_account::{Account, FolderCreate};
+use sos_client_storage::ClientAccountStorage;
 use sos_core::events::LogEvent;
 use sos_sdk::{events::EventLog, identity::AccountRef, vault::FolderRef};
 

@@ -1,20 +1,27 @@
 //! Client storage implementations.
-use crate::{AccountPack, Result};
+use crate::{
+    filesystem::StorageChangeEvent, AccessOptions, AccountPack,
+    NewFolderOptions, Result,
+};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_core::{
+    commit::{CommitHash, CommitState},
     crypto::AccessKey,
-    device::TrustedDevice,
-    events::{Event, ReadEvent},
-    AccountId, Paths, VaultId,
+    device::{DevicePublicKey, TrustedDevice},
+    events::{
+        patch::FolderPatch, AccountEvent, DeviceEvent, Event, EventRecord,
+        ReadEvent, WriteEvent,
+    },
+    AccountId, Paths, SecretId, UtcDateTime, VaultCommit, VaultFlags,
+    VaultId,
 };
 use sos_login::FolderKeys;
-use sos_sdk::{
-    events::{patch::FolderPatch, EventRecord},
-    vault::Summary,
+use sos_vault::{
+    secret::{Secret, SecretMeta, SecretRow},
+    FolderRef, Summary, Vault,
 };
-use sos_vault::FolderRef;
-use std::{collections::HashMap, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
 #[cfg(feature = "archive")]
 use sos_filesystem::archive::RestoreTargets;
@@ -22,16 +29,65 @@ use sos_filesystem::archive::RestoreTargets;
 #[cfg(feature = "search")]
 use sos_search::{AccountSearch, DocumentCount};
 
-// pub trait ClientAccountStorage: SyncStorage {}
-
-/// Trait for client storage implementations.
+/// Device management functions for client storage.
 #[async_trait]
-pub trait ClientAccountStorage {
-    /// Account identifier.
-    fn account_id(&self) -> &AccountId;
-
+pub trait ClientDeviceStorage {
     /// Collection of trusted devices.
     fn devices(&self) -> &IndexSet<TrustedDevice>;
+
+    /// List trusted devices.
+    fn list_trusted_devices(&self) -> Vec<&TrustedDevice>;
+
+    /// Patch the devices event log.
+    async fn patch_devices_unchecked(
+        &mut self,
+        events: Vec<DeviceEvent>,
+    ) -> Result<()>;
+
+    /// Revoke trust in a device.
+    async fn revoke_device(
+        &mut self,
+        public_key: &DevicePublicKey,
+    ) -> Result<()>;
+}
+
+/// Folder management functions for client storage.
+#[async_trait]
+pub trait ClientFolderStorage {
+    /// Create a new folder.
+    async fn create_folder(
+        &mut self,
+        name: String,
+        options: NewFolderOptions,
+    ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)>;
+
+    /// Import a folder into an existing account.
+    ///
+    /// If a folder with the same identifier already exists
+    /// it is overwritten.
+    ///
+    /// Buffer is the encoded representation of the vault.
+    async fn import_folder(
+        &mut self,
+        buffer: impl AsRef<[u8]> + Send,
+        key: Option<&AccessKey>,
+        apply_event: bool,
+        creation_time: Option<&UtcDateTime>,
+    ) -> Result<(Event, Summary)>;
+
+    /// Read folders from storage and create the in-memory
+    /// event logs for each folder.
+    async fn load_folders(&mut self) -> Result<&[Summary]>;
+
+    /// Delete a folder.
+    async fn delete_folder(
+        &mut self,
+        summary: &Summary,
+        apply_event: bool,
+    ) -> Result<Vec<Event>>;
+
+    /// Remove a folder from the cache.
+    async fn remove_folder(&mut self, folder_id: &VaultId) -> Result<bool>;
 
     /// List the in-memory folders.
     fn list_folders(&self) -> &[Summary];
@@ -47,20 +103,11 @@ pub trait ClientAccountStorage {
     where
         F: FnMut(&&Summary) -> bool;
 
-    /// Computed storage paths.
-    fn paths(&self) -> Arc<Paths>;
-
     /// Mark a folder as the currently open folder.
     async fn open_folder(&mut self, summary: &Summary) -> Result<ReadEvent>;
 
     /// Close the current open folder.
     fn close_folder(&mut self);
-
-    /// Create the data for a new account.
-    async fn create_account(
-        &mut self,
-        account: &AccountPack,
-    ) -> Result<Vec<Event>>;
 
     /// Create folders from a collection of folder patches.
     ///
@@ -70,6 +117,13 @@ pub trait ClientAccountStorage {
         patches: HashMap<VaultId, FolderPatch>,
     ) -> Result<()>;
 
+    /// Compact an event log file.
+    async fn compact_folder(
+        &mut self,
+        summary: &Summary,
+        key: &AccessKey,
+    ) -> Result<AccountEvent>;
+
     /// Restore a folder from an event log.
     async fn restore_folder(
         &mut self,
@@ -78,19 +132,164 @@ pub trait ClientAccountStorage {
         key: &AccessKey,
     ) -> Result<Summary>;
 
-    /// Read folders from the local disc and create the in-memory
-    /// event logs for each folder on disc.
-    async fn load_folders(&mut self) -> Result<&[Summary]>;
-
-    /// Delete a folder.
-    async fn delete_folder(
+    /// Set the name of a folder.
+    async fn rename_folder(
         &mut self,
         summary: &Summary,
-        apply_event: bool,
+        name: impl AsRef<str> + Send,
+    ) -> Result<Event>;
+
+    /// Update the flags for a folder.
+    async fn update_folder_flags(
+        &mut self,
+        summary: &Summary,
+        flags: VaultFlags,
+    ) -> Result<Event>;
+
+    /// Update the in-memory name for a folder.
+    fn set_folder_name(
+        &mut self,
+        summary: &Summary,
+        name: impl AsRef<str> + Send,
+    ) -> Result<()>;
+
+    /// Update the in-memory name for a folder.
+    fn set_folder_flags(
+        &mut self,
+        summary: &Summary,
+        flags: VaultFlags,
+    ) -> Result<()>;
+
+    /// Get the description of the currently open folder.
+    async fn description(&self) -> Result<String>;
+
+    /// Set the description of the currently open folder.
+    async fn set_description(
+        &mut self,
+        description: impl AsRef<str> + Send,
+    ) -> Result<WriteEvent>;
+
+    /// Change the password for a vault.
+    ///
+    /// If the target vault is the currently selected vault
+    /// the currently selected vault is unlocked with the new
+    /// passphrase on success.
+    async fn change_password(
+        &mut self,
+        vault: &Vault,
+        current_key: AccessKey,
+        new_key: AccessKey,
+    ) -> Result<AccessKey>;
+}
+
+/// Secret management functions for client storage.
+#[async_trait]
+pub trait ClientSecretStorage {
+    /// Create a secret in the currently open vault.
+    async fn create_secret(
+        &mut self,
+        secret_data: SecretRow,
+        #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
+    ) -> Result<StorageChangeEvent>;
+
+    /// Read the encrypted contents of a secret.
+    async fn raw_secret(
+        &self,
+        folder_id: &VaultId,
+        secret_id: &SecretId,
+    ) -> Result<Option<(Cow<'_, VaultCommit>, ReadEvent)>>;
+
+    /// Read a secret in the currently open folder.
+    async fn read_secret(
+        &self,
+        id: &SecretId,
+    ) -> Result<(SecretMeta, Secret, ReadEvent)>;
+
+    /// Update a secret in the currently open folder.
+    async fn update_secret(
+        &mut self,
+        secret_id: &SecretId,
+        meta: SecretMeta,
+        secret: Option<Secret>,
+        #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
+    ) -> Result<StorageChangeEvent>;
+
+    /// Write a secret in the current open folder.
+    ///
+    /// Unlike `update_secret()` this function does not support moving
+    /// between folders or managing external files which allows us
+    /// to avoid recursion when handling embedded file secrets which
+    /// require rewriting the secret once the files have been encrypted.
+    async fn write_secret(
+        &mut self,
+        id: &SecretId,
+        mut secret_data: SecretRow,
+        #[allow(unused_variables)] is_update: bool,
+    ) -> Result<WriteEvent>;
+
+    /// Delete a secret in the currently open vault.
+    async fn delete_secret(
+        &mut self,
+        secret_id: &SecretId,
+        #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
+    ) -> Result<StorageChangeEvent>;
+
+    /// Remove a secret.
+    ///
+    /// Any external files for the secret are left intact.
+    async fn remove_secret(&mut self, id: &SecretId) -> Result<WriteEvent>;
+}
+
+/// Trait for client storage implementations.
+#[async_trait]
+pub trait ClientAccountStorage:
+    ClientDeviceStorage + ClientFolderStorage + ClientSecretStorage
+// TODO: + SyncStorage
+{
+    /// Account identifier.
+    fn account_id(&self) -> &AccountId;
+
+    /// Unlock all folders.
+    async fn unlock(&mut self, keys: &FolderKeys) -> Result<()>;
+
+    /// Lock all folders.
+    async fn lock(&mut self);
+
+    /// Unlock a folder.
+    async fn unlock_folder(
+        &mut self,
+        id: &VaultId,
+        key: &AccessKey,
+    ) -> Result<()>;
+
+    /// Lock a folder.
+    async fn lock_folder(&mut self, id: &VaultId) -> Result<()>;
+
+    /// Computed storage paths.
+    fn paths(&self) -> Arc<Paths>;
+
+    /// Create the data for a new account.
+    async fn create_account(
+        &mut self,
+        account: &AccountPack,
     ) -> Result<Vec<Event>>;
 
-    /// Remove a folder from the cache.
-    async fn remove_folder(&mut self, folder_id: &VaultId) -> Result<bool>;
+    /// Read a vault from the storage.
+    async fn read_vault(&self, id: &VaultId) -> Result<Vault>;
+
+    /// Get the history of events for a vault.
+    async fn history(
+        &self,
+        summary: &Summary,
+    ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>>;
+
+    /// Commit state of the identity folder.
+    async fn identity_state(&self) -> Result<CommitState>;
+
+    /// Get the commit state for a folder.
+    ///
+    /// The folder must have at least one commit.
+    async fn commit_state(&self, summary: &Summary) -> Result<CommitState>;
 
     /// Restore vaults from an archive.
     #[cfg(feature = "archive")]

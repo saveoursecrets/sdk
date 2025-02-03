@@ -6,7 +6,8 @@ use sos_backend::{
     FolderEventLog, StorageError,
 };
 use sos_client_storage::{
-    AccessOptions, AccountPack, ClientAccountStorage, ClientStorage,
+    AccessOptions, AccountPack, ClientAccountStorage, ClientDeviceStorage,
+    ClientFolderStorage, ClientSecretStorage, ClientStorage,
     NewFolderOptions,
 };
 use sos_core::{

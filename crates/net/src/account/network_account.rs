@@ -9,7 +9,9 @@ use sos_account::{
     SecretDelete, SecretInsert, SecretMove,
 };
 use sos_backend::ServerOrigins;
-use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
+use sos_client_storage::{
+    AccessOptions, ClientDeviceStorage, ClientStorage, NewFolderOptions,
+};
 use sos_core::events::{AccountEvent, ReadEvent};
 use sos_core::{
     commit::{CommitHash, CommitState},

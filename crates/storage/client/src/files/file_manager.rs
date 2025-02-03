@@ -2,7 +2,8 @@
 //! as secrets are created, updated and moved.
 
 use crate::{
-    files::FileStorage, ClientAccountStorage, ClientStorage, Error, Result,
+    files::FileStorage, ClientAccountStorage, ClientSecretStorage,
+    ClientStorage, Error, Result,
 };
 use hex;
 use sos_core::events::FileEvent;
