@@ -1,6 +1,7 @@
 //! Client storage implementations.
 use crate::{
-    AccessOptions, AccountPack, NewFolderOptions, Result, StorageChangeEvent,
+    files::ExternalFileManager, AccessOptions, AccountPack, NewFolderOptions,
+    Result, StorageChangeEvent,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -35,6 +36,9 @@ use sos_search::{AccountSearch, DocumentCount};
 pub trait ClientDeviceStorage {
     /// Collection of trusted devices.
     fn devices(&self) -> &IndexSet<TrustedDevice>;
+
+    /// Set the collection of trusted devices.
+    fn set_devices(&mut self, devices: IndexSet<TrustedDevice>);
 
     /// List trusted devices.
     fn list_trusted_devices(&self) -> Vec<&TrustedDevice>;
@@ -315,6 +319,14 @@ pub trait ClientAccountStorage:
         &mut self,
         file_password: Option<secrecy::SecretString>,
     );
+
+    /// External file manager.
+    #[cfg(feature = "files")]
+    fn external_file_manager(&self) -> &ExternalFileManager;
+
+    /// Mutable external file manager.
+    #[cfg(feature = "files")]
+    fn external_file_manager_mut(&mut self) -> &mut ExternalFileManager;
 
     /// Search index reference.
     #[cfg(feature = "search")]

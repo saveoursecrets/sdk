@@ -8,7 +8,9 @@ use indexmap::IndexSet;
 use sos_backend::{
     AccountEventLog, DeviceEventLog, FolderEventLog, StorageError,
 };
-use sos_client_storage::{ClientAccountStorage, ClientFolderStorage};
+use sos_client_storage::{
+    ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage,
+};
 use sos_core::{decode, events::EventLog};
 use sos_core::{
     events::{
@@ -271,7 +273,8 @@ impl Merge for LocalAccount {
 
         let checked_patch = {
             let storage = self.storage.read().await;
-            let mut event_log = storage.device_log.write().await;
+            let device_log = storage.device_log().await?;
+            let mut event_log = device_log.write().await;
             event_log
                 .patch_checked(&diff.checkpoint, &diff.patch)
                 .await?
@@ -280,13 +283,14 @@ impl Merge for LocalAccount {
         if let CheckedPatch::Success(_) = &checked_patch {
             let devices = {
                 let storage = self.storage.read().await;
-                let event_log = storage.device_log.read().await;
+                let device_log = storage.device_log().await?;
+                let event_log = device_log.read().await;
                 let reducer = DeviceReducer::new(&*event_log);
                 reducer.reduce().await?
             };
 
             let mut storage = self.storage.write().await;
-            storage.devices = devices;
+            storage.set_devices(devices);
 
             outcome.changes += diff.patch.len() as u64;
             outcome.tracked.device =
@@ -310,7 +314,8 @@ impl Merge for LocalAccount {
         );
 
         let storage = self.storage.read().await;
-        let mut event_log = storage.file_log.write().await;
+        let file_log = storage.file_log().await?;
+        let mut event_log = file_log.write().await;
 
         // File events may not have a root commit
         let is_init_diff = diff.last_commit.is_none();
@@ -356,10 +361,7 @@ impl Merge for LocalAccount {
 
             #[cfg(feature = "search")]
             let search = {
-                let index = storage
-                    .index
-                    .as_ref()
-                    .ok_or(sos_client_storage::Error::NoSearchIndex)?;
+                let index = storage.index()?;
                 index.search()
             };
 

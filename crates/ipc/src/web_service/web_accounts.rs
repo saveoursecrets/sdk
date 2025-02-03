@@ -10,7 +10,7 @@ use sos_core::{
     events::{AccountEvent, EventLog, WriteEvent},
     AccountId, ErrorExt, Paths, VaultId,
 };
-use sos_sync::SyncStorage;
+use sos_sync::{StorageEventLogs, SyncStorage};
 use sos_vault::SecretAccess;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, RwLock};
@@ -574,7 +574,8 @@ where
     let storage = account.storage().await;
     let storage = storage.read().await;
 
-    let mut event_log = storage.account_log.write().await;
+    let account_log = storage.account_log().await?;
+    let mut event_log = account_log.write().await;
     let commit = event_log.tree().last_commit();
 
     let patch = event_log.diff_events(commit.as_ref()).await?;

@@ -904,12 +904,12 @@ impl LocalAccount {
     /// compatible sign_in() and also the newer sign_in_with_options().
     async fn login(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
         let account_id = &self.account_id;
-        let data_dir = self.paths().documents_dir().clone();
+        // let data_dir = self.paths().documents_dir().clone();
 
         tracing::debug!(account_id = %account_id, "sign_in");
 
         // Ensure all paths before sign_in
-        let paths = Paths::new(&data_dir, account_id.to_string());
+        let paths = self.paths().with_account_id(account_id);
         paths.ensure().await?;
 
         tracing::debug!(data_dir = ?paths.documents_dir(), "sign_in");
@@ -925,7 +925,7 @@ impl LocalAccount {
         #[allow(unused_mut)]
         let mut storage = ClientStorage::new_authenticated(
             *account_id,
-            Some(data_dir),
+            BackendTarget::FileSystem(paths),
             identity_log,
             user.identity()?.devices()?.current_device(None),
         )
@@ -941,7 +941,7 @@ impl LocalAccount {
 
         Self::initialize_account_log(
             &self.paths,
-            Arc::clone(&storage.account_log),
+            storage.account_log().await?,
         )
         .await?;
 
@@ -1268,6 +1268,7 @@ impl LocalAccount {
         {
             let mut writer = self.storage.write().await;
             let mut move_file_events = writer
+                .external_file_manager_mut()
                 .move_files(
                     &move_secret_data,
                     from.id(),
@@ -1279,6 +1280,7 @@ impl LocalAccount {
                 )
                 .await?;
             writer
+                .external_file_manager_mut()
                 .append_file_mutation_events(&move_file_events)
                 .await?;
             file_events.append(&mut move_file_events);
@@ -1460,7 +1462,7 @@ impl LocalAccount {
         let storage = Arc::new(RwLock::new(
             ClientStorage::new_unauthenticated(
                 account_id,
-                Arc::new(paths.clone()),
+                BackendTarget::FileSystem(paths.clone()),
             )
             .await?,
         ));
@@ -1516,9 +1518,11 @@ impl LocalAccount {
         let account_builder = builder(AccountBuilder::new(
             account_name,
             passphrase.clone(),
-            BackendTarget::FileSystem(paths),
+            BackendTarget::FileSystem(paths.clone()),
         ));
         let new_account = account_builder.finish().await?;
+
+        let paths = paths.with_account_id(&new_account.account_id);
 
         tracing::debug!(
           account_id = %new_account.account_id,
@@ -1530,7 +1534,7 @@ impl LocalAccount {
 
         let mut storage = ClientStorage::new_authenticated(
             account_id,
-            data_dir,
+            BackendTarget::FileSystem(paths),
             identity_log,
             new_account.user.identity()?.devices()?.current_device(None),
         )
@@ -1584,12 +1588,15 @@ impl Account for LocalAccount {
         let account_id = *self.account_id();
         let paths = self.paths();
 
-        let mut storage =
-            ClientStorage::new_unauthenticated(account_id, paths.clone())
-                .await?;
+        let mut storage = ClientStorage::new_unauthenticated(
+            account_id,
+            BackendTarget::FileSystem((&*paths).clone()),
+        )
+        .await?;
 
         {
-            let mut identity_log = storage.identity_log.write().await;
+            let identity_log = storage.identity_log().await?;
+            let mut identity_log = identity_log.write().await;
             let records: Vec<EventRecord> = events.identity.into();
             identity_log.apply_records(records).await?;
             let vault = FolderReducer::new()
@@ -1607,7 +1614,8 @@ impl Account for LocalAccount {
         }
 
         {
-            let mut account_log = storage.account_log.write().await;
+            let account_log = storage.account_log().await?;
+            let mut account_log = account_log.write().await;
             let records: Vec<EventRecord> = events.account.into();
             account_log.apply_records(records).await?;
 
@@ -1617,7 +1625,8 @@ impl Account for LocalAccount {
         }
 
         {
-            let mut device_log = storage.device_log.write().await;
+            let device_log = storage.device_log().await?;
+            let mut device_log = device_log.write().await;
             let records: Vec<EventRecord> = events.device.into();
             device_log.apply_records(records).await?;
             tracing::info!(
@@ -1630,7 +1639,8 @@ impl Account for LocalAccount {
         #[cfg(feature = "files")]
         {
             tracing::info!("import_account_events::files");
-            let mut file_log = storage.file_log.write().await;
+            let file_log = storage.file_log().await?;
+            let mut file_log = file_log.write().await;
             let records: Vec<EventRecord> = events.files.into();
             file_log.apply_records(records).await?;
             tracing::info!(
@@ -2266,8 +2276,10 @@ impl Account for LocalAccount {
         file_name: &str,
     ) -> Result<Vec<u8>> {
         let reader = self.storage.read().await;
-        let buffer =
-            reader.download_file(vault_id, secret_id, file_name).await?;
+        let buffer = reader
+            .external_file_manager()
+            .download_file(vault_id, secret_id, file_name)
+            .await?;
 
         #[cfg(feature = "audit")]
         {

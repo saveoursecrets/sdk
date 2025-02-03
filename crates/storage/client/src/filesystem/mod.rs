@@ -1,8 +1,8 @@
 //! Storage backed by the filesystem.
 use crate::{
-    AccessOptions, AccountPack, ClientAccountStorage, ClientDeviceStorage,
-    ClientFolderStorage, ClientSecretStorage, Error, NewFolderOptions,
-    Result, StorageChangeEvent,
+    files::ExternalFileManager, AccessOptions, AccountPack,
+    ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage,
+    ClientSecretStorage, Error, NewFolderOptions, Result, StorageChangeEvent,
 };
 use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
@@ -16,7 +16,7 @@ use sos_core::{
     SecretId, VaultId,
 };
 use sos_core::{
-    constants::{EVENT_LOG_EXT, VAULT_EXT},
+    constants::VAULT_EXT,
     crypto::AccessKey,
     decode, encode,
     events::{
@@ -35,7 +35,7 @@ use sos_vault::{
     Summary, Vault, VaultBuilder, VaultCommit, VaultFlags,
 };
 use sos_vfs as vfs;
-use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "archive")]
@@ -64,7 +64,7 @@ use sos_search::{AccountSearch, DocumentCount};
 mod sync;
 
 /// Client storage for folders loaded into memory and mirrored to disc.
-pub struct ClientFileStorage {
+pub struct ClientFileSystemStorage {
     /// Account identifier.
     pub(super) account_id: AccountId,
 
@@ -79,41 +79,41 @@ pub struct ClientFileStorage {
 
     /// Search index.
     #[cfg(feature = "search")]
-    pub index: Option<AccountSearch>,
+    index: Option<AccountSearch>,
 
     /// Identity folder event log.
     ///
     /// This is a clone of the main identity folder
     /// event log and is defined here so we can
     /// get the commit state for synchronization.
-    pub identity_log: Arc<RwLock<FolderEventLog>>,
+    identity_log: Arc<RwLock<FolderEventLog>>,
 
     /// Account event log.
-    pub account_log: Arc<RwLock<AccountEventLog>>,
+    account_log: Arc<RwLock<AccountEventLog>>,
 
     /// Folder event logs.
-    pub folders: HashMap<VaultId, Folder>,
+    folders: HashMap<VaultId, Folder>,
 
     /// Device event log.
-    pub device_log: Arc<RwLock<DeviceEventLog>>,
+    device_log: Arc<RwLock<DeviceEventLog>>,
 
     /// Reduced collection of devices.
-    pub devices: IndexSet<TrustedDevice>,
+    devices: IndexSet<TrustedDevice>,
 
     /// File event log.
     #[cfg(feature = "files")]
-    pub file_log: Arc<RwLock<FileEventLog>>,
+    file_log: Arc<RwLock<FileEventLog>>,
 
-    /// Password for file encryption.
+    /// External file manager.
     #[cfg(feature = "files")]
-    pub(super) file_password: Option<secrecy::SecretString>,
+    external_file_manager: ExternalFileManager,
 }
 
-impl ClientFileStorage {
+impl ClientFileSystemStorage {
     /// Create unauthenticated folder storage for client-side access.
     pub async fn new_unauthenticated(
         account_id: AccountId,
-        paths: Arc<Paths>,
+        paths: Paths,
     ) -> Result<Self> {
         paths.ensure().await?;
 
@@ -134,12 +134,14 @@ impl ClientFileStorage {
             FileEventLog::new_fs_file(paths.file_events()).await?,
         ));
 
+        let paths = Arc::new(paths);
+
         let mut storage = Self {
             account_id,
             summaries: Vec::new(),
             current: None,
             folders: Default::default(),
-            paths,
+            paths: paths.clone(),
             identity_log,
             account_log,
             #[cfg(feature = "search")]
@@ -147,9 +149,9 @@ impl ClientFileStorage {
             device_log,
             devices: Default::default(),
             #[cfg(feature = "files")]
-            file_log,
+            file_log: file_log.clone(),
             #[cfg(feature = "files")]
-            file_password: None,
+            external_file_manager: ExternalFileManager::new(paths, file_log),
         };
 
         storage.load_folders().await?;
@@ -160,25 +162,7 @@ impl ClientFileStorage {
     /// Create folder storage for client-side access.
     pub async fn new_authenticated(
         account_id: AccountId,
-        data_dir: Option<PathBuf>,
-        identity_log: Arc<RwLock<FolderEventLog>>,
-        device: TrustedDevice,
-    ) -> Result<Self> {
-        let data_dir = if let Some(data_dir) = data_dir {
-            data_dir
-        } else {
-            Paths::data_dir().map_err(|_| Error::NoCache)?
-        };
-
-        let dirs = Paths::new(data_dir, account_id.to_string());
-        Self::new_paths(Arc::new(dirs), account_id, identity_log, device)
-            .await
-    }
-
-    /// Create new storage backed by files on disc.
-    async fn new_paths(
-        paths: Arc<Paths>,
-        account_id: AccountId,
+        paths: Paths,
         identity_log: Arc<RwLock<FolderEventLog>>,
         device: TrustedDevice,
     ) -> Result<Self> {
@@ -199,14 +183,17 @@ impl ClientFileStorage {
             Self::initialize_device_log(&paths, device).await?;
 
         #[cfg(feature = "files")]
-        let file_log = Self::initialize_file_log(&paths).await?;
+        let file_log =
+            Arc::new(RwLock::new(Self::initialize_file_log(&paths).await?));
+
+        let paths = Arc::new(paths);
 
         Ok(Self {
             account_id,
             summaries: Vec::new(),
             current: None,
             folders: Default::default(),
-            paths,
+            paths: paths.clone(),
             identity_log,
             account_log: Arc::new(RwLock::new(account_log)),
             #[cfg(feature = "search")]
@@ -214,9 +201,9 @@ impl ClientFileStorage {
             device_log: Arc::new(RwLock::new(device_log)),
             devices,
             #[cfg(feature = "files")]
-            file_log: Arc::new(RwLock::new(file_log)),
+            file_log: file_log.clone(),
             #[cfg(feature = "files")]
-            file_password: None,
+            external_file_manager: ExternalFileManager::new(paths, file_log),
         })
     }
 
@@ -637,7 +624,7 @@ impl ClientFileStorage {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl ClientSecretStorage for ClientFileStorage {
+impl ClientSecretStorage for ClientFileSystemStorage {
     async fn create_secret(
         &mut self,
         secret_data: SecretRow,
@@ -667,20 +654,34 @@ impl ClientSecretStorage for ClientFileStorage {
             folder.create_secret(&secret_data).await?
         };
 
-        let result = StorageChangeEvent {
-            event,
-            #[cfg(feature = "files")]
-            file_events: self
+        #[cfg(feature = "files")]
+        let file_events = {
+            let (file_events, write_update) = self
+                .external_file_manager
                 .create_files(
                     &summary,
                     secret_data,
                     &mut options.file_progress,
                 )
-                .await?,
+                .await?;
+
+            if let Some((id, secret_data)) = write_update {
+                // Update with new checksum(s)
+                self.write_secret(&id, secret_data, false).await?;
+            }
+
+            file_events
+        };
+
+        let result = StorageChangeEvent {
+            event,
+            #[cfg(feature = "files")]
+            file_events,
         };
 
         #[cfg(feature = "files")]
-        self.append_file_mutation_events(&result.file_events)
+        self.external_file_manager
+            .append_file_mutation_events(&result.file_events)
             .await?;
 
         #[cfg(feature = "search")]
@@ -744,26 +745,38 @@ impl ClientSecretStorage for ClientFileStorage {
             .write_secret(secret_id, secret_data.clone(), true)
             .await?;
 
-        let result = StorageChangeEvent {
-            event,
-            // Must update the files before moving so checksums are correct
-            #[cfg(feature = "files")]
-            file_events: {
-                let folder =
-                    self.current_folder().ok_or(Error::NoOpenVault)?;
-                self.update_files(
+        // Must update the files before moving so checksums are correct
+        #[cfg(feature = "files")]
+        let file_events = {
+            let folder = self.current_folder().ok_or(Error::NoOpenVault)?;
+            let (file_events, write_update) = self
+                .external_file_manager
+                .update_files(
                     &folder,
                     &folder,
                     &old_secret_data,
                     secret_data,
                     &mut options.file_progress,
                 )
-                .await?
-            },
+                .await?;
+
+            if let Some((id, secret_data)) = write_update {
+                // Update with new checksum(s)
+                self.write_secret(&id, secret_data, false).await?;
+            }
+
+            file_events
+        };
+
+        let result = StorageChangeEvent {
+            event,
+            #[cfg(feature = "files")]
+            file_events,
         };
 
         #[cfg(feature = "files")]
-        self.append_file_mutation_events(&result.file_events)
+        self.external_file_manager
+            .append_file_mutation_events(&result.file_events)
             .await?;
 
         Ok(result)
@@ -844,18 +857,20 @@ impl ClientSecretStorage for ClientFileStorage {
             file_events: {
                 let folder =
                     self.current_folder().ok_or(Error::NoOpenVault)?;
-                self.delete_files(
-                    &folder,
-                    &secret_data,
-                    None,
-                    &mut options.file_progress,
-                )
-                .await?
+                self.external_file_manager
+                    .delete_files(
+                        &folder,
+                        &secret_data,
+                        None,
+                        &mut options.file_progress,
+                    )
+                    .await?
             },
         };
 
         #[cfg(feature = "files")]
-        self.append_file_mutation_events(&result.file_events)
+        self.external_file_manager
+            .append_file_mutation_events(&result.file_events)
             .await?;
 
         Ok(result)
@@ -888,7 +903,7 @@ impl ClientSecretStorage for ClientFileStorage {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl ClientFolderStorage for ClientFileStorage {
+impl ClientFolderStorage for ClientFileSystemStorage {
     fn folders(&self) -> &HashMap<VaultId, Folder> {
         &self.folders
     }
@@ -985,8 +1000,10 @@ impl ClientFolderStorage for ClientFileStorage {
 
         #[cfg(feature = "files")]
         {
-            let mut file_events =
-                self.delete_folder_files(summary.id()).await?;
+            let mut file_events = self
+                .external_file_manager
+                .delete_folder_files(summary.id())
+                .await?;
             let mut writer = self.file_log.write().await;
             writer.apply(file_events.iter().collect()).await?;
             for event in file_events.drain(..) {
@@ -1285,9 +1302,14 @@ impl ClientFolderStorage for ClientFileStorage {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl ClientDeviceStorage for ClientFileStorage {
+impl ClientDeviceStorage for ClientFileSystemStorage {
     fn devices(&self) -> &IndexSet<TrustedDevice> {
         &self.devices
+    }
+
+    /// Set the collection of trusted devices.
+    fn set_devices(&mut self, devices: IndexSet<TrustedDevice>) {
+        self.devices = devices;
     }
 
     fn list_trusted_devices(&self) -> Vec<&TrustedDevice> {
@@ -1351,7 +1373,7 @@ impl ClientDeviceStorage for ClientFileStorage {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl ClientAccountStorage for ClientFileStorage {
+impl ClientAccountStorage for ClientFileSystemStorage {
     fn account_id(&self) -> &AccountId {
         &self.account_id
     }
@@ -1518,7 +1540,17 @@ impl ClientAccountStorage for ClientFileStorage {
         &mut self,
         file_password: Option<secrecy::SecretString>,
     ) {
-        self.file_password = file_password;
+        self.external_file_manager.file_password = file_password;
+    }
+
+    #[cfg(feature = "files")]
+    fn external_file_manager(&self) -> &ExternalFileManager {
+        &self.external_file_manager
+    }
+
+    #[cfg(feature = "files")]
+    fn external_file_manager_mut(&mut self) -> &mut ExternalFileManager {
+        &mut self.external_file_manager
     }
 
     #[cfg(feature = "search")]

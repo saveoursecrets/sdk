@@ -17,7 +17,7 @@ mod storage;
 mod traits;
 
 pub use error::Error;
-pub use filesystem::ClientFileStorage as ClientStorage;
+pub use storage::ClientStorage;
 pub use traits::{
     ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage,
     ClientSecretStorage,

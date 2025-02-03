@@ -1,4 +1,4 @@
-use super::ClientFileStorage;
+use super::ClientFileSystemStorage;
 use crate::{ClientFolderStorage, Error, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -16,7 +16,7 @@ use sos_backend::FileEventLog;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl StorageEventLogs for ClientFileStorage {
+impl StorageEventLogs for ClientFileSystemStorage {
     type Error = Error;
 
     async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {

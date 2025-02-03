@@ -2,12 +2,13 @@
 //! as secrets are created, updated and moved.
 
 use crate::{
-    files::FileStorage, ClientAccountStorage, ClientSecretStorage,
-    ClientStorage, Error, Result,
+    files::FileStorage, filesystem::ClientFileSystemStorage,
+    ClientAccountStorage, ClientSecretStorage, Error, Result,
 };
 use hex;
+use sos_backend::FileEventLog;
 use sos_core::events::FileEvent;
-use sos_core::{basename, SecretId, SecretPath, VaultId};
+use sos_core::{basename, Paths, SecretId, SecretPath, VaultId};
 use sos_external_files::{
     list_folder_files, EncryptedFile, FileMutationEvent, FileProgress,
     FileSource, FileStorageDiff, FileStorageResult,
@@ -20,10 +21,29 @@ use sos_sdk::{
     },
     vfs,
 };
-use std::{collections::HashMap, path::Path};
-use tokio::sync::mpsc;
+use std::{collections::HashMap, path::Path, sync::Arc};
+use tokio::sync::{mpsc, RwLock};
 
-impl ClientStorage {
+/// Manages external files.
+pub struct ExternalFileManager {
+    paths: Arc<Paths>,
+    file_log: Arc<RwLock<FileEventLog>>,
+    pub(crate) file_password: Option<secrecy::SecretString>,
+}
+
+impl ExternalFileManager {
+    /// Create new external file manager.
+    pub fn new(
+        paths: Arc<Paths>,
+        file_log: Arc<RwLock<FileEventLog>>,
+    ) -> Self {
+        Self {
+            paths,
+            file_log,
+            file_password: None,
+        }
+    }
+
     /// Append file mutation events to the file event log.
     pub async fn append_file_mutation_events(
         &mut self,
@@ -127,7 +147,7 @@ impl ClientStorage {
         summary: &Summary,
         secret_data: SecretRow,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
-    ) -> Result<Vec<FileMutationEvent>> {
+    ) -> Result<(Vec<FileMutationEvent>, Option<(SecretId, SecretRow)>)> {
         self.write_update_checksum(summary, secret_data, None, file_progress)
             .await
     }
@@ -140,7 +160,7 @@ impl ClientStorage {
         old_secret: &SecretRow,
         new_secret: SecretRow,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
-    ) -> Result<Vec<FileMutationEvent>> {
+    ) -> Result<(Vec<FileMutationEvent>, Option<(SecretId, SecretRow)>)> {
         let mut results = Vec::new();
 
         let old_secret_id = old_secret.id();
@@ -186,8 +206,8 @@ impl ClientStorage {
         }
 
         // Write changed files to the new location
-        if !changed_files.is_empty() {
-            let written = self
+        let write_update = if !changed_files.is_empty() {
+            let (written, write_update) = self
                 .write_update_checksum(
                     new_summary,
                     new_secret,
@@ -196,9 +216,12 @@ impl ClientStorage {
                 )
                 .await?;
             results.extend_from_slice(&written);
-        }
+            write_update
+        } else {
+            None
+        };
 
-        Ok(results)
+        Ok((results, write_update))
     }
 
     /// Delete a collection of files from the external storage.
@@ -255,7 +278,7 @@ impl ClientStorage {
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<FileEvent> {
-        let vault_path = self.paths().files_dir().join(vault_id.to_string());
+        let vault_path = self.paths.files_dir().join(vault_id.to_string());
         let secret_path = vault_path.join(secret_id.to_string());
         let path = secret_path.join(file_name);
 
@@ -335,12 +358,12 @@ impl ClientStorage {
         file_name: &str,
     ) -> Result<FileMutationEvent> {
         let old_vault_path =
-            self.paths().files_dir().join(old_vault_id.to_string());
+            self.paths.files_dir().join(old_vault_id.to_string());
         let old_secret_path = old_vault_path.join(old_secret_id.to_string());
         let old_path = old_secret_path.join(file_name);
 
         let new_path = self
-            .paths()
+            .paths
             .files_dir()
             .join(new_vault_id.to_string())
             .join(new_secret_id.to_string())
@@ -382,7 +405,7 @@ impl ClientStorage {
         mut secret_data: SecretRow,
         sources: Option<Vec<FileSource>>,
         file_progress: &mut Option<mpsc::Sender<FileProgress>>,
-    ) -> Result<Vec<FileMutationEvent>> {
+    ) -> Result<(Vec<FileMutationEvent>, Option<(SecretId, SecretRow)>)> {
         tracing::debug!(folder = ?summary.id(), "write_update_checksum");
 
         let mut results = Vec::new();
@@ -507,12 +530,16 @@ impl ClientStorage {
             (secret, false)
         };
 
-        if changed {
+        let write_update = if changed {
             let secret_data = SecretRow::new(id, new_meta, new_secret);
 
             // Update with new checksum(s)
-            self.write_secret(&id, secret_data, false).await?;
-        }
+            // self.write_secret(&id, secret_data, false).await?;
+
+            Some((id, secret_data))
+        } else {
+            None
+        };
 
         let events = results
             .into_iter()
@@ -521,7 +548,7 @@ impl ClientStorage {
                 event: data.1,
             })
             .collect::<Vec<_>>();
-        Ok(events)
+        Ok((events, write_update))
     }
 }
 

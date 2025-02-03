@@ -1,13 +1,14 @@
 use crate::{
-    filesystem::ClientFileStorage, ClientAccountStorage, ClientDeviceStorage,
-    ClientFolderStorage, ClientSecretStorage, Error, Result,
-    StorageChangeEvent,
+    files::ExternalFileManager, filesystem::ClientFileSystemStorage,
+    ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage,
+    ClientSecretStorage, Error, Result, StorageChangeEvent,
 };
 use crate::{AccessOptions, AccountPack, NewFolderOptions};
 use async_trait::async_trait;
 use indexmap::IndexSet;
-use sos_backend::Folder;
-use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
+use sos_backend::{
+    AccountEventLog, BackendTarget, DeviceEventLog, Folder, FolderEventLog,
+};
 use sos_core::{
     commit::{CommitHash, CommitState},
     SecretId, VaultId,
@@ -21,6 +22,7 @@ use sos_core::{
     },
     AccountId, Paths, UtcDateTime,
 };
+use sos_database::async_sqlite::Client;
 use sos_login::FolderKeys;
 use sos_sync::StorageEventLogs;
 use sos_vault::{
@@ -39,11 +41,123 @@ use sos_search::{AccountSearch, DocumentCount};
 #[cfg(feature = "files")]
 use sos_backend::FileEventLog;
 
+/// Client account storage.
 pub enum ClientStorage {
     /// Filesystem storage.
-    FileSystem(ClientFileStorage),
+    FileSystem(ClientFileSystemStorage),
     /// Database storage.
-    Database(ClientFileStorage), // TODO!: db storage
+    Database(ClientFileSystemStorage), // TODO!: db storage
+}
+
+impl ClientStorage {
+    /// Create new client storage.
+    pub async fn new_unauthenticated(
+        account_id: AccountId,
+        target: BackendTarget,
+    ) -> Result<Self> {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                Ok(Self::new_unauthenticated_fs(account_id, paths).await?)
+            }
+            BackendTarget::Database(client) => {
+                Ok(Self::new_unauthenticated_db(account_id, client).await?)
+            }
+        }
+    }
+
+    /// Create new client storage in authenticated state.
+    pub async fn new_authenticated(
+        account_id: AccountId,
+        target: BackendTarget,
+        identity_log: Arc<RwLock<FolderEventLog>>,
+        device: TrustedDevice,
+    ) -> Result<Self> {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                Ok(Self::new_authenticated_fs(
+                    account_id,
+                    paths,
+                    identity_log,
+                    device,
+                )
+                .await?)
+            }
+            BackendTarget::Database(client) => {
+                Ok(Self::new_authenticated_db(
+                    account_id,
+                    client,
+                    identity_log,
+                    device,
+                )
+                .await?)
+            }
+        }
+    }
+
+    /// Create new file system storage.
+    async fn new_unauthenticated_fs(
+        account_id: AccountId,
+        paths: Paths,
+    ) -> Result<Self> {
+        Ok(Self::FileSystem(
+            ClientFileSystemStorage::new_unauthenticated(account_id, paths)
+                .await?,
+        ))
+    }
+
+    /// Create new file system storage in authenticated state.
+    async fn new_authenticated_fs(
+        account_id: AccountId,
+        paths: Paths,
+        identity_log: Arc<RwLock<FolderEventLog>>,
+        device: TrustedDevice,
+    ) -> Result<Self> {
+        Ok(Self::FileSystem(
+            ClientFileSystemStorage::new_authenticated(
+                account_id,
+                paths,
+                identity_log,
+                device,
+            )
+            .await?,
+        ))
+    }
+
+    /// Create new file system storage.
+    async fn new_unauthenticated_db(
+        account_id: AccountId,
+        client: Client,
+    ) -> Result<Self> {
+        /*
+        Ok(Self::FileSystem(
+            ClientFileSystemStorage::new_unauthenticated(account_id, paths).await?,
+        ))
+        */
+
+        todo!("unauthenticated db storage");
+    }
+
+    /// Create new file system storage in authenticated state.
+    async fn new_authenticated_db(
+        account_id: AccountId,
+        client: Client,
+        identity_log: Arc<RwLock<FolderEventLog>>,
+        device: TrustedDevice,
+    ) -> Result<Self> {
+        /*
+        Ok(Self::FileSystem(
+            ClientFileSystemStorage::new_authenticated(
+                account_id,
+                paths,
+                identity_log,
+                device,
+            )
+            .await?,
+        ))
+        */
+
+        todo!("authenticated db storage");
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -423,6 +537,13 @@ impl ClientDeviceStorage for ClientStorage {
         }
     }
 
+    fn set_devices(&mut self, devices: IndexSet<TrustedDevice>) {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.set_devices(devices),
+            ClientStorage::Database(db) => db.set_devices(devices),
+        }
+    }
+
     fn list_trusted_devices(&self) -> Vec<&TrustedDevice> {
         match self {
             ClientStorage::FileSystem(fs) => fs.list_trusted_devices(),
@@ -575,6 +696,22 @@ impl ClientAccountStorage for ClientStorage {
             ClientStorage::Database(db) => {
                 db.set_file_password(file_password)
             }
+        }
+    }
+
+    #[cfg(feature = "files")]
+    fn external_file_manager(&self) -> &ExternalFileManager {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.external_file_manager(),
+            ClientStorage::Database(db) => db.external_file_manager(),
+        }
+    }
+
+    #[cfg(feature = "files")]
+    fn external_file_manager_mut(&mut self) -> &mut ExternalFileManager {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.external_file_manager_mut(),
+            ClientStorage::Database(db) => db.external_file_manager_mut(),
         }
     }
 
