@@ -55,7 +55,7 @@ impl IdentityFolderMerge for IdentityFolder {
         &mut self,
         diff: &FolderDiff,
     ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
-        let id = *self.folder_id();
+        let id = self.folder_id().await;
         let index = &mut self.index;
 
         self.folder
@@ -85,6 +85,9 @@ impl FolderMerge for Folder {
         };
 
         if let CheckedPatch::Success(_) = &checked_patch {
+            let access_point = self.access_point();
+            let mut access_point = access_point.lock().await;
+
             for record in diff.patch.iter() {
                 let event = record.decode_event::<WriteEvent>().await?;
                 tracing::debug!(event_kind = %event.event_kind());
@@ -94,23 +97,17 @@ impl FolderMerge for Folder {
                         tracing::warn!("merge got create vault event");
                     }
                     WriteEvent::SetVaultName(name) => {
-                        self.keeper_mut()
-                            .set_vault_name(name.to_owned())
-                            .await?;
+                        access_point.set_vault_name(name.to_owned()).await?;
                     }
                     WriteEvent::SetVaultFlags(flags) => {
-                        self.keeper_mut()
-                            .set_vault_flags(flags.clone())
-                            .await?;
+                        access_point.set_vault_flags(flags.clone()).await?;
                     }
                     WriteEvent::SetVaultMeta(aead) => {
-                        let meta =
-                            self.keeper_mut().decrypt_meta(aead).await?;
-                        self.keeper_mut().set_vault_meta(&meta).await?;
+                        let meta = access_point.decrypt_meta(aead).await?;
+                        access_point.set_vault_meta(&meta).await?;
                     }
                     WriteEvent::CreateSecret(id, vault_commit) => {
-                        let (meta, secret) = self
-                            .keeper_mut()
+                        let (meta, secret) = access_point
                             .decrypt_secret(vault_commit, None)
                             .await?;
 
@@ -139,7 +136,7 @@ impl FolderMerge for Folder {
                             };
 
                         let row = SecretRow::new(*id, meta, secret);
-                        self.keeper_mut().create_secret(&row).await?;
+                        access_point.create_secret(&row).await?;
 
                         // Add to the URN lookup index
                         if let (
@@ -160,8 +157,7 @@ impl FolderMerge for Folder {
                         }
                     }
                     WriteEvent::UpdateSecret(id, vault_commit) => {
-                        let (meta, secret) = self
-                            .keeper_mut()
+                        let (meta, secret) = access_point
                             .decrypt_secret(vault_commit, None)
                             .await?;
 
@@ -187,9 +183,7 @@ impl FolderMerge for Folder {
                                 None
                             };
 
-                        self.keeper_mut()
-                            .update_secret(id, meta, secret)
-                            .await?;
+                        access_point.update_secret(id, meta, secret).await?;
 
                         #[cfg(feature = "search")]
                         if let (
@@ -205,7 +199,7 @@ impl FolderMerge for Folder {
                         let mut urn =
                             if let FolderMergeOptions::Urn(_, _) = &options {
                                 if let Some((meta, _, _)) =
-                                    self.keeper().read_secret(id).await?
+                                    access_point.read_secret(id).await?
                                 {
                                     meta.urn().cloned()
                                 } else {
@@ -215,7 +209,7 @@ impl FolderMerge for Folder {
                                 None
                             };
 
-                        self.keeper_mut().delete_secret(id).await?;
+                        access_point.delete_secret(id).await?;
 
                         // Remove from the URN lookup index
                         if let (
@@ -253,7 +247,10 @@ impl FolderMerge for Folder {
             .await?
             .build(true)
             .await?;
-        self.keeper_mut().replace_vault(vault, true).await?;
+
+        let access_point = self.access_point();
+        let mut access_point = access_point.lock().await;
+        access_point.replace_vault(vault, true).await?;
 
         Ok(())
     }

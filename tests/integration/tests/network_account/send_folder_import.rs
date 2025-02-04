@@ -43,7 +43,9 @@ async fn network_sync_folder_import() -> Result<()> {
         let storage = device.owner.storage().await;
         let reader = storage.read().await;
         let folder = reader.folders().get(new_folder.id()).unwrap();
-        folder.keeper().vault().clone()
+        let access_point = folder.access_point();
+        let access_point = access_point.lock().await;
+        access_point.vault().clone()
     };
 
     // Need the vault passphrase to import a buffer

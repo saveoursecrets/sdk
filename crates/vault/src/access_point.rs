@@ -118,7 +118,7 @@ pub trait SecretAccess {
     async fn raw_secret(
         &self,
         id: &SecretId,
-    ) -> Result<Option<(Cow<'_, VaultCommit>, ReadEvent)>, Self::Error>;
+    ) -> Result<Option<(VaultCommit, ReadEvent)>, Self::Error>;
 
     /// Get a secret and it's meta data.
     async fn read_secret(
@@ -414,8 +414,14 @@ where
     async fn raw_secret(
         &self,
         id: &SecretId,
-    ) -> Result<Option<(Cow<'_, VaultCommit>, ReadEvent)>, E> {
-        Ok(self.vault.read_secret(id).await?)
+    ) -> Result<Option<(VaultCommit, ReadEvent)>, E> {
+        let value = self.vault.read_secret(id).await?;
+        let value = if let Some((commit, event)) = value {
+            Some((commit.into_owned(), event))
+        } else {
+            None
+        };
+        Ok(value)
     }
 
     async fn read_secret(
@@ -426,7 +432,7 @@ where
 
         if let Some((value, event)) = self.raw_secret(id).await? {
             let (meta, secret) = self
-                .decrypt_secret(value.as_ref(), self.private_key.as_ref())
+                .decrypt_secret(&value, self.private_key.as_ref())
                 .await?;
             Ok(Some((meta, secret, event)))
         } else {

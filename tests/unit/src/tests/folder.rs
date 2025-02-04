@@ -107,7 +107,7 @@ async fn assert_folder(folder: &mut Folder, key: AccessKey) -> Result<()> {
     folder.set_description(folder_desc).await?;
     assert_eq!(7, count_records(folder.event_log()).await?);
 
-    folder.lock();
+    folder.lock().await;
     Ok(())
 }
 

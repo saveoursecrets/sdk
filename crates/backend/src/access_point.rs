@@ -11,7 +11,6 @@ use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     AccessPoint, SecretAccess, Summary, Vault, VaultMeta,
 };
-use std::borrow::Cow;
 use std::path::Path;
 
 /// Backend storage access point.
@@ -129,7 +128,7 @@ impl SecretAccess for BackendAccessPoint {
     async fn raw_secret(
         &self,
         id: &SecretId,
-    ) -> Result<Option<(Cow<'_, VaultCommit>, ReadEvent)>> {
+    ) -> Result<Option<(VaultCommit, ReadEvent)>> {
         Ok(self.0.raw_secret(id).await?)
     }
 

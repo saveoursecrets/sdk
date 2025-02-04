@@ -389,10 +389,12 @@ impl ClientFileSystemStorage {
         self.write_vault_file(summary.id(), &buffer).await?;
 
         if let Some(folder) = self.folders.get_mut(summary.id()) {
-            let keeper = folder.keeper_mut();
-            keeper.lock();
-            keeper.replace_vault(vault.clone(), false).await?;
-            keeper.unlock(key).await?;
+            let access_point = folder.access_point();
+            let mut access_point = access_point.lock().await;
+
+            access_point.lock();
+            access_point.replace_vault(vault.clone(), false).await?;
+            access_point.unlock(key).await?;
         }
 
         Ok(buffer)
@@ -729,7 +731,7 @@ impl ClientSecretStorage for ClientFileSystemStorage {
         &self,
         folder_id: &VaultId,
         secret_id: &SecretId,
-    ) -> Result<Option<(Cow<'_, VaultCommit>, ReadEvent)>> {
+    ) -> Result<Option<(VaultCommit, ReadEvent)>> {
         let folder = self
             .folders
             .get(folder_id)
@@ -1325,8 +1327,9 @@ impl ClientFolderStorage for ClientFileSystemStorage {
         self.refresh_vault(vault.summary(), &new_key).await?;
 
         if let Some(folder) = self.folders.get_mut(vault.id()) {
-            let keeper = folder.keeper_mut();
-            keeper.unlock(&new_key).await?;
+            let access_point = folder.access_point();
+            let mut access_point = access_point.lock().await;
+            access_point.unlock(&new_key).await?;
         }
 
         let mut account_log = self.account_log.write().await;
@@ -1680,9 +1683,10 @@ impl ClientAccountStorage for ClientFileSystemStorage {
 
             for (summary, key) in &keys.0 {
                 if let Some(folder) = self.folders.get_mut(summary.id()) {
-                    let keeper = folder.keeper_mut();
-                    keeper.unlock(key).await?;
-                    writer.add_folder(keeper).await?;
+                    let access_point = folder.access_point();
+                    let mut access_point = access_point.lock().await;
+                    access_point.unlock(key).await?;
+                    writer.add_folder(&*access_point).await?;
                 }
             }
         }

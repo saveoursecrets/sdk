@@ -30,6 +30,7 @@ use sos_vault::{
     BuilderCredentials, SecretAccess, Vault, VaultBuilder, VaultFlags,
     VaultId,
 };
+use sos_vault::{EncryptedEntry, Summary};
 use sos_vfs as vfs;
 use std::{
     path::{Path, PathBuf},
@@ -67,14 +68,24 @@ impl IdentityFolder {
         self.private_identity.account_id()
     }
 
-    /// Get the vault.
-    pub fn vault(&self) -> &Vault {
-        self.folder.keeper().vault()
+    /// Folder summary.
+    pub async fn summary(&self) -> Summary {
+        let access_point = self.folder.access_point();
+        let access_point = access_point.lock().await;
+        access_point.vault().summary().clone()
     }
+
+    /*
 
     /// Get the access point.
     pub fn keeper(&self) -> &AccessPoint {
         self.folder.keeper()
+    }
+    */
+
+    /// Reference to the folder.
+    pub fn folder(&self) -> &Folder {
+        &self.folder
     }
 
     /// Get the event log.
@@ -84,7 +95,9 @@ impl IdentityFolder {
 
     /// Verify the access key for this account.
     pub async fn verify(&self, key: &AccessKey) -> bool {
-        self.folder.keeper().verify(key).await.ok().is_some()
+        let access_point = self.folder.access_point();
+        let access_point = access_point.lock().await;
+        access_point.verify(key).await.ok().is_some()
     }
 
     /// Signing key for this device.
@@ -103,10 +116,9 @@ impl IdentityFolder {
 
     /// Rename this identity vault.
     pub async fn rename(&mut self, account_name: String) -> Result<()> {
-        self.folder
-            .keeper_mut()
-            .set_vault_name(account_name)
-            .await?;
+        let access_point = self.folder.access_point();
+        let mut access_point = access_point.lock().await;
+        access_point.set_vault_name(account_name).await?;
         Ok(())
     }
 
@@ -400,7 +412,7 @@ impl IdentityFolder {
         let secret_data = SecretRow::new(id, meta, secret);
         self.folder.create_secret(&secret_data).await?;
 
-        self.index.insert((*self.folder.id(), urn), id);
+        self.index.insert((self.folder.id().await, urn), id);
 
         Ok(())
     }
@@ -415,17 +427,19 @@ impl IdentityFolder {
         vault_id: &VaultId,
     ) -> Result<Option<AccessKey>> {
         let urn = Vault::vault_urn(vault_id)?;
+        let folder_id = self.folder.id().await;
 
         tracing::debug!(
             folder = %vault_id,
             urn = %urn,
             "find_folder_password");
 
-        if let Some(id) = self.index.get(&(*self.folder.id(), urn.clone())) {
-            let (_, secret, _) =
-                self.folder.read_secret(id).await?.ok_or_else(|| {
-                    Error::NoSecretId(*self.folder.id(), *id)
-                })?;
+        if let Some(id) = self.index.get(&(folder_id, urn.clone())) {
+            let (_, secret, _) = self
+                .folder
+                .read_secret(id)
+                .await?
+                .ok_or_else(|| Error::NoSecretId(folder_id, *id))?;
 
             let key = match secret {
                 Secret::Password { password, .. } => {
@@ -454,12 +468,13 @@ impl IdentityFolder {
         tracing::debug!(folder = %vault_id, "remove folder password");
 
         let (keeper_id, id, urn) = {
+            let folder_id = self.folder.id().await;
             let urn = Vault::vault_urn(vault_id)?;
             let id = self
                 .index
-                .get(&(*self.folder.keeper().id(), urn.clone()))
+                .get(&(folder_id, urn.clone()))
                 .ok_or(Error::NoFolderPassword(*vault_id))?;
-            (*self.folder.keeper().id(), *id, urn)
+            (folder_id, *id, urn)
         };
 
         self.folder.delete_secret(&id).await?;
@@ -470,8 +485,10 @@ impl IdentityFolder {
 
     /// Rebuild the index lookup for folder passwords.
     pub async fn rebuild_lookup_index(&mut self) -> Result<()> {
-        let keeper = self.keeper();
-        let (index, _) = Self::lookup_identity_secrets(keeper).await?;
+        let access_point = self.folder.access_point();
+        let access_point = access_point.lock().await;
+        let (index, _) =
+            Self::lookup_identity_secrets(&*access_point).await?;
         self.index = index;
         Ok(())
     }
@@ -496,7 +513,7 @@ impl IdentityFolder {
         let secret_id = SecretId::new_v4();
         let secret_data = SecretRow::new(secret_id, meta, secret);
         self.folder.create_secret(&secret_data).await?;
-        self.index.insert((*self.folder.id(), urn), secret_id);
+        self.index.insert((self.folder.id().await, urn), secret_id);
 
         Ok(())
     }
@@ -511,7 +528,7 @@ impl IdentityFolder {
 
         let id = self
             .index
-            .get(&(*self.folder.id(), urn.clone()))
+            .get(&(self.folder.id().await, urn.clone()))
             .ok_or_else(|| Error::NoFileEncryptionPassword)?;
 
         let password =
@@ -530,7 +547,7 @@ impl IdentityFolder {
     /// Locks the identity vault and device vault.
     pub async fn sign_out(&mut self) -> Result<()> {
         // Lock the identity vault
-        self.folder.lock();
+        self.folder.lock().await;
         self.index = Default::default();
 
         // Lock the devices vault
@@ -603,8 +620,8 @@ impl IdentityFolder {
     }
 
     /// Identifier of the folder.
-    pub fn folder_id(&self) -> &VaultId {
-        self.folder.id()
+    pub async fn folder_id(&self) -> VaultId {
+        self.folder.id().await
     }
 
     /// Create an identity vault.
@@ -648,7 +665,7 @@ impl IdentityFolder {
             shared_private: shared,
         };
 
-        index.insert((*folder.id(), identity_urn), identity_id);
+        index.insert((folder.id().await, identity_urn), identity_id);
 
         Ok(private_identity)
     }
@@ -754,20 +771,17 @@ impl IdentityFolder {
     ) -> Result<Self> {
         let mut folder = Folder::new_fs(path).await?;
 
-        if !folder
-            .keeper()
-            .vault()
-            .flags()
-            .contains(VaultFlags::IDENTITY)
-        {
+        let access_point = folder.access_point();
+        let access_point = access_point.lock().await;
+
+        if !access_point.vault().flags().contains(VaultFlags::IDENTITY) {
             return Err(Error::NotIdentityFolder);
         }
 
         folder.unlock(key).await?;
 
         let (index, private_identity) =
-            Self::login_private_identity(*account_id, folder.keeper())
-                .await?;
+            Self::login_private_identity(*account_id, &*access_point).await?;
 
         Ok(Self {
             folder,
@@ -802,20 +816,17 @@ impl IdentityFolder {
         )
         .await?;
 
-        if !folder
-            .keeper()
-            .vault()
-            .flags()
-            .contains(VaultFlags::IDENTITY)
-        {
+        let access_point = folder.access_point();
+        let access_point = access_point.lock().await;
+
+        if !access_point.vault().flags().contains(VaultFlags::IDENTITY) {
             return Err(Error::NotIdentityFolder);
         }
 
         folder.unlock(key).await?;
 
         let (index, private_identity) =
-            Self::login_private_identity(*account_id, folder.keeper())
-                .await?;
+            Self::login_private_identity(*account_id, &*access_point).await?;
 
         Ok(Self {
             folder,

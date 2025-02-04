@@ -211,7 +211,7 @@ pub trait ClientSecretStorage {
         &self,
         folder_id: &VaultId,
         secret_id: &SecretId,
-    ) -> Result<Option<(Cow<'_, VaultCommit>, ReadEvent)>>;
+    ) -> Result<Option<(VaultCommit, ReadEvent)>>;
 
     /// Read a secret in the currently open folder.
     async fn read_secret(

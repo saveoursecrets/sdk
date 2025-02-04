@@ -23,12 +23,13 @@ use sos_vault::{
     VaultCommit, VaultId, VaultMeta,
 };
 use sos_vfs as vfs;
-use std::{borrow::Cow, path::Path, sync::Arc};
-use tokio::sync::RwLock;
+use std::{path::Path, sync::Arc};
+use tokio::sync::{Mutex, RwLock};
 
 /// Folder is a combined vault and event log.
+#[derive(Clone)]
 pub struct Folder {
-    pub(crate) keeper: AccessPoint,
+    pub(crate) access_point: Arc<Mutex<AccessPoint>>,
     events: Arc<RwLock<FolderEventLog>>,
 }
 
@@ -64,10 +65,10 @@ impl Folder {
         };
 
         let mirror = VaultFileWriter::<Error>::new(path.as_ref());
-        let keeper =
+        let access_point =
             VaultAccessPoint::<Error>::new_mirror(vault, Box::new(mirror));
 
-        Ok(Self::init(AccessPoint::new(keeper), event_log))
+        Ok(Self::init(AccessPoint::new(access_point), event_log))
     }
 
     /// Create a new folder from a database table.
@@ -126,33 +127,29 @@ impl Folder {
         }
 
         let mirror = VaultDatabaseWriter::<Error>::new(client, folder_id);
-        let keeper =
+        let access_point =
             VaultAccessPoint::<Error>::new_mirror(vault, Box::new(mirror));
 
-        Ok(Self::init(AccessPoint::new(keeper), event_log))
+        Ok(Self::init(AccessPoint::new(access_point), event_log))
     }
 
     /// Create a new folder.
-    fn init(keeper: AccessPoint, events: FolderEventLog) -> Self {
+    fn init(access_point: AccessPoint, events: FolderEventLog) -> Self {
         Self {
-            keeper,
+            access_point: Arc::new(Mutex::new(access_point)),
             events: Arc::new(RwLock::new(events)),
         }
     }
 
     /// Folder identifier.
-    pub fn id(&self) -> &VaultId {
-        self.keeper.id()
+    pub async fn id(&self) -> VaultId {
+        let access_point = self.access_point.lock().await;
+        *access_point.id()
     }
 
-    /// AccessPoint for this folder.
-    pub fn keeper(&self) -> &AccessPoint {
-        &self.keeper
-    }
-
-    /// Mutable access point for this folder.
-    pub fn keeper_mut(&mut self) -> &mut AccessPoint {
-        &mut self.keeper
+    /// Access point for this folder.
+    pub fn access_point(&self) -> Arc<Mutex<AccessPoint>> {
+        self.access_point.clone()
     }
 
     /// Clone of the event log.
@@ -165,12 +162,14 @@ impl Folder {
         &mut self,
         key: &AccessKey,
     ) -> crate::Result<VaultMeta> {
-        Ok(self.keeper.unlock(key).await?)
+        let mut access_point = self.access_point.lock().await;
+        Ok(access_point.unlock(key).await?)
     }
 
     /// Lock the folder.
-    pub fn lock(&mut self) {
-        self.keeper.lock();
+    pub async fn lock(&mut self) {
+        let mut access_point = self.access_point.lock().await;
+        access_point.lock();
     }
 
     /// Create a secret.
@@ -178,7 +177,8 @@ impl Folder {
         &mut self,
         secret_data: &SecretRow,
     ) -> crate::Result<WriteEvent> {
-        let event = self.keeper.create_secret(secret_data).await?;
+        let mut access_point = self.access_point.lock().await;
+        let event = access_point.create_secret(secret_data).await?;
         let mut events = self.events.write().await;
         events.apply(vec![&event]).await?;
         Ok(event)
@@ -189,15 +189,17 @@ impl Folder {
         &self,
         id: &SecretId,
     ) -> crate::Result<Option<(SecretMeta, Secret, ReadEvent)>> {
-        Ok(self.keeper.read_secret(id).await?)
+        let access_point = self.access_point.lock().await;
+        Ok(access_point.read_secret(id).await?)
     }
 
     /// Read the encrypted contents of a secret.
     pub async fn raw_secret(
         &self,
         id: &SecretId,
-    ) -> crate::Result<Option<(Cow<'_, VaultCommit>, ReadEvent)>> {
-        Ok(self.keeper.raw_secret(id).await?)
+    ) -> crate::Result<Option<(VaultCommit, ReadEvent)>> {
+        let access_point = self.access_point.lock().await;
+        Ok(access_point.raw_secret(id).await?)
     }
 
     /// Update a secret.
@@ -207,8 +209,9 @@ impl Folder {
         secret_meta: SecretMeta,
         secret: Secret,
     ) -> crate::Result<Option<WriteEvent>> {
+        let mut access_point = self.access_point.lock().await;
         if let Some(event) =
-            self.keeper.update_secret(id, secret_meta, secret).await?
+            access_point.update_secret(id, secret_meta, secret).await?
         {
             let mut events = self.events.write().await;
             events.apply(vec![&event]).await?;
@@ -223,7 +226,8 @@ impl Folder {
         &mut self,
         id: &SecretId,
     ) -> Result<Option<WriteEvent>> {
-        if let Some(event) = self.keeper.delete_secret(id).await? {
+        let mut access_point = self.access_point.lock().await;
+        if let Some(event) = access_point.delete_secret(id).await? {
             let mut events = self.events.write().await;
             events.apply(vec![&event]).await?;
             Ok(Some(event))
@@ -237,7 +241,10 @@ impl Folder {
         &mut self,
         name: impl AsRef<str>,
     ) -> Result<WriteEvent> {
-        self.keeper.set_vault_name(name.as_ref().to_owned()).await?;
+        let mut access_point = self.access_point.lock().await;
+        access_point
+            .set_vault_name(name.as_ref().to_owned())
+            .await?;
         let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
         let mut events = self.events.write().await;
         events.apply(vec![&event]).await?;
@@ -249,7 +256,8 @@ impl Folder {
         &mut self,
         flags: VaultFlags,
     ) -> Result<WriteEvent> {
-        self.keeper.set_vault_flags(flags.clone()).await?;
+        let mut access_point = self.access_point.lock().await;
+        access_point.set_vault_flags(flags.clone()).await?;
         let event = WriteEvent::SetVaultFlags(flags);
         let mut events = self.events.write().await;
         events.apply(vec![&event]).await?;
@@ -258,7 +266,8 @@ impl Folder {
 
     /// Description of this folder.
     pub async fn description(&self) -> Result<String> {
-        let meta = self.keeper.vault_meta().await?;
+        let access_point = self.access_point.lock().await;
+        let meta = access_point.vault_meta().await?;
         Ok(meta.description().to_owned())
     }
 
@@ -267,14 +276,18 @@ impl Folder {
         &mut self,
         description: impl AsRef<str>,
     ) -> Result<WriteEvent> {
-        let mut meta = self.keeper.vault_meta().await?;
+        let mut meta = {
+            let access_point = self.access_point.lock().await;
+            access_point.vault_meta().await?
+        };
         meta.set_description(description.as_ref().to_owned());
         self.set_meta(&meta).await
     }
 
     /// Set the folder meta data.
     pub async fn set_meta(&mut self, meta: &VaultMeta) -> Result<WriteEvent> {
-        let event = self.keeper.set_vault_meta(meta).await?;
+        let mut access_point = self.access_point.lock().await;
+        let event = access_point.set_vault_meta(meta).await?;
         let mut events = self.events.write().await;
         events.apply(vec![&event]).await?;
         Ok(event)
@@ -322,6 +335,8 @@ impl Folder {
 
 impl From<Folder> for Vault {
     fn from(value: Folder) -> Self {
-        value.keeper.into()
+        let mutex = Arc::into_inner(value.access_point).unwrap();
+        let access_point = mutex.into_inner();
+        access_point.into()
     }
 }

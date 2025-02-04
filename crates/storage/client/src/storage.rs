@@ -185,7 +185,7 @@ impl ClientSecretStorage for ClientStorage {
         &self,
         folder_id: &VaultId,
         secret_id: &SecretId,
-    ) -> Result<Option<(Cow<'_, VaultCommit>, ReadEvent)>> {
+    ) -> Result<Option<(VaultCommit, ReadEvent)>> {
         match self {
             ClientStorage::FileSystem(fs) => {
                 fs.raw_secret(folder_id, secret_id).await

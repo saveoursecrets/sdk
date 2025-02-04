@@ -1730,7 +1730,7 @@ impl Account for LocalAccount {
 
     async fn identity_folder_summary(&self) -> Result<Summary> {
         let authenticated_user = self.storage.authenticated_user()?;
-        Ok(authenticated_user.identity()?.vault().summary().clone())
+        Ok(authenticated_user.identity()?.summary().await)
     }
 
     async fn reload_identity_folder(&mut self) -> Result<()> {
@@ -1738,12 +1738,11 @@ impl Account for LocalAccount {
 
         // Reload the vault on disc
         let path = self.paths.identity_vault();
-        authenticated_user
-            .identity_mut()?
-            .folder
-            .keeper_mut()
-            .reload_vault(path)
-            .await?;
+
+        let folder = authenticated_user.identity()?.folder();
+        let access_point = folder.access_point();
+        let mut access_point = access_point.lock().await;
+        access_point.reload_vault(path).await?;
 
         // Reload the event log merkle tree
         // TODO: we could only load commits from HEAD here
@@ -1797,10 +1796,13 @@ impl Account for LocalAccount {
         let (meta, seed, keys) = {
             let authenticated_user = self.storage.authenticated_user()?;
             let identity = authenticated_user.identity()?;
-            let input = identity.keeper();
-            let seed = input.vault().seed().cloned();
-            let meta = input.vault_meta().await?;
-            let keys = input.vault().keys().cloned().collect::<Vec<_>>();
+            let folder = identity.folder();
+            let access_point = folder.access_point();
+            let access_point = access_point.lock().await;
+            let seed = access_point.vault().seed().cloned();
+            let meta = access_point.vault_meta().await?;
+            let keys =
+                access_point.vault().keys().cloned().collect::<Vec<_>>();
             (meta, seed, keys)
         };
 
@@ -1822,10 +1824,13 @@ impl Account for LocalAccount {
         {
             let authenticated_user = self.storage.authenticated_user()?;
             let identity = authenticated_user.identity()?;
+            let folder = identity.folder();
+            let access_point = folder.access_point();
+            let access_point = access_point.lock().await;
 
             for key in keys {
                 let (meta, secret, _) =
-                    identity.keeper().read_secret(&key).await?.unwrap();
+                    access_point.read_secret(&key).await?.unwrap();
                 let secret_data = SecretRow::new(key, meta, secret);
                 output.create_secret(&secret_data).await?;
             }
@@ -2390,12 +2395,8 @@ impl Account for LocalAccount {
         &self,
         folder_id: &VaultId,
         secret_id: &SecretId,
-    ) -> std::result::Result<Option<(VaultCommit, ReadEvent)>, Self::Error>
-    {
-        Ok(match self.storage.raw_secret(folder_id, secret_id).await? {
-            Some((commit, event)) => Some((commit.into_owned(), event)),
-            None => None,
-        })
+    ) -> Result<Option<(VaultCommit, ReadEvent)>> {
+        Ok(self.storage.raw_secret(folder_id, secret_id).await?)
     }
 
     async fn delete_secret(

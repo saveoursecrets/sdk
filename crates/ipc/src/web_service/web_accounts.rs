@@ -315,9 +315,10 @@ where
                             if let Some(folder) =
                                 storage.folders().get(&folder_id)
                             {
-                                let keeper = folder.keeper();
+                                let access_point = folder.access_point();
+                                let access_point = access_point.lock().await;
                                 let mut index = index.write().await;
-                                index.add_folder(keeper).await?;
+                                index.add_folder(&*access_point).await?;
                             }
                         }
                         AccountEvent::DeleteFolder(_) => {
@@ -334,18 +335,20 @@ where
                 if let Some(folder) =
                     storage.folders_mut().get_mut(&folder_id)
                 {
-                    let keeper = folder.keeper_mut();
+                    let access_point = folder.access_point();
+                    let mut access_point = access_point.lock().await;
 
                     // Must reload the vault before updating the
                     // search index
                     let path = paths.vault_path(folder_id);
-                    keeper.reload_vault(path).await?;
+                    access_point.reload_vault(path).await?;
 
                     for event in events {
                         match event {
                             WriteEvent::CreateSecret(secret_id, _) => {
-                                if let Some((meta, secret, _)) =
-                                    keeper.read_secret(secret_id).await?
+                                if let Some((meta, secret, _)) = access_point
+                                    .read_secret(secret_id)
+                                    .await?
                                 {
                                     let mut index = index.write().await;
                                     index.add(
@@ -354,8 +357,9 @@ where
                                 }
                             }
                             WriteEvent::UpdateSecret(secret_id, _) => {
-                                if let Some((meta, secret, _)) =
-                                    keeper.read_secret(secret_id).await?
+                                if let Some((meta, secret, _)) = access_point
+                                    .read_secret(secret_id)
+                                    .await?
                                 {
                                     let mut index = index.write().await;
                                     index.update(
