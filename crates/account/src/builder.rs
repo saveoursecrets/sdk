@@ -39,7 +39,7 @@ pub struct PrivateNewAccount {
     pub folder_keys: FolderKeys,
 }
 
-impl From<PrivateNewAccount> for AccountPack {
+impl From<PrivateNewAccount> for (Identity, AccountPack) {
     fn from(mut value: PrivateNewAccount) -> Self {
         let mut folders = vec![value.default_folder];
         if let Some(archive) = value.archive.take() {
@@ -51,11 +51,14 @@ impl From<PrivateNewAccount> for AccountPack {
         if let Some(contacts) = value.contacts.take() {
             folders.push(contacts);
         }
-        Self {
-            account_id: value.account_id,
-            identity_vault: value.identity_vault,
-            folders,
-        }
+        (
+            value.user,
+            AccountPack {
+                account_id: value.account_id,
+                identity_vault: value.identity_vault,
+                folders,
+            },
+        )
     }
 }
 

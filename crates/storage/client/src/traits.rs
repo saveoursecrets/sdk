@@ -263,6 +263,24 @@ pub trait ClientAccountStorage:
     /// Account identifier.
     fn account_id(&self) -> &AccountId;
 
+    /// Determine if the storage is authenticated.
+    async fn is_authenticated(&self) -> bool;
+
+    /// Import an identity vault and generate the event but
+    /// do not write the event to the account event log.
+    ///
+    /// This is used when merging account event logs to ensure
+    /// the `AccountEvent::UpdateIdentity` event is not duplicated.
+    ///
+    /// Typically the handlers that update storage but don't append log
+    /// events are declared in the storage implementation but the
+    /// identity log is managed by the account so this must exist here.
+    #[doc(hidden)]
+    async fn import_identity_vault(
+        &mut self,
+        vault: Vault,
+    ) -> Result<AccountEvent>;
+
     /// Unlock all folders.
     async fn unlock(&mut self, keys: &FolderKeys) -> Result<()>;
 

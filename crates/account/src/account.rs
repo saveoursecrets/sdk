@@ -926,18 +926,11 @@ impl LocalAccount {
         let mut storage = ClientStorage::new_authenticated(
             *account_id,
             BackendTarget::FileSystem(paths),
-            identity_log,
-            user.identity()?.devices()?.current_device(None),
+            user,
         )
         .await?;
 
         self.paths = storage.paths();
-
-        #[cfg(feature = "files")]
-        {
-            let file_password = user.find_file_encryption_password().await?;
-            storage.set_file_password(Some(file_password));
-        }
 
         Self::initialize_account_log(
             &self.paths,
@@ -945,7 +938,7 @@ impl LocalAccount {
         )
         .await?;
 
-        self.authenticated = Some(user);
+        // self.authenticated = Some(user);
         self.storage = Arc::new(RwLock::new(storage));
 
         // Load vaults into memory and initialize folder
@@ -969,12 +962,14 @@ impl LocalAccount {
     /// Authenticated user information.
     #[doc(hidden)]
     pub fn user(&self) -> Result<&Identity> {
+        todo!("make user async");
         self.authenticated.as_ref().ok_or(Error::NotAuthenticated)
     }
 
     /// Mutable authenticated user information.
     #[doc(hidden)]
     pub fn user_mut(&mut self) -> Result<&mut Identity> {
+        todo!("make user_mut async");
         self.authenticated.as_mut().ok_or(Error::NotAuthenticated)
     }
 
@@ -1122,24 +1117,8 @@ impl LocalAccount {
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
-
-        // Update the identity vault
-        let buffer = encode(&vault).await?;
-        let identity_vault_path = self.paths().identity_vault();
-        write_exclusive(&identity_vault_path, &buffer).await?;
-
-        // Update the events for the identity vault
-        let user = self.user()?;
-        let identity = user.identity()?;
-        let event_log = identity.event_log();
-        let mut event_log = event_log.write().await;
-        event_log.clear().await?;
-
-        let (_, events) = FolderReducer::split::<Error>(vault).await?;
-        event_log.apply(events.iter().collect()).await?;
-
-        Ok(AccountEvent::UpdateIdentity(buffer))
+        let mut storage = self.storage.write().await;
+        Ok(storage.import_identity_vault(vault).await?)
     }
 
     async fn add_secret(
@@ -1520,7 +1499,7 @@ impl LocalAccount {
             passphrase.clone(),
             BackendTarget::FileSystem(paths.clone()),
         ));
-        let new_account = account_builder.finish().await?;
+        let mut new_account = account_builder.finish().await?;
 
         let paths = paths.with_account_id(&new_account.account_id);
 
@@ -1530,20 +1509,25 @@ impl LocalAccount {
         );
 
         let account_id = new_account.account_id;
-        let identity_log = new_account.user.identity()?.event_log();
+        // let identity_log = new_account.user.identity()?.event_log();
+
+        let (authenticated_user, public_account) = new_account.into();
 
         let mut storage = ClientStorage::new_authenticated(
             account_id,
             BackendTarget::FileSystem(paths),
+            authenticated_user,
+            /*
             identity_log,
             new_account.user.identity()?.devices()?.current_device(None),
+            */
         )
         .await?;
 
         tracing::debug!("new_account::storage_provider");
 
         // Must import the new account before signing in
-        let public_account: AccountPack = new_account.into();
+        // let public_account: AccountPack = new_account.into();
         storage.create_account(&public_account).await?;
 
         tracing::debug!("new_account::imported");

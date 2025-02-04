@@ -36,11 +36,12 @@ impl ExternalFileManager {
     pub fn new(
         paths: Arc<Paths>,
         file_log: Arc<RwLock<FileEventLog>>,
+        file_password: Option<secrecy::SecretString>,
     ) -> Self {
         Self {
             paths,
             file_log,
-            file_password: None,
+            file_password,
         }
     }
 

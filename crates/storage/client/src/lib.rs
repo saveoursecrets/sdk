@@ -13,6 +13,7 @@ mod error;
 #[cfg(feature = "files")]
 pub mod files;
 mod filesystem;
+pub(crate) mod folder_sync;
 mod storage;
 mod traits;
 

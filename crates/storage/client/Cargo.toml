@@ -30,6 +30,7 @@ sos-database.workspace = true
 sos-password.workspace = true
 sos-filesystem.workspace = true
 sos-login.workspace = true
+sos-reducers.workspace = true
 sos-signer.workspace = true
 sos-sync.workspace = true
 sos-sdk.workspace = true

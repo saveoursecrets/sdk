@@ -23,7 +23,7 @@ use sos_core::{
     AccountId, Paths, UtcDateTime,
 };
 use sos_database::async_sqlite::Client;
-use sos_login::FolderKeys;
+use sos_login::{FolderKeys, Identity};
 use sos_sync::StorageEventLogs;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
@@ -69,16 +69,22 @@ impl ClientStorage {
     pub async fn new_authenticated(
         account_id: AccountId,
         target: BackendTarget,
+        authenticated_user: Identity,
+        /*
         identity_log: Arc<RwLock<FolderEventLog>>,
         device: TrustedDevice,
+        */
     ) -> Result<Self> {
         match target {
             BackendTarget::FileSystem(paths) => {
                 Ok(Self::new_authenticated_fs(
                     account_id,
                     paths,
+                    authenticated_user,
+                    /*
                     identity_log,
                     device,
+                    */
                 )
                 .await?)
             }
@@ -86,8 +92,9 @@ impl ClientStorage {
                 Ok(Self::new_authenticated_db(
                     account_id,
                     client,
-                    identity_log,
-                    device,
+                    authenticated_user,
+                    // identity_log,
+                    // device,
                 )
                 .await?)
             }
@@ -109,15 +116,21 @@ impl ClientStorage {
     async fn new_authenticated_fs(
         account_id: AccountId,
         paths: Paths,
+        authenticated_user: Identity,
+        /*
         identity_log: Arc<RwLock<FolderEventLog>>,
         device: TrustedDevice,
+        */
     ) -> Result<Self> {
         Ok(Self::FileSystem(
             ClientFileSystemStorage::new_authenticated(
                 account_id,
                 paths,
+                authenticated_user,
+                /*
                 identity_log,
                 device,
+                */
             )
             .await?,
         ))
@@ -141,8 +154,11 @@ impl ClientStorage {
     async fn new_authenticated_db(
         account_id: AccountId,
         client: Client,
+        authenticated_user: Identity,
+        /*
         identity_log: Arc<RwLock<FolderEventLog>>,
         device: TrustedDevice,
+        */
     ) -> Result<Self> {
         /*
         Ok(Self::FileSystem(
@@ -585,6 +601,27 @@ impl ClientAccountStorage for ClientStorage {
         match self {
             ClientStorage::FileSystem(fs) => fs.account_id(),
             ClientStorage::Database(db) => db.account_id(),
+        }
+    }
+
+    async fn is_authenticated(&self) -> bool {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.is_authenticated().await,
+            ClientStorage::Database(db) => db.is_authenticated().await,
+        }
+    }
+
+    async fn import_identity_vault(
+        &mut self,
+        vault: Vault,
+    ) -> Result<AccountEvent> {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.import_identity_vault(vault).await
+            }
+            ClientStorage::Database(db) => {
+                db.import_identity_vault(vault).await
+            }
         }
     }
 

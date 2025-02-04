@@ -24,6 +24,7 @@ use sos_core::{
     },
     AccountId, Paths, UtcDateTime,
 };
+use sos_login::Identity;
 use sos_password::diceware::generate_passphrase;
 use sos_sdk::{
     events::{EventLog, EventRecord},
@@ -100,6 +101,10 @@ pub struct ClientFileSystemStorage {
     /// Reduced collection of devices.
     devices: IndexSet<TrustedDevice>,
 
+    /// Account information after a successful
+    /// sign in.
+    authenticated: Option<Identity>,
+
     /// File event log.
     #[cfg(feature = "files")]
     file_log: Arc<RwLock<FileEventLog>>,
@@ -151,7 +156,10 @@ impl ClientFileSystemStorage {
             #[cfg(feature = "files")]
             file_log: file_log.clone(),
             #[cfg(feature = "files")]
-            external_file_manager: ExternalFileManager::new(paths, file_log),
+            external_file_manager: ExternalFileManager::new(
+                paths, file_log, None,
+            ),
+            authenticated: None,
         };
 
         storage.load_folders().await?;
@@ -163,8 +171,11 @@ impl ClientFileSystemStorage {
     pub async fn new_authenticated(
         account_id: AccountId,
         paths: Paths,
+        authenticated_user: Identity,
+        /*
         identity_log: Arc<RwLock<FolderEventLog>>,
         device: TrustedDevice,
+        */
     ) -> Result<Self> {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
@@ -179,12 +190,26 @@ impl ClientFileSystemStorage {
             AccountEventLog::new_fs_account(log_file).await?;
         account_log.load_tree().await?;
 
+        let identity_log = authenticated_user.identity()?.event_log();
+        let device = authenticated_user
+            .identity()?
+            .devices()?
+            .current_device(None);
+
         let (device_log, devices) =
             Self::initialize_device_log(&paths, device).await?;
 
         #[cfg(feature = "files")]
-        let file_log =
-            Arc::new(RwLock::new(Self::initialize_file_log(&paths).await?));
+        let (file_log, file_password) = {
+            let file_log = Arc::new(RwLock::new(
+                Self::initialize_file_log(&paths).await?,
+            ));
+
+            let file_password =
+                authenticated_user.find_file_encryption_password().await?;
+
+            (file_log, file_password)
+        };
 
         let paths = Arc::new(paths);
 
@@ -203,8 +228,25 @@ impl ClientFileSystemStorage {
             #[cfg(feature = "files")]
             file_log: file_log.clone(),
             #[cfg(feature = "files")]
-            external_file_manager: ExternalFileManager::new(paths, file_log),
+            external_file_manager: ExternalFileManager::new(
+                paths,
+                file_log,
+                Some(file_password),
+            ),
+            authenticated: Some(authenticated_user),
         })
+    }
+
+    /// Authenticated user information.
+    #[doc(hidden)]
+    pub fn authenticated_user(&self) -> Result<&Identity> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)
+    }
+
+    /// Mutable authenticated user information.
+    #[doc(hidden)]
+    pub fn authenticated_user_mut(&mut self) -> Result<&mut Identity> {
+        self.authenticated.as_mut().ok_or(Error::NotAuthenticated)
     }
 
     async fn initialize_device_log(
@@ -1376,6 +1418,34 @@ impl ClientDeviceStorage for ClientFileSystemStorage {
 impl ClientAccountStorage for ClientFileSystemStorage {
     fn account_id(&self) -> &AccountId {
         &self.account_id
+    }
+
+    async fn is_authenticated(&self) -> bool {
+        self.authenticated.is_some()
+    }
+
+    async fn import_identity_vault(
+        &mut self,
+        vault: Vault,
+    ) -> Result<AccountEvent> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+
+        // Update the identity vault
+        let buffer = encode(&vault).await?;
+        let identity_vault_path = self.paths().identity_vault();
+        write_exclusive(&identity_vault_path, &buffer).await?;
+
+        // Update the events for the identity vault
+        let user = self.authenticated_user()?;
+        let identity = user.identity()?;
+        let event_log = identity.event_log();
+        let mut event_log = event_log.write().await;
+        event_log.clear().await?;
+
+        let (_, events) = FolderReducer::split::<Error>(vault).await?;
+        event_log.apply(events.iter().collect()).await?;
+
+        Ok(AccountEvent::UpdateIdentity(buffer))
     }
 
     async fn unlock(&mut self, keys: &FolderKeys) -> Result<()> {

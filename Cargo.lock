@@ -4945,6 +4945,7 @@ dependencies = [
  "sos-filesystem",
  "sos-login",
  "sos-password",
+ "sos-reducers",
  "sos-sdk",
  "sos-search",
  "sos-signer",
