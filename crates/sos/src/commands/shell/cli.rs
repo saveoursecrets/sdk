@@ -8,7 +8,8 @@ use crate::{
     Error, Result,
 };
 use sos_account::Account;
-use sos_sdk::{identity::AccountRef, vault::FolderRef, vfs, Paths};
+use sos_core::{FolderRef, Paths};
+use sos_sdk::{identity::AccountRef, vfs};
 use terminal_banner::{Banner, Padding};
 
 const WELCOME: &str = include_str!("welcome.txt");

@@ -11,9 +11,6 @@ use sos_backend::{
 };
 use sos_core::{
     commit::{CommitHash, CommitState},
-    SecretId, VaultId,
-};
-use sos_core::{
     crypto::AccessKey,
     device::{DevicePublicKey, TrustedDevice},
     events::{
@@ -22,7 +19,7 @@ use sos_core::{
         },
         AccountEvent, DeviceEvent, Event, EventRecord, ReadEvent, WriteEvent,
     },
-    AccountId, Paths, UtcDateTime,
+    AccountId, FolderRef, Paths, SecretId, UtcDateTime, VaultId,
 };
 use sos_database::async_sqlite::Client;
 use sos_login::{FolderKeys, Identity};
@@ -31,7 +28,7 @@ use sos_sync::{
 };
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    FolderRef, Summary, Vault, VaultCommit, VaultFlags,
+    Summary, Vault, VaultCommit, VaultFlags,
 };
 use std::{
     collections::{HashMap, HashSet},

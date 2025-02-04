@@ -8,7 +8,8 @@ use crate::{
 };
 use clap::{CommandFactory, Parser, Subcommand};
 use sos_account::Account;
-use sos_sdk::{identity::AccountRef, vault::FolderRef};
+use sos_core::FolderRef;
+use sos_sdk::identity::AccountRef;
 use std::ffi::OsString;
 
 use crate::Result;

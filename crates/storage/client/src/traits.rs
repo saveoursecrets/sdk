@@ -14,14 +14,14 @@ use sos_core::{
         patch::FolderPatch, AccountEvent, DeviceEvent, Event, EventRecord,
         ReadEvent, WriteEvent,
     },
-    AccountId, Paths, SecretId, UtcDateTime, VaultCommit, VaultFlags,
-    VaultId,
+    AccountId, FolderRef, Paths, SecretId, UtcDateTime, VaultCommit,
+    VaultFlags, VaultId,
 };
 use sos_login::{FolderKeys, Identity};
 use sos_sync::SyncStorage;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    FolderRef, Summary, Vault,
+    Summary, Vault,
 };
 use std::{collections::HashMap, sync::Arc};
 

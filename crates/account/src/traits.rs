@@ -13,7 +13,7 @@ use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DevicePublicKey, TrustedDevice},
     events::{AccountEvent, DeviceEvent, EventRecord, ReadEvent, WriteEvent},
-    AccountId, Paths, SecretId, UtcDateTime, VaultCommit, VaultId,
+    AccountId, FolderRef, Paths, SecretId, UtcDateTime, VaultCommit, VaultId,
 };
 use sos_login::{
     device::{DeviceManager, DeviceSigner},
@@ -22,7 +22,7 @@ use sos_login::{
 use sos_sync::CreateSet;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretPath, SecretRow},
-    FolderRef, Summary, Vault, VaultFlags,
+    Summary, Vault, VaultFlags,
 };
 use std::{
     collections::HashMap,

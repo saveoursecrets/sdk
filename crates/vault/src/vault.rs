@@ -57,54 +57,6 @@ impl VaultMeta {
     }
 }
 
-/// Reference to a folder using an id or a named label.
-#[derive(Debug, Clone)]
-pub enum FolderRef {
-    /// Vault identifier.
-    Id(VaultId),
-    /// Vault label.
-    Name(String),
-}
-
-impl fmt::Display for FolderRef {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Id(id) => write!(f, "{}", id),
-            Self::Name(name) => write!(f, "{}", name),
-        }
-    }
-}
-
-impl FromStr for FolderRef {
-    type Err = Error;
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        if let Ok(id) = Uuid::parse_str(s) {
-            Ok(Self::Id(id))
-        } else {
-            Ok(Self::Name(s.to_string()))
-        }
-    }
-}
-
-impl From<VaultId> for FolderRef {
-    fn from(value: VaultId) -> Self {
-        Self::Id(value)
-    }
-}
-
-/*
-/// Type to represent a secret as an encrypted pair of meta data
-/// and secret data.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
-#[deprecated]
-pub struct VaultEntry(pub AeadPack, pub AeadPack);
-
-/// Type to represent an encrypted secret with an associated commit hash.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
-#[deprecated]
-pub struct VaultCommit(pub CommitHash, pub VaultEntry);
-*/
-
 /// Read and write encrypted data to a vault.
 ///
 /// The storage may be in-memory, backed by a file on disc or another

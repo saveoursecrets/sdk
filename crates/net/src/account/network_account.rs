@@ -18,8 +18,8 @@ use sos_core::{
         AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
         ReadEvent, WriteEvent,
     },
-    AccountId, AccountRef, Origin, Paths, PublicIdentity, RemoteOrigins,
-    SecretId, UtcDateTime, VaultId,
+    AccountId, AccountRef, FolderRef, Origin, Paths, PublicIdentity,
+    RemoteOrigins, SecretId, UtcDateTime, VaultId,
 };
 use sos_login::device::{DeviceManager, DeviceSigner};
 use sos_protocol::{
@@ -29,7 +29,7 @@ use sos_protocol::{
 use sos_sync::{CreateSet, StorageEventLogs, UpdateSet};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    FolderRef, Summary, Vault, VaultCommit, VaultFlags,
+    Summary, Vault, VaultCommit, VaultFlags,
 };
 use sos_vfs as vfs;
 use std::{

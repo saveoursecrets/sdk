@@ -28,7 +28,7 @@ use sos_core::{
         AccountEvent, DeviceEvent, Event, EventKind, EventLog, EventRecord,
         ReadEvent, WriteEvent,
     },
-    AccountId, Paths, SecretId, UtcDateTime, VaultCommit, VaultId,
+    AccountId, FolderRef, Paths, SecretId, UtcDateTime, VaultCommit, VaultId,
 };
 use sos_login::{
     device::{DeviceManager, DeviceSigner},
@@ -39,8 +39,8 @@ use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
     list_accounts, list_local_folders,
     secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
-    BuilderCredentials, FolderRef, Header, SecretAccess, Summary, Vault,
-    VaultBuilder, VaultFlags,
+    BuilderCredentials, Header, SecretAccess, Summary, Vault, VaultBuilder,
+    VaultFlags,
 };
 use sos_vfs as vfs;
 use std::{

@@ -4,25 +4,22 @@ use crate::helpers::{
     messages::success,
     readline::{choose, choose_password, read_flag, read_password, Choice},
 };
+use crate::{Error, Result};
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use secrecy::{ExposeSecret, SecretString};
 use sos_account::Account;
-use sos_core::AccountId;
+use sos_core::{
+    constants::DEFAULT_VAULT_NAME, crypto::AccessKey, AccountId, FolderRef,
+    Paths, PublicIdentity,
+};
 use sos_net::{NetworkAccount, NetworkAccountSwitcher};
 use sos_password::diceware::generate_passphrase;
-use sos_sdk::{
-    constants::DEFAULT_VAULT_NAME,
-    crypto::AccessKey,
-    identity::{AccountRef, PublicIdentity},
-    vault::{FolderRef, Summary},
-    Paths,
-};
+use sos_sdk::identity::AccountRef;
+use sos_vault::Summary;
 use std::{borrow::Cow, sync::Arc};
 use terminal_banner::{Banner, Padding};
 use tokio::sync::RwLock;
-
-use crate::{Error, Result};
 
 /// Account owner.
 pub type Owner = Arc<RwLock<NetworkAccountSwitcher>>;

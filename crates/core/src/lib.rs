@@ -36,7 +36,8 @@ pub(crate) type Result<T> = std::result::Result<T, Error>;
 use bitflags::bitflags;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::{fmt, path::Path, str::FromStr};
+use uuid::Uuid;
 
 /// Exposes the default cryptographically secure RNG.
 pub fn csprng() -> impl CryptoRng + Rng {
@@ -44,10 +45,10 @@ pub fn csprng() -> impl CryptoRng + Rng {
 }
 
 /// Identifier for a vault.
-pub type VaultId = uuid::Uuid;
+pub type VaultId = Uuid;
 
 /// Identifier for a secret.
-pub type SecretId = uuid::Uuid;
+pub type SecretId = Uuid;
 
 /// Secret as an encrypted pair of meta and secret data.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
@@ -256,5 +257,40 @@ impl<'de> Deserialize<'de> for ArchiveManifestVersion {
                 "invalid archive manifest version",
             )),
         }
+    }
+}
+
+/// Reference to a folder using an id or a named label.
+#[derive(Debug, Clone)]
+pub enum FolderRef {
+    /// Vault identifier.
+    Id(VaultId),
+    /// Vault label.
+    Name(String),
+}
+
+impl fmt::Display for FolderRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Id(id) => write!(f, "{}", id),
+            Self::Name(name) => write!(f, "{}", name),
+        }
+    }
+}
+
+impl FromStr for FolderRef {
+    type Err = Error;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        if let Ok(id) = Uuid::parse_str(s) {
+            Ok(Self::Id(id))
+        } else {
+            Ok(Self::Name(s.to_string()))
+        }
+    }
+}
+
+impl From<VaultId> for FolderRef {
+    fn from(value: VaultId) -> Self {
+        Self::Id(value)
     }
 }

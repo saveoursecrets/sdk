@@ -24,15 +24,15 @@ use sos_core::{
         patch::FolderPatch, AccountEvent, Event, EventLog, EventRecord,
         ReadEvent, WriteEvent,
     },
-    AccountId, Paths, UtcDateTime,
+    AccountId, FolderRef, Paths, UtcDateTime,
 };
 use sos_login::{FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    BuilderCredentials, ChangePassword, FolderRef, Header, SecretAccess,
-    Summary, Vault, VaultBuilder, VaultCommit, VaultFlags,
+    BuilderCredentials, ChangePassword, Header, SecretAccess, Summary, Vault,
+    VaultBuilder, VaultCommit, VaultFlags,
 };
 use sos_vfs as vfs;
 use std::{collections::HashMap, sync::Arc};

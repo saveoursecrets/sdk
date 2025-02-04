@@ -22,7 +22,7 @@ use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DevicePublicKey, TrustedDevice},
     events::{AccountEvent, DeviceEvent, EventRecord, ReadEvent},
-    Paths, PublicIdentity, UtcDateTime, VaultCommit, VaultFlags,
+    FolderRef, Paths, PublicIdentity, UtcDateTime, VaultCommit, VaultFlags,
 };
 use sos_login::device::{DeviceManager, DeviceSigner};
 use sos_protocol::{
@@ -33,7 +33,6 @@ use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs,
     SyncDirection, SyncStatus, SyncStorage, UpdateSet,
 };
-use sos_vault::FolderRef;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     Summary, Vault,

@@ -1,7 +1,3 @@
-use clap::{CommandFactory, Parser, Subcommand};
-use sos_sdk::{identity::AccountRef, vault::FolderRef, Paths};
-use std::path::PathBuf;
-
 use crate::{
     commands::{
         account, device, environment, folder, preferences, secret, server,
@@ -12,7 +8,11 @@ use crate::{
     helpers::{account::SHELL, PROGRESS_MONITOR},
     CommandTree, Result,
 };
+use clap::{CommandFactory, Parser, Subcommand};
+use sos_core::{FolderRef, Paths};
 use sos_protocol::network_client::set_user_agent;
+use sos_sdk::identity::AccountRef;
+use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
