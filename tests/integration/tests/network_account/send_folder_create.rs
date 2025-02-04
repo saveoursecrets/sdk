@@ -4,7 +4,6 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
-use sos_client_storage::ClientFolderStorage;
 use sos_sdk::prelude::*;
 
 /// Tests sending create folder events to a remote.
@@ -39,11 +38,7 @@ async fn network_sync_folder_create() -> Result<()> {
 
     // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions
-    let folders: Vec<Summary> = {
-        let storage = device.owner.storage().await;
-        let reader = storage.read().await;
-        reader.list_folders().to_vec()
-    };
+    let folders: Vec<Summary> = device.owner.list_folders().await?;
 
     // Ensure we have the extra folder summary in memory
     assert_eq!(original_folders_len + 1, folders.len());

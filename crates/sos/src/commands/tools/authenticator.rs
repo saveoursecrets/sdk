@@ -6,7 +6,7 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_account::{Account, FolderCreate};
-use sos_client_storage::{ClientFolderStorage, NewFolderOptions};
+use sos_client_storage::NewFolderOptions;
 use sos_migrate::{export_authenticator, import_authenticator};
 use sos_sdk::prelude::{AccountRef, VaultFlags};
 use std::path::PathBuf;

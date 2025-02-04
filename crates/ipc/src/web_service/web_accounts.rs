@@ -5,12 +5,11 @@ use notify::{
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use sos_account::{Account, AccountSwitcher};
-use sos_client_storage::ClientFolderStorage;
 use sos_core::{
     events::{AccountEvent, EventLog, WriteEvent},
     AccountId, ErrorExt, Paths, VaultId,
 };
-use sos_sync::{StorageEventLogs, SyncStorage};
+use sos_sync::SyncStorage;
 use sos_vault::SecretAccess;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, RwLock};

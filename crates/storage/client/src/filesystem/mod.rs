@@ -34,7 +34,7 @@ use sos_vault::{
     Summary, Vault, VaultBuilder, VaultCommit, VaultFlags,
 };
 use sos_vfs as vfs;
-use std::{borrow::Cow, collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "archive")]
@@ -1482,7 +1482,7 @@ impl ClientAccountStorage for ClientFileSystemStorage {
 
     async fn lock(&mut self) {
         for (_, folder) in self.folders.iter_mut() {
-            folder.lock();
+            folder.lock().await;
         }
     }
 
@@ -1504,7 +1504,7 @@ impl ClientAccountStorage for ClientFileSystemStorage {
             .folders
             .get_mut(id)
             .ok_or(StorageError::CacheNotAvailable(*id))?;
-        folder.lock();
+        folder.lock().await;
         Ok(())
     }
 

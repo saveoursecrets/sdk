@@ -289,6 +289,12 @@ pub trait Account {
         events: Vec<DeviceEvent>,
     ) -> std::result::Result<(), Self::Error>;
 
+    /// Revoke a device.
+    async fn revoke_device(
+        &mut self,
+        device_key: &DevicePublicKey,
+    ) -> std::result::Result<(), Self::Error>;
+
     /// Current device information.
     async fn current_device(
         &self,
@@ -447,10 +453,6 @@ pub trait Account {
     async fn delete_account(
         &mut self,
     ) -> std::result::Result<(), Self::Error>;
-
-    /// Storage provider.
-    #[deprecated]
-    async fn storage(&self) -> Arc<RwLock<ClientStorage>>;
 
     /// Read the secret identifiers in a vault.
     async fn secret_ids(
@@ -1690,6 +1692,13 @@ impl Account for LocalAccount {
         Ok(self.storage.patch_devices_unchecked(events).await?)
     }
 
+    async fn revoke_device(
+        &mut self,
+        device_key: &DevicePublicKey,
+    ) -> Result<()> {
+        Ok(self.storage.revoke_device(device_key).await?)
+    }
+
     async fn current_device(&self) -> Result<TrustedDevice> {
         let authenticated_user = self.storage.authenticated_user()?;
         Ok(authenticated_user.devices()?.current_device(None))
@@ -1986,11 +1995,6 @@ impl Account for LocalAccount {
 
     async fn find_folder(&self, vault: &FolderRef) -> Option<Summary> {
         self.storage.find_folder(vault).cloned()
-    }
-
-    async fn storage(&self) -> Arc<RwLock<ClientStorage>> {
-        todo!("restore storage getter for debug_assertions");
-        // self.storage.clone()
     }
 
     async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {

@@ -11,7 +11,7 @@ use sos_core::{
     SecretId, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
 use sos_vfs as vfs;
-use std::{borrow::Cow, path::Path};
+use std::path::Path;
 
 pub type VaultMirror<E> =
     Box<dyn EncryptedEntry<Error = E> + Send + Sync + 'static>;

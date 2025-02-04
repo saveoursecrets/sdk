@@ -3,7 +3,6 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::{AccountEventLog, FolderEventLog};
-use sos_client_storage::ClientFolderStorage;
 use sos_sdk::prelude::*;
 
 /// Tests compacting a folder event log.
@@ -61,9 +60,7 @@ async fn event_log_compact() -> Result<()> {
 
     // Check the in-memory commit tree
     let new_root = {
-        let storage = account.storage().await;
-        let reader = storage.read().await;
-        let folder = reader.folders().get(default_folder.id()).unwrap();
+        let folder = account.folder(default_folder.id()).await?;
         let event_log = folder.event_log();
         let event_log = event_log.read().await;
         let tree = event_log.tree();

@@ -4,7 +4,6 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, FolderDelete};
-use sos_client_storage::ClientFolderStorage;
 use sos_core::ExternalFile;
 use sos_sdk::prelude::*;
 

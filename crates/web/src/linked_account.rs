@@ -9,7 +9,7 @@ use sos_account::{
     SecretDelete, SecretInsert, SecretMove,
 };
 use sos_backend::{AccountEventLog, DeviceEventLog, Folder, FolderEventLog};
-use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
+use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::{
     commit::{CommitHash, CommitState, Comparison},
     events::{
@@ -181,6 +181,14 @@ impl Account for LinkedAccount {
         Ok(account.patch_devices_unchecked(events).await?)
     }
 
+    async fn revoke_device(
+        &mut self,
+        device_key: &DevicePublicKey,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.revoke_device(device_key).await?)
+    }
+
     async fn current_device(&self) -> Result<TrustedDevice> {
         let account = self.account.lock().await;
         Ok(account.current_device().await?)
@@ -343,12 +351,6 @@ impl Account for LinkedAccount {
     async fn delete_account(&mut self) -> Result<()> {
         let mut account = self.account.lock().await;
         Ok(account.delete_account().await?)
-    }
-
-    #[cfg(debug_assertions)]
-    async fn storage(&self) -> Arc<RwLock<ClientStorage>> {
-        let account = self.account.lock().await;
-        account.storage().await
     }
 
     async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {

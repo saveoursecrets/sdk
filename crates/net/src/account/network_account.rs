@@ -9,9 +9,7 @@ use sos_account::{
     SecretDelete, SecretInsert, SecretMove,
 };
 use sos_backend::{Folder, ServerOrigins};
-use sos_client_storage::{
-    AccessOptions, ClientDeviceStorage, ClientStorage, NewFolderOptions,
-};
+use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
@@ -232,44 +230,6 @@ impl NetworkAccount {
             );
             self.file_transfers = Some(file_transfers);
             self.start_file_transfers().await?;
-        }
-
-        Ok(())
-    }
-
-    /// Revoke a device.
-    pub async fn revoke_device(
-        &mut self,
-        device_key: &sos_sdk::device::DevicePublicKey,
-    ) -> Result<()> {
-        let current_device = self.current_device().await?;
-        if current_device.public_key() == device_key {
-            return Err(Error::RevokeDeviceSelf);
-        }
-
-        // Update the local device event log
-        {
-            let account = self.account.lock().await;
-            let storage = account.storage().await;
-            let mut storage = storage.write().await;
-            storage.revoke_device(device_key).await?;
-        }
-
-        #[cfg(feature = "audit")]
-        {
-            let audit_event = AuditEvent::new(
-                Default::default(),
-                EventKind::RevokeDevice,
-                *self.account_id(),
-                Some(AuditData::Device(*device_key)),
-            );
-            append_audit_events(&[audit_event]).await?;
-        }
-
-        // Send the device event logs to the remote servers
-        if let Some(e) = self.sync().await.first_error() {
-            tracing::error!(error = ?e);
-            return Err(Error::RevokeDeviceSync(Box::new(e)));
         }
 
         Ok(())
@@ -752,6 +712,41 @@ impl Account for NetworkAccount {
         Ok(account.patch_devices_unchecked(events).await?)
     }
 
+    async fn revoke_device(
+        &mut self,
+        device_key: &DevicePublicKey,
+    ) -> Result<()> {
+        let current_device = self.current_device().await?;
+        if current_device.public_key() == device_key {
+            return Err(Error::RevokeDeviceSelf);
+        }
+
+        // Update the local device event log
+        {
+            let mut account = self.account.lock().await;
+            account.revoke_device(device_key).await?;
+        }
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event = AuditEvent::new(
+                Default::default(),
+                EventKind::RevokeDevice,
+                *self.account_id(),
+                Some(AuditData::Device(*device_key)),
+            );
+            append_audit_events(&[audit_event]).await?;
+        }
+
+        // Send the device event logs to the remote servers
+        if let Some(e) = self.sync().await.first_error() {
+            tracing::error!(error = ?e);
+            return Err(Error::RevokeDeviceSync(Box::new(e)));
+        }
+
+        Ok(())
+    }
+
     async fn current_device(&self) -> Result<TrustedDevice> {
         let account = self.account.lock().await;
         Ok(account.current_device().await?)
@@ -1011,11 +1006,6 @@ impl Account for NetworkAccount {
     async fn find_folder(&self, vault: &FolderRef) -> Option<Summary> {
         let account = self.account.lock().await;
         account.find_folder(vault).await
-    }
-
-    async fn storage(&self) -> Arc<RwLock<ClientStorage>> {
-        let account = self.account.lock().await;
-        account.storage().await
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {

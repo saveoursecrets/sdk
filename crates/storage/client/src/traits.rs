@@ -23,7 +23,7 @@ use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     FolderRef, Summary, Vault,
 };
-use std::{borrow::Cow, collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 #[cfg(feature = "archive")]
 use sos_filesystem::archive::RestoreTargets;

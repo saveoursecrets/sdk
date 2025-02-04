@@ -4,7 +4,6 @@ use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use sos_account::Account;
 use sos_backend::AccessPoint;
-use sos_client_storage::ClientFolderStorage;
 use sos_password::generator::measure_entropy;
 use sos_vault::{
     secret::{Secret, SecretId, SecretType},

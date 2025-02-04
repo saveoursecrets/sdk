@@ -4,7 +4,6 @@ use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use sos_account::{Account, AccountBuilder};
-use sos_client_storage::{ClientAccountStorage, ClientFolderStorage};
 use sos_core::{ExternalFile, Origin};
 use sos_net::{
     InflightNotification, InflightTransfers, NetworkAccount, RemoteBridge,

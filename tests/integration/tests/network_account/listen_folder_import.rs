@@ -4,7 +4,6 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
-use sos_client_storage::ClientFolderStorage;
 use sos_sdk::prelude::*;
 use sos_vault::SecretAccess;
 
@@ -44,9 +43,7 @@ async fn network_sync_listen_folder_import() -> Result<()> {
     // path when sync happens
     device1.owner.open_folder(new_folder.id()).await?;
     let mut vault = {
-        let storage = device1.owner.storage().await;
-        let reader = storage.read().await;
-        let folder = reader.folders().get(new_folder.id()).unwrap();
+        let folder = device1.owner.folder(new_folder.id()).await?;
         let access_point = folder.access_point();
         let access_point = access_point.lock().await;
         access_point.vault().clone()
@@ -89,11 +86,8 @@ async fn network_sync_listen_folder_import() -> Result<()> {
 
     // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions
-    let expected_summaries: Vec<Summary> = {
-        let storage = device1.owner.storage().await;
-        let reader = storage.read().await;
-        reader.list_folders().to_vec()
-    };
+    let expected_summaries: Vec<Summary> =
+        device1.owner.list_folders().await?;
 
     // Assert first device
     let mut bridge = device1.owner.remove_server(&origin).await?.unwrap();

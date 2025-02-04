@@ -33,8 +33,10 @@ use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     FolderRef, Summary, Vault, VaultCommit, VaultFlags,
 };
-use std::collections::HashSet;
-use std::{borrow::Cow, collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "archive")]

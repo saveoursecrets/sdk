@@ -4,7 +4,6 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
-use sos_client_storage::ClientFolderStorage;
 use sos_sdk::prelude::*;
 use sos_vault::SecretAccess;
 
@@ -40,9 +39,7 @@ async fn network_sync_folder_import() -> Result<()> {
     // path when sync happens
     device.owner.open_folder(new_folder.id()).await?;
     let mut vault = {
-        let storage = device.owner.storage().await;
-        let reader = storage.read().await;
-        let folder = reader.folders().get(new_folder.id()).unwrap();
+        let folder = device.owner.folder(new_folder.id()).await?;
         let access_point = folder.access_point();
         let access_point = access_point.lock().await;
         access_point.vault().clone()
@@ -68,11 +65,7 @@ async fn network_sync_folder_import() -> Result<()> {
 
     // Expected folders on the local account must be computed
     // again after creating the new folder for the assertions
-    let folders: Vec<Summary> = {
-        let storage = device.owner.storage().await;
-        let reader = storage.read().await;
-        reader.list_folders().to_vec()
-    };
+    let folders: Vec<Summary> = device.owner.list_folders().await?;
 
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
