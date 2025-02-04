@@ -2,11 +2,11 @@ use crate::SimulatedDevice;
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, Future, StreamExt};
 use sos_account::Account;
+use sos_core::{crypto::AccessKey, device::DeviceMetaData};
 use sos_net::{
     pairing::{self, AcceptPairing, OfferPairing},
     NetworkAccount,
 };
-use sos_sdk::prelude::*;
 use std::pin::Pin;
 use tokio::sync::mpsc;
 

@@ -2,8 +2,8 @@
 use crate::Result;
 use async_trait::async_trait;
 use sos_core::{device::DevicePublicKey, AccountId, Paths, VaultId};
-use sos_sdk::vault::Summary;
 use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
+use sos_vault::Summary;
 use std::collections::HashSet;
 use std::sync::Arc;
 

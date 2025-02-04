@@ -8,6 +8,7 @@ use sos_sync::{
     MaybeDiff, Merge, MergeOutcome, StorageEventLogs, SyncDirection,
     SyncPacket, SyncStatus, SyncStorage,
 };
+use sos_vfs as vfs;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
@@ -167,7 +168,7 @@ pub trait RemoteSyncHandler {
                             file.secret_id(),
                             file.file_name().to_string(),
                         );
-                        if !sos_sdk::vfs::try_exists(file_path).await? {
+                        if !vfs::try_exists(file_path).await? {
                             tracing::debug!(
                                 file = ?file,
                                 "add file download to transfers",

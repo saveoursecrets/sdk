@@ -4,8 +4,8 @@ use crate::Result;
 use futures::StreamExt;
 use indexmap::IndexSet;
 use sha2::{Digest, Sha256};
-use sos_core::ExternalFile;
-use sos_sdk::{vfs, Paths};
+use sos_core::{ExternalFile, Paths};
+use sos_vfs as vfs;
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::{
     mpsc::{self, Receiver, Sender},

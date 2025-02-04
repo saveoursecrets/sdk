@@ -3,7 +3,7 @@
 use http::{Request, Response, StatusCode};
 use serde::Deserialize;
 use sos_account::{Account, ClipboardCopyRequest};
-use sos_sdk::prelude::{ErrorExt, SecretPath};
+use sos_core::{ErrorExt, SecretPath};
 use sos_sync::SyncStorage;
 
 use crate::web_service::{

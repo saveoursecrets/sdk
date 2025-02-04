@@ -14,17 +14,14 @@ use sos_core::{
     crypto::{KeyDerivation, PrivateKey},
     device::TrustedDevice,
     encode,
-    events::{EventLog, WriteEvent},
+    events::{EventLog, EventLogType, EventRecord, WriteEvent},
     AccountId, SecretId, VaultEntry,
 };
-use sos_database::db::EventEntity;
-use sos_database::db::EventRecordRow;
 use sos_database::db::{
-    open_file, AccountEntity, AccountRow, FolderEntity, FolderRow,
+    open_file, AccountEntity, AccountRow, EventEntity, EventRecordRow,
+    FolderEntity, FolderRow,
 };
 use sos_password::diceware::generate_passphrase;
-use sos_sdk::events::EventLogType;
-use sos_sdk::events::EventRecord;
 use sos_vault::{
     secret::{FileContent, IdentityKind, Secret, SecretMeta},
     BuilderCredentials, EncryptedEntry, Vault, VaultBuilder,

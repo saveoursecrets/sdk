@@ -5,7 +5,7 @@ use hyper::body::Incoming;
 use hyper::service::Service;
 use parking_lot::Mutex;
 use sos_account::Account;
-use sos_sdk::prelude::ErrorExt;
+use sos_core::ErrorExt;
 use sos_sync::SyncStorage;
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 use tower::service_fn;

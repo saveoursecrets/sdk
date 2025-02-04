@@ -2,11 +2,10 @@
 use crate::{Error, IntegrityFailure, Result};
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
+use sos_core::Paths;
 use sos_filesystem::formats::{EventLogRecord, VaultRecord};
-use sos_sdk::{
-    vault::{Summary, VaultId},
-    vfs, Paths,
-};
+use sos_vault::{Summary, VaultId};
+use sos_vfs as vfs;
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::{
     mpsc::{self, Receiver, Sender},

@@ -4,10 +4,8 @@ use crate::{
     NetworkAccount,
 };
 use sos_account::Account;
-use sos_backend::{
-    reducers::FolderReducer, AccountEventLog, DeviceEventLog, FolderEventLog,
-};
 use sos_backend::{write_exclusive, VaultWriter};
+use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
 use sos_core::{
     crypto::AccessKey,
     encode,
@@ -16,16 +14,14 @@ use sos_core::{
         patch::{AccountPatch, DevicePatch, FolderPatch},
         EventLog,
     },
-    AccountId, Origin, VaultId,
+    AccountId, Origin, Paths, PublicIdentity, VaultId,
 };
+use sos_login::{device::DeviceSigner, Identity};
 use sos_protocol::{network_client::HttpClient, SyncClient};
-use sos_sdk::{
-    device::DeviceSigner,
-    identity::{Identity, PublicIdentity},
-    vault::EncryptedEntry,
-    vfs, Paths,
-};
+use sos_reducers::FolderReducer;
 use sos_signer::ed25519::BoxedEd25519Signer;
+use sos_vault::EncryptedEntry;
+use sos_vfs as vfs;
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},

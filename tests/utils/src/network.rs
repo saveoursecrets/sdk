@@ -4,6 +4,12 @@ use copy_dir::copy_dir;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use sos_account::{Account, AccountBuilder};
+use sos_core::{
+    constants::{FILES_DIR, VAULT_EXT},
+    crypto::AccessKey,
+    events::EventLog,
+    Paths,
+};
 use sos_core::{ExternalFile, Origin};
 use sos_net::{
     InflightNotification, InflightTransfers, NetworkAccount, RemoteBridge,
@@ -13,14 +19,9 @@ use sos_protocol::{
     network_client::{HttpClient, ListenOptions},
     AccountSync, RemoteSyncHandler, SyncClient,
 };
-use sos_sdk::{
-    constants::{FILES_DIR, VAULT_EXT},
-    crypto::AccessKey,
-    events::EventLog,
-    vault::{Summary, VaultId},
-    vfs, Paths,
-};
 use sos_sync::SyncStorage;
+use sos_vault::{Summary, VaultId};
+use sos_vfs as vfs;
 use std::{
     path::PathBuf,
     sync::Arc,

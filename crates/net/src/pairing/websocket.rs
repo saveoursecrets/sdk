@@ -9,8 +9,11 @@ use futures::{
 use prost::bytes::Bytes;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use sos_account::Account;
-use sos_core::events::DeviceEvent;
-use sos_core::{AccountId, Origin};
+use sos_core::{
+    device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
+    events::DeviceEvent,
+    AccountId, Origin,
+};
 use sos_protocol::{
     network_client::WebSocketRequest,
     pairing_message,
@@ -26,7 +29,6 @@ use sos_protocol::{
     PairingRequest, ProtoMessage, RelayHeader, RelayPacket, RelayPayload,
     SyncOptions,
 };
-use sos_sdk::device::{DeviceMetaData, DevicePublicKey, TrustedDevice};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use tokio::{net::TcpStream, sync::mpsc};

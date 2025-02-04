@@ -3,7 +3,7 @@
 use http::{Request, Response, StatusCode};
 use serde::Deserialize;
 use sos_account::Account;
-use sos_sdk::prelude::ErrorExt;
+use sos_core::ErrorExt;
 use sos_search::{ArchiveFilter, DocumentView, QueryFilter};
 use sos_sync::SyncStorage;
 use std::collections::HashMap;

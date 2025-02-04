@@ -7,7 +7,9 @@ use sos_backend::VaultWriter;
 use sos_backend::{
     AccountEventLog, DeviceEventLog, FileEventLog, FolderEventLog,
 };
-use sos_core::events::{patch::FolderPatch, AccountEvent, EventLog};
+use sos_core::events::{
+    patch::FolderPatch, AccountEvent, EventLog, EventRecord, WriteEvent,
+};
 use sos_core::{
     decode,
     device::{DevicePublicKey, TrustedDevice},
@@ -17,7 +19,6 @@ use sos_database::async_sqlite::Client;
 use sos_database::db::{
     AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
 };
-use sos_sdk::events::{EventRecord, WriteEvent};
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
 use sos_vault::{EncryptedEntry, Summary, Vault};
 use sos_vfs as vfs;

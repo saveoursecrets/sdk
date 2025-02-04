@@ -14,17 +14,18 @@ use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DevicePublicKey, TrustedDevice},
-    events::{AccountEvent, EventLog, EventLogType, EventRecord, ReadEvent},
+    events::{
+        AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
+        ReadEvent, WriteEvent,
+    },
     AccountId, AccountRef, Origin, Paths, PublicIdentity, RemoteOrigins,
-    SecretId, VaultId,
+    SecretId, UtcDateTime, VaultId,
 };
 use sos_login::device::{DeviceManager, DeviceSigner};
 use sos_protocol::{
     AccountSync, DiffRequest, RemoteSync, RemoteSyncHandler, SyncClient,
     SyncOptions, SyncResult,
 };
-use sos_sdk::events::{DeviceEvent, WriteEvent};
-use sos_sdk::UtcDateTime;
 use sos_sync::{CreateSet, StorageEventLogs, UpdateSet};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},

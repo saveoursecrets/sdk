@@ -5,7 +5,7 @@ use secrecy::SecretString;
 use serde::Deserialize;
 use sos_account::Account;
 use sos_core::AccountId;
-use sos_sdk::prelude::{AccessKey, ErrorExt};
+use sos_core::{crypto::AccessKey, ErrorExt};
 use sos_sync::SyncStorage;
 use std::collections::HashMap;
 

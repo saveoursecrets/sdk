@@ -1,6 +1,6 @@
 use sos_core::AccountId;
+use sos_core::VaultId;
 use sos_protocol::{AsConflict, ConflictError};
-use sos_sdk::prelude::VaultId;
 use std::path::PathBuf;
 use thiserror::Error;
 

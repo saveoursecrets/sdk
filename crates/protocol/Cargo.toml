@@ -26,15 +26,14 @@ listen = ["tokio-tungstenite"]
 hashcheck = ["reqwest"]
 network-client = ["reqwest", "bs58", "async-stream", "tokio-util"]
 pairing = []
-contacts = ["sos-sdk/contacts"]
-files = ["sos-external-files", "sos-sdk/files", "sos-account/files"]
+contacts = []
+files = ["sos-external-files", "sos-account/files"]
 migrate = ["sos-account/migrate"]
 search = ["sos-account/search"]
 
 [dependencies]
 sos-account.workspace = true
 sos-core.workspace = true
-sos-sdk.workspace = true
 sos-backend.workspace = true
 sos-database.workspace = true
 sos-client-storage.workspace = true

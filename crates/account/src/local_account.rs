@@ -1,13 +1,14 @@
 //! Local account storage and search index.
 use crate::{
-    convert::CipherComparison, Account, AccountBuilder, Error, Result,
+    convert::CipherComparison, Account, AccountBuilder, AccountChange,
+    AccountData, ClipboardCopyRequest, ClipboardTextFormat,
+    ContactImportProgress, DetachedView, Error, FolderChange, FolderCreate,
+    FolderDelete, Result, SecretChange, SecretDelete, SecretInsert,
+    SecretMove,
 };
-use crate::{
-    AccountChange, AccountData, ClipboardCopyRequest, ClipboardTextFormat,
-    ContactImportProgress, DetachedView, FolderChange, FolderCreate,
-    FolderDelete, SecretChange, SecretDelete, SecretInsert, SecretMove,
-};
+use async_trait::async_trait;
 use indexmap::IndexSet;
+use secrecy::SecretString;
 use sos_backend::{
     compact::compact_folder, write_exclusive, AccessPoint, AccountEventLog,
     BackendTarget, Folder, StorageError,
@@ -48,6 +49,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tokio::sync::RwLock;
 
 #[cfg(feature = "search")]
 use sos_search::{DocumentCount, SearchIndex};
@@ -80,10 +82,6 @@ use sos_migrate::{
     },
     Convert,
 };
-
-use async_trait::async_trait;
-use secrecy::SecretString;
-use tokio::sync::RwLock;
 
 #[cfg(feature = "archive")]
 use tokio::io::{AsyncRead, AsyncSeek, BufReader};

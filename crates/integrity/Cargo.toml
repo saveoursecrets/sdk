@@ -18,9 +18,8 @@ files = []
 [dependencies]
 sos-core.workspace = true
 sos-filesystem.workspace = true
-sos-sdk.workspace = true
-sos-vfs.workspace = true
 sos-vault.workspace = true
+sos-vfs.workspace = true
 
 thiserror.workspace = true
 async-stream.workspace = true

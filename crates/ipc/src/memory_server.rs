@@ -11,7 +11,7 @@ use hyper::client::conn::http1::handshake;
 use hyper::server::conn::http1::Builder;
 use hyper_util::rt::tokio::TokioIo;
 use sos_account::Account;
-use sos_sdk::prelude::ErrorExt;
+use sos_core::ErrorExt;
 use sos_sync::SyncStorage;
 use std::sync::Arc;
 use tokio::{

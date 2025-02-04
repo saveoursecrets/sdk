@@ -1,7 +1,7 @@
 //! HTTP transport trait and implementations.
 use super::{Error, Result};
 use crate::transfer::CancelReason;
-use sos_sdk::encode;
+use sos_core::encode;
 use sos_signer::ed25519::{
     BinaryEd25519Signature, Signature as Ed25519Signature,
 };

@@ -37,7 +37,6 @@ sos-client-storage.workspace = true
 sos-login.workspace = true
 sos-protocol = { workspace = true, features = ["network-client"] }
 sos-signer.workspace = true
-sos-sdk.workspace = true
 sos-sync.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true

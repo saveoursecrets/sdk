@@ -5,14 +5,14 @@
 use crate::Result;
 use async_recursion::async_recursion;
 use http::StatusCode;
-use sos_core::ExternalFile;
+use sos_core::{ExternalFile, Paths};
 use sos_protocol::NetworkError;
 use sos_protocol::{
     network_client::NetworkRetry,
     transfer::{CancelReason, FileSyncClient},
     Error, SyncClient,
 };
-use sos_sdk::{vfs, Paths};
+use sos_vfs as vfs;
 use std::{io::ErrorKind, sync::Arc};
 use tokio::sync::watch;
 

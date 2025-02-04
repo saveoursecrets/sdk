@@ -16,7 +16,7 @@
 //! by a semaphore and notifications are sent via [InflightTransfers].
 use crate::{Error, Result};
 use futures::FutureExt;
-use sos_core::{ExternalFile, Origin};
+use sos_core::{ExternalFile, Origin, Paths};
 use sos_protocol::{
     network_client::NetworkRetry,
     transfer::{
@@ -25,7 +25,7 @@ use sos_protocol::{
     },
     SyncClient,
 };
-use sos_sdk::{vfs, Paths};
+use sos_vfs as vfs;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},

@@ -22,8 +22,8 @@ local-transport = [
 ]
 memory-http-server = []
 clipboard = ["sos-account/clipboard"]
-contacts = ["sos-sdk/contacts", "sos-protocol/contacts"]
-files = ["sos-sdk/files", "sos-protocol/files"]
+contacts = ["sos-protocol/contacts"]
+files = ["sos-protocol/files"]
 migrate = ["sos-account/migrate"]
 search = ["sos-search", "sos-protocol/search"]
 extension-helper-server = [
@@ -59,7 +59,6 @@ sos-client-storage.workspace = true
 sos-backend.workspace = true
 sos-database.workspace = true
 sos-protocol.workspace = true
-sos-sdk.workspace = true
 sos-sync.workspace = true
 sos-vault.workspace = true
 

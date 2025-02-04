@@ -18,25 +18,26 @@ use sos_core::{
     },
     AccountId, Origin, SecretId, VaultId,
 };
+use sos_core::{
+    crypto::{AccessKey, Cipher, KeyDerivation},
+    device::{DevicePublicKey, TrustedDevice},
+    events::{AccountEvent, DeviceEvent, EventRecord, ReadEvent},
+    Paths, PublicIdentity, UtcDateTime, VaultCommit, VaultFlags,
+};
+use sos_login::device::{DeviceManager, DeviceSigner};
 use sos_protocol::{
     network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
     RemoteSyncHandler, SyncClient, SyncOptions,
-};
-use sos_sdk::{
-    events::DeviceEvent,
-    prelude::{
-        AccessKey, AccountEvent, Cipher, DeviceManager, DevicePublicKey,
-        DeviceSigner, EventRecord, KeyDerivation, Paths, PublicIdentity,
-        ReadEvent, Secret, SecretMeta, SecretRow, Summary, TrustedDevice,
-        Vault, VaultCommit, VaultFlags,
-    },
-    UtcDateTime,
 };
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs,
     SyncDirection, SyncStatus, SyncStorage, UpdateSet,
 };
 use sos_vault::FolderRef;
+use sos_vault::{
+    secret::{Secret, SecretMeta, SecretRow},
+    Summary, Vault,
+};
 use sos_vfs as vfs;
 use std::{
     collections::{HashMap, HashSet},
