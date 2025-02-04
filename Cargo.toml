@@ -72,7 +72,7 @@ clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
 colored = "2"
 arboard = { version = "3", default-features = false }
 zeroize = "1"
-bytes = "1.8"
+bytes = "1.10"
 serde_json_path = "0.7"
 base64 = "0.22"
 notify = { version = "7", features = ["serde"]}
