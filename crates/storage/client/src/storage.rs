@@ -24,11 +24,17 @@ use sos_core::{
 };
 use sos_database::async_sqlite::Client;
 use sos_login::{FolderKeys, Identity};
-use sos_sync::StorageEventLogs;
+use sos_sdk::events::patch::{
+    AccountDiff, CheckedPatch, DeviceDiff, FolderDiff,
+};
+use sos_sync::{
+    ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
+};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     FolderRef, Summary, Vault, VaultCommit, VaultFlags,
 };
+use std::collections::HashSet;
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -39,7 +45,7 @@ use sos_filesystem::archive::RestoreTargets;
 use sos_search::{AccountSearch, DocumentCount};
 
 #[cfg(feature = "files")]
-use sos_backend::FileEventLog;
+use {sos_backend::FileEventLog, sos_core::events::patch::FileDiff};
 
 /// Client account storage.
 pub enum ClientStorage {
@@ -831,5 +837,81 @@ impl StorageEventLogs for ClientStorage {
             ClientStorage::FileSystem(fs) => fs.folder_log(id).await,
             ClientStorage::Database(db) => db.folder_log(id).await,
         }
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ForceMerge for ClientStorage {
+    async fn force_merge_identity(
+        &mut self,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        todo!();
+    }
+
+    /// Force merge changes to the files event log.
+    async fn force_merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<()> {
+        todo!();
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl Merge for ClientStorage {
+    async fn merge_identity(
+        &mut self,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<CheckedPatch> {
+        todo!();
+    }
+
+    async fn merge_account(
+        &mut self,
+        diff: AccountDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<(CheckedPatch, HashSet<VaultId>)> {
+        todo!();
+    }
+
+    async fn merge_device(
+        &mut self,
+        diff: DeviceDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<CheckedPatch> {
+        todo!();
+    }
+
+    #[cfg(feature = "files")]
+    async fn merge_files(
+        &mut self,
+        diff: FileDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<CheckedPatch> {
+        todo!();
+    }
+
+    async fn merge_folder(
+        &mut self,
+        folder_id: &VaultId,
+        diff: FolderDiff,
+        outcome: &mut MergeOutcome,
+    ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
+        todo!();
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl SyncStorage for ClientStorage {
+    fn is_client_storage(&self) -> bool {
+        true
     }
 }
