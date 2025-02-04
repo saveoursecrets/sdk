@@ -923,7 +923,7 @@ pub struct LocalAccount {
 }
 
 impl LocalAccount {
-    async fn ensure_authenticated(&self) -> Result<()> {
+    fn ensure_authenticated(&self) -> Result<()> {
         let is_authenticated = self.storage.is_authenticated();
         if !is_authenticated {
             return Err(Error::NotAuthenticated);
@@ -1722,7 +1722,7 @@ impl Account for LocalAccount {
         &mut self,
         folder: &Summary,
     ) -> Result<String> {
-        self.ensure_authenticated().await?;
+        self.ensure_authenticated()?;
 
         self.open_folder(folder.id()).await?;
         Ok(self.storage.description().await?)
@@ -1733,7 +1733,7 @@ impl Account for LocalAccount {
         folder: &Summary,
         description: impl AsRef<str> + Send + Sync,
     ) -> Result<FolderChange<Self::NetworkResult>> {
-        self.ensure_authenticated().await?;
+        self.ensure_authenticated()?;
 
         self.open_folder(folder.id()).await?;
 
@@ -1808,7 +1808,7 @@ impl Account for LocalAccount {
         cipher: &Cipher,
         kdf: Option<KeyDerivation>,
     ) -> Result<CipherComparison> {
-        self.ensure_authenticated().await?;
+        self.ensure_authenticated()?;
 
         let account_id = *self.account_id();
         let conversion = self.compare_cipher(&cipher, kdf).await?;
@@ -1833,7 +1833,7 @@ impl Account for LocalAccount {
         &mut self,
         password: SecretString,
     ) -> Result<()> {
-        self.ensure_authenticated().await?;
+        self.ensure_authenticated()?;
 
         let account_id = *self.account_id();
         let (meta, seed, keys) = {
@@ -2121,7 +2121,7 @@ impl Account for LocalAccount {
         folder: &Summary,
         new_key: AccessKey,
     ) -> Result<()> {
-        self.ensure_authenticated().await?;
+        self.ensure_authenticated()?;
 
         let current_key = self
             .find_folder_password(folder.id())
@@ -2541,7 +2541,7 @@ impl Account for LocalAccount {
         name: String,
         mut options: NewFolderOptions,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
-        self.ensure_authenticated().await?;
+        self.ensure_authenticated()?;
 
         let key: AccessKey = if let Some(key) = options.key.take() {
             key
@@ -2638,7 +2638,7 @@ impl Account for LocalAccount {
         key: AccessKey,
         overwrite: bool,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
-        self.ensure_authenticated().await?;
+        self.ensure_authenticated()?;
         let buffer = vfs::read(path.as_ref()).await?;
         self.import_folder_buffer(&buffer, key, overwrite).await
     }
@@ -2649,7 +2649,7 @@ impl Account for LocalAccount {
         key: AccessKey,
         overwrite: bool,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
-        self.ensure_authenticated().await?;
+        self.ensure_authenticated()?;
 
         let mut vault: Vault = decode(buffer.as_ref()).await?;
 
@@ -2789,7 +2789,7 @@ impl Account for LocalAccount {
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<Vec<u8>> {
-        self.ensure_authenticated().await?;
+        self.ensure_authenticated()?;
 
         let buffer = self
             .change_vault_password(summary.id(), new_key.clone())
