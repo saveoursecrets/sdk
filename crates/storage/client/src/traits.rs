@@ -17,7 +17,7 @@ use sos_core::{
     AccountId, Paths, SecretId, UtcDateTime, VaultCommit, VaultFlags,
     VaultId,
 };
-use sos_login::FolderKeys;
+use sos_login::{FolderKeys, Identity};
 use sos_sync::SyncStorage;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
@@ -263,8 +263,17 @@ pub trait ClientAccountStorage:
     /// Account identifier.
     fn account_id(&self) -> &AccountId;
 
+    /// Authenticated user information.
+    fn authenticated_user(&self) -> Result<&Identity>;
+
+    /// Mutable authenticated user information.
+    fn authenticated_user_mut(&mut self) -> Result<&mut Identity>;
+
     /// Determine if the storage is authenticated.
-    async fn is_authenticated(&self) -> bool;
+    fn is_authenticated(&self) -> bool;
+
+    /// Sign out the authenticated user.
+    async fn sign_out(&mut self) -> Result<()>;
 
     /// Import an identity vault and generate the event but
     /// do not write the event to the account event log.

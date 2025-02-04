@@ -237,18 +237,6 @@ impl ClientFileSystemStorage {
         })
     }
 
-    /// Authenticated user information.
-    #[doc(hidden)]
-    pub fn authenticated_user(&self) -> Result<&Identity> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)
-    }
-
-    /// Mutable authenticated user information.
-    #[doc(hidden)]
-    pub fn authenticated_user_mut(&mut self) -> Result<&mut Identity> {
-        self.authenticated.as_mut().ok_or(Error::NotAuthenticated)
-    }
-
     async fn initialize_device_log(
         paths: &Paths,
         device: TrustedDevice,
@@ -1420,8 +1408,29 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         &self.account_id
     }
 
-    async fn is_authenticated(&self) -> bool {
+    fn authenticated_user(&self) -> Result<&Identity> {
+        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)
+    }
+
+    fn authenticated_user_mut(&mut self) -> Result<&mut Identity> {
+        self.authenticated.as_mut().ok_or(Error::NotAuthenticated)
+    }
+
+    fn is_authenticated(&self) -> bool {
         self.authenticated.is_some()
+    }
+
+    async fn sign_out(&mut self) -> Result<()> {
+        if let Some(authenticated) = &mut self.authenticated {
+            tracing::debug!("client_storage::sign_out_identity");
+            // Forget private identity information
+            authenticated.sign_out().await?;
+        }
+
+        tracing::debug!("client_storage::drop_authenticated_state");
+        self.authenticated = None;
+
+        Ok(())
     }
 
     async fn import_identity_vault(

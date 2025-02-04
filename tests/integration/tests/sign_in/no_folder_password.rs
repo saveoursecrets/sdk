@@ -31,10 +31,7 @@ async fn sign_in_no_folder_password() -> Result<()> {
         .await?;
 
     // Remove the folder password
-    account
-        .user_mut()?
-        .remove_folder_password(folder.id())
-        .await?;
+    account.remove_folder_password(folder.id()).await?;
 
     account.sign_out().await?;
 

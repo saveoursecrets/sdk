@@ -592,10 +592,31 @@ impl ClientAccountStorage for ClientStorage {
         }
     }
 
-    async fn is_authenticated(&self) -> bool {
+    fn authenticated_user(&self) -> Result<&Identity> {
         match self {
-            ClientStorage::FileSystem(fs) => fs.is_authenticated().await,
-            ClientStorage::Database(db) => db.is_authenticated().await,
+            ClientStorage::FileSystem(fs) => fs.authenticated_user(),
+            ClientStorage::Database(db) => db.authenticated_user(),
+        }
+    }
+
+    fn authenticated_user_mut(&mut self) -> Result<&mut Identity> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.authenticated_user_mut(),
+            ClientStorage::Database(db) => db.authenticated_user_mut(),
+        }
+    }
+
+    fn is_authenticated(&self) -> bool {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.is_authenticated(),
+            ClientStorage::Database(db) => db.is_authenticated(),
+        }
+    }
+
+    async fn sign_out(&mut self) -> Result<()> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.sign_out().await,
+            ClientStorage::Database(db) => db.sign_out().await,
         }
     }
 

@@ -882,10 +882,6 @@ pub struct LocalAccount {
     /// Account identifier.
     account_id: AccountId,
 
-    /// Account information after a successful
-    /// sign in.
-    pub(super) authenticated: Option<Identity>,
-
     /// Storage provider.
     pub(super) storage: Arc<RwLock<ClientStorage>>,
 
@@ -894,6 +890,36 @@ pub struct LocalAccount {
 }
 
 impl LocalAccount {
+    async fn ensure_authenticated(&self) -> Result<()> {
+        let storage = self.storage.read().await;
+        let is_authenticated = storage.is_authenticated();
+        if !is_authenticated {
+            return Err(Error::NotAuthenticated);
+        }
+        Ok(())
+    }
+
+    pub async fn remove_folder_password(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<()> {
+        let mut storage = self.storage.write().await;
+        let authenticated_user = storage.authenticated_user_mut()?;
+        Ok(authenticated_user.remove_folder_password(folder_id).await?)
+    }
+
+    async fn save_folder_password(
+        &self,
+        folder_id: &VaultId,
+        access_key: AccessKey,
+    ) -> Result<()> {
+        let mut storage = self.storage.write().await;
+        let authenticated_user = storage.authenticated_user_mut()?;
+        Ok(authenticated_user
+            .save_folder_password(folder_id, access_key)
+            .await?)
+    }
+
     /// Private login implementation so we can support the backwards
     /// compatible sign_in() and also the newer sign_in_with_options().
     async fn login(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
@@ -950,20 +976,6 @@ impl LocalAccount {
         Ok(folders)
     }
 
-    /// Authenticated user information.
-    #[doc(hidden)]
-    pub fn user(&self) -> Result<&Identity> {
-        todo!("make user async");
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)
-    }
-
-    /// Mutable authenticated user information.
-    #[doc(hidden)]
-    pub fn user_mut(&mut self) -> Result<&mut Identity> {
-        todo!("make user_mut async");
-        self.authenticated.as_mut().ok_or(Error::NotAuthenticated)
-    }
-
     async fn initialize_account_log(
         paths: &Paths,
         account_log: Arc<RwLock<AccountEventLog>>,
@@ -1018,7 +1030,6 @@ impl LocalAccount {
         let paths = self.paths().clone();
         // Get the current vault passphrase from the identity vault
         let current_key = self
-            .user()?
             .find_folder_password(vault_id)
             .await?
             .ok_or(Error::NoFolderPassword(*vault_id))?;
@@ -1303,9 +1314,7 @@ impl LocalAccount {
         let folders = reader.list_folders();
         let mut keys = HashMap::new();
         for folder in folders {
-            if let Some(key) =
-                self.user()?.find_folder_password(folder.id()).await?
-            {
+            if let Some(key) = self.find_folder_password(folder.id()).await? {
                 keys.insert(folder.clone(), key);
             } else {
                 tracing::warn!(
@@ -1341,7 +1350,7 @@ impl LocalAccount {
         let existing_name =
             vaults.iter().find(|(s, _)| s.name() == folder_name);
 
-        let vault_passphrase = self.user()?.generate_folder_password()?;
+        let vault_passphrase = self.generate_folder_password().await?;
 
         let vault_id = VaultId::new_v4();
         let name = if existing_name.is_some() {
@@ -1369,9 +1378,11 @@ impl LocalAccount {
         let key: AccessKey = vault_passphrase.clone().into();
         let result = self.import_folder_buffer(&buffer, key, false).await?;
 
-        self.user_mut()?
-            .save_folder_password(vault.id(), vault_passphrase.clone().into())
-            .await?;
+        self.save_folder_password(
+            vault.id(),
+            vault_passphrase.clone().into(),
+        )
+        .await?;
 
         Ok(result)
     }
@@ -1441,7 +1452,6 @@ impl LocalAccount {
             account_id,
             storage,
             paths: Arc::new(paths),
-            authenticated: None,
         })
     }
 
@@ -1490,7 +1500,7 @@ impl LocalAccount {
             passphrase.clone(),
             BackendTarget::FileSystem(paths.clone()),
         ));
-        let mut new_account = account_builder.finish().await?;
+        let new_account = account_builder.finish().await?;
 
         let paths = paths.with_account_id(&new_account.account_id);
 
@@ -1527,7 +1537,6 @@ impl LocalAccount {
             account_id,
             paths: storage.paths(),
             storage: Arc::new(RwLock::new(storage)),
-            authenticated: None,
         };
 
         Ok(account)
@@ -1549,11 +1558,14 @@ impl Account for LocalAccount {
     }
 
     async fn is_authenticated(&self) -> bool {
-        self.authenticated.is_some()
+        let storage = self.storage.read().await;
+        storage.is_authenticated()
     }
 
     async fn device_signer(&self) -> Result<DeviceSigner> {
-        Ok(self.user()?.identity()?.device().clone())
+        let storage = self.storage.read().await;
+        let authenticated_user = storage.authenticated_user()?;
+        Ok(authenticated_user.identity()?.device().clone())
     }
 
     async fn import_account_events(
@@ -1637,7 +1649,9 @@ impl Account for LocalAccount {
         let manager = if paths.is_using_db() {
             todo!("handle new_device_vault when db");
         } else {
-            self.user_mut()?
+            let mut storage = self.storage.write().await;
+            let authenticated_user = storage.authenticated_user_mut()?;
+            authenticated_user
                 .identity_mut()?
                 .new_device_manager_fs(signer.clone(), &*paths)
                 .await?
@@ -1647,16 +1661,15 @@ impl Account for LocalAccount {
     }
 
     async fn device_public_key(&self) -> Result<DevicePublicKey> {
-        Ok(self.user()?.identity()?.device().public_key())
+        let storage = self.storage.read().await;
+        let authenticated_user = storage.authenticated_user()?;
+        Ok(authenticated_user.identity()?.device().public_key())
     }
 
     async fn current_device(&self) -> Result<TrustedDevice> {
-        Ok(self
-            .authenticated
-            .as_ref()
-            .ok_or(Error::NotAuthenticated)?
-            .devices()?
-            .current_device(None))
+        let storage = self.storage.read().await;
+        let authenticated_user = storage.authenticated_user()?;
+        Ok(authenticated_user.devices()?.current_device(None))
     }
 
     async fn trusted_devices(&self) -> Result<IndexSet<TrustedDevice>> {
@@ -1665,18 +1678,23 @@ impl Account for LocalAccount {
     }
 
     async fn public_identity(&self) -> Result<PublicIdentity> {
-        Ok(self.user()?.account()?.clone())
+        let storage = self.storage.read().await;
+        let authenticated_user = storage.authenticated_user()?;
+        Ok(authenticated_user.account()?.clone())
     }
 
     async fn account_label(&self) -> Result<String> {
-        Ok(self.user()?.account()?.label().to_owned())
+        let storage = self.storage.read().await;
+        let authenticated_user = storage.authenticated_user()?;
+        Ok(authenticated_user.account()?.label().to_owned())
     }
 
     async fn folder_description(
         &mut self,
         folder: &Summary,
     ) -> Result<String> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        self.ensure_authenticated().await?;
+
         self.open_folder(folder).await?;
         let reader = self.storage.read().await;
         Ok(reader.description().await?)
@@ -1687,7 +1705,7 @@ impl Account for LocalAccount {
         folder: &Summary,
         description: impl AsRef<str> + Send + Sync,
     ) -> Result<FolderChange<Self::NetworkResult>> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        self.ensure_authenticated().await?;
 
         self.open_folder(folder).await?;
 
@@ -1715,11 +1733,15 @@ impl Account for LocalAccount {
         &self,
         folder_id: &VaultId,
     ) -> Result<Option<AccessKey>> {
-        Ok(self.user()?.find_folder_password(folder_id).await?)
+        let storage = self.storage.read().await;
+        let authenticated_user = storage.authenticated_user()?;
+        Ok(authenticated_user.find_folder_password(folder_id).await?)
     }
 
     async fn generate_folder_password(&self) -> Result<SecretString> {
-        Ok(self.user()?.generate_folder_password()?)
+        let storage = self.storage.read().await;
+        let authenticated_user = storage.authenticated_user()?;
+        Ok(authenticated_user.generate_folder_password()?)
     }
 
     async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
@@ -1729,16 +1751,18 @@ impl Account for LocalAccount {
     }
 
     async fn identity_folder_summary(&self) -> Result<Summary> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
-        Ok(self.user()?.identity()?.vault().summary().clone())
+        let storage = self.storage.read().await;
+        let authenticated_user = storage.authenticated_user()?;
+        Ok(authenticated_user.identity()?.vault().summary().clone())
     }
 
     async fn reload_identity_folder(&mut self) -> Result<()> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        let mut storage = self.storage.write().await;
+        let authenticated_user = storage.authenticated_user_mut()?;
 
         // Reload the vault on disc
         let path = self.paths.identity_vault();
-        self.user_mut()?
+        authenticated_user
             .identity_mut()?
             .folder
             .keeper_mut()
@@ -1747,12 +1771,12 @@ impl Account for LocalAccount {
 
         // Reload the event log merkle tree
         // TODO: we could only load commits from HEAD here
-        let event_log = self.user_mut()?.identity_mut()?.folder.event_log();
+        let event_log = authenticated_user.identity_mut()?.folder.event_log();
         let mut event_log = event_log.write().await;
         event_log.load_tree().await?;
 
         // Rebuild the folder password lookup index
-        self.user_mut()?
+        authenticated_user
             .identity_mut()?
             .rebuild_lookup_index()
             .await?;
@@ -1766,7 +1790,7 @@ impl Account for LocalAccount {
         cipher: &Cipher,
         kdf: Option<KeyDerivation>,
     ) -> Result<CipherComparison> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        self.ensure_authenticated().await?;
 
         let account_id = *self.account_id();
         let conversion = self.compare_cipher(&cipher, kdf).await?;
@@ -1779,7 +1803,11 @@ impl Account for LocalAccount {
         self.convert_cipher(&conversion, account_key).await?;
 
         // Login again so in-memory data is up to date
-        self.user_mut()?.login(&account_id, &account_key).await?;
+        {
+            let mut storage = self.storage.write().await;
+            let authenticated_user = storage.authenticated_user_mut()?;
+            authenticated_user.login(&account_id, &account_key).await?;
+        }
 
         Ok(conversion)
     }
@@ -1788,14 +1816,19 @@ impl Account for LocalAccount {
         &mut self,
         password: SecretString,
     ) -> Result<()> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        self.ensure_authenticated().await?;
 
         let account_id = *self.account_id();
-        let user = self.user()?;
-        let identity = user.identity()?;
-        let input = identity.keeper();
-        let seed = input.vault().seed().cloned();
-        let meta = input.vault_meta().await?;
+        let (meta, seed, keys) = {
+            let storage = self.storage.read().await;
+            let authenticated_user = storage.authenticated_user()?;
+            let identity = authenticated_user.identity()?;
+            let input = identity.keeper();
+            let seed = input.vault().seed().cloned();
+            let meta = input.vault_meta().await?;
+            let keys = input.vault().keys().cloned().collect::<Vec<_>>();
+            (meta, seed, keys)
+        };
 
         let summary = self.identity_folder_summary().await?;
         let vault = VaultBuilder::new()
@@ -1812,17 +1845,27 @@ impl Account for LocalAccount {
         let mut output = AccessPoint::new_vault(vault);
         output.unlock(&account_key).await?;
 
-        for key in input.vault().keys() {
-            let (meta, secret, _) =
-                identity.keeper().read_secret(key).await?.unwrap();
-            let secret_data = SecretRow::new(*key, meta, secret);
-            output.create_secret(&secret_data).await?;
+        {
+            let storage = self.storage.read().await;
+            let authenticated_user = storage.authenticated_user()?;
+            let identity = authenticated_user.identity()?;
+
+            for key in keys {
+                let (meta, secret, _) =
+                    identity.keeper().read_secret(&key).await?.unwrap();
+                let secret_data = SecretRow::new(key, meta, secret);
+                output.create_secret(&secret_data).await?;
+            }
         }
 
         self.import_identity_folder(output.into()).await?;
 
         // Login again so in-memory data is up to date
-        self.user_mut()?.login(&account_id, &account_key).await?;
+        {
+            let mut storage = self.storage.write().await;
+            let authenticated_user = storage.authenticated_user_mut()?;
+            authenticated_user.login(&account_id, &account_key).await?;
+        }
 
         Ok(())
     }
@@ -1832,7 +1875,8 @@ impl Account for LocalAccount {
     }
 
     async fn verify(&self, key: &AccessKey) -> bool {
-        if let Some(auth) = &self.authenticated {
+        let storage = self.storage.read().await;
+        if let Ok(auth) = storage.authenticated_user() {
             auth.verify(key).await
         } else {
             false
@@ -1851,10 +1895,11 @@ impl Account for LocalAccount {
     async fn sign_out(&mut self) -> Result<()> {
         tracing::debug!(account_id = %self.account_id(), "sign_out");
 
-        tracing::debug!("lock storage vaults");
+        let mut writer = self.storage.write().await;
+
         // Lock all the storage vaults
         {
-            let mut writer = self.storage.write().await;
+            tracing::debug!("lock storage vaults");
             writer.lock().await;
 
             #[cfg(feature = "search")]
@@ -1865,12 +1910,7 @@ impl Account for LocalAccount {
             }
         }
 
-        tracing::debug!("sign out user identity");
-        // Forget private identity information
-        self.user_mut()?.sign_out().await?;
-
-        tracing::debug!("remove authenticated state");
-        self.authenticated = None;
+        writer.sign_out().await?;
 
         Ok(())
     }
@@ -1880,9 +1920,13 @@ impl Account for LocalAccount {
         account_name: String,
     ) -> Result<AccountChange<Self::NetworkResult>> {
         // Rename the local identity folder
-        self.user_mut()?
-            .rename_account(account_name.clone())
-            .await?;
+        {
+            let mut storage = self.storage.write().await;
+            let authenticated_user = storage.authenticated_user_mut()?;
+            authenticated_user
+                .rename_account(account_name.clone())
+                .await?;
+        }
 
         // Generate and append the rename event
         let event = {
@@ -1905,7 +1949,11 @@ impl Account for LocalAccount {
           account_id = %self.account_id,
           directory = %paths.documents_dir().display(),
           "delete_account");
-        let event = self.user_mut()?.delete_account(&paths).await?;
+        let event = {
+            let mut storage = self.storage.write().await;
+            let authenticated_user = storage.authenticated_user_mut()?;
+            authenticated_user.delete_account(&paths).await?
+        };
 
         #[cfg(feature = "audit")]
         {
@@ -1921,12 +1969,8 @@ impl Account for LocalAccount {
     where
         P: FnMut(&&Summary) -> bool + Send,
     {
-        if let Some(_) = &self.authenticated {
-            let reader = self.storage.read().await;
-            reader.find(predicate).cloned()
-        } else {
-            None
-        }
+        let storage = self.storage.read().await;
+        storage.find(predicate).cloned()
     }
 
     async fn storage(&self) -> Arc<RwLock<ClientStorage>> {
@@ -1955,7 +1999,7 @@ impl Account for LocalAccount {
 
     async fn account_data(&self) -> Result<AccountData> {
         let reader = self.storage.read().await;
-        let user = self.user()?;
+        let user = reader.authenticated_user()?;
         Ok(AccountData {
             account: user.account()?.clone(),
             identity: user
@@ -2036,7 +2080,6 @@ impl Account for LocalAccount {
         summary: &Summary,
     ) -> Result<AccountEvent> {
         let key = self
-            .user()?
             .find_folder_password(summary.id())
             .await?
             .ok_or(Error::NoFolderPassword(*summary.id()))?;
@@ -2055,7 +2098,6 @@ impl Account for LocalAccount {
         records: Vec<EventRecord>,
     ) -> std::result::Result<Summary, Self::Error> {
         let key = self
-            .user()?
             .find_folder_password(folder_id)
             .await?
             .ok_or(Error::NoFolderPassword(*folder_id))?;
@@ -2069,10 +2111,9 @@ impl Account for LocalAccount {
         folder: &Summary,
         new_key: AccessKey,
     ) -> Result<()> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        self.ensure_authenticated().await?;
 
         let current_key = self
-            .user()?
             .find_folder_password(folder.id())
             .await?
             .ok_or(Error::NoFolderPassword(*folder.id()))?;
@@ -2090,9 +2131,7 @@ impl Account for LocalAccount {
         }
 
         // Save the new password
-        self.user_mut()?
-            .save_folder_password(folder.id(), new_key)
-            .await?;
+        self.save_folder_password(folder.id(), new_key).await?;
 
         Ok(())
     }
@@ -2105,17 +2144,16 @@ impl Account for LocalAccount {
     ) -> Result<DetachedView> {
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
 
+        let key = self
+            .find_folder_password(summary.id())
+            .await?
+            .ok_or(Error::NoFolderPassword(*summary.id()))?;
+
         let reader = self.storage.read().await;
         let folder = reader
             .folders()
             .get(summary.id())
             .ok_or_else(|| StorageError::CacheNotAvailable(*summary.id()))?;
-
-        let key = self
-            .user()?
-            .find_folder_password(summary.id())
-            .await?
-            .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
@@ -2153,8 +2191,8 @@ impl Account for LocalAccount {
 
     #[cfg(feature = "search")]
     async fn statistics(&self) -> AccountStatistics {
-        if self.authenticated.is_some() {
-            let reader = self.storage.read().await;
+        let reader = self.storage.read().await;
+        if reader.is_authenticated() {
             if let Ok(index) = reader.index() {
                 let search_index = index.search();
                 let index = search_index.read().await;
@@ -2518,12 +2556,12 @@ impl Account for LocalAccount {
         name: String,
         mut options: NewFolderOptions,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        self.ensure_authenticated().await?;
 
         let key: AccessKey = if let Some(key) = options.key.take() {
             key
         } else {
-            let passphrase = self.user()?.generate_folder_password()?;
+            let passphrase = self.generate_folder_password().await?;
             passphrase.into()
         };
 
@@ -2547,9 +2585,7 @@ impl Account for LocalAccount {
         };
 
         // Must save the password before getting the secure access key
-        self.user_mut()?
-            .save_folder_password(summary.id(), key)
-            .await?;
+        self.save_folder_password(summary.id(), key).await?;
 
         let options = AccessOptions {
             folder: Some(summary),
@@ -2625,7 +2661,7 @@ impl Account for LocalAccount {
         key: AccessKey,
         overwrite: bool,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        self.ensure_authenticated().await?;
         let buffer = vfs::read(path.as_ref()).await?;
         self.import_folder_buffer(&buffer, key, overwrite).await
     }
@@ -2636,7 +2672,7 @@ impl Account for LocalAccount {
         key: AccessKey,
         overwrite: bool,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        self.ensure_authenticated().await?;
 
         let mut vault: Vault = decode(buffer.as_ref()).await?;
 
@@ -2708,14 +2744,10 @@ impl Account for LocalAccount {
         // vault passphrase so we can save it using the passphrase
         // assigned when exporting the folder
         if overwrite {
-            self.user_mut()?
-                .remove_folder_password(summary.id())
-                .await?;
+            self.remove_folder_password(summary.id()).await?;
         }
 
-        self.user_mut()?
-            .save_folder_password(summary.id(), key)
-            .await?;
+        self.save_folder_password(summary.id(), key).await?;
 
         // If overwriting remove old entries from the index
         if overwrite {
@@ -2783,7 +2815,7 @@ impl Account for LocalAccount {
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<Vec<u8>> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        self.ensure_authenticated().await?;
 
         let buffer = self
             .change_vault_password(summary.id(), new_key.clone())
@@ -2795,10 +2827,8 @@ impl Account for LocalAccount {
                 .await
                 .ok_or_else(|| Error::NoDefaultFolder)?;
 
-            let _passphrase = self
-                .user()?
-                .find_folder_password(default_summary.id())
-                .await?;
+            let _passphrase =
+                self.find_folder_password(default_summary.id()).await?;
 
             let timestamp: UtcDateTime = Default::default();
             let label = format!(
@@ -2858,9 +2888,7 @@ impl Account for LocalAccount {
             let mut writer = self.storage.write().await;
             writer.delete_folder(&summary, true).await?
         };
-        self.user_mut()?
-            .remove_folder_password(summary.id())
-            .await?;
+        self.remove_folder_password(summary.id()).await?;
 
         Ok(FolderDelete {
             events,
@@ -2939,7 +2967,6 @@ impl Account for LocalAccount {
             .ok_or_else(|| Error::NoContactsFolder)?;
 
         let contacts_passphrase = self
-            .user()?
             .find_folder_password(contacts.id())
             .await?
             .ok_or(Error::NoFolderPassword(*contacts.id()))?;
@@ -3046,6 +3073,8 @@ impl Account for LocalAccount {
     ) -> crate::Result<()> {
         use std::io::Cursor;
 
+        let account_identity = self.public_identity().await?;
+
         let paths = self.paths();
         let mut archive = Vec::new();
         let mut migration = PublicExport::new(Cursor::new(&mut archive));
@@ -3055,7 +3084,6 @@ impl Account for LocalAccount {
             let (vault, _) =
                 Identity::load_local_vault(&*paths, summary.id()).await?;
             let vault_passphrase = self
-                .user()?
                 .find_folder_password(summary.id())
                 .await?
                 .ok_or(Error::NoFolderPassword(*summary.id()))?;
@@ -3070,7 +3098,7 @@ impl Account for LocalAccount {
         }
 
         let mut files = HashMap::new();
-        let buffer = serde_json::to_vec_pretty(self.user()?.account()?)?;
+        let buffer = serde_json::to_vec_pretty(&account_identity)?;
         // FIXME: constant for file name
         files.insert("account.json", buffer.as_slice());
         migration.append_files(files).await?;
