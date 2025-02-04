@@ -993,11 +993,6 @@ impl Account for NetworkAccount {
         account.storage().await
     }
 
-    async fn set_storage(&mut self, storage: Arc<RwLock<ClientStorage>>) {
-        let mut account = self.account.lock().await;
-        account.set_storage(storage).await
-    }
-
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {
         let mut account = self.account.lock().await;
         Ok(account.load_folders().await?)

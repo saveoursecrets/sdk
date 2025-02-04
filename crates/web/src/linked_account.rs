@@ -319,11 +319,6 @@ impl Account for LinkedAccount {
         account.storage().await
     }
 
-    async fn set_storage(&mut self, storage: Arc<RwLock<ClientStorage>>) {
-        let mut account = self.account.lock().await;
-        account.set_storage(storage).await
-    }
-
     async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
         let account = self.account.lock().await;
         Ok(account.secret_ids(summary).await?)

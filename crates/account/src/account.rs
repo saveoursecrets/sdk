@@ -6,7 +6,7 @@ use sos_backend::{
     BackendTarget, StorageError,
 };
 use sos_client_storage::{
-    AccessOptions, AccountPack, ClientAccountStorage, ClientDeviceStorage,
+    AccessOptions, ClientAccountStorage, ClientDeviceStorage,
     ClientFolderStorage, ClientSecretStorage, ClientStorage,
     NewFolderOptions,
 };
@@ -426,12 +426,6 @@ pub trait Account {
 
     /// Storage provider.
     async fn storage(&self) -> Arc<RwLock<ClientStorage>>;
-
-    /// Set the storage provider.
-    async fn set_storage(
-        &mut self,
-        storage: Arc<RwLock<ClientStorage>>,
-    ) -> ();
 
     /// Read the secret identifiers in a vault.
     async fn secret_ids(
@@ -918,9 +912,6 @@ impl LocalAccount {
             Identity::new(BackendTarget::FileSystem(paths.clone()));
         user.sign_in(self.account_id(), key).await?;
         tracing::debug!("sign_in success");
-
-        // Signing key for the storage provider
-        let identity_log = user.identity().as_ref().unwrap().event_log();
 
         #[allow(unused_mut)]
         let mut storage = ClientStorage::new_authenticated(
@@ -1632,7 +1623,7 @@ impl Account for LocalAccount {
               "import_account_events::files");
         }
 
-        self.set_storage(Arc::new(RwLock::new(storage))).await;
+        self.storage = Arc::new(RwLock::new(storage));
 
         Ok(())
     }
@@ -1940,10 +1931,6 @@ impl Account for LocalAccount {
 
     async fn storage(&self) -> Arc<RwLock<ClientStorage>> {
         self.storage.clone()
-    }
-
-    async fn set_storage(&mut self, storage: Arc<RwLock<ClientStorage>>) {
-        self.storage = storage;
     }
 
     async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {

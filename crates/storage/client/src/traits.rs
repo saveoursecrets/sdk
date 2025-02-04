@@ -331,13 +331,6 @@ pub trait ClientAccountStorage:
         folder_keys: &FolderKeys,
     ) -> Result<()>;
 
-    /// Set the password for file encryption.
-    #[cfg(feature = "files")]
-    fn set_file_password(
-        &mut self,
-        file_password: Option<secrecy::SecretString>,
-    );
-
     /// External file manager.
     #[cfg(feature = "files")]
     fn external_file_manager(&self) -> &ExternalFileManager;

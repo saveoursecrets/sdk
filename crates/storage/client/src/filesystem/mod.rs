@@ -1606,14 +1606,6 @@ impl ClientAccountStorage for ClientFileSystemStorage {
     }
 
     #[cfg(feature = "files")]
-    fn set_file_password(
-        &mut self,
-        file_password: Option<secrecy::SecretString>,
-    ) {
-        self.external_file_manager.file_password = file_password;
-    }
-
-    #[cfg(feature = "files")]
     fn external_file_manager(&self) -> &ExternalFileManager {
         &self.external_file_manager
     }
