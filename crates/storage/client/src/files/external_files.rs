@@ -17,12 +17,10 @@ use hex;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use sos_backend::write_exclusive;
+use sos_core::Paths;
 use sos_external_files::EncryptedFile;
-use sos_sdk::{
-    vault::{secret::SecretId, VaultId},
-    vfs::{self, File},
-    Paths,
-};
+use sos_vault::{secret::SecretId, VaultId};
+use sos_vfs::{self as vfs, File};
 use std::path::{Path, PathBuf};
 use tokio_util::compat::TokioAsyncReadCompatExt;
 

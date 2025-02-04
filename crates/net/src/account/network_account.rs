@@ -12,26 +12,25 @@ use sos_backend::ServerOrigins;
 use sos_client_storage::{
     AccessOptions, ClientDeviceStorage, ClientStorage, NewFolderOptions,
 };
-use sos_core::events::{AccountEvent, ReadEvent};
 use sos_core::{
     commit::{CommitHash, CommitState},
-    AccountId, Origin, RemoteOrigins, SecretId, VaultId,
-};
-use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     device::{DevicePublicKey, TrustedDevice},
-    events::{EventLog, EventLogType, EventRecord},
-    AccountRef, Paths, PublicIdentity,
+    events::{AccountEvent, EventLog, EventLogType, EventRecord, ReadEvent},
+    AccountId, AccountRef, Origin, Paths, PublicIdentity, RemoteOrigins,
+    SecretId, VaultId,
 };
 use sos_login::device::{DeviceManager, DeviceSigner};
 use sos_protocol::{
     AccountSync, DiffRequest, RemoteSync, RemoteSyncHandler, SyncClient,
     SyncOptions, SyncResult,
 };
+use sos_sdk::events::WriteEvent;
+use sos_sdk::UtcDateTime;
 use sos_sync::{CreateSet, StorageEventLogs, UpdateSet};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    Summary, Vault, VaultCommit, VaultFlags,
+    FolderRef, Summary, Vault, VaultCommit, VaultFlags,
 };
 use sos_vfs as vfs;
 use std::{
@@ -930,6 +929,14 @@ impl Account for NetworkAccount {
         Ok(account.current_folder().await?)
     }
 
+    async fn history(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
+        let account = self.account.lock().await;
+        Ok(account.history(folder_id).await?)
+    }
+
     async fn sign_out(&mut self) -> Result<()> {
         self.deactivate().await;
         self.remotes = Default::default();
@@ -986,6 +993,11 @@ impl Account for NetworkAccount {
     {
         let account = self.account.lock().await;
         account.find(predicate).await
+    }
+
+    async fn find_folder(&self, vault: &FolderRef) -> Option<Summary> {
+        let account = self.account.lock().await;
+        account.find_folder(vault).await
     }
 
     async fn storage(&self) -> Arc<RwLock<ClientStorage>> {

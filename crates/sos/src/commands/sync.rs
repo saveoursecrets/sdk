@@ -4,7 +4,6 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_account::Account;
-use sos_client_storage::ClientFolderStorage;
 use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
     Origin,
@@ -204,11 +203,8 @@ async fn print_status(
     let folders = owner.list_folders().await?;
     for folder in folders {
         let id = folder.id();
-        let storage = owner.storage().await;
-        let storage = storage.read().await;
-        let disc_folder = storage.folders().get(id).unwrap();
-        let log = disc_folder.event_log();
-        let log = log.read().await;
+        let event_log = owner.folder_log(id).await?;
+        let event_log = event_log.read().await;
         if let (Some(local_folder), Some(remote_folder)) =
             (local.folders.get(id), remote.folders.get(id))
         {
@@ -217,7 +213,7 @@ async fn print_status(
                 &title,
                 local_folder,
                 remote_folder,
-                log.tree(),
+                event_log.tree(),
             )?;
         }
     }

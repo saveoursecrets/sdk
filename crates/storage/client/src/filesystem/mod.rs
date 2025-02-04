@@ -20,16 +20,13 @@ use sos_core::{
     crypto::AccessKey,
     decode, encode,
     events::{
-        patch::FolderPatch, AccountEvent, Event, ReadEvent, WriteEvent,
+        patch::FolderPatch, AccountEvent, Event, EventLog, EventRecord,
+        ReadEvent, WriteEvent,
     },
     AccountId, Paths, UtcDateTime,
 };
-use sos_login::Identity;
+use sos_login::{FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
-use sos_sdk::{
-    events::{EventLog, EventRecord},
-    identity::FolderKeys,
-};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     BuilderCredentials, ChangePassword, FolderRef, Header, SecretAccess,
@@ -1539,12 +1536,12 @@ impl ClientAccountStorage for ClientFileSystemStorage {
     /// Get the history of events for a vault.
     async fn history(
         &self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
         let folder = self
             .folders
-            .get(summary.id())
-            .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
+            .get(folder_id)
+            .ok_or(StorageError::CacheNotAvailable(*folder_id))?;
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
         let mut records = Vec::new();

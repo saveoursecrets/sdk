@@ -22,7 +22,7 @@ use futures::{future::LocalBoxFuture, select, FutureExt};
 use human_bytes::human_bytes;
 use kdam::{term, tqdm, BarExt, Column, RichProgress, Spinner};
 use sos_account::Account;
-use sos_client_storage::{AccessOptions, ClientFolderStorage};
+use sos_client_storage::AccessOptions;
 use sos_external_files::FileProgress;
 use sos_sdk::prelude::*;
 use sos_search::{ArchiveFilter, Document, DocumentView};
@@ -680,11 +680,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                     ignored_types: None,
                 }];
             } else if let Some(folder) = &folder {
-                let storage = owner.storage().await;
-                let reader = storage.read().await;
-                let summary = reader
+                let summary = owner
                     .find_folder(folder)
-                    .cloned()
+                    .await
                     .ok_or(Error::FolderNotFound(folder.to_string()))?;
                 views = vec![DocumentView::Vault(*summary.id())];
             } else if favorites {

@@ -22,16 +22,20 @@ use sos_protocol::{
     network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
     RemoteSyncHandler, SyncClient, SyncOptions,
 };
-use sos_sdk::prelude::{
-    AccessKey, AccountEvent, Cipher, DeviceManager, DevicePublicKey,
-    DeviceSigner, EventRecord, KeyDerivation, Paths, PublicIdentity,
-    ReadEvent, Secret, SecretMeta, SecretRow, Summary, TrustedDevice, Vault,
-    VaultCommit, VaultFlags,
+use sos_sdk::{
+    prelude::{
+        AccessKey, AccountEvent, Cipher, DeviceManager, DevicePublicKey,
+        DeviceSigner, EventRecord, KeyDerivation, Paths, PublicIdentity,
+        ReadEvent, Secret, SecretMeta, SecretRow, Summary, TrustedDevice,
+        Vault, VaultCommit, VaultFlags,
+    },
+    UtcDateTime,
 };
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs,
     SyncDirection, SyncStatus, SyncStorage, UpdateSet,
 };
+use sos_vault::FolderRef;
 use sos_vfs as vfs;
 use std::{
     collections::{HashMap, HashSet},
@@ -284,6 +288,19 @@ impl Account for LinkedAccount {
     {
         let account = self.account.lock().await;
         account.find(predicate).await
+    }
+
+    async fn find_folder(&self, vault: &FolderRef) -> Option<Summary> {
+        let account = self.account.lock().await;
+        account.find_folder(vault).await
+    }
+
+    async fn history(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
+        let account = self.account.lock().await;
+        Ok(account.history(folder_id).await?)
     }
 
     async fn sign_out(&mut self) -> Result<()> {

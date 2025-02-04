@@ -13,7 +13,6 @@ archive = ["sos-filesystem/archive"]
 audit = ["sos-audit", "sos-backend/audit"]
 files = [
   "sos-external-files",
-  "sos-sdk/files",
   "sos-sync/files",
   "dep:tokio-util",
   "dep:age",
@@ -33,7 +32,6 @@ sos-login.workspace = true
 sos-reducers.workspace = true
 sos-signer.workspace = true
 sos-sync.workspace = true
-sos-sdk.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 

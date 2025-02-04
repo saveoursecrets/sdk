@@ -8,7 +8,6 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use secrecy::{ExposeSecret, SecretString};
 use sos_account::Account;
-use sos_client_storage::ClientFolderStorage;
 use sos_core::AccountId;
 use sos_net::{NetworkAccount, NetworkAccountSwitcher};
 use sos_password::diceware::generate_passphrase;
@@ -187,12 +186,10 @@ pub async fn resolve_folder(
     let owner = user.read().await;
     let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
     if let Some(vault) = folder {
-        let storage = owner.storage().await;
-        let reader = storage.read().await;
         Ok(Some(
-            reader
+            owner
                 .find_folder(vault)
-                .cloned()
+                .await
                 .ok_or(Error::FolderNotFound(vault.to_string()))?,
         ))
     } else if is_shell {
@@ -205,9 +202,7 @@ pub async fn resolve_folder(
             .ok_or(Error::NoVaultSelected)?;
         Ok(Some(summary.clone()))
     } else {
-        let storage = owner.storage().await;
-        let reader = storage.read().await;
-        Ok(reader.find(|s| s.flags().is_default()).cloned())
+        Ok(owner.find(|s| s.flags().is_default()).await)
     }
 }
 
@@ -216,17 +211,15 @@ pub async fn cd_folder(folder: Option<&FolderRef>) -> Result<()> {
         let owner = USER.read().await;
         let owner =
             owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-        let storage = owner.storage().await;
-        let reader = storage.read().await;
         let summary = if let Some(vault) = folder {
             Some(
-                reader
+                owner
                     .find_folder(vault)
-                    .cloned()
+                    .await
                     .ok_or(Error::FolderNotFound(vault.to_string()))?,
             )
         } else {
-            reader.find(|s| s.flags().is_default()).cloned()
+            owner.find(|s| s.flags().is_default()).await
         };
 
         summary.ok_or(Error::NoFolderFound)?

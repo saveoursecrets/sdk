@@ -17,16 +17,15 @@ use sos_core::{
     crypto::AccessKey,
     device::{DevicePublicKey, TrustedDevice},
     events::{
-        patch::FolderPatch, AccountEvent, DeviceEvent, Event, EventRecord,
-        ReadEvent, WriteEvent,
+        patch::{
+            AccountDiff, CheckedPatch, DeviceDiff, FolderDiff, FolderPatch,
+        },
+        AccountEvent, DeviceEvent, Event, EventRecord, ReadEvent, WriteEvent,
     },
     AccountId, Paths, UtcDateTime,
 };
 use sos_database::async_sqlite::Client;
 use sos_login::{FolderKeys, Identity};
-use sos_sdk::events::patch::{
-    AccountDiff, CheckedPatch, DeviceDiff, FolderDiff,
-};
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
 };
@@ -692,11 +691,11 @@ impl ClientAccountStorage for ClientStorage {
 
     async fn history(
         &self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
         match self {
-            ClientStorage::FileSystem(fs) => fs.history(summary).await,
-            ClientStorage::Database(db) => db.history(summary).await,
+            ClientStorage::FileSystem(fs) => fs.history(folder_id).await,
+            ClientStorage::Database(db) => db.history(folder_id).await,
         }
     }
 

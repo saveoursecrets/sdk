@@ -31,8 +31,8 @@ use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
     list_accounts, list_local_folders,
     secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
-    BuilderCredentials, Header, SecretAccess, Summary, Vault, VaultBuilder,
-    VaultFlags,
+    BuilderCredentials, FolderRef, Header, SecretAccess, Summary, Vault,
+    VaultBuilder, VaultFlags,
 };
 use sos_vfs as vfs;
 use std::{
@@ -390,6 +390,9 @@ pub trait Account {
     where
         P: FnMut(&&Summary) -> bool + Send;
 
+    /// Try to find a folder by reference.
+    async fn find_folder(&self, vault: &FolderRef) -> Option<Summary>;
+
     /// Find the default folder.
     async fn default_folder(&self) -> Option<Summary> {
         self.find(|s| s.flags().is_default()).await
@@ -409,6 +412,15 @@ pub trait Account {
     async fn archive_folder(&self) -> Option<Summary> {
         self.find(|s| s.flags().is_archive()).await
     }
+
+    /// History of events for a folder.
+    async fn history(
+        &self,
+        folder_id: &VaultId,
+    ) -> std::result::Result<
+        Vec<(CommitHash, UtcDateTime, WriteEvent)>,
+        Self::Error,
+    >;
 
     /// Sign out of the account.
     async fn sign_out(&mut self) -> std::result::Result<(), Self::Error>;
@@ -1892,6 +1904,14 @@ impl Account for LocalAccount {
         Ok(storage.current_folder())
     }
 
+    async fn history(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
+        let storage = self.storage.read().await;
+        Ok(storage.history(folder_id).await?)
+    }
+
     async fn sign_out(&mut self) -> Result<()> {
         tracing::debug!(account_id = %self.account_id(), "sign_out");
 
@@ -1971,6 +1991,11 @@ impl Account for LocalAccount {
     {
         let storage = self.storage.read().await;
         storage.find(predicate).cloned()
+    }
+
+    async fn find_folder(&self, vault: &FolderRef) -> Option<Summary> {
+        let storage = self.storage.read().await;
+        storage.find_folder(vault).cloned()
     }
 
     async fn storage(&self) -> Arc<RwLock<ClientStorage>> {

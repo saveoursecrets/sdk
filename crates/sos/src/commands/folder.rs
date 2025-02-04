@@ -9,9 +9,9 @@ use crate::{
 use clap::Subcommand;
 use hex;
 use sos_account::{Account, FolderCreate};
-use sos_client_storage::{ClientAccountStorage, ClientFolderStorage};
 use sos_core::events::LogEvent;
 use sos_sdk::{events::EventLog, identity::AccountRef, vault::FolderRef};
+use sos_sync::StorageEventLogs;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -273,21 +273,17 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = user.read().await;
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-            let storage = owner.storage().await;
-            let reader = storage.read().await;
-            if let Some(folder) = reader.folders().get(summary.id()) {
-                let event_log = folder.event_log();
-                let event_log = event_log.read().await;
-                let tree = event_log.tree();
-                if let Some(leaves) = tree.leaves() {
-                    for leaf in &leaves {
-                        println!("{}", hex::encode(leaf));
-                    }
-                    println!("size = {}", leaves.len());
+            let event_log = owner.folder_log(summary.id()).await?;
+            let event_log = event_log.read().await;
+            let tree = event_log.tree();
+            if let Some(leaves) = tree.leaves() {
+                for leaf in &leaves {
+                    println!("{}", hex::encode(leaf));
                 }
-                if let Some(root) = tree.root() {
-                    println!("root = {}", root);
-                }
+                println!("size = {}", leaves.len());
+            }
+            if let Some(root) = tree.root() {
+                println!("root = {}", root);
             }
         }
 
@@ -385,9 +381,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         .current_folder()
                         .await?
                         .ok_or(Error::NoVaultSelected)?;
-                    let storage = owner.storage().await;
-                    let owner = storage.read().await;
-                    let records = owner.history(&summary).await?;
+                    let records = owner.history(summary.id()).await?;
                     for (commit, time, event) in records {
                         print!("{} {} ", event.event_kind(), time);
                         if verbose {

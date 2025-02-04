@@ -1,26 +1,19 @@
 //! File manager to keep external files in sync
 //! as secrets are created, updated and moved.
-
-use crate::{
-    files::FileStorage, filesystem::ClientFileSystemStorage,
-    ClientAccountStorage, ClientSecretStorage, Error, Result,
-};
+use crate::{files::FileStorage, Error, Result};
 use hex;
 use sos_backend::FileEventLog;
-use sos_core::events::FileEvent;
+use sos_core::events::{EventLog, FileEvent};
 use sos_core::{basename, Paths, SecretId, SecretPath, VaultId};
 use sos_external_files::{
     list_folder_files, EncryptedFile, FileMutationEvent, FileProgress,
     FileSource, FileStorageDiff, FileStorageResult,
 };
-use sos_sdk::{
-    events::EventLog,
-    vault::{
-        secret::{FileContent, Secret, SecretRow, UserData},
-        Summary,
-    },
-    vfs,
+use sos_vault::{
+    secret::{FileContent, Secret, SecretRow, UserData},
+    Summary,
 };
+use sos_vfs as vfs;
 use std::{collections::HashMap, path::Path, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
 

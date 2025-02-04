@@ -321,7 +321,7 @@ pub trait ClientAccountStorage:
     /// Get the history of events for a vault.
     async fn history(
         &self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>>;
 
     /// Commit state of the identity folder.

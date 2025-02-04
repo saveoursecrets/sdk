@@ -2,11 +2,11 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Client storage backed by the file system.
+use sos_core::events::WriteEvent;
 use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     AccountId,
 };
-use sos_sdk::events::WriteEvent;
 use sos_vault::{Summary, Vault, VaultFlags};
 
 mod error;
