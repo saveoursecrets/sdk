@@ -2,23 +2,24 @@
 use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
-use sos_backend::reducers::{DeviceReducer, FolderReducer};
-use sos_backend::VaultWriter;
 use sos_backend::{
     AccountEventLog, DeviceEventLog, FileEventLog, FolderEventLog,
-};
-use sos_core::events::{
-    patch::FolderPatch, AccountEvent, EventLog, EventRecord, WriteEvent,
+    VaultWriter,
 };
 use sos_core::{
     decode,
     device::{DevicePublicKey, TrustedDevice},
-    encode, AccountId, Paths, VaultId,
+    encode,
+    events::{
+        patch::FolderPatch, AccountEvent, EventLog, EventRecord, WriteEvent,
+    },
+    AccountId, Paths, VaultId,
 };
 use sos_database::async_sqlite::Client;
 use sos_database::db::{
     AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
 };
+use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
 use sos_vault::{EncryptedEntry, Summary, Vault};
 use sos_vfs as vfs;

@@ -16,16 +16,8 @@ mod server_origins;
 mod system_messages;
 mod vault_writer;
 
-pub use error::{Error, StorageError};
-use sos_core::{AccountId, PublicIdentity};
-pub use sos_database as database;
-use sos_database::db::{
-    AccountEntity, AccountRecord, FolderEntity, FolderRecord,
-};
-pub use sos_filesystem::write_exclusive;
-pub use sos_reducers as reducers;
-
 pub use access_point::BackendAccessPoint as AccessPoint;
+pub use error::{Error, StorageError};
 pub use event_log::{
     BackendAccountEventLog as AccountEventLog,
     BackendDeviceEventLog as DeviceEventLog, BackendEventLog,
@@ -35,6 +27,8 @@ pub use folder::Folder;
 #[cfg(feature = "preferences")]
 pub use preferences::BackendPreferences as Preferences;
 pub use server_origins::ServerOrigins;
+pub use sos_database as database;
+pub use sos_filesystem::write_exclusive;
 use sos_vault::Summary;
 #[cfg(feature = "system-messages")]
 pub use system_messages::SystemMessages;
@@ -45,6 +39,11 @@ pub use event_log::BackendFileEventLog as FileEventLog;
 
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
+
+use sos_core::{AccountId, PublicIdentity};
+use sos_database::db::{
+    AccountEntity, AccountRecord, FolderEntity, FolderRecord,
+};
 
 /// Target backend.
 #[derive(Clone)]

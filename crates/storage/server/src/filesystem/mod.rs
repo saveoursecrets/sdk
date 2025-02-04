@@ -2,24 +2,27 @@
 use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
-use sos_backend::reducers::DeviceReducer;
-use sos_backend::reducers::FolderReducer;
-use sos_backend::VaultWriter;
 use sos_backend::{
     AccountEventLog, DeviceEventLog, FileEventLog, FolderEventLog,
+    VaultWriter,
 };
-use sos_core::events::{patch::FolderPatch, AccountEvent, EventLog};
 use sos_core::{
     constants::VAULT_EXT,
     decode,
     device::{DevicePublicKey, TrustedDevice},
-    encode, AccountId, Paths, VaultId,
+    encode,
+    events::{patch::FolderPatch, AccountEvent, EventLog},
+    AccountId, Paths, VaultId,
 };
+use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
 use sos_vault::{EncryptedEntry, Header, Summary, Vault};
 use sos_vfs as vfs;
-use std::collections::HashSet;
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    sync::Arc,
+};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "audit")]

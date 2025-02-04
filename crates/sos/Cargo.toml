@@ -33,6 +33,7 @@ sos-password.workspace = true
 sos-protocol = { workspace = true, features = ["full"] }
 sos-net = { workspace = true, features = ["full"] }
 sos-migrate.workspace = true
+sos-reducers.workspace = true
 sos-sdk = { workspace = true, features = ["full"] }
 sos-preferences.workspace = true
 sos-security-report.workspace = true

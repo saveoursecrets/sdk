@@ -13,6 +13,7 @@ audit = ["sos-audit", "sos-backend/audit"]
 files = [
   "sos-external-files",
   "sos-backend/files",
+  "sos-reducers/files",
   "sos-sync/files",
 ]
 
@@ -22,6 +23,7 @@ sos-backend.workspace = true
 sos-database.workspace = true
 sos-filesystem.workspace = true
 sos-protocol.workspace = true
+sos-reducers.workspace = true
 sos-signer.workspace = true
 sos-sync.workspace = true
 sos-vault.workspace = true

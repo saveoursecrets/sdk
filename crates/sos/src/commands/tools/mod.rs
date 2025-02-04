@@ -9,8 +9,9 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_account::Account;
-use sos_backend::{reducers::FolderReducer, FolderEventLog};
+use sos_backend::FolderEventLog;
 use sos_core::VaultId;
+use sos_reducers::FolderReducer;
 use sos_sdk::{
     constants::EVENT_LOG_EXT,
     crypto::{AccessKey, Cipher, KeyDerivation},

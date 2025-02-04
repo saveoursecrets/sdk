@@ -9,9 +9,9 @@ use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use parking_lot::Mutex;
 use sos_backend::{
-    reducers::FolderReducer, write_exclusive, Folder, StorageError,
+    compact::compact_folder, write_exclusive, AccountEventLog,
+    DeviceEventLog, Folder, FolderEventLog, StorageError,
 };
-use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
 use sos_core::{
     commit::{CommitHash, CommitState},
     SecretId, VaultId,
@@ -28,6 +28,7 @@ use sos_core::{
 };
 use sos_login::{FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
+use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     BuilderCredentials, ChangePassword, FolderRef, Header, SecretAccess,
@@ -51,8 +52,6 @@ use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
     events::DeviceEvent,
 };
-
-use sos_backend::{compact::compact_folder, reducers::DeviceReducer};
 
 #[cfg(feature = "files")]
 use {sos_backend::FileEventLog, sos_core::events::FileEvent};

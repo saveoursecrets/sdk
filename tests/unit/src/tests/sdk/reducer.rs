@@ -1,11 +1,11 @@
 use anyhow::Result;
 use secrecy::ExposeSecret;
-use sos_backend::reducers::FolderReducer;
 use sos_backend::FolderEventLog;
 use sos_core::{
     crypto::PrivateKey, decode, events::EventLog, SecretId, VaultCommit,
     VaultEntry,
 };
+use sos_reducers::FolderReducer;
 use sos_test_utils::mock;
 use sos_vault::{
     secret::{Secret, SecretMeta},

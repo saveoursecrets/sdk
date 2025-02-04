@@ -3,11 +3,9 @@ use crate::{filesystem::ServerFileStorage, ServerAccountStorage};
 use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
-use sos_backend::reducers::DeviceReducer;
-use sos_backend::VaultWriter;
 use sos_backend::{
-    reducers::FolderReducer, AccountEventLog, DeviceEventLog, FileEventLog,
-    FolderEventLog,
+    AccountEventLog, DeviceEventLog, FileEventLog, FolderEventLog,
+    VaultWriter,
 };
 use sos_core::{
     encode,
@@ -19,6 +17,7 @@ use sos_core::{
     },
     VaultId,
 };
+use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
     TrackedChanges,

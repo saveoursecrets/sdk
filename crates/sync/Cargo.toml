@@ -15,11 +15,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 full = ["files"]
 files = [
   "sos-backend/files",
+  "sos-reducers/files",
 ]
 
 [dependencies]
 sos-core.workspace = true
 sos-backend.workspace = true
+sos-reducers.workspace = true
 sos-vault.workspace = true
 
 thiserror.workspace = true

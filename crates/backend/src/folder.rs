@@ -1,7 +1,5 @@
 //! Folder combines an access point with an event log.
-use crate::{
-    reducers::FolderReducer, AccessPoint, Error, FolderEventLog, Result,
-};
+use crate::{AccessPoint, Error, FolderEventLog, Result};
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -17,6 +15,7 @@ use sos_database::{
     VaultDatabaseWriter,
 };
 use sos_filesystem::VaultFileWriter;
+use sos_reducers::FolderReducer;
 use sos_vault::{
     secret::{Secret, SecretId, SecretMeta, SecretRow},
     AccessPoint as VaultAccessPoint, EncryptedEntry, SecretAccess, Vault,
