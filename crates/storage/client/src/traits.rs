@@ -18,6 +18,7 @@ use sos_core::{
     VaultId,
 };
 use sos_login::FolderKeys;
+use sos_sync::SyncStorage;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     FolderRef, Summary, Vault,
@@ -257,8 +258,7 @@ pub trait ClientSecretStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientAccountStorage:
-    ClientDeviceStorage + ClientFolderStorage + ClientSecretStorage
-// TODO: + SyncStorage
+    ClientDeviceStorage + ClientFolderStorage + ClientSecretStorage + SyncStorage
 {
     /// Account identifier.
     fn account_id(&self) -> &AccountId;

@@ -76,10 +76,6 @@ impl ClientStorage {
         account_id: AccountId,
         target: BackendTarget,
         authenticated_user: Identity,
-        /*
-        identity_log: Arc<RwLock<FolderEventLog>>,
-        device: TrustedDevice,
-        */
     ) -> Result<Self> {
         match target {
             BackendTarget::FileSystem(paths) => {
@@ -87,10 +83,6 @@ impl ClientStorage {
                     account_id,
                     paths,
                     authenticated_user,
-                    /*
-                    identity_log,
-                    device,
-                    */
                 )
                 .await?)
             }
@@ -99,8 +91,6 @@ impl ClientStorage {
                     account_id,
                     client,
                     authenticated_user,
-                    // identity_log,
-                    // device,
                 )
                 .await?)
             }
@@ -123,10 +113,6 @@ impl ClientStorage {
         account_id: AccountId,
         paths: Paths,
         authenticated_user: Identity,
-        /*
-        identity_log: Arc<RwLock<FolderEventLog>>,
-        device: TrustedDevice,
-        */
     ) -> Result<Self> {
         Ok(Self::FileSystem(
             ClientFileSystemStorage::new_authenticated(
@@ -161,10 +147,6 @@ impl ClientStorage {
         account_id: AccountId,
         client: Client,
         authenticated_user: Identity,
-        /*
-        identity_log: Arc<RwLock<FolderEventLog>>,
-        device: TrustedDevice,
-        */
     ) -> Result<Self> {
         /*
         Ok(Self::FileSystem(
@@ -849,8 +831,12 @@ impl ForceMerge for ClientStorage {
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
         match self {
-            ClientStorage::FileSystem(fs) => fs.force_merge_identity(diff, outcome).await,
-            ClientStorage::Database(db) => db.force_merge_identity(diff, outcome).await,
+            ClientStorage::FileSystem(fs) => {
+                fs.force_merge_identity(diff, outcome).await
+            }
+            ClientStorage::Database(db) => {
+                db.force_merge_identity(diff, outcome).await
+            }
         }
     }
 
@@ -862,8 +848,12 @@ impl ForceMerge for ClientStorage {
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
         match self {
-            ClientStorage::FileSystem(fs) => fs.force_merge_folder(folder_id, diff, outcome).await,
-            ClientStorage::Database(db) => db.force_merge_folder(folder_id, diff, outcome).await,
+            ClientStorage::FileSystem(fs) => {
+                fs.force_merge_folder(folder_id, diff, outcome).await
+            }
+            ClientStorage::Database(db) => {
+                db.force_merge_folder(folder_id, diff, outcome).await
+            }
         }
     }
 }
@@ -877,8 +867,12 @@ impl Merge for ClientStorage {
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
         match self {
-            ClientStorage::FileSystem(fs) => fs.merge_identity(diff, outcome).await,
-            ClientStorage::Database(db) => db.merge_identity(diff, outcome).await,
+            ClientStorage::FileSystem(fs) => {
+                fs.merge_identity(diff, outcome).await
+            }
+            ClientStorage::Database(db) => {
+                db.merge_identity(diff, outcome).await
+            }
         }
     }
 
@@ -888,8 +882,12 @@ impl Merge for ClientStorage {
         outcome: &mut MergeOutcome,
     ) -> Result<(CheckedPatch, HashSet<VaultId>)> {
         match self {
-            ClientStorage::FileSystem(fs) => fs.merge_account(diff, outcome).await,
-            ClientStorage::Database(db) => db.merge_account(diff, outcome).await,
+            ClientStorage::FileSystem(fs) => {
+                fs.merge_account(diff, outcome).await
+            }
+            ClientStorage::Database(db) => {
+                db.merge_account(diff, outcome).await
+            }
         }
     }
 
@@ -899,8 +897,12 @@ impl Merge for ClientStorage {
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
         match self {
-            ClientStorage::FileSystem(fs) => fs.merge_device(diff, outcome).await,
-            ClientStorage::Database(db) => db.merge_device(diff, outcome).await,
+            ClientStorage::FileSystem(fs) => {
+                fs.merge_device(diff, outcome).await
+            }
+            ClientStorage::Database(db) => {
+                db.merge_device(diff, outcome).await
+            }
         }
     }
 
@@ -911,8 +913,12 @@ impl Merge for ClientStorage {
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
         match self {
-            ClientStorage::FileSystem(fs) => fs.merge_files(diff, outcome).await,
-            ClientStorage::Database(db) => db.merge_files(diff, outcome).await,
+            ClientStorage::FileSystem(fs) => {
+                fs.merge_files(diff, outcome).await
+            }
+            ClientStorage::Database(db) => {
+                db.merge_files(diff, outcome).await
+            }
         }
     }
 
@@ -923,8 +929,12 @@ impl Merge for ClientStorage {
         outcome: &mut MergeOutcome,
     ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
         match self {
-            ClientStorage::FileSystem(fs) => fs.merge_folder(folder_id, diff, outcome).await,
-            ClientStorage::Database(db) => db.merge_folder(folder_id, diff, outcome).await,
+            ClientStorage::FileSystem(fs) => {
+                fs.merge_folder(folder_id, diff, outcome).await
+            }
+            ClientStorage::Database(db) => {
+                db.merge_folder(folder_id, diff, outcome).await
+            }
         }
     }
 }

@@ -5,7 +5,7 @@ mod builder;
 mod convert;
 mod error;
 
-mod folder_sync;
+// mod folder_sync;
 mod sync;
 
 pub use account::{
