@@ -1,4 +1,6 @@
 //! Implements merging into a local account.
+//!
+//! Delegates to the client storage backend.
 use crate::{Error, LocalAccount, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;

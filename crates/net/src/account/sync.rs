@@ -1,4 +1,7 @@
-//! Adds sync capability to network account.
+//! Implements syncing for a network account.
+//!
+//! Delegates to the inner local account for merge and
+//! sync status operations.
 use crate::{NetworkAccount, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -237,18 +240,6 @@ impl StorageEventLogs for NetworkAccount {
 }
 
 #[async_trait]
-impl SyncStorage for NetworkAccount {
-    fn is_client_storage(&self) -> bool {
-        true
-    }
-
-    async fn sync_status(&self) -> Result<SyncStatus> {
-        let account = self.account.lock().await;
-        Ok(account.sync_status().await?)
-    }
-}
-
-#[async_trait]
 impl Merge for NetworkAccount {
     async fn merge_identity(
         &mut self,
@@ -385,5 +376,17 @@ impl ForceMerge for NetworkAccount {
     ) -> Result<()> {
         let mut account = self.account.lock().await;
         Ok(account.force_merge_folder(folder_id, diff, outcome).await?)
+    }
+}
+
+#[async_trait]
+impl SyncStorage for NetworkAccount {
+    fn is_client_storage(&self) -> bool {
+        true
+    }
+
+    async fn sync_status(&self) -> Result<SyncStatus> {
+        let account = self.account.lock().await;
+        Ok(account.sync_status().await?)
     }
 }
