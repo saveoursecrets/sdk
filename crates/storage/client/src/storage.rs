@@ -848,7 +848,10 @@ impl ForceMerge for ClientStorage {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        todo!();
+        match self {
+            ClientStorage::FileSystem(fs) => fs.force_merge_identity(diff, outcome).await,
+            ClientStorage::Database(db) => db.force_merge_identity(diff, outcome).await,
+        }
     }
 
     /// Force merge changes to the files event log.
@@ -858,7 +861,10 @@ impl ForceMerge for ClientStorage {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        todo!();
+        match self {
+            ClientStorage::FileSystem(fs) => fs.force_merge_folder(folder_id, diff, outcome).await,
+            ClientStorage::Database(db) => db.force_merge_folder(folder_id, diff, outcome).await,
+        }
     }
 }
 
@@ -870,7 +876,10 @@ impl Merge for ClientStorage {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        todo!();
+        match self {
+            ClientStorage::FileSystem(fs) => fs.merge_identity(diff, outcome).await,
+            ClientStorage::Database(db) => db.merge_identity(diff, outcome).await,
+        }
     }
 
     async fn merge_account(
@@ -878,7 +887,10 @@ impl Merge for ClientStorage {
         diff: AccountDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<(CheckedPatch, HashSet<VaultId>)> {
-        todo!();
+        match self {
+            ClientStorage::FileSystem(fs) => fs.merge_account(diff, outcome).await,
+            ClientStorage::Database(db) => db.merge_account(diff, outcome).await,
+        }
     }
 
     async fn merge_device(
@@ -886,7 +898,10 @@ impl Merge for ClientStorage {
         diff: DeviceDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        todo!();
+        match self {
+            ClientStorage::FileSystem(fs) => fs.merge_device(diff, outcome).await,
+            ClientStorage::Database(db) => db.merge_device(diff, outcome).await,
+        }
     }
 
     #[cfg(feature = "files")]
@@ -895,7 +910,10 @@ impl Merge for ClientStorage {
         diff: FileDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        todo!();
+        match self {
+            ClientStorage::FileSystem(fs) => fs.merge_files(diff, outcome).await,
+            ClientStorage::Database(db) => db.merge_files(diff, outcome).await,
+        }
     }
 
     async fn merge_folder(
@@ -904,7 +922,10 @@ impl Merge for ClientStorage {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
-        todo!();
+        match self {
+            ClientStorage::FileSystem(fs) => fs.merge_folder(folder_id, diff, outcome).await,
+            ClientStorage::Database(db) => db.merge_folder(folder_id, diff, outcome).await,
+        }
     }
 }
 
