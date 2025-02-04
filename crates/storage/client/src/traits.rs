@@ -99,7 +99,7 @@ pub trait ClientFolderStorage {
         apply_event: bool,
     ) -> Result<Vec<Event>>;
 
-    /// Remove a folder from the cache.
+    /// Remove a folder from memory.
     async fn remove_folder(&mut self, folder_id: &VaultId) -> Result<bool>;
 
     /// List the in-memory folders.

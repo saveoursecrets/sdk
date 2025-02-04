@@ -71,11 +71,8 @@ async fn network_sync_listen_folder_delete() -> Result<()> {
 
     wait_for_cond(move || wait_files.iter().all(|p| !p.exists())).await;
 
-    let updated_summaries: Vec<Summary> = {
-        let storage = device1.owner.storage().await;
-        let reader = storage.read().await;
-        reader.list_folders().to_vec()
-    };
+    let updated_summaries: Vec<Summary> =
+        device1.owner.list_folders().await?;
     assert_eq!(folders.len(), updated_summaries.len());
 
     assert!(!vfs::try_exists(server_files.remove(0)).await?);

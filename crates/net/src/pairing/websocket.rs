@@ -9,7 +9,6 @@ use futures::{
 use prost::bytes::Bytes;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use sos_account::Account;
-use sos_client_storage::ClientDeviceStorage;
 use sos_core::events::DeviceEvent;
 use sos_core::{AccountId, Origin};
 use sos_protocol::{
@@ -442,9 +441,7 @@ impl<'a> OfferPairing<'a> {
         let events: Vec<DeviceEvent> =
             vec![DeviceEvent::Trust(trusted_device)];
         {
-            let storage = self.account.storage().await;
-            let mut writer = storage.write().await;
-            writer.patch_devices_unchecked(events).await?;
+            self.account.patch_devices_unchecked(events).await?;
         }
 
         // Send the patch to the remote server.

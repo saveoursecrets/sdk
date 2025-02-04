@@ -25,7 +25,7 @@ use sos_protocol::{
     AccountSync, DiffRequest, RemoteSync, RemoteSyncHandler, SyncClient,
     SyncOptions, SyncResult,
 };
-use sos_sdk::events::WriteEvent;
+use sos_sdk::events::{DeviceEvent, WriteEvent};
 use sos_sdk::UtcDateTime;
 use sos_sync::{CreateSet, StorageEventLogs, UpdateSet};
 use sos_vault::{
@@ -742,6 +742,14 @@ impl Account for NetworkAccount {
     async fn device_public_key(&self) -> Result<DevicePublicKey> {
         let account = self.account.lock().await;
         Ok(account.device_public_key().await?)
+    }
+
+    async fn patch_devices_unchecked(
+        &mut self,
+        events: Vec<DeviceEvent>,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.patch_devices_unchecked(events).await?)
     }
 
     async fn current_device(&self) -> Result<TrustedDevice> {
@@ -1693,6 +1701,11 @@ impl Account for NetworkAccount {
         };
 
         Ok(result)
+    }
+
+    async fn forget_folder(&mut self, folder_id: &VaultId) -> Result<bool> {
+        let mut account = self.account.lock().await;
+        Ok(account.forget_folder(folder_id).await?)
     }
 
     #[cfg(feature = "contacts")]

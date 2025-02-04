@@ -212,9 +212,7 @@ pub async fn num_events(
     owner: &mut NetworkAccount,
     folder_id: &VaultId,
 ) -> usize {
-    let storage = owner.storage().await;
-    let reader = storage.read().await;
-    let folder = reader.folders().get(folder_id).unwrap();
+    let folder = owner.folder(folder_id).await.unwrap();
     let events = folder.event_log();
     let events = events.read().await;
     events.tree().len()
@@ -234,14 +232,11 @@ pub async fn assert_local_remote_vaults_eq(
     owner: &mut NetworkAccount,
     _provider: &mut RemoteBridge,
 ) -> Result<()> {
-    let storage = owner.storage().await;
-    let reader = storage.read().await;
-
     // Compare vault buffers
     for summary in expected_summaries {
         tracing::debug!(id = %summary.id(), "assert_local_remote_vaults_eq");
 
-        let local_folder = reader.paths().vault_path(summary.id());
+        let local_folder = owner.paths().vault_path(summary.id());
         let remote_folder = server_path.join("vaults").join(format!(
             "{}.{}",
             summary.id(),

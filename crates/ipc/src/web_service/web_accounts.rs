@@ -310,10 +310,8 @@ where
                             // Now the storage should have the folder so
                             // we can access the access point and add it to
                             // the search index
-                            let storage = account.storage().await;
-                            let storage = storage.read().await;
                             if let Some(folder) =
-                                storage.folders().get(&folder_id)
+                                account.folder(&folder_id).await.ok()
                             {
                                 let access_point = folder.access_point();
                                 let access_point = access_point.lock().await;
@@ -330,11 +328,7 @@ where
                 }
             }
             ChangeRecords::Folder(folder_id, events) => {
-                let storage = account.storage().await;
-                let mut storage = storage.write().await;
-                if let Some(folder) =
-                    storage.folders_mut().get_mut(&folder_id)
-                {
+                if let Some(folder) = account.folder(&folder_id).await.ok() {
                     let access_point = folder.access_point();
                     let mut access_point = access_point.lock().await;
 
@@ -482,15 +476,13 @@ where
                 }
 
                 {
-                    let accounts = accounts.read().await;
+                    let mut accounts = accounts.write().await;
                     let account = accounts
-                        .iter()
+                        .iter_mut()
                         .find(|a| a.account_id() == &account_id)
                         .ok_or(FileEventError::NoAccount(account_id))?;
 
-                    let storage = account.storage().await;
-                    let mut storage = storage.write().await;
-                    storage.remove_folder(&folder_id).await?;
+                    account.forget_folder(&folder_id).await.ok();
                 }
                 ChangeRecords::Folder(folder_id, vec![])
             } else {
@@ -500,11 +492,10 @@ where
                     .find(|a| a.account_id() == &account_id)
                     .ok_or(FileEventError::NoAccount(account_id))?;
 
-                let storage = account.storage().await;
-                let storage = storage.read().await;
-                let folder = storage
-                    .folders()
-                    .get(&folder_id)
+                let folder = account
+                    .folder(&folder_id)
+                    .await
+                    .ok()
                     .ok_or(FileEventError::NoFolder(folder_id))?;
 
                 let event_log = folder.event_log();
@@ -575,10 +566,8 @@ where
         + Sync
         + 'static,
 {
-    let storage = account.storage().await;
-    let storage = storage.read().await;
-
-    let account_log = storage.account_log().await?;
+    // FIXME: update the error handling to avoid the unwrap
+    let account_log = account.account_log().await.unwrap();
     let mut event_log = account_log.write().await;
     let commit = event_log.tree().last_commit();
 

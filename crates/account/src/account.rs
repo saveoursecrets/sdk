@@ -17,8 +17,8 @@ use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
     encode,
     events::{
-        AccountEvent, Event, EventKind, EventLog, EventRecord, ReadEvent,
-        WriteEvent,
+        AccountEvent, DeviceEvent, Event, EventKind, EventLog, EventRecord,
+        ReadEvent, WriteEvent,
     },
     AccountId, Paths, SecretId, UtcDateTime, VaultCommit, VaultId,
 };
@@ -282,6 +282,12 @@ pub trait Account {
     async fn device_public_key(
         &self,
     ) -> std::result::Result<DevicePublicKey, Self::Error>;
+
+    /// Patch the devices event log.
+    async fn patch_devices_unchecked(
+        &mut self,
+        events: Vec<DeviceEvent>,
+    ) -> std::result::Result<(), Self::Error>;
 
     /// Current device information.
     async fn current_device(
@@ -769,6 +775,12 @@ pub trait Account {
         &mut self,
         summary: &Summary,
     ) -> std::result::Result<FolderDelete<Self::NetworkResult>, Self::Error>;
+
+    /// Forget a folder from in-memory collections.
+    async fn forget_folder(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> std::result::Result<bool, Self::Error>;
 
     /// Try to load an avatar JPEG image for a contact.
     ///
@@ -1669,6 +1681,13 @@ impl Account for LocalAccount {
     async fn device_public_key(&self) -> Result<DevicePublicKey> {
         let authenticated_user = self.storage.authenticated_user()?;
         Ok(authenticated_user.identity()?.device().public_key())
+    }
+
+    async fn patch_devices_unchecked(
+        &mut self,
+        events: Vec<DeviceEvent>,
+    ) -> Result<()> {
+        Ok(self.storage.patch_devices_unchecked(events).await?)
     }
 
     async fn current_device(&self) -> Result<TrustedDevice> {
@@ -2843,6 +2862,10 @@ impl Account for LocalAccount {
             commit_state,
             sync_result: (),
         })
+    }
+
+    async fn forget_folder(&mut self, folder_id: &VaultId) -> Result<bool> {
+        Ok(self.storage.remove_folder(folder_id).await?)
     }
 
     #[cfg(feature = "contacts")]

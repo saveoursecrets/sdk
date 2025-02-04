@@ -1,11 +1,8 @@
-//! Login identity vault management.
+//! Login identity folder management.
 //!
-//! Provides access to an identity vault containing
-//! the account signing key and delegated passwords used
-//! for folders managed by an account.
-//!
-//! This enables user interfaces to protect both the signing
-//! key and folder passwords using a single primary password.
+//! Provides access to an identity folder containing
+//! delegated passwords used to decrypt folders managed
+//! by an account.
 use crate::device::{DeviceManager, DeviceSigner};
 use crate::{Error, PrivateIdentity, Result, UrnLookup};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
@@ -593,6 +590,8 @@ impl IdentityFolder {
         account_id: AccountId,
         keeper: &AccessPoint,
     ) -> Result<(UrnLookup, PrivateIdentity)> {
+        println!("doing login private identity...");
+
         let (index, identity_secret) =
             Self::lookup_identity_secrets(keeper).await?;
 
@@ -771,15 +770,18 @@ impl IdentityFolder {
     ) -> Result<Self> {
         let mut folder = Folder::new_fs(path).await?;
 
-        let access_point = folder.access_point();
-        let access_point = access_point.lock().await;
-
-        if !access_point.vault().flags().contains(VaultFlags::IDENTITY) {
-            return Err(Error::NotIdentityFolder);
+        {
+            let access_point = folder.access_point();
+            let access_point = access_point.lock().await;
+            if !access_point.vault().flags().contains(VaultFlags::IDENTITY) {
+                return Err(Error::NotIdentityFolder);
+            }
         }
 
         folder.unlock(key).await?;
 
+        let access_point = folder.access_point();
+        let access_point = access_point.lock().await;
         let (index, private_identity) =
             Self::login_private_identity(*account_id, &*access_point).await?;
 
@@ -816,15 +818,18 @@ impl IdentityFolder {
         )
         .await?;
 
-        let access_point = folder.access_point();
-        let access_point = access_point.lock().await;
-
-        if !access_point.vault().flags().contains(VaultFlags::IDENTITY) {
-            return Err(Error::NotIdentityFolder);
+        {
+            let access_point = folder.access_point();
+            let access_point = access_point.lock().await;
+            if !access_point.vault().flags().contains(VaultFlags::IDENTITY) {
+                return Err(Error::NotIdentityFolder);
+            }
         }
 
         folder.unlock(key).await?;
 
+        let access_point = folder.access_point();
+        let access_point = access_point.lock().await;
         let (index, private_identity) =
             Self::login_private_identity(*account_id, &*access_point).await?;
 
