@@ -34,7 +34,7 @@ async fn local_contacts() -> Result<()> {
     account.sign_in(&key).await?;
 
     let contacts = account.contacts_folder().await.unwrap();
-    account.open_folder(&contacts).await?;
+    account.open_folder(contacts.id()).await?;
 
     let ids = account.import_contacts(CONTACT, |_| {}).await?;
     assert_eq!(1, ids.len());

@@ -34,7 +34,7 @@ async fn local_folder_lifecycle() -> Result<()> {
         .await?;
 
     // Open the new folder for writing
-    account.open_folder(&folder).await?;
+    account.open_folder(folder.id()).await?;
 
     // Create a secret in the new folder
     let (meta, secret) = mock::note("note", TEST_ID);
@@ -48,10 +48,10 @@ async fn local_folder_lifecycle() -> Result<()> {
     assert_eq!(&folder, &secret_folder);
 
     // Switch to the default folder for writing
-    account.open_folder(&default_folder).await?;
+    account.open_folder(default_folder.id()).await?;
 
     // Now read using the specific folder
-    let (data, _) = account.read_secret(&id, Some(folder.clone())).await?;
+    let (data, _) = account.read_secret(&id, Some(folder.id())).await?;
     assert_eq!(&id, data.id());
     assert_eq!("note", data.meta().label());
 
@@ -96,9 +96,8 @@ async fn local_folder_lifecycle() -> Result<()> {
     assert!(account.find(|f| f.id() == folder.id()).await.is_some());
 
     // Check we can read the secret data
-    let (data, _) = account
-        .read_secret(&id, Some(imported_folder.clone()))
-        .await?;
+    let (data, _) =
+        account.read_secret(&id, Some(imported_folder.id())).await?;
     assert_eq!(&id, data.id());
     assert_eq!("note", data.meta().label());
 

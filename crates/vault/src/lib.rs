@@ -15,8 +15,8 @@ pub use builder::{BuilderCredentials, VaultBuilder};
 pub use change::ChangePassword;
 pub use error::Error;
 pub use vault::{
-    EncryptedEntry, FolderRef, Header, SharedAccess, Summary, Vault,
-    VaultMeta,
+    Contents, EncryptedEntry, FolderRef, Header, SharedAccess, Summary,
+    Vault, VaultMeta,
 };
 
 // DO NOT USE: these re-exports will be removed in the future
@@ -25,13 +25,6 @@ pub use sos_core::{VaultCommit, VaultEntry, VaultFlags, VaultId};
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 pub(crate) use vault::Auth;
-
-#[cfg(debug_assertions)]
-#[doc(hidden)]
-pub use vault::Contents;
-
-#[cfg(not(debug_assertions))]
-pub(crate) use vault::Contents;
 
 use sos_core::{constants::VAULT_EXT, Paths, PublicIdentity};
 use sos_vfs as vfs;

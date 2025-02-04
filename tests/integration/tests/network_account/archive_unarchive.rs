@@ -65,7 +65,7 @@ async fn network_sync_archive_unarchive() -> Result<()> {
     // Need the meta data to unarchive
     let (data, _) = device1
         .owner
-        .read_secret(&secret_id, Some(archive_folder.clone()))
+        .read_secret(&secret_id, Some(archive_folder.id()))
         .await?;
 
     // Unarchive the secret

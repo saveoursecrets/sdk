@@ -1,8 +1,8 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
-use sos_search::DocumentView;
 use sos_sdk::prelude::*;
+use sos_search::DocumentView;
 
 /// Tests querying the search index using a websites view.
 #[tokio::test]
@@ -26,7 +26,7 @@ async fn local_search_view_query_websites() -> Result<()> {
     let key: AccessKey = password.clone().into();
     account.sign_in(&key).await?;
     let default_folder = account.default_folder().await.unwrap();
-    account.open_folder(&default_folder).await?;
+    account.open_folder(default_folder.id()).await?;
 
     let default_folder_docs = vec![
         mock::login(

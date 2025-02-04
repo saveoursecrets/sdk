@@ -89,7 +89,7 @@ async fn backup_export_import() -> Result<()> {
             .await?;
 
     account.sign_in(&key).await?;
-    account.open_folder(&default_folder).await?;
+    account.open_folder(default_folder.id()).await?;
 
     for id in ids {
         assert!(account.read_secret(&id, Default::default()).await.is_ok());

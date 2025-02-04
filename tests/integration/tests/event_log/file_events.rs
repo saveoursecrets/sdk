@@ -50,8 +50,7 @@ async fn event_log_file() -> Result<()> {
         .await?;
 
     // Read secret so we can update the data with a file attachment
-    let (mut data, _) =
-        account.read_secret(&id, Some(folder.clone())).await?;
+    let (mut data, _) = account.read_secret(&id, Some(folder.id())).await?;
 
     // Add a file attachment
     let (meta, secret, _) = mock::file_text_secret()?;
@@ -151,8 +150,7 @@ async fn event_log_file_folder_delete() -> Result<()> {
     // Store the file events log so we can delete and re-create
     let file_events = account.paths().file_events();
 
-    let mut event_log =
-        FileEventLog::new_fs_file(&file_events).await?;
+    let mut event_log = FileEventLog::new_fs_file(&file_events).await?;
     let events = all_events(&mut event_log).await?;
     assert_eq!(4, events.len());
     assert!(matches!(events.get(0), Some(FileEvent::CreateFile(_, _))));

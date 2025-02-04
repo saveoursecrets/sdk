@@ -252,7 +252,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     .contacts_folder()
                     .await
                     .ok_or_else(|| Error::NoContactsFolder)?;
-                owner.open_folder(&contacts).await?;
+                owner.open_folder(contacts.id()).await?;
                 current
             };
 
@@ -265,7 +265,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         let owner = owner
                             .selected_account()
                             .ok_or(Error::NoSelectedAccount)?;
-                        owner.open_folder(&folder).await?;
+                        owner.open_folder(folder.id()).await?;
                     }
                 }
                 ContactsCommand::Import { input } => {
@@ -276,7 +276,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         let owner = owner
                             .selected_account()
                             .ok_or(Error::NoSelectedAccount)?;
-                        owner.open_folder(&folder).await?;
+                        owner.open_folder(folder.id()).await?;
                     }
                 }
             }

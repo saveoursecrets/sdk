@@ -7,6 +7,7 @@ use crate::{
 use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
+use parking_lot::Mutex;
 use sos_backend::{
     reducers::FolderReducer, write_exclusive, Folder, StorageError,
 };
@@ -69,11 +70,14 @@ pub struct ClientFileSystemStorage {
     /// Folders managed by this storage.
     pub(super) summaries: Vec<Summary>,
 
-    /// Currently selected folder.
-    pub(super) current: Option<Summary>,
-
     /// Directories for file storage.
     pub(super) paths: Arc<Paths>,
+
+    // Use interior mutability so all the account functions
+    // that accept an optional folder when reading do not need
+    // to be mutable.
+    /// Currently selected folder.
+    current: Arc<Mutex<Option<Summary>>>,
 
     /// Search index.
     #[cfg(feature = "search")]
@@ -141,7 +145,7 @@ impl ClientFileSystemStorage {
         let mut storage = Self {
             account_id,
             summaries: Vec::new(),
-            current: None,
+            current: Arc::new(Mutex::new(None)),
             folders: Default::default(),
             paths: paths.clone(),
             identity_log,
@@ -213,7 +217,7 @@ impl ClientFileSystemStorage {
         Ok(Self {
             account_id,
             summaries: Vec::new(),
-            current: None,
+            current: Arc::new(Mutex::new(None)),
             folders: Default::default(),
             paths: paths.clone(),
             identity_log,
@@ -1078,7 +1082,8 @@ impl ClientFolderStorage for ClientFileSystemStorage {
     }
 
     fn current_folder(&self) -> Option<Summary> {
-        self.current.clone()
+        let current = self.current.lock();
+        current.clone()
     }
 
     fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
@@ -1097,16 +1102,20 @@ impl ClientFolderStorage for ClientFileSystemStorage {
         self.summaries.iter().find(predicate)
     }
 
-    async fn open_folder(&mut self, summary: &Summary) -> Result<ReadEvent> {
-        self.find(|s| s.id() == summary.id())
-            .ok_or(StorageError::CacheNotAvailable(*summary.id()))?;
+    fn open_folder(&self, folder_id: &VaultId) -> Result<ReadEvent> {
+        let summary = self
+            .find(|s| s.id() == folder_id)
+            .ok_or(StorageError::CacheNotAvailable(*folder_id))?;
 
-        self.current = Some(summary.clone());
+        let mut current = self.current.lock();
+        *current = Some(summary.clone());
+
         Ok(ReadEvent::ReadVault)
     }
 
-    fn close_folder(&mut self) {
-        self.current = None;
+    fn close_folder(&self) {
+        let mut current = self.current.lock();
+        *current = None;
     }
 
     async fn import_folder_patches(

@@ -256,7 +256,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
 
             if !is_shell {
-                owner.open_folder(&summary).await?;
+                owner.open_folder(summary.id()).await?;
             }
 
             let ids = owner.secret_ids(&summary).await?;
@@ -329,7 +329,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     .selected_account()
                     .ok_or(Error::NoSelectedAccount)?;
                 if !is_shell {
-                    owner.open_folder(&summary).await?;
+                    owner.open_folder(summary.id()).await?;
                 }
             }
 

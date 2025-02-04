@@ -42,7 +42,7 @@ async fn network_sync_listen_folder_import() -> Result<()> {
     // using the same vault data ensures the same identifier
     // which means we will trigger the WriteEvent::UpdateVault
     // path when sync happens
-    device1.owner.open_folder(&new_folder).await?;
+    device1.owner.open_folder(new_folder.id()).await?;
     let mut vault = {
         let storage = device1.owner.storage().await;
         let reader = storage.read().await;
@@ -72,7 +72,7 @@ async fn network_sync_listen_folder_import() -> Result<()> {
     sync_pause(Some(1500)).await;
 
     // Ensure we can open and write to the synced folder
-    device2.owner.open_folder(&new_folder).await?;
+    device2.owner.open_folder(new_folder.id()).await?;
     let (meta, secret) =
         mock::note("note_second_owner", "listen_import_folder");
     let result = device2

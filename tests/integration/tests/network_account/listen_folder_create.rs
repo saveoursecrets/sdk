@@ -55,7 +55,7 @@ async fn network_sync_listen_folder_create() -> Result<()> {
     assert_eq!(1, num_events(&mut device2.owner, new_folder.id()).await);
 
     // Ensure we can open and write to the synced folder
-    device2.owner.open_folder(&new_folder).await?;
+    device2.owner.open_folder(new_folder.id()).await?;
     let (meta, secret) =
         mock::note("note_second_owner", "listen_create_folder");
     let result = device2

@@ -624,7 +624,7 @@ async fn resolve_verify<'a>(
         let owner = user.read().await;
         let owner =
             owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-        owner.open_folder(&summary).await?;
+        owner.open_folder(summary.id()).await?;
     }
 
     let (secret_id, meta) =
@@ -725,7 +725,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 let owner = owner
                     .selected_account()
                     .ok_or(Error::NoSelectedAccount)?;
-                owner.open_folder(&summary).await?;
+                owner.open_folder(summary.id()).await?;
             }
 
             let mut owner = user.write().await;
@@ -1269,7 +1269,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     .await?;
                 success("Restored from archive");
                 if let Some(folder) = original_folder {
-                    owner.open_folder(&folder).await?;
+                    owner.open_folder(folder.id()).await?;
                 }
             }
         }

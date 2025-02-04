@@ -46,6 +46,7 @@ where
         .collect();
 
     for target in targets {
+        /*
         let storage = account.storage().await;
         let reader = storage.read().await;
 
@@ -92,6 +93,9 @@ where
             hashes.push(hex::encode(sha1));
             records.push(record);
         }
+        */
+
+        todo!("restore security report...");
     }
 
     let database_checks =

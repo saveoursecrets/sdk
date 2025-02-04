@@ -2,8 +2,8 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use maplit2::{hashmap, hashset};
 use sos_account::{Account, FolderCreate, LocalAccount};
-use sos_search::{ArchiveFilter, DocumentView, QueryFilter};
 use sos_sdk::prelude::*;
+use sos_search::{ArchiveFilter, DocumentView, QueryFilter};
 
 /// Tests querying the search index using views and search queries.
 #[tokio::test]
@@ -84,7 +84,7 @@ async fn local_search_view_query() -> Result<()> {
         .create_folder(folder_name.to_string(), Default::default())
         .await?;
 
-    account.open_folder(&folder).await?;
+    account.open_folder(folder.id()).await?;
     account.insert_secrets(new_folder_docs).await?;
 
     // Get all documents in the index.

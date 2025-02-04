@@ -68,10 +68,8 @@ async fn network_sync_recover_remote_folder() -> Result<()> {
         .await?;
 
     // Check we can read data immediately
-    let (data, _) = device
-        .owner
-        .read_secret(&id, new_folder.clone().into())
-        .await?;
+    let (data, _) =
+        device.owner.read_secret(&id, Some(new_folder.id())).await?;
     assert_eq!(meta.label(), data.meta().label());
 
     // Local should be back in sync with remote

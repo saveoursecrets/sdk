@@ -552,6 +552,7 @@ impl SharedAccess {
 }
 
 /// The vault contents
+#[doc(hidden)]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Contents {
     pub(crate) data: IndexMap<SecretId, VaultCommit>,

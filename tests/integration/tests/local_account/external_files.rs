@@ -314,9 +314,8 @@ async fn assert_move_file_secret(
         )
         .await?;
 
-    let (moved_secret_data, _) = account
-        .read_secret(&new_id, Some(destination.clone()))
-        .await?;
+    let (moved_secret_data, _) =
+        account.read_secret(&new_id, Some(destination.id())).await?;
 
     let checksum = if let Secret::File {
         content:
@@ -643,7 +642,7 @@ async fn assert_attach_file_secret(
             .await?;
 
         let (insert_field_secret_data, _) =
-            account.read_secret(&id, Some(folder.clone())).await?;
+            account.read_secret(&id, Some(folder.id())).await?;
         assert_eq!(2, insert_field_secret_data.secret().user_data().len());
 
         let inserted_attachment = insert_field_secret_data
@@ -704,7 +703,7 @@ async fn assert_attach_file_secret(
             .await?;
 
         let (delete_attachment_secret_data, _) =
-            account.read_secret(&id, Some(folder.clone())).await?;
+            account.read_secret(&id, Some(folder.id())).await?;
         assert_eq!(
             1,
             delete_attachment_secret_data.secret().user_data().len()

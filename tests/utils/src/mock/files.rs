@@ -28,7 +28,7 @@ where
     };
     let result = account.create_secret(meta, secret, options).await?;
     let (secret_data, _) = account
-        .read_secret(&result.id, Some(default_folder.clone()))
+        .read_secret(&result.id, Some(default_folder.id()))
         .await?;
 
     let file_name: ExternalFileName = if let Secret::File {
@@ -77,7 +77,7 @@ where
         .cloned()
         .unwrap_or_else(|| default_folder.clone());
     let (new_secret_data, _) =
-        account.read_secret(&new_id, Some(folder)).await?;
+        account.read_secret(&new_id, Some(folder.id())).await?;
 
     let file_name: ExternalFileName = if let Secret::File {
         content: FileContent::External { checksum, .. },
@@ -103,7 +103,7 @@ where
     E: std::error::Error + Send + Sync + 'static,
 {
     let (mut secret_data, _) = account
-        .read_secret(secret_id, Some(destination.clone()))
+        .read_secret(secret_id, Some(destination.id()))
         .await?;
     let (meta, secret, _) = mock::file_text_secret()?;
     let attachment_id = SecretId::new_v4();
@@ -122,7 +122,7 @@ where
         )
         .await?;
     let (secret_data, _) = account
-        .read_secret(&secret_id, Some(destination.clone()))
+        .read_secret(&secret_id, Some(destination.id()))
         .await?;
     let attached = secret_data
         .secret()
@@ -169,7 +169,7 @@ where
         .await?;
 
     let (updated_secret_data, _) = account
-        .read_secret(secret_data.id(), Some(destination.clone()))
+        .read_secret(secret_data.id(), Some(destination.id()))
         .await?;
     assert_eq!(1, updated_secret_data.secret().user_data().len());
 

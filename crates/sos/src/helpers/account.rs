@@ -226,7 +226,7 @@ pub async fn cd_folder(folder: Option<&FolderRef>) -> Result<()> {
     };
     let owner = USER.read().await;
     let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-    owner.open_folder(&summary).await?;
+    owner.open_folder(summary.id()).await?;
     Ok(())
 }
 

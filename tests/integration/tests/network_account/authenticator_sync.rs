@@ -46,7 +46,7 @@ async fn network_authenticator_sync() -> Result<()> {
     // will not send events when NO_SYNC is set
     assert!(desktop
         .owner
-        .read_secret(&id, Some(folder.clone()))
+        .read_secret(&id, Some(folder.id()))
         .await
         .is_err());
 
@@ -64,8 +64,7 @@ async fn network_authenticator_sync() -> Result<()> {
     assert!(sync_result.first_error().is_none());
 
     // Should be able to read the TOTP on the synced desktop device
-    let (data, _) =
-        desktop.owner.read_secret(&id, Some(folder.clone())).await?;
+    let (data, _) = desktop.owner.read_secret(&id, Some(folder.id())).await?;
     assert_eq!(TEST_ID, data.meta().label());
 
     // Desktop now has an auth folder

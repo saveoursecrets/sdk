@@ -375,14 +375,14 @@ impl ClientFolderStorage for ClientStorage {
         }
     }
 
-    async fn open_folder(&mut self, summary: &Summary) -> Result<ReadEvent> {
+    fn open_folder(&self, folder_id: &VaultId) -> Result<ReadEvent> {
         match self {
-            ClientStorage::FileSystem(fs) => fs.open_folder(summary).await,
-            ClientStorage::Database(db) => db.open_folder(summary).await,
+            ClientStorage::FileSystem(fs) => fs.open_folder(folder_id),
+            ClientStorage::Database(db) => db.open_folder(folder_id),
         }
     }
 
-    fn close_folder(&mut self) {
+    fn close_folder(&self) {
         match self {
             ClientStorage::FileSystem(fs) => fs.close_folder(),
             ClientStorage::Database(db) => db.close_folder(),

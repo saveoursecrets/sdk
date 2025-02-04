@@ -47,7 +47,7 @@ async fn network_sync_change_folder_password() -> Result<()> {
     // Check we can read in the secret data after conversion
     let (secret_data, _) = device1
         .owner
-        .read_secret(&id, Some(default_folder.clone()))
+        .read_secret(&id, Some(default_folder.id()))
         .await?;
     assert_eq!(&meta, secret_data.meta());
     assert_eq!(&secret, secret_data.secret());
@@ -77,7 +77,7 @@ async fn network_sync_change_folder_password() -> Result<()> {
     assert!(device1.owner.sync().await.first_error().is_none());
     let (secret_data, _) = device1
         .owner
-        .read_secret(&id, Some(default_folder.clone()))
+        .read_secret(&id, Some(default_folder.id()))
         .await?;
     assert_eq!(&meta, secret_data.meta());
     assert_eq!(&secret, secret_data.secret());

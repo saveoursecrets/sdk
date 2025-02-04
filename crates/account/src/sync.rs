@@ -26,37 +26,31 @@ impl StorageEventLogs for LocalAccount {
     type Error = Error;
 
     async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let storage = self.storage.read().await;
-        Ok(storage.identity_log().await?)
+        Ok(self.storage.identity_log().await?)
     }
 
     async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
-        let storage = self.storage.read().await;
-        Ok(storage.account_log().await?)
+        Ok(self.storage.account_log().await?)
     }
 
     async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
-        let storage = self.storage.read().await;
-        Ok(storage.device_log().await?)
+        Ok(self.storage.device_log().await?)
     }
 
     #[cfg(feature = "files")]
     async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
-        let storage = self.storage.read().await;
-        Ok(storage.file_log().await?)
+        Ok(self.storage.file_log().await?)
     }
 
     async fn folder_details(&self) -> Result<IndexSet<Summary>> {
-        let storage = self.storage.read().await;
-        Ok(storage.folder_details().await?)
+        Ok(self.storage.folder_details().await?)
     }
 
     async fn folder_log(
         &self,
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let storage = self.storage.read().await;
-        Ok(storage.folder_log(id).await?)
+        Ok(self.storage.folder_log(id).await?)
     }
 }
 
@@ -68,8 +62,7 @@ impl ForceMerge for LocalAccount {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let mut storage = self.storage.write().await;
-        Ok(storage.force_merge_identity(diff, outcome).await?)
+        Ok(self.storage.force_merge_identity(diff, outcome).await?)
     }
 
     /// Force merge changes to the files event log.
@@ -79,8 +72,10 @@ impl ForceMerge for LocalAccount {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
-        let mut storage = self.storage.write().await;
-        Ok(storage.force_merge_folder(folder_id, diff, outcome).await?)
+        Ok(self
+            .storage
+            .force_merge_folder(folder_id, diff, outcome)
+            .await?)
     }
 }
 
@@ -92,8 +87,7 @@ impl Merge for LocalAccount {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        let mut storage = self.storage.write().await;
-        Ok(storage.merge_identity(diff, outcome).await?)
+        Ok(self.storage.merge_identity(diff, outcome).await?)
     }
 
     async fn merge_account(
@@ -101,8 +95,7 @@ impl Merge for LocalAccount {
         diff: AccountDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<(CheckedPatch, HashSet<VaultId>)> {
-        let mut storage = self.storage.write().await;
-        Ok(storage.merge_account(diff, outcome).await?)
+        Ok(self.storage.merge_account(diff, outcome).await?)
     }
 
     async fn merge_device(
@@ -110,8 +103,7 @@ impl Merge for LocalAccount {
         diff: DeviceDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        let mut storage = self.storage.write().await;
-        Ok(storage.merge_device(diff, outcome).await?)
+        Ok(self.storage.merge_device(diff, outcome).await?)
     }
 
     #[cfg(feature = "files")]
@@ -120,8 +112,7 @@ impl Merge for LocalAccount {
         diff: FileDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<CheckedPatch> {
-        let mut storage = self.storage.write().await;
-        Ok(storage.merge_files(diff, outcome).await?)
+        Ok(self.storage.merge_files(diff, outcome).await?)
     }
 
     async fn merge_folder(
@@ -130,8 +121,7 @@ impl Merge for LocalAccount {
         diff: FolderDiff,
         outcome: &mut MergeOutcome,
     ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
-        let mut storage = self.storage.write().await;
-        Ok(storage.merge_folder(folder_id, diff, outcome).await?)
+        Ok(self.storage.merge_folder(folder_id, diff, outcome).await?)
     }
 }
 

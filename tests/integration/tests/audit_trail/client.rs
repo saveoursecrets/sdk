@@ -134,9 +134,8 @@ async fn simulate_session(
         .await?;
 
     // Read the secret
-    let (secret_data, _) = account
-        .read_secret(&id, Some(default_folder.clone()))
-        .await?;
+    let (secret_data, _) =
+        account.read_secret(&id, Some(default_folder.id())).await?;
     // Update the secret
     let mut new_meta = secret_data.meta().clone();
     new_meta.set_label("Audit note updated".to_string());

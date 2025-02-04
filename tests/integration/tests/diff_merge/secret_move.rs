@@ -99,16 +99,15 @@ async fn diff_merge_secret_move() -> Result<()> {
 
     // Check we can't read the secret in the source folder (from)
     let err = remote
-        .read_secret(&new_id, Some(default_folder.clone()))
+        .read_secret(&new_id, Some(default_folder.id()))
         .await
         .err()
         .unwrap();
     assert!(err.is_secret_not_found());
 
     // Check we can read it in the destination folder (to)
-    remote.open_folder(&summary).await?;
-    let (data, _) =
-        remote.read_secret(&new_id, Some(summary.clone())).await?;
+    remote.open_folder(summary.id()).await?;
+    let (data, _) = remote.read_secret(&new_id, Some(summary.id())).await?;
     assert_eq!(&meta, data.meta());
     assert_eq!(&secret, data.secret());
 

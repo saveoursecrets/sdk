@@ -919,9 +919,9 @@ impl Account for NetworkAccount {
         account.verify(key).await
     }
 
-    async fn open_folder(&self, summary: &Summary) -> Result<()> {
+    async fn open_folder(&self, folder_id: &VaultId) -> Result<()> {
         let account = self.account.lock().await;
-        Ok(account.open_folder(summary).await?)
+        Ok(account.open_folder(folder_id).await?)
     }
 
     async fn current_folder(&self) -> Result<Option<Summary>> {
@@ -1413,7 +1413,7 @@ impl Account for NetworkAccount {
     async fn read_secret(
         &self,
         secret_id: &SecretId,
-        folder: Option<Summary>,
+        folder: Option<&VaultId>,
     ) -> Result<(SecretRow, ReadEvent)> {
         let account = self.account.lock().await;
         Ok(account.read_secret(secret_id, folder).await?)
@@ -1694,7 +1694,7 @@ impl Account for NetworkAccount {
     async fn load_avatar(
         &self,
         secret_id: &SecretId,
-        folder: Option<Summary>,
+        folder: Option<&VaultId>,
     ) -> Result<Option<Vec<u8>>> {
         let account = self.account.lock().await;
         Ok(account.load_avatar(secret_id, folder).await?)
@@ -1705,7 +1705,7 @@ impl Account for NetworkAccount {
         &self,
         path: impl AsRef<Path> + Send + Sync,
         secret_id: &SecretId,
-        folder: Option<Summary>,
+        folder: Option<&VaultId>,
     ) -> Result<()> {
         let account = self.account.lock().await;
         Ok(account.export_contact(path, secret_id, folder).await?)

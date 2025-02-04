@@ -38,7 +38,7 @@ async fn network_sync_folder_import() -> Result<()> {
     // using the same vault data ensures the same identifier
     // which means we will trigger the WriteEvent::UpdateVault
     // path when sync happens
-    device.owner.open_folder(&new_folder).await?;
+    device.owner.open_folder(new_folder.id()).await?;
     let mut vault = {
         let storage = device.owner.storage().await;
         let reader = storage.read().await;

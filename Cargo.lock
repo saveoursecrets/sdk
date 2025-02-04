@@ -4933,6 +4933,7 @@ dependencies = [
  "futures",
  "hex",
  "indexmap 2.7.1",
+ "parking_lot",
  "rustc_version",
  "secrecy",
  "serde",

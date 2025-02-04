@@ -117,10 +117,10 @@ pub trait ClientFolderStorage {
         F: FnMut(&&Summary) -> bool;
 
     /// Mark a folder as the currently open folder.
-    async fn open_folder(&mut self, summary: &Summary) -> Result<ReadEvent>;
+    fn open_folder(&self, folder_id: &VaultId) -> Result<ReadEvent>;
 
     /// Close the current open folder.
-    fn close_folder(&mut self);
+    fn close_folder(&self);
 
     /// Create folders from a collection of folder patches.
     ///

@@ -77,7 +77,7 @@ async fn diff_merge_folder_create() -> Result<()> {
     assert_eq!(2, folders.len());
 
     // Open the folder for writing
-    remote.open_folder(&summary).await?;
+    remote.open_folder(summary.id()).await?;
 
     // Check we can write to the new folder
     let (meta, secret) = mock::note("note", TEST_ID);

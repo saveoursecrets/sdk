@@ -101,7 +101,7 @@ impl SimulatedDevice {
         owner.add_server(origin.clone()).await?;
 
         // Use the default folder
-        owner.open_folder(&self.default_folder).await?;
+        owner.open_folder(self.default_folder.id()).await?;
 
         Ok(SimulatedDevice {
             id: connection_id,

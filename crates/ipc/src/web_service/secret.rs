@@ -114,7 +114,10 @@ where
         return status(StatusCode::NOT_FOUND);
     };
 
-    match account.read_secret(request.secret_id(), Some(folder)).await {
+    match account
+        .read_secret(request.secret_id(), Some(folder.id()))
+        .await
+    {
         Ok(result) => {
             let mut secret_row = result.0;
             let redacted = secret_row.secret_mut().redact(true, 12);
@@ -256,7 +259,10 @@ where
         return status(StatusCode::NOT_FOUND);
     };
 
-    match account.load_avatar(request.secret_id(), Some(folder)).await {
+    match account
+        .load_avatar(request.secret_id(), Some(folder.id()))
+        .await
+    {
         Ok(maybe_avatar) => {
             let Some(png_bytes) = maybe_avatar else {
                 return status(StatusCode::NOT_FOUND);
