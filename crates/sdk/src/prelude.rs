@@ -2,11 +2,11 @@
 pub use crate::device::*;
 pub use crate::events::*;
 pub use sos_core::{
-    constants::*, crypto::*, decode, encode, ErrorExt, FolderRef, Paths,
-    SecretId, SecretPath, UtcDateTime, VaultCommit, VaultEntry, VaultFlags,
-    VaultId,
+    constants::*, crypto::*, decode, encode, AccountRef, ErrorExt, FolderRef,
+    Paths, PublicIdentity, SecretId, SecretPath, UtcDateTime, VaultCommit,
+    VaultEntry, VaultFlags, VaultId,
 };
-pub use sos_login::{AccountRef, Identity, IdentityFolder, PublicIdentity};
+pub use sos_login::{Identity, IdentityFolder};
 pub use sos_password::diceware::generate_passphrase;
 pub use sos_vault::{
     secret::{

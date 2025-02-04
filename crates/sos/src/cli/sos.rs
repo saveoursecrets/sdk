@@ -9,9 +9,8 @@ use crate::{
     CommandTree, Result,
 };
 use clap::{CommandFactory, Parser, Subcommand};
-use sos_core::{FolderRef, Paths};
+use sos_core::{AccountRef, FolderRef, Paths};
 use sos_protocol::network_client::set_user_agent;
-use sos_sdk::identity::AccountRef;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]

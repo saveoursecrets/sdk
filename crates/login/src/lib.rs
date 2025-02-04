@@ -15,7 +15,7 @@ pub use identity_folder::IdentityFolder;
 pub use private_identity::PrivateIdentity;
 
 // DO NOT USE - backwards compatible re-exports
-pub use sos_core::{AccountRef, PublicIdentity};
+pub use sos_core::PublicIdentity;
 
 pub use error::Error;
 

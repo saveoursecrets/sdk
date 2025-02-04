@@ -6,9 +6,8 @@ use crate::{
     Error, Result,
 };
 use clap::Subcommand;
-use sos_core::Origin;
+use sos_core::{AccountRef, Origin};
 use sos_protocol::{AccountSync, SyncOptions};
-use sos_sdk::identity::AccountRef;
 use url::Url;
 
 #[derive(Subcommand, Debug)]

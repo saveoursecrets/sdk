@@ -12,16 +12,13 @@ use crate::{
 use clap::Subcommand;
 use enum_iterator::all;
 use sos_account::Account;
-
+use sos_core::{AccountRef, Paths, PublicIdentity};
 use sos_filesystem::archive::{
     AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
 };
 use sos_migrate::import::{ImportFormat, ImportTarget};
 use sos_net::NetworkAccount;
-use sos_sdk::{
-    identity::{AccountRef, PublicIdentity},
-    vfs, Paths,
-};
+use sos_vfs as vfs;
 use std::{path::PathBuf, sync::Arc};
 use tokio::io::BufReader;
 

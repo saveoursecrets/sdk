@@ -6,11 +6,11 @@ use clap::Subcommand;
 use sos_account::Account;
 use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
-    Origin,
+    events::EventLog,
+    AccountRef, Origin,
 };
 use sos_net::NetworkAccount;
 use sos_protocol::{AccountSync, SyncOptions};
-use sos_sdk::{events::EventLog, identity::AccountRef};
 use sos_sync::{StorageEventLogs, SyncStatus, SyncStorage};
 use url::Url;
 

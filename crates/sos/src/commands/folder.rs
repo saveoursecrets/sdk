@@ -11,9 +11,8 @@ use hex;
 use sos_account::{Account, FolderCreate};
 use sos_core::{
     events::{EventLog, LogEvent},
-    FolderRef,
+    AccountRef, FolderRef,
 };
-use sos_sdk::identity::AccountRef;
 use sos_sync::StorageEventLogs;
 
 #[derive(Subcommand, Debug)]

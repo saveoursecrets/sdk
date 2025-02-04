@@ -11,14 +11,13 @@ use clap::Subcommand;
 use sos_account::Account;
 use sos_backend::FolderEventLog;
 use sos_core::VaultId;
-use sos_reducers::FolderReducer;
-use sos_sdk::{
+use sos_core::{
     constants::EVENT_LOG_EXT,
     crypto::{AccessKey, Cipher, KeyDerivation},
-    encode,
-    identity::AccountRef,
-    vfs, Paths,
+    encode, AccountRef, Paths,
 };
+use sos_reducers::FolderReducer;
+use sos_vfs as vfs;
 use std::path::PathBuf;
 use terminal_banner::{Banner, Padding};
 

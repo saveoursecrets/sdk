@@ -28,11 +28,12 @@ use sos_core::{
         AccountEvent, DeviceEvent, Event, EventKind, EventLog, EventRecord,
         ReadEvent, WriteEvent,
     },
-    AccountId, FolderRef, Paths, SecretId, UtcDateTime, VaultCommit, VaultId,
+    AccountId, AccountRef, FolderRef, Paths, SecretId, UtcDateTime,
+    VaultCommit, VaultId,
 };
 use sos_login::{
     device::{DeviceManager, DeviceSigner},
-    AccountRef, FolderKeys, Identity, PublicIdentity,
+    FolderKeys, Identity, PublicIdentity,
 };
 use sos_reducers::FolderReducer;
 use sos_sync::{CreateSet, StorageEventLogs};

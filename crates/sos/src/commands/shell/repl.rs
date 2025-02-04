@@ -4,15 +4,12 @@ use crate::{
         SecretCommand, ServerCommand, SyncCommand,
     },
     helpers::account::{cd_folder, switch, USER},
-    Error,
+    Error, Result,
 };
 use clap::{CommandFactory, Parser, Subcommand};
 use sos_account::Account;
-use sos_core::FolderRef;
-use sos_sdk::identity::AccountRef;
+use sos_core::{AccountRef, FolderRef};
 use std::ffi::OsString;
-
-use crate::Result;
 
 /// Secret storage shell.
 #[derive(Parser, Debug)]

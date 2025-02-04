@@ -8,7 +8,7 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_account::Account;
-use sos_sdk::{device::TrustedDevice, identity::AccountRef};
+use sos_core::{device::TrustedDevice, AccountRef};
 use std::sync::Arc;
 
 #[derive(Subcommand, Debug)]
