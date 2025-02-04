@@ -8,7 +8,7 @@ use sos_account::{
     FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
     SecretDelete, SecretInsert, SecretMove,
 };
-use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
+use sos_backend::{AccountEventLog, DeviceEventLog, Folder, FolderEventLog};
 use sos_client_storage::{AccessOptions, ClientStorage, NewFolderOptions};
 use sos_core::{
     commit::{CommitHash, CommitState, Comparison},
@@ -135,6 +135,11 @@ impl Account for LinkedAccount {
 
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
+    }
+
+    async fn folder(&self, folder_id: &VaultId) -> Result<Folder> {
+        let account = self.account.lock().await;
+        Ok(account.folder(folder_id).await?)
     }
 
     async fn is_authenticated(&self) -> bool {

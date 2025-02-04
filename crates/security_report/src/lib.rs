@@ -46,14 +46,11 @@ where
         .collect();
 
     for target in targets {
-        /*
-        let storage = account.storage().await;
-        let reader = storage.read().await;
+        let folder = account.folder(target.id()).await?;
+        let access_point = folder.access_point();
+        let access_point = access_point.lock().await;
 
-        let folder = reader.folders().get(target.id()).unwrap();
-        let keeper = folder.keeper();
-
-        let vault = keeper.vault();
+        let vault = access_point.vault();
         let mut password_hashes: Vec<(
             SecretId,
             (Option<Entropy>, Vec<u8>),
@@ -63,7 +60,7 @@ where
         if let Some(target) = &options.target {
             secret_security_report::<E>(
                 &target.1,
-                keeper,
+                &*access_point,
                 &mut password_hashes,
                 target.2.as_ref(),
             )
@@ -72,7 +69,7 @@ where
             for secret_id in vault.keys() {
                 secret_security_report::<E>(
                     secret_id,
-                    keeper,
+                    &*access_point,
                     &mut password_hashes,
                     None,
                 )
@@ -93,9 +90,6 @@ where
             hashes.push(hex::encode(sha1));
             records.push(record);
         }
-        */
-
-        todo!("restore security report...");
     }
 
     let database_checks =
@@ -245,7 +239,7 @@ pub struct SecurityReportRecord {
 
 async fn secret_security_report<E>(
     secret_id: &SecretId,
-    keeper: &AccessPoint,
+    access_point: &AccessPoint,
     password_hashes: &mut Vec<(
         SecretId,
         (Option<Entropy>, Vec<u8>),
@@ -258,7 +252,9 @@ where
         + From<sos_backend::StorageError>
         + From<sos_backend::Error>,
 {
-    if let Some((_meta, secret, _)) = keeper.read_secret(secret_id).await? {
+    if let Some((_meta, secret, _)) =
+        access_point.read_secret(secret_id).await?
+    {
         for field in secret.user_data().fields().iter().filter(|field| {
             if let Some(field_id) = target_field {
                 return field_id == field.id();

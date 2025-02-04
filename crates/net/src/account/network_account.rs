@@ -8,7 +8,7 @@ use sos_account::{
     FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
     SecretDelete, SecretInsert, SecretMove,
 };
-use sos_backend::ServerOrigins;
+use sos_backend::{Folder, ServerOrigins};
 use sos_client_storage::{
     AccessOptions, ClientDeviceStorage, ClientStorage, NewFolderOptions,
 };
@@ -707,6 +707,11 @@ impl Account for NetworkAccount {
 
     fn paths(&self) -> Arc<Paths> {
         Arc::clone(&self.paths)
+    }
+
+    async fn folder(&self, folder_id: &VaultId) -> Result<Folder> {
+        let account = self.account.lock().await;
+        Ok(account.folder(folder_id).await?)
     }
 
     async fn is_authenticated(&self) -> bool {

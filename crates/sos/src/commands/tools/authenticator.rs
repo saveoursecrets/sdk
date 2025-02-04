@@ -57,16 +57,12 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .await
                 .ok_or(Error::NoAuthenticatorFolder)?;
 
-            todo!("restore auth export ");
+            let folder = owner.folder(authenticator.id()).await?;
+            let access_point = folder.access_point();
+            let access_point = access_point.lock().await;
 
-            /*
-            let storage = owner.storage().await;
-            let storage = storage.read().await;
-            let folder = storage.folders().get(authenticator.id()).unwrap();
-
-            export_authenticator(file, folder.keeper(), qr_codes).await?;
+            export_authenticator(file, &*access_point, qr_codes).await?;
             success("authenticator TOTP secrets exported");
-            */
         }
         Command::Import {
             account,
@@ -109,16 +105,12 @@ pub async fn run(cmd: Command) -> Result<()> {
             };
 
             if let Some(folder) = folder {
-                /*
-                let storage = owner.storage().await;
-                let mut storage = storage.write().await;
-                let folder =
-                    storage.folders_mut().get_mut(folder.id()).unwrap();
-                import_authenticator(file, folder.keeper_mut()).await?;
-                success("authenticator TOTP secrets imported");
-                */
+                let folder = owner.folder(folder.id()).await?;
+                let access_point = folder.access_point();
+                let mut access_point = access_point.lock().await;
 
-                todo!("restore auth import");
+                import_authenticator(file, &mut *access_point).await?;
+                success("authenticator TOTP secrets imported");
             }
         }
     }

@@ -251,6 +251,12 @@ pub trait Account {
     /// User storage paths.
     fn paths(&self) -> Arc<Paths>;
 
+    /// Lookup a folder in the storage.
+    async fn folder(
+        &self,
+        folder_id: &VaultId,
+    ) -> std::result::Result<Folder, Self::Error>;
+
     /// Determine if the account is authenticated.
     async fn is_authenticated(&self) -> bool;
 
@@ -1549,6 +1555,15 @@ impl Account for LocalAccount {
 
     fn paths(&self) -> Arc<Paths> {
         Arc::clone(&self.paths)
+    }
+
+    async fn folder(&self, folder_id: &VaultId) -> Result<Folder> {
+        Ok(self
+            .storage
+            .folders()
+            .get(folder_id)
+            .ok_or(StorageError::CacheNotAvailable(*folder_id))?
+            .clone())
     }
 
     async fn is_authenticated(&self) -> bool {
