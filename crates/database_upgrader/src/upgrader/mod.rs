@@ -134,7 +134,8 @@ async fn compute_fs_account_status(
             BackendTarget::FileSystem(account_paths.clone()),
         )
         .await?;
-        storage.load_all_event_commits().await?;
+        // NOTE: server storage automatically loads the
+        // NOTE: event commits into memory in the constructor
         storage.sync_status().await?
     } else {
         let storage = ClientStorage::new_unauthenticated(
@@ -162,20 +163,18 @@ async fn compute_db_account_status(
             BackendTarget::Database(client.clone()),
         )
         .await?;
+        // NOTE: server storage automatically loads the
+        // NOTE: event commits into memory in the constructor
         storage.sync_status().await?
     } else {
-        Default::default()
-        // todo!("compute for client accounts");
-        /*
-        let storage = ClientFileSystemStorage::new_unauthenticated(
-            *account.account_id(),
-            account_paths.clone(),
+        let storage = ClientStorage::new_unauthenticated(
+            account_paths,
+            account.account_id(),
+            BackendTarget::Database(client.clone()),
         )
         .await?;
-
         storage.load_all_event_commits().await?;
         storage.sync_status().await?
-        */
     };
     Ok(sync_status)
 }
@@ -211,7 +210,7 @@ pub async fn upgrade_accounts(
 
     let (accounts, sync_status) = import_accounts(&options).await?;
 
-    /*
+    // ------------------->
     for status in &sync_status {
         println!("{} <-> {}", status.0.root, status.1.root);
 
@@ -235,7 +234,7 @@ pub async fn upgrade_accounts(
             println!("{:#?} != {:#?}", status.0.folders, status.1.folders);
         }
     }
-    */
+    // ------------------->
 
     if options.copy_file_blobs {
         tracing::debug!("upgrade_accounts::copy_file_blobs");

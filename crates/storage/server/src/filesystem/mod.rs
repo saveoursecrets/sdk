@@ -20,7 +20,6 @@ use sos_vault::{EncryptedEntry, Header, Summary, Vault};
 use sos_vfs as vfs;
 use std::{
     collections::{HashMap, HashSet},
-    path::PathBuf,
     sync::Arc,
 };
 use tokio::sync::RwLock;
@@ -91,7 +90,9 @@ impl ServerFileStorage {
         let (device_log, devices) =
             Self::initialize_device_log(&*paths).await?;
 
-        let file_log = FileEventLog::new_fs_file(paths.file_events()).await?;
+        let mut file_log =
+            FileEventLog::new_fs_file(paths.file_events()).await?;
+        file_log.load_tree().await?;
 
         Ok(Self {
             account_id,

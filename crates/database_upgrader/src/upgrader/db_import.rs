@@ -111,7 +111,6 @@ pub(crate) async fn import_account(
         collect_account_events(paths.account_events()).await?;
 
     // Device vault
-    //
     let device_info = if !is_server {
         let buffer = vfs::read(paths.device_file()).await?;
         let device_vault: Vault = decode(&buffer).await?;
