@@ -5,7 +5,6 @@ mod event;
 // #[cfg(feature = "files")]
 // mod file;
 mod folder;
-mod import;
 #[cfg(feature = "preferences")]
 mod preference;
 mod server;
@@ -25,8 +24,6 @@ pub use preference::{PreferenceEntity, PreferenceRow};
 pub use server::{ServerEntity, ServerRow};
 #[cfg(feature = "system-messages")]
 pub use system_message::{SystemMessageEntity, SystemMessageRow};
-
-pub(crate) use import::{import_account, import_globals};
 
 use crate::Result;
 use async_sqlite::{Client, ClientBuilder, JournalMode};

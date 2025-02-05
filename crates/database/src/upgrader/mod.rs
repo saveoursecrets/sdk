@@ -10,6 +10,8 @@ use tempfile::NamedTempFile;
 
 use sos_filesystem::archive::AccountBackup;
 
+mod db_import;
+
 /// Options for upgrading to SQLite backend.
 #[derive(Debug)]
 pub struct UpgradeOptions {
@@ -93,14 +95,15 @@ async fn import_accounts(
         db::open_memory().await?
     };
 
-    db::import_globals(&mut client, &options.paths).await?;
+    db_import::import_globals(&mut client, &options.paths).await?;
 
     let accounts = list_accounts(Some(&options.paths)).await?;
     for account in &accounts {
         let account_paths =
             options.paths.with_account_id(account.account_id());
 
-        db::import_account(&mut client, &account_paths, &account).await?;
+        db_import::import_account(&mut client, &account_paths, &account)
+            .await?;
     }
     Ok(accounts)
 }

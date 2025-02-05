@@ -1,9 +1,11 @@
-use super::{
-    AccountEntity, AccountRow, AuditEntity, EventEntity, EventRecordRow,
-    FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, SecretRow,
-    ServerEntity, SystemMessageEntity,
+use crate::{
+    db::{
+        AccountEntity, AccountRow, AuditEntity, EventEntity, EventRecordRow,
+        FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, SecretRow,
+        ServerEntity, SystemMessageEntity, SystemMessageRow,
+    },
+    Error, Result,
 };
-use crate::{db::SystemMessageRow, Error, Result};
 use async_sqlite::{rusqlite::Transaction, Client};
 use futures::{pin_mut, StreamExt};
 use sos_audit::AuditStreamSink;
