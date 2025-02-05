@@ -1,7 +1,8 @@
 use crate::{
-    files::ExternalFileManager, filesystem::ClientFileSystemStorage,
-    ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage,
-    ClientSecretStorage, Error, Result, StorageChangeEvent,
+    database::ClientDatabaseStorage, files::ExternalFileManager,
+    filesystem::ClientFileSystemStorage, ClientAccountStorage,
+    ClientDeviceStorage, ClientFolderStorage, ClientSecretStorage, Error,
+    Result, StorageChangeEvent,
 };
 use crate::{AccessOptions, AccountPack, NewFolderOptions};
 use async_trait::async_trait;
@@ -50,12 +51,13 @@ pub enum ClientStorage {
     /// Filesystem storage.
     FileSystem(ClientFileSystemStorage),
     /// Database storage.
-    Database(ClientFileSystemStorage), // TODO!: db storage
+    Database(ClientDatabaseStorage),
 }
 
 impl ClientStorage {
     /// Create new client storage.
     pub async fn new_unauthenticated(
+        paths: &Paths,
         account_id: &AccountId,
         target: BackendTarget,
     ) -> Result<Self> {
@@ -64,13 +66,15 @@ impl ClientStorage {
                 Ok(Self::new_unauthenticated_fs(account_id, paths).await?)
             }
             BackendTarget::Database(client) => {
-                Ok(Self::new_unauthenticated_db(account_id, client).await?)
+                Ok(Self::new_unauthenticated_db(paths, account_id, client)
+                    .await?)
             }
         }
     }
 
     /// Create new client storage in authenticated state.
     pub async fn new_authenticated(
+        paths: &Paths,
         account_id: &AccountId,
         target: BackendTarget,
         authenticated_user: Identity,
@@ -86,6 +90,7 @@ impl ClientStorage {
             }
             BackendTarget::Database(client) => {
                 Ok(Self::new_authenticated_db(
+                    paths,
                     account_id,
                     client,
                     authenticated_user,
@@ -128,6 +133,7 @@ impl ClientStorage {
 
     /// Create new file system storage.
     async fn new_unauthenticated_db(
+        paths: &Paths,
         account_id: &AccountId,
         client: Client,
     ) -> Result<Self> {
@@ -136,6 +142,7 @@ impl ClientStorage {
 
     /// Create new file system storage in authenticated state.
     async fn new_authenticated_db(
+        paths: &Paths,
         account_id: &AccountId,
         client: Client,
         authenticated_user: Identity,

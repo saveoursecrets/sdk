@@ -1,4 +1,4 @@
-//! Storage backed by the filesystem.
+//! Storage backed by a database.
 use crate::{
     files::ExternalFileManager, AccessOptions, AccountPack,
     ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage,
@@ -26,6 +26,7 @@ use sos_core::{
     },
     AccountId, AuthenticationError, FolderRef, Paths, UtcDateTime,
 };
+use sos_database::async_sqlite::Client;
 use sos_login::{FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
 use sos_reducers::{DeviceReducer, FolderReducer};
@@ -62,7 +63,7 @@ use sos_search::{AccountSearch, DocumentCount};
 mod sync;
 
 /// Client storage for folders loaded into memory and mirrored to disc.
-pub struct ClientFileSystemStorage {
+pub struct ClientDatabaseStorage {
     /// Account identifier.
     pub(super) account_id: AccountId,
 
@@ -71,6 +72,8 @@ pub struct ClientFileSystemStorage {
 
     /// Directories for file storage.
     pub(super) paths: Arc<Paths>,
+
+    client: Client,
 
     // Use interior mutability so all the account functions
     // that accept an optional folder when reading do not need
@@ -114,15 +117,14 @@ pub struct ClientFileSystemStorage {
     external_file_manager: ExternalFileManager,
 }
 
-impl ClientFileSystemStorage {
+impl ClientDatabaseStorage {
     /// Create unauthenticated folder storage for client-side access.
     pub async fn new_unauthenticated(
+        paths: &Paths,
         account_id: &AccountId,
-        paths: Paths,
+        client: Client,
     ) -> Result<Self> {
         debug_assert!(!paths.is_global());
-
-        paths.ensure().await?;
 
         let identity_log = Arc::new(RwLock::new(
             FolderEventLog::new_fs_folder(paths.identity_events()).await?,
@@ -141,7 +143,7 @@ impl ClientFileSystemStorage {
             FileEventLog::new_fs_file(paths.file_events()).await?,
         ));
 
-        let paths = Arc::new(paths);
+        let paths = Arc::new(paths.clone());
 
         let mut storage = Self {
             account_id: *account_id,
@@ -149,6 +151,7 @@ impl ClientFileSystemStorage {
             current: Arc::new(Mutex::new(None)),
             folders: Default::default(),
             paths: paths.clone(),
+            client,
             identity_log,
             account_log,
             #[cfg(feature = "search")]
@@ -171,9 +174,10 @@ impl ClientFileSystemStorage {
 
     /// Create folder storage for client-side access.
     pub async fn new_authenticated(
+        paths: &Paths,
         account_id: &AccountId,
-        paths: Paths,
         authenticated_user: Identity,
+        client: Client,
     ) -> Result<Self> {
         debug_assert!(!paths.is_global());
 
@@ -182,8 +186,6 @@ impl ClientFileSystemStorage {
                 paths.documents_dir().to_path_buf(),
             ));
         }
-
-        paths.ensure().await?;
 
         let log_file = paths.account_events();
         let mut account_log =
@@ -211,7 +213,7 @@ impl ClientFileSystemStorage {
             (file_log, file_password)
         };
 
-        let paths = Arc::new(paths);
+        let paths = Arc::new(paths.clone());
 
         Ok(Self {
             account_id: *account_id,
@@ -219,6 +221,7 @@ impl ClientFileSystemStorage {
             current: Arc::new(Mutex::new(None)),
             folders: Default::default(),
             paths: paths.clone(),
+            client,
             identity_log,
             account_log: Arc::new(RwLock::new(account_log)),
             #[cfg(feature = "search")]
@@ -656,7 +659,7 @@ impl ClientFileSystemStorage {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl ClientSecretStorage for ClientFileSystemStorage {
+impl ClientSecretStorage for ClientDatabaseStorage {
     async fn create_secret(
         &mut self,
         secret_data: SecretRow,
@@ -935,7 +938,7 @@ impl ClientSecretStorage for ClientFileSystemStorage {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl ClientFolderStorage for ClientFileSystemStorage {
+impl ClientFolderStorage for ClientDatabaseStorage {
     fn folders(&self) -> &HashMap<VaultId, Folder> {
         &self.folders
     }
@@ -1340,7 +1343,7 @@ impl ClientFolderStorage for ClientFileSystemStorage {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl ClientDeviceStorage for ClientFileSystemStorage {
+impl ClientDeviceStorage for ClientDatabaseStorage {
     fn devices(&self) -> &IndexSet<TrustedDevice> {
         &self.devices
     }
@@ -1411,7 +1414,7 @@ impl ClientDeviceStorage for ClientFileSystemStorage {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl ClientAccountStorage for ClientFileSystemStorage {
+impl ClientAccountStorage for ClientDatabaseStorage {
     fn account_id(&self) -> &AccountId {
         &self.account_id
     }

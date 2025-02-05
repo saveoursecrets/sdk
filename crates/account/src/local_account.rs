@@ -157,8 +157,9 @@ impl LocalAccount {
 
         #[allow(unused_mut)]
         let mut storage = ClientStorage::new_authenticated(
+            &paths,
             account_id,
-            BackendTarget::FileSystem(paths),
+            BackendTarget::FileSystem(paths.clone()),
             user,
         )
         .await?;
@@ -638,9 +639,10 @@ impl LocalAccount {
             Paths::data_dir()?
         };
 
-        let paths = Paths::new(data_dir, account_id.to_string());
+        let paths = Paths::new_global(data_dir).with_account_id(&account_id);
 
         let storage = ClientStorage::new_unauthenticated(
+            &paths,
             &account_id,
             BackendTarget::FileSystem(paths.clone()),
         )
@@ -713,13 +715,10 @@ impl LocalAccount {
         let (authenticated_user, public_account) = new_account.into();
 
         let mut storage = ClientStorage::new_authenticated(
+            &paths,
             &account_id,
-            BackendTarget::FileSystem(paths),
+            BackendTarget::FileSystem(paths.clone()),
             authenticated_user,
-            /*
-            identity_log,
-            new_account.user.identity()?.devices()?.current_device(None),
-            */
         )
         .await?;
 
@@ -781,6 +780,7 @@ impl Account for LocalAccount {
         let paths = self.paths();
 
         let mut storage = ClientStorage::new_unauthenticated(
+            &*paths,
             &account_id,
             BackendTarget::FileSystem((&*paths).clone()),
         )

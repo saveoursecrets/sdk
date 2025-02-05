@@ -9,6 +9,7 @@ use sos_core::{
 };
 use sos_vault::{Summary, Vault, VaultFlags};
 
+mod database;
 mod error;
 #[cfg(feature = "files")]
 pub mod files;

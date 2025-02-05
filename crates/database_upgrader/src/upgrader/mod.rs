@@ -138,6 +138,7 @@ async fn compute_fs_account_status(
         storage.sync_status().await?
     } else {
         let storage = ClientStorage::new_unauthenticated(
+            account_paths,
             account.account_id(),
             BackendTarget::FileSystem(account_paths.clone()),
         )
