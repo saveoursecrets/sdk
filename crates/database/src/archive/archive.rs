@@ -1,5 +1,5 @@
 use super::{zip::Writer, Error, Result};
-use crate::db::{AccountEntity, AccountRecord};
+use crate::entity::{AccountEntity, AccountRecord};
 use async_sqlite::rusqlite::{backup, Connection};
 use sos_core::{
     constants::{BLOBS_DIR, DATABASE_FILE},

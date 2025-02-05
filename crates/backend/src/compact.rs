@@ -4,7 +4,7 @@ use sos_core::events::{
     patch::{FolderDiff, Patch},
     EventLog, EventRecord,
 };
-use sos_database::db::open_memory;
+use sos_database::open_memory;
 use sos_filesystem::FolderEventLog as FsFolderEventLog;
 use sos_reducers::FolderReducer;
 use tempfile::NamedTempFile;

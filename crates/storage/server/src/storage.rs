@@ -20,7 +20,7 @@ use sos_core::{
 };
 use sos_database::{
     async_sqlite::Client,
-    db::{AccountEntity, FolderEntity, FolderRecord},
+    entity::{AccountEntity, FolderEntity, FolderRecord},
 };
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,

@@ -9,7 +9,7 @@ use sos_core::{Origin, VaultCommit};
 use sos_core::{Paths, PublicIdentity, SecretId};
 use sos_database::{
     async_sqlite::{rusqlite::Transaction, Client},
-    db::{
+    entity::{
         AccountEntity, AccountRow, AuditEntity, EventEntity, EventRecordRow,
         FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, SecretRow,
         ServerEntity, SystemMessageEntity, SystemMessageRow,

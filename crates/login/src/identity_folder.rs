@@ -6,12 +6,12 @@
 use crate::device::{DeviceManager, DeviceSigner};
 use crate::{Error, PrivateIdentity, Result, UrnLookup};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
-use sos_backend::database::db::FolderRecord;
 use sos_backend::{
     database::{
         async_sqlite::Client,
-        db::{
-            AccountEntity, AccountRow, FolderEntity, FolderRow, SecretRecord,
+        entity::{
+            AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
+            SecretRecord,
         },
     },
     write_exclusive, AccessPoint, Folder, FolderEventLog,

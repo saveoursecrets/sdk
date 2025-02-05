@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_sqlite::ClientBuilder;
-use sos_database::{db::open_file, migrations::migrate_client};
+use sos_database::{migrations::migrate_client, open_file};
 use tempfile::NamedTempFile;
 
 #[tokio::test]

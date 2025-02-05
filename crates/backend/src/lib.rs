@@ -41,7 +41,7 @@ pub use event_log::BackendFileEventLog as FileEventLog;
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 use sos_core::{AccountId, PublicIdentity};
-use sos_database::db::{
+use sos_database::entity::{
     AccountEntity, AccountRecord, FolderEntity, FolderRecord,
 };
 

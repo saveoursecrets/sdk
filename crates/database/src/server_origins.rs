@@ -1,5 +1,5 @@
 use crate::{
-    db::{AccountEntity, ServerEntity, ServerRow},
+    entity::{AccountEntity, ServerEntity, ServerRow},
     Error,
 };
 use async_sqlite::Client;

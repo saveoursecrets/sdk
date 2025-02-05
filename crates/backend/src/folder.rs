@@ -11,7 +11,7 @@ use sos_core::{
 use sos_core::{constants::EVENT_LOG_EXT, decode};
 use sos_database::{
     async_sqlite::Client,
-    db::{FolderEntity, FolderRecord, SecretRecord},
+    entity::{FolderEntity, FolderRecord, SecretRecord},
     VaultDatabaseWriter,
 };
 use sos_filesystem::VaultFileWriter;

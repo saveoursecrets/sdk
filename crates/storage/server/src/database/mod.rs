@@ -16,7 +16,7 @@ use sos_core::{
     AccountId, Paths, VaultId,
 };
 use sos_database::async_sqlite::Client;
-use sos_database::db::{
+use sos_database::entity::{
     AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
 };
 use sos_reducers::{DeviceReducer, FolderReducer};

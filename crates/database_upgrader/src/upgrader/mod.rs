@@ -2,7 +2,7 @@
 use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use sos_core::{Paths, PublicIdentity};
-use sos_database::{db, migrations::migrate_client};
+use sos_database::{migrations::migrate_client, open_file, open_memory};
 use sos_external_files::list_external_files;
 use sos_filesystem::archive::AccountBackup;
 use sos_vault::list_accounts;
@@ -88,11 +88,11 @@ async fn import_accounts(
             .db_file
             .as_ref()
             .unwrap_or(options.paths.database_file());
-        let mut client = db::open_file(db_file).await?;
+        let mut client = open_file(db_file).await?;
         migrate_client(&mut client).await?;
         client
     } else {
-        db::open_memory().await?
+        open_memory().await?
     };
 
     db_import::import_globals(&mut client, &options.paths).await?;

@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    db::{AccountEntity, SystemMessageEntity, SystemMessageRow},
+    entity::{AccountEntity, SystemMessageEntity, SystemMessageRow},
     Error,
 };
 use async_sqlite::Client;

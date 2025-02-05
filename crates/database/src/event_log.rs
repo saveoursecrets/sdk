@@ -1,6 +1,6 @@
 //! Event log backed by a database table.
 use crate::{
-    db::{
+    entity::{
         AccountEntity, AccountRecord, CommitRecord, EventEntity,
         EventRecordRow, FolderEntity, FolderRecord,
     },

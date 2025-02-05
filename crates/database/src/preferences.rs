@@ -1,5 +1,5 @@
 use crate::{
-    db::{AccountEntity, PreferenceEntity, PreferenceRow},
+    entity::{AccountEntity, PreferenceEntity, PreferenceRow},
     Error,
 };
 use async_sqlite::Client;

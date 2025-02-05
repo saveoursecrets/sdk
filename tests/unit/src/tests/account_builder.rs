@@ -2,7 +2,7 @@ use anyhow::Result;
 use sos_account::AccountBuilder;
 use sos_backend::BackendTarget;
 use sos_core::Paths;
-use sos_database::{db::open_file, migrations::migrate_client};
+use sos_database::{migrations::migrate_client, open_file};
 use sos_login::Identity;
 use sos_password::memorable;
 use sos_sdk::crypto::AccessKey;

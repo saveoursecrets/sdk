@@ -1,6 +1,6 @@
 //! Write vault changes to a database.
 use crate::{
-    db::{FolderEntity, FolderRecord, SecretRecord, SecretRow},
+    entity::{FolderEntity, FolderRecord, SecretRecord, SecretRow},
     Error,
 };
 use async_sqlite::Client;

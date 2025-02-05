@@ -16,7 +16,7 @@ use sos_core::{
     },
     VaultId,
 };
-use sos_database::db::{
+use sos_database::entity::{
     AccountEntity, FolderEntity, FolderRecord, FolderRow,
 };
 use sos_reducers::{DeviceReducer, FolderReducer};
@@ -428,9 +428,11 @@ impl StorageEventLogs for ServerDatabaseStorage {
         &self,
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
-        Ok(Arc::clone(self.folders.get(id).ok_or(
-            sos_backend::StorageError::FolderNotFound(*id),
-        )?))
+        Ok(Arc::clone(
+            self.folders
+                .get(id)
+                .ok_or(sos_backend::StorageError::FolderNotFound(*id))?,
+        ))
     }
 }
 

@@ -17,9 +17,12 @@ use sos_core::{
     events::{EventLog, EventLogType, EventRecord, WriteEvent},
     AccountId, SecretId, VaultEntry,
 };
-use sos_database::db::{
-    open_file, AccountEntity, AccountRow, EventEntity, EventRecordRow,
-    FolderEntity, FolderRow,
+use sos_database::{
+    entity::{
+        AccountEntity, AccountRow, EventEntity, EventRecordRow, FolderEntity,
+        FolderRow,
+    },
+    open_file,
 };
 use sos_password::diceware::generate_passphrase;
 use sos_vault::{
@@ -198,7 +201,7 @@ pub async fn file_database() -> Result<(NamedTempFile, Client)> {
 
 /// Create an in-memory database and run migrations.
 pub async fn memory_database() -> Result<Client> {
-    Ok(sos_database::db::open_memory().await?)
+    Ok(sos_database::open_memory().await?)
 }
 
 /// Create a database account.

@@ -1,5 +1,5 @@
 use super::{types::ManifestVersion3, zip::Reader, Error, Result};
-use crate::db::{
+use crate::entity::{
     AccountEntity, AccountRecord, AccountRow, EventEntity, EventRecordRow,
     FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, SecretRow,
     ServerEntity, ServerRow, SystemMessageEntity, SystemMessageRow,
