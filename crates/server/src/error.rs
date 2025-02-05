@@ -162,7 +162,7 @@ impl Error {
             Self::Forbidden => StatusCode::FORBIDDEN,
             Self::Conflict => StatusCode::CONFLICT,
             Self::BackendStorage(
-                sos_backend::StorageError::CacheNotAvailable(_),
+                sos_backend::StorageError::FolderNotFound(_),
             ) => StatusCode::NOT_FOUND,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }

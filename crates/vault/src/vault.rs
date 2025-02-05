@@ -16,7 +16,8 @@ use sos_core::{
     encoding::{encoding_options, VERSION},
     events::{ReadEvent, WriteEvent},
     file_identity::FileIdentity,
-    SecretId, UtcDateTime, VaultCommit, VaultEntry, VaultFlags, VaultId,
+    AuthenticationError, SecretId, UtcDateTime, VaultCommit, VaultEntry,
+    VaultFlags, VaultId,
 };
 use sos_vfs::File;
 use std::io::Cursor;
@@ -761,7 +762,7 @@ impl Vault {
         let _ = self
             .decrypt(&private_key, meta_aead)
             .await
-            .map_err(|_| Error::PassphraseVerification)?;
+            .map_err(|_| AuthenticationError::PasswordVerification)?;
 
         Ok(())
     }

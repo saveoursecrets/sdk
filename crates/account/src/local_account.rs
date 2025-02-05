@@ -307,7 +307,7 @@ impl LocalAccount {
                 .storage
                 .folders()
                 .get(folder.id())
-                .ok_or(StorageError::CacheNotAvailable(*folder.id()))?
+                .ok_or(StorageError::FolderNotFound(*folder.id()))?
                 .commit_state()
                 .await?;
 
@@ -760,7 +760,7 @@ impl Account for LocalAccount {
             .storage
             .folders()
             .get(folder_id)
-            .ok_or(StorageError::CacheNotAvailable(*folder_id))?
+            .ok_or(StorageError::FolderNotFound(*folder_id))?
             .clone())
     }
 
@@ -1215,7 +1215,7 @@ impl Account for LocalAccount {
     async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
         let folder =
             self.storage.folders().get(summary.id()).ok_or_else(|| {
-                StorageError::CacheNotAvailable(*summary.id())
+                StorageError::FolderNotFound(*summary.id())
             })?;
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
@@ -1339,7 +1339,7 @@ impl Account for LocalAccount {
 
         let folder =
             self.storage.folders().get(summary.id()).ok_or_else(|| {
-                StorageError::CacheNotAvailable(*summary.id())
+                StorageError::FolderNotFound(*summary.id())
             })?;
 
         let event_log = folder.event_log();

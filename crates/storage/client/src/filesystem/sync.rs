@@ -62,7 +62,7 @@ impl StorageEventLogs for ClientFileSystemStorage {
         let folder = self
             .folders
             .get(id)
-            .ok_or(StorageError::CacheNotAvailable(*id))?;
+            .ok_or(StorageError::FolderNotFound(*id))?;
         Ok(folder.event_log())
     }
 }
@@ -112,7 +112,7 @@ impl ForceMerge for ClientFileSystemStorage {
         let folder = self
             .folders
             .get_mut(folder_id)
-            .ok_or_else(|| StorageError::CacheNotAvailable(*folder_id))?;
+            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
         folder.force_merge(&diff).await?;
 
         outcome.changes += len;
@@ -362,7 +362,7 @@ impl Merge for ClientFileSystemStorage {
             let folder = self
                 .folders
                 .get_mut(folder_id)
-                .ok_or_else(|| StorageError::CacheNotAvailable(*folder_id))?;
+                .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
 
             #[cfg(feature = "search")]
             {

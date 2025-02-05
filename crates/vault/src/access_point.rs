@@ -8,7 +8,8 @@ use sos_core::{
     crypto::{AccessKey, AeadPack, KeyDerivation, PrivateKey},
     decode, encode,
     events::{ReadEvent, WriteEvent},
-    SecretId, VaultCommit, VaultEntry, VaultFlags, VaultId,
+    AuthenticationError, SecretId, VaultCommit, VaultEntry, VaultFlags,
+    VaultId,
 };
 use sos_vfs as vfs;
 use std::path::Path;
@@ -345,11 +346,14 @@ where
     ) -> Result<VaultMeta, E> {
         let private_key =
             self.private_key.as_ref().ok_or(Error::VaultLocked)?;
-        let meta_blob = self
-            .vault
-            .decrypt(private_key, meta_aead)
-            .await
-            .map_err(|_| Error::PassphraseVerification)?;
+        let meta_blob =
+            self.vault.decrypt(private_key, meta_aead).await.map_err(
+                |_| {
+                    sos_core::Error::from(
+                        AuthenticationError::PasswordVerification,
+                    )
+                },
+            )?;
         Ok(decode(&meta_blob).await?)
     }
 

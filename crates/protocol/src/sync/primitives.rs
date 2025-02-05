@@ -310,7 +310,7 @@ impl SyncComparison {
         for (id, folder) in &self.folders {
             let commit_state =
                 self.remote_status.folders.get(id).ok_or(
-                    sos_backend::StorageError::CacheNotAvailable(*id),
+                    sos_backend::StorageError::FolderNotFound(*id),
                 )?;
 
             match folder {

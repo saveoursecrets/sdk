@@ -355,7 +355,7 @@ impl Merge for ServerDatabaseStorage {
         );
 
         let log = self.folders.get_mut(folder_id).ok_or_else(|| {
-            sos_backend::StorageError::CacheNotAvailable(*folder_id)
+            sos_backend::StorageError::FolderNotFound(*folder_id)
         })?;
         let mut log = log.write().await;
 
@@ -429,7 +429,7 @@ impl StorageEventLogs for ServerDatabaseStorage {
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>> {
         Ok(Arc::clone(self.folders.get(id).ok_or(
-            sos_backend::StorageError::CacheNotAvailable(*id),
+            sos_backend::StorageError::FolderNotFound(*id),
         )?))
     }
 }

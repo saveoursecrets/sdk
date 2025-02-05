@@ -1,5 +1,5 @@
-//! Error type for the client module.
-use sos_core::Origin;
+//! Error type for network accounts.
+use sos_core::{AuthenticationError, Origin};
 use sos_core::{ErrorExt, VaultId};
 use sos_protocol::{transfer::CancelReason, AsConflict, ConflictError};
 use std::error::Error as StdError;
@@ -160,7 +160,12 @@ impl ErrorExt for Error {
     }
 
     fn is_permission_denied(&self) -> bool {
-        matches!(self, Error::Vault(sos_vault::Error::PassphraseVerification))
+        matches!(
+            self,
+            Error::Vault(sos_vault::Error::Authentication(
+                AuthenticationError::PasswordVerification
+            ))
+        )
     }
 }
 
