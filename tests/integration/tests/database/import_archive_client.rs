@@ -2,11 +2,8 @@ use super::{assert_import_archive, prepare_client_for_upgrade};
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_core::Paths;
-use sos_database::{
-    archive,
-    async_sqlite::rusqlite::Connection,
-    upgrader::{upgrade_accounts, UpgradeOptions},
-};
+use sos_database::{archive, async_sqlite::rusqlite::Connection};
+use sos_database_upgrader::{upgrade_accounts, UpgradeOptions};
 
 /// Create and import a backup archive for client-side database storage.
 ///

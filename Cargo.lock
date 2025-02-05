@@ -4785,6 +4785,7 @@ dependencies = [
  "sos-client-storage",
  "sos-core",
  "sos-database",
+ "sos-database-upgrader",
  "sos-external-files",
  "sos-filesystem",
  "sos-integrity",
@@ -5038,6 +5039,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "sos-database-upgrader"
+version = "0.16.0"
+dependencies = [
+ "async-trait",
+ "binary-stream",
+ "futures",
+ "indexmap 2.7.1",
+ "rustc_version",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sos-audit",
+ "sos-client-storage",
+ "sos-core",
+ "sos-database",
+ "sos-external-files",
+ "sos-filesystem",
+ "sos-preferences",
+ "sos-system-messages",
+ "sos-vault",
+ "sos-vfs",
+ "tempfile",
+ "thiserror 2.0.11",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "sos-external-files"
 version = "0.16.0"
 dependencies = [
@@ -5111,6 +5144,7 @@ dependencies = [
  "sos-client-storage",
  "sos-core",
  "sos-database",
+ "sos-database-upgrader",
  "sos-external-files",
  "sos-filesystem",
  "sos-integrity",

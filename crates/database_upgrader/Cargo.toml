@@ -1,0 +1,43 @@
+[package]
+name = "sos-database-upgrader"
+version = "0.16.0"
+edition = "2021"
+description = "Upgrade from file system to database storage for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+sos-core.workspace = true
+sos-external-files.workspace = true
+sos-client-storage = { workspace = true, features = ["full"] }
+sos-database = { workspace = true, features = ["full"] }
+sos-filesystem = { workspace = true, features = ["full"] }
+sos-audit.workspace = true
+sos-preferences.workspace = true
+sos-system-messages.workspace = true
+sos-vault.workspace = true
+sos-vfs.workspace = true
+
+thiserror.workspace = true
+futures.workspace = true
+tracing.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+indexmap.workspace = true
+binary-stream.workspace = true
+async-trait.workspace = true
+secrecy.workspace = true
+sha2.workspace = true
+serde.workspace = true
+tokio.workspace = true
+url.workspace = true
+tokio-stream.workspace = true
+tempfile.workspace = true
+
+[build-dependencies]
+rustc_version.workspace = true

@@ -9,6 +9,7 @@ members = [
   "crates/clipboard", 
   "crates/core",
   "crates/database",
+  "crates/database_upgrader",
   "crates/external_files",
   "crates/filesystem",
   "crates/keychain_parser",
@@ -51,6 +52,7 @@ sos-backend  = { version = "0.16", path = "crates/backend" }
 sos-cli-helpers = { path = "crates/cli_helpers" }
 sos-core = { version = "0.16", path = "crates/core" }
 sos-database = { version = "0.16", path = "crates/database" }
+sos-database-upgrader = { version = "0.16", path = "crates/database_upgrader" }
 sos-external-files = { version = "0.16", path = "crates/external_files" }
 sos-filesystem = { version = "0.16", path = "crates/filesystem" }
 sos-integrity = { version = "0.16", path = "crates/integrity" }

@@ -21,9 +21,6 @@ mod system_messages;
 mod server_origins;
 
 #[cfg(feature = "sqlite")]
-pub mod upgrader;
-
-#[cfg(feature = "sqlite")]
 mod vault_writer;
 
 #[cfg(feature = "sqlite")]

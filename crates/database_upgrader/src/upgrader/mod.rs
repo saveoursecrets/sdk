@@ -1,14 +1,14 @@
 //! Import filesystem backed accounts into a database.
-use crate::{db, migrations::migrate_client, Error, Result};
+use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use sos_core::{Paths, PublicIdentity};
+use sos_database::{db, migrations::migrate_client};
 use sos_external_files::list_external_files;
+use sos_filesystem::archive::AccountBackup;
 use sos_vault::list_accounts;
 use sos_vfs::{self as vfs, File};
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
-
-use sos_filesystem::archive::AccountBackup;
 
 mod db_import;
 
@@ -101,11 +101,20 @@ async fn import_accounts(
     for account in &accounts {
         let account_paths =
             options.paths.with_account_id(account.account_id());
-
+        let account_status =
+            compute_account_status(&account_paths, account).await?;
         db_import::import_account(&mut client, &account_paths, &account)
             .await?;
     }
     Ok(accounts)
+}
+
+/// Compute the account status for the input file system account.
+async fn compute_account_status(
+    account_paths: &Paths,
+    account: &PublicIdentity,
+) -> Result<()> {
+    Ok(())
 }
 
 /// Upgrade all accounts found on disc.

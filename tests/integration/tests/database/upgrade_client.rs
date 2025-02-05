@@ -2,7 +2,7 @@ use super::prepare_client_for_upgrade;
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_core::Paths;
-use sos_database::upgrader::{upgrade_accounts, UpgradeOptions};
+use sos_database_upgrader::{upgrade_accounts, UpgradeOptions};
 
 /// Upgrade v1 accounts to the v2 backend for client-side storage.
 #[tokio::test]

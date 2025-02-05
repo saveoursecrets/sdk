@@ -1,12 +1,4 @@
-use crate::{
-    db::{
-        AccountEntity, AccountRow, AuditEntity, EventEntity, EventRecordRow,
-        FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, SecretRow,
-        ServerEntity, SystemMessageEntity, SystemMessageRow,
-    },
-    Error, Result,
-};
-use async_sqlite::{rusqlite::Transaction, Client};
+use crate::{Error, Result};
 use futures::{pin_mut, StreamExt};
 use sos_audit::AuditStreamSink;
 use sos_core::{
@@ -15,7 +7,16 @@ use sos_core::{
 };
 use sos_core::{Origin, VaultCommit};
 use sos_core::{Paths, PublicIdentity, SecretId};
+use sos_database::{
+    async_sqlite::{rusqlite::Transaction, Client},
+    db::{
+        AccountEntity, AccountRow, AuditEntity, EventEntity, EventRecordRow,
+        FolderEntity, FolderRow, PreferenceEntity, PreferenceRow, SecretRow,
+        ServerEntity, SystemMessageEntity, SystemMessageRow,
+    },
+};
 use sos_filesystem::audit_provider::AuditFileProvider;
+use sos_filesystem::FileEventLog as FsFileEventLog;
 use sos_filesystem::{
     AccountEventLog as FsAccountEventLog, DeviceEventLog as FsDeviceEventLog,
     FolderEventLog as FsFolderEventLog,
@@ -26,13 +27,9 @@ use sos_vault::{list_local_folders, Vault};
 use sos_vfs as vfs;
 use std::{collections::HashMap, path::Path};
 
-#[cfg(feature = "files")]
-use sos_filesystem::FileEventLog as FsFileEventLog;
-
 type AccountEventLog = FsAccountEventLog<sos_filesystem::Error>;
 type DeviceEventLog = FsDeviceEventLog<sos_filesystem::Error>;
 type FolderEventLog = FsFolderEventLog<sos_filesystem::Error>;
-#[cfg(feature = "files")]
 type FileEventLog = FsFileEventLog<sos_filesystem::Error>;
 
 /// Create global values in the database.
@@ -134,7 +131,6 @@ pub(crate) async fn import_account(
     let device_events = collect_device_events(paths.device_events()).await?;
 
     // File events
-    #[cfg(feature = "files")]
     let file_events = collect_file_events(paths.file_events()).await?;
 
     // User folders
@@ -262,7 +258,6 @@ pub(crate) async fn import_account(
                 folder_ids.insert(id, folder_id);
             }
 
-            #[cfg(feature = "files")]
             {
                 // Create the file events
                 event_entity
@@ -343,7 +338,6 @@ async fn collect_device_events(
     Ok(events)
 }
 
-#[cfg(feature = "files")]
 async fn collect_file_events(
     path: impl AsRef<Path>,
 ) -> Result<Vec<EventRecordRow>> {

@@ -2,7 +2,7 @@ use crate::{Error, Result};
 use clap::Subcommand;
 use sos_cli_helpers::messages::{info, warn};
 use sos_core::Paths;
-use sos_database::upgrader::{upgrade_accounts, UpgradeOptions};
+use sos_database_upgrader::{upgrade_accounts, UpgradeOptions};
 use sos_vault::list_accounts;
 use std::path::PathBuf;
 
