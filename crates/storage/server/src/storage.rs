@@ -5,7 +5,8 @@ use crate::{
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::{
-    AccountEventLog, DeviceEventLog, FileEventLog, FolderEventLog,
+    AccountEventLog, BackendTarget, DeviceEventLog, FileEventLog,
+    FolderEventLog,
 };
 use sos_core::{
     commit::{CommitState, Comparison},
@@ -39,8 +40,24 @@ pub enum ServerStorage {
 }
 
 impl ServerStorage {
+    /// Create new server storage.
+    pub async fn new(
+        directory: impl AsRef<Path>,
+        account_id: &AccountId,
+        target: BackendTarget,
+    ) -> Result<Self> {
+        match target {
+            BackendTarget::FileSystem(_) => {
+                Self::new_fs(directory, account_id).await
+            }
+            BackendTarget::Database(client) => {
+                Self::new_db(directory, account_id, client).await
+            }
+        }
+    }
+
     /// Create new file system storage.
-    pub async fn new_fs(
+    async fn new_fs(
         directory: impl AsRef<Path>,
         account_id: &AccountId,
     ) -> Result<Self> {
@@ -56,8 +73,8 @@ impl ServerStorage {
         Ok(Self::FileSystem(
             ServerFileStorage::new(
                 *account_id,
-                Some(directory.as_ref().to_owned()),
                 identity_log,
+                Some(directory.as_ref().to_owned()),
             )
             .await?,
         ))
@@ -81,8 +98,8 @@ impl ServerStorage {
 
         let mut storage = ServerFileStorage::new(
             *account_id,
-            Some(directory.as_ref().to_owned()),
             Arc::new(RwLock::new(identity_log)),
+            Some(directory.as_ref().to_owned()),
         )
         .await?;
         storage.import_account(&account_data).await?;
@@ -91,10 +108,10 @@ impl ServerStorage {
     }
 
     /// Create new database storage.
-    pub async fn new_db(
-        client: Client,
-        account_id: &AccountId,
+    async fn new_db(
         directory: impl AsRef<Path>,
+        account_id: &AccountId,
+        client: Client,
     ) -> Result<Self> {
         let folder_account_id = *account_id;
 

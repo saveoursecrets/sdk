@@ -13,6 +13,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 sos-core.workspace = true
+sos-backend.workspace = true
 sos-external-files.workspace = true
 sos-client-storage = { workspace = true, features = ["full"] }
 sos-database = { workspace = true, features = ["full"] }
@@ -20,6 +21,8 @@ sos-filesystem = { workspace = true, features = ["full"] }
 sos-audit.workspace = true
 sos-preferences.workspace = true
 sos-system-messages.workspace = true
+sos-server-storage = { workspace = true, features = ["full"] }
+sos-sync.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 

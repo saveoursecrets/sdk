@@ -1,4 +1,5 @@
 use super::{Error, Result};
+use sos_backend::BackendTarget;
 use sos_core::{device::DevicePublicKey, AccountId, Paths};
 use sos_server_storage::{ServerAccountStorage, ServerStorage};
 use sos_signer::ed25519::{self, Verifier, VerifyingKey};
@@ -79,9 +80,12 @@ impl Backend {
                             "server_backend::read_dir",
                         );
 
-                        let account = ServerStorage::new_fs(
+                        let account = ServerStorage::new(
                             &self.directory,
                             &account_id,
+                            BackendTarget::FileSystem(
+                                Paths::new_global_server(&self.directory),
+                            ),
                         )
                         .await?;
 

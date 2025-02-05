@@ -1,5 +1,6 @@
 use anyhow::Result;
 use rand::{rngs::OsRng, Rng};
+use sos_backend::BackendTarget;
 use sos_core::{encode, AccountId, Paths, VaultFlags};
 use sos_sdk::{
     crypto::AeadPack,
@@ -21,7 +22,12 @@ async fn fs_server_storage() -> Result<()> {
     Paths::scaffold(Some(temp.path().to_owned())).await?;
 
     let account_id = AccountId::random();
-    let mut storage = ServerStorage::new_fs(temp.path(), &account_id).await?;
+    let mut storage = ServerStorage::new(
+        temp.path(),
+        &account_id,
+        BackendTarget::FileSystem(Paths::new_global_server(temp.path())),
+    )
+    .await?;
     assert_server_storage(&mut storage, &account_id).await?;
     Ok(())
 }
@@ -37,8 +43,12 @@ async fn db_server_storage() -> Result<()> {
     let (account_id, _, _) =
         insert_database_vault(&mut client, &vault, true).await?;
 
-    let mut storage =
-        ServerStorage::new_db(client, &account_id, temp.path()).await?;
+    let mut storage = ServerStorage::new(
+        temp.path(),
+        &account_id,
+        BackendTarget::Database(client),
+    )
+    .await?;
     assert_server_storage(&mut storage, &account_id).await?;
     Ok(())
 }

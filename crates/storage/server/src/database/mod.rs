@@ -115,8 +115,9 @@ impl ServerDatabaseStorage {
         let (device_log, devices) =
             Self::initialize_device_log(&client, &account_id).await?;
 
-        let file_log =
+        let mut file_log =
             FileEventLog::new_db_file(client.clone(), account_id).await?;
+        file_log.load_tree().await?;
 
         Ok(Self {
             account_id,

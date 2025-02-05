@@ -61,8 +61,8 @@ impl ServerFileStorage {
     /// Create folder storage for server-side access.
     pub async fn new(
         account_id: AccountId,
-        data_dir: Option<PathBuf>,
         identity_log: Arc<RwLock<FolderEventLog>>,
+        data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
