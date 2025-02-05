@@ -157,7 +157,7 @@ impl LocalAccount {
 
         #[allow(unused_mut)]
         let mut storage = ClientStorage::new_authenticated(
-            *account_id,
+            account_id,
             BackendTarget::FileSystem(paths),
             user,
         )
@@ -641,7 +641,7 @@ impl LocalAccount {
         let paths = Paths::new(data_dir, account_id.to_string());
 
         let storage = ClientStorage::new_unauthenticated(
-            account_id,
+            &account_id,
             BackendTarget::FileSystem(paths.clone()),
         )
         .await?;
@@ -713,7 +713,7 @@ impl LocalAccount {
         let (authenticated_user, public_account) = new_account.into();
 
         let mut storage = ClientStorage::new_authenticated(
-            account_id,
+            &account_id,
             BackendTarget::FileSystem(paths),
             authenticated_user,
             /*
@@ -781,7 +781,7 @@ impl Account for LocalAccount {
         let paths = self.paths();
 
         let mut storage = ClientStorage::new_unauthenticated(
-            account_id,
+            &account_id,
             BackendTarget::FileSystem((&*paths).clone()),
         )
         .await?;
@@ -1213,10 +1213,11 @@ impl Account for LocalAccount {
     }
 
     async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
-        let folder =
-            self.storage.folders().get(summary.id()).ok_or_else(|| {
-                StorageError::FolderNotFound(*summary.id())
-            })?;
+        let folder = self
+            .storage
+            .folders()
+            .get(summary.id())
+            .ok_or_else(|| StorageError::FolderNotFound(*summary.id()))?;
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
         Ok(log_file
@@ -1337,10 +1338,11 @@ impl Account for LocalAccount {
             .await?
             .ok_or(Error::NoFolderPassword(*summary.id()))?;
 
-        let folder =
-            self.storage.folders().get(summary.id()).ok_or_else(|| {
-                StorageError::FolderNotFound(*summary.id())
-            })?;
+        let folder = self
+            .storage
+            .folders()
+            .get(summary.id())
+            .ok_or_else(|| StorageError::FolderNotFound(*summary.id()))?;
 
         let event_log = folder.event_log();
         let log_file = event_log.read().await;

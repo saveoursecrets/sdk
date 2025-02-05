@@ -117,7 +117,7 @@ pub struct ClientFileSystemStorage {
 impl ClientFileSystemStorage {
     /// Create unauthenticated folder storage for client-side access.
     pub async fn new_unauthenticated(
-        account_id: AccountId,
+        account_id: &AccountId,
         paths: Paths,
     ) -> Result<Self> {
         paths.ensure().await?;
@@ -142,7 +142,7 @@ impl ClientFileSystemStorage {
         let paths = Arc::new(paths);
 
         let mut storage = Self {
-            account_id,
+            account_id: *account_id,
             summaries: Vec::new(),
             current: Arc::new(Mutex::new(None)),
             folders: Default::default(),
@@ -169,7 +169,7 @@ impl ClientFileSystemStorage {
 
     /// Create folder storage for client-side access.
     pub async fn new_authenticated(
-        account_id: AccountId,
+        account_id: &AccountId,
         paths: Paths,
         authenticated_user: Identity,
         /*
@@ -214,7 +214,7 @@ impl ClientFileSystemStorage {
         let paths = Arc::new(paths);
 
         Ok(Self {
-            account_id,
+            account_id: *account_id,
             summaries: Vec::new(),
             current: Arc::new(Mutex::new(None)),
             folders: Default::default(),

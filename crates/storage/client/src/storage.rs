@@ -56,7 +56,7 @@ pub enum ClientStorage {
 impl ClientStorage {
     /// Create new client storage.
     pub async fn new_unauthenticated(
-        account_id: AccountId,
+        account_id: &AccountId,
         target: BackendTarget,
     ) -> Result<Self> {
         match target {
@@ -71,7 +71,7 @@ impl ClientStorage {
 
     /// Create new client storage in authenticated state.
     pub async fn new_authenticated(
-        account_id: AccountId,
+        account_id: &AccountId,
         target: BackendTarget,
         authenticated_user: Identity,
     ) -> Result<Self> {
@@ -97,9 +97,11 @@ impl ClientStorage {
 
     /// Create new file system storage.
     async fn new_unauthenticated_fs(
-        account_id: AccountId,
+        account_id: &AccountId,
         paths: Paths,
     ) -> Result<Self> {
+        debug_assert!(!paths.is_server());
+
         Ok(Self::FileSystem(
             ClientFileSystemStorage::new_unauthenticated(account_id, paths)
                 .await?,
@@ -108,19 +110,17 @@ impl ClientStorage {
 
     /// Create new file system storage in authenticated state.
     async fn new_authenticated_fs(
-        account_id: AccountId,
+        account_id: &AccountId,
         paths: Paths,
         authenticated_user: Identity,
     ) -> Result<Self> {
+        debug_assert!(!paths.is_server());
+
         Ok(Self::FileSystem(
             ClientFileSystemStorage::new_authenticated(
                 account_id,
                 paths,
                 authenticated_user,
-                /*
-                identity_log,
-                device,
-                */
             )
             .await?,
         ))
@@ -128,36 +128,18 @@ impl ClientStorage {
 
     /// Create new file system storage.
     async fn new_unauthenticated_db(
-        account_id: AccountId,
+        account_id: &AccountId,
         client: Client,
     ) -> Result<Self> {
-        /*
-        Ok(Self::FileSystem(
-            ClientFileSystemStorage::new_unauthenticated(account_id, paths).await?,
-        ))
-        */
-
         todo!("unauthenticated db storage");
     }
 
     /// Create new file system storage in authenticated state.
     async fn new_authenticated_db(
-        account_id: AccountId,
+        account_id: &AccountId,
         client: Client,
         authenticated_user: Identity,
     ) -> Result<Self> {
-        /*
-        Ok(Self::FileSystem(
-            ClientFileSystemStorage::new_authenticated(
-                account_id,
-                paths,
-                identity_log,
-                device,
-            )
-            .await?,
-        ))
-        */
-
         todo!("authenticated db storage");
     }
 }

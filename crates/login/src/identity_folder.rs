@@ -593,8 +593,6 @@ impl IdentityFolder {
         account_id: AccountId,
         keeper: &AccessPoint,
     ) -> Result<(UrnLookup, PrivateIdentity)> {
-        println!("doing login private identity...");
-
         let (index, identity_secret) =
             Self::lookup_identity_secrets(keeper).await?;
 

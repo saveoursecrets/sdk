@@ -60,18 +60,12 @@ pub struct ServerFileStorage {
 impl ServerFileStorage {
     /// Create folder storage for server-side access.
     pub async fn new(
+        paths: Paths,
         account_id: AccountId,
         identity_log: Arc<RwLock<FolderEventLog>>,
-        data_dir: Option<PathBuf>,
     ) -> Result<Self> {
-        let data_dir = if let Some(data_dir) = data_dir {
-            data_dir
-        } else {
-            Paths::data_dir().map_err(|_| Error::NoCache)?
-        };
-
-        let dirs = Paths::new_server(data_dir, account_id.to_string());
-        Self::new_paths(Arc::new(dirs), account_id, identity_log).await
+        debug_assert!(!paths.is_global());
+        Self::new_paths(Arc::new(paths), account_id, identity_log).await
     }
 
     /// Create new storage backed by files on disc.

@@ -129,7 +129,7 @@ async fn compute_fs_account_status(
 ) -> Result<SyncStatus> {
     let sync_status = if account_paths.is_server() {
         let storage = ServerStorage::new(
-            account_paths.documents_dir(),
+            account_paths,
             account.account_id(),
             BackendTarget::FileSystem(account_paths.clone()),
         )
@@ -138,7 +138,7 @@ async fn compute_fs_account_status(
         storage.sync_status().await?
     } else {
         let storage = ClientStorage::new_unauthenticated(
-            *account.account_id(),
+            account.account_id(),
             BackendTarget::FileSystem(account_paths.clone()),
         )
         .await?;
@@ -156,14 +156,15 @@ async fn compute_db_account_status(
 ) -> Result<SyncStatus> {
     let sync_status = if account_paths.is_server() {
         let storage = ServerStorage::new(
-            account_paths.documents_dir(),
+            account_paths,
             account.account_id(),
             BackendTarget::Database(client.clone()),
         )
         .await?;
         storage.sync_status().await?
     } else {
-        todo!("compute for client accounts");
+        Default::default()
+        // todo!("compute for client accounts");
         /*
         let storage = ClientFileSystemStorage::new_unauthenticated(
             *account.account_id(),

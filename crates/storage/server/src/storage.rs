@@ -28,7 +28,7 @@ use sos_sync::{
     SyncStorage, UpdateSet,
 };
 use sos_vault::Summary;
-use std::{collections::HashSet, path::Path, sync::Arc};
+use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
 
 /// Server storage backed by filesystem or database.
@@ -42,52 +42,69 @@ pub enum ServerStorage {
 impl ServerStorage {
     /// Create new server storage.
     pub async fn new(
-        directory: impl AsRef<Path>,
+        paths: &Paths,
         account_id: &AccountId,
         target: BackendTarget,
     ) -> Result<Self> {
+        debug_assert!(paths.is_server());
+
         match target {
-            BackendTarget::FileSystem(_) => {
-                Self::new_fs(directory, account_id).await
+            BackendTarget::FileSystem(paths) => {
+                Self::new_fs(paths, account_id).await
             }
             BackendTarget::Database(client) => {
-                Self::new_db(directory, account_id, client).await
+                Self::new_db(paths, account_id, client).await
             }
         }
     }
 
     /// Create new file system storage.
-    async fn new_fs(
-        directory: impl AsRef<Path>,
-        account_id: &AccountId,
-    ) -> Result<Self> {
-        let user_paths =
-            Paths::new_server(directory.as_ref(), account_id.to_string());
+    async fn new_fs(paths: Paths, account_id: &AccountId) -> Result<Self> {
+        let paths = paths.with_account_id(account_id);
 
         let mut event_log =
-            FolderEventLog::new_fs_folder(user_paths.identity_events())
-                .await?;
+            FolderEventLog::new_fs_folder(paths.identity_events()).await?;
         event_log.load_tree().await?;
         let identity_log = Arc::new(RwLock::new(event_log));
 
         Ok(Self::FileSystem(
-            ServerFileStorage::new(
-                *account_id,
-                identity_log,
-                Some(directory.as_ref().to_owned()),
-            )
-            .await?,
+            ServerFileStorage::new(paths, *account_id, identity_log).await?,
         ))
     }
 
+    /// Create an account in server storage.
+    pub async fn create_account(
+        paths: &Paths,
+        account_id: &AccountId,
+        target: BackendTarget,
+        account_data: &CreateSet,
+    ) -> Result<Self> {
+        debug_assert!(paths.is_server());
+
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                Self::create_fs_account(&paths, account_id, account_data)
+                    .await
+            }
+            BackendTarget::Database(client) => {
+                Self::create_db_account(
+                    paths,
+                    account_id,
+                    client,
+                    account_data,
+                )
+                .await
+            }
+        }
+    }
+
     /// Create a new file system account.
-    pub async fn create_fs_account(
-        directory: impl AsRef<Path>,
+    async fn create_fs_account(
+        paths: &Paths,
         account_id: &AccountId,
         account_data: &CreateSet,
     ) -> Result<Self> {
-        let paths =
-            Paths::new_server(directory.as_ref(), account_id.to_string());
+        let paths = paths.with_account_id(account_id);
         paths.ensure().await?;
 
         let identity_log = ServerFileStorage::initialize_account(
@@ -97,9 +114,9 @@ impl ServerStorage {
         .await?;
 
         let mut storage = ServerFileStorage::new(
+            paths,
             *account_id,
             Arc::new(RwLock::new(identity_log)),
-            Some(directory.as_ref().to_owned()),
         )
         .await?;
         storage.import_account(&account_data).await?;
@@ -109,10 +126,12 @@ impl ServerStorage {
 
     /// Create new database storage.
     async fn new_db(
-        directory: impl AsRef<Path>,
+        paths: &Paths,
         account_id: &AccountId,
         client: Client,
     ) -> Result<Self> {
+        let paths = paths.with_account_id(account_id);
+
         let folder_account_id = *account_id;
 
         let login_folder = client
@@ -140,23 +159,21 @@ impl ServerStorage {
             ServerDatabaseStorage::new(
                 client,
                 *account_id,
-                Some(directory.as_ref().to_owned()),
                 identity_log,
+                paths,
             )
             .await?,
         ))
     }
 
     /// Create a new database account.
-    pub async fn create_db_account(
-        directory: impl AsRef<Path>,
-        mut client: Client,
+    async fn create_db_account(
+        paths: &Paths,
         account_id: &AccountId,
+        mut client: Client,
         account_data: &CreateSet,
     ) -> Result<Self> {
-        let paths =
-            Paths::new_server(directory.as_ref(), account_id.to_string());
-        paths.ensure().await?;
+        let paths = paths.with_account_id(account_id);
 
         let identity_log = ServerDatabaseStorage::initialize_account(
             &mut client,
@@ -168,8 +185,8 @@ impl ServerStorage {
         let mut storage = ServerDatabaseStorage::new(
             client,
             *account_id,
-            Some(directory.as_ref().to_owned()),
             Arc::new(RwLock::new(identity_log)),
+            paths,
         )
         .await?;
         storage.import_account(&account_data).await?;

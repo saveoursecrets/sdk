@@ -80,12 +80,12 @@ impl Backend {
                             "server_backend::read_dir",
                         );
 
+                        let paths = Paths::new_global_server(&self.directory);
+
                         let account = ServerStorage::new(
-                            &self.directory,
+                            &paths,
                             &account_id,
-                            BackendTarget::FileSystem(
-                                Paths::new_global_server(&self.directory),
-                            ),
+                            BackendTarget::FileSystem(paths.clone()),
                         )
                         .await?;
 
@@ -121,9 +121,13 @@ impl Backend {
             "server_backend::create_account",
         );
 
-        let account = ServerStorage::create_fs_account(
-            &self.directory,
+        let paths = Paths::new_global_server(&self.directory)
+            .with_account_id(account_id);
+
+        let account = ServerStorage::create_account(
+            &paths,
             account_id,
+            BackendTarget::FileSystem(paths.clone()),
             &account_data,
         )
         .await?;

@@ -73,17 +73,11 @@ impl ServerDatabaseStorage {
     pub async fn new(
         client: Client,
         account_id: AccountId,
-        data_dir: Option<PathBuf>,
         identity_log: Arc<RwLock<FolderEventLog>>,
+        paths: Paths,
     ) -> Result<Self> {
-        let data_dir = if let Some(data_dir) = data_dir {
-            data_dir
-        } else {
-            Paths::data_dir().map_err(|_| Error::NoCache)?
-        };
-
-        let dirs = Paths::new_server(data_dir, account_id.to_string());
-        Self::new_client(client, Arc::new(dirs), account_id, identity_log)
+        debug_assert!(!paths.is_global());
+        Self::new_client(client, Arc::new(paths), account_id, identity_log)
             .await
     }
 
@@ -100,8 +94,6 @@ impl ServerDatabaseStorage {
             )
             .into());
         }
-
-        paths.ensure().await?;
 
         let account_row =
             Self::lookup_account(&mut client, &account_id).await?;
