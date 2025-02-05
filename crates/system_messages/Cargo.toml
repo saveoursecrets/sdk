@@ -2,6 +2,10 @@
 name = "sos-system-messages"
 version = "0.16.0"
 edition = "2021"
+description = "System message notifications for the Save Our Secrets SDK"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saveoursecrets/sdk"
 
 [dependencies]
 async-trait.workspace = true
