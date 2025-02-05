@@ -24,7 +24,7 @@ use sos_core::{
         patch::FolderPatch, AccountEvent, Event, EventLog, EventRecord,
         ReadEvent, WriteEvent,
     },
-    AccountId, FolderRef, Paths, UtcDateTime,
+    AccountId, AuthenticationError, FolderRef, Paths, UtcDateTime,
 };
 use sos_login::{FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
@@ -1417,11 +1417,17 @@ impl ClientAccountStorage for ClientFileSystemStorage {
     }
 
     fn authenticated_user(&self) -> Result<&Identity> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)
+        Ok(self
+            .authenticated
+            .as_ref()
+            .ok_or(AuthenticationError::NotAuthenticated)?)
     }
 
     fn authenticated_user_mut(&mut self) -> Result<&mut Identity> {
-        self.authenticated.as_mut().ok_or(Error::NotAuthenticated)
+        Ok(self
+            .authenticated
+            .as_mut()
+            .ok_or(AuthenticationError::NotAuthenticated)?)
     }
 
     fn is_authenticated(&self) -> bool {
@@ -1445,7 +1451,9 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
-        self.authenticated.as_ref().ok_or(Error::NotAuthenticated)?;
+        self.authenticated
+            .as_ref()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
 
         // Update the identity vault
         let buffer = encode(&vault).await?;

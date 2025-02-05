@@ -18,7 +18,7 @@ use sos_backend::{
 };
 use sos_core::{
     constants::LOGIN_AGE_KEY_URN, crypto::AccessKey, decode, encode,
-    AccountId, Paths,
+    AccountId, AuthenticationError, Paths,
 };
 use sos_password::diceware::generate_passphrase_words;
 use sos_signer::ed25519;
@@ -108,7 +108,10 @@ impl IdentityFolder {
 
     /// Device manager.
     pub fn devices(&self) -> Result<&DeviceManager> {
-        self.devices.as_ref().ok_or(Error::NotAuthenticated)
+        Ok(self
+            .devices
+            .as_ref()
+            .ok_or(AuthenticationError::NotAuthenticated)?)
     }
 
     /// Rename this identity vault.

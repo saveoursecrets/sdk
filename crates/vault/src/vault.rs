@@ -22,7 +22,6 @@ use sos_vfs::File;
 use std::io::Cursor;
 use std::{
     borrow::Cow, cmp::Ordering, collections::HashMap, fmt, path::Path,
-    str::FromStr,
 };
 use tokio::io::{AsyncReadExt, AsyncSeek, BufReader};
 use typeshare::typeshare;

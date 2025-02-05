@@ -28,8 +28,8 @@ use sos_core::{
         AccountEvent, DeviceEvent, Event, EventKind, EventLog, EventRecord,
         ReadEvent, WriteEvent,
     },
-    AccountId, AccountRef, FolderRef, Paths, SecretId, UtcDateTime,
-    VaultCommit, VaultId,
+    AccountId, AccountRef, AuthenticationError, FolderRef, Paths, SecretId,
+    UtcDateTime, VaultCommit, VaultId,
 };
 use sos_login::{
     device::{DeviceManager, DeviceSigner},
@@ -110,7 +110,7 @@ impl LocalAccount {
     fn ensure_authenticated(&self) -> Result<()> {
         let is_authenticated = self.storage.is_authenticated();
         if !is_authenticated {
-            return Err(Error::NotAuthenticated);
+            return Err(AuthenticationError::NotAuthenticated.into());
         }
         Ok(())
     }

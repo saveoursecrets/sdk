@@ -11,8 +11,8 @@ use crate::{
 use secrecy::SecretString;
 use sos_backend::{database::async_sqlite::Client, BackendTarget};
 use sos_core::{
-    crypto::AccessKey, decode, events::Event, AccountId, Paths, SecretId,
-    VaultId,
+    crypto::AccessKey, decode, events::Event, AccountId, AuthenticationError,
+    Paths, SecretId, VaultId,
 };
 use sos_vault::{list_local_folders, read_public_identity, Summary, Vault};
 use sos_vfs as vfs;
@@ -81,29 +81,42 @@ impl Identity {
 
     /// Device manager.
     pub fn devices(&self) -> Result<&DeviceManager> {
-        self.identity
+        Ok(self
+            .identity
             .as_ref()
-            .ok_or(Error::NotAuthenticated)?
-            .devices()
+            .ok_or(AuthenticationError::NotAuthenticated)?
+            .devices()?)
     }
 
     /// Account information.
     pub fn account(&self) -> Result<&PublicIdentity> {
-        self.account.as_ref().ok_or(Error::NotAuthenticated)
+        Ok(self
+            .account
+            .as_ref()
+            .ok_or(AuthenticationError::NotAuthenticated)?)
     }
 
     fn account_mut(&mut self) -> Result<&mut PublicIdentity> {
-        self.account.as_mut().ok_or(Error::NotAuthenticated)
+        Ok(self
+            .account
+            .as_mut()
+            .ok_or(AuthenticationError::NotAuthenticated)?)
     }
 
     /// Private identity.
     pub fn identity(&self) -> Result<&IdentityFolder> {
-        self.identity.as_ref().ok_or(Error::NotAuthenticated)
+        Ok(self
+            .identity
+            .as_ref()
+            .ok_or(AuthenticationError::NotAuthenticated)?)
     }
 
     #[doc(hidden)]
     pub fn identity_mut(&mut self) -> Result<&mut IdentityFolder> {
-        self.identity.as_mut().ok_or(Error::NotAuthenticated)
+        Ok(self
+            .identity
+            .as_mut()
+            .ok_or(AuthenticationError::NotAuthenticated)?)
     }
 
     /// Verify the access key for this account.

@@ -18,8 +18,8 @@ use sos_core::{
         AccountEvent, DeviceEvent, EventLog, EventLogType, EventRecord,
         ReadEvent, WriteEvent,
     },
-    AccountId, AccountRef, FolderRef, Origin, Paths, PublicIdentity,
-    RemoteOrigins, SecretId, UtcDateTime, VaultId,
+    AccountId, AccountRef, AuthenticationError, FolderRef, Origin, Paths,
+    PublicIdentity, RemoteOrigins, SecretId, UtcDateTime, VaultId,
 };
 use sos_login::device::{DeviceManager, DeviceSigner};
 use sos_protocol::{
@@ -460,7 +460,7 @@ impl NetworkAccount {
     #[cfg(feature = "files")]
     async fn start_file_transfers(&mut self) -> Result<()> {
         if !self.is_authenticated().await {
-            return Err(sos_account::Error::NotAuthenticated.into());
+            return Err(AuthenticationError::NotAuthenticated.into());
         }
 
         if self.offline {
@@ -634,7 +634,7 @@ impl NetworkAccount {
             .file_transfers
             .as_ref()
             .map(|t| Arc::clone(&t.inflight))
-            .ok_or_else(|| sos_account::Error::NotAuthenticated)?)
+            .ok_or_else(|| AuthenticationError::NotAuthenticated)?)
     }
 
     /// Convert file mutation events into file transfer queue entries.
