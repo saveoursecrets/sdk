@@ -3,6 +3,7 @@ mod proof;
 mod tree;
 
 use rs_merkle::{algorithms::Sha256, Hasher};
+use serde::{Deserialize, Serialize};
 
 /// Type for an Sha256 commit tree hash.
 pub type TreeHash = <Sha256 as Hasher>::Hash;
@@ -15,5 +16,5 @@ pub use tree::CommitTree;
 
 /// Commit state combines the last commit hash with
 /// a commit proof.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CommitState(pub CommitHash, pub CommitProof);

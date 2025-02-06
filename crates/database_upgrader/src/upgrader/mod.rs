@@ -3,20 +3,20 @@ use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use sos_backend::BackendTarget;
 use sos_client_storage::ClientStorage;
-use sos_core::{Paths, PublicIdentity};
-use sos_database::{
-    async_sqlite::Client, migrations::migrate_client, open_file, open_memory,
-};
+use sos_core::{constants::JSON_EXT, Paths, PublicIdentity};
+use sos_database::{migrations::migrate_client, open_file, open_memory};
 use sos_external_files::list_external_files;
 use sos_filesystem::archive::AccountBackup;
 use sos_server_storage::ServerStorage;
-use sos_sync::{StorageEventLogs, SyncStatus, SyncStorage};
+use sos_sync::SyncStatus;
 use sos_vault::list_accounts;
 use sos_vfs::{self as vfs, File};
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 
 mod db_import;
+
+use db_import::AccountStorage;
 
 /// Options for upgrading to SQLite backend.
 #[derive(Debug)]
@@ -108,73 +108,45 @@ async fn import_accounts(
     for account in &accounts {
         let account_paths =
             options.paths.with_account_id(account.account_id());
-        let fs_status =
-            compute_fs_account_status(&account_paths, account).await?;
 
-        db_import::import_account(&mut client, &account_paths, &account)
-            .await?;
-        let db_status =
-            compute_db_account_status(&account_paths, account, &client)
-                .await?;
+        let fs_storage = if options.paths.is_server() {
+            AccountStorage::Server(
+                ServerStorage::new(
+                    &account_paths,
+                    account.account_id(),
+                    BackendTarget::FileSystem(account_paths.clone()),
+                )
+                .await?,
+            )
+        } else {
+            AccountStorage::Client(
+                ClientStorage::new_unauthenticated(
+                    &account_paths,
+                    account.account_id(),
+                    BackendTarget::FileSystem(account_paths.clone()),
+                )
+                .await?,
+            )
+        };
+
+        // Compute account status so we can compare and assert
+        // after importing the account
+        let fs_status = fs_storage.sync_status().await?;
+
+        let db_storage = db_import::import_account(
+            fs_storage,
+            &mut client,
+            &account_paths,
+            &account,
+        )
+        .await?;
+
+        // Compute the imported account status
+        let db_status = db_storage.sync_status().await?;
 
         sync_status.push((fs_status, db_status));
     }
     Ok((accounts, sync_status))
-}
-
-/// Compute the account status for the input file system account.
-async fn compute_fs_account_status(
-    account_paths: &Paths,
-    account: &PublicIdentity,
-) -> Result<SyncStatus> {
-    let sync_status = if account_paths.is_server() {
-        let storage = ServerStorage::new(
-            account_paths,
-            account.account_id(),
-            BackendTarget::FileSystem(account_paths.clone()),
-        )
-        .await?;
-        // NOTE: server storage automatically loads the
-        // NOTE: event commits into memory in the constructor
-        storage.sync_status().await?
-    } else {
-        let storage = ClientStorage::new_unauthenticated(
-            account_paths,
-            account.account_id(),
-            BackendTarget::FileSystem(account_paths.clone()),
-        )
-        .await?;
-        storage.sync_status().await?
-    };
-    Ok(sync_status)
-}
-
-/// Compute the account status for the output database account.
-async fn compute_db_account_status(
-    account_paths: &Paths,
-    account: &PublicIdentity,
-    client: &Client,
-) -> Result<SyncStatus> {
-    let sync_status = if account_paths.is_server() {
-        let storage = ServerStorage::new(
-            account_paths,
-            account.account_id(),
-            BackendTarget::Database(client.clone()),
-        )
-        .await?;
-        // NOTE: server storage automatically loads the
-        // NOTE: event commits into memory in the constructor
-        storage.sync_status().await?
-    } else {
-        let storage = ClientStorage::new_unauthenticated(
-            account_paths,
-            account.account_id(),
-            BackendTarget::Database(client.clone()),
-        )
-        .await?;
-        storage.sync_status().await?
-    };
-    Ok(sync_status)
 }
 
 /// Upgrade all accounts found on disc.
@@ -208,43 +180,8 @@ pub async fn upgrade_accounts(
 
     let (accounts, sync_status) = import_accounts(&options).await?;
 
-    // ------------------->
-    for status in &sync_status {
-        println!("{} <-> {}", status.0.root, status.1.root);
-
-        if status.0.identity != status.1.identity {
-            println!(
-                "IDENTITY {:#?} != {:#?}",
-                status.0.identity, status.1.identity
-            );
-        }
-
-        if status.0.account != status.1.account {
-            println!(
-                "ACCOUNT {:#?} != {:#?}",
-                status.0.account, status.1.account
-            );
-        }
-
-        if status.0.device != status.1.device {
-            println!(
-                "DEVICE {:#?} != {:#?}",
-                status.0.device, status.1.device
-            );
-        }
-
-        if status.0.files != status.1.files {
-            println!("FILES {:#?} != {:#?}", status.0.files, status.1.files);
-        }
-
-        if status.0.folders != status.1.folders {
-            println!(
-                "FOLDERS {:#?} != {:#?}",
-                status.0.folders, status.1.folders
-            );
-        }
-    }
-    // ------------------->
+    let accounts_status = accounts.iter().zip(sync_status.iter()).collect();
+    assert_sync_status(&options, accounts_status).await?;
 
     if options.copy_file_blobs {
         tracing::debug!("upgrade_accounts::copy_file_blobs");
@@ -280,6 +217,111 @@ pub async fn upgrade_accounts(
     }
 
     Ok(result)
+}
+
+#[derive(Serialize, Deserialize)]
+struct UpgradeErrorReport {
+    account: PublicIdentity,
+    filesystem: SyncStatus,
+    database: SyncStatus,
+}
+
+async fn assert_sync_status(
+    options: &UpgradeOptions,
+    accounts_status: Vec<(&PublicIdentity, &(SyncStatus, SyncStatus))>,
+) -> Result<()> {
+    for (account, (fs_status, db_status)) in accounts_status {
+        /*
+        println!(
+            "{} <-> {} ({})",
+            fs_status.root,
+            db_status.root,
+            fs_status.root == db_status.root
+        );
+        */
+
+        tracing::info!(
+            account_id = %account.account_id(),
+            fs = %fs_status.root,
+            db = %db_status.root,
+            "upgrade::ok"
+        );
+
+        if fs_status.root != db_status.root {
+            tracing::error!(
+                account_id = %account.account_id(),
+                fs = %fs_status.root,
+                db = %db_status.root,
+                "upgrade::status_error"
+            );
+
+            if fs_status.identity != db_status.identity {
+                tracing::error!(
+                    fs = ?fs_status.identity,
+                    db = ?db_status.identity,
+                    "upgrade::status_error::identity"
+                );
+            }
+
+            if fs_status.account != db_status.account {
+                tracing::error!(
+                    fs = ?fs_status.account,
+                    db = ?db_status.account,
+                    "upgrade::status_error::account"
+                );
+            }
+
+            if fs_status.device != db_status.device {
+                tracing::error!(
+                    fs = ?fs_status.device,
+                    db = ?db_status.device,
+                    "upgrade::status_error::device"
+                );
+            }
+
+            if fs_status.files != db_status.files {
+                tracing::error!(
+                    fs = ?fs_status.files,
+                    db = ?db_status.files,
+                    "upgrade::status_error::files"
+                );
+            }
+
+            if fs_status.folders != db_status.folders {
+                tracing::error!(
+                    fs = ?fs_status.folders,
+                    db = ?db_status.folders,
+                    "upgrade::status_error::folders"
+                );
+            }
+
+            // Write out to an error log with more info
+            let logs_dir = options.paths.logs_dir();
+            if !vfs::try_exists(&logs_dir).await? {
+                vfs::create_dir_all(&logs_dir).await?;
+            }
+            let mut upgrade_log_file = logs_dir.join("db_upgrade_error");
+            upgrade_log_file.set_extension(JSON_EXT);
+
+            let error_report = UpgradeErrorReport {
+                account: account.clone(),
+                filesystem: fs_status.clone(),
+                database: db_status.clone(),
+            };
+            let log_data = serde_json::to_vec_pretty(&error_report)?;
+            vfs::write(&upgrade_log_file, &log_data).await?;
+
+            // Abort the upgrade
+            return Err(Error::AccountStatus(
+                *account.account_id(),
+                fs_status.root,
+                db_status.root,
+                upgrade_log_file,
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 async fn create_backups(options: &UpgradeOptions) -> Result<Vec<PathBuf>> {

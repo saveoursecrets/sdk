@@ -94,7 +94,7 @@ impl ServerFileStorage {
             FileEventLog::new_fs_file(paths.file_events()).await?;
         file_log.load_tree().await?;
 
-        Ok(Self {
+        let mut storage = Self {
             account_id,
             paths,
             identity_log,
@@ -103,7 +103,11 @@ impl ServerFileStorage {
             file_log: Arc::new(RwLock::new(file_log)),
             folders: Default::default(),
             devices,
-        })
+        };
+
+        storage.load_folders().await?;
+
+        Ok(storage)
     }
 
     async fn initialize_device_log(

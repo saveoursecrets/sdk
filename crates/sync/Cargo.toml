@@ -28,6 +28,7 @@ thiserror.workspace = true
 async-trait.workspace = true
 indexmap.workspace = true
 tokio.workspace = true
+serde.workspace = true
 tracing.workspace = true
 
 [build-dependencies]

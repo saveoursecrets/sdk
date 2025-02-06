@@ -1,9 +1,17 @@
 use crate::{Error, Result};
+use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
+use indexmap::IndexSet;
 use sos_audit::AuditStreamSink;
+use sos_backend::{
+    AccountEventLog, BackendTarget, DeviceEventLog, FileEventLog,
+    FolderEventLog,
+};
+use sos_client_storage::ClientStorage;
 use sos_core::{
     decode, encode,
     events::{EventLog, EventRecord},
+    VaultId,
 };
 use sos_core::{Origin, VaultCommit};
 use sos_core::{Paths, PublicIdentity, SecretId};
@@ -16,21 +24,79 @@ use sos_database::{
     },
 };
 use sos_filesystem::audit_provider::AuditFileProvider;
-use sos_filesystem::FileEventLog as FsFileEventLog;
-use sos_filesystem::{
-    AccountEventLog as FsAccountEventLog, DeviceEventLog as FsDeviceEventLog,
-    FolderEventLog as FsFolderEventLog,
-};
 use sos_preferences::PreferenceMap;
+use sos_server_storage::ServerStorage;
+use sos_sync::{StorageEventLogs, SyncStatus, SyncStorage};
 use sos_system_messages::SystemMessageMap;
-use sos_vault::{list_local_folders, Vault};
+use sos_vault::{list_local_folders, Summary, Vault};
 use sos_vfs as vfs;
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::RwLock;
 
-type AccountEventLog = FsAccountEventLog<sos_filesystem::Error>;
-type DeviceEventLog = FsDeviceEventLog<sos_filesystem::Error>;
-type FolderEventLog = FsFolderEventLog<sos_filesystem::Error>;
-type FileEventLog = FsFileEventLog<sos_filesystem::Error>;
+pub(crate) enum AccountStorage {
+    Server(ServerStorage),
+    Client(ClientStorage),
+}
+
+impl AccountStorage {
+    pub(crate) async fn sync_status(&self) -> Result<SyncStatus> {
+        Ok(match self {
+            AccountStorage::Server(server) => server.sync_status().await?,
+            AccountStorage::Client(client) => client.sync_status().await?,
+        })
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl StorageEventLogs for AccountStorage {
+    type Error = Error;
+
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
+        Ok(match self {
+            AccountStorage::Server(fs) => fs.identity_log().await?,
+            AccountStorage::Client(db) => db.identity_log().await?,
+        })
+    }
+
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
+        Ok(match self {
+            AccountStorage::Server(fs) => fs.account_log().await?,
+            AccountStorage::Client(db) => db.account_log().await?,
+        })
+    }
+
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
+        Ok(match self {
+            AccountStorage::Server(fs) => fs.device_log().await?,
+            AccountStorage::Client(db) => db.device_log().await?,
+        })
+    }
+
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
+        Ok(match self {
+            AccountStorage::Server(fs) => fs.file_log().await?,
+            AccountStorage::Client(db) => db.file_log().await?,
+        })
+    }
+
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
+        Ok(match self {
+            AccountStorage::Server(fs) => fs.folder_details().await?,
+            AccountStorage::Client(db) => db.folder_details().await?,
+        })
+    }
+
+    async fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
+        Ok(match self {
+            AccountStorage::Server(fs) => fs.folder_log(id).await?,
+            AccountStorage::Client(db) => db.folder_log(id).await?,
+        })
+    }
+}
 
 /// Create global values in the database.
 pub(crate) async fn import_globals(
@@ -84,10 +150,13 @@ pub(crate) async fn import_globals(
 
 /// Create an account in the database.
 pub(crate) async fn import_account(
+    fs_storage: AccountStorage,
     client: &mut Client,
     paths: &Paths,
     account: &PublicIdentity,
-) -> Result<()> {
+) -> Result<AccountStorage> {
+    debug_assert!(!paths.is_global());
+
     let is_server = paths.is_server();
     let account_name = account.label().to_owned();
     let account_row =
@@ -104,11 +173,11 @@ pub(crate) async fn import_account(
         };
     let identity_rows = collect_vault_rows(&identity_vault).await?;
     let identity_events =
-        collect_folder_events(paths.identity_events()).await?;
+        collect_folder_events(fs_storage.identity_log().await?).await?;
 
     // Account events
     let account_events =
-        collect_account_events(paths.account_events()).await?;
+        collect_account_events(fs_storage.account_log().await?).await?;
 
     // Device vault
     let device_info = if !is_server {
@@ -127,10 +196,12 @@ pub(crate) async fn import_account(
     };
 
     // Device events
-    let device_events = collect_device_events(paths.device_events()).await?;
+    let device_events =
+        collect_device_events(fs_storage.device_log().await?).await?;
 
     // File events
-    let file_events = collect_file_events(paths.file_events()).await?;
+    let file_events =
+        collect_file_events(fs_storage.file_log().await?).await?;
 
     // User folders
     let mut folders = Vec::new();
@@ -145,7 +216,8 @@ pub(crate) async fn import_account(
         };
         let rows = collect_vault_rows(&vault).await?;
         let events =
-            collect_folder_events(paths.event_log_path(summary.id())).await?;
+            collect_folder_events(fs_storage.folder_log(summary.id()).await?)
+                .await?;
         folders.push((vault, vault_meta, rows, events));
     }
 
@@ -286,7 +358,27 @@ pub(crate) async fn import_account(
         })
         .await?;
 
-    Ok(())
+    let db_storage = if paths.is_server() {
+        AccountStorage::Server(
+            ServerStorage::new(
+                paths,
+                account.account_id(),
+                BackendTarget::Database(client.clone()),
+            )
+            .await?,
+        )
+    } else {
+        AccountStorage::Client(
+            ClientStorage::new_unauthenticated(
+                paths,
+                account.account_id(),
+                BackendTarget::Database(client.clone()),
+            )
+            .await?,
+        )
+    };
+
+    Ok(db_storage)
 }
 
 async fn collect_vault_rows(vault: &Vault) -> Result<Vec<SecretRow>> {
@@ -299,10 +391,10 @@ async fn collect_vault_rows(vault: &Vault) -> Result<Vec<SecretRow>> {
 }
 
 async fn collect_account_events(
-    path: impl AsRef<Path>,
+    event_log: Arc<RwLock<AccountEventLog>>,
 ) -> Result<Vec<EventRecordRow>> {
     let mut events = Vec::new();
-    let event_log = AccountEventLog::new_account(path).await?;
+    let event_log = event_log.read().await;
     let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {
@@ -312,10 +404,10 @@ async fn collect_account_events(
 }
 
 async fn collect_folder_events(
-    path: impl AsRef<Path>,
+    event_log: Arc<RwLock<FolderEventLog>>,
 ) -> Result<Vec<EventRecordRow>> {
     let mut events = Vec::new();
-    let event_log = FolderEventLog::new_folder(path).await?;
+    let event_log = event_log.read().await;
     let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {
@@ -325,10 +417,10 @@ async fn collect_folder_events(
 }
 
 async fn collect_device_events(
-    path: impl AsRef<Path>,
+    event_log: Arc<RwLock<DeviceEventLog>>,
 ) -> Result<Vec<EventRecordRow>> {
     let mut events = Vec::new();
-    let event_log = DeviceEventLog::new_device(path).await?;
+    let event_log = event_log.read().await;
     let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {
@@ -338,10 +430,10 @@ async fn collect_device_events(
 }
 
 async fn collect_file_events(
-    path: impl AsRef<Path>,
+    event_log: Arc<RwLock<FileEventLog>>,
 ) -> Result<Vec<EventRecordRow>> {
     let mut events = Vec::new();
-    let event_log = FileEventLog::new_file(path).await?;
+    let event_log = event_log.read().await;
     let stream = event_log.event_stream(false).await;
     pin_mut!(stream);
     while let Some(record) = stream.next().await {

@@ -1,6 +1,7 @@
 //! Core types for the synchronization primitives.
 use crate::Result;
 use indexmap::{IndexMap, IndexSet};
+use serde::{Deserialize, Serialize};
 use sos_core::{
     commit::{CommitHash, CommitState, Comparison},
     SecretId, VaultId,
@@ -67,7 +68,7 @@ pub struct SyncDiff {
 /// Provides a status overview of an account.
 ///
 /// Intended to be used during a synchronization protocol.
-#[derive(Debug, Default, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SyncStatus {
     /// Computed root of all event log roots.
     pub root: CommitHash,

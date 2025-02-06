@@ -1,13 +1,12 @@
 //! Types that encapsulate commit proofs and comparisons.
+use super::TreeHash;
+use rs_merkle::{algorithms::Sha256, MerkleProof};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt,
     hash::{Hash, Hasher as StdHasher},
     str::FromStr,
 };
-
-use super::TreeHash;
-use rs_merkle::{algorithms::Sha256, MerkleProof};
 
 /// Hash representation that provides a hexadecimal display.
 #[derive(
@@ -66,13 +65,47 @@ pub enum Comparison {
     Unknown,
 }
 
+mod proof_serde {
+    use rs_merkle::{algorithms::Sha256, MerkleProof};
+    use serde::{
+        de::{Deserialize, Deserializer, Error},
+        Serializer,
+    };
+    use std::borrow::Cow;
+
+    pub fn serialize<S>(
+        proof: &MerkleProof<Sha256>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&hex::encode(&proof.to_bytes()))
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<MerkleProof<Sha256>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        <Cow<'de, str> as Deserialize<'de>>::deserialize(deserializer)
+            .and_then(|s| hex::decode(&*s).map_err(Error::custom))
+            .and_then(|b| {
+                MerkleProof::<Sha256>::from_bytes(&b).map_err(Error::custom)
+            })
+    }
+}
+
 /// Represents a root hash and a proof of certain nodes.
+#[derive(Serialize, Deserialize)]
 pub struct CommitProof {
     /// Root hash.
     pub root: CommitHash,
-    /// The merkle proof.
+    /// Merkle proof.
+    #[serde(with = "proof_serde")]
     pub proof: MerkleProof<Sha256>,
-    /// The length of the tree.
+    /// Length of the tree.
     pub length: usize,
     /// Indices to prove.
     pub indices: Vec<usize>,

@@ -71,23 +71,13 @@ pub struct ServerDatabaseStorage {
 impl ServerDatabaseStorage {
     /// Create database storage for server-side access.
     pub async fn new(
-        client: Client,
+        mut client: Client,
         account_id: AccountId,
         identity_log: Arc<RwLock<FolderEventLog>>,
         paths: Paths,
     ) -> Result<Self> {
         debug_assert!(!paths.is_global());
-        Self::new_client(client, Arc::new(paths), account_id, identity_log)
-            .await
-    }
 
-    /// Create new storage backed by a database file on disc.
-    async fn new_client(
-        mut client: Client,
-        paths: Arc<Paths>,
-        account_id: AccountId,
-        identity_log: Arc<RwLock<FolderEventLog>>,
-    ) -> Result<Self> {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
                 paths.documents_dir().to_path_buf(),
@@ -111,10 +101,10 @@ impl ServerDatabaseStorage {
             FileEventLog::new_db_file(client.clone(), account_id).await?;
         file_log.load_tree().await?;
 
-        Ok(Self {
+        let mut storage = Self {
             account_id,
             account_row_id: account_row.row_id,
-            paths,
+            paths: Arc::new(paths),
             client,
             identity_log,
             account_log,
@@ -122,7 +112,11 @@ impl ServerDatabaseStorage {
             file_log: Arc::new(RwLock::new(file_log)),
             folders: Default::default(),
             devices,
-        })
+        };
+
+        storage.load_folders().await?;
+
+        Ok(storage)
     }
 
     async fn initialize_device_log(

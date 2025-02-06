@@ -5628,6 +5628,7 @@ dependencies = [
  "async-trait",
  "indexmap 2.7.1",
  "rustc_version",
+ "serde",
  "sos-backend",
  "sos-core",
  "sos-reducers",
