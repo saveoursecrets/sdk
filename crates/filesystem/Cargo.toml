@@ -12,7 +12,6 @@ full = ["archive", "audit", "files", "preferences", "system-messages"]
 archive = [
   "dep:async_zip",
   "dep:serde",
-  "dep:serde_json",
   "dep:sha2",
   "dep:uuid",
   "dep:walkdir",
@@ -23,8 +22,8 @@ archive = [
 ]
 audit = ["sos-audit"]
 files = ["sos-core/files"]
-preferences = ["sos-preferences", "dep:serde_json"]
-system-messages = ["sos-system-messages", "dep:serde_json", "dep:urn"]
+preferences = ["sos-preferences"]
+system-messages = ["sos-system-messages", "dep:urn"]
 
 [dependencies]
 sos-core.workspace = true
@@ -38,6 +37,7 @@ sos-preferences = { workspace = true, optional = true }
 
 thiserror.workspace = true
 async-trait.workspace = true
+serde_json.workspace = true
 futures.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
@@ -51,7 +51,6 @@ async-fd-lock.workspace = true
 
 # preferences / system messages
 urn = { workspace = true, optional = true }
-serde_json = { workspace = true, optional = true }
 
 # archive
 async_zip = { workspace = true, optional = true }
