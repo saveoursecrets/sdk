@@ -5075,7 +5075,7 @@ dependencies = [
 
 [[package]]
 name = "sos-external-files"
-version = "0.16.1"
+version = "0.16.2"
 dependencies = [
  "indexmap 2.7.1",
  "sos-core",
