@@ -1,6 +1,6 @@
 [package]
 name = "sos-recovery"
-version = "0.16.0"
+version = "0.16.1"
 edition = "2021"
 description = "Types and traits for social recovery."
 homepage = "https://saveoursecrets.com"

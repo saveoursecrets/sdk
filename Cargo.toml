@@ -76,7 +76,7 @@ sos-preferences = { version = "0.16", path = "crates/preferences" }
 sos-signer = { version = "0.16", path = "crates/signer" }
 sos-sync = { version = "0.16", path = "crates/sync" }
 sos-sdk = { version = "0.16", path = "crates/sdk" }
-sos-vfs = { version = "0.2.2", path = "crates/vfs" }
+sos-vfs = { version = "0.2.6", path = "crates/vfs" }
 sos-web = { version = "0.16", path = "crates/web" }
 sos-vault = { version = "0.16", path = "crates/vault" }
 
