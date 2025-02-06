@@ -89,6 +89,7 @@ pub trait StorageEventLogs: Send + Sync + 'static {
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>, Self::Error>;
 
+    /*
     /// Load all commit trees into memory.
     ///
     /// Typically, commit trees are loaded into memory on-demand
@@ -96,7 +97,7 @@ pub trait StorageEventLogs: Send + Sync + 'static {
     /// for storage; for example, it is used by the database
     /// upgrader to ensure imported accounts exactly match the
     /// legacy file system accounts.
-    async fn load_all_event_commits(&self) -> Result<(), Self::Error> {
+    async fn load_all_events(&self) -> Result<(), Self::Error> {
         let identity = self.identity_log().await?;
         let mut identity = identity.write().await;
         identity.load_tree().await?;
@@ -125,6 +126,7 @@ pub trait StorageEventLogs: Send + Sync + 'static {
 
         Ok(())
     }
+    */
 }
 
 /// Types that can merge diffs.

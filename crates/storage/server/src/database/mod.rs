@@ -350,11 +350,9 @@ impl ServerAccountStorage for ServerDatabaseStorage {
 
         let mut folders = Vec::new();
         for row in rows {
-            folders.push(FolderRecord::from_row(row).await?);
+            let record = FolderRecord::from_row(row).await?;
+            folders.push(record.summary);
         }
-
-        let folders =
-            folders.into_iter().map(|f| f.summary).collect::<Vec<_>>();
 
         // Create a cache entry for each summary if it does not
         // already exist.

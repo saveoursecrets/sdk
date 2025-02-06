@@ -30,6 +30,7 @@ use sos_login::{FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_vault::{
+    list_local_folders,
     secret::{Secret, SecretMeta, SecretRow},
     BuilderCredentials, ChangePassword, Header, SecretAccess, Summary, Vault,
     VaultBuilder, VaultCommit, VaultFlags,
@@ -116,30 +117,33 @@ pub struct ClientFileSystemStorage {
 
 impl ClientFileSystemStorage {
     /// Create unauthenticated folder storage for client-side access.
+    ///
+    /// Events are loaded into memory.
     pub async fn new_unauthenticated(
-        account_id: &AccountId,
         paths: Paths,
+        account_id: &AccountId,
     ) -> Result<Self> {
         debug_assert!(!paths.is_global());
 
         paths.ensure().await?;
 
-        let identity_log = Arc::new(RwLock::new(
-            FolderEventLog::new_fs_folder(paths.identity_events()).await?,
-        ));
+        let mut identity_log =
+            FolderEventLog::new_fs_folder(paths.identity_events()).await?;
+        identity_log.load_tree().await?;
 
-        let account_log = Arc::new(RwLock::new(
-            AccountEventLog::new_fs_account(paths.account_events()).await?,
-        ));
+        let mut account_log =
+            AccountEventLog::new_fs_account(paths.account_events()).await?;
+        account_log.load_tree().await?;
 
-        let device_log = Arc::new(RwLock::new(
-            DeviceEventLog::new_fs_device(paths.device_events()).await?,
-        ));
+        let mut device_log =
+            DeviceEventLog::new_fs_device(paths.device_events()).await?;
+        device_log.load_tree().await?;
 
         #[cfg(feature = "files")]
-        let file_log = Arc::new(RwLock::new(
-            FileEventLog::new_fs_file(paths.file_events()).await?,
-        ));
+        let file_log = {
+            let file_log = Self::initialize_file_log(&paths).await?;
+            Arc::new(RwLock::new(file_log))
+        };
 
         let paths = Arc::new(paths);
 
@@ -149,11 +153,11 @@ impl ClientFileSystemStorage {
             current: Arc::new(Mutex::new(None)),
             folders: Default::default(),
             paths: paths.clone(),
-            identity_log,
-            account_log,
+            identity_log: Arc::new(RwLock::new(identity_log)),
+            account_log: Arc::new(RwLock::new(account_log)),
             #[cfg(feature = "search")]
             index: None,
-            device_log,
+            device_log: Arc::new(RwLock::new(device_log)),
             devices: Default::default(),
             #[cfg(feature = "files")]
             file_log: file_log.clone(),
@@ -169,10 +173,11 @@ impl ClientFileSystemStorage {
         Ok(storage)
     }
 
+    /*
     /// Create folder storage for client-side access.
     pub async fn new_authenticated(
-        account_id: &AccountId,
         paths: Paths,
+        account_id: &AccountId,
         authenticated_user: Identity,
     ) -> Result<Self> {
         debug_assert!(!paths.is_global());
@@ -236,6 +241,7 @@ impl ClientFileSystemStorage {
             authenticated: Some(authenticated_user),
         })
     }
+    */
 
     async fn initialize_device_log(
         paths: &Paths,
@@ -1434,6 +1440,46 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         self.authenticated.is_some()
     }
 
+    async fn authenticate(
+        &mut self,
+        authenticated_user: Identity,
+    ) -> Result<()> {
+        let identity_log = authenticated_user.identity()?.event_log();
+        let device = authenticated_user
+            .identity()?
+            .devices()?
+            .current_device(None);
+
+        let (device_log, devices) =
+            Self::initialize_device_log(&self.paths, device).await?;
+
+        #[cfg(feature = "search")]
+        {
+            self.index = Some(AccountSearch::new());
+        }
+
+        #[cfg(feature = "files")]
+        {
+            let file_log = Self::initialize_file_log(&self.paths).await?;
+            self.file_log = Arc::new(RwLock::new(file_log));
+
+            let file_password =
+                authenticated_user.find_file_encryption_password().await?;
+            self.external_file_manager = ExternalFileManager::new(
+                self.paths.clone(),
+                self.file_log.clone(),
+                Some(file_password),
+            );
+        }
+
+        self.identity_log = identity_log;
+        self.device_log = Arc::new(RwLock::new(device_log));
+        self.devices = devices;
+        self.authenticated = Some(authenticated_user);
+
+        Ok(())
+    }
+
     async fn sign_out(&mut self) -> Result<()> {
         if let Some(authenticated) = &mut self.authenticated {
             tracing::debug!("client_storage::sign_out_identity");
@@ -1442,6 +1488,7 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         }
 
         tracing::debug!("client_storage::drop_authenticated_state");
+        self.index = None;
         self.authenticated = None;
 
         Ok(())

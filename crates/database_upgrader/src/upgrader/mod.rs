@@ -144,7 +144,6 @@ async fn compute_fs_account_status(
             BackendTarget::FileSystem(account_paths.clone()),
         )
         .await?;
-        storage.load_all_event_commits().await?;
         storage.sync_status().await?
     };
     Ok(sync_status)
@@ -173,7 +172,6 @@ async fn compute_db_account_status(
             BackendTarget::Database(client.clone()),
         )
         .await?;
-        storage.load_all_event_commits().await?;
         storage.sync_status().await?
     };
     Ok(sync_status)
@@ -215,23 +213,35 @@ pub async fn upgrade_accounts(
         println!("{} <-> {}", status.0.root, status.1.root);
 
         if status.0.identity != status.1.identity {
-            println!("{:#?} != {:#?}", status.0.identity, status.1.identity);
+            println!(
+                "IDENTITY {:#?} != {:#?}",
+                status.0.identity, status.1.identity
+            );
         }
 
         if status.0.account != status.1.account {
-            println!("{:#?} != {:#?}", status.0.account, status.1.account);
+            println!(
+                "ACCOUNT {:#?} != {:#?}",
+                status.0.account, status.1.account
+            );
         }
 
         if status.0.device != status.1.device {
-            println!("{:#?} != {:#?}", status.0.device, status.1.device);
+            println!(
+                "DEVICE {:#?} != {:#?}",
+                status.0.device, status.1.device
+            );
         }
 
         if status.0.files != status.1.files {
-            println!("{:#?} != {:#?}", status.0.files, status.1.files);
+            println!("FILES {:#?} != {:#?}", status.0.files, status.1.files);
         }
 
         if status.0.folders != status.1.folders {
-            println!("{:#?} != {:#?}", status.0.folders, status.1.folders);
+            println!(
+                "FOLDERS {:#?} != {:#?}",
+                status.0.folders, status.1.folders
+            );
         }
     }
     // ------------------->

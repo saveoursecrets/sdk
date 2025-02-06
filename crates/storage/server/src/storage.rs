@@ -132,23 +132,14 @@ impl ServerStorage {
     ) -> Result<Self> {
         let paths = paths.with_account_id(account_id);
 
-        let folder_account_id = *account_id;
+        let (_, login_folder) =
+            AccountEntity::find_account_with_login(&client, account_id)
+                .await?;
 
-        let login_folder = client
-            .conn(move |conn| {
-                let account = AccountEntity::new(&conn);
-                let account_row = account.find_one(&folder_account_id)?;
-                let folders = FolderEntity::new(&conn);
-                Ok(folders.find_login_folder(account_row.row_id)?)
-            })
-            .await
-            .map_err(sos_database::Error::from)?;
-
-        let login_record = FolderRecord::from_row(login_folder).await?;
         let mut event_log = FolderEventLog::new_db_folder(
             client.clone(),
             *account_id,
-            *login_record.summary.id(),
+            *login_folder.summary.id(),
         )
         .await?;
 

@@ -3,7 +3,6 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, SecretChange};
-use sos_protocol::AccountSync;
 use sos_sdk::prelude::*;
 
 /// Tests recovering a folder from a remote origin after
@@ -48,18 +47,9 @@ async fn network_sync_recover_remote_folder() -> Result<()> {
     vfs::remove_file(&vault_path).await?;
     vfs::remove_file(&event_path).await?;
 
-    // Sign out and sign in will put the account into the
-    // inconsistent state as the folders will be reloaded
-    // from disc which will cause subsequent sync operations
-    // to fail.
     device.owner.sign_out().await?;
     let key: AccessKey = device.password.clone().into();
     device.owner.sign_in(&key).await?;
-
-    // Now sync is broken as the local account is
-    // in an inconsistent state
-    let sync_result = device.owner.sync().await;
-    assert!(sync_result.first_error().is_some());
 
     // Recover the folder from the remote origin
     device

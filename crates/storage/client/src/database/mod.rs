@@ -17,7 +17,6 @@ use sos_core::{
     SecretId, VaultId,
 };
 use sos_core::{
-    constants::VAULT_EXT,
     crypto::AccessKey,
     decode, encode,
     events::{
@@ -26,13 +25,16 @@ use sos_core::{
     },
     AccountId, AuthenticationError, FolderRef, Paths, UtcDateTime,
 };
-use sos_database::async_sqlite::Client;
+use sos_database::{
+    async_sqlite::Client,
+    entity::{AccountEntity, FolderEntity, FolderRecord},
+};
 use sos_login::{FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    BuilderCredentials, ChangePassword, Header, SecretAccess, Summary, Vault,
+    BuilderCredentials, ChangePassword, SecretAccess, Summary, Vault,
     VaultBuilder, VaultCommit, VaultFlags,
 };
 use sos_vfs as vfs;
@@ -62,7 +64,8 @@ use sos_search::{AccountSearch, DocumentCount};
 
 mod sync;
 
-/// Client storage for folders loaded into memory and mirrored to disc.
+/// Client storage for folders loaded into memory
+/// and stored in a database.
 pub struct ClientDatabaseStorage {
     /// Account identifier.
     pub(super) account_id: AccountId,
@@ -73,7 +76,11 @@ pub struct ClientDatabaseStorage {
     /// Directories for file storage.
     pub(super) paths: Arc<Paths>,
 
+    /// Database client.
     client: Client,
+
+    /// Database row identifier.
+    account_row_id: i64,
 
     // Use interior mutability so all the account functions
     // that accept an optional folder when reading do not need
@@ -119,6 +126,8 @@ pub struct ClientDatabaseStorage {
 
 impl ClientDatabaseStorage {
     /// Create unauthenticated folder storage for client-side access.
+    ///
+    /// Events are loaded into memory.
     pub async fn new_unauthenticated(
         paths: &Paths,
         account_id: &AccountId,
@@ -126,37 +135,53 @@ impl ClientDatabaseStorage {
     ) -> Result<Self> {
         debug_assert!(!paths.is_global());
 
-        let identity_log = Arc::new(RwLock::new(
-            FolderEventLog::new_fs_folder(paths.identity_events()).await?,
-        ));
+        let (account_record, login_folder) =
+            AccountEntity::find_account_with_login(&client, account_id)
+                .await?;
 
-        let account_log = Arc::new(RwLock::new(
-            AccountEventLog::new_fs_account(paths.account_events()).await?,
-        ));
+        let mut identity_log = FolderEventLog::new_db_folder(
+            client.clone(),
+            *account_id,
+            *login_folder.summary.id(),
+        )
+        .await?;
+        identity_log.load_tree().await?;
 
-        let device_log = Arc::new(RwLock::new(
-            DeviceEventLog::new_fs_device(paths.device_events()).await?,
-        ));
+        let mut account_log =
+            AccountEventLog::new_db_account(client.clone(), *account_id)
+                .await?;
+        account_log.load_tree().await?;
+
+        let mut device_log =
+            DeviceEventLog::new_db_device(client.clone(), *account_id)
+                .await?;
+        device_log.load_tree().await?;
 
         #[cfg(feature = "files")]
-        let file_log = Arc::new(RwLock::new(
-            FileEventLog::new_fs_file(paths.file_events()).await?,
-        ));
+        let file_log = {
+            let mut file_log =
+                FileEventLog::new_db_file(client.clone(), *account_id)
+                    .await?;
+            file_log.load_tree().await?;
+
+            Arc::new(RwLock::new(file_log))
+        };
 
         let paths = Arc::new(paths.clone());
 
         let mut storage = Self {
             account_id: *account_id,
+            client,
+            account_row_id: account_record.row_id,
             summaries: Vec::new(),
             current: Arc::new(Mutex::new(None)),
             folders: Default::default(),
             paths: paths.clone(),
-            client,
-            identity_log,
-            account_log,
+            identity_log: Arc::new(RwLock::new(identity_log)),
+            account_log: Arc::new(RwLock::new(account_log)),
             #[cfg(feature = "search")]
             index: None,
-            device_log,
+            device_log: Arc::new(RwLock::new(device_log)),
             devices: Default::default(),
             #[cfg(feature = "files")]
             file_log: file_log.clone(),
@@ -172,81 +197,14 @@ impl ClientDatabaseStorage {
         Ok(storage)
     }
 
-    /// Create folder storage for client-side access.
-    pub async fn new_authenticated(
-        paths: &Paths,
-        account_id: &AccountId,
-        authenticated_user: Identity,
-        client: Client,
-    ) -> Result<Self> {
-        debug_assert!(!paths.is_global());
-
-        if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
-            return Err(Error::NotDirectory(
-                paths.documents_dir().to_path_buf(),
-            ));
-        }
-
-        let log_file = paths.account_events();
-        let mut account_log =
-            AccountEventLog::new_fs_account(log_file).await?;
-        account_log.load_tree().await?;
-
-        let identity_log = authenticated_user.identity()?.event_log();
-        let device = authenticated_user
-            .identity()?
-            .devices()?
-            .current_device(None);
-
-        let (device_log, devices) =
-            Self::initialize_device_log(&paths, device).await?;
-
-        #[cfg(feature = "files")]
-        let (file_log, file_password) = {
-            let file_log = Arc::new(RwLock::new(
-                Self::initialize_file_log(&paths).await?,
-            ));
-
-            let file_password =
-                authenticated_user.find_file_encryption_password().await?;
-
-            (file_log, file_password)
-        };
-
-        let paths = Arc::new(paths.clone());
-
-        Ok(Self {
-            account_id: *account_id,
-            summaries: Vec::new(),
-            current: Arc::new(Mutex::new(None)),
-            folders: Default::default(),
-            paths: paths.clone(),
-            client,
-            identity_log,
-            account_log: Arc::new(RwLock::new(account_log)),
-            #[cfg(feature = "search")]
-            index: Some(AccountSearch::new()),
-            device_log: Arc::new(RwLock::new(device_log)),
-            devices,
-            #[cfg(feature = "files")]
-            file_log: file_log.clone(),
-            #[cfg(feature = "files")]
-            external_file_manager: ExternalFileManager::new(
-                paths,
-                file_log,
-                Some(file_password),
-            ),
-            authenticated: Some(authenticated_user),
-        })
-    }
-
     async fn initialize_device_log(
-        paths: &Paths,
         device: TrustedDevice,
+        account_id: &AccountId,
+        client: &Client,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
-        let log_file = paths.device_events();
-
-        let mut event_log = DeviceEventLog::new_fs_device(log_file).await?;
+        let mut event_log =
+            DeviceEventLog::new_db_device(client.clone(), *account_id)
+                .await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
@@ -268,29 +226,6 @@ impl ClientDatabaseStorage {
         Ok((event_log, devices))
     }
 
-    #[cfg(feature = "files")]
-    async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
-        let log_file = paths.file_events();
-        let needs_init = !vfs::try_exists(&log_file).await?;
-        let mut event_log = FileEventLog::new_fs_file(log_file).await?;
-        event_log.load_tree().await?;
-
-        tracing::debug!(needs_init = %needs_init, "file_log");
-
-        if needs_init {
-            let files =
-                sos_external_files::list_external_files(paths).await?;
-            let events: Vec<FileEvent> =
-                files.into_iter().map(|f| f.into()).collect();
-
-            tracing::debug!(init_events_len = %events.len());
-
-            event_log.apply(events.iter().collect()).await?;
-        }
-
-        Ok(event_log)
-    }
-
     /// Initialize a folder from an event log.
     ///
     /// If an event log exists for the folder identifer
@@ -300,17 +235,22 @@ impl ClientDatabaseStorage {
         folder_id: &VaultId,
         records: Vec<EventRecord>,
     ) -> Result<(Folder, Vault)> {
-        let vault_path = self.paths.vault_path(folder_id);
-
         // Prepare the vault file on disc
         let vault = {
+            /*
             // We need a vault on disc to create the event log
             // so set a placeholder
             let vault: Vault = Default::default();
             let buffer = encode(&vault).await?;
             self.write_vault_file(folder_id, buffer).await?;
+            */
 
-            let folder = Folder::new_fs(&vault_path).await?;
+            let folder = Folder::new_db(
+                self.client.clone(),
+                self.account_id,
+                *folder_id,
+            )
+            .await?;
             let event_log = folder.event_log();
             let mut event_log = event_log.write().await;
             event_log.clear().await?;
@@ -322,15 +262,21 @@ impl ClientDatabaseStorage {
                 .build(true)
                 .await?;
 
+            /*
             let buffer = encode(&vault).await?;
             self.write_vault_file(folder_id, buffer).await?;
+            */
+
+            todo!("load secrets into database on folder initialization");
 
             vault
         };
 
         // Setup the folder access to the latest vault information
         // and load the merkle tree
-        let folder = Folder::new_fs(&vault_path).await?;
+        let folder =
+            Folder::new_db(self.client.clone(), self.account_id, *folder_id)
+                .await?;
         let event_log = folder.event_log();
         let mut event_log = event_log.write().await;
         event_log.load_tree().await?;
@@ -345,8 +291,12 @@ impl ClientDatabaseStorage {
         vault: Option<Vault>,
         creation_time: Option<&UtcDateTime>,
     ) -> Result<()> {
-        let vault_path = self.paths.vault_path(summary.id());
-        let mut event_log = Folder::new_fs(&vault_path).await?;
+        let mut event_log = Folder::new_db(
+            self.client.clone(),
+            self.account_id,
+            *summary.id(),
+        )
+        .await?;
 
         if let Some(vault) = vault {
             // Must truncate the event log so that importing vaults
@@ -636,24 +586,24 @@ impl ClientDatabaseStorage {
             .await?)
     }
 
-    /// Read folders from the local disc.
+    /// Read folders from the database.
     async fn read_folders(&self) -> Result<Vec<Summary>> {
-        let storage = self.paths.vaults_dir();
-        let mut summaries = Vec::new();
-        let mut contents = vfs::read_dir(&storage).await?;
-        while let Some(entry) = contents.next_entry().await? {
-            let path = entry.path();
-            if let Some(extension) = path.extension() {
-                if extension == VAULT_EXT {
-                    let summary = Header::read_summary_file(path).await?;
-                    if summary.flags().is_system() {
-                        continue;
-                    }
-                    summaries.push(summary);
-                }
-            }
+        let account_id = self.account_row_id;
+        let rows = self
+            .client
+            .conn_and_then(move |conn| {
+                let folders = FolderEntity::new(&conn);
+                Ok::<_, sos_database::Error>(
+                    folders.list_user_folders(account_id)?,
+                )
+            })
+            .await?;
+        let mut folders = Vec::new();
+        for row in rows {
+            let record = FolderRecord::from_row(row).await?;
+            folders.push(record.summary);
         }
-        Ok(summaries)
+        Ok(folders)
     }
 }
 
@@ -1013,6 +963,7 @@ impl ClientFolderStorage for ClientDatabaseStorage {
         Ok((event, summary))
     }
 
+    /// Create folders and load event logs.
     async fn load_folders(&mut self) -> Result<&[Summary]> {
         let summaries = self.read_folders().await?;
         self.load_caches(&summaries).await?;
@@ -1437,6 +1388,47 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         self.authenticated.is_some()
     }
 
+    async fn authenticate(
+        &mut self,
+        authenticated_user: Identity,
+    ) -> Result<()> {
+        let identity_log = authenticated_user.identity()?.event_log();
+        let device = authenticated_user
+            .identity()?
+            .devices()?
+            .current_device(None);
+
+        let (device_log, devices) = Self::initialize_device_log(
+            device,
+            &self.account_id,
+            &self.client,
+        )
+        .await?;
+
+        #[cfg(feature = "search")]
+        {
+            self.index = Some(AccountSearch::new());
+        }
+
+        #[cfg(feature = "files")]
+        {
+            let file_password =
+                authenticated_user.find_file_encryption_password().await?;
+            self.external_file_manager = ExternalFileManager::new(
+                self.paths.clone(),
+                self.file_log.clone(),
+                Some(file_password),
+            );
+        }
+
+        self.identity_log = identity_log;
+        self.device_log = Arc::new(RwLock::new(device_log));
+        self.devices = devices;
+        self.authenticated = Some(authenticated_user);
+
+        Ok(())
+    }
+
     async fn sign_out(&mut self) -> Result<()> {
         if let Some(authenticated) = &mut self.authenticated {
             tracing::debug!("client_storage::sign_out_identity");
@@ -1445,6 +1437,7 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         }
 
         tracing::debug!("client_storage::drop_authenticated_state");
+        self.index = None;
         self.authenticated = None;
 
         Ok(())

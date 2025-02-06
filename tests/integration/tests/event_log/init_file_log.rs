@@ -9,7 +9,7 @@ use sos_sdk::prelude::*;
 #[tokio::test]
 async fn event_log_init_file_log() -> Result<()> {
     const TEST_ID: &str = "event_log_init_file_log";
-    //crate::test_utils::init_tracing();
+    crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -53,8 +53,7 @@ async fn event_log_init_file_log() -> Result<()> {
     account.sign_in(&key).await?;
 
     // Check the event log was initialized from the files on disc
-    let mut event_log =
-        FileEventLog::new_fs_file(&file_events).await?;
+    let mut event_log = FileEventLog::new_fs_file(&file_events).await?;
     let event = last_log_event(&mut event_log, None).await?;
     assert!(matches!(event, Some(FileEvent::CreateFile(_, _))));
 

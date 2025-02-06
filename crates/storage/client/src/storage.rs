@@ -63,7 +63,7 @@ impl ClientStorage {
     ) -> Result<Self> {
         match target {
             BackendTarget::FileSystem(paths) => {
-                Ok(Self::new_unauthenticated_fs(account_id, paths).await?)
+                Ok(Self::new_unauthenticated_fs(paths, account_id).await?)
             }
             BackendTarget::Database(client) => {
                 Ok(Self::new_unauthenticated_db(paths, account_id, client)
@@ -72,82 +72,33 @@ impl ClientStorage {
         }
     }
 
-    /// Create new client storage in authenticated state.
-    pub async fn new_authenticated(
-        paths: &Paths,
-        account_id: &AccountId,
-        target: BackendTarget,
-        authenticated_user: Identity,
-    ) -> Result<Self> {
-        match target {
-            BackendTarget::FileSystem(paths) => {
-                Ok(Self::new_authenticated_fs(
-                    account_id,
-                    paths,
-                    authenticated_user,
-                )
-                .await?)
-            }
-            BackendTarget::Database(client) => {
-                Ok(Self::new_authenticated_db(
-                    paths,
-                    account_id,
-                    client,
-                    authenticated_user,
-                )
-                .await?)
-            }
-        }
-    }
-
     /// Create new file system storage.
     async fn new_unauthenticated_fs(
-        account_id: &AccountId,
         paths: Paths,
+        account_id: &AccountId,
     ) -> Result<Self> {
         debug_assert!(!paths.is_server());
 
         Ok(Self::FileSystem(
-            ClientFileSystemStorage::new_unauthenticated(account_id, paths)
+            ClientFileSystemStorage::new_unauthenticated(paths, account_id)
                 .await?,
         ))
     }
 
-    /// Create new file system storage in authenticated state.
-    async fn new_authenticated_fs(
-        account_id: &AccountId,
-        paths: Paths,
-        authenticated_user: Identity,
-    ) -> Result<Self> {
-        debug_assert!(!paths.is_server());
-
-        Ok(Self::FileSystem(
-            ClientFileSystemStorage::new_authenticated(
-                account_id,
-                paths,
-                authenticated_user,
-            )
-            .await?,
-        ))
-    }
-
-    /// Create new file system storage.
+    /// Create new database storage.
     async fn new_unauthenticated_db(
         paths: &Paths,
         account_id: &AccountId,
         client: Client,
     ) -> Result<Self> {
-        todo!("unauthenticated db storage");
-    }
+        debug_assert!(!paths.is_server());
 
-    /// Create new file system storage in authenticated state.
-    async fn new_authenticated_db(
-        paths: &Paths,
-        account_id: &AccountId,
-        client: Client,
-        authenticated_user: Identity,
-    ) -> Result<Self> {
-        todo!("authenticated db storage");
+        Ok(Self::Database(
+            ClientDatabaseStorage::new_unauthenticated(
+                paths, account_id, client,
+            )
+            .await?,
+        ))
     }
 }
 
@@ -597,6 +548,20 @@ impl ClientAccountStorage for ClientStorage {
         match self {
             ClientStorage::FileSystem(fs) => fs.is_authenticated(),
             ClientStorage::Database(db) => db.is_authenticated(),
+        }
+    }
+
+    async fn authenticate(
+        &mut self,
+        authenticated_user: Identity,
+    ) -> Result<()> {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.authenticate(authenticated_user).await
+            }
+            ClientStorage::Database(db) => {
+                db.authenticate(authenticated_user).await
+            }
         }
     }
 

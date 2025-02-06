@@ -1,6 +1,10 @@
-use crate::{Error, Result};
-use async_sqlite::rusqlite::{
-    Connection, Error as SqlError, OptionalExtension, Row,
+use crate::{
+    entity::{FolderEntity, FolderRecord},
+    Error, Result,
+};
+use async_sqlite::{
+    rusqlite::{Connection, Error as SqlError, OptionalExtension, Row},
+    Client,
 };
 use sos_core::{AccountId, PublicIdentity, UtcDateTime};
 use sql_query_builder as sql;
@@ -83,6 +87,29 @@ where
     C: Deref<Target = Connection>,
 {
     conn: &'conn C,
+}
+
+impl<'conn> AccountEntity<'conn, Box<Connection>> {
+    /// Find an account and login folder.
+    pub async fn find_account_with_login(
+        client: &Client,
+        account_id: &AccountId,
+    ) -> Result<(AccountRecord, FolderRecord)> {
+        let account_id = *account_id;
+        let (account_row, folder_row) = client
+            .conn_mut(move |conn| {
+                let account = AccountEntity::new(&conn);
+                let account_row = account.find_one(&account_id)?;
+                let folders = FolderEntity::new(&conn);
+                let folder_row =
+                    folders.find_login_folder(account_row.row_id)?;
+                Ok((account_row, folder_row))
+            })
+            .await?;
+
+        let login_folder = FolderRecord::from_row(folder_row).await?;
+        Ok((account_row.try_into()?, login_folder))
+    }
 }
 
 impl<'conn, C> AccountEntity<'conn, C>

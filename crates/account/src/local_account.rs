@@ -155,25 +155,17 @@ impl LocalAccount {
         user.sign_in(self.account_id(), key).await?;
         tracing::debug!("sign_in success");
 
-        #[allow(unused_mut)]
-        let mut storage = ClientStorage::new_authenticated(
-            &paths,
-            account_id,
-            BackendTarget::FileSystem(paths.clone()),
-            user,
-        )
-        .await?;
+        self.storage.authenticate(user).await?;
 
-        self.paths = storage.paths();
+        self.paths = self.storage.paths();
 
         Self::initialize_account_log(
             &self.paths,
-            storage.account_log().await?,
+            self.storage.account_log().await?,
         )
         .await?;
 
-        // self.authenticated = Some(user);
-        self.storage = storage;
+        // self.storage = storage;
 
         // Load vaults into memory and initialize folder
         // event log commit trees
@@ -714,18 +706,17 @@ impl LocalAccount {
 
         let (authenticated_user, public_account) = new_account.into();
 
-        let mut storage = ClientStorage::new_authenticated(
+        let mut storage = ClientStorage::new_unauthenticated(
             &paths,
             &account_id,
             BackendTarget::FileSystem(paths.clone()),
-            authenticated_user,
         )
         .await?;
+        storage.authenticate(authenticated_user).await?;
 
         tracing::debug!("new_account::storage_provider");
 
         // Must import the new account before signing in
-        // let public_account: AccountPack = new_account.into();
         storage.create_account(&public_account).await?;
 
         tracing::debug!("new_account::imported");

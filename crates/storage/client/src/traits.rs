@@ -272,6 +272,12 @@ pub trait ClientAccountStorage:
     /// Determine if the storage is authenticated.
     fn is_authenticated(&self) -> bool;
 
+    /// Set the storage as authenticated.
+    async fn authenticate(
+        &mut self,
+        authenticated_user: Identity,
+    ) -> Result<()>;
+
     /// Sign out the authenticated user.
     async fn sign_out(&mut self) -> Result<()>;
 

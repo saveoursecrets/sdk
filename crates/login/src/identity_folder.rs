@@ -800,18 +800,10 @@ impl IdentityFolder {
         key: &AccessKey,
         client: &Client,
     ) -> Result<Self> {
-        let login_account_id = *account_id;
-        let login_folder = client
-            .conn(move |conn| {
-                let account = AccountEntity::new(&conn);
-                let folder = FolderEntity::new(&conn);
-                let account_row = account.find_one(&login_account_id)?;
-                Ok(folder.find_login_folder(account_row.row_id)?)
-            })
-            .await
-            .map_err(sos_backend::database::Error::from)?;
+        let (_, login_folder) =
+            AccountEntity::find_account_with_login(client, account_id)
+                .await?;
 
-        let login_folder = FolderRecord::from_row(login_folder).await?;
         let mut folder = Folder::new_db(
             client.clone(),
             *account_id,
