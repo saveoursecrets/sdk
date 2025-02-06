@@ -184,7 +184,7 @@ probly-search = "2.0.1"
 
 # database
 async-sqlite = "0.4"
-refinery = { version = "0.8", git = "https://github.com/rust-db/refinery", features = ["rusqlite"] }
+refinery = { version = "0.8", features = ["rusqlite"] }
 sql_query_builder = { version = "2", features = ["sqlite"]}
 
 # keychain parser
@@ -215,3 +215,4 @@ opt-level = "z"
 
 [patch.crates-io]
 async-fd-lock = { git = "https://github.com/tmpfs/async-fd-lock.git", branch = "seek"}
+refinery = { git = "https://github.com/rust-db/refinery" }
