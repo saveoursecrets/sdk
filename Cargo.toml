@@ -49,7 +49,7 @@ sos-account = { version = "0.16", path = "crates/account" }
 sos-artifact = { version = "0.8", path = "crates/artifact" }
 sos-audit = { version = "0.16", path = "crates/audit" }
 sos-backend  = { version = "0.16", path = "crates/backend" }
-sos-cli-helpers = { path = "crates/cli_helpers" }
+sos-cli-helpers = { version = "0.1", path = "crates/cli_helpers" }
 sos-core = { version = "0.16", path = "crates/core" }
 sos-database = { version = "0.16", path = "crates/database" }
 sos-database-upgrader = { version = "0.16", path = "crates/database_upgrader" }
@@ -76,7 +76,7 @@ sos-preferences = { version = "0.16", path = "crates/preferences" }
 sos-signer = { version = "0.16", path = "crates/signer" }
 sos-sync = { version = "0.16", path = "crates/sync" }
 sos-sdk = { version = "0.16", path = "crates/sdk" }
-sos-vfs = { version = "0.2.6", path = "crates/vfs" }
+sos-vfs = { version = "0.2", path = "crates/vfs" }
 sos-web = { version = "0.16", path = "crates/web" }
 sos-vault = { version = "0.16", path = "crates/vault" }
 
