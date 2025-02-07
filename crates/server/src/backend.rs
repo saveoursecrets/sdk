@@ -39,9 +39,9 @@ impl Backend {
         }
     }
 
-    /// Directory where accounts are stored.
-    pub fn directory(&self) -> &PathBuf {
-        self.paths.documents_dir()
+    /// Storage paths.
+    pub fn paths(&self) -> &Paths {
+        &self.paths
     }
 
     /// Get the accounts.

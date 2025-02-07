@@ -376,7 +376,7 @@ mod handlers {
     use indexmap::IndexSet;
     use sha2::{Digest, Sha256};
     use sos_core::{ExternalFileName, SecretId, VaultId};
-    use sos_external_files::list_external_files;
+    use sos_external_files::{list_external_blobs, list_external_files};
     use sos_protocol::{
         constants::MIME_TYPE_PROTOBUF,
         transfer::{FileSet, FileTransfersSet},
@@ -426,13 +426,24 @@ mod handlers {
             let reader = account.read().await;
             let paths = reader.paths();
             let name = file_name.to_string();
-            let parent_path = paths
-                .file_folder_location(&vault_id)
-                .join(secret_id.to_string());
-            (
-                parent_path,
-                paths.file_location(&vault_id, &secret_id, &name),
-            )
+
+            if paths.is_using_db() {
+                let parent_path = paths
+                    .blob_folder_location(&vault_id)
+                    .join(secret_id.to_string());
+                (
+                    parent_path,
+                    paths.blob_location(&vault_id, &secret_id, &name),
+                )
+            } else {
+                let parent_path = paths
+                    .file_folder_location(&vault_id)
+                    .join(secret_id.to_string());
+                (
+                    parent_path,
+                    paths.file_location(&vault_id, &secret_id, &name),
+                )
+            }
         };
 
         if tokio::fs::try_exists(&file_path).await? {
@@ -497,7 +508,11 @@ mod handlers {
             let reader = account.read().await;
             let paths = reader.paths();
             let name = file_name.to_string();
-            paths.file_location(&vault_id, &secret_id, &name)
+            if paths.is_using_db() {
+                paths.blob_location(&vault_id, &secret_id, &name)
+            } else {
+                paths.file_location(&vault_id, &secret_id, &name)
+            }
         };
 
         if !tokio::fs::try_exists(&file_path).await? {
@@ -531,7 +546,11 @@ mod handlers {
             let reader = account.read().await;
             let paths = reader.paths();
             let name = file_name.to_string();
-            paths.file_location(&vault_id, &secret_id, &name)
+            if paths.is_using_db() {
+                paths.blob_location(&vault_id, &secret_id, &name)
+            } else {
+                paths.file_location(&vault_id, &secret_id, &name)
+            }
         };
 
         if !tokio::fs::try_exists(&file_path).await? {
@@ -572,17 +591,34 @@ mod handlers {
             let reader = account.read().await;
             let paths = reader.paths();
             let name = file_name.to_string();
-            let source = paths.file_location(&vault_id, &secret_id, &name);
-            let target = paths.file_location(
-                &query.vault_id,
-                &query.secret_id,
-                &query.name.to_string(),
-            );
-            let parent_path = paths
-                .file_folder_location(&query.vault_id)
-                .join(query.secret_id.to_string());
 
-            (source, target, parent_path)
+            if paths.is_using_db() {
+                let source =
+                    paths.blob_location(&vault_id, &secret_id, &name);
+                let target = paths.blob_location(
+                    &query.vault_id,
+                    &query.secret_id,
+                    &query.name.to_string(),
+                );
+                let parent_path = paths
+                    .blob_folder_location(&query.vault_id)
+                    .join(query.secret_id.to_string());
+
+                (source, target, parent_path)
+            } else {
+                let source =
+                    paths.file_location(&vault_id, &secret_id, &name);
+                let target = paths.file_location(
+                    &query.vault_id,
+                    &query.secret_id,
+                    &query.name.to_string(),
+                );
+                let parent_path = paths
+                    .file_folder_location(&query.vault_id)
+                    .join(query.secret_id.to_string());
+
+                (source, target, parent_path)
+            }
         };
 
         if !tokio::fs::try_exists(&source_path).await? {
@@ -629,7 +665,11 @@ mod handlers {
         tracing::debug!(
             local_set_len = %local_set.len(), "compare_files");
 
-        let remote_set = list_external_files(&*paths).await?;
+        let remote_set = if paths.is_using_db() {
+            list_external_blobs(&*paths).await?
+        } else {
+            list_external_files(&*paths).await?
+        };
         tracing::debug!(
             remote_set_len = %remote_set.len(), "compare_files");
 

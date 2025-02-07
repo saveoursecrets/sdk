@@ -133,7 +133,6 @@ mod cli {
 
     mod service {
         use axum_server::Handle;
-        use sos_core::Paths;
         use sos_server::{
             Error, Result, Server, ServerConfig, SslConfig, State,
             StorageConfig,
@@ -192,9 +191,8 @@ mod cli {
 
             #[cfg(feature = "audit")]
             {
-                let paths = Paths::new_global_server(backend.directory());
                 let provider = sos_backend::audit::new_fs_provider(
-                    paths.audit_file().to_owned(),
+                    backend.paths().audit_file().to_owned(),
                 );
                 sos_backend::audit::init_providers(vec![provider]);
             }

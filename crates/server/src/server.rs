@@ -126,7 +126,10 @@ impl Server {
         let storage = {
             let state = state.read().await;
             let backend = backend.read().await;
-            (state.config.storage.clone(), backend.directory().to_owned())
+            (
+                state.config.storage.clone(),
+                backend.paths().documents_dir().to_owned(),
+            )
         };
 
         let tls = RustlsConfig::from_pem_file(&tls.cert, &tls.key).await?;
@@ -155,7 +158,10 @@ impl Server {
         let storage = {
             let state = state.read().await;
             let backend = backend.read().await;
-            (state.config.storage.clone(), backend.directory().to_owned())
+            (
+                state.config.storage.clone(),
+                backend.paths().documents_dir().to_owned(),
+            )
         };
 
         let mut acme_state = AcmeConfig::new(acme.domains)
@@ -203,7 +209,10 @@ impl Server {
         let storage = {
             let state = state.read().await;
             let backend = backend.read().await;
-            (state.config.storage.clone(), backend.directory().to_owned())
+            (
+                state.config.storage.clone(),
+                backend.paths().documents_dir().to_owned(),
+            )
         };
 
         let app = Server::router(Arc::clone(&state), backend, origins)?;
