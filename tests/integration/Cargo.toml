@@ -26,6 +26,7 @@ sos-server-storage = { workspace = true, features = ["full"] }
 sos-web = { workspace = true, features = ["full"] }
 sos-protocol = { workspace = true, features = ["full"] }
 sos-preferences.workspace = true
+sos-remote-sync = { workspace = true, features = ["full"] }
 sos-security-report.workspace = true
 sos-search.workspace = true
 sos-signer.workspace = true

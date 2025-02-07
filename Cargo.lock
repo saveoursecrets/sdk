@@ -5168,6 +5168,7 @@ dependencies = [
  "sos-net",
  "sos-preferences",
  "sos-protocol",
+ "sos-remote-sync",
  "sos-sdk",
  "sos-search",
  "sos-security-report",
@@ -5478,6 +5479,23 @@ dependencies = [
  "rustc_version",
  "sos-core",
  "sos-vault",
+ "tracing",
+]
+
+[[package]]
+name = "sos-remote-sync"
+version = "0.16.0"
+dependencies = [
+ "async-trait",
+ "indexmap 2.7.1",
+ "sos-account",
+ "sos-backend",
+ "sos-core",
+ "sos-protocol",
+ "sos-sync",
+ "sos-vfs",
+ "thiserror 2.0.11",
+ "tokio",
  "tracing",
 ]
 

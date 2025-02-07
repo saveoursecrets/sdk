@@ -25,6 +25,7 @@ members = [
   "crates/protocol",
   "crates/recovery",
   "crates/reducers",
+  "crates/remote_sync", 
   "crates/sdk",
   "crates/search",
   "crates/security_report",
@@ -41,7 +42,7 @@ members = [
 
   "tests/integration",
   "tests/unit",
-  "tests/utils", 
+  "tests/utils",
 ]
 
 [workspace.dependencies]
@@ -66,6 +67,7 @@ sos-platform-authenticator = { version = "0.1", path = "crates/platform_authenti
 sos-protocol = { version = "0.16", path = "crates/protocol" }
 sos-recovery = { version = "0.16", path = "crates/recovery" }
 sos-reducers = { version = "0.16", path = "crates/reducers" }
+sos-remote-sync = { version = "0.16", path = "crates/remote_sync" }
 sos-search = { version = "0.16", path = "crates/search" }
 sos-server = { version = "0.16", path = "crates/server" }
 sos-security-report = { version = "0.16", path = "crates/security_report" }
