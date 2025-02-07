@@ -1,6 +1,7 @@
 //! Server configuration.
 use super::backend::Backend;
 use super::{Error, Result};
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use sos_backend::BackendTarget;
 use sos_core::{AccountId, Paths};
@@ -210,6 +211,8 @@ impl UriOrPath {
 }
 
 impl StorageConfig {
+    /// Set the database URI.
+    #[doc(hidden)]
     fn set_database_uri(
         &mut self,
         db: &str,
@@ -219,9 +222,6 @@ impl StorageConfig {
             UriOrPath::Uri(db.parse()?)
         } else {
             let path = PathBuf::from(db);
-
-            println!("{:#?}", base_dir.as_ref());
-
             if path.is_relative() {
                 let path = base_dir.as_ref().join(path);
                 if !path.exists() {
@@ -324,9 +324,25 @@ impl ServerConfig {
         let paths = Paths::new_global_server(&path);
 
         let target = if let Some(uri) = &self.storage.database_uri {
-            tracing::debug!(database_uri = % uri.as_uri_string());
+            tracing::debug!(
+                database_uri = % uri.as_uri_string(),
+                "server::db",
+            );
             let mut client = open_file(uri.as_uri_string()).await?;
-            migrate_client(&mut client).await?;
+            tracing::debug!("server::db::migrate",);
+            let report = migrate_client(&mut client).await?;
+            for migration in report.applied_migrations() {
+                tracing::debug!(
+                    name = %migration.name(),
+                    version = %migration.version(),
+                    "server::db::migration",);
+
+                println!(
+                    "Migration      {} {}",
+                    migration.name().green(),
+                    format!("v{}", migration.version()).green(),
+                );
+            }
             BackendTarget::Database(client)
         } else {
             BackendTarget::FileSystem(paths.clone())

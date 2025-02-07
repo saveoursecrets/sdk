@@ -4,8 +4,8 @@
 
 use anyhow::Result;
 use axum_server::Handle;
-use sos_core::{AccountId, Origin, Paths};
-use sos_server::{Server, ServerConfig, State};
+use sos_core::{constants::DATABASE_FILE, AccountId, Origin, Paths};
+use sos_server::{Server, ServerConfig, State, UriOrPath};
 use sos_vfs as vfs;
 use std::{
     net::SocketAddr,
@@ -90,6 +90,10 @@ impl MockServer {
         // Override the storage path to use the path
         // using the test identifier
         config.storage.path = self.path.clone();
+
+        // let db_file = self.path.join(DATABASE_FILE);
+        // config.storage.database_uri = Some(UriOrPath::Path(db_file));
+
         config.set_bind_address(self.addr);
 
         let backend = config.backend().await?;

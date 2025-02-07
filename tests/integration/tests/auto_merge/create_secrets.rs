@@ -61,7 +61,9 @@ async fn auto_merge_create_secrets() -> Result<()> {
     let _server = spawn(TEST_ID, Some(addr), None).await?;
 
     // Sync the first device
-    assert!(device1.owner.sync().await.first_error().is_none());
+    let sync_result = device1.owner.sync().await;
+    println!("{:#?}", sync_result);
+    assert!(sync_result.first_error().is_none());
 
     // Sync the second device which will auto merge local
     // changes with the remote so it has both secrets

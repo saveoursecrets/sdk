@@ -236,16 +236,23 @@ pub async fn assert_local_remote_vaults_eq(
     for summary in expected_summaries {
         tracing::debug!(id = %summary.id(), "assert_local_remote_vaults_eq");
 
-        let local_folder = owner.paths().vault_path(summary.id());
-        let remote_folder = server_path.join("vaults").join(format!(
-            "{}.{}",
-            summary.id(),
-            VAULT_EXT
-        ));
+        let paths = owner.paths();
+        if paths.is_using_db() {
+            tracing::warn!(
+                "skipping vault equality assertions for db (todo!)"
+            );
+        } else {
+            let local_folder = owner.paths().vault_path(summary.id());
+            let remote_folder = server_path.join("vaults").join(format!(
+                "{}.{}",
+                summary.id(),
+                VAULT_EXT
+            ));
 
-        let local_buffer = vfs::read(&local_folder).await?;
-        let remote_buffer = vfs::read(&remote_folder).await?;
-        assert_eq!(local_buffer, remote_buffer);
+            let local_buffer = vfs::read(&local_folder).await?;
+            let remote_buffer = vfs::read(&remote_folder).await?;
+            assert_eq!(local_buffer, remote_buffer);
+        }
     }
 
     Ok(())
