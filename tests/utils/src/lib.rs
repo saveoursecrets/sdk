@@ -91,8 +91,10 @@ impl MockServer {
         // using the test identifier
         config.storage.path = self.path.clone();
 
-        // let db_file = self.path.join(DATABASE_FILE);
-        // config.storage.database_uri = Some(UriOrPath::Path(db_file));
+        if std::env::var("SOS_TEST_SERVER_DB").ok().is_some() {
+            let db_file = self.path.join(DATABASE_FILE);
+            config.storage.database_uri = Some(UriOrPath::Path(db_file));
+        }
 
         config.set_bind_address(self.addr);
 
