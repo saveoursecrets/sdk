@@ -1488,7 +1488,10 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         }
 
         tracing::debug!("client_storage::drop_authenticated_state");
-        self.index = None;
+        #[cfg(feature = "search")]
+        {
+            self.index = None;
+        }
         self.authenticated = None;
 
         Ok(())

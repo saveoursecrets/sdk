@@ -1,8 +1,7 @@
 //! Local account storage and search index.
 use crate::{
     convert::CipherComparison, Account, AccountBuilder, AccountChange,
-    AccountData, ClipboardCopyRequest, ClipboardTextFormat,
-    ContactImportProgress, DetachedView, Error, FolderChange, FolderCreate,
+    AccountData, DetachedView, Error, FolderChange, FolderCreate,
     FolderDelete, Result, SecretChange, SecretDelete, SecretInsert,
     SecretMove,
 };
@@ -70,6 +69,9 @@ use sos_external_files::FileMutationEvent;
 #[cfg(feature = "search")]
 use sos_search::*;
 
+#[cfg(feature = "contacts")]
+use crate::ContactImportProgress;
+
 #[cfg(feature = "migrate")]
 use sos_migrate::{
     export::PublicExport,
@@ -88,7 +90,10 @@ use sos_migrate::{
 use tokio::io::{AsyncRead, AsyncSeek, BufReader};
 
 #[cfg(feature = "clipboard")]
-use xclipboard::Clipboard;
+use {
+    crate::{ClipboardCopyRequest, ClipboardTextFormat},
+    xclipboard::Clipboard,
+};
 
 /// User account backed by the filesystem.
 ///

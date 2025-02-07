@@ -23,7 +23,7 @@ audit = ["sos-audit"]
 sos-audit = { workspace = true, optional = true }
 sos-core.workspace = true
 sos-backend.workspace = true
-sos-database.workspace = true
+sos-database = { workspace = true, features = ["sqlite"] }
 sos-external-files.workspace = true
 sos-filesystem.workspace = true
 sos-sync.workspace = true

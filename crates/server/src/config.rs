@@ -2,7 +2,9 @@
 use super::backend::Backend;
 use super::{Error, Result};
 use serde::{Deserialize, Serialize};
-use sos_core::AccountId;
+use sos_backend::BackendTarget;
+use sos_core::{AccountId, Paths};
+use sos_database::{migrations::migrate_client, open_file};
 use sos_vfs as vfs;
 use std::{
     collections::HashSet,
@@ -171,16 +173,77 @@ pub struct CorsConfig {
 }
 
 /// Configuration for storage locations.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageConfig {
     /// URL for the backend storage.
     pub path: PathBuf,
+
+    /// Database file.
+    ///
+    /// When this field is given the server will use
+    /// the database backend.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub database: Option<String>,
+
+    /// Parsed database URI.
+    #[serde(skip)]
+    pub database_uri: Option<UriOrPath>,
+}
+
+/// URI or path reference.
+#[derive(Debug, Clone)]
+pub enum UriOrPath {
+    /// URI reference.
+    Uri(http::Uri),
+    /// Path reference.
+    Path(PathBuf),
+}
+
+impl UriOrPath {
+    /// URI string representation.
+    pub fn as_uri_string(&self) -> String {
+        match self {
+            UriOrPath::Uri(uri) => uri.to_string(),
+            UriOrPath::Path(path) => format!("file:{}", path.display()),
+        }
+    }
+}
+
+impl StorageConfig {
+    fn set_database_uri(
+        &mut self,
+        db: &str,
+        base_dir: impl AsRef<Path>,
+    ) -> Result<()> {
+        let uri = if db.starts_with("file:") {
+            UriOrPath::Uri(db.parse()?)
+        } else {
+            let path = PathBuf::from(db);
+
+            println!("{:#?}", base_dir.as_ref());
+
+            if path.is_relative() {
+                let path = base_dir.as_ref().join(path);
+                if !path.exists() {
+                    std::fs::File::create(&path)?;
+                }
+                UriOrPath::Path(path.canonicalize()?)
+            } else {
+                UriOrPath::Path(path)
+            }
+        };
+
+        self.database_uri = Some(uri);
+        Ok(())
+    }
 }
 
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
             path: PathBuf::from("."),
+            database: None,
+            database_uri: None,
         }
     }
 }
@@ -216,6 +279,10 @@ impl ServerConfig {
 
             tls.cert = tls.cert.canonicalize()?;
             tls.key = tls.key.canonicalize()?;
+        }
+
+        if let Some(db) = &config.storage.database.clone() {
+            config.storage.set_database_uri(db, config.directory())?;
         }
 
         Ok(config)
@@ -254,8 +321,19 @@ impl ServerConfig {
         };
         let path = path.canonicalize()?;
 
-        let mut backend = Backend::new(path);
-        backend.read_dir().await?;
+        let paths = Paths::new_global_server(&path);
+
+        let target = if let Some(uri) = &self.storage.database_uri {
+            tracing::debug!(database_uri = % uri.as_uri_string());
+            let mut client = open_file(uri.as_uri_string()).await?;
+            migrate_client(&mut client).await?;
+            BackendTarget::Database(client)
+        } else {
+            BackendTarget::FileSystem(paths.clone())
+        };
+
+        let mut backend = Backend::new(paths, target);
+        backend.load_accounts().await?;
         Ok(backend)
     }
 }

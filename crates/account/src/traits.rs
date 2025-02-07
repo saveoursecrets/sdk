@@ -1,9 +1,8 @@
 //! Account storage and search index.
 use crate::{convert::CipherComparison, Error};
 use crate::{
-    AccountChange, AccountData, ClipboardCopyRequest, ContactImportProgress,
-    DetachedView, FolderChange, FolderCreate, FolderDelete, SecretChange,
-    SecretDelete, SecretInsert, SecretMove,
+    AccountChange, AccountData, DetachedView, FolderChange, FolderCreate,
+    FolderDelete, SecretChange, SecretDelete, SecretInsert, SecretMove,
 };
 use indexmap::IndexSet;
 use sos_backend::Folder;
@@ -46,8 +45,11 @@ use tokio::sync::RwLock;
 #[cfg(feature = "archive")]
 use tokio::io::{AsyncRead, AsyncSeek};
 
+#[cfg(feature = "contacts")]
+use crate::ContactImportProgress;
+
 #[cfg(feature = "clipboard")]
-use xclipboard::Clipboard;
+use {crate::ClipboardCopyRequest, xclipboard::Clipboard};
 
 /// Trait for account implementations.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]

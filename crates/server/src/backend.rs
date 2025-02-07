@@ -1,6 +1,7 @@
 use super::{Error, Result};
 use sos_backend::BackendTarget;
 use sos_core::{device::DevicePublicKey, AccountId, Paths};
+use sos_database::async_sqlite::Client;
 use sos_server_storage::{ServerAccountStorage, ServerStorage};
 use sos_signer::ed25519::{self, Verifier, VerifyingKey};
 use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
@@ -27,23 +28,24 @@ fn into_device_verifying_key(
 
 /// Backend for a server.
 pub struct Backend {
-    directory: PathBuf,
+    paths: Paths,
     accounts: Accounts,
+    target: BackendTarget,
 }
 
 impl Backend {
-    /// Create a new file system backend.
-    pub fn new<P: AsRef<Path>>(directory: P) -> Self {
-        let directory = directory.as_ref().to_path_buf();
+    /// Create a new server backend.
+    pub fn new(paths: Paths, target: BackendTarget) -> Self {
         Self {
-            directory,
+            paths,
             accounts: Arc::new(RwLock::new(Default::default())),
+            target,
         }
     }
 
     /// Directory where accounts are stored.
     pub fn directory(&self) -> &PathBuf {
-        &self.directory
+        self.paths.documents_dir()
     }
 
     /// Get the accounts.
@@ -52,16 +54,34 @@ impl Backend {
     }
 
     /// Read accounts and event logs into memory.
-    pub(crate) async fn read_dir(&mut self) -> Result<()> {
-        if !vfs::metadata(&self.directory).await?.is_dir() {
-            return Err(Error::NotDirectory(self.directory.clone()));
+    pub(crate) async fn load_accounts(&mut self) -> Result<()> {
+        if !vfs::metadata(self.paths.documents_dir()).await?.is_dir() {
+            return Err(Error::NotDirectory(
+                self.paths.documents_dir().to_owned(),
+            ));
         }
 
-        tracing::debug!(
-            directory = %self.directory.display(), "server_backend::read_dir");
+        let paths = self.paths.clone();
+        let target = self.target.clone();
+        match target {
+            BackendTarget::FileSystem(_) => {
+                self.load_fs_accounts(&paths).await
+            }
+            BackendTarget::Database(client) => {
+                self.load_db_accounts(&paths, client).await
+            }
+        }
+    }
 
-        Paths::scaffold(Some(self.directory.clone())).await?;
-        let paths = Paths::new_global_server(self.directory.clone());
+    pub(crate) async fn load_fs_accounts(
+        &mut self,
+        paths: &Paths,
+    ) -> Result<()> {
+        Paths::scaffold(Some(self.paths.documents_dir().to_owned())).await?;
+
+        tracing::debug!(
+            directory = %self.paths.documents_dir().display(),
+            "server_backend::load_fs_accounts");
 
         if !vfs::try_exists(paths.local_dir()).await? {
             vfs::create_dir(paths.local_dir()).await?;
@@ -80,12 +100,10 @@ impl Backend {
                             "server_backend::read_dir",
                         );
 
-                        let paths = Paths::new_global_server(&self.directory);
-
                         let account = ServerStorage::new(
-                            &paths,
+                            &self.paths,
                             &account_id,
-                            BackendTarget::FileSystem(paths.clone()),
+                            self.target.clone(),
                         )
                         .await?;
 
@@ -99,6 +117,19 @@ impl Backend {
                 }
             }
         }
+
+        Ok(())
+    }
+
+    pub(crate) async fn load_db_accounts(
+        &mut self,
+        paths: &Paths,
+        client: Client,
+    ) -> Result<()> {
+        tracing::debug!(
+          directory = %self.paths.documents_dir().display(),
+          "server_backend::load_db_accounts");
+
         Ok(())
     }
 
@@ -121,13 +152,12 @@ impl Backend {
             "server_backend::create_account",
         );
 
-        let paths = Paths::new_global_server(&self.directory)
-            .with_account_id(account_id);
+        let paths = self.paths.with_account_id(account_id);
 
         let account = ServerStorage::create_account(
             &paths,
             account_id,
-            BackendTarget::FileSystem(paths.clone()),
+            self.target.clone(),
             &account_data,
         )
         .await?;

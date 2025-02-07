@@ -133,7 +133,7 @@ mod cli {
 
     mod service {
         use axum_server::Handle;
-        use sos_core::Paths;
+        use sos_core::{constants::DATABASE_FILE, Paths};
         use sos_server::{
             Error, Result, Server, ServerConfig, SslConfig, State,
             StorageConfig,
@@ -158,7 +158,12 @@ mod cli {
 
             let mut config: ServerConfig = Default::default();
             if let Some(path) = path.take() {
-                config.storage = StorageConfig { path };
+                // let database = Some(path.join(DATABASE_FILE));
+                config.storage = StorageConfig {
+                    path,
+                    database: None,
+                    database_uri: None,
+                };
             }
             if let Some(addr) = bind {
                 config.set_bind_address(addr);

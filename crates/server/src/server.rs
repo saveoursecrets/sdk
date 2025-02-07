@@ -1,7 +1,7 @@
 use crate::{
     config::{self, TlsConfig},
     handlers::{account, api, home, websocket::WebSocketAccount},
-    Backend, Result, ServerConfig, SslConfig,
+    Backend, Result, ServerConfig, SslConfig, StorageConfig,
 };
 use axum::{
     extract::Extension,
@@ -21,6 +21,7 @@ use sos_core::{AccountId, UtcDateTime};
 use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
+    path::PathBuf,
     sync::Arc,
 };
 use tokio::sync::{Mutex, RwLock, RwLockReadGuard};
@@ -122,10 +123,16 @@ impl Server {
         origins: Vec<HeaderValue>,
         tls: TlsConfig,
     ) -> Result<()> {
+        let storage = {
+            let state = state.read().await;
+            let backend = backend.read().await;
+            (state.config.storage.clone(), backend.directory().to_owned())
+        };
+
         let tls = RustlsConfig::from_pem_file(&tls.cert, &tls.key).await?;
         let app = Server::router(Arc::clone(&state), backend, origins)?;
 
-        self.startup_message(state, &addr, true).await;
+        self.startup_message(state, &addr, true, storage).await;
 
         axum_server::bind_rustls(addr, tls)
             .handle(handle)
@@ -145,6 +152,12 @@ impl Server {
         origins: Vec<HeaderValue>,
         acme: config::AcmeConfig,
     ) -> Result<()> {
+        let storage = {
+            let state = state.read().await;
+            let backend = backend.read().await;
+            (state.config.storage.clone(), backend.directory().to_owned())
+        };
+
         let mut acme_state = AcmeConfig::new(acme.domains)
             .contact(acme.email.iter().map(|e| format!("mailto:{}", e)))
             .cache_option(Some(DirCache::new(acme.cache)))
@@ -153,7 +166,7 @@ impl Server {
 
         let app = Server::router(Arc::clone(&state), backend, origins)?;
 
-        self.startup_message(state, &addr, true).await;
+        self.startup_message(state, &addr, true, storage).await;
 
         let rustls_config = rustls::ServerConfig::builder()
             .with_no_client_auth()
@@ -187,9 +200,14 @@ impl Server {
         handle: Handle,
         origins: Vec<HeaderValue>,
     ) -> Result<()> {
-        let app = Server::router(Arc::clone(&state), backend, origins)?;
+        let storage = {
+            let state = state.read().await;
+            let backend = backend.read().await;
+            (state.config.storage.clone(), backend.directory().to_owned())
+        };
 
-        self.startup_message(state, &addr, false).await;
+        let app = Server::router(Arc::clone(&state), backend, origins)?;
+        self.startup_message(state, &addr, false, storage).await;
 
         axum_server::bind(addr)
             .handle(handle)
@@ -203,11 +221,27 @@ impl Server {
         state: ServerState,
         addr: &SocketAddr,
         tls: bool,
+        storage: (StorageConfig, PathBuf),
     ) {
         let now = UtcDateTime::now().to_rfc3339().unwrap();
-        println!("Started        {}", now.yellow());
-        println!("Listen         {}", addr.to_string().yellow());
-        println!("TLS enabled    {}", tls.to_string().yellow());
+
+        let mut columns = vec![
+            ("Started", now),
+            ("Listen", addr.to_string()),
+            ("TLS enabled", tls.to_string()),
+            ("Directory", storage.1.display().to_string()),
+        ];
+
+        if let Some(db_file) = &storage.0.database_uri {
+            columns.push(("Database", db_file.as_uri_string()));
+        }
+
+        let max_length = columns.iter().map(|s| s.0.len()).max().unwrap();
+        let col_size = max_length + 4;
+        for (key, value) in columns {
+            let padding = col_size - key.len();
+            println!("{}{}{}", key, " ".repeat(padding), value.yellow());
+        }
 
         {
             let reader = state.read().await;

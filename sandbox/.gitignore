@@ -6,3 +6,4 @@
 !accounts
 !accounts-backup
 !acme-cache
+!database.toml
