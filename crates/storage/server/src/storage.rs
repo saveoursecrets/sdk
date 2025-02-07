@@ -19,10 +19,7 @@ use sos_core::{
     },
     AccountId, Paths, VaultId,
 };
-use sos_database::{
-    async_sqlite::Client,
-    entity::{AccountEntity, FolderEntity, FolderRecord},
-};
+use sos_database::{async_sqlite::Client, entity::AccountEntity};
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
     SyncStorage, UpdateSet,
@@ -65,10 +62,14 @@ impl ServerStorage {
         let mut event_log =
             FolderEventLog::new_fs_folder(paths.identity_events()).await?;
         event_log.load_tree().await?;
-        let identity_log = Arc::new(RwLock::new(event_log));
 
         Ok(Self::FileSystem(
-            ServerFileStorage::new(paths, *account_id, identity_log).await?,
+            ServerFileStorage::new(
+                paths,
+                *account_id,
+                Arc::new(RwLock::new(event_log)),
+            )
+            .await?,
         ))
     }
 
@@ -142,15 +143,13 @@ impl ServerStorage {
             *login_folder.summary.id(),
         )
         .await?;
-
         event_log.load_tree().await?;
-        let identity_log = Arc::new(RwLock::new(event_log));
 
         Ok(Self::Database(
             ServerDatabaseStorage::new(
                 client,
                 *account_id,
-                identity_log,
+                Arc::new(RwLock::new(event_log)),
                 paths,
             )
             .await?,

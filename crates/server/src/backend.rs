@@ -6,7 +6,7 @@ use sos_server_storage::{ServerAccountStorage, ServerStorage};
 use sos_signer::ed25519::{self, Verifier, VerifyingKey};
 use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
 use sos_vfs as vfs;
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 /// Individual account.
@@ -98,11 +98,10 @@ impl Backend {
                         .await?;
 
                         let mut accounts = self.accounts.write().await;
-                        let account = accounts
-                            .entry(account_id)
-                            .or_insert(Arc::new(RwLock::new(account)));
-                        let mut writer = account.write().await;
-                        writer.load_folders().await?;
+                        accounts.insert(
+                            account_id,
+                            Arc::new(RwLock::new(account)),
+                        );
                     }
                 }
             }
@@ -131,11 +130,7 @@ impl Backend {
             .await?;
 
             let mut accounts = self.accounts.write().await;
-            let account = accounts
-                .entry(account_id)
-                .or_insert(Arc::new(RwLock::new(account)));
-            let mut writer = account.write().await;
-            writer.load_folders().await?;
+            accounts.insert(account_id, Arc::new(RwLock::new(account)));
         }
 
         Ok(())

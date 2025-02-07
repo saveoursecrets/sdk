@@ -25,7 +25,6 @@ use sos_vault::{EncryptedEntry, Summary, Vault};
 use sos_vfs as vfs;
 use std::{
     collections::{HashMap, HashSet},
-    path::PathBuf,
     sync::Arc,
 };
 use tokio::sync::RwLock;
@@ -70,6 +69,8 @@ pub struct ServerDatabaseStorage {
 
 impl ServerDatabaseStorage {
     /// Create database storage for server-side access.
+    ///
+    /// Events are loaded into memory.
     pub async fn new(
         mut client: Client,
         account_id: AccountId,
@@ -92,7 +93,6 @@ impl ServerDatabaseStorage {
             AccountEventLog::new_db_account(client.clone(), account_id)
                 .await?;
         event_log.load_tree().await?;
-        let account_log = Arc::new(RwLock::new(event_log));
 
         let (device_log, devices) =
             Self::initialize_device_log(&client, &account_id).await?;
@@ -107,7 +107,7 @@ impl ServerDatabaseStorage {
             paths: Arc::new(paths),
             client,
             identity_log,
-            account_log,
+            account_log: Arc::new(RwLock::new(event_log)),
             device_log: Arc::new(RwLock::new(device_log)),
             file_log: Arc::new(RwLock::new(file_log)),
             folders: Default::default(),

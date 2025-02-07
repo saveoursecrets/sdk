@@ -58,21 +58,15 @@ pub struct ServerFileStorage {
 
 impl ServerFileStorage {
     /// Create folder storage for server-side access.
+    ///
+    /// Events are loaded into memory.
     pub async fn new(
         paths: Paths,
         account_id: AccountId,
         identity_log: Arc<RwLock<FolderEventLog>>,
     ) -> Result<Self> {
         debug_assert!(!paths.is_global());
-        Self::new_paths(Arc::new(paths), account_id, identity_log).await
-    }
 
-    /// Create new storage backed by files on disc.
-    async fn new_paths(
-        paths: Arc<Paths>,
-        account_id: AccountId,
-        identity_log: Arc<RwLock<FolderEventLog>>,
-    ) -> Result<Self> {
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
             return Err(Error::NotDirectory(
                 paths.documents_dir().to_path_buf(),
@@ -85,10 +79,9 @@ impl ServerFileStorage {
         let mut event_log =
             AccountEventLog::new_fs_account(paths.account_events()).await?;
         event_log.load_tree().await?;
-        let account_log = Arc::new(RwLock::new(event_log));
 
         let (device_log, devices) =
-            Self::initialize_device_log(&*paths).await?;
+            Self::initialize_device_log(&paths).await?;
 
         let mut file_log =
             FileEventLog::new_fs_file(paths.file_events()).await?;
@@ -96,9 +89,9 @@ impl ServerFileStorage {
 
         let mut storage = Self {
             account_id,
-            paths,
+            paths: Arc::new(paths),
             identity_log,
-            account_log,
+            account_log: Arc::new(RwLock::new(event_log)),
             device_log: Arc::new(RwLock::new(device_log)),
             file_log: Arc::new(RwLock::new(file_log)),
             folders: Default::default(),
