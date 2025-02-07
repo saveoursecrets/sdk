@@ -16,6 +16,7 @@ sos-filesystem.workspace = true
 sos-external-files.workspace = true
 sos-password.workspace = true
 sos-protocol = { workspace = true, features = ["full"] }
+sos-remote-sync = { workspace = true, features = ["full"] }
 sos-client-storage.workspace = true
 sos-database.workspace = true
 sos-preferences.workspace = true

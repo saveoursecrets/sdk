@@ -129,7 +129,8 @@ pub trait RemoteSyncHandler {
         tracing::debug!("merge_client");
 
         let (needs_sync, local_status, local_changes) =
-            crate::diff::<_, Self::Error>(&*account, remote_status).await?;
+            sos_protocol::diff::<_, Self::Error>(&*account, remote_status)
+                .await?;
 
         tracing::debug!(needs_sync = %needs_sync, "merge_client");
 

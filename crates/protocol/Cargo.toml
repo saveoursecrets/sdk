@@ -27,16 +27,13 @@ hashcheck = ["reqwest"]
 network-client = ["reqwest", "bs58", "async-stream", "tokio-util"]
 pairing = []
 contacts = []
-files = ["sos-external-files", "sos-account/files"]
-migrate = ["sos-account/migrate"]
-search = ["sos-account/search"]
+files = ["sos-external-files"]
+migrate = []
+search = []
 
 [dependencies]
-sos-account.workspace = true
 sos-core.workspace = true
 sos-backend.workspace = true
-sos-database.workspace = true
-sos-client-storage.workspace = true
 sos-signer.workspace = true
 sos-sync.workspace = true
 sos-vfs.workspace = true

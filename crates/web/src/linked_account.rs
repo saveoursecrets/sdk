@@ -26,9 +26,10 @@ use sos_core::{
 };
 use sos_login::device::{DeviceManager, DeviceSigner};
 use sos_protocol::{
-    network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
-    RemoteSyncHandler, SyncClient, SyncOptions,
+    network_client::HttpClient, RemoteResult, RemoteSync, SyncClient,
+    SyncOptions,
 };
+use sos_remote_sync::{AutoMerge, RemoteSyncHandler};
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs,
     SyncDirection, SyncStatus, SyncStorage, UpdateSet,

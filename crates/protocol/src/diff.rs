@@ -1,9 +1,9 @@
-//! Synchronization types that are used internally.
+//! Types and functions to compute diffs.
 use indexmap::IndexMap;
 use sos_core::{
     commit::Comparison,
     events::{patch::FolderDiff, EventLog},
-    Origin, VaultId,
+    VaultId,
 };
 use sos_sync::{
     MaybeDiff, StorageEventLogs, SyncDiff, SyncStatus, SyncStorage,
@@ -11,23 +11,6 @@ use sos_sync::{
 
 #[cfg(feature = "files")]
 use sos_core::events::patch::FileDiff;
-
-/// How to resolve hard conflicts.
-#[derive(Default, Debug)]
-pub enum HardConflictResolver {
-    /// Automatically fetch and overwrite account data.
-    #[default]
-    AutomaticFetch,
-}
-
-/// Options for sync operation.
-#[derive(Default, Debug)]
-pub struct SyncOptions {
-    /// Only sync these origins.
-    pub origins: Vec<Origin>,
-    /// Resolver for hard conflicts.
-    pub hard_conflict_resolver: HardConflictResolver,
-}
 
 /// Comparison between local and remote status.
 #[derive(Debug)]
@@ -308,10 +291,11 @@ impl SyncComparison {
         }
 
         for (id, folder) in &self.folders {
-            let commit_state =
-                self.remote_status.folders.get(id).ok_or(
-                    sos_backend::StorageError::FolderNotFound(*id),
-                )?;
+            let commit_state = self
+                .remote_status
+                .folders
+                .get(id)
+                .ok_or(sos_backend::StorageError::FolderNotFound(*id))?;
 
             match folder {
                 Comparison::Equal => {}

@@ -12,23 +12,6 @@ use sos_sync::{
 #[cfg(feature = "files")]
 use sos_core::events::patch::FileDiff;
 
-/// How to resolve hard conflicts.
-#[derive(Default, Debug)]
-pub enum HardConflictResolver {
-    /// Automatically fetch and overwrite account data.
-    #[default]
-    AutomaticFetch,
-}
-
-/// Options for sync operation.
-#[derive(Default, Debug)]
-pub struct SyncOptions {
-    /// Only sync these origins.
-    pub origins: Vec<Origin>,
-    /// Resolver for hard conflicts.
-    pub hard_conflict_resolver: HardConflictResolver,
-}
-
 /// Comparison between local and remote status.
 #[derive(Debug)]
 pub struct SyncComparison {
@@ -308,10 +291,11 @@ impl SyncComparison {
         }
 
         for (id, folder) in &self.folders {
-            let commit_state =
-                self.remote_status.folders.get(id).ok_or(
-                    sos_backend::StorageError::FolderNotFound(*id),
-                )?;
+            let commit_state = self
+                .remote_status
+                .folders
+                .get(id)
+                .ok_or(sos_backend::StorageError::FolderNotFound(*id))?;
 
             match folder {
                 Comparison::Equal => {}

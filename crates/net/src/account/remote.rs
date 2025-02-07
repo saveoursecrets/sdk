@@ -3,11 +3,11 @@ use crate::Result;
 use async_trait::async_trait;
 use sos_account::LocalAccount;
 use sos_core::{AccountId, Origin};
-use sos_protocol::RemoteSyncHandler;
 use sos_protocol::{
-    network_client::HttpClient, AutoMerge, RemoteResult, RemoteSync,
-    SyncClient, SyncOptions,
+    network_client::HttpClient, RemoteResult, RemoteSync, SyncClient,
+    SyncOptions,
 };
+use sos_remote_sync::{AutoMerge, RemoteSyncHandler};
 use sos_signer::ed25519::BoxedEd25519Signer;
 use sos_sync::{SyncDirection, UpdateSet};
 use std::{collections::HashMap, sync::Arc};

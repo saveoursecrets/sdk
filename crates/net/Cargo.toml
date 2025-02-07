@@ -31,7 +31,7 @@ audit = ["sos-audit", "sos-account/audit"]
 listen = ["sos-protocol/listen"]
 hashcheck = ["sos-protocol/hashcheck"]
 archive = ["sos-account/archive", "sos-filesystem/archive"]
-files = ["sos-external-files", "sos-protocol/files"]
+files = ["sos-external-files", "sos-protocol/files", "sos-remote-sync/files"]
 clipboard = ["sos-account/clipboard"]
 contacts = ["sos-account/contacts", "sos-protocol/contacts"]
 migrate = ["sos-account/migrate", "sos-migrate"]
@@ -53,6 +53,7 @@ sos-client-storage.workspace = true
 sos-login.workspace = true
 sos-protocol = { workspace = true, features = ["network-client"] }
 sos-reducers.workspace = true
+sos-remote-sync.workspace = true
 sos-signer.workspace = true
 sos-sync.workspace = true
 sos-vault.workspace = true

@@ -17,8 +17,9 @@ use sos_net::{
 use sos_password::diceware::generate_passphrase;
 use sos_protocol::{
     network_client::{HttpClient, ListenOptions},
-    AccountSync, RemoteSyncHandler, SyncClient,
+    AccountSync, SyncClient,
 };
+use sos_remote_sync::RemoteSyncHandler;
 use sos_sync::SyncStorage;
 use sos_vault::{Summary, VaultId};
 use sos_vfs as vfs;

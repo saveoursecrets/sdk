@@ -3,7 +3,8 @@ use anyhow::Result;
 use sos_account::{Account, FolderCreate};
 use sos_client_storage::NewFolderOptions;
 use sos_net::NetworkAccount;
-use sos_protocol::{AccountSync, RemoteSyncHandler, SyncClient};
+use sos_protocol::{AccountSync, SyncClient};
+use sos_remote_sync::RemoteSyncHandler;
 use sos_sdk::prelude::*;
 use sos_sync::SyncStorage;
 

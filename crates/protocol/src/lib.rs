@@ -23,10 +23,10 @@
 
 mod bindings;
 pub mod constants;
+mod diff;
 mod error;
 #[cfg(feature = "network-client")]
 pub mod network_client;
-mod sync;
 mod traits;
 
 #[cfg(any(
@@ -40,8 +40,8 @@ pub mod transfer;
 pub mod hashcheck;
 
 pub use bindings::*;
+pub use diff::*;
 pub use error::{AsConflict, ConflictError, Error, ErrorReply, NetworkError};
-pub use sync::*;
 pub use traits::*;
 
 use prost::{bytes::Buf, Message};
@@ -54,6 +54,23 @@ pub use tokio_tungstenite;
 
 /// Result type for the wire protocol.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
+
+/// How to resolve hard conflicts.
+#[derive(Default, Debug)]
+pub enum HardConflictResolver {
+    /// Automatically fetch and overwrite account data.
+    #[default]
+    AutomaticFetch,
+}
+
+/// Options for sync operation.
+#[derive(Default, Debug)]
+pub struct SyncOptions {
+    /// Only sync these origins.
+    pub origins: Vec<sos_core::Origin>,
+    /// Resolver for hard conflicts.
+    pub hard_conflict_resolver: HardConflictResolver,
+}
 
 /// Trait for encoding and decoding protobuf generated types.
 ///

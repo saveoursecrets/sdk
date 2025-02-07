@@ -23,7 +23,7 @@ full = [
 archive = ["sos-filesystem/archive"]
 clipboard = []
 contacts = ["sos-account/contacts", "sos-protocol/contacts"]
-files = []
+files = ["sos-remote-sync/files"]
 migrate = ["sos-account/migrate", "sos-migrate"]
 search = ["sos-search", "sos-protocol/search"]
 
@@ -36,6 +36,7 @@ sos-filesystem.workspace = true
 sos-client-storage.workspace = true
 sos-login.workspace = true
 sos-protocol = { workspace = true, features = ["network-client"] }
+sos-remote-sync.workspace = true
 sos-signer.workspace = true
 sos-sync.workspace = true
 sos-vault.workspace = true

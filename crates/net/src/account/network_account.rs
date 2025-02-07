@@ -23,9 +23,9 @@ use sos_core::{
 };
 use sos_login::device::{DeviceManager, DeviceSigner};
 use sos_protocol::{
-    AccountSync, DiffRequest, RemoteSync, RemoteSyncHandler, SyncClient,
-    SyncOptions, SyncResult,
+    AccountSync, DiffRequest, RemoteSync, SyncClient, SyncOptions, SyncResult,
 };
+use sos_remote_sync::RemoteSyncHandler;
 use sos_sync::{CreateSet, StorageEventLogs, UpdateSet};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},

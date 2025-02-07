@@ -67,7 +67,7 @@ async fn diff_merge_secret_move() -> Result<()> {
 
     let remote_status = remote.sync_status().await?;
     let (needs_sync, _status, diff) =
-        diff::<_, sos_protocol::Error>(&local, remote_status).await?;
+        diff::<_, sos_remote_sync::Error>(&local, remote_status).await?;
     assert!(needs_sync);
 
     // Merge the changes
