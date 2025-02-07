@@ -67,12 +67,14 @@ async fn network_sync_folder_import() -> Result<()> {
     // again after creating the new folder for the assertions
     let folders: Vec<Summary> = device.owner.list_folders().await?;
 
+    let server_account_paths = server.paths(device.owner.account_id());
+
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
     let mut bridge = device.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_vaults_eq(
         folders.clone(),
-        &server_path,
+        &server_account_paths,
         &mut device.owner,
         &mut bridge,
     )

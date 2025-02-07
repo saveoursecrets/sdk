@@ -21,7 +21,7 @@ async fn network_sync_folder_rename() -> Result<()> {
     let folders = device.folders.clone();
 
     // Path that we expect the remote server to write to
-    let server_path = server.account_path(device.owner.account_id());
+    let server_account_paths = server.paths(device.owner.account_id());
 
     let FolderChange { sync_result, .. } = device
         .owner
@@ -32,9 +32,10 @@ async fn network_sync_folder_rename() -> Result<()> {
     // Get the remote out of the owner so we can
     // assert on equality between local and remote
     let mut bridge = device.owner.remove_server(&origin).await?.unwrap();
+
     assert_local_remote_vaults_eq(
         folders.clone(),
-        &server_path,
+        &*server_account_paths,
         &mut device.owner,
         &mut bridge,
     )

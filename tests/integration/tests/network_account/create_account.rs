@@ -19,8 +19,9 @@ async fn network_sync_create_account() -> Result<()> {
     // Prepare a mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
     let origin = device.origin.clone();
-    let server_path = device.server_path.clone();
     let folders = device.folders.clone();
+
+    let server_account_paths = server.paths(device.owner.account_id());
 
     // Note that setting up the mock device automatically
     // does the initial sync to prepare the account on the
@@ -32,7 +33,7 @@ async fn network_sync_create_account() -> Result<()> {
 
     assert_local_remote_vaults_eq(
         folders.clone(),
-        &server_path,
+        &server_account_paths,
         &mut device.owner,
         &mut bridge,
     )

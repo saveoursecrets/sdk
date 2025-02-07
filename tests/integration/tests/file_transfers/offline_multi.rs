@@ -51,8 +51,7 @@ async fn file_transfers_offline_multi_upload() -> Result<()> {
     wait_for_file(&server2_paths, &file).await?;
 
     let server1_path = device.server_path;
-    let server2_path =
-        server2.path.join(REMOTE_DIR).join(address.to_string());
+    let server2_path = server2.account_path(&address);
 
     // Assert the files on server2 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server2_path, &file)
@@ -130,8 +129,7 @@ async fn file_transfers_offline_multi_update() -> Result<()> {
     wait_for_file(&server2_paths, &file).await?;
 
     let server1_path = device.server_path;
-    let server2_path =
-        server2.path.join(REMOTE_DIR).join(address.to_string());
+    let server2_path = server2.account_path(&address);
 
     // Assert the files on server2 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server2_path, &file)
@@ -219,8 +217,7 @@ async fn file_transfers_offline_multi_move() -> Result<()> {
     wait_for_file(&server2_paths, &file).await?;
 
     let server1_path = device.server_path;
-    let server2_path =
-        server2.path.join(REMOTE_DIR).join(address.to_string());
+    let server2_path = server2.account_path(&address);
 
     // Assert the files on server2 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server2_path, &file)
@@ -282,8 +279,7 @@ async fn file_transfers_offline_multi_delete() -> Result<()> {
     wait_for_file(&server2_paths, &file).await?;
 
     let server1_path = device.server_path;
-    let server2_path =
-        server2.path.join(REMOTE_DIR).join(address.to_string());
+    let server2_path = server2.account_path(&address);
 
     // Assert the files on server2 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server2_path, &file)
@@ -348,8 +344,7 @@ async fn file_transfers_offline_multi_download() -> Result<()> {
     uploader.owner.add_server(origin.clone()).await?;
 
     let server2_paths = server2.paths(&address);
-    let server2_path =
-        server2.path.join(REMOTE_DIR).join(address.to_string());
+    let server2_path = server2.account_path(&address);
 
     // Shutdown the first server
     drop(server1);

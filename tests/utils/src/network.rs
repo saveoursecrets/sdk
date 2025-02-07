@@ -228,7 +228,7 @@ pub async fn num_events(
 /// the summary etc.
 pub async fn assert_local_remote_vaults_eq(
     expected_summaries: Vec<Summary>,
-    server_path: &PathBuf,
+    server_paths: &Paths,
     owner: &mut NetworkAccount,
     _provider: &mut RemoteBridge,
 ) -> Result<()> {
@@ -236,14 +236,13 @@ pub async fn assert_local_remote_vaults_eq(
     for summary in expected_summaries {
         tracing::debug!(id = %summary.id(), "assert_local_remote_vaults_eq");
 
-        let paths = owner.paths();
-        if paths.is_using_db() {
+        if server_paths.is_using_db() {
             tracing::warn!(
                 "skipping vault equality assertions for db (todo!)"
             );
         } else {
             let local_folder = owner.paths().vault_path(summary.id());
-            let remote_folder = server_path.join("vaults").join(format!(
+            let remote_folder = server_paths.vaults_dir().join(format!(
                 "{}.{}",
                 summary.id(),
                 VAULT_EXT

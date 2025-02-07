@@ -79,7 +79,7 @@ impl MockServer {
         tracing::info!(
             addr = ?self.addr,
             path = ?self.path,
-            "start mock server");
+            "mock_server::start");
 
         let mut config = if let Some(config) = config {
             config
@@ -156,8 +156,12 @@ impl Drop for ShutdownHandle {
 pub struct TestServer {
     /// Test identifier.
     pub test_id: String,
+    /*
     /// Path to the server storage.
     pub path: PathBuf,
+    */
+    /// Server paths information.
+    pub paths: Paths,
     /// Bind address.
     pub addr: SocketAddr,
     /// Handle when dropped will shutdown the server.
@@ -170,7 +174,7 @@ pub struct TestServer {
 impl TestServer {
     /// Server paths for the given address.
     pub fn paths(&self, account_id: &AccountId) -> Arc<Paths> {
-        Arc::new(Paths::new_server(self.path.clone(), account_id.to_string()))
+        Arc::new(self.paths.with_account_id(account_id))
     }
 
     /// Path to the server account data.
@@ -224,7 +228,8 @@ pub async fn spawn_with_config(
     let url = socket_addr_url(&addr);
     Ok(TestServer {
         test_id: test_id.to_owned(),
-        path,
+        paths: Paths::new_global_server(path),
+        // path,
         origin: url.into(),
         addr,
         handle,

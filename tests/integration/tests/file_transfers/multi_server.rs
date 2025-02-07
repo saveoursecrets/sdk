@@ -40,8 +40,7 @@ async fn file_transfers_multi_upload() -> Result<()> {
     );
 
     let server1_path = device.server_path;
-    let server2_path =
-        server2.path.join(REMOTE_DIR).join(account_id.to_string());
+    let server2_path = server2.account_path(&account_id);
 
     // Assert the files on server1 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server1_path, &file)
@@ -101,8 +100,7 @@ async fn file_transfers_multi_update() -> Result<()> {
     );
 
     let server1_path = device.server_path;
-    let server2_path =
-        server2.path.join(REMOTE_DIR).join(account_id.to_string());
+    let server2_path = server2.account_path(&account_id);
 
     // Assert the files on server1 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server1_path, &file)
@@ -169,8 +167,7 @@ async fn file_transfers_multi_move() -> Result<()> {
     );
 
     let server1_path = device.server_path;
-    let server2_path =
-        server2.path.join(REMOTE_DIR).join(account_id.to_string());
+    let server2_path = server2.account_path(&account_id);
 
     // Assert the files on server1 are equal
     assert_local_remote_file_eq(device.owner.paths(), &server1_path, &file)
@@ -229,8 +226,7 @@ async fn file_transfers_multi_delete() -> Result<()> {
     wait_for_num_transfers(&device.owner, 2).await?;
 
     let server1_path = device.server_path;
-    let server2_path =
-        server2.path.join(REMOTE_DIR).join(account_id.to_string());
+    let server2_path = server2.account_path(&account_id);
 
     // Assert the files on server1 do not exist
     assert_local_remote_file_not_exist(
@@ -303,8 +299,7 @@ async fn file_transfers_multi_download() -> Result<()> {
         wait_for_num_transfers(&downloader.owner, 1).await?;
 
         let server1_path = downloader.server_path;
-        let server2_path =
-            server2.path.join(REMOTE_DIR).join(account_id.to_string());
+        let server2_path = server2.account_path(&account_id);
 
         assert_local_remote_file_eq(
             downloader.owner.paths(),

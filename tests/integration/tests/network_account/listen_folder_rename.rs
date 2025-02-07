@@ -38,11 +38,14 @@ async fn network_sync_listen_folder_rename() -> Result<()> {
     // the change notification
     sync_pause(None).await;
 
+    let server_account1_paths = server.paths(device1.owner.account_id());
+    let server_account2_paths = server.paths(device2.owner.account_id());
+
     // Assert first device
     let mut bridge = device1.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_vaults_eq(
         folders.clone(),
-        &server_path,
+        &server_account1_paths,
         &mut device1.owner,
         &mut bridge,
     )
@@ -58,7 +61,7 @@ async fn network_sync_listen_folder_rename() -> Result<()> {
     let mut bridge = device2.owner.remove_server(&origin).await?.unwrap();
     assert_local_remote_vaults_eq(
         folders.clone(),
-        &server_path,
+        &server_account2_paths,
         &mut device2.owner,
         &mut bridge,
     )
