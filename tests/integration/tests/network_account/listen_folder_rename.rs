@@ -21,7 +21,6 @@ async fn network_sync_listen_folder_rename() -> Result<()> {
     let default_folder = device1.default_folder.clone();
     let origin = device1.origin.clone();
     let folders = device1.folders.clone();
-    let server_path = device1.server_path.clone();
     let mut device2 = device1.connect(1, None).await?;
 
     // Start listening for change notifications

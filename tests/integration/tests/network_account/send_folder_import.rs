@@ -19,7 +19,6 @@ async fn network_sync_folder_import() -> Result<()> {
     // Prepare a mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
     let origin = device.origin.clone();
-    let server_path = device.server_path.clone();
 
     // Create a folder as we don't want an import to collide
     // with the default folder

@@ -29,12 +29,12 @@ async fn file_transfers_offline_multi_upload() -> Result<()> {
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;
-    let address = device.owner.account_id().clone();
+    let account_id = device.owner.account_id().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
 
-    let server1_paths = server1.paths(&address);
-    let server2_paths = server2.paths(&address);
+    let server1_paths = server1.paths(&account_id);
+    let server2_paths = server2.paths(&account_id);
 
     // Shutdown the first server
     drop(server1);
@@ -50,22 +50,31 @@ async fn file_transfers_offline_multi_upload() -> Result<()> {
     // Wait for the file to exist
     wait_for_file(&server2_paths, &file).await?;
 
-    let server1_path = device.server_path;
-    let server2_path = server2.account_path(&address);
+    let server2_account_paths = server2.paths(device.owner.account_id());
 
     // Assert the files on server2 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &server2_path, &file)
-        .await?;
+    assert_local_remote_file_eq(
+        device.owner.paths(),
+        &*server2_account_paths,
+        &file,
+    )
+    .await?;
 
     // Bring the server back online
-    let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+    let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+
+    let server1_account_paths = server1.paths(device.owner.account_id());
 
     // Wait for the file to exist
     wait_for_file(&server1_paths, &file).await?;
 
     // Assert the files on server1 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &server1_path, &file)
-        .await?;
+    assert_local_remote_file_eq(
+        device.owner.paths(),
+        &server1_account_paths,
+        &file,
+    )
+    .await?;
 
     device.owner.sign_out().await?;
 
@@ -90,12 +99,12 @@ async fn file_transfers_offline_multi_update() -> Result<()> {
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;
-    let address = device.owner.account_id().clone();
+    let account_id = device.owner.account_id().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
 
-    let server1_paths = server1.paths(&address);
-    let server2_paths = server2.paths(&address);
+    let server1_paths = server1.paths(&account_id);
+    let server2_paths = server2.paths(&account_id);
 
     // Shutdown the first server
     drop(server1);
@@ -128,22 +137,31 @@ async fn file_transfers_offline_multi_update() -> Result<()> {
     // Wait for the file to exist
     wait_for_file(&server2_paths, &file).await?;
 
-    let server1_path = device.server_path;
-    let server2_path = server2.account_path(&address);
+    let server2_account_paths = server2.paths(device.owner.account_id());
 
     // Assert the files on server2 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &server2_path, &file)
-        .await?;
+    assert_local_remote_file_eq(
+        device.owner.paths(),
+        &*server2_account_paths,
+        &file,
+    )
+    .await?;
 
     // Bring the server back online
-    let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+    let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+
+    let server1_account_paths = server1.paths(device.owner.account_id());
 
     // Wait for the file to exist
     wait_for_file(&server1_paths, &file).await?;
 
     // Assert the files on server1 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &server1_path, &file)
-        .await?;
+    assert_local_remote_file_eq(
+        device.owner.paths(),
+        &*server1_account_paths,
+        &file,
+    )
+    .await?;
 
     device.owner.sign_out().await?;
 
@@ -168,12 +186,12 @@ async fn file_transfers_offline_multi_move() -> Result<()> {
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;
-    let address = device.owner.account_id().clone();
+    let account_id = device.owner.account_id().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
 
-    let server1_paths = server1.paths(&address);
-    let server2_paths = server2.paths(&address);
+    let server1_paths = server1.paths(&account_id);
+    let server2_paths = server2.paths(&account_id);
 
     // Shutdown the first server
     drop(server1);
@@ -216,15 +234,20 @@ async fn file_transfers_offline_multi_move() -> Result<()> {
     // Wait for the file to exist
     wait_for_file(&server2_paths, &file).await?;
 
-    let server1_path = device.server_path;
-    let server2_path = server2.account_path(&address);
+    let server2_account_paths = server2.paths(&account_id);
 
     // Assert the files on server2 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &server2_path, &file)
-        .await?;
+    assert_local_remote_file_eq(
+        device.owner.paths(),
+        &server2_account_paths,
+        &file,
+    )
+    .await?;
 
     // Bring the server back online
-    let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+    let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+
+    let server1_account_paths = server1.paths(&account_id);
 
     // Wait for the file to exist
     wait_for_file(&server1_paths, &file).await?;
@@ -232,8 +255,12 @@ async fn file_transfers_offline_multi_move() -> Result<()> {
     //println!("Move completed waiting for file on server1");
 
     // Assert the files on server1 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &server1_path, &file)
-        .await?;
+    assert_local_remote_file_eq(
+        device.owner.paths(),
+        &server1_account_paths,
+        &file,
+    )
+    .await?;
 
     device.owner.sign_out().await?;
 
@@ -257,12 +284,12 @@ async fn file_transfers_offline_multi_delete() -> Result<()> {
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;
-    let address = device.owner.account_id().clone();
+    let account_id = device.owner.account_id().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
     device.owner.add_server(origin).await?;
 
-    let server1_paths = server1.paths(&address);
-    let server2_paths = server2.paths(&address);
+    let server1_paths = server1.paths(&account_id);
+    let server2_paths = server2.paths(&account_id);
 
     // Shutdown the first server
     drop(server1);
@@ -278,11 +305,8 @@ async fn file_transfers_offline_multi_delete() -> Result<()> {
     // Wait for the file to exist
     wait_for_file(&server2_paths, &file).await?;
 
-    let server1_path = device.server_path;
-    let server2_path = server2.account_path(&address);
-
     // Assert the files on server2 are equal
-    assert_local_remote_file_eq(device.owner.paths(), &server2_path, &file)
+    assert_local_remote_file_eq(device.owner.paths(), &*server2_paths, &file)
         .await?;
 
     // Delete the secret and corresponding file
@@ -297,7 +321,7 @@ async fn file_transfers_offline_multi_delete() -> Result<()> {
     // Assert the files on server2 do not exist
     assert_local_remote_file_not_exist(
         device.owner.paths(),
-        &server2_path,
+        &*server2_paths,
         &file,
     )
     .await?;
@@ -311,7 +335,7 @@ async fn file_transfers_offline_multi_delete() -> Result<()> {
     // Assert the files on server1 do not exist
     assert_local_remote_file_not_exist(
         device.owner.paths(),
-        &server1_path,
+        &*server1_paths,
         &file,
     )
     .await?;
@@ -339,12 +363,11 @@ async fn file_transfers_offline_multi_download() -> Result<()> {
 
     // Prepare mock device
     let mut uploader = simulate_device(TEST_ID, 2, Some(&server1)).await?;
-    let address = uploader.owner.account_id().clone();
+    let account_id = uploader.owner.account_id().clone();
     let default_folder = uploader.owner.default_folder().await.unwrap();
     uploader.owner.add_server(origin.clone()).await?;
 
-    let server2_paths = server2.paths(&address);
-    let server2_path = server2.account_path(&address);
+    let server2_paths = server2.paths(&account_id);
 
     // Shutdown the first server
     drop(server1);
@@ -368,7 +391,7 @@ async fn file_transfers_offline_multi_download() -> Result<()> {
 
         assert_local_remote_file_eq(
             uploader.owner.paths(),
-            &server2_path,
+            &*server2_paths,
             &file,
         )
         .await?;
@@ -395,7 +418,7 @@ async fn file_transfers_offline_multi_download() -> Result<()> {
 
         assert_local_remote_file_eq(
             downloader.owner.paths(),
-            &server2_path,
+            &*server2_paths,
             &file,
         )
         .await?;

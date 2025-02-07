@@ -18,9 +18,9 @@ async fn network_sync_listen_folder_delete() -> Result<()> {
     let mut device1 = simulate_device(TEST_ID, 2, Some(&server)).await?;
     let _default_folder_id = device1.default_folder_id.clone();
     let folders = device1.folders.clone();
-    let account_id = device1.owner.account_id().to_string();
-    let server_path = device1.server_path.clone();
     let mut device2 = device1.connect(1, None).await?;
+
+    let server_paths = server.paths(device1.owner.account_id());
 
     // Start listening for change notifications
     device1.listen().await?;
@@ -41,16 +41,8 @@ async fn network_sync_listen_folder_delete() -> Result<()> {
     assert!(sync_result.first_error().is_none());
 
     let mut server_files = vec![
-        server_path.join(&account_id).join(format!(
-            "{}.{}",
-            new_folder.id(),
-            VAULT_EXT
-        )),
-        server_path.join(&account_id).join(format!(
-            "{}.{}",
-            new_folder.id(),
-            EVENT_LOG_EXT
-        )),
+        server_paths.vault_path(new_folder.id()),
+        server_paths.event_log_path(new_folder.id()),
     ];
 
     let mut device1_files = vec![

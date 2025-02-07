@@ -48,11 +48,13 @@ async fn file_transfers_attach_create() -> Result<()> {
         file_name,
     ));
 
+    let server_account_paths = server.paths(device.owner.account_id());
+
     // Assert the files on disc are equal
     for file in &files {
         assert_local_remote_file_eq(
             device.owner.paths(),
-            &device.server_path,
+            &*server_account_paths,
             file,
         )
         .await?;
@@ -116,11 +118,13 @@ async fn file_transfers_attach_update() -> Result<()> {
         file_name,
     ));
 
+    let server_account_paths = server.paths(device.owner.account_id());
+
     // Assert the files on disc are equal
     for file in &files {
         assert_local_remote_file_eq(
             device.owner.paths(),
-            &device.server_path,
+            &*server_account_paths,
             file,
         )
         .await?;
@@ -197,11 +201,13 @@ async fn file_transfers_attach_move() -> Result<()> {
     // Wait until the transfers are completed
     wait_for_num_transfers(&device.owner, 2).await?;
 
+    let server_account_paths = server.paths(device.owner.account_id());
+
     // Assert the files on disc are equal
     for file in &files {
         assert_local_remote_file_eq(
             device.owner.paths(),
-            &device.server_path,
+            &*server_account_paths,
             file,
         )
         .await?;
@@ -260,11 +266,13 @@ async fn file_transfers_attach_delete() -> Result<()> {
         .await?;
     wait_for_num_transfers(&device.owner, 2).await?;
 
+    let server_paths = server.paths(device.owner.account_id());
+
     // Assert the files on disc do not exist
     for file in &files {
         assert_local_remote_file_not_exist(
             device.owner.paths(),
-            &device.server_path,
+            &*server_paths,
             file,
         )
         .await?;

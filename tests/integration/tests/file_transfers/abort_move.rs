@@ -58,9 +58,11 @@ async fn file_transfers_abort_move() -> Result<()> {
     // Wait until the move transfer is completed
     wait_for_num_transfers(&device.owner, 1).await?;
 
+    let server_account_paths = server.paths(device.owner.account_id());
+
     assert_local_remote_file_eq(
         device.owner.paths(),
-        &device.server_path,
+        &*server_account_paths,
         &file,
     )
     .await?;

@@ -19,10 +19,10 @@ async fn file_transfers_servers_changed_upload() -> Result<()> {
     //crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
-    let server1 = spawn(TEST_ID, None, Some("server1")).await?;
+    let server = spawn(TEST_ID, None, Some("server")).await?;
 
     // Prepare mock device connected to the first server
-    let mut device = simulate_device(TEST_ID, 1, Some(&server1)).await?;
+    let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
     let default_folder = device.owner.default_folder().await.unwrap();
 
     // Create an external file secret
@@ -36,13 +36,11 @@ async fn file_transfers_servers_changed_upload() -> Result<()> {
     // Wait until the transfers are completed
     wait_for_num_transfers(&device.owner, 1).await?;
 
+    let server_paths = server.paths(device.owner.account_id());
+
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(
-        device.owner.paths(),
-        &device.server_path,
-        &file,
-    )
-    .await?;
+    assert_local_remote_file_eq(device.owner.paths(), &*server_paths, &file)
+        .await?;
 
     // Start a new server
     let server2 = spawn(TEST_ID, None, Some("server2")).await?;

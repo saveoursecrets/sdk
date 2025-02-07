@@ -37,13 +37,11 @@ async fn file_transfers_single_upload() -> Result<()> {
     // Wait until the transfers are completed
     wait_for_num_transfers(&device.owner, 1).await?;
 
+    let server_paths = server.paths(device.owner.account_id());
+
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(
-        device.owner.paths(),
-        &device.server_path,
-        &file,
-    )
-    .await?;
+    assert_local_remote_file_eq(device.owner.paths(), &*server_paths, &file)
+        .await?;
 
     device.owner.sign_out().await?;
 
@@ -91,13 +89,11 @@ async fn file_transfers_single_update() -> Result<()> {
     // Wait until the transfers are completed
     wait_for_num_transfers(&device.owner, 2).await?;
 
+    let server_paths = server.paths(device.owner.account_id());
+
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(
-        device.owner.paths(),
-        &device.server_path,
-        &file,
-    )
-    .await?;
+    assert_local_remote_file_eq(device.owner.paths(), &*server_paths, &file)
+        .await?;
 
     device.owner.sign_out().await?;
 
@@ -155,13 +151,11 @@ async fn file_transfers_single_move() -> Result<()> {
     // Wait until the move is completed
     wait_for_num_transfers(&device.owner, 1).await?;
 
+    let server_paths = server.paths(device.owner.account_id());
+
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(
-        device.owner.paths(),
-        &device.server_path,
-        &file,
-    )
-    .await?;
+    assert_local_remote_file_eq(device.owner.paths(), &*server_paths, &file)
+        .await?;
 
     device.owner.sign_out().await?;
 
@@ -195,13 +189,11 @@ async fn file_transfers_single_delete() -> Result<()> {
     // Wait until the transfers are completed
     wait_for_num_transfers(&device.owner, 1).await?;
 
+    let server_paths = server.paths(device.owner.account_id());
+
     // Assert the files on disc are equal
-    assert_local_remote_file_eq(
-        device.owner.paths(),
-        &device.server_path,
-        &file,
-    )
-    .await?;
+    assert_local_remote_file_eq(device.owner.paths(), &*server_paths, &file)
+        .await?;
 
     device
         .owner
@@ -213,12 +205,8 @@ async fn file_transfers_single_delete() -> Result<()> {
 
     let local_paths = device.owner.paths();
 
-    assert_local_remote_file_not_exist(
-        local_paths,
-        &device.server_path,
-        &file,
-    )
-    .await?;
+    assert_local_remote_file_not_exist(local_paths, &*server_paths, &file)
+        .await?;
 
     device.owner.sign_out().await?;
 
@@ -243,6 +231,9 @@ async fn file_transfers_single_download() -> Result<()> {
     let default_folder = uploader.owner.default_folder().await.unwrap();
     let mut downloader = uploader.connect(1, None).await?;
 
+    let uploader_server_paths = server.paths(uploader.owner.account_id());
+    let downloader_server_paths = server.paths(downloader.owner.account_id());
+
     // Create file secret then wait and assert on the upload
     let file = {
         // Create an external file secret
@@ -258,7 +249,7 @@ async fn file_transfers_single_download() -> Result<()> {
 
         assert_local_remote_file_eq(
             uploader.owner.paths(),
-            &uploader.server_path,
+            &*uploader_server_paths,
             &file,
         )
         .await?;
@@ -275,7 +266,7 @@ async fn file_transfers_single_download() -> Result<()> {
 
         assert_local_remote_file_eq(
             downloader.owner.paths(),
-            &downloader.server_path,
+            &*downloader_server_paths,
             &file,
         )
         .await?;

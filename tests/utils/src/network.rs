@@ -66,8 +66,6 @@ pub struct SimulatedDevice {
     pub default_folder_id: VaultId,
     /// Data storage directory.
     pub data_dir: PathBuf,
-    /// Path to the server data directory.
-    pub server_path: PathBuf,
     /// Password used for account creation.
     pub password: SecretString,
 }
@@ -112,7 +110,6 @@ impl SimulatedDevice {
             folders: self.folders.clone(),
             origin: origin.clone(),
             dirs: self.dirs.clone(),
-            server_path: self.server_path.clone(),
             password: self.password.clone(),
         })
     }
@@ -185,7 +182,6 @@ pub async fn simulate_device_with_builder(
         folders,
         origin,
         dirs,
-        server_path,
         default_folder_id,
         data_dir,
         password,
@@ -281,7 +277,7 @@ pub async fn assert_local_remote_events_eq(
 /// Compare local and remote file and assert they are equal.
 pub async fn assert_local_remote_file_eq(
     local_paths: impl AsRef<Paths>,
-    server_path: &PathBuf,
+    server_account_paths: &Paths,
     file: &ExternalFile,
 ) -> Result<()> {
     let expected_client_file = local_paths.as_ref().file_location(
@@ -289,11 +285,20 @@ pub async fn assert_local_remote_file_eq(
         file.secret_id(),
         file.file_name().to_string(),
     );
-    let expected_server_file = server_path
-        .join(FILES_DIR)
-        .join(file.vault_id().to_string())
-        .join(file.secret_id().to_string())
-        .join(file.file_name().to_string());
+
+    let expected_server_file = if server_account_paths.is_using_db() {
+        server_account_paths.blob_location(
+            file.vault_id(),
+            file.secret_id(),
+            file.file_name().to_string(),
+        )
+    } else {
+        server_account_paths.file_location(
+            file.vault_id(),
+            file.secret_id(),
+            file.file_name().to_string(),
+        )
+    };
 
     //println!("client {:#?}", expected_client_file);
     //println!("server {:#?}", expected_server_file);
@@ -318,7 +323,7 @@ pub async fn assert_local_remote_file_eq(
 /// Assert that both a local and remote file do not exist.
 pub async fn assert_local_remote_file_not_exist(
     local_paths: impl AsRef<Paths>,
-    server_path: &PathBuf,
+    server_account_paths: &Paths,
     file: &ExternalFile,
 ) -> Result<()> {
     let expected_client_file = local_paths.as_ref().file_location(
@@ -326,11 +331,20 @@ pub async fn assert_local_remote_file_not_exist(
         file.secret_id(),
         file.file_name().to_string(),
     );
-    let expected_server_file = server_path
-        .join(FILES_DIR)
-        .join(file.vault_id().to_string())
-        .join(file.secret_id().to_string())
-        .join(file.file_name().to_string());
+
+    let expected_server_file = if server_account_paths.is_using_db() {
+        server_account_paths.blob_location(
+            file.vault_id(),
+            file.secret_id(),
+            file.file_name().to_string(),
+        )
+    } else {
+        server_account_paths.file_location(
+            file.vault_id(),
+            file.secret_id(),
+            file.file_name().to_string(),
+        )
+    };
 
     assert!(!vfs::try_exists(expected_client_file).await?);
     assert!(!vfs::try_exists(expected_server_file).await?);

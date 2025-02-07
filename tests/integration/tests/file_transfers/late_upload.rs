@@ -21,7 +21,6 @@ async fn file_transfers_late_upload() -> Result<()> {
 
     // Prepare mock device
     let mut device = simulate_device(TEST_ID, 1, None).await?;
-    let address = device.owner.account_id().clone();
     let default_folder = device.owner.default_folder().await.unwrap();
 
     // Create an external file secret then delete it,
@@ -78,7 +77,6 @@ async fn file_transfers_late_upload() -> Result<()> {
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
-    let server_paths = server.account_path(&address);
 
     // Connect to the server
     device.owner.add_server(server.origin.clone()).await?;
@@ -86,11 +84,13 @@ async fn file_transfers_late_upload() -> Result<()> {
     // Wait until the transfers are completed
     wait_for_num_transfers(&device.owner, 3).await?;
 
+    let server_account_paths = server.paths(device.owner.account_id());
+
     // Assert the files on disc are equal
     for file in files {
         assert_local_remote_file_eq(
             device.owner.paths(),
-            &server_paths,
+            &*server_account_paths,
             &file,
         )
         .await?;

@@ -56,7 +56,6 @@ async fn file_transfers_sync_file_transfers() -> Result<()> {
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
-    let server_paths = server.account_path(&address);
 
     // Connect to the server which will perform an initial sync
     device.owner.add_server(server.origin.clone()).await?;
@@ -64,11 +63,13 @@ async fn file_transfers_sync_file_transfers() -> Result<()> {
     // Wait until the transfers are completed
     wait_for_num_transfers(&device.owner, 2).await?;
 
+    let server_paths = server.paths(device.owner.account_id());
+
     // Assert the files on disc are equal
     for file in files {
         assert_local_remote_file_eq(
             device.owner.paths(),
-            &server_paths,
+            &*server_paths,
             &file,
         )
         .await?;
