@@ -376,9 +376,12 @@ impl ServerAccountStorage for ServerDatabaseStorage {
             );
         }
 
-        let vault_path = self.paths.vault_path(id);
-        let buffer = encode(&vault).await?;
-        vfs::write(vault_path, &buffer).await?;
+        FolderEntity::insert_folder_and_secrets(
+            &self.client,
+            self.account_row_id,
+            &vault,
+        )
+        .await?;
 
         self.create_folder_entry(id).await?;
 
@@ -391,6 +394,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
 
         #[cfg(feature = "audit")]
         {
+            let buffer = encode(&vault).await?;
             // If there is an existing folder
             // and we are overwriting then log the update
             // folder event

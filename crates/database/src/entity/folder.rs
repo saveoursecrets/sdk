@@ -263,6 +263,44 @@ where
 }
 
 impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
+    /// Create a folder and the secrets in a vault.
+    pub async fn insert_folder_and_secrets(
+        client: &Client,
+        account_id: i64,
+        vault: &Vault,
+    ) -> Result<HashMap<SecretId, i64>> {
+        let meta = if let Some(meta) = vault.header().meta() {
+            Some(encode(meta).await?)
+        } else {
+            None
+        };
+        let salt = vault.salt().cloned();
+
+        let folder_row =
+            FolderRow::new_insert_parts(vault.summary(), salt, meta)?;
+
+        let mut secret_rows = Vec::new();
+        for (secret_id, commit) in vault.iter() {
+            let VaultCommit(commit, entry) = commit;
+            secret_rows.push(SecretRow::new(secret_id, commit, entry).await?);
+        }
+
+        Ok(client
+            .conn_mut_and_then(move |conn| {
+                let tx = conn.transaction()?;
+                let folder_entity = FolderEntity::new(&tx);
+                let folder_id =
+                    folder_entity.insert_folder(account_id, &folder_row)?;
+                let secret_ids = folder_entity.insert_folder_secrets(
+                    folder_id,
+                    secret_rows.as_slice(),
+                )?;
+                tx.commit()?;
+                Ok::<_, Error>(secret_ids)
+            })
+            .await?)
+    }
+
     /// Replace all secrets for a folder using a transaction.
     pub async fn replace_all_secrets(
         client: Client,
