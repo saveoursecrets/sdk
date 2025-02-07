@@ -1,11 +1,11 @@
 [storage]
-path = "./accounts"
-database = "./accounts/accounts.db"
+path = "./db_accounts"
+database = "./db_accounts/accounts.db"
 
 [net]
 bind = "0.0.0.0:5053"
 
 [log]
-directory = "./accounts/logs"
+directory = "./db_accounts/logs"
 name = "sos-server.log"
 level = "sos_server=info"

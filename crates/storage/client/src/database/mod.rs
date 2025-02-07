@@ -57,7 +57,7 @@ use sos_core::{
 };
 
 #[cfg(feature = "files")]
-use {sos_backend::FileEventLog, sos_core::events::FileEvent};
+use sos_backend::FileEventLog;
 
 #[cfg(feature = "search")]
 use sos_search::{AccountSearch, DocumentCount};

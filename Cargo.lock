@@ -5031,7 +5031,6 @@ dependencies = [
  "sos-audit",
  "sos-core",
  "sos-external-files",
- "sos-filesystem",
  "sos-preferences",
  "sos-system-messages",
  "sos-vault",

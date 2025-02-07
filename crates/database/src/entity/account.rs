@@ -90,6 +90,24 @@ where
 }
 
 impl<'conn> AccountEntity<'conn, Box<Connection>> {
+    /// Liat all accounts.
+    pub async fn list_all_accounts(
+        client: &Client,
+    ) -> Result<Vec<AccountRecord>> {
+        let account_rows = client
+            .conn_and_then(move |conn| {
+                let account = AccountEntity::new(&conn);
+                account.list_accounts()
+            })
+            .await?;
+
+        let mut accounts = Vec::new();
+        for row in account_rows {
+            accounts.push(row.try_into()?);
+        }
+        Ok(accounts)
+    }
+
     /// Find an account and login folder.
     pub async fn find_account_with_login(
         client: &Client,
@@ -97,7 +115,7 @@ impl<'conn> AccountEntity<'conn, Box<Connection>> {
     ) -> Result<(AccountRecord, FolderRecord)> {
         let account_id = *account_id;
         let (account_row, folder_row) = client
-            .conn_mut(move |conn| {
+            .conn(move |conn| {
                 let account = AccountEntity::new(&conn);
                 let account_row = account.find_one(&account_id)?;
                 let folders = FolderEntity::new(&conn);

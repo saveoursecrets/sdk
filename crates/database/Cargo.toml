@@ -29,8 +29,8 @@ archive = [
   "dep:futures-util",
   "dep:tokio-util",
 ]
-audit = ["sos-audit", "sos-filesystem/audit"]
-files = ["sos-filesystem/files"]
+audit = ["sos-audit"]
+files = []
 preferences = ["sos-preferences"]
 system-messages = ["sos-system-messages", "urn"]
 sqlite = ["dep:async-sqlite", "dep:refinery", "dep:sql_query_builder"]
@@ -38,7 +38,6 @@ sqlite = ["dep:async-sqlite", "dep:refinery", "dep:sql_query_builder"]
 [dependencies]
 sos-core.workspace = true
 sos-external-files.workspace = true
-sos-filesystem.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
 

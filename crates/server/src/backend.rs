@@ -1,16 +1,12 @@
 use super::{Error, Result};
 use sos_backend::BackendTarget;
 use sos_core::{device::DevicePublicKey, AccountId, Paths};
-use sos_database::async_sqlite::Client;
+use sos_database::{async_sqlite::Client, entity::AccountEntity};
 use sos_server_storage::{ServerAccountStorage, ServerStorage};
 use sos_signer::ed25519::{self, Verifier, VerifyingKey};
 use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
 use sos_vfs as vfs;
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
 /// Individual account.
@@ -61,33 +57,27 @@ impl Backend {
             ));
         }
 
-        let paths = self.paths.clone();
         let target = self.target.clone();
         match target {
-            BackendTarget::FileSystem(_) => {
-                self.load_fs_accounts(&paths).await
-            }
+            BackendTarget::FileSystem(_) => self.load_fs_accounts().await,
             BackendTarget::Database(client) => {
-                self.load_db_accounts(&paths, client).await
+                self.load_db_accounts(client).await
             }
         }
     }
 
-    pub(crate) async fn load_fs_accounts(
-        &mut self,
-        paths: &Paths,
-    ) -> Result<()> {
+    pub(crate) async fn load_fs_accounts(&mut self) -> Result<()> {
         Paths::scaffold(Some(self.paths.documents_dir().to_owned())).await?;
 
         tracing::debug!(
             directory = %self.paths.documents_dir().display(),
             "server_backend::load_fs_accounts");
 
-        if !vfs::try_exists(paths.local_dir()).await? {
-            vfs::create_dir(paths.local_dir()).await?;
+        if !vfs::try_exists(self.paths.local_dir()).await? {
+            vfs::create_dir(self.paths.local_dir()).await?;
         }
 
-        let mut dir = vfs::read_dir(paths.local_dir()).await?;
+        let mut dir = vfs::read_dir(self.paths.local_dir()).await?;
         while let Some(entry) = dir.next_entry().await? {
             let path = entry.path();
             if vfs::metadata(&path).await?.is_dir() {
@@ -97,7 +87,7 @@ impl Backend {
                     {
                         tracing::debug!(
                             account_id = %account_id,
-                            "server_backend::read_dir",
+                            "server_backend::load_fs_accounts",
                         );
 
                         let account = ServerStorage::new(
@@ -123,12 +113,30 @@ impl Backend {
 
     pub(crate) async fn load_db_accounts(
         &mut self,
-        paths: &Paths,
         client: Client,
     ) -> Result<()> {
         tracing::debug!(
           directory = %self.paths.documents_dir().display(),
           "server_backend::load_db_accounts");
+
+        let accounts = AccountEntity::list_all_accounts(&client).await?;
+
+        for account in accounts {
+            let account_id = *account.identity.account_id();
+            let account = ServerStorage::new(
+                &self.paths,
+                &account_id,
+                self.target.clone(),
+            )
+            .await?;
+
+            let mut accounts = self.accounts.write().await;
+            let account = accounts
+                .entry(account_id)
+                .or_insert(Arc::new(RwLock::new(account)));
+            let mut writer = account.write().await;
+            writer.load_folders().await?;
+        }
 
         Ok(())
     }
