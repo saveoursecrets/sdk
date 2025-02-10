@@ -5,7 +5,6 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
 use sos_sdk::prelude::*;
-use sos_sync::SyncStorage;
 use sos_vault::SecretAccess;
 
 /// Tests sending import folder events to a remote.

@@ -400,11 +400,20 @@ pub async fn wait_for_file(
     paths: impl AsRef<Paths>,
     file: &ExternalFile,
 ) -> Result<()> {
-    let path = paths.as_ref().file_location(
-        file.vault_id(),
-        file.secret_id(),
-        file.file_name().to_string(),
-    );
+    let path = if std::env::var("SOS_TEST_SERVER_DB").ok().is_some() {
+        paths.as_ref().blob_location(
+            file.vault_id(),
+            file.secret_id(),
+            file.file_name().to_string(),
+        )
+    } else {
+        paths.as_ref().file_location(
+            file.vault_id(),
+            file.secret_id(),
+            file.file_name().to_string(),
+        )
+    };
+
     wait_for_cond(move || {
         if path.exists() {
             let contents = std::fs::read(&path).unwrap();
@@ -428,11 +437,19 @@ pub async fn wait_for_file_not_exist(
     file: &ExternalFile,
 ) -> Result<()> {
     wait_for_cond(move || {
-        let path = paths.as_ref().file_location(
-            file.vault_id(),
-            file.secret_id(),
-            file.file_name().to_string(),
-        );
+        let path = if std::env::var("SOS_TEST_SERVER_DB").ok().is_some() {
+            paths.as_ref().blob_location(
+                file.vault_id(),
+                file.secret_id(),
+                file.file_name().to_string(),
+            )
+        } else {
+            paths.as_ref().file_location(
+                file.vault_id(),
+                file.secret_id(),
+                file.file_name().to_string(),
+            )
+        };
         !path.exists()
     })
     .await;
