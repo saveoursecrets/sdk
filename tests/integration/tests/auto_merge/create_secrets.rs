@@ -13,7 +13,7 @@ use sos_sdk::prelude::*;
 #[tokio::test]
 async fn auto_merge_create_secrets() -> Result<()> {
     const TEST_ID: &str = "auto_merge_create_secrets";
-    crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -62,7 +62,6 @@ async fn auto_merge_create_secrets() -> Result<()> {
 
     // Sync the first device
     let sync_result = device1.owner.sync().await;
-    println!("{:#?}", sync_result);
     assert!(sync_result.first_error().is_none());
 
     // Sync the second device which will auto merge local

@@ -351,6 +351,11 @@ pub trait AutoMerge: RemoteSyncHandler {
             let hard_conflict = self
                 .auto_merge_identity(options, &mut force_merge_outcome)
                 .await?;
+
+            if hard_conflict {
+                tracing::warn!("hard_conflict::identity");
+            }
+
             has_hard_conflict = has_hard_conflict || hard_conflict;
         }
 
@@ -358,6 +363,11 @@ pub trait AutoMerge: RemoteSyncHandler {
             let hard_conflict = self
                 .auto_merge_account(options, &mut force_merge_outcome)
                 .await?;
+
+            if hard_conflict {
+                tracing::warn!("hard_conflict::account");
+            }
+
             has_hard_conflict = has_hard_conflict || hard_conflict;
         }
 
@@ -365,6 +375,11 @@ pub trait AutoMerge: RemoteSyncHandler {
             let hard_conflict = self
                 .auto_merge_device(options, &mut force_merge_outcome)
                 .await?;
+
+            if hard_conflict {
+                tracing::warn!("hard_conflict::device");
+            }
+
             has_hard_conflict = has_hard_conflict || hard_conflict;
         }
 
@@ -373,6 +388,11 @@ pub trait AutoMerge: RemoteSyncHandler {
             let hard_conflict = self
                 .auto_merge_files(options, &mut force_merge_outcome)
                 .await?;
+
+            if hard_conflict {
+                tracing::warn!("hard_conflict::files");
+            }
+
             has_hard_conflict = has_hard_conflict || hard_conflict;
         }
 
@@ -385,11 +405,19 @@ pub trait AutoMerge: RemoteSyncHandler {
                     &mut force_merge_outcome,
                 )
                 .await?;
+
+            if hard_conflict {
+                tracing::warn!(
+                    folder_id = %folder_id,
+                    "hard_conflict::folder",
+                );
+            }
+
             has_hard_conflict = has_hard_conflict || hard_conflict;
         }
 
         if has_hard_conflict {
-            tracing::debug!(
+            tracing::warn!(
                 outcome = ?force_merge_outcome,
                 "hard_conflict::sign_out");
             let account = self.account();

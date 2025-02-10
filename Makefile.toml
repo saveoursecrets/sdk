@@ -140,12 +140,16 @@ dependencies = ["clean-cli"]
 command = "cargo"
 args = ["build", "-p", "sos-integration-tests"]
 
-[tasks.test-lite]
+[tasks.clean-tests]
 script = '''
 rm -rf target/integration-test tests/integration/target/integration-test
+'''
+
+[tasks.test-lite]
+script = '''
 cargo nextest run
 '''
-dependencies = ["clean-cli", "build-test"]
+dependencies = ["clean-tests"," clean-cli", "build-test"]
 
 [tasks.genhtml]
 script = '''

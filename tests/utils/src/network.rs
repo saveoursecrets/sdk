@@ -162,7 +162,7 @@ pub async fn simulate_device_with_builder(
     }
 
     // Create the remote provider
-    let (origin, server_path) = if let Some(server) = server {
+    let (origin, _server_path) = if let Some(server) = server {
         let origin = server.origin.clone();
         owner.add_server(origin.clone()).await?;
 
