@@ -24,3 +24,6 @@ thiserror.workspace = true
 indexmap.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+
+[build-dependencies]
+rustc_version.workspace = true

@@ -5486,6 +5486,7 @@ version = "0.16.0"
 dependencies = [
  "async-trait",
  "indexmap 2.7.1",
+ "rustc_version",
  "sos-account",
  "sos-backend",
  "sos-core",
