@@ -500,7 +500,6 @@ pub trait SyncStorage: ForceMerge {
         for summary in &summaries {
             let event_log = self.folder_log(summary.id()).await?;
             let reader = event_log.read().await;
-
             let commit_state = reader.tree().commit_state()?;
             folder_roots.push((summary.id(), commit_state.1.root().into()));
             folders.insert(*summary.id(), commit_state);

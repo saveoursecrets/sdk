@@ -93,6 +93,12 @@ impl MockServer {
 
         if std::env::var("SOS_TEST_SERVER_DB").ok().is_some() {
             let db_file = self.path.join(DATABASE_FILE);
+
+            // Make sure each server test run is pristine
+            if db_file.exists() {
+                std::fs::remove_file(&db_file)?;
+            }
+
             config.storage.database_uri = Some(UriOrPath::Path(db_file));
         }
 
