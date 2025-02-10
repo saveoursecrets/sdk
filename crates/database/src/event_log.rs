@@ -160,6 +160,10 @@ where
         // Update the in-memory merkle tree
         let mut hashes =
             commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
+        if delete_before {
+            self.ids = Vec::new();
+            self.tree = CommitTree::new();
+        }
         self.tree.append(&mut hashes);
         self.tree.commit();
 
@@ -542,8 +546,7 @@ where
         &mut self,
         diff: &Diff<T>,
     ) -> Result<(), Self::Error> {
-        let records = diff.patch.records().to_vec();
-        self.insert_records(records.as_slice(), true).await?;
+        self.insert_records(diff.patch.records(), true).await?;
 
         let computed = self.tree().head()?;
         let verified = computed == diff.checkpoint;
