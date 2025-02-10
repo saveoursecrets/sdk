@@ -5,13 +5,14 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
 use sos_sdk::prelude::*;
+use sos_sync::SyncStorage;
 use sos_vault::SecretAccess;
 
 /// Tests sending import folder events to a remote.
 #[tokio::test]
 async fn network_sync_folder_import() -> Result<()> {
     const TEST_ID: &str = "sync_folder_import";
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -56,7 +57,6 @@ async fn network_sync_folder_import() -> Result<()> {
 
     // Encode for the import
     let buffer = encode(&vault).await?;
-
     device
         .owner
         .import_folder_buffer(buffer, vault_passphrase, true)

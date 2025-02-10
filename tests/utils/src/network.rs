@@ -5,10 +5,7 @@ use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use sos_account::{Account, AccountBuilder};
 use sos_core::{
-    constants::{FILES_DIR, VAULT_EXT},
-    crypto::AccessKey,
-    events::EventLog,
-    Paths,
+    constants::VAULT_EXT, crypto::AccessKey, events::EventLog, Paths,
 };
 use sos_core::{ExternalFile, Origin};
 use sos_net::{
@@ -267,8 +264,8 @@ pub async fn assert_local_remote_events_eq(
     let local_status = owner.sync_status().await?;
     let remote_status = provider.client().sync_status().await?;
 
-    //println!(" local {:#?}", local_status);
-    //println!("remote {:#?}", remote_status);
+    // println!(" local {:#?}", local_status);
+    // println!("remote {:#?}", remote_status);
 
     assert_eq!(local_status, remote_status);
 

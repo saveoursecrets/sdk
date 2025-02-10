@@ -378,7 +378,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
             );
         }
 
-        FolderEntity::insert_folder_and_secrets(
+        FolderEntity::upsert_folder_and_secrets(
             &self.client,
             self.account_row_id,
             &vault,

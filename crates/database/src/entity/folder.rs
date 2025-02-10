@@ -264,11 +264,17 @@ where
 
 impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
     /// Create a folder and the secrets in a vault.
-    pub async fn insert_folder_and_secrets(
+    ///
+    /// If a folder with the same identifier already exists
+    /// it is updated and any existing secrets are deleted
+    /// before inserting the new collection of secrets in the vault.
+    pub async fn upsert_folder_and_secrets(
         client: &Client,
         account_id: i64,
         vault: &Vault,
     ) -> Result<HashMap<SecretId, i64>> {
+        let folder_id = *vault.id();
+
         let meta = if let Some(meta) = vault.header().meta() {
             Some(encode(meta).await?)
         } else {
@@ -289,8 +295,17 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
             .conn_mut_and_then(move |conn| {
                 let tx = conn.transaction()?;
                 let folder_entity = FolderEntity::new(&tx);
-                let folder_id =
-                    folder_entity.insert_folder(account_id, &folder_row)?;
+
+                let folder_id = if let Some(row) =
+                    folder_entity.find_optional(&folder_id)?
+                {
+                    folder_entity.update_folder(&folder_id, &folder_row)?;
+                    folder_entity.delete_all_secrets(row.row_id)?;
+                    row.row_id
+                } else {
+                    folder_entity.insert_folder(account_id, &folder_row)?
+                };
+
                 let secret_ids = folder_entity.insert_folder_secrets(
                     folder_id,
                     secret_rows.as_slice(),
