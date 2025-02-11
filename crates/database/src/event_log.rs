@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use futures::{
     pin_mut,
-    stream::{self, BoxStream, StreamExt, TryStreamExt},
+    stream::{BoxStream, StreamExt, TryStreamExt},
 };
 use sos_core::{
     commit::{CommitHash, CommitProof, CommitTree, Comparison},
@@ -57,7 +57,6 @@ where
     account_id: i64,
     folder: Option<FolderRecord>,
     client: Client,
-    ids: Vec<i64>,
     log_type: EventLogType,
     tree: CommitTree,
     marker: std::marker::PhantomData<(T, E)>,
@@ -85,7 +84,6 @@ where
             account_id: self.account_id,
             folder: self.folder.clone(),
             client,
-            ids: Vec::new(),
             log_type: self.log_type,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
@@ -131,7 +129,6 @@ where
 
         let mut insert_rows = Vec::new();
         let mut commits = Vec::new();
-        // let mut last_commit_hash = self.tree().last_commit().clone();
         for record in records {
             commits.push(*record.commit());
             insert_rows.push(EventRecordRow::new(&record)?);
@@ -140,8 +137,7 @@ where
         let id = folder_id.unwrap_or(account_id);
 
         // Insert into the database.
-        let mut ids = self
-            .client
+        self.client
             .conn_mut(move |conn| {
                 let tx = conn.transaction()?;
                 let events = EventEntity::new(&tx);
@@ -161,7 +157,6 @@ where
             .map_err(Error::from)?;
 
         if delete_before {
-            self.ids = Vec::new();
             self.tree = CommitTree::new();
         }
 
@@ -170,9 +165,6 @@ where
             commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
         self.tree.append(&mut hashes);
         self.tree.commit();
-
-        // Update row id cache (used for iteration)
-        self.ids.append(&mut ids);
 
         Ok(())
     }
@@ -199,7 +191,6 @@ where
             account_id: account.row_id,
             folder: None,
             client,
-            ids: Vec::new(),
             log_type: EventLogType::Account,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
@@ -230,7 +221,6 @@ where
             account_id: account.row_id,
             folder: Some(folder),
             client,
-            ids: Vec::new(),
             log_type: EventLogType::Folder(folder_id),
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
@@ -259,7 +249,6 @@ where
             account_id: account.row_id,
             folder: None,
             client,
-            ids: Vec::new(),
             log_type: EventLogType::Device,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
@@ -289,7 +278,6 @@ where
             account_id: account.row_id,
             folder: None,
             client,
-            ids: Vec::new(),
             log_type: EventLogType::Files,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
@@ -367,27 +355,13 @@ where
         &self,
         reverse: bool,
     ) -> BoxStream<'async_trait, Result<(EventRecord, T), Self::Error>> {
-        let mut ids = self.ids.clone();
-        if reverse {
-            ids.reverse();
-        }
-        let items = ids
-            .into_iter()
-            .map(|id| Ok((self.client.clone(), self.log_type, id)));
-        Box::pin(stream::iter(items).try_filter_map(
-            |(client, log_type, id)| async move {
-                let row = client
-                    .conn(move |conn| {
-                        let events = EventEntity::new(&conn);
-                        Ok(events.find_one(log_type, id)?)
-                    })
-                    .await
-                    .map_err(Error::from)?;
-                let record: EventRecord = row.try_into()?;
+        self.record_stream(reverse)
+            .await
+            .try_filter_map(|record| async {
                 let event = record.decode_event::<T>().await?;
                 Ok(Some((record, event)))
-            },
-        ))
+            })
+            .boxed()
     }
 
     async fn diff_checked(
@@ -428,7 +402,7 @@ where
         &mut self,
         commit: &CommitHash,
     ) -> Result<Vec<EventRecord>, Self::Error> {
-        let (records, tree, new_len) = {
+        let (records, tree) = {
             let stream = self.record_stream(true).await;
             pin_mut!(stream);
 
@@ -455,11 +429,11 @@ where
                 return Err(Error::CommitNotFound(*commit).into());
             }
 
-            (records, tree, new_len)
+            (records, tree)
         };
 
-        let mut ids = self.ids.clone();
-        let delete_ids = ids.split_off(new_len);
+        let delete_ids =
+            records.iter().map(|r| *r.commit()).collect::<Vec<_>>();
 
         // Delete from the database
         let log_type = self.log_type.clone();
@@ -468,17 +442,13 @@ where
                 let tx = conn.transaction()?;
                 let events = EventEntity::new(&tx);
                 for id in delete_ids {
-                    events.delete_one(log_type, id)?;
+                    events.delete_one(log_type, &id)?;
                 }
                 tx.commit()?;
                 Ok(())
             })
             .await
             .map_err(Error::from)?;
-
-        // Update identifier cache
-        ids.truncate(new_len);
-        self.ids = ids;
 
         // Update merkle tree
         self.tree = tree;
@@ -501,7 +471,6 @@ where
             .await?;
         for commit in commits {
             let record: CommitRecord = commit.try_into()?;
-            self.ids.push(record.row_id);
             self.tree.insert(*record.commit_hash.as_ref());
         }
         self.tree.commit();
@@ -523,7 +492,6 @@ where
             .await
             .map_err(Error::from)?;
         self.tree = CommitTree::new();
-        self.ids = Vec::new();
         Ok(())
     }
 

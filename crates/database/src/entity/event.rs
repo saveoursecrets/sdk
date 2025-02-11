@@ -204,14 +204,14 @@ where
     pub fn delete_one(
         &self,
         log_type: EventLogType,
-        event_id: i64,
+        commit_hash: &CommitHash,
     ) -> Result<(), SqlError> {
         let table: EventTable = log_type.into();
         let query = sql::Delete::new()
             .delete_from(table.as_str())
-            .where_clause("event_id = ?1");
+            .where_clause("commit_hash = ?1");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        stmt.execute([event_id])?;
+        stmt.execute([commit_hash.as_ref()])?;
         Ok(())
     }
 
