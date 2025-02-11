@@ -302,6 +302,7 @@ impl SyncComparison {
                 Comparison::Contains(_) => {
                     // Need to push changes to remote
                     let log = storage.folder_log(id).await?;
+
                     let log = log.read().await;
                     let folder = log
                         .diff_checked(

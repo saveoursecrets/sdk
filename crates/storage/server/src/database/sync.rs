@@ -44,12 +44,7 @@ impl ForceMerge for ServerDatabaseStorage {
         );
 
         let mut event_log = self.identity_log.write().await;
-
-        println!("force_merge_identity: {} {}", len, event_log.tree().len());
-
         event_log.replace_all_events(&diff).await?;
-
-        println!("after force merge: {}", event_log.tree().root().unwrap());
 
         outcome.changes += len;
         outcome.tracked.identity =

@@ -157,13 +157,14 @@ where
             .await
             .map_err(Error::from)?;
 
-        // Update the in-memory merkle tree
-        let mut hashes =
-            commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
         if delete_before {
             self.ids = Vec::new();
             self.tree = CommitTree::new();
         }
+
+        // Update the in-memory merkle tree
+        let mut hashes =
+            commits.iter().map(|c| *c.as_ref()).collect::<Vec<_>>();
         self.tree.append(&mut hashes);
         self.tree.commit();
 
@@ -227,7 +228,7 @@ where
             folder: Some(folder),
             client,
             ids: Vec::new(),
-            log_type: EventLogType::Identity,
+            log_type: EventLogType::Folder(folder_id),
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
         })

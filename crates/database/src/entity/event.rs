@@ -163,7 +163,7 @@ where
         Self { conn }
     }
 
-    /// Find a event record in the database.
+    /// Find an event record in the database.
     pub fn find_one(
         &self,
         log_type: EventLogType,

@@ -10,9 +10,17 @@ use std::{
 
 /// Hash representation that provides a hexadecimal display.
 #[derive(
-    Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize, Hash,
+    Default, Copy, Clone, Eq, PartialEq, Serialize, Deserialize, Hash,
 )]
 pub struct CommitHash(#[serde(with = "hex::serde")] pub TreeHash);
+
+impl fmt::Debug for CommitHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("CommitHash")
+            .field(&self.to_string())
+            .finish()
+    }
+}
 
 impl AsRef<TreeHash> for CommitHash {
     fn as_ref(&self) -> &TreeHash {

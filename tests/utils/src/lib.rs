@@ -209,7 +209,7 @@ pub async fn spawn_with_config(
         .expect("failed to get current working directory");
 
     // Prepare server storage
-    let target = current_dir.join("target/integration-test");
+    let target = current_dir.join("../../target/integration-test");
     vfs::create_dir_all(&target).await?;
 
     let server_id = server_id.unwrap_or("server");

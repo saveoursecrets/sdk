@@ -11,7 +11,7 @@ use sos_sdk::prelude::*;
 #[tokio::test]
 async fn network_sync_change_account_password() -> Result<()> {
     const TEST_ID: &str = "sync_change_account_password";
-    // crate::test_utils::init_tracing();
+    crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -33,8 +33,10 @@ async fn network_sync_change_account_password() -> Result<()> {
         .await?;
 
     // Sync on the second device to fetch initial account state
-    assert!(device2.owner.sync().await.first_error().is_none());
+    let sync_result = device2.owner.sync().await;
+    assert!(sync_result.first_error().is_none());
 
+    // Change the account password which will do a force push
     let (new_password, _) = generate_passphrase()?;
     device1
         .owner
@@ -75,7 +77,9 @@ async fn network_sync_change_account_password() -> Result<()> {
         .await?;
 
     // Sync on the original device and check it can read the secret
-    assert!(device1.owner.sync().await.first_error().is_none());
+    let sync_result = device1.owner.sync().await;
+    println!("{:#?}", sync_result);
+    assert!(sync_result.first_error().is_none());
     let (secret_data, _) = device1
         .owner
         .read_secret(&id, Some(default_folder.id()))

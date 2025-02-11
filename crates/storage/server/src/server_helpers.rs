@@ -33,12 +33,20 @@ where
         + Sync
         + 'static,
 {
+    let local_status = storage.sync_status().await?;
     let (remote_status, mut diff) = (packet.status, packet.diff);
+
+    // println!("REMOTE = {:#?}", remote_status);
+    // println!("LOCAL = {:#?}", local_status);
 
     // Apply the diff to the storage
     let mut outcome = MergeOutcome::default();
     let compare = {
-        tracing::debug!("merge_server");
+        tracing::debug!(
+            remote_root = %remote_status.root,
+            local_root = %local_status.root,
+            "merge_server",
+        );
 
         // Only try to merge folders that exist in storage
         // otherwise after folder deletion sync will fail
