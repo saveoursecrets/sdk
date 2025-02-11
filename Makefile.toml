@@ -151,6 +151,7 @@ dependencies = ["clean-tests", "build-test"]
 script = '''
 cargo llvm-cov clean --workspace
 cargo llvm-cov nextest --no-report
+SOS_TEST_SERVER_DB=1 cargo llvm-cov nextest --no-report
 cargo llvm-cov report --html
 '''
 dependencies = ["clean-tests"]
