@@ -36,9 +36,6 @@ where
     let local_status = storage.sync_status().await?;
     let (remote_status, mut diff) = (packet.status, packet.diff);
 
-    // println!("REMOTE = {:#?}", remote_status);
-    // println!("LOCAL = {:#?}", local_status);
-
     // Apply the diff to the storage
     let mut outcome = MergeOutcome::default();
     let compare = {
@@ -118,7 +115,6 @@ where
         EventLogType::Folder(id) => {
             let log = storage.folder_log(id).await?;
             let event_log = log.read().await;
-            println!("diff log on folder: {}", id);
             diff_log(&req, &*event_log).await
         }
     }
@@ -137,8 +133,6 @@ where
         + Sync
         + 'static,
 {
-    println!("server diff log hash: {:#?}", req.from_hash);
-
     Ok(DiffResponse {
         patch: event_log.diff_records(req.from_hash.as_ref()).await?,
         checkpoint: event_log.tree().head()?,

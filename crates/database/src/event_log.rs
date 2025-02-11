@@ -137,6 +137,8 @@ where
             insert_rows.push(EventRecordRow::new(&record)?);
         }
 
+        let id = folder_id.unwrap_or(account_id);
+
         // Insert into the database.
         let mut ids = self
             .client
@@ -149,7 +151,7 @@ where
                 }
                 let ids = events.insert_events(
                     log_type,
-                    account_id,
+                    id,
                     insert_rows.as_slice(),
                 )?;
                 tx.commit()?;
@@ -328,9 +330,6 @@ where
                     let query =
                         EventEntity::find_all_query(log_type, reverse);
 
-                    println!("query: {}", query.as_string());
-                    println!("id: {} {:#?}", id, folder_id);
-
                     let mut stmt = conn.prepare_cached(&query.as_string())?;
 
                     fn convert_row(
@@ -346,7 +345,6 @@ where
 
                     for row in rows {
                         let row = row?;
-                        println!("row: {:#?}", row);
                         let record: EventRecord = row.try_into()?;
                         let sender = tx.clone();
                         futures::executor::block_on(async move {
@@ -361,38 +359,6 @@ where
                 .await?;
             Ok::<_, Error>(())
         });
-
-        /*
-        let mut ids = self.ids.clone();
-        if reverse {
-            ids.reverse();
-        }
-        let items = ids
-            .into_iter()
-            .map(|id| Ok((self.client.clone(), self.log_type, id)));
-        */
-
-        /*
-        Box::pin(stream::once(async move {
-
-            todo!();
-        }))
-        */
-
-        /*
-        Box::pin(stream::iter(items).try_filter_map(
-            |(client, log_type, id)| async move {
-                let row = client
-                    .conn(move |conn| {
-                        let events = EventEntity::new(&conn);
-                        Ok(events.find_one(log_type, id)?)
-                    })
-                    .await
-                    .map_err(Error::from)?;
-                Ok(Some(row.try_into()?))
-            },
-        ))
-        */
 
         ReceiverStream::new(rx).boxed()
     }
