@@ -145,7 +145,7 @@ rm -rf target/integration-test tests/integration/target/integration-test
 script = '''
 cargo nextest run
 '''
-dependencies = ["clean-tests"," clean-cli", "build-test"]
+dependencies = ["clean-tests", "build-test"]
 
 [tasks.cover]
 script = '''

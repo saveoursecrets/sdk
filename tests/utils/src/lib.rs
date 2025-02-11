@@ -164,10 +164,6 @@ impl Drop for ShutdownHandle {
 pub struct TestServer {
     /// Test identifier.
     pub test_id: String,
-    /*
-    /// Path to the server storage.
-    pub path: PathBuf,
-    */
     /// Server paths information.
     pub paths: Paths,
     /// Bind address.

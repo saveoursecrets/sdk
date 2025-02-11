@@ -50,31 +50,20 @@ async fn file_transfers_offline_multi_upload() -> Result<()> {
     // Wait for the file to exist
     wait_for_file(&server2_paths, &file).await?;
 
-    let server2_account_paths = server2.paths(device.owner.account_id());
-
     // Assert the files on server2 are equal
-    assert_local_remote_file_eq(
-        device.owner.paths(),
-        &*server2_account_paths,
-        &file,
-    )
-    .await?;
+    assert_local_remote_file_eq(device.owner.paths(), &*server2_paths, &file)
+        .await?;
 
-    // Bring the server back online
-    let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
-
-    let server1_account_paths = server1.paths(device.owner.account_id());
+    // Bring the server back online and sync
+    let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+    assert!(device.owner.sync().await.first_error().is_none());
 
     // Wait for the file to exist
     wait_for_file(&server1_paths, &file).await?;
 
     // Assert the files on server1 are equal
-    assert_local_remote_file_eq(
-        device.owner.paths(),
-        &server1_account_paths,
-        &file,
-    )
-    .await?;
+    assert_local_remote_file_eq(device.owner.paths(), &*server1_paths, &file)
+        .await?;
 
     device.owner.sign_out().await?;
 
@@ -137,31 +126,20 @@ async fn file_transfers_offline_multi_update() -> Result<()> {
     // Wait for the file to exist
     wait_for_file(&server2_paths, &file).await?;
 
-    let server2_account_paths = server2.paths(device.owner.account_id());
-
     // Assert the files on server2 are equal
-    assert_local_remote_file_eq(
-        device.owner.paths(),
-        &*server2_account_paths,
-        &file,
-    )
-    .await?;
+    assert_local_remote_file_eq(device.owner.paths(), &*server2_paths, &file)
+        .await?;
 
     // Bring the server back online
-    let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
-
-    let server1_account_paths = server1.paths(device.owner.account_id());
+    let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+    assert!(device.owner.sync().await.first_error().is_none());
 
     // Wait for the file to exist
     wait_for_file(&server1_paths, &file).await?;
 
     // Assert the files on server1 are equal
-    assert_local_remote_file_eq(
-        device.owner.paths(),
-        &*server1_account_paths,
-        &file,
-    )
-    .await?;
+    assert_local_remote_file_eq(device.owner.paths(), &*server1_paths, &file)
+        .await?;
 
     device.owner.sign_out().await?;
 
@@ -234,33 +212,20 @@ async fn file_transfers_offline_multi_move() -> Result<()> {
     // Wait for the file to exist
     wait_for_file(&server2_paths, &file).await?;
 
-    let server2_account_paths = server2.paths(&account_id);
-
     // Assert the files on server2 are equal
-    assert_local_remote_file_eq(
-        device.owner.paths(),
-        &server2_account_paths,
-        &file,
-    )
-    .await?;
+    assert_local_remote_file_eq(device.owner.paths(), &*server2_paths, &file)
+        .await?;
 
-    // Bring the server back online
-    let server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
-
-    let server1_account_paths = server1.paths(&account_id);
+    // Bring the server back online and sync
+    let _server1 = spawn(TEST_ID, Some(addr), Some("server1")).await?;
+    assert!(device.owner.sync().await.first_error().is_none());
 
     // Wait for the file to exist
     wait_for_file(&server1_paths, &file).await?;
 
-    //println!("Move completed waiting for file on server1");
-
     // Assert the files on server1 are equal
-    assert_local_remote_file_eq(
-        device.owner.paths(),
-        &server1_account_paths,
-        &file,
-    )
-    .await?;
+    assert_local_remote_file_eq(device.owner.paths(), &*server1_paths, &file)
+        .await?;
 
     device.owner.sign_out().await?;
 

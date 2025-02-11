@@ -400,7 +400,9 @@ pub async fn wait_for_file(
     paths: impl AsRef<Paths>,
     file: &ExternalFile,
 ) -> Result<()> {
-    let path = if std::env::var("SOS_TEST_SERVER_DB").ok().is_some() {
+    let path = if paths.as_ref().is_server()
+        && std::env::var("SOS_TEST_SERVER_DB").ok().is_some()
+    {
         paths.as_ref().blob_location(
             file.vault_id(),
             file.secret_id(),
@@ -437,7 +439,9 @@ pub async fn wait_for_file_not_exist(
     file: &ExternalFile,
 ) -> Result<()> {
     wait_for_cond(move || {
-        let path = if std::env::var("SOS_TEST_SERVER_DB").ok().is_some() {
+        let path = if paths.as_ref().is_server()
+            && std::env::var("SOS_TEST_SERVER_DB").ok().is_some()
+        {
             paths.as_ref().blob_location(
                 file.vault_id(),
                 file.secret_id(),
