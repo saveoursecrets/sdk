@@ -416,6 +416,7 @@ pub trait AutoMerge: RemoteSyncHandler {
             has_hard_conflict = has_hard_conflict || hard_conflict;
         }
 
+        /*
         if has_hard_conflict {
             tracing::warn!(
                 outcome = ?force_merge_outcome,
@@ -424,6 +425,9 @@ pub trait AutoMerge: RemoteSyncHandler {
             let mut account = account.lock().await;
             account.sign_out().await?;
         }
+        */
+
+        // FIXME: put conflict info in merge outcome
 
         Ok(force_merge_outcome)
     }
