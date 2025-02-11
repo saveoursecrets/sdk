@@ -34,6 +34,7 @@ async fn network_sync_change_account_password() -> Result<()> {
 
     // Sync on the second device to fetch initial account state
     let sync_result = device2.owner.sync().await;
+    println!("{:#?}", sync_result);
     assert!(sync_result.first_error().is_none());
 
     // Change the account password which will do a force push
@@ -62,6 +63,7 @@ async fn network_sync_change_account_password() -> Result<()> {
     //
     // Account will be signed out due to the forced pull.
     let sync_result = device2.owner.sync().await;
+    println!("{:#?}", sync_result);
     assert!(sync_result.first_error().is_none());
 
     // Check we can sign in again

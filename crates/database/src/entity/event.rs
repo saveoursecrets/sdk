@@ -154,6 +154,28 @@ where
     conn: &'conn C,
 }
 
+impl<'conn> EventEntity<'conn, Box<Connection>> {
+    /// Query to find all events.
+    pub fn find_all_query(
+        log_type: EventLogType,
+        reverse: bool,
+    ) -> sql::Select {
+        let table: EventTable = log_type.into();
+        let mut query = sql::Select::new()
+            .select("event_id, created_at, commit_hash, event")
+            .from(table.as_str())
+            .where_clause(&format!("{}=?1", table.id_column()));
+
+        if reverse {
+            query = query.order_by("event_id DESC");
+        } else {
+            query = query.order_by("event_id ASC");
+        }
+
+        query
+    }
+}
+
 impl<'conn, C> EventEntity<'conn, C>
 where
     C: Deref<Target = Connection>,

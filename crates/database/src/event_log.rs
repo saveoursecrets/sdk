@@ -6,7 +6,7 @@ use crate::{
     },
     Error,
 };
-use async_sqlite::Client;
+use async_sqlite::{rusqlite::Row, Client};
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use futures::{
@@ -26,6 +26,7 @@ use sos_core::{
 
 #[cfg(feature = "files")]
 use sos_core::events::FileEvent;
+use tokio_stream::wrappers::ReceiverStream;
 
 /// Event log for changes to an account.
 pub type AccountEventLog<E> = DatabaseEventLog<AccountEvent, E>;
@@ -313,6 +314,55 @@ where
         &self,
         reverse: bool,
     ) -> BoxStream<'async_trait, Result<EventRecord, Self::Error>> {
+        let (tx, rx) = tokio::sync::mpsc::channel(8);
+
+        let account_id = self.account_id;
+        let folder_id = self.folder.as_ref().map(|f| f.row_id);
+        let log_type = self.log_type.clone();
+        let client = self.client.clone();
+
+        tokio::spawn(async move {
+            client
+                .conn_and_then(move |conn| {
+                    let id = folder_id.unwrap_or(account_id);
+                    let query =
+                        EventEntity::find_all_query(log_type, reverse);
+
+                    println!("query: {}", query.as_string());
+                    println!("id: {} {:#?}", id, folder_id);
+
+                    let mut stmt = conn.prepare_cached(&query.as_string())?;
+
+                    fn convert_row(
+                        row: &Row<'_>,
+                    ) -> Result<EventRecordRow, crate::Error>
+                    {
+                        Ok(row.try_into()?)
+                    }
+
+                    let rows = stmt.query_and_then([id], |row| {
+                        Ok::<_, crate::Error>(convert_row(row)?)
+                    })?;
+
+                    for row in rows {
+                        let row = row?;
+                        println!("row: {:#?}", row);
+                        let record: EventRecord = row.try_into()?;
+                        let sender = tx.clone();
+                        futures::executor::block_on(async move {
+                            if let Err(err) = sender.send(Ok(record)).await {
+                                tracing::error!(error = %err);
+                            }
+                        });
+                    }
+
+                    Ok::<_, Error>(())
+                })
+                .await?;
+            Ok::<_, Error>(())
+        });
+
+        /*
         let mut ids = self.ids.clone();
         if reverse {
             ids.reverse();
@@ -320,6 +370,16 @@ where
         let items = ids
             .into_iter()
             .map(|id| Ok((self.client.clone(), self.log_type, id)));
+        */
+
+        /*
+        Box::pin(stream::once(async move {
+
+            todo!();
+        }))
+        */
+
+        /*
         Box::pin(stream::iter(items).try_filter_map(
             |(client, log_type, id)| async move {
                 let row = client
@@ -332,6 +392,9 @@ where
                 Ok(Some(row.try_into()?))
             },
         ))
+        */
+
+        ReceiverStream::new(rx).boxed()
     }
 
     async fn event_stream(
