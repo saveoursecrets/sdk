@@ -212,7 +212,10 @@ pub async fn upgrade_accounts(
     result.database_file = options.paths.database_file().to_owned();
 
     if !options.dry_run {
-        tracing::debug!("upgrade_accounts::move_db_into_place");
+        tracing::debug!(
+          temp = %db_temp.path().display(),
+          dest = %options.paths.database_file().display(),
+          "upgrade_accounts::move_db_into_place");
 
         // Move the temp file into place
         vfs::rename(db_temp.path(), options.paths.database_file()).await?;
