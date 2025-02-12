@@ -62,6 +62,18 @@ pub async fn open_file(path: impl AsRef<Path>) -> Result<Client> {
         .await?)
 }
 
+/// Open a database file from a specific journal mode.
+pub async fn open_file_with_journal_mode(
+    path: impl AsRef<Path>,
+    mode: JournalMode,
+) -> Result<Client> {
+    Ok(ClientBuilder::new()
+        .path(path.as_ref())
+        .journal_mode(mode)
+        .open()
+        .await?)
+}
+
 /// Open an in-memory database and run migrations.
 pub async fn open_memory() -> Result<Client> {
     let mut client = ClientBuilder::new().open().await?;

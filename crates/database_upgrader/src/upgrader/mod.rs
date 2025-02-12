@@ -4,7 +4,10 @@ use serde::{Deserialize, Serialize};
 use sos_backend::BackendTarget;
 use sos_client_storage::ClientStorage;
 use sos_core::{constants::JSON_EXT, Paths, PublicIdentity};
-use sos_database::{migrations::migrate_client, open_file, open_memory};
+use sos_database::{
+    async_sqlite::JournalMode, migrations::migrate_client, open_file,
+    open_file_with_journal_mode, open_memory,
+};
 use sos_external_files::list_external_files;
 use sos_filesystem::archive::AccountBackup;
 use sos_server_storage::ServerStorage;
@@ -94,8 +97,16 @@ async fn import_accounts(
             .db_file
             .as_ref()
             .unwrap_or(options.paths.database_file());
-        let mut client = open_file(db_file).await?;
-        migrate_client(&mut client).await?;
+
+        let mut client =
+            open_file_with_journal_mode(db_file, JournalMode::Memory).await?;
+        let report = migrate_client(&mut client).await?;
+        for migration in report.applied_migrations() {
+            tracing::debug!(
+                name = %migration.name(),
+                version = %migration.version(),
+                "import_accounts::migration",);
+        }
         client
     } else {
         open_memory().await?
@@ -146,6 +157,7 @@ async fn import_accounts(
 
         sync_status.push((fs_status, db_status));
     }
+
     Ok((accounts, sync_status))
 }
 
@@ -173,13 +185,12 @@ pub async fn upgrade_accounts(
         result.backups = create_backups(&options).await?;
     }
 
-    let db_temp = NamedTempFile::new()?;
+    let db_temp = NamedTempFile::new_in(data_dir.as_ref())?;
     options.db_file = Some(db_temp.path().to_owned());
 
     tracing::debug!("upgrade_accounts::import_accounts");
 
     let (accounts, sync_status) = import_accounts(&options).await?;
-
     let accounts_status = accounts.iter().zip(sync_status.iter()).collect();
     assert_sync_status(&options, accounts_status).await?;
 
