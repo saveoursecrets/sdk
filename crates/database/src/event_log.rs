@@ -1,8 +1,16 @@
 //! Event log backed by a database table.
+//!
+//! Event logs can belong to an account or to a folder
+//! so we keep track of the owner of the event log for
+//! database queries.
+//!
+//! If you were to move a folder between accounts or otherwise
+//! re-owner an event log you must create a new event log so
+//! the owner reference is updated.
 use crate::{
     entity::{
-        AccountEntity, AccountRecord, CommitRecord, EventEntity,
-        EventRecordRow, FolderEntity, FolderRecord,
+        AccountEntity, CommitRecord, EventEntity, EventRecordRow,
+        FolderEntity, FolderRecord,
     },
     Error,
 };
@@ -23,6 +31,21 @@ use sos_core::{
     },
     AccountId, VaultId,
 };
+
+#[derive(Clone)]
+enum EventLogOwner {
+    Account(i64),
+    Folder(FolderRecord),
+}
+
+impl From<&EventLogOwner> for i64 {
+    fn from(value: &EventLogOwner) -> Self {
+        match value {
+            EventLogOwner::Account(id) => *id,
+            EventLogOwner::Folder(folder) => folder.row_id,
+        }
+    }
+}
 
 #[cfg(feature = "files")]
 use sos_core::events::FileEvent;
@@ -54,8 +77,7 @@ where
         + Sync
         + 'static,
 {
-    account_id: i64,
-    folder: Option<FolderRecord>,
+    owner: EventLogOwner,
     client: Client,
     log_type: EventLogType,
     tree: CommitTree,
@@ -81,8 +103,7 @@ where
     /// a temporary in-memory database.
     pub fn with_new_client(&self, client: Client) -> Self {
         Self {
-            account_id: self.account_id,
-            folder: self.folder.clone(),
+            owner: self.owner.clone(),
             client,
             log_type: self.log_type,
             tree: CommitTree::new(),
@@ -90,32 +111,35 @@ where
         }
     }
 
-    async fn lookup_account(
+    /// Lookup an owner for the event log.
+    async fn lookup_owner(
         client: &Client,
-        account_id: AccountId,
-    ) -> Result<AccountRecord, Error> {
-        let account = client
-            .conn(move |conn| {
+        account_id: &AccountId,
+        log_type: &EventLogType,
+    ) -> Result<EventLogOwner, Error> {
+        let account_id = *account_id;
+        let log_type = *log_type;
+        let result = client
+            .conn_and_then(move |conn| {
                 let account = AccountEntity::new(&conn);
-                Ok(account.find_one(&account_id)?)
+                let account_row = account.find_one(&account_id)?;
+                match log_type {
+                    EventLogType::Folder(folder_id) => {
+                        let folder = FolderEntity::new(&conn);
+                        let folder_row = folder.find_one(&folder_id)?;
+                        Ok::<_, Error>((account_row, Some(folder_row)))
+                    }
+                    _ => Ok::<_, Error>((account_row, None)),
+                }
             })
-            .await
-            .map_err(Error::from)?;
-        Ok(account.try_into()?)
-    }
+            .await?;
 
-    async fn lookup_folder(
-        client: &Client,
-        folder_id: VaultId,
-    ) -> Result<FolderRecord, Error> {
-        let folder = client
-            .conn(move |conn| {
-                let folder = FolderEntity::new(&conn);
-                Ok(folder.find_one(&folder_id)?)
-            })
-            .await
-            .map_err(Error::from)?;
-        Ok(FolderRecord::from_row(folder).await?)
+        Ok(match result {
+            (account_row, None) => EventLogOwner::Account(account_row.row_id),
+            (_, Some(folder_row)) => EventLogOwner::Folder(
+                FolderRecord::from_row(folder_row).await?,
+            ),
+        })
     }
 
     async fn insert_records(
@@ -124,9 +148,6 @@ where
         delete_before: bool,
     ) -> Result<(), E> {
         let log_type = self.log_type.clone();
-        let account_id = self.account_id.clone();
-        let folder_id = self.folder.as_ref().map(|f| f.row_id);
-
         let mut insert_rows = Vec::new();
         let mut commits = Vec::new();
         for record in records {
@@ -134,7 +155,7 @@ where
             insert_rows.push(EventRecordRow::new(&record)?);
         }
 
-        let id = folder_id.unwrap_or(account_id);
+        let id = (&self.owner).into();
 
         // Insert into the database.
         self.client
@@ -142,8 +163,7 @@ where
                 let tx = conn.transaction()?;
                 let events = EventEntity::new(&tx);
                 if delete_before {
-                    events
-                        .delete_all_events(log_type, account_id, folder_id)?;
+                    events.delete_all_events(log_type, id)?;
                 }
                 let ids = events.insert_events(
                     log_type,
@@ -186,12 +206,13 @@ where
         client: Client,
         account_id: AccountId,
     ) -> Result<Self, E> {
-        let account = Self::lookup_account(&client, account_id).await?;
+        let log_type = EventLogType::Account;
+        let owner =
+            Self::lookup_owner(&client, &account_id, &log_type).await?;
         Ok(Self {
-            account_id: account.row_id,
-            folder: None,
+            owner,
             client,
-            log_type: EventLogType::Account,
+            log_type,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
         })
@@ -215,13 +236,14 @@ where
         account_id: AccountId,
         folder_id: VaultId,
     ) -> Result<Self, E> {
-        let account = Self::lookup_account(&client, account_id).await?;
-        let folder = Self::lookup_folder(&client, folder_id).await?;
+        let log_type = EventLogType::Folder(folder_id);
+        let owner =
+            Self::lookup_owner(&client, &account_id, &log_type).await?;
+
         Ok(Self {
-            account_id: account.row_id,
-            folder: Some(folder),
+            owner,
             client,
-            log_type: EventLogType::Folder(folder_id),
+            log_type,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
         })
@@ -244,12 +266,13 @@ where
         client: Client,
         account_id: AccountId,
     ) -> Result<Self, E> {
-        let account = Self::lookup_account(&client, account_id).await?;
+        let log_type = EventLogType::Device;
+        let owner =
+            Self::lookup_owner(&client, &account_id, &log_type).await?;
         Ok(Self {
-            account_id: account.row_id,
-            folder: None,
+            owner,
             client,
-            log_type: EventLogType::Device,
+            log_type,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
         })
@@ -273,12 +296,13 @@ where
         client: Client,
         account_id: AccountId,
     ) -> Result<Self, Error> {
-        let account = Self::lookup_account(&client, account_id).await?;
+        let log_type = EventLogType::Files;
+        let owner =
+            Self::lookup_owner(&client, &account_id, &log_type).await?;
         Ok(Self {
-            account_id: account.row_id,
-            folder: None,
+            owner,
             client,
-            log_type: EventLogType::Files,
+            log_type,
             tree: CommitTree::new(),
             marker: std::marker::PhantomData,
         })
@@ -306,15 +330,13 @@ where
     ) -> BoxStream<'async_trait, Result<EventRecord, Self::Error>> {
         let (tx, rx) = tokio::sync::mpsc::channel(8);
 
-        let account_id = self.account_id;
-        let folder_id = self.folder.as_ref().map(|f| f.row_id);
+        let id: i64 = (&self.owner).into();
         let log_type = self.log_type.clone();
         let client = self.client.clone();
 
         tokio::spawn(async move {
             client
                 .conn_and_then(move |conn| {
-                    let id = folder_id.unwrap_or(account_id);
                     let query =
                         EventEntity::find_all_query(log_type, reverse);
 
@@ -458,14 +480,12 @@ where
 
     async fn load_tree(&mut self) -> Result<(), Self::Error> {
         let log_type = self.log_type.clone();
-        let account_id = self.account_id.clone();
-        let folder_id = self.folder.as_ref().map(|f| f.row_id);
+        let id = (&self.owner).into();
         let commits = self
             .client
             .conn_and_then(move |conn| {
                 let events = EventEntity::new(&conn);
-                let commits =
-                    events.load_commits(log_type, account_id, folder_id)?;
+                let commits = events.load_commits(log_type, id)?;
                 Ok::<_, Error>(commits)
             })
             .await?;
@@ -479,13 +499,12 @@ where
 
     async fn clear(&mut self) -> Result<(), Self::Error> {
         let log_type = self.log_type.clone();
-        let account_id = self.account_id.clone();
-        let folder_id = self.folder.as_ref().map(|f| f.row_id);
+        let id = (&self.owner).into();
         self.client
             .conn_mut(move |conn| {
                 let tx = conn.transaction()?;
                 let events = EventEntity::new(&tx);
-                events.delete_all_events(log_type, account_id, folder_id)?;
+                events.delete_all_events(log_type, id)?;
                 tx.commit()?;
                 Ok(())
             })
@@ -600,9 +619,9 @@ where
     }
 
     fn version(&self) -> u16 {
-        self.folder
-            .as_ref()
-            .map(|f| *f.summary.version())
-            .unwrap_or(VERSION1)
+        match &self.owner {
+            EventLogOwner::Folder(folder) => *folder.summary.version(),
+            EventLogOwner::Account(_) => VERSION1,
+        }
     }
 }

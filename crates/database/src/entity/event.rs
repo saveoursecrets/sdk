@@ -10,6 +10,14 @@ use sos_core::{
 use sql_query_builder as sql;
 use std::ops::Deref;
 
+fn event_select_columns(sql: sql::Select) -> sql::Select {
+    sql.select(
+        r#"
+            event_id, created_at, commit_hash, event
+        "#,
+    )
+}
+
 /// Enumeration of tables for events.
 #[derive(Debug, Copy, Clone)]
 enum EventTable {
@@ -161,17 +169,14 @@ impl<'conn> EventEntity<'conn, Box<Connection>> {
         reverse: bool,
     ) -> sql::Select {
         let table: EventTable = log_type.into();
-        let mut query = sql::Select::new()
-            .select("event_id, created_at, commit_hash, event")
+        let mut query = event_select_columns(sql::Select::new())
             .from(table.as_str())
             .where_clause(&format!("{}=?1", table.id_column()));
-
         if reverse {
             query = query.order_by("event_id DESC");
         } else {
             query = query.order_by("event_id ASC");
         }
-
         query
     }
 }
@@ -192,8 +197,7 @@ where
         event_id: i64,
     ) -> Result<EventRecordRow, SqlError> {
         let table: EventTable = log_type.into();
-        let query = sql::Select::new()
-            .select("event_id, created_at, commit_hash, event")
+        let query = event_select_columns(sql::Select::new())
             .from(table.as_str())
             .where_clause("event_id=?1");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
@@ -279,8 +283,7 @@ where
     ) -> crate::Result<Vec<EventRecordRow>> {
         let id = folder_id.unwrap_or(account_id);
         let table: EventTable = log_type.into();
-        let query = sql::Select::new()
-            .select("event_id, created_at, commit_hash, event")
+        let query = event_select_columns(sql::Select::new())
             .from(table.as_str())
             .where_clause(&format!("{}=?1", table.id_column()))
             .order_by("event_id ASC");
@@ -308,10 +311,8 @@ where
     pub fn load_commits(
         &self,
         log_type: EventLogType,
-        account_id: i64,
-        folder_id: Option<i64>,
+        account_or_folder_id: i64,
     ) -> crate::Result<Vec<CommitRow>> {
-        let id = folder_id.unwrap_or(account_id);
         let table: EventTable = log_type.into();
         let query = sql::Select::new()
             .select("event_id, commit_hash")
@@ -325,7 +326,7 @@ where
             Ok(row.try_into()?)
         }
 
-        let rows = stmt.query_and_then([id], |row| {
+        let rows = stmt.query_and_then([account_or_folder_id], |row| {
             Ok::<_, crate::Error>(convert_row(row)?)
         })?;
 
@@ -340,16 +341,14 @@ where
     pub fn delete_all_events(
         &self,
         log_type: EventLogType,
-        account_id: i64,
-        folder_id: Option<i64>,
+        account_or_folder_id: i64,
     ) -> Result<usize, SqlError> {
-        let id = folder_id.unwrap_or(account_id);
         let table: EventTable = log_type.into();
         let query = sql::Delete::new()
             .delete_from(table.as_str())
             .where_clause(&format!("{}=?1", table.id_column()));
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
-        Ok(stmt.execute([id])?)
+        Ok(stmt.execute([account_or_folder_id])?)
     }
 
     fn create_events(
