@@ -147,6 +147,12 @@ cargo nextest run
 '''
 dependencies = ["clean-tests", "build-test"]
 
+[tasks.ci]
+script = '''
+cargo nextest run --profile ci
+'''
+dependencies = ["clean-tests", "build-test"]
+
 [tasks.cover]
 script = '''
 cargo llvm-cov clean --workspace

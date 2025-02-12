@@ -1,0 +1,3 @@
+[profile.ci]
+retries = 3
+fail-fast = false

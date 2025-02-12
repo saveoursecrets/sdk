@@ -20,7 +20,7 @@ jobs:
             binary_target: x86_64-unknown-linux-gnu
           - os: windows-latest
             binary_target: x86_64-pc-windows-msvc
-          - os: macos-latest-xl
+          - os: macos-latest
             binary_target: x86_64-apple-darwin
 
     steps:
@@ -54,10 +54,11 @@ jobs:
           security list-keychains -s $HOME/Library/Keychains/sos-mock.keychain-db
           security list-keychains
 
-      - uses: taiki-e/install-action@v2
+      - name: Install cargo-make
+        uses: taiki-e/install-action@v2
         with:
-          tool: nextest
+          tool: cargo-make,nextest
 
       - name: Run tests
         run: |
-          cargo nextest run
+          cargo make ci
