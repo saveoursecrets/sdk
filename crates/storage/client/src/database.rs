@@ -32,6 +32,7 @@ use sos_database::{
 use sos_login::{FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
 use sos_reducers::{DeviceReducer, FolderReducer};
+use sos_sync::StorageEventLogs;
 use sos_vault::{
     BuilderCredentials, ChangePassword, SecretAccess, Summary, Vault,
     VaultBuilder, VaultFlags,
@@ -60,8 +61,6 @@ use sos_backend::FileEventLog;
 
 #[cfg(feature = "search")]
 use sos_search::{AccountSearch, DocumentCount};
-
-mod sync;
 
 /// Client storage for folders loaded into memory
 /// and stored in a database.
@@ -1436,5 +1435,44 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         };
 
         Ok(count)
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl StorageEventLogs for ClientDatabaseStorage {
+    type Error = Error;
+
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
+        Ok(self.identity_log.clone())
+    }
+
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
+        Ok(self.account_log.clone())
+    }
+
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
+        Ok(self.device_log.clone())
+    }
+
+    #[cfg(feature = "files")]
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
+        Ok(self.file_log.clone())
+    }
+
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
+        let folders = self.list_folders();
+        Ok(folders.into_iter().cloned().collect())
+    }
+
+    async fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
+        let folder = self
+            .folders
+            .get(id)
+            .ok_or(StorageError::FolderNotFound(*id))?;
+        Ok(folder.event_log())
     }
 }

@@ -1,4 +1,3 @@
-use super::ClientDatabaseStorage;
 use crate::{
     folder_sync::{FolderMerge, FolderMergeOptions, IdentityFolderMerge},
     ClientAccountStorage, ClientFolderStorage, Error, Result,
@@ -22,54 +21,111 @@ use sos_sync::{
     TrackedChanges,
 };
 use sos_vault::{Summary, Vault};
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::HashSet,
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "files")]
 use {sos_backend::FileEventLog, sos_core::events::patch::FileDiff};
 
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl StorageEventLogs for ClientDatabaseStorage {
-    type Error = Error;
+// Must use a new type due to the orphan rule.
+#[doc(hidden)]
+pub struct SyncImpl<T>(T);
 
-    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
-        Ok(self.identity_log.clone())
+impl<T> SyncImpl<T> {
+    pub fn new(value: T) -> Self {
+        SyncImpl(value)
     }
+}
 
-    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
-        Ok(self.account_log.clone())
+impl<T> Deref for SyncImpl<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
+}
 
-    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
-        Ok(self.device_log.clone())
-    }
-
-    #[cfg(feature = "files")]
-    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
-        Ok(self.file_log.clone())
-    }
-
-    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
-        let folders = self.list_folders();
-        Ok(folders.into_iter().cloned().collect())
-    }
-
-    async fn folder_log(
-        &self,
-        id: &VaultId,
-    ) -> Result<Arc<RwLock<FolderEventLog>>> {
-        let folder = self
-            .folders
-            .get(id)
-            .ok_or(StorageError::FolderNotFound(*id))?;
-        Ok(folder.event_log())
+impl<T> DerefMut for SyncImpl<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl ForceMerge for ClientDatabaseStorage {
+impl<T> StorageEventLogs for SyncImpl<T>
+where
+    T: StorageEventLogs<Error = Error>,
+{
+    type Error = Error;
+
+    async fn identity_log(
+        &self,
+    ) -> std::result::Result<
+        Arc<RwLock<FolderEventLog>>,
+        <T as StorageEventLogs>::Error,
+    > {
+        self.0.identity_log().await
+    }
+
+    async fn account_log(
+        &self,
+    ) -> std::result::Result<
+        Arc<RwLock<AccountEventLog>>,
+        <T as StorageEventLogs>::Error,
+    > {
+        self.0.account_log().await
+    }
+
+    async fn device_log(
+        &self,
+    ) -> std::result::Result<
+        Arc<RwLock<DeviceEventLog>>,
+        <T as StorageEventLogs>::Error,
+    > {
+        self.0.device_log().await
+    }
+
+    #[cfg(feature = "files")]
+    async fn file_log(
+        &self,
+    ) -> std::result::Result<
+        Arc<RwLock<FileEventLog>>,
+        <T as StorageEventLogs>::Error,
+    > {
+        self.0.file_log().await
+    }
+
+    async fn folder_details(
+        &self,
+    ) -> std::result::Result<IndexSet<Summary>, <T as StorageEventLogs>::Error>
+    {
+        self.0.folder_details().await
+    }
+
+    async fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> std::result::Result<
+        Arc<RwLock<FolderEventLog>>,
+        <T as StorageEventLogs>::Error,
+    > {
+        self.0.folder_log(id).await
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<T> ForceMerge for SyncImpl<T>
+where
+    T: StorageEventLogs<Error = Error>
+        + ClientAccountStorage
+        + ClientFolderStorage,
+{
     async fn force_merge_identity(
         &mut self,
         diff: FolderDiff,
@@ -83,7 +139,8 @@ impl ForceMerge for ClientDatabaseStorage {
             "force_merge::identity",
         );
 
-        self.authenticated_user_mut()?
+        self.0
+            .authenticated_user_mut()?
             .identity_mut()?
             .force_merge(&diff)
             .await?;
@@ -110,7 +167,8 @@ impl ForceMerge for ClientDatabaseStorage {
         );
 
         let folder = self
-            .folders
+            .0
+            .folders_mut()
             .get_mut(folder_id)
             .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
         folder.force_merge(&diff).await?;
@@ -127,7 +185,12 @@ impl ForceMerge for ClientDatabaseStorage {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl Merge for ClientDatabaseStorage {
+impl<T> Merge for SyncImpl<T>
+where
+    T: StorageEventLogs<Error = Error>
+        + ClientAccountStorage
+        + ClientFolderStorage,
+{
     async fn merge_identity(
         &mut self,
         diff: FolderDiff,
@@ -142,6 +205,7 @@ impl Merge for ClientDatabaseStorage {
         );
 
         let (checked_patch, _) = self
+            .0
             .authenticated_user_mut()?
             .identity_mut()?
             .merge(&diff)
@@ -192,13 +256,14 @@ impl Merge for ClientDatabaseStorage {
                         tracing::warn!("merge got noop event (client)");
                     }
                     AccountEvent::RenameAccount(name) => {
-                        self.authenticated_user_mut()?
+                        self.0
+                            .authenticated_user_mut()?
                             .rename_account(name.to_owned())
                             .await?;
                     }
                     AccountEvent::UpdateIdentity(buf) => {
                         let vault: Vault = decode(buf).await?;
-                        self.import_identity_vault(vault).await?;
+                        self.0.import_identity_vault(vault).await?;
                     }
                     AccountEvent::CreateFolder(id, buf)
                     | AccountEvent::UpdateFolder(id, buf)
@@ -209,6 +274,7 @@ impl Merge for ClientDatabaseStorage {
                         // password won't exist after merging the identity
                         // events so we need to skip the operation.
                         if let Ok(Some(key)) = self
+                            .0
                             .authenticated_user()?
                             .identity()?
                             .find_folder_password(id)
@@ -217,30 +283,31 @@ impl Merge for ClientDatabaseStorage {
                             // Must operate on the storage level otherwise
                             // we would duplicate identity events for folder
                             // password
-                            self.import_folder(
-                                buf,
-                                Some(&key),
-                                false,
-                                Some(time),
-                            )
-                            .await?;
+                            self.0
+                                .import_folder(
+                                    buf,
+                                    Some(&key),
+                                    false,
+                                    Some(time),
+                                )
+                                .await?;
                         }
                     }
                     AccountEvent::RenameFolder(id, name) => {
-                        let summary = self.find(|s| s.id() == id).cloned();
+                        let summary = self.0.find(|s| s.id() == id).cloned();
                         if let Some(summary) = &summary {
                             // Note that this event is recorded at both
                             // the account level and the folder level so
                             // we only update the in-memory version here
                             // and let the folder merge make the other
                             // necessary changes
-                            self.set_folder_name(summary, name)?;
+                            self.0.set_folder_name(summary, name)?;
                         }
                     }
                     AccountEvent::DeleteFolder(id) => {
-                        let summary = self.find(|s| s.id() == id).cloned();
+                        let summary = self.0.find(|s| s.id() == id).cloned();
                         if let Some(summary) = &summary {
-                            self.delete_folder(summary, false).await?;
+                            self.0.delete_folder(summary, false).await?;
                             deleted_folders.insert(*id);
                         }
                     }
@@ -268,7 +335,8 @@ impl Merge for ClientDatabaseStorage {
         );
 
         let checked_patch = {
-            let mut event_log = self.device_log.write().await;
+            let device_log = self.device_log().await?;
+            let mut event_log = device_log.write().await;
             event_log
                 .patch_checked(&diff.checkpoint, &diff.patch)
                 .await?
@@ -276,12 +344,13 @@ impl Merge for ClientDatabaseStorage {
 
         if let CheckedPatch::Success(_) = &checked_patch {
             let devices = {
-                let event_log = self.device_log.read().await;
+                let device_log = self.device_log().await?;
+                let event_log = device_log.read().await;
                 let reducer = DeviceReducer::new(&*event_log);
                 reducer.reduce().await?
             };
 
-            self.devices = devices;
+            self.0.set_devices(devices);
 
             outcome.changes += diff.patch.len() as u64;
             outcome.tracked.device =
@@ -304,7 +373,8 @@ impl Merge for ClientDatabaseStorage {
             "files",
         );
 
-        let mut event_log = self.file_log.write().await;
+        let file_log = self.file_log().await?;
+        let mut event_log = file_log.write().await;
 
         // File events may not have a root commit
         let is_init_diff = diff.last_commit.is_none();
@@ -348,7 +418,7 @@ impl Merge for ClientDatabaseStorage {
         let (checked_patch, events) = {
             #[cfg(feature = "search")]
             let search = {
-                let index = self.index()?;
+                let index = self.0.index()?;
                 index.search()
             };
 
@@ -359,10 +429,10 @@ impl Merge for ClientDatabaseStorage {
                 "folder",
             );
 
-            let folder = self
-                .folders
-                .get_mut(folder_id)
-                .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
+            let folder =
+                self.0.folders_mut().get_mut(folder_id).ok_or_else(|| {
+                    StorageError::FolderNotFound(*folder_id)
+                })?;
 
             #[cfg(feature = "search")]
             {
@@ -398,7 +468,7 @@ impl Merge for ClientDatabaseStorage {
             // If the flags changed ensure the in-memory summaries
             // are up to date
             if flags_changed {
-                self.load_folders().await?;
+                self.0.load_folders().await?;
             }
 
             outcome.changes += len;
@@ -414,7 +484,12 @@ impl Merge for ClientDatabaseStorage {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl SyncStorage for ClientDatabaseStorage {
+impl<T> SyncStorage for SyncImpl<T>
+where
+    T: StorageEventLogs<Error = Error>
+        + ClientAccountStorage
+        + ClientFolderStorage,
+{
     fn is_client_storage(&self) -> bool {
         true
     }

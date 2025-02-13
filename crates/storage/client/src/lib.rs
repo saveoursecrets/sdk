@@ -17,6 +17,7 @@ mod filesystem;
 pub(crate) mod folder_sync;
 mod secret_storage;
 mod storage;
+mod sync;
 mod traits;
 
 pub use error::Error;

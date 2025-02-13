@@ -16,7 +16,7 @@ use sos_vault::{
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<T> ClientSecretStorage for T
 where
-    T: ClientAccountStorage + ClientFolderStorage,
+    T: ClientAccountStorage + ClientFolderStorage + Send + Sync,
 {
     async fn create_secret(
         &mut self,

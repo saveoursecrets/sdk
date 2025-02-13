@@ -42,12 +42,14 @@ use sos_search::{AccountSearch, DocumentCount};
 #[cfg(feature = "files")]
 use {sos_backend::FileEventLog, sos_core::events::patch::FileDiff};
 
+use crate::sync::SyncImpl;
+
 /// Client account storage.
 pub enum ClientStorage {
     /// Filesystem storage.
-    FileSystem(ClientFileSystemStorage),
+    FileSystem(SyncImpl<ClientFileSystemStorage>),
     /// Database storage.
-    Database(ClientDatabaseStorage),
+    Database(SyncImpl<ClientDatabaseStorage>),
 }
 
 impl ClientStorage {
@@ -75,10 +77,10 @@ impl ClientStorage {
     ) -> Result<Self> {
         debug_assert!(!paths.is_server());
 
-        Ok(Self::FileSystem(
+        Ok(Self::FileSystem(SyncImpl::new(
             ClientFileSystemStorage::new_unauthenticated(paths, account_id)
                 .await?,
-        ))
+        )))
     }
 
     /// Create new database storage.
@@ -89,12 +91,12 @@ impl ClientStorage {
     ) -> Result<Self> {
         debug_assert!(!paths.is_server());
 
-        Ok(Self::Database(
+        Ok(Self::Database(SyncImpl::new(
             ClientDatabaseStorage::new_unauthenticated(
                 paths, account_id, client,
             )
             .await?,
-        ))
+        )))
     }
 }
 

@@ -29,6 +29,7 @@ use sos_core::{
 use sos_login::{FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
 use sos_reducers::{DeviceReducer, FolderReducer};
+use sos_sync::StorageEventLogs;
 use sos_vault::{
     BuilderCredentials, ChangePassword, Header, SecretAccess, Summary, Vault,
     VaultBuilder, VaultFlags,
@@ -58,7 +59,7 @@ use {sos_backend::FileEventLog, sos_core::events::FileEvent};
 #[cfg(feature = "search")]
 use sos_search::{AccountSearch, DocumentCount};
 
-mod sync;
+// mod sync;
 
 /// Client storage for folders loaded into memory and mirrored to disc.
 pub struct ClientFileSystemStorage {
@@ -170,76 +171,6 @@ impl ClientFileSystemStorage {
 
         Ok(storage)
     }
-
-    /*
-    /// Create folder storage for client-side access.
-    pub async fn new_authenticated(
-        paths: Paths,
-        account_id: &AccountId,
-        authenticated_user: Identity,
-    ) -> Result<Self> {
-        debug_assert!(!paths.is_global());
-
-        if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
-            return Err(Error::NotDirectory(
-                paths.documents_dir().to_path_buf(),
-            ));
-        }
-
-        paths.ensure().await?;
-
-        let log_file = paths.account_events();
-        let mut account_log =
-            AccountEventLog::new_fs_account(log_file).await?;
-        account_log.load_tree().await?;
-
-        let identity_log = authenticated_user.identity()?.event_log();
-        let device = authenticated_user
-            .identity()?
-            .devices()?
-            .current_device(None);
-
-        let (device_log, devices) =
-            Self::initialize_device_log(&paths, device).await?;
-
-        #[cfg(feature = "files")]
-        let (file_log, file_password) = {
-            let file_log = Arc::new(RwLock::new(
-                Self::initialize_file_log(&paths).await?,
-            ));
-
-            let file_password =
-                authenticated_user.find_file_encryption_password().await?;
-
-            (file_log, file_password)
-        };
-
-        let paths = Arc::new(paths);
-
-        Ok(Self {
-            account_id: *account_id,
-            summaries: Vec::new(),
-            current: Arc::new(Mutex::new(None)),
-            folders: Default::default(),
-            paths: paths.clone(),
-            identity_log,
-            account_log: Arc::new(RwLock::new(account_log)),
-            #[cfg(feature = "search")]
-            index: Some(AccountSearch::new()),
-            device_log: Arc::new(RwLock::new(device_log)),
-            devices,
-            #[cfg(feature = "files")]
-            file_log: file_log.clone(),
-            #[cfg(feature = "files")]
-            external_file_manager: ExternalFileManager::new(
-                paths,
-                file_log,
-                Some(file_password),
-            ),
-            authenticated: Some(authenticated_user),
-        })
-    }
-    */
 
     async fn initialize_device_log(
         paths: &Paths,
@@ -1474,5 +1405,44 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         };
 
         Ok(count)
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl StorageEventLogs for ClientFileSystemStorage {
+    type Error = Error;
+
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
+        Ok(self.identity_log.clone())
+    }
+
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
+        Ok(self.account_log.clone())
+    }
+
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
+        Ok(self.device_log.clone())
+    }
+
+    #[cfg(feature = "files")]
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
+        Ok(self.file_log.clone())
+    }
+
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
+        let folders = self.list_folders();
+        Ok(folders.into_iter().cloned().collect())
+    }
+
+    async fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
+        let folder = self
+            .folders
+            .get(id)
+            .ok_or(StorageError::FolderNotFound(*id))?;
+        Ok(folder.event_log())
     }
 }
