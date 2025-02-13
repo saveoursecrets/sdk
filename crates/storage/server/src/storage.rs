@@ -38,7 +38,7 @@ pub enum ServerStorage {
     /// Filesystem storage.
     FileSystem(SyncImpl<ServerFileStorage>),
     /// Database storage.
-    Database(ServerDatabaseStorage),
+    Database(SyncImpl<ServerDatabaseStorage>),
 }
 
 impl ServerStorage {
@@ -150,7 +150,7 @@ impl ServerStorage {
         .await?;
         event_log.load_tree().await?;
 
-        Ok(Self::Database(
+        Ok(Self::Database(SyncImpl::new(
             ServerDatabaseStorage::new(
                 client,
                 *account_id,
@@ -158,7 +158,7 @@ impl ServerStorage {
                 paths,
             )
             .await?,
-        ))
+        )))
     }
 
     /// Create a new database account.
@@ -186,7 +186,7 @@ impl ServerStorage {
         .await?;
         storage.import_account(&account_data).await?;
 
-        Ok(Self::Database(storage))
+        Ok(Self::Database(SyncImpl::new(storage)))
     }
 }
 

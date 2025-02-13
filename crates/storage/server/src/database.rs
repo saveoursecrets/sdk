@@ -21,7 +21,7 @@ use sos_database::entity::{
     AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
 };
 use sos_reducers::{DeviceReducer, FolderReducer};
-use sos_sync::CreateSet;
+use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{EncryptedEntry, Summary, Vault};
 use sos_vfs as vfs;
 use std::{
@@ -32,8 +32,6 @@ use tokio::sync::RwLock;
 
 #[cfg(feature = "audit")]
 use {sos_audit::AuditEvent, sos_backend::audit::append_audit_events};
-
-mod sync;
 
 /// Server folders loaded into memory and mirrored to the database.
 pub struct ServerDatabaseStorage {
@@ -548,5 +546,55 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         }
 
         Ok(())
+    }
+}
+
+#[async_trait]
+impl StorageEventLogs for ServerDatabaseStorage {
+    type Error = Error;
+
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
+        Ok(self.identity_log.clone())
+    }
+
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
+        Ok(self.account_log.clone())
+    }
+
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
+        Ok(self.device_log.clone())
+    }
+
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
+        Ok(self.file_log.clone())
+    }
+
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
+        let ids = self.folders.keys().copied().collect::<Vec<_>>();
+        let mut output = IndexSet::new();
+        // TODO: we could use a find_many() with "IN (id1, id2, ..)" here
+        for id in ids {
+            let row = self
+                .client
+                .conn(move |conn| {
+                    let folder = FolderEntity::new(&conn);
+                    Ok(folder.find_one(&id)?)
+                })
+                .await?;
+            let record = FolderRecord::from_row(row).await?;
+            output.insert(record.summary);
+        }
+        Ok(output)
+    }
+
+    async fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
+        Ok(Arc::clone(
+            self.folders
+                .get(id)
+                .ok_or(sos_backend::StorageError::FolderNotFound(*id))?,
+        ))
     }
 }
