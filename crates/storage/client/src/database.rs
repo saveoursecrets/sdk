@@ -1090,22 +1090,20 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         &self.account_id
     }
 
-    fn authenticated_user(&self) -> Result<&Identity> {
-        Ok(self
-            .authenticated
-            .as_ref()
-            .ok_or(AuthenticationError::NotAuthenticated)?)
+    fn authenticated_user(&self) -> Option<&Identity> {
+        self.authenticated.as_ref()
     }
 
-    fn authenticated_user_mut(&mut self) -> Result<&mut Identity> {
-        Ok(self
-            .authenticated
-            .as_mut()
-            .ok_or(AuthenticationError::NotAuthenticated)?)
+    fn authenticated_user_mut(&mut self) -> Option<&mut Identity> {
+        self.authenticated.as_mut()
     }
 
-    fn is_authenticated(&self) -> bool {
-        self.authenticated.is_some()
+    fn drop_authenticated_state(&mut self) {
+        #[cfg(feature = "search")]
+        {
+            self.index = None;
+        }
+        self.authenticated = None;
     }
 
     async fn authenticate(
@@ -1149,23 +1147,6 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         Ok(())
     }
 
-    async fn sign_out(&mut self) -> Result<()> {
-        if let Some(authenticated) = &mut self.authenticated {
-            tracing::debug!("client_storage::sign_out_identity");
-            // Forget private identity information
-            authenticated.sign_out().await?;
-        }
-
-        tracing::debug!("client_storage::drop_authenticated_state");
-        #[cfg(feature = "search")]
-        {
-            self.index = None;
-        }
-        self.authenticated = None;
-
-        Ok(())
-    }
-
     async fn import_identity_vault(
         &mut self,
         vault: Vault,
@@ -1187,7 +1168,9 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         todo!("update identity folder join!!!");
 
         // Update the events for the identity vault
-        let user = self.authenticated_user()?;
+        let user = self
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
         let identity = user.identity()?;
         let event_log = identity.event_log();
         let mut event_log = event_log.write().await;
@@ -1280,13 +1263,13 @@ impl ClientAccountStorage for ClientDatabaseStorage {
     }
 
     #[cfg(feature = "search")]
-    fn index(&self) -> Result<&AccountSearch> {
-        self.index.as_ref().ok_or(Error::NoSearchIndex)
+    fn index(&self) -> Option<&AccountSearch> {
+        self.index.as_ref()
     }
 
     #[cfg(feature = "search")]
-    fn index_mut(&mut self) -> Result<&mut AccountSearch> {
-        self.index.as_mut().ok_or(Error::NoSearchIndex)
+    fn index_mut(&mut self) -> Option<&mut AccountSearch> {
+        self.index.as_mut()
     }
 
     #[cfg(feature = "search")]
@@ -1320,7 +1303,10 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         keys: &FolderKeys,
     ) -> Result<DocumentCount> {
         {
-            let index = self.index.as_ref().ok_or(Error::NoSearchIndex)?;
+            let index = self
+                .index
+                .as_ref()
+                .ok_or_else(|| AuthenticationError::NotAuthenticated)?;
             let search_index = index.search();
             let mut writer = search_index.write().await;
 

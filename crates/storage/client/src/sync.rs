@@ -13,7 +13,7 @@ use sos_core::{
         patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
         AccountEvent, EventLog, LogEvent, WriteEvent,
     },
-    VaultId,
+    AuthenticationError, VaultId,
 };
 use sos_reducers::DeviceReducer;
 use sos_sync::{
@@ -140,7 +140,8 @@ where
         );
 
         self.0
-            .authenticated_user_mut()?
+            .authenticated_user_mut()
+            .ok_or(AuthenticationError::NotAuthenticated)?
             .identity_mut()?
             .force_merge(&diff)
             .await?;
@@ -206,7 +207,8 @@ where
 
         let (checked_patch, _) = self
             .0
-            .authenticated_user_mut()?
+            .authenticated_user_mut()
+            .ok_or(AuthenticationError::NotAuthenticated)?
             .identity_mut()?
             .merge(&diff)
             .await?;
@@ -257,7 +259,8 @@ where
                     }
                     AccountEvent::RenameAccount(name) => {
                         self.0
-                            .authenticated_user_mut()?
+                            .authenticated_user_mut()
+                            .ok_or(AuthenticationError::NotAuthenticated)?
                             .rename_account(name.to_owned())
                             .await?;
                     }
@@ -275,7 +278,8 @@ where
                         // events so we need to skip the operation.
                         if let Ok(Some(key)) = self
                             .0
-                            .authenticated_user()?
+                            .authenticated_user()
+                            .ok_or(AuthenticationError::NotAuthenticated)?
                             .identity()?
                             .find_folder_password(id)
                             .await
@@ -418,7 +422,10 @@ where
         let (checked_patch, events) = {
             #[cfg(feature = "search")]
             let search = {
-                let index = self.0.index()?;
+                let index = self
+                    .0
+                    .index()
+                    .ok_or_else(|| AuthenticationError::NotAuthenticated)?;
                 index.search()
             };
 

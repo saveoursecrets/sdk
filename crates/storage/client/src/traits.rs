@@ -268,13 +268,17 @@ pub trait ClientAccountStorage:
     fn account_id(&self) -> &AccountId;
 
     /// Authenticated user information.
-    fn authenticated_user(&self) -> Result<&Identity>;
+    fn authenticated_user(&self) -> Option<&Identity>;
 
     /// Mutable authenticated user information.
-    fn authenticated_user_mut(&mut self) -> Result<&mut Identity>;
+    fn authenticated_user_mut(&mut self) -> Option<&mut Identity>;
 
     /// Determine if the storage is authenticated.
-    fn is_authenticated(&self) -> bool;
+    fn is_authenticated(&self) -> bool {
+        self.authenticated_user().is_some()
+    }
+    /// Computed storage paths.
+    fn paths(&self) -> Arc<Paths>;
 
     /// Set the storage as authenticated.
     async fn authenticate(
@@ -282,27 +286,25 @@ pub trait ClientAccountStorage:
         authenticated_user: Identity,
     ) -> Result<()>;
 
-    /// Sign out the authenticated user.
-    async fn sign_out(&mut self) -> Result<()>;
+    #[doc(hidden)]
+    /// Remove the authenticated user and search index.
+    ///
+    /// Do not use this, it is an implementation detail;
+    /// instead call `sign_out()`.
+    fn drop_authenticated_state(&mut self);
 
-    /*
+    /// Sign out the authenticated user.
     async fn sign_out(&mut self) -> Result<()> {
         if let Some(authenticated) = self.authenticated_user_mut() {
             tracing::debug!("client_storage::sign_out_identity");
             // Forget private identity information
             authenticated.sign_out().await?;
-            *authenticated = None;
         }
 
         tracing::debug!("client_storage::drop_authenticated_state");
-        #[cfg(feature = "search")]
-        if let Some(index) = self.index_mut().ok() {
-            *index = None;
-        }
-
+        self.drop_authenticated_state();
         Ok(())
     }
-    */
 
     /// Import an identity vault and generate the event but
     /// do not write the event to the account event log.
@@ -364,9 +366,6 @@ pub trait ClientAccountStorage:
         folder.lock().await;
         Ok(())
     }
-
-    /// Computed storage paths.
-    fn paths(&self) -> Arc<Paths>;
 
     /// Create the data for a new account.
     async fn create_account(
@@ -441,11 +440,11 @@ pub trait ClientAccountStorage:
 
     /// Search index reference.
     #[cfg(feature = "search")]
-    fn index(&self) -> Result<&AccountSearch>;
+    fn index(&self) -> Option<&AccountSearch>;
 
     /// Mutable search index reference.
     #[cfg(feature = "search")]
-    fn index_mut(&mut self) -> Result<&mut AccountSearch>;
+    fn index_mut(&mut self) -> Option<&mut AccountSearch>;
 
     /// Initialize the search index.
     ///

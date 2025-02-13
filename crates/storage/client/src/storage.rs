@@ -429,14 +429,14 @@ impl ClientAccountStorage for ClientStorage {
         }
     }
 
-    fn authenticated_user(&self) -> Result<&Identity> {
+    fn authenticated_user(&self) -> Option<&Identity> {
         match self {
             ClientStorage::FileSystem(fs) => fs.authenticated_user(),
             ClientStorage::Database(db) => db.authenticated_user(),
         }
     }
 
-    fn authenticated_user_mut(&mut self) -> Result<&mut Identity> {
+    fn authenticated_user_mut(&mut self) -> Option<&mut Identity> {
         match self {
             ClientStorage::FileSystem(fs) => fs.authenticated_user_mut(),
             ClientStorage::Database(db) => db.authenticated_user_mut(),
@@ -447,6 +447,13 @@ impl ClientAccountStorage for ClientStorage {
         match self {
             ClientStorage::FileSystem(fs) => fs.is_authenticated(),
             ClientStorage::Database(db) => db.is_authenticated(),
+        }
+    }
+
+    fn drop_authenticated_state(&mut self) {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.drop_authenticated_state(),
+            ClientStorage::Database(db) => db.drop_authenticated_state(),
         }
     }
 
@@ -598,7 +605,7 @@ impl ClientAccountStorage for ClientStorage {
     }
 
     #[cfg(feature = "search")]
-    fn index(&self) -> Result<&AccountSearch> {
+    fn index(&self) -> Option<&AccountSearch> {
         match self {
             ClientStorage::FileSystem(fs) => fs.index(),
             ClientStorage::Database(db) => db.index(),
@@ -606,7 +613,7 @@ impl ClientAccountStorage for ClientStorage {
     }
 
     #[cfg(feature = "search")]
-    fn index_mut(&mut self) -> Result<&mut AccountSearch> {
+    fn index_mut(&mut self) -> Option<&mut AccountSearch> {
         match self {
             ClientStorage::FileSystem(fs) => fs.index_mut(),
             ClientStorage::Database(db) => db.index_mut(),

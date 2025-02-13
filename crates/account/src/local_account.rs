@@ -126,7 +126,10 @@ impl LocalAccount {
         &mut self,
         folder_id: &VaultId,
     ) -> Result<()> {
-        let authenticated_user = self.storage.authenticated_user_mut()?;
+        let authenticated_user = self
+            .storage
+            .authenticated_user_mut()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
         Ok(authenticated_user.remove_folder_password(folder_id).await?)
     }
 
@@ -135,7 +138,10 @@ impl LocalAccount {
         folder_id: &VaultId,
         access_key: AccessKey,
     ) -> Result<()> {
-        let authenticated_user = self.storage.authenticated_user_mut()?;
+        let authenticated_user = self
+            .storage
+            .authenticated_user_mut()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
         Ok(authenticated_user
             .save_folder_password(folder_id, access_key)
             .await?)
@@ -764,7 +770,10 @@ impl Account for LocalAccount {
     }
 
     async fn device_signer(&self) -> Result<DeviceSigner> {
-        let authenticated_user = self.storage.authenticated_user()?;
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
         Ok(authenticated_user.identity()?.device().clone())
     }
 
@@ -850,7 +859,10 @@ impl Account for LocalAccount {
         let manager = if paths.is_using_db() {
             todo!("handle new_device_vault when db");
         } else {
-            let authenticated_user = self.storage.authenticated_user_mut()?;
+            let authenticated_user = self
+                .storage
+                .authenticated_user_mut()
+                .ok_or(AuthenticationError::NotAuthenticated)?;
             authenticated_user
                 .identity_mut()?
                 .new_device_manager_fs(signer.clone(), &*paths)
@@ -861,7 +873,10 @@ impl Account for LocalAccount {
     }
 
     async fn device_public_key(&self) -> Result<DevicePublicKey> {
-        let authenticated_user = self.storage.authenticated_user()?;
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
         Ok(authenticated_user.identity()?.device().public_key())
     }
 
@@ -880,7 +895,10 @@ impl Account for LocalAccount {
     }
 
     async fn current_device(&self) -> Result<TrustedDevice> {
-        let authenticated_user = self.storage.authenticated_user()?;
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
         Ok(authenticated_user.devices()?.current_device(None))
     }
 
@@ -889,12 +907,18 @@ impl Account for LocalAccount {
     }
 
     async fn public_identity(&self) -> Result<PublicIdentity> {
-        let authenticated_user = self.storage.authenticated_user()?;
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
         Ok(authenticated_user.account()?.clone())
     }
 
     async fn account_label(&self) -> Result<String> {
-        let authenticated_user = self.storage.authenticated_user()?;
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
         Ok(authenticated_user.account()?.label().to_owned())
     }
 
@@ -937,12 +961,18 @@ impl Account for LocalAccount {
         &self,
         folder_id: &VaultId,
     ) -> Result<Option<AccessKey>> {
-        let authenticated_user = self.storage.authenticated_user()?;
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
         Ok(authenticated_user.find_folder_password(folder_id).await?)
     }
 
     async fn generate_folder_password(&self) -> Result<SecretString> {
-        let authenticated_user = self.storage.authenticated_user()?;
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
         Ok(authenticated_user.generate_folder_password()?)
     }
 
@@ -952,12 +982,18 @@ impl Account for LocalAccount {
     }
 
     async fn identity_folder_summary(&self) -> Result<Summary> {
-        let authenticated_user = self.storage.authenticated_user()?;
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
         Ok(authenticated_user.identity()?.summary().await)
     }
 
     async fn reload_identity_folder(&mut self) -> Result<()> {
-        let authenticated_user = self.storage.authenticated_user_mut()?;
+        let authenticated_user = self
+            .storage
+            .authenticated_user_mut()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
 
         // Reload the vault on disc
         let path = self.paths.identity_vault();
@@ -968,7 +1004,6 @@ impl Account for LocalAccount {
         access_point.reload_vault(path).await?;
 
         // Reload the event log merkle tree
-        // TODO: we could only load commits from HEAD here
         let event_log = authenticated_user.identity_mut()?.folder.event_log();
         let mut event_log = event_log.write().await;
         event_log.load_tree().await?;
@@ -1002,7 +1037,10 @@ impl Account for LocalAccount {
 
         // Login again so in-memory data is up to date
         {
-            let authenticated_user = self.storage.authenticated_user_mut()?;
+            let authenticated_user = self
+                .storage
+                .authenticated_user_mut()
+                .ok_or(AuthenticationError::NotAuthenticated)?;
             authenticated_user.login(&account_id, &account_key).await?;
         }
 
@@ -1017,7 +1055,10 @@ impl Account for LocalAccount {
 
         let account_id = *self.account_id();
         let (meta, seed, keys) = {
-            let authenticated_user = self.storage.authenticated_user()?;
+            let authenticated_user = self
+                .storage
+                .authenticated_user()
+                .ok_or(AuthenticationError::NotAuthenticated)?;
             let identity = authenticated_user.identity()?;
             let folder = identity.folder();
             let access_point = folder.access_point();
@@ -1045,7 +1086,10 @@ impl Account for LocalAccount {
         output.unlock(&account_key).await?;
 
         {
-            let authenticated_user = self.storage.authenticated_user()?;
+            let authenticated_user = self
+                .storage
+                .authenticated_user()
+                .ok_or(AuthenticationError::NotAuthenticated)?;
             let identity = authenticated_user.identity()?;
             let folder = identity.folder();
             let access_point = folder.access_point();
@@ -1063,7 +1107,10 @@ impl Account for LocalAccount {
 
         // Login again so in-memory data is up to date
         {
-            let authenticated_user = self.storage.authenticated_user_mut()?;
+            let authenticated_user = self
+                .storage
+                .authenticated_user_mut()
+                .ok_or(AuthenticationError::NotAuthenticated)?;
             authenticated_user.login(&account_id, &account_key).await?;
         }
 
@@ -1075,7 +1122,7 @@ impl Account for LocalAccount {
     }
 
     async fn verify(&self, key: &AccessKey) -> bool {
-        if let Ok(auth) = self.storage.authenticated_user() {
+        if let Some(auth) = self.storage.authenticated_user() {
             auth.verify(key).await
         } else {
             false
@@ -1109,7 +1156,11 @@ impl Account for LocalAccount {
             {
                 tracing::debug!("clear search index");
                 // Remove the search index
-                self.storage.index_mut()?.clear().await;
+                self.storage
+                    .index_mut()
+                    .ok_or_else(|| AuthenticationError::NotAuthenticated)?
+                    .clear()
+                    .await;
             }
         }
 
@@ -1124,7 +1175,10 @@ impl Account for LocalAccount {
     ) -> Result<AccountChange<Self::NetworkResult>> {
         // Rename the local identity folder
         {
-            let authenticated_user = self.storage.authenticated_user_mut()?;
+            let authenticated_user = self
+                .storage
+                .authenticated_user_mut()
+                .ok_or(AuthenticationError::NotAuthenticated)?;
             authenticated_user
                 .rename_account(account_name.clone())
                 .await?;
@@ -1152,7 +1206,10 @@ impl Account for LocalAccount {
           directory = %paths.documents_dir().display(),
           "delete_account");
         let event = {
-            let authenticated_user = self.storage.authenticated_user_mut()?;
+            let authenticated_user = self
+                .storage
+                .authenticated_user_mut()
+                .ok_or(AuthenticationError::NotAuthenticated)?;
             authenticated_user.delete_account(&paths).await?
         };
 
@@ -1195,7 +1252,10 @@ impl Account for LocalAccount {
     }
 
     async fn account_data(&self) -> Result<AccountData> {
-        let user = self.storage.authenticated_user()?;
+        let user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
         Ok(AccountData {
             account: user.account()?.clone(),
             identity: user
@@ -1376,7 +1436,7 @@ impl Account for LocalAccount {
     #[cfg(feature = "search")]
     async fn statistics(&self) -> AccountStatistics {
         if self.storage.is_authenticated() {
-            if let Ok(index) = self.storage.index() {
+            if let Some(index) = self.storage.index() {
                 let search_index = index.search();
                 let index = search_index.read().await;
                 let statistics = index.statistics();
@@ -1415,7 +1475,11 @@ impl Account for LocalAccount {
 
     #[cfg(feature = "search")]
     async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
-        Ok(self.storage.index()?.search())
+        Ok(self
+            .storage
+            .index()
+            .ok_or_else(|| AuthenticationError::NotAuthenticated)?
+            .search())
     }
 
     #[cfg(feature = "search")]
@@ -1424,7 +1488,12 @@ impl Account for LocalAccount {
         views: &[DocumentView],
         archive: Option<&ArchiveFilter>,
     ) -> Result<Vec<Document>> {
-        Ok(self.storage.index()?.query_view(views, archive).await?)
+        Ok(self
+            .storage
+            .index()
+            .ok_or_else(|| AuthenticationError::NotAuthenticated)?
+            .query_view(views, archive)
+            .await?)
     }
 
     #[cfg(feature = "search")]
@@ -1433,12 +1502,21 @@ impl Account for LocalAccount {
         query: &str,
         filter: QueryFilter,
     ) -> Result<Vec<Document>> {
-        Ok(self.storage.index()?.query_map(query, filter).await?)
+        Ok(self
+            .storage
+            .index()
+            .ok_or_else(|| AuthenticationError::NotAuthenticated)?
+            .query_map(query, filter)
+            .await?)
     }
 
     #[cfg(feature = "search")]
     async fn document_count(&self) -> Result<DocumentCount> {
-        let search = self.storage.index()?.search();
+        let search = self
+            .storage
+            .index()
+            .ok_or_else(|| AuthenticationError::NotAuthenticated)?
+            .search();
         let index = search.read().await;
         Ok(index.statistics().count().clone())
     }
@@ -1450,7 +1528,11 @@ impl Account for LocalAccount {
         label: &str,
         id: Option<&SecretId>,
     ) -> Result<bool> {
-        let search = self.storage.index()?.search();
+        let search = self
+            .storage
+            .index()
+            .ok_or_else(|| AuthenticationError::NotAuthenticated)?
+            .search();
         let index = search.read().await;
         Ok(index.find_by_label(vault_id, label, id).is_some())
     }
