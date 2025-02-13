@@ -9,8 +9,8 @@ use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use parking_lot::Mutex;
 use sos_backend::{
-    compact::compact_folder, write_exclusive, AccountEventLog,
-    DeviceEventLog, Folder, FolderEventLog, StorageError,
+    compact::compact_folder, AccountEventLog, DeviceEventLog, Folder,
+    FolderEventLog, StorageError,
 };
 use sos_core::{
     commit::{CommitHash, CommitState},
@@ -237,14 +237,6 @@ impl ClientDatabaseStorage {
     ) -> Result<(Folder, Vault)> {
         // Prepare the vault file on disc
         let vault = {
-            /*
-            // We need a vault on disc to create the event log
-            // so set a placeholder
-            let vault: Vault = Default::default();
-            let buffer = encode(&vault).await?;
-            self.write_vault_file(folder_id, buffer).await?;
-            */
-
             let folder = Folder::new_db(
                 self.client.clone(),
                 self.account_id,
@@ -262,12 +254,12 @@ impl ClientDatabaseStorage {
                 .build(true)
                 .await?;
 
-            /*
-            let buffer = encode(&vault).await?;
-            self.write_vault_file(folder_id, buffer).await?;
-            */
-
-            todo!("load secrets into database on folder initialization");
+            FolderEntity::upsert_folder_and_secrets(
+                &self.client,
+                self.account_row_id,
+                &vault,
+            )
+            .await?;
 
             vault
         };
@@ -336,38 +328,35 @@ impl ClientDatabaseStorage {
     ) -> Result<Vec<u8>> {
         let vault = self.reduce_event_log(summary).await?;
 
+        FolderEntity::upsert_folder_and_secrets(
+            &self.client,
+            self.account_row_id,
+            &vault,
+        )
+        .await?;
+
         // Rewrite the on-disc version
         let buffer = encode(&vault).await?;
-        self.write_vault_file(summary.id(), &buffer).await?;
 
         if let Some(folder) = self.folders.get_mut(summary.id()) {
             let access_point = folder.access_point();
             let mut access_point = access_point.lock().await;
 
             access_point.lock();
-            access_point.replace_vault(vault.clone(), false).await?;
+            access_point.replace_vault(vault, false).await?;
             access_point.unlock(key).await?;
         }
 
         Ok(buffer)
     }
 
+    /*
     /// Read the buffer for a vault from storage.
-    async fn read_vault_file(&self, id: &VaultId) -> Result<Vec<u8>> {
-        let vault_path = self.paths.vault_path(id);
-        Ok(vfs::read(vault_path).await?)
+    async fn read_vault_file(&self, folder_id: &VaultId) -> Result<Vec<u8>> {
+        Ok(FolderEntity::compute_folder_vault(&self.client, folder_id)
+            .await?)
     }
-
-    /// Write the buffer for a vault to disc.
-    async fn write_vault_file(
-        &self,
-        vault_id: &VaultId,
-        buffer: impl AsRef<[u8]>,
-    ) -> Result<()> {
-        let vault_path = self.paths.vault_path(vault_id);
-        write_exclusive(vault_path, buffer.as_ref()).await?;
-        Ok(())
-    }
+    */
 
     /// Create a cache entry for each summary if it does not
     /// already exist.
@@ -457,7 +446,12 @@ impl ClientDatabaseStorage {
 
         let summary = vault.summary().clone();
 
-        self.write_vault_file(summary.id(), &buffer).await?;
+        FolderEntity::upsert_folder_and_secrets(
+            &self.client,
+            self.account_row_id,
+            &vault,
+        )
+        .await?;
 
         // Add the summary to the vaults we are managing
         self.add_summary(summary.clone());
@@ -512,7 +506,12 @@ impl ClientDatabaseStorage {
             }
         }
 
-        self.write_vault_file(summary.id(), &buffer).await?;
+        FolderEntity::upsert_folder_and_secrets(
+            &self.client,
+            self.account_row_id,
+            &vault,
+        )
+        .await?;
 
         if !exists {
             // Add the summary to the vaults we are managing
@@ -558,7 +557,13 @@ impl ClientDatabaseStorage {
     ) -> Result<Vec<u8>> {
         // Write the vault to disc
         let buffer = encode(vault).await?;
-        self.write_vault_file(summary.id(), &buffer).await?;
+
+        FolderEntity::upsert_folder_and_secrets(
+            &self.client,
+            self.account_row_id,
+            &vault,
+        )
+        .await?;
 
         // Apply events to the event log
         let folder = self
@@ -1456,8 +1461,15 @@ impl ClientAccountStorage for ClientDatabaseStorage {
 
         // Update the identity vault
         let buffer = encode(&vault).await?;
-        let identity_vault_path = self.paths().identity_vault();
-        write_exclusive(&identity_vault_path, &buffer).await?;
+
+        let (folder_id, _) = FolderEntity::upsert_folder_and_secrets(
+            &self.client,
+            self.account_row_id,
+            &vault,
+        )
+        .await?;
+
+        todo!("update identity folder join!!!");
 
         // Update the events for the identity vault
         let user = self.authenticated_user()?;
@@ -1546,9 +1558,9 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         Ok(events)
     }
 
-    async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
-        let buffer = self.read_vault_file(id).await?;
-        Ok(decode(&buffer).await?)
+    async fn read_vault(&self, folder_id: &VaultId) -> Result<Vault> {
+        Ok(FolderEntity::compute_folder_vault(&self.client, folder_id)
+            .await?)
     }
 
     /// Get the history of events for a vault.

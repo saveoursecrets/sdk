@@ -262,6 +262,34 @@ where
     conn: &'conn C,
 }
 
+impl<'conn> FolderEntity<'conn, Box<Connection>> {
+    /// Compute the vault for a folder in the database.
+    pub async fn compute_folder_vault(
+        client: &Client,
+        folder_id: &VaultId,
+    ) -> Result<Vault> {
+        let folder_id = *folder_id;
+
+        let (folder_row, secret_rows) = client
+            .conn_and_then(move |conn| {
+                let folder_entity = FolderEntity::new(&conn);
+                let folder_row = folder_entity.find_one(&folder_id)?;
+                let secret_rows =
+                    folder_entity.load_secrets(folder_row.row_id)?;
+                Ok::<_, Error>((folder_row, secret_rows))
+            })
+            .await?;
+
+        let folder_record = FolderRecord::from_row(folder_row).await?;
+        let mut vault = folder_record.into_vault()?;
+        for row in secret_rows {
+            let record = SecretRecord::from_row(row).await?;
+            vault.insert_entry(record.secret_id, record.commit);
+        }
+        Ok(vault)
+    }
+}
+
 impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
     /// Create a folder and the secrets in a vault.
     ///
@@ -272,7 +300,7 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
         client: &Client,
         account_id: i64,
         vault: &Vault,
-    ) -> Result<HashMap<SecretId, i64>> {
+    ) -> Result<(i64, HashMap<SecretId, i64>)> {
         let folder_id = *vault.id();
 
         let meta = if let Some(meta) = vault.header().meta() {
@@ -311,7 +339,7 @@ impl<'conn> FolderEntity<'conn, Transaction<'conn>> {
                     secret_rows.as_slice(),
                 )?;
                 tx.commit()?;
-                Ok::<_, Error>(secret_ids)
+                Ok::<_, Error>((folder_id, secret_ids))
             })
             .await?)
     }
