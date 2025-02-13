@@ -211,6 +211,7 @@ pub async fn spawn_with_config(
     // Prepare server storage
     let target = current_dir.join("../../target/integration-test");
     vfs::create_dir_all(&target).await?;
+    let target = target.canonicalize()?;
 
     let server_id = server_id.unwrap_or("server");
 
@@ -258,6 +259,7 @@ pub async fn setup(test_id: &str, num_clients: usize) -> Result<TestDirs> {
     let target = current_dir.join("../../target/integration-test");
     let test_dir = target.join(test_id);
     vfs::create_dir_all(&test_dir).await?;
+    let test_dir = test_dir.canonicalize()?;
 
     let mut clients = Vec::new();
     for index in 0..num_clients {

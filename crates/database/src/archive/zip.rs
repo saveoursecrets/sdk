@@ -16,7 +16,7 @@ use tokio_util::compat::Compat;
 /// Write to an archive.
 pub(crate) struct Writer<W: AsyncWrite + Unpin> {
     writer: ZipFileWriter<W>,
-    manifest: ManifestVersion3,
+    pub(crate) manifest: ManifestVersion3,
 }
 
 impl<W: AsyncWrite + Unpin> Writer<W> {

@@ -1,7 +1,9 @@
 use super::{zip::Writer, Error, Result};
 use crate::entity::{AccountEntity, AccountRecord};
 use async_sqlite::rusqlite::{backup, Connection};
+use sha2::{Digest, Sha256};
 use sos_core::{
+    commit::CommitHash,
     constants::{BLOBS_DIR, DATABASE_FILE},
     Paths,
 };
@@ -40,6 +42,9 @@ pub(crate) async fn create(
     create_database_backup(source_db, db_temp.path(), |_| {})?;
 
     let db_buffer = vfs::read(db_temp.path()).await?;
+    let db_checksum = Sha256::digest(&db_buffer).to_vec();
+    zip_writer.manifest.checksum =
+        CommitHash(db_checksum.as_slice().try_into()?);
     zip_writer.add_file(DATABASE_FILE, &db_buffer).await?;
 
     // Add external file blobs to the archive

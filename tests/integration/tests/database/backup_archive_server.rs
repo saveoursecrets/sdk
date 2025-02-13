@@ -34,7 +34,7 @@ async fn database_backup_archive_server() -> Result<()> {
 
     assert!(zip.exists());
 
-    teardown(TEST_ID).await;
+    // teardown(TEST_ID).await;
 
     Ok(())
 }
