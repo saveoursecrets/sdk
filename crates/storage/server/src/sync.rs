@@ -4,10 +4,8 @@ use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::{
     AccountEventLog, DeviceEventLog, FileEventLog, FolderEventLog,
-    VaultWriter,
 };
 use sos_core::{
-    encode,
     events::{
         patch::{
             AccountDiff, CheckedPatch, DeviceDiff, FileDiff, FolderDiff,
@@ -21,8 +19,7 @@ use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
     TrackedChanges,
 };
-use sos_vault::{EncryptedEntry, Summary};
-use sos_vfs as vfs;
+use sos_vault::Summary;
 use std::{
     collections::HashSet,
     ops::{Deref, DerefMut},
@@ -145,8 +142,7 @@ where
             .build(false)
             .await?;
 
-        let buffer = encode(&vault).await?;
-        vfs::write(self.paths().identity_vault(), buffer).await?;
+        self.write_vault(&vault).await?;
 
         outcome.changes += len;
         outcome.tracked.identity =
@@ -199,21 +195,9 @@ where
             "force_merge::folder",
         );
 
-        let vault_path = self.paths().vault_path(folder_id);
-        let events_path = self.paths().event_log_path(folder_id);
-
-        let mut event_log =
-            FolderEventLog::new_fs_folder(events_path).await?;
-        event_log.replace_all_events(&diff).await?;
-
-        let vault = FolderReducer::new()
-            .reduce(&event_log)
-            .await?
-            .build(false)
-            .await?;
-
-        let buffer = encode(&vault).await?;
-        vfs::write(vault_path, buffer).await?;
+        let (event_log, vault) =
+            self.replace_folder(folder_id, &diff).await?;
+        self.write_vault(&vault).await?;
 
         self.folders_mut()
             .insert(*folder_id, Arc::new(RwLock::new(event_log)));
@@ -229,7 +213,6 @@ where
 }
 
 #[async_trait]
-
 impl<T> Merge for SyncImpl<T>
 where
     T: StorageEventLogs<Error = Error> + ServerAccountStorage,
@@ -291,9 +274,7 @@ where
                         tracing::warn!("merge got noop event (server)");
                     }
                     AccountEvent::RenameAccount(name) => {
-                        let path = self.paths().identity_vault();
-                        let mut file = VaultWriter::new_fs(path);
-                        file.set_vault_name(name.to_owned()).await?;
+                        self.rename_account(name).await?;
                     }
                     AccountEvent::UpdateIdentity(_) => {
                         // This event is handled on the server
@@ -417,7 +398,6 @@ where
         outcome: &mut MergeOutcome,
     ) -> Result<(CheckedPatch, Vec<WriteEvent>)> {
         let len = diff.patch.len() as u64;
-        let paths = self.paths().clone();
 
         tracing::debug!(
             folder_id = %folder_id,
@@ -426,14 +406,14 @@ where
             "folder",
         );
 
-        let log = self.folders_mut().get_mut(folder_id).ok_or_else(|| {
-            sos_backend::StorageError::FolderNotFound(*folder_id)
-        })?;
-
-        let mut log = log.write().await;
-
-        let checked_patch =
-            log.patch_checked(&diff.checkpoint, &diff.patch).await?;
+        let checked_patch = {
+            let log =
+                self.folders_mut().get_mut(folder_id).ok_or_else(|| {
+                    sos_backend::StorageError::FolderNotFound(*folder_id)
+                })?;
+            let mut log = log.write().await;
+            log.patch_checked(&diff.checkpoint, &diff.patch).await?
+        };
 
         if let CheckedPatch::Success(_) = &checked_patch {
             // Must update files on disc when we encounter a change
@@ -442,9 +422,7 @@ where
             let events = diff.patch.into_events::<WriteEvent>().await?;
             for event in events {
                 if let WriteEvent::SetVaultFlags(flags) = event {
-                    let path = paths.vault_path(folder_id);
-                    let mut writer = VaultWriter::new_fs(path);
-                    writer.set_vault_flags(flags).await?;
+                    self.set_folder_flags(folder_id, flags).await?;
                 }
             }
 

@@ -17,14 +17,14 @@ use sos_core::{
         },
         EventLog, WriteEvent,
     },
-    AccountId, Paths, VaultId,
+    AccountId, Paths, VaultFlags, VaultId,
 };
 use sos_database::{async_sqlite::Client, entity::AccountEntity};
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
     SyncStorage,
 };
-use sos_vault::Summary;
+use sos_vault::{Summary, Vault};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -233,6 +233,50 @@ impl ServerAccountStorage for ServerStorage {
         match self {
             ServerStorage::FileSystem(fs) => fs.set_devices(devices),
             ServerStorage::Database(db) => db.set_devices(devices),
+        }
+    }
+
+    async fn rename_account(&self, name: &str) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.rename_account(name).await,
+            ServerStorage::Database(db) => db.rename_account(name).await,
+        }
+    }
+
+    async fn write_vault(&self, vault: &Vault) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.write_vault(vault).await,
+            ServerStorage::Database(db) => db.write_vault(vault).await,
+        }
+    }
+
+    async fn replace_folder(
+        &self,
+        folder_id: &VaultId,
+        diff: &FolderDiff,
+    ) -> Result<(FolderEventLog, Vault)> {
+        match self {
+            ServerStorage::FileSystem(fs) => {
+                fs.replace_folder(folder_id, diff).await
+            }
+            ServerStorage::Database(db) => {
+                db.replace_folder(folder_id, diff).await
+            }
+        }
+    }
+
+    async fn set_folder_flags(
+        &self,
+        folder_id: &VaultId,
+        flags: VaultFlags,
+    ) -> Result<()> {
+        match self {
+            ServerStorage::FileSystem(fs) => {
+                fs.set_folder_flags(folder_id, flags).await
+            }
+            ServerStorage::Database(db) => {
+                db.set_folder_flags(folder_id, flags).await
+            }
         }
     }
 

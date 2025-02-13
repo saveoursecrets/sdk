@@ -11,8 +11,11 @@ use sos_core::{
     decode,
     device::{DevicePublicKey, TrustedDevice},
     encode,
-    events::{patch::FolderPatch, AccountEvent, EventLog},
-    AccountId, Paths, VaultId,
+    events::{
+        patch::{FolderDiff, FolderPatch},
+        AccountEvent, EventLog,
+    },
+    AccountId, Paths, VaultFlags, VaultId,
 };
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, StorageEventLogs};
@@ -196,6 +199,46 @@ impl ServerAccountStorage for ServerFileStorage {
 
     fn set_devices(&mut self, devices: IndexSet<TrustedDevice>) {
         self.devices = devices;
+    }
+
+    async fn rename_account(&self, name: &str) -> Result<()> {
+        let mut file = VaultWriter::new_fs(self.paths.identity_vault());
+        file.set_vault_name(name.to_owned()).await?;
+        Ok(())
+    }
+
+    async fn write_vault(&self, vault: &Vault) -> Result<()> {
+        let buffer = encode(vault).await?;
+        vfs::write(self.paths.identity_vault(), buffer).await?;
+        Ok(())
+    }
+
+    async fn replace_folder(
+        &self,
+        folder_id: &VaultId,
+        diff: &FolderDiff,
+    ) -> Result<(FolderEventLog, Vault)> {
+        let events_path = self.paths.event_log_path(folder_id);
+        let mut event_log =
+            FolderEventLog::new_fs_folder(events_path).await?;
+        event_log.replace_all_events(&diff).await?;
+        let vault = FolderReducer::new()
+            .reduce(&event_log)
+            .await?
+            .build(false)
+            .await?;
+        Ok((event_log, vault))
+    }
+
+    async fn set_folder_flags(
+        &self,
+        folder_id: &VaultId,
+        flags: VaultFlags,
+    ) -> Result<()> {
+        let mut writer =
+            VaultWriter::new_fs(self.paths.vault_path(folder_id));
+        writer.set_vault_flags(flags).await?;
+        Ok(())
     }
 
     async fn import_account(

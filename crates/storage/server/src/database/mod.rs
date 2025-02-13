@@ -11,16 +11,17 @@ use sos_core::{
     device::{DevicePublicKey, TrustedDevice},
     encode,
     events::{
-        patch::FolderPatch, AccountEvent, EventLog, EventRecord, WriteEvent,
+        patch::{FolderDiff, FolderPatch},
+        AccountEvent, EventLog, EventRecord, WriteEvent,
     },
-    AccountId, Paths, VaultId,
+    AccountId, Paths, VaultFlags, VaultId,
 };
 use sos_database::async_sqlite::Client;
 use sos_database::entity::{
     AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
 };
 use sos_reducers::{DeviceReducer, FolderReducer};
-use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
+use sos_sync::CreateSet;
 use sos_vault::{EncryptedEntry, Summary, Vault};
 use sos_vfs as vfs;
 use std::{
@@ -265,6 +266,88 @@ impl ServerAccountStorage for ServerDatabaseStorage {
 
     fn set_devices(&mut self, devices: IndexSet<TrustedDevice>) {
         self.devices = devices;
+    }
+
+    async fn rename_account(&self, name: &str) -> Result<()> {
+        // Rename the folder (v1 logic)
+        let account_id = self.account_row_id.clone();
+        let login_folder = self
+            .client
+            .conn(move |conn| {
+                let folder = FolderEntity::new(&conn);
+                Ok(folder.find_login_folder(account_id)?)
+            })
+            .await?;
+        let login_folder = FolderRecord::from_row(login_folder).await?;
+
+        let mut file = VaultWriter::new_db(
+            self.client.clone(),
+            *login_folder.summary.id(),
+        );
+        file.set_vault_name(name.to_owned()).await?;
+
+        // Update the accounts table (v2 logic)
+        let account_id = self.account_row_id.clone();
+        let name = name.to_owned();
+        self.client
+            .conn_and_then(move |conn| {
+                let account = AccountEntity::new(&conn);
+                account.rename_account(account_id, &name)
+            })
+            .await?;
+
+        Ok(())
+    }
+
+    async fn write_vault(&self, vault: &Vault) -> Result<()> {
+        let identity_id = *vault.id();
+        let identity_row = FolderRow::new_update(vault).await?;
+        self.client
+            .conn(move |conn| {
+                let folder = FolderEntity::new(&conn);
+                Ok(folder.update_folder(&identity_id, &identity_row)?)
+            })
+            .await?;
+        Ok(())
+    }
+
+    async fn replace_folder(
+        &self,
+        folder_id: &VaultId,
+        diff: &FolderDiff,
+    ) -> Result<(FolderEventLog, Vault)> {
+        let mut event_log = FolderEventLog::new_db_folder(
+            self.client.clone(),
+            self.account_id.clone(),
+            *folder_id,
+        )
+        .await?;
+        event_log.replace_all_events(&diff).await?;
+
+        let vault = FolderReducer::new()
+            .reduce(&event_log)
+            .await?
+            .build(false)
+            .await?;
+
+        FolderEntity::replace_all_secrets(
+            self.client.clone(),
+            folder_id,
+            &vault,
+        )
+        .await?;
+
+        Ok((event_log, vault))
+    }
+
+    async fn set_folder_flags(
+        &self,
+        folder_id: &VaultId,
+        flags: VaultFlags,
+    ) -> Result<()> {
+        let mut writer = VaultWriter::new_db(self.client.clone(), *folder_id);
+        writer.set_vault_flags(flags).await?;
+        Ok(())
     }
 
     async fn import_account(

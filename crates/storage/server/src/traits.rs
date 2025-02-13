@@ -3,10 +3,13 @@ use crate::Result;
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::FolderEventLog;
-use sos_core::device::TrustedDevice;
-use sos_core::{device::DevicePublicKey, AccountId, Paths, VaultId};
+use sos_core::{
+    device::{DevicePublicKey, TrustedDevice},
+    events::patch::FolderDiff,
+    AccountId, Paths, VaultFlags, VaultId,
+};
 use sos_sync::CreateSet;
-use sos_vault::Summary;
+use sos_vault::{Summary, Vault};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -33,6 +36,26 @@ pub trait ServerAccountStorage {
 
     /// Set the collection of trusted devices.
     fn set_devices(&mut self, devices: IndexSet<TrustedDevice>);
+
+    /// Rename the account.
+    async fn rename_account(&self, name: &str) -> Result<()>;
+
+    /// Write a vault to storage.
+    async fn write_vault(&self, vault: &Vault) -> Result<()>;
+
+    /// Replace all the events for a folder.
+    async fn replace_folder(
+        &self,
+        folder_id: &VaultId,
+        diff: &FolderDiff,
+    ) -> Result<(FolderEventLog, Vault)>;
+
+    /// Update folder flags.
+    async fn set_folder_flags(
+        &self,
+        folder_id: &VaultId,
+        flags: VaultFlags,
+    ) -> Result<()>;
 
     /// Import an account from a change set of event logs.
     ///
