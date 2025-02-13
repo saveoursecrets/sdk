@@ -1,10 +1,9 @@
 use crate::{
     database::ClientDatabaseStorage, files::ExternalFileManager,
-    filesystem::ClientFileSystemStorage, ClientAccountStorage,
-    ClientDeviceStorage, ClientFolderStorage, ClientSecretStorage, Error,
-    Result, StorageChangeEvent,
+    filesystem::ClientFileSystemStorage, AccountPack, ClientAccountStorage,
+    ClientDeviceStorage, ClientFolderStorage, Error, NewFolderOptions,
+    Result,
 };
-use crate::{AccessOptions, AccountPack, NewFolderOptions};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::{
@@ -20,17 +19,14 @@ use sos_core::{
         },
         AccountEvent, DeviceEvent, Event, EventRecord, ReadEvent, WriteEvent,
     },
-    AccountId, FolderRef, Paths, SecretId, UtcDateTime, VaultId,
+    AccountId, FolderRef, Paths, UtcDateTime, VaultId,
 };
 use sos_database::async_sqlite::Client;
 use sos_login::{FolderKeys, Identity};
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
 };
-use sos_vault::{
-    secret::{Secret, SecretMeta, SecretRow},
-    Summary, Vault, VaultCommit, VaultFlags,
-};
+use sos_vault::{Summary, Vault, VaultFlags};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -99,105 +95,6 @@ impl ClientStorage {
             )
             .await?,
         ))
-    }
-}
-
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl ClientSecretStorage for ClientStorage {
-    async fn create_secret(
-        &mut self,
-        secret_data: SecretRow,
-        options: AccessOptions,
-    ) -> Result<StorageChangeEvent> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.create_secret(secret_data, options).await
-            }
-            ClientStorage::Database(db) => {
-                db.create_secret(secret_data, options).await
-            }
-        }
-    }
-
-    async fn raw_secret(
-        &self,
-        folder_id: &VaultId,
-        secret_id: &SecretId,
-    ) -> Result<Option<(VaultCommit, ReadEvent)>> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.raw_secret(folder_id, secret_id).await
-            }
-            ClientStorage::Database(db) => {
-                db.raw_secret(folder_id, secret_id).await
-            }
-        }
-    }
-
-    async fn read_secret(
-        &self,
-        id: &SecretId,
-    ) -> Result<(SecretMeta, Secret, ReadEvent)> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.read_secret(id).await,
-            ClientStorage::Database(db) => db.read_secret(id).await,
-        }
-    }
-
-    async fn update_secret(
-        &mut self,
-        secret_id: &SecretId,
-        meta: SecretMeta,
-        secret: Option<Secret>,
-        options: AccessOptions,
-    ) -> Result<StorageChangeEvent> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.update_secret(secret_id, meta, secret, options).await
-            }
-            ClientStorage::Database(db) => {
-                db.update_secret(secret_id, meta, secret, options).await
-            }
-        }
-    }
-
-    async fn write_secret(
-        &mut self,
-        id: &SecretId,
-        secret_data: SecretRow,
-        is_update: bool,
-    ) -> Result<WriteEvent> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.write_secret(id, secret_data, is_update).await
-            }
-            ClientStorage::Database(db) => {
-                db.write_secret(id, secret_data, is_update).await
-            }
-        }
-    }
-
-    async fn delete_secret(
-        &mut self,
-        secret_id: &SecretId,
-        options: AccessOptions,
-    ) -> Result<StorageChangeEvent> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.delete_secret(secret_id, options).await
-            }
-            ClientStorage::Database(db) => {
-                db.delete_secret(secret_id, options).await
-            }
-        }
-    }
-
-    async fn remove_secret(&mut self, id: &SecretId) -> Result<WriteEvent> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.remove_secret(id).await,
-            ClientStorage::Database(db) => db.remove_secret(id).await,
-        }
     }
 }
 

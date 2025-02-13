@@ -15,6 +15,7 @@ mod error;
 pub mod files;
 mod filesystem;
 pub(crate) mod folder_sync;
+mod secret_storage;
 mod storage;
 mod traits;
 
