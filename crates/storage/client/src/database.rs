@@ -5,17 +5,13 @@ use crate::{
     Result,
 };
 use async_trait::async_trait;
-use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use parking_lot::Mutex;
 use sos_backend::{
     compact::compact_folder, AccountEventLog, DeviceEventLog, Folder,
     FolderEventLog, StorageError,
 };
-use sos_core::{
-    commit::{CommitHash, CommitState},
-    VaultId,
-};
+use sos_core::VaultId;
 use sos_core::{
     crypto::AccessKey,
     decode, encode,
@@ -1203,48 +1199,6 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         Ok(AccountEvent::UpdateIdentity(buffer))
     }
 
-    async fn unlock(&mut self, keys: &FolderKeys) -> Result<()> {
-        for (id, folder) in self.folders.iter_mut() {
-            if let Some(key) = keys.find(id) {
-                folder.unlock(key).await?;
-            } else {
-                tracing::error!(
-                    folder_id = %id,
-                    "unlock::no_folder_key",
-                );
-            }
-        }
-        Ok(())
-    }
-
-    async fn lock(&mut self) {
-        for (_, folder) in self.folders.iter_mut() {
-            folder.lock().await;
-        }
-    }
-
-    async fn unlock_folder(
-        &mut self,
-        id: &VaultId,
-        key: &AccessKey,
-    ) -> Result<()> {
-        let folder = self
-            .folders
-            .get_mut(id)
-            .ok_or(StorageError::FolderNotFound(*id))?;
-        folder.unlock(key).await?;
-        Ok(())
-    }
-
-    async fn lock_folder(&mut self, id: &VaultId) -> Result<()> {
-        let folder = self
-            .folders
-            .get_mut(id)
-            .ok_or(StorageError::FolderNotFound(*id))?;
-        folder.lock().await;
-        Ok(())
-    }
-
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
     }
@@ -1280,51 +1234,6 @@ impl ClientAccountStorage for ClientDatabaseStorage {
     async fn read_vault(&self, folder_id: &VaultId) -> Result<Vault> {
         Ok(FolderEntity::compute_folder_vault(&self.client, folder_id)
             .await?)
-    }
-
-    /// Get the history of events for a vault.
-    async fn history(
-        &self,
-        folder_id: &VaultId,
-    ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
-        let folder = self
-            .folders
-            .get(folder_id)
-            .ok_or(StorageError::FolderNotFound(*folder_id))?;
-        let event_log = folder.event_log();
-        let log_file = event_log.read().await;
-        let mut records = Vec::new();
-
-        let stream = log_file.event_stream(false).await;
-        pin_mut!(stream);
-
-        while let Some(result) = stream.next().await {
-            let (record, event) = result?;
-            let commit = *record.commit();
-            let time = record.time().clone();
-            records.push((commit, time, event));
-        }
-
-        Ok(records)
-    }
-
-    /// Commit state of the identity folder.
-    async fn identity_state(&self) -> Result<CommitState> {
-        let reader = self.identity_log.read().await;
-        Ok(reader.tree().commit_state()?)
-    }
-
-    /// Get the commit state for a folder.
-    ///
-    /// The folder must have at least one commit.
-    async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
-        let folder = self
-            .folders
-            .get(summary.id())
-            .ok_or_else(|| StorageError::FolderNotFound(*summary.id()))?;
-        let event_log = folder.event_log();
-        let log_file = event_log.read().await;
-        Ok(log_file.tree().commit_state()?)
     }
 
     #[cfg(feature = "archive")]

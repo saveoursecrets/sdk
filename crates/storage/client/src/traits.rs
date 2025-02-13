@@ -1,9 +1,10 @@
 //! Client storage implementations.
 use crate::{
-    files::ExternalFileManager, AccessOptions, AccountPack, NewFolderOptions,
-    Result, StorageChangeEvent,
+    files::ExternalFileManager, AccessOptions, AccountPack, Error,
+    NewFolderOptions, Result, StorageChangeEvent,
 };
 use async_trait::async_trait;
+use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use sos_backend::Folder;
 use sos_core::{
@@ -11,13 +12,14 @@ use sos_core::{
     crypto::AccessKey,
     device::{DevicePublicKey, TrustedDevice},
     events::{
-        patch::FolderPatch, AccountEvent, DeviceEvent, Event, EventRecord,
-        ReadEvent, WriteEvent,
+        patch::FolderPatch, AccountEvent, DeviceEvent, Event, EventLog,
+        EventRecord, ReadEvent, WriteEvent,
     },
-    AccountId, FolderRef, Paths, SecretId, UtcDateTime, VaultCommit,
-    VaultFlags, VaultId,
+    AccountId, FolderRef, Paths, SecretId, StorageError, UtcDateTime,
+    VaultCommit, VaultFlags, VaultId,
 };
 use sos_login::{FolderKeys, Identity};
+use sos_sync::StorageEventLogs;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     Summary, Vault,
@@ -257,7 +259,10 @@ pub trait ClientSecretStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientAccountStorage:
-    ClientDeviceStorage + ClientFolderStorage + ClientSecretStorage
+    StorageEventLogs<Error = Error>
+    + ClientDeviceStorage
+    + ClientFolderStorage
+    + ClientSecretStorage
 {
     /// Account identifier.
     fn account_id(&self) -> &AccountId;
@@ -280,6 +285,25 @@ pub trait ClientAccountStorage:
     /// Sign out the authenticated user.
     async fn sign_out(&mut self) -> Result<()>;
 
+    /*
+    async fn sign_out(&mut self) -> Result<()> {
+        if let Some(authenticated) = self.authenticated_user_mut() {
+            tracing::debug!("client_storage::sign_out_identity");
+            // Forget private identity information
+            authenticated.sign_out().await?;
+            *authenticated = None;
+        }
+
+        tracing::debug!("client_storage::drop_authenticated_state");
+        #[cfg(feature = "search")]
+        if let Some(index) = self.index_mut().ok() {
+            *index = None;
+        }
+
+        Ok(())
+    }
+    */
+
     /// Import an identity vault and generate the event but
     /// do not write the event to the account event log.
     ///
@@ -296,20 +320,50 @@ pub trait ClientAccountStorage:
     ) -> Result<AccountEvent>;
 
     /// Unlock all folders.
-    async fn unlock(&mut self, keys: &FolderKeys) -> Result<()>;
+    async fn unlock(&mut self, keys: &FolderKeys) -> Result<()> {
+        for (id, folder) in self.folders_mut().iter_mut() {
+            if let Some(key) = keys.find(id) {
+                folder.unlock(key).await?;
+            } else {
+                tracing::error!(
+                    folder_id = %id,
+                    "unlock::no_folder_key",
+                );
+            }
+        }
+        Ok(())
+    }
 
     /// Lock all folders.
-    async fn lock(&mut self);
+    async fn lock(&mut self) {
+        for (_, folder) in self.folders_mut().iter_mut() {
+            folder.lock().await;
+        }
+    }
 
     /// Unlock a folder.
     async fn unlock_folder(
         &mut self,
         id: &VaultId,
         key: &AccessKey,
-    ) -> Result<()>;
+    ) -> Result<()> {
+        let folder = self
+            .folders_mut()
+            .get_mut(id)
+            .ok_or(StorageError::FolderNotFound(*id))?;
+        folder.unlock(key).await?;
+        Ok(())
+    }
 
     /// Lock a folder.
-    async fn lock_folder(&mut self, id: &VaultId) -> Result<()>;
+    async fn lock_folder(&mut self, id: &VaultId) -> Result<()> {
+        let folder = self
+            .folders_mut()
+            .get_mut(id)
+            .ok_or(StorageError::FolderNotFound(*id))?;
+        folder.lock().await;
+        Ok(())
+    }
 
     /// Computed storage paths.
     fn paths(&self) -> Arc<Paths>;
@@ -327,15 +381,47 @@ pub trait ClientAccountStorage:
     async fn history(
         &self,
         folder_id: &VaultId,
-    ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>>;
+    ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
+        let folder = self
+            .folders()
+            .get(folder_id)
+            .ok_or(StorageError::FolderNotFound(*folder_id))?;
+        let event_log = folder.event_log();
+        let log_file = event_log.read().await;
+        let mut records = Vec::new();
+
+        let stream = log_file.event_stream(false).await;
+        pin_mut!(stream);
+
+        while let Some(result) = stream.next().await {
+            let (record, event) = result?;
+            let commit = *record.commit();
+            let time = record.time().clone();
+            records.push((commit, time, event));
+        }
+
+        Ok(records)
+    }
 
     /// Commit state of the identity folder.
-    async fn identity_state(&self) -> Result<CommitState>;
+    async fn identity_state(&self) -> Result<CommitState> {
+        let identity_log = self.identity_log().await?;
+        let reader = identity_log.read().await;
+        Ok(reader.tree().commit_state()?)
+    }
 
     /// Get the commit state for a folder.
     ///
     /// The folder must have at least one commit.
-    async fn commit_state(&self, summary: &Summary) -> Result<CommitState>;
+    async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
+        let folder = self
+            .folders()
+            .get(summary.id())
+            .ok_or_else(|| StorageError::FolderNotFound(*summary.id()))?;
+        let event_log = folder.event_log();
+        let log_file = event_log.read().await;
+        Ok(log_file.tree().commit_state()?)
+    }
 
     /// Restore vaults from an archive.
     #[cfg(feature = "archive")]
