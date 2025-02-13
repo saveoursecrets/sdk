@@ -1,4 +1,4 @@
-use sos_core::AccountId;
+use sos_core::{commit::CommitHash, AccountId};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -32,6 +32,11 @@ pub enum Error {
     /// already exists in the target database.
     #[error("import failed, account '{0}' already exists in target db")]
     ImportTargetExists(AccountId),
+
+    /// Error generated when the checksum for a database does not
+    /// match the manifest.
+    #[error("database checksum is invalid, expected '{0}' but computed '{1}' (archive may be corrupt?)")]
+    DatabaseChecksum(CommitHash, CommitHash),
 
     /// Error generated converting to fixed size slice.
     #[error(transparent)]

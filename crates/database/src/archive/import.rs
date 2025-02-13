@@ -5,15 +5,37 @@ use crate::entity::{
     ServerEntity, ServerRow, SystemMessageEntity, SystemMessageRow,
 };
 use async_sqlite::rusqlite::Connection;
+use sha2::{Digest, Sha256};
 use sos_core::{
+    commit::CommitHash,
     constants::{BLOBS_DIR, DATABASE_FILE},
     events::EventLogType,
     AccountId, ExternalFile, Paths,
 };
 use sos_vfs as vfs;
-use std::{collections::HashMap, io::Write, path::Path};
+use std::{
+    collections::HashMap,
+    io::{self, BufWriter, Write},
+    path::Path,
+};
 use tempfile::NamedTempFile;
 use tokio::io::BufReader;
+
+struct HashingWriter<W: Write, H: Digest> {
+    inner: W,
+    hasher: H,
+}
+
+impl<W: Write, H: Digest> Write for HashingWriter<W, H> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.hasher.update(buf);
+        self.inner.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
+}
 
 /// Data source for an account import.
 struct ImportDataSource {
@@ -348,8 +370,24 @@ pub(crate) async fn start<'conn>(
             )
         })?;
     let mut db_temp = NamedTempFile::new()?;
-    db_temp.as_file_mut().write_all(&db_buffer)?;
-    db_temp.as_file_mut().flush()?;
+
+    let checksum = {
+        let buf_writer = BufWriter::new(db_temp.as_file_mut());
+        let mut hash_writer = HashingWriter {
+            inner: buf_writer,
+            hasher: Sha256::new(),
+        };
+
+        hash_writer.write_all(&db_buffer)?;
+        hash_writer.flush()?;
+
+        let digest = hash_writer.hasher.finalize();
+        CommitHash(digest.as_slice().try_into()?)
+    };
+
+    if checksum != manifest.checksum {
+        return Err(Error::DatabaseChecksum(manifest.checksum, checksum));
+    }
 
     let source_db = Connection::open(db_temp.path())?;
     let import = BackupImport {

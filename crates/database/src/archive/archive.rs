@@ -42,7 +42,7 @@ pub(crate) async fn create(
     create_database_backup(source_db, db_temp.path(), |_| {})?;
 
     let db_buffer = vfs::read(db_temp.path()).await?;
-    let db_checksum = Sha256::digest(&db_buffer).to_vec();
+    let db_checksum = Sha256::digest(&db_buffer);
     zip_writer.manifest.checksum =
         CommitHash(db_checksum.as_slice().try_into()?);
     zip_writer.add_file(DATABASE_FILE, &db_buffer).await?;

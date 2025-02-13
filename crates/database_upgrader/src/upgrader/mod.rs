@@ -5,7 +5,7 @@ use sos_backend::BackendTarget;
 use sos_client_storage::ClientStorage;
 use sos_core::{constants::JSON_EXT, Paths, PublicIdentity};
 use sos_database::{
-    async_sqlite::JournalMode, migrations::migrate_client, open_file,
+    async_sqlite::JournalMode, migrations::migrate_client,
     open_file_with_journal_mode, open_memory,
 };
 use sos_external_files::list_external_files;
