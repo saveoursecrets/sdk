@@ -8,6 +8,7 @@ mod database;
 mod filesystem;
 pub mod server_helpers;
 mod storage;
+mod sync;
 mod traits;
 
 pub use error::Error;

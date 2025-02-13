@@ -10,7 +10,7 @@ use sos_backend::{
 };
 use sos_core::{
     commit::{CommitState, Comparison},
-    device::DevicePublicKey,
+    device::{DevicePublicKey, TrustedDevice},
     events::{
         patch::{
             AccountDiff, CheckedPatch, DeviceDiff, FileDiff, FolderDiff,
@@ -25,13 +25,18 @@ use sos_sync::{
     SyncStorage, UpdateSet,
 };
 use sos_vault::Summary;
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 use tokio::sync::RwLock;
+
+use crate::sync::SyncImpl;
 
 /// Server storage backed by filesystem or database.
 pub enum ServerStorage {
     /// Filesystem storage.
-    FileSystem(ServerFileStorage),
+    FileSystem(SyncImpl<ServerFileStorage>),
     /// Database storage.
     Database(ServerDatabaseStorage),
 }
@@ -63,14 +68,14 @@ impl ServerStorage {
             FolderEventLog::new_fs_folder(paths.identity_events()).await?;
         event_log.load_tree().await?;
 
-        Ok(Self::FileSystem(
+        Ok(Self::FileSystem(SyncImpl::new(
             ServerFileStorage::new(
                 paths,
                 *account_id,
                 Arc::new(RwLock::new(event_log)),
             )
             .await?,
-        ))
+        )))
     }
 
     /// Create an account in server storage.
@@ -122,7 +127,7 @@ impl ServerStorage {
         .await?;
         storage.import_account(&account_data).await?;
 
-        Ok(Self::FileSystem(storage))
+        Ok(Self::FileSystem(SyncImpl::new(storage)))
     }
 
     /// Create new database storage.
@@ -205,6 +210,29 @@ impl ServerAccountStorage for ServerStorage {
         match self {
             ServerStorage::FileSystem(fs) => fs.paths(),
             ServerStorage::Database(db) => db.paths(),
+        }
+    }
+
+    fn folders(&self) -> &HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.folders(),
+            ServerStorage::Database(db) => db.folders(),
+        }
+    }
+
+    fn folders_mut(
+        &mut self,
+    ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.folders_mut(),
+            ServerStorage::Database(db) => db.folders_mut(),
+        }
+    }
+
+    fn set_devices(&mut self, devices: IndexSet<TrustedDevice>) {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.set_devices(devices),
+            ServerStorage::Database(db) => db.set_devices(devices),
         }
     }
 

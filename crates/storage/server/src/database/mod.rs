@@ -253,6 +253,20 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         self.paths.clone()
     }
 
+    fn folders(&self) -> &HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
+        &self.folders
+    }
+
+    fn folders_mut(
+        &mut self,
+    ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
+        &mut self.folders
+    }
+
+    fn set_devices(&mut self, devices: IndexSet<TrustedDevice>) {
+        self.devices = devices;
+    }
+
     async fn import_account(
         &mut self,
         account_data: &CreateSet,

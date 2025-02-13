@@ -15,7 +15,9 @@ use sos_core::{
     AccountId, Paths, VaultId,
 };
 use sos_reducers::{DeviceReducer, FolderReducer};
-use sos_sync::{CreateSet, ForceMerge, MergeOutcome, UpdateSet};
+use sos_sync::{
+    CreateSet, ForceMerge, MergeOutcome, StorageEventLogs, UpdateSet,
+};
 use sos_vault::{EncryptedEntry, Header, Summary, Vault};
 use sos_vfs as vfs;
 use std::{
@@ -26,8 +28,6 @@ use tokio::sync::RwLock;
 
 #[cfg(feature = "audit")]
 use {sos_audit::AuditEvent, sos_backend::audit::append_audit_events};
-
-mod sync;
 
 /// Server folders loaded into memory and mirrored to disc.
 pub struct ServerFileStorage {
@@ -186,6 +186,20 @@ impl ServerAccountStorage for ServerFileStorage {
         self.paths.clone()
     }
 
+    fn folders(&self) -> &HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
+        &self.folders
+    }
+
+    fn folders_mut(
+        &mut self,
+    ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>> {
+        &mut self.folders
+    }
+
+    fn set_devices(&mut self, devices: IndexSet<TrustedDevice>) {
+        self.devices = devices;
+    }
+
     async fn import_account(
         &mut self,
         account_data: &CreateSet,
@@ -235,6 +249,7 @@ impl ServerAccountStorage for ServerFileStorage {
         mut update_set: UpdateSet,
         outcome: &mut MergeOutcome,
     ) -> Result<()> {
+        /*
         if let Some(diff) = update_set.identity.take() {
             self.force_merge_identity(diff, outcome).await?;
         }
@@ -254,6 +269,9 @@ impl ServerAccountStorage for ServerFileStorage {
         for (id, folder) in update_set.folders {
             self.force_merge_folder(&id, folder, outcome).await?;
         }
+        */
+
+        todo!("fix update account logic");
 
         Ok(())
     }
@@ -394,5 +412,48 @@ impl ServerAccountStorage for ServerFileStorage {
         }
         vfs::remove_file(&identity_event).await?;
         Ok(())
+    }
+}
+
+#[async_trait]
+impl StorageEventLogs for ServerFileStorage {
+    type Error = Error;
+
+    async fn identity_log(&self) -> Result<Arc<RwLock<FolderEventLog>>> {
+        Ok(self.identity_log.clone())
+    }
+
+    async fn account_log(&self) -> Result<Arc<RwLock<AccountEventLog>>> {
+        Ok(self.account_log.clone())
+    }
+
+    async fn device_log(&self) -> Result<Arc<RwLock<DeviceEventLog>>> {
+        Ok(self.device_log.clone())
+    }
+
+    async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
+        Ok(self.file_log.clone())
+    }
+
+    async fn folder_details(&self) -> Result<IndexSet<Summary>> {
+        let ids = self.folders.keys().copied().collect::<Vec<_>>();
+        let mut output = IndexSet::new();
+        for id in &ids {
+            let path = self.paths.vault_path(id);
+            let summary = Header::read_summary_file(path).await?;
+            output.insert(summary);
+        }
+        Ok(output)
+    }
+
+    async fn folder_log(
+        &self,
+        id: &VaultId,
+    ) -> Result<Arc<RwLock<FolderEventLog>>> {
+        Ok(Arc::clone(
+            self.folders
+                .get(id)
+                .ok_or(sos_backend::StorageError::FolderNotFound(*id))?,
+        ))
     }
 }

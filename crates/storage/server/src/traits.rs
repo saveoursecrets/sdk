@@ -1,15 +1,19 @@
 //! Server storage implementations.
 use crate::Result;
 use async_trait::async_trait;
+use indexmap::IndexSet;
+use sos_backend::FolderEventLog;
+use sos_core::device::TrustedDevice;
 use sos_core::{device::DevicePublicKey, AccountId, Paths, VaultId};
-use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
+use sos_sync::{CreateSet, MergeOutcome, UpdateSet};
 use sos_vault::Summary;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 /// Trait for server storage implementations.
 #[async_trait]
-pub trait ServerAccountStorage: SyncStorage {
+pub trait ServerAccountStorage {
     /// Account identifier.
     fn account_id(&self) -> &AccountId;
 
@@ -18,6 +22,17 @@ pub trait ServerAccountStorage: SyncStorage {
 
     /// Computed storage directories for the provider.
     fn paths(&self) -> Arc<Paths>;
+
+    /// Folder event logs.
+    fn folders(&self) -> &HashMap<VaultId, Arc<RwLock<FolderEventLog>>>;
+
+    /// Mutable folder event logs.
+    fn folders_mut(
+        &mut self,
+    ) -> &mut HashMap<VaultId, Arc<RwLock<FolderEventLog>>>;
+
+    /// Set the collection of trusted devices.
+    fn set_devices(&mut self, devices: IndexSet<TrustedDevice>);
 
     /// Import an account from a change set of event logs.
     ///
