@@ -11,7 +11,9 @@ use sos_sdk::{
     },
 };
 use sos_server_storage::{ServerAccountStorage, ServerStorage};
-use sos_sync::{CreateSet, MergeOutcome, StorageEventLogs, UpdateSet};
+use sos_sync::{
+    CreateSet, ForceMerge, MergeOutcome, StorageEventLogs, UpdateSet,
+};
 use sos_test_utils::mock::{insert_database_vault, memory_database};
 use sos_vault::Vault;
 use tempfile::tempdir_in;
@@ -111,7 +113,9 @@ async fn assert_server_storage(
     account_data.folders.insert(*vault.id(), diff);
 
     // Updating an account triggers the force merge flow
-    storage.update_account(account_data, &mut outcome).await?;
+    storage
+        .force_merge_update(account_data, &mut outcome)
+        .await?;
 
     let name = "Folder Name";
     storage.rename_folder(vault.id(), name).await?;

@@ -1,4 +1,5 @@
 //! Core traits for storage that supports synchronization.
+use crate::UpdateSet;
 use crate::{
     CreateSet, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff, SyncStatus,
     TrackedChanges,
@@ -355,6 +356,43 @@ pub trait Merge: StorageEventLogs {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ForceMerge: Merge {
+    /// Force merge from a set of updates.
+    ///
+    /// Update an account from a change set of event diffs.
+    ///
+    /// Overwrites all existing account data with the event logs
+    /// in the change set.
+    ///
+    /// Intended to be used to perform a destructive overwrite
+    /// when changing the encryption cipher or other events
+    /// which rewrite the account data.
+    async fn force_merge_update(
+        &mut self,
+        mut update_set: UpdateSet,
+        outcome: &mut MergeOutcome,
+    ) -> std::result::Result<(), Self::Error> {
+        if let Some(diff) = update_set.identity.take() {
+            self.force_merge_identity(diff, outcome).await?;
+        }
+
+        if let Some(diff) = update_set.account.take() {
+            self.force_merge_account(diff, outcome).await?;
+        }
+
+        if let Some(diff) = update_set.device.take() {
+            self.force_merge_device(diff, outcome).await?;
+        }
+
+        if let Some(diff) = update_set.files.take() {
+            self.force_merge_files(diff, outcome).await?;
+        }
+
+        for (id, folder) in update_set.folders {
+            self.force_merge_folder(&id, folder, outcome).await?;
+        }
+        Ok(())
+    }
+
     /// Force merge changes to the identity folder.
     async fn force_merge_identity(
         &mut self,

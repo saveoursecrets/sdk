@@ -4,7 +4,7 @@ use sos_core::{device::DevicePublicKey, AccountId, Paths};
 use sos_database::{async_sqlite::Client, entity::AccountEntity};
 use sos_server_storage::{ServerAccountStorage, ServerStorage};
 use sos_signer::ed25519::{self, Verifier, VerifyingKey};
-use sos_sync::{CreateSet, MergeOutcome, SyncStorage, UpdateSet};
+use sos_sync::{CreateSet, ForceMerge, MergeOutcome, SyncStorage, UpdateSet};
 use sos_vfs as vfs;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
@@ -207,7 +207,9 @@ impl Backend {
             .ok_or(Error::NoAccount(*account_id))?;
 
         let mut account = account.write().await;
-        account.update_account(account_data, &mut outcome).await?;
+        account
+            .force_merge_update(account_data, &mut outcome)
+            .await?;
         Ok(outcome)
     }
 

@@ -5,7 +5,7 @@ use indexmap::IndexSet;
 use sos_backend::FolderEventLog;
 use sos_core::device::TrustedDevice;
 use sos_core::{device::DevicePublicKey, AccountId, Paths, VaultId};
-use sos_sync::{CreateSet, MergeOutcome, UpdateSet};
+use sos_sync::CreateSet;
 use sos_vault::Summary;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -45,21 +45,6 @@ pub trait ServerAccountStorage {
     async fn import_account(
         &mut self,
         account_data: &CreateSet,
-    ) -> Result<()>;
-
-    /// Update an account from a change set of event logs and
-    /// event diffs.
-    ///
-    /// Overwrites all existing account data with the event logs
-    /// in the change set.
-    ///
-    /// Intended to be used to perform a destructive overwrite
-    /// when changing the encryption cipher or other events
-    /// which rewrite the account data.
-    async fn update_account(
-        &mut self,
-        mut update_set: UpdateSet,
-        outcome: &mut MergeOutcome,
     ) -> Result<()>;
 
     /// Load folders from the local disc.

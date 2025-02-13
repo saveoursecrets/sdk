@@ -22,7 +22,7 @@ use sos_core::{
 use sos_database::{async_sqlite::Client, entity::AccountEntity};
 use sos_sync::{
     CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStatus,
-    SyncStorage, UpdateSet,
+    SyncStorage,
 };
 use sos_vault::Summary;
 use std::{
@@ -246,21 +246,6 @@ impl ServerAccountStorage for ServerStorage {
             }
             ServerStorage::Database(db) => {
                 db.import_account(account_data).await
-            }
-        }
-    }
-
-    async fn update_account(
-        &mut self,
-        update_set: UpdateSet,
-        outcome: &mut MergeOutcome,
-    ) -> Result<()> {
-        match self {
-            ServerStorage::FileSystem(fs) => {
-                fs.update_account(update_set, outcome).await
-            }
-            ServerStorage::Database(db) => {
-                db.update_account(update_set, outcome).await
             }
         }
     }

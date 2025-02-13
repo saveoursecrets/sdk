@@ -318,34 +318,6 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         Ok(())
     }
 
-    async fn update_account(
-        &mut self,
-        mut update_set: UpdateSet,
-        outcome: &mut MergeOutcome,
-    ) -> Result<()> {
-        if let Some(diff) = update_set.identity.take() {
-            self.force_merge_identity(diff, outcome).await?;
-        }
-
-        if let Some(diff) = update_set.account.take() {
-            self.force_merge_account(diff, outcome).await?;
-        }
-
-        if let Some(diff) = update_set.device.take() {
-            self.force_merge_device(diff, outcome).await?;
-        }
-
-        if let Some(diff) = update_set.files.take() {
-            self.force_merge_files(diff, outcome).await?;
-        }
-
-        for (id, folder) in update_set.folders {
-            self.force_merge_folder(&id, folder, outcome).await?;
-        }
-
-        Ok(())
-    }
-
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {
         let account_id = self.account_row_id;
         let rows = self
