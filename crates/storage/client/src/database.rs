@@ -582,31 +582,6 @@ impl ClientFolderStorage for ClientDatabaseStorage {
         Ok(summary)
     }
 
-    async fn update_folder_flags(
-        &mut self,
-        summary: &Summary,
-        flags: VaultFlags,
-    ) -> Result<Event> {
-        // Update the in-memory name.
-        self.set_folder_flags(summary, flags.clone())?;
-
-        let folder = self
-            .folders
-            .get_mut(summary.id())
-            .ok_or(StorageError::FolderNotFound(*summary.id()))?;
-
-        let event = folder.update_folder_flags(flags).await?;
-        let event = Event::Write(*summary.id(), event);
-
-        #[cfg(feature = "audit")]
-        {
-            let audit_event: AuditEvent = (self.account_id(), &event).into();
-            append_audit_events(&[audit_event]).await?;
-        }
-
-        Ok(event)
-    }
-
     fn set_folder_name(
         &mut self,
         summary: &Summary,

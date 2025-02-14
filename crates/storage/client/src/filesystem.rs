@@ -587,64 +587,6 @@ impl ClientFolderStorage for ClientFileSystemStorage {
         Ok(summary)
     }
 
-    async fn rename_folder(
-        &mut self,
-        summary: &Summary,
-        name: impl AsRef<str> + Send,
-    ) -> Result<Event> {
-        // Update the in-memory name.
-        self.set_folder_name(summary, name.as_ref())?;
-
-        let folder = self
-            .folders
-            .get_mut(summary.id())
-            .ok_or(StorageError::FolderNotFound(*summary.id()))?;
-
-        folder.rename_folder(name.as_ref()).await?;
-
-        let account_event = AccountEvent::RenameFolder(
-            *summary.id(),
-            name.as_ref().to_owned(),
-        );
-
-        let mut account_log = self.account_log.write().await;
-        account_log.apply(vec![&account_event]).await?;
-
-        #[cfg(feature = "audit")]
-        {
-            let audit_event: AuditEvent =
-                (self.account_id(), &account_event).into();
-            append_audit_events(&[audit_event]).await?;
-        }
-
-        Ok(Event::Account(account_event))
-    }
-
-    async fn update_folder_flags(
-        &mut self,
-        summary: &Summary,
-        flags: VaultFlags,
-    ) -> Result<Event> {
-        // Update the in-memory name.
-        self.set_folder_flags(summary, flags.clone())?;
-
-        let folder = self
-            .folders
-            .get_mut(summary.id())
-            .ok_or(StorageError::FolderNotFound(*summary.id()))?;
-
-        let event = folder.update_folder_flags(flags).await?;
-        let event = Event::Write(*summary.id(), event);
-
-        #[cfg(feature = "audit")]
-        {
-            let audit_event: AuditEvent = (self.account_id(), &event).into();
-            append_audit_events(&[audit_event]).await?;
-        }
-
-        Ok(event)
-    }
-
     fn set_folder_name(
         &mut self,
         summary: &Summary,
