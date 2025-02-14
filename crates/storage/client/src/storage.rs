@@ -309,22 +309,6 @@ impl ClientFolderStorage for ClientStorage {
         }
     }
 
-    async fn restore_folder(
-        &mut self,
-        folder_id: &VaultId,
-        records: Vec<EventRecord>,
-        key: &AccessKey,
-    ) -> Result<Summary> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.restore_folder(folder_id, records, key).await
-            }
-            ClientStorage::Database(db) => {
-                db.restore_folder(folder_id, records, key).await
-            }
-        }
-    }
-
     async fn rename_folder(
         &mut self,
         summary: &Summary,
@@ -602,6 +586,22 @@ impl ClientAccountStorage for ClientStorage {
             }
             ClientStorage::Database(db) => {
                 db.delete_folder(folder_id, apply_event).await
+            }
+        }
+    }
+
+    async fn restore_folder(
+        &mut self,
+        folder_id: &VaultId,
+        records: Vec<EventRecord>,
+        key: &AccessKey,
+    ) -> Result<Summary> {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.restore_folder(folder_id, records, key).await
+            }
+            ClientStorage::Database(db) => {
+                db.restore_folder(folder_id, records, key).await
             }
         }
     }

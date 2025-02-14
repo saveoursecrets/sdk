@@ -481,14 +481,6 @@ pub trait ClientFolderStorage:
         Ok(account_event)
     }
 
-    /// Restore a folder from an event log.
-    async fn restore_folder(
-        &mut self,
-        folder_id: &VaultId,
-        records: Vec<EventRecord>,
-        key: &AccessKey,
-    ) -> Result<Summary>;
-
     /// Set the name of a folder.
     async fn rename_folder(
         &mut self,
@@ -829,6 +821,32 @@ pub trait ClientAccountStorage:
         events.insert(0, Event::Account(account_event));
 
         Ok(events)
+    }
+
+    /// Restore a folder from an event log.
+    async fn restore_folder(
+        &mut self,
+        folder_id: &VaultId,
+        records: Vec<EventRecord>,
+        key: &AccessKey,
+    ) -> Result<Summary> {
+        let (mut folder, vault) =
+            self.initialize_folder(folder_id, records).await?;
+
+        // Unlock the folder
+        folder.unlock(key).await?;
+        self.folders_mut().insert(*folder_id, folder);
+
+        let summary = vault.summary().to_owned();
+        self.add_summary(summary.clone(), Internal);
+
+        #[cfg(feature = "search")]
+        if let Some(index) = self.index_mut() {
+            // Ensure the imported secrets are in the search index
+            index.add_vault(vault, key).await?;
+        }
+
+        Ok(summary)
     }
 
     /// Get the history of events for a vault.

@@ -537,31 +537,6 @@ impl ClientFolderStorage for ClientFileSystemStorage {
         *current = None;
     }
 
-    async fn restore_folder(
-        &mut self,
-        folder_id: &VaultId,
-        records: Vec<EventRecord>,
-        key: &AccessKey,
-    ) -> Result<Summary> {
-        let (mut folder, vault) =
-            self.initialize_folder(folder_id, records).await?;
-
-        // Unlock the folder
-        folder.unlock(key).await?;
-        self.folders.insert(*folder_id, folder);
-
-        let summary = vault.summary().to_owned();
-        self.add_summary(summary.clone(), Internal);
-
-        #[cfg(feature = "search")]
-        if let Some(index) = self.index.as_mut() {
-            // Ensure the imported secrets are in the search index
-            index.add_vault(vault, key).await?;
-        }
-
-        Ok(summary)
-    }
-
     fn set_folder_name(
         &mut self,
         summary: &Summary,
