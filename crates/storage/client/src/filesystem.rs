@@ -2,7 +2,7 @@
 use crate::{
     files::ExternalFileManager, traits::private::Internal,
     ClientAccountStorage, ClientBaseStorage, ClientDeviceStorage,
-    ClientFolderStorage, ClientVaultStorage, Error, NewFolderOptions, Result,
+    ClientFolderStorage, ClientVaultStorage, Error, Result,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -32,9 +32,6 @@ use tokio::sync::RwLock;
 
 #[cfg(feature = "archive")]
 use sos_filesystem::archive::RestoreTargets;
-
-#[cfg(feature = "audit")]
-use {sos_audit::AuditEvent, sos_backend::audit::append_audit_events};
 
 #[cfg(feature = "files")]
 use {sos_backend::FileEventLog, sos_core::events::FileEvent};
@@ -291,29 +288,6 @@ impl ClientFolderStorage for ClientFileSystemStorage {
     async fn new_folder(&self, folder_id: &VaultId) -> Result<Folder> {
         let vault_path = self.paths.vault_path(folder_id);
         Ok(Folder::new_fs(&vault_path).await?)
-    }
-
-    async fn create_folder(
-        &mut self,
-        name: String,
-        options: NewFolderOptions,
-    ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)> {
-        let (buf, key, summary) =
-            self.prepare_folder(Some(name), options).await?;
-
-        let account_event =
-            AccountEvent::CreateFolder(*summary.id(), buf.clone());
-        let mut account_log = self.account_log.write().await;
-        account_log.apply(vec![&account_event]).await?;
-
-        #[cfg(feature = "audit")]
-        {
-            let audit_event: AuditEvent =
-                (self.account_id(), &account_event).into();
-            append_audit_events(&[audit_event]).await?;
-        }
-
-        Ok((buf, key, summary, account_event))
     }
 
     fn open_folder(&self, folder_id: &VaultId) -> Result<ReadEvent> {

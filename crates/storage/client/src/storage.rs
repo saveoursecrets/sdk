@@ -190,21 +190,6 @@ impl ClientFolderStorage for ClientStorage {
         }
     }
 
-    async fn create_folder(
-        &mut self,
-        name: String,
-        options: NewFolderOptions,
-    ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.create_folder(name, options).await
-            }
-            ClientStorage::Database(db) => {
-                db.create_folder(name, options).await
-            }
-        }
-    }
-
     async fn load_folders(&mut self) -> Result<&[Summary]> {
         match self {
             ClientStorage::FileSystem(fs) => fs.load_folders().await,

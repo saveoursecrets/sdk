@@ -6,10 +6,7 @@ use crate::{
 use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
-use sos_audit::{AuditData, AuditEvent};
-use sos_backend::{
-    audit::append_audit_events, compact::compact_folder, Folder,
-};
+use sos_backend::{compact::compact_folder, Folder};
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -38,6 +35,12 @@ use sos_filesystem::archive::RestoreTargets;
 
 #[cfg(feature = "search")]
 use sos_search::{AccountSearch, DocumentCount};
+
+#[cfg(feature = "audit")]
+use {
+    sos_audit::{AuditData, AuditEvent},
+    sos_backend::audit::append_audit_events,
+};
 
 pub(crate) mod private {
     /// Internal struct for sealed functions.
@@ -389,13 +392,6 @@ pub trait ClientFolderStorage:
 
         Ok(buffer)
     }
-
-    /// Create a new folder.
-    async fn create_folder(
-        &mut self,
-        name: String,
-        options: NewFolderOptions,
-    ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)>;
 
     /// Read folders from storage and create the in-memory
     /// event logs for each folder.
@@ -769,10 +765,12 @@ pub trait ClientAccountStorage:
     }
 
     /// Prepare a new folder.
+    #[doc(hidden)]
     async fn prepare_folder(
         &mut self,
         name: Option<String>,
         mut options: NewFolderOptions,
+        _: Internal,
     ) -> Result<(Vec<u8>, AccessKey, Summary)> {
         let key = if let Some(key) = options.key.take() {
             key
@@ -823,6 +821,31 @@ pub trait ClientAccountStorage:
         self.unlock_folder(summary.id(), &key).await?;
 
         Ok((buffer, key, summary))
+    }
+
+    /// Create a new folder.
+    async fn create_folder(
+        &mut self,
+        name: String,
+        options: NewFolderOptions,
+    ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)> {
+        let (buf, key, summary) =
+            self.prepare_folder(Some(name), options, Internal).await?;
+
+        let account_event =
+            AccountEvent::CreateFolder(*summary.id(), buf.clone());
+        let account_log = self.account_log().await?;
+        let mut account_log = account_log.write().await;
+        account_log.apply(vec![&account_event]).await?;
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent =
+                (self.account_id(), &account_event).into();
+            append_audit_events(&[audit_event]).await?;
+        }
+
+        Ok((buf, key, summary, account_event))
     }
 
     /// Delete a folder.
@@ -906,6 +929,7 @@ pub trait ClientAccountStorage:
     }
 
     /// Create or update a vault.
+    #[doc(hidden)]
     async fn upsert_vault_buffer(
         &mut self,
         buffer: impl AsRef<[u8]> + Send,
