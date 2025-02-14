@@ -1,8 +1,8 @@
 use crate::{
     database::ClientDatabaseStorage, files::ExternalFileManager,
-    filesystem::ClientFileSystemStorage, AccountPack, ClientAccountStorage,
-    ClientDeviceStorage, ClientFolderStorage, Error, NewFolderOptions,
-    Result,
+    filesystem::ClientFileSystemStorage, traits::private::Internal,
+    AccountPack, ClientAccountStorage, ClientDeviceStorage,
+    ClientFolderStorage, Error, NewFolderOptions, Result,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -450,10 +450,14 @@ impl ClientAccountStorage for ClientStorage {
         }
     }
 
-    fn drop_authenticated_state(&mut self) {
+    fn drop_authenticated_state(&mut self, private: Internal) {
         match self {
-            ClientStorage::FileSystem(fs) => fs.drop_authenticated_state(),
-            ClientStorage::Database(db) => db.drop_authenticated_state(),
+            ClientStorage::FileSystem(fs) => {
+                fs.drop_authenticated_state(private)
+            }
+            ClientStorage::Database(db) => {
+                db.drop_authenticated_state(private)
+            }
         }
     }
 

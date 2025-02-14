@@ -1,8 +1,8 @@
 //! Storage backed by the filesystem.
 use crate::{
-    files::ExternalFileManager, AccountPack, ClientAccountStorage,
-    ClientDeviceStorage, ClientFolderStorage, Error, NewFolderOptions,
-    Result,
+    files::ExternalFileManager, traits::private::Internal, AccountPack,
+    ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage, Error,
+    NewFolderOptions, Result,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -1076,7 +1076,7 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         self.authenticated.as_mut()
     }
 
-    fn drop_authenticated_state(&mut self) {
+    fn drop_authenticated_state(&mut self, _: Internal) {
         #[cfg(feature = "search")]
         {
             self.index = None;

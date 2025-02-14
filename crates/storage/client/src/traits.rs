@@ -32,6 +32,10 @@ use sos_filesystem::archive::RestoreTargets;
 #[cfg(feature = "search")]
 use sos_search::{AccountSearch, DocumentCount};
 
+pub(crate) mod private {
+    pub struct Internal;
+}
+
 /// Device management functions for client storage.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -291,7 +295,7 @@ pub trait ClientAccountStorage:
     ///
     /// Do not use this, it is an implementation detail;
     /// instead call `sign_out()`.
-    fn drop_authenticated_state(&mut self);
+    fn drop_authenticated_state(&mut self, _: private::Internal);
 
     /// Sign out the authenticated user.
     async fn sign_out(&mut self) -> Result<()> {
@@ -302,7 +306,7 @@ pub trait ClientAccountStorage:
         }
 
         tracing::debug!("client_storage::drop_authenticated_state");
-        self.drop_authenticated_state();
+        self.drop_authenticated_state(private::Internal);
         Ok(())
     }
 
