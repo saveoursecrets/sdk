@@ -1,9 +1,8 @@
 //! Storage backed by the filesystem.
-use crate::ClientBaseStorage;
 use crate::{
     files::ExternalFileManager, traits::private::Internal,
-    ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage,
-    ClientVaultStorage, Error, NewFolderOptions, Result,
+    ClientAccountStorage, ClientBaseStorage, ClientDeviceStorage,
+    ClientFolderStorage, ClientVaultStorage, Error, NewFolderOptions, Result,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -12,16 +11,16 @@ use sos_backend::{
     write_exclusive, AccountEventLog, DeviceEventLog, Folder, FolderEventLog,
     StorageError,
 };
-use sos_core::VaultId;
 use sos_core::{
     constants::VAULT_EXT,
     crypto::AccessKey,
-    decode, encode,
+    decode,
+    device::TrustedDevice,
+    encode,
     events::{
-        patch::FolderPatch, AccountEvent, Event, EventLog, EventRecord,
-        ReadEvent, WriteEvent,
+        AccountEvent, DeviceEvent, Event, EventLog, ReadEvent, WriteEvent,
     },
-    AccountId, AuthenticationError, FolderRef, Paths, UtcDateTime,
+    AccountId, AuthenticationError, FolderRef, Paths, UtcDateTime, VaultId,
 };
 use sos_login::{FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
@@ -40,8 +39,6 @@ use sos_filesystem::archive::RestoreTargets;
 
 #[cfg(feature = "audit")]
 use {sos_audit::AuditEvent, sos_backend::audit::append_audit_events};
-
-use sos_core::{device::TrustedDevice, events::DeviceEvent};
 
 #[cfg(feature = "files")]
 use {sos_backend::FileEventLog, sos_core::events::FileEvent};
@@ -215,23 +212,6 @@ impl ClientFileSystemStorage {
         Ok(event_log)
     }
 
-    /// Read the buffer for a vault from storage.
-    async fn read_vault_file(&self, id: &VaultId) -> Result<Vec<u8>> {
-        let vault_path = self.paths.vault_path(id);
-        Ok(vfs::read(vault_path).await?)
-    }
-
-    /// Write the buffer for a vault to disc.
-    async fn write_vault_file(
-        &self,
-        vault_id: &VaultId,
-        buffer: impl AsRef<[u8]>,
-    ) -> Result<()> {
-        let vault_path = self.paths.vault_path(vault_id);
-        write_exclusive(vault_path, buffer.as_ref()).await?;
-        Ok(())
-    }
-
     /// Prepare a new folder.
     async fn prepare_folder(
         &mut self,
@@ -308,7 +288,7 @@ impl ClientFileSystemStorage {
             }
         }
 
-        self.write_vault_file(summary.id(), &buffer).await?;
+        self.write_vault(&vault).await?;
 
         if !exists {
             // Add the summary to the vaults we are managing
@@ -361,13 +341,15 @@ impl ClientBaseStorage for ClientFileSystemStorage {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ClientVaultStorage for ClientFileSystemStorage {
     async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
-        let buffer = self.read_vault_file(id).await?;
+        let vault_path = self.paths.vault_path(id);
+        let buffer = vfs::read(vault_path).await?;
         Ok(decode(&buffer).await?)
     }
 
     async fn write_vault(&self, vault: &Vault) -> Result<Vec<u8>> {
         let buffer = encode(vault).await?;
-        self.write_vault_file(vault.id(), &buffer).await?;
+        let vault_path = self.paths.vault_path(vault.id());
+        write_exclusive(vault_path, &buffer).await?;
         Ok(buffer)
     }
 

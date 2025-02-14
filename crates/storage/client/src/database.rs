@@ -1,9 +1,8 @@
 //! Storage backed by a database.
-use crate::ClientBaseStorage;
 use crate::{
     files::ExternalFileManager, traits::private::Internal,
-    ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage,
-    ClientVaultStorage, Error, NewFolderOptions, Result,
+    ClientAccountStorage, ClientBaseStorage, ClientDeviceStorage,
+    ClientFolderStorage, ClientVaultStorage, Error, NewFolderOptions, Result,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -11,15 +10,15 @@ use parking_lot::Mutex;
 use sos_backend::{
     AccountEventLog, DeviceEventLog, Folder, FolderEventLog, StorageError,
 };
-use sos_core::VaultId;
 use sos_core::{
     crypto::AccessKey,
-    decode, encode,
+    decode,
+    device::TrustedDevice,
+    encode,
     events::{
-        patch::FolderPatch, AccountEvent, Event, EventLog, EventRecord,
-        ReadEvent, WriteEvent,
+        AccountEvent, DeviceEvent, Event, EventLog, ReadEvent, WriteEvent,
     },
-    AccountId, AuthenticationError, FolderRef, Paths, UtcDateTime,
+    AccountId, AuthenticationError, FolderRef, Paths, UtcDateTime, VaultId,
 };
 use sos_database::{
     async_sqlite::Client,
@@ -42,8 +41,6 @@ use sos_filesystem::archive::RestoreTargets;
 #[cfg(feature = "audit")]
 use {sos_audit::AuditEvent, sos_backend::audit::append_audit_events};
 
-use sos_core::{device::TrustedDevice, events::DeviceEvent};
-
 #[cfg(feature = "files")]
 use sos_backend::FileEventLog;
 
@@ -65,7 +62,7 @@ pub struct ClientDatabaseStorage {
     /// Database client.
     client: Client,
 
-    /// Database row identifier.
+    /// Account row identifier.
     account_row_id: i64,
 
     // Use interior mutability so all the account functions
