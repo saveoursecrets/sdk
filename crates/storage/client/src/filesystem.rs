@@ -341,19 +341,9 @@ impl ClientFileSystemStorage {
         self.folders.remove(folder_id);
 
         // Remove from the state of managed vaults
-        self.remove_summary(folder_id);
+        self.remove_summary(folder_id, Internal);
 
         Ok(())
-    }
-
-    /// Remove a summary from this state.
-    fn remove_summary(&mut self, folder_id: &VaultId) {
-        if let Some(position) =
-            self.summaries.iter().position(|s| s.id() == folder_id)
-        {
-            self.summaries.remove(position);
-            self.summaries.sort();
-        }
     }
 
     /// Prepare a new folder.
@@ -404,7 +394,7 @@ impl ClientFileSystemStorage {
         self.write_vault_file(summary.id(), &buffer).await?;
 
         // Add the summary to the vaults we are managing
-        self.add_summary(summary.clone());
+        self.add_summary(summary.clone(), Internal);
 
         // Initialize the local cache for the event log
         self.create_folder_entry(&summary, Some(vault), None)
@@ -413,12 +403,6 @@ impl ClientFileSystemStorage {
         self.unlock_folder(summary.id(), &key).await?;
 
         Ok((buffer, key, summary))
-    }
-
-    /// Add a summary to this state.
-    fn add_summary(&mut self, summary: Summary) {
-        self.summaries.push(summary);
-        self.summaries.sort();
     }
 
     /// Remove a vault file and event log file.
@@ -460,7 +444,7 @@ impl ClientFileSystemStorage {
 
         if !exists {
             // Add the summary to the vaults we are managing
-            self.add_summary(summary.clone());
+            self.add_summary(summary.clone(), Internal);
         } else {
             // Otherwise update with the new summary
             if let Some(position) =
@@ -492,26 +476,6 @@ impl ClientFileSystemStorage {
 
         Ok((exists, event, summary))
     }
-
-    /// Read folders from the local disc.
-    async fn read_folders(&self) -> Result<Vec<Summary>> {
-        let storage = self.paths.vaults_dir();
-        let mut summaries = Vec::new();
-        let mut contents = vfs::read_dir(&storage).await?;
-        while let Some(entry) = contents.next_entry().await? {
-            let path = entry.path();
-            if let Some(extension) = path.extension() {
-                if extension == VAULT_EXT {
-                    let summary = Header::read_summary_file(path).await?;
-                    if summary.flags().is_system() {
-                        continue;
-                    }
-                    summaries.push(summary);
-                }
-            }
-        }
-        Ok(summaries)
-    }
 }
 
 impl ClientBaseStorage for ClientFileSystemStorage {
@@ -532,6 +496,33 @@ impl ClientVaultStorage for ClientFileSystemStorage {
         let buffer = encode(vault).await?;
         self.write_vault_file(vault.id(), &buffer).await?;
         Ok(buffer)
+    }
+
+    async fn read_folders(&self) -> Result<Vec<Summary>> {
+        let storage = self.paths.vaults_dir();
+        let mut summaries = Vec::new();
+        let mut contents = vfs::read_dir(&storage).await?;
+        while let Some(entry) = contents.next_entry().await? {
+            let path = entry.path();
+            if let Some(extension) = path.extension() {
+                if extension == VAULT_EXT {
+                    let summary = Header::read_summary_file(path).await?;
+                    if summary.flags().is_system() {
+                        continue;
+                    }
+                    summaries.push(summary);
+                }
+            }
+        }
+        Ok(summaries)
+    }
+
+    fn summaries(&self, _: Internal) -> &Vec<Summary> {
+        &self.summaries
+    }
+
+    fn summaries_mut(&mut self, _: Internal) -> &mut Vec<Summary> {
+        &mut self.summaries
     }
 
     fn list_folders(&self) -> &[Summary] {
@@ -740,7 +731,7 @@ impl ClientFolderStorage for ClientFileSystemStorage {
 
             self.folders.insert(folder_id, folder);
             let summary = vault.summary().to_owned();
-            self.add_summary(summary.clone());
+            self.add_summary(summary.clone(), Internal);
         }
         Ok(())
     }
@@ -759,7 +750,7 @@ impl ClientFolderStorage for ClientFileSystemStorage {
         self.folders.insert(*folder_id, folder);
 
         let summary = vault.summary().to_owned();
-        self.add_summary(summary.clone());
+        self.add_summary(summary.clone(), Internal);
 
         #[cfg(feature = "search")]
         if let Some(index) = self.index.as_mut() {
@@ -991,7 +982,8 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
-        self.authenticated
+        let user = self
+            .authenticated
             .as_ref()
             .ok_or(AuthenticationError::NotAuthenticated)?;
 
@@ -1001,9 +993,6 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         write_exclusive(&identity_vault_path, &buffer).await?;
 
         // Update the events for the identity vault
-        let user = self
-            .authenticated_user()
-            .ok_or(AuthenticationError::NotAuthenticated)?;
         let identity = user.identity()?;
         let event_log = identity.event_log();
         let mut event_log = event_log.write().await;

@@ -132,6 +132,27 @@ impl ClientVaultStorage for ClientStorage {
         }
     }
 
+    async fn read_folders(&self) -> Result<Vec<Summary>> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.read_folders().await,
+            ClientStorage::Database(db) => db.read_folders().await,
+        }
+    }
+
+    fn summaries(&self, token: Internal) -> &Vec<Summary> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.summaries(token),
+            ClientStorage::Database(db) => db.summaries(token),
+        }
+    }
+
+    fn summaries_mut(&mut self, token: Internal) -> &mut Vec<Summary> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.summaries_mut(token),
+            ClientStorage::Database(db) => db.summaries_mut(token),
+        }
+    }
+
     fn list_folders(&self) -> &[Summary] {
         match self {
             ClientStorage::FileSystem(fs) => fs.list_folders(),

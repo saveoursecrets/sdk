@@ -331,19 +331,9 @@ impl ClientDatabaseStorage {
         self.folders.remove(folder_id);
 
         // Remove from the state of managed vaults
-        self.remove_summary(folder_id);
+        self.remove_summary(folder_id, Internal);
 
         Ok(())
-    }
-
-    /// Remove a summary from this state.
-    fn remove_summary(&mut self, folder_id: &VaultId) {
-        if let Some(position) =
-            self.summaries.iter().position(|s| s.id() == folder_id)
-        {
-            self.summaries.remove(position);
-            self.summaries.sort();
-        }
     }
 
     /// Prepare a new folder.
@@ -399,7 +389,7 @@ impl ClientDatabaseStorage {
         .await?;
 
         // Add the summary to the vaults we are managing
-        self.add_summary(summary.clone());
+        self.add_summary(summary.clone(), Internal);
 
         // Initialize the local cache for the event log
         self.create_folder_entry(&summary, Some(vault), None)
@@ -408,12 +398,6 @@ impl ClientDatabaseStorage {
         self.unlock_folder(summary.id(), &key).await?;
 
         Ok((buffer, key, summary))
-    }
-
-    /// Add a summary to this state.
-    fn add_summary(&mut self, summary: Summary) {
-        self.summaries.push(summary);
-        self.summaries.sort();
     }
 
     /// Remove a vault file and event log file.
@@ -460,7 +444,7 @@ impl ClientDatabaseStorage {
 
         if !exists {
             // Add the summary to the vaults we are managing
-            self.add_summary(summary.clone());
+            self.add_summary(summary.clone(), Internal);
         } else {
             // Otherwise update with the new summary
             if let Some(position) =
@@ -492,26 +476,6 @@ impl ClientDatabaseStorage {
 
         Ok((exists, event, summary))
     }
-
-    /// Read folders from the database.
-    async fn read_folders(&self) -> Result<Vec<Summary>> {
-        let account_id = self.account_row_id;
-        let rows = self
-            .client
-            .conn_and_then(move |conn| {
-                let folders = FolderEntity::new(&conn);
-                Ok::<_, sos_database::Error>(
-                    folders.list_user_folders(account_id)?,
-                )
-            })
-            .await?;
-        let mut folders = Vec::new();
-        for row in rows {
-            let record = FolderRecord::from_row(row).await?;
-            folders.push(record.summary);
-        }
-        Ok(folders)
-    }
 }
 
 impl ClientBaseStorage for ClientDatabaseStorage {
@@ -537,6 +501,33 @@ impl ClientVaultStorage for ClientDatabaseStorage {
         )
         .await?;
         Ok(buffer)
+    }
+
+    async fn read_folders(&self) -> Result<Vec<Summary>> {
+        let account_id = self.account_row_id;
+        let rows = self
+            .client
+            .conn_and_then(move |conn| {
+                let folders = FolderEntity::new(&conn);
+                Ok::<_, sos_database::Error>(
+                    folders.list_user_folders(account_id)?,
+                )
+            })
+            .await?;
+        let mut folders = Vec::new();
+        for row in rows {
+            let record = FolderRecord::from_row(row).await?;
+            folders.push(record.summary);
+        }
+        Ok(folders)
+    }
+
+    fn summaries(&self, _: Internal) -> &Vec<Summary> {
+        &self.summaries
+    }
+
+    fn summaries_mut(&mut self, _: Internal) -> &mut Vec<Summary> {
+        &mut self.summaries
     }
 
     fn list_folders(&self) -> &[Summary] {
@@ -746,7 +737,7 @@ impl ClientFolderStorage for ClientDatabaseStorage {
 
             self.folders.insert(folder_id, folder);
             let summary = vault.summary().to_owned();
-            self.add_summary(summary.clone());
+            self.add_summary(summary.clone(), Internal);
         }
         Ok(())
     }
@@ -765,7 +756,7 @@ impl ClientFolderStorage for ClientDatabaseStorage {
         self.folders.insert(*folder_id, folder);
 
         let summary = vault.summary().to_owned();
-        self.add_summary(summary.clone());
+        self.add_summary(summary.clone(), Internal);
 
         #[cfg(feature = "search")]
         if let Some(index) = self.index.as_mut() {

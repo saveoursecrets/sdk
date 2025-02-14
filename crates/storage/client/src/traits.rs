@@ -42,6 +42,7 @@ pub(crate) mod private {
     pub trait Sealed {}
 
     /// Internal struct for sealed functions.
+    #[derive(Copy, Clone)]
     pub struct Internal;
 }
 
@@ -135,6 +136,44 @@ pub trait ClientVaultStorage: private::Sealed {
 
     /// Write a vault to storage.
     async fn write_vault(&self, vault: &Vault) -> Result<Vec<u8>>;
+
+    /// Read folders from the storage.
+    async fn read_folders(&self) -> Result<Vec<Summary>>;
+
+    /// In-memory collection of folder summaries
+    /// managed by this storage.
+    #[doc(hidden)]
+    fn summaries(&self, _: private::Internal) -> &Vec<Summary>;
+
+    /// Mutable in-memory collection of folder summaries
+    /// managed by this storage.
+    #[doc(hidden)]
+    fn summaries_mut(&mut self, _: private::Internal) -> &mut Vec<Summary>;
+
+    /// Add a summary to the in-memory stage.
+    #[doc(hidden)]
+    fn add_summary(&mut self, summary: Summary, token: private::Internal) {
+        let summaries = self.summaries_mut(token);
+        summaries.push(summary);
+        summaries.sort();
+    }
+
+    /// Remove a summary from this storage.
+    #[doc(hidden)]
+    fn remove_summary(
+        &mut self,
+        folder_id: &VaultId,
+        token: private::Internal,
+    ) {
+        if let Some(position) = self
+            .summaries(token)
+            .iter()
+            .position(|s| s.id() == folder_id)
+        {
+            self.summaries_mut(token).remove(position);
+            self.summaries_mut(token).sort();
+        }
+    }
 
     /// List the in-memory folders.
     fn list_folders(&self) -> &[Summary];
