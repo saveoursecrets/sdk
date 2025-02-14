@@ -33,7 +33,6 @@ use sos_vault::{
     BuilderCredentials, ChangePassword, SecretAccess, Summary, Vault,
     VaultBuilder, VaultFlags,
 };
-use sos_vfs as vfs;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -365,18 +364,7 @@ impl ClientVaultStorage for ClientDatabaseStorage {
     }
 
     async fn remove_vault(&self, folder_id: &VaultId) -> Result<()> {
-        // Remove local vault mirror if it exists
-        let vault_path = self.paths.vault_path(folder_id);
-        if vfs::try_exists(&vault_path).await? {
-            vfs::remove_file(&vault_path).await?;
-        }
-
-        // Remove the local event log file
-        let event_log_path = self.paths.event_log_path(folder_id);
-        if vfs::try_exists(&event_log_path).await? {
-            vfs::remove_file(&event_log_path).await?;
-        }
-        Ok(())
+        todo!("impl remove_vault for db");
     }
 
     async fn read_folders(&self) -> Result<Vec<Summary>> {
