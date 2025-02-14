@@ -7,7 +7,9 @@ use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use sos_audit::{AuditData, AuditEvent};
-use sos_backend::{audit::append_audit_events, Folder};
+use sos_backend::{
+    audit::append_audit_events, compact::compact_folder, Folder,
+};
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -21,7 +23,7 @@ use sos_core::{
     VaultCommit, VaultFlags, VaultId,
 };
 use sos_login::{FolderKeys, Identity};
-use sos_reducers::DeviceReducer;
+use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::StorageEventLogs;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
@@ -36,7 +38,17 @@ use sos_filesystem::archive::RestoreTargets;
 use sos_search::{AccountSearch, DocumentCount};
 
 pub(crate) mod private {
+    /// Super trait for sealed traits.
+    pub trait Sealed {}
+
+    /// Internal struct for sealed functions.
     pub struct Internal;
+}
+
+/// Base client storage functions.
+pub trait ClientBaseStorage {
+    /// Account identifier.
+    fn account_id(&self) -> &AccountId;
 }
 
 /// Device management functions for client storage.
@@ -113,15 +125,104 @@ pub trait ClientDeviceStorage:
     }
 }
 
+/// Vault management for client storage.
+#[doc(hidden)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait ClientVaultStorage: private::Sealed {
+    /// Read a vault from the storage.
+    async fn read_vault(&self, id: &VaultId) -> Result<Vault>;
+
+    /// Write a vault to storage.
+    async fn write_vault(&self, vault: &Vault) -> Result<Vec<u8>>;
+
+    /// List the in-memory folders.
+    fn list_folders(&self) -> &[Summary];
+
+    /// Currently open folder.
+    fn current_folder(&self) -> Option<Summary>;
+
+    /// Find a folder in this storage by reference.
+    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary>;
+
+    /// Find a folder in this storage using a predicate.
+    fn find<F>(&self, predicate: F) -> Option<&Summary>
+    where
+        F: FnMut(&&Summary) -> bool;
+}
+
 /// Folder management functions for client storage.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait ClientFolderStorage {
+pub trait ClientFolderStorage:
+    StorageEventLogs<Error = Error> + ClientBaseStorage + ClientVaultStorage
+{
     /// In-memory folders.
     fn folders(&self) -> &HashMap<VaultId, Folder>;
 
     /// Mutable in-memory folders.
     fn folders_mut(&mut self) -> &mut HashMap<VaultId, Folder>;
+
+    /// Update an existing vault by replacing it with a new vault.
+    async fn update_vault(
+        &mut self,
+        summary: &Summary,
+        vault: &Vault,
+        events: Vec<WriteEvent>,
+    ) -> Result<Vec<u8>> {
+        let buffer = self.write_vault(vault).await?;
+
+        // Apply events to the event log
+        let folder = self
+            .folders_mut()
+            .get_mut(summary.id())
+            .ok_or(StorageError::FolderNotFound(*summary.id()))?;
+        folder.clear().await?;
+        folder.apply(events.iter().collect()).await?;
+
+        Ok(buffer)
+    }
+
+    /// Load a vault by reducing it from the event log stored on disc.
+    async fn reduce_event_log(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<Vault> {
+        let event_log = self.folder_log(folder_id).await?;
+        let log_file = event_log.read().await;
+        Ok(FolderReducer::new()
+            .reduce(&*log_file)
+            .await?
+            .build(true)
+            .await?)
+    }
+
+    /// Refresh the in-memory vault from the contents
+    /// of the current event log file.
+    ///
+    /// If a new access key is given and the target
+    /// folder is the currently open folder then the
+    /// in-memory `AccessPoint` is updated to use the new
+    /// access key.
+    async fn refresh_vault(
+        &mut self,
+        summary: &Summary,
+        key: &AccessKey,
+    ) -> Result<Vec<u8>> {
+        let vault = self.reduce_event_log(summary.id()).await?;
+        let buffer = self.write_vault(&vault).await?;
+
+        if let Some(folder) = self.folders_mut().get_mut(summary.id()) {
+            let access_point = folder.access_point();
+            let mut access_point = access_point.lock().await;
+
+            access_point.lock();
+            access_point.replace_vault(vault.clone(), false).await?;
+            access_point.unlock(key).await?;
+        }
+
+        Ok(buffer)
+    }
 
     /// Create a new folder.
     async fn create_folder(
@@ -158,20 +259,6 @@ pub trait ClientFolderStorage {
     /// Remove a folder from memory.
     async fn remove_folder(&mut self, folder_id: &VaultId) -> Result<bool>;
 
-    /// List the in-memory folders.
-    fn list_folders(&self) -> &[Summary];
-
-    /// Currently open folder.
-    fn current_folder(&self) -> Option<Summary>;
-
-    /// Find a folder in this storage by reference.
-    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary>;
-
-    /// Find a folder in this storage using a predicate.
-    fn find<F>(&self, predicate: F) -> Option<&Summary>
-    where
-        F: FnMut(&&Summary) -> bool;
-
     /// Mark a folder as the currently open folder.
     fn open_folder(&self, folder_id: &VaultId) -> Result<ReadEvent>;
 
@@ -191,7 +278,30 @@ pub trait ClientFolderStorage {
         &mut self,
         summary: &Summary,
         key: &AccessKey,
-    ) -> Result<AccountEvent>;
+    ) -> Result<AccountEvent> {
+        {
+            let folder = self
+                .folders_mut()
+                .get_mut(summary.id())
+                .ok_or(StorageError::FolderNotFound(*summary.id()))?;
+            let event_log = folder.event_log();
+            let mut log_file = event_log.write().await;
+
+            compact_folder(&mut *log_file).await?;
+        }
+
+        // Refresh in-memory vault and mirrored copy
+        let buffer = self.refresh_vault(summary, key).await?;
+
+        let account_event =
+            AccountEvent::CompactFolder(*summary.id(), buffer);
+
+        let account_log = self.account_log().await?;
+        let mut account_log = account_log.write().await;
+        account_log.apply(vec![&account_event]).await?;
+
+        Ok(account_event)
+    }
 
     /// Restore a folder from an event log.
     async fn restore_folder(
@@ -206,7 +316,35 @@ pub trait ClientFolderStorage {
         &mut self,
         summary: &Summary,
         name: impl AsRef<str> + Send,
-    ) -> Result<Event>;
+    ) -> Result<Event> {
+        // Update the in-memory name.
+        self.set_folder_name(summary, name.as_ref())?;
+
+        let folder = self
+            .folders_mut()
+            .get_mut(summary.id())
+            .ok_or(StorageError::FolderNotFound(*summary.id()))?;
+
+        folder.rename_folder(name.as_ref()).await?;
+
+        let account_event = AccountEvent::RenameFolder(
+            *summary.id(),
+            name.as_ref().to_owned(),
+        );
+
+        let account_log = self.account_log().await?;
+        let mut account_log = account_log.write().await;
+        account_log.apply(vec![&account_event]).await?;
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent =
+                (self.account_id(), &account_event).into();
+            append_audit_events(&[audit_event]).await?;
+        }
+
+        Ok(Event::Account(account_event))
+    }
 
     /// Update the flags for a folder.
     async fn update_folder_flags(
@@ -316,9 +454,6 @@ pub trait ClientSecretStorage {
 pub trait ClientAccountStorage:
     StorageEventLogs<Error = Error> + ClientFolderStorage + ClientSecretStorage
 {
-    /// Account identifier.
-    fn account_id(&self) -> &AccountId;
-
     /// Authenticated user information.
     fn authenticated_user(&self) -> Option<&Identity>;
 
@@ -444,9 +579,6 @@ pub trait ClientAccountStorage:
 
         Ok(events)
     }
-
-    /// Read a vault from the storage.
-    async fn read_vault(&self, id: &VaultId) -> Result<Vault>;
 
     /// Get the history of events for a vault.
     async fn history(

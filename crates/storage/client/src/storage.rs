@@ -1,8 +1,12 @@
 use crate::{
-    database::ClientDatabaseStorage, files::ExternalFileManager,
-    filesystem::ClientFileSystemStorage, traits::private::Internal,
-    AccountPack, ClientAccountStorage, ClientDeviceStorage,
-    ClientFolderStorage, Error, NewFolderOptions, Result,
+    database::ClientDatabaseStorage,
+    files::ExternalFileManager,
+    filesystem::ClientFileSystemStorage,
+    traits::{
+        private::Internal, ClientAccountStorage, ClientBaseStorage,
+        ClientDeviceStorage, ClientFolderStorage, ClientVaultStorage,
+    },
+    AccountPack, Error, NewFolderOptions, Result,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -52,6 +56,8 @@ pub enum ClientStorage {
     Database(SyncImpl<ClientDatabaseStorage>),
 }
 
+impl crate::traits::private::Sealed for ClientStorage {}
+
 impl ClientStorage {
     /// Create new client storage.
     pub async fn new_unauthenticated(
@@ -97,6 +103,64 @@ impl ClientStorage {
             )
             .await?,
         )))
+    }
+}
+
+impl ClientBaseStorage for ClientStorage {
+    fn account_id(&self) -> &AccountId {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.account_id(),
+            ClientStorage::Database(db) => db.account_id(),
+        }
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ClientVaultStorage for ClientStorage {
+    async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.read_vault(id).await,
+            ClientStorage::Database(db) => db.read_vault(id).await,
+        }
+    }
+
+    async fn write_vault(&self, vault: &Vault) -> Result<Vec<u8>> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.write_vault(vault).await,
+            ClientStorage::Database(db) => db.write_vault(vault).await,
+        }
+    }
+
+    fn list_folders(&self) -> &[Summary] {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.list_folders(),
+            ClientStorage::Database(db) => db.list_folders(),
+        }
+    }
+
+    fn current_folder(&self) -> Option<Summary> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.current_folder(),
+            ClientStorage::Database(db) => db.current_folder(),
+        }
+    }
+
+    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.find_folder(vault),
+            ClientStorage::Database(db) => db.find_folder(vault),
+        }
+    }
+
+    fn find<F>(&self, predicate: F) -> Option<&Summary>
+    where
+        F: FnMut(&&Summary) -> bool,
+    {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.find(predicate),
+            ClientStorage::Database(db) => db.find(predicate),
+        }
     }
 }
 
@@ -179,37 +243,6 @@ impl ClientFolderStorage for ClientStorage {
                 fs.remove_folder(folder_id).await
             }
             ClientStorage::Database(db) => db.remove_folder(folder_id).await,
-        }
-    }
-
-    fn list_folders(&self) -> &[Summary] {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.list_folders(),
-            ClientStorage::Database(db) => db.list_folders(),
-        }
-    }
-
-    fn current_folder(&self) -> Option<Summary> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.current_folder(),
-            ClientStorage::Database(db) => db.current_folder(),
-        }
-    }
-
-    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.find_folder(vault),
-            ClientStorage::Database(db) => db.find_folder(vault),
-        }
-    }
-
-    fn find<F>(&self, predicate: F) -> Option<&Summary>
-    where
-        F: FnMut(&&Summary) -> bool,
-    {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.find(predicate),
-            ClientStorage::Database(db) => db.find(predicate),
         }
     }
 
@@ -422,13 +455,6 @@ impl ClientDeviceStorage for ClientStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ClientAccountStorage for ClientStorage {
-    fn account_id(&self) -> &AccountId {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.account_id(),
-            ClientStorage::Database(db) => db.account_id(),
-        }
-    }
-
     fn authenticated_user(&self) -> Option<&Identity> {
         match self {
             ClientStorage::FileSystem(fs) => fs.authenticated_user(),
@@ -542,13 +568,6 @@ impl ClientAccountStorage for ClientStorage {
         match self {
             ClientStorage::FileSystem(fs) => fs.create_account(account).await,
             ClientStorage::Database(db) => db.create_account(account).await,
-        }
-    }
-
-    async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.read_vault(id).await,
-            ClientStorage::Database(db) => db.read_vault(id).await,
         }
     }
 

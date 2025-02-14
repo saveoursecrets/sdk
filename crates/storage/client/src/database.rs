@@ -1,15 +1,15 @@
 //! Storage backed by a database.
+use crate::ClientBaseStorage;
 use crate::{
     files::ExternalFileManager, traits::private::Internal,
-    ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage, Error,
-    NewFolderOptions, Result,
+    ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage,
+    ClientVaultStorage, Error, NewFolderOptions, Result,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use parking_lot::Mutex;
 use sos_backend::{
-    compact::compact_folder, AccountEventLog, DeviceEventLog, Folder,
-    FolderEventLog, StorageError,
+    AccountEventLog, DeviceEventLog, Folder, FolderEventLog, StorageError,
 };
 use sos_core::VaultId;
 use sos_core::{
@@ -110,6 +110,8 @@ pub struct ClientDatabaseStorage {
     #[cfg(feature = "files")]
     external_file_manager: ExternalFileManager,
 }
+
+impl crate::traits::private::Sealed for ClientDatabaseStorage {}
 
 impl ClientDatabaseStorage {
     /// Create unauthenticated folder storage for client-side access.
@@ -301,50 +303,6 @@ impl ClientDatabaseStorage {
         Ok(())
     }
 
-    /// Refresh the in-memory vault from the contents
-    /// of the current event log file.
-    ///
-    /// If a new access key is given and the target
-    /// folder is the currently open folder then the
-    /// in-memory `AccessPoint` is updated to use the new
-    /// access key.
-    async fn refresh_vault(
-        &mut self,
-        summary: &Summary,
-        key: &AccessKey,
-    ) -> Result<Vec<u8>> {
-        let vault = self.reduce_event_log(summary.id()).await?;
-
-        FolderEntity::upsert_folder_and_secrets(
-            &self.client,
-            self.account_row_id,
-            &vault,
-        )
-        .await?;
-
-        // Rewrite the on-disc version
-        let buffer = encode(&vault).await?;
-
-        if let Some(folder) = self.folders.get_mut(summary.id()) {
-            let access_point = folder.access_point();
-            let mut access_point = access_point.lock().await;
-
-            access_point.lock();
-            access_point.replace_vault(vault, false).await?;
-            access_point.unlock(key).await?;
-        }
-
-        Ok(buffer)
-    }
-
-    /*
-    /// Read the buffer for a vault from storage.
-    async fn read_vault_file(&self, folder_id: &VaultId) -> Result<Vec<u8>> {
-        Ok(FolderEntity::compute_folder_vault(&self.client, folder_id)
-            .await?)
-    }
-    */
-
     /// Create a cache entry for each summary if it does not
     /// already exist.
     async fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
@@ -535,52 +493,6 @@ impl ClientDatabaseStorage {
         Ok((exists, event, summary))
     }
 
-    /// Update an existing vault by replacing it with a new vault.
-    async fn update_vault(
-        &mut self,
-        summary: &Summary,
-        vault: &Vault,
-        events: Vec<WriteEvent>,
-    ) -> Result<Vec<u8>> {
-        // Write the vault to disc
-        let buffer = encode(vault).await?;
-
-        FolderEntity::upsert_folder_and_secrets(
-            &self.client,
-            self.account_row_id,
-            &vault,
-        )
-        .await?;
-
-        // Apply events to the event log
-        let folder = self
-            .folders
-            .get_mut(summary.id())
-            .ok_or(StorageError::FolderNotFound(*summary.id()))?;
-        folder.clear().await?;
-        folder.apply(events.iter().collect()).await?;
-
-        Ok(buffer)
-    }
-
-    /// Load a vault by reducing it from the event log stored on disc.
-    async fn reduce_event_log(
-        &mut self,
-        folder_id: &VaultId,
-    ) -> Result<Vault> {
-        let folder = self
-            .folders
-            .get_mut(folder_id)
-            .ok_or(StorageError::FolderNotFound(*folder_id))?;
-        let event_log = folder.event_log();
-        let log_file = event_log.read().await;
-        Ok(FolderReducer::new()
-            .reduce(&*log_file)
-            .await?
-            .build(true)
-            .await?)
-    }
-
     /// Read folders from the database.
     async fn read_folders(&self) -> Result<Vec<Summary>> {
         let account_id = self.account_row_id;
@@ -599,6 +511,57 @@ impl ClientDatabaseStorage {
             folders.push(record.summary);
         }
         Ok(folders)
+    }
+}
+
+impl ClientBaseStorage for ClientDatabaseStorage {
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ClientVaultStorage for ClientDatabaseStorage {
+    async fn read_vault(&self, folder_id: &VaultId) -> Result<Vault> {
+        Ok(FolderEntity::compute_folder_vault(&self.client, folder_id)
+            .await?)
+    }
+
+    async fn write_vault(&self, vault: &Vault) -> Result<Vec<u8>> {
+        let buffer = encode(vault).await?;
+        FolderEntity::upsert_folder_and_secrets(
+            &self.client,
+            self.account_row_id,
+            &vault,
+        )
+        .await?;
+        Ok(buffer)
+    }
+
+    fn list_folders(&self) -> &[Summary] {
+        self.summaries.as_slice()
+    }
+
+    fn current_folder(&self) -> Option<Summary> {
+        let current = self.current.lock();
+        current.clone()
+    }
+
+    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
+        match vault {
+            FolderRef::Name(name) => {
+                self.summaries.iter().find(|s| s.name() == name)
+            }
+            FolderRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
+        }
+    }
+
+    fn find<F>(&self, predicate: F) -> Option<&Summary>
+    where
+        F: FnMut(&&Summary) -> bool,
+    {
+        self.summaries.iter().find(predicate)
     }
 }
 
@@ -747,31 +710,6 @@ impl ClientFolderStorage for ClientDatabaseStorage {
         })
     }
 
-    fn list_folders(&self) -> &[Summary] {
-        self.summaries.as_slice()
-    }
-
-    fn current_folder(&self) -> Option<Summary> {
-        let current = self.current.lock();
-        current.clone()
-    }
-
-    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
-        match vault {
-            FolderRef::Name(name) => {
-                self.summaries.iter().find(|s| s.name() == name)
-            }
-            FolderRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
-        }
-    }
-
-    fn find<F>(&self, predicate: F) -> Option<&Summary>
-    where
-        F: FnMut(&&Summary) -> bool,
-    {
-        self.summaries.iter().find(predicate)
-    }
-
     fn open_folder(&self, folder_id: &VaultId) -> Result<ReadEvent> {
         let summary = self
             .find(|s| s.id() == folder_id)
@@ -811,34 +749,6 @@ impl ClientFolderStorage for ClientDatabaseStorage {
             self.add_summary(summary.clone());
         }
         Ok(())
-    }
-
-    async fn compact_folder(
-        &mut self,
-        summary: &Summary,
-        key: &AccessKey,
-    ) -> Result<AccountEvent> {
-        {
-            let folder = self
-                .folders
-                .get_mut(summary.id())
-                .ok_or(StorageError::FolderNotFound(*summary.id()))?;
-            let event_log = folder.event_log();
-            let mut log_file = event_log.write().await;
-
-            compact_folder(&mut *log_file).await?;
-        }
-
-        // Refresh in-memory vault and mirrored copy
-        let buffer = self.refresh_vault(summary, key).await?;
-
-        let account_event =
-            AccountEvent::CompactFolder(*summary.id(), buffer);
-
-        let mut account_log = self.account_log.write().await;
-        account_log.apply(vec![&account_event]).await?;
-
-        Ok(account_event)
     }
 
     async fn restore_folder(
@@ -1027,10 +937,6 @@ impl ClientDeviceStorage for ClientDatabaseStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ClientAccountStorage for ClientDatabaseStorage {
-    fn account_id(&self) -> &AccountId {
-        &self.account_id
-    }
-
     fn authenticated_user(&self) -> Option<&Identity> {
         self.authenticated.as_ref()
     }
@@ -1125,11 +1031,6 @@ impl ClientAccountStorage for ClientDatabaseStorage {
 
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
-    }
-
-    async fn read_vault(&self, folder_id: &VaultId) -> Result<Vault> {
-        Ok(FolderEntity::compute_folder_vault(&self.client, folder_id)
-            .await?)
     }
 
     #[cfg(feature = "archive")]

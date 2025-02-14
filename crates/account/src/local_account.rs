@@ -15,7 +15,7 @@ use sos_backend::{
 use sos_client_storage::{
     AccessOptions, ClientAccountStorage, ClientDeviceStorage,
     ClientFolderStorage, ClientSecretStorage, ClientStorage,
-    NewFolderOptions,
+    ClientVaultStorage, NewFolderOptions,
 };
 use sos_core::{
     commit::{CommitHash, CommitState},
