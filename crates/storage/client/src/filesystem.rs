@@ -54,23 +54,19 @@ use sos_search::AccountSearch;
 /// Client storage for folders loaded into memory and mirrored to disc.
 pub struct ClientFileSystemStorage {
     /// Account identifier.
-    pub(super) account_id: AccountId,
+    account_id: AccountId,
 
     /// Folders managed by this storage.
-    pub(super) summaries: Vec<Summary>,
+    summaries: Vec<Summary>,
 
     /// Directories for file storage.
-    pub(super) paths: Arc<Paths>,
+    paths: Arc<Paths>,
 
     // Use interior mutability so all the account functions
     // that accept an optional folder when reading do not need
     // to be mutable.
     /// Currently selected folder.
     current: Arc<Mutex<Option<Summary>>>,
-
-    /// Search index.
-    #[cfg(feature = "search")]
-    index: Option<AccountSearch>,
 
     /// Identity folder event log.
     ///
@@ -94,6 +90,10 @@ pub struct ClientFileSystemStorage {
     /// Account information after a successful
     /// sign in.
     authenticated: Option<Identity>,
+
+    /// Search index.
+    #[cfg(feature = "search")]
+    index: Option<AccountSearch>,
 
     /// File event log.
     #[cfg(feature = "files")]

@@ -55,13 +55,13 @@ use sos_search::AccountSearch;
 /// and stored in a database.
 pub struct ClientDatabaseStorage {
     /// Account identifier.
-    pub(super) account_id: AccountId,
+    account_id: AccountId,
 
     /// Folders managed by this storage.
-    pub(super) summaries: Vec<Summary>,
+    summaries: Vec<Summary>,
 
     /// Directories for file storage.
-    pub(super) paths: Arc<Paths>,
+    paths: Arc<Paths>,
 
     /// Database client.
     client: Client,
@@ -74,10 +74,6 @@ pub struct ClientDatabaseStorage {
     // to be mutable.
     /// Currently selected folder.
     current: Arc<Mutex<Option<Summary>>>,
-
-    /// Search index.
-    #[cfg(feature = "search")]
-    index: Option<AccountSearch>,
 
     /// Identity folder event log.
     ///
@@ -101,6 +97,10 @@ pub struct ClientDatabaseStorage {
     /// Account information after a successful
     /// sign in.
     authenticated: Option<Identity>,
+
+    /// Search index.
+    #[cfg(feature = "search")]
+    index: Option<AccountSearch>,
 
     /// File event log.
     #[cfg(feature = "files")]
