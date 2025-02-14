@@ -542,15 +542,31 @@ pub trait ClientFolderStorage:
     fn set_folder_name(
         &mut self,
         summary: &Summary,
-        name: impl AsRef<str> + Send,
-    ) -> Result<()>;
+        name: impl AsRef<str>,
+    ) -> Result<()> {
+        for item in self.summaries_mut(Internal).iter_mut() {
+            if item.id() == summary.id() {
+                item.set_name(name.as_ref().to_owned());
+                break;
+            }
+        }
+        Ok(())
+    }
 
     /// Update the in-memory name for a folder.
     fn set_folder_flags(
         &mut self,
         summary: &Summary,
         flags: VaultFlags,
-    ) -> Result<()>;
+    ) -> Result<()> {
+        for item in self.summaries_mut(Internal).iter_mut() {
+            if item.id() == summary.id() {
+                *item.flags_mut() = flags;
+                break;
+            }
+        }
+        Ok(())
+    }
 
     /// Get the description of the currently open folder.
     async fn description(&self) -> Result<String> {

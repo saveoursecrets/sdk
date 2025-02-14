@@ -190,22 +190,6 @@ impl ClientFolderStorage for ClientStorage {
         }
     }
 
-    async fn load_folders(&mut self) -> Result<&[Summary]> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.load_folders().await,
-            ClientStorage::Database(db) => db.load_folders().await,
-        }
-    }
-
-    async fn remove_folder(&mut self, folder_id: &VaultId) -> Result<bool> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.remove_folder(folder_id).await
-            }
-            ClientStorage::Database(db) => db.remove_folder(folder_id).await,
-        }
-    }
-
     fn open_folder(&self, folder_id: &VaultId) -> Result<ReadEvent> {
         match self {
             ClientStorage::FileSystem(fs) => fs.open_folder(folder_id),
@@ -220,50 +204,6 @@ impl ClientFolderStorage for ClientStorage {
         }
     }
 
-    async fn import_folder_patches(
-        &mut self,
-        patches: HashMap<VaultId, FolderPatch>,
-    ) -> Result<()> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.import_folder_patches(patches).await
-            }
-            ClientStorage::Database(db) => {
-                db.import_folder_patches(patches).await
-            }
-        }
-    }
-
-    async fn compact_folder(
-        &mut self,
-        summary: &Summary,
-        key: &AccessKey,
-    ) -> Result<AccountEvent> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.compact_folder(summary, key).await
-            }
-            ClientStorage::Database(db) => {
-                db.compact_folder(summary, key).await
-            }
-        }
-    }
-
-    async fn rename_folder(
-        &mut self,
-        summary: &Summary,
-        name: impl AsRef<str> + Send,
-    ) -> Result<Event> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.rename_folder(summary, name).await
-            }
-            ClientStorage::Database(db) => {
-                db.rename_folder(summary, name).await
-            }
-        }
-    }
-
     async fn update_folder_flags(
         &mut self,
         summary: &Summary,
@@ -275,71 +215,6 @@ impl ClientFolderStorage for ClientStorage {
             }
             ClientStorage::Database(db) => {
                 db.update_folder_flags(summary, flags).await
-            }
-        }
-    }
-
-    fn set_folder_name(
-        &mut self,
-        summary: &Summary,
-        name: impl AsRef<str> + Send,
-    ) -> Result<()> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.set_folder_name(summary, name)
-            }
-            ClientStorage::Database(db) => db.set_folder_name(summary, name),
-        }
-    }
-
-    fn set_folder_flags(
-        &mut self,
-        summary: &Summary,
-        flags: VaultFlags,
-    ) -> Result<()> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.set_folder_flags(summary, flags)
-            }
-            ClientStorage::Database(db) => {
-                db.set_folder_flags(summary, flags)
-            }
-        }
-    }
-
-    async fn description(&self) -> Result<String> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.description().await,
-            ClientStorage::Database(db) => db.description().await,
-        }
-    }
-
-    async fn set_description(
-        &mut self,
-        description: impl AsRef<str> + Send,
-    ) -> Result<WriteEvent> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.set_description(description).await
-            }
-            ClientStorage::Database(db) => {
-                db.set_description(description).await
-            }
-        }
-    }
-
-    async fn change_password(
-        &mut self,
-        vault: &Vault,
-        current_key: AccessKey,
-        new_key: AccessKey,
-    ) -> Result<AccessKey> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.change_password(vault, current_key, new_key).await
-            }
-            ClientStorage::Database(db) => {
-                db.change_password(vault, current_key, new_key).await
             }
         }
     }
@@ -505,71 +380,6 @@ impl ClientAccountStorage for ClientStorage {
         }
     }
 
-    async fn create_account(
-        &mut self,
-        account: &AccountPack,
-    ) -> Result<Vec<Event>> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.create_account(account).await,
-            ClientStorage::Database(db) => db.create_account(account).await,
-        }
-    }
-
-    async fn delete_folder(
-        &mut self,
-        folder_id: &VaultId,
-        apply_event: bool,
-    ) -> Result<Vec<Event>> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.delete_folder(folder_id, apply_event).await
-            }
-            ClientStorage::Database(db) => {
-                db.delete_folder(folder_id, apply_event).await
-            }
-        }
-    }
-
-    async fn restore_folder(
-        &mut self,
-        folder_id: &VaultId,
-        records: Vec<EventRecord>,
-        key: &AccessKey,
-    ) -> Result<Summary> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.restore_folder(folder_id, records, key).await
-            }
-            ClientStorage::Database(db) => {
-                db.restore_folder(folder_id, records, key).await
-            }
-        }
-    }
-
-    async fn history(
-        &self,
-        folder_id: &VaultId,
-    ) -> Result<Vec<(CommitHash, UtcDateTime, WriteEvent)>> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.history(folder_id).await,
-            ClientStorage::Database(db) => db.history(folder_id).await,
-        }
-    }
-
-    async fn identity_state(&self) -> Result<CommitState> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.identity_state().await,
-            ClientStorage::Database(db) => db.identity_state().await,
-        }
-    }
-
-    async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.commit_state(summary).await,
-            ClientStorage::Database(db) => db.commit_state(summary).await,
-        }
-    }
-
     #[cfg(feature = "archive")]
     async fn restore_archive(
         &mut self,
@@ -615,34 +425,6 @@ impl ClientAccountStorage for ClientStorage {
         match self {
             ClientStorage::FileSystem(fs) => fs.index_mut(),
             ClientStorage::Database(db) => db.index_mut(),
-        }
-    }
-
-    #[cfg(feature = "search")]
-    async fn initialize_search_index(
-        &mut self,
-        keys: &FolderKeys,
-    ) -> Result<(DocumentCount, Vec<Summary>)> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.initialize_search_index(keys).await
-            }
-            ClientStorage::Database(db) => {
-                db.initialize_search_index(keys).await
-            }
-        }
-    }
-
-    #[cfg(feature = "search")]
-    async fn build_search_index(
-        &mut self,
-        keys: &FolderKeys,
-    ) -> Result<DocumentCount> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.build_search_index(keys).await
-            }
-            ClientStorage::Database(db) => db.build_search_index(keys).await,
         }
     }
 }

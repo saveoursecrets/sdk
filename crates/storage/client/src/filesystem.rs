@@ -36,8 +36,6 @@ use {sos_backend::FileEventLog, sos_core::events::FileEvent};
 #[cfg(feature = "search")]
 use sos_search::AccountSearch;
 
-// mod sync;
-
 /// Client storage for folders loaded into memory and mirrored to disc.
 pub struct ClientFileSystemStorage {
     /// Account identifier.
@@ -301,34 +299,6 @@ impl ClientFolderStorage for ClientFileSystemStorage {
     fn close_folder(&self) {
         let mut current = self.current.lock();
         *current = None;
-    }
-
-    fn set_folder_name(
-        &mut self,
-        summary: &Summary,
-        name: impl AsRef<str>,
-    ) -> Result<()> {
-        for item in self.summaries.iter_mut() {
-            if item.id() == summary.id() {
-                item.set_name(name.as_ref().to_owned());
-                break;
-            }
-        }
-        Ok(())
-    }
-
-    fn set_folder_flags(
-        &mut self,
-        summary: &Summary,
-        flags: VaultFlags,
-    ) -> Result<()> {
-        for item in self.summaries.iter_mut() {
-            if item.id() == summary.id() {
-                *item.flags_mut() = flags;
-                break;
-            }
-        }
-        Ok(())
     }
 }
 
