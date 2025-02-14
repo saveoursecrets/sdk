@@ -429,7 +429,27 @@ pub trait ClientFolderStorage:
     async fn import_folder_patches(
         &mut self,
         patches: HashMap<VaultId, FolderPatch>,
-    ) -> Result<()>;
+    ) -> Result<()> {
+        for (folder_id, patch) in patches {
+            let records: Vec<EventRecord> = patch.into();
+            let (folder, vault) =
+                self.initialize_folder(&folder_id, records).await?;
+
+            {
+                let event_log = folder.event_log();
+                let event_log = event_log.read().await;
+                tracing::info!(
+                  folder_id = %folder_id,
+                  root = ?event_log.tree().root().map(|c| c.to_string()),
+                  "import_folder_patch");
+            }
+
+            self.folders_mut().insert(folder_id, folder);
+            let summary = vault.summary().to_owned();
+            self.add_summary(summary.clone(), Internal);
+        }
+        Ok(())
+    }
 
     /// Compact an event log file.
     async fn compact_folder(
