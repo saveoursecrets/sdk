@@ -2122,7 +2122,7 @@ impl Account for LocalAccount {
         let (summary, commit_state) =
             self.compute_folder_state(&options).await?;
 
-        let events = self.storage.delete_folder(&summary, true).await?;
+        let events = self.storage.delete_folder(summary.id(), true).await?;
         self.remove_folder_password(summary.id()).await?;
 
         Ok(FolderDelete {

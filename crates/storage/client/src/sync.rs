@@ -1,6 +1,7 @@
 use crate::{
     folder_sync::{FolderMerge, FolderMergeOptions, IdentityFolderMerge},
-    ClientAccountStorage, ClientFolderStorage, Error, Result,
+    ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage, Error,
+    Result,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -124,6 +125,7 @@ impl<T> ForceMerge for SyncImpl<T>
 where
     T: StorageEventLogs<Error = Error>
         + ClientAccountStorage
+        + ClientDeviceStorage
         + ClientFolderStorage,
 {
     async fn force_merge_identity(
@@ -190,6 +192,7 @@ impl<T> Merge for SyncImpl<T>
 where
     T: StorageEventLogs<Error = Error>
         + ClientAccountStorage
+        + ClientDeviceStorage
         + ClientFolderStorage,
 {
     async fn merge_identity(
@@ -311,7 +314,7 @@ where
                     AccountEvent::DeleteFolder(id) => {
                         let summary = self.0.find(|s| s.id() == id).cloned();
                         if let Some(summary) = &summary {
-                            self.0.delete_folder(summary, false).await?;
+                            self.0.delete_folder(summary.id(), false).await?;
                             deleted_folders.insert(*id);
                         }
                     }
@@ -495,6 +498,7 @@ impl<T> SyncStorage for SyncImpl<T>
 where
     T: StorageEventLogs<Error = Error>
         + ClientAccountStorage
+        + ClientDeviceStorage
         + ClientFolderStorage,
 {
     fn is_client_storage(&self) -> bool {

@@ -1,6 +1,6 @@
 //! Storage backed by a database.
 use crate::{
-    files::ExternalFileManager, traits::private::Internal, AccountPack,
+    files::ExternalFileManager, traits::private::Internal,
     ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage, Error,
     NewFolderOptions, Result,
 };
@@ -41,22 +41,15 @@ use tokio::sync::RwLock;
 use sos_filesystem::archive::RestoreTargets;
 
 #[cfg(feature = "audit")]
-use {
-    sos_audit::{AuditData, AuditEvent},
-    sos_backend::audit::append_audit_events,
-    sos_core::events::EventKind,
-};
+use {sos_audit::AuditEvent, sos_backend::audit::append_audit_events};
 
-use sos_core::{
-    device::{DevicePublicKey, TrustedDevice},
-    events::DeviceEvent,
-};
+use sos_core::{device::TrustedDevice, events::DeviceEvent};
 
 #[cfg(feature = "files")]
 use sos_backend::FileEventLog;
 
 #[cfg(feature = "search")]
-use sos_search::{AccountSearch, DocumentCount};
+use sos_search::AccountSearch;
 
 /// Client storage for folders loaded into memory
 /// and stored in a database.
@@ -320,7 +313,7 @@ impl ClientDatabaseStorage {
         summary: &Summary,
         key: &AccessKey,
     ) -> Result<Vec<u8>> {
-        let vault = self.reduce_event_log(summary).await?;
+        let vault = self.reduce_event_log(summary.id()).await?;
 
         FolderEntity::upsert_folder_and_secrets(
             &self.client,
@@ -365,30 +358,30 @@ impl ClientDatabaseStorage {
     }
 
     /// Remove the local cache for a vault.
-    fn remove_folder_entry(&mut self, summary: &Summary) -> Result<()> {
+    fn remove_folder_entry(&mut self, folder_id: &VaultId) -> Result<()> {
         let current_id = self.current_folder().map(|c| *c.id());
 
         // If the deleted vault is the currently selected
         // vault we must close it
         if let Some(id) = &current_id {
-            if id == summary.id() {
+            if id == folder_id {
                 self.close_folder();
             }
         }
 
         // Remove from our cache of managed vaults
-        self.folders.remove(summary.id());
+        self.folders.remove(folder_id);
 
         // Remove from the state of managed vaults
-        self.remove_summary(summary);
+        self.remove_summary(folder_id);
 
         Ok(())
     }
 
     /// Remove a summary from this state.
-    fn remove_summary(&mut self, summary: &Summary) {
+    fn remove_summary(&mut self, folder_id: &VaultId) {
         if let Some(position) =
-            self.summaries.iter().position(|s| s.id() == summary.id())
+            self.summaries.iter().position(|s| s.id() == folder_id)
         {
             self.summaries.remove(position);
             self.summaries.sort();
@@ -466,15 +459,15 @@ impl ClientDatabaseStorage {
     }
 
     /// Remove a vault file and event log file.
-    async fn remove_vault_file(&self, summary: &Summary) -> Result<()> {
+    async fn remove_vault_file(&self, folder_id: &VaultId) -> Result<()> {
         // Remove local vault mirror if it exists
-        let vault_path = self.paths.vault_path(summary.id());
+        let vault_path = self.paths.vault_path(folder_id);
         if vfs::try_exists(&vault_path).await? {
             vfs::remove_file(&vault_path).await?;
         }
 
         // Remove the local event log file
-        let event_log_path = self.paths.event_log_path(summary.id());
+        let event_log_path = self.paths.event_log_path(folder_id);
         if vfs::try_exists(&event_log_path).await? {
             vfs::remove_file(&event_log_path).await?;
         }
@@ -571,11 +564,14 @@ impl ClientDatabaseStorage {
     }
 
     /// Load a vault by reducing it from the event log stored on disc.
-    async fn reduce_event_log(&mut self, summary: &Summary) -> Result<Vault> {
+    async fn reduce_event_log(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<Vault> {
         let folder = self
             .folders
-            .get_mut(summary.id())
-            .ok_or(StorageError::FolderNotFound(*summary.id()))?;
+            .get_mut(folder_id)
+            .ok_or(StorageError::FolderNotFound(*folder_id))?;
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
         Ok(FolderReducer::new()
@@ -693,14 +689,14 @@ impl ClientFolderStorage for ClientDatabaseStorage {
 
     async fn delete_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         apply_event: bool,
     ) -> Result<Vec<Event>> {
         // Remove the files
-        self.remove_vault_file(summary).await?;
+        self.remove_vault_file(folder_id).await?;
 
         // Remove local state
-        self.remove_folder_entry(summary)?;
+        self.remove_folder_entry(folder_id)?;
 
         let mut events = Vec::new();
 
@@ -708,7 +704,7 @@ impl ClientFolderStorage for ClientDatabaseStorage {
         {
             let mut file_events = self
                 .external_file_manager
-                .delete_folder_files(summary.id())
+                .delete_folder_files(folder_id)
                 .await?;
             let mut writer = self.file_log.write().await;
             writer.apply(file_events.iter().collect()).await?;
@@ -720,10 +716,10 @@ impl ClientFolderStorage for ClientDatabaseStorage {
         // Clean the search index
         #[cfg(feature = "search")]
         if let Some(index) = self.index.as_mut() {
-            index.remove_folder(summary.id()).await;
+            index.remove_folder(folder_id).await;
         }
 
-        let account_event = AccountEvent::DeleteFolder(*summary.id());
+        let account_event = AccountEvent::DeleteFolder(*folder_id);
 
         if apply_event {
             let mut account_log = self.account_log.write().await;
@@ -743,13 +739,12 @@ impl ClientFolderStorage for ClientDatabaseStorage {
     }
 
     async fn remove_folder(&mut self, folder_id: &VaultId) -> Result<bool> {
-        let summary = self.find(|s| s.id() == folder_id).cloned();
-        if let Some(summary) = summary {
-            self.remove_folder_entry(&summary)?;
-            Ok(true)
+        Ok(if self.find(|s| s.id() == folder_id).is_some() {
+            self.remove_folder_entry(folder_id)?;
+            true
         } else {
-            Ok(false)
-        }
+            false
+        })
     }
 
     fn list_folders(&self) -> &[Summary] {
@@ -1027,60 +1022,6 @@ impl ClientDeviceStorage for ClientDatabaseStorage {
     fn list_trusted_devices(&self) -> Vec<&TrustedDevice> {
         self.devices.iter().collect()
     }
-
-    async fn patch_devices_unchecked(
-        &mut self,
-        events: Vec<DeviceEvent>,
-    ) -> Result<()> {
-        // Update the event log
-        let mut event_log = self.device_log.write().await;
-        event_log.apply(events.iter().collect()).await?;
-
-        // Update in-memory cache of trusted devices
-        let reducer = DeviceReducer::new(&*event_log);
-        let devices = reducer.reduce().await?;
-        self.devices = devices;
-
-        #[cfg(feature = "audit")]
-        {
-            let audit_events = events
-                .iter()
-                .filter_map(|event| match event {
-                    DeviceEvent::Trust(device) => Some(AuditEvent::new(
-                        Default::default(),
-                        EventKind::TrustDevice,
-                        *self.account_id(),
-                        Some(AuditData::Device(*device.public_key())),
-                    )),
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-            if !audit_events.is_empty() {
-                append_audit_events(audit_events.as_slice()).await?;
-            }
-        }
-
-        Ok(())
-    }
-
-    async fn revoke_device(
-        &mut self,
-        public_key: &DevicePublicKey,
-    ) -> Result<()> {
-        let device =
-            self.devices.iter().find(|d| d.public_key() == public_key);
-        if device.is_some() {
-            let event = DeviceEvent::Revoke(*public_key);
-
-            let mut writer = self.device_log.write().await;
-            writer.apply(vec![&event]).await?;
-
-            let reducer = DeviceReducer::new(&*writer);
-            self.devices = reducer.reduce().await?;
-        }
-
-        Ok(())
-    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -1186,34 +1127,6 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         self.paths.clone()
     }
 
-    async fn create_account(
-        &mut self,
-        account: &AccountPack,
-    ) -> Result<Vec<Event>> {
-        let mut events = Vec::new();
-
-        let create_account = Event::CreateAccount(account.account_id.into());
-
-        #[cfg(feature = "audit")]
-        {
-            let audit_event: AuditEvent =
-                (self.account_id(), &create_account).into();
-            append_audit_events(&[audit_event]).await?;
-        }
-
-        // Import folders
-        for folder in &account.folders {
-            let buffer = encode(folder).await?;
-            let (event, _) =
-                self.import_folder(buffer, None, true, None).await?;
-            events.push(event);
-        }
-
-        events.insert(0, create_account);
-
-        Ok(events)
-    }
-
     async fn read_vault(&self, folder_id: &VaultId) -> Result<Vault> {
         Ok(FolderEntity::compute_folder_vault(&self.client, folder_id)
             .await?)
@@ -1270,66 +1183,6 @@ impl ClientAccountStorage for ClientDatabaseStorage {
     #[cfg(feature = "search")]
     fn index_mut(&mut self) -> Option<&mut AccountSearch> {
         self.index.as_mut()
-    }
-
-    #[cfg(feature = "search")]
-    async fn initialize_search_index(
-        &mut self,
-        keys: &FolderKeys,
-    ) -> Result<(DocumentCount, Vec<Summary>)> {
-        // Find the id of an archive folder
-        let summaries = {
-            let summaries = self.list_folders();
-            let mut archive: Option<VaultId> = None;
-            for summary in summaries {
-                if summary.flags().is_archive() {
-                    archive = Some(*summary.id());
-                    break;
-                }
-            }
-            if let Some(index) = &self.index {
-                let mut writer = index.search_index.write().await;
-                writer.set_archive_id(archive);
-            }
-            summaries
-        };
-        let folders = summaries.to_vec();
-        Ok((self.build_search_index(keys).await?, folders))
-    }
-
-    #[cfg(feature = "search")]
-    async fn build_search_index(
-        &mut self,
-        keys: &FolderKeys,
-    ) -> Result<DocumentCount> {
-        {
-            let index = self
-                .index
-                .as_ref()
-                .ok_or_else(|| AuthenticationError::NotAuthenticated)?;
-            let search_index = index.search();
-            let mut writer = search_index.write().await;
-
-            // Clear search index first
-            writer.remove_all();
-
-            for (summary, key) in &keys.0 {
-                if let Some(folder) = self.folders.get_mut(summary.id()) {
-                    let access_point = folder.access_point();
-                    let mut access_point = access_point.lock().await;
-                    access_point.unlock(key).await?;
-                    writer.add_folder(&*access_point).await?;
-                }
-            }
-        }
-
-        let count = if let Some(index) = &self.index {
-            index.document_count().await
-        } else {
-            Default::default()
-        };
-
-        Ok(count)
     }
 }
 

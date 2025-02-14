@@ -160,15 +160,15 @@ impl ClientFolderStorage for ClientStorage {
 
     async fn delete_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         apply_event: bool,
     ) -> Result<Vec<Event>> {
         match self {
             ClientStorage::FileSystem(fs) => {
-                fs.delete_folder(summary, apply_event).await
+                fs.delete_folder(folder_id, apply_event).await
             }
             ClientStorage::Database(db) => {
-                db.delete_folder(summary, apply_event).await
+                db.delete_folder(folder_id, apply_event).await
             }
         }
     }

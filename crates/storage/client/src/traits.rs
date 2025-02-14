@@ -6,23 +6,26 @@ use crate::{
 use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
-use sos_backend::Folder;
+use sos_audit::{AuditData, AuditEvent};
+use sos_backend::{audit::append_audit_events, Folder};
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     device::{DevicePublicKey, TrustedDevice},
+    encode,
     events::{
-        patch::FolderPatch, AccountEvent, DeviceEvent, Event, EventLog,
-        EventRecord, ReadEvent, WriteEvent,
+        patch::FolderPatch, AccountEvent, DeviceEvent, Event, EventKind,
+        EventLog, EventRecord, ReadEvent, WriteEvent,
     },
     AccountId, FolderRef, Paths, SecretId, StorageError, UtcDateTime,
     VaultCommit, VaultFlags, VaultId,
 };
 use sos_login::{FolderKeys, Identity};
+use sos_reducers::DeviceReducer;
 use sos_sync::StorageEventLogs;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    Summary, Vault,
+    SecretAccess, Summary, Vault,
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -39,7 +42,9 @@ pub(crate) mod private {
 /// Device management functions for client storage.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait ClientDeviceStorage {
+pub trait ClientDeviceStorage:
+    StorageEventLogs<Error = Error> + ClientAccountStorage
+{
     /// Collection of trusted devices.
     fn devices(&self) -> &IndexSet<TrustedDevice>;
 
@@ -53,13 +58,59 @@ pub trait ClientDeviceStorage {
     async fn patch_devices_unchecked(
         &mut self,
         events: Vec<DeviceEvent>,
-    ) -> Result<()>;
+    ) -> Result<()> {
+        // Update the event log
+        let device_log = self.device_log().await?;
+        let mut event_log = device_log.write().await;
+        event_log.apply(events.iter().collect()).await?;
+
+        // Update in-memory cache of trusted devices
+        let reducer = DeviceReducer::new(&*event_log);
+        let devices = reducer.reduce().await?;
+        self.set_devices(devices);
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_events = events
+                .iter()
+                .filter_map(|event| match event {
+                    DeviceEvent::Trust(device) => Some(AuditEvent::new(
+                        Default::default(),
+                        EventKind::TrustDevice,
+                        *self.account_id(),
+                        Some(AuditData::Device(*device.public_key())),
+                    )),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            if !audit_events.is_empty() {
+                append_audit_events(audit_events.as_slice()).await?;
+            }
+        }
+
+        Ok(())
+    }
 
     /// Revoke trust in a device.
     async fn revoke_device(
         &mut self,
         public_key: &DevicePublicKey,
-    ) -> Result<()>;
+    ) -> Result<()> {
+        let device =
+            self.devices().iter().find(|d| d.public_key() == public_key);
+        if device.is_some() {
+            let event = DeviceEvent::Revoke(*public_key);
+
+            let device_log = self.device_log().await?;
+            let mut writer = device_log.write().await;
+            writer.apply(vec![&event]).await?;
+
+            let reducer = DeviceReducer::new(&*writer);
+            self.set_devices(reducer.reduce().await?);
+        }
+
+        Ok(())
+    }
 }
 
 /// Folder management functions for client storage.
@@ -100,7 +151,7 @@ pub trait ClientFolderStorage {
     /// Delete a folder.
     async fn delete_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         apply_event: bool,
     ) -> Result<Vec<Event>>;
 
@@ -263,10 +314,7 @@ pub trait ClientSecretStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientAccountStorage:
-    StorageEventLogs<Error = Error>
-    + ClientDeviceStorage
-    + ClientFolderStorage
-    + ClientSecretStorage
+    StorageEventLogs<Error = Error> + ClientFolderStorage + ClientSecretStorage
 {
     /// Account identifier.
     fn account_id(&self) -> &AccountId;
@@ -292,9 +340,6 @@ pub trait ClientAccountStorage:
 
     #[doc(hidden)]
     /// Remove the authenticated user and search index.
-    ///
-    /// Do not use this, it is an implementation detail;
-    /// instead call `sign_out()`.
     fn drop_authenticated_state(&mut self, _: private::Internal);
 
     /// Sign out the authenticated user.
@@ -375,7 +420,30 @@ pub trait ClientAccountStorage:
     async fn create_account(
         &mut self,
         account: &AccountPack,
-    ) -> Result<Vec<Event>>;
+    ) -> Result<Vec<Event>> {
+        let mut events = Vec::new();
+
+        let create_account = Event::CreateAccount(account.account_id.into());
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent =
+                (self.account_id(), &create_account).into();
+            append_audit_events(&[audit_event]).await?;
+        }
+
+        // Import folders
+        for folder in &account.folders {
+            let buffer = encode(folder).await?;
+            let (event, _) =
+                self.import_folder(buffer, None, true, None).await?;
+            events.push(event);
+        }
+
+        events.insert(0, create_account);
+
+        Ok(events)
+    }
 
     /// Read a vault from the storage.
     async fn read_vault(&self, id: &VaultId) -> Result<Vault>;
@@ -458,12 +526,62 @@ pub trait ClientAccountStorage:
     async fn initialize_search_index(
         &mut self,
         keys: &FolderKeys,
-    ) -> Result<(DocumentCount, Vec<Summary>)>;
+    ) -> Result<(DocumentCount, Vec<Summary>)> {
+        // Find the id of an archive folder
+        let summaries = {
+            let summaries = self.list_folders();
+            let mut archive: Option<VaultId> = None;
+            for summary in summaries {
+                if summary.flags().is_archive() {
+                    archive = Some(*summary.id());
+                    break;
+                }
+            }
+            if let Some(index) = self.index() {
+                let mut writer = index.search_index.write().await;
+                writer.set_archive_id(archive);
+            }
+            summaries
+        };
+        let folders = summaries.to_vec();
+        Ok((self.build_search_index(keys).await?, folders))
+    }
 
     /// Build the search index for all folders.
     #[cfg(feature = "search")]
     async fn build_search_index(
         &mut self,
         keys: &FolderKeys,
-    ) -> Result<DocumentCount>;
+    ) -> Result<DocumentCount> {
+        use sos_core::AuthenticationError;
+
+        {
+            let index = self
+                .index()
+                .ok_or_else(|| AuthenticationError::NotAuthenticated)?;
+            let search_index = index.search();
+            let mut writer = search_index.write().await;
+
+            // Clear search index first
+            writer.remove_all();
+
+            for (summary, key) in &keys.0 {
+                if let Some(folder) = self.folders_mut().get_mut(summary.id())
+                {
+                    let access_point = folder.access_point();
+                    let mut access_point = access_point.lock().await;
+                    access_point.unlock(key).await?;
+                    writer.add_folder(&*access_point).await?;
+                }
+            }
+        }
+
+        let count = if let Some(index) = self.index() {
+            index.document_count().await
+        } else {
+            Default::default()
+        };
+
+        Ok(count)
+    }
 }
