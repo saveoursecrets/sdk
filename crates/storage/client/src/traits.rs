@@ -40,15 +40,12 @@ use sos_filesystem::archive::RestoreTargets;
 use sos_search::{AccountSearch, DocumentCount};
 
 pub(crate) mod private {
-    /// Super trait for sealed traits.
-    pub trait Sealed {}
-
     /// Internal struct for sealed functions.
     #[derive(Copy, Clone)]
     pub struct Internal;
 }
 
-use private::{Internal, Sealed};
+use private::Internal;
 
 /// Base client storage functions.
 pub trait ClientBaseStorage {
@@ -134,7 +131,7 @@ pub trait ClientDeviceStorage:
 #[doc(hidden)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait ClientVaultStorage: Sealed {
+pub trait ClientVaultStorage {
     /// Read a vault from the storage.
     async fn read_vault(&self, id: &VaultId) -> Result<Vault>;
 
@@ -179,18 +176,32 @@ pub trait ClientVaultStorage: Sealed {
     }
 
     /// List the in-memory folders.
-    fn list_folders(&self) -> &[Summary];
+    fn list_folders(&self) -> &[Summary] {
+        self.summaries(Internal).as_slice()
+    }
 
     /// Currently open folder.
     fn current_folder(&self) -> Option<Summary>;
 
     /// Find a folder in this storage by reference.
-    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary>;
+    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
+        match vault {
+            FolderRef::Name(name) => {
+                self.summaries(Internal).iter().find(|s| s.name() == name)
+            }
+            FolderRef::Id(id) => {
+                self.summaries(Internal).iter().find(|s| s.id() == id)
+            }
+        }
+    }
 
     /// Find a folder in this storage using a predicate.
     fn find<F>(&self, predicate: F) -> Option<&Summary>
     where
-        F: FnMut(&&Summary) -> bool;
+        F: FnMut(&&Summary) -> bool,
+    {
+        self.summaries(Internal).iter().find(predicate)
+    }
 }
 
 /// Folder management functions for client storage.

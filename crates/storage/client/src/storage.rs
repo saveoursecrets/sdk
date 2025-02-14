@@ -56,8 +56,6 @@ pub enum ClientStorage {
     Database(SyncImpl<ClientDatabaseStorage>),
 }
 
-impl crate::traits::private::Sealed for ClientStorage {}
-
 impl ClientStorage {
     /// Create new client storage.
     pub async fn new_unauthenticated(
@@ -160,34 +158,10 @@ impl ClientVaultStorage for ClientStorage {
         }
     }
 
-    fn list_folders(&self) -> &[Summary] {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.list_folders(),
-            ClientStorage::Database(db) => db.list_folders(),
-        }
-    }
-
     fn current_folder(&self) -> Option<Summary> {
         match self {
             ClientStorage::FileSystem(fs) => fs.current_folder(),
             ClientStorage::Database(db) => db.current_folder(),
-        }
-    }
-
-    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.find_folder(vault),
-            ClientStorage::Database(db) => db.find_folder(vault),
-        }
-    }
-
-    fn find<F>(&self, predicate: F) -> Option<&Summary>
-    where
-        F: FnMut(&&Summary) -> bool,
-    {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.find(predicate),
-            ClientStorage::Database(db) => db.find(predicate),
         }
     }
 }

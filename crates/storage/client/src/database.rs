@@ -15,7 +15,7 @@ use sos_core::{
     device::TrustedDevice,
     encode,
     events::{AccountEvent, DeviceEvent, EventLog, ReadEvent, WriteEvent},
-    AccountId, AuthenticationError, FolderRef, Paths, VaultId,
+    AccountId, AuthenticationError, Paths, VaultId,
 };
 use sos_database::{
     async_sqlite::Client,
@@ -99,8 +99,6 @@ pub struct ClientDatabaseStorage {
     #[cfg(feature = "files")]
     external_file_manager: ExternalFileManager,
 }
-
-impl crate::traits::private::Sealed for ClientDatabaseStorage {}
 
 impl ClientDatabaseStorage {
     /// Create unauthenticated folder storage for client-side access.
@@ -261,29 +259,9 @@ impl ClientVaultStorage for ClientDatabaseStorage {
         &mut self.summaries
     }
 
-    fn list_folders(&self) -> &[Summary] {
-        self.summaries.as_slice()
-    }
-
     fn current_folder(&self) -> Option<Summary> {
         let current = self.current.lock();
         current.clone()
-    }
-
-    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
-        match vault {
-            FolderRef::Name(name) => {
-                self.summaries.iter().find(|s| s.name() == name)
-            }
-            FolderRef::Id(id) => self.summaries.iter().find(|s| s.id() == id),
-        }
-    }
-
-    fn find<F>(&self, predicate: F) -> Option<&Summary>
-    where
-        F: FnMut(&&Summary) -> bool,
-    {
-        self.summaries.iter().find(predicate)
     }
 }
 
