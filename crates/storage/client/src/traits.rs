@@ -26,7 +26,8 @@ use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::StorageEventLogs;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    BuilderCredentials, SecretAccess, Summary, Vault, VaultBuilder,
+    BuilderCredentials, ChangePassword, SecretAccess, Summary, Vault,
+    VaultBuilder,
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -552,13 +553,27 @@ pub trait ClientFolderStorage:
     ) -> Result<()>;
 
     /// Get the description of the currently open folder.
-    async fn description(&self) -> Result<String>;
+    async fn description(&self) -> Result<String> {
+        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
+        if let Some(folder) = self.folders().get(summary.id()) {
+            Ok(folder.description().await?)
+        } else {
+            Err(StorageError::FolderNotFound(*summary.id()).into())
+        }
+    }
 
     /// Set the description of the currently open folder.
     async fn set_description(
         &mut self,
         description: impl AsRef<str> + Send,
-    ) -> Result<WriteEvent>;
+    ) -> Result<WriteEvent> {
+        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
+        if let Some(folder) = self.folders_mut().get_mut(summary.id()) {
+            Ok(folder.set_description(description).await?)
+        } else {
+            Err(StorageError::FolderNotFound(*summary.id()).into())
+        }
+    }
 
     /// Change the password for a vault.
     ///
@@ -570,7 +585,34 @@ pub trait ClientFolderStorage:
         vault: &Vault,
         current_key: AccessKey,
         new_key: AccessKey,
-    ) -> Result<AccessKey>;
+    ) -> Result<AccessKey> {
+        let (new_key, new_vault, event_log_events) =
+            ChangePassword::new(vault, current_key, new_key, None)
+                .build()
+                .await?;
+
+        let buffer = self
+            .update_vault(vault.summary(), &new_vault, event_log_events)
+            .await?;
+
+        let account_event =
+            AccountEvent::ChangeFolderPassword(*vault.id(), buffer);
+
+        // Refresh the in-memory and disc-based mirror
+        self.refresh_vault(vault.summary(), &new_key).await?;
+
+        if let Some(folder) = self.folders_mut().get_mut(vault.id()) {
+            let access_point = folder.access_point();
+            let mut access_point = access_point.lock().await;
+            access_point.unlock(&new_key).await?;
+        }
+
+        let account_log = self.account_log().await?;
+        let mut account_log = account_log.write().await;
+        account_log.apply(vec![&account_event]).await?;
+
+        Ok(new_key)
+    }
 }
 
 /// Secret management functions for client storage.

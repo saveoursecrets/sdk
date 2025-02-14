@@ -13,19 +13,16 @@ use sos_backend::{
 };
 use sos_core::{
     constants::VAULT_EXT,
-    crypto::AccessKey,
     decode,
     device::TrustedDevice,
     encode,
-    events::{AccountEvent, DeviceEvent, EventLog, ReadEvent, WriteEvent},
+    events::{AccountEvent, DeviceEvent, EventLog, ReadEvent},
     AccountId, AuthenticationError, Paths, VaultId,
 };
 use sos_login::{FolderKeys, Identity};
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::StorageEventLogs;
-use sos_vault::{
-    ChangePassword, Header, SecretAccess, Summary, Vault, VaultFlags,
-};
+use sos_vault::{Header, Summary, Vault, VaultFlags};
 use sos_vfs as vfs;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
@@ -332,60 +329,6 @@ impl ClientFolderStorage for ClientFileSystemStorage {
             }
         }
         Ok(())
-    }
-
-    async fn description(&self) -> Result<String> {
-        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
-        if let Some(folder) = self.folders.get(summary.id()) {
-            Ok(folder.description().await?)
-        } else {
-            Err(StorageError::FolderNotFound(*summary.id()).into())
-        }
-    }
-
-    async fn set_description(
-        &mut self,
-        description: impl AsRef<str> + Send,
-    ) -> Result<WriteEvent> {
-        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
-        if let Some(folder) = self.folders.get_mut(summary.id()) {
-            Ok(folder.set_description(description).await?)
-        } else {
-            Err(StorageError::FolderNotFound(*summary.id()).into())
-        }
-    }
-
-    async fn change_password(
-        &mut self,
-        vault: &Vault,
-        current_key: AccessKey,
-        new_key: AccessKey,
-    ) -> Result<AccessKey> {
-        let (new_key, new_vault, event_log_events) =
-            ChangePassword::new(vault, current_key, new_key, None)
-                .build()
-                .await?;
-
-        let buffer = self
-            .update_vault(vault.summary(), &new_vault, event_log_events)
-            .await?;
-
-        let account_event =
-            AccountEvent::ChangeFolderPassword(*vault.id(), buffer);
-
-        // Refresh the in-memory and disc-based mirror
-        self.refresh_vault(vault.summary(), &new_key).await?;
-
-        if let Some(folder) = self.folders.get_mut(vault.id()) {
-            let access_point = folder.access_point();
-            let mut access_point = access_point.lock().await;
-            access_point.unlock(&new_key).await?;
-        }
-
-        let mut account_log = self.account_log.write().await;
-        account_log.apply(vec![&account_event]).await?;
-
-        Ok(new_key)
     }
 }
 
