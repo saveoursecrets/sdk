@@ -132,6 +132,13 @@ impl ClientVaultStorage for ClientStorage {
         }
     }
 
+    async fn remove_vault(&self, id: &VaultId) -> Result<()> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.remove_vault(id).await,
+            ClientStorage::Database(db) => db.remove_vault(id).await,
+        }
+    }
+
     async fn read_folders(&self) -> Result<Vec<Summary>> {
         match self {
             ClientStorage::FileSystem(fs) => fs.read_folders().await,
@@ -247,21 +254,6 @@ impl ClientFolderStorage for ClientStorage {
         match self {
             ClientStorage::FileSystem(fs) => fs.load_folders().await,
             ClientStorage::Database(db) => db.load_folders().await,
-        }
-    }
-
-    async fn delete_folder(
-        &mut self,
-        folder_id: &VaultId,
-        apply_event: bool,
-    ) -> Result<Vec<Event>> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.delete_folder(folder_id, apply_event).await
-            }
-            ClientStorage::Database(db) => {
-                db.delete_folder(folder_id, apply_event).await
-            }
         }
     }
 
@@ -596,6 +588,21 @@ impl ClientAccountStorage for ClientStorage {
         match self {
             ClientStorage::FileSystem(fs) => fs.create_account(account).await,
             ClientStorage::Database(db) => db.create_account(account).await,
+        }
+    }
+
+    async fn delete_folder(
+        &mut self,
+        folder_id: &VaultId,
+        apply_event: bool,
+    ) -> Result<Vec<Event>> {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.delete_folder(folder_id, apply_event).await
+            }
+            ClientStorage::Database(db) => {
+                db.delete_folder(folder_id, apply_event).await
+            }
         }
     }
 

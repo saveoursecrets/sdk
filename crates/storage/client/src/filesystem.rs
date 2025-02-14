@@ -289,22 +289,6 @@ impl ClientFileSystemStorage {
         Ok((buffer, key, summary))
     }
 
-    /// Remove a vault file and event log file.
-    async fn remove_vault_file(&self, folder_id: &VaultId) -> Result<()> {
-        // Remove local vault mirror if it exists
-        let vault_path = self.paths.vault_path(folder_id);
-        if vfs::try_exists(&vault_path).await? {
-            vfs::remove_file(&vault_path).await?;
-        }
-
-        // Remove the local event log file
-        let event_log_path = self.paths.event_log_path(folder_id);
-        if vfs::try_exists(&event_log_path).await? {
-            vfs::remove_file(&event_log_path).await?;
-        }
-        Ok(())
-    }
-
     /// Create or update a vault.
     async fn upsert_vault_buffer(
         &mut self,
@@ -385,6 +369,21 @@ impl ClientVaultStorage for ClientFileSystemStorage {
         let buffer = encode(vault).await?;
         self.write_vault_file(vault.id(), &buffer).await?;
         Ok(buffer)
+    }
+
+    async fn remove_vault(&self, folder_id: &VaultId) -> Result<()> {
+        // Remove local vault mirror if it exists
+        let vault_path = self.paths.vault_path(folder_id);
+        if vfs::try_exists(&vault_path).await? {
+            vfs::remove_file(&vault_path).await?;
+        }
+
+        // Remove the local event log file
+        let event_log_path = self.paths.event_log_path(folder_id);
+        if vfs::try_exists(&event_log_path).await? {
+            vfs::remove_file(&event_log_path).await?;
+        }
+        Ok(())
     }
 
     async fn read_folders(&self) -> Result<Vec<Summary>> {
@@ -520,73 +519,6 @@ impl ClientFolderStorage for ClientFileSystemStorage {
 
         let event = Event::Folder(account_event, write_event);
         Ok((event, summary))
-    }
-
-    async fn load_folders(&mut self) -> Result<&[Summary]> {
-        let summaries = self.read_folders().await?;
-        self.load_caches(&summaries).await?;
-        self.summaries = summaries;
-        Ok(self.list_folders())
-    }
-
-    async fn delete_folder(
-        &mut self,
-        folder_id: &VaultId,
-        apply_event: bool,
-    ) -> Result<Vec<Event>> {
-        // Remove the files
-        self.remove_vault_file(folder_id).await?;
-
-        // Remove local state
-        self.remove_folder_entry(folder_id)?;
-
-        let mut events = Vec::new();
-
-        #[cfg(feature = "files")]
-        {
-            let mut file_events = self
-                .external_file_manager
-                .delete_folder_files(folder_id)
-                .await?;
-            let mut writer = self.file_log.write().await;
-            writer.apply(file_events.iter().collect()).await?;
-            for event in file_events.drain(..) {
-                events.push(Event::File(event));
-            }
-        }
-
-        // Clean the search index
-        #[cfg(feature = "search")]
-        if let Some(index) = self.index.as_mut() {
-            index.remove_folder(folder_id).await;
-        }
-
-        let account_event = AccountEvent::DeleteFolder(*folder_id);
-
-        if apply_event {
-            let mut account_log = self.account_log.write().await;
-            account_log.apply(vec![&account_event]).await?;
-        }
-
-        #[cfg(feature = "audit")]
-        {
-            let audit_event: AuditEvent =
-                (self.account_id(), &account_event).into();
-            append_audit_events(&[audit_event]).await?;
-        }
-
-        events.insert(0, Event::Account(account_event));
-
-        Ok(events)
-    }
-
-    async fn remove_folder(&mut self, folder_id: &VaultId) -> Result<bool> {
-        Ok(if self.find(|s| s.id() == folder_id).is_some() {
-            self.remove_folder_entry(folder_id)?;
-            true
-        } else {
-            false
-        })
     }
 
     fn open_folder(&self, folder_id: &VaultId) -> Result<ReadEvent> {

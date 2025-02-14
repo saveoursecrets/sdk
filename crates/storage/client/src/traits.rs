@@ -46,6 +46,8 @@ pub(crate) mod private {
     pub struct Internal;
 }
 
+use private::{Internal, Sealed};
+
 /// Base client storage functions.
 pub trait ClientBaseStorage {
     /// Account identifier.
@@ -130,12 +132,15 @@ pub trait ClientDeviceStorage:
 #[doc(hidden)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait ClientVaultStorage: private::Sealed {
+pub trait ClientVaultStorage: Sealed {
     /// Read a vault from the storage.
     async fn read_vault(&self, id: &VaultId) -> Result<Vault>;
 
     /// Write a vault to storage.
     async fn write_vault(&self, vault: &Vault) -> Result<Vec<u8>>;
+
+    /// Remove a vault.
+    async fn remove_vault(&self, folder_id: &VaultId) -> Result<()>;
 
     /// Read folders from the storage.
     async fn read_folders(&self) -> Result<Vec<Summary>>;
@@ -143,16 +148,16 @@ pub trait ClientVaultStorage: private::Sealed {
     /// In-memory collection of folder summaries
     /// managed by this storage.
     #[doc(hidden)]
-    fn summaries(&self, _: private::Internal) -> &Vec<Summary>;
+    fn summaries(&self, _: Internal) -> &Vec<Summary>;
 
     /// Mutable in-memory collection of folder summaries
     /// managed by this storage.
     #[doc(hidden)]
-    fn summaries_mut(&mut self, _: private::Internal) -> &mut Vec<Summary>;
+    fn summaries_mut(&mut self, _: Internal) -> &mut Vec<Summary>;
 
     /// Add a summary to the in-memory stage.
     #[doc(hidden)]
-    fn add_summary(&mut self, summary: Summary, token: private::Internal) {
+    fn add_summary(&mut self, summary: Summary, token: Internal) {
         let summaries = self.summaries_mut(token);
         summaries.push(summary);
         summaries.sort();
@@ -160,11 +165,7 @@ pub trait ClientVaultStorage: private::Sealed {
 
     /// Remove a summary from this storage.
     #[doc(hidden)]
-    fn remove_summary(
-        &mut self,
-        folder_id: &VaultId,
-        token: private::Internal,
-    ) {
+    fn remove_summary(&mut self, folder_id: &VaultId, token: Internal) {
         if let Some(position) = self
             .summaries(token)
             .iter()
@@ -253,7 +254,7 @@ pub trait ClientFolderStorage:
         folder_id: &VaultId,
         vault: Option<Vault>,
         creation_time: Option<&UtcDateTime>,
-        _: private::Internal,
+        _: Internal,
     ) -> Result<()> {
         let mut folder = self.new_folder(folder_id).await?;
 
@@ -287,13 +288,8 @@ pub trait ClientFolderStorage:
         for summary in summaries {
             // Ensure we don't overwrite existing data
             if self.folders().get(summary.id()).is_none() {
-                self.create_folder_entry(
-                    summary.id(),
-                    None,
-                    None,
-                    private::Internal,
-                )
-                .await?;
+                self.create_folder_entry(summary.id(), None, None, Internal)
+                    .await?;
             }
         }
         Ok(())
@@ -315,7 +311,7 @@ pub trait ClientFolderStorage:
         self.folders_mut().remove(folder_id);
 
         // Remove from the state of managed vaults
-        self.remove_summary(folder_id, private::Internal);
+        self.remove_summary(folder_id, Internal);
 
         Ok(())
     }
@@ -404,17 +400,22 @@ pub trait ClientFolderStorage:
 
     /// Read folders from storage and create the in-memory
     /// event logs for each folder.
-    async fn load_folders(&mut self) -> Result<&[Summary]>;
-
-    /// Delete a folder.
-    async fn delete_folder(
-        &mut self,
-        folder_id: &VaultId,
-        apply_event: bool,
-    ) -> Result<Vec<Event>>;
+    async fn load_folders(&mut self) -> Result<&[Summary]> {
+        let summaries = self.read_folders().await?;
+        self.load_caches(&summaries).await?;
+        *self.summaries_mut(Internal) = summaries;
+        Ok(self.list_folders())
+    }
 
     /// Remove a folder from memory.
-    async fn remove_folder(&mut self, folder_id: &VaultId) -> Result<bool>;
+    async fn remove_folder(&mut self, folder_id: &VaultId) -> Result<bool> {
+        Ok(if self.find(|s| s.id() == folder_id).is_some() {
+            self.remove_folder_entry(folder_id)?;
+            true
+        } else {
+            false
+        })
+    }
 
     /// Mark a folder as the currently open folder.
     fn open_folder(&self, folder_id: &VaultId) -> Result<ReadEvent>;
@@ -632,7 +633,7 @@ pub trait ClientAccountStorage:
 
     #[doc(hidden)]
     /// Remove the authenticated user and search index.
-    fn drop_authenticated_state(&mut self, _: private::Internal);
+    fn drop_authenticated_state(&mut self, _: Internal);
 
     /// Sign out the authenticated user.
     async fn sign_out(&mut self) -> Result<()> {
@@ -643,7 +644,7 @@ pub trait ClientAccountStorage:
         }
 
         tracing::debug!("client_storage::drop_authenticated_state");
-        self.drop_authenticated_state(private::Internal);
+        self.drop_authenticated_state(Internal);
         Ok(())
     }
 
@@ -733,6 +734,60 @@ pub trait ClientAccountStorage:
         }
 
         events.insert(0, create_account);
+
+        Ok(events)
+    }
+
+    /// Delete a folder.
+    async fn delete_folder(
+        &mut self,
+        folder_id: &VaultId,
+        apply_event: bool,
+    ) -> Result<Vec<Event>> {
+        // Remove the files
+        self.remove_vault(folder_id).await?;
+
+        // Remove local state
+        self.remove_folder_entry(folder_id)?;
+
+        let mut events = Vec::new();
+
+        #[cfg(feature = "files")]
+        {
+            let mut file_events = self
+                .external_file_manager_mut()
+                .delete_folder_files(folder_id)
+                .await?;
+            let file_log = self.file_log().await?;
+            let mut writer = file_log.write().await;
+            writer.apply(file_events.iter().collect()).await?;
+            for event in file_events.drain(..) {
+                events.push(Event::File(event));
+            }
+        }
+
+        // Clean the search index
+        #[cfg(feature = "search")]
+        if let Some(index) = self.index_mut() {
+            index.remove_folder(folder_id).await;
+        }
+
+        let account_event = AccountEvent::DeleteFolder(*folder_id);
+
+        if apply_event {
+            let account_log = self.account_log().await?;
+            let mut account_log = account_log.write().await;
+            account_log.apply(vec![&account_event]).await?;
+        }
+
+        #[cfg(feature = "audit")]
+        {
+            let audit_event: AuditEvent =
+                (self.account_id(), &account_event).into();
+            append_audit_events(&[audit_event]).await?;
+        }
+
+        events.insert(0, Event::Account(account_event));
 
         Ok(events)
     }
