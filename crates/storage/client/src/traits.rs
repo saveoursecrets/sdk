@@ -13,6 +13,7 @@ use sos_backend::{
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
+    decode,
     device::{DevicePublicKey, TrustedDevice},
     encode,
     events::{
@@ -847,6 +848,70 @@ pub trait ClientAccountStorage:
         }
 
         Ok(summary)
+    }
+
+    /// Create or update a vault.
+    async fn upsert_vault_buffer(
+        &mut self,
+        buffer: impl AsRef<[u8]> + Send,
+        key: Option<&AccessKey>,
+        creation_time: Option<&UtcDateTime>,
+    ) -> Result<(bool, WriteEvent, Summary)> {
+        let vault: Vault = decode(buffer.as_ref()).await?;
+        let exists = self.find(|s| s.id() == vault.id()).is_some();
+        let summary = vault.summary().clone();
+
+        #[cfg(feature = "search")]
+        if exists {
+            if let Some(index) = self.index_mut() {
+                // Clean entries from the search index
+                index.remove_folder(summary.id()).await;
+            }
+        }
+
+        self.write_vault(&vault).await?;
+
+        if !exists {
+            // Add the summary to the vaults we are managing
+            self.add_summary(summary.clone(), Internal);
+        } else {
+            // Otherwise update with the new summary
+            if let Some(position) = self
+                .summaries(Internal)
+                .iter()
+                .position(|s| s.id() == summary.id())
+            {
+                let existing =
+                    self.summaries_mut(Internal).get_mut(position).unwrap();
+                *existing = summary.clone();
+            }
+        }
+
+        #[cfg(feature = "search")]
+        if let Some(key) = key {
+            if let Some(index) = self.index_mut() {
+                // Ensure the imported secrets are in the search index
+                index.add_vault(vault.clone(), key).await?;
+            }
+        }
+
+        let event = vault.into_event().await?;
+
+        // Initialize the local cache for event log
+        self.create_folder_entry(
+            summary.id(),
+            Some(vault),
+            creation_time,
+            Internal,
+        )
+        .await?;
+
+        // Must ensure the folder is unlocked
+        if let Some(key) = key {
+            self.unlock_folder(summary.id(), key).await?;
+        }
+
+        Ok((exists, event, summary))
     }
 
     /// Get the history of events for a vault.
