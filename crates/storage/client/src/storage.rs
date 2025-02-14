@@ -202,6 +202,13 @@ impl ClientFolderStorage for ClientStorage {
         }
     }
 
+    async fn new_folder(&self, folder_id: &VaultId) -> Result<Folder> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.new_folder(folder_id).await,
+            ClientStorage::Database(db) => db.new_folder(folder_id).await,
+        }
+    }
+
     async fn create_folder(
         &mut self,
         name: String,

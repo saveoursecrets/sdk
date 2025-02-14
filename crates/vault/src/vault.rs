@@ -338,6 +338,11 @@ impl Header {
         self.summary.id()
     }
 
+    /// Mutable identifier for this vault.
+    pub fn id_mut(&mut self) -> &mut VaultId {
+        &mut self.summary.id
+    }
+
     /// Reference to the vault flags.
     pub fn flags(&self) -> &VaultFlags {
         self.summary.flags()

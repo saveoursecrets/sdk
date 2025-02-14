@@ -215,87 +215,6 @@ impl ClientFileSystemStorage {
         Ok(event_log)
     }
 
-    /// Initialize a folder from an event log.
-    ///
-    /// If an event log exists for the folder identifer
-    /// it is replaced with the new event records.
-    async fn initialize_folder(
-        &mut self,
-        folder_id: &VaultId,
-        records: Vec<EventRecord>,
-    ) -> Result<(Folder, Vault)> {
-        let vault_path = self.paths.vault_path(folder_id);
-
-        // Prepare the vault file on disc
-        let vault = {
-            // We need a vault on disc to create the event log
-            // so set a placeholder
-            let vault: Vault = Default::default();
-            let buffer = encode(&vault).await?;
-            self.write_vault_file(folder_id, buffer).await?;
-
-            let folder = Folder::new_fs(&vault_path).await?;
-            let event_log = folder.event_log();
-            let mut event_log = event_log.write().await;
-            event_log.clear().await?;
-            event_log.apply_records(records).await?;
-
-            let vault = FolderReducer::new()
-                .reduce(&*event_log)
-                .await?
-                .build(true)
-                .await?;
-
-            let buffer = encode(&vault).await?;
-            self.write_vault_file(folder_id, buffer).await?;
-
-            vault
-        };
-
-        // Setup the folder access to the latest vault information
-        // and load the merkle tree
-        let folder = Folder::new_fs(&vault_path).await?;
-        let event_log = folder.event_log();
-        let mut event_log = event_log.write().await;
-        event_log.load_tree().await?;
-
-        Ok((folder, vault))
-    }
-
-    /// Create new event log cache entries.
-    async fn create_folder_entry(
-        &mut self,
-        summary: &Summary,
-        vault: Option<Vault>,
-        creation_time: Option<&UtcDateTime>,
-    ) -> Result<()> {
-        let vault_path = self.paths.vault_path(summary.id());
-        let mut event_log = Folder::new_fs(&vault_path).await?;
-
-        if let Some(vault) = vault {
-            // Must truncate the event log so that importing vaults
-            // does not end up with multiple create vault events
-            event_log.clear().await?;
-
-            let (_, events) = FolderReducer::split::<Error>(vault).await?;
-
-            let mut records = Vec::with_capacity(events.len());
-            for event in events.iter() {
-                records.push(EventRecord::encode_event(event).await?);
-            }
-            if let (Some(creation_time), Some(event)) =
-                (creation_time, records.get_mut(0))
-            {
-                event.set_time(creation_time.to_owned());
-            }
-            event_log.apply_records(records).await?;
-        }
-
-        self.folders.insert(*summary.id(), event_log);
-
-        Ok(())
-    }
-
     /// Read the buffer for a vault from storage.
     async fn read_vault_file(&self, id: &VaultId) -> Result<Vec<u8>> {
         let vault_path = self.paths.vault_path(id);
@@ -310,39 +229,6 @@ impl ClientFileSystemStorage {
     ) -> Result<()> {
         let vault_path = self.paths.vault_path(vault_id);
         write_exclusive(vault_path, buffer.as_ref()).await?;
-        Ok(())
-    }
-
-    /// Create a cache entry for each summary if it does not
-    /// already exist.
-    async fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
-        for summary in summaries {
-            // Ensure we don't overwrite existing data
-            if self.folders.get(summary.id()).is_none() {
-                self.create_folder_entry(summary, None, None).await?;
-            }
-        }
-        Ok(())
-    }
-
-    /// Remove the local cache for a vault.
-    fn remove_folder_entry(&mut self, folder_id: &VaultId) -> Result<()> {
-        let current_id = self.current_folder().map(|c| *c.id());
-
-        // If the deleted vault is the currently selected
-        // vault we must close it
-        if let Some(id) = &current_id {
-            if id == folder_id {
-                self.close_folder();
-            }
-        }
-
-        // Remove from our cache of managed vaults
-        self.folders.remove(folder_id);
-
-        // Remove from the state of managed vaults
-        self.remove_summary(folder_id, Internal);
-
         Ok(())
     }
 
@@ -387,17 +273,15 @@ impl ClientFileSystemStorage {
             }
         };
 
-        let buffer = encode(&vault).await?;
-
         let summary = vault.summary().clone();
 
-        self.write_vault_file(summary.id(), &buffer).await?;
+        let buffer = self.write_vault(&vault).await?;
 
         // Add the summary to the vaults we are managing
         self.add_summary(summary.clone(), Internal);
 
         // Initialize the local cache for the event log
-        self.create_folder_entry(&summary, Some(vault), None)
+        self.create_folder_entry(summary.id(), Some(vault), None, Internal)
             .await?;
 
         self.unlock_folder(summary.id(), &key).await?;
@@ -466,8 +350,13 @@ impl ClientFileSystemStorage {
         let event = vault.into_event().await?;
 
         // Initialize the local cache for event log
-        self.create_folder_entry(&summary, Some(vault), creation_time)
-            .await?;
+        self.create_folder_entry(
+            summary.id(),
+            Some(vault),
+            creation_time,
+            Internal,
+        )
+        .await?;
 
         // Must ensure the folder is unlocked
         if let Some(key) = key {
@@ -560,6 +449,11 @@ impl ClientFolderStorage for ClientFileSystemStorage {
 
     fn folders_mut(&mut self) -> &mut HashMap<VaultId, Folder> {
         &mut self.folders
+    }
+
+    async fn new_folder(&self, folder_id: &VaultId) -> Result<Folder> {
+        let vault_path = self.paths.vault_path(folder_id);
+        Ok(Folder::new_fs(&vault_path).await?)
     }
 
     async fn create_folder(

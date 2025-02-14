@@ -47,15 +47,23 @@ impl Folder {
         let needs_init = event_log.tree().root().is_none();
 
         let vault = if needs_init {
-            // For the client-side we must split the events
-            // out but keep the existing vault data (not the head-only)
-            // version so that the event log here will match what the
-            // server will have when an account is first synced
-            let buffer = vfs::read(path.as_ref()).await?;
-            let vault: Vault = decode(&buffer).await?;
+            let vault = if vfs::try_exists(path.as_ref()).await? {
+                // For the client-side we must split the events
+                // out but keep the existing vault data (not the head-only)
+                // version so that the event log here will match what the
+                // server will have when an account is first synced
+                let buffer = vfs::read(path.as_ref()).await?;
+                let vault: Vault = decode(&buffer).await?;
+                vault
+            } else {
+                // If it doesn't exist on disc use a default vault
+                Default::default()
+            };
+
             let (_, events) =
                 FolderReducer::split::<Error>(vault.clone()).await?;
             event_log.apply(events.iter().collect()).await?;
+
             vault
         } else {
             let buffer = vfs::read(path.as_ref()).await?;

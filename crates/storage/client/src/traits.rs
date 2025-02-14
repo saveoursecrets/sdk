@@ -202,6 +202,124 @@ pub trait ClientFolderStorage:
     /// Mutable in-memory folders.
     fn folders_mut(&mut self) -> &mut HashMap<VaultId, Folder>;
 
+    /// Create a new folder.
+    async fn new_folder(&self, folder_id: &VaultId) -> Result<Folder>;
+
+    /// Initialize a folder from an event log.
+    ///
+    /// If an event log exists for the folder identifer
+    /// it is replaced with the new event records.
+    async fn initialize_folder(
+        &mut self,
+        folder_id: &VaultId,
+        records: Vec<EventRecord>,
+    ) -> Result<(Folder, Vault)> {
+        // Prepare the vault
+        let vault = {
+            let folder = self.new_folder(folder_id).await?;
+            let event_log = folder.event_log();
+            let mut event_log = event_log.write().await;
+            event_log.clear().await?;
+            event_log.apply_records(records).await?;
+
+            let mut vault = FolderReducer::new()
+                .reduce(&*event_log)
+                .await?
+                .build(true)
+                .await?;
+
+            let id = vault.header_mut().id_mut();
+            *id = *folder_id;
+
+            self.write_vault(&vault).await?;
+
+            vault
+        };
+
+        // Setup the folder access to the latest vault information
+        // and load the merkle tree
+        let folder = self.new_folder(folder_id).await?;
+        let event_log = folder.event_log();
+        let mut event_log = event_log.write().await;
+        event_log.load_tree().await?;
+
+        Ok((folder, vault))
+    }
+
+    /// Create new in-memory folder entry.
+    #[doc(hidden)]
+    async fn create_folder_entry(
+        &mut self,
+        folder_id: &VaultId,
+        vault: Option<Vault>,
+        creation_time: Option<&UtcDateTime>,
+        _: private::Internal,
+    ) -> Result<()> {
+        let mut folder = self.new_folder(folder_id).await?;
+
+        if let Some(vault) = vault {
+            // Must truncate the event log so that importing vaults
+            // does not end up with multiple create vault events
+            folder.clear().await?;
+
+            let (_, events) = FolderReducer::split::<Error>(vault).await?;
+
+            let mut records = Vec::with_capacity(events.len());
+            for event in events.iter() {
+                records.push(EventRecord::encode_event(event).await?);
+            }
+            if let (Some(creation_time), Some(event)) =
+                (creation_time, records.get_mut(0))
+            {
+                event.set_time(creation_time.to_owned());
+            }
+            folder.apply_records(records).await?;
+        }
+
+        self.folders_mut().insert(*folder_id, folder);
+
+        Ok(())
+    }
+
+    /// Create a cache entry for each summary if it does not
+    /// already exist.
+    async fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
+        for summary in summaries {
+            // Ensure we don't overwrite existing data
+            if self.folders().get(summary.id()).is_none() {
+                self.create_folder_entry(
+                    summary.id(),
+                    None,
+                    None,
+                    private::Internal,
+                )
+                .await?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Remove the local cache for a vault.
+    fn remove_folder_entry(&mut self, folder_id: &VaultId) -> Result<()> {
+        let current_id = self.current_folder().map(|c| *c.id());
+
+        // If the deleted vault is the currently selected
+        // vault we must close it
+        if let Some(id) = &current_id {
+            if id == folder_id {
+                self.close_folder();
+            }
+        }
+
+        // Remove from our cache of managed vaults
+        self.folders_mut().remove(folder_id);
+
+        // Remove from the state of managed vaults
+        self.remove_summary(folder_id, private::Internal);
+
+        Ok(())
+    }
+
     /// Update an existing vault by replacing it with a new vault.
     async fn update_vault(
         &mut self,
