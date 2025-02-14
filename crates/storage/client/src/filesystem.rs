@@ -17,18 +17,14 @@ use sos_core::{
     decode,
     device::TrustedDevice,
     encode,
-    events::{
-        AccountEvent, DeviceEvent, Event, EventLog, ReadEvent, WriteEvent,
-    },
-    AccountId, AuthenticationError, FolderRef, Paths, UtcDateTime, VaultId,
+    events::{AccountEvent, DeviceEvent, EventLog, ReadEvent, WriteEvent},
+    AccountId, AuthenticationError, FolderRef, Paths, VaultId,
 };
 use sos_login::{FolderKeys, Identity};
-use sos_password::diceware::generate_passphrase;
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::StorageEventLogs;
 use sos_vault::{
-    BuilderCredentials, ChangePassword, Header, SecretAccess, Summary, Vault,
-    VaultBuilder, VaultFlags,
+    ChangePassword, Header, SecretAccess, Summary, Vault, VaultFlags,
 };
 use sos_vfs as vfs;
 use std::{collections::HashMap, sync::Arc};
@@ -211,63 +207,6 @@ impl ClientFileSystemStorage {
 
         Ok(event_log)
     }
-
-    /// Prepare a new folder.
-    async fn prepare_folder(
-        &mut self,
-        name: Option<String>,
-        mut options: NewFolderOptions,
-    ) -> Result<(Vec<u8>, AccessKey, Summary)> {
-        let key = if let Some(key) = options.key.take() {
-            key
-        } else {
-            let (passphrase, _) = generate_passphrase()?;
-            AccessKey::Password(passphrase)
-        };
-
-        let mut builder = VaultBuilder::new()
-            .flags(options.flags)
-            .cipher(options.cipher.unwrap_or_default())
-            .kdf(options.kdf.unwrap_or_default());
-        if let Some(name) = name {
-            builder = builder.public_name(name);
-        }
-
-        let vault = match &key {
-            AccessKey::Password(password) => {
-                builder
-                    .build(BuilderCredentials::Password(
-                        password.clone(),
-                        None,
-                    ))
-                    .await?
-            }
-            AccessKey::Identity(id) => {
-                builder
-                    .build(BuilderCredentials::Shared {
-                        owner: id,
-                        recipients: vec![],
-                        read_only: true,
-                    })
-                    .await?
-            }
-        };
-
-        let summary = vault.summary().clone();
-
-        let buffer = self.write_vault(&vault).await?;
-
-        // Add the summary to the vaults we are managing
-        self.add_summary(summary.clone(), Internal);
-
-        // Initialize the local cache for the event log
-        self.create_folder_entry(summary.id(), Some(vault), None, Internal)
-            .await?;
-
-        self.unlock_folder(summary.id(), &key).await?;
-
-        Ok((buffer, key, summary))
-    }
 }
 
 impl ClientBaseStorage for ClientFileSystemStorage {
@@ -397,49 +336,6 @@ impl ClientFolderStorage for ClientFileSystemStorage {
         }
 
         Ok((buf, key, summary, account_event))
-    }
-
-    async fn import_folder(
-        &mut self,
-        buffer: impl AsRef<[u8]> + Send,
-        key: Option<&AccessKey>,
-        apply_event: bool,
-        creation_time: Option<&UtcDateTime>,
-    ) -> Result<(Event, Summary)> {
-        let (exists, write_event, summary) = self
-            .upsert_vault_buffer(buffer.as_ref(), key, creation_time)
-            .await?;
-
-        // If there is an existing folder
-        // and we are overwriting then log the update
-        // folder event
-        let account_event = if exists {
-            AccountEvent::UpdateFolder(
-                *summary.id(),
-                buffer.as_ref().to_owned(),
-            )
-        // Otherwise a create event
-        } else {
-            AccountEvent::CreateFolder(
-                *summary.id(),
-                buffer.as_ref().to_owned(),
-            )
-        };
-
-        if apply_event {
-            let mut account_log = self.account_log.write().await;
-            account_log.apply(vec![&account_event]).await?;
-        }
-
-        #[cfg(feature = "audit")]
-        {
-            let audit_event: AuditEvent =
-                (self.account_id(), &account_event).into();
-            append_audit_events(&[audit_event]).await?;
-        }
-
-        let event = Event::Folder(account_event, write_event);
-        Ok((event, summary))
     }
 
     fn open_folder(&self, folder_id: &VaultId) -> Result<ReadEvent> {

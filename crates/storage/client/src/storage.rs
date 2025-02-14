@@ -231,25 +231,6 @@ impl ClientFolderStorage for ClientStorage {
         }
     }
 
-    async fn import_folder(
-        &mut self,
-        buffer: impl AsRef<[u8]> + Send,
-        key: Option<&AccessKey>,
-        apply_event: bool,
-        creation_time: Option<&UtcDateTime>,
-    ) -> Result<(Event, Summary)> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.import_folder(buffer, key, apply_event, creation_time)
-                    .await
-            }
-            ClientStorage::Database(db) => {
-                db.import_folder(buffer, key, apply_event, creation_time)
-                    .await
-            }
-        }
-    }
-
     async fn load_folders(&mut self) -> Result<&[Summary]> {
         match self {
             ClientStorage::FileSystem(fs) => fs.load_folders().await,
