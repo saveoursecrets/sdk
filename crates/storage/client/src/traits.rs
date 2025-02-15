@@ -810,14 +810,12 @@ pub trait ClientAccountStorage:
             .identity()?
             .devices()?
             .current_device(None);
+        self.set_identity_log(identity_log, Internal);
 
         let (device_log, devices) =
             self.initialize_device_log(device, Internal).await?;
-
-        #[cfg(feature = "search")]
-        {
-            self.set_search_index(Some(AccountSearch::new()), Internal);
-        }
+        self.set_device_log(Arc::new(RwLock::new(device_log)), Internal);
+        self.set_devices(devices, Internal);
 
         #[cfg(feature = "files")]
         {
@@ -837,9 +835,10 @@ pub trait ClientAccountStorage:
             self.set_file_log(file_log, Internal);
         }
 
-        self.set_identity_log(identity_log, Internal);
-        self.set_device_log(Arc::new(RwLock::new(device_log)), Internal);
-        self.set_devices(devices, Internal);
+        #[cfg(feature = "search")]
+        {
+            self.set_search_index(Some(AccountSearch::new()), Internal);
+        }
         self.set_authenticated_user(Some(authenticated_user), Internal);
 
         Ok(())
@@ -857,9 +856,6 @@ pub trait ClientAccountStorage:
             authenticated.sign_out().await?;
         }
 
-        tracing::debug!("client_storage::drop_authenticated_user");
-        self.set_authenticated_user(None, Internal);
-
         #[cfg(feature = "search")]
         {
             tracing::debug!("client_storage::drop_search_index");
@@ -871,6 +867,9 @@ pub trait ClientAccountStorage:
             tracing::debug!("client_storage::drop_external_file_manager");
             self.set_external_file_manager(None, Internal);
         }
+
+        tracing::debug!("client_storage::drop_authenticated_user");
+        self.set_authenticated_user(None, Internal);
 
         Ok(())
     }
@@ -963,6 +962,9 @@ pub trait ClientAccountStorage:
 
         let create_account = Event::CreateAccount(account.account_id.into());
 
+        // Each folder import will create an audit event
+        // but we want the create account to be in the audit
+        // log before the folder create audit events
         #[cfg(feature = "audit")]
         {
             let audit_event: AuditEvent =
