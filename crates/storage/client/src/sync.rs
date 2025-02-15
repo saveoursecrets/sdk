@@ -428,7 +428,7 @@ where
             let search = {
                 let index = self
                     .0
-                    .index()
+                    .search_index()
                     .ok_or_else(|| AuthenticationError::NotAuthenticated)?;
                 index.search()
             };

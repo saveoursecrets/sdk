@@ -291,19 +291,6 @@ impl ClientAccountStorage for ClientStorage {
         }
     }
 
-    fn set_search_index(
-        &mut self,
-        index: Option<AccountSearch>,
-        token: Internal,
-    ) {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.set_search_index(index, token)
-            }
-            ClientStorage::Database(db) => db.set_search_index(index, token),
-        }
-    }
-
     async fn authenticate(
         &mut self,
         authenticated_user: Identity,
@@ -374,18 +361,32 @@ impl ClientAccountStorage for ClientStorage {
     }
 
     #[cfg(feature = "search")]
-    fn index(&self) -> Option<&AccountSearch> {
+    fn search_index(&self) -> Option<&AccountSearch> {
         match self {
-            ClientStorage::FileSystem(fs) => fs.index(),
-            ClientStorage::Database(db) => db.index(),
+            ClientStorage::FileSystem(fs) => fs.search_index(),
+            ClientStorage::Database(db) => db.search_index(),
         }
     }
 
     #[cfg(feature = "search")]
-    fn index_mut(&mut self) -> Option<&mut AccountSearch> {
+    fn search_index_mut(&mut self) -> Option<&mut AccountSearch> {
         match self {
-            ClientStorage::FileSystem(fs) => fs.index_mut(),
-            ClientStorage::Database(db) => db.index_mut(),
+            ClientStorage::FileSystem(fs) => fs.search_index_mut(),
+            ClientStorage::Database(db) => db.search_index_mut(),
+        }
+    }
+
+    #[cfg(feature = "search")]
+    fn set_search_index(
+        &mut self,
+        index: Option<AccountSearch>,
+        token: Internal,
+    ) {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.set_search_index(index, token)
+            }
+            ClientStorage::Database(db) => db.set_search_index(index, token),
         }
     }
 }

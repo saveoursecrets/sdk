@@ -22,10 +22,10 @@ mod traits;
 
 pub use error::Error;
 pub use storage::ClientStorage;
+pub(crate) use traits::ClientEventLogStorage;
 pub use traits::{
     ClientAccountStorage, ClientBaseStorage, ClientDeviceStorage,
-    ClientEventLogStorage, ClientFolderStorage, ClientSecretStorage,
-    ClientVaultStorage,
+    ClientFolderStorage, ClientSecretStorage, ClientVaultStorage,
 };
 
 /// Result type for the client module.

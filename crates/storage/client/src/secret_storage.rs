@@ -26,7 +26,7 @@ where
         let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
 
         #[cfg(feature = "search")]
-        let index_doc = if let Some(index) = self.index() {
+        let index_doc = if let Some(index) = self.search_index() {
             let search = index.search();
             let index = search.read().await;
             Some(index.prepare(
@@ -80,7 +80,9 @@ where
             .await?;
 
         #[cfg(feature = "search")]
-        if let (Some(index), Some(index_doc)) = (self.index(), index_doc) {
+        if let (Some(index), Some(index_doc)) =
+            (self.search_index(), index_doc)
+        {
             let search = index.search();
             let mut index = search.write().await;
             index.commit(index_doc)
@@ -190,7 +192,7 @@ where
         secret_data.meta_mut().touch();
 
         #[cfg(feature = "search")]
-        let index_doc = if let Some(index) = self.index() {
+        let index_doc = if let Some(index) = self.search_index() {
             let search = index.search();
             let mut index = search.write().await;
 
@@ -225,7 +227,9 @@ where
         };
 
         #[cfg(feature = "search")]
-        if let (Some(index), Some(index_doc)) = (self.index(), index_doc) {
+        if let (Some(index), Some(index_doc)) =
+            (self.search_index(), index_doc)
+        {
             let search = index.search();
             let mut index = search.write().await;
             index.commit(index_doc)
@@ -290,7 +294,7 @@ where
         };
 
         #[cfg(feature = "search")]
-        if let Some(index) = self.index() {
+        if let Some(index) = self.search_index() {
             let search = index.search();
             let mut writer = search.write().await;
             writer.remove(summary.id(), id);

@@ -57,13 +57,13 @@ pub(crate) mod private {
 
 use private::Internal;
 
-/// Base client storage functions.
+/// Common functions for all client storage traits.
 pub trait ClientBaseStorage {
     /// Account identifier.
     fn account_id(&self) -> &AccountId;
 }
 
-/// Device management functions for client storage.
+/// Device management for client storage.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientDeviceStorage:
@@ -139,12 +139,39 @@ pub trait ClientDeviceStorage:
 }
 
 /// Vault management for client storage.
-#[doc(hidden)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientVaultStorage {
     /// Read a vault from the storage.
     async fn read_vault(&self, id: &VaultId) -> Result<Vault>;
+
+    /// List the in-memory folders.
+    fn list_folders(&self) -> &[Summary] {
+        self.summaries(Internal).as_slice()
+    }
+
+    /// Currently open folder.
+    fn current_folder(&self) -> Option<Summary>;
+
+    /// Find a folder in this storage by reference.
+    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
+        match vault {
+            FolderRef::Name(name) => {
+                self.summaries(Internal).iter().find(|s| s.name() == name)
+            }
+            FolderRef::Id(id) => {
+                self.summaries(Internal).iter().find(|s| s.id() == id)
+            }
+        }
+    }
+
+    /// Find a folder in this storage using a predicate.
+    fn find<F>(&self, predicate: F) -> Option<&Summary>
+    where
+        F: FnMut(&&Summary) -> bool,
+    {
+        self.summaries(Internal).iter().find(predicate)
+    }
 
     /// Write a vault to storage.
     #[doc(hidden)]
@@ -204,37 +231,9 @@ pub trait ClientVaultStorage {
             self.summaries_mut(token).sort();
         }
     }
-
-    /// List the in-memory folders.
-    fn list_folders(&self) -> &[Summary] {
-        self.summaries(Internal).as_slice()
-    }
-
-    /// Currently open folder.
-    fn current_folder(&self) -> Option<Summary>;
-
-    /// Find a folder in this storage by reference.
-    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
-        match vault {
-            FolderRef::Name(name) => {
-                self.summaries(Internal).iter().find(|s| s.name() == name)
-            }
-            FolderRef::Id(id) => {
-                self.summaries(Internal).iter().find(|s| s.id() == id)
-            }
-        }
-    }
-
-    /// Find a folder in this storage using a predicate.
-    fn find<F>(&self, predicate: F) -> Option<&Summary>
-    where
-        F: FnMut(&&Summary) -> bool,
-    {
-        self.summaries(Internal).iter().find(predicate)
-    }
 }
 
-/// Folder management functions for client storage.
+/// Folder management for client storage.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientFolderStorage:
@@ -675,7 +674,7 @@ pub trait ClientFolderStorage:
     }
 }
 
-/// Secret management functions for client storage.
+/// Secret management for client storage.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientSecretStorage {
@@ -774,7 +773,7 @@ pub trait ClientEventLogStorage {
     fn set_file_log(&mut self, log: Arc<RwLock<FileEventLog>>, _: Internal);
 }
 
-/// Client storage account management.
+/// Account management for client storage.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientAccountStorage:
@@ -795,6 +794,7 @@ pub trait ClientAccountStorage:
     fn is_authenticated(&self) -> bool {
         self.authenticated_user().is_some()
     }
+
     /// Computed storage paths.
     fn paths(&self) -> Arc<Paths>;
 
@@ -803,6 +803,8 @@ pub trait ClientAccountStorage:
         &mut self,
         authenticated_user: Identity,
     ) -> Result<()> {
+        // Note that attempting to access the identity of an authenticated
+        // user is an error when not authenticated.
         let identity_log = authenticated_user.identity()?.event_log();
         let device = authenticated_user
             .identity()?
@@ -846,10 +848,6 @@ pub trait ClientAccountStorage:
     /// Set the authenticated user.
     #[doc(hidden)]
     fn set_authenticated_user(&mut self, user: Option<Identity>, _: Internal);
-
-    /// Set the search index.
-    #[doc(hidden)]
-    fn set_search_index(&mut self, user: Option<AccountSearch>, _: Internal);
 
     /// Sign out the authenticated user.
     async fn sign_out(&mut self) -> Result<()> {
@@ -1099,7 +1097,7 @@ pub trait ClientAccountStorage:
 
         // Clean the search index
         #[cfg(feature = "search")]
-        if let Some(index) = self.index_mut() {
+        if let Some(index) = self.search_index_mut() {
             index.remove_folder(folder_id).await;
         }
 
@@ -1141,7 +1139,7 @@ pub trait ClientAccountStorage:
         self.add_summary(summary.clone(), Internal);
 
         #[cfg(feature = "search")]
-        if let Some(index) = self.index_mut() {
+        if let Some(index) = self.search_index_mut() {
             // Ensure the imported secrets are in the search index
             index.add_vault(vault, key).await?;
         }
@@ -1164,7 +1162,7 @@ pub trait ClientAccountStorage:
 
         #[cfg(feature = "search")]
         if exists {
-            if let Some(index) = self.index_mut() {
+            if let Some(index) = self.search_index_mut() {
                 // Clean entries from the search index
                 index.remove_folder(summary.id()).await;
             }
@@ -1188,7 +1186,7 @@ pub trait ClientAccountStorage:
 
         #[cfg(feature = "search")]
         if let Some(key) = key {
-            if let Some(index) = self.index_mut() {
+            if let Some(index) = self.search_index_mut() {
                 // Ensure the imported secrets are in the search index
                 index.add_vault(vault.clone(), key).await?;
             }
@@ -1368,11 +1366,16 @@ pub trait ClientAccountStorage:
 
     /// Search index reference.
     #[cfg(feature = "search")]
-    fn index(&self) -> Option<&AccountSearch>;
+    fn search_index(&self) -> Option<&AccountSearch>;
 
     /// Mutable search index reference.
     #[cfg(feature = "search")]
-    fn index_mut(&mut self) -> Option<&mut AccountSearch>;
+    fn search_index_mut(&mut self) -> Option<&mut AccountSearch>;
+
+    /// Set the search index.
+    #[cfg(feature = "search")]
+    #[doc(hidden)]
+    fn set_search_index(&mut self, user: Option<AccountSearch>, _: Internal);
 
     /// Initialize the search index.
     ///
@@ -1393,7 +1396,7 @@ pub trait ClientAccountStorage:
                     break;
                 }
             }
-            if let Some(index) = self.index() {
+            if let Some(index) = self.search_index() {
                 let mut writer = index.search_index.write().await;
                 writer.set_archive_id(archive);
             }
@@ -1413,7 +1416,7 @@ pub trait ClientAccountStorage:
 
         {
             let index = self
-                .index()
+                .search_index()
                 .ok_or_else(|| AuthenticationError::NotAuthenticated)?;
             let search_index = index.search();
             let mut writer = search_index.write().await;
@@ -1432,7 +1435,7 @@ pub trait ClientAccountStorage:
             }
         }
 
-        let count = if let Some(index) = self.index() {
+        let count = if let Some(index) = self.search_index() {
             index.document_count().await
         } else {
             Default::default()

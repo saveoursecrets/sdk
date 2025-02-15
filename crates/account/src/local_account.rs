@@ -1159,7 +1159,7 @@ impl Account for LocalAccount {
                 tracing::debug!("clear search index");
                 // Remove the search index
                 self.storage
-                    .index_mut()
+                    .search_index_mut()
                     .ok_or_else(|| AuthenticationError::NotAuthenticated)?
                     .clear()
                     .await;
@@ -1438,7 +1438,7 @@ impl Account for LocalAccount {
     #[cfg(feature = "search")]
     async fn statistics(&self) -> AccountStatistics {
         if self.storage.is_authenticated() {
-            if let Some(index) = self.storage.index() {
+            if let Some(index) = self.storage.search_index() {
                 let search_index = index.search();
                 let index = search_index.read().await;
                 let statistics = index.statistics();
@@ -1479,7 +1479,7 @@ impl Account for LocalAccount {
     async fn index(&self) -> Result<Arc<RwLock<SearchIndex>>> {
         Ok(self
             .storage
-            .index()
+            .search_index()
             .ok_or_else(|| AuthenticationError::NotAuthenticated)?
             .search())
     }
@@ -1492,7 +1492,7 @@ impl Account for LocalAccount {
     ) -> Result<Vec<Document>> {
         Ok(self
             .storage
-            .index()
+            .search_index()
             .ok_or_else(|| AuthenticationError::NotAuthenticated)?
             .query_view(views, archive)
             .await?)
@@ -1506,7 +1506,7 @@ impl Account for LocalAccount {
     ) -> Result<Vec<Document>> {
         Ok(self
             .storage
-            .index()
+            .search_index()
             .ok_or_else(|| AuthenticationError::NotAuthenticated)?
             .query_map(query, filter)
             .await?)
@@ -1516,7 +1516,7 @@ impl Account for LocalAccount {
     async fn document_count(&self) -> Result<DocumentCount> {
         let search = self
             .storage
-            .index()
+            .search_index()
             .ok_or_else(|| AuthenticationError::NotAuthenticated)?
             .search();
         let index = search.read().await;
@@ -1532,7 +1532,7 @@ impl Account for LocalAccount {
     ) -> Result<bool> {
         let search = self
             .storage
-            .index()
+            .search_index()
             .ok_or_else(|| AuthenticationError::NotAuthenticated)?
             .search();
         let index = search.read().await;

@@ -324,14 +324,6 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         self.authenticated = user;
     }
 
-    fn set_search_index(
-        &mut self,
-        index: Option<AccountSearch>,
-        _: Internal,
-    ) {
-        self.index = index;
-    }
-
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
     }
@@ -358,13 +350,22 @@ impl ClientAccountStorage for ClientDatabaseStorage {
     }
 
     #[cfg(feature = "search")]
-    fn index(&self) -> Option<&AccountSearch> {
+    fn search_index(&self) -> Option<&AccountSearch> {
         self.index.as_ref()
     }
 
     #[cfg(feature = "search")]
-    fn index_mut(&mut self) -> Option<&mut AccountSearch> {
+    fn search_index_mut(&mut self) -> Option<&mut AccountSearch> {
         self.index.as_mut()
+    }
+
+    #[cfg(feature = "search")]
+    fn set_search_index(
+        &mut self,
+        index: Option<AccountSearch>,
+        _: Internal,
+    ) {
+        self.index = index;
     }
 }
 
