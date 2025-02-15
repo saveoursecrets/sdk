@@ -20,15 +20,12 @@ use sos_database::{
     async_sqlite::Client,
     entity::{AccountEntity, FolderEntity, FolderRecord},
 };
-use sos_login::{FolderKeys, Identity};
+use sos_login::Identity;
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::StorageEventLogs;
-use sos_vault::{Summary, Vault, VaultFlags};
+use sos_vault::{Summary, Vault};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
-
-#[cfg(feature = "archive")]
-use sos_filesystem::archive::RestoreTargets;
 
 #[cfg(feature = "files")]
 use sos_backend::FileEventLog;
@@ -294,34 +291,6 @@ impl ClientFolderStorage for ClientDatabaseStorage {
         let mut current = self.current.lock();
         *current = None;
     }
-
-    fn set_folder_name(
-        &mut self,
-        summary: &Summary,
-        name: impl AsRef<str>,
-    ) -> Result<()> {
-        for item in self.summaries.iter_mut() {
-            if item.id() == summary.id() {
-                item.set_name(name.as_ref().to_owned());
-                break;
-            }
-        }
-        Ok(())
-    }
-
-    fn set_folder_flags(
-        &mut self,
-        summary: &Summary,
-        flags: VaultFlags,
-    ) -> Result<()> {
-        for item in self.summaries.iter_mut() {
-            if item.id() == summary.id() {
-                *item.flags_mut() = flags;
-                break;
-            }
-        }
-        Ok(())
-    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -438,39 +407,6 @@ impl ClientAccountStorage for ClientDatabaseStorage {
 
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
-    }
-
-    #[cfg(feature = "archive")]
-    async fn restore_archive(
-        &mut self,
-        targets: &RestoreTargets,
-        folder_keys: &FolderKeys,
-    ) -> Result<()> {
-        let RestoreTargets { vaults, .. } = targets;
-
-        // We may be restoring vaults that do not exist
-        // so we need to update the cache
-        let summaries = vaults
-            .iter()
-            .map(|(_, v)| v.summary().clone())
-            .collect::<Vec<_>>();
-        self.load_caches(&summaries).await?;
-
-        for (_, vault) in vaults {
-            // Prepare a fresh log of event log events
-            let (vault, events) =
-                FolderReducer::split::<Error>(vault.clone()).await?;
-
-            self.update_vault(vault.summary(), &vault, events).await?;
-
-            // Refresh the in-memory and disc-based mirror
-            let key = folder_keys
-                .find(vault.id())
-                .ok_or(Error::NoFolderPassword(*vault.id()))?;
-            self.refresh_vault(vault.summary(), key).await?;
-        }
-
-        Ok(())
     }
 
     #[cfg(feature = "files")]

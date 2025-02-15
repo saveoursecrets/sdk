@@ -19,16 +19,13 @@ use sos_core::{
     events::{AccountEvent, DeviceEvent, EventLog, ReadEvent},
     AccountId, AuthenticationError, Paths, VaultId,
 };
-use sos_login::{FolderKeys, Identity};
+use sos_login::Identity;
 use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::StorageEventLogs;
-use sos_vault::{Header, Summary, Vault, VaultFlags};
+use sos_vault::{Header, Summary, Vault};
 use sos_vfs as vfs;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
-
-#[cfg(feature = "archive")]
-use sos_filesystem::archive::RestoreTargets;
 
 #[cfg(feature = "files")]
 use {sos_backend::FileEventLog, sos_core::events::FileEvent};
@@ -406,39 +403,6 @@ impl ClientAccountStorage for ClientFileSystemStorage {
 
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
-    }
-
-    #[cfg(feature = "archive")]
-    async fn restore_archive(
-        &mut self,
-        targets: &RestoreTargets,
-        folder_keys: &FolderKeys,
-    ) -> Result<()> {
-        let RestoreTargets { vaults, .. } = targets;
-
-        // We may be restoring vaults that do not exist
-        // so we need to update the cache
-        let summaries = vaults
-            .iter()
-            .map(|(_, v)| v.summary().clone())
-            .collect::<Vec<_>>();
-        self.load_caches(&summaries).await?;
-
-        for (_, vault) in vaults {
-            // Prepare a fresh log of event log events
-            let (vault, events) =
-                FolderReducer::split::<Error>(vault.clone()).await?;
-
-            self.update_vault(vault.summary(), &vault, events).await?;
-
-            // Refresh the in-memory and disc-based mirror
-            let key = folder_keys
-                .find(vault.id())
-                .ok_or(Error::NoFolderPassword(*vault.id()))?;
-            self.refresh_vault(vault.summary(), key).await?;
-        }
-
-        Ok(())
     }
 
     #[cfg(feature = "files")]

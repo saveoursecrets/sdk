@@ -6,7 +6,7 @@ use crate::{
         private::Internal, ClientAccountStorage, ClientBaseStorage,
         ClientDeviceStorage, ClientFolderStorage, ClientVaultStorage,
     },
-    AccountPack, Error, NewFolderOptions, Result,
+    Error, Result,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -14,34 +14,27 @@ use sos_backend::{
     AccountEventLog, BackendTarget, DeviceEventLog, Folder, FolderEventLog,
 };
 use sos_core::{
-    commit::{CommitHash, CommitState},
-    crypto::AccessKey,
-    device::{DevicePublicKey, TrustedDevice},
+    device::TrustedDevice,
     events::{
-        patch::{
-            AccountDiff, CheckedPatch, DeviceDiff, FolderDiff, FolderPatch,
-        },
-        AccountEvent, DeviceEvent, Event, EventRecord, ReadEvent, WriteEvent,
+        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
+        AccountEvent, ReadEvent, WriteEvent,
     },
-    AccountId, FolderRef, Paths, UtcDateTime, VaultId,
+    AccountId, Paths, VaultId,
 };
 use sos_database::async_sqlite::Client;
-use sos_login::{FolderKeys, Identity};
+use sos_login::Identity;
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
 };
-use sos_vault::{Summary, Vault, VaultFlags};
+use sos_vault::{Summary, Vault};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
 use tokio::sync::RwLock;
 
-#[cfg(feature = "archive")]
-use sos_filesystem::archive::RestoreTargets;
-
 #[cfg(feature = "search")]
-use sos_search::{AccountSearch, DocumentCount};
+use sos_search::AccountSearch;
 
 #[cfg(feature = "files")]
 use {sos_backend::FileEventLog, sos_core::events::patch::FileDiff};
@@ -203,21 +196,6 @@ impl ClientFolderStorage for ClientStorage {
             ClientStorage::Database(db) => db.close_folder(),
         }
     }
-
-    async fn update_folder_flags(
-        &mut self,
-        summary: &Summary,
-        flags: VaultFlags,
-    ) -> Result<Event> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.update_folder_flags(summary, flags).await
-            }
-            ClientStorage::Database(db) => {
-                db.update_folder_flags(summary, flags).await
-            }
-        }
-    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -241,32 +219,6 @@ impl ClientDeviceStorage for ClientStorage {
         match self {
             ClientStorage::FileSystem(fs) => fs.list_trusted_devices(),
             ClientStorage::Database(db) => db.list_trusted_devices(),
-        }
-    }
-
-    async fn patch_devices_unchecked(
-        &mut self,
-        events: Vec<DeviceEvent>,
-    ) -> Result<()> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.patch_devices_unchecked(events).await
-            }
-            ClientStorage::Database(db) => {
-                db.patch_devices_unchecked(events).await
-            }
-        }
-    }
-
-    async fn revoke_device(
-        &mut self,
-        public_key: &DevicePublicKey,
-    ) -> Result<()> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.revoke_device(public_key).await
-            }
-            ClientStorage::Database(db) => db.revoke_device(public_key).await,
         }
     }
 }
@@ -320,13 +272,6 @@ impl ClientAccountStorage for ClientStorage {
         }
     }
 
-    async fn sign_out(&mut self) -> Result<()> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.sign_out().await,
-            ClientStorage::Database(db) => db.sign_out().await,
-        }
-    }
-
     async fn import_identity_vault(
         &mut self,
         vault: Vault,
@@ -341,58 +286,10 @@ impl ClientAccountStorage for ClientStorage {
         }
     }
 
-    async fn unlock(&mut self, keys: &FolderKeys) -> Result<()> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.unlock(keys).await,
-            ClientStorage::Database(db) => db.unlock(keys).await,
-        }
-    }
-
-    async fn lock(&mut self) {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.lock().await,
-            ClientStorage::Database(db) => db.lock().await,
-        }
-    }
-
-    async fn unlock_folder(
-        &mut self,
-        id: &VaultId,
-        key: &AccessKey,
-    ) -> Result<()> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.unlock_folder(id, key).await,
-            ClientStorage::Database(db) => db.unlock_folder(id, key).await,
-        }
-    }
-
-    async fn lock_folder(&mut self, id: &VaultId) -> Result<()> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.lock_folder(id).await,
-            ClientStorage::Database(db) => db.lock_folder(id).await,
-        }
-    }
-
     fn paths(&self) -> Arc<Paths> {
         match self {
             ClientStorage::FileSystem(fs) => fs.paths(),
             ClientStorage::Database(db) => db.paths(),
-        }
-    }
-
-    #[cfg(feature = "archive")]
-    async fn restore_archive(
-        &mut self,
-        targets: &RestoreTargets,
-        folder_keys: &FolderKeys,
-    ) -> Result<()> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.restore_archive(targets, folder_keys).await
-            }
-            ClientStorage::Database(db) => {
-                db.restore_archive(targets, folder_keys).await
-            }
         }
     }
 

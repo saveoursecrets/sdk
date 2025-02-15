@@ -1158,7 +1158,33 @@ pub trait ClientAccountStorage:
         &mut self,
         targets: &RestoreTargets,
         folder_keys: &FolderKeys,
-    ) -> Result<()>;
+    ) -> Result<()> {
+        let RestoreTargets { vaults, .. } = targets;
+
+        // We may be restoring vaults that do not exist
+        // so we need to update the cache
+        let summaries = vaults
+            .iter()
+            .map(|(_, v)| v.summary().clone())
+            .collect::<Vec<_>>();
+        self.load_caches(&summaries).await?;
+
+        for (_, vault) in vaults {
+            // Prepare a fresh log of event log events
+            let (vault, events) =
+                FolderReducer::split::<Error>(vault.clone()).await?;
+
+            self.update_vault(vault.summary(), &vault, events).await?;
+
+            // Refresh the in-memory and disc-based mirror
+            let key = folder_keys
+                .find(vault.id())
+                .ok_or(Error::NoFolderPassword(*vault.id()))?;
+            self.refresh_vault(vault.summary(), key).await?;
+        }
+
+        Ok(())
+    }
 
     /// External file manager.
     #[cfg(feature = "files")]
