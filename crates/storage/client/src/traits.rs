@@ -1361,6 +1361,7 @@ pub trait ClientAccountStorage:
 
     /// Set the external file manager.
     #[cfg(feature = "files")]
+    #[doc(hidden)]
     fn set_external_file_manager(
         &mut self,
         file_manager: Option<ExternalFileManager>,
