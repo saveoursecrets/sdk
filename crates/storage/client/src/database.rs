@@ -217,7 +217,15 @@ impl ClientVaultStorage for ClientDatabaseStorage {
         folder_id: &VaultId,
         _: Internal,
     ) -> Result<()> {
-        todo!("impl remove_vault for db");
+        let folder_id = *folder_id;
+        self.client
+            .conn(move |conn| {
+                let folder_entity = FolderEntity::new(&conn);
+                folder_entity.delete_folder(&folder_id)
+            })
+            .await
+            .map_err(sos_database::Error::from)?;
+        Ok(())
     }
 
     async fn read_vaults(&self, _: Internal) -> Result<Vec<Summary>> {
