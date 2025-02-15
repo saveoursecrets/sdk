@@ -112,7 +112,9 @@ impl ClientFileSystemStorage {
 
         #[cfg(feature = "files")]
         let file_log = {
-            let file_log = Self::initialize_file_log(&paths).await?;
+            let mut file_log =
+                FileEventLog::new_fs_file(paths.file_events()).await?;
+            file_log.load_tree().await?;
             Arc::new(RwLock::new(file_log))
         };
 
@@ -144,6 +146,7 @@ impl ClientFileSystemStorage {
         Ok(storage)
     }
 
+    /*
     async fn initialize_device_log(
         _account_id: &AccountId,
         paths: &Paths,
@@ -172,7 +175,9 @@ impl ClientFileSystemStorage {
 
         Ok((event_log, devices))
     }
+    */
 
+    /*
     #[cfg(feature = "files")]
     async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
         let log_file = paths.file_events();
@@ -195,6 +200,7 @@ impl ClientFileSystemStorage {
 
         Ok(event_log)
     }
+    */
 }
 
 impl ClientBaseStorage for ClientFileSystemStorage {
@@ -212,19 +218,31 @@ impl ClientVaultStorage for ClientFileSystemStorage {
         Ok(decode(&buffer).await?)
     }
 
-    async fn write_vault(&self, vault: &Vault) -> Result<Vec<u8>> {
+    async fn write_vault(
+        &self,
+        vault: &Vault,
+        _: Internal,
+    ) -> Result<Vec<u8>> {
         let buffer = encode(vault).await?;
         write_exclusive(self.paths.vault_path(vault.id()), &buffer).await?;
         Ok(buffer)
     }
 
-    async fn write_login_vault(&self, vault: &Vault) -> Result<Vec<u8>> {
+    async fn write_login_vault(
+        &self,
+        vault: &Vault,
+        _: Internal,
+    ) -> Result<Vec<u8>> {
         let buffer = encode(vault).await?;
         write_exclusive(self.paths().identity_vault(), &buffer).await?;
         Ok(buffer)
     }
 
-    async fn remove_vault(&self, folder_id: &VaultId) -> Result<()> {
+    async fn remove_vault(
+        &self,
+        folder_id: &VaultId,
+        _: Internal,
+    ) -> Result<()> {
         // Remove local vault mirror if it exists
         let vault_path = self.paths.vault_path(folder_id);
         if vfs::try_exists(&vault_path).await? {
@@ -239,7 +257,7 @@ impl ClientVaultStorage for ClientFileSystemStorage {
         Ok(())
     }
 
-    async fn read_folders(&self) -> Result<Vec<Summary>> {
+    async fn read_vaults(&self, _: Internal) -> Result<Vec<Summary>> {
         let storage = self.paths.vaults_dir();
         let mut summaries = Vec::new();
         let mut contents = vfs::read_dir(&storage).await?;
@@ -313,7 +331,7 @@ impl ClientDeviceStorage for ClientFileSystemStorage {
     }
 
     /// Set the collection of trusted devices.
-    fn set_devices(&mut self, devices: IndexSet<TrustedDevice>) {
+    fn set_devices(&mut self, devices: IndexSet<TrustedDevice>, _: Internal) {
         self.devices = devices;
     }
 
@@ -333,12 +351,72 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         self.authenticated.as_mut()
     }
 
-    fn drop_authenticated_state(&mut self, _: Internal) {
-        #[cfg(feature = "search")]
-        {
-            self.index = None;
+    fn set_authenticated_user(
+        &mut self,
+        user: Option<Identity>,
+        _: Internal,
+    ) {
+        self.authenticated = user;
+    }
+
+    fn set_search_index(
+        &mut self,
+        index: Option<AccountSearch>,
+        _: Internal,
+    ) {
+        self.index = index;
+    }
+
+    async fn initialize_device_log(
+        &self,
+        device: TrustedDevice,
+        _: Internal,
+    ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
+        let log_file = self.paths.device_events();
+
+        let mut event_log = DeviceEventLog::new_fs_device(log_file).await?;
+        event_log.load_tree().await?;
+        let needs_init = event_log.tree().root().is_none();
+
+        tracing::debug!(needs_init = %needs_init, "device_log");
+
+        // Trust this device on initialization if the event
+        // log is empty so that we are backwards compatible with
+        // accounts that existed before device event logs.
+        if needs_init {
+            tracing::debug!(
+              public_key = %device.public_key(), "initialize_root_device");
+            let event = DeviceEvent::Trust(device);
+            event_log.apply(vec![&event]).await?;
         }
-        self.authenticated = None;
+
+        let reducer = DeviceReducer::new(&event_log);
+        let devices = reducer.reduce().await?;
+
+        Ok((event_log, devices))
+    }
+
+    #[cfg(feature = "files")]
+    async fn initialize_file_log(&self, _: Internal) -> Result<FileEventLog> {
+        let log_file = self.paths.file_events();
+        let needs_init = !vfs::try_exists(&log_file).await?;
+        let mut event_log = FileEventLog::new_fs_file(log_file).await?;
+        event_log.load_tree().await?;
+
+        tracing::debug!(needs_init = %needs_init, "file_log");
+
+        if needs_init {
+            let files =
+                sos_external_files::list_external_files(&self.paths).await?;
+            let events: Vec<FileEvent> =
+                files.into_iter().map(|f| f.into()).collect();
+
+            tracing::debug!(init_events_len = %events.len());
+
+            event_log.apply(events.iter().collect()).await?;
+        }
+
+        Ok(event_log)
     }
 
     async fn authenticate(
@@ -351,12 +429,8 @@ impl ClientAccountStorage for ClientFileSystemStorage {
             .devices()?
             .current_device(None);
 
-        let (device_log, devices) = Self::initialize_device_log(
-            &self.account_id,
-            &self.paths,
-            device,
-        )
-        .await?;
+        let (device_log, devices) =
+            self.initialize_device_log(device, Internal).await?;
 
         #[cfg(feature = "search")]
         {
@@ -365,7 +439,7 @@ impl ClientAccountStorage for ClientFileSystemStorage {
 
         #[cfg(feature = "files")]
         {
-            let file_log = Self::initialize_file_log(&self.paths).await?;
+            let file_log = self.initialize_file_log(Internal).await?;
             self.file_log = Arc::new(RwLock::new(file_log));
 
             let file_password =

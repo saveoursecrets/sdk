@@ -1,5 +1,6 @@
 use crate::{
     folder_sync::{FolderMerge, FolderMergeOptions, IdentityFolderMerge},
+    traits::private::Internal,
     ClientAccountStorage, ClientDeviceStorage, ClientFolderStorage, Error,
     Result,
 };
@@ -357,7 +358,7 @@ where
                 reducer.reduce().await?
             };
 
-            self.0.set_devices(devices);
+            self.0.set_devices(devices, Internal);
 
             outcome.changes += diff.patch.len() as u64;
             outcome.tracked.device =

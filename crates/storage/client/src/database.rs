@@ -165,36 +165,6 @@ impl ClientDatabaseStorage {
 
         Ok(storage)
     }
-
-    async fn initialize_device_log(
-        account_id: &AccountId,
-        _paths: &Paths,
-        device: TrustedDevice,
-        client: &Client,
-    ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
-        let mut event_log =
-            DeviceEventLog::new_db_device(client.clone(), *account_id)
-                .await?;
-        event_log.load_tree().await?;
-        let needs_init = event_log.tree().root().is_none();
-
-        tracing::debug!(needs_init = %needs_init, "device_log");
-
-        // Trust this device on initialization if the event
-        // log is empty so that we are backwards compatible with
-        // accounts that existed before device event logs.
-        if needs_init {
-            tracing::debug!(
-              public_key = %device.public_key(), "initialize_root_device");
-            let event = DeviceEvent::Trust(device);
-            event_log.apply(vec![&event]).await?;
-        }
-
-        let reducer = DeviceReducer::new(&event_log);
-        let devices = reducer.reduce().await?;
-
-        Ok((event_log, devices))
-    }
 }
 
 impl ClientBaseStorage for ClientDatabaseStorage {
@@ -211,7 +181,11 @@ impl ClientVaultStorage for ClientDatabaseStorage {
             .await?)
     }
 
-    async fn write_vault(&self, vault: &Vault) -> Result<Vec<u8>> {
+    async fn write_vault(
+        &self,
+        vault: &Vault,
+        _: Internal,
+    ) -> Result<Vec<u8>> {
         let buffer = encode(vault).await?;
         FolderEntity::upsert_folder_and_secrets(
             &self.client,
@@ -222,7 +196,11 @@ impl ClientVaultStorage for ClientDatabaseStorage {
         Ok(buffer)
     }
 
-    async fn write_login_vault(&self, vault: &Vault) -> Result<Vec<u8>> {
+    async fn write_login_vault(
+        &self,
+        vault: &Vault,
+        _: Internal,
+    ) -> Result<Vec<u8>> {
         let (folder_id, _) = FolderEntity::upsert_folder_and_secrets(
             &self.client,
             self.account_row_id,
@@ -235,11 +213,15 @@ impl ClientVaultStorage for ClientDatabaseStorage {
         );
     }
 
-    async fn remove_vault(&self, folder_id: &VaultId) -> Result<()> {
+    async fn remove_vault(
+        &self,
+        folder_id: &VaultId,
+        _: Internal,
+    ) -> Result<()> {
         todo!("impl remove_vault for db");
     }
 
-    async fn read_folders(&self) -> Result<Vec<Summary>> {
+    async fn read_vaults(&self, _: Internal) -> Result<Vec<Summary>> {
         let account_id = self.account_row_id;
         let rows = self
             .client
@@ -315,7 +297,7 @@ impl ClientDeviceStorage for ClientDatabaseStorage {
     }
 
     /// Set the collection of trusted devices.
-    fn set_devices(&mut self, devices: IndexSet<TrustedDevice>) {
+    fn set_devices(&mut self, devices: IndexSet<TrustedDevice>, _: Internal) {
         self.devices = devices;
     }
 
@@ -335,12 +317,60 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         self.authenticated.as_mut()
     }
 
-    fn drop_authenticated_state(&mut self, _: Internal) {
-        #[cfg(feature = "search")]
-        {
-            self.index = None;
+    fn set_authenticated_user(
+        &mut self,
+        user: Option<Identity>,
+        _: Internal,
+    ) {
+        self.authenticated = user;
+    }
+
+    fn set_search_index(
+        &mut self,
+        index: Option<AccountSearch>,
+        _: Internal,
+    ) {
+        self.index = index;
+    }
+
+    async fn initialize_device_log(
+        &self,
+        device: TrustedDevice,
+        _: Internal,
+    ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
+        let mut event_log = DeviceEventLog::new_db_device(
+            self.client.clone(),
+            self.account_id,
+        )
+        .await?;
+        event_log.load_tree().await?;
+        let needs_init = event_log.tree().root().is_none();
+
+        tracing::debug!(needs_init = %needs_init, "device_log");
+
+        // Trust this device on initialization if the event
+        // log is empty so that we are backwards compatible with
+        // accounts that existed before device event logs.
+        if needs_init {
+            tracing::debug!(
+              public_key = %device.public_key(), "initialize_root_device");
+            let event = DeviceEvent::Trust(device);
+            event_log.apply(vec![&event]).await?;
         }
-        self.authenticated = None;
+
+        let reducer = DeviceReducer::new(&event_log);
+        let devices = reducer.reduce().await?;
+
+        Ok((event_log, devices))
+    }
+
+    #[cfg(feature = "files")]
+    async fn initialize_file_log(&self, _: Internal) -> Result<FileEventLog> {
+        let mut file_log =
+            FileEventLog::new_db_file(self.client.clone(), self.account_id)
+                .await?;
+        file_log.load_tree().await?;
+        Ok(file_log)
     }
 
     async fn authenticate(
@@ -353,13 +383,8 @@ impl ClientAccountStorage for ClientDatabaseStorage {
             .devices()?
             .current_device(None);
 
-        let (device_log, devices) = Self::initialize_device_log(
-            &self.account_id,
-            &*self.paths,
-            device,
-            &self.client,
-        )
-        .await?;
+        let (device_log, devices) =
+            self.initialize_device_log(device, Internal).await?;
 
         #[cfg(feature = "search")]
         {

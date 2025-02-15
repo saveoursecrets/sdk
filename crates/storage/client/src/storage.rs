@@ -116,33 +116,49 @@ impl ClientVaultStorage for ClientStorage {
         }
     }
 
-    async fn write_vault(&self, vault: &Vault) -> Result<Vec<u8>> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.write_vault(vault).await,
-            ClientStorage::Database(db) => db.write_vault(vault).await,
-        }
-    }
-
-    async fn write_login_vault(&self, vault: &Vault) -> Result<Vec<u8>> {
+    async fn write_vault(
+        &self,
+        vault: &Vault,
+        token: Internal,
+    ) -> Result<Vec<u8>> {
         match self {
             ClientStorage::FileSystem(fs) => {
-                fs.write_login_vault(vault).await
+                fs.write_vault(vault, token).await
             }
-            ClientStorage::Database(db) => db.write_login_vault(vault).await,
+            ClientStorage::Database(db) => db.write_vault(vault, token).await,
         }
     }
 
-    async fn remove_vault(&self, id: &VaultId) -> Result<()> {
+    async fn write_login_vault(
+        &self,
+        vault: &Vault,
+        token: Internal,
+    ) -> Result<Vec<u8>> {
         match self {
-            ClientStorage::FileSystem(fs) => fs.remove_vault(id).await,
-            ClientStorage::Database(db) => db.remove_vault(id).await,
+            ClientStorage::FileSystem(fs) => {
+                fs.write_login_vault(vault, token).await
+            }
+            ClientStorage::Database(db) => {
+                db.write_login_vault(vault, token).await
+            }
         }
     }
 
-    async fn read_folders(&self) -> Result<Vec<Summary>> {
+    async fn remove_vault(
+        &self,
+        id: &VaultId,
+        token: Internal,
+    ) -> Result<()> {
         match self {
-            ClientStorage::FileSystem(fs) => fs.read_folders().await,
-            ClientStorage::Database(db) => db.read_folders().await,
+            ClientStorage::FileSystem(fs) => fs.remove_vault(id, token).await,
+            ClientStorage::Database(db) => db.remove_vault(id, token).await,
+        }
+    }
+
+    async fn read_vaults(&self, token: Internal) -> Result<Vec<Summary>> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.read_vaults(token).await,
+            ClientStorage::Database(db) => db.read_vaults(token).await,
         }
     }
 
@@ -217,10 +233,14 @@ impl ClientDeviceStorage for ClientStorage {
         }
     }
 
-    fn set_devices(&mut self, devices: IndexSet<TrustedDevice>) {
+    fn set_devices(
+        &mut self,
+        devices: IndexSet<TrustedDevice>,
+        token: Internal,
+    ) {
         match self {
-            ClientStorage::FileSystem(fs) => fs.set_devices(devices),
-            ClientStorage::Database(db) => db.set_devices(devices),
+            ClientStorage::FileSystem(fs) => fs.set_devices(devices, token),
+            ClientStorage::Database(db) => db.set_devices(devices, token),
         }
     }
 
@@ -256,13 +276,60 @@ impl ClientAccountStorage for ClientStorage {
         }
     }
 
-    fn drop_authenticated_state(&mut self, private: Internal) {
+    fn set_authenticated_user(
+        &mut self,
+        user: Option<Identity>,
+        token: Internal,
+    ) {
         match self {
             ClientStorage::FileSystem(fs) => {
-                fs.drop_authenticated_state(private)
+                fs.set_authenticated_user(user, token)
             }
             ClientStorage::Database(db) => {
-                db.drop_authenticated_state(private)
+                db.set_authenticated_user(user, token)
+            }
+        }
+    }
+
+    fn set_search_index(
+        &mut self,
+        index: Option<AccountSearch>,
+        token: Internal,
+    ) {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.set_search_index(index, token)
+            }
+            ClientStorage::Database(db) => db.set_search_index(index, token),
+        }
+    }
+
+    async fn initialize_device_log(
+        &self,
+        device: TrustedDevice,
+        token: Internal,
+    ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.initialize_device_log(device, token).await
+            }
+            ClientStorage::Database(db) => {
+                db.initialize_device_log(device, token).await
+            }
+        }
+    }
+
+    #[cfg(feature = "files")]
+    async fn initialize_file_log(
+        &self,
+        token: Internal,
+    ) -> Result<FileEventLog> {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.initialize_file_log(token).await
+            }
+            ClientStorage::Database(db) => {
+                db.initialize_file_log(token).await
             }
         }
     }

@@ -6,7 +6,7 @@ use crate::{
 use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
-use sos_backend::{compact::compact_folder, Folder};
+use sos_backend::{compact::compact_folder, DeviceEventLog, Folder};
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -30,6 +30,7 @@ use sos_vault::{
     VaultBuilder,
 };
 use std::{collections::HashMap, sync::Arc};
+use tokio::sync::RwLock;
 
 #[cfg(feature = "archive")]
 use sos_filesystem::archive::RestoreTargets;
@@ -42,6 +43,9 @@ use {
     sos_audit::{AuditData, AuditEvent},
     sos_backend::audit::append_audit_events,
 };
+
+#[cfg(feature = "files")]
+use sos_backend::FileEventLog;
 
 pub(crate) mod private {
     /// Internal struct for sealed functions.
@@ -67,7 +71,8 @@ pub trait ClientDeviceStorage:
     fn devices(&self) -> &IndexSet<TrustedDevice>;
 
     /// Set the collection of trusted devices.
-    fn set_devices(&mut self, devices: IndexSet<TrustedDevice>);
+    #[doc(hidden)]
+    fn set_devices(&mut self, devices: IndexSet<TrustedDevice>, _: Internal);
 
     /// List trusted devices.
     fn list_trusted_devices(&self) -> Vec<&TrustedDevice>;
@@ -85,7 +90,7 @@ pub trait ClientDeviceStorage:
         // Update in-memory cache of trusted devices
         let reducer = DeviceReducer::new(&*event_log);
         let devices = reducer.reduce().await?;
-        self.set_devices(devices);
+        self.set_devices(devices, Internal);
 
         #[cfg(feature = "audit")]
         {
@@ -124,7 +129,7 @@ pub trait ClientDeviceStorage:
             writer.apply(vec![&event]).await?;
 
             let reducer = DeviceReducer::new(&*writer);
-            self.set_devices(reducer.reduce().await?);
+            self.set_devices(reducer.reduce().await?, Internal);
         }
 
         Ok(())
@@ -140,16 +145,32 @@ pub trait ClientVaultStorage {
     async fn read_vault(&self, id: &VaultId) -> Result<Vault>;
 
     /// Write a vault to storage.
-    async fn write_vault(&self, vault: &Vault) -> Result<Vec<u8>>;
+    #[doc(hidden)]
+    async fn write_vault(
+        &self,
+        vault: &Vault,
+        _: Internal,
+    ) -> Result<Vec<u8>>;
 
     /// Write the login vault to storage.
-    async fn write_login_vault(&self, vault: &Vault) -> Result<Vec<u8>>;
+    #[doc(hidden)]
+    async fn write_login_vault(
+        &self,
+        vault: &Vault,
+        _: Internal,
+    ) -> Result<Vec<u8>>;
 
     /// Remove a vault.
-    async fn remove_vault(&self, folder_id: &VaultId) -> Result<()>;
+    #[doc(hidden)]
+    async fn remove_vault(
+        &self,
+        folder_id: &VaultId,
+        _: Internal,
+    ) -> Result<()>;
 
     /// Read folders from the storage.
-    async fn read_folders(&self) -> Result<Vec<Summary>>;
+    #[doc(hidden)]
+    async fn read_vaults(&self, _: Internal) -> Result<Vec<Summary>>;
 
     /// In-memory collection of folder summaries
     /// managed by this storage.
@@ -226,14 +247,19 @@ pub trait ClientFolderStorage:
     /// Create a new folder.
     async fn new_folder(&self, folder_id: &VaultId) -> Result<Folder>;
 
-    /// Initialize a folder from an event log.
+    /// Initialize a folder from a collection of event records.
     ///
     /// If an event log exists for the folder identifer
     /// it is replaced with the new event records.
+    ///
+    /// A vault is created from the reduced collection of events
+    /// and written to storage.
+    #[doc(hidden)]
     async fn initialize_folder(
         &mut self,
         folder_id: &VaultId,
         records: Vec<EventRecord>,
+        _: Internal,
     ) -> Result<(Folder, Vault)> {
         // Prepare the vault
         let vault = {
@@ -252,7 +278,7 @@ pub trait ClientFolderStorage:
             let id = vault.header_mut().id_mut();
             *id = *folder_id;
 
-            self.write_vault(&vault).await?;
+            self.write_vault(&vault, Internal).await?;
 
             vault
         };
@@ -304,7 +330,12 @@ pub trait ClientFolderStorage:
 
     /// Create a cache entry for each summary if it does not
     /// already exist.
-    async fn load_caches(&mut self, summaries: &[Summary]) -> Result<()> {
+    #[doc(hidden)]
+    async fn load_caches(
+        &mut self,
+        summaries: &[Summary],
+        _: Internal,
+    ) -> Result<()> {
         for summary in summaries {
             // Ensure we don't overwrite existing data
             if self.folders().get(summary.id()).is_none() {
@@ -316,7 +347,12 @@ pub trait ClientFolderStorage:
     }
 
     /// Remove the local cache for a vault.
-    fn remove_folder_entry(&mut self, folder_id: &VaultId) -> Result<()> {
+    #[doc(hidden)]
+    fn remove_folder_entry(
+        &mut self,
+        folder_id: &VaultId,
+        _: Internal,
+    ) -> Result<()> {
         let current_id = self.current_folder().map(|c| *c.id());
 
         // If the deleted vault is the currently selected
@@ -343,7 +379,7 @@ pub trait ClientFolderStorage:
         vault: &Vault,
         events: Vec<WriteEvent>,
     ) -> Result<Vec<u8>> {
-        let buffer = self.write_vault(vault).await?;
+        let buffer = self.write_vault(vault, Internal).await?;
 
         // Apply events to the event log
         let folder = self
@@ -357,9 +393,11 @@ pub trait ClientFolderStorage:
     }
 
     /// Load a vault by reducing it from the event log stored on disc.
+    #[doc(hidden)]
     async fn reduce_event_log(
         &mut self,
         folder_id: &VaultId,
+        _: Internal,
     ) -> Result<Vault> {
         let event_log = self.folder_log(folder_id).await?;
         let log_file = event_log.read().await;
@@ -382,8 +420,8 @@ pub trait ClientFolderStorage:
         summary: &Summary,
         key: &AccessKey,
     ) -> Result<Vec<u8>> {
-        let vault = self.reduce_event_log(summary.id()).await?;
-        let buffer = self.write_vault(&vault).await?;
+        let vault = self.reduce_event_log(summary.id(), Internal).await?;
+        let buffer = self.write_vault(&vault, Internal).await?;
 
         if let Some(folder) = self.folders_mut().get_mut(summary.id()) {
             let access_point = folder.access_point();
@@ -400,8 +438,8 @@ pub trait ClientFolderStorage:
     /// Read folders from storage and create the in-memory
     /// event logs for each folder.
     async fn load_folders(&mut self) -> Result<&[Summary]> {
-        let summaries = self.read_folders().await?;
-        self.load_caches(&summaries).await?;
+        let summaries = self.read_vaults(Internal).await?;
+        self.load_caches(&summaries, Internal).await?;
         *self.summaries_mut(Internal) = summaries;
         Ok(self.list_folders())
     }
@@ -409,7 +447,7 @@ pub trait ClientFolderStorage:
     /// Remove a folder from memory.
     async fn remove_folder(&mut self, folder_id: &VaultId) -> Result<bool> {
         Ok(if self.find(|s| s.id() == folder_id).is_some() {
-            self.remove_folder_entry(folder_id)?;
+            self.remove_folder_entry(folder_id, Internal)?;
             true
         } else {
             false
@@ -431,8 +469,9 @@ pub trait ClientFolderStorage:
     ) -> Result<()> {
         for (folder_id, patch) in patches {
             let records: Vec<EventRecord> = patch.into();
-            let (folder, vault) =
-                self.initialize_folder(&folder_id, records).await?;
+            let (folder, vault) = self
+                .initialize_folder(&folder_id, records, Internal)
+                .await?;
 
             {
                 let event_log = folder.event_log();
@@ -712,15 +751,80 @@ pub trait ClientAccountStorage:
     /// Computed storage paths.
     fn paths(&self) -> Arc<Paths>;
 
+    /// Initialize the device event log.
+    #[doc(hidden)]
+    async fn initialize_device_log(
+        &self,
+        device: TrustedDevice,
+        _: Internal,
+    ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)>;
+
+    /// Initialize the file event log.
+    #[cfg(feature = "files")]
+    #[doc(hidden)]
+    async fn initialize_file_log(&self, _: Internal) -> Result<FileEventLog>;
+
     /// Set the storage as authenticated.
     async fn authenticate(
         &mut self,
         authenticated_user: Identity,
-    ) -> Result<()>;
+    ) -> Result<()> {
+        let identity_log = authenticated_user.identity()?.event_log();
+        let device = authenticated_user
+            .identity()?
+            .devices()?
+            .current_device(None);
 
+        let (device_log, devices) =
+            self.initialize_device_log(device, Internal).await?;
+
+        #[cfg(feature = "search")]
+        {
+            self.set_search_index(Some(AccountSearch::new()), Internal);
+        }
+
+        #[cfg(feature = "files")]
+        {
+            let file_log = self.initialize_file_log(Internal).await?;
+            let file_log = Arc::new(RwLock::new(file_log));
+            let file_password =
+                authenticated_user.find_file_encryption_password().await?;
+
+            /*
+            self.set_external_file_manager(ExternalFileManager::new(
+                self.paths().clone(),
+                file_log.clone(),
+                Some(file_password),
+            ));
+            self.set_file_log(file_log);
+            */
+        }
+
+        /*
+
+        self.set_identity_log(identity_log);
+        self.set_device_log(Arc::new(RwLock::new(device_log)));
+        self.set_devices(devices);
+        self.set_authenticated_user(Some(authenticated_user));
+        */
+
+        Ok(())
+    }
+
+    /*
+    async fn authenticate(
+        &mut self,
+        authenticated_user: Identity,
+    ) -> Result<()>;
+    */
+
+    /// Set the authenticated user.
     #[doc(hidden)]
-    /// Remove the authenticated user and search index.
-    fn drop_authenticated_state(&mut self, _: Internal);
+    fn set_authenticated_user(&mut self, user: Option<Identity>, _: Internal);
+
+    /// Set the search index.
+    #[doc(hidden)]
+    fn set_search_index(&mut self, user: Option<AccountSearch>, _: Internal);
 
     /// Sign out the authenticated user.
     async fn sign_out(&mut self) -> Result<()> {
@@ -730,8 +834,13 @@ pub trait ClientAccountStorage:
             authenticated.sign_out().await?;
         }
 
-        tracing::debug!("client_storage::drop_authenticated_state");
-        self.drop_authenticated_state(Internal);
+        tracing::debug!("client_storage::drop_authenticated_user");
+        self.set_authenticated_user(None, Internal);
+        #[cfg(feature = "search")]
+        {
+            tracing::debug!("client_storage::drop_search_index");
+            self.set_search_index(None, Internal);
+        }
         Ok(())
     }
 
@@ -754,7 +863,7 @@ pub trait ClientAccountStorage:
             .ok_or(AuthenticationError::NotAuthenticated)?;
 
         // Update the identity vault
-        let buffer = self.write_login_vault(&vault).await?;
+        let buffer = self.write_login_vault(&vault, Internal).await?;
 
         // Update the events for the identity vault
         let identity = user.identity()?;
@@ -887,8 +996,7 @@ pub trait ClientAccountStorage:
         };
 
         let summary = vault.summary().clone();
-
-        let buffer = self.write_vault(&vault).await?;
+        let buffer = self.write_vault(&vault, Internal).await?;
 
         // Add the summary to the vaults we are managing
         self.add_summary(summary.clone(), Internal);
@@ -934,10 +1042,10 @@ pub trait ClientAccountStorage:
         apply_event: bool,
     ) -> Result<Vec<Event>> {
         // Remove the files
-        self.remove_vault(folder_id).await?;
+        self.remove_vault(folder_id, Internal).await?;
 
         // Remove local state
-        self.remove_folder_entry(folder_id)?;
+        self.remove_folder_entry(folder_id, Internal)?;
 
         let mut events = Vec::new();
 
@@ -989,7 +1097,7 @@ pub trait ClientAccountStorage:
         key: &AccessKey,
     ) -> Result<Summary> {
         let (mut folder, vault) =
-            self.initialize_folder(folder_id, records).await?;
+            self.initialize_folder(folder_id, records, Internal).await?;
 
         // Unlock the folder
         folder.unlock(key).await?;
@@ -1028,7 +1136,7 @@ pub trait ClientAccountStorage:
             }
         }
 
-        self.write_vault(&vault).await?;
+        self.write_vault(&vault, Internal).await?;
 
         if !exists {
             // Add the summary to the vaults we are managing
@@ -1188,7 +1296,7 @@ pub trait ClientAccountStorage:
             .iter()
             .map(|(_, v)| v.summary().clone())
             .collect::<Vec<_>>();
-        self.load_caches(&summaries).await?;
+        self.load_caches(&summaries, Internal).await?;
 
         for (_, vault) in vaults {
             // Prepare a fresh log of event log events
