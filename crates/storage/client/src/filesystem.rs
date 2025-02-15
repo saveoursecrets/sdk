@@ -16,11 +16,11 @@ use sos_core::{
     decode,
     device::TrustedDevice,
     encode,
-    events::{AccountEvent, DeviceEvent, EventLog, ReadEvent},
-    AccountId, AuthenticationError, Paths, VaultId,
+    events::{DeviceEvent, EventLog, ReadEvent},
+    AccountId, Paths, VaultId,
 };
 use sos_login::Identity;
-use sos_reducers::{DeviceReducer, FolderReducer};
+use sos_reducers::DeviceReducer;
 use sos_sync::StorageEventLogs;
 use sos_vault::{Header, Summary, Vault};
 use sos_vfs as vfs;
@@ -145,6 +145,7 @@ impl ClientFileSystemStorage {
     }
 
     async fn initialize_device_log(
+        _account_id: &AccountId,
         paths: &Paths,
         device: TrustedDevice,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
@@ -213,8 +214,13 @@ impl ClientVaultStorage for ClientFileSystemStorage {
 
     async fn write_vault(&self, vault: &Vault) -> Result<Vec<u8>> {
         let buffer = encode(vault).await?;
-        let vault_path = self.paths.vault_path(vault.id());
-        write_exclusive(vault_path, &buffer).await?;
+        write_exclusive(self.paths.vault_path(vault.id()), &buffer).await?;
+        Ok(buffer)
+    }
+
+    async fn write_login_vault(&self, vault: &Vault) -> Result<Vec<u8>> {
+        let buffer = encode(vault).await?;
+        write_exclusive(self.paths().identity_vault(), &buffer).await?;
         Ok(buffer)
     }
 
@@ -345,8 +351,12 @@ impl ClientAccountStorage for ClientFileSystemStorage {
             .devices()?
             .current_device(None);
 
-        let (device_log, devices) =
-            Self::initialize_device_log(&self.paths, device).await?;
+        let (device_log, devices) = Self::initialize_device_log(
+            &self.account_id,
+            &self.paths,
+            device,
+        )
+        .await?;
 
         #[cfg(feature = "search")]
         {
@@ -373,32 +383,6 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         self.authenticated = Some(authenticated_user);
 
         Ok(())
-    }
-
-    async fn import_identity_vault(
-        &mut self,
-        vault: Vault,
-    ) -> Result<AccountEvent> {
-        let user = self
-            .authenticated
-            .as_ref()
-            .ok_or(AuthenticationError::NotAuthenticated)?;
-
-        // Update the identity vault
-        let buffer = encode(&vault).await?;
-        let identity_vault_path = self.paths().identity_vault();
-        write_exclusive(&identity_vault_path, &buffer).await?;
-
-        // Update the events for the identity vault
-        let identity = user.identity()?;
-        let event_log = identity.event_log();
-        let mut event_log = event_log.write().await;
-        event_log.clear().await?;
-
-        let (_, events) = FolderReducer::split::<Error>(vault).await?;
-        event_log.apply(events.iter().collect()).await?;
-
-        Ok(AccountEvent::UpdateIdentity(buffer))
     }
 
     fn paths(&self) -> Arc<Paths> {

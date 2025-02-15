@@ -17,8 +17,8 @@ use sos_core::{
         patch::FolderPatch, AccountEvent, DeviceEvent, Event, EventKind,
         EventLog, EventRecord, ReadEvent, WriteEvent,
     },
-    AccountId, FolderRef, Paths, SecretId, StorageError, UtcDateTime,
-    VaultCommit, VaultFlags, VaultId,
+    AccountId, AuthenticationError, FolderRef, Paths, SecretId, StorageError,
+    UtcDateTime, VaultCommit, VaultFlags, VaultId,
 };
 use sos_login::{FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
@@ -141,6 +141,9 @@ pub trait ClientVaultStorage {
 
     /// Write a vault to storage.
     async fn write_vault(&self, vault: &Vault) -> Result<Vec<u8>>;
+
+    /// Write the login vault to storage.
+    async fn write_login_vault(&self, vault: &Vault) -> Result<Vec<u8>>;
 
     /// Remove a vault.
     async fn remove_vault(&self, folder_id: &VaultId) -> Result<()>;
@@ -690,7 +693,7 @@ pub trait ClientSecretStorage {
     async fn remove_secret(&mut self, id: &SecretId) -> Result<WriteEvent>;
 }
 
-/// Trait for client storage implementations.
+/// Client storage account management.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientAccountStorage:
@@ -745,7 +748,25 @@ pub trait ClientAccountStorage:
     async fn import_identity_vault(
         &mut self,
         vault: Vault,
-    ) -> Result<AccountEvent>;
+    ) -> Result<AccountEvent> {
+        let user = self
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+
+        // Update the identity vault
+        let buffer = self.write_login_vault(&vault).await?;
+
+        // Update the events for the identity vault
+        let identity = user.identity()?;
+        let event_log = identity.event_log();
+        let mut event_log = event_log.write().await;
+        event_log.clear().await?;
+
+        let (_, events) = FolderReducer::split::<Error>(vault).await?;
+        event_log.apply(events.iter().collect()).await?;
+
+        Ok(AccountEvent::UpdateIdentity(buffer))
+    }
 
     /// Unlock all folders.
     async fn unlock(&mut self, keys: &FolderKeys) -> Result<()> {

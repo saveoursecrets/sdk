@@ -13,15 +13,15 @@ use sos_backend::{
 use sos_core::{
     device::TrustedDevice,
     encode,
-    events::{AccountEvent, DeviceEvent, EventLog, ReadEvent},
-    AccountId, AuthenticationError, Paths, VaultId,
+    events::{DeviceEvent, EventLog, ReadEvent},
+    AccountId, Paths, VaultId,
 };
 use sos_database::{
     async_sqlite::Client,
     entity::{AccountEntity, FolderEntity, FolderRecord},
 };
 use sos_login::Identity;
-use sos_reducers::{DeviceReducer, FolderReducer};
+use sos_reducers::DeviceReducer;
 use sos_sync::StorageEventLogs;
 use sos_vault::{Summary, Vault};
 use std::{collections::HashMap, sync::Arc};
@@ -167,8 +167,9 @@ impl ClientDatabaseStorage {
     }
 
     async fn initialize_device_log(
-        device: TrustedDevice,
         account_id: &AccountId,
+        _paths: &Paths,
+        device: TrustedDevice,
         client: &Client,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
         let mut event_log =
@@ -219,6 +220,19 @@ impl ClientVaultStorage for ClientDatabaseStorage {
         )
         .await?;
         Ok(buffer)
+    }
+
+    async fn write_login_vault(&self, vault: &Vault) -> Result<Vec<u8>> {
+        let (folder_id, _) = FolderEntity::upsert_folder_and_secrets(
+            &self.client,
+            self.account_row_id,
+            vault,
+        )
+        .await?;
+
+        todo!(
+            "impl write_login_vault for db: update identity folder join!!!"
+        );
     }
 
     async fn remove_vault(&self, folder_id: &VaultId) -> Result<()> {
@@ -340,8 +354,9 @@ impl ClientAccountStorage for ClientDatabaseStorage {
             .current_device(None);
 
         let (device_log, devices) = Self::initialize_device_log(
-            device,
             &self.account_id,
+            &*self.paths,
+            device,
             &self.client,
         )
         .await?;
@@ -368,41 +383,6 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         self.authenticated = Some(authenticated_user);
 
         Ok(())
-    }
-
-    async fn import_identity_vault(
-        &mut self,
-        vault: Vault,
-    ) -> Result<AccountEvent> {
-        self.authenticated
-            .as_ref()
-            .ok_or(AuthenticationError::NotAuthenticated)?;
-
-        // Update the identity vault
-        let buffer = encode(&vault).await?;
-
-        let (folder_id, _) = FolderEntity::upsert_folder_and_secrets(
-            &self.client,
-            self.account_row_id,
-            &vault,
-        )
-        .await?;
-
-        todo!("update identity folder join!!!");
-
-        // Update the events for the identity vault
-        let user = self
-            .authenticated_user()
-            .ok_or(AuthenticationError::NotAuthenticated)?;
-        let identity = user.identity()?;
-        let event_log = identity.event_log();
-        let mut event_log = event_log.write().await;
-        event_log.clear().await?;
-
-        let (_, events) = FolderReducer::split::<Error>(vault).await?;
-        event_log.apply(events.iter().collect()).await?;
-
-        Ok(AccountEvent::UpdateIdentity(buffer))
     }
 
     fn paths(&self) -> Arc<Paths> {

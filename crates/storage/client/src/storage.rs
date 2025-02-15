@@ -123,6 +123,15 @@ impl ClientVaultStorage for ClientStorage {
         }
     }
 
+    async fn write_login_vault(&self, vault: &Vault) -> Result<Vec<u8>> {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.write_login_vault(vault).await
+            }
+            ClientStorage::Database(db) => db.write_login_vault(vault).await,
+        }
+    }
+
     async fn remove_vault(&self, id: &VaultId) -> Result<()> {
         match self {
             ClientStorage::FileSystem(fs) => fs.remove_vault(id).await,
