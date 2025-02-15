@@ -6,7 +6,9 @@ use crate::{
 use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
-use sos_backend::{compact::compact_folder, DeviceEventLog, Folder};
+use sos_backend::{
+    compact::compact_folder, DeviceEventLog, Folder, FolderEventLog,
+};
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
@@ -65,7 +67,7 @@ pub trait ClientBaseStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientDeviceStorage:
-    StorageEventLogs<Error = Error> + ClientAccountStorage
+    StorageEventLogs<Error = Error> + ClientBaseStorage
 {
     /// Collection of trusted devices.
     fn devices(&self) -> &IndexSet<TrustedDevice>;
@@ -732,11 +734,56 @@ pub trait ClientSecretStorage {
     async fn remove_secret(&mut self, id: &SecretId) -> Result<WriteEvent>;
 }
 
+/// Internal utility functions for event log management.
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[doc(hidden)]
+pub trait ClientEventLogStorage {
+    /// Initialize the device event log.
+    #[doc(hidden)]
+    async fn initialize_device_log(
+        &self,
+        device: TrustedDevice,
+        _: Internal,
+    ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)>;
+
+    /// Initialize the file event log.
+    #[cfg(feature = "files")]
+    #[doc(hidden)]
+    async fn initialize_file_log(&self, _: Internal) -> Result<FileEventLog>;
+
+    /// Set the identity event log.
+    #[doc(hidden)]
+    fn set_identity_log(
+        &mut self,
+        log: Arc<RwLock<FolderEventLog>>,
+        _: Internal,
+    );
+
+    /// Set the device event log.
+    #[doc(hidden)]
+    fn set_device_log(
+        &mut self,
+        log: Arc<RwLock<DeviceEventLog>>,
+        _: Internal,
+    );
+
+    /// Set the file event log.
+    #[cfg(feature = "files")]
+    #[doc(hidden)]
+    fn set_file_log(&mut self, log: Arc<RwLock<FileEventLog>>, _: Internal);
+}
+
 /// Client storage account management.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientAccountStorage:
-    StorageEventLogs<Error = Error> + ClientFolderStorage + ClientSecretStorage
+    StorageEventLogs<Error = Error>
+    + ClientBaseStorage
+    + ClientDeviceStorage
+    + ClientFolderStorage
+    + ClientSecretStorage
+    + ClientEventLogStorage
 {
     /// Authenticated user information.
     fn authenticated_user(&self) -> Option<&Identity>;
@@ -750,19 +797,6 @@ pub trait ClientAccountStorage:
     }
     /// Computed storage paths.
     fn paths(&self) -> Arc<Paths>;
-
-    /// Initialize the device event log.
-    #[doc(hidden)]
-    async fn initialize_device_log(
-        &self,
-        device: TrustedDevice,
-        _: Internal,
-    ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)>;
-
-    /// Initialize the file event log.
-    #[cfg(feature = "files")]
-    #[doc(hidden)]
-    async fn initialize_file_log(&self, _: Internal) -> Result<FileEventLog>;
 
     /// Set the storage as authenticated.
     async fn authenticate(
@@ -790,33 +824,24 @@ pub trait ClientAccountStorage:
             let file_password =
                 authenticated_user.find_file_encryption_password().await?;
 
-            /*
-            self.set_external_file_manager(ExternalFileManager::new(
-                self.paths().clone(),
-                file_log.clone(),
-                Some(file_password),
-            ));
-            self.set_file_log(file_log);
-            */
+            self.set_external_file_manager(
+                Some(ExternalFileManager::new(
+                    self.paths().clone(),
+                    file_log.clone(),
+                    file_password,
+                )),
+                Internal,
+            );
+            self.set_file_log(file_log, Internal);
         }
 
-        /*
-
-        self.set_identity_log(identity_log);
-        self.set_device_log(Arc::new(RwLock::new(device_log)));
-        self.set_devices(devices);
-        self.set_authenticated_user(Some(authenticated_user));
-        */
+        self.set_identity_log(identity_log, Internal);
+        self.set_device_log(Arc::new(RwLock::new(device_log)), Internal);
+        self.set_devices(devices, Internal);
+        self.set_authenticated_user(Some(authenticated_user), Internal);
 
         Ok(())
     }
-
-    /*
-    async fn authenticate(
-        &mut self,
-        authenticated_user: Identity,
-    ) -> Result<()>;
-    */
 
     /// Set the authenticated user.
     #[doc(hidden)]
@@ -836,11 +861,19 @@ pub trait ClientAccountStorage:
 
         tracing::debug!("client_storage::drop_authenticated_user");
         self.set_authenticated_user(None, Internal);
+
         #[cfg(feature = "search")]
         {
             tracing::debug!("client_storage::drop_search_index");
             self.set_search_index(None, Internal);
         }
+
+        #[cfg(feature = "files")]
+        {
+            tracing::debug!("client_storage::drop_external_file_manager");
+            self.set_external_file_manager(None, Internal);
+        }
+
         Ok(())
     }
 
@@ -1053,6 +1086,7 @@ pub trait ClientAccountStorage:
         {
             let mut file_events = self
                 .external_file_manager_mut()
+                .ok_or_else(|| AuthenticationError::NotAuthenticated)?
                 .delete_folder_files(folder_id)
                 .await?;
             let file_log = self.file_log().await?;
@@ -1317,11 +1351,21 @@ pub trait ClientAccountStorage:
 
     /// External file manager.
     #[cfg(feature = "files")]
-    fn external_file_manager(&self) -> &ExternalFileManager;
+    fn external_file_manager(&self) -> Option<&ExternalFileManager>;
 
     /// Mutable external file manager.
     #[cfg(feature = "files")]
-    fn external_file_manager_mut(&mut self) -> &mut ExternalFileManager;
+    fn external_file_manager_mut(
+        &mut self,
+    ) -> Option<&mut ExternalFileManager>;
+
+    /// Set the external file manager.
+    #[cfg(feature = "files")]
+    fn set_external_file_manager(
+        &mut self,
+        file_manager: Option<ExternalFileManager>,
+        _: Internal,
+    );
 
     /// Search index reference.
     #[cfg(feature = "search")]

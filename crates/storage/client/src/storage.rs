@@ -6,7 +6,7 @@ use crate::{
         private::Internal, ClientAccountStorage, ClientBaseStorage,
         ClientDeviceStorage, ClientFolderStorage, ClientVaultStorage,
     },
-    Error, Result,
+    ClientEventLogStorage, Error, Result,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -304,36 +304,6 @@ impl ClientAccountStorage for ClientStorage {
         }
     }
 
-    async fn initialize_device_log(
-        &self,
-        device: TrustedDevice,
-        token: Internal,
-    ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.initialize_device_log(device, token).await
-            }
-            ClientStorage::Database(db) => {
-                db.initialize_device_log(device, token).await
-            }
-        }
-    }
-
-    #[cfg(feature = "files")]
-    async fn initialize_file_log(
-        &self,
-        token: Internal,
-    ) -> Result<FileEventLog> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.initialize_file_log(token).await
-            }
-            ClientStorage::Database(db) => {
-                db.initialize_file_log(token).await
-            }
-        }
-    }
-
     async fn authenticate(
         &mut self,
         authenticated_user: Identity,
@@ -370,7 +340,7 @@ impl ClientAccountStorage for ClientStorage {
     }
 
     #[cfg(feature = "files")]
-    fn external_file_manager(&self) -> &ExternalFileManager {
+    fn external_file_manager(&self) -> Option<&ExternalFileManager> {
         match self {
             ClientStorage::FileSystem(fs) => fs.external_file_manager(),
             ClientStorage::Database(db) => db.external_file_manager(),
@@ -378,10 +348,28 @@ impl ClientAccountStorage for ClientStorage {
     }
 
     #[cfg(feature = "files")]
-    fn external_file_manager_mut(&mut self) -> &mut ExternalFileManager {
+    fn external_file_manager_mut(
+        &mut self,
+    ) -> Option<&mut ExternalFileManager> {
         match self {
             ClientStorage::FileSystem(fs) => fs.external_file_manager_mut(),
             ClientStorage::Database(db) => db.external_file_manager_mut(),
+        }
+    }
+
+    #[cfg(feature = "files")]
+    fn set_external_file_manager(
+        &mut self,
+        file_manager: Option<ExternalFileManager>,
+        token: Internal,
+    ) {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.set_external_file_manager(file_manager, token)
+            }
+            ClientStorage::Database(db) => {
+                db.set_external_file_manager(file_manager, token)
+            }
         }
     }
 
@@ -398,6 +386,74 @@ impl ClientAccountStorage for ClientStorage {
         match self {
             ClientStorage::FileSystem(fs) => fs.index_mut(),
             ClientStorage::Database(db) => db.index_mut(),
+        }
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ClientEventLogStorage for ClientStorage {
+    async fn initialize_device_log(
+        &self,
+        device: TrustedDevice,
+        token: Internal,
+    ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.initialize_device_log(device, token).await
+            }
+            ClientStorage::Database(db) => {
+                db.initialize_device_log(device, token).await
+            }
+        }
+    }
+
+    #[cfg(feature = "files")]
+    async fn initialize_file_log(
+        &self,
+        token: Internal,
+    ) -> Result<FileEventLog> {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.initialize_file_log(token).await
+            }
+            ClientStorage::Database(db) => {
+                db.initialize_file_log(token).await
+            }
+        }
+    }
+
+    fn set_identity_log(
+        &mut self,
+        log: Arc<RwLock<FolderEventLog>>,
+        token: Internal,
+    ) {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.set_identity_log(log, token),
+            ClientStorage::Database(db) => db.set_identity_log(log, token),
+        }
+    }
+
+    fn set_device_log(
+        &mut self,
+        log: Arc<RwLock<DeviceEventLog>>,
+        token: Internal,
+    ) {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.set_device_log(log, token),
+            ClientStorage::Database(db) => db.set_device_log(log, token),
+        }
+    }
+
+    #[cfg(feature = "files")]
+    fn set_file_log(
+        &mut self,
+        log: Arc<RwLock<FileEventLog>>,
+        token: Internal,
+    ) {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.set_file_log(log, token),
+            ClientStorage::Database(db) => db.set_file_log(log, token),
         }
     }
 }

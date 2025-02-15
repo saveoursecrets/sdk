@@ -6,7 +6,7 @@ use crate::{
 use async_trait::async_trait;
 use sos_backend::StorageError;
 use sos_core::events::{ReadEvent, WriteEvent};
-use sos_core::{SecretId, VaultId};
+use sos_core::{AuthenticationError, SecretId, VaultId};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     VaultCommit,
@@ -51,6 +51,7 @@ where
         let file_events = {
             let (file_events, write_update) = self
                 .external_file_manager_mut()
+                .ok_or_else(|| AuthenticationError::NotAuthenticated)?
                 .create_files(
                     &summary,
                     secret_data,
@@ -74,6 +75,7 @@ where
 
         #[cfg(feature = "files")]
         self.external_file_manager_mut()
+            .ok_or_else(|| AuthenticationError::NotAuthenticated)?
             .append_file_mutation_events(&result.file_events)
             .await?;
 
@@ -144,6 +146,7 @@ where
             let folder = self.current_folder().ok_or(Error::NoOpenVault)?;
             let (file_events, write_update) = self
                 .external_file_manager_mut()
+                .ok_or_else(|| AuthenticationError::NotAuthenticated)?
                 .update_files(
                     &folder,
                     &folder,
@@ -169,6 +172,7 @@ where
 
         #[cfg(feature = "files")]
         self.external_file_manager_mut()
+            .ok_or_else(|| AuthenticationError::NotAuthenticated)?
             .append_file_mutation_events(&result.file_events)
             .await?;
 
@@ -251,6 +255,7 @@ where
                 let folder =
                     self.current_folder().ok_or(Error::NoOpenVault)?;
                 self.external_file_manager_mut()
+                    .ok_or_else(|| AuthenticationError::NotAuthenticated)?
                     .delete_files(
                         &folder,
                         &secret_data,
@@ -263,6 +268,7 @@ where
 
         #[cfg(feature = "files")]
         self.external_file_manager_mut()
+            .ok_or_else(|| AuthenticationError::NotAuthenticated)?
             .append_file_mutation_events(&result.file_events)
             .await?;
 

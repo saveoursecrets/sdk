@@ -21,7 +21,7 @@ use tokio::sync::{mpsc, RwLock};
 pub struct ExternalFileManager {
     paths: Arc<Paths>,
     file_log: Arc<RwLock<FileEventLog>>,
-    pub(crate) file_password: Option<secrecy::SecretString>,
+    file_password: secrecy::SecretString,
 }
 
 impl ExternalFileManager {
@@ -29,7 +29,7 @@ impl ExternalFileManager {
     pub fn new(
         paths: Arc<Paths>,
         file_log: Arc<RwLock<FileEventLog>>,
-        file_password: Option<secrecy::SecretString>,
+        file_password: secrecy::SecretString,
     ) -> Self {
         Self {
             paths,
@@ -67,12 +67,9 @@ impl ExternalFileManager {
         secret_id: &SecretId,
         source: P,
     ) -> Result<EncryptedFile> {
-        let file_password =
-            self.file_password.as_ref().ok_or(Error::NoFilePassword)?;
-
         // Encrypt and write to disc
         Ok(FileStorage::encrypt_file_storage(
-            file_password.clone(),
+            self.file_password.clone(),
             source,
             &self.paths,
             vault_id,
@@ -88,11 +85,8 @@ impl ExternalFileManager {
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<Vec<u8>> {
-        let file_password =
-            self.file_password.as_ref().ok_or(Error::NoFilePassword)?;
-
         Ok(FileStorage::decrypt_file_storage(
-            file_password,
+            &self.file_password,
             &self.paths,
             vault_id,
             secret_id,

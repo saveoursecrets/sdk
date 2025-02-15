@@ -24,7 +24,8 @@ pub use error::Error;
 pub use storage::ClientStorage;
 pub use traits::{
     ClientAccountStorage, ClientBaseStorage, ClientDeviceStorage,
-    ClientFolderStorage, ClientSecretStorage, ClientVaultStorage,
+    ClientEventLogStorage, ClientFolderStorage, ClientSecretStorage,
+    ClientVaultStorage,
 };
 
 /// Result type for the client module.

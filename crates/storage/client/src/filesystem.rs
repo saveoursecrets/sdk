@@ -2,7 +2,8 @@
 use crate::{
     files::ExternalFileManager, traits::private::Internal,
     ClientAccountStorage, ClientBaseStorage, ClientDeviceStorage,
-    ClientFolderStorage, ClientVaultStorage, Error, Result,
+    ClientEventLogStorage, ClientFolderStorage, ClientVaultStorage, Error,
+    Result,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -83,7 +84,7 @@ pub struct ClientFileSystemStorage {
 
     /// External file manager.
     #[cfg(feature = "files")]
-    external_file_manager: ExternalFileManager,
+    external_file_manager: Option<ExternalFileManager>,
 }
 
 impl ClientFileSystemStorage {
@@ -135,9 +136,7 @@ impl ClientFileSystemStorage {
             #[cfg(feature = "files")]
             file_log: file_log.clone(),
             #[cfg(feature = "files")]
-            external_file_manager: ExternalFileManager::new(
-                paths, file_log, None,
-            ),
+            external_file_manager: None,
             authenticated: None,
         };
 
@@ -145,62 +144,6 @@ impl ClientFileSystemStorage {
 
         Ok(storage)
     }
-
-    /*
-    async fn initialize_device_log(
-        _account_id: &AccountId,
-        paths: &Paths,
-        device: TrustedDevice,
-    ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
-        let log_file = paths.device_events();
-
-        let mut event_log = DeviceEventLog::new_fs_device(log_file).await?;
-        event_log.load_tree().await?;
-        let needs_init = event_log.tree().root().is_none();
-
-        tracing::debug!(needs_init = %needs_init, "device_log");
-
-        // Trust this device on initialization if the event
-        // log is empty so that we are backwards compatible with
-        // accounts that existed before device event logs.
-        if needs_init {
-            tracing::debug!(
-              public_key = %device.public_key(), "initialize_root_device");
-            let event = DeviceEvent::Trust(device);
-            event_log.apply(vec![&event]).await?;
-        }
-
-        let reducer = DeviceReducer::new(&event_log);
-        let devices = reducer.reduce().await?;
-
-        Ok((event_log, devices))
-    }
-    */
-
-    /*
-    #[cfg(feature = "files")]
-    async fn initialize_file_log(paths: &Paths) -> Result<FileEventLog> {
-        let log_file = paths.file_events();
-        let needs_init = !vfs::try_exists(&log_file).await?;
-        let mut event_log = FileEventLog::new_fs_file(log_file).await?;
-        event_log.load_tree().await?;
-
-        tracing::debug!(needs_init = %needs_init, "file_log");
-
-        if needs_init {
-            let files =
-                sos_external_files::list_external_files(paths).await?;
-            let events: Vec<FileEvent> =
-                files.into_iter().map(|f| f.into()).collect();
-
-            tracing::debug!(init_events_len = %events.len());
-
-            event_log.apply(events.iter().collect()).await?;
-        }
-
-        Ok(event_log)
-    }
-    */
 }
 
 impl ClientBaseStorage for ClientFileSystemStorage {
@@ -367,6 +310,45 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         self.index = index;
     }
 
+    fn paths(&self) -> Arc<Paths> {
+        self.paths.clone()
+    }
+
+    #[cfg(feature = "files")]
+    fn external_file_manager(&self) -> Option<&ExternalFileManager> {
+        self.external_file_manager.as_ref()
+    }
+
+    #[cfg(feature = "files")]
+    fn external_file_manager_mut(
+        &mut self,
+    ) -> Option<&mut ExternalFileManager> {
+        self.external_file_manager.as_mut()
+    }
+
+    #[cfg(feature = "files")]
+    fn set_external_file_manager(
+        &mut self,
+        file_manager: Option<ExternalFileManager>,
+        _: Internal,
+    ) {
+        self.external_file_manager = file_manager;
+    }
+
+    #[cfg(feature = "search")]
+    fn index(&self) -> Option<&AccountSearch> {
+        self.index.as_ref()
+    }
+
+    #[cfg(feature = "search")]
+    fn index_mut(&mut self) -> Option<&mut AccountSearch> {
+        self.index.as_mut()
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ClientEventLogStorage for ClientFileSystemStorage {
     async fn initialize_device_log(
         &self,
         device: TrustedDevice,
@@ -419,68 +401,25 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         Ok(event_log)
     }
 
-    async fn authenticate(
+    fn set_identity_log(
         &mut self,
-        authenticated_user: Identity,
-    ) -> Result<()> {
-        let identity_log = authenticated_user.identity()?.event_log();
-        let device = authenticated_user
-            .identity()?
-            .devices()?
-            .current_device(None);
-
-        let (device_log, devices) =
-            self.initialize_device_log(device, Internal).await?;
-
-        #[cfg(feature = "search")]
-        {
-            self.index = Some(AccountSearch::new());
-        }
-
-        #[cfg(feature = "files")]
-        {
-            let file_log = self.initialize_file_log(Internal).await?;
-            self.file_log = Arc::new(RwLock::new(file_log));
-
-            let file_password =
-                authenticated_user.find_file_encryption_password().await?;
-            self.external_file_manager = ExternalFileManager::new(
-                self.paths.clone(),
-                self.file_log.clone(),
-                Some(file_password),
-            );
-        }
-
-        self.identity_log = identity_log;
-        self.device_log = Arc::new(RwLock::new(device_log));
-        self.devices = devices;
-        self.authenticated = Some(authenticated_user);
-
-        Ok(())
+        log: Arc<RwLock<FolderEventLog>>,
+        _: Internal,
+    ) {
+        self.identity_log = log;
     }
 
-    fn paths(&self) -> Arc<Paths> {
-        self.paths.clone()
+    fn set_device_log(
+        &mut self,
+        log: Arc<RwLock<DeviceEventLog>>,
+        _: Internal,
+    ) {
+        self.device_log = log;
     }
 
     #[cfg(feature = "files")]
-    fn external_file_manager(&self) -> &ExternalFileManager {
-        &self.external_file_manager
-    }
-
-    #[cfg(feature = "files")]
-    fn external_file_manager_mut(&mut self) -> &mut ExternalFileManager {
-        &mut self.external_file_manager
-    }
-
-    #[cfg(feature = "search")]
-    fn index(&self) -> Option<&AccountSearch> {
-        self.index.as_ref()
-    }
-
-    #[cfg(feature = "search")]
-    fn index_mut(&mut self) -> Option<&mut AccountSearch> {
-        self.index.as_mut()
+    fn set_file_log(&mut self, log: Arc<RwLock<FileEventLog>>, _: Internal) {
+        self.file_log = log;
     }
 }
 

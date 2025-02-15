@@ -456,6 +456,7 @@ impl LocalAccount {
             let mut move_file_events = self
                 .storage
                 .external_file_manager_mut()
+                .ok_or_else(|| AuthenticationError::NotAuthenticated)?
                 .move_files(
                     &move_secret_data,
                     from.id(),
@@ -468,6 +469,7 @@ impl LocalAccount {
                 .await?;
             self.storage
                 .external_file_manager_mut()
+                .ok_or_else(|| AuthenticationError::NotAuthenticated)?
                 .append_file_mutation_events(&move_file_events)
                 .await?;
             file_events.append(&mut move_file_events);
@@ -1547,6 +1549,7 @@ impl Account for LocalAccount {
         let buffer = self
             .storage
             .external_file_manager()
+            .ok_or_else(|| AuthenticationError::NotAuthenticated)?
             .download_file(vault_id, secret_id, file_name)
             .await?;
 
