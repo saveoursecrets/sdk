@@ -17,7 +17,7 @@ use sos_core::{
     device::TrustedDevice,
     events::{
         patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
-        AccountEvent, ReadEvent, WriteEvent,
+        ReadEvent, WriteEvent,
     },
     AccountId, Paths, VaultId,
 };
@@ -287,34 +287,6 @@ impl ClientAccountStorage for ClientStorage {
             }
             ClientStorage::Database(db) => {
                 db.set_authenticated_user(user, token)
-            }
-        }
-    }
-
-    async fn authenticate(
-        &mut self,
-        authenticated_user: Identity,
-    ) -> Result<()> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.authenticate(authenticated_user).await
-            }
-            ClientStorage::Database(db) => {
-                db.authenticate(authenticated_user).await
-            }
-        }
-    }
-
-    async fn import_identity_vault(
-        &mut self,
-        vault: Vault,
-    ) -> Result<AccountEvent> {
-        match self {
-            ClientStorage::FileSystem(fs) => {
-                fs.import_identity_vault(vault).await
-            }
-            ClientStorage::Database(db) => {
-                db.import_identity_vault(vault).await
             }
         }
     }

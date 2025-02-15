@@ -211,7 +211,7 @@ pub trait ClientVaultStorage {
     #[doc(hidden)]
     fn summaries_mut(&mut self, _: Internal) -> &mut Vec<Summary>;
 
-    /// Add a summary to the in-memory stage.
+    /// Add a summary to the in-memory storage.
     #[doc(hidden)]
     fn add_summary(&mut self, summary: Summary, token: Internal) {
         let summaries = self.summaries_mut(token);
@@ -219,7 +219,7 @@ pub trait ClientVaultStorage {
         summaries.sort();
     }
 
-    /// Remove a summary from this storage.
+    /// Remove a summary from the in-memory storage.
     #[doc(hidden)]
     fn remove_summary(&mut self, folder_id: &VaultId, token: Internal) {
         if let Some(position) = self
