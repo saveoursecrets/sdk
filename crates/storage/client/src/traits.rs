@@ -1177,13 +1177,11 @@ pub trait ClientAccountStorage:
             self.add_summary(summary.clone(), Internal);
         } else {
             // Otherwise update with the new summary
-            if let Some(position) = self
-                .summaries(Internal)
-                .iter()
-                .position(|s| s.id() == summary.id())
+            if let Some(existing) = self
+                .summaries_mut(Internal)
+                .iter_mut()
+                .find(|s| s.id() == summary.id())
             {
-                let existing =
-                    self.summaries_mut(Internal).get_mut(position).unwrap();
                 *existing = summary.clone();
             }
         }
