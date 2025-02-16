@@ -141,29 +141,26 @@ impl AccountBuilder {
     }
 
     /// Set the name of the default folder.
-    pub fn default_folder_name(mut self, value: Option<String>) -> Self {
-        self.default_folder_name = value;
+    pub fn default_folder_name(mut self, value: String) -> Self {
+        self.default_folder_name = Some(value);
         self
     }
 
     /// Set the name of the archive folder.
-    pub fn archive_folder_name(mut self, value: Option<String>) -> Self {
-        self.archive_folder_name = value;
+    pub fn archive_folder_name(mut self, value: String) -> Self {
+        self.archive_folder_name = Some(value);
         self
     }
 
     /// Set the name of the authenticator folder.
-    pub fn authenticator_folder_name(
-        mut self,
-        value: Option<String>,
-    ) -> Self {
-        self.authenticator_folder_name = value;
+    pub fn authenticator_folder_name(mut self, value: String) -> Self {
+        self.authenticator_folder_name = Some(value);
         self
     }
 
     /// Set the name of the contacts folder.
-    pub fn contacts_folder_name(mut self, value: Option<String>) -> Self {
-        self.contacts_folder_name = value;
+    pub fn contacts_folder_name(mut self, value: String) -> Self {
+        self.contacts_folder_name = Some(value);
         self
     }
 

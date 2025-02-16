@@ -65,7 +65,7 @@ async fn prepare_account(
     );
 
     let new_account = account_builder
-        .default_folder_name(Some(MAIN_NAME.to_owned()))
+        .default_folder_name(MAIN_NAME.to_owned())
         .create_file_password(true)
         .account_id(account_id)
         .finish()
