@@ -3,6 +3,7 @@ mod account_backup_archive_zip;
 mod account_builder;
 mod artifact_releases;
 mod audit_provider;
+mod client_storage;
 mod clipboard;
 mod crypto;
 mod database_migrations;

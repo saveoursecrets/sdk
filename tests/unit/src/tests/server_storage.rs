@@ -1,14 +1,15 @@
 use anyhow::Result;
 use rand::{rngs::OsRng, Rng};
 use sos_backend::BackendTarget;
-use sos_core::{encode, AccountId, Paths, VaultFlags};
-use sos_sdk::{
+use sos_core::{
     crypto::AeadPack,
     device::{DevicePublicKey, TrustedDevice},
+    encode,
     events::{
         patch::{Diff, Patch},
         DeviceEvent, EventLog, EventRecord, WriteEvent,
     },
+    AccountId, Paths, VaultFlags,
 };
 use sos_server_storage::{ServerAccountStorage, ServerStorage};
 use sos_sync::{
