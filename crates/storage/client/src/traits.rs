@@ -142,37 +142,6 @@ pub trait ClientDeviceStorage:
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ClientVaultStorage {
-    /// Read a vault from the storage.
-    async fn read_vault(&self, id: &VaultId) -> Result<Vault>;
-
-    /// List the in-memory folders.
-    fn list_folders(&self) -> &[Summary] {
-        self.summaries(Internal).as_slice()
-    }
-
-    /// Currently open folder.
-    fn current_folder(&self) -> Option<Summary>;
-
-    /// Find a folder in this storage by reference.
-    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
-        match vault {
-            FolderRef::Name(name) => {
-                self.summaries(Internal).iter().find(|s| s.name() == name)
-            }
-            FolderRef::Id(id) => {
-                self.summaries(Internal).iter().find(|s| s.id() == id)
-            }
-        }
-    }
-
-    /// Find a folder in this storage using a predicate.
-    fn find<F>(&self, predicate: F) -> Option<&Summary>
-    where
-        F: FnMut(&&Summary) -> bool,
-    {
-        self.summaries(Internal).iter().find(predicate)
-    }
-
     /// Write a vault to storage.
     #[doc(hidden)]
     async fn write_vault(
@@ -247,6 +216,37 @@ pub trait ClientFolderStorage:
 
     /// Create a new folder.
     async fn new_folder(&self, folder_id: &VaultId) -> Result<Folder>;
+
+    /// Read a vault from the storage.
+    async fn read_vault(&self, id: &VaultId) -> Result<Vault>;
+
+    /// List the in-memory folders.
+    fn list_folders(&self) -> &[Summary] {
+        self.summaries(Internal).as_slice()
+    }
+
+    /// Currently open folder.
+    fn current_folder(&self) -> Option<Summary>;
+
+    /// Find a folder in this storage by reference.
+    fn find_folder(&self, vault: &FolderRef) -> Option<&Summary> {
+        match vault {
+            FolderRef::Name(name) => {
+                self.summaries(Internal).iter().find(|s| s.name() == name)
+            }
+            FolderRef::Id(id) => {
+                self.summaries(Internal).iter().find(|s| s.id() == id)
+            }
+        }
+    }
+
+    /// Find a folder in this storage using a predicate.
+    fn find<F>(&self, predicate: F) -> Option<&Summary>
+    where
+        F: FnMut(&&Summary) -> bool,
+    {
+        self.summaries(Internal).iter().find(predicate)
+    }
 
     /// Initialize a folder from a collection of event records.
     ///

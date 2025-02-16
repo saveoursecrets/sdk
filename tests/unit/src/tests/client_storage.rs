@@ -1,9 +1,13 @@
 use anyhow::Result;
 use sos_backend::BackendTarget;
-use sos_client_storage::{ClientBaseStorage, ClientStorage};
+use sos_client_storage::{
+    AccountPack, ClientAccountStorage, ClientBaseStorage,
+    ClientFolderStorage, ClientStorage,
+};
 use sos_core::{AccountId, Paths, VaultFlags};
+use sos_sdk::prelude::generate_passphrase;
 use sos_test_utils::mock::{insert_database_vault, memory_database};
-use sos_vault::Vault;
+use sos_vault::{BuilderCredentials, Vault, VaultBuilder};
 use tempfile::tempdir_in;
 
 #[tokio::test]
@@ -56,6 +60,37 @@ async fn assert_client_storage(
     account_id: &AccountId,
 ) -> Result<()> {
     assert_eq!(account_id, storage.account_id());
+
+    let identity_name = "login";
+    let main_name = "main";
+
+    let (password, _) = generate_passphrase()?;
+    let identity_vault = VaultBuilder::new()
+        .flags(VaultFlags::IDENTITY)
+        .public_name(identity_name.to_owned())
+        .build(BuilderCredentials::Password(password.clone(), None))
+        .await?;
+
+    let main_vault = VaultBuilder::new()
+        .public_name(main_name.to_owned())
+        .build(BuilderCredentials::Password(password.clone(), None))
+        .await?;
+
+    let account_folders = vec![main_vault];
+    let account_pack = AccountPack {
+        account_id: *account_id,
+        identity_vault: identity_vault.clone(),
+        folders: account_folders,
+    };
+
+    storage.create_account(&account_pack).await?;
+
+    let folders = storage.list_folders();
+    assert_eq!(1, folders.len());
+    let main = folders.get(0).unwrap();
+    assert_eq!(main_name, main.name());
+
+    // println!("{:#?}", folders);
 
     Ok(())
 }

@@ -22,11 +22,11 @@ mod traits;
 
 pub use error::Error;
 pub use storage::ClientStorage;
-pub(crate) use traits::ClientEventLogStorage;
 pub use traits::{
     ClientAccountStorage, ClientBaseStorage, ClientDeviceStorage,
-    ClientFolderStorage, ClientSecretStorage, ClientVaultStorage,
+    ClientFolderStorage, ClientSecretStorage,
 };
+pub(crate) use traits::{ClientEventLogStorage, ClientVaultStorage};
 
 /// Result type for the client module.
 pub(crate) type Result<T> = std::result::Result<T, Error>;

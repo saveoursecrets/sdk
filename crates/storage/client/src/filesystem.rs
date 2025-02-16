@@ -155,12 +155,6 @@ impl ClientBaseStorage for ClientFileSystemStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ClientVaultStorage for ClientFileSystemStorage {
-    async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
-        let vault_path = self.paths.vault_path(id);
-        let buffer = vfs::read(vault_path).await?;
-        Ok(decode(&buffer).await?)
-    }
-
     async fn write_vault(
         &self,
         vault: &Vault,
@@ -226,11 +220,6 @@ impl ClientVaultStorage for ClientFileSystemStorage {
     fn summaries_mut(&mut self, _: Internal) -> &mut Vec<Summary> {
         &mut self.summaries
     }
-
-    fn current_folder(&self) -> Option<Summary> {
-        let current = self.current.lock();
-        current.clone()
-    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -247,6 +236,17 @@ impl ClientFolderStorage for ClientFileSystemStorage {
     async fn new_folder(&self, folder_id: &VaultId) -> Result<Folder> {
         let vault_path = self.paths.vault_path(folder_id);
         Ok(Folder::new_fs(&vault_path).await?)
+    }
+
+    async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
+        let vault_path = self.paths.vault_path(id);
+        let buffer = vfs::read(vault_path).await?;
+        Ok(decode(&buffer).await?)
+    }
+
+    fn current_folder(&self) -> Option<Summary> {
+        let current = self.current.lock();
+        current.clone()
     }
 
     fn open_folder(&self, folder_id: &VaultId) -> Result<ReadEvent> {

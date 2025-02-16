@@ -109,13 +109,6 @@ impl ClientBaseStorage for ClientStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ClientVaultStorage for ClientStorage {
-    async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.read_vault(id).await,
-            ClientStorage::Database(db) => db.read_vault(id).await,
-        }
-    }
-
     async fn write_vault(
         &self,
         vault: &Vault,
@@ -175,13 +168,6 @@ impl ClientVaultStorage for ClientStorage {
             ClientStorage::Database(db) => db.summaries_mut(token),
         }
     }
-
-    fn current_folder(&self) -> Option<Summary> {
-        match self {
-            ClientStorage::FileSystem(fs) => fs.current_folder(),
-            ClientStorage::Database(db) => db.current_folder(),
-        }
-    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -205,6 +191,20 @@ impl ClientFolderStorage for ClientStorage {
         match self {
             ClientStorage::FileSystem(fs) => fs.new_folder(folder_id).await,
             ClientStorage::Database(db) => db.new_folder(folder_id).await,
+        }
+    }
+
+    async fn read_vault(&self, id: &VaultId) -> Result<Vault> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.read_vault(id).await,
+            ClientStorage::Database(db) => db.read_vault(id).await,
+        }
+    }
+
+    fn current_folder(&self) -> Option<Summary> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.current_folder(),
+            ClientStorage::Database(db) => db.current_folder(),
         }
     }
 

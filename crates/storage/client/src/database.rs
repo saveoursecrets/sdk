@@ -175,11 +175,6 @@ impl ClientBaseStorage for ClientDatabaseStorage {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ClientVaultStorage for ClientDatabaseStorage {
-    async fn read_vault(&self, folder_id: &VaultId) -> Result<Vault> {
-        Ok(FolderEntity::compute_folder_vault(&self.client, folder_id)
-            .await?)
-    }
-
     async fn write_vault(
         &self,
         vault: &Vault,
@@ -254,11 +249,6 @@ impl ClientVaultStorage for ClientDatabaseStorage {
     fn summaries_mut(&mut self, _: Internal) -> &mut Vec<Summary> {
         &mut self.summaries
     }
-
-    fn current_folder(&self) -> Option<Summary> {
-        let current = self.current.lock();
-        current.clone()
-    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -277,6 +267,16 @@ impl ClientFolderStorage for ClientDatabaseStorage {
             Folder::new_db(self.client.clone(), self.account_id, *folder_id)
                 .await?,
         )
+    }
+
+    async fn read_vault(&self, folder_id: &VaultId) -> Result<Vault> {
+        Ok(FolderEntity::compute_folder_vault(&self.client, folder_id)
+            .await?)
+    }
+
+    fn current_folder(&self) -> Option<Summary> {
+        let current = self.current.lock();
+        current.clone()
     }
 
     fn open_folder(&self, folder_id: &VaultId) -> Result<ReadEvent> {
