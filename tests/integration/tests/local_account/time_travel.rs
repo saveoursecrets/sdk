@@ -37,7 +37,7 @@ async fn local_time_travel() -> Result<()> {
 
     // Store the state so we can backtrack
     let CommitState(commit, _) =
-        account.commit_state(&default_folder).await?;
+        account.commit_state(default_folder.id()).await?;
 
     // Create another secret
     let (meta, secret) = mock::note("note2", TEST_ID);

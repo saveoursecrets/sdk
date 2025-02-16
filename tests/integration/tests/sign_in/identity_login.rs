@@ -23,6 +23,7 @@ async fn sign_in_identity_login() -> Result<()> {
         account_name,
         password.clone(),
         Some(data_dir.clone()),
+        None,
     )
     .await?;
 

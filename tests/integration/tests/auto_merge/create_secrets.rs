@@ -48,9 +48,9 @@ async fn auto_merge_create_secrets() -> Result<()> {
     assert!(result2.sync_result.first_error().is_some());
 
     let device1_folder_state =
-        device1.owner.commit_state(&default_folder).await?;
+        device1.owner.commit_state(default_folder.id()).await?;
     let device2_folder_state =
-        device2.owner.commit_state(&default_folder).await?;
+        device2.owner.commit_state(default_folder.id()).await?;
 
     // Folder commits has diverged
     assert_ne!(device1_folder_state, device2_folder_state);

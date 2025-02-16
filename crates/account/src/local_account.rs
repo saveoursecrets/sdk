@@ -1270,12 +1270,12 @@ impl Account for LocalAccount {
         })
     }
 
-    async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
+    async fn root_hash(&self, folder_id: &VaultId) -> Result<CommitHash> {
         let folder = self
             .storage
             .folders()
-            .get(summary.id())
-            .ok_or_else(|| StorageError::FolderNotFound(*summary.id()))?;
+            .get(folder_id)
+            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
         Ok(log_file
@@ -1288,8 +1288,8 @@ impl Account for LocalAccount {
         Ok(self.storage.identity_state().await?)
     }
 
-    async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
-        Ok(self.storage.commit_state(summary).await?)
+    async fn commit_state(&self, folder_id: &VaultId) -> Result<CommitState> {
+        Ok(self.storage.commit_state(folder_id).await?)
     }
 
     async fn compact_account(

@@ -51,7 +51,7 @@ async fn event_log_compact() -> Result<()> {
     // and two delete events
     assert_eq!(6, patch.len());
 
-    let old_root = account.root_commit(&default_folder).await?;
+    let old_root = account.root_hash(default_folder.id()).await?;
 
     account.compact_folder(&default_folder).await?;
 

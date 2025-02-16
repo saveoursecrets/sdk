@@ -66,6 +66,7 @@ impl From<PrivateNewAccount> for (Identity, AccountPack) {
 pub struct AccountBuilder {
     target: BackendTarget,
     // data_dir: Option<PathBuf>,
+    account_id: Option<AccountId>,
     account_name: String,
     passphrase: SecretString,
     save_passphrase: bool,
@@ -88,6 +89,7 @@ impl AccountBuilder {
     ) -> Self {
         Self {
             target,
+            account_id: None,
             account_name,
             passphrase,
             save_passphrase: false,
@@ -100,6 +102,12 @@ impl AccountBuilder {
             authenticator_folder_name: None,
             contacts_folder_name: None,
         }
+    }
+
+    /// Set the account id.
+    pub fn account_id(mut self, value: AccountId) -> Self {
+        self.account_id = Some(value);
+        self
     }
 
     /// Enable saving the master passphrase in the default folder.
@@ -314,6 +322,7 @@ impl AccountBuilder {
             self.account_name.clone(),
             self.passphrase.clone(),
             Some(paths.documents_dir().clone()),
+            self.account_id.clone(),
         )
         .await?;
 
@@ -371,6 +380,7 @@ impl AccountBuilder {
             self.account_name.clone(),
             self.passphrase.clone(),
             &client,
+            self.account_id.clone(),
         )
         .await?;
 

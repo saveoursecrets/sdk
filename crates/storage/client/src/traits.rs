@@ -1303,11 +1303,11 @@ pub trait ClientAccountStorage:
     /// Get the commit state for a folder.
     ///
     /// The folder must have at least one commit.
-    async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
+    async fn commit_state(&self, folder_id: &VaultId) -> Result<CommitState> {
         let folder = self
             .folders()
-            .get(summary.id())
-            .ok_or_else(|| StorageError::FolderNotFound(*summary.id()))?;
+            .get(folder_id)
+            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
         Ok(log_file.tree().commit_state()?)

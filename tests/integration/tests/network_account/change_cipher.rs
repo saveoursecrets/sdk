@@ -74,8 +74,8 @@ async fn network_sync_change_cipher() -> Result<()> {
     device1.owner.sign_in(&key).await?;
 
     // Folder is out of sync
-    let device1_commit = device1.owner.root_commit(&default_folder).await?;
-    let device2_commit = device2.owner.root_commit(&default_folder).await?;
+    let device1_commit = device1.owner.root_hash(default_folder.id()).await?;
+    let device2_commit = device2.owner.root_hash(default_folder.id()).await?;
     assert_ne!(device1_commit, device2_commit);
 
     // Try to sync on other device after force update
@@ -87,8 +87,8 @@ async fn network_sync_change_cipher() -> Result<()> {
     device2.owner.sign_in(&key).await?;
 
     // Folder is back in sync
-    let device1_commit = device1.owner.root_commit(&default_folder).await?;
-    let device2_commit = device2.owner.root_commit(&default_folder).await?;
+    let device1_commit = device1.owner.root_hash(default_folder.id()).await?;
+    let device2_commit = device2.owner.root_hash(default_folder.id()).await?;
     assert_eq!(device1_commit, device2_commit);
 
     // Create a secret on the synced device
@@ -104,8 +104,8 @@ async fn network_sync_change_cipher() -> Result<()> {
     // Sync on the original device and check it can read the secret
     assert!(device1.owner.sync().await.first_error().is_none());
 
-    let device1_commit = device1.owner.root_commit(&default_folder).await?;
-    let device2_commit = device2.owner.root_commit(&default_folder).await?;
+    let device1_commit = device1.owner.root_hash(default_folder.id()).await?;
+    let device2_commit = device2.owner.root_hash(default_folder.id()).await?;
     assert_eq!(device1_commit, device2_commit);
 
     let (secret_data, _) = device1

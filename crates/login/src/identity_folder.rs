@@ -72,14 +72,6 @@ impl IdentityFolder {
         access_point.vault().summary().clone()
     }
 
-    /*
-
-    /// Get the access point.
-    pub fn keeper(&self) -> &AccessPoint {
-        self.folder.keeper()
-    }
-    */
-
     /// Reference to the folder.
     pub fn folder(&self) -> &Folder {
         &self.folder
@@ -675,8 +667,9 @@ impl IdentityFolder {
         name: String,
         password: SecretString,
         data_dir: Option<PathBuf>,
+        account_id: Option<AccountId>,
     ) -> Result<Self> {
-        let account_id = AccountId::random();
+        let account_id = account_id.unwrap_or_else(AccountId::random);
         tracing::debug!(
             account_id = %account_id,
             "new_identity_folder::filesystem");
@@ -716,8 +709,9 @@ impl IdentityFolder {
         name: String,
         password: SecretString,
         client: &Client,
+        account_id: Option<AccountId>,
     ) -> Result<Self> {
-        let account_id = AccountId::random();
+        let account_id = account_id.unwrap_or_else(AccountId::random);
         tracing::debug!(
             account_id = %account_id,
             "new_identity_folder::database");

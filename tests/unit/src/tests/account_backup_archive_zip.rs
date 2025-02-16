@@ -15,6 +15,7 @@ async fn archive_buffer_async() -> Result<()> {
         "Mock".to_string(),
         "mock-password".to_string().into(),
         Some(dir.path().to_owned()),
+        None,
     )
     .await?;
     let account_id = identity_vault.account_id().clone();

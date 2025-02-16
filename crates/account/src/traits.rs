@@ -295,10 +295,10 @@ pub trait Account {
         &self,
     ) -> std::result::Result<AccountData, Self::Error>;
 
-    /// Root commit hash for a folder.
-    async fn root_commit(
+    /// Root hash of the event log for a folder.
+    async fn root_hash(
         &self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> std::result::Result<CommitHash, Self::Error>;
 
     /// Commit state of the identity vault.
@@ -313,7 +313,7 @@ pub trait Account {
     /// The folder must have at least one commit.
     async fn commit_state(
         &self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> std::result::Result<CommitState, Self::Error>;
 
     /// Compact the identity folder and all user folders.

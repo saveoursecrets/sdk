@@ -374,9 +374,9 @@ impl Account for LinkedAccount {
         Ok(account.account_data().await?)
     }
 
-    async fn root_commit(&self, summary: &Summary) -> Result<CommitHash> {
+    async fn root_hash(&self, folder_id: &VaultId) -> Result<CommitHash> {
         let account = self.account.lock().await;
-        Ok(account.root_commit(summary).await?)
+        Ok(account.root_hash(folder_id).await?)
     }
 
     async fn identity_state(&self) -> Result<CommitState> {
@@ -384,9 +384,9 @@ impl Account for LinkedAccount {
         Ok(account.identity_state().await?)
     }
 
-    async fn commit_state(&self, summary: &Summary) -> Result<CommitState> {
+    async fn commit_state(&self, folder_id: &VaultId) -> Result<CommitState> {
         let account = self.account.lock().await;
-        Ok(account.commit_state(summary).await?)
+        Ok(account.commit_state(folder_id).await?)
     }
 
     async fn compact_account(

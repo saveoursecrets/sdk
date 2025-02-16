@@ -67,9 +67,9 @@ async fn auto_merge_delete_secrets() -> Result<()> {
     assert!(result.sync_result.first_error().is_some());
 
     let device1_folder_state =
-        device1.owner.commit_state(&default_folder).await?;
+        device1.owner.commit_state(default_folder.id()).await?;
     let device2_folder_state =
-        device2.owner.commit_state(&default_folder).await?;
+        device2.owner.commit_state(default_folder.id()).await?;
 
     // Folder commits have diverged
     assert_ne!(device1_folder_state, device2_folder_state);
@@ -94,9 +94,9 @@ async fn auto_merge_delete_secrets() -> Result<()> {
 
     // Folder commits are back in sync
     let device1_folder_state =
-        device1.owner.commit_state(&default_folder).await?;
+        device1.owner.commit_state(default_folder.id()).await?;
     let device2_folder_state =
-        device2.owner.commit_state(&default_folder).await?;
+        device2.owner.commit_state(default_folder.id()).await?;
 
     assert_eq!(device1_folder_state, device2_folder_state);
 
