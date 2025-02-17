@@ -25,7 +25,7 @@ async fn network_sync_folder_rename() -> Result<()> {
 
     let FolderChange { sync_result, .. } = device
         .owner
-        .rename_folder(&default_folder, "new_name".to_string())
+        .rename_folder(default_folder.id(), "new_name".to_string())
         .await?;
     assert!(sync_result.first_error().is_none());
 

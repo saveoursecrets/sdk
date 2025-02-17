@@ -31,8 +31,7 @@ async fn event_log_folder() -> Result<()> {
     let folder_events = account.paths().event_log_path(default_folder.id());
 
     // Just has the create vault event to begin with
-    let mut event_log =
-        FolderEventLog::new_fs_folder(&folder_events).await?;
+    let mut event_log = FolderEventLog::new_fs_folder(&folder_events).await?;
     let event = last_log_event(&mut event_log, None).await?;
     assert!(matches!(event, Some(WriteEvent::CreateVault(_))));
 
@@ -69,7 +68,7 @@ async fn event_log_folder() -> Result<()> {
     // Rename the folder
     let commit = event_log.tree().last_commit();
     account
-        .rename_folder(&default_folder, "new_name".to_string())
+        .rename_folder(default_folder.id(), "new_name".to_string())
         .await?;
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;
     assert!(matches!(event, Some(WriteEvent::SetVaultName(_))));

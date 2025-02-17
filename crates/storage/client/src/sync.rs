@@ -302,22 +302,16 @@ where
                         }
                     }
                     AccountEvent::RenameFolder(id, name) => {
-                        let summary = self.0.find(|s| s.id() == id).cloned();
-                        if let Some(summary) = &summary {
-                            // Note that this event is recorded at both
-                            // the account level and the folder level so
-                            // we only update the in-memory version here
-                            // and let the folder merge make the other
-                            // necessary changes
-                            self.0.set_folder_name(summary, name)?;
-                        }
+                        // Note that this event is recorded at both
+                        // the account level and the folder level so
+                        // we only update the in-memory version here
+                        // and let the folder merge make the other
+                        // necessary changes
+                        self.0.set_folder_name(id, name, Internal)?;
                     }
                     AccountEvent::DeleteFolder(id) => {
-                        let summary = self.0.find(|s| s.id() == id).cloned();
-                        if let Some(summary) = &summary {
-                            self.0.delete_folder(summary.id(), false).await?;
-                            deleted_folders.insert(*id);
-                        }
+                        self.0.delete_folder(id, false).await?;
+                        deleted_folders.insert(*id);
                     }
                 }
                 events.push(event);

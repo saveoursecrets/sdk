@@ -43,7 +43,7 @@ async fn diff_merge_folder_rename() -> Result<()> {
     // Rename a folder.
     let new_name = "new_folder_name";
     local
-        .rename_folder(&default_folder, new_name.to_owned())
+        .rename_folder(default_folder.id(), new_name.to_owned())
         .await?;
 
     assert_ne!(local.sync_status().await?, remote.sync_status().await?);

@@ -521,23 +521,21 @@ pub trait ClientFolderStorage:
     /// Set the name of a folder.
     async fn rename_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         name: impl AsRef<str> + Send,
     ) -> Result<Event> {
         // Update the in-memory name.
-        self.set_folder_name(summary, name.as_ref())?;
+        self.set_folder_name(folder_id, name.as_ref(), Internal)?;
 
         let folder = self
             .folders_mut()
-            .get_mut(summary.id())
-            .ok_or(StorageError::FolderNotFound(*summary.id()))?;
+            .get_mut(folder_id)
+            .ok_or(StorageError::FolderNotFound(*folder_id))?;
 
         folder.rename_folder(name.as_ref()).await?;
 
-        let account_event = AccountEvent::RenameFolder(
-            *summary.id(),
-            name.as_ref().to_owned(),
-        );
+        let account_event =
+            AccountEvent::RenameFolder(*folder_id, name.as_ref().to_owned());
 
         let account_log = self.account_log().await?;
         let mut account_log = account_log.write().await;
@@ -560,7 +558,7 @@ pub trait ClientFolderStorage:
         flags: VaultFlags,
     ) -> Result<Event> {
         // Update the in-memory name.
-        self.set_folder_flags(summary, flags.clone())?;
+        self.set_folder_flags(summary, flags.clone(), Internal)?;
 
         let folder = self
             .folders_mut()
@@ -580,25 +578,30 @@ pub trait ClientFolderStorage:
     }
 
     /// Update the in-memory name for a folder.
+    #[doc(hidden)]
     fn set_folder_name(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         name: impl AsRef<str>,
+        _: Internal,
     ) -> Result<()> {
-        for item in self.summaries_mut(Internal).iter_mut() {
-            if item.id() == summary.id() {
-                item.set_name(name.as_ref().to_owned());
-                break;
-            }
+        if let Some(summary) = self
+            .summaries_mut(Internal)
+            .iter_mut()
+            .find(|f| f.id() == folder_id)
+        {
+            summary.set_name(name.as_ref().to_owned());
         }
         Ok(())
     }
 
     /// Update the in-memory name for a folder.
+    #[doc(hidden)]
     fn set_folder_flags(
         &mut self,
         summary: &Summary,
         flags: VaultFlags,
+        _: Internal,
     ) -> Result<()> {
         for item in self.summaries_mut(Internal).iter_mut() {
             if item.id() == summary.id() {

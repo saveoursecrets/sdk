@@ -77,7 +77,7 @@ async fn local_folder_lifecycle() -> Result<()> {
     // Rename a folder
     let folder_name = "new_name";
     account
-        .rename_folder(&default_folder, folder_name.to_string())
+        .rename_folder(default_folder.id(), folder_name.to_string())
         .await?;
     let default_folder = account.default_folder().await.unwrap();
     assert_eq!(folder_name, default_folder.name());

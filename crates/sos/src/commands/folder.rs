@@ -303,7 +303,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = owner
                 .selected_account_mut()
                 .ok_or(Error::NoSelectedAccount)?;
-            owner.rename_folder(&summary, name.clone()).await?;
+            owner.rename_folder(summary.id(), name.clone()).await?;
             success(format!("{} -> {}", summary.name(), name));
         }
 

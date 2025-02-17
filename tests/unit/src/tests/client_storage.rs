@@ -15,6 +15,7 @@ use tempfile::tempdir_in;
 const ACCOUNT_NAME: &str = "client_storage";
 const MAIN_NAME: &str = "main";
 const NEW_NAME: &str = "new-folder";
+const RENAME: &str = "renamed-folder";
 
 #[tokio::test]
 async fn fs_client_storage() -> Result<()> {
@@ -164,6 +165,19 @@ async fn assert_client_storage(
     storage
         .compact_folder(main_vault.id(), main_key.as_ref().unwrap())
         .await?;
+
+    storage.rename_folder(main_vault.id(), RENAME).await?;
+    {
+        // In-memory
+        let folder = storage.find(|f| f.id() == main_vault.id()).unwrap();
+        assert_eq!(RENAME, folder.name());
+
+        // Read from storage
+        let folders = storage.load_folders().await?;
+        let folder =
+            folders.iter().find(|f| f.id() == main_vault.id()).unwrap();
+        assert_eq!(RENAME, folder.name());
+    }
 
     Ok(())
 }

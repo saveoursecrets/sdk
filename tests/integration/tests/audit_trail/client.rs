@@ -171,7 +171,7 @@ async fn simulate_session(
         .await?;
     // Rename the folder
     account
-        .rename_folder(&new_folder, "New name".to_string())
+        .rename_folder(new_folder.id(), "New name".to_string())
         .await?;
 
     let exported_folder = "target/audit-trail-vault-export.vault";

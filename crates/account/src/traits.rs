@@ -535,7 +535,7 @@ pub trait Account {
     /// Rename a folder.
     async fn rename_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         name: String,
     ) -> std::result::Result<FolderChange<Self::NetworkResult>, Self::Error>;
 

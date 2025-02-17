@@ -1576,13 +1576,13 @@ impl Account for NetworkAccount {
 
     async fn rename_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         name: String,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.rename_folder(summary, name).await?
+            account.rename_folder(folder_id, name).await?
         };
 
         let result = FolderChange {
