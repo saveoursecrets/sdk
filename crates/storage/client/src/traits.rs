@@ -412,19 +412,18 @@ pub trait ClientFolderStorage:
     /// Refresh the in-memory vault from the contents
     /// of the current event log file.
     ///
-    /// If a new access key is given and the target
-    /// folder is the currently open folder then the
+    /// If a new access key is given and then the
     /// in-memory `AccessPoint` is updated to use the new
     /// access key.
     async fn refresh_vault(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         key: &AccessKey,
     ) -> Result<Vec<u8>> {
-        let vault = self.reduce_event_log(summary.id(), Internal).await?;
+        let vault = self.reduce_event_log(folder_id, Internal).await?;
         let buffer = self.write_vault(&vault, Internal).await?;
 
-        if let Some(folder) = self.folders_mut().get_mut(summary.id()) {
+        if let Some(folder) = self.folders_mut().get_mut(folder_id) {
             let access_point = folder.access_point();
             let mut access_point = access_point.lock().await;
 
@@ -493,25 +492,24 @@ pub trait ClientFolderStorage:
     /// Compact an event log file.
     async fn compact_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         key: &AccessKey,
     ) -> Result<AccountEvent> {
         {
             let folder = self
                 .folders_mut()
-                .get_mut(summary.id())
-                .ok_or(StorageError::FolderNotFound(*summary.id()))?;
+                .get_mut(folder_id)
+                .ok_or(StorageError::FolderNotFound(*folder_id))?;
             let event_log = folder.event_log();
             let mut log_file = event_log.write().await;
 
-            compact_folder(&mut *log_file).await?;
+            compact_folder(folder_id, &mut *log_file).await?;
         }
 
         // Refresh in-memory vault and mirrored copy
-        let buffer = self.refresh_vault(summary, key).await?;
+        let buffer = self.refresh_vault(folder_id, key).await?;
 
-        let account_event =
-            AccountEvent::CompactFolder(*summary.id(), buffer);
+        let account_event = AccountEvent::CompactFolder(*folder_id, buffer);
 
         let account_log = self.account_log().await?;
         let mut account_log = account_log.write().await;
@@ -658,7 +656,7 @@ pub trait ClientFolderStorage:
             AccountEvent::ChangeFolderPassword(*vault.id(), buffer);
 
         // Refresh the in-memory and disc-based mirror
-        self.refresh_vault(vault.summary(), &new_key).await?;
+        self.refresh_vault(vault.id(), &new_key).await?;
 
         if let Some(folder) = self.folders_mut().get_mut(vault.id()) {
             let access_point = folder.access_point();
@@ -1341,7 +1339,7 @@ pub trait ClientAccountStorage:
             let key = folder_keys
                 .find(vault.id())
                 .ok_or(Error::NoFolderPassword(*vault.id()))?;
-            self.refresh_vault(vault.summary(), key).await?;
+            self.refresh_vault(vault.id(), key).await?;
         }
 
         Ok(())

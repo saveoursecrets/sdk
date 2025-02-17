@@ -324,7 +324,7 @@ pub trait Account {
     /// Compact the event log file for a folder.
     async fn compact_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> std::result::Result<AccountEvent, Self::Error>;
 
     /// Restore a folder from an event log.

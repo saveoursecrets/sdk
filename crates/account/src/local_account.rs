@@ -1299,7 +1299,7 @@ impl Account for LocalAccount {
         let folders = self.list_folders().await?;
 
         for folder in folders {
-            let result = self.compact_folder(&folder).await?;
+            let result = self.compact_folder(folder.id()).await?;
             output.insert(folder, result);
         }
 
@@ -1307,8 +1307,7 @@ impl Account for LocalAccount {
         let vault = {
             let event_log = self.identity_log().await?;
             let mut log_file = event_log.write().await;
-
-            compact_folder(&mut *log_file).await?;
+            compact_folder(identity.id(), &mut *log_file).await?;
 
             let vault = FolderReducer::new()
                 .reduce(&*log_file)
@@ -1318,6 +1317,8 @@ impl Account for LocalAccount {
 
             vault
         };
+
+        // TODO: do we need to re-import the identity vault here?
 
         let event = {
             let event = AccountEvent::UpdateIdentity(encode(&vault).await?);
@@ -1333,14 +1334,14 @@ impl Account for LocalAccount {
 
     async fn compact_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> Result<AccountEvent> {
         let key = self
-            .find_folder_password(summary.id())
+            .find_folder_password(folder_id)
             .await?
-            .ok_or(Error::NoFolderPassword(*summary.id()))?;
+            .ok_or(Error::NoFolderPassword(*folder_id))?;
 
-        Ok(self.storage.compact_folder(summary, &key).await?)
+        Ok(self.storage.compact_folder(folder_id, &key).await?)
     }
 
     async fn restore_folder(

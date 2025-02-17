@@ -14,6 +14,7 @@ use tempfile::tempdir_in;
 
 const ACCOUNT_NAME: &str = "client_storage";
 const MAIN_NAME: &str = "main";
+const NEW_NAME: &str = "new-folder";
 
 #[tokio::test]
 async fn fs_client_storage() -> Result<()> {
@@ -133,6 +134,7 @@ async fn assert_client_storage(
         .unwrap()
         .find_folder_password(main.id())
         .await?;
+    let main_buffer = encode(&main_vault).await?;
 
     assert!(storage.identity_state().await.is_ok());
     assert!(storage.commit_state(main.id()).await.is_ok());
@@ -142,10 +144,25 @@ async fn assert_client_storage(
     storage.delete_folder(main.id(), true).await?;
     assert!(storage.current_folder().is_none());
 
-    let main_buffer = encode(&main_vault).await?;
-
     storage
         .import_folder(&main_buffer, main_key.as_ref(), true, None)
+        .await?;
+
+    storage
+        .create_folder(NEW_NAME.to_owned(), Default::default())
+        .await?;
+    {
+        // In-memory
+        let folders = storage.list_folders();
+        assert_eq!(2, folders.len());
+
+        // Read from storage
+        let folders = storage.load_folders().await?;
+        assert_eq!(2, folders.len());
+    }
+
+    storage
+        .compact_folder(main_vault.id(), main_key.as_ref().unwrap())
         .await?;
 
     Ok(())

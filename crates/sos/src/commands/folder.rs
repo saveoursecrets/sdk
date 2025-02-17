@@ -357,7 +357,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                         let owner = owner
                             .selected_account_mut()
                             .ok_or(Error::NoSelectedAccount)?;
-                        owner.compact_folder(&summary).await?;
+                        owner.compact_folder(summary.id()).await?;
                         println!("Folder compacted");
                     }
                 }

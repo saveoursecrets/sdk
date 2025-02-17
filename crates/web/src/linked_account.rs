@@ -398,10 +398,10 @@ impl Account for LinkedAccount {
 
     async fn compact_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> Result<AccountEvent> {
         let mut account = self.account.lock().await;
-        Ok(account.compact_folder(summary).await?)
+        Ok(account.compact_folder(folder_id).await?)
     }
 
     async fn restore_folder(

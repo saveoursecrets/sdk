@@ -19,7 +19,8 @@ use sos_core::{
         ReadEvent, WriteEvent,
     },
     AccountId, AccountRef, AuthenticationError, FolderRef, Origin, Paths,
-    PublicIdentity, RemoteOrigins, SecretId, UtcDateTime, VaultId,
+    PublicIdentity, RemoteOrigins, SecretId, StorageError, UtcDateTime,
+    VaultId,
 };
 use sos_login::device::{DeviceManager, DeviceSigner};
 use sos_protocol::{
@@ -1099,21 +1100,25 @@ impl Account for NetworkAccount {
 
     async fn compact_folder(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
     ) -> Result<AccountEvent> {
         let result = {
             let mut account = self.account.lock().await;
-            account.compact_folder(folder).await?
+            account.compact_folder(folder_id).await?
         };
 
         // Prepare event logs for the folders that
         // were converted
         let mut folders = HashMap::new();
+        let folder = self
+            .find(|f| f.id() == folder_id)
+            .await
+            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
         if !folder.flags().is_sync_disabled() {
-            let event_log = self.folder_log(folder.id()).await?;
+            let event_log = self.folder_log(folder_id).await?;
             let log_file = event_log.read().await;
             let diff = log_file.diff_unchecked().await?;
-            folders.insert(*folder.id(), diff);
+            folders.insert(*folder_id, diff);
         }
 
         if !folders.is_empty() {

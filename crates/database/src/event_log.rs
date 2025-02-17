@@ -32,9 +32,13 @@ use sos_core::{
     AccountId, VaultId,
 };
 
+/// Owner of an event log.
 #[derive(Clone)]
-enum EventLogOwner {
+#[doc(hidden)]
+pub enum EventLogOwner {
+    /// Event log owned by an account.
     Account(i64),
+    /// Event log owned by a folder.
     Folder(FolderRecord),
 }
 
@@ -101,9 +105,13 @@ where
     ///
     /// Typically used to create a clone using
     /// a temporary in-memory database.
-    pub fn with_new_client(&self, client: Client) -> Self {
+    pub fn with_new_client(
+        &self,
+        client: Client,
+        owner: Option<EventLogOwner>,
+    ) -> Self {
         Self {
-            owner: self.owner.clone(),
+            owner: owner.unwrap_or_else(|| self.owner.clone()),
             client,
             log_type: self.log_type,
             tree: CommitTree::new(),

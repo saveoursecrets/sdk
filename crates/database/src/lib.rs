@@ -25,7 +25,8 @@ mod vault_writer;
 
 #[cfg(feature = "sqlite")]
 pub use event_log::{
-    AccountEventLog, DatabaseEventLog, DeviceEventLog, FolderEventLog,
+    AccountEventLog, DatabaseEventLog, DeviceEventLog, EventLogOwner,
+    FolderEventLog,
 };
 
 #[cfg(all(feature = "sqlite", feature = "preferences"))]

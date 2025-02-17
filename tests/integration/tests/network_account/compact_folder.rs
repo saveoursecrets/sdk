@@ -44,7 +44,7 @@ async fn network_sync_compact_folder() -> Result<()> {
     assert!(device2.owner.sync().await.first_error().is_none());
 
     // Compact the folder
-    device1.owner.compact_folder(&default_folder).await?;
+    device1.owner.compact_folder(default_folder.id()).await?;
 
     // Check we can read in the secret data on initial device
     let (secret_data, _) = device1
