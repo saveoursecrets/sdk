@@ -56,7 +56,7 @@ impl From<Url> for Origin {
     }
 }
 
-/// Managae a collection of server origins.
+/// Manage a collection of server origins.
 #[async_trait]
 pub trait RemoteOrigins {
     /// Error type.
