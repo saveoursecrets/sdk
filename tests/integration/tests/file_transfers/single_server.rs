@@ -1,6 +1,7 @@
 //! Test for single server file transfers whilst
 //! the server is online.
 use anyhow::Result;
+use sos_client_storage::NewFolderOptions;
 
 use crate::test_utils::{
     assert_local_remote_file_eq, assert_local_remote_file_not_exist,
@@ -130,7 +131,7 @@ async fn file_transfers_single_move() -> Result<()> {
         ..
     } = device
         .owner
-        .create_folder("new_folder".to_owned(), Default::default())
+        .create_folder(NewFolderOptions::new("new_folder".to_owned()))
         .await?;
 
     // Moving the secret also needs to move the file

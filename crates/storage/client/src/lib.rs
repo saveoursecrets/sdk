@@ -37,14 +37,29 @@ use sos_external_files::FileMutationEvent;
 /// Options used when creating a new folder.
 #[derive(Debug, Default)]
 pub struct NewFolderOptions {
+    /// Folder name.
+    pub name: String,
     /// Flags for the new folder.
-    pub flags: VaultFlags,
+    pub flags: Option<VaultFlags>,
     /// Access key.
     pub key: Option<AccessKey>,
     /// Encryption cipher.
     pub cipher: Option<Cipher>,
     /// Key derivation function.
     pub kdf: Option<KeyDerivation>,
+}
+
+impl NewFolderOptions {
+    /// Create new folder options.
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            flags: None,
+            key: None,
+            cipher: None,
+            kdf: None,
+        }
+    }
 }
 
 /// Collection of vaults for an account.

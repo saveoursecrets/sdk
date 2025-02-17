@@ -5,7 +5,7 @@ use sos_account::{
     Account, FolderCreate, LocalAccount, SecretChange, SecretMove,
 };
 use sos_backend::FileEventLog;
-use sos_client_storage::AccessOptions;
+use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_sdk::prelude::*;
 
 /// Tests the various file events are being logged.
@@ -35,7 +35,7 @@ async fn event_log_file() -> Result<()> {
     // Create a folder so we can move the secret
     let folder_name = "folder_name";
     let FolderCreate { folder, .. } = account
-        .create_folder(folder_name.to_string(), Default::default())
+        .create_folder(NewFolderOptions::new(folder_name.to_string()))
         .await?;
 
     // Create an external file secret

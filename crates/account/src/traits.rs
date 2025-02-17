@@ -528,7 +528,6 @@ pub trait Account {
     /// Create a folder.
     async fn create_folder(
         &mut self,
-        name: String,
         options: NewFolderOptions,
     ) -> std::result::Result<FolderCreate<Self::NetworkResult>, Self::Error>;
 

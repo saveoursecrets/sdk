@@ -2,7 +2,7 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use maplit2::{hashmap, hashset};
 use sos_account::{Account, FolderCreate, LocalAccount};
-use sos_client_storage::AccessOptions;
+use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_sdk::prelude::*;
 
 /// Tests the account statistics.
@@ -207,7 +207,7 @@ async fn local_account_statistics() -> Result<()> {
     // Create a folder and add a secret to the folder
     let folder_name = "folder_name";
     let FolderCreate { folder, .. } = account
-        .create_folder(folder_name.to_string(), Default::default())
+        .create_folder(NewFolderOptions::new(folder_name.to_owned()))
         .await?;
     let (login_password, _) = generate_passphrase()?;
     let (mut meta, secret) = mock::login("login", TEST_ID, login_password);

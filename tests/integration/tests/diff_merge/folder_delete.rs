@@ -1,6 +1,7 @@
 use crate::test_utils::{copy_account, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount};
+use sos_client_storage::NewFolderOptions;
 use sos_protocol::diff;
 use sos_sdk::prelude::*;
 use sos_sync::{Merge, MergeOutcome, SyncStorage};
@@ -43,7 +44,7 @@ async fn diff_merge_folder_delete() -> Result<()> {
     let FolderCreate {
         folder: summary, ..
     } = local
-        .create_folder("new_folder".to_owned(), Default::default())
+        .create_folder(NewFolderOptions::new("new_folder".to_owned()))
         .await?;
 
     // Delete the folder

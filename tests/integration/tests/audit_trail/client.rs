@@ -1,4 +1,5 @@
 use anyhow::Result;
+use sos_client_storage::NewFolderOptions;
 
 use crate::test_utils::{mock, setup, teardown};
 use futures::{pin_mut, StreamExt};
@@ -161,7 +162,7 @@ async fn simulate_session(
     let FolderCreate {
         folder: new_folder, ..
     } = account
-        .create_folder("New folder".to_string(), Default::default())
+        .create_folder(NewFolderOptions::new("New folder".to_string()))
         .await?;
     // Rename the folder
     account

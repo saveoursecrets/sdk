@@ -4,6 +4,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
+use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
 use sos_vault::SecretAccess;
 
@@ -33,7 +34,7 @@ async fn network_sync_listen_folder_import() -> Result<()> {
         ..
     } = device1
         .owner
-        .create_folder("sync_folder".to_string(), Default::default())
+        .create_folder(NewFolderOptions::new("sync_folder".to_string()))
         .await?;
     assert!(sync_result.first_error().is_none());
 

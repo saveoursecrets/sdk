@@ -11,7 +11,7 @@ use crate::test_utils::{
 use anyhow::Result;
 use hex;
 use sos_account::{Account, FolderCreate, LocalAccount, SecretMove};
-use sos_client_storage::AccessOptions;
+use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::commit::ZERO;
 use sos_core::ExternalFileName;
 use sos_external_files::FileProgress;
@@ -299,7 +299,7 @@ async fn assert_move_file_secret(
         folder: destination,
         ..
     } = account
-        .create_folder(new_folder_name, Default::default())
+        .create_folder(NewFolderOptions::new(new_folder_name.to_owned()))
         .await?;
 
     let SecretMove { id: new_id, .. } = account
@@ -408,7 +408,7 @@ async fn assert_create_update_move_file_secret(
         folder: destination,
         ..
     } = account
-        .create_folder(new_folder_name, Default::default())
+        .create_folder(NewFolderOptions::new(new_folder_name.to_owned()))
         .await?;
 
     let (new_secret_data, _) = update_file_secret(

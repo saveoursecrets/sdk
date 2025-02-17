@@ -4,6 +4,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, FolderDelete};
+use sos_client_storage::NewFolderOptions;
 use sos_core::ExternalFile;
 use sos_sdk::prelude::*;
 
@@ -33,7 +34,9 @@ async fn network_sync_folder_delete() -> Result<()> {
         ..
     } = device
         .owner
-        .create_folder("sync_delete_folder".to_string(), Default::default())
+        .create_folder(NewFolderOptions::new(
+            "sync_delete_folder".to_string(),
+        ))
         .await?;
     assert!(sync_result.first_error().is_none());
 

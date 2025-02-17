@@ -3,6 +3,7 @@ use anyhow::Result;
 use sos_account::{
     Account, FolderCreate, LocalAccount, SecretChange, SecretMove,
 };
+use sos_client_storage::NewFolderOptions;
 use sos_protocol::diff;
 use sos_sdk::prelude::{generate_passphrase, AccessKey, ErrorExt};
 use sos_sync::{
@@ -55,7 +56,7 @@ async fn diff_merge_secret_move() -> Result<()> {
     let FolderCreate {
         folder: summary, ..
     } = local
-        .create_folder("new_folder".to_owned(), Default::default())
+        .create_folder(NewFolderOptions::new("new_folder".to_owned()))
         .await?;
 
     // Move the secret

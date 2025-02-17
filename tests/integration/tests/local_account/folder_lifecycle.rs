@@ -1,6 +1,7 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount, SecretChange};
+use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
 
 /// Tests the basic folder lifecycle; create, write, export,
@@ -30,7 +31,7 @@ async fn local_folder_lifecycle() -> Result<()> {
     // Create a folder
     let folder_name = "folder_name";
     let FolderCreate { folder, .. } = account
-        .create_folder(folder_name.to_string(), Default::default())
+        .create_folder(NewFolderOptions::new(folder_name.to_owned()))
         .await?;
 
     // Open the new folder for writing

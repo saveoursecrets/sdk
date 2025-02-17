@@ -1,6 +1,7 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount, SecretChange};
+use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
 
 /// Tests moving a secret between folders.
@@ -39,7 +40,7 @@ async fn local_move_secret() -> Result<()> {
     // Create a folder
     let folder_name = "folder_name";
     let FolderCreate { folder, .. } = account
-        .create_folder(folder_name.to_string(), Default::default())
+        .create_folder(NewFolderOptions::new(folder_name.to_owned()))
         .await?;
 
     // Move to the new folder

@@ -4,6 +4,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
+use sos_client_storage::NewFolderOptions;
 
 /// Tests syncing create folder events between two clients
 /// where the second client listens for changes emitted
@@ -40,7 +41,7 @@ async fn network_sync_listen_folder_create() -> Result<()> {
         ..
     } = device1
         .owner
-        .create_folder("sync_folder".to_string(), Default::default())
+        .create_folder(NewFolderOptions::new("sync_folder".to_string()))
         .await?;
     assert!(sync_result.first_error().is_none());
 

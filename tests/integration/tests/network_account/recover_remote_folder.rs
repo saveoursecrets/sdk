@@ -3,6 +3,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, SecretChange};
+use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
 
 /// Tests recovering a folder from a remote origin after
@@ -26,7 +27,7 @@ async fn network_sync_recover_remote_folder() -> Result<()> {
         ..
     } = device
         .owner
-        .create_folder(TEST_ID.to_string(), Default::default())
+        .create_folder(NewFolderOptions::new(TEST_ID.to_string()))
         .await?;
     assert!(sync_result.first_error().is_none());
 

@@ -9,6 +9,7 @@ use crate::{
 use clap::Subcommand;
 use hex;
 use sos_account::{Account, FolderCreate};
+use sos_client_storage::NewFolderOptions;
 use sos_core::{
     events::{EventLog, LogEvent},
     AccountRef, FolderRef,
@@ -166,7 +167,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 }
 
                 let FolderCreate { folder, .. } =
-                    owner.create_folder(name, Default::default()).await?;
+                    owner.create_folder(NewFolderOptions::new(name)).await?;
                 success("Folder created");
                 folder
             };

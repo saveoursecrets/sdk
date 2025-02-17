@@ -1,6 +1,7 @@
 use crate::test_utils::{simulate_device, spawn, teardown, wait_for_cond};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, FolderDelete};
+use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
 
 /// Tests syncing delete folder events between two clients
@@ -32,7 +33,7 @@ async fn network_sync_listen_folder_delete() -> Result<()> {
         ..
     } = device1
         .owner
-        .create_folder("sync_folder".to_string(), Default::default())
+        .create_folder(NewFolderOptions::new("sync_folder".to_string()))
         .await?;
     assert!(sync_result.first_error().is_none());
 

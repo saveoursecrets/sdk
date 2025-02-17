@@ -1,6 +1,7 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount};
+use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
 
 /// Tests sign in when a folder password is missing.
@@ -27,7 +28,7 @@ async fn sign_in_no_folder_password() -> Result<()> {
 
     // Create folder
     let FolderCreate { folder, .. } = account
-        .create_folder(TEST_ID.to_owned(), Default::default())
+        .create_folder(NewFolderOptions::new(TEST_ID.to_owned()))
         .await?;
 
     // Remove the folder password

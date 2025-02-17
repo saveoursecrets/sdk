@@ -37,11 +37,11 @@ async fn network_no_sync_create_account() -> Result<()> {
 
     // Create folder with NO_SYNC flag
     let options = NewFolderOptions {
-        flags: VaultFlags::AUTHENTICATOR | VaultFlags::NO_SYNC,
+        name: TEST_ID.to_owned(),
+        flags: Some(VaultFlags::AUTHENTICATOR | VaultFlags::NO_SYNC),
         ..Default::default()
     };
-    let FolderCreate { folder, .. } =
-        account.create_folder(TEST_ID.to_owned(), options).await?;
+    let FolderCreate { folder, .. } = account.create_folder(options).await?;
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;
@@ -82,13 +82,12 @@ async fn network_no_sync_update_account() -> Result<()> {
 
     // Create folder with AUTHENTICATOR flag
     let options = NewFolderOptions {
-        flags: VaultFlags::AUTHENTICATOR,
+        name: TEST_ID.to_owned(),
+        flags: Some(VaultFlags::AUTHENTICATOR),
         ..Default::default()
     };
-    let FolderCreate { folder, .. } = device
-        .owner
-        .create_folder(TEST_ID.to_owned(), options)
-        .await?;
+    let FolderCreate { folder, .. } =
+        device.owner.create_folder(options).await?;
 
     // Sync the account to push the new folder
     assert!(device.owner.sync().await.first_error().is_none());

@@ -1,5 +1,6 @@
 //! Test for aborting an existing transfer when moving a secret.
 use anyhow::Result;
+use sos_client_storage::NewFolderOptions;
 
 use crate::test_utils::{
     assert_local_remote_file_eq, mock::files::create_file_secret,
@@ -31,7 +32,7 @@ async fn file_transfers_abort_move() -> Result<()> {
         ..
     } = device
         .owner
-        .create_folder("new_folder".to_owned(), Default::default())
+        .create_folder(NewFolderOptions::new("new_folder".to_owned()))
         .await?;
 
     // Create an external file secret

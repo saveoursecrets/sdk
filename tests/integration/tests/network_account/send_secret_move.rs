@@ -4,6 +4,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, SecretChange};
+use sos_client_storage::NewFolderOptions;
 use sos_protocol::AccountSync;
 
 /// Tests syncing move secret events between two
@@ -37,7 +38,7 @@ async fn network_sync_secret_move() -> Result<()> {
         ..
     } = device1
         .owner
-        .create_folder("dest_folder".to_string(), Default::default())
+        .create_folder(NewFolderOptions::new("dest_folder".to_string()))
         .await?;
 
     // Sync up both clients

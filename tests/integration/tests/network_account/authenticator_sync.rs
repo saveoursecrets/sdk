@@ -21,15 +21,16 @@ async fn network_authenticator_sync() -> Result<()> {
 
     // Create folder with AUTHENTICATOR | LOCAL | NO_SYNC flags
     let options = NewFolderOptions {
-        flags: VaultFlags::AUTHENTICATOR
-            | VaultFlags::LOCAL
-            | VaultFlags::NO_SYNC,
+        name: TEST_ID.to_owned(),
+        flags: Some(
+            VaultFlags::AUTHENTICATOR
+                | VaultFlags::LOCAL
+                | VaultFlags::NO_SYNC,
+        ),
         ..Default::default()
     };
-    let FolderCreate { folder, .. } = mobile
-        .owner
-        .create_folder(TEST_ID.to_owned(), options)
-        .await?;
+    let FolderCreate { folder, .. } =
+        mobile.owner.create_folder(options).await?;
 
     // Create a TOTP secret in the new authenticator folder
     let (meta, secret) = mock::totp(TEST_ID);

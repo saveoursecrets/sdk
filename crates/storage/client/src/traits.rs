@@ -1002,7 +1002,6 @@ pub trait ClientAccountStorage:
     #[doc(hidden)]
     async fn prepare_folder(
         &mut self,
-        name: Option<String>,
         mut options: NewFolderOptions,
         _: Internal,
     ) -> Result<(Vec<u8>, AccessKey, Summary)> {
@@ -1013,13 +1012,11 @@ pub trait ClientAccountStorage:
             AccessKey::Password(passphrase)
         };
 
-        let mut builder = VaultBuilder::new()
-            .flags(options.flags)
+        let builder = VaultBuilder::new()
+            .flags(options.flags.unwrap_or_default())
             .cipher(options.cipher.unwrap_or_default())
-            .kdf(options.kdf.unwrap_or_default());
-        if let Some(name) = name {
-            builder = builder.public_name(name);
-        }
+            .kdf(options.kdf.unwrap_or_default())
+            .public_name(options.name);
 
         let vault = match &key {
             AccessKey::Password(password) => {
@@ -1059,11 +1056,10 @@ pub trait ClientAccountStorage:
     /// Create a new folder.
     async fn create_folder(
         &mut self,
-        name: String,
         options: NewFolderOptions,
     ) -> Result<(Vec<u8>, AccessKey, Summary, AccountEvent)> {
         let (buf, key, summary) =
-            self.prepare_folder(Some(name), options, Internal).await?;
+            self.prepare_folder(options, Internal).await?;
 
         let account_event =
             AccountEvent::CreateFolder(*summary.id(), buf.clone());

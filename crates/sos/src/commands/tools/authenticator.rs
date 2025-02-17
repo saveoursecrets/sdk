@@ -90,17 +90,16 @@ pub async fn run(cmd: Command) -> Result<()> {
                 }
             } else {
                 let options = NewFolderOptions {
-                    flags: VaultFlags::AUTHENTICATOR
-                        | VaultFlags::LOCAL
-                        | VaultFlags::NO_SYNC,
+                    name: folder_name.unwrap_or("Authenticator".to_string()),
+                    flags: Some(
+                        VaultFlags::AUTHENTICATOR
+                            | VaultFlags::LOCAL
+                            | VaultFlags::NO_SYNC,
+                    ),
                     ..Default::default()
                 };
-                let FolderCreate { folder, .. } = owner
-                    .create_folder(
-                        folder_name.unwrap_or("Authenticator".to_string()),
-                        options,
-                    )
-                    .await?;
+                let FolderCreate { folder, .. } =
+                    owner.create_folder(options).await?;
                 Some(folder)
             };
 

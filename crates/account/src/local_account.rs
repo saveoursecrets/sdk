@@ -1799,7 +1799,6 @@ impl Account for LocalAccount {
 
     async fn create_folder(
         &mut self,
-        name: String,
         mut options: NewFolderOptions,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
         self.ensure_authenticated()?;
@@ -1826,7 +1825,7 @@ impl Account for LocalAccount {
         options.kdf = Some(kdf);
 
         let (buffer, _, summary, account_event) =
-            self.storage.create_folder(name, options).await?;
+            self.storage.create_folder(options).await?;
 
         // Must save the password before getting the secure access key
         self.save_folder_password(summary.id(), key).await?;

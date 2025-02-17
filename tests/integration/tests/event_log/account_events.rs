@@ -3,6 +3,7 @@ use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount};
 use sos_backend::AccountEventLog;
+use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
 
 /// Tests that basic account events are being logged.
@@ -37,7 +38,7 @@ async fn event_log_account() -> Result<()> {
     let commit = event_log.tree().last_commit();
     let folder_name = "folder_name";
     let FolderCreate { folder, .. } = account
-        .create_folder(folder_name.to_string(), Default::default())
+        .create_folder(NewFolderOptions::new(folder_name.to_string()))
         .await?;
 
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;

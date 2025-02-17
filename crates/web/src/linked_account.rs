@@ -788,13 +788,12 @@ impl Account for LinkedAccount {
 
     async fn create_folder(
         &mut self,
-        name: String,
         options: NewFolderOptions,
     ) -> Result<FolderCreate<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.create_folder(name, options).await?
+            account.create_folder(options).await?
         };
 
         let result = FolderCreate {

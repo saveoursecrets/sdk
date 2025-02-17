@@ -1,6 +1,7 @@
 use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, LocalAccount};
+use sos_client_storage::NewFolderOptions;
 use sos_protocol::diff;
 use sos_sdk::prelude::*;
 use sos_sync::{
@@ -53,7 +54,7 @@ async fn diff_merge_folder_import() -> Result<()> {
     let FolderCreate {
         folder: summary, ..
     } = temp
-        .create_folder("new_folder".to_owned(), Default::default())
+        .create_folder(NewFolderOptions::new("new_folder".to_owned()))
         .await?;
     let (folder_password, _) = generate_passphrase()?;
     let folder_key: AccessKey = folder_password.into();

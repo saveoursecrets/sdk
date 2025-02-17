@@ -5,7 +5,7 @@ use sos_account::AccountBuilder;
 use sos_backend::BackendTarget;
 use sos_client_storage::{
     AccountPack, ClientAccountStorage, ClientBaseStorage,
-    ClientFolderStorage, ClientStorage,
+    ClientFolderStorage, ClientStorage, NewFolderOptions,
 };
 use sos_core::{
     crypto::AccessKey, encode, events::EventLog, AccountId, FolderRef, Paths,
@@ -177,7 +177,7 @@ async fn assert_client_storage(
     assert_eq!(1, events.len());
 
     storage
-        .create_folder(NEW_NAME.to_owned(), Default::default())
+        .create_folder(NewFolderOptions::new(NEW_NAME.to_owned()))
         .await?;
     {
         // In-memory

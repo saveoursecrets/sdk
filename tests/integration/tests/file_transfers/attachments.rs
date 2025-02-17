@@ -6,6 +6,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, SecretMove};
+use sos_client_storage::NewFolderOptions;
 use sos_core::ExternalFile;
 use sos_sdk::prelude::*;
 
@@ -174,7 +175,7 @@ async fn file_transfers_attach_move() -> Result<()> {
         ..
     } = device
         .owner
-        .create_folder("new_folder".to_owned(), Default::default())
+        .create_folder(NewFolderOptions::new("new_folder".to_owned()))
         .await?;
 
     // Moving the secret also needs to move the files
