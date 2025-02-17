@@ -310,8 +310,10 @@ where
                         self.0.set_folder_name(id, name, Internal)?;
                     }
                     AccountEvent::DeleteFolder(id) => {
-                        self.0.delete_folder(id, false).await?;
-                        deleted_folders.insert(*id);
+                        if self.0.find(|f| f.id() == id).is_some() {
+                            self.0.delete_folder(id, false).await?;
+                            deleted_folders.insert(*id);
+                        }
                     }
                 }
                 events.push(event);
