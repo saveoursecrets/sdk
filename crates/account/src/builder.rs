@@ -9,7 +9,7 @@ use sos_core::{
         DEFAULT_CONTACTS_VAULT_NAME,
     },
     crypto::AccessKey,
-    AccountId, Paths, SecretId, VaultFlags,
+    AccountId, Paths, SecretId, VaultFlags, VaultId,
 };
 use sos_login::{FolderKeys, Identity, IdentityFolder};
 use sos_vault::{
@@ -167,7 +167,7 @@ impl AccountBuilder {
     async fn build_default_folder(
         &mut self,
         user: &mut Identity,
-        folder_keys: &mut HashMap<Summary, AccessKey>,
+        folder_keys: &mut HashMap<VaultId, AccessKey>,
     ) -> Result<Vault> {
         // Prepare the passphrase for the default vault
         let vault_passphrase = user.generate_folder_password()?;
@@ -184,10 +184,8 @@ impl AccountBuilder {
             ))
             .await?;
 
-        folder_keys.insert(
-            default_folder.summary().clone(),
-            vault_passphrase.clone().into(),
-        );
+        folder_keys
+            .insert(*default_folder.id(), vault_passphrase.clone().into());
 
         // Save the account password in the default vault
         if self.save_passphrase {
@@ -226,7 +224,7 @@ impl AccountBuilder {
     async fn build_archive(
         &mut self,
         user: &mut Identity,
-        folder_keys: &mut HashMap<Summary, AccessKey>,
+        folder_keys: &mut HashMap<VaultId, AccessKey>,
     ) -> Result<Option<Vault>> {
         Ok(if self.create_archive {
             let password = user.generate_folder_password()?;
@@ -238,8 +236,7 @@ impl AccountBuilder {
                 .build(BuilderCredentials::Password(password.clone(), None))
                 .await?;
 
-            folder_keys
-                .insert(vault.summary().clone(), password.clone().into());
+            folder_keys.insert(*vault.id(), password.clone().into());
 
             user.save_folder_password(vault.id(), password.into())
                 .await?;
@@ -252,7 +249,7 @@ impl AccountBuilder {
     async fn build_authenticator(
         &mut self,
         user: &mut Identity,
-        folder_keys: &mut HashMap<Summary, AccessKey>,
+        folder_keys: &mut HashMap<VaultId, AccessKey>,
     ) -> Result<Option<Vault>> {
         Ok(if self.create_authenticator {
             let password = user.generate_folder_password()?;
@@ -266,8 +263,7 @@ impl AccountBuilder {
                 .build(BuilderCredentials::Password(password.clone(), None))
                 .await?;
 
-            folder_keys
-                .insert(vault.summary().clone(), password.clone().into());
+            folder_keys.insert(*vault.id(), password.clone().into());
 
             user.save_folder_password(vault.id(), password.into())
                 .await?;
@@ -280,7 +276,7 @@ impl AccountBuilder {
     async fn build_contacts(
         &mut self,
         user: &mut Identity,
-        folder_keys: &mut HashMap<Summary, AccessKey>,
+        folder_keys: &mut HashMap<VaultId, AccessKey>,
     ) -> Result<Option<Vault>> {
         Ok(if self.create_contacts {
             let password = user.generate_folder_password()?;
@@ -292,8 +288,7 @@ impl AccountBuilder {
                 .build(BuilderCredentials::Password(password.clone(), None))
                 .await?;
 
-            folder_keys
-                .insert(vault.summary().clone(), password.clone().into());
+            folder_keys.insert(*vault.id(), password.clone().into());
 
             user.save_folder_password(vault.id(), password.into())
                 .await?;

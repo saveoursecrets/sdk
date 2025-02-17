@@ -1428,9 +1428,8 @@ pub trait ClientAccountStorage:
             // Clear search index first
             writer.remove_all();
 
-            for (summary, key) in &keys.0 {
-                if let Some(folder) = self.folders_mut().get_mut(summary.id())
-                {
+            for (folder_id, key) in &keys.0 {
+                if let Some(folder) = self.folders_mut().get_mut(folder_id) {
                     let access_point = folder.access_point();
                     let mut access_point = access_point.lock().await;
                     access_point.unlock(key).await?;

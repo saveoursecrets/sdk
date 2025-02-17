@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 use secrecy::SecretString;
 use sos_account::AccountBuilder;
@@ -7,7 +9,7 @@ use sos_client_storage::{
     ClientFolderStorage, ClientStorage,
 };
 use sos_core::{encode, AccountId, FolderRef, Paths, VaultFlags};
-use sos_login::Identity;
+use sos_login::{FolderKeys, Identity};
 use sos_sdk::{crypto::AccessKey, prelude::generate_passphrase};
 use sos_test_utils::mock::memory_database;
 use tempfile::tempdir_in;
@@ -108,9 +110,26 @@ async fn assert_client_storage(
     let accounts = target.list_accounts().await?;
     assert_eq!(1, accounts.len());
 
+    // Need folder access keys to initialize the search index
+    let folder_keys = {
+        let mut keys = HashMap::new();
+        for folder in storage.list_folders() {
+            if let Some(key) = authenticated_user
+                .identity()?
+                .find_folder_password(folder.id())
+                .await?
+            {
+                keys.insert(*folder.id(), key);
+            }
+        }
+        FolderKeys(keys)
+    };
+
     let key: AccessKey = password.into();
     authenticated_user.sign_in(account_id, &key).await?;
     storage.authenticate(authenticated_user).await?;
+    assert!(storage.is_authenticated());
+    storage.initialize_search_index(&folder_keys).await?;
 
     let main = {
         let folders = storage.list_folders();
@@ -148,6 +167,10 @@ async fn assert_client_storage(
     storage
         .import_folder(&main_buffer, main_key.as_ref(), true, None)
         .await?;
+
+    // Should just have the create vault event
+    let events = storage.history(main_vault.id()).await?;
+    assert_eq!(1, events.len());
 
     storage
         .create_folder(NEW_NAME.to_owned(), Default::default())
@@ -194,6 +217,9 @@ async fn assert_client_storage(
             folders.iter().find(|f| f.id() == main_vault.id()).unwrap();
         assert_eq!(&new_flags, folder.flags());
     }
+
+    // Sign out the authenticated user
+    storage.sign_out().await?;
 
     Ok(())
 }

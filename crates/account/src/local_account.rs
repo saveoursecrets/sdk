@@ -521,7 +521,7 @@ impl LocalAccount {
         let mut keys = HashMap::new();
         for folder in folders {
             if let Some(key) = self.find_folder_password(folder.id()).await? {
-                keys.insert(folder.clone(), key);
+                keys.insert(*folder.id(), key);
             } else {
                 tracing::warn!(
                     folder_id = %folder.id(),

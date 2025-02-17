@@ -23,14 +23,14 @@ use std::{
 use urn::Urn;
 
 /// Collection of folder access keys.
-pub struct FolderKeys(pub HashMap<Summary, AccessKey>);
+pub struct FolderKeys(pub HashMap<VaultId, AccessKey>);
 
 impl FolderKeys {
     /// Find an access key by folder id.
     pub fn find(&self, id: &VaultId) -> Option<&AccessKey> {
         self.0
             .iter()
-            .find_map(|(k, v)| if k.id() == id { Some(v) } else { None })
+            .find_map(|(k, v)| if k == id { Some(v) } else { None })
     }
 }
 
