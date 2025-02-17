@@ -48,13 +48,7 @@ async fn event_log_folder() -> Result<()> {
     let commit = event_log.tree().last_commit();
     let (meta, secret) = mock::note("note_edited", TEST_ID);
     account
-        .update_secret(
-            &id,
-            meta.clone(),
-            Some(secret),
-            Default::default(),
-            None,
-        )
+        .update_secret(&id, meta.clone(), Some(secret), Default::default())
         .await?;
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;
     assert!(matches!(event, Some(WriteEvent::UpdateSecret(_, _))));

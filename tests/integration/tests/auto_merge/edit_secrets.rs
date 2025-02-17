@@ -45,13 +45,7 @@ async fn auto_merge_edit_secrets() -> Result<()> {
     let (meta, secret) = mock::note("edit_1", TEST_ID);
     let SecretChange { sync_result, .. } = device1
         .owner
-        .update_secret(
-            &result.id,
-            meta,
-            Some(secret),
-            Default::default(),
-            None,
-        )
+        .update_secret(&result.id, meta, Some(secret), Default::default())
         .await?;
     assert!(sync_result.first_error().is_some());
 
@@ -59,13 +53,7 @@ async fn auto_merge_edit_secrets() -> Result<()> {
     let (meta, secret) = mock::note("edit_2", TEST_ID);
     let SecretChange { sync_result, .. } = device2
         .owner
-        .update_secret(
-            &result.id,
-            meta,
-            Some(secret),
-            Default::default(),
-            None,
-        )
+        .update_secret(&result.id, meta, Some(secret), Default::default())
         .await?;
     assert!(sync_result.first_error().is_some());
 

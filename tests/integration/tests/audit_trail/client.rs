@@ -141,7 +141,7 @@ async fn simulate_session(
     let mut new_meta = secret_data.meta().clone();
     new_meta.set_label("Audit note updated".to_string());
     let SecretChange { id, .. } = account
-        .update_secret(&id, new_meta, None, default_folder.id().into(), None)
+        .update_secret(&id, new_meta, None, default_folder.id().into())
         .await?;
     // Delete the secret
     account

@@ -54,7 +54,6 @@ async fn diff_merge_secret_update() -> Result<()> {
             meta.clone(),
             Some(secret.clone()),
             Default::default(),
-            None,
         )
         .await?;
 

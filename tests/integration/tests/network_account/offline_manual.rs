@@ -47,13 +47,7 @@ async fn network_sync_offline_manual() -> Result<()> {
     let (meta, secret) = mock::note("note_edited", "offline_secret_edit");
     let SecretChange { sync_result, .. } = device1
         .owner
-        .update_secret(
-            &result.id,
-            meta,
-            Some(secret),
-            Default::default(),
-            None,
-        )
+        .update_secret(&result.id, meta, Some(secret), Default::default())
         .await?;
     assert!(sync_result.first_error().is_some());
     let SecretDelete { sync_result, .. } = device1

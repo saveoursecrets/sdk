@@ -42,13 +42,7 @@ async fn local_secret_lifecycle() -> Result<()> {
     // Update secret
     let (meta, secret) = mock::note("note_edited", TEST_ID);
     account
-        .update_secret(
-            &id,
-            meta.clone(),
-            Some(secret),
-            Default::default(),
-            None,
-        )
+        .update_secret(&id, meta.clone(), Some(secret), Default::default())
         .await?;
     let (data, _) = account.read_secret(&id, Default::default()).await?;
     assert_eq!(&meta, data.meta());

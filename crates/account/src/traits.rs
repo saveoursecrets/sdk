@@ -443,7 +443,6 @@ pub trait Account {
         meta: SecretMeta,
         secret: Option<Secret>,
         options: AccessOptions,
-        destination: Option<&Summary>,
     ) -> std::result::Result<SecretChange<Self::NetworkResult>, Self::Error>;
 
     /// Move a secret between folders.
@@ -522,7 +521,6 @@ pub trait Account {
         meta: SecretMeta,
         path: impl AsRef<Path> + Send + Sync,
         options: AccessOptions,
-        destination: Option<&Summary>,
     ) -> std::result::Result<SecretChange<Self::NetworkResult>, Self::Error>;
 
     /// Create a folder.

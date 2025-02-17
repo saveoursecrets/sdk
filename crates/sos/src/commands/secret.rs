@@ -919,7 +919,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                             resolved.meta,
                             None,
                             Default::default(),
-                            None,
                         )
                         .await?;
                 }
@@ -970,7 +969,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                             data.into(),
                             Some(edited_secret),
                             options,
-                            None,
                         )
                         .await?;
                     let _ = shutdown_tx.send(()).await;
@@ -1008,7 +1006,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                         resolved.meta,
                         None,
                         Default::default(),
-                        None,
                     )
                     .await?;
                 let state = if value { "on" } else { "off" };
@@ -1040,7 +1037,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                         resolved.meta,
                         None,
                         Default::default(),
-                        None,
                     )
                     .await?;
                 success("Secret renamed");
@@ -1161,7 +1157,6 @@ pub async fn run(cmd: Command) -> Result<()> {
                             resolved.meta,
                             Some(data.into()),
                             Default::default(),
-                            None,
                         )
                         .await?;
                     success("Secret updated");
@@ -1490,7 +1485,6 @@ async fn attachment(cmd: AttachCommand) -> Result<()> {
                     resolved.meta,
                     Some(new_secret),
                     options,
-                    None,
                 )
                 .await?;
             let _ = shutdown_tx.send(()).await;
@@ -1527,6 +1521,7 @@ fn access_options() -> (AccessOptions, mpsc::Sender<()>, oneshot::Receiver<()>)
     let options = AccessOptions {
         folder: None,
         file_progress: Some(progress_tx),
+        ..Default::default()
     };
 
     tokio::task::spawn(show_secret_progress(

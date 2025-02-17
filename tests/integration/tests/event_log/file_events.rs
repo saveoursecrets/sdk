@@ -66,8 +66,8 @@ async fn event_log_file() -> Result<()> {
             AccessOptions {
                 folder: Some(*folder.id()),
                 file_progress: None,
+                ..Default::default()
             },
-            None,
         )
         .await?;
 

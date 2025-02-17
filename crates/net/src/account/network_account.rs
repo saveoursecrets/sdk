@@ -1370,14 +1370,13 @@ impl Account for NetworkAccount {
         meta: SecretMeta,
         secret: Option<Secret>,
         options: AccessOptions,
-        destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
             let mut account = self.account.lock().await;
             account
-                .update_secret(secret_id, meta, secret, options, destination)
+                .update_secret(secret_id, meta, secret, options)
                 .await?
         };
 
@@ -1531,15 +1530,13 @@ impl Account for NetworkAccount {
         meta: SecretMeta,
         path: impl AsRef<Path> + Send + Sync,
         options: AccessOptions,
-        destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
             let mut account = self.account.lock().await;
-            let result = account
-                .update_file(secret_id, meta, path, options, destination)
-                .await?;
+            let result =
+                account.update_file(secret_id, meta, path, options).await?;
             result
         };
 

@@ -55,7 +55,7 @@ async fn local_custom_fields() -> Result<()> {
     // the custom field
     let (id, meta, secret) = data.into();
     account
-        .update_secret(&id, meta, Some(secret), Default::default(), None)
+        .update_secret(&id, meta, Some(secret), Default::default())
         .await?;
 
     // Read secret again so we can find and modify the custom field
@@ -88,7 +88,7 @@ async fn local_custom_fields() -> Result<()> {
     // Update the secret to persist our changes to the field
     let (id, meta, secret) = data.into();
     account
-        .update_secret(&id, meta, Some(secret), Default::default(), None)
+        .update_secret(&id, meta, Some(secret), Default::default())
         .await?;
 
     // Read the secret again to prepend another field
@@ -115,7 +115,7 @@ async fn local_custom_fields() -> Result<()> {
     // Save the changes
     let (id, meta, secret) = data.into();
     account
-        .update_secret(&id, meta, Some(secret), Default::default(), None)
+        .update_secret(&id, meta, Some(secret), Default::default())
         .await?;
 
     // Check the persisted changes

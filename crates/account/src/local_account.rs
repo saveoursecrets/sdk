@@ -1617,7 +1617,6 @@ impl Account for LocalAccount {
         meta: SecretMeta,
         secret: Option<Secret>,
         options: AccessOptions,
-        destination: Option<&Summary>,
     ) -> Result<SecretChange<()>> {
         let (folder, commit_state) =
             self.compute_folder_state(&options).await?;
@@ -1640,13 +1639,21 @@ impl Account for LocalAccount {
         #[cfg(feature = "files")]
         let mut file_events = result.file_events;
 
-        let id = if let Some(to) = destination.as_ref() {
+        let id = if let Some(destination_id) = options.destination.as_ref() {
+            let to = self
+                .storage
+                .find(|f| f.id() == destination_id)
+                .cloned()
+                .ok_or_else(|| {
+                    StorageError::FolderNotFound(*destination_id)
+                })?;
+
             let SecretMove {
                 id,
                 #[cfg(feature = "files")]
                     file_events: mut move_file_events,
                 ..
-            } = self.mv_secret(secret_id, &folder, to, options).await?;
+            } = self.mv_secret(secret_id, &folder, &to, options).await?;
 
             #[cfg(feature = "files")]
             file_events.append(&mut move_file_events);
@@ -1783,18 +1790,11 @@ impl Account for LocalAccount {
         meta: SecretMeta,
         path: impl AsRef<Path> + Send + Sync,
         options: AccessOptions,
-        destination: Option<&Summary>,
     ) -> Result<SecretChange<Self::NetworkResult>> {
         let path = path.as_ref().to_path_buf();
         let secret: Secret = path.try_into()?;
-        self.update_secret(
-            secret_id,
-            meta,
-            Some(secret),
-            options,
-            destination,
-        )
-        .await
+        self.update_secret(secret_id, meta, Some(secret), options)
+            .await
     }
 
     async fn create_folder(

@@ -27,6 +27,7 @@ where
     let options = AccessOptions {
         folder: Some(*default_folder.id()),
         file_progress: progress_tx,
+        ..Default::default()
     };
     let result = account.create_secret(meta, secret, options).await?;
     let (secret_data, _) = account
@@ -70,8 +71,8 @@ where
             AccessOptions {
                 folder: None,
                 file_progress: progress_tx,
+                destination: destination.map(|f| *f.id()),
             },
-            destination,
         )
         .await?;
 
@@ -119,8 +120,8 @@ where
             AccessOptions {
                 folder: Some(*destination.id()),
                 file_progress: progress_tx,
+                ..Default::default()
             },
-            None,
         )
         .await?;
     let (secret_data, _) = account
@@ -165,8 +166,8 @@ where
             AccessOptions {
                 folder: Some(*destination.id()),
                 file_progress: progress_tx,
+                ..Default::default()
             },
-            None,
         )
         .await?;
 
@@ -217,8 +218,8 @@ where
             AccessOptions {
                 folder: Some(*destination.id()),
                 file_progress: progress_tx,
+                ..Default::default()
             },
-            None,
         )
         .await?;
 

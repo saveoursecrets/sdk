@@ -38,7 +38,7 @@ async fn local_search_update_secret() -> Result<()> {
     // Update with a new label
     let (meta, secret) = mock::note("updated", TEST_ID);
     account
-        .update_secret(&id, meta, Some(secret), Default::default(), None)
+        .update_secret(&id, meta, Some(secret), Default::default())
         .await?;
 
     // Check we can't find with the old label

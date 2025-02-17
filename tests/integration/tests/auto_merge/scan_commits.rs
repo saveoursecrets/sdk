@@ -42,7 +42,6 @@ async fn auto_merge_scan_commits() -> Result<()> {
             meta.clone(),
             Some(secret),
             Default::default(),
-            None,
         )
         .await?;
     device

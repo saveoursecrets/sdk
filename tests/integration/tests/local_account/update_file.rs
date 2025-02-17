@@ -35,7 +35,7 @@ async fn local_update_file() -> Result<()> {
 
     let new_path = "../fixtures/test-file.txt";
     account
-        .update_file(&id, meta, new_path, Default::default(), None)
+        .update_file(&id, meta, new_path, Default::default())
         .await?;
 
     let (secret_data, _) = account.read_secret(&id, None).await?;

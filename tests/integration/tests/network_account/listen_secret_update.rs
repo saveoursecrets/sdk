@@ -43,13 +43,7 @@ async fn network_sync_listen_secret_update() -> Result<()> {
         mock::note("note_first_owner", "send_events_secret_updated");
     let SecretChange { sync_result, .. } = device1
         .owner
-        .update_secret(
-            &result.id,
-            meta,
-            Some(secret),
-            Default::default(),
-            None,
-        )
+        .update_secret(&result.id, meta, Some(secret), Default::default())
         .await?;
 
     assert!(sync_result.first_error().is_none());

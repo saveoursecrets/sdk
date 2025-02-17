@@ -1,8 +1,8 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange};
-use sos_search::DocumentView;
 use sos_sdk::prelude::*;
+use sos_search::DocumentView;
 
 /// Tests the favorites view.
 #[tokio::test]
@@ -42,7 +42,7 @@ async fn local_search_favorites() -> Result<()> {
     let (mut data, _) = account.read_secret(&id, None).await?;
     data.meta_mut().set_favorite(true);
     account
-        .update_secret(&id, data.into(), None, Default::default(), None)
+        .update_secret(&id, data.into(), None, Default::default())
         .await?;
 
     // Should have a favorite now
@@ -54,7 +54,7 @@ async fn local_search_favorites() -> Result<()> {
     let (mut data, _) = account.read_secret(&id, None).await?;
     data.meta_mut().set_favorite(false);
     account
-        .update_secret(&id, data.into(), None, Default::default(), None)
+        .update_secret(&id, data.into(), None, Default::default())
         .await?;
 
     // Not in the favorites view anymore

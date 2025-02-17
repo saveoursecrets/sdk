@@ -46,7 +46,7 @@ async fn local_search_statistics() -> Result<()> {
     let (mut data, _) = account.read_secret(&id, None).await?;
     data.meta_mut().set_favorite(true);
     account
-        .update_secret(&id, data.into(), None, Default::default(), None)
+        .update_secret(&id, data.into(), None, Default::default())
         .await?;
     let count = account.document_count().await?;
     assert_eq!(1, *count.vaults().get(default_folder.id()).unwrap());
@@ -57,7 +57,7 @@ async fn local_search_statistics() -> Result<()> {
     let (mut data, _) = account.read_secret(&id, None).await?;
     data.meta_mut().set_favorite(false);
     account
-        .update_secret(&id, data.into(), None, Default::default(), None)
+        .update_secret(&id, data.into(), None, Default::default())
         .await?;
     let count = account.document_count().await?;
     assert_eq!(1, *count.vaults().get(default_folder.id()).unwrap());

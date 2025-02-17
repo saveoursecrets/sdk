@@ -310,6 +310,7 @@ async fn assert_move_file_secret(
             AccessOptions {
                 folder: None,
                 file_progress: Some(progress_tx),
+                ..Default::default()
             },
         )
         .await?;
@@ -369,6 +370,7 @@ async fn assert_delete_file_secret(
     let options = AccessOptions {
         folder: Some(*folder.id()),
         file_progress: Some(progress_tx),
+        ..Default::default()
     };
     account.delete_secret(id, options).await?;
 
@@ -633,8 +635,8 @@ async fn assert_attach_file_secret(
                 AccessOptions {
                     folder: Some(*folder.id()),
                     file_progress: Some(progress_tx.clone()),
+                    ..Default::default()
                 },
-                None,
             )
             .await?;
 
@@ -740,6 +742,7 @@ async fn assert_attach_file_secret(
             AccessOptions {
                 folder: Some(*folder.id()),
                 file_progress: Some(progress_tx.clone()),
+                ..Default::default()
             },
         )
         .await?;

@@ -7,7 +7,7 @@ use sos_core::{
     events::WriteEvent,
     AccountId, VaultId,
 };
-use sos_vault::{Summary, Vault, VaultFlags};
+use sos_vault::{Vault, VaultFlags};
 
 mod database;
 mod error;
@@ -77,12 +77,19 @@ pub struct AccountPack {
 /// Options used when accessing account data.
 #[derive(Default, Clone)]
 pub struct AccessOptions {
-    /// Target folder for the operation.
+    /// Source folder for the operation.
     ///
     /// If no target folder is given the current open folder
-    /// will be used. When no folder is open and the target
-    /// folder is not given an error will be returned.
+    /// will be used; it is an error if there is neither a
+    /// target folder or a currently open folder.
     pub folder: Option<VaultId>,
+
+    /// Destination folder for the operation.
+    ///
+    /// Use during update operations to allow secrets
+    /// to be moved to a different folder.
+    pub destination: Option<VaultId>,
+
     /// Channel for file progress operations.
     #[cfg(feature = "files")]
     pub file_progress:
@@ -93,6 +100,7 @@ impl From<&VaultId> for AccessOptions {
     fn from(value: &VaultId) -> Self {
         Self {
             folder: Some(*value),
+            destination: None,
             #[cfg(feature = "files")]
             file_progress: None,
         }
