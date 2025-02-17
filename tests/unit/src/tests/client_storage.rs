@@ -241,6 +241,10 @@ async fn assert_client_storage(
         .restore_folder(main_vault.id(), events, main_key.as_ref().unwrap())
         .await?;
 
+    let mut main_events = Vec::new();
+
+    storage.update_vault(&main_vault, main_events).await?;
+
     // Sign out the authenticated user
     storage.sign_out().await?;
 

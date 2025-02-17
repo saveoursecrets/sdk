@@ -88,10 +88,17 @@ impl FileStorage {
         vault_id: &VaultId,
         secret_id: &SecretId,
     ) -> Result<EncryptedFile> {
-        let target = paths
-            .files_dir()
-            .join(vault_id.to_string())
-            .join(secret_id.to_string());
+        let target = if paths.is_using_db() {
+            paths
+                .blobs_account_dir()
+                .join(vault_id.to_string())
+                .join(secret_id.to_string())
+        } else {
+            paths
+                .files_dir()
+                .join(vault_id.to_string())
+                .join(secret_id.to_string())
+        };
 
         if !vfs::try_exists(&target).await? {
             vfs::create_dir_all(&target).await?;
