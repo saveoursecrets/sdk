@@ -135,7 +135,7 @@ pub trait Account {
     /// The target folder will become the currently open folder.
     async fn folder_description(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
     ) -> std::result::Result<String, Self::Error>;
 
     /// Set the description of a folder.
@@ -143,7 +143,7 @@ pub trait Account {
     /// The target folder will become the currently open folder.
     async fn set_folder_description(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
         description: impl AsRef<str> + Send + Sync,
     ) -> std::result::Result<FolderChange<Self::NetworkResult>, Self::Error>;
 
@@ -273,7 +273,7 @@ pub trait Account {
     /// Read the secret identifiers in a vault.
     async fn secret_ids(
         &self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> std::result::Result<Vec<SecretId>, Self::Error>;
 
     /// Load folders into memory.
@@ -341,7 +341,7 @@ pub trait Account {
     /// pack is updated with the new folder password.
     async fn change_folder_password(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
     ) -> std::result::Result<(), Self::Error>;
 
@@ -353,7 +353,7 @@ pub trait Account {
     #[cfg(feature = "search")]
     async fn detached_view(
         &self,
-        summary: &Summary,
+        folder_id: &VaultId,
         commit: CommitHash,
     ) -> std::result::Result<DetachedView, Self::Error>;
 
@@ -575,7 +575,7 @@ pub trait Account {
     async fn export_folder(
         &mut self,
         path: impl AsRef<Path> + Send + Sync,
-        summary: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
         save_key: bool,
     ) -> std::result::Result<(), Self::Error>;
@@ -583,7 +583,7 @@ pub trait Account {
     /// Export a folder to a buffer.
     async fn export_folder_buffer(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
         save_key: bool,
     ) -> std::result::Result<Vec<u8>, Self::Error>;

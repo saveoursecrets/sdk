@@ -41,7 +41,7 @@ async fn network_sync_change_folder_password() -> Result<()> {
     let key: AccessKey = new_password.into();
     device1
         .owner
-        .change_folder_password(&default_folder, key.clone())
+        .change_folder_password(default_folder.id(), key.clone())
         .await?;
 
     // Check we can read in the secret data after conversion

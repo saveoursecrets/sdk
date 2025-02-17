@@ -67,7 +67,7 @@ async fn local_folder_lifecycle() -> Result<()> {
     account
         .export_folder(
             &exported,
-            &folder,
+            folder.id(),
             folder_password.clone().into(),
             true,
         )

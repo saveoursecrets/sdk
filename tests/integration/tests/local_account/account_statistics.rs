@@ -213,7 +213,7 @@ async fn local_account_statistics() -> Result<()> {
     let (mut meta, secret) = mock::login("login", TEST_ID, login_password);
     meta.set_favorite(true);
     let options = AccessOptions {
-        folder: Some(folder.clone()),
+        folder: Some(*folder.id()),
         ..Default::default()
     };
     account.create_secret(meta, secret, options).await?;

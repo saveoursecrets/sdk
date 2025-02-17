@@ -48,7 +48,7 @@ async fn event_log_change_password() -> Result<()> {
 
     // Change the folder password
     account
-        .change_folder_password(&default_folder, new_key.clone())
+        .change_folder_password(default_folder.id(), new_key.clone())
         .await?;
 
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;

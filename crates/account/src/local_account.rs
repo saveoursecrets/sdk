@@ -300,23 +300,23 @@ impl LocalAccount {
         &self,
         options: &AccessOptions,
     ) -> Result<(Summary, CommitState)> {
-        let (folder, commit_state) = {
-            let folder = options
-                .folder
-                .clone()
-                .or_else(|| self.storage.current_folder())
-                .ok_or(Error::NoOpenFolder)?;
-
-            let commit_state = self
-                .storage
-                .folders()
-                .get(folder.id())
-                .ok_or(StorageError::FolderNotFound(*folder.id()))?
-                .commit_state()
-                .await?;
-
-            (folder, commit_state)
+        let folder = if let Some(folder_id) = &options.folder {
+            self.storage
+                .find(|f| f.id() == folder_id)
+                .cloned()
+                .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?
+        } else {
+            self.storage.current_folder().ok_or(Error::NoOpenFolder)?
         };
+
+        let commit_state = self
+            .storage
+            .folders()
+            .get(folder.id())
+            .ok_or(StorageError::FolderNotFound(*folder.id()))?
+            .commit_state()
+            .await?;
+
         Ok((folder, commit_state))
     }
 
@@ -341,17 +341,11 @@ impl LocalAccount {
         &mut self,
         meta: SecretMeta,
         secret: Secret,
-        mut options: AccessOptions,
+        options: AccessOptions,
         audit: bool,
         #[cfg(feature = "files")] file_events: &mut Vec<FileMutationEvent>,
     ) -> Result<(SecretId, Event, Summary)> {
-        let folder = {
-            options
-                .folder
-                .take()
-                .or_else(|| self.storage.current_folder())
-                .ok_or(Error::NoOpenFolder)?
-        };
+        let (folder, _) = self.compute_folder_state(&options).await?;
 
         self.open_folder(folder.id()).await?;
 
@@ -926,31 +920,30 @@ impl Account for LocalAccount {
 
     async fn folder_description(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
     ) -> Result<String> {
         self.ensure_authenticated()?;
 
-        self.open_folder(folder.id()).await?;
-        Ok(self.storage.description().await?)
+        // self.open_folder(folder.id()).await?;
+        Ok(self.storage.description(folder_id).await?)
     }
 
     async fn set_folder_description(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
         description: impl AsRef<str> + Send + Sync,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         self.ensure_authenticated()?;
 
-        self.open_folder(folder.id()).await?;
-
         let options = AccessOptions {
-            folder: Some(folder.clone()),
+            folder: Some(*folder_id),
             ..Default::default()
         };
         let (_, commit_state) = self.compute_folder_state(&options).await?;
 
-        let event = self.storage.set_description(description).await?;
-        let event = Event::Write(*folder.id(), event);
+        let event =
+            self.storage.set_description(folder_id, description).await?;
+        let event = Event::Write(*folder_id, event);
 
         Ok(FolderChange {
             event,
@@ -1236,8 +1229,8 @@ impl Account for LocalAccount {
         self.storage.find_folder(vault).cloned()
     }
 
-    async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
-        let vault: Vault = self.storage.read_vault(summary.id()).await?;
+    async fn secret_ids(&self, folder_id: &VaultId) -> Result<Vec<SecretId>> {
+        let vault: Vault = self.storage.read_vault(folder_id).await?;
         Ok(vault.keys().cloned().collect())
     }
 
@@ -1362,24 +1355,24 @@ impl Account for LocalAccount {
 
     async fn change_folder_password(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
     ) -> Result<()> {
         self.ensure_authenticated()?;
 
         let current_key = self
-            .find_folder_password(folder.id())
+            .find_folder_password(folder_id)
             .await?
-            .ok_or(Error::NoFolderPassword(*folder.id()))?;
+            .ok_or(Error::NoFolderPassword(*folder_id))?;
 
-        let vault = self.storage.read_vault(folder.id()).await?;
+        let vault = self.storage.read_vault(folder_id).await?;
 
         self.storage
             .change_password(&vault, current_key, new_key.clone())
             .await?;
 
         // Save the new password
-        self.save_folder_password(folder.id(), new_key).await?;
+        self.save_folder_password(folder_id, new_key).await?;
 
         Ok(())
     }
@@ -1387,21 +1380,21 @@ impl Account for LocalAccount {
     #[cfg(feature = "search")]
     async fn detached_view(
         &self,
-        summary: &Summary,
+        folder_id: &VaultId,
         commit: CommitHash,
     ) -> Result<DetachedView> {
         let search_index = Arc::new(RwLock::new(SearchIndex::new()));
 
         let key = self
-            .find_folder_password(summary.id())
+            .find_folder_password(folder_id)
             .await?
-            .ok_or(Error::NoFolderPassword(*summary.id()))?;
+            .ok_or(Error::NoFolderPassword(*folder_id))?;
 
         let folder = self
             .storage
             .folders()
-            .get(summary.id())
-            .ok_or_else(|| StorageError::FolderNotFound(*summary.id()))?;
+            .get(folder_id)
+            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
 
         let event_log = folder.event_log();
         let log_file = event_log.read().await;
@@ -1839,7 +1832,7 @@ impl Account for LocalAccount {
         self.save_folder_password(summary.id(), key).await?;
 
         let options = AccessOptions {
-            folder: Some(summary),
+            folder: Some(*summary.id()),
             ..Default::default()
         };
 
@@ -1861,13 +1854,8 @@ impl Account for LocalAccount {
         folder_id: &VaultId,
         name: String,
     ) -> Result<FolderChange<Self::NetworkResult>> {
-        let summary = self
-            .find(|f| f.id() == folder_id)
-            .await
-            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
-
         let options = AccessOptions {
-            folder: Some(summary.clone()),
+            folder: Some(*folder_id),
             ..Default::default()
         };
         let (_, commit_state) = self.compute_folder_state(&options).await?;
@@ -1887,13 +1875,8 @@ impl Account for LocalAccount {
         folder_id: &VaultId,
         flags: VaultFlags,
     ) -> Result<FolderChange<Self::NetworkResult>> {
-        let summary = self
-            .find(|f| f.id() == folder_id)
-            .await
-            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
-
         let options = AccessOptions {
-            folder: Some(summary.clone()),
+            folder: Some(*folder_id),
             ..Default::default()
         };
         let (_, commit_state) = self.compute_folder_state(&options).await?;
@@ -2021,7 +2004,7 @@ impl Account for LocalAccount {
         }
 
         let options = AccessOptions {
-            folder: Some(summary.clone()),
+            folder: Some(*summary.id()),
             ..Default::default()
         };
         let (summary, commit_state) =
@@ -2049,12 +2032,12 @@ impl Account for LocalAccount {
     async fn export_folder(
         &mut self,
         path: impl AsRef<Path> + Send + Sync,
-        summary: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<()> {
         let buffer = self
-            .export_folder_buffer(summary, new_key, save_key)
+            .export_folder_buffer(folder_id, new_key, save_key)
             .await?;
         write_exclusive(path, buffer).await?;
         Ok(())
@@ -2062,14 +2045,14 @@ impl Account for LocalAccount {
 
     async fn export_folder_buffer(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<Vec<u8>> {
         self.ensure_authenticated()?;
 
         let buffer = self
-            .change_vault_password(summary.id(), new_key.clone())
+            .change_vault_password(folder_id, new_key.clone())
             .await?;
 
         if save_key {
@@ -2084,11 +2067,11 @@ impl Account for LocalAccount {
             let timestamp: UtcDateTime = Default::default();
             let label = format!(
                 "Exported folder {}.vault ({})",
-                summary.id(),
+                folder_id,
                 timestamp.to_rfc3339()?
             );
             let secret = Secret::Account {
-                account: format!("{}.vault", summary.id()),
+                account: format!("{}.vault", folder_id),
                 url: Default::default(),
                 password: new_key.into(),
                 user_data: Default::default(),
@@ -2102,7 +2085,7 @@ impl Account for LocalAccount {
             self.add_secret(
                 meta,
                 secret,
-                vault.summary().clone().into(),
+                vault.id().into(),
                 false,
                 #[cfg(feature = "files")]
                 &mut vec![],
@@ -2116,7 +2099,7 @@ impl Account for LocalAccount {
                 Default::default(),
                 EventKind::ExportVault,
                 *self.account_id(),
-                Some(AuditData::Vault(*summary.id())),
+                Some(AuditData::Vault(*folder_id)),
             );
             append_audit_events(&[audit_event]).await?;
         }
@@ -2128,20 +2111,14 @@ impl Account for LocalAccount {
         &mut self,
         folder_id: &VaultId,
     ) -> Result<FolderDelete<Self::NetworkResult>> {
-        let summary = self
-            .find(|f| f.id() == folder_id)
-            .await
-            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
-
         let options = AccessOptions {
-            folder: Some(summary.clone()),
+            folder: Some(*folder_id),
             ..Default::default()
         };
-        let (summary, commit_state) =
-            self.compute_folder_state(&options).await?;
+        let (_, commit_state) = self.compute_folder_state(&options).await?;
 
-        let events = self.storage.delete_folder(summary.id(), true).await?;
-        self.remove_folder_password(summary.id()).await?;
+        let events = self.storage.delete_folder(folder_id, true).await?;
+        self.remove_folder_password(folder_id).await?;
 
         Ok(FolderDelete {
             events,

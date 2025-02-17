@@ -41,7 +41,7 @@ async fn event_log_import_folder() -> Result<()> {
     let (vault_password, _) = generate_passphrase()?;
     let vault_key: AccessKey = vault_password.into();
     let buffer = account
-        .export_folder_buffer(&default_folder, vault_key.clone(), false)
+        .export_folder_buffer(default_folder.id(), vault_key.clone(), false)
         .await?;
 
     let account_events = account.paths().account_events();

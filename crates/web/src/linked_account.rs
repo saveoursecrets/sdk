@@ -212,22 +212,24 @@ impl Account for LinkedAccount {
 
     async fn folder_description(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
     ) -> Result<String> {
         let mut account = self.account.lock().await;
-        Ok(account.folder_description(folder).await?)
+        Ok(account.folder_description(folder_id).await?)
     }
 
     async fn set_folder_description(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
         description: impl AsRef<str> + Send + Sync,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
 
         let result = {
             let mut account = self.account.lock().await;
-            account.set_folder_description(folder, description).await?
+            account
+                .set_folder_description(folder_id, description)
+                .await?
         };
 
         let result = FolderChange {
@@ -354,9 +356,9 @@ impl Account for LinkedAccount {
         Ok(account.delete_account().await?)
     }
 
-    async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
+    async fn secret_ids(&self, folder_id: &VaultId) -> Result<Vec<SecretId>> {
         let account = self.account.lock().await;
-        Ok(account.secret_ids(summary).await?)
+        Ok(account.secret_ids(folder_id).await?)
     }
 
     async fn load_folders(&mut self) -> Result<Vec<Summary>> {
@@ -415,21 +417,21 @@ impl Account for LinkedAccount {
 
     async fn change_folder_password(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
     ) -> Result<()> {
         let mut account = self.account.lock().await;
-        Ok(account.change_folder_password(folder, new_key).await?)
+        Ok(account.change_folder_password(folder_id, new_key).await?)
     }
 
     #[cfg(feature = "search")]
     async fn detached_view(
         &self,
-        summary: &Summary,
+        folder_id: &VaultId,
         commit: CommitHash,
     ) -> Result<DetachedView> {
         let account = self.account.lock().await;
-        Ok(account.detached_view(summary, commit).await?)
+        Ok(account.detached_view(folder_id, commit).await?)
     }
 
     #[cfg(feature = "search")]
@@ -889,25 +891,25 @@ impl Account for LinkedAccount {
     async fn export_folder(
         &mut self,
         path: impl AsRef<Path> + Send + Sync,
-        summary: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<()> {
         let mut account = self.account.lock().await;
         Ok(account
-            .export_folder(path, summary, new_key, save_key)
+            .export_folder(path, folder_id, new_key, save_key)
             .await?)
     }
 
     async fn export_folder_buffer(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<Vec<u8>> {
         let mut account = self.account.lock().await;
         Ok(account
-            .export_folder_buffer(summary, new_key, save_key)
+            .export_folder_buffer(folder_id, new_key, save_key)
             .await?)
     }
 

@@ -38,7 +38,7 @@ async fn local_search_folder_import() -> Result<()> {
     account
         .export_folder(
             &exported,
-            &folder,
+            folder.id(),
             folder_password.clone().into(),
             true,
         )

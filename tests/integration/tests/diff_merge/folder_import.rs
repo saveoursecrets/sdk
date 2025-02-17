@@ -58,7 +58,7 @@ async fn diff_merge_folder_import() -> Result<()> {
     let (folder_password, _) = generate_passphrase()?;
     let folder_key: AccessKey = folder_password.into();
     let exported = data_dir_export.join("exported.vault");
-    temp.export_folder(&exported, &summary, folder_key.clone(), false)
+    temp.export_folder(&exported, summary.id(), folder_key.clone(), false)
         .await?;
     assert!(vfs::try_exists(&exported).await?);
 

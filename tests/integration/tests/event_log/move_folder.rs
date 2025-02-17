@@ -51,7 +51,11 @@ async fn event_log_move_folder() -> Result<()> {
     let vault_key: AccessKey = vault_password.into();
     let mut vault: Vault = {
         let buffer = account1
-            .export_folder_buffer(&default_folder1, vault_key.clone(), false)
+            .export_folder_buffer(
+                default_folder1.id(),
+                vault_key.clone(),
+                false,
+            )
             .await?;
         decode(&buffer).await?
     };
@@ -93,8 +97,7 @@ async fn event_log_move_folder() -> Result<()> {
 
     // Check the folder event log
     let folder_events = account2.paths().event_log_path(&folder_id);
-    let mut event_log =
-        FolderEventLog::new_fs_folder(&folder_events).await?;
+    let mut event_log = FolderEventLog::new_fs_folder(&folder_events).await?;
     let events = all_events(&mut event_log).await?;
     // Should have the create vault and 3 create secret events
     assert_eq!(4, events.len());

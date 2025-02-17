@@ -25,7 +25,7 @@ where
 
     // Create the file secret in the default folder
     let options = AccessOptions {
-        folder: Some(default_folder.clone()),
+        folder: Some(*default_folder.id()),
         file_progress: progress_tx,
     };
     let result = account.create_secret(meta, secret, options).await?;
@@ -117,7 +117,7 @@ where
             secret_data.meta().clone(),
             Some(secret_data.secret().clone()),
             AccessOptions {
-                folder: Some(destination.clone()),
+                folder: Some(*destination.id()),
                 file_progress: progress_tx,
             },
             None,
@@ -163,7 +163,7 @@ where
             secret_data.meta().clone(),
             Some(secret_data.secret().clone()),
             AccessOptions {
-                folder: Some(destination.clone()),
+                folder: Some(*destination.id()),
                 file_progress: progress_tx,
             },
             None,
@@ -215,7 +215,7 @@ where
             meta,
             Some(secret),
             AccessOptions {
-                folder: Some(destination.clone()),
+                folder: Some(*destination.id()),
                 file_progress: progress_tx,
             },
             None,

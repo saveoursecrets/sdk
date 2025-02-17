@@ -35,7 +35,7 @@ async fn network_authenticator_sync() -> Result<()> {
     let (meta, secret) = mock::totp(TEST_ID);
     let SecretChange { id, .. } = mobile
         .owner
-        .create_secret(meta, secret, folder.clone().into())
+        .create_secret(meta, secret, folder.id().into())
         .await?;
 
     // Desktop syncs before NO_SYNC flag has been removed

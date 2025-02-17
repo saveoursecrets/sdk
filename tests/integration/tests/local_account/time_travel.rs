@@ -46,7 +46,7 @@ async fn local_time_travel() -> Result<()> {
         .await?;
 
     // Create the detached view and assert
-    let view = account.detached_view(&default_folder, commit).await?;
+    let view = account.detached_view(default_folder.id(), commit).await?;
     let secret1 = view.keeper().read_secret(&id1).await?;
     let secret2 = view.keeper().read_secret(&id2).await?;
     assert!(secret1.is_some());

@@ -77,7 +77,7 @@ async fn event_log_folder() -> Result<()> {
     let commit = event_log.tree().last_commit();
     account
         .set_folder_description(
-            &default_folder,
+            default_folder.id(),
             "new_description".to_string(),
         )
         .await?;
@@ -91,7 +91,11 @@ async fn event_log_folder() -> Result<()> {
     let vault_key: AccessKey = vault_password.into();
     let mut vault: Vault = {
         let buffer = account
-            .export_folder_buffer(&default_folder, vault_key.clone(), false)
+            .export_folder_buffer(
+                default_folder.id(),
+                vault_key.clone(),
+                false,
+            )
             .await?;
         decode(&buffer).await?
     };

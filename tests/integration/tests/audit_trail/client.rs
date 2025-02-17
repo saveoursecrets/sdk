@@ -130,7 +130,7 @@ async fn simulate_session(
     // Create a secret
     let (meta, secret) = mock::note("Audit note", "Note value");
     let SecretChange { id, .. } = account
-        .create_secret(meta, secret, default_folder.clone().into())
+        .create_secret(meta, secret, default_folder.id().into())
         .await?;
 
     // Read the secret
@@ -140,24 +140,18 @@ async fn simulate_session(
     let mut new_meta = secret_data.meta().clone();
     new_meta.set_label("Audit note updated".to_string());
     let SecretChange { id, .. } = account
-        .update_secret(
-            &id,
-            new_meta,
-            None,
-            default_folder.clone().into(),
-            None,
-        )
+        .update_secret(&id, new_meta, None, default_folder.id().into(), None)
         .await?;
     // Delete the secret
     account
-        .delete_secret(&id, default_folder.clone().into())
+        .delete_secret(&id, default_folder.id().into())
         .await?;
 
     // Create a new secret so we can archive it
     let (meta, secret) =
         mock::note("Audit note to archive", "Note value to archive");
     let SecretChange { id, .. } = account
-        .create_secret(meta, secret, default_folder.clone().into())
+        .create_secret(meta, secret, default_folder.id().into())
         .await?;
     // Archive the secret to generate move event
     account
@@ -179,7 +173,7 @@ async fn simulate_session(
     account
         .export_folder(
             exported_folder,
-            &new_folder,
+            new_folder.id(),
             export_passphrase.clone().into(),
             true,
         )

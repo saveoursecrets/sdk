@@ -22,7 +22,7 @@ async fn network_sync_folder_description() -> Result<()> {
     let FolderChange { sync_result, .. } = device
         .owner
         .set_folder_description(
-            &default_folder,
+            default_folder.id(),
             "new_description".to_string(),
         )
         .await?;

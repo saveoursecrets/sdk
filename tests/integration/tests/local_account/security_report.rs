@@ -99,7 +99,7 @@ async fn simulate_session(
         SecretMeta::new("Weak password".to_string(), weak_secret.kind());
 
     let SecretChange { id: weak_id, .. } = account
-        .create_secret(weak_meta, weak_secret, default_folder.clone().into())
+        .create_secret(weak_meta, weak_secret, default_folder.id().into())
         .await?;
 
     // Create a password custom field.
@@ -131,11 +131,7 @@ async fn simulate_session(
         SecretMeta::new("Strong password".to_string(), strong_secret.kind());
 
     let SecretChange { id: strong_id, .. } = account
-        .create_secret(
-            strong_meta,
-            strong_secret,
-            default_folder.clone().into(),
-        )
+        .create_secret(strong_meta, strong_secret, default_folder.id().into())
         .await?;
 
     Ok(MockSecretIds {

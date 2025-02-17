@@ -627,27 +627,26 @@ pub trait ClientFolderStorage:
         Ok(())
     }
 
-    /// Get the description of the currently open folder.
-    async fn description(&self) -> Result<String> {
-        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
-        if let Some(folder) = self.folders().get(summary.id()) {
-            Ok(folder.description().await?)
-        } else {
-            Err(StorageError::FolderNotFound(*summary.id()).into())
-        }
+    /// Get the description for a folder.
+    async fn description(&self, folder_id: &VaultId) -> Result<String> {
+        let folder = self
+            .folders()
+            .get(folder_id)
+            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
+        Ok(folder.description().await?)
     }
 
     /// Set the description of the currently open folder.
     async fn set_description(
         &mut self,
+        folder_id: &VaultId,
         description: impl AsRef<str> + Send,
     ) -> Result<WriteEvent> {
-        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
-        if let Some(folder) = self.folders_mut().get_mut(summary.id()) {
-            Ok(folder.set_description(description).await?)
-        } else {
-            Err(StorageError::FolderNotFound(*summary.id()).into())
-        }
+        let folder = self
+            .folders_mut()
+            .get_mut(folder_id)
+            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
+        Ok(folder.set_description(description).await?)
     }
 
     /// Change the password for a vault.

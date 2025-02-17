@@ -367,7 +367,7 @@ async fn assert_delete_file_secret(
     progress_tx: mpsc::Sender<FileProgress>,
 ) -> Result<()> {
     let options = AccessOptions {
-        folder: Some(folder.clone()),
+        folder: Some(*folder.id()),
         file_progress: Some(progress_tx),
     };
     account.delete_secret(id, options).await?;
@@ -631,7 +631,7 @@ async fn assert_attach_file_secret(
                 meta,
                 Some(secret),
                 AccessOptions {
-                    folder: Some(folder.clone()),
+                    folder: Some(*folder.id()),
                     file_progress: Some(progress_tx.clone()),
                 },
                 None,
@@ -738,7 +738,7 @@ async fn assert_attach_file_secret(
         .delete_secret(
             &id,
             AccessOptions {
-                folder: Some(folder.clone()),
+                folder: Some(*folder.id()),
                 file_progress: Some(progress_tx.clone()),
             },
         )

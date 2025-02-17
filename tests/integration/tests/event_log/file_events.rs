@@ -64,7 +64,7 @@ async fn event_log_file() -> Result<()> {
             data.meta().clone(),
             Some(data.secret().clone()),
             AccessOptions {
-                folder: Some(folder.clone()),
+                folder: Some(*folder.id()),
                 file_progress: None,
             },
             None,
@@ -77,7 +77,7 @@ async fn event_log_file() -> Result<()> {
         .delete_secret(
             &id,
             AccessOptions {
-                folder: Some(folder.clone()),
+                folder: Some(*folder.id()),
                 ..Default::default()
             },
         )

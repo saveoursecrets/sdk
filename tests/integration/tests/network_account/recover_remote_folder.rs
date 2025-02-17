@@ -36,7 +36,7 @@ async fn network_sync_recover_remote_folder() -> Result<()> {
         id, sync_result, ..
     } = device
         .owner
-        .create_secret(meta.clone(), secret, new_folder.clone().into())
+        .create_secret(meta.clone(), secret, new_folder.id().into())
         .await?;
     assert!(sync_result.first_error().is_none());
 

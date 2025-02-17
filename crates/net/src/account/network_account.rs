@@ -771,21 +771,23 @@ impl Account for NetworkAccount {
 
     async fn folder_description(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
     ) -> Result<String> {
         let mut account = self.account.lock().await;
-        Ok(account.folder_description(folder).await?)
+        Ok(account.folder_description(folder_id).await?)
     }
 
     async fn set_folder_description(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
         description: impl AsRef<str> + Send + Sync,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.set_folder_description(folder, description).await?
+            account
+                .set_folder_description(folder_id, description)
+                .await?
         };
 
         let result = FolderChange {
@@ -1020,9 +1022,9 @@ impl Account for NetworkAccount {
         Ok(account.list_folders().await?)
     }
 
-    async fn secret_ids(&self, summary: &Summary) -> Result<Vec<SecretId>> {
+    async fn secret_ids(&self, folder_id: &VaultId) -> Result<Vec<SecretId>> {
         let account = self.account.lock().await;
-        Ok(account.secret_ids(summary).await?)
+        Ok(account.secret_ids(folder_id).await?)
     }
 
     async fn account_data(&self) -> Result<AccountData> {
@@ -1158,12 +1160,12 @@ impl Account for NetworkAccount {
 
     async fn change_folder_password(
         &mut self,
-        folder: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
     ) -> Result<()> {
         {
             let mut account = self.account.lock().await;
-            account.change_folder_password(folder, new_key).await?;
+            account.change_folder_password(folder_id, new_key).await?;
         }
 
         let identity = {
@@ -1175,11 +1177,15 @@ impl Account for NetworkAccount {
         // Prepare event logs for the folders that
         // were converted
         let mut folders = HashMap::new();
+        let folder = self
+            .find(|f| f.id() == folder_id)
+            .await
+            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
         if !folder.flags().is_sync_disabled() {
-            let event_log = self.folder_log(folder.id()).await?;
+            let event_log = self.folder_log(folder_id).await?;
             let log_file = event_log.read().await;
             let diff = log_file.diff_unchecked().await?;
-            folders.insert(*folder.id(), diff);
+            folders.insert(*folder_id, diff);
         }
 
         if !folders.is_empty() {
@@ -1211,11 +1217,11 @@ impl Account for NetworkAccount {
     #[cfg(feature = "search")]
     async fn detached_view(
         &self,
-        summary: &Summary,
+        folder_id: &VaultId,
         commit: CommitHash,
     ) -> Result<sos_account::DetachedView> {
         let account = self.account.lock().await;
-        Ok(account.detached_view(summary, commit).await?)
+        Ok(account.detached_view(folder_id, commit).await?)
     }
 
     #[cfg(feature = "search")]
@@ -1658,25 +1664,25 @@ impl Account for NetworkAccount {
     async fn export_folder(
         &mut self,
         path: impl AsRef<Path> + Send + Sync,
-        summary: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<()> {
         let mut account = self.account.lock().await;
         Ok(account
-            .export_folder(path, summary, new_key, save_key)
+            .export_folder(path, folder_id, new_key, save_key)
             .await?)
     }
 
     async fn export_folder_buffer(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         new_key: AccessKey,
         save_key: bool,
     ) -> Result<Vec<u8>> {
         let mut account = self.account.lock().await;
         Ok(account
-            .export_folder_buffer(summary, new_key, save_key)
+            .export_folder_buffer(folder_id, new_key, save_key)
             .await?)
     }
 

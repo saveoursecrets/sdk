@@ -2,10 +2,10 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Client storage backed by the file system.
-use sos_core::events::WriteEvent;
 use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
-    AccountId,
+    events::WriteEvent,
+    AccountId, VaultId,
 };
 use sos_vault::{Summary, Vault, VaultFlags};
 
@@ -67,17 +67,17 @@ pub struct AccessOptions {
     /// If no target folder is given the current open folder
     /// will be used. When no folder is open and the target
     /// folder is not given an error will be returned.
-    pub folder: Option<Summary>,
+    pub folder: Option<VaultId>,
     /// Channel for file progress operations.
     #[cfg(feature = "files")]
     pub file_progress:
         Option<tokio::sync::mpsc::Sender<sos_external_files::FileProgress>>,
 }
 
-impl From<Summary> for AccessOptions {
-    fn from(value: Summary) -> Self {
+impl From<&VaultId> for AccessOptions {
+    fn from(value: &VaultId) -> Self {
         Self {
-            folder: Some(value),
+            folder: Some(*value),
             #[cfg(feature = "files")]
             file_progress: None,
         }
