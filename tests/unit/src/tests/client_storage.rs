@@ -6,7 +6,7 @@ use sos_client_storage::{
     AccountPack, ClientAccountStorage, ClientBaseStorage,
     ClientFolderStorage, ClientStorage,
 };
-use sos_core::{AccountId, FolderRef, Paths};
+use sos_core::{encode, AccountId, FolderRef, Paths};
 use sos_login::Identity;
 use sos_sdk::{crypto::AccessKey, prelude::generate_passphrase};
 use sos_test_utils::mock::memory_database;
@@ -128,6 +128,11 @@ async fn assert_client_storage(
 
     // Store the vault so we can import after deletion
     let main_vault = storage.read_vault(main.id()).await?;
+    let main_key = storage
+        .authenticated_user()
+        .unwrap()
+        .find_folder_password(main.id())
+        .await?;
 
     assert!(storage.identity_state().await.is_ok());
     assert!(storage.commit_state(main.id()).await.is_ok());
@@ -136,6 +141,12 @@ async fn assert_client_storage(
     assert!(storage.current_folder().is_some());
     storage.delete_folder(main.id(), true).await?;
     assert!(storage.current_folder().is_none());
+
+    let main_buffer = encode(&main_vault).await?;
+
+    storage
+        .import_folder(&main_buffer, main_key.as_ref(), true, None)
+        .await?;
 
     Ok(())
 }
