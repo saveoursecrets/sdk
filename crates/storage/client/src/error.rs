@@ -22,10 +22,6 @@ pub enum Error {
     #[error("could not determine cache directory")]
     NoCache,
 
-    /// Error generated when a search index is required.
-    #[error("no search index")]
-    NoSearchIndex,
-
     /// Error generated when a folder password in the identity
     /// vault could not be located.
     #[error("could not find folder password for '{0}'")]
@@ -38,6 +34,12 @@ pub enum Error {
     /// Error generated when a secret could not be found.
     #[error(r#"secret "{0}" not found"#)]
     SecretNotFound(SecretId),
+
+    /// Error generated if we could not find a create vault event
+    /// in a collection of event records or as the first event in
+    /// a folder event log.
+    #[error("could not find create vault event")]
+    NoVaultEvent,
 
     /// Error generated converting to fixed length slice.
     #[error(transparent)]

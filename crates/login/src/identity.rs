@@ -14,7 +14,7 @@ use sos_core::{
     crypto::AccessKey, decode, events::Event, AccountId, AuthenticationError,
     Paths, SecretId, VaultId,
 };
-use sos_vault::{list_local_folders, read_public_identity, Summary, Vault};
+use sos_vault::{list_local_folders, read_public_identity, Vault};
 use sos_vfs as vfs;
 use std::{
     collections::HashMap,

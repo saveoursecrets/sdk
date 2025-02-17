@@ -3,8 +3,8 @@ use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::{
-    AccountEventLog, DeviceEventLog, FileEventLog, FolderEventLog,
-    VaultWriter,
+    extract_vault, AccountEventLog, DeviceEventLog, FileEventLog,
+    FolderEventLog, VaultWriter,
 };
 use sos_core::{
     decode,
@@ -12,7 +12,7 @@ use sos_core::{
     encode,
     events::{
         patch::{FolderDiff, FolderPatch},
-        AccountEvent, EventLog, EventRecord, WriteEvent,
+        AccountEvent, EventLog,
     },
     AccountId, Paths, VaultFlags, VaultId,
 };
@@ -167,7 +167,7 @@ impl ServerDatabaseStorage {
         account_id: &AccountId,
         identity_patch: &FolderPatch,
     ) -> Result<FolderEventLog> {
-        let vault = Self::extract_vault(identity_patch.records())
+        let vault = extract_vault(identity_patch.records())
             .await?
             .ok_or(Error::NoVaultEvent)?;
 
@@ -219,22 +219,6 @@ impl ServerDatabaseStorage {
             })
             .await
             .map_err(sos_database::Error::from)?)
-    }
-
-    /// Extract a vault from the first write event in
-    /// a collection of records.
-    async fn extract_vault(records: &[EventRecord]) -> Result<Option<Vault>> {
-        let first_record = records.get(0);
-        Ok(if let Some(record) = first_record {
-            let event: WriteEvent = record.decode_event().await?;
-            let WriteEvent::CreateVault(buf) = event else {
-                return Err(sos_core::Error::CreateEventMustBeFirst.into());
-            };
-            let vault: Vault = decode(&buf).await?;
-            Some(vault)
-        } else {
-            None
-        })
     }
 }
 
@@ -372,8 +356,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         }
 
         for (id, folder) in &account_data.folders {
-            if let Some(vault) = Self::extract_vault(folder.records()).await?
-            {
+            if let Some(vault) = extract_vault(folder.records()).await? {
                 let folder_row = FolderRow::new_insert(&vault).await?;
 
                 self.client

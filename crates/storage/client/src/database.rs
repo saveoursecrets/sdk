@@ -262,7 +262,21 @@ impl ClientFolderStorage for ClientDatabaseStorage {
         &mut self.folders
     }
 
-    async fn new_folder(&self, folder_id: &VaultId) -> Result<Folder> {
+    async fn new_folder(
+        &self,
+        folder_id: &VaultId,
+        vault: &Vault,
+        _: Internal,
+    ) -> Result<Folder> {
+        // Must have a folder in the table for the event log
+        // to be valid
+        FolderEntity::upsert_folder_and_secrets(
+            &self.client,
+            self.account_row_id,
+            vault,
+        )
+        .await?;
+
         Ok(
             Folder::new_db(self.client.clone(), self.account_id, *folder_id)
                 .await?,

@@ -7,7 +7,8 @@ use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use sos_backend::{
-    compact::compact_folder, DeviceEventLog, Folder, FolderEventLog,
+    compact::compact_folder, extract_vault, DeviceEventLog, Folder,
+    FolderEventLog,
 };
 use sos_core::{
     commit::{CommitHash, CommitState},
@@ -215,7 +216,13 @@ pub trait ClientFolderStorage:
     fn folders_mut(&mut self) -> &mut HashMap<VaultId, Folder>;
 
     /// Create a new folder.
-    async fn new_folder(&self, folder_id: &VaultId) -> Result<Folder>;
+    #[doc(hidden)]
+    async fn new_folder(
+        &self,
+        folder_id: &VaultId,
+        vault: &Vault,
+        _: Internal,
+    ) -> Result<Folder>;
 
     /// Read a vault from the storage.
     async fn read_vault(&self, id: &VaultId) -> Result<Vault>;
@@ -264,7 +271,11 @@ pub trait ClientFolderStorage:
     ) -> Result<(Folder, Vault)> {
         // Prepare the vault
         let vault = {
-            let folder = self.new_folder(folder_id).await?;
+            let vault = extract_vault(records.as_slice())
+                .await?
+                .ok_or(Error::NoVaultEvent)?;
+
+            let folder = self.new_folder(folder_id, &vault, Internal).await?;
             let event_log = folder.event_log();
             let mut event_log = event_log.write().await;
             event_log.clear().await?;
@@ -286,7 +297,7 @@ pub trait ClientFolderStorage:
 
         // Setup the folder access to the latest vault information
         // and load the merkle tree
-        let folder = self.new_folder(folder_id).await?;
+        let folder = self.new_folder(folder_id, &vault, Internal).await?;
         let event_log = folder.event_log();
         let mut event_log = event_log.write().await;
         event_log.load_tree().await?;
@@ -303,7 +314,11 @@ pub trait ClientFolderStorage:
         creation_time: Option<&UtcDateTime>,
         _: Internal,
     ) -> Result<()> {
-        let mut folder = self.new_folder(folder_id).await?;
+        let mut default_vault = Vault::default();
+        *default_vault.header_mut().id_mut() = *folder_id;
+        let new_vault = vault.as_ref().unwrap_or_else(|| &default_vault);
+        let mut folder =
+            self.new_folder(folder_id, new_vault, Internal).await?;
 
         if let Some(vault) = vault {
             // Must truncate the event log so that importing vaults

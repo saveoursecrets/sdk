@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
+use futures::{pin_mut, StreamExt};
 use secrecy::SecretString;
 use sos_account::AccountBuilder;
 use sos_backend::BackendTarget;
@@ -8,10 +7,15 @@ use sos_client_storage::{
     AccountPack, ClientAccountStorage, ClientBaseStorage,
     ClientFolderStorage, ClientStorage,
 };
-use sos_core::{encode, AccountId, FolderRef, Paths, VaultFlags};
+use sos_core::{
+    crypto::AccessKey, encode, events::EventLog, AccountId, FolderRef, Paths,
+    VaultFlags,
+};
 use sos_login::{FolderKeys, Identity};
-use sos_sdk::{crypto::AccessKey, prelude::generate_passphrase};
+use sos_password::diceware::generate_passphrase;
+use sos_sync::StorageEventLogs;
 use sos_test_utils::mock::memory_database;
+use std::collections::HashMap;
 use tempfile::tempdir_in;
 
 const ACCOUNT_NAME: &str = "client_storage";
@@ -217,6 +221,25 @@ async fn assert_client_storage(
             folders.iter().find(|f| f.id() == main_vault.id()).unwrap();
         assert_eq!(&new_flags, folder.flags());
     }
+
+    // Collect events so we can restore the folder
+    let events = {
+        let mut events = Vec::new();
+        let event_log = storage.folder_log(main_vault.id()).await?;
+        let event_log = event_log.read().await;
+        let stream = event_log.record_stream(false).await;
+        pin_mut!(stream);
+        while let Some(record) = stream.next().await {
+            events.push(record?);
+        }
+        events
+    };
+
+    // Delete and then restore from events
+    storage.delete_folder(main.id(), true).await?;
+    storage
+        .restore_folder(main_vault.id(), events, main_key.as_ref().unwrap())
+        .await?;
 
     // Sign out the authenticated user
     storage.sign_out().await?;

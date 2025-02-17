@@ -9,6 +9,7 @@ pub mod compact;
 mod error;
 mod event_log;
 mod folder;
+mod helpers;
 #[cfg(feature = "preferences")]
 mod preferences;
 mod server_origins;
@@ -24,6 +25,7 @@ pub use event_log::{
     BackendFolderEventLog as FolderEventLog,
 };
 pub use folder::Folder;
+pub use helpers::extract_vault;
 #[cfg(feature = "preferences")]
 pub use preferences::BackendPreferences as Preferences;
 pub use server_origins::ServerOrigins;

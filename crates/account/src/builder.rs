@@ -14,8 +14,7 @@ use sos_core::{
 use sos_login::{FolderKeys, Identity, IdentityFolder};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
-    AccessPoint, BuilderCredentials, SecretAccess, Summary, Vault,
-    VaultBuilder,
+    AccessPoint, BuilderCredentials, SecretAccess, Vault, VaultBuilder,
 };
 use std::collections::HashMap;
 
