@@ -17,23 +17,23 @@ default = []
 enable-cli-tests = []
 
 [dependencies]
-sos-account.workspace = true
+sos-account = { workspace = true, features = ["full"] }
 sos-audit.workspace = true
 sos-backend.workspace = true
 sos-core.workspace = true
 sos-cli-helpers.workspace = true
-sos-client-storage.workspace = true
+sos-client-storage = { workspace = true, features = ["full"] }
 sos-database = { workspace = true, features = ["full"] }
 sos-database-upgrader.workspace = true
 sos-external-files.workspace = true
 sos-filesystem = { workspace = true, features = ["full"] }
 sos-integrity.workspace = true
-sos-login.workspace = true
+sos-login = { workspace = true, features = ["full"] }
 sos-logs.workspace = true
 sos-password.workspace = true
 sos-protocol = { workspace = true, features = ["full"] }
 sos-net = { workspace = true, features = ["full"] }
-sos-migrate.workspace = true
+sos-migrate = { workspace = true, features = ["full"] }
 sos-reducers.workspace = true
 sos-sdk = { workspace = true, features = ["full"] }
 sos-preferences.workspace = true
