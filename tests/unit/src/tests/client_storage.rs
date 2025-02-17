@@ -6,7 +6,7 @@ use sos_client_storage::{
     AccountPack, ClientAccountStorage, ClientBaseStorage,
     ClientFolderStorage, ClientStorage,
 };
-use sos_core::{encode, AccountId, FolderRef, Paths};
+use sos_core::{encode, AccountId, FolderRef, Paths, VaultFlags};
 use sos_login::Identity;
 use sos_sdk::{crypto::AccessKey, prelude::generate_passphrase};
 use sos_test_utils::mock::memory_database;
@@ -177,6 +177,22 @@ async fn assert_client_storage(
         let folder =
             folders.iter().find(|f| f.id() == main_vault.id()).unwrap();
         assert_eq!(RENAME, folder.name());
+    }
+
+    let new_flags = VaultFlags::AUTHENTICATOR;
+    storage
+        .update_folder_flags(main_vault.id(), new_flags.clone())
+        .await?;
+    {
+        // In-memory
+        let folder = storage.find(|f| f.id() == main_vault.id()).unwrap();
+        assert_eq!(&new_flags, folder.flags());
+
+        // Read from storage
+        let folders = storage.load_folders().await?;
+        let folder =
+            folders.iter().find(|f| f.id() == main_vault.id()).unwrap();
+        assert_eq!(&new_flags, folder.flags());
     }
 
     Ok(())

@@ -1884,18 +1884,23 @@ impl Account for LocalAccount {
 
     async fn update_folder_flags(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         flags: VaultFlags,
     ) -> Result<FolderChange<Self::NetworkResult>> {
+        let summary = self
+            .find(|f| f.id() == folder_id)
+            .await
+            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
+
         let options = AccessOptions {
             folder: Some(summary.clone()),
             ..Default::default()
         };
-        let (summary, commit_state) =
-            self.compute_folder_state(&options).await?;
+        let (_, commit_state) = self.compute_folder_state(&options).await?;
 
         // Update the provider
-        let event = self.storage.update_folder_flags(&summary, flags).await?;
+        let event =
+            self.storage.update_folder_flags(folder_id, flags).await?;
 
         Ok(FolderChange {
             event,

@@ -827,13 +827,13 @@ impl Account for LinkedAccount {
 
     async fn update_folder_flags(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         flags: VaultFlags,
     ) -> Result<FolderChange<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.update_folder_flags(summary, flags).await?
+            account.update_folder_flags(folder_id, flags).await?
         };
 
         let result = FolderChange {

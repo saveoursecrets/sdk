@@ -542,7 +542,7 @@ pub trait Account {
     /// Update folder flags.
     async fn update_folder_flags(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         flags: VaultFlags,
     ) -> std::result::Result<FolderChange<Self::NetworkResult>, Self::Error>;
 

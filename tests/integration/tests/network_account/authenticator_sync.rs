@@ -54,7 +54,7 @@ async fn network_authenticator_sync() -> Result<()> {
     mobile
         .owner
         .update_folder_flags(
-            &folder,
+            folder.id(),
             VaultFlags::AUTHENTICATOR | VaultFlags::LOCAL,
         )
         .await?;

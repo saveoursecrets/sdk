@@ -97,7 +97,7 @@ async fn network_no_sync_update_account() -> Result<()> {
     device
         .owner
         .update_folder_flags(
-            &folder,
+            folder.id(),
             VaultFlags::AUTHENTICATOR | VaultFlags::NO_SYNC,
         )
         .await?;

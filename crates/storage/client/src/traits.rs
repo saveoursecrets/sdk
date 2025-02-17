@@ -554,19 +554,19 @@ pub trait ClientFolderStorage:
     /// Update the flags for a folder.
     async fn update_folder_flags(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         flags: VaultFlags,
     ) -> Result<Event> {
         // Update the in-memory name.
-        self.set_folder_flags(summary, flags.clone(), Internal)?;
+        self.set_folder_flags(folder_id, flags.clone(), Internal)?;
 
         let folder = self
             .folders_mut()
-            .get_mut(summary.id())
-            .ok_or(StorageError::FolderNotFound(*summary.id()))?;
+            .get_mut(folder_id)
+            .ok_or(StorageError::FolderNotFound(*folder_id))?;
 
         let event = folder.update_folder_flags(flags).await?;
-        let event = Event::Write(*summary.id(), event);
+        let event = Event::Write(*folder_id, event);
 
         #[cfg(feature = "audit")]
         {
@@ -599,15 +599,16 @@ pub trait ClientFolderStorage:
     #[doc(hidden)]
     fn set_folder_flags(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
         flags: VaultFlags,
         _: Internal,
     ) -> Result<()> {
-        for item in self.summaries_mut(Internal).iter_mut() {
-            if item.id() == summary.id() {
-                *item.flags_mut() = flags;
-                break;
-            }
+        if let Some(summary) = self
+            .summaries_mut(Internal)
+            .iter_mut()
+            .find(|f| f.id() == folder_id)
+        {
+            *summary.flags_mut() = flags;
         }
         Ok(())
     }
