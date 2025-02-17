@@ -145,7 +145,7 @@ async fn event_log_file_folder_delete() -> Result<()> {
         .await?;
 
     // Delete the folder
-    account.delete_folder(&default_folder).await?;
+    account.delete_folder(default_folder.id()).await?;
 
     // Store the file events log so we can delete and re-create
     let file_events = account.paths().file_events();

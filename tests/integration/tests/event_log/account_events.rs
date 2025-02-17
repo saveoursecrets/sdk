@@ -45,7 +45,7 @@ async fn event_log_account() -> Result<()> {
 
     // Now delete the folder
     let commit = event_log.tree().last_commit();
-    account.delete_folder(&folder).await?;
+    account.delete_folder(folder.id()).await?;
 
     let event = last_log_event(&mut event_log, commit.as_ref()).await?;
     assert!(matches!(event, Some(AccountEvent::DeleteFolder(_))));

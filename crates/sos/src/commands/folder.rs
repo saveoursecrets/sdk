@@ -206,7 +206,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let owner = owner
                         .selected_account_mut()
                         .ok_or(Error::NoSelectedAccount)?;
-                    owner.delete_folder(&summary).await?;
+                    owner.delete_folder(summary.id()).await?;
                     success("Folder deleted");
                 }
                 drop(owner);

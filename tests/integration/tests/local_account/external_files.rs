@@ -468,7 +468,7 @@ async fn assert_delete_folder_file_secrets(
     id: &SecretId,
     checksum: &[u8; 32],
 ) -> Result<()> {
-    account.delete_folder(folder).await?;
+    account.delete_folder(folder.id()).await?;
 
     let file_name = hex::encode(checksum);
     let file_path =

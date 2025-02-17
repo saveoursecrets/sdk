@@ -194,7 +194,7 @@ async fn simulate_session(
         .await?;
 
     // Delete the new folder
-    account.delete_folder(&new_folder).await?;
+    account.delete_folder(new_folder.id()).await?;
 
     // Export an account backup archive
     let archive = "target/audit-trail-exported-archive.zip";

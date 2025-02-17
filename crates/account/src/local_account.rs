@@ -2126,8 +2126,13 @@ impl Account for LocalAccount {
 
     async fn delete_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> Result<FolderDelete<Self::NetworkResult>> {
+        let summary = self
+            .find(|f| f.id() == folder_id)
+            .await
+            .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?;
+
         let options = AccessOptions {
             folder: Some(summary.clone()),
             ..Default::default()

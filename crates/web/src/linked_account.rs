@@ -913,12 +913,12 @@ impl Account for LinkedAccount {
 
     async fn delete_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> Result<FolderDelete<Self::NetworkResult>> {
         let _ = self.sync_lock.lock().await;
         let result = {
             let mut account = self.account.lock().await;
-            account.delete_folder(summary).await?
+            account.delete_folder(folder_id).await?
         };
 
         let result = FolderDelete {

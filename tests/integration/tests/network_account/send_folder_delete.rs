@@ -45,7 +45,7 @@ async fn network_sync_folder_delete() -> Result<()> {
     assert_eq!(3, num_events(&mut device.owner, new_folder.id()).await);
 
     let FolderDelete { sync_result, .. } =
-        device.owner.delete_folder(&new_folder).await?;
+        device.owner.delete_folder(new_folder.id()).await?;
     assert!(sync_result.first_error().is_none());
 
     let updated_summaries: Vec<Summary> = device.owner.list_folders().await?;

@@ -16,17 +16,15 @@ use time::OffsetDateTime;
 /// will prefer this meta data.
 pub static DEVICE: OnceCell<DeviceMetaData> = OnceCell::new();
 
-const DEVICE_PUBLIC_KEY_LEN: usize = 32;
-
 /// Type of a device public key.
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub struct DevicePublicKey(
-    #[serde(with = "hex::serde")] [u8; DEVICE_PUBLIC_KEY_LEN],
+    #[serde(with = "hex::serde")] [u8; DevicePublicKey::SIZE],
 );
 
 impl DevicePublicKey {
-    /// Device public key byte length.
-    pub const SIZE: usize = DEVICE_PUBLIC_KEY_LEN;
+    /// Device public key length.
+    pub const SIZE: usize = 32;
 }
 
 impl hex::FromHex for DevicePublicKey {

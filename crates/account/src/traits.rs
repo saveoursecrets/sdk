@@ -591,7 +591,7 @@ pub trait Account {
     /// Delete a folder.
     async fn delete_folder(
         &mut self,
-        summary: &Summary,
+        folder_id: &VaultId,
     ) -> std::result::Result<FolderDelete<Self::NetworkResult>, Self::Error>;
 
     /// Forget a folder from in-memory collections.

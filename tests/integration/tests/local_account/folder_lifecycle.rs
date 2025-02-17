@@ -83,7 +83,7 @@ async fn local_folder_lifecycle() -> Result<()> {
     assert_eq!(folder_name, default_folder.name());
 
     // Now delete the folder
-    account.delete_folder(&folder).await?;
+    account.delete_folder(folder.id()).await?;
     assert!(account.find(|f| f.id() == folder.id()).await.is_none());
 
     // Import the folder we exported

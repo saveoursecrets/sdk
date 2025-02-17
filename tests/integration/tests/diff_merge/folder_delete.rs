@@ -47,7 +47,7 @@ async fn diff_merge_folder_delete() -> Result<()> {
         .await?;
 
     // Delete the folder
-    local.delete_folder(&summary).await?;
+    local.delete_folder(summary.id()).await?;
 
     assert_ne!(local.sync_status().await?, remote.sync_status().await?);
 

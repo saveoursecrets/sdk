@@ -37,7 +37,7 @@ async fn network_sync_listen_folder_delete() -> Result<()> {
     assert!(sync_result.first_error().is_none());
 
     let FolderDelete { sync_result, .. } =
-        device1.owner.delete_folder(&new_folder).await?;
+        device1.owner.delete_folder(new_folder.id()).await?;
     assert!(sync_result.first_error().is_none());
 
     let mut server_files = vec![
