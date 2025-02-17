@@ -391,7 +391,6 @@ pub trait ClientFolderStorage:
     /// Update an existing vault by replacing it with a new vault.
     async fn update_vault(
         &mut self,
-        summary: &Summary,
         vault: &Vault,
         events: Vec<WriteEvent>,
     ) -> Result<Vec<u8>> {
@@ -400,8 +399,8 @@ pub trait ClientFolderStorage:
         // Apply events to the event log
         let folder = self
             .folders_mut()
-            .get_mut(summary.id())
-            .ok_or(StorageError::FolderNotFound(*summary.id()))?;
+            .get_mut(vault.id())
+            .ok_or(StorageError::FolderNotFound(*vault.id()))?;
         folder.clear().await?;
         folder.apply(events.iter().collect()).await?;
 
@@ -667,9 +666,7 @@ pub trait ClientFolderStorage:
                 .build()
                 .await?;
 
-        let buffer = self
-            .update_vault(vault.summary(), &new_vault, event_log_events)
-            .await?;
+        let buffer = self.update_vault(&new_vault, event_log_events).await?;
 
         let account_event =
             AccountEvent::ChangeFolderPassword(*vault.id(), buffer);
@@ -1352,7 +1349,7 @@ pub trait ClientAccountStorage:
             let (vault, events) =
                 FolderReducer::split::<Error>(vault.clone()).await?;
 
-            self.update_vault(vault.summary(), &vault, events).await?;
+            self.update_vault(&vault, events).await?;
 
             // Refresh the in-memory and disc-based mirror
             let key = folder_keys
