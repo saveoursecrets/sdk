@@ -66,7 +66,7 @@ indexmap = { version = "2.2", features = ["serde"] }
 toml = "0.8"
 bitflags = { version = "2", features = ["serde"] }
 enum-iterator = "2"
-tempfile = "3.5"
+tempfile = "3.17"
 prost = "0.13"
 clap = { version = "4.3.19", features = ["derive", "wrap_help", "env"] }
 colored = "2"
