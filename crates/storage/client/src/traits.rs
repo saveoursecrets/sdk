@@ -295,6 +295,11 @@ pub trait ClientFolderStorage:
             vault
         };
 
+        // NOTE: we should be able to just return the folder and vault
+        // NOTE: above and not re-load here but this breaks the
+        // NOTE: network_sync_recover_remote_folder test so we need
+        // NOTE: to figure out why
+
         // Setup the folder access to the latest vault information
         // and load the merkle tree
         let folder = self.new_folder(folder_id, &vault, Internal).await?;
@@ -309,24 +314,21 @@ pub trait ClientFolderStorage:
     #[doc(hidden)]
     async fn create_folder_entry(
         &mut self,
-        folder_id: &VaultId,
-        vault: Option<Vault>,
+        vault: Vault,
+        reset_events: bool,
         creation_time: Option<&UtcDateTime>,
         _: Internal,
     ) -> Result<()> {
-        let mut default_vault = Vault::default();
-        *default_vault.header_mut().id_mut() = *folder_id;
-        let new_vault = vault.as_ref().unwrap_or_else(|| &default_vault);
+        let folder_id = *vault.id();
         let mut folder =
-            self.new_folder(folder_id, new_vault, Internal).await?;
+            self.new_folder(&folder_id, &vault, Internal).await?;
 
-        if let Some(vault) = vault {
-            // Must truncate the event log so that importing vaults
-            // does not end up with multiple create vault events
-            folder.clear().await?;
-
+        // Reset the event log from the contents of the vault.
+        //
+        // Used when importing or upserting from vaults to overwrite
+        // and existing event logs.
+        if reset_events {
             let (_, events) = FolderReducer::split::<Error>(vault).await?;
-
             let mut records = Vec::with_capacity(events.len());
             for event in events.iter() {
                 records.push(EventRecord::encode_event(event).await?);
@@ -336,10 +338,14 @@ pub trait ClientFolderStorage:
             {
                 event.set_time(creation_time.to_owned());
             }
+
+            // Must truncate the event log so that importing vaults
+            // does not end up with multiple create vault events
+            folder.clear().await?;
             folder.apply_records(records).await?;
         }
 
-        self.folders_mut().insert(*folder_id, folder);
+        self.folders_mut().insert(folder_id, folder);
 
         Ok(())
     }
@@ -354,8 +360,10 @@ pub trait ClientFolderStorage:
     ) -> Result<()> {
         for summary in summaries {
             // Ensure we don't overwrite existing data
-            if self.folders().get(summary.id()).is_none() {
-                self.create_folder_entry(summary.id(), None, None, Internal)
+            let id = summary.id();
+            let vault = self.read_vault(id).await?;
+            if self.folders().get(id).is_none() {
+                self.create_folder_entry(vault, false, None, Internal)
                     .await?;
             }
         }
@@ -1045,7 +1053,7 @@ pub trait ClientAccountStorage:
         self.add_summary(summary.clone(), Internal);
 
         // Initialize the local cache for the event log
-        self.create_folder_entry(summary.id(), Some(vault), None, Internal)
+        self.create_folder_entry(vault, true, None, Internal)
             .await?;
 
         self.unlock_folder(summary.id(), &key).await?;
@@ -1206,13 +1214,8 @@ pub trait ClientAccountStorage:
         let event = vault.into_event().await?;
 
         // Initialize the local cache for event log
-        self.create_folder_entry(
-            summary.id(),
-            Some(vault),
-            creation_time,
-            Internal,
-        )
-        .await?;
+        self.create_folder_entry(vault, true, creation_time, Internal)
+            .await?;
 
         // Must ensure the folder is unlocked
         if let Some(key) = key {

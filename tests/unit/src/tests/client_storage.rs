@@ -9,7 +9,7 @@ use sos_client_storage::{
 };
 use sos_core::{
     crypto::AccessKey, encode, events::EventLog, AccountId, FolderRef, Paths,
-    VaultFlags,
+    VaultFlags, VaultId,
 };
 use sos_login::{FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
@@ -99,6 +99,10 @@ async fn prepare_account(
 }
 
 /// Assert on client storage implementations.
+///
+/// Sets the description many times as setting the description
+/// requires the vault to be correctly initialized so we verify
+/// the state of the vault after certain operations.
 async fn assert_client_storage(
     storage: &mut ClientStorage,
     account_id: &AccountId,
@@ -160,21 +164,27 @@ async fn assert_client_storage(
         .await?;
     let main_buffer = encode(&main_vault).await?;
 
+    assert_description(storage, main_vault.id(), "main-folder").await?;
+
     assert!(storage.identity_state().await.is_ok());
     assert!(storage.commit_state(main.id()).await.is_ok());
 
     storage.open_folder(main.id())?;
     assert!(storage.current_folder().is_some());
+    // Should close currently open folder on deletion
     storage.delete_folder(main.id(), true).await?;
     assert!(storage.current_folder().is_none());
 
     storage
         .import_folder(&main_buffer, main_key.as_ref(), true, None)
         .await?;
+    assert_description(storage, main_vault.id(), "main-folder-after-import")
+        .await?;
 
-    // Should just have the create vault event
+    // Should have the create vault event and update
+    // from setting the description
     let events = storage.history(main_vault.id()).await?;
-    assert_eq!(1, events.len());
+    assert_eq!(2, events.len());
 
     storage
         .create_folder(NewFolderOptions::new(NEW_NAME.to_owned()))
@@ -191,6 +201,8 @@ async fn assert_client_storage(
 
     storage
         .compact_folder(main_vault.id(), main_key.as_ref().unwrap())
+        .await?;
+    assert_description(storage, main_vault.id(), "main-folder-after-compact")
         .await?;
 
     storage.rename_folder(main_vault.id(), RENAME).await?;
@@ -238,15 +250,51 @@ async fn assert_client_storage(
     // Delete and then restore from events
     storage.delete_folder(main.id(), true).await?;
     storage
-        .restore_folder(main_vault.id(), events, main_key.as_ref().unwrap())
+        .restore_folder(
+            main_vault.id(),
+            events.clone(),
+            main_key.as_ref().unwrap(),
+        )
+        .await?;
+    assert_description(storage, main_vault.id(), "main-folder-after-restore")
         .await?;
 
+    // Update a vault from a collection of events
     let mut main_events = Vec::new();
-
+    for event in &events {
+        main_events.push(event.decode_event().await?);
+    }
     storage.update_vault(&main_vault, main_events).await?;
+    assert_description(storage, main_vault.id(), "main-folder-after-update")
+        .await?;
+
+    // Remove a folder from memory and re-load from disc
+    storage.remove_folder(main_vault.id()).await?;
+    storage.load_folders().await?;
+    storage
+        .unlock_folder(main_vault.id(), main_key.as_ref().unwrap())
+        .await?;
+    // Removing a non-existent folder
+    assert!(!storage.remove_folder(&VaultId::new_v4()).await?);
+
+    assert_description(storage, main_vault.id(), "main-folder-after-load")
+        .await?;
 
     // Sign out the authenticated user
     storage.sign_out().await?;
 
+    Ok(())
+}
+
+async fn assert_description(
+    storage: &mut ClientStorage,
+    id: &VaultId,
+    folder_description: &str,
+) -> Result<()> {
+    storage
+        .set_description(id, folder_description.to_owned())
+        .await?;
+    let description = storage.description(id).await?;
+    assert_eq!(folder_description, &description);
     Ok(())
 }
