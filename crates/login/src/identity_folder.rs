@@ -3,8 +3,11 @@
 //! Provides access to an identity folder containing
 //! delegated passwords used to decrypt folders managed
 //! by an account.
-use crate::device::{DeviceManager, DeviceSigner};
-use crate::{Error, PrivateIdentity, Result, UrnLookup};
+use crate::{
+    device::{DeviceManager, DeviceSigner},
+    DelegatedAccess, Error, PrivateIdentity, Result, UrnLookup,
+};
+use async_trait::async_trait;
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use sos_backend::{
     database::{
@@ -20,7 +23,6 @@ use sos_core::{
     constants::LOGIN_AGE_KEY_URN, crypto::AccessKey, decode, encode,
     AccountId, AuthenticationError, Paths,
 };
-use sos_password::diceware::generate_passphrase_words;
 use sos_signer::ed25519;
 use sos_vault::Summary;
 use sos_vault::{
@@ -35,9 +37,6 @@ use std::{
 };
 use tokio::sync::RwLock;
 use urn::Urn;
-
-/// Number of words to use when generating passphrases for vaults.
-const VAULT_PASSPHRASE_WORDS: usize = 12;
 
 /// Identity vault stores the account signing key,
 /// asymmetric encryption key and delegated passwords.
@@ -362,6 +361,7 @@ impl IdentityFolder {
         Ok(DeviceManager::new(signer, device_keeper))
     }
 
+    /*
     /// Generate a folder password.
     pub(crate) fn generate_folder_password(&self) -> Result<SecretString> {
         let (vault_passphrase, _) =
@@ -408,7 +408,9 @@ impl IdentityFolder {
 
         Ok(())
     }
+    */
 
+    /*
     /// Find a folder password in this identity.
     ///
     /// The identity vault must already be unlocked to extract
@@ -451,7 +453,9 @@ impl IdentityFolder {
             Ok(None)
         }
     }
+    */
 
+    /*
     /// Remove a folder password from this identity.
     pub(crate) async fn remove_folder_password(
         &mut self,
@@ -474,6 +478,7 @@ impl IdentityFolder {
 
         Ok(())
     }
+    */
 
     /// Rebuild the index lookup for folder passwords.
     pub async fn rebuild_lookup_index(&mut self) -> Result<()> {
@@ -832,5 +837,110 @@ impl IdentityFolder {
 impl From<IdentityFolder> for Vault {
     fn from(value: IdentityFolder) -> Self {
         value.folder.into()
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl DelegatedAccess for IdentityFolder {
+    type Error = Error;
+
+    async fn find_folder_password(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Option<AccessKey>> {
+        let urn = Vault::vault_urn(folder_id)?;
+        let folder_id = self.folder.id().await;
+
+        tracing::debug!(
+            folder = %folder_id,
+            urn = %urn,
+            "find_folder_password");
+
+        if let Some(id) = self.index.get(&(folder_id, urn.clone())) {
+            let (_, secret, _) = self
+                .folder
+                .read_secret(id)
+                .await?
+                .ok_or_else(|| Error::NoSecretId(folder_id, *id))?;
+
+            let key = match secret {
+                Secret::Password { password, .. } => {
+                    AccessKey::Password(password)
+                }
+                Secret::Age { key, .. } => {
+                    AccessKey::Identity(key.expose_secret().parse().map_err(
+                        |s: &str| Error::InvalidX25519Identity(s.to_owned()),
+                    )?)
+                }
+                _ => {
+                    return Err(Error::VaultEntryKind(urn.to_string()));
+                }
+            };
+            Ok(Some(key))
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn remove_folder_password(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<()> {
+        tracing::debug!(folder = %folder_id, "remove folder password");
+
+        let (keeper_id, id, urn) = {
+            let keeper_id = self.folder.id().await;
+            let urn = Vault::vault_urn(folder_id)?;
+            let id = self
+                .index
+                .get(&(*folder_id, urn.clone()))
+                .ok_or(Error::NoFolderPassword(*folder_id))?;
+            (keeper_id, *id, urn)
+        };
+
+        self.folder.delete_secret(&id).await?;
+        self.index.remove(&(keeper_id, urn));
+
+        Ok(())
+    }
+
+    async fn save_folder_password(
+        &mut self,
+        folder_id: &VaultId,
+        key: AccessKey,
+    ) -> Result<()> {
+        let urn = Vault::vault_urn(folder_id)?;
+        tracing::debug!(
+            folder = %folder_id,
+            urn = %urn,
+            "save_folder_password",
+        );
+
+        let secret = match key {
+            AccessKey::Password(vault_passphrase) => Secret::Password {
+                name: None,
+                password: vault_passphrase,
+                user_data: Default::default(),
+            },
+            AccessKey::Identity(id) => Secret::Age {
+                version: Default::default(),
+                key: id.to_string(),
+                user_data: Default::default(),
+            },
+        };
+
+        let mut meta =
+            SecretMeta::new(urn.as_str().to_owned(), secret.kind());
+        meta.set_urn(Some(urn.clone()));
+
+        let id = SecretId::new_v4();
+
+        let secret_data = SecretRow::new(id, meta, secret);
+        self.folder.create_secret(&secret_data).await?;
+
+        self.index.insert((self.folder.id().await, urn), id);
+
+        Ok(())
     }
 }

@@ -11,7 +11,7 @@ use sos_core::{
     crypto::AccessKey, encode, events::EventLog, AccountId, FolderRef, Paths,
     VaultFlags, VaultId,
 };
-use sos_login::{FolderKeys, Identity};
+use sos_login::{DelegatedAccess, FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
 use sos_sync::StorageEventLogs;
 use sos_test_utils::mock::memory_database;
@@ -161,8 +161,13 @@ async fn assert_client_storage(
         .authenticated_user()
         .unwrap()
         .find_folder_password(main.id())
-        .await?;
+        .await?
+        .unwrap();
     let main_buffer = encode(&main_vault).await?;
+
+    // Lock and unlock folder
+    storage.lock_folder(main_vault.id()).await?;
+    storage.unlock_folder(main_vault.id(), &main_key).await?;
 
     assert_description(storage, main_vault.id(), "main-folder").await?;
 
@@ -176,7 +181,7 @@ async fn assert_client_storage(
     assert!(storage.current_folder().is_none());
 
     storage
-        .import_folder(&main_buffer, main_key.as_ref(), true, None)
+        .import_folder(&main_buffer, Some(&main_key), true, None)
         .await?;
     assert_description(storage, main_vault.id(), "main-folder-after-import")
         .await?;
@@ -199,9 +204,7 @@ async fn assert_client_storage(
         assert_eq!(2, folders.len());
     }
 
-    storage
-        .compact_folder(main_vault.id(), main_key.as_ref().unwrap())
-        .await?;
+    storage.compact_folder(main_vault.id(), &main_key).await?;
     assert_description(storage, main_vault.id(), "main-folder-after-compact")
         .await?;
 
@@ -249,9 +252,7 @@ async fn assert_client_storage(
 
     // Delete and then restore from events
     storage.delete_folder(main.id(), true).await?;
-    storage
-        .restore_folder(events.clone(), main_key.as_ref().unwrap())
-        .await?;
+    storage.restore_folder(events.clone(), &main_key).await?;
     assert_description(storage, main_vault.id(), "main-folder-after-restore")
         .await?;
 
@@ -267,14 +268,16 @@ async fn assert_client_storage(
     // Remove a folder from memory and re-load from disc
     storage.remove_folder(main_vault.id()).await?;
     storage.load_folders().await?;
-    storage
-        .unlock_folder(main_vault.id(), main_key.as_ref().unwrap())
-        .await?;
+    storage.unlock_folder(main_vault.id(), &main_key).await?;
     // Removing a non-existent folder
     assert!(!storage.remove_folder(&VaultId::new_v4()).await?);
 
     assert_description(storage, main_vault.id(), "main-folder-after-load")
         .await?;
+
+    // Lock and unlock
+    storage.lock().await;
+    storage.unlock(&folder_keys).await?;
 
     // Sign out the authenticated user
     storage.sign_out().await?;

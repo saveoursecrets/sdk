@@ -6,8 +6,10 @@
 //! This enables user interfaces to protect folder passwords
 //! using a single primary password.
 use crate::{
-    device::DeviceManager, Error, IdentityFolder, PublicIdentity, Result,
+    device::DeviceManager, DelegatedAccess, Error, IdentityFolder,
+    PublicIdentity, Result,
 };
+use async_trait::async_trait;
 use secrecy::SecretString;
 use sos_backend::{database::async_sqlite::Client, BackendTarget};
 use sos_core::{
@@ -31,6 +33,36 @@ impl FolderKeys {
         self.0
             .iter()
             .find_map(|(k, v)| if k == id { Some(v) } else { None })
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl DelegatedAccess for FolderKeys {
+    type Error = Error;
+
+    async fn find_folder_password(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Option<AccessKey>> {
+        Ok(self.find(folder_id).cloned())
+    }
+
+    async fn remove_folder_password(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<()> {
+        self.0.remove(folder_id);
+        Ok(())
+    }
+
+    async fn save_folder_password(
+        &mut self,
+        folder_id: &VaultId,
+        key: AccessKey,
+    ) -> Result<()> {
+        self.0.insert(*folder_id, key);
+        Ok(())
     }
 }
 
@@ -149,47 +181,6 @@ impl Identity {
         Ok(())
     }
 
-    /// Generate a folder password.
-    pub fn generate_folder_password(&self) -> Result<SecretString> {
-        self.identity()?.generate_folder_password()
-    }
-
-    /// Save a folder password into an identity vault.
-    pub async fn save_folder_password(
-        &mut self,
-        vault_id: &VaultId,
-        key: AccessKey,
-    ) -> Result<()> {
-        self.identity_mut()?
-            .save_folder_password(vault_id, key)
-            .await?;
-
-        Ok(())
-    }
-
-    /// Remove a folder password from an identity vault.
-    pub async fn remove_folder_password(
-        &mut self,
-        vault_id: &VaultId,
-    ) -> Result<()> {
-        self.identity_mut()?
-            .remove_folder_password(vault_id)
-            .await?;
-
-        Ok(())
-    }
-
-    /// Find a folder password in an identity vault.
-    ///
-    /// The identity vault must already be unlocked to extract
-    /// the secret passphrase.
-    pub async fn find_folder_password(
-        &self,
-        vault_id: &VaultId,
-    ) -> Result<Option<AccessKey>> {
-        self.identity()?.find_folder_password(vault_id).await
-    }
-
     /// Create the file encryption password.
     #[cfg(feature = "files")]
     pub async fn create_file_encryption_password(&mut self) -> Result<()> {
@@ -294,5 +285,40 @@ impl Identity {
 impl From<Identity> for BackendTarget {
     fn from(value: Identity) -> Self {
         value.target
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl DelegatedAccess for Identity {
+    type Error = Error;
+
+    async fn find_folder_password(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Option<AccessKey>> {
+        self.identity()?.find_folder_password(folder_id).await
+    }
+
+    async fn remove_folder_password(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<()> {
+        self.identity_mut()?
+            .remove_folder_password(folder_id)
+            .await?;
+        Ok(())
+    }
+
+    async fn save_folder_password(
+        &mut self,
+        folder_id: &VaultId,
+        key: AccessKey,
+    ) -> Result<()> {
+        self.identity_mut()?
+            .save_folder_password(folder_id, key)
+            .await?;
+
+        Ok(())
     }
 }

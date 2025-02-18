@@ -11,7 +11,7 @@ use sos_core::{
     crypto::AccessKey,
     AccountId, Paths, SecretId, VaultFlags, VaultId,
 };
-use sos_login::{FolderKeys, Identity, IdentityFolder};
+use sos_login::{DelegatedAccess, FolderKeys, Identity, IdentityFolder};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     AccessPoint, BuilderCredentials, SecretAccess, Vault, VaultBuilder,

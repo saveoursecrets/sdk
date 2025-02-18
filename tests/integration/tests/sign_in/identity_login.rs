@@ -1,5 +1,6 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
+use sos_login::DelegatedAccess;
 use sos_sdk::{prelude::*, vfs};
 
 /// Tests creating an identity vault and logging in

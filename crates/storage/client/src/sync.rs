@@ -17,6 +17,7 @@ use sos_core::{
     },
     AuthenticationError, VaultId,
 };
+use sos_login::DelegatedAccess;
 use sos_reducers::DeviceReducer;
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,

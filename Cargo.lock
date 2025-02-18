@@ -5259,6 +5259,7 @@ name = "sos-login"
 version = "0.16.1"
 dependencies = [
  "age",
+ "async-trait",
  "ed25519-dalek",
  "futures",
  "rustc_version",

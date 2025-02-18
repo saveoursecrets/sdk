@@ -32,7 +32,7 @@ use sos_core::{
 };
 use sos_login::{
     device::{DeviceManager, DeviceSigner},
-    FolderKeys, Identity, PublicIdentity,
+    DelegatedAccess, FolderKeys, Identity, PublicIdentity,
 };
 use sos_reducers::FolderReducer;
 use sos_sync::{CreateSet, StorageEventLogs};
