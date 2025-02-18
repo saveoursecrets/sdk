@@ -24,7 +24,10 @@ use sos_core::{
     events::{AccountEvent, DeviceEvent, EventRecord, ReadEvent},
     FolderRef, Paths, PublicIdentity, UtcDateTime, VaultCommit, VaultFlags,
 };
-use sos_login::device::{DeviceManager, DeviceSigner};
+use sos_login::{
+    device::{DeviceManager, DeviceSigner},
+    DelegatedAccess,
+};
 use sos_protocol::{
     network_client::HttpClient, RemoteResult, RemoteSync, SyncClient,
     SyncOptions,
@@ -239,19 +242,6 @@ impl Account for LinkedAccount {
         };
 
         Ok(result)
-    }
-
-    async fn find_folder_password(
-        &self,
-        folder_id: &VaultId,
-    ) -> Result<Option<AccessKey>> {
-        let account = self.account.lock().await;
-        Ok(account.find_folder_password(folder_id).await?)
-    }
-
-    async fn generate_folder_password(&self) -> Result<SecretString> {
-        let account = self.account.lock().await;
-        Ok(account.generate_folder_password().await?)
     }
 
     async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
@@ -1308,5 +1298,36 @@ impl RemoteSync for LinkedAccount {
         unimplemented!(
             "sync file transfers not supported for linked accounts"
         );
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl DelegatedAccess for LinkedAccount {
+    type Error = Error;
+
+    async fn find_folder_password(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Option<AccessKey>> {
+        let account = self.account.lock().await;
+        Ok(account.find_folder_password(folder_id).await?)
+    }
+
+    async fn remove_folder_password(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.remove_folder_password(folder_id).await?)
+    }
+
+    async fn save_folder_password(
+        &mut self,
+        folder_id: &VaultId,
+        key: AccessKey,
+    ) -> Result<()> {
+        let mut account = self.account.lock().await;
+        Ok(account.save_folder_password(folder_id, key).await?)
     }
 }

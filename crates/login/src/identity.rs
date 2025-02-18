@@ -304,10 +304,7 @@ impl DelegatedAccess for Identity {
         &mut self,
         folder_id: &VaultId,
     ) -> Result<()> {
-        self.identity_mut()?
-            .remove_folder_password(folder_id)
-            .await?;
-        Ok(())
+        self.identity_mut()?.remove_folder_password(folder_id).await
     }
 
     async fn save_folder_password(
@@ -317,8 +314,6 @@ impl DelegatedAccess for Identity {
     ) -> Result<()> {
         self.identity_mut()?
             .save_folder_password(folder_id, key)
-            .await?;
-
-        Ok(())
+            .await
     }
 }

@@ -120,33 +120,6 @@ impl LocalAccount {
         Ok(())
     }
 
-    // Only public for an integration test. Do not use.
-    #[doc(hidden)]
-    pub async fn remove_folder_password(
-        &mut self,
-        folder_id: &VaultId,
-    ) -> Result<()> {
-        let authenticated_user = self
-            .storage
-            .authenticated_user_mut()
-            .ok_or(AuthenticationError::NotAuthenticated)?;
-        Ok(authenticated_user.remove_folder_password(folder_id).await?)
-    }
-
-    async fn save_folder_password(
-        &mut self,
-        folder_id: &VaultId,
-        access_key: AccessKey,
-    ) -> Result<()> {
-        let authenticated_user = self
-            .storage
-            .authenticated_user_mut()
-            .ok_or(AuthenticationError::NotAuthenticated)?;
-        Ok(authenticated_user
-            .save_folder_password(folder_id, access_key)
-            .await?)
-    }
-
     /// Private login implementation so we can support the backwards
     /// compatible sign_in() and also the newer sign_in_with_options().
     async fn login(&mut self, key: &AccessKey) -> Result<Vec<Summary>> {
@@ -550,7 +523,7 @@ impl LocalAccount {
         let existing_name =
             vaults.iter().find(|(s, _)| s.name() == folder_name);
 
-        let vault_passphrase = self.generate_folder_password().await?;
+        let vault_passphrase = self.generate_folder_password()?;
 
         let vault_id = VaultId::new_v4();
         let name = if existing_name.is_some() {
@@ -952,25 +925,6 @@ impl Account for LocalAccount {
         })
     }
 
-    async fn find_folder_password(
-        &self,
-        folder_id: &VaultId,
-    ) -> Result<Option<AccessKey>> {
-        let authenticated_user = self
-            .storage
-            .authenticated_user()
-            .ok_or(AuthenticationError::NotAuthenticated)?;
-        Ok(authenticated_user.find_folder_password(folder_id).await?)
-    }
-
-    async fn generate_folder_password(&self) -> Result<SecretString> {
-        let authenticated_user = self
-            .storage
-            .authenticated_user()
-            .ok_or(AuthenticationError::NotAuthenticated)?;
-        Ok(authenticated_user.generate_folder_password()?)
-    }
-
     async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
         let identity_path = self.paths.identity_vault();
         Ok(vfs::read(identity_path).await?)
@@ -1341,7 +1295,7 @@ impl Account for LocalAccount {
         &mut self,
         folder_id: &VaultId,
         records: Vec<EventRecord>,
-    ) -> std::result::Result<Summary, Self::Error> {
+    ) -> Result<Summary> {
         let key = self
             .find_folder_password(folder_id)
             .await?
@@ -1803,7 +1757,7 @@ impl Account for LocalAccount {
         let key: AccessKey = if let Some(key) = options.key.take() {
             key
         } else {
-            let passphrase = self.generate_folder_password().await?;
+            let passphrase = self.generate_folder_password()?;
             passphrase.into()
         };
 
@@ -1929,7 +1883,7 @@ impl Account for LocalAccount {
         // If we are not overwriting and the identifier already exists
         // then we need to rotate the identifier
         let has_id_changed = if existing_id.is_some() && !overwrite {
-            tracing::debug!("rotate identifier");
+            tracing::debug!("import_folder::rotate_identifier");
             vault.rotate_identifier();
             true
         } else {
@@ -1945,7 +1899,7 @@ impl Account for LocalAccount {
                 vault.summary().name(),
                 vault.summary().id()
             );
-            tracing::debug!("change folder name");
+            tracing::debug!("import_folder::change_folder_name");
             vault.set_name(name);
             true
         } else {
@@ -1953,7 +1907,7 @@ impl Account for LocalAccount {
         };
 
         if remove_default_flag {
-            tracing::debug!("remove default flag");
+            tracing::debug!("import_folder::remove_default_flag");
             vault.set_default_flag(false);
         }
 
@@ -2563,5 +2517,47 @@ impl Account for LocalAccount {
             return Ok(true);
         }
         Ok(false)
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl DelegatedAccess for LocalAccount {
+    type Error = Error;
+
+    async fn find_folder_password(
+        &self,
+        folder_id: &VaultId,
+    ) -> Result<Option<AccessKey>> {
+        let authenticated_user = self
+            .storage
+            .authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+        Ok(authenticated_user.find_folder_password(folder_id).await?)
+    }
+
+    async fn remove_folder_password(
+        &mut self,
+        folder_id: &VaultId,
+    ) -> Result<()> {
+        let authenticated_user = self
+            .storage
+            .authenticated_user_mut()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+        Ok(authenticated_user.remove_folder_password(folder_id).await?)
+    }
+
+    async fn save_folder_password(
+        &mut self,
+        folder_id: &VaultId,
+        key: AccessKey,
+    ) -> Result<()> {
+        let authenticated_user = self
+            .storage
+            .authenticated_user_mut()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+        Ok(authenticated_user
+            .save_folder_password(folder_id, key)
+            .await?)
     }
 }

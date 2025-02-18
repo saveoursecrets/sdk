@@ -13,6 +13,7 @@ use http::{
 };
 use sos_account::{Account, AccountSwitcher};
 use sos_core::ErrorExt;
+use sos_login::DelegatedAccess;
 use sos_logs::Logger;
 use sos_protocol::{constants::MIME_TYPE_JSON, ErrorReply};
 use sos_sync::SyncStorage;
@@ -74,6 +75,7 @@ impl<A, R, E> ExtensionHelperServer<A, R, E>
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
+        + DelegatedAccess<Error = E>
         + Sync
         + Send
         + 'static,

@@ -6,6 +6,7 @@ use sos_core::{
     crypto::{AccessKey, Cipher, KeyDerivation},
     decode, encode,
 };
+use sos_login::DelegatedAccess;
 use sos_vault::{
     secret::SecretRow, BuilderCredentials, SecretAccess, Summary, Vault,
     VaultBuilder,

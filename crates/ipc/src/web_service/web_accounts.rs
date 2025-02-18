@@ -9,6 +9,7 @@ use sos_core::{
     events::{AccountEvent, EventLog, WriteEvent},
     AccountId, ErrorExt, Paths, VaultId,
 };
+use sos_login::DelegatedAccess;
 use sos_sync::SyncStorage;
 use sos_vault::SecretAccess;
 use std::{collections::HashMap, sync::Arc};
@@ -97,7 +98,9 @@ where
 
 impl<A, R, E> WebAccounts<A, R, E>
 where
-    A: Account<Error = E, NetworkResult = R> + SyncStorage,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
@@ -243,7 +246,9 @@ async fn update_account_search_index<A, R, E>(
     records: &ChangeRecords,
 ) -> std::result::Result<(), E>
 where
-    A: Account<Error = E, NetworkResult = R> + SyncStorage,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
@@ -386,6 +391,7 @@ async fn notify_listener<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
+        + DelegatedAccess<Error = E>
         + Sync
         + Send
         + 'static,

@@ -6,6 +6,7 @@ use serde::Deserialize;
 use sos_account::Account;
 use sos_core::AccountId;
 use sos_core::{crypto::AccessKey, ErrorExt};
+use sos_login::DelegatedAccess;
 use sos_sync::SyncStorage;
 use std::collections::HashMap;
 
@@ -129,6 +130,7 @@ pub async fn sign_in_account<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
+        + DelegatedAccess<Error = E>
         + Sync
         + Send
         + 'static,
@@ -173,7 +175,9 @@ pub async fn sign_in<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + SyncStorage,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
@@ -226,7 +230,9 @@ pub async fn sign_in_password<A, R, E>(
     save_password: bool,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + SyncStorage,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
@@ -299,7 +305,9 @@ pub async fn sign_out_account<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + SyncStorage,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error
@@ -332,6 +340,7 @@ pub async fn sign_out_all<A, R, E>(
 where
     A: Account<Error = E, NetworkResult = R>
         + SyncStorage
+        + DelegatedAccess<Error = E>
         + Sync
         + Send
         + 'static,
@@ -360,7 +369,9 @@ pub async fn sign_out<A, R, E>(
     account_id: Option<AccountId>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + SyncStorage,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + std::error::Error

@@ -12,6 +12,7 @@ use hyper::server::conn::http1::Builder;
 use hyper_util::rt::tokio::TokioIo;
 use sos_account::Account;
 use sos_core::ErrorExt;
+use sos_login::DelegatedAccess;
 use sos_sync::SyncStorage;
 use std::sync::Arc;
 use tokio::{
@@ -112,7 +113,9 @@ impl LocalMemoryServer {
         app_info: ServiceAppInfo,
     ) -> Result<LocalMemoryClient>
     where
-        A: Account<Error = E, NetworkResult = R> + SyncStorage,
+        A: Account<Error = E, NetworkResult = R>
+            + SyncStorage
+            + DelegatedAccess<Error = E>,
         R: 'static,
         E: std::fmt::Debug
             + std::error::Error

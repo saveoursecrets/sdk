@@ -55,6 +55,7 @@ sos-protocol = { workspace = true, features = ["network-client"] }
 sos-reducers.workspace = true
 sos-remote-sync.workspace = true
 sos-signer.workspace = true
+sos-password.workspace = true
 sos-sync.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true

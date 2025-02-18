@@ -5,6 +5,7 @@ use crate::test_utils::{
 use anyhow::Result;
 use sos_account::{Account, FolderCreate};
 use sos_client_storage::NewFolderOptions;
+use sos_login::DelegatedAccess;
 use sos_sdk::prelude::*;
 use sos_vault::SecretAccess;
 

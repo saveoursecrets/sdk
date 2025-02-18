@@ -147,17 +147,6 @@ pub trait Account {
         description: impl AsRef<str> + Send + Sync,
     ) -> std::result::Result<FolderChange<Self::NetworkResult>, Self::Error>;
 
-    /// Find the password for a folder.
-    async fn find_folder_password(
-        &self,
-        folder_id: &VaultId,
-    ) -> std::result::Result<Option<AccessKey>, Self::Error>;
-
-    /// Generate the password for a folder.
-    async fn generate_folder_password(
-        &self,
-    ) -> std::result::Result<SecretString, Self::Error>;
-
     /// Load the buffer of the encrypted vault for this account.
     ///
     /// Used when a client needs to enroll other devices;

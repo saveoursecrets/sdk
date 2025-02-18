@@ -887,20 +887,21 @@ impl DelegatedAccess for IdentityFolder {
         &mut self,
         folder_id: &VaultId,
     ) -> Result<()> {
-        tracing::debug!(folder = %folder_id, "remove folder password");
+        tracing::debug!(folder = %folder_id, "remove_folder_password");
 
-        let (keeper_id, id, urn) = {
-            let keeper_id = self.folder.id().await;
+        let (id, index_key) = {
             let urn = Vault::vault_urn(folder_id)?;
-            let id = self
-                .index
-                .get(&(*folder_id, urn.clone()))
-                .ok_or(Error::NoFolderPassword(*folder_id))?;
-            (keeper_id, *id, urn)
+            let index_key = (self.folder.id().await, urn);
+            let id = self.index.get(&index_key);
+            (id, index_key)
         };
 
-        self.folder.delete_secret(&id).await?;
-        self.index.remove(&(keeper_id, urn));
+        if let Some(id) = &id {
+            self.folder.delete_secret(&id).await?;
+        } else {
+            tracing::warn!("remove_folder_password::secret_id_not_found");
+        }
+        self.index.remove(&index_key);
 
         Ok(())
     }

@@ -63,7 +63,7 @@ async fn diff_merge_folder_delete() -> Result<()> {
     assert_eq!(local.sync_status().await?, remote.sync_status().await?);
 
     assert_eq!(4, outcome.changes);
-    // All the events were normalized away
+    // Events will be normalized away (create folder followed by deletion)
     assert!(outcome.tracked.identity.is_empty());
     assert!(outcome.tracked.account.is_empty());
 

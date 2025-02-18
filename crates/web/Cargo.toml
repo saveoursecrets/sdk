@@ -35,6 +35,7 @@ sos-database.workspace = true
 sos-filesystem.workspace = true
 sos-client-storage.workspace = true
 sos-login.workspace = true
+sos-password.workspace = true
 sos-protocol = { workspace = true, features = ["network-client"] }
 sos-remote-sync.workspace = true
 sos-signer.workspace = true
