@@ -270,7 +270,7 @@ pub trait Account {
         &mut self,
     ) -> std::result::Result<(), Self::Error>;
 
-    /// Read the secret identifiers in a vault.
+    /// Read the secret identifiers in a folder.
     async fn secret_ids(
         &self,
         folder_id: &VaultId,

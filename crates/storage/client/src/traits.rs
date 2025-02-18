@@ -217,12 +217,7 @@ pub trait ClientFolderStorage:
 
     /// Create a new folder.
     #[doc(hidden)]
-    async fn new_folder(
-        &self,
-        folder_id: &VaultId,
-        vault: &Vault,
-        _: Internal,
-    ) -> Result<Folder>;
+    async fn new_folder(&self, vault: &Vault, _: Internal) -> Result<Folder>;
 
     /// Read a vault from the storage.
     async fn read_vault(&self, id: &VaultId) -> Result<Vault>;
@@ -265,7 +260,7 @@ pub trait ClientFolderStorage:
     #[doc(hidden)]
     async fn initialize_folder(
         &mut self,
-        folder_id: &VaultId,
+        // folder_id: &VaultId,
         records: Vec<EventRecord>,
         _: Internal,
     ) -> Result<(Folder, Vault)> {
@@ -274,8 +269,9 @@ pub trait ClientFolderStorage:
             let vault = extract_vault(records.as_slice())
                 .await?
                 .ok_or(Error::NoVaultEvent)?;
+            let folder_id = *vault.id();
 
-            let folder = self.new_folder(folder_id, &vault, Internal).await?;
+            let folder = self.new_folder(&vault, Internal).await?;
             let event_log = folder.event_log();
             let mut event_log = event_log.write().await;
             event_log.clear().await?;
@@ -287,8 +283,8 @@ pub trait ClientFolderStorage:
                 .build(true)
                 .await?;
 
-            let id = vault.header_mut().id_mut();
-            *id = *folder_id;
+            // let id = vault.header_mut().id_mut();
+            // *id = *folder_id;
 
             self.write_vault(&vault, Internal).await?;
 
@@ -302,7 +298,7 @@ pub trait ClientFolderStorage:
 
         // Setup the folder access to the latest vault information
         // and load the merkle tree
-        let folder = self.new_folder(folder_id, &vault, Internal).await?;
+        let folder = self.new_folder(&vault, Internal).await?;
         let event_log = folder.event_log();
         let mut event_log = event_log.write().await;
         event_log.load_tree().await?;
@@ -320,8 +316,7 @@ pub trait ClientFolderStorage:
         _: Internal,
     ) -> Result<()> {
         let folder_id = *vault.id();
-        let mut folder =
-            self.new_folder(&folder_id, &vault, Internal).await?;
+        let mut folder = self.new_folder(&vault, Internal).await?;
 
         // Reset the event log from the contents of the vault.
         //
@@ -491,9 +486,8 @@ pub trait ClientFolderStorage:
     ) -> Result<()> {
         for (folder_id, patch) in patches {
             let records: Vec<EventRecord> = patch.into();
-            let (folder, vault) = self
-                .initialize_folder(&folder_id, records, Internal)
-                .await?;
+            let (folder, vault) =
+                self.initialize_folder(records, Internal).await?;
 
             {
                 let event_log = folder.event_log();
@@ -1143,16 +1137,15 @@ pub trait ClientAccountStorage:
     /// Restore a folder from an event log.
     async fn restore_folder(
         &mut self,
-        folder_id: &VaultId,
         records: Vec<EventRecord>,
         key: &AccessKey,
     ) -> Result<Summary> {
         let (mut folder, vault) =
-            self.initialize_folder(folder_id, records, Internal).await?;
+            self.initialize_folder(records, Internal).await?;
 
         // Unlock the folder
         folder.unlock(key).await?;
-        self.folders_mut().insert(*folder_id, folder);
+        self.folders_mut().insert(*vault.id(), folder);
 
         let summary = vault.summary().to_owned();
         self.add_summary(summary.clone(), Internal);

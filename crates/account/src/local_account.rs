@@ -1347,10 +1347,7 @@ impl Account for LocalAccount {
             .await?
             .ok_or(Error::NoFolderPassword(*folder_id))?;
 
-        Ok(self
-            .storage
-            .restore_folder(folder_id, records, &key)
-            .await?)
+        Ok(self.storage.restore_folder(records, &key).await?)
     }
 
     async fn change_folder_password(

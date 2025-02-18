@@ -250,11 +250,7 @@ async fn assert_client_storage(
     // Delete and then restore from events
     storage.delete_folder(main.id(), true).await?;
     storage
-        .restore_folder(
-            main_vault.id(),
-            events.clone(),
-            main_key.as_ref().unwrap(),
-        )
+        .restore_folder(events.clone(), main_key.as_ref().unwrap())
         .await?;
     assert_description(storage, main_vault.id(), "main-folder-after-restore")
         .await?;
