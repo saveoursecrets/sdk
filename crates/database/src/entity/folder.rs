@@ -460,10 +460,8 @@ where
     }
 
     /// Try to find a login folder for an account.
-    pub fn find_login_folder(
-        &self,
-        account_id: i64,
-    ) -> StdResult<FolderRow, SqlError> {
+    pub fn find_login_folder(&self, account_id: i64) -> Result<FolderRow> {
+        /*
         let query = self
             .folder_select_columns(sql::Select::new())
             .from("folders")
@@ -475,6 +473,31 @@ where
 
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         Ok(stmt.query_row([account_id], |row| Ok(row.try_into()?))?)
+        */
+
+        Ok(self
+            .find_login_folder_optional(account_id)?
+            .ok_or_else(|| Error::NoLoginFolder(account_id))?)
+    }
+
+    /// Try to find an optional login folder for an account.
+    pub fn find_login_folder_optional(
+        &self,
+        account_id: i64,
+    ) -> StdResult<Option<FolderRow>, SqlError> {
+        let query = self
+            .folder_select_columns(sql::Select::new())
+            .from("folders")
+            .left_join(
+                "account_login_folder login ON folders.folder_id = login.folder_id",
+            )
+            .where_clause("folders.account_id=?1")
+            .where_and("login.account_id=?1");
+
+        let mut stmt = self.conn.prepare_cached(&query.as_string())?;
+        Ok(stmt
+            .query_row([account_id], |row| Ok(row.try_into()?))
+            .optional()?)
     }
 
     /// Try to find a device folder for an account.

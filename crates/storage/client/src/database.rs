@@ -180,14 +180,13 @@ impl ClientVaultStorage for ClientDatabaseStorage {
         vault: &Vault,
         _: Internal,
     ) -> Result<Vec<u8>> {
-        let buffer = encode(vault).await?;
         FolderEntity::upsert_folder_and_secrets(
             &self.client,
             self.account_row_id,
             &vault,
         )
         .await?;
-        Ok(buffer)
+        Ok(encode(vault).await?)
     }
 
     async fn write_login_vault(
@@ -195,16 +194,13 @@ impl ClientVaultStorage for ClientDatabaseStorage {
         vault: &Vault,
         _: Internal,
     ) -> Result<Vec<u8>> {
-        let (folder_id, _) = FolderEntity::upsert_folder_and_secrets(
+        AccountEntity::upsert_login_folder(
             &self.client,
-            self.account_row_id,
+            &self.account_id,
             vault,
         )
         .await?;
-
-        todo!(
-            "impl write_login_vault for db: update identity folder join!!!"
-        );
+        Ok(encode(vault).await?)
     }
 
     async fn remove_vault(

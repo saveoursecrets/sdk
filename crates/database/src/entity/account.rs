@@ -3,10 +3,13 @@ use crate::{
     Error, Result,
 };
 use async_sqlite::{
-    rusqlite::{Connection, Error as SqlError, OptionalExtension, Row},
+    rusqlite::{
+        Connection, Error as SqlError, OptionalExtension, Row, Transaction,
+    },
     Client,
 };
 use sos_core::{AccountId, PublicIdentity, UtcDateTime};
+use sos_vault::Vault;
 use sql_query_builder as sql;
 use std::ops::Deref;
 
@@ -113,20 +116,90 @@ impl<'conn> AccountEntity<'conn, Box<Connection>> {
         client: &Client,
         account_id: &AccountId,
     ) -> Result<(AccountRecord, FolderRecord)> {
+        let (account, folder_row) =
+            Self::find_account_with_login_optional(client, account_id)
+                .await?;
+
+        let account_id = account.row_id;
+        Ok((
+            account,
+            folder_row.ok_or_else(|| Error::NoLoginFolder(account_id))?,
+        ))
+    }
+
+    /// Find an account and optional login folder.
+    pub async fn find_account_with_login_optional(
+        client: &Client,
+        account_id: &AccountId,
+    ) -> Result<(AccountRecord, Option<FolderRecord>)> {
         let account_id = *account_id;
         let (account_row, folder_row) = client
-            .conn(move |conn| {
+            .conn_and_then(move |conn| {
                 let account = AccountEntity::new(&conn);
                 let account_row = account.find_one(&account_id)?;
                 let folders = FolderEntity::new(&conn);
                 let folder_row =
-                    folders.find_login_folder(account_row.row_id)?;
-                Ok((account_row, folder_row))
+                    folders.find_login_folder_optional(account_row.row_id)?;
+                Ok::<_, Error>((account_row, folder_row))
             })
             .await?;
 
-        let login_folder = FolderRecord::from_row(folder_row).await?;
+        let login_folder = if let Some(folder_row) = folder_row {
+            Some(FolderRecord::from_row(folder_row).await?)
+        } else {
+            None
+        };
         Ok((account_row.try_into()?, login_folder))
+    }
+}
+
+impl<'conn> AccountEntity<'conn, Transaction<'conn>> {
+    /// Upsert the login folder.
+    pub async fn upsert_login_folder(
+        client: &Client,
+        account_id: &AccountId,
+        vault: &Vault,
+    ) -> Result<(AccountRecord, i64)> {
+        // Check if we already have a login folder
+        let (account, folder) =
+            AccountEntity::find_account_with_login_optional(
+                client, account_id,
+            )
+            .await?;
+
+        // TODO: folder creation and join should be merged into a single
+        // TODO: transaction
+
+        // Create or update the folder and secrets
+        let (folder_row_id, _) = FolderEntity::upsert_folder_and_secrets(
+            client,
+            account.row_id,
+            vault,
+        )
+        .await?;
+
+        let account_row_id = account.row_id;
+
+        // Update or insert the join
+        if folder.is_some() {
+            client
+                .conn(move |conn| {
+                    let account_entity = AccountEntity::new(&conn);
+                    account_entity
+                        .update_login_folder(account_row_id, folder_row_id)
+                })
+                .await?;
+        } else {
+            client
+                .conn(move |conn| {
+                    let account_entity = AccountEntity::new(&conn);
+                    account_entity
+                        .insert_login_folder(account_row_id, folder_row_id)
+                })
+                .await?;
+        }
+
+        Ok((account, folder_row_id))
     }
 }
 
@@ -236,6 +309,21 @@ where
         self.conn
             .execute(&query.as_string(), [account_id, folder_id])?;
         Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Update the join for an account login folder.
+    pub fn update_login_folder(
+        &self,
+        account_id: i64,
+        folder_id: i64,
+    ) -> std::result::Result<(), SqlError> {
+        let query = sql::Update::new()
+            .update("account_login_folder")
+            .set("folder_id = ?2")
+            .where_clause("account_id = ?1");
+        self.conn
+            .execute(&query.as_string(), [account_id, folder_id])?;
+        Ok(())
     }
 
     /// Create the join for the account device folder.

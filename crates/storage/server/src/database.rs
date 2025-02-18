@@ -255,9 +255,9 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         let account_id = self.account_row_id.clone();
         let login_folder = self
             .client
-            .conn(move |conn| {
+            .conn_and_then(move |conn| {
                 let folder = FolderEntity::new(&conn);
-                Ok(folder.find_login_folder(account_id)?)
+                folder.find_login_folder(account_id)
             })
             .await?;
         let login_folder = FolderRecord::from_row(login_folder).await?;

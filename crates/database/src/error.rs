@@ -9,6 +9,10 @@ pub enum Error {
     #[error("folder '{0}' not found in the database")]
     DatabaseFolderNotFound(VaultId),
 
+    /// Error generated when a login folder is required.
+    #[error("login folder not found for account id '{0}'")]
+    NoLoginFolder(i64),
+
     /// Error generated when a target commit hash could not be found.
     #[error("commit '{0}' could not be found")]
     CommitNotFound(CommitHash),
