@@ -1,7 +1,7 @@
 //! Client storage implementations.
 use crate::{
-    files::ExternalFileManager, AccessOptions, AccountPack, Error,
-    NewFolderOptions, Result, StorageChangeEvent,
+    AccessOptions, AccountPack, Error, NewFolderOptions, Result,
+    StorageChangeEvent,
 };
 use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
@@ -48,7 +48,7 @@ use {
 };
 
 #[cfg(feature = "files")]
-use sos_backend::FileEventLog;
+use {crate::files::ExternalFileManager, sos_backend::FileEventLog};
 
 pub(crate) mod private {
     /// Internal struct for sealed functions.

@@ -1,6 +1,5 @@
 use crate::{
     database::ClientDatabaseStorage,
-    files::ExternalFileManager,
     filesystem::ClientFileSystemStorage,
     traits::{
         private::Internal, ClientAccountStorage, ClientBaseStorage,
@@ -37,7 +36,10 @@ use tokio::sync::RwLock;
 use sos_search::AccountSearch;
 
 #[cfg(feature = "files")]
-use {sos_backend::FileEventLog, sos_core::events::patch::FileDiff};
+use {
+    crate::files::ExternalFileManager, sos_backend::FileEventLog,
+    sos_core::events::patch::FileDiff,
+};
 
 use crate::sync::SyncImpl;
 

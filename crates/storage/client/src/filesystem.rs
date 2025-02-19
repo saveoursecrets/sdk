@@ -1,9 +1,8 @@
 //! Storage backed by the filesystem.
 use crate::{
-    files::ExternalFileManager, traits::private::Internal,
-    ClientAccountStorage, ClientBaseStorage, ClientDeviceStorage,
-    ClientEventLogStorage, ClientFolderStorage, ClientVaultStorage, Error,
-    Result,
+    traits::private::Internal, ClientAccountStorage, ClientBaseStorage,
+    ClientDeviceStorage, ClientEventLogStorage, ClientFolderStorage,
+    ClientVaultStorage, Error, Result,
 };
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -29,7 +28,10 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 #[cfg(feature = "files")]
-use {sos_backend::FileEventLog, sos_core::events::FileEvent};
+use {
+    crate::files::ExternalFileManager, sos_backend::FileEventLog,
+    sos_core::events::FileEvent,
+};
 
 #[cfg(feature = "search")]
 use sos_search::AccountSearch;
