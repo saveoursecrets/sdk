@@ -271,7 +271,7 @@ where
                     }
                     AccountEvent::UpdateIdentity(buf) => {
                         let vault: Vault = decode(buf).await?;
-                        self.0.import_identity_vault(vault).await?;
+                        self.0.import_login_vault(vault).await?;
                     }
                     AccountEvent::CreateFolder(id, buf)
                     | AccountEvent::UpdateFolder(id, buf)

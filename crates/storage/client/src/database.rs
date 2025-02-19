@@ -277,6 +277,23 @@ impl ClientFolderStorage for ClientDatabaseStorage {
             .await?)
     }
 
+    async fn read_login_vault(&self) -> Result<Vault> {
+        let account_row_id = self.account_row_id;
+        let folder_row = self
+            .client
+            .conn_and_then(move |conn| {
+                let folder_entity = FolderEntity::new(&conn);
+                folder_entity.find_login_folder(account_row_id)
+            })
+            .await?;
+        let record = FolderRecord::from_row(folder_row).await?;
+        Ok(FolderEntity::compute_folder_vault(
+            &self.client,
+            record.summary.id(),
+        )
+        .await?)
+    }
+
     fn current_folder(&self) -> Option<Summary> {
         let current = self.current.lock();
         current.clone()

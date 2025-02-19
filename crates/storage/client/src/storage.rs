@@ -209,6 +209,13 @@ impl ClientFolderStorage for ClientStorage {
         }
     }
 
+    async fn read_login_vault(&self) -> Result<Vault> {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.read_login_vault().await,
+            ClientStorage::Database(db) => db.read_login_vault().await,
+        }
+    }
+
     fn current_folder(&self) -> Option<Summary> {
         match self {
             ClientStorage::FileSystem(fs) => fs.current_folder(),

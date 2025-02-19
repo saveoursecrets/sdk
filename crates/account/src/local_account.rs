@@ -307,7 +307,7 @@ impl LocalAccount {
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
-        Ok(self.storage.import_identity_vault(vault).await?)
+        Ok(self.storage.import_login_vault(vault).await?)
     }
 
     async fn add_secret(

@@ -361,6 +361,10 @@ async fn assert_client_storage(
     patches.insert(main_id, patch);
     storage.import_folder_patches(patches).await?;
 
+    // Check we can import a login vault
+    let login_vault = storage.read_login_vault().await?;
+    storage.import_login_vault(login_vault).await?;
+
     // Sign out the authenticated user
     storage.sign_out().await?;
 

@@ -222,6 +222,9 @@ pub trait ClientFolderStorage:
     /// Read a vault from the storage.
     async fn read_vault(&self, id: &VaultId) -> Result<Vault>;
 
+    /// Read the login vault from the storage.
+    async fn read_login_vault(&self) -> Result<Vault>;
+
     /// List the in-memory folders.
     fn list_folders(&self) -> &[Summary] {
         self.summaries(Internal).as_slice()
@@ -895,7 +898,7 @@ pub trait ClientAccountStorage:
         Ok(())
     }
 
-    /// Import an identity vault and generate the event but
+    /// Import a login vault and generate the event but
     /// do not write the event to the account event log.
     ///
     /// This is used when merging account event logs to ensure
@@ -905,13 +908,20 @@ pub trait ClientAccountStorage:
     /// events are declared in the storage implementation but the
     /// identity log is managed by the account so this must exist here.
     #[doc(hidden)]
-    async fn import_identity_vault(
+    async fn import_login_vault(
         &mut self,
         vault: Vault,
     ) -> Result<AccountEvent> {
         let user = self
             .authenticated_user()
             .ok_or(AuthenticationError::NotAuthenticated)?;
+
+        vault
+            .summary()
+            .flags()
+            .contains(VaultFlags::IDENTITY)
+            .then_some(())
+            .ok_or_else(|| sos_login::Error::NotIdentityFolder)?;
 
         // Update the identity vault
         let buffer = self.write_login_vault(&vault, Internal).await?;

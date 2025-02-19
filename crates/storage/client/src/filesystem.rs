@@ -246,6 +246,12 @@ impl ClientFolderStorage for ClientFileSystemStorage {
         Ok(decode(&buffer).await?)
     }
 
+    async fn read_login_vault(&self) -> Result<Vault> {
+        let vault_path = self.paths.identity_vault();
+        let buffer = vfs::read(vault_path).await?;
+        Ok(decode(&buffer).await?)
+    }
+
     fn current_folder(&self) -> Option<Summary> {
         let current = self.current.lock();
         current.clone()
