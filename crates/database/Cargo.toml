@@ -17,7 +17,6 @@ full = [
   "audit",
   "files",
   "preferences",
-  "sqlite",
   "system-messages",
 ]
 archive = [
@@ -33,7 +32,6 @@ audit = ["sos-audit"]
 files = []
 preferences = ["sos-preferences"]
 system-messages = ["sos-system-messages", "urn"]
-sqlite = ["dep:async-sqlite", "dep:refinery", "dep:sql_query_builder"]
 
 [dependencies]
 sos-core.workspace = true
@@ -62,9 +60,10 @@ tokio-stream.workspace = true
 tempfile.workspace = true
 
 # sqlite
-async-sqlite = { workspace = true, optional = true, features = ["backup"] }
-refinery = { workspace = true, optional = true }
-sql_query_builder = { workspace = true, optional = true }
+async-sqlite = { workspace = true, features = ["backup"] }
+refinery = { workspace = true }
+sql_query_builder = { workspace = true }
+
 
 # system-messages
 urn = { workspace = true, optional = true }

@@ -2,46 +2,35 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 //! Database storage layer for the [Save Our Secrets](https://saveoursecrets.com) SDK.
-#[cfg(all(feature = "archive", feature = "sqlite"))]
+#[cfg(feature = "archive")]
 pub mod archive;
-#[cfg(all(feature = "audit", feature = "sqlite"))]
+#[cfg(feature = "audit")]
 pub mod audit_provider;
-#[cfg(feature = "sqlite")]
 pub mod entity;
-#[cfg(feature = "sqlite")]
 pub mod event_log;
-#[cfg(feature = "sqlite")]
 pub mod migrations;
-#[cfg(all(feature = "sqlite", feature = "preferences"))]
+#[cfg(feature = "preferences")]
 mod preferences;
-#[cfg(all(feature = "sqlite", feature = "system-messages"))]
-mod system_messages;
-
-#[cfg(feature = "sqlite")]
 mod server_origins;
-
-#[cfg(feature = "sqlite")]
+#[cfg(feature = "system-messages")]
+mod system_messages;
 mod vault_writer;
 
-#[cfg(feature = "sqlite")]
 pub use event_log::{
     AccountEventLog, DatabaseEventLog, DeviceEventLog, EventLogOwner,
     FolderEventLog,
 };
 
-#[cfg(all(feature = "sqlite", feature = "preferences"))]
+#[cfg(feature = "preferences")]
 pub use preferences::PreferenceProvider;
 
-#[cfg(all(feature = "sqlite", feature = "system-messages"))]
+#[cfg(feature = "system-messages")]
 pub use system_messages::SystemMessagesProvider;
 
-#[cfg(feature = "sqlite")]
 pub use server_origins::ServerOrigins;
-
-#[cfg(feature = "sqlite")]
 pub use vault_writer::VaultDatabaseWriter;
 
-#[cfg(all(feature = "sqlite", feature = "files"))]
+#[cfg(feature = "files")]
 pub use event_log::FileEventLog;
 
 mod error;
