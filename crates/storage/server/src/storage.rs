@@ -11,9 +11,7 @@ use sos_core::{
     commit::{CommitState, Comparison},
     device::{DevicePublicKey, TrustedDevice},
     events::{
-        patch::{
-            AccountDiff, CheckedPatch, DeviceDiff, FileDiff, FolderDiff,
-        },
+        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
         EventLog, WriteEvent,
     },
     AccountId, Paths, VaultFlags, VaultId,
@@ -31,7 +29,7 @@ use std::{
 use tokio::sync::RwLock;
 
 #[cfg(feature = "files")]
-use sos_backend::FileEventLog;
+use {sos_backend::FileEventLog, sos_core::events::patch::FileDiff};
 
 use crate::sync::SyncImpl;
 

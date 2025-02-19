@@ -5,9 +5,7 @@ use indexmap::IndexSet;
 use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
 use sos_core::{
     events::{
-        patch::{
-            AccountDiff, CheckedPatch, DeviceDiff, FileDiff, FolderDiff,
-        },
+        patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
         AccountEvent, EventLog, LogEvent, WriteEvent,
     },
     VaultId,
@@ -26,7 +24,7 @@ use std::{
 use tokio::sync::RwLock;
 
 #[cfg(feature = "files")]
-use sos_backend::FileEventLog;
+use {sos_backend::FileEventLog, sos_core::events::patch::FileDiff};
 
 // Must use a new type due to the orphan rule.
 #[doc(hidden)]

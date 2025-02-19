@@ -37,6 +37,7 @@ impl From<EventLogType> for EventTable {
             EventLogType::Account => Self::AccountEvents,
             EventLogType::Identity => Self::FolderEvents,
             EventLogType::Device => Self::DeviceEvents,
+            #[cfg(feature = "files")]
             EventLogType::Files => Self::FileEvents,
             EventLogType::Folder(_) => Self::FolderEvents,
         }
@@ -266,6 +267,7 @@ where
     }
 
     /// Create file events in the database.
+    #[cfg(feature = "files")]
     pub fn insert_file_events(
         &self,
         account_id: i64,

@@ -1,6 +1,6 @@
 [package]
 name = "sos-database"
-version = "0.16.1"
+version = "0.16.2"
 edition = "2021"
 description = "Database storage layer for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
@@ -29,7 +29,7 @@ archive = [
   "dep:tokio-util",
 ]
 audit = ["sos-audit"]
-files = []
+files = ["sos-external-files/files"]
 preferences = ["sos-preferences"]
 system-messages = ["sos-system-messages", "urn"]
 
