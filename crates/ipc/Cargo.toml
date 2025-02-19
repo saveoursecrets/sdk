@@ -10,7 +10,6 @@ repository = "https://github.com/saveoursecrets/sdk"
 [package.metadata.docs.rs]
 features = [
   "local-transport",
-  "integration",
   "extension-helper-server",
 ]
 rustdoc-args = ["--cfg", "docsrs"]
