@@ -13,6 +13,7 @@ mod server;
 mod system_message;
 
 pub use account::{AccountEntity, AccountRecord, AccountRow};
+#[cfg(feature = "audit")]
 pub use audit::{AuditEntity, AuditRecord, AuditRow};
 pub use event::{CommitRecord, EventEntity, EventRecordRow};
 // #[cfg(feature = "files")]
