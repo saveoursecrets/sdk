@@ -383,6 +383,7 @@ pub trait ForceMerge: Merge {
             self.force_merge_device(diff, outcome).await?;
         }
 
+        #[cfg(feature = "files")]
         if let Some(diff) = update_set.files.take() {
             self.force_merge_files(diff, outcome).await?;
         }
