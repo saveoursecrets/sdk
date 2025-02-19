@@ -13,6 +13,8 @@ audit = ["sos-audit", "sos-backend/audit"]
 files = [
   "sos-external-files",
   "sos-backend/files",
+  "sos-core/files",
+  "sos-protocol/files",
   "sos-reducers/files",
   "sos-sync/files",
 ]

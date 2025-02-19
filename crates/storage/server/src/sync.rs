@@ -2,9 +2,7 @@ use crate::ServerAccountStorage;
 use crate::{Error, Result};
 use async_trait::async_trait;
 use indexmap::IndexSet;
-use sos_backend::{
-    AccountEventLog, DeviceEventLog, FileEventLog, FolderEventLog,
-};
+use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
 use sos_core::{
     events::{
         patch::{
@@ -26,6 +24,9 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::RwLock;
+
+#[cfg(feature = "files")]
+use sos_backend::FileEventLog;
 
 // Must use a new type due to the orphan rule.
 #[doc(hidden)]
@@ -354,6 +355,7 @@ where
         Ok(checked_patch)
     }
 
+    #[cfg(feature = "files")]
     async fn merge_files(
         &mut self,
         diff: FileDiff,

@@ -5,8 +5,7 @@ use crate::{
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::{
-    AccountEventLog, BackendTarget, DeviceEventLog, FileEventLog,
-    FolderEventLog,
+    AccountEventLog, BackendTarget, DeviceEventLog, FolderEventLog,
 };
 use sos_core::{
     commit::{CommitState, Comparison},
@@ -30,6 +29,9 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::RwLock;
+
+#[cfg(feature = "files")]
+use sos_backend::FileEventLog;
 
 use crate::sync::SyncImpl;
 
@@ -417,6 +419,7 @@ impl Merge for ServerStorage {
         }
     }
 
+    #[cfg(feature = "files")]
     async fn merge_files(
         &mut self,
         diff: FileDiff,
@@ -432,6 +435,7 @@ impl Merge for ServerStorage {
         }
     }
 
+    #[cfg(feature = "files")]
     async fn compare_files(&self, state: &CommitState) -> Result<Comparison> {
         match self {
             ServerStorage::FileSystem(fs) => fs.compare_files(state).await,
@@ -518,7 +522,7 @@ impl ForceMerge for ServerStorage {
         }
     }
 
-    /// Force merge changes to the files event log.
+    #[cfg(feature = "files")]
     async fn force_merge_files(
         &mut self,
         diff: FileDiff,
@@ -576,6 +580,7 @@ impl StorageEventLogs for ServerStorage {
         }
     }
 
+    #[cfg(feature = "files")]
     async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
         match self {
             ServerStorage::FileSystem(fs) => fs.file_log().await,

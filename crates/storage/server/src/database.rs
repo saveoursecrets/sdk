@@ -3,8 +3,8 @@ use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::{
-    extract_vault, AccountEventLog, DeviceEventLog, FileEventLog,
-    FolderEventLog, VaultWriter,
+    extract_vault, AccountEventLog, DeviceEventLog, FolderEventLog,
+    VaultWriter,
 };
 use sos_core::{
     decode,
@@ -29,6 +29,9 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::RwLock;
+
+#[cfg(feature = "files")]
+use sos_backend::FileEventLog;
 
 #[cfg(feature = "audit")]
 use {sos_audit::AuditEvent, sos_backend::audit::append_audit_events};
@@ -57,6 +60,7 @@ pub struct ServerDatabaseStorage {
     pub(super) device_log: Arc<RwLock<DeviceEventLog>>,
 
     /// File event log.
+    #[cfg(feature = "files")]
     pub(super) file_log: Arc<RwLock<FileEventLog>>,
 
     /// Folder event logs.
@@ -98,9 +102,13 @@ impl ServerDatabaseStorage {
         let (device_log, devices) =
             Self::initialize_device_log(&client, &account_id).await?;
 
-        let mut file_log =
-            FileEventLog::new_db_file(client.clone(), account_id).await?;
-        file_log.load_tree().await?;
+        #[cfg(feature = "files")]
+        let file_log = {
+            let mut file_log =
+                FileEventLog::new_db_file(client.clone(), account_id).await?;
+            file_log.load_tree().await?;
+            file_log
+        };
 
         let mut storage = Self {
             account_id,
@@ -110,6 +118,7 @@ impl ServerDatabaseStorage {
             identity_log,
             account_log: Arc::new(RwLock::new(event_log)),
             device_log: Arc::new(RwLock::new(device_log)),
+            #[cfg(feature = "files")]
             file_log: Arc::new(RwLock::new(file_log)),
             folders: Default::default(),
             devices,
@@ -350,6 +359,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
             self.devices = reducer.reduce().await?;
         }
 
+        #[cfg(feature = "files")]
         {
             let mut writer = self.file_log.write().await;
             writer.patch_unchecked(&account_data.files).await?;
@@ -548,6 +558,7 @@ impl StorageEventLogs for ServerDatabaseStorage {
         Ok(self.device_log.clone())
     }
 
+    #[cfg(feature = "files")]
     async fn file_log(&self) -> Result<Arc<RwLock<FileEventLog>>> {
         Ok(self.file_log.clone())
     }
