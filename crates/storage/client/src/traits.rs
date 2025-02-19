@@ -269,7 +269,6 @@ pub trait ClientFolderStorage:
             let vault = extract_vault(records.as_slice())
                 .await?
                 .ok_or(Error::NoVaultEvent)?;
-            let folder_id = *vault.id();
 
             let folder = self.new_folder(&vault, Internal).await?;
             let event_log = folder.event_log();
@@ -277,14 +276,11 @@ pub trait ClientFolderStorage:
             event_log.clear().await?;
             event_log.apply_records(records).await?;
 
-            let mut vault = FolderReducer::new()
+            let vault = FolderReducer::new()
                 .reduce(&*event_log)
                 .await?
                 .build(true)
                 .await?;
-
-            // let id = vault.header_mut().id_mut();
-            // *id = *folder_id;
 
             self.write_vault(&vault, Internal).await?;
 

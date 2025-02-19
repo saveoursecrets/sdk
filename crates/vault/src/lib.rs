@@ -4,7 +4,7 @@
 //! Vault encrypted storage and access.
 mod access_point;
 mod builder;
-mod change;
+mod change_password;
 mod encoding;
 mod error;
 pub mod secret;
@@ -12,7 +12,7 @@ mod vault;
 
 pub use access_point::{AccessPoint, SecretAccess};
 pub use builder::{BuilderCredentials, VaultBuilder};
-pub use change::ChangePassword;
+pub use change_password::ChangePassword;
 pub use error::Error;
 pub use vault::{
     Contents, EncryptedEntry, Header, SharedAccess, Summary, Vault, VaultMeta,

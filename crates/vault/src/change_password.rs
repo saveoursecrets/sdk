@@ -1,6 +1,6 @@
 //! Flow for changing a vault password.
 use crate::{
-    vault::{Vault, EncryptedEntry},
+    vault::{EncryptedEntry, Vault},
     Error, Result,
 };
 use sos_core::{

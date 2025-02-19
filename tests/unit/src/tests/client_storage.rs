@@ -119,7 +119,7 @@ async fn assert_client_storage(
     assert_eq!(1, accounts.len());
 
     // Need folder access keys to initialize the search index
-    let folder_keys = {
+    let mut folder_keys = {
         let mut keys = HashMap::new();
         for folder in storage.list_folders() {
             if let Some(key) = authenticated_user
@@ -273,6 +273,16 @@ async fn assert_client_storage(
     assert!(!storage.remove_folder(&VaultId::new_v4()).await?);
 
     assert_description(storage, main_vault.id(), "main-folder-after-load")
+        .await?;
+
+    let (password, _) = generate_passphrase()?;
+    let new_key: AccessKey = password.into();
+    storage
+        .change_password(&main_vault, main_key, new_key.clone())
+        .await?;
+    // Must save so we can unlock later
+    folder_keys
+        .save_folder_password(main_vault.id(), new_key)
         .await?;
 
     // Lock and unlock
