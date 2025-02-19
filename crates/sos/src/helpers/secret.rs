@@ -13,13 +13,11 @@ use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
 use sos_account::Account;
 use sos_search::Document;
-use sos_sdk::{
-    vault::{
-        secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
-        Summary,
-    },
-    vfs,
+use sos_vault::{
+    secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
+    Summary,
 };
+use sos_vfs as vfs;
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,

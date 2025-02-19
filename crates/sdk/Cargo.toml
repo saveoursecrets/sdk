@@ -1,6 +1,6 @@
 [package]
 name = "sos-sdk"
-version = "0.16.5"
+version = "0.16.6"
 edition = "2021"
 description = "Distributed, encrypted database for private secrets."
 homepage = "https://saveoursecrets.com"
@@ -17,11 +17,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 full = [
-  "contacts",
   "files",
 ]
-contacts = []
-files = ["sos-core/files"]
+files = ["sos-core/files", "sos-login/files"]
 
 [dependencies]
 sos-core.workspace = true

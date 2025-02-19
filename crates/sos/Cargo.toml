@@ -35,7 +35,6 @@ sos-protocol = { workspace = true, features = ["full"] }
 sos-net = { workspace = true, features = ["full"] }
 sos-migrate = { workspace = true, features = ["full"] }
 sos-reducers.workspace = true
-sos-sdk = { workspace = true, features = ["full"] }
 sos-preferences.workspace = true
 sos-security-report.workspace = true
 sos-search.workspace = true

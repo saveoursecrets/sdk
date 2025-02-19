@@ -1,7 +1,10 @@
 use crate::{helpers::account::resolve_account_address, Result};
 use clap::Subcommand;
 use enum_iterator::{all, Sequence};
-use sos_sdk::prelude::*;
+use sos_core::{
+    constants::{SOS_DATA_DIR, SOS_OFFLINE, SOS_PROMPT},
+    AccountRef, Paths,
+};
 use std::{fmt, str::FromStr};
 
 /// Filter used for printing paths.

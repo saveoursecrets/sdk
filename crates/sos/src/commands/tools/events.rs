@@ -6,13 +6,13 @@ use sos_backend::{
     AccountEventLog, BackendEventLog, DeviceEventLog, FileEventLog,
     FolderEventLog,
 };
-use sos_core::commit::{CommitHash, CommitTree};
-use sos_core::events::LogEvent;
-
-use sos_sdk::{
-    events::{AccountEvent, DeviceEvent, EventLog, FileEvent, WriteEvent},
-    vfs,
+use sos_core::{
+    commit::{CommitHash, CommitTree},
+    events::{
+        AccountEvent, DeviceEvent, EventLog, FileEvent, LogEvent, WriteEvent,
+    },
 };
+use sos_vfs as vfs;
 use std::path::PathBuf;
 
 #[derive(Subcommand, Debug)]

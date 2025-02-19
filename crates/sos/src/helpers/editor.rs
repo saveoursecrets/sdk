@@ -7,10 +7,8 @@ use crate::{helpers::messages::fail, Error, Result};
 use async_recursion::async_recursion;
 use secrecy::ExposeSecret;
 use sha2::{Digest, Sha256};
-use sos_sdk::{
-    vault::secret::{FileContent, Secret},
-    vfs,
-};
+use sos_vault::secret::{FileContent, Secret};
+use sos_vfs as vfs;
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},

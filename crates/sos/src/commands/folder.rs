@@ -403,8 +403,8 @@ pub async fn run(cmd: Command) -> Result<()> {
 
 /// Verify an event log.
 async fn verify_event_log(
-    paths: &sos_sdk::Paths,
-    summary: &sos_sdk::prelude::Summary,
+    paths: &sos_core::Paths,
+    summary: &sos_vault::Summary,
 ) -> Result<()> {
     use futures::StreamExt;
     use sos_integrity::event_integrity;

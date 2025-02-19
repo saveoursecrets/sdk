@@ -23,9 +23,14 @@ use human_bytes::human_bytes;
 use kdam::{term, tqdm, BarExt, Column, RichProgress, Spinner};
 use sos_account::Account;
 use sos_client_storage::AccessOptions;
+use sos_core::{AccountRef, FolderRef};
 use sos_external_files::FileProgress;
-use sos_sdk::prelude::*;
 use sos_search::{ArchiveFilter, Document, DocumentView};
+use sos_vault::{
+    secret::{Secret, SecretId, SecretMeta, SecretRef, SecretRow},
+    Summary,
+};
+use sos_vfs as vfs;
 use std::{borrow::Cow, collections::HashSet, path::PathBuf, sync::Arc};
 use terminal_banner::{Banner, Padding};
 use tokio::sync::{mpsc, oneshot};

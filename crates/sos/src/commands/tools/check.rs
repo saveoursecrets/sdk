@@ -2,12 +2,10 @@ use crate::{helpers::messages::success, Error, Result};
 use clap::Subcommand;
 use futures::{pin_mut, StreamExt};
 use hex;
+use sos_core::decode;
 use sos_integrity::{event_integrity, vault_integrity};
-use sos_sdk::{
-    decode,
-    vault::{Header, Vault},
-    vfs,
-};
+use sos_vault::{Header, Vault};
+use sos_vfs as vfs;
 use std::path::PathBuf;
 
 #[derive(Subcommand, Debug)]
