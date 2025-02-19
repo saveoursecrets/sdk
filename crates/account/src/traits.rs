@@ -102,7 +102,7 @@ pub trait Account {
     /// Patch the devices event log.
     async fn patch_devices_unchecked(
         &mut self,
-        events: Vec<DeviceEvent>,
+        events: &[DeviceEvent],
     ) -> std::result::Result<(), Self::Error>;
 
     /// Revoke a device.

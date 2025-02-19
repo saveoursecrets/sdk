@@ -848,7 +848,7 @@ impl Account for LocalAccount {
 
     async fn patch_devices_unchecked(
         &mut self,
-        events: Vec<DeviceEvent>,
+        events: &[DeviceEvent],
     ) -> Result<()> {
         Ok(self.storage.patch_devices_unchecked(events).await?)
     }

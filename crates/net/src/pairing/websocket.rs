@@ -443,7 +443,9 @@ impl<'a> OfferPairing<'a> {
         let events: Vec<DeviceEvent> =
             vec![DeviceEvent::Trust(trusted_device)];
         {
-            self.account.patch_devices_unchecked(events).await?;
+            self.account
+                .patch_devices_unchecked(events.as_slice())
+                .await?;
         }
 
         // Send the patch to the remote server.

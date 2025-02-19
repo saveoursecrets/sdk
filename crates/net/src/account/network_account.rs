@@ -711,7 +711,7 @@ impl Account for NetworkAccount {
 
     async fn patch_devices_unchecked(
         &mut self,
-        events: Vec<DeviceEvent>,
+        events: &[DeviceEvent],
     ) -> Result<()> {
         let mut account = self.account.lock().await;
         Ok(account.patch_devices_unchecked(events).await?)

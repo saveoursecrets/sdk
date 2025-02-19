@@ -83,12 +83,12 @@ pub trait ClientDeviceStorage:
     /// Patch the devices event log.
     async fn patch_devices_unchecked(
         &mut self,
-        events: Vec<DeviceEvent>,
+        events: &[DeviceEvent],
     ) -> Result<()> {
         // Update the event log
         let device_log = self.device_log().await?;
         let mut event_log = device_log.write().await;
-        event_log.apply(events.iter().collect()).await?;
+        event_log.apply(events.into_iter().collect()).await?;
 
         // Update in-memory cache of trusted devices
         let reducer = DeviceReducer::new(&*event_log);
