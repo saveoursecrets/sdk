@@ -292,7 +292,8 @@ dependencies = [
 [[package]]
 name = "async-fd-lock"
 version = "0.2.0"
-source = "git+https://github.com/tmpfs/async-fd-lock.git?branch=seek#9521e5c692a6ba3d0b29c2ed30fffab053742b17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7569377d7062165f6f7834d9cb3051974a2d141433cc201c2f94c149e993cccf"
 dependencies = [
  "async-trait",
  "cfg-if 1.0.0",
