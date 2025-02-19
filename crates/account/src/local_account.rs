@@ -357,20 +357,11 @@ impl LocalAccount {
     pub(crate) async fn get_secret(
         &self,
         secret_id: &SecretId,
-        folder: Option<&VaultId>,
+        options: &AccessOptions,
         audit: bool,
-    ) -> Result<(SecretRow, ReadEvent)> {
-        let folder = if let Some(folder_id) = folder {
-            self.find(|s| s.id() == folder_id).await
-        } else {
-            self.storage.current_folder()
-        };
-        let folder = folder.ok_or(Error::NoOpenFolder)?;
-
-        self.storage.open_folder(folder.id())?;
-
-        let (meta, secret, read_event) =
-            { self.storage.read_secret(secret_id).await? };
+    ) -> Result<(Summary, SecretRow, ReadEvent)> {
+        let (folder, meta, secret, read_event) =
+            self.storage.read_secret(secret_id, &options).await?;
 
         #[cfg(feature = "audit")]
         if audit {
@@ -379,7 +370,7 @@ impl LocalAccount {
             append_audit_events(&[audit_event]).await?;
         }
 
-        Ok((SecretRow::new(*secret_id, meta, secret), read_event))
+        Ok((folder, SecretRow::new(*secret_id, meta, secret), read_event))
     }
 
     async fn mv_secret(
@@ -390,8 +381,12 @@ impl LocalAccount {
         #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<SecretMove<<LocalAccount as Account>::NetworkResult>> {
         self.open_vault(from.id(), false).await?;
-        let (secret_data, read_event) =
-            self.get_secret(secret_id, None, false).await?;
+
+        options.folder = Some(*from.id());
+        options.destination = Some(*to.id());
+
+        let (_, secret_data, read_event) =
+            self.get_secret(secret_id, &options, false).await?;
 
         #[cfg(feature = "files")]
         let move_secret_data = secret_data.clone();
@@ -411,12 +406,14 @@ impl LocalAccount {
                 &mut file_events,
             )
             .await?;
+
         self.open_vault(from.id(), false).await?;
 
         // Note that we call `remove_secret()` and not `delete_secret()`
         // as we need the original external files for the
         // move_files operation.
-        let delete_event = self.storage.remove_secret(secret_id).await?;
+        let delete_event =
+            self.storage.remove_secret(secret_id, &options).await?;
 
         #[cfg(feature = "files")]
         {
@@ -1645,7 +1642,10 @@ impl Account for LocalAccount {
         secret_id: &SecretId,
         folder: Option<&VaultId>,
     ) -> Result<(SecretRow, ReadEvent)> {
-        self.get_secret(secret_id, folder, true).await
+        let options = folder.into();
+        let (_, row, event) =
+            self.get_secret(secret_id, &options, true).await?;
+        Ok((row, event))
     }
 
     async fn raw_secret(
@@ -2110,15 +2110,19 @@ impl Account for LocalAccount {
         secret_id: &SecretId,
         folder: Option<&VaultId>,
     ) -> Result<()> {
+        /*
         let folder = if let Some(folder_id) = folder {
             self.find(|s| s.id() == folder_id).await
         } else {
             self.storage.current_folder()
         };
         let folder = folder.ok_or(Error::NoOpenFolder)?;
+        */
 
-        let (data, _) =
-            self.get_secret(secret_id, Some(folder.id()), false).await?;
+        let options = folder.into();
+
+        let (folder, data, _) =
+            self.get_secret(secret_id, &options, false).await?;
         if let Secret::Contact { vcard, .. } = data.secret() {
             let content = vcard.to_string();
             write_exclusive(&path, content).await?;

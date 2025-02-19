@@ -709,7 +709,8 @@ pub trait ClientSecretStorage {
     async fn read_secret(
         &self,
         id: &SecretId,
-    ) -> Result<(SecretMeta, Secret, ReadEvent)>;
+        options: &AccessOptions,
+    ) -> Result<(Summary, SecretMeta, Secret, ReadEvent)>;
 
     /// Update a secret in the currently open folder.
     async fn update_secret(
@@ -720,17 +721,20 @@ pub trait ClientSecretStorage {
         #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent>;
 
-    /// Write a secret in the current open folder.
+    /// Write a secret.
     ///
     /// Unlike `update_secret()` this function does not support moving
     /// between folders or managing external files which allows us
     /// to avoid recursion when handling embedded file secrets which
     /// require rewriting the secret once the files have been encrypted.
+    #[doc(hidden)]
     async fn write_secret(
         &mut self,
+        folder: &Summary,
         id: &SecretId,
         mut secret_data: SecretRow,
         #[allow(unused_variables)] is_update: bool,
+        _: Internal,
     ) -> Result<WriteEvent>;
 
     /// Delete a secret in the currently open vault.
@@ -743,7 +747,11 @@ pub trait ClientSecretStorage {
     /// Remove a secret.
     ///
     /// Any external files for the secret are left intact.
-    async fn remove_secret(&mut self, id: &SecretId) -> Result<WriteEvent>;
+    async fn remove_secret(
+        &mut self,
+        id: &SecretId,
+        options: &AccessOptions,
+    ) -> Result<WriteEvent>;
 }
 
 /// Internal utility functions for event log management.

@@ -56,11 +56,6 @@ async fn local_folder_lifecycle() -> Result<()> {
     assert_eq!(&id, data.id());
     assert_eq!("note", data.meta().label());
 
-    // Changed the currently open folder by reading
-    // from an explicit folder
-    let current_folder = account.current_folder().await?;
-    assert_eq!(Some(&folder), current_folder.as_ref());
-
     // Export the folder and save the password for the exported
     // folder in the default folder
     let (folder_password, _) = generate_passphrase()?;

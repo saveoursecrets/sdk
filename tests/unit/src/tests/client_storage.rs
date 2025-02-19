@@ -4,17 +4,19 @@ use secrecy::SecretString;
 use sos_account::AccountBuilder;
 use sos_backend::BackendTarget;
 use sos_client_storage::{
-    AccountPack, ClientAccountStorage, ClientBaseStorage,
-    ClientFolderStorage, ClientStorage, NewFolderOptions,
+    AccessOptions, AccountPack, ClientAccountStorage, ClientBaseStorage,
+    ClientFolderStorage, ClientSecretStorage, ClientStorage,
+    NewFolderOptions,
 };
 use sos_core::{
     crypto::AccessKey, encode, events::EventLog, AccountId, FolderRef, Paths,
-    VaultFlags, VaultId,
+    SecretId, VaultFlags, VaultId,
 };
 use sos_login::{DelegatedAccess, FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
+use sos_sdk::prelude::SecretRow;
 use sos_sync::StorageEventLogs;
-use sos_test_utils::mock::memory_database;
+use sos_test_utils::mock::{self, memory_database};
 use std::collections::HashMap;
 use tempfile::tempdir_in;
 
@@ -288,6 +290,47 @@ async fn assert_client_storage(
     // Lock and unlock
     storage.lock().await;
     storage.unlock(&folder_keys).await?;
+
+    // Create a secret
+    let secret_id = SecretId::new_v4();
+    let (meta, secret) = mock::note("mock-note", "mock-value");
+    let secret_data = SecretRow::new(secret_id, meta, secret);
+    let options = AccessOptions {
+        folder: Some(*main_vault.id()),
+        ..Default::default()
+    };
+    storage
+        .create_secret(secret_data.clone(), options.clone())
+        .await?;
+
+    // Should be able to read the raw encrypted data
+    let result = storage.raw_secret(main_vault.id(), &secret_id).await?;
+    assert!(result.is_some());
+
+    // Assert on the read
+    let (_, meta, secret, _) =
+        storage.read_secret(&secret_id, &options).await?;
+    assert_eq!(secret_data.meta(), &meta);
+    assert_eq!(secret_data.secret(), &secret);
+
+    // Update the secret
+    let (new_meta, new_secret) =
+        mock::note("mock-note-updated", "mock-value-updated");
+    storage
+        .update_secret(
+            &secret_id,
+            new_meta.clone(),
+            Some(new_secret.clone()),
+            options.clone(),
+        )
+        .await?;
+    let (_, meta, secret, _) =
+        storage.read_secret(&secret_id, &options).await?;
+    assert_eq!(&new_meta, &meta);
+    assert_eq!(&new_secret, &secret);
+
+    // Delete the secret
+    storage.delete_secret(&secret_id, options).await?;
 
     // Sign out the authenticated user
     storage.sign_out().await?;

@@ -100,9 +100,16 @@ impl From<&VaultId> for AccessOptions {
     fn from(value: &VaultId) -> Self {
         Self {
             folder: Some(*value),
-            destination: None,
-            #[cfg(feature = "files")]
-            file_progress: None,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<Option<&VaultId>> for AccessOptions {
+    fn from(value: Option<&VaultId>) -> Self {
+        Self {
+            folder: value.copied(),
+            ..Default::default()
         }
     }
 }

@@ -1,4 +1,5 @@
 //! Blanket implementation of secret storage trait.
+use crate::traits::private::Internal;
 use crate::{
     AccessOptions, ClientAccountStorage, ClientFolderStorage,
     ClientSecretStorage, Error, Result, StorageChangeEvent,
@@ -7,6 +8,7 @@ use async_trait::async_trait;
 use sos_backend::StorageError;
 use sos_core::events::{ReadEvent, WriteEvent};
 use sos_core::{AuthenticationError, SecretId, VaultId};
+use sos_vault::Summary;
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     VaultCommit,
@@ -23,7 +25,13 @@ where
         secret_data: SecretRow,
         #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
-        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
+        let summary = if let Some(folder_id) = &options.folder {
+            self.find(|f| f.id() == folder_id)
+                .cloned()
+                .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?
+        } else {
+            self.current_folder().ok_or(Error::NoOpenVault)?
+        };
 
         #[cfg(feature = "search")]
         let index_doc = if let Some(index) = self.search_index() {
@@ -61,7 +69,14 @@ where
 
             if let Some((id, secret_data)) = write_update {
                 // Update with new checksum(s)
-                self.write_secret(&id, secret_data, false).await?;
+                self.write_secret(
+                    &summary,
+                    &id,
+                    secret_data,
+                    false,
+                    Internal,
+                )
+                .await?;
             }
 
             file_events
@@ -106,8 +121,16 @@ where
     async fn read_secret(
         &self,
         id: &SecretId,
-    ) -> Result<(SecretMeta, Secret, ReadEvent)> {
-        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
+        options: &AccessOptions,
+    ) -> Result<(Summary, SecretMeta, Secret, ReadEvent)> {
+        let summary = if let Some(folder_id) = &options.folder {
+            self.find(|f| f.id() == folder_id)
+                .cloned()
+                .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?
+        } else {
+            self.current_folder().ok_or(Error::NoOpenVault)?
+        };
+
         let folder = self
             .folders()
             .get(summary.id())
@@ -116,7 +139,7 @@ where
             .read_secret(id)
             .await?
             .ok_or(Error::SecretNotFound(*id))?;
-        Ok(result)
+        Ok((summary, result.0, result.1, result.2))
     }
 
     async fn update_secret(
@@ -126,7 +149,8 @@ where
         secret: Option<Secret>,
         #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
-        let (old_meta, old_secret, _) = self.read_secret(secret_id).await?;
+        let (folder, old_meta, old_secret, _) =
+            self.read_secret(secret_id, &options).await?;
         let old_secret_data =
             SecretRow::new(*secret_id, old_meta, old_secret);
 
@@ -139,13 +163,19 @@ where
         };
 
         let event = self
-            .write_secret(secret_id, secret_data.clone(), true)
+            .write_secret(
+                &folder,
+                secret_id,
+                secret_data.clone(),
+                true,
+                Internal,
+            )
             .await?;
 
         // Must update the files before moving so checksums are correct
         #[cfg(feature = "files")]
         let file_events = {
-            let folder = self.current_folder().ok_or(Error::NoOpenVault)?;
+            // let folder = self.current_folder().ok_or(Error::NoOpenVault)?;
             let (file_events, write_update) = self
                 .external_file_manager_mut()
                 .ok_or_else(|| AuthenticationError::NotAuthenticated)?
@@ -160,7 +190,8 @@ where
 
             if let Some((id, secret_data)) = write_update {
                 // Update with new checksum(s)
-                self.write_secret(&id, secret_data, false).await?;
+                self.write_secret(&folder, &id, secret_data, false, Internal)
+                    .await?;
             }
 
             file_events
@@ -183,11 +214,13 @@ where
 
     async fn write_secret(
         &mut self,
+        folder: &Summary,
         id: &SecretId,
         mut secret_data: SecretRow,
         #[allow(unused_variables)] is_update: bool,
+        _: Internal,
     ) -> Result<WriteEvent> {
-        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
+        // let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
 
         secret_data.meta_mut().touch();
 
@@ -201,11 +234,11 @@ where
                 // prepare a new document otherwise the
                 // document would be stale as `prepare()`
                 // and `commit()` are for new documents
-                index.remove(summary.id(), id);
+                index.remove(folder.id(), id);
             }
 
             Some(index.prepare(
-                summary.id(),
+                folder.id(),
                 id,
                 secret_data.meta(),
                 secret_data.secret(),
@@ -217,8 +250,8 @@ where
         let event = {
             let folder = self
                 .folders_mut()
-                .get_mut(summary.id())
-                .ok_or(StorageError::FolderNotFound(*summary.id()))?;
+                .get_mut(folder.id())
+                .ok_or(StorageError::FolderNotFound(*folder.id()))?;
             let (_, meta, secret) = secret_data.into();
             folder
                 .update_secret(id, meta, secret)
@@ -244,20 +277,20 @@ where
         #[allow(unused_mut, unused_variables)] mut options: AccessOptions,
     ) -> Result<StorageChangeEvent> {
         #[cfg(feature = "files")]
-        let secret_data = {
-            let (meta, secret, _) = self.read_secret(secret_id).await?;
-            SecretRow::new(*secret_id, meta, secret)
+        let (folder, secret_data) = {
+            let (folder, meta, secret, _) =
+                self.read_secret(secret_id, &options).await?;
+            (folder, SecretRow::new(*secret_id, meta, secret))
         };
 
-        let event = self.remove_secret(secret_id).await?;
+        let event = self.remove_secret(secret_id, &options).await?;
 
         let result = StorageChangeEvent {
             event,
-            // Must update the files before moving so checksums are correct
+            // Must update the files before moving so
+            // checksums are correct
             #[cfg(feature = "files")]
             file_events: {
-                let folder =
-                    self.current_folder().ok_or(Error::NoOpenVault)?;
                 self.external_file_manager_mut()
                     .ok_or_else(|| AuthenticationError::NotAuthenticated)?
                     .delete_files(
@@ -279,8 +312,18 @@ where
         Ok(result)
     }
 
-    async fn remove_secret(&mut self, id: &SecretId) -> Result<WriteEvent> {
-        let summary = self.current_folder().ok_or(Error::NoOpenVault)?;
+    async fn remove_secret(
+        &mut self,
+        id: &SecretId,
+        options: &AccessOptions,
+    ) -> Result<WriteEvent> {
+        let summary = if let Some(folder_id) = &options.folder {
+            self.find(|f| f.id() == folder_id)
+                .cloned()
+                .ok_or_else(|| StorageError::FolderNotFound(*folder_id))?
+        } else {
+            self.current_folder().ok_or(Error::NoOpenVault)?
+        };
 
         let event = {
             let folder = self
