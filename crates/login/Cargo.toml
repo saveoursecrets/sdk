@@ -1,6 +1,6 @@
 [package]
 name = "sos-login"
-version = "0.16.1"
+version = "0.16.2"
 edition = "2021"
 description = "Login authentication for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"

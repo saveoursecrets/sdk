@@ -5302,7 +5302,7 @@ dependencies = [
 
 [[package]]
 name = "sos-login"
-version = "0.16.1"
+version = "0.16.2"
 dependencies = [
  "age",
  "async-trait",
