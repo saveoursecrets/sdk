@@ -4982,7 +4982,7 @@ dependencies = [
 
 [[package]]
 name = "sos-client-storage"
-version = "0.16.1"
+version = "0.16.2"
 dependencies = [
  "age",
  "async-trait",

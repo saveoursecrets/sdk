@@ -1,6 +1,6 @@
 [package]
 name = "sos-client-storage"
-version = "0.16.1"
+version = "0.16.2"
 edition = "2021"
 description = "Client storage for the Save Our Secrets SDK."
 homepage = "https://saveoursecrets.com"
@@ -15,6 +15,7 @@ files = [
   "sos-external-files",
   "sos-sync/files",
   "sos-reducers/files",
+  "sos-login/files",
   "dep:tokio-util",
   "dep:age",
   "dep:binary-stream",
