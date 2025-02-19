@@ -64,9 +64,7 @@ async fn assert_client_server_compare(
     }
 
     // Add another event to the server (perhaps from another client)
-    server
-        .apply(vec![&WriteEvent::DeleteSecret(secret_id)])
-        .await?;
+    server.apply(&[WriteEvent::DeleteSecret(secret_id)]).await?;
 
     // Check that the server contains the client proof
     let proof = client.tree().head()?;

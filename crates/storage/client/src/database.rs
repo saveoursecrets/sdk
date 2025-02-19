@@ -406,7 +406,7 @@ impl ClientEventLogStorage for ClientDatabaseStorage {
             tracing::debug!(
               public_key = %device.public_key(), "initialize_root_device");
             let event = DeviceEvent::Trust(device);
-            event_log.apply(vec![&event]).await?;
+            event_log.apply(&[event]).await?;
         }
 
         let reducer = DeviceReducer::new(&event_log);

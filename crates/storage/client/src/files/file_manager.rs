@@ -47,15 +47,19 @@ impl ExternalFileManager {
         for event in events {
             match event {
                 FileMutationEvent::Create { event, .. } => {
-                    file_events.push(event)
+                    file_events.push(event.clone())
                 }
-                FileMutationEvent::Move(event) => file_events.push(event),
-                FileMutationEvent::Delete(event) => file_events.push(event),
+                FileMutationEvent::Move(event) => {
+                    file_events.push(event.clone())
+                }
+                FileMutationEvent::Delete(event) => {
+                    file_events.push(event.clone())
+                }
             }
         }
 
         let mut writer = self.file_log.write().await;
-        writer.apply(file_events).await?;
+        writer.apply(file_events.as_slice()).await?;
 
         Ok(())
     }

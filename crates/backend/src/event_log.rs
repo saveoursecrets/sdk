@@ -252,7 +252,7 @@ where
         }
     }
 
-    async fn apply(&mut self, events: Vec<&T>) -> Result<(), Self::Error> {
+    async fn apply(&mut self, events: &[T]) -> Result<(), Self::Error> {
         match self {
             Self::Database(inner) => inner.apply(events).await,
             Self::FileSystem(inner) => inner.apply(events).await,

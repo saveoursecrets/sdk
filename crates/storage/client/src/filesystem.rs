@@ -370,7 +370,7 @@ impl ClientEventLogStorage for ClientFileSystemStorage {
             tracing::debug!(
               public_key = %device.public_key(), "initialize_root_device");
             let event = DeviceEvent::Trust(device);
-            event_log.apply(vec![&event]).await?;
+            event_log.apply(&[event.clone()]).await?;
         }
 
         let reducer = DeviceReducer::new(&event_log);
@@ -396,7 +396,7 @@ impl ClientEventLogStorage for ClientFileSystemStorage {
 
             tracing::debug!(init_events_len = %events.len());
 
-            event_log.apply(events.iter().collect()).await?;
+            event_log.apply(events.as_slice()).await?;
         }
 
         Ok(event_log)

@@ -5,8 +5,8 @@ use sos_account::AccountBuilder;
 use sos_backend::BackendTarget;
 use sos_client_storage::{
     AccessOptions, AccountPack, ClientAccountStorage, ClientBaseStorage,
-    ClientFolderStorage, ClientSecretStorage, ClientStorage,
-    NewFolderOptions,
+    ClientDeviceStorage, ClientFolderStorage, ClientSecretStorage,
+    ClientStorage, NewFolderOptions,
 };
 use sos_core::{
     crypto::AccessKey, encode, events::EventLog, AccountId, FolderRef, Paths,
@@ -14,7 +14,11 @@ use sos_core::{
 };
 use sos_login::{DelegatedAccess, FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
-use sos_sdk::prelude::SecretRow;
+use sos_sdk::{
+    device::{DeviceSigner, TrustedDevice},
+    events::DeviceEvent,
+    prelude::SecretRow,
+};
 use sos_sync::StorageEventLogs;
 use sos_test_utils::mock::{self, memory_database};
 use std::collections::HashMap;
@@ -331,6 +335,16 @@ async fn assert_client_storage(
 
     // Delete the secret
     storage.delete_secret(&secret_id, options).await?;
+
+    // Device patch and revoke
+    let device_signer = DeviceSigner::new_random();
+    let device_public_key = device_signer.public_key();
+    let user_device = TrustedDevice::new(device_public_key, None, None);
+    let event = DeviceEvent::Trust(user_device);
+    storage.patch_devices_unchecked(&[event]).await?;
+    assert_eq!(2, storage.devices().len());
+    storage.revoke_device(&device_public_key).await?;
+    assert_eq!(1, storage.devices().len());
 
     // Sign out the authenticated user
     storage.sign_out().await?;

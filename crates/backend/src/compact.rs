@@ -66,7 +66,7 @@ pub async fn compact_folder(
                 client,
                 Some(EventLogOwner::Folder(folder_record)),
             );
-            temp_event_log.apply(events.iter().collect()).await?;
+            temp_event_log.apply(events.as_slice()).await?;
 
             let mut records = Vec::new();
             for event in &events {
@@ -94,7 +94,7 @@ pub async fn compact_folder(
             let temp = NamedTempFile::new()?;
             let mut temp_event_log =
                 FsFolderEventLog::<Error>::new_folder(temp.path()).await?;
-            temp_event_log.apply(events.iter().collect()).await?;
+            temp_event_log.apply(events.as_slice()).await?;
 
             let mut records = Vec::new();
             for event in &events {

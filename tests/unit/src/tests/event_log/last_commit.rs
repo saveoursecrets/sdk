@@ -31,7 +31,7 @@ async fn assert_last_commit(
 ) -> Result<()> {
     assert!(event_log.tree().last_commit().is_none());
 
-    event_log.apply(vec![&event]).await?;
+    event_log.apply(&[event]).await?;
 
     assert!(event_log.tree().last_commit().is_some());
 

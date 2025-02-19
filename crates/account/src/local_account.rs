@@ -202,7 +202,7 @@ impl LocalAccount {
 
             tracing::debug!(init_events_len = %events.len());
 
-            event_log.apply(events.iter().collect()).await?;
+            event_log.apply(events.as_slice()).await?;
         }
 
         Ok(())
@@ -1135,7 +1135,7 @@ impl Account for LocalAccount {
             let event = AccountEvent::RenameAccount(account_name);
             let log = self.account_log().await?;
             let mut log = log.write().await;
-            log.apply(vec![&event]).await?;
+            log.apply(&[event.clone()]).await?;
             event
         };
 
@@ -1268,7 +1268,7 @@ impl Account for LocalAccount {
             let event = AccountEvent::UpdateIdentity(encode(&vault).await?);
             let log = self.account_log().await?;
             let mut log = log.write().await;
-            log.apply(vec![&event]).await?;
+            log.apply(&[event.clone()]).await?;
             event
         };
 
@@ -1975,7 +1975,7 @@ impl Account for LocalAccount {
         let event = self.import_identity_vault(vault).await?;
         let event_log = self.account_log().await?;
         let mut event_log = event_log.write().await;
-        event_log.apply(vec![&event]).await?;
+        event_log.apply(&[event.clone()]).await?;
         Ok(event)
     }
 

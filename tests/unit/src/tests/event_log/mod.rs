@@ -91,7 +91,7 @@ pub mod mock {
     ) -> Result<()> {
         // Create the vault
         let event = vault.into_event().await?;
-        event_log.apply(vec![&event]).await?;
+        event_log.apply(&[event]).await?;
 
         // Create a secret
         let (secret_id, _, _, _, event) = mock::vault_note(
@@ -101,7 +101,7 @@ pub mod mock {
             "This a event log note secret.",
         )
         .await?;
-        event_log.apply(vec![&event]).await?;
+        event_log.apply(&[event]).await?;
 
         // Update the secret
         let (_, _, _, event) = mock::vault_note_update(
@@ -113,7 +113,7 @@ pub mod mock {
         )
         .await?;
         if let Some(event) = event {
-            event_log.apply(vec![&event]).await?;
+            event_log.apply(&[event]).await?;
         }
 
         Ok(())
@@ -145,9 +145,9 @@ pub mod mock {
         let mut event_log =
             FolderEventLog::new_fs_folder(path.as_ref()).await?;
         event_log
-            .apply(vec![
-                &WriteEvent::CreateVault(vault_buffer),
-                &WriteEvent::CreateSecret(id, data),
+            .apply(&[
+                WriteEvent::CreateVault(vault_buffer),
+                WriteEvent::CreateSecret(id, data),
             ])
             .await?;
 
@@ -178,9 +178,9 @@ pub mod mock {
         // Create a simple event log
         let mut server = FolderEventLog::new_fs_folder(server_file).await?;
         server
-            .apply(vec![
-                &WriteEvent::CreateVault(vault_buffer),
-                &WriteEvent::CreateSecret(id, data),
+            .apply(&[
+                WriteEvent::CreateVault(vault_buffer),
+                WriteEvent::CreateSecret(id, data),
             ])
             .await?;
 
@@ -191,7 +191,7 @@ pub mod mock {
             pin_mut!(stream);
             while let Some(result) = stream.next().await {
                 let (_, event) = result?;
-                client.apply(vec![&event]).await?;
+                client.apply(&[event]).await?;
             }
         }
 
@@ -218,9 +218,9 @@ pub mod mock {
         let vault_buffer = encode(&vault).await?;
         let (id, data) = mock_secret().await?;
         event_log
-            .apply(vec![
-                &WriteEvent::CreateVault(vault_buffer),
-                &WriteEvent::CreateSecret(id, data),
+            .apply(&[
+                WriteEvent::CreateVault(vault_buffer),
+                WriteEvent::CreateSecret(id, data),
             ])
             .await?;
 
@@ -246,9 +246,9 @@ pub mod mock {
         let (id, data) = mock_secret().await?;
 
         server
-            .apply(vec![
-                &WriteEvent::CreateVault(vault_buffer),
-                &WriteEvent::CreateSecret(id, data),
+            .apply(&[
+                WriteEvent::CreateVault(vault_buffer),
+                WriteEvent::CreateSecret(id, data),
             ])
             .await?;
 
@@ -265,7 +265,7 @@ pub mod mock {
             pin_mut!(stream);
             while let Some(result) = stream.next().await {
                 let (_, event) = result?;
-                client.apply(vec![&event]).await?;
+                client.apply(&[event]).await?;
             }
         }
 

@@ -91,7 +91,7 @@ where
 
     /// Append a collection of events and commit the tree hashes
     /// only if all the events were successfully written.
-    async fn apply(&mut self, events: Vec<&E>) -> Result<(), Self::Error>;
+    async fn apply(&mut self, events: &[E]) -> Result<(), Self::Error>;
 
     /// Append raw event records to the event log.
     ///

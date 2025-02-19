@@ -163,7 +163,7 @@ pub async fn event_log_file(
 
     // Create the vault
     let event = vault.into_event().await?;
-    event_log.apply(vec![&event]).await?;
+    event_log.apply(&[event]).await?;
 
     // Create a secret
     let (secret_id, _, _, _, event) = vault_note(
@@ -173,7 +173,7 @@ pub async fn event_log_file(
         "This a event log note secret.",
     )
     .await?;
-    event_log.apply(vec![&event]).await?;
+    event_log.apply(&[event]).await?;
 
     // Update the secret
     let (_, _, _, event) = vault_note_update(
@@ -185,7 +185,7 @@ pub async fn event_log_file(
     )
     .await?;
     if let Some(event) = event {
-        event_log.apply(vec![&event]).await?;
+        event_log.apply(&[event]).await?;
     }
 
     Ok((temp, event_log, encryption_key))

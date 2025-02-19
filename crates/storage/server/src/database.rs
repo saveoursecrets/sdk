@@ -441,7 +441,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
             let event_log = self.folders.get_mut(id).unwrap();
             let mut event_log = event_log.write().await;
             event_log.clear().await?;
-            event_log.apply(events.iter().collect()).await?;
+            event_log.apply(events.as_slice()).await?;
         }
 
         #[cfg(feature = "audit")]

@@ -62,7 +62,7 @@ impl Folder {
 
             let (_, events) =
                 FolderReducer::split::<Error>(vault.clone()).await?;
-            event_log.apply(events.iter().collect()).await?;
+            event_log.apply(events.as_slice()).await?;
 
             vault
         } else {
@@ -130,7 +130,7 @@ impl Folder {
         if event_log.tree().len() == 0 {
             let buffer = encode(&vault).await?;
             let event = WriteEvent::CreateVault(buffer);
-            event_log.apply(vec![&event]).await?;
+            event_log.apply(&[event]).await?;
         }
 
         let mirror = VaultDatabaseWriter::<Error>::new(client, folder_id);
@@ -187,7 +187,7 @@ impl Folder {
         let mut access_point = self.access_point.lock().await;
         let event = access_point.create_secret(secret_data).await?;
         let mut events = self.events.write().await;
-        events.apply(vec![&event]).await?;
+        events.apply(&[event.clone()]).await?;
         Ok(event)
     }
 
@@ -221,7 +221,7 @@ impl Folder {
             access_point.update_secret(id, secret_meta, secret).await?
         {
             let mut events = self.events.write().await;
-            events.apply(vec![&event]).await?;
+            events.apply(&[event.clone()]).await?;
             Ok(Some(event))
         } else {
             Ok(None)
@@ -236,7 +236,7 @@ impl Folder {
         let mut access_point = self.access_point.lock().await;
         if let Some(event) = access_point.delete_secret(id).await? {
             let mut events = self.events.write().await;
-            events.apply(vec![&event]).await?;
+            events.apply(&[event.clone()]).await?;
             Ok(Some(event))
         } else {
             Ok(None)
@@ -254,7 +254,7 @@ impl Folder {
             .await?;
         let event = WriteEvent::SetVaultName(name.as_ref().to_owned());
         let mut events = self.events.write().await;
-        events.apply(vec![&event]).await?;
+        events.apply(&[event.clone()]).await?;
         Ok(event)
     }
 
@@ -267,7 +267,7 @@ impl Folder {
         access_point.set_vault_flags(flags.clone()).await?;
         let event = WriteEvent::SetVaultFlags(flags);
         let mut events = self.events.write().await;
-        events.apply(vec![&event]).await?;
+        events.apply(&[event.clone()]).await?;
         Ok(event)
     }
 
@@ -296,7 +296,7 @@ impl Folder {
         let mut access_point = self.access_point.lock().await;
         let event = access_point.set_vault_meta(meta).await?;
         let mut events = self.events.write().await;
-        events.apply(vec![&event]).await?;
+        events.apply(&[event.clone()]).await?;
         Ok(event)
     }
 
@@ -316,7 +316,7 @@ impl Folder {
     }
 
     /// Apply events to the event log.
-    pub async fn apply(&mut self, events: Vec<&WriteEvent>) -> Result<()> {
+    pub async fn apply(&mut self, events: &[WriteEvent]) -> Result<()> {
         let mut event_log = self.events.write().await;
         event_log.apply(events).await?;
         Ok(())

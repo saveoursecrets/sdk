@@ -26,9 +26,9 @@ async fn db_event_log_diff_events() -> Result<()> {
 async fn assert_diff_events(mut event_log: AccountEventLog) -> Result<()> {
     let folder = VaultId::new_v4();
     event_log
-        .apply(vec![
-            &AccountEvent::CreateFolder(folder, vec![]),
-            &AccountEvent::DeleteFolder(folder),
+        .apply(&[
+            AccountEvent::CreateFolder(folder, vec![]),
+            AccountEvent::DeleteFolder(folder),
         ])
         .await?;
 

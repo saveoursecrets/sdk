@@ -275,7 +275,7 @@ where
         Ok(())
     }
 
-    async fn apply(&mut self, events: Vec<&T>) -> StdResult<(), Self::Error> {
+    async fn apply(&mut self, events: &[T]) -> StdResult<(), Self::Error> {
         let mut records = Vec::with_capacity(events.len());
         for event in events {
             records.push(EventRecord::encode_event(event).await?);

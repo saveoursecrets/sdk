@@ -52,7 +52,7 @@ async fn assert_event_log_rewind(
 ) -> Result<CommitHash> {
     let vault_buffer = encode(&vault).await?;
     event_log
-        .apply(vec![&WriteEvent::CreateVault(vault_buffer)])
+        .apply(&[WriteEvent::CreateVault(vault_buffer)])
         .await?;
 
     assert_eq!(1, event_log.tree().len());
@@ -64,7 +64,7 @@ async fn assert_event_log_rewind(
     // Append some more events
     let (id, data) = mock::mock_secret().await?;
     event_log
-        .apply(vec![&WriteEvent::CreateSecret(id, data)])
+        .apply(&[WriteEvent::CreateSecret(id, data)])
         .await?;
 
     assert_eq!(2, event_log.tree().len());

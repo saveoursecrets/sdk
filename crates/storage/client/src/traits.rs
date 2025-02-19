@@ -88,7 +88,7 @@ pub trait ClientDeviceStorage:
         // Update the event log
         let device_log = self.device_log().await?;
         let mut event_log = device_log.write().await;
-        event_log.apply(events.into_iter().collect()).await?;
+        event_log.apply(events).await?;
 
         // Update in-memory cache of trusted devices
         let reducer = DeviceReducer::new(&*event_log);
@@ -129,7 +129,7 @@ pub trait ClientDeviceStorage:
 
             let device_log = self.device_log().await?;
             let mut writer = device_log.write().await;
-            writer.apply(vec![&event]).await?;
+            writer.apply(&[event]).await?;
 
             let reducer = DeviceReducer::new(&*writer);
             self.set_devices(reducer.reduce().await?, Internal);
@@ -401,7 +401,7 @@ pub trait ClientFolderStorage:
             .get_mut(vault.id())
             .ok_or(StorageError::FolderNotFound(*vault.id()))?;
         folder.clear().await?;
-        folder.apply(events.iter().collect()).await?;
+        folder.apply(events.as_slice()).await?;
 
         Ok(buffer)
     }
@@ -527,7 +527,7 @@ pub trait ClientFolderStorage:
 
         let account_log = self.account_log().await?;
         let mut account_log = account_log.write().await;
-        account_log.apply(vec![&account_event]).await?;
+        account_log.apply(&[account_event.clone()]).await?;
 
         Ok(account_event)
     }
@@ -553,7 +553,7 @@ pub trait ClientFolderStorage:
 
         let account_log = self.account_log().await?;
         let mut account_log = account_log.write().await;
-        account_log.apply(vec![&account_event]).await?;
+        account_log.apply(&[account_event.clone()]).await?;
 
         #[cfg(feature = "audit")]
         {
@@ -681,7 +681,7 @@ pub trait ClientFolderStorage:
 
         let account_log = self.account_log().await?;
         let mut account_log = account_log.write().await;
-        account_log.apply(vec![&account_event]).await?;
+        account_log.apply(&[account_event]).await?;
 
         Ok(new_key)
     }
@@ -923,7 +923,7 @@ pub trait ClientAccountStorage:
         event_log.clear().await?;
 
         let (_, events) = FolderReducer::split::<Error>(vault).await?;
-        event_log.apply(events.iter().collect()).await?;
+        event_log.apply(events.as_slice()).await?;
 
         Ok(AccountEvent::UpdateIdentity(buffer))
     }
@@ -1073,7 +1073,7 @@ pub trait ClientAccountStorage:
             AccountEvent::CreateFolder(*summary.id(), buf.clone());
         let account_log = self.account_log().await?;
         let mut account_log = account_log.write().await;
-        account_log.apply(vec![&account_event]).await?;
+        account_log.apply(&[account_event.clone()]).await?;
 
         #[cfg(feature = "audit")]
         {
@@ -1108,7 +1108,7 @@ pub trait ClientAccountStorage:
                 .await?;
             let file_log = self.file_log().await?;
             let mut writer = file_log.write().await;
-            writer.apply(file_events.iter().collect()).await?;
+            writer.apply(file_events.as_slice()).await?;
             for event in file_events.drain(..) {
                 events.push(Event::File(event));
             }
@@ -1125,7 +1125,7 @@ pub trait ClientAccountStorage:
         if apply_event {
             let account_log = self.account_log().await?;
             let mut account_log = account_log.write().await;
-            account_log.apply(vec![&account_event]).await?;
+            account_log.apply(&[account_event.clone()]).await?;
         }
 
         #[cfg(feature = "audit")]
@@ -1265,7 +1265,7 @@ pub trait ClientAccountStorage:
         if apply_event {
             let account_log = self.account_log().await?;
             let mut account_log = account_log.write().await;
-            account_log.apply(vec![&account_event]).await?;
+            account_log.apply(&[account_event.clone()]).await?;
         }
 
         #[cfg(feature = "audit")]

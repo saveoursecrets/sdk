@@ -76,9 +76,7 @@ async fn event_log_reduce_compact() -> Result<()> {
     let compact_temp = NamedTempFile::new()?;
     let mut compact =
         FolderEventLog::new_fs_folder(compact_temp.path()).await?;
-    for event in events {
-        compact.apply(vec![&event]).await?;
-    }
+    compact.apply(events.as_slice()).await?;
 
     let compact_vault = FolderReducer::new()
         .reduce(&compact)
@@ -100,12 +98,12 @@ async fn mock_event_log_file(
 
     // Create the vault
     let event = vault.into_event().await?;
-    event_log.apply(vec![&event]).await?;
+    event_log.apply(&[event]).await?;
 
     // Create a secret
     let (secret_id, _, _, _, event) =
         mock::vault_note(&mut vault, &encryption_key, "foo", "bar").await?;
-    event_log.apply(vec![&event]).await?;
+    event_log.apply(&[event]).await?;
 
     // Update the secret
     let (_, _, _, event) = mock::vault_note_update(
@@ -117,17 +115,17 @@ async fn mock_event_log_file(
     )
     .await?;
     if let Some(event) = event {
-        event_log.apply(vec![&event]).await?;
+        event_log.apply(&[event]).await?;
     }
 
     // Create another secret
     let (del_id, _, _, _, event) =
         mock::vault_note(&mut vault, &encryption_key, "qux", "baz").await?;
-    event_log.apply(vec![&event]).await?;
+    event_log.apply(&[event]).await?;
 
     let event = vault.delete_secret(&del_id).await?;
     if let Some(event) = event {
-        event_log.apply(vec![&event]).await?;
+        event_log.apply(&[event]).await?;
     }
 
     Ok((temp, event_log, encryption_key, secret_id))
