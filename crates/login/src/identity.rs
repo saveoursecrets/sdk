@@ -10,7 +10,6 @@ use crate::{
     PublicIdentity, Result,
 };
 use async_trait::async_trait;
-use secrecy::SecretString;
 use sos_backend::{database::async_sqlite::Client, BackendTarget};
 use sos_core::{
     crypto::AccessKey, decode, events::Event, AccountId, AuthenticationError,
@@ -23,6 +22,9 @@ use std::{
     path::{Path, PathBuf},
 };
 use urn::Urn;
+
+#[cfg(feature = "files")]
+use secrecy::SecretString;
 
 /// Collection of folder access keys.
 pub struct FolderKeys(pub HashMap<VaultId, AccessKey>);
