@@ -1,5 +1,6 @@
 //! Database entities.
 mod account;
+#[cfg(feature = "audit")]
 mod audit;
 mod event;
 // #[cfg(feature = "files")]
