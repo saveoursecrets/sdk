@@ -14,9 +14,10 @@ use sos_core::{
 };
 use sos_login::{DelegatedAccess, FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
+use sos_reducers::FolderReducer;
 use sos_sdk::{
     device::{DeviceSigner, TrustedDevice},
-    events::DeviceEvent,
+    events::{patch::FolderPatch, DeviceEvent, EventRecord},
     prelude::SecretRow,
 };
 use sos_sync::StorageEventLogs;
@@ -345,6 +346,20 @@ async fn assert_client_storage(
     assert_eq!(2, storage.devices().len());
     storage.revoke_device(&device_public_key).await?;
     assert_eq!(1, storage.devices().len());
+
+    // Check we can import folder patches
+    let main_vault = storage.read_vault(main.id()).await?;
+    let main_id = *main_vault.id();
+    let (_, events) =
+        FolderReducer::split::<sos_backend::Error>(main_vault).await?;
+    let mut records = Vec::new();
+    for event in &events {
+        records.push(EventRecord::encode_event(event).await?);
+    }
+    let patch = FolderPatch::new(records);
+    let mut patches = HashMap::new();
+    patches.insert(main_id, patch);
+    storage.import_folder_patches(patches).await?;
 
     // Sign out the authenticated user
     storage.sign_out().await?;
