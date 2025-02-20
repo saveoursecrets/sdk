@@ -12,7 +12,7 @@ use tokio::sync::RwLock;
 /// Individual account.
 pub type ServerAccount = Arc<RwLock<ServerStorage>>;
 
-/// Collection of accounts by address.
+/// Collection of accounts by account_id.
 pub type Accounts = Arc<RwLock<HashMap<AccountId, ServerAccount>>>;
 
 fn into_device_verifying_key(
@@ -178,15 +178,23 @@ impl Backend {
         &mut self,
         account_id: &AccountId,
     ) -> Result<()> {
-        tracing::debug!(address = %account_id, "server_backend::delete_account");
+        tracing::debug!(
+            account_id = %account_id,
+            "server_backend::delete_account");
 
         let mut accounts = self.accounts.write().await;
-        let account = accounts
-            .get_mut(account_id)
-            .ok_or(Error::NoAccount(*account_id))?;
+        // Remove from storage
+        {
+            let account = accounts
+                .get_mut(account_id)
+                .ok_or(Error::NoAccount(*account_id))?;
 
-        let mut account = account.write().await;
-        account.delete_account().await?;
+            let mut account = account.write().await;
+            account.delete_account().await?;
+        }
+
+        // Clean in-memory reference
+        accounts.remove(account_id);
 
         Ok(())
     }
@@ -197,7 +205,9 @@ impl Backend {
         account_id: &AccountId,
         account_data: UpdateSet,
     ) -> Result<MergeOutcome> {
-        tracing::debug!(address = %account_id, "server_backend::update_account");
+        tracing::debug!(
+            account_id = %account_id, 
+            "server_backend::update_account");
 
         let mut outcome = MergeOutcome::default();
 
@@ -219,7 +229,7 @@ impl Backend {
         account_id: &AccountId,
     ) -> Result<CreateSet> {
         tracing::debug!(
-            address = %account_id,
+            account_id = %account_id,
             "server_backend::fetch_account",
         );
 
