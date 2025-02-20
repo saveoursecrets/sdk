@@ -8,7 +8,7 @@ use sos_account::{
     FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
     SecretDelete, SecretInsert, SecretMove,
 };
-use sos_backend::{Folder, ServerOrigins};
+use sos_backend::{BackendTarget, Folder, ServerOrigins};
 use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::{
     commit::{CommitHash, CommitState},
@@ -537,12 +537,14 @@ impl NetworkAccount {
     /// to authenticate a user.
     pub async fn new_unauthenticated(
         account_id: AccountId,
+        target: BackendTarget,
         data_dir: Option<PathBuf>,
         options: NetworkAccountOptions,
         // offline: bool,
     ) -> Result<Self> {
         let account =
-            LocalAccount::new_unauthenticated(account_id, data_dir).await?;
+            LocalAccount::new_unauthenticated(account_id, target, data_dir)
+                .await?;
 
         Ok(Self {
             account_id,
@@ -572,12 +574,14 @@ impl NetworkAccount {
     pub async fn new_account(
         account_name: String,
         passphrase: SecretString,
+        target: BackendTarget,
         data_dir: Option<PathBuf>,
         options: NetworkAccountOptions,
     ) -> Result<Self> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
+            target,
             data_dir,
             options,
             |builder| {
@@ -598,6 +602,7 @@ impl NetworkAccount {
     pub async fn new_account_with_builder(
         account_name: String,
         passphrase: SecretString,
+        target: BackendTarget,
         data_dir: Option<PathBuf>,
         options: NetworkAccountOptions,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
@@ -605,6 +610,7 @@ impl NetworkAccount {
         let account = LocalAccount::new_account_with_builder(
             account_name,
             passphrase.clone(),
+            target,
             data_dir.clone(),
             builder,
         )

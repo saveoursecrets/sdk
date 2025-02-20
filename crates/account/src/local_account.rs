@@ -109,6 +109,9 @@ pub struct LocalAccount {
 
     /// Storage provider.
     pub(super) storage: ClientStorage,
+
+    /// Backend target for the storage provider.
+    target: BackendTarget,
 }
 
 impl LocalAccount {
@@ -118,6 +121,7 @@ impl LocalAccount {
     /// to authenticate a user.
     pub async fn new_unauthenticated(
         account_id: AccountId,
+        target: BackendTarget,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let data_dir = if let Some(data_dir) = data_dir {
@@ -131,7 +135,7 @@ impl LocalAccount {
         let storage = ClientStorage::new_unauthenticated(
             &paths,
             &account_id,
-            BackendTarget::FileSystem(paths.clone()),
+            target.clone(),
         )
         .await?;
 
@@ -139,6 +143,7 @@ impl LocalAccount {
             account_id,
             storage,
             paths: Arc::new(paths),
+            target,
         })
     }
 
@@ -151,11 +156,13 @@ impl LocalAccount {
     pub async fn new_account(
         account_name: String,
         passphrase: SecretString,
+        target: BackendTarget,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
+            target,
             data_dir,
             |builder| builder.create_file_password(true),
         )
@@ -168,6 +175,7 @@ impl LocalAccount {
     pub async fn new_account_with_builder(
         account_name: String,
         passphrase: SecretString,
+        target: BackendTarget,
         data_dir: Option<PathBuf>,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
@@ -185,7 +193,7 @@ impl LocalAccount {
         let account_builder = builder(AccountBuilder::new(
             account_name,
             passphrase.clone(),
-            BackendTarget::FileSystem(paths.clone()),
+            target.clone(),
         ));
         let new_account = account_builder.finish().await?;
 
@@ -204,7 +212,7 @@ impl LocalAccount {
         let mut storage = ClientStorage::new_unauthenticated(
             &paths,
             &account_id,
-            BackendTarget::FileSystem(paths.clone()),
+            target.clone(),
         )
         .await?;
         storage.authenticate(authenticated_user).await?;
@@ -216,13 +224,12 @@ impl LocalAccount {
 
         tracing::debug!("new_account::imported");
 
-        let account = Self {
+        Ok(Self {
             account_id,
             paths: storage.paths(),
             storage,
-        };
-
-        Ok(account)
+            target,
+        })
     }
 
     fn ensure_authenticated(&self) -> Result<()> {
@@ -247,8 +254,7 @@ impl LocalAccount {
 
         tracing::debug!(data_dir = ?paths.documents_dir(), "sign_in");
 
-        let mut user =
-            Identity::new(BackendTarget::FileSystem(paths.clone()));
+        let mut user = Identity::new(self.target.clone());
         user.sign_in(self.account_id(), key).await?;
         tracing::debug!("sign_in success");
 
@@ -742,7 +748,7 @@ impl Account for LocalAccount {
         let mut storage = ClientStorage::new_unauthenticated(
             &*paths,
             &account_id,
-            BackendTarget::FileSystem((&*paths).clone()),
+            self.target.clone(),
         )
         .await?;
 

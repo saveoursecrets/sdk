@@ -829,6 +829,8 @@ impl<'a> AcceptPairing<'a> {
     ) -> Result<()> {
         // let signing_key: [u8; 32] =
         //     confirmation.account_signing_key.as_slice().try_into()?;
+
+        /*
         let device_signing_key: [u8; 32] =
             confirmation.device_signing_key.as_slice().try_into()?;
         let device_vault = confirmation.device_vault;
@@ -843,6 +845,7 @@ impl<'a> AcceptPairing<'a> {
         let server = self.share_url.server().clone();
         let origin: Origin = server.into();
         let data_dir = self.data_dir.clone();
+
         let enrollment = DeviceEnrollment::new(
             account_id,
             origin,
@@ -853,7 +856,11 @@ impl<'a> AcceptPairing<'a> {
         )
         .await?;
         self.enrollment = Some(enrollment);
+
         Ok(())
+        */
+
+        todo!("fix device enrollment");
     }
 }
 

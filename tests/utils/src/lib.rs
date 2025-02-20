@@ -4,6 +4,7 @@
 
 use anyhow::Result;
 use axum_server::Handle;
+use sos_backend::BackendTarget;
 use sos_core::{constants::DATABASE_FILE, AccountId, Origin, Paths};
 use sos_server::{Server, ServerConfig, State, UriOrPath};
 use sos_vfs as vfs;
@@ -39,6 +40,11 @@ pub fn init_tracing() {
         ))
         .with(tracing_subscriber::fmt::layer().without_time())
         .try_init();
+}
+
+/// Create a backend target for test specs.
+pub fn make_client_backend(paths: &Paths) -> BackendTarget {
+    BackendTarget::FileSystem(paths.clone())
 }
 
 /// Pause a while to allow synchronization.

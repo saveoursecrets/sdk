@@ -9,6 +9,7 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use secrecy::{ExposeSecret, SecretString};
 use sos_account::Account;
+use sos_backend::BackendTarget;
 use sos_core::{
     constants::DEFAULT_VAULT_NAME, crypto::AccessKey, AccountId, AccountRef,
     FolderRef, Paths, PublicIdentity,
@@ -283,9 +284,13 @@ pub async fn sign_in(account: &AccountRef) -> Result<SecretString> {
         }
     };
 
+    let paths = Paths::new_global(Paths::data_dir()?)
+        .with_account_id(account.account_id());
+
     let passphrase = if !is_authenticated {
         let mut current_account = NetworkAccount::new_unauthenticated(
             *account.account_id(),
+            BackendTarget::FileSystem(paths),
             None,
             Default::default(),
         )
@@ -422,9 +427,12 @@ pub async fn new_account(
             );
         }
 
+        let paths = Paths::new_global(Paths::data_dir()?);
+
         let mut owner = NetworkAccount::new_account_with_builder(
             account_name.clone(),
             passphrase.clone(),
+            BackendTarget::FileSystem(paths),
             None,
             Default::default(),
             |builder| {

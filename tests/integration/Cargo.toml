@@ -35,6 +35,7 @@ sos-net = { workspace = true, features = ["full"] }
 sos-server = { workspace = true, features = ["listen", "audit", "pairing"] }
 sos-vault.workspace = true
 sos-sdk = { workspace = true, features = ["full"] }
+sos-test-utils.workspace = true
 
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 http.workspace = true
@@ -75,7 +76,6 @@ copy_dir = "0.1"
 maplit2 = "1"
 tempfile = "3.5"
 pretty_assertions = "1.4"
-sos-test-utils.workspace = true
 
 [[bin]]
 name = "test-extension-helper"

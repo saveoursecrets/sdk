@@ -1,5 +1,6 @@
 use anyhow::Result;
 use sos_client_storage::NewFolderOptions;
+use sos_test_utils::make_client_backend;
 
 use crate::test_utils::{mock, setup, teardown};
 use futures::{pin_mut, StreamExt};
@@ -31,6 +32,7 @@ async fn audit_trail_client() -> Result<()> {
     let mut account = LocalAccount::new_account_with_builder(
         account_name.to_owned(),
         passphrase.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
         |builder| {
             builder

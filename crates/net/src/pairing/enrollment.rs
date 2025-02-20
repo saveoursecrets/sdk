@@ -4,7 +4,7 @@ use crate::{
     NetworkAccount,
 };
 use sos_account::Account;
-use sos_backend::{write_exclusive, VaultWriter};
+use sos_backend::{write_exclusive, BackendTarget, VaultWriter};
 use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
 use sos_core::{
     crypto::AccessKey,
@@ -37,6 +37,8 @@ pub struct DeviceEnrollment {
     account_id: AccountId,
     /// Account paths.
     paths: Paths,
+    /// Backend target.
+    target: BackendTarget,
     /// Data directory.
     data_dir: Option<PathBuf>,
     /// Client used to fetch the account data.
@@ -59,6 +61,7 @@ impl DeviceEnrollment {
     pub(crate) async fn new(
         account_id: AccountId,
         origin: Origin,
+        target: BackendTarget,
         device_signer: DeviceSigner,
         device_vault: Vec<u8>,
         servers: HashSet<Origin>,
@@ -78,6 +81,7 @@ impl DeviceEnrollment {
         Ok(Self {
             account_id,
             paths,
+            target,
             data_dir,
             client,
             public_identity: None,
@@ -145,6 +149,7 @@ impl DeviceEnrollment {
 
         let mut account = NetworkAccount::new_unauthenticated(
             self.account_id,
+            self.target.clone(),
             self.data_dir.clone(),
             Default::default(),
         )

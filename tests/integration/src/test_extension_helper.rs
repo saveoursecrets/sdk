@@ -1,6 +1,7 @@
 use sos_account::{
     AccountSwitcherOptions, LocalAccount, LocalAccountSwitcher,
 };
+use sos_backend::BackendTarget;
 use sos_ipc::{
     extension_helper::server::{
         ExtensionHelperOptions, ExtensionHelperServer,
@@ -8,6 +9,7 @@ use sos_ipc::{
     ServiceAppInfo,
 };
 use sos_sdk::prelude::Paths;
+use sos_test_utils::make_client_backend;
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -44,8 +46,12 @@ pub async fn main() -> anyhow::Result<()> {
             |identity| {
                 let app_dir = data_dir.clone();
                 Box::pin(async move {
+                    let paths = Paths::new_global(app_dir.as_ref().unwrap())
+                        .with_account_id(identity.account_id());
+                    let target = make_client_backend(&paths);
                     Ok(LocalAccount::new_unauthenticated(
                         *identity.account_id(),
+                        target,
                         app_dir,
                     )
                     .await?)

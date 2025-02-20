@@ -8,7 +8,9 @@ use sos_account::{
     FolderChange, FolderCreate, FolderDelete, LocalAccount, SecretChange,
     SecretDelete, SecretInsert, SecretMove,
 };
-use sos_backend::{AccountEventLog, DeviceEventLog, Folder, FolderEventLog};
+use sos_backend::{
+    AccountEventLog, BackendTarget, DeviceEventLog, Folder, FolderEventLog,
+};
 use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::{
     commit::{CommitHash, CommitState, Comparison},
@@ -94,11 +96,13 @@ impl LinkedAccount {
     /// Create a new unauthenticated linked account.
     pub async fn new_unauthenticated(
         account_id: AccountId,
+        target: BackendTarget,
         client: HttpClient,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let account =
-            LocalAccount::new_unauthenticated(account_id, data_dir).await?;
+            LocalAccount::new_unauthenticated(account_id, target, data_dir)
+                .await?;
         Ok(Self {
             account_id,
             paths: account.paths(),
@@ -112,12 +116,17 @@ impl LinkedAccount {
     pub async fn new_account(
         account_name: String,
         passphrase: SecretString,
+        target: BackendTarget,
         client: HttpClient,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
-        let account =
-            LocalAccount::new_account(account_name, passphrase, data_dir)
-                .await?;
+        let account = LocalAccount::new_account(
+            account_name,
+            passphrase,
+            target,
+            data_dir,
+        )
+        .await?;
         Ok(Self {
             account_id: *account.account_id(),
             paths: account.paths(),

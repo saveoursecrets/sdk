@@ -4,10 +4,12 @@ use crate::test_utils::{
 use anyhow::Result;
 use http::StatusCode;
 use sos_account::Account;
+use sos_backend::BackendTarget;
 use sos_net::{Error as ClientError, NetworkAccount};
 use sos_protocol::{AccountSync, Error as ProtocolError, NetworkError};
 use sos_sdk::prelude::*;
 use sos_server::AccessControlConfig;
+use sos_test_utils::make_client_backend;
 use std::collections::HashSet;
 
 /// Tests server allow access control.
@@ -22,10 +24,12 @@ async fn access_control_allow() -> Result<()> {
 
     // Create an account with a different account_id
     let data_dir = allowed.dirs.clients.get(1).unwrap().clone();
+    let paths = Paths::new_global(&data_dir);
     let (password, _) = generate_passphrase()?;
     let mut denied = NetworkAccount::new_account(
         TEST_ID.to_owned(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
         Default::default(),
     )

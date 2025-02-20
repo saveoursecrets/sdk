@@ -4,6 +4,7 @@ use maplit2::hashmap;
 use sos_account::{Account, LocalAccount};
 use sos_filesystem::archive::RestoreOptions;
 use sos_sdk::prelude::*;
+use sos_test_utils::make_client_backend;
 
 const TEST_ID: &str = "backup_export_import";
 
@@ -15,6 +16,7 @@ async fn backup_export_import() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -22,6 +24,7 @@ async fn backup_export_import() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;
@@ -84,9 +87,12 @@ async fn backup_export_import() -> Result<()> {
     .await?;
 
     // Sign in after restoring the account
-    let mut account =
-        LocalAccount::new_unauthenticated(account_id, Some(data_dir.clone()))
-            .await?;
+    let mut account = LocalAccount::new_unauthenticated(
+        account_id,
+        make_client_backend(&paths),
+        Some(data_dir.clone()),
+    )
+    .await?;
 
     account.sign_in(&key).await?;
     account.open_folder(default_folder.id()).await?;
