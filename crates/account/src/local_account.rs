@@ -112,6 +112,119 @@ pub struct LocalAccount {
 }
 
 impl LocalAccount {
+    /// Prepare an account for sign in.
+    ///
+    /// After preparing an account call `sign_in`
+    /// to authenticate a user.
+    pub async fn new_unauthenticated(
+        account_id: AccountId,
+        data_dir: Option<PathBuf>,
+    ) -> Result<Self> {
+        let data_dir = if let Some(data_dir) = data_dir {
+            data_dir
+        } else {
+            Paths::data_dir()?
+        };
+
+        let paths = Paths::new_global(data_dir).with_account_id(&account_id);
+
+        let storage = ClientStorage::new_unauthenticated(
+            &paths,
+            &account_id,
+            BackendTarget::FileSystem(paths.clone()),
+        )
+        .await?;
+
+        Ok(Self {
+            account_id,
+            storage,
+            paths: Arc::new(paths),
+        })
+    }
+
+    /// Create a new account with the given
+    /// name, passphrase and provider.
+    ///
+    /// Uses standard flags for the account builder for
+    /// more control of the created account use
+    /// `new_account_with_builder()`.
+    pub async fn new_account(
+        account_name: String,
+        passphrase: SecretString,
+        data_dir: Option<PathBuf>,
+    ) -> Result<Self> {
+        Self::new_account_with_builder(
+            account_name,
+            passphrase,
+            data_dir,
+            |builder| builder.create_file_password(true),
+        )
+        .await
+    }
+
+    /// Create a new account with the given
+    /// name, passphrase and provider and modify the
+    /// account builder.
+    pub async fn new_account_with_builder(
+        account_name: String,
+        passphrase: SecretString,
+        data_dir: Option<PathBuf>,
+        builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
+    ) -> Result<Self> {
+        tracing::debug!(
+            account_name = %account_name,
+            "new_account",
+        );
+
+        let paths = if let Some(data_dir) = &data_dir {
+            Paths::new_global(data_dir)
+        } else {
+            Paths::new_global(Paths::data_dir()?)
+        };
+
+        let account_builder = builder(AccountBuilder::new(
+            account_name,
+            passphrase.clone(),
+            BackendTarget::FileSystem(paths.clone()),
+        ));
+        let new_account = account_builder.finish().await?;
+
+        let paths = paths.with_account_id(&new_account.account_id);
+
+        tracing::debug!(
+          account_id = %new_account.account_id,
+          "new_account::created",
+        );
+
+        let account_id = new_account.account_id;
+        // let identity_log = new_account.user.identity()?.event_log();
+
+        let (authenticated_user, public_account) = new_account.into();
+
+        let mut storage = ClientStorage::new_unauthenticated(
+            &paths,
+            &account_id,
+            BackendTarget::FileSystem(paths.clone()),
+        )
+        .await?;
+        storage.authenticate(authenticated_user).await?;
+
+        tracing::debug!("new_account::storage_provider");
+
+        // Must import the new account before signing in
+        storage.create_account(&public_account).await?;
+
+        tracing::debug!("new_account::imported");
+
+        let account = Self {
+            account_id,
+            paths: storage.paths(),
+            storage,
+        };
+
+        Ok(account)
+    }
+
     fn ensure_authenticated(&self) -> Result<()> {
         let is_authenticated = self.storage.is_authenticated();
         if !is_authenticated {
@@ -581,121 +694,6 @@ impl LocalAccount {
 impl From<&LocalAccount> for AccountRef {
     fn from(value: &LocalAccount) -> Self {
         Self::Id(*value.account_id())
-    }
-}
-
-impl LocalAccount {
-    /// Prepare an account for sign in.
-    ///
-    /// After preparing an account call `sign_in`
-    /// to authenticate a user.
-    pub async fn new_unauthenticated(
-        account_id: AccountId,
-        data_dir: Option<PathBuf>,
-    ) -> Result<Self> {
-        let data_dir = if let Some(data_dir) = data_dir {
-            data_dir
-        } else {
-            Paths::data_dir()?
-        };
-
-        let paths = Paths::new_global(data_dir).with_account_id(&account_id);
-
-        let storage = ClientStorage::new_unauthenticated(
-            &paths,
-            &account_id,
-            BackendTarget::FileSystem(paths.clone()),
-        )
-        .await?;
-
-        Ok(Self {
-            account_id,
-            storage,
-            paths: Arc::new(paths),
-        })
-    }
-
-    /// Create a new account with the given
-    /// name, passphrase and provider.
-    ///
-    /// Uses standard flags for the account builder for
-    /// more control of the created account use
-    /// `new_account_with_builder()`.
-    pub async fn new_account(
-        account_name: String,
-        passphrase: SecretString,
-        data_dir: Option<PathBuf>,
-    ) -> Result<Self> {
-        Self::new_account_with_builder(
-            account_name,
-            passphrase,
-            data_dir,
-            |builder| builder.create_file_password(true),
-        )
-        .await
-    }
-
-    /// Create a new account with the given
-    /// name, passphrase and provider and modify the
-    /// account builder.
-    pub async fn new_account_with_builder(
-        account_name: String,
-        passphrase: SecretString,
-        data_dir: Option<PathBuf>,
-        builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
-    ) -> Result<Self> {
-        tracing::debug!(
-            account_name = %account_name,
-            "new_account",
-        );
-
-        let paths = if let Some(data_dir) = &data_dir {
-            Paths::new_global(data_dir)
-        } else {
-            Paths::new_global(Paths::data_dir()?)
-        };
-
-        let account_builder = builder(AccountBuilder::new(
-            account_name,
-            passphrase.clone(),
-            BackendTarget::FileSystem(paths.clone()),
-        ));
-        let new_account = account_builder.finish().await?;
-
-        let paths = paths.with_account_id(&new_account.account_id);
-
-        tracing::debug!(
-          account_id = %new_account.account_id,
-          "new_account::created",
-        );
-
-        let account_id = new_account.account_id;
-        // let identity_log = new_account.user.identity()?.event_log();
-
-        let (authenticated_user, public_account) = new_account.into();
-
-        let mut storage = ClientStorage::new_unauthenticated(
-            &paths,
-            &account_id,
-            BackendTarget::FileSystem(paths.clone()),
-        )
-        .await?;
-        storage.authenticate(authenticated_user).await?;
-
-        tracing::debug!("new_account::storage_provider");
-
-        // Must import the new account before signing in
-        storage.create_account(&public_account).await?;
-
-        tracing::debug!("new_account::imported");
-
-        let account = Self {
-            account_id,
-            paths: storage.paths(),
-            storage,
-        };
-
-        Ok(account)
     }
 }
 
