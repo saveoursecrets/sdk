@@ -1,6 +1,6 @@
 [package]
 name = "sos-external-files"
-version = "0.16.5"
+version = "0.16.6"
 edition = "2021"
 description = "External file blob support for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
@@ -13,7 +13,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 full = ["files"]
-files = []
+files = ["sos-core/files"]
 
 [dependencies]
 sos-core.workspace = true
