@@ -27,10 +27,9 @@ mod listen_multiple;
 mod multiple_remotes;
 mod multiple_remotes_fallback;
 
-mod no_sync;
-
 mod offline_manual;
 mod recover_remote_folder;
+mod recreate_account;
 mod rename_account;
 mod server_definitions;
 
