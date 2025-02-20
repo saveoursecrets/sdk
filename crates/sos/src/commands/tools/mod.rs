@@ -25,6 +25,7 @@ mod audit;
 mod authenticator;
 mod check;
 mod db;
+mod debug;
 mod events;
 mod security_report;
 
@@ -32,6 +33,7 @@ use audit::Command as AuditCommand;
 use authenticator::Command as AuthenticatorCommand;
 use check::{verify_events, Command as CheckCommand};
 use db::Command as DbCommand;
+use debug::Command as DebugCommand;
 use events::Command as EventsCommand;
 use security_report::SecurityReportFormat;
 
@@ -52,6 +54,11 @@ pub enum Command {
     Check {
         #[clap(subcommand)]
         cmd: CheckCommand,
+    },
+    /// Debug utilities.
+    Debug {
+        #[clap(subcommand)]
+        cmd: DebugCommand,
     },
     /// Convert the cipher for an account.
     ConvertCipher {
@@ -122,6 +129,7 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Audit { cmd } => audit::run(cmd).await?,
         Command::Authenticator { cmd } => authenticator::run(cmd).await?,
         Command::Check { cmd } => check::run(cmd).await?,
+        Command::Debug { cmd } => debug::run(cmd).await?,
         Command::ConvertCipher {
             account,
             cipher,

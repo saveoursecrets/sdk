@@ -619,6 +619,12 @@ pub trait SyncStorage: ForceMerge {
     ) -> Result<DebugTree, Self::Error> {
         let status = self.sync_status().await?;
 
+        let identity = {
+            let event_log = self.identity_log().await?;
+            let event_log = event_log.read().await;
+            debug_tree_events!(&*event_log)
+        };
+
         let account = {
             let event_log = self.account_log().await?;
             let event_log = event_log.read().await;
@@ -653,6 +659,7 @@ pub trait SyncStorage: ForceMerge {
         Ok(DebugTree {
             account_id,
             status,
+            identity,
             account,
             device,
             #[cfg(feature = "files")]

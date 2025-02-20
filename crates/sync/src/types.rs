@@ -38,6 +38,8 @@ pub struct DebugTree {
     pub account_id: AccountId,
     /// Sync status.
     pub status: SyncStatus,
+    /// Identity folder events.
+    pub identity: DebugEvents,
     /// Account level events.
     pub account: DebugEvents,
     /// Device level events.
