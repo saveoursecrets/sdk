@@ -6,7 +6,12 @@ use sos_account::{
 };
 use sos_backend::FileEventLog;
 use sos_client_storage::{AccessOptions, NewFolderOptions};
-use sos_sdk::prelude::*;
+use sos_core::{
+    crypto::AccessKey, events::EventLog, events::FileEvent, Paths, SecretId,
+};
+use sos_password::diceware::generate_passphrase;
+use sos_test_utils::make_client_backend;
+use sos_vault::secret::SecretRow;
 
 /// Tests the various file events are being logged.
 #[tokio::test]
@@ -17,6 +22,7 @@ async fn event_log_file() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -24,6 +30,7 @@ async fn event_log_file() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;
@@ -119,6 +126,7 @@ async fn event_log_file_folder_delete() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -126,6 +134,7 @@ async fn event_log_file_folder_delete() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;

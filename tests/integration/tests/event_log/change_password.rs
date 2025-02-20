@@ -3,7 +3,13 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::AccountEventLog;
-use sos_sdk::prelude::*;
+use sos_core::{
+    crypto::AccessKey,
+    events::{AccountEvent, EventLog},
+    Paths,
+};
+use sos_password::diceware::generate_passphrase;
+use sos_test_utils::make_client_backend;
 
 /// Tests the account events after changing the encryption
 /// password of a folder.
@@ -14,6 +20,7 @@ async fn event_log_change_password() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -21,6 +28,7 @@ async fn event_log_change_password() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;

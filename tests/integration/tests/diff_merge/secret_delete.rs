@@ -1,10 +1,12 @@
 use crate::test_utils::{copy_account, mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange};
+use sos_core::{crypto::AccessKey, ErrorExt, Paths};
+use sos_password::diceware::generate_passphrase;
 use sos_protocol::diff;
-use sos_sdk::prelude::{generate_passphrase, AccessKey, ErrorExt};
 use sos_sync::MergeOutcome;
 use sos_sync::{Merge, SyncStorage};
+use sos_test_utils::make_client_backend;
 
 /// Tests creating a diff and merging a delete secret
 /// event without any networking.
@@ -15,7 +17,9 @@ async fn diff_merge_secret_delete() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 2).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
     let data_dir_merge = dirs.clients.remove(0);
+    let merge_paths = Paths::new_global(&data_dir_merge);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -23,6 +27,7 @@ async fn diff_merge_secret_delete() -> Result<()> {
     let mut local = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;
@@ -36,9 +41,12 @@ async fn diff_merge_secret_delete() -> Result<()> {
     copy_account(&data_dir, &data_dir_merge)?;
 
     // Sign in on the other account
-    let mut remote =
-        LocalAccount::new_unauthenticated(account_id, Some(data_dir_merge))
-            .await?;
+    let mut remote = LocalAccount::new_unauthenticated(
+        account_id,
+        make_client_backend(&merge_paths),
+        Some(data_dir_merge),
+    )
+    .await?;
     remote.sign_in(&key).await?;
 
     // Create a new secret

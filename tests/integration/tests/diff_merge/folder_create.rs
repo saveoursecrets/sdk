@@ -21,7 +21,7 @@ async fn diff_merge_folder_create() -> Result<()> {
     let data_dir = dirs.clients.remove(0);
     let paths = Paths::new_global(&data_dir);
     let data_dir_merge = dirs.clients.remove(0);
-    let merge_paths = Paths::new_global(&data_dir);
+    let merge_paths = Paths::new_global(&data_dir_merge);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;

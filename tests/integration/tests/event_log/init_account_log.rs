@@ -2,7 +2,13 @@ use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_backend::AccountEventLog;
-use sos_sdk::prelude::*;
+use sos_core::{
+    crypto::AccessKey,
+    events::{AccountEvent, EventLog},
+    Paths,
+};
+use sos_password::diceware::generate_passphrase;
+use sos_test_utils::make_client_backend;
 
 /// Tests lazy initialization of the account events log.
 #[tokio::test]
@@ -12,6 +18,7 @@ async fn event_log_init_account_log() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -19,6 +26,7 @@ async fn event_log_init_account_log() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;
@@ -29,8 +37,7 @@ async fn event_log_init_account_log() -> Result<()> {
     account.sign_in(&key).await?;
 
     let account_events = account.paths().account_events();
-    let event_log =
-        AccountEventLog::new_fs_account(&account_events).await?;
+    let event_log = AccountEventLog::new_fs_account(&account_events).await?;
     let patch = event_log.diff_events(None).await?;
     let events = patch.into_events().await?;
     assert_eq!(1, events.len());

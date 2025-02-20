@@ -4,6 +4,7 @@ use sos_account::{Account, LocalAccount};
 use sos_protocol::diff;
 use sos_sdk::prelude::*;
 use sos_sync::{Merge, MergeOutcome, SyncStorage, TrackedAccountChange};
+use sos_test_utils::make_client_backend;
 
 /// Tests creating a diff and merging a rename folder
 /// event without any networking.
@@ -14,7 +15,9 @@ async fn diff_merge_folder_rename() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 2).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
     let data_dir_merge = dirs.clients.remove(0);
+    let merge_paths = Paths::new_global(&data_dir_merge);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -22,6 +25,7 @@ async fn diff_merge_folder_rename() -> Result<()> {
     let mut local = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;
@@ -35,9 +39,12 @@ async fn diff_merge_folder_rename() -> Result<()> {
     copy_account(&data_dir, &data_dir_merge)?;
 
     // Sign in on the other account
-    let mut remote =
-        LocalAccount::new_unauthenticated(account_id, Some(data_dir_merge))
-            .await?;
+    let mut remote = LocalAccount::new_unauthenticated(
+        account_id,
+        make_client_backend(&merge_paths),
+        Some(data_dir_merge),
+    )
+    .await?;
     remote.sign_in(&key).await?;
 
     // Rename a folder.

@@ -12,6 +12,7 @@ enable-cli-tests = []
 [dependencies]
 sos-audit.workspace = true
 sos-core.workspace = true
+sos-password.workspace = true
 sos-external-files.workspace = true
 sos-account = { workspace = true, features = ["full"] }
 sos-backend = { workspace = true, features = ["full"] }
@@ -34,6 +35,7 @@ sos-sync = { workspace = true, features = ["full"] }
 sos-net = { workspace = true, features = ["full"] }
 sos-server = { workspace = true, features = ["listen", "audit", "pairing"] }
 sos-vault.workspace = true
+sos-vfs.workspace = true
 sos-sdk = { workspace = true, features = ["full"] }
 sos-test-utils.workspace = true
 
