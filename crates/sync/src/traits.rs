@@ -1,7 +1,8 @@
 //! Core traits for storage that supports synchronization.
 use crate::{
-    CreateSet, DebugEvents, DebugTree, MaybeDiff, MergeOutcome, SyncCompare,
-    SyncDiff, SyncStatus, TrackedChanges, UpdateSet,
+    CreateSet, DebugEventLogs, DebugEvents, DebugTree, MaybeDiff,
+    MergeOutcome, SyncCompare, SyncDiff, SyncStatus, TrackedChanges,
+    UpdateSet,
 };
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
@@ -619,6 +620,17 @@ pub trait SyncStorage: ForceMerge {
     ) -> Result<DebugTree, Self::Error> {
         let status = self.sync_status().await?;
 
+        // Redact folder names
+        let folder_list = {
+            let mut folder_list = self.folder_details().await?;
+            let mut redacted = IndexSet::new();
+            for mut folder in folder_list.drain(..) {
+                folder.set_name(String::new());
+                redacted.insert(folder);
+            }
+            redacted
+        };
+
         let identity = {
             let event_log = self.identity_log().await?;
             let event_log = event_log.read().await;
@@ -646,8 +658,7 @@ pub trait SyncStorage: ForceMerge {
 
         let folders = {
             let mut folders = HashMap::new();
-            let details = self.folder_details().await?;
-            for summary in details {
+            for summary in &folder_list {
                 let event_log = self.folder_log(summary.id()).await?;
                 let event_log = event_log.read().await;
                 folders
@@ -659,12 +670,15 @@ pub trait SyncStorage: ForceMerge {
         Ok(DebugTree {
             account_id,
             status,
-            identity,
-            account,
-            device,
-            #[cfg(feature = "files")]
-            file,
-            folders,
+            folders: folder_list,
+            events: DebugEventLogs {
+                identity,
+                account,
+                device,
+                #[cfg(feature = "files")]
+                file,
+                folders,
+            },
         })
     }
 }

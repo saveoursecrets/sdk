@@ -16,6 +16,7 @@ use sos_core::{
         AccountEvent, DeviceEvent, WriteEvent,
     },
 };
+use sos_vault::Summary;
 use std::collections::HashMap;
 
 #[cfg(feature = "files")]
@@ -36,8 +37,18 @@ use sos_core::{
 pub struct DebugTree {
     /// Account identifier.
     pub account_id: AccountId,
+    /// User folders.
+    pub folders: IndexSet<Summary>,
     /// Sync status.
     pub status: SyncStatus,
+    /// Event logs.
+    pub events: DebugEventLogs,
+}
+
+/// Collection of event logs for an account tree.
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct DebugEventLogs {
     /// Identity folder events.
     pub identity: DebugEvents,
     /// Account level events.
