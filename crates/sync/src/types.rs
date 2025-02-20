@@ -4,7 +4,7 @@ use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use sos_core::{
     commit::{CommitHash, CommitState, Comparison},
-    SecretId, VaultId,
+    AccountId, SecretId, VaultId,
 };
 use sos_core::{
     device::DevicePublicKey,
@@ -26,6 +26,42 @@ use sos_core::{
     },
     ExternalFile, ExternalFileName, SecretPath,
 };
+
+/// Debug snapshot of an account events at a point in time.
+///
+/// Can be used as a debugging tool to aid in determining
+/// where account events on different machines have diverged.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DebugTree {
+    /// Account identifier.
+    pub account_id: AccountId,
+    /// Sync status.
+    pub status: SyncStatus,
+    /// Account level events.
+    pub account: DebugEvents,
+    /// Device level events.
+    pub device: DebugEvents,
+    /// File level events.
+    #[cfg(feature = "files")]
+    pub file: DebugEvents,
+    /// Folder level events.
+    pub folders: HashMap<VaultId, DebugEvents>,
+}
+
+/// Collection of event logs for an account tree.
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct DebugEvents {
+    /// Leaves in the merkle tree.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub leaves: Vec<CommitHash>,
+    /// Number of leaves in the tree.
+    pub length: usize,
+    /// Computed root of the merkle tree.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub root: Option<CommitHash>,
+}
 
 /// Combined sync status, diff and comparisons.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

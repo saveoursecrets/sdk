@@ -1,14 +1,14 @@
 //! Core traits for storage that supports synchronization.
-use crate::UpdateSet;
 use crate::{
-    CreateSet, MaybeDiff, MergeOutcome, SyncCompare, SyncDiff, SyncStatus,
-    TrackedChanges,
+    CreateSet, DebugEvents, DebugTree, MaybeDiff, MergeOutcome, SyncCompare,
+    SyncDiff, SyncStatus, TrackedChanges, UpdateSet,
 };
 use async_trait::async_trait;
-use indexmap::IndexMap;
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
+use sos_core::commit::CommitHash;
 use sos_core::events::WriteEvent;
+use sos_core::AccountId;
 use sos_core::{
     commit::{CommitState, CommitTree, Comparison},
     events::{
@@ -29,6 +29,24 @@ use {
     sos_backend::FileEventLog,
     sos_core::{events::patch::FileDiff, ExternalFile},
 };
+
+macro_rules! debug_tree_events {
+    ($event_log:expr) => {{
+        let root = $event_log.tree().root();
+        let leaves: Vec<_> = $event_log
+            .tree()
+            .leaves()
+            .unwrap_or_default()
+            .into_iter()
+            .map(CommitHash)
+            .collect();
+        DebugEvents {
+            root,
+            length: leaves.len(),
+            leaves,
+        }
+    }};
+}
 
 /// References to the storage event logs.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -89,45 +107,6 @@ pub trait StorageEventLogs: Send + Sync + 'static {
         &self,
         id: &VaultId,
     ) -> Result<Arc<RwLock<FolderEventLog>>, Self::Error>;
-
-    /*
-    /// Load all commit trees into memory.
-    ///
-    /// Typically, commit trees are loaded into memory on-demand
-    /// however sometimes it's useful to compute the sync status
-    /// for storage; for example, it is used by the database
-    /// upgrader to ensure imported accounts exactly match the
-    /// legacy file system accounts.
-    async fn load_all_events(&self) -> Result<(), Self::Error> {
-        let identity = self.identity_log().await?;
-        let mut identity = identity.write().await;
-        identity.load_tree().await?;
-
-        let account = self.account_log().await?;
-        let mut account = account.write().await;
-        account.load_tree().await?;
-
-        let device = self.device_log().await?;
-        let mut device = device.write().await;
-        device.load_tree().await?;
-
-        #[cfg(feature = "files")]
-        {
-            let files = self.file_log().await?;
-            let mut files = files.write().await;
-            files.load_tree().await?;
-        }
-
-        let folders = self.folder_details().await?;
-        for folder in &folders {
-            let event_log = self.folder_log(folder.id()).await?;
-            let mut event_log = event_log.write().await;
-            event_log.load_tree().await?;
-        }
-
-        Ok(())
-    }
-    */
 }
 
 /// Types that can merge diffs.
@@ -630,6 +609,55 @@ pub trait SyncStorage: ForceMerge {
             device,
             #[cfg(feature = "files")]
             files,
+        })
+    }
+
+    /// Create a debug tree of this account.
+    async fn debug_account_tree(
+        &self,
+        account_id: AccountId,
+    ) -> Result<DebugTree, Self::Error> {
+        let status = self.sync_status().await?;
+
+        let account = {
+            let event_log = self.account_log().await?;
+            let event_log = event_log.read().await;
+            debug_tree_events!(&*event_log)
+        };
+
+        let device = {
+            let event_log = self.device_log().await?;
+            let event_log = event_log.read().await;
+            debug_tree_events!(&*event_log)
+        };
+
+        #[cfg(feature = "files")]
+        let file = {
+            let event_log = self.file_log().await?;
+            let event_log = event_log.read().await;
+            debug_tree_events!(&*event_log)
+        };
+
+        let folders = {
+            let mut folders = HashMap::new();
+            let details = self.folder_details().await?;
+            for summary in details {
+                let event_log = self.folder_log(summary.id()).await?;
+                let event_log = event_log.read().await;
+                folders
+                    .insert(*summary.id(), debug_tree_events!(&*event_log));
+            }
+            folders
+        };
+
+        Ok(DebugTree {
+            account_id,
+            status,
+            account,
+            device,
+            #[cfg(feature = "files")]
+            file,
+            folders,
         })
     }
 }
