@@ -9,8 +9,8 @@ use async_trait::async_trait;
 use indexmap::IndexSet;
 use secrecy::SecretString;
 use sos_backend::{
-    compact::compact_folder, write_exclusive, AccessPoint, AccountEventLog,
-    BackendTarget, Folder, StorageError,
+    compact::compact_folder, write_exclusive, AccessPoint, BackendTarget,
+    Folder, StorageError,
 };
 use sos_client_storage::{
     AccessOptions, ClientAccountStorage, ClientDeviceStorage,
@@ -143,13 +143,7 @@ impl LocalAccount {
 
         self.paths = self.storage.paths();
 
-        Self::initialize_account_log(
-            &self.paths,
-            self.storage.account_log().await?,
-        )
-        .await?;
-
-        // self.storage = storage;
+        self.initialize_account_log().await?;
 
         // Load vaults into memory and initialize folder
         // event log commit trees
@@ -168,40 +162,37 @@ impl LocalAccount {
         Ok(folders)
     }
 
-    async fn initialize_account_log(
-        paths: &Paths,
-        account_log: Arc<RwLock<AccountEventLog>>,
-    ) -> Result<()> {
+    async fn initialize_account_log(&self) -> Result<()> {
+        let account_log = self.storage.account_log().await?;
         let mut event_log = account_log.write().await;
         let needs_init = event_log.tree().root().is_none();
-
-        tracing::debug!(needs_init = %needs_init, "account_log");
+        tracing::debug!(
+            needs_init = %needs_init,
+            "account_log::init");
 
         // If the account event log does not already exist
         // we initialize it from the current state on disc
         // adding create folder events for every folder that
         // already exists
         if needs_init {
-            let folders: Vec<Summary> = list_local_folders(paths)
+            let folders: Vec<Summary> = list_local_folders(&self.paths)
                 .await?
                 .into_iter()
                 .map(|(s, _)| s)
                 .collect();
 
             let mut events = Vec::new();
-
             for folder in folders {
-                let buffer = vfs::read(paths.vault_path(folder.id())).await?;
-                let vault: Vault = decode(&buffer).await?;
+                let vault = self.storage.read_vault(folder.id()).await?;
                 let header: Header = vault.into();
                 let head_only: Vault = header.into();
                 let buffer = encode(&head_only).await?;
                 events
                     .push(AccountEvent::CreateFolder(folder.into(), buffer));
             }
-
-            tracing::debug!(init_events_len = %events.len());
-
+            tracing::debug!(
+                events_len = %events.len(),
+                "account_log::init");
             event_log.apply(events.as_slice()).await?;
         }
 
@@ -767,9 +758,7 @@ impl Account for LocalAccount {
                 .await?
                 .build(true)
                 .await?;
-            let buffer = encode(&vault).await?;
-            let identity_vault = paths.identity_vault();
-            write_exclusive(identity_vault, &buffer).await?;
+            storage.import_login_vault(vault).await?;
 
             tracing::info!(
               root = ?identity_log.tree().root().map(|c| c.to_string()),
@@ -923,8 +912,8 @@ impl Account for LocalAccount {
     }
 
     async fn identity_vault_buffer(&self) -> Result<Vec<u8>> {
-        let identity_path = self.paths.identity_vault();
-        Ok(vfs::read(identity_path).await?)
+        let vault = self.storage.read_login_vault().await?;
+        Ok(encode(&vault).await?)
     }
 
     async fn identity_folder_summary(&self) -> Result<Summary> {
