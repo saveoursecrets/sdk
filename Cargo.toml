@@ -54,7 +54,7 @@ sos-cli-helpers = { version = "0.1", path = "crates/cli_helpers" }
 sos-core = { version = "0.16", path = "crates/core" }
 sos-database = { version = "0.16", path = "crates/database" }
 sos-database-upgrader = { version = "0.16", path = "crates/database_upgrader" }
-sos-external-files = { version = "0.16", path = "crates/external_files" }
+sos-external-files = { version = "0.16.4", path = "crates/external_files" }
 sos-filesystem = { version = "0.16", path = "crates/filesystem" }
 sos-integrity = { version = "0.16", path = "crates/integrity" }
 sos-ipc = { version = "0.16", path = "crates/ipc" }

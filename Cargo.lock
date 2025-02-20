@@ -5054,7 +5054,7 @@ dependencies = [
 
 [[package]]
 name = "sos-database"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "async-sqlite",
  "async-trait",
@@ -5596,7 +5596,7 @@ dependencies = [
 
 [[package]]
 name = "sos-server"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "async-trait",
  "axum",
