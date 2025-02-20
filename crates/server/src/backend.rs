@@ -12,7 +12,7 @@ use tokio::sync::RwLock;
 /// Individual account.
 pub type ServerAccount = Arc<RwLock<ServerStorage>>;
 
-/// Collection of accounts by account_id.
+/// Collection of backend accounts.
 pub type Accounts = Arc<RwLock<HashMap<AccountId, ServerAccount>>>;
 
 fn into_device_verifying_key(
