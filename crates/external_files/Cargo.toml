@@ -1,6 +1,6 @@
 [package]
 name = "sos-external-files"
-version = "0.16.4"
+version = "0.16.5"
 edition = "2021"
 description = "External file blob support for the Save Our Secrets SDK"
 homepage = "https://saveoursecrets.com"
@@ -22,3 +22,6 @@ sos-vfs.workspace = true
 
 indexmap.workspace = true
 tracing.workspace = true
+
+[build-dependencies]
+rustc_version.workspace = true

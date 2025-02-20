@@ -5129,9 +5129,10 @@ dependencies = [
 
 [[package]]
 name = "sos-external-files"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "indexmap 2.7.1",
+ "rustc_version",
  "sos-core",
  "sos-vault",
  "sos-vfs",
