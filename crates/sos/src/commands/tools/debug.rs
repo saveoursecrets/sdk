@@ -3,6 +3,7 @@ use clap::Subcommand;
 use sos_backend::BackendTarget;
 use sos_client_storage::ClientStorage;
 use sos_core::{AccountRef, Paths};
+use sos_database::open_file;
 use sos_sync::SyncStorage;
 
 #[derive(Subcommand, Debug)]
@@ -20,7 +21,13 @@ pub async fn run(cmd: Command) -> Result<()> {
             let account_id = resolve_account_address(Some(&account)).await?;
             let paths = Paths::new_global(Paths::data_dir()?)
                 .with_account_id(&account_id);
-            let target = BackendTarget::FileSystem(paths.clone());
+            let target = if paths.is_using_db() {
+                BackendTarget::Database(
+                    open_file(paths.database_file()).await?,
+                )
+            } else {
+                BackendTarget::FileSystem(paths.clone())
+            };
             let storage = ClientStorage::new_unauthenticated(
                 &paths,
                 &account_id,
