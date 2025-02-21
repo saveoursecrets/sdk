@@ -1,7 +1,6 @@
 use sos_account::{
     AccountSwitcherOptions, LocalAccount, LocalAccountSwitcher,
 };
-use sos_backend::BackendTarget;
 use sos_ipc::{
     extension_helper::server::{
         ExtensionHelperOptions, ExtensionHelperServer,

@@ -9,6 +9,7 @@ use futures::{
 use prost::bytes::Bytes;
 use snow::{Builder, HandshakeState, Keypair, TransportState};
 use sos_account::Account;
+use sos_backend::BackendTarget;
 use sos_core::{
     device::{DeviceMetaData, DevicePublicKey, TrustedDevice},
     events::DeviceEvent,
@@ -515,6 +516,8 @@ pub struct AcceptPairing<'a> {
     keypair: Keypair,
     /// Current device information.
     device: &'a DeviceMetaData,
+    /// Backend target.
+    target: BackendTarget,
     /// URL shared by the offering device.
     share_url: ServerPairUrl,
     /// Noise protocol state.
@@ -536,12 +539,15 @@ impl<'a> AcceptPairing<'a> {
     pub async fn new(
         share_url: ServerPairUrl,
         device: &'a DeviceMetaData,
+        target: BackendTarget,
         data_dir: Option<PathBuf>,
     ) -> Result<(AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
         let keypair = builder.generate_keypair()?;
-        Self::new_connection(share_url, device, data_dir, keypair, false)
-            .await
+        Self::new_connection(
+            share_url, device, target, data_dir, keypair, false,
+        )
+        .await
     }
 
     /// Create a new inverted pairing connection.
@@ -549,6 +555,7 @@ impl<'a> AcceptPairing<'a> {
         account_id: AccountId,
         server: Url,
         device: &'a DeviceMetaData,
+        target: BackendTarget,
         data_dir: Option<PathBuf>,
     ) -> Result<(ServerPairUrl, AcceptPairing<'a>, WsStream)> {
         let builder = Builder::new(PATTERN.parse()?);
@@ -558,6 +565,7 @@ impl<'a> AcceptPairing<'a> {
         let (pairing, stream) = Self::new_connection(
             share_url.clone(),
             device,
+            target,
             data_dir,
             keypair,
             true,
@@ -569,6 +577,7 @@ impl<'a> AcceptPairing<'a> {
     async fn new_connection(
         share_url: ServerPairUrl,
         device: &'a DeviceMetaData,
+        target: BackendTarget,
         data_dir: Option<PathBuf>,
         keypair: Keypair,
         is_inverted: bool,
@@ -603,6 +612,7 @@ impl<'a> AcceptPairing<'a> {
                 keypair,
                 device,
                 share_url,
+                target,
                 tunnel: Some(Tunnel::Handshake(tunnel)),
                 tx,
                 state: PairProtocolState::Pending,
@@ -830,7 +840,6 @@ impl<'a> AcceptPairing<'a> {
         // let signing_key: [u8; 32] =
         //     confirmation.account_signing_key.as_slice().try_into()?;
 
-        /*
         let device_signing_key: [u8; 32] =
             confirmation.device_signing_key.as_slice().try_into()?;
         let device_vault = confirmation.device_vault;
@@ -849,6 +858,7 @@ impl<'a> AcceptPairing<'a> {
         let enrollment = DeviceEnrollment::new(
             account_id,
             origin,
+            self.target.clone(),
             device_signing_key.try_into()?,
             device_vault,
             servers,
@@ -858,9 +868,6 @@ impl<'a> AcceptPairing<'a> {
         self.enrollment = Some(enrollment);
 
         Ok(())
-        */
-
-        todo!("fix device enrollment");
     }
 }
 

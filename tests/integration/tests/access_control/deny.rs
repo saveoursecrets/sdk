@@ -4,7 +4,6 @@ use crate::test_utils::{
 use anyhow::Result;
 use http::StatusCode;
 use sos_account::Account;
-use sos_backend::BackendTarget;
 use sos_net::{Error as ClientError, NetworkAccount};
 use sos_protocol::{AccountSync, Error as ProtocolError, NetworkError};
 use sos_sdk::prelude::*;

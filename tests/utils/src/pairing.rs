@@ -1,8 +1,8 @@
-use crate::SimulatedDevice;
+use crate::{make_client_backend, SimulatedDevice};
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, Future, StreamExt};
 use sos_account::Account;
-use sos_core::{crypto::AccessKey, device::DeviceMetaData};
+use sos_core::{crypto::AccessKey, device::DeviceMetaData, Paths};
 use sos_net::{
     pairing::{self, AcceptPairing, OfferPairing},
     NetworkAccount,
@@ -22,6 +22,8 @@ pub async fn run_pairing_protocol(
 
     // Get the data dir for the second client
     let data_dir = primary_device.dirs.clients.get(1).cloned().unwrap();
+    let paths = Paths::new_global(&data_dir);
+    let target = make_client_backend(&paths);
 
     // Need to clear the data directory for the second client
     // as simulate_device() copies all the account data and
@@ -44,9 +46,13 @@ pub async fn run_pairing_protocol(
         let device_meta: DeviceMetaData = Default::default();
 
         // Create the device that will accept the pairing
-        let (mut accept, accept_stream) =
-            AcceptPairing::new(share_url, &device_meta, Some(data_dir))
-                .await?;
+        let (mut accept, accept_stream) = AcceptPairing::new(
+            share_url,
+            &device_meta,
+            target,
+            Some(data_dir),
+        )
+        .await?;
 
         let (_otx, offer_shutdown_rx) = mpsc::channel::<()>(1);
         let (_atx, accept_shutdown_rx) = mpsc::channel::<()>(1);
@@ -89,6 +95,8 @@ pub async fn run_inverted_pairing_protocol(
 
     // Get the data dir for the second client
     let data_dir = primary_device.dirs.clients.get(1).cloned().unwrap();
+    let paths = Paths::new_global(&data_dir);
+    let target = make_client_backend(&paths);
 
     // Need to clear the data directory for the second client
     // as simulate_device() copies all the account data and
@@ -106,6 +114,7 @@ pub async fn run_inverted_pairing_protocol(
                 account_id,
                 origin.url().clone(),
                 &device_meta,
+                target,
                 Some(data_dir),
             )
             .await?;
