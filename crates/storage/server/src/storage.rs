@@ -48,13 +48,11 @@ impl ServerStorage {
         account_id: &AccountId,
         target: BackendTarget,
     ) -> Result<Self> {
-        debug_assert!(paths.is_server());
-
         match target {
             BackendTarget::FileSystem(paths) => {
                 Self::new_fs(paths, account_id).await
             }
-            BackendTarget::Database(client) => {
+            BackendTarget::Database(paths, client) => {
                 Self::new_db(paths, account_id, client).await
             }
         }
@@ -62,6 +60,8 @@ impl ServerStorage {
 
     /// Create new file system storage.
     async fn new_fs(paths: Paths, account_id: &AccountId) -> Result<Self> {
+        debug_assert!(paths.is_server());
+
         let paths = paths.with_account_id(account_id);
 
         let mut event_log =
@@ -85,14 +85,12 @@ impl ServerStorage {
         target: BackendTarget,
         account_data: &CreateSet,
     ) -> Result<Self> {
-        debug_assert!(paths.is_server());
-
         match target {
             BackendTarget::FileSystem(paths) => {
                 Self::create_fs_account(&paths, account_id, account_data)
                     .await
             }
-            BackendTarget::Database(client) => {
+            BackendTarget::Database(paths, client) => {
                 Self::create_db_account(
                     paths,
                     account_id,
@@ -110,6 +108,8 @@ impl ServerStorage {
         account_id: &AccountId,
         account_data: &CreateSet,
     ) -> Result<Self> {
+        debug_assert!(paths.is_server());
+
         let paths = paths.with_account_id(account_id);
         paths.ensure().await?;
 
@@ -132,10 +132,12 @@ impl ServerStorage {
 
     /// Create new database storage.
     async fn new_db(
-        paths: &Paths,
+        paths: Paths,
         account_id: &AccountId,
         client: Client,
     ) -> Result<Self> {
+        debug_assert!(paths.is_server());
+
         let paths = paths.with_account_id(account_id);
 
         let (_, login_folder) =
@@ -163,11 +165,13 @@ impl ServerStorage {
 
     /// Create a new database account.
     async fn create_db_account(
-        paths: &Paths,
+        paths: Paths,
         account_id: &AccountId,
         mut client: Client,
         account_data: &CreateSet,
     ) -> Result<Self> {
+        debug_assert!(paths.is_server());
+
         let paths = paths.with_account_id(account_id);
 
         let identity_log = ServerDatabaseStorage::initialize_account(

@@ -208,7 +208,7 @@ impl Identity {
             BackendTarget::FileSystem(paths) => {
                 self.login_fs(account_id, key, paths).await
             }
-            BackendTarget::Database(client) => {
+            BackendTarget::Database(_, client) => {
                 self.login_db(account_id, key, client).await
             }
         }

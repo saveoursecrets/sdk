@@ -45,11 +45,12 @@ async fn db_server_storage() -> Result<()> {
     *vault.flags_mut() = VaultFlags::IDENTITY;
     let (account_id, _, _) =
         insert_database_vault(&mut client, &vault, true).await?;
+    let paths = Paths::new_global_server(temp.path());
 
     let mut storage = ServerStorage::new(
-        &Paths::new_global_server(temp.path()),
+        &paths,
         &account_id,
-        BackendTarget::Database(client),
+        BackendTarget::Database(paths.clone(), client),
     )
     .await?;
     assert_server_storage(&mut storage, &account_id).await?;

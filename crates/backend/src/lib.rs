@@ -54,7 +54,7 @@ pub enum BackendTarget {
     /// File system backend
     FileSystem(Paths),
     /// Database backend.
-    Database(Client),
+    Database(Paths, Client),
 }
 
 impl BackendTarget {
@@ -64,7 +64,9 @@ impl BackendTarget {
             Self::FileSystem(paths) => {
                 Self::FileSystem(paths.with_account_id(account_id))
             }
-            _ => self,
+            Self::Database(paths, client) => {
+                Self::Database(paths.with_account_id(account_id), client)
+            }
         }
     }
 
@@ -74,7 +76,7 @@ impl BackendTarget {
             BackendTarget::FileSystem(paths) => {
                 Ok(sos_vault::list_accounts(Some(paths)).await?)
             }
-            BackendTarget::Database(client) => {
+            BackendTarget::Database(_, client) => {
                 let account_rows = client
                     .conn_and_then(move |conn| {
                         let account = AccountEntity::new(&conn);
@@ -105,7 +107,7 @@ impl BackendTarget {
                     .map(|(s, _)| s)
                     .collect())
             }
-            BackendTarget::Database(client) => {
+            BackendTarget::Database(_, client) => {
                 let account_id = *account_id;
                 let folder_rows = client
                     .conn_and_then(move |conn| {

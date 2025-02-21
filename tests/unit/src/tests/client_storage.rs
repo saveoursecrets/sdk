@@ -59,7 +59,7 @@ async fn db_client_storage() -> Result<()> {
     let paths = Paths::new_global(temp.path()).with_account_id(&account_id);
     paths.ensure_db().await?;
 
-    let target = BackendTarget::Database(client);
+    let target = BackendTarget::Database(paths.clone(), client);
 
     // Prepare account then run assertions on the storage
     prepare_account(paths, account_id, target).await?;

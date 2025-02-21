@@ -22,9 +22,8 @@ pub async fn run(cmd: Command) -> Result<()> {
             let paths = Paths::new_global(Paths::data_dir()?)
                 .with_account_id(&account_id);
             let target = if paths.is_using_db() {
-                BackendTarget::Database(
-                    open_file(paths.database_file()).await?,
-                )
+                let client = open_file(paths.database_file()).await?;
+                BackendTarget::Database(paths.clone(), client)
             } else {
                 BackendTarget::FileSystem(paths.clone())
             };

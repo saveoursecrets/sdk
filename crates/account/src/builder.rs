@@ -416,7 +416,7 @@ impl AccountBuilder {
         let backend = self.target.clone();
         match backend {
             BackendTarget::FileSystem(paths) => self.build_fs(paths).await,
-            BackendTarget::Database(client) => self.build_db(client).await,
+            BackendTarget::Database(_, client) => self.build_db(client).await,
         }
     }
 }

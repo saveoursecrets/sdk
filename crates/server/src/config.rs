@@ -343,7 +343,7 @@ impl ServerConfig {
                     format!("v{}", migration.version()).green(),
                 );
             }
-            BackendTarget::Database(client)
+            BackendTarget::Database(paths.clone(), client)
         } else {
             BackendTarget::FileSystem(paths.clone())
         };

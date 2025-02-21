@@ -66,7 +66,7 @@ async fn account_builder_db() -> Result<()> {
     let account_name = "db-account".to_owned();
     let password = memorable();
 
-    let target = BackendTarget::Database(client.clone());
+    let target = BackendTarget::Database(paths.clone(), client.clone());
     let new_account =
         AccountBuilder::new(account_name, password.clone(), target.clone())
             .create_archive(true)

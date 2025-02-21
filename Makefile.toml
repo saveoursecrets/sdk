@@ -126,10 +126,10 @@ dependencies = ["clean-cli"]
 script = { file = "./scripts/cli/demos.sh" }
 dependencies = ["clean-cli"]
 
-[tasks.test]
-command = "cargo"
-args = ["test", "--all", "--features", "enable-cli-tests"]
-dependencies = ["clean-cli"]
+# [tasks.test]
+# command = "cargo"
+# args = ["test", "--all", "--features", "enable-cli-tests"]
+# dependencies = ["clean-cli"]
 
 # build test helper executables
 [tasks.build-test]
@@ -141,15 +141,23 @@ script = '''
 rm -rf target/integration-test tests/integration/target/integration-test
 '''
 
-[tasks.test-lite]
+[tasks.test]
 script = '''
 cargo nextest run
+'''
+dependencies = ["clean-tests", "build-test"]
+
+[tasks.test-all]
+script = '''
+cargo nextest run
+SOS_TEST_SERVER_DB=1 cargo nextest run
 '''
 dependencies = ["clean-tests", "build-test"]
 
 [tasks.ci]
 script = '''
 cargo nextest run --profile ci
+SOS_TEST_SERVER_DB=1 cargo nextest run --profile ci
 '''
 dependencies = ["clean-tests", "build-test"]
 

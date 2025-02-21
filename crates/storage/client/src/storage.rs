@@ -62,7 +62,7 @@ impl ClientStorage {
             BackendTarget::FileSystem(paths) => {
                 Ok(Self::new_unauthenticated_fs(paths, account_id).await?)
             }
-            BackendTarget::Database(client) => {
+            BackendTarget::Database(_, client) => {
                 Ok(Self::new_unauthenticated_db(paths, account_id, client)
                     .await?)
             }

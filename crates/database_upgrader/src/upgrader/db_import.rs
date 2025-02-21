@@ -363,7 +363,7 @@ pub(crate) async fn import_account(
             ServerStorage::new(
                 paths,
                 account.account_id(),
-                BackendTarget::Database(client.clone()),
+                BackendTarget::Database(paths.clone(), client.clone()),
             )
             .await?,
         )
@@ -372,7 +372,7 @@ pub(crate) async fn import_account(
             ClientStorage::new_unauthenticated(
                 paths,
                 account.account_id(),
-                BackendTarget::Database(client.clone()),
+                BackendTarget::Database(paths.clone(), client.clone()),
             )
             .await?,
         )

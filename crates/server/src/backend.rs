@@ -60,7 +60,7 @@ impl Backend {
         let target = self.target.clone();
         match target {
             BackendTarget::FileSystem(_) => self.load_fs_accounts().await,
-            BackendTarget::Database(client) => {
+            BackendTarget::Database(_, client) => {
                 self.load_db_accounts(client).await
             }
         }
