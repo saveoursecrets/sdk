@@ -47,7 +47,7 @@ pub async fn main() -> anyhow::Result<()> {
                 Box::pin(async move {
                     let paths = Paths::new_global(app_dir.as_ref().unwrap())
                         .with_account_id(identity.account_id());
-                    let target = make_client_backend(&paths);
+                    let target = make_client_backend(&paths).await.unwrap();
                     Ok(LocalAccount::new_unauthenticated(
                         *identity.account_id(),
                         target,

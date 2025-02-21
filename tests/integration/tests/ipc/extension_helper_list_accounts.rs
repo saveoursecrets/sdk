@@ -58,7 +58,7 @@ async fn integration_ipc_extension_helper_list_accounts() -> Result<()> {
     let _account = LocalAccount::new_account(
         TEST_ID.to_string(),
         password,
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
     )
     .await?;
 

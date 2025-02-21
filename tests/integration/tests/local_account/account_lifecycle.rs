@@ -26,7 +26,7 @@ async fn local_account_lifecycle() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         passphrase.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
     )
     .await?;
 

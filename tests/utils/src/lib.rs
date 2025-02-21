@@ -6,6 +6,7 @@ use anyhow::Result;
 use axum_server::Handle;
 use sos_backend::BackendTarget;
 use sos_core::{constants::DATABASE_FILE, AccountId, Origin, Paths};
+use sos_database::open_file;
 use sos_server::{Server, ServerConfig, State, UriOrPath};
 use sos_vfs as vfs;
 use std::{
@@ -43,8 +44,21 @@ pub fn init_tracing() {
 }
 
 /// Create a backend target for test specs.
-pub fn make_client_backend(paths: &Paths) -> BackendTarget {
-    BackendTarget::FileSystem(paths.clone())
+pub async fn make_client_backend(paths: &Paths) -> Result<BackendTarget> {
+    Ok(if std::env::var("SOS_TEST_CLIENT_DB").ok().is_some() {
+        let db_file = paths.database_file();
+
+        // Make sure each test run is pristine
+        if db_file.exists() {
+            std::fs::remove_file(&db_file)?;
+        }
+
+        let mut client = open_file(&db_file).await?;
+        sos_database::migrations::migrate_client(&mut client).await?;
+        BackendTarget::Database(paths.clone(), client)
+    } else {
+        BackendTarget::FileSystem(paths.clone())
+    })
 }
 
 /// Pause a while to allow synchronization.

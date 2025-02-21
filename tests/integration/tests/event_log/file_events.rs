@@ -30,7 +30,7 @@ async fn event_log_file() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
     )
     .await?;
 
@@ -133,7 +133,7 @@ async fn event_log_file_folder_delete() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
     )
     .await?;
 

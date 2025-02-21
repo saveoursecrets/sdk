@@ -28,7 +28,7 @@ async fn access_control_deny() -> Result<()> {
     let mut denied = NetworkAccount::new_account(
         TEST_ID.to_owned(),
         password.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
         Default::default(),
     )
     .await?;

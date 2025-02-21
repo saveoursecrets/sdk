@@ -36,7 +36,7 @@ async fn local_external_files() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
     )
     .await?;
 

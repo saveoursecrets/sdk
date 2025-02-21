@@ -24,7 +24,7 @@ async fn backup_export_import() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
     )
     .await?;
     let account_id = account.account_id().clone();
@@ -88,7 +88,7 @@ async fn backup_export_import() -> Result<()> {
     // Sign in after restoring the account
     let mut account = LocalAccount::new_unauthenticated(
         account_id,
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
     )
     .await?;
 

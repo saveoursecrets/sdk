@@ -29,7 +29,7 @@ async fn diff_merge_folder_create() -> Result<()> {
     let mut local = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
     )
     .await?;
 
@@ -43,7 +43,7 @@ async fn diff_merge_folder_create() -> Result<()> {
     // Sign in on the other account
     let mut remote = LocalAccount::new_unauthenticated(
         account_id,
-        make_client_backend(&merge_paths),
+        make_client_backend(&merge_paths).await?,
     )
     .await?;
     remote.sign_in(&key).await?;

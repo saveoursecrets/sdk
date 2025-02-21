@@ -23,7 +23,7 @@ async fn local_search_view_query() -> Result<()> {
     let mut account = LocalAccount::new_account_with_builder(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
         |builder| builder.create_archive(true).create_file_password(true),
     )
     .await?;

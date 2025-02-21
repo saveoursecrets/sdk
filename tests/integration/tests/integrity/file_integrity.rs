@@ -25,7 +25,7 @@ async fn file_integrity_ok() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
     )
     .await?;
     let key: AccessKey = password.into();
@@ -82,7 +82,7 @@ async fn file_integrity_missing_file() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
     )
     .await?;
     let key: AccessKey = password.into();
@@ -141,7 +141,7 @@ async fn file_integrity_corrupted() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
     )
     .await?;
     let key: AccessKey = password.into();
@@ -204,7 +204,7 @@ async fn file_integrity_cancel() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
     )
     .await?;
     let key: AccessKey = password.into();

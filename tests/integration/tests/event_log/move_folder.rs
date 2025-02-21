@@ -30,14 +30,14 @@ async fn event_log_move_folder() -> Result<()> {
     let mut account1 = LocalAccount::new_account(
         account_name.clone(),
         password1.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
     )
     .await?;
 
     let mut account2 = LocalAccount::new_account(
         account_name.clone(),
         password2.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
     )
     .await?;
 

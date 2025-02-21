@@ -32,7 +32,7 @@ async fn audit_trail_client() -> Result<()> {
     let mut account = LocalAccount::new_account_with_builder(
         account_name.to_owned(),
         passphrase.clone(),
-        make_client_backend(&paths),
+        make_client_backend(&paths).await?,
         |builder| {
             builder
                 .save_passphrase(false)
