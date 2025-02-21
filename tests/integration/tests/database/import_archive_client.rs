@@ -2,7 +2,7 @@ use super::{assert_import_archive, prepare_client_for_upgrade};
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_core::Paths;
-use sos_database::{archive, async_sqlite::rusqlite::Connection};
+use sos_database::archive;
 use sos_database_upgrader::{upgrade_accounts, UpgradeOptions};
 
 /// Create and import a backup archive for client-side database storage.
@@ -31,8 +31,8 @@ async fn database_import_archive_client() -> Result<()> {
     // Create a backup archive.
     let zip = dirs.test_dir.join("backup.zip");
     let paths = Paths::new_global(dirs.test_dir.clone());
-    let source_db = Connection::open(result.database_file)?;
-    archive::create_backup_archive(&source_db, &paths, &zip).await?;
+    archive::create_backup_archive(&result.database_file, &paths, &zip)
+        .await?;
 
     assert!(zip.exists());
 

@@ -16,7 +16,7 @@ pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 /// Create a backup archive.
 pub async fn create_backup_archive(
-    source_db: &Connection,
+    source_db: impl AsRef<Path>,
     paths: &Paths,
     output: impl AsRef<Path>,
 ) -> Result<()> {

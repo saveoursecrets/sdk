@@ -48,7 +48,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
 #[cfg(feature = "search")]
 use sos_search::{DocumentCount, SearchIndex};
@@ -2330,14 +2330,10 @@ impl Account for LocalAccount {
                 .await?;
             }
             BackendTarget::Database(paths, _) => {
-                use sos_database::{
-                    archive, async_sqlite::rusqlite::Connection,
-                };
+                use sos_database::archive;
                 let db_path = paths.database_file();
-                archive::create_backup_archive_with_new_connections(&db_path, &paths, path.as_ref())
-                    .await?;
                 archive::create_backup_archive(
-                    source_db,
+                    db_path,
                     &paths,
                     path.as_ref(),
                 )

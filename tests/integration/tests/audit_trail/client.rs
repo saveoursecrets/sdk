@@ -45,11 +45,12 @@ async fn audit_trail_client() -> Result<()> {
     .await?;
 
     let key: AccessKey = passphrase.clone().into();
+
     account.sign_in(&key).await?;
     let summary = account.default_folder().await.unwrap();
 
     // Make changes to generate audit logs
-    simulate_session(&mut account, &summary, &data_dir).await?;
+    simulate_session(&mut account, &summary, &paths).await?;
 
     // Read in the audit log events
     let events = read_audit_events().await?;
@@ -127,7 +128,7 @@ async fn audit_trail_client() -> Result<()> {
 async fn simulate_session(
     account: &mut LocalAccount,
     default_folder: &Summary,
-    data_dir: &PathBuf,
+    paths: &Paths,
 ) -> Result<()> {
     // Create a secret
     let (meta, secret) = mock::note("Audit note", "Note value");
@@ -170,11 +171,12 @@ async fn simulate_session(
         .rename_folder(new_folder.id(), "New name".to_string())
         .await?;
 
-    let exported_folder = "target/audit-trail-vault-export.vault";
+    let exported_folder =
+        paths.documents_dir().join("audit-trail-vault-export.vault");
     let (export_passphrase, _) = generate_passphrase()?;
     account
         .export_folder(
-            exported_folder,
+            &exported_folder,
             new_folder.id(),
             export_passphrase.clone().into(),
             true,
@@ -193,10 +195,13 @@ async fn simulate_session(
     account.delete_folder(new_folder.id()).await?;
 
     // Export an account backup archive
-    let archive = "target/audit-trail-exported-archive.zip";
-    account.export_backup_archive(archive).await?;
+    let archive = paths
+        .documents_dir()
+        .join("audit-trail-exported-archive.zip");
+    account.export_backup_archive(&archive).await?;
 
-    let unsafe_archive = "target/audit-trail-unsafe-archive.zip";
+    let unsafe_archive =
+        paths.documents_dir().join("audit-trail-unsafe-archive.zip");
     account.export_unsafe_archive(unsafe_archive).await?;
 
     let import_file = "../fixtures/migrate/bitwarden-export.csv";
@@ -211,7 +216,9 @@ async fn simulate_session(
     let vcard = vfs::read_to_string(contacts).await?;
     account.import_contacts(&vcard, |_| {}).await?;
 
-    let exported_contacts = "target/audit-trail-exported-contacts.vcf";
+    let exported_contacts = paths
+        .documents_dir()
+        .join("audit-trail-exported-contacts.vcf");
     account.export_all_contacts(exported_contacts).await?;
 
     // Delete the account
@@ -226,7 +233,7 @@ async fn simulate_session(
     LocalAccount::import_backup_archive(
         archive,
         restore_options,
-        Some(data_dir.clone()),
+        Some(paths.documents_dir().clone()),
     )
     .await?;
 

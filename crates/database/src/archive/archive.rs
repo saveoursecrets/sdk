@@ -1,5 +1,5 @@
 use super::{zip::Writer, Error, Result};
-use crate::entity::{AccountEntity, AccountRecord};
+use crate::entity::{AccountEntity, AccountRecord, AccountRow};
 use async_sqlite::rusqlite::{backup, Connection};
 use sha2::{Digest, Sha256};
 use sos_core::{
@@ -23,7 +23,7 @@ use tempfile::NamedTempFile;
 ///
 /// External file blobs are read and added to the archive.
 pub(crate) async fn create(
-    source_db: &Connection,
+    source_db: impl AsRef<Path>,
     paths: &Paths,
     output: impl AsRef<Path>,
     // progress: fn(backup::Progress),
@@ -36,10 +36,11 @@ pub(crate) async fn create(
     let mut zip_writer = Writer::new(zip_file);
 
     // Find blobs that we need to add to the archive
-    let blobs = find_blobs(source_db, paths).await?;
+    let accounts = list_accounts(source_db.as_ref())?;
+    let blobs = find_blobs(accounts, paths).await?;
 
     let db_temp = NamedTempFile::new()?;
-    create_database_backup(source_db, db_temp.path(), |_| {})?;
+    create_database_backup(source_db.as_ref(), db_temp.path(), |_| {})?;
 
     let db_buffer = vfs::read(db_temp.path()).await?;
     let db_checksum = Sha256::digest(&db_buffer);
@@ -70,13 +71,18 @@ pub(crate) async fn create(
     Ok(())
 }
 
-async fn find_blobs(
-    source_db: &Connection,
-    paths: &Paths,
-) -> Result<Vec<(AccountRecord, Vec<(String, PathBuf)>)>> {
+fn list_accounts(source_db: impl AsRef<Path>) -> Result<Vec<AccountRow>> {
+    let source_db = Connection::open(source_db.as_ref())?;
+    let source_db = Box::new(source_db);
     let accounts = AccountEntity::new(&source_db);
     let accounts = accounts.list_accounts()?;
+    Ok(accounts)
+}
 
+async fn find_blobs(
+    accounts: Vec<AccountRow>,
+    paths: &Paths,
+) -> Result<Vec<(AccountRecord, Vec<(String, PathBuf)>)>> {
     let mut output = Vec::new();
 
     for account in accounts {
@@ -106,10 +112,13 @@ async fn find_blobs(
 }
 
 fn create_database_backup(
-    src: &Connection,
+    source_db: impl AsRef<Path>,
     dst: impl AsRef<Path>,
     progress: fn(backup::Progress),
 ) -> Result<()> {
+    let source_db = Connection::open(source_db.as_ref())?;
+    let source_db = Box::new(source_db);
+
     let start = SystemTime::now();
     tracing::debug!(
         path = %dst.as_ref().display(),
@@ -117,7 +126,7 @@ fn create_database_backup(
     );
 
     let mut dst = Connection::open(dst.as_ref())?;
-    let backup = backup::Backup::new(src, &mut dst)?;
+    let backup = backup::Backup::new(&source_db, &mut dst)?;
     backup.run_to_completion(
         32,
         Duration::from_millis(250),
