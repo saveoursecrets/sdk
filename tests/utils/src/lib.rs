@@ -48,10 +48,12 @@ pub async fn make_client_backend(paths: &Paths) -> Result<BackendTarget> {
     Ok(if std::env::var("SOS_TEST_CLIENT_DB").ok().is_some() {
         let db_file = paths.database_file();
 
+        /*
         // Make sure each test run is pristine
         if db_file.exists() {
             std::fs::remove_file(&db_file)?;
         }
+        */
 
         let mut client = open_file(&db_file).await?;
         sos_database::migrations::migrate_client(&mut client).await?;
