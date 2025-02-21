@@ -153,12 +153,11 @@ impl Backend {
             "server_backend::create_account",
         );
 
-        let paths = self.paths.with_account_id(account_id);
+        let target = self.target.clone().with_account_id(account_id);
 
         let account = ServerStorage::create_account(
-            &paths,
             account_id,
-            self.target.clone(),
+            target,
             &account_data,
         )
         .await?;

@@ -79,15 +79,13 @@ impl ServerStorage {
 
     /// Create an account in server storage.
     pub async fn create_account(
-        paths: &Paths,
         account_id: &AccountId,
         target: BackendTarget,
         account_data: &CreateSet,
     ) -> Result<Self> {
         match target {
             BackendTarget::FileSystem(paths) => {
-                Self::create_fs_account(&paths, account_id, account_data)
-                    .await
+                Self::create_fs_account(paths, account_id, account_data).await
             }
             BackendTarget::Database(paths, client) => {
                 Self::create_db_account(
@@ -103,7 +101,7 @@ impl ServerStorage {
 
     /// Create a new file system account.
     async fn create_fs_account(
-        paths: &Paths,
+        paths: Paths,
         account_id: &AccountId,
         account_data: &CreateSet,
     ) -> Result<Self> {

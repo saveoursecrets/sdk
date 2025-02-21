@@ -58,6 +58,14 @@ pub enum BackendTarget {
 }
 
 impl BackendTarget {
+    /// Paths for the backend target.
+    pub fn paths(&self) -> &Paths {
+        match self {
+            Self::FileSystem(paths) => paths,
+            Self::Database(paths, _) => paths,
+        }
+    }
+
     /// Set paths to be for an account identifier.
     pub fn with_account_id(self, account_id: &AccountId) -> Self {
         match self {
