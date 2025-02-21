@@ -2333,7 +2333,7 @@ impl Account for LocalAccount {
                 use sos_database::{
                     archive, async_sqlite::rusqlite::Connection,
                 };
-                let source_db = Arc::new(Mutex::new(
+                let source_db = Arc::new(std::sync::Mutex::new(
                     Connection::open(paths.database_file())
                         .map_err(sos_database::Error::from)?,
                 ));
