@@ -1,6 +1,7 @@
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_sdk::prelude::*;
+use sos_test_utils::make_client_backend;
 
 use crate::test_utils::{setup, teardown};
 
@@ -13,18 +14,19 @@ async fn local_account_lifecycle() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    Paths::scaffold(Some(data_dir.clone())).await?;
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (passphrase, _) = generate_passphrase()?;
 
-    Paths::scaffold(Some(data_dir.clone())).await?;
-    let paths = Paths::new_global(data_dir.clone());
     let accounts = sos_vault::list_accounts(Some(&paths)).await?;
     assert_eq!(0, accounts.len());
 
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         passphrase.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;

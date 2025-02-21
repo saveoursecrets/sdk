@@ -2,6 +2,7 @@ use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_sdk::{prelude::*, vfs};
+use sos_test_utils::make_client_backend;
 
 /// Tests exporting an archive of plain text secrets.
 #[tokio::test]
@@ -11,6 +12,7 @@ async fn local_migrate_export() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -18,6 +20,7 @@ async fn local_migrate_export() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;

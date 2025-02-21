@@ -3,6 +3,7 @@ use anyhow::Result;
 use maplit2::hashset;
 use sos_account::{Account, LocalAccount, SecretChange, SecretMove};
 use sos_sdk::prelude::*;
+use sos_test_utils::make_client_backend;
 
 /// Tests the statistics maintained whilst modifting the search index.
 #[tokio::test]
@@ -12,6 +13,7 @@ async fn local_search_statistics() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -19,6 +21,7 @@ async fn local_search_statistics() -> Result<()> {
     let mut account = LocalAccount::new_account_with_builder(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
         |builder| builder.create_archive(true).create_file_password(true),
     )

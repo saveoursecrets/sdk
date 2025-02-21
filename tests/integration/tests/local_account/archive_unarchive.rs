@@ -2,6 +2,7 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount, SecretChange, SecretMove};
 use sos_sdk::prelude::*;
+use sos_test_utils::make_client_backend;
 
 /// Tests moving a secret to the archive and restoring
 /// from the archive.
@@ -12,6 +13,7 @@ async fn local_archive_unarchive() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -19,6 +21,7 @@ async fn local_archive_unarchive() -> Result<()> {
     let mut account = LocalAccount::new_account_with_builder(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
         |builder| builder.create_archive(true).create_file_password(true),
     )

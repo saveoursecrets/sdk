@@ -1,5 +1,6 @@
 //! Test for running a file integrity report.
 use anyhow::Result;
+use sos_test_utils::make_client_backend;
 
 use crate::test_utils::{mock::files::create_file_secret, setup, teardown};
 use sos_account::{Account, LocalAccount};
@@ -16,6 +17,7 @@ async fn file_integrity_ok() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -23,6 +25,7 @@ async fn file_integrity_ok() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;
@@ -72,6 +75,7 @@ async fn file_integrity_missing_file() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -79,6 +83,7 @@ async fn file_integrity_missing_file() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;
@@ -130,6 +135,7 @@ async fn file_integrity_corrupted() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -137,6 +143,7 @@ async fn file_integrity_corrupted() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;
@@ -192,6 +199,7 @@ async fn file_integrity_cancel() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -199,6 +207,7 @@ async fn file_integrity_cancel() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;

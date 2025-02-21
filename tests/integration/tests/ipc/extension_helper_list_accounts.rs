@@ -7,7 +7,7 @@ use sos_ipc::{
 };
 use sos_sdk::prelude::{generate_passphrase, Paths, PublicIdentity};
 
-use sos_test_utils::{setup, teardown};
+use sos_test_utils::{make_client_backend, setup, teardown};
 
 /// Test listing accounts via the native bridge when there
 /// are no accounts present.
@@ -52,11 +52,13 @@ async fn integration_ipc_extension_helper_list_accounts() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     Paths::scaffold(Some(data_dir.clone())).await?;
+    let paths = Paths::new_global(&data_dir);
 
     let (password, _) = generate_passphrase()?;
     let _account = LocalAccount::new_account(
         TEST_ID.to_string(),
         password,
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;

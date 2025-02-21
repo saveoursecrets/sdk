@@ -8,7 +8,7 @@ use sos_integrity::{
     account_integrity, FolderIntegrityEvent, IntegrityFailure,
 };
 use sos_sdk::prelude::*;
-use sos_test_utils::flip_bits_on_byte;
+use sos_test_utils::{flip_bits_on_byte, make_client_backend};
 
 /// Tests an ok account integrity report.
 #[tokio::test]
@@ -19,6 +19,7 @@ async fn account_integrity_ok() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -26,6 +27,7 @@ async fn account_integrity_ok() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;
@@ -77,6 +79,7 @@ async fn account_integrity_missing_file() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -84,6 +87,7 @@ async fn account_integrity_missing_file() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;
@@ -132,6 +136,7 @@ async fn account_integrity_corrupted_vault() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -139,6 +144,7 @@ async fn account_integrity_corrupted_vault() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;
@@ -191,6 +197,7 @@ async fn account_integrity_corrupted_event() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -198,6 +205,7 @@ async fn account_integrity_corrupted_event() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;
@@ -250,6 +258,7 @@ async fn account_integrity_cancel() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -257,6 +266,7 @@ async fn account_integrity_cancel() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;

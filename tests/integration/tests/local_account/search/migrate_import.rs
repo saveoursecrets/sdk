@@ -3,6 +3,7 @@ use anyhow::Result;
 use sos_account::{Account, LocalAccount};
 use sos_migrate::import::{ImportFormat, ImportTarget};
 use sos_sdk::prelude::*;
+use sos_test_utils::make_client_backend;
 use std::path::PathBuf;
 
 /// Tests querying the search index after importing
@@ -14,6 +15,7 @@ async fn local_search_migrate_import() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
+    let paths = Paths::new_global(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -21,6 +23,7 @@ async fn local_search_migrate_import() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        make_client_backend(&paths),
         Some(data_dir.clone()),
     )
     .await?;
