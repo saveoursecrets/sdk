@@ -124,26 +124,24 @@ impl LocalAccount {
         mut target: BackendTarget,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
+        /*
         let data_dir = if let Some(data_dir) = data_dir {
             data_dir
         } else {
             Paths::data_dir()?
         };
+        */
 
-        let paths = Paths::new_global(data_dir).with_account_id(&account_id);
         target = target.with_account_id(&account_id);
 
-        let storage = ClientStorage::new_unauthenticated(
-            &paths,
-            &account_id,
-            target.clone(),
-        )
-        .await?;
+        let storage =
+            ClientStorage::new_unauthenticated(&account_id, target.clone())
+                .await?;
 
         Ok(Self {
             account_id,
             storage,
-            paths: Arc::new(paths),
+            paths: Arc::new(target.paths().clone()),
             target,
         })
     }
@@ -185,11 +183,13 @@ impl LocalAccount {
             "new_account",
         );
 
+        /*
         let paths = if let Some(data_dir) = &data_dir {
             Paths::new_global(data_dir)
         } else {
             Paths::new_global(Paths::data_dir()?)
         };
+        */
 
         let account_builder = builder(AccountBuilder::new(
             account_name,
@@ -198,7 +198,7 @@ impl LocalAccount {
         ));
         let new_account = account_builder.finish().await?;
 
-        let paths = paths.with_account_id(&new_account.account_id);
+        // let paths = paths.with_account_id(&new_account.account_id);
         target = target.with_account_id(&new_account.account_id);
 
         tracing::debug!(
@@ -210,12 +210,9 @@ impl LocalAccount {
 
         let (authenticated_user, public_account) = new_account.into();
 
-        let mut storage = ClientStorage::new_unauthenticated(
-            &paths,
-            &account_id,
-            target.clone(),
-        )
-        .await?;
+        let mut storage =
+            ClientStorage::new_unauthenticated(&account_id, target.clone())
+                .await?;
         storage.authenticate(authenticated_user).await?;
 
         tracing::debug!("new_account::storage_provider");
@@ -227,7 +224,7 @@ impl LocalAccount {
 
         Ok(Self {
             account_id,
-            paths: storage.paths(),
+            paths: Arc::new(target.paths().clone()),
             storage,
             target,
         })
@@ -747,7 +744,6 @@ impl Account for LocalAccount {
         let paths = self.paths();
 
         let mut storage = ClientStorage::new_unauthenticated(
-            &*paths,
             &account_id,
             self.target.clone(),
         )

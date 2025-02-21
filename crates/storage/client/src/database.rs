@@ -98,7 +98,7 @@ impl ClientDatabaseStorage {
     ///
     /// Events are loaded into memory.
     pub async fn new_unauthenticated(
-        paths: &Paths,
+        paths: Paths,
         account_id: &AccountId,
         client: Client,
     ) -> Result<Self> {
@@ -145,7 +145,7 @@ impl ClientDatabaseStorage {
             summaries: Vec::new(),
             current: Arc::new(Mutex::new(None)),
             folders: Default::default(),
-            paths: paths.clone(),
+            paths,
             identity_log: Arc::new(RwLock::new(identity_log)),
             account_log: Arc::new(RwLock::new(account_log)),
             #[cfg(feature = "search")]

@@ -87,12 +87,9 @@ async fn prepare_account(
         .await?;
     let (authenticated_user, account_pack) = new_account.into();
 
-    let mut storage = ClientStorage::new_unauthenticated(
-        &paths,
-        &account_id,
-        target.clone(),
-    )
-    .await?;
+    let mut storage =
+        ClientStorage::new_unauthenticated(&account_id, target.clone())
+            .await?;
     assert_client_storage(
         &mut storage,
         &account_id,

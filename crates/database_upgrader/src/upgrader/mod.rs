@@ -131,7 +131,6 @@ async fn import_accounts(
         } else {
             AccountStorage::Client(
                 ClientStorage::new_unauthenticated(
-                    &account_paths,
                     account.account_id(),
                     BackendTarget::FileSystem(account_paths.clone()),
                 )

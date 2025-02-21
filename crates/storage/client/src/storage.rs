@@ -54,7 +54,6 @@ pub enum ClientStorage {
 impl ClientStorage {
     /// Create new client storage.
     pub async fn new_unauthenticated(
-        paths: &Paths,
         account_id: &AccountId,
         target: BackendTarget,
     ) -> Result<Self> {
@@ -62,7 +61,7 @@ impl ClientStorage {
             BackendTarget::FileSystem(paths) => {
                 Ok(Self::new_unauthenticated_fs(paths, account_id).await?)
             }
-            BackendTarget::Database(_, client) => {
+            BackendTarget::Database(paths, client) => {
                 Ok(Self::new_unauthenticated_db(paths, account_id, client)
                     .await?)
             }
@@ -84,7 +83,7 @@ impl ClientStorage {
 
     /// Create new database storage.
     async fn new_unauthenticated_db(
-        paths: &Paths,
+        paths: Paths,
         account_id: &AccountId,
         client: Client,
     ) -> Result<Self> {

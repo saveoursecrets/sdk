@@ -23,16 +23,13 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .with_account_id(&account_id);
             let target = if paths.is_using_db() {
                 let client = open_file(paths.database_file()).await?;
-                BackendTarget::Database(paths.clone(), client)
+                BackendTarget::Database(paths, client)
             } else {
-                BackendTarget::FileSystem(paths.clone())
+                BackendTarget::FileSystem(paths)
             };
-            let storage = ClientStorage::new_unauthenticated(
-                &paths,
-                &account_id,
-                target,
-            )
-            .await?;
+            let storage =
+                ClientStorage::new_unauthenticated(&account_id, target)
+                    .await?;
 
             let debug_tree = storage.debug_account_tree(account_id).await?;
             serde_json::to_writer_pretty(std::io::stdout(), &debug_tree)?;

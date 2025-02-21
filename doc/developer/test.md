@@ -1,9 +1,15 @@
 # Test
 
-Run all the tests.
+Run tests using the default backend (does not include the CLI tests which can take a while due to launching the executable).
 
 ```
 cargo make test
+```
+
+Run tests using a matrix of all supported backends.
+
+```
+cargo make test-all
 ```
 
 To skip integration tests and just run unit tests:
@@ -12,16 +18,10 @@ To skip integration tests and just run unit tests:
 cargo make unit
 ```
 
-To generate a code coverage report in `target/coverage` run:
+To generate a code coverage report in `target/llvm-cov/html` run:
 
 ```
 cargo make cover
-```
-
-The CLI test specs can take a long time with the debug build so if you want to skip them use:
-
-```
-cargo make test-lite
 ```
 
 To run just the command line tests which would be included in test coverage:

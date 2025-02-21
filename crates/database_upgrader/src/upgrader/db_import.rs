@@ -369,7 +369,6 @@ pub(crate) async fn import_account(
     } else {
         AccountStorage::Client(
             ClientStorage::new_unauthenticated(
-                paths,
                 account.account_id(),
                 BackendTarget::Database(paths.clone(), client.clone()),
             )
