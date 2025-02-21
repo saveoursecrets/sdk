@@ -291,7 +291,6 @@ pub async fn sign_in(account: &AccountRef) -> Result<SecretString> {
         let mut current_account = NetworkAccount::new_unauthenticated(
             *account.account_id(),
             BackendTarget::FileSystem(paths),
-            None,
             Default::default(),
         )
         .await?;
@@ -433,7 +432,6 @@ pub async fn new_account(
             account_name.clone(),
             passphrase.clone(),
             BackendTarget::FileSystem(paths),
-            None,
             Default::default(),
             |builder| {
                 builder

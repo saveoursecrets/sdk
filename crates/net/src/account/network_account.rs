@@ -538,7 +538,6 @@ impl NetworkAccount {
     pub async fn new_unauthenticated(
         account_id: AccountId,
         target: BackendTarget,
-        data_dir: Option<PathBuf>,
         options: NetworkAccountOptions,
     ) -> Result<Self> {
         let account =
@@ -573,14 +572,12 @@ impl NetworkAccount {
         account_name: String,
         passphrase: SecretString,
         target: BackendTarget,
-        data_dir: Option<PathBuf>,
         options: NetworkAccountOptions,
     ) -> Result<Self> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
             target,
-            data_dir,
             options,
             |builder| {
                 builder
@@ -601,7 +598,6 @@ impl NetworkAccount {
         account_name: String,
         passphrase: SecretString,
         target: BackendTarget,
-        data_dir: Option<PathBuf>,
         options: NetworkAccountOptions,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
@@ -609,7 +605,6 @@ impl NetworkAccount {
             account_name,
             passphrase.clone(),
             target,
-            data_dir.clone(),
             builder,
         )
         .await?;

@@ -29,7 +29,6 @@ async fn access_control_deny() -> Result<()> {
         TEST_ID.to_owned(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
         Default::default(),
     )
     .await?;

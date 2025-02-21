@@ -24,7 +24,6 @@ async fn local_time_travel() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
 

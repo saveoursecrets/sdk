@@ -25,7 +25,6 @@ async fn backup_export_import() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
     let account_id = account.account_id().clone();

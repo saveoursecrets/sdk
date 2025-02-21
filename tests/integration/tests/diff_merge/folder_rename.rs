@@ -26,7 +26,6 @@ async fn diff_merge_folder_rename() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
 

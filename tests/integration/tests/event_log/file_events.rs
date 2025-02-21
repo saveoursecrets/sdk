@@ -31,7 +31,6 @@ async fn event_log_file() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
 
@@ -135,7 +134,6 @@ async fn event_log_file_folder_delete() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
 

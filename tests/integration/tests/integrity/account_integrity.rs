@@ -28,7 +28,6 @@ async fn account_integrity_ok() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
     let key: AccessKey = password.into();
@@ -88,7 +87,6 @@ async fn account_integrity_missing_file() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
     let key: AccessKey = password.into();
@@ -145,7 +143,6 @@ async fn account_integrity_corrupted_vault() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
     let key: AccessKey = password.into();
@@ -206,7 +203,6 @@ async fn account_integrity_corrupted_event() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
     let key: AccessKey = password.into();
@@ -267,7 +263,6 @@ async fn account_integrity_cancel() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
     let key: AccessKey = password.into();

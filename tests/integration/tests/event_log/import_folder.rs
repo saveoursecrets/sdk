@@ -29,7 +29,6 @@ async fn event_log_import_folder() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
 

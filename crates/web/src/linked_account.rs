@@ -98,7 +98,6 @@ impl LinkedAccount {
         account_id: AccountId,
         target: BackendTarget,
         client: HttpClient,
-        data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let account =
             LocalAccount::new_unauthenticated(account_id, target).await?;
@@ -117,15 +116,10 @@ impl LinkedAccount {
         passphrase: SecretString,
         target: BackendTarget,
         client: HttpClient,
-        data_dir: Option<PathBuf>,
     ) -> Result<Self> {
-        let account = LocalAccount::new_account(
-            account_name,
-            passphrase,
-            target,
-            data_dir,
-        )
-        .await?;
+        let account =
+            LocalAccount::new_account(account_name, passphrase, target)
+                .await?;
         Ok(Self {
             account_id: *account.account_id(),
             paths: account.paths(),

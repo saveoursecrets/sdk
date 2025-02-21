@@ -29,7 +29,6 @@ async fn event_log_change_password() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
 

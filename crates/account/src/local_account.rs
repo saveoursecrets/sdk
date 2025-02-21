@@ -147,13 +147,11 @@ impl LocalAccount {
         account_name: String,
         passphrase: SecretString,
         target: BackendTarget,
-        data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         Self::new_account_with_builder(
             account_name,
             passphrase,
             target,
-            data_dir,
             |builder| builder.create_file_password(true),
         )
         .await
@@ -166,7 +164,6 @@ impl LocalAccount {
         account_name: String,
         passphrase: SecretString,
         mut target: BackendTarget,
-        data_dir: Option<PathBuf>,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
         tracing::debug!(
@@ -723,8 +720,6 @@ impl Account for LocalAccount {
         events: CreateSet,
     ) -> Result<()> {
         let account_id = *self.account_id();
-        let paths = self.paths();
-
         let mut storage = ClientStorage::new_unauthenticated(
             &account_id,
             self.target.clone(),

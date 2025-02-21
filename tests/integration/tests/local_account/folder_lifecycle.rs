@@ -23,7 +23,6 @@ async fn local_folder_lifecycle() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
 

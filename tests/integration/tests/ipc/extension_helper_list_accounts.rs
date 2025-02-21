@@ -59,7 +59,6 @@ async fn integration_ipc_extension_helper_list_accounts() -> Result<()> {
         TEST_ID.to_string(),
         password,
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
 

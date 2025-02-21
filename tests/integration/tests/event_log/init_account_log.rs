@@ -27,7 +27,6 @@ async fn event_log_init_account_log() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
 

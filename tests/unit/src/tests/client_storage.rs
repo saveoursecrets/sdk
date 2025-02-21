@@ -40,10 +40,10 @@ async fn fs_client_storage() -> Result<()> {
     let paths = Paths::new_global(temp.path()).with_account_id(&account_id);
     paths.ensure().await?;
 
-    let target = BackendTarget::FileSystem(paths.clone());
+    let target = BackendTarget::FileSystem(paths);
 
     // Prepare account then run assertions on the storage
-    prepare_account(paths, account_id, target).await?;
+    prepare_account(account_id, target).await?;
 
     Ok(())
 }
@@ -59,16 +59,15 @@ async fn db_client_storage() -> Result<()> {
     let paths = Paths::new_global(temp.path()).with_account_id(&account_id);
     paths.ensure_db().await?;
 
-    let target = BackendTarget::Database(paths.clone(), client);
+    let target = BackendTarget::Database(paths, client);
 
     // Prepare account then run assertions on the storage
-    prepare_account(paths, account_id, target).await?;
+    prepare_account(account_id, target).await?;
 
     Ok(())
 }
 
 async fn prepare_account(
-    paths: Paths,
     account_id: AccountId,
     target: BackendTarget,
 ) -> Result<()> {

@@ -27,7 +27,6 @@ async fn local_account_lifecycle() -> Result<()> {
         account_name.clone(),
         passphrase.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
 

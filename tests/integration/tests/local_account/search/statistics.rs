@@ -22,7 +22,6 @@ async fn local_search_statistics() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
         |builder| builder.create_archive(true).create_file_password(true),
     )
     .await?;

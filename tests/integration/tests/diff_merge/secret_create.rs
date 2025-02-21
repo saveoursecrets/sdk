@@ -26,7 +26,6 @@ async fn diff_merge_secret_create() -> Result<()> {
         account_name.clone(),
         password.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
 

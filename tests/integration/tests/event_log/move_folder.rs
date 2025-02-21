@@ -31,7 +31,6 @@ async fn event_log_move_folder() -> Result<()> {
         account_name.clone(),
         password1.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
 
@@ -39,7 +38,6 @@ async fn event_log_move_folder() -> Result<()> {
         account_name.clone(),
         password2.clone(),
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
 
