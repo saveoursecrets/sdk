@@ -361,7 +361,6 @@ pub(crate) async fn import_account(
     let db_storage = if paths.is_server() {
         AccountStorage::Server(
             ServerStorage::new(
-                paths,
                 account.account_id(),
                 BackendTarget::Database(paths.clone(), client.clone()),
             )

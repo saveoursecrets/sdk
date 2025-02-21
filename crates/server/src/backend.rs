@@ -91,7 +91,6 @@ impl Backend {
                         );
 
                         let account = ServerStorage::new(
-                            &self.paths,
                             &account_id,
                             self.target.clone(),
                         )
@@ -123,7 +122,6 @@ impl Backend {
         for account in accounts {
             let account_id = *account.identity.account_id();
             let account = ServerStorage::new(
-                &self.paths,
                 &account_id,
                 self.target.clone(),
             )

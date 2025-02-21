@@ -123,7 +123,6 @@ async fn import_accounts(
         let fs_storage = if options.paths.is_server() {
             AccountStorage::Server(
                 ServerStorage::new(
-                    &account_paths,
                     account.account_id(),
                     BackendTarget::FileSystem(account_paths.clone()),
                 )

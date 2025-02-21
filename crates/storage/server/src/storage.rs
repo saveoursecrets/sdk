@@ -44,7 +44,6 @@ pub enum ServerStorage {
 impl ServerStorage {
     /// Create new server storage.
     pub async fn new(
-        paths: &Paths,
         account_id: &AccountId,
         target: BackendTarget,
     ) -> Result<Self> {

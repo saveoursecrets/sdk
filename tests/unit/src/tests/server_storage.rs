@@ -26,7 +26,6 @@ async fn fs_server_storage() -> Result<()> {
 
     let account_id = AccountId::random();
     let mut storage = ServerStorage::new(
-        &Paths::new_global_server(temp.path()),
         &account_id,
         BackendTarget::FileSystem(Paths::new_global_server(temp.path())),
     )
@@ -48,9 +47,8 @@ async fn db_server_storage() -> Result<()> {
     let paths = Paths::new_global_server(temp.path());
 
     let mut storage = ServerStorage::new(
-        &paths,
         &account_id,
-        BackendTarget::Database(paths.clone(), client),
+        BackendTarget::Database(paths, client),
     )
     .await?;
     assert_server_storage(&mut storage, &account_id).await?;
