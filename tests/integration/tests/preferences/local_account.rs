@@ -25,8 +25,8 @@ async fn preferences_local_account() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        Some(data_dir.clone()),
         make_client_backend(&paths),
+        Some(data_dir.clone()),
     )
     .await?;
 
