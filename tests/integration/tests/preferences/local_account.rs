@@ -22,9 +22,10 @@ async fn preferences_local_account() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    let mut account = LocalAccount::new_account_with_backend(
+    let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
+        Some(data_dir.clone()),
         make_client_backend(&paths),
     )
     .await?;
