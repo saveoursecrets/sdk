@@ -302,15 +302,14 @@ impl LocalAccount {
         new_key: AccessKey,
     ) -> Result<Vec<u8>> {
         use sos_vault::ChangePassword;
-        let paths = self.paths().clone();
         // Get the current vault passphrase from the identity vault
         let current_key = self
             .find_folder_password(vault_id)
             .await?
             .ok_or(Error::NoFolderPassword(*vault_id))?;
 
-        // Find the local vault for the account
-        let (vault, _) = Identity::load_local_vault(&paths, vault_id).await?;
+        // Find the vault for the account
+        let vault = self.storage.read_vault(vault_id).await?;
 
         // Change the password before exporting
         let (_, vault, _) =
@@ -1988,9 +1987,7 @@ impl Account for LocalAccount {
             };
             let meta = SecretMeta::new(label, secret.kind());
 
-            let (vault, _) =
-                Identity::load_local_vault(&self.paths, default_summary.id())
-                    .await?;
+            let vault = self.storage.read_vault(default_summary.id()).await?;
 
             self.add_secret(
                 meta,
@@ -2118,8 +2115,7 @@ impl Account for LocalAccount {
             .find_folder_password(contacts.id())
             .await?
             .ok_or(Error::NoFolderPassword(*contacts.id()))?;
-        let (vault, _) =
-            Identity::load_local_vault(&self.paths, contacts.id()).await?;
+        let vault = self.storage.read_vault(contacts.id()).await?;
         let mut keeper = AccessPoint::new_vault(vault);
         let key: AccessKey = contacts_passphrase.into();
         keeper.unlock(&key).await?;
@@ -2220,14 +2216,12 @@ impl Account for LocalAccount {
 
         let account_identity = self.public_identity().await?;
 
-        let paths = self.paths();
         let mut archive = Vec::new();
         let mut migration = PublicExport::new(Cursor::new(&mut archive));
         let vaults = self.target.list_folders(&self.account_id).await?;
 
         for summary in vaults {
-            let (vault, _) =
-                Identity::load_local_vault(&*paths, summary.id()).await?;
+            let vault = self.storage.read_vault(summary.id()).await?;
             let vault_passphrase = self
                 .find_folder_password(summary.id())
                 .await?

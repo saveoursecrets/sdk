@@ -12,15 +12,12 @@ use crate::{
 use async_trait::async_trait;
 use sos_backend::{database::async_sqlite::Client, BackendTarget};
 use sos_core::{
-    crypto::AccessKey, decode, events::Event, AccountId, AuthenticationError,
-    Paths, SecretId, VaultId,
+    crypto::AccessKey, events::Event, AccountId, AuthenticationError, Paths,
+    SecretId, VaultId,
 };
-use sos_vault::{list_local_folders, read_public_identity, Vault};
+use sos_vault::read_public_identity;
 use sos_vfs as vfs;
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::Path};
 use urn::Urn;
 
 #[cfg(feature = "files")]
@@ -87,21 +84,6 @@ impl Identity {
         path: impl AsRef<Path>,
     ) -> Result<Option<PublicIdentity>> {
         Ok(read_public_identity(path).await?)
-    }
-
-    /// Find and load a vault.
-    pub async fn load_local_vault(
-        paths: &Paths,
-        id: &VaultId,
-    ) -> Result<(Vault, PathBuf)> {
-        let folders = list_local_folders(paths).await?;
-        let (_summary, path) = folders
-            .into_iter()
-            .find(|(s, _)| s.id() == id)
-            .ok_or_else(|| Error::NoVaultFile(id.to_string()))?;
-        let buffer = vfs::read(&path).await?;
-        let vault: Vault = decode(&buffer).await?;
-        Ok((vault, path))
     }
 
     /// Create a new unauthenticated login identity.
