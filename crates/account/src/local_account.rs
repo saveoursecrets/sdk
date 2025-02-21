@@ -48,7 +48,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 #[cfg(feature = "search")]
 use sos_search::{DocumentCount, SearchIndex};
@@ -2319,14 +2319,32 @@ impl Account for LocalAccount {
         &self,
         path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
-        use sos_filesystem::archive::AccountBackup;
-
-        AccountBackup::export_archive_file(
-            path,
-            self.account_id(),
-            &self.paths,
-        )
-        .await?;
+        match &self.target {
+            BackendTarget::FileSystem(_) => {
+                use sos_filesystem::archive::AccountBackup;
+                AccountBackup::export_archive_file(
+                    path,
+                    self.account_id(),
+                    &self.paths,
+                )
+                .await?;
+            }
+            BackendTarget::Database(paths, _) => {
+                use sos_database::{
+                    archive, async_sqlite::rusqlite::Connection,
+                };
+                let source_db = Arc::new(Mutex::new(
+                    Connection::open(paths.database_file())
+                        .map_err(sos_database::Error::from)?,
+                ));
+                archive::create_backup_archive(
+                    source_db,
+                    &paths,
+                    path.as_ref(),
+                )
+                .await?;
+            }
+        }
 
         #[cfg(feature = "audit")]
         {
