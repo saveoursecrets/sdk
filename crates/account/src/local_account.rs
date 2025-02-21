@@ -2333,10 +2333,9 @@ impl Account for LocalAccount {
                 use sos_database::{
                     archive, async_sqlite::rusqlite::Connection,
                 };
-                let source_db = Arc::new(std::sync::Mutex::new(
-                    Connection::open(paths.database_file())
-                        .map_err(sos_database::Error::from)?,
-                ));
+                let db_path = paths.database_file();
+                archive::create_backup_archive_with_new_connections(&db_path, &paths, path.as_ref())
+                    .await?;
                 archive::create_backup_archive(
                     source_db,
                     &paths,
