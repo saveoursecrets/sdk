@@ -42,21 +42,32 @@ pub use event_log::BackendFileEventLog as FileEventLog;
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
-use sos_core::{AccountId, PublicIdentity};
-use sos_database::entity::{
-    AccountEntity, AccountRecord, FolderEntity, FolderRecord,
+use sos_core::{AccountId, Paths, PublicIdentity};
+use sos_database::{
+    async_sqlite::Client,
+    entity::{AccountEntity, AccountRecord, FolderEntity, FolderRecord},
 };
 
 /// Target backend.
 #[derive(Clone)]
 pub enum BackendTarget {
     /// File system backend
-    FileSystem(sos_core::Paths),
+    FileSystem(Paths),
     /// Database backend.
-    Database(sos_database::async_sqlite::Client),
+    Database(Client),
 }
 
 impl BackendTarget {
+    /// Set paths to be for an account identifier.
+    pub fn with_account_id(self, account_id: &AccountId) -> Self {
+        match self {
+            Self::FileSystem(paths) => {
+                Self::FileSystem(paths.with_account_id(account_id))
+            }
+            _ => self,
+        }
+    }
+
     /// List accounts.
     pub async fn list_accounts(&self) -> Result<Vec<PublicIdentity>> {
         match self {

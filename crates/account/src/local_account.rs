@@ -121,7 +121,7 @@ impl LocalAccount {
     /// to authenticate a user.
     pub async fn new_unauthenticated(
         account_id: AccountId,
-        target: BackendTarget,
+        mut target: BackendTarget,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let data_dir = if let Some(data_dir) = data_dir {
@@ -131,6 +131,7 @@ impl LocalAccount {
         };
 
         let paths = Paths::new_global(data_dir).with_account_id(&account_id);
+        target = target.with_account_id(&account_id);
 
         let storage = ClientStorage::new_unauthenticated(
             &paths,
@@ -175,7 +176,7 @@ impl LocalAccount {
     pub async fn new_account_with_builder(
         account_name: String,
         passphrase: SecretString,
-        target: BackendTarget,
+        mut target: BackendTarget,
         data_dir: Option<PathBuf>,
         builder: impl Fn(AccountBuilder) -> AccountBuilder + Send,
     ) -> Result<Self> {
@@ -198,6 +199,7 @@ impl LocalAccount {
         let new_account = account_builder.finish().await?;
 
         let paths = paths.with_account_id(&new_account.account_id);
+        target = target.with_account_id(&new_account.account_id);
 
         tracing::debug!(
           account_id = %new_account.account_id,
@@ -205,7 +207,6 @@ impl LocalAccount {
         );
 
         let account_id = new_account.account_id;
-        // let identity_log = new_account.user.identity()?.event_log();
 
         let (authenticated_user, public_account) = new_account.into();
 
