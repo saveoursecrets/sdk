@@ -51,7 +51,6 @@ pub async fn main() -> anyhow::Result<()> {
                     Ok(LocalAccount::new_unauthenticated(
                         *identity.account_id(),
                         target,
-                        app_dir,
                     )
                     .await?)
                 })

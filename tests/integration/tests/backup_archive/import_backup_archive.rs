@@ -90,7 +90,6 @@ async fn backup_export_import() -> Result<()> {
     let mut account = LocalAccount::new_unauthenticated(
         account_id,
         make_client_backend(&paths),
-        Some(data_dir.clone()),
     )
     .await?;
 

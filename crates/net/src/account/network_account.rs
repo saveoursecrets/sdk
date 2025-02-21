@@ -540,11 +540,9 @@ impl NetworkAccount {
         target: BackendTarget,
         data_dir: Option<PathBuf>,
         options: NetworkAccountOptions,
-        // offline: bool,
     ) -> Result<Self> {
         let account =
-            LocalAccount::new_unauthenticated(account_id, target, data_dir)
-                .await?;
+            LocalAccount::new_unauthenticated(account_id, target).await?;
 
         Ok(Self {
             account_id,

@@ -101,8 +101,7 @@ impl LinkedAccount {
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let account =
-            LocalAccount::new_unauthenticated(account_id, target, data_dir)
-                .await?;
+            LocalAccount::new_unauthenticated(account_id, target).await?;
         Ok(Self {
             account_id,
             paths: account.paths(),

@@ -122,16 +122,7 @@ impl LocalAccount {
     pub async fn new_unauthenticated(
         account_id: AccountId,
         mut target: BackendTarget,
-        data_dir: Option<PathBuf>,
     ) -> Result<Self> {
-        /*
-        let data_dir = if let Some(data_dir) = data_dir {
-            data_dir
-        } else {
-            Paths::data_dir()?
-        };
-        */
-
         target = target.with_account_id(&account_id);
 
         let storage =
@@ -183,14 +174,6 @@ impl LocalAccount {
             "new_account",
         );
 
-        /*
-        let paths = if let Some(data_dir) = &data_dir {
-            Paths::new_global(data_dir)
-        } else {
-            Paths::new_global(Paths::data_dir()?)
-        };
-        */
-
         let account_builder = builder(AccountBuilder::new(
             account_name,
             passphrase.clone(),
@@ -198,7 +181,6 @@ impl LocalAccount {
         ));
         let new_account = account_builder.finish().await?;
 
-        // let paths = paths.with_account_id(&new_account.account_id);
         target = target.with_account_id(&new_account.account_id);
 
         tracing::debug!(

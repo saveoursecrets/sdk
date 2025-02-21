@@ -53,7 +53,6 @@ async fn diff_merge_folder_import() -> Result<()> {
     let mut temp = LocalAccount::new_unauthenticated(
         account_id,
         make_client_backend(&export_paths),
-        Some(data_dir_export.clone()),
     )
     .await?;
     temp.sign_in(&key).await?;
@@ -79,7 +78,6 @@ async fn diff_merge_folder_import() -> Result<()> {
     let mut remote = LocalAccount::new_unauthenticated(
         account_id,
         make_client_backend(&merge_paths),
-        Some(data_dir_merge),
     )
     .await?;
     remote.sign_in(&key).await?;
