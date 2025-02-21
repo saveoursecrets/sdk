@@ -37,7 +37,6 @@ use sos_login::{
 use sos_reducers::FolderReducer;
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
-    list_accounts, list_local_folders,
     secret::{Secret, SecretMeta, SecretPath, SecretRow, SecretType},
     BuilderCredentials, Header, SecretAccess, Summary, Vault, VaultBuilder,
     VaultFlags,
@@ -271,11 +270,8 @@ impl LocalAccount {
         // adding create folder events for every folder that
         // already exists
         if needs_init {
-            let folders: Vec<Summary> = list_local_folders(&self.paths)
-                .await?
-                .into_iter()
-                .map(|(s, _)| s)
-                .collect();
+            let folders: Vec<Summary> =
+                self.target.list_folders(&self.account_id).await?;
 
             let mut events = Vec::new();
             for folder in folders {
@@ -590,8 +586,6 @@ impl LocalAccount {
         folder_name: String,
         converter: impl Convert<Input = PathBuf>,
     ) -> Result<FolderCreate<()>> {
-        let paths = self.paths();
-
         #[cfg(feature = "audit")]
         {
             let audit_event = AuditEvent::new(
@@ -603,9 +597,8 @@ impl LocalAccount {
             append_audit_events(&[audit_event]).await?;
         }
 
-        let vaults = list_local_folders(&paths).await?;
-        let existing_name =
-            vaults.iter().find(|(s, _)| s.name() == folder_name);
+        let vaults = self.target.list_folders(&self.account_id).await?;
+        let existing_name = vaults.iter().find(|s| s.name() == folder_name);
 
         let vault_passphrase = self.generate_folder_password()?;
 
@@ -2230,9 +2223,9 @@ impl Account for LocalAccount {
         let paths = self.paths();
         let mut archive = Vec::new();
         let mut migration = PublicExport::new(Cursor::new(&mut archive));
-        let vaults = list_local_folders(&paths).await?;
+        let vaults = self.target.list_folders(&self.account_id).await?;
 
-        for (summary, _) in vaults {
+        for summary in vaults {
             let (vault, _) =
                 Identity::load_local_vault(&*paths, summary.id()).await?;
             let vault_passphrase = self
@@ -2366,12 +2359,15 @@ impl Account for LocalAccount {
         let mut inventory =
             AccountBackup::restore_archive_inventory(BufReader::new(buffer))
                 .await?;
-        let accounts = list_accounts(None).await?;
+        /*
+        let accounts = self.target.list_accounts().await?;
         let exists_local = accounts.iter().any(|account| {
             account.account_id() == &inventory.manifest.account_id
         });
         inventory.exists_local = exists_local;
         Ok(inventory)
+        */
+        todo!("expect BackendTarget for restore_archive_inventory");
     }
 
     /// Restore from a backup archive file.
