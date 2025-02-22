@@ -18,7 +18,7 @@ pub mod mock {
     use sos_test_utils::mock;
     use sos_vault::Vault;
     use std::path::Path;
-    use tempfile::{tempdir_in, NamedTempFile, TempDir};
+    use tempfile::{tempdir_in, TempDir};
     use uuid::Uuid;
 
     pub async fn fs_account_event_log() -> Result<(TempDir, AccountEventLog)>
@@ -56,6 +56,7 @@ pub mod mock {
         let account_id = AccountId::random();
         let paths =
             Paths::new_global(temp.path()).with_account_id(&account_id);
+        paths.ensure().await?;
         let folder_id = VaultId::new_v4();
         let event_log = FolderEventLog::new_folder(
             BackendTarget::FileSystem(paths),
