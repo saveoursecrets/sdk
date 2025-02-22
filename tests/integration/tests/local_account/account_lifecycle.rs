@@ -16,6 +16,7 @@ async fn local_account_lifecycle() -> Result<()> {
     let data_dir = dirs.clients.remove(0);
     Paths::scaffold(Some(data_dir.clone())).await?;
     let paths = Paths::new_global(&data_dir);
+    let target = make_client_backend(&paths).await?;
 
     let account_name = TEST_ID.to_string();
     let (passphrase, _) = generate_passphrase()?;
@@ -26,11 +27,11 @@ async fn local_account_lifecycle() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         passphrase.clone(),
-        make_client_backend(&paths).await?,
+        target.clone(),
     )
     .await?;
 
-    let accounts = sos_vault::list_accounts(Some(&paths)).await?;
+    let accounts = target.list_accounts().await?;
     assert_eq!(1, accounts.len());
 
     let key: AccessKey = passphrase.into();
