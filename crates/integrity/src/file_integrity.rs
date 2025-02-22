@@ -57,11 +57,19 @@ pub async fn file_integrity(
         .map(|file| {
             (
                 file,
-                paths.file_location(
-                    file.vault_id(),
-                    file.secret_id(),
-                    file.file_name().to_string(),
-                ),
+                if paths.is_using_db() {
+                    paths.blob_location(
+                        file.vault_id(),
+                        file.secret_id(),
+                        file.file_name().to_string(),
+                    )
+                } else {
+                    paths.file_location(
+                        file.vault_id(),
+                        file.secret_id(),
+                        file.file_name().to_string(),
+                    )
+                },
             )
         })
         .collect();
