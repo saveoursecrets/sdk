@@ -16,9 +16,9 @@ use sos_core::{
     device::TrustedDevice,
     events::{
         patch::{AccountDiff, CheckedPatch, DeviceDiff, FolderDiff},
-        ReadEvent, WriteEvent,
+        Event, ReadEvent, WriteEvent,
     },
-    AccountId, Paths, VaultId,
+    AccountId, AuthenticationError, Paths, VaultId,
 };
 use sos_database::async_sqlite::Client;
 use sos_login::Identity;
@@ -309,6 +309,16 @@ impl ClientAccountStorage for ClientStorage {
         match self {
             ClientStorage::FileSystem(fs) => fs.paths(),
             ClientStorage::Database(db) => db.paths(),
+        }
+    }
+
+    async fn delete_account(&self) -> Result<Event> {
+        self.authenticated_user()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+
+        match self {
+            ClientStorage::FileSystem(fs) => fs.delete_account().await,
+            ClientStorage::Database(db) => db.delete_account().await,
         }
     }
 

@@ -822,6 +822,9 @@ pub trait ClientAccountStorage:
     /// Computed storage paths.
     fn paths(&self) -> Arc<Paths>;
 
+    /// Delete the account for this user.
+    async fn delete_account(&self) -> Result<Event>;
+
     /// Set the storage as authenticated.
     async fn authenticate(
         &mut self,

@@ -5,7 +5,7 @@ use crate::{
     FolderDelete, SecretChange, SecretDelete, SecretInsert, SecretMove,
 };
 use indexmap::IndexSet;
-use sos_backend::Folder;
+use sos_backend::{BackendTarget, Folder};
 use sos_client_storage::{AccessOptions, NewFolderOptions};
 use sos_core::{
     commit::{CommitHash, CommitState},
@@ -661,8 +661,9 @@ pub trait Account {
     async fn import_backup_archive(
         path: impl AsRef<Path> + Send + Sync,
         options: RestoreOptions,
+        target: &BackendTarget,
         data_dir: Option<PathBuf>,
-    ) -> std::result::Result<PublicIdentity, Self::Error>;
+    ) -> std::result::Result<Vec<PublicIdentity>, Self::Error>;
 
     /// Copy a secret to the clipboard.
     #[cfg(feature = "clipboard")]

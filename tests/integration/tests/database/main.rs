@@ -81,9 +81,10 @@ pub async fn assert_import_archive(
     // Re-create top-level empty blobs dir
     paths.ensure_db().await?;
 
-    let mut target_db = Connection::open(paths.database_file())?;
+    // let mut target_db = Connection::open(paths.database_file())?;
     let mut import =
-        archive::import_backup_archive(&mut target_db, paths, zip).await?;
+        archive::import_backup_archive(paths.database_file(), paths, zip)
+            .await?;
 
     // Run migrations on the source to ensure it's schema is up to date.
     //

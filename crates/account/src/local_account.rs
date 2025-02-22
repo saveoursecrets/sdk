@@ -636,34 +636,56 @@ impl LocalAccount {
         Ok(result)
     }
 
+    /*
     /// Import from an archive reader.
     #[cfg(feature = "archive")]
     async fn import_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
         buffer: R,
         mut options: RestoreOptions,
+        target: BackendTarget,
         data_dir: Option<PathBuf>,
     ) -> Result<PublicIdentity> {
-        use sos_filesystem::archive::{AccountBackup, ExtractFilesLocation};
+        let account = match &target {
+            BackendTarget::FileSystem(_) => {
+                use sos_filesystem::archive::{
+                    AccountBackup, ExtractFilesLocation,
+                };
 
-        if options.files_dir.is_none() {
-            let files_dir =
-                ExtractFilesLocation::Builder(Box::new(|address| {
-                    let data_dir = Paths::data_dir().unwrap();
-                    let paths = Paths::new(data_dir, address);
-                    Some(paths.files_dir().to_owned())
-                }));
-            options.files_dir = Some(files_dir);
-        }
+                if options.files_dir.is_none() {
+                    let files_dir =
+                        ExtractFilesLocation::Builder(Box::new(|address| {
+                            let data_dir = Paths::data_dir().unwrap();
+                            let paths = Paths::new(data_dir, address);
+                            Some(paths.files_dir().to_owned())
+                        }));
+                    options.files_dir = Some(files_dir);
+                }
 
-        let (_, account) = AccountBackup::import_archive_reader(
-            BufReader::new(buffer),
-            options,
-            data_dir,
-        )
-        .await?;
+                let (_, account) = AccountBackup::import_archive_reader(
+                    BufReader::new(buffer),
+                    options,
+                    data_dir,
+                )
+                .await?;
+                account
+            }
+            BackendTarget::Database(paths, _) => {
+                use sos_database::archive;
+                todo!("restore backup for database target");
+
+                // let db_path = paths.database_file();
+                // archive::create_backup_archive(
+                //     db_path,
+                //     &paths,
+                //     path.as_ref(),
+                // )
+                // .await?;
+            }
+        };
 
         Ok(account)
     }
+    */
 }
 
 impl From<&LocalAccount> for AccountRef {
@@ -1105,18 +1127,15 @@ impl Account for LocalAccount {
     }
 
     async fn delete_account(&mut self) -> Result<()> {
+        self.ensure_authenticated()?;
+
         let paths = self.paths().clone();
         tracing::info!(
           account_id = %self.account_id,
           directory = %paths.documents_dir().display(),
           "delete_account");
-        let event = {
-            let authenticated_user = self
-                .storage
-                .authenticated_user_mut()
-                .ok_or(AuthenticationError::NotAuthenticated)?;
-            authenticated_user.delete_account(&paths).await?
-        };
+
+        let event = self.storage.delete_account().await?;
 
         #[cfg(feature = "audit")]
         {
@@ -2319,27 +2338,12 @@ impl Account for LocalAccount {
         &self,
         path: impl AsRef<Path> + Send + Sync,
     ) -> Result<()> {
-        match &self.target {
-            BackendTarget::FileSystem(_) => {
-                use sos_filesystem::archive::AccountBackup;
-                AccountBackup::export_archive_file(
-                    path,
-                    self.account_id(),
-                    &self.paths,
-                )
-                .await?;
-            }
-            BackendTarget::Database(paths, _) => {
-                use sos_database::archive;
-                let db_path = paths.database_file();
-                archive::create_backup_archive(
-                    db_path,
-                    &paths,
-                    path.as_ref(),
-                )
-                .await?;
-            }
-        }
+        sos_backend::archive::export_backup_archive(
+            path.as_ref(),
+            &self.target,
+            &self.account_id,
+        )
+        .await?;
 
         #[cfg(feature = "audit")]
         {
@@ -2382,25 +2386,27 @@ impl Account for LocalAccount {
     async fn import_backup_archive(
         path: impl AsRef<Path> + Send + Sync,
         options: RestoreOptions,
+        target: &BackendTarget,
         data_dir: Option<PathBuf>,
-    ) -> Result<PublicIdentity> {
-        let file = vfs::File::open(path).await?;
-        let account =
-            Self::import_archive_reader(file, options, data_dir.clone())
-                .await?;
+    ) -> Result<Vec<PublicIdentity>> {
+        let accounts =
+            sos_backend::archive::import_backup_archive(path, target).await?;
 
         #[cfg(feature = "audit")]
         {
-            let audit_event = AuditEvent::new(
-                Default::default(),
-                EventKind::ImportBackupArchive,
-                *account.account_id(),
-                None,
-            );
-            append_audit_events(&[audit_event]).await?;
+            let mut audit_events = Vec::new();
+            for account in &accounts {
+                audit_events.push(AuditEvent::new(
+                    Default::default(),
+                    EventKind::ImportBackupArchive,
+                    *account.account_id(),
+                    None,
+                ));
+            }
+            append_audit_events(&audit_events).await?;
         }
 
-        Ok(account)
+        Ok(accounts)
     }
 
     /// Copy a secret to the clipboard.

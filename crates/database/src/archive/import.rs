@@ -51,11 +51,11 @@ struct ImportDataSource {
 }
 
 /// Backup import.
-pub struct BackupImport<'conn> {
+pub struct BackupImport {
     // Box the connection so it implements Deref<Target = Connection>
     // which database entities use so they can accept transactions
     source_db: Box<Connection>,
-    target_db: &'conn mut Connection,
+    target_db: Box<Connection>,
     paths: Paths,
     #[allow(dead_code)]
     manifest: ManifestVersion3,
@@ -67,7 +67,7 @@ pub struct BackupImport<'conn> {
     zip_reader: Reader<BufReader<vfs::File>>,
 }
 
-impl<'conn> BackupImport<'conn> {
+impl BackupImport {
     /// List accounts in the temporary source database.
     pub fn list_source_accounts(&self) -> Result<Vec<AccountRecord>> {
         let accounts = AccountEntity::new(&self.source_db);
@@ -97,7 +97,7 @@ impl<'conn> BackupImport<'conn> {
 
     /// Run migrations on the target database.
     pub fn migrate_target(&mut self) -> Result<refinery::Report> {
-        Ok(crate::migrations::migrate_connection(self.target_db)?)
+        Ok(crate::migrations::migrate_connection(&mut *self.target_db)?)
     }
 
     /// Try to import an account from the source to the
@@ -343,12 +343,13 @@ impl<'conn> BackupImport<'conn> {
 /// The returned struct will hold the temporary file and connections
 /// in memory until dropped and can be used to inspect the accounts in the
 /// archive and perform imports.
-pub(crate) async fn start<'conn>(
-    target_db: &'conn mut Connection,
+pub(crate) async fn start(
+    // target_db: &'conn mut Connection,
+    target_db: impl AsRef<Path>,
     paths: &Paths,
     input: impl AsRef<Path>,
     // progress: fn(backup::Progress),
-) -> Result<BackupImport<'conn>> {
+) -> Result<BackupImport> {
     if !vfs::try_exists(input.as_ref()).await? {
         return Err(Error::ArchiveFileNotExists(input.as_ref().to_owned()));
     }
@@ -390,8 +391,9 @@ pub(crate) async fn start<'conn>(
     }
 
     let source_db = Connection::open(db_temp.path())?;
+    let target_db = Connection::open(target_db.as_ref())?;
     let import = BackupImport {
-        target_db,
+        target_db: Box::new(target_db),
         paths: paths.clone(),
         manifest,
         db_temp,

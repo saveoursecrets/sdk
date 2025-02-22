@@ -2,6 +2,8 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use maplit2::hashmap;
 use sos_account::{Account, LocalAccount};
+use sos_backend::BackendTarget;
+use sos_database::open_file;
 use sos_filesystem::archive::RestoreOptions;
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
@@ -78,9 +80,18 @@ async fn backup_export_import() -> Result<()> {
         selected: folders.clone(),
         ..Default::default()
     };
+
+    let target = if paths.is_using_db() {
+        let client = open_file(paths.database_file()).await?;
+        BackendTarget::Database(paths.clone(), client)
+    } else {
+        BackendTarget::FileSystem(paths.clone())
+    };
+
     LocalAccount::import_backup_archive(
         &archive,
         options,
+        &target,
         Some(data_dir.clone()),
     )
     .await?;

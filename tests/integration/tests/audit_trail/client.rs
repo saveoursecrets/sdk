@@ -1,5 +1,7 @@
 use anyhow::Result;
+use sos_backend::BackendTarget;
 use sos_client_storage::NewFolderOptions;
+use sos_database::open_file;
 use sos_test_utils::make_client_backend;
 
 use crate::test_utils::{mock, setup, teardown};
@@ -230,9 +232,19 @@ async fn simulate_session(
         files_dir: None,
     };
 
+    println!("IMPORTING FROM BACKUP ARCHIVE");
+
+    let target = if paths.is_using_db() {
+        let client = open_file(paths.database_file()).await?;
+        BackendTarget::Database(paths.clone(), client)
+    } else {
+        BackendTarget::FileSystem(paths.clone())
+    };
+
     LocalAccount::import_backup_archive(
         archive,
         restore_options,
+        &target,
         Some(paths.documents_dir().clone()),
     )
     .await?;

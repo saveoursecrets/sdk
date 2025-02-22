@@ -1803,10 +1803,13 @@ impl Account for NetworkAccount {
     async fn import_backup_archive(
         path: impl AsRef<Path> + Send + Sync,
         options: RestoreOptions,
+        target: &BackendTarget,
         data_dir: Option<PathBuf>,
-    ) -> Result<PublicIdentity> {
-        Ok(LocalAccount::import_backup_archive(path, options, data_dir)
-            .await?)
+    ) -> Result<Vec<PublicIdentity>> {
+        Ok(LocalAccount::import_backup_archive(
+            path, options, target, data_dir,
+        )
+        .await?)
     }
 
     #[cfg(feature = "clipboard")]

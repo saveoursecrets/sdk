@@ -12,7 +12,9 @@ use crate::{
 use clap::Subcommand;
 use enum_iterator::all;
 use sos_account::Account;
+use sos_backend::BackendTarget;
 use sos_core::{AccountRef, Paths, PublicIdentity};
+use sos_database::open_file;
 use sos_filesystem::archive::{
     AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
 };
@@ -201,8 +203,10 @@ pub async fn run(cmd: Command) -> Result<()> {
             success("Backup archive created");
         }
         Command::Restore { input } => {
-            if let Some(account) = account_restore(input).await? {
-                success(format!("Account restored {}", account.label()));
+            if let Some(accounts) = account_restore(input).await? {
+                for account in accounts {
+                    success(format!("Account restored {}", account.label()));
+                }
             }
         }
         Command::Rename { name, account } => {
@@ -390,7 +394,9 @@ async fn account_backup(
 }
 
 /// Restore from a zip archive.
-async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
+async fn account_restore(
+    input: PathBuf,
+) -> Result<Option<Vec<PublicIdentity>>> {
     if !vfs::try_exists(&input).await?
         || !vfs::metadata(&input).await?.is_file()
     {
@@ -408,15 +414,24 @@ async fn account_restore(input: PathBuf) -> Result<Option<PublicIdentity>> {
         return Ok(None);
     }
 
+    let paths = Paths::new_global(Paths::data_dir()?);
+    let target = if paths.is_using_db() {
+        let client = open_file(paths.database_file()).await?;
+        BackendTarget::Database(paths.clone(), client)
+    } else {
+        BackendTarget::FileSystem(paths.clone())
+    };
+
     let account = {
-        let account_id = inventory.manifest.account_id.to_string();
-        let paths = Paths::new(Paths::data_dir()?, &account_id);
+        let account_id = inventory.manifest.account_id;
+        let paths = paths.with_account_id(&account_id);
         let files_dir = paths.files_dir();
         let options = RestoreOptions {
             selected: inventory.vaults,
             files_dir: Some(ExtractFilesLocation::Path(files_dir.to_owned())),
         };
-        NetworkAccount::import_backup_archive(&input, options, None).await?
+        NetworkAccount::import_backup_archive(&input, options, &target, None)
+            .await?
     };
 
     Ok(Some(account))

@@ -1,5 +1,4 @@
 //! Create and import backup archives.
-use async_sqlite::rusqlite::Connection;
 use sos_core::Paths;
 use std::path::Path;
 
@@ -24,10 +23,10 @@ pub async fn create_backup_archive(
 }
 
 /// Import from a backup archive.
-pub async fn import_backup_archive<'conn>(
-    target_db: &'conn mut Connection,
+pub async fn import_backup_archive(
+    target_db: impl AsRef<Path>,
     paths: &Paths,
     input: impl AsRef<Path>,
-) -> Result<BackupImport<'conn>> {
+) -> Result<BackupImport> {
     import::start(target_db, paths, input).await
 }

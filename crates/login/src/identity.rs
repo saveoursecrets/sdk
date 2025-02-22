@@ -12,11 +12,10 @@ use crate::{
 use async_trait::async_trait;
 use sos_backend::{database::async_sqlite::Client, BackendTarget};
 use sos_core::{
-    crypto::AccessKey, events::Event, AccountId, AuthenticationError, Paths,
-    SecretId, VaultId,
+    crypto::AccessKey, AccountId, AuthenticationError, Paths, SecretId,
+    VaultId,
 };
 use sos_vault::read_public_identity;
-use sos_vfs as vfs;
 use std::{collections::HashMap, path::Path};
 use urn::Urn;
 
@@ -142,13 +141,6 @@ impl Identity {
         } else {
             false
         }
-    }
-
-    /// Delete the account for this user.
-    pub async fn delete_account(&self, paths: &Paths) -> Result<Event> {
-        vfs::remove_file(paths.identity_vault()).await?;
-        vfs::remove_dir_all(paths.user_dir()).await?;
-        Ok(Event::DeleteAccount(*self.identity()?.account_id()))
     }
 
     /// Rename this account by changing the name of the identity vault.

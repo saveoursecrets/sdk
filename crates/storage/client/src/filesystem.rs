@@ -16,7 +16,7 @@ use sos_core::{
     decode,
     device::TrustedDevice,
     encode,
-    events::{DeviceEvent, EventLog, ReadEvent},
+    events::{DeviceEvent, Event, EventLog, ReadEvent},
     AccountId, Paths, VaultId,
 };
 use sos_login::Identity;
@@ -312,6 +312,12 @@ impl ClientAccountStorage for ClientFileSystemStorage {
 
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
+    }
+
+    async fn delete_account(&self) -> Result<Event> {
+        vfs::remove_file(self.paths.identity_vault()).await?;
+        vfs::remove_dir_all(self.paths.user_dir()).await?;
+        Ok(Event::DeleteAccount(self.account_id))
     }
 
     #[cfg(feature = "files")]

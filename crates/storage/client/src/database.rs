@@ -13,7 +13,7 @@ use sos_backend::{
 use sos_core::{
     device::TrustedDevice,
     encode,
-    events::{DeviceEvent, EventLog, ReadEvent},
+    events::{DeviceEvent, Event, EventLog, ReadEvent},
     AccountId, Paths, VaultId,
 };
 use sos_database::{
@@ -354,6 +354,18 @@ impl ClientAccountStorage for ClientDatabaseStorage {
 
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
+    }
+
+    async fn delete_account(&self) -> Result<Event> {
+        let account_id = self.account_id;
+        self.client
+            .conn(move |conn| {
+                let entity = AccountEntity::new(&conn);
+                entity.delete_account(&account_id)
+            })
+            .await
+            .map_err(sos_database::Error::from)?;
+        Ok(Event::DeleteAccount(self.account_id))
     }
 
     #[cfg(feature = "files")]

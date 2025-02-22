@@ -1001,8 +1001,9 @@ impl Account for LinkedAccount {
     async fn import_backup_archive(
         _path: impl AsRef<Path> + Send + Sync,
         _options: RestoreOptions,
+        _target: &BackendTarget,
         _data_dir: Option<PathBuf>,
-    ) -> Result<PublicIdentity> {
+    ) -> Result<Vec<PublicIdentity>> {
         unimplemented!();
     }
 

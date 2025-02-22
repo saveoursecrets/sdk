@@ -1,6 +1,8 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
 use sos_account::{Account, LocalAccount};
+use sos_backend::BackendTarget;
+use sos_database::open_file;
 use sos_filesystem::archive::{
     AccountBackup, ExtractFilesLocation, Inventory, RestoreOptions,
 };
@@ -24,22 +26,28 @@ async fn backup_import_v1() -> Result<()> {
         AccountBackup::restore_archive_inventory(BufReader::new(reader))
             .await?;
 
-    let user_paths = Paths::new(
-        data_dir.clone(),
-        inventory.manifest.account_id.to_string(),
-    );
-    user_paths.ensure().await?;
+    let paths = Paths::new_global(&data_dir)
+        .with_account_id(&inventory.manifest.account_id);
+    paths.ensure().await?;
 
     let options = RestoreOptions {
         selected: inventory.vaults,
         files_dir: Some(ExtractFilesLocation::Path(
-            user_paths.files_dir().to_owned(),
+            paths.files_dir().to_owned(),
         )),
+    };
+
+    let target = if paths.is_using_db() {
+        let client = open_file(paths.database_file()).await?;
+        BackendTarget::Database(paths.clone(), client)
+    } else {
+        BackendTarget::FileSystem(paths.clone())
     };
 
     LocalAccount::import_backup_archive(
         &archive,
         options,
+        &target,
         Some(data_dir.clone()),
     )
     .await?;
