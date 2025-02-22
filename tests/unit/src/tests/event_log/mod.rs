@@ -51,43 +51,53 @@ pub mod mock {
         Ok((account_id, event_log, temp))
     }
 
-    pub async fn fs_folder_event_log(
-    ) -> Result<(NamedTempFile, FolderEventLog)> {
-        let temp = NamedTempFile::new()?;
-        let event_log = FolderEventLog::new_fs_folder(temp.path()).await?;
+    pub async fn fs_folder_event_log() -> Result<(TempDir, FolderEventLog)> {
+        let temp = tempdir_in("target")?;
+        let account_id = AccountId::random();
+        let paths =
+            Paths::new_global(temp.path()).with_account_id(&account_id);
+        let folder_id = VaultId::new_v4();
+        let event_log = FolderEventLog::new_folder(
+            BackendTarget::FileSystem(paths),
+            &account_id,
+            &folder_id,
+        )
+        .await?;
         Ok((temp, event_log))
     }
 
     pub async fn db_folder_event_log(
         client: &mut Client,
         vault: &Vault,
-    ) -> Result<(AccountId, FolderEventLog)> {
+    ) -> Result<(AccountId, FolderEventLog, TempDir)> {
+        let temp = tempdir_in("target")?;
         let (account_id, _, _) =
             mock::insert_database_vault(client, vault, false).await?;
-        let event_log = FolderEventLog::new_db_folder(
-            client.clone(),
-            account_id,
-            *vault.id(),
+        let paths =
+            Paths::new_global(temp.path()).with_account_id(&account_id);
+        let event_log = FolderEventLog::new_folder(
+            BackendTarget::Database(paths, client.clone()),
+            &account_id,
+            vault.id(),
         )
         .await?;
-        Ok((account_id, event_log))
+        Ok((account_id, event_log, temp))
     }
 
     pub async fn db_event_log_folder(
         client: &mut Client,
-    ) -> Result<(AccountId, FolderEventLog)> {
+    ) -> Result<(AccountId, FolderEventLog, TempDir)> {
         let (encryption_key, _, _) = mock::encryption_key()?;
         let (_, vault, _) = mock::vault_file().await?;
 
-        let (account_id, mut event_log) =
+        let (account_id, mut event_log, temp) =
             db_folder_event_log(client, &vault).await?;
         insert_mock_folder_events(encryption_key, vault, &mut event_log)
             .await?;
-        Ok((account_id, event_log))
+        Ok((account_id, event_log, temp))
     }
 
-    pub async fn fs_event_log_file() -> Result<(NamedTempFile, FolderEventLog)>
-    {
+    pub async fn fs_event_log_file() -> Result<(TempDir, FolderEventLog)> {
         let (encryption_key, _, _) = mock::encryption_key()?;
         let (_, vault, _) = mock::vault_file().await?;
         let (temp, mut event_log) = fs_folder_event_log().await?;

@@ -6,8 +6,8 @@ use sos_backend::FileEventLog;
 use sos_core::events::{EventLog, FileEvent};
 use sos_core::{basename, Paths, SecretId, SecretPath, VaultId};
 use sos_external_files::{
-    list_folder_files, EncryptedFile, FileMutationEvent, FileProgress,
-    FileSource, FileStorageDiff, FileStorageResult,
+    EncryptedFile, FileMutationEvent, FileProgress, FileSource,
+    FileStorageDiff, FileStorageResult,
 };
 use sos_vault::{
     secret::{FileContent, Secret, SecretRow, UserData},
@@ -115,17 +115,40 @@ impl ExternalFileManager {
         &self,
         folder_id: &VaultId,
     ) -> Result<Vec<FileEvent>> {
+        use sos_external_files::{list_folder_blobs, list_folder_files};
         let mut events = Vec::new();
-        let mut folder_files =
-            list_folder_files(&self.paths, folder_id).await?;
+        let mut folder_files = if self.paths.is_using_db() {
+            list_folder_blobs(&self.paths, folder_id).await?
+        } else {
+            list_folder_files(&self.paths, folder_id).await?
+        };
         for (secret_id, mut external_files) in folder_files.drain(..) {
             for file_name in external_files.drain(..) {
+                // Remove each file as we go and create
+                // a file deletion event
+                let file = if self.paths.is_using_db() {
+                    self.paths.blob_location(
+                        folder_id,
+                        &secret_id,
+                        file_name.to_string(),
+                    )
+                } else {
+                    self.paths.file_location(
+                        folder_id,
+                        &secret_id,
+                        file_name.to_string(),
+                    )
+                };
+                vfs::remove_file(&file).await?;
+
                 events.push(FileEvent::DeleteFile(
                     SecretPath(*folder_id, secret_id),
                     file_name,
                 ));
             }
         }
+
+        // Remove the folder finally
         let folder_files = if self.paths.is_using_db() {
             self.paths.blob_folder_location(folder_id)
         } else {

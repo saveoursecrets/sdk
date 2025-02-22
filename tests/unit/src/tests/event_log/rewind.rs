@@ -33,7 +33,7 @@ async fn db_event_log_rewind() -> Result<()> {
     let vault: Vault = Default::default();
     let folder_id = *vault.id();
     let mut client = memory_database().await?;
-    let (account_id, event_log) =
+    let (account_id, event_log, temp) =
         mock::db_folder_event_log(&mut client, &vault).await?;
     let rewind_root = assert_event_log_rewind(event_log, vault).await?;
 
@@ -42,7 +42,7 @@ async fn db_event_log_rewind() -> Result<()> {
         FolderEventLog::new_db_folder(client.clone(), account_id, folder_id)
             .await?;
     assert_event_log_rewound_root(event_log, rewind_root).await?;
-
+    temp.close()?;
     Ok(())
 }
 

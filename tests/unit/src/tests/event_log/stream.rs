@@ -27,18 +27,20 @@ async fn fs_event_stream_backward() -> Result<()> {
 #[tokio::test]
 async fn db_event_stream_forward() -> Result<()> {
     let mut client = memory_database().await?;
-    let (_, event_log) = mock::db_event_log_folder(&mut client).await?;
+    let (_, event_log, temp) = mock::db_event_log_folder(&mut client).await?;
     let stream = event_log.event_stream(false).await;
     assert_events(stream).await;
+    temp.close()?;
     Ok(())
 }
 
 #[tokio::test]
 async fn db_event_stream_backward() -> Result<()> {
     let mut client = memory_database().await?;
-    let (_, event_log) = mock::db_event_log_folder(&mut client).await?;
+    let (_, event_log, temp) = mock::db_event_log_folder(&mut client).await?;
     let stream = event_log.event_stream(true).await;
     assert_events(stream).await;
+    temp.close()?;
     Ok(())
 }
 
@@ -63,18 +65,20 @@ async fn fs_record_stream_backward() -> Result<()> {
 #[tokio::test]
 async fn db_record_stream_forward() -> Result<()> {
     let mut client = memory_database().await?;
-    let (_, event_log) = mock::db_event_log_folder(&mut client).await?;
+    let (_, event_log, temp) = mock::db_event_log_folder(&mut client).await?;
     let stream = event_log.record_stream(false).await;
     assert_records(stream).await;
+    temp.close()?;
     Ok(())
 }
 
 #[tokio::test]
 async fn db_record_stream_backward() -> Result<()> {
     let mut client = memory_database().await?;
-    let (_, event_log) = mock::db_event_log_folder(&mut client).await?;
+    let (_, event_log, temp) = mock::db_event_log_folder(&mut client).await?;
     let stream = event_log.record_stream(true).await;
     assert_records(stream).await;
+    temp.close()?;
     Ok(())
 }
 

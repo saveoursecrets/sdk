@@ -158,6 +158,9 @@ async fn event_log_file_folder_delete() -> Result<()> {
     let mut event_log =
         FileEventLog::new_file(target, account.account_id()).await?;
     let events = all_events(&mut event_log).await?;
+
+    println!("{events:?}");
+
     assert_eq!(4, events.len());
     assert!(matches!(events.get(0), Some(FileEvent::CreateFile(_, _))));
     assert!(matches!(events.get(1), Some(FileEvent::CreateFile(_, _))));
