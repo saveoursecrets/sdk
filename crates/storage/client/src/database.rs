@@ -103,22 +103,23 @@ impl ClientDatabaseStorage {
         target: BackendTarget,
         account_id: &AccountId,
     ) -> Result<Self> {
-        debug_assert!(matches!(target, BackendTarget::Database(_, _)));
-        let BackendTarget::Database(paths, client) = target else {
-            panic!("database backend expected");
+        let (paths, client) = {
+            debug_assert!(matches!(target, BackendTarget::Database(_, _)));
+            let BackendTarget::Database(paths, client) = &target else {
+                panic!("database backend expected");
+            };
+            debug_assert!(!paths.is_global());
+            (paths, client)
         };
-        debug_assert!(!paths.is_global());
-
-        let target = BackendTarget::Database(paths.clone(), client.clone());
 
         let (account_record, login_folder) =
-            AccountEntity::find_account_with_login(&client, account_id)
+            AccountEntity::find_account_with_login(client, account_id)
                 .await?;
 
-        let mut identity_log = FolderEventLog::new_db_folder(
-            client.clone(),
-            *account_id,
-            *login_folder.summary.id(),
+        let mut identity_log = FolderEventLog::new_folder(
+            target.clone(),
+            account_id,
+            login_folder.summary.id(),
         )
         .await?;
         identity_log.load_tree().await?;
@@ -141,15 +142,14 @@ impl ClientDatabaseStorage {
         };
 
         let paths = Arc::new(paths.clone());
-
         let mut storage = Self {
             account_id: *account_id,
-            client,
+            client: client.clone(),
             account_row_id: account_record.row_id,
             summaries: Vec::new(),
             current: Arc::new(Mutex::new(None)),
             folders: Default::default(),
-            paths,
+            paths: paths.clone(),
             identity_log: Arc::new(RwLock::new(identity_log)),
             account_log: Arc::new(RwLock::new(account_log)),
             #[cfg(feature = "search")]
@@ -270,10 +270,13 @@ impl ClientFolderStorage for ClientDatabaseStorage {
             vault,
         )
         .await?;
-        Ok(
-            Folder::new_db(self.client.clone(), self.account_id, folder_id)
-                .await?,
+        Ok(Folder::new_db(
+            (&*self.paths).clone(),
+            self.client.clone(),
+            self.account_id,
+            folder_id,
         )
+        .await?)
     }
 
     async fn read_vault(&self, folder_id: &VaultId) -> Result<Vault> {

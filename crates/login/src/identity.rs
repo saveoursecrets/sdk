@@ -177,52 +177,24 @@ impl Identity {
         account_id: &AccountId,
         key: &AccessKey,
     ) -> Result<()> {
+        self.identity =
+            Some(IdentityFolder::login(&self.target, account_id, key).await?);
+
         let backend = self.target.clone();
         match &backend {
             BackendTarget::FileSystem(paths) => {
-                self.login_fs(account_id, key, paths).await
+                let paths = paths.with_account_id(account_id);
+
+                // Lazily create or retrieve a device specific signing key
+                let identity = self.identity.as_mut().unwrap();
+                identity.ensure_device_vault_fs(&paths).await
             }
             BackendTarget::Database(_, client) => {
-                self.login_db(account_id, key, client).await
+                // Lazily create or retrieve a device specific signing key
+                let identity = self.identity.as_mut().unwrap();
+                identity.ensure_device_vault_db(client).await
             }
         }
-    }
-
-    /// Login to a file system identity folder.
-    async fn login_fs(
-        &mut self,
-        account_id: &AccountId,
-        key: &AccessKey,
-        paths: &Paths,
-        // file: P,
-    ) -> Result<()> {
-        self.identity = Some(
-            IdentityFolder::login_fs(account_id, key, paths.identity_vault())
-                .await?,
-        );
-
-        // Lazily create or retrieve a device specific signing key
-        let identity = self.identity.as_mut().unwrap();
-        identity.ensure_device_vault_fs(paths).await?;
-
-        Ok(())
-    }
-
-    /// Login to a database identity folder.
-    async fn login_db(
-        &mut self,
-        account_id: &AccountId,
-        key: &AccessKey,
-        client: &Client,
-    ) -> Result<()> {
-        self.identity =
-            Some(IdentityFolder::login_db(account_id, key, client).await?);
-
-        // Lazily create or retrieve a device specific signing key
-        let identity = self.identity.as_mut().unwrap();
-        identity.ensure_device_vault_db(client).await?;
-
-        Ok(())
     }
 
     /// Sign in to a user account.

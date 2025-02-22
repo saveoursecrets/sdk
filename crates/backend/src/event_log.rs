@@ -91,7 +91,7 @@ impl BackendEventLog<WriteEvent> {
     }
 
     /// Create a file system folder event log.
-    // TODO: make this private
+    #[deprecated]
     pub async fn new_fs_folder<P: AsRef<Path>>(
         path: P,
     ) -> Result<Self, Error> {
@@ -101,7 +101,7 @@ impl BackendEventLog<WriteEvent> {
     }
 
     /// Create a database folder event log.
-    // TODO: make this private
+    #[deprecated]
     pub async fn new_db_folder(
         client: Client,
         account_id: AccountId,

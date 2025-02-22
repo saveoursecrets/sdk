@@ -5,12 +5,14 @@ use sos_backend::{Folder, FolderEventLog};
 use sos_core::{
     crypto::AccessKey, encode, events::EventLog, SecretId, VaultFlags,
 };
+use sos_sdk::Paths;
 use sos_test_utils::mock::{
     self, file_database, insert_database_vault, vault_file, vault_memory,
 };
 use sos_vault::secret::{Secret, SecretRow};
 use sos_vfs as vfs;
 use std::sync::Arc;
+use tempfile::tempdir_in;
 use tokio::sync::RwLock;
 
 #[tokio::test]
@@ -29,6 +31,7 @@ async fn fs_folder_lifecycle() -> Result<()> {
 
 #[tokio::test]
 async fn db_folder_lifecycle() -> Result<()> {
+    let dir = tempdir_in("target")?;
     let (vault, password) = vault_memory().await?;
     let (temp, mut client) = file_database().await?;
     let (account_id, _, _) =
@@ -36,14 +39,17 @@ async fn db_folder_lifecycle() -> Result<()> {
 
     let buffer = encode(&vault).await?;
     vfs::write(temp.path(), &buffer).await?;
+    let paths = Paths::new_global(dir.path());
 
     let mut folder =
-        Folder::new_db(client.clone(), account_id, *vault.id()).await?;
+        Folder::new_db(paths, client.clone(), account_id, *vault.id())
+            .await?;
     let key: AccessKey = password.into();
     assert_folder(&mut folder, key).await?;
 
     client.close().await?;
     temp.close()?;
+    dir.close()?;
     Ok(())
 }
 

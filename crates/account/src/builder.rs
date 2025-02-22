@@ -1,7 +1,7 @@
 //! Create a new local account.
 use crate::{Error, Result};
 use secrecy::SecretString;
-use sos_backend::{database::async_sqlite::Client, BackendTarget};
+use sos_backend::BackendTarget;
 use sos_client_storage::AccountPack;
 use sos_core::{
     constants::{
@@ -297,98 +297,47 @@ impl AccountBuilder {
         })
     }
 
-    /// Create a new identity vault and account folders for the
-    /// file system backend.
-    async fn build_fs(mut self, paths: Paths) -> Result<PrivateNewAccount> {
-        let AccountBuilder {
-            #[cfg(feature = "files")]
-            create_file_password,
-            ..
-        } = self;
-
-        Paths::scaffold(Some(paths.documents_dir().to_owned())).await?;
-
-        // Prepare the identity folder
-        let identity_folder = IdentityFolder::new_fs(
-            self.account_name.clone(),
-            self.passphrase.clone(),
-            Some(paths.documents_dir().clone()),
-            self.account_id.clone(),
-        )
-        .await?;
-
-        // Needs to be account paths now
-        let paths = paths.with_account_id(identity_folder.account_id());
-
-        let account_id = *identity_folder.account_id();
-
-        let mut folder_keys = HashMap::new();
-
-        paths.ensure().await?;
-
-        let mut user =
-            Identity::new(BackendTarget::FileSystem(paths.clone()));
-        let key: AccessKey = self.passphrase.clone().into();
-        user.login(&account_id, &key).await?;
-
-        let default_folder = self
-            .build_default_folder(&mut user, &mut folder_keys)
-            .await?;
-
-        #[cfg(feature = "files")]
-        if create_file_password {
-            user.create_file_encryption_password().await?;
+    /// Create a new account and write the identity
+    /// folder to backend storage.
+    pub async fn finish(mut self) -> Result<PrivateNewAccount> {
+        // TODO: remove this and always scaffold in test specs
+        #[cfg(debug_assertions)]
+        if let BackendTarget::FileSystem(paths) = &self.target {
+            Paths::scaffold(Some(paths.documents_dir().to_owned())).await?;
         }
 
-        let archive = self.build_archive(&mut user, &mut folder_keys).await?;
-        let authenticator = self
-            .build_authenticator(&mut user, &mut folder_keys)
-            .await?;
-        let contacts =
-            self.build_contacts(&mut user, &mut folder_keys).await?;
-
-        Ok(PrivateNewAccount {
-            account_id,
-            user,
-            identity_vault: identity_folder.into(),
-            default_folder,
-            archive,
-            authenticator,
-            contacts,
-            folder_keys: FolderKeys(folder_keys),
-        })
-    }
-
-    async fn build_db(mut self, client: Client) -> Result<PrivateNewAccount> {
-        let AccountBuilder {
-            #[cfg(feature = "files")]
-            create_file_password,
-            ..
-        } = self;
-
         // Prepare the identity folder
-        let identity_folder = IdentityFolder::new_db(
+        let identity_folder = IdentityFolder::new(
+            self.target.clone(),
             self.account_name.clone(),
             self.passphrase.clone(),
-            &client,
             self.account_id.clone(),
         )
         .await?;
 
         let account_id = *identity_folder.account_id();
+        let paths = self.target.paths().with_account_id(&account_id);
 
-        let mut folder_keys = HashMap::new();
+        match &self.target {
+            BackendTarget::FileSystem(_) => {
+                paths.ensure().await?;
+            }
+            BackendTarget::Database(_, _) => {
+                paths.ensure_db().await?;
+            }
+        }
 
         let mut user = Identity::new(self.target.clone());
         let key: AccessKey = self.passphrase.clone().into();
         user.login(&account_id, &key).await?;
 
+        let mut folder_keys = HashMap::new();
         let default_folder = self
             .build_default_folder(&mut user, &mut folder_keys)
             .await?;
 
         #[cfg(feature = "files")]
-        if create_file_password {
+        if self.create_file_password {
             user.create_file_encryption_password().await?;
         }
 
@@ -409,14 +358,5 @@ impl AccountBuilder {
             contacts,
             folder_keys: FolderKeys(folder_keys),
         })
-    }
-
-    /// Create a new account and write the identity vault to disc.
-    pub async fn finish(self) -> Result<PrivateNewAccount> {
-        let backend = self.target.clone();
-        match backend {
-            BackendTarget::FileSystem(paths) => self.build_fs(paths).await,
-            BackendTarget::Database(_, client) => self.build_db(client).await,
-        }
     }
 }

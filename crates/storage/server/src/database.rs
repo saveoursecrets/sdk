@@ -3,8 +3,8 @@ use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::{
-    extract_vault, AccountEventLog, BackendTarget, DeviceEventLog,
-    FolderEventLog, VaultWriter,
+    extract_vault, AccountEventLog, BackendEventLog, BackendTarget,
+    DeviceEventLog, FolderEventLog, VaultWriter,
 };
 use sos_core::{
     decode,
@@ -152,10 +152,13 @@ impl ServerDatabaseStorage {
 
     /// Create new event log cache entries.
     async fn create_folder_entry(&mut self, id: &VaultId) -> Result<()> {
-        let mut event_log = FolderEventLog::new_db_folder(
-            self.client.clone(),
-            self.account_id.clone(),
-            *id,
+        let mut event_log = FolderEventLog::new_folder(
+            BackendTarget::Database(
+                (&*self.paths).clone(),
+                self.client.clone(),
+            ),
+            &self.account_id,
+            id,
         )
         .await?;
         event_log.load_tree().await?;
@@ -178,10 +181,14 @@ impl ServerDatabaseStorage {
 
     /// Create a new account.
     pub async fn initialize_account(
-        client: &mut Client,
+        target: &BackendTarget,
         account_id: &AccountId,
         identity_patch: &FolderPatch,
     ) -> Result<FolderEventLog> {
+        let BackendTarget::Database(paths, client) = &target else {
+            panic!("database backend expected");
+        };
+
         let vault = extract_vault(identity_patch.records())
             .await?
             .ok_or(Error::NoVaultEvent)?;
@@ -211,10 +218,10 @@ impl ServerDatabaseStorage {
             .await
             .map_err(sos_database::Error::from)?;
 
-        let mut event_log = FolderEventLog::new_db_folder(
-            client.clone(),
-            *account_id,
-            *vault.id(),
+        let mut event_log = FolderEventLog::new_folder(
+            BackendTarget::Database(paths.clone(), client.clone()),
+            account_id,
+            vault.id(),
         )
         .await?;
         event_log.clear().await?;
@@ -313,10 +320,13 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         folder_id: &VaultId,
         diff: &FolderDiff,
     ) -> Result<(FolderEventLog, Vault)> {
-        let mut event_log = FolderEventLog::new_db_folder(
-            self.client.clone(),
-            self.account_id.clone(),
-            *folder_id,
+        let mut event_log = FolderEventLog::new_folder(
+            BackendTarget::Database(
+                (&*self.paths).clone(),
+                self.client.clone(),
+            ),
+            &self.account_id,
+            folder_id,
         )
         .await?;
         event_log.replace_all_events(&diff).await?;
@@ -383,10 +393,13 @@ impl ServerAccountStorage for ServerDatabaseStorage {
                     .await
                     .map_err(sos_database::Error::from)?;
 
-                let mut event_log = FolderEventLog::new_db_folder(
-                    self.client.clone(),
-                    self.account_id.clone(),
-                    *id,
+                let mut event_log = FolderEventLog::new_folder(
+                    BackendTarget::Database(
+                        (&*self.paths).clone(),
+                        self.client.clone(),
+                    ),
+                    &self.account_id,
+                    id,
                 )
                 .await?;
                 event_log.patch_unchecked(folder).await?;

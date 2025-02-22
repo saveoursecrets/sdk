@@ -1,6 +1,7 @@
 use anyhow::Result;
 use sos_filesystem::archive::*;
 use sos_sdk::{encode, identity::IdentityFolder, vault::Vault, Paths};
+use sos_test_utils::make_client_backend;
 use std::io::Cursor;
 
 #[tokio::test]
@@ -10,11 +11,13 @@ async fn archive_buffer_async() -> Result<()> {
     let dir = tempfile::tempdir()?;
 
     Paths::scaffold(Some(dir.path().to_owned())).await?;
+    let paths = Paths::new_global(&dir);
+    let target = make_client_backend(&paths).await?;
 
-    let identity_vault = IdentityFolder::new_fs(
+    let identity_vault = IdentityFolder::new(
+        target,
         "Mock".to_string(),
         "mock-password".to_string().into(),
-        Some(dir.path().to_owned()),
         None,
     )
     .await?;

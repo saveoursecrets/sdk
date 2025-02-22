@@ -1,7 +1,9 @@
 use crate::test_utils::{setup, teardown};
 use anyhow::Result;
-use sos_login::DelegatedAccess;
-use sos_sdk::{prelude::*, vfs};
+use sos_core::{crypto::AccessKey, Paths, VaultId};
+use sos_login::{DelegatedAccess, Identity, IdentityFolder};
+use sos_password::diceware::generate_passphrase;
+use sos_test_utils::make_client_backend;
 
 /// Tests creating an identity vault and logging in
 /// with the new vault and managing delegated passwords.
@@ -17,27 +19,23 @@ async fn sign_in_identity_login() -> Result<()> {
     let (password, _) = generate_passphrase()?;
 
     Paths::scaffold(Some(data_dir.clone())).await?;
-    Paths::new_global(data_dir.clone());
+    let paths = Paths::new_global(data_dir.clone());
+    let target = make_client_backend(&paths).await?;
 
-    let path = data_dir.join("login.vault");
-    let identity_vault = IdentityFolder::new_fs(
+    // let path = data_dir.join("login.vault");
+    let identity_vault = IdentityFolder::new(
+        target.clone(),
         account_name,
         password.clone(),
-        Some(data_dir.clone()),
         None,
     )
     .await?;
 
     let account_id = identity_vault.account_id().clone();
-    let vault: Vault = identity_vault.into();
-
-    let buffer = encode(&vault).await?;
-    vfs::write(&path, buffer).await?;
 
     let paths = Paths::new(data_dir, account_id.to_string());
     paths.ensure().await?;
-    let mut identity =
-        Identity::new(sos_backend::BackendTarget::FileSystem(paths));
+    let mut identity = Identity::new(target.clone());
 
     let key: AccessKey = password.into();
     identity.login(&account_id, &key).await?;

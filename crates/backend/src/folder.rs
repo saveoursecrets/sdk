@@ -1,12 +1,11 @@
 //! Folder combines an access point with an event log.
-use crate::{AccessPoint, Error, FolderEventLog, Result};
+use crate::{AccessPoint, BackendTarget, Error, FolderEventLog, Result};
 use sos_core::{
     commit::{CommitHash, CommitState},
     crypto::AccessKey,
     encode,
-    events::EventLog,
-    events::{EventRecord, ReadEvent, WriteEvent},
-    AccountId, VaultFlags,
+    events::{EventLog, EventRecord, ReadEvent, WriteEvent},
+    AccountId, Paths, VaultFlags,
 };
 use sos_core::{constants::EVENT_LOG_EXT, decode};
 use sos_database::{
@@ -33,6 +32,25 @@ pub struct Folder {
 }
 
 impl Folder {
+    /// Create a new folder.
+    pub async fn new(
+        target: BackendTarget,
+        account_id: &AccountId,
+        folder_id: &VaultId,
+    ) -> Result<Self> {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                Self::new_fs(
+                    paths.with_account_id(account_id).vault_path(folder_id),
+                )
+                .await
+            }
+            BackendTarget::Database(paths, client) => {
+                Self::new_db(paths, client, *account_id, *folder_id).await
+            }
+        }
+    }
+
     /// Create a new folder from a vault file on disc.
     ///
     /// Changes to the in-memory vault are mirrored to disc and
@@ -82,6 +100,7 @@ impl Folder {
     ///
     /// Changes to the in-memory vault are mirrored to the database.
     pub async fn new_db(
+        paths: Paths,
         client: Client,
         account_id: AccountId,
         folder_id: VaultId,
@@ -118,10 +137,10 @@ impl Folder {
             vault.insert_secret(record.secret_id, commit, entry).await?;
         }
 
-        let mut event_log = FolderEventLog::new_db_folder(
-            client.clone(),
-            account_id,
-            folder_id,
+        let mut event_log = FolderEventLog::new_folder(
+            BackendTarget::Database(paths, client.clone()),
+            &account_id,
+            &folder_id,
         )
         .await?;
 

@@ -17,7 +17,7 @@ use sos_backend::{
             SecretRecord,
         },
     },
-    write_exclusive, AccessPoint, Folder, FolderEventLog,
+    write_exclusive, AccessPoint, BackendTarget, Folder, FolderEventLog,
 };
 use sos_core::{
     constants::LOGIN_AGE_KEY_URN, crypto::AccessKey, decode, encode,
@@ -54,6 +54,133 @@ pub struct IdentityFolder {
 }
 
 impl IdentityFolder {
+    /// Create a new identity folder.
+    pub async fn new(
+        target: BackendTarget,
+        name: String,
+        password: SecretString,
+        account_id: Option<AccountId>,
+    ) -> Result<Self> {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                Self::new_fs(
+                    name,
+                    password,
+                    Some(paths.documents_dir().clone()),
+                    account_id,
+                )
+                .await
+            }
+            BackendTarget::Database(paths, client) => {
+                Self::new_db(name, password, &paths, &client, account_id)
+                    .await
+            }
+        }
+    }
+
+    /// Create a new identity folder with a primary password
+    /// on the file system.
+    async fn new_fs(
+        name: String,
+        password: SecretString,
+        data_dir: Option<PathBuf>,
+        account_id: Option<AccountId>,
+    ) -> Result<Self> {
+        let account_id = account_id.unwrap_or_else(AccountId::random);
+        tracing::debug!(
+            account_id = %account_id,
+            "new_identity_folder::filesystem");
+
+        let data_dir = if let Some(data_dir) = &data_dir {
+            data_dir.clone()
+        } else {
+            Paths::data_dir()?
+        };
+        let paths = Paths::new(data_dir, account_id.to_string());
+
+        let vault = Self::create_identity_vault(name, &password).await?;
+
+        let buffer = encode(&vault).await?;
+        write_exclusive(paths.identity_vault(), buffer).await?;
+
+        let mut folder = Folder::new_fs(paths.identity_vault()).await?;
+        let key: AccessKey = password.into();
+        folder.unlock(&key).await?;
+
+        let mut index: UrnLookup = Default::default();
+
+        let private_identity =
+            Self::create_age_identity(&account_id, &mut folder, &mut index)
+                .await?;
+
+        Ok(Self {
+            folder,
+            index,
+            private_identity,
+            devices: None,
+        })
+    }
+
+    /// Create a new identity folder with a primary password
+    /// in the database.
+    async fn new_db(
+        name: String,
+        password: SecretString,
+        paths: &Paths,
+        client: &Client,
+        account_id: Option<AccountId>,
+    ) -> Result<Self> {
+        let account_id = account_id.unwrap_or_else(AccountId::random);
+        tracing::debug!(
+            account_id = %account_id,
+            "new_identity_folder::database");
+
+        let vault =
+            Self::create_identity_vault(name.clone(), &password).await?;
+
+        let account_row = AccountRow::new_insert(&account_id, name)?;
+        let folder_row = FolderRow::new_insert(&vault).await?;
+        client
+            .conn_mut(move |conn| {
+                let tx = conn.transaction()?;
+                let account = AccountEntity::new(&tx);
+                let folder = FolderEntity::new(&tx);
+
+                let account_id = account.insert(&account_row)?;
+                let folder_id =
+                    folder.insert_folder(account_id, &folder_row)?;
+                account.insert_login_folder(account_id, folder_id)?;
+
+                tx.commit()?;
+                Ok(())
+            })
+            .await
+            .map_err(sos_backend::database::Error::from)?;
+
+        let mut folder = Folder::new_db(
+            paths.clone(),
+            client.clone(),
+            account_id,
+            *vault.id(),
+        )
+        .await?;
+        let key: AccessKey = password.into();
+        folder.unlock(&key).await?;
+
+        let mut index: UrnLookup = Default::default();
+
+        let private_identity =
+            Self::create_age_identity(&account_id, &mut folder, &mut index)
+                .await?;
+
+        Ok(Self {
+            folder,
+            index,
+            private_identity,
+            devices: None,
+        })
+    }
+
     /// Private identity.
     pub fn private_identity(&self) -> &PrivateIdentity {
         &self.private_identity
@@ -361,125 +488,6 @@ impl IdentityFolder {
         Ok(DeviceManager::new(signer, device_keeper))
     }
 
-    /*
-    /// Generate a folder password.
-    pub(crate) fn generate_folder_password(&self) -> Result<SecretString> {
-        let (vault_passphrase, _) =
-            generate_passphrase_words(VAULT_PASSPHRASE_WORDS)?;
-        Ok(vault_passphrase)
-    }
-
-    /// Save a folder password into this identity.
-    pub(crate) async fn save_folder_password(
-        &mut self,
-        vault_id: &VaultId,
-        key: AccessKey,
-    ) -> Result<()> {
-        let urn = Vault::vault_urn(vault_id)?;
-        tracing::debug!(
-            folder = %vault_id,
-            urn = %urn,
-            "save_folder_password",
-        );
-
-        let secret = match key {
-            AccessKey::Password(vault_passphrase) => Secret::Password {
-                name: None,
-                password: vault_passphrase,
-                user_data: Default::default(),
-            },
-            AccessKey::Identity(id) => Secret::Age {
-                version: Default::default(),
-                key: id.to_string(),
-                user_data: Default::default(),
-            },
-        };
-
-        let mut meta =
-            SecretMeta::new(urn.as_str().to_owned(), secret.kind());
-        meta.set_urn(Some(urn.clone()));
-
-        let id = SecretId::new_v4();
-
-        let secret_data = SecretRow::new(id, meta, secret);
-        self.folder.create_secret(&secret_data).await?;
-
-        self.index.insert((self.folder.id().await, urn), id);
-
-        Ok(())
-    }
-    */
-
-    /*
-    /// Find a folder password in this identity.
-    ///
-    /// The identity vault must already be unlocked to extract
-    /// the secret password.
-    #[doc(hidden)]
-    pub async fn find_folder_password(
-        &self,
-        vault_id: &VaultId,
-    ) -> Result<Option<AccessKey>> {
-        let urn = Vault::vault_urn(vault_id)?;
-        let folder_id = self.folder.id().await;
-
-        tracing::debug!(
-            folder = %vault_id,
-            urn = %urn,
-            "find_folder_password");
-
-        if let Some(id) = self.index.get(&(folder_id, urn.clone())) {
-            let (_, secret, _) = self
-                .folder
-                .read_secret(id)
-                .await?
-                .ok_or_else(|| Error::NoSecretId(folder_id, *id))?;
-
-            let key = match secret {
-                Secret::Password { password, .. } => {
-                    AccessKey::Password(password)
-                }
-                Secret::Age { key, .. } => {
-                    AccessKey::Identity(key.expose_secret().parse().map_err(
-                        |s: &str| Error::InvalidX25519Identity(s.to_owned()),
-                    )?)
-                }
-                _ => {
-                    return Err(Error::VaultEntryKind(urn.to_string()));
-                }
-            };
-            Ok(Some(key))
-        } else {
-            Ok(None)
-        }
-    }
-    */
-
-    /*
-    /// Remove a folder password from this identity.
-    pub(crate) async fn remove_folder_password(
-        &mut self,
-        vault_id: &VaultId,
-    ) -> Result<()> {
-        tracing::debug!(folder = %vault_id, "remove folder password");
-
-        let (keeper_id, id, urn) = {
-            let folder_id = self.folder.id().await;
-            let urn = Vault::vault_urn(vault_id)?;
-            let id = self
-                .index
-                .get(&(folder_id, urn.clone()))
-                .ok_or(Error::NoFolderPassword(*vault_id))?;
-            (folder_id, *id, urn)
-        };
-
-        self.folder.delete_secret(&id).await?;
-        self.index.remove(&(keeper_id, urn));
-
-        Ok(())
-    }
-    */
-
     /// Rebuild the index lookup for folder passwords.
     pub async fn rebuild_lookup_index(&mut self) -> Result<()> {
         let access_point = self.folder.access_point();
@@ -667,99 +675,22 @@ impl IdentityFolder {
         Ok(private_identity)
     }
 
-    /// Create a new identity folder with a primary password on the file system.
-    pub async fn new_fs(
-        name: String,
-        password: SecretString,
-        data_dir: Option<PathBuf>,
-        account_id: Option<AccountId>,
+    /// Login to an identity folder.
+    pub async fn login(
+        target: &BackendTarget,
+        account_id: &AccountId,
+        key: &AccessKey,
     ) -> Result<Self> {
-        let account_id = account_id.unwrap_or_else(AccountId::random);
-        tracing::debug!(
-            account_id = %account_id,
-            "new_identity_folder::filesystem");
-
-        let data_dir = if let Some(data_dir) = &data_dir {
-            data_dir.clone()
-        } else {
-            Paths::data_dir()?
-        };
-        let paths = Paths::new(data_dir, account_id.to_string());
-
-        let vault = Self::create_identity_vault(name, &password).await?;
-
-        let buffer = encode(&vault).await?;
-        write_exclusive(paths.identity_vault(), buffer).await?;
-
-        let mut folder = Folder::new_fs(paths.identity_vault()).await?;
-        let key: AccessKey = password.into();
-        folder.unlock(&key).await?;
-
-        let mut index: UrnLookup = Default::default();
-
-        let private_identity =
-            Self::create_age_identity(&account_id, &mut folder, &mut index)
-                .await?;
-
-        Ok(Self {
-            folder,
-            index,
-            private_identity,
-            devices: None,
-        })
-    }
-
-    /// Create a new identity folder with a primary password in the database.
-    pub async fn new_db(
-        name: String,
-        password: SecretString,
-        client: &Client,
-        account_id: Option<AccountId>,
-    ) -> Result<Self> {
-        let account_id = account_id.unwrap_or_else(AccountId::random);
-        tracing::debug!(
-            account_id = %account_id,
-            "new_identity_folder::database");
-
-        let vault =
-            Self::create_identity_vault(name.clone(), &password).await?;
-
-        let account_row = AccountRow::new_insert(&account_id, name)?;
-        let folder_row = FolderRow::new_insert(&vault).await?;
-        client
-            .conn_mut(move |conn| {
-                let tx = conn.transaction()?;
-                let account = AccountEntity::new(&tx);
-                let folder = FolderEntity::new(&tx);
-
-                let account_id = account.insert(&account_row)?;
-                let folder_id =
-                    folder.insert_folder(account_id, &folder_row)?;
-                account.insert_login_folder(account_id, folder_id)?;
-
-                tx.commit()?;
-                Ok(())
-            })
-            .await
-            .map_err(sos_backend::database::Error::from)?;
-
-        let mut folder =
-            Folder::new_db(client.clone(), account_id, *vault.id()).await?;
-        let key: AccessKey = password.into();
-        folder.unlock(&key).await?;
-
-        let mut index: UrnLookup = Default::default();
-
-        let private_identity =
-            Self::create_age_identity(&account_id, &mut folder, &mut index)
-                .await?;
-
-        Ok(Self {
-            folder,
-            index,
-            private_identity,
-            devices: None,
-        })
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                let paths = paths.with_account_id(account_id);
+                Self::login_fs(account_id, key, paths.identity_vault()).await
+            }
+            BackendTarget::Database(paths, client) => {
+                let paths = paths.with_account_id(account_id);
+                Self::login_db(account_id, key, &paths, client).await
+            }
+        }
     }
 
     /// Login to an identity folder.
@@ -797,6 +728,7 @@ impl IdentityFolder {
     pub async fn login_db(
         account_id: &AccountId,
         key: &AccessKey,
+        paths: &Paths,
         client: &Client,
     ) -> Result<Self> {
         let (_, login_folder) =
@@ -804,6 +736,7 @@ impl IdentityFolder {
                 .await?;
 
         let mut folder = Folder::new_db(
+            paths.clone(),
             client.clone(),
             *account_id,
             *login_folder.summary.id(),

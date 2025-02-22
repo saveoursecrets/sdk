@@ -167,10 +167,10 @@ impl ServerStorage {
             AccountEntity::find_account_with_login(&client, account_id)
                 .await?;
 
-        let mut event_log = FolderEventLog::new_db_folder(
-            client.clone(),
-            *account_id,
-            *login_folder.summary.id(),
+        let mut event_log = FolderEventLog::new_folder(
+            target.clone(),
+            account_id,
+            login_folder.summary.id(),
         )
         .await?;
         event_log.load_tree().await?;
@@ -188,24 +188,23 @@ impl ServerStorage {
 
     /// Create a new database account.
     async fn create_db_account(
-        mut target: BackendTarget,
+        target: BackendTarget,
         account_id: &AccountId,
         account_data: &CreateSet,
     ) -> Result<Self> {
-        let BackendTarget::Database(paths, client) = &mut target else {
+        let BackendTarget::Database(paths, _) = &target else {
             panic!("database backend expected");
         };
         debug_assert!(paths.is_server());
 
         let identity_log = ServerDatabaseStorage::initialize_account(
-            client,
+            &target,
             account_id,
             &account_data.identity,
         )
         .await?;
 
         let target = target.with_account_id(account_id);
-
         let mut storage = ServerDatabaseStorage::new(
             target,
             account_id,
