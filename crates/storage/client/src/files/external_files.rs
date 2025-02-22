@@ -118,7 +118,11 @@ impl FileStorage {
         secret_id: &SecretId,
         file_name: impl AsRef<str>,
     ) -> Result<Vec<u8>> {
-        let path = paths.file_location(vault_id, secret_id, file_name);
+        let path = if paths.is_using_db() {
+            paths.blob_location(vault_id, secret_id, file_name)
+        } else {
+            paths.file_location(vault_id, secret_id, file_name)
+        };
         Self::decrypt_file_passphrase(path, password).await
     }
 }

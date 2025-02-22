@@ -270,19 +270,35 @@ impl ExternalFileManager {
         secret_id: &SecretId,
         file_name: &str,
     ) -> Result<FileEvent> {
-        let vault_path = self.paths.files_dir().join(vault_id.to_string());
-        let secret_path = vault_path.join(secret_id.to_string());
-        let path = secret_path.join(file_name);
+        let (vault_path, secret_path, path) = if self.paths.is_using_db() {
+            let vault_path =
+                self.paths.blobs_account_dir().join(vault_id.to_string());
+            let secret_path = vault_path.join(secret_id.to_string());
+            let path = self.paths.blob_location(
+                vault_id,
+                secret_id,
+                file_name.to_string(),
+            );
+            (vault_path, secret_path, path)
+        } else {
+            let vault_path =
+                self.paths.files_dir().join(vault_id.to_string());
+            let secret_path = vault_path.join(secret_id.to_string());
+            let path = self.paths.file_location(
+                vault_id,
+                secret_id,
+                file_name.to_string(),
+            );
+            (vault_path, secret_path, path)
+        };
 
         vfs::remove_file(path).await?;
 
         // Prune empty directories
-        let secret_dir_is_empty = secret_path.read_dir()?.next().is_none();
-        if secret_dir_is_empty {
+        if secret_path.read_dir()?.next().is_none() {
             vfs::remove_dir(secret_path).await?;
         }
-        let vault_dir_is_empty = vault_path.read_dir()?.next().is_none();
-        if vault_dir_is_empty {
+        if vault_path.read_dir()?.next().is_none() {
             vfs::remove_dir(vault_path).await?;
         }
 
@@ -349,17 +365,29 @@ impl ExternalFileManager {
         new_secret_id: &SecretId,
         file_name: &str,
     ) -> Result<FileMutationEvent> {
-        let old_vault_path =
-            self.paths.files_dir().join(old_vault_id.to_string());
+        let old_vault_path = if self.paths.is_using_db() {
+            self.paths
+                .blobs_account_dir()
+                .join(old_vault_id.to_string())
+        } else {
+            self.paths.files_dir().join(old_vault_id.to_string())
+        };
         let old_secret_path = old_vault_path.join(old_secret_id.to_string());
         let old_path = old_secret_path.join(file_name);
 
-        let new_path = self
-            .paths
-            .files_dir()
-            .join(new_vault_id.to_string())
-            .join(new_secret_id.to_string())
-            .join(file_name);
+        let new_path = if self.paths.is_using_db() {
+            self.paths.blob_location(
+                new_vault_id,
+                new_secret_id,
+                file_name.to_string(),
+            )
+        } else {
+            self.paths.file_location(
+                new_vault_id,
+                new_secret_id,
+                file_name.to_string(),
+            )
+        };
 
         if let Some(parent) = new_path.parent() {
             if !vfs::try_exists(parent).await? {
