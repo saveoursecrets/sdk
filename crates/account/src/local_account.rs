@@ -635,57 +635,6 @@ impl LocalAccount {
 
         Ok(result)
     }
-
-    /*
-    /// Import from an archive reader.
-    #[cfg(feature = "archive")]
-    async fn import_archive_reader<R: AsyncRead + AsyncSeek + Unpin>(
-        buffer: R,
-        mut options: RestoreOptions,
-        target: BackendTarget,
-        data_dir: Option<PathBuf>,
-    ) -> Result<PublicIdentity> {
-        let account = match &target {
-            BackendTarget::FileSystem(_) => {
-                use sos_filesystem::archive::{
-                    AccountBackup, ExtractFilesLocation,
-                };
-
-                if options.files_dir.is_none() {
-                    let files_dir =
-                        ExtractFilesLocation::Builder(Box::new(|address| {
-                            let data_dir = Paths::data_dir().unwrap();
-                            let paths = Paths::new(data_dir, address);
-                            Some(paths.files_dir().to_owned())
-                        }));
-                    options.files_dir = Some(files_dir);
-                }
-
-                let (_, account) = AccountBackup::import_archive_reader(
-                    BufReader::new(buffer),
-                    options,
-                    data_dir,
-                )
-                .await?;
-                account
-            }
-            BackendTarget::Database(paths, _) => {
-                use sos_database::archive;
-                todo!("restore backup for database target");
-
-                // let db_path = paths.database_file();
-                // archive::create_backup_archive(
-                //     db_path,
-                //     &paths,
-                //     path.as_ref(),
-                // )
-                // .await?;
-            }
-        };
-
-        Ok(account)
-    }
-    */
 }
 
 impl From<&LocalAccount> for AccountRef {
