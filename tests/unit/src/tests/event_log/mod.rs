@@ -225,20 +225,23 @@ pub mod mock {
 
     pub async fn db_event_log_standalone(
         client: &mut Client,
-    ) -> Result<(FolderEventLog, AccountId, VaultId, SecretId, Vault)> {
+    ) -> Result<(FolderEventLog, AccountId, VaultId, SecretId, Vault, TempDir)>
+    {
+        let temp = tempdir_in("target")?;
         let mut vault: Vault = Default::default();
         vault.set_name(String::from("Standalone vault"));
 
         let (account_id, _, _) =
             mock::insert_database_vault(client, &vault, false).await?;
 
+        let paths =
+            Paths::new_global(temp.path()).with_account_id(&account_id);
+        let target = BackendTarget::Database(paths, client.clone());
+
         // Create a simple event log
-        let mut event_log = FolderEventLog::new_db_folder(
-            client.clone(),
-            account_id,
-            *vault.id(),
-        )
-        .await?;
+        let mut event_log =
+            FolderEventLog::new_folder(target, &account_id, vault.id())
+                .await?;
 
         let vault_buffer = encode(&vault).await?;
         let (id, data) = mock_secret().await?;
@@ -249,21 +252,25 @@ pub mod mock {
             ])
             .await?;
 
-        Ok((event_log, account_id, *vault.id(), id, vault))
+        Ok((event_log, account_id, *vault.id(), id, vault, temp))
     }
 
     pub async fn db_event_log_server_client(
         client: &mut Client,
-    ) -> Result<(FolderEventLog, FolderEventLog, SecretId)> {
+    ) -> Result<(FolderEventLog, FolderEventLog, SecretId, TempDir)> {
+        let temp = tempdir_in("target")?;
         let vault: Vault = Default::default();
         let (account_id, _, _) =
             mock::insert_database_vault(client, &vault, false).await?;
+        let paths =
+            Paths::new_global(temp.path()).with_account_id(&account_id);
+        let target = BackendTarget::Database(paths, client.clone());
 
         // Create a simple event log
-        let mut server = FolderEventLog::new_db_folder(
-            client.clone(),
-            account_id,
-            *vault.id(),
+        let mut server = FolderEventLog::new_folder(
+            target.clone(),
+            &account_id,
+            vault.id(),
         )
         .await?;
 
@@ -278,12 +285,9 @@ pub mod mock {
             .await?;
 
         // Duplicate the server events on the client
-        let mut client = FolderEventLog::new_db_folder(
-            client.clone(),
-            account_id,
-            *vault.id(),
-        )
-        .await?;
+        let mut client =
+            FolderEventLog::new_folder(target, &account_id, vault.id())
+                .await?;
 
         {
             let stream = server.event_stream(false).await;
@@ -294,6 +298,6 @@ pub mod mock {
             }
         }
 
-        Ok((server, client, id))
+        Ok((server, client, id, temp))
     }
 }

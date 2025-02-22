@@ -30,10 +30,10 @@ async fn fs_event_log_compare() -> Result<()> {
 #[tokio::test]
 async fn db_event_log_compare() -> Result<()> {
     let mut client = memory_database().await?;
-    let (server_log, client_log, secret_id) =
+    let (server_log, client_log, secret_id, _temp) =
         mock::db_event_log_server_client(&mut client).await?;
 
-    let (unknown_log, _, _, _, _) =
+    let (unknown_log, _, _, _, _, _temp) =
         mock::db_event_log_standalone(&mut client).await?;
     assert_client_server_compare(
         server_log,

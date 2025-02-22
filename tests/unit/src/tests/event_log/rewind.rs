@@ -1,14 +1,16 @@
 use super::mock;
 use anyhow::Result;
-use sos_backend::FolderEventLog;
+use sos_backend::{BackendTarget, FolderEventLog};
 use sos_core::{
     commit::CommitHash,
     encode,
     events::{EventLog, WriteEvent},
 };
+use sos_sdk::Paths;
 use sos_test_utils::mock::memory_database;
 use sos_vault::Vault;
 use sos_vfs as vfs;
+use tempfile::tempdir_in;
 
 #[tokio::test]
 async fn fs_event_log_rewind() -> Result<()> {
@@ -36,11 +38,12 @@ async fn db_event_log_rewind() -> Result<()> {
     let (account_id, event_log, temp) =
         mock::db_folder_event_log(&mut client, &vault).await?;
     let rewind_root = assert_event_log_rewind(event_log, vault).await?;
+    let paths = Paths::new_global(temp.path()).with_account_id(&account_id);
+    let target = BackendTarget::Database(paths, client);
 
     // Create new event log to load the commits and verify the root
     let event_log =
-        FolderEventLog::new_db_folder(client.clone(), account_id, folder_id)
-            .await?;
+        FolderEventLog::new_folder(target, &account_id, &folder_id).await?;
     assert_event_log_rewound_root(event_log, rewind_root).await?;
     temp.close()?;
     Ok(())

@@ -99,21 +99,6 @@ impl BackendEventLog<WriteEvent> {
             FileSystemEventLog::<WriteEvent, Error>::new_folder(path).await?,
         ))
     }
-
-    /// Create a database folder event log.
-    #[deprecated]
-    pub async fn new_db_folder(
-        client: Client,
-        account_id: AccountId,
-        folder_id: VaultId,
-    ) -> Result<Self, Error> {
-        Ok(BackendEventLog::Database(
-            DatabaseEventLog::<WriteEvent, Error>::new_folder(
-                client, account_id, folder_id,
-            )
-            .await?,
-        ))
-    }
 }
 
 impl BackendEventLog<DeviceEvent> {
