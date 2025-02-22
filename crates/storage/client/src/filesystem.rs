@@ -316,6 +316,7 @@ impl ClientAccountStorage for ClientFileSystemStorage {
 
     async fn delete_account(&self) -> Result<Event> {
         vfs::remove_file(self.paths.identity_vault()).await?;
+        vfs::remove_file(self.paths.identity_events()).await?;
         vfs::remove_dir_all(self.paths.user_dir()).await?;
         Ok(Event::DeleteAccount(self.account_id))
     }

@@ -24,6 +24,7 @@ use sos_login::Identity;
 use sos_reducers::DeviceReducer;
 use sos_sync::StorageEventLogs;
 use sos_vault::{Summary, Vault};
+use sos_vfs as vfs;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -117,7 +118,7 @@ impl ClientDatabaseStorage {
         identity_log.load_tree().await?;
 
         let mut account_log =
-            AccountEventLog::new_db_account(client.clone(), *account_id)
+            AccountEventLog::new_db_account(*account_id, client.clone())
                 .await?;
         account_log.load_tree().await?;
 
@@ -365,6 +366,13 @@ impl ClientAccountStorage for ClientDatabaseStorage {
             })
             .await
             .map_err(sos_database::Error::from)?;
+
+        // Delete external file blobs for the account
+        let account_blobs = self.paths.blobs_account_dir();
+        if vfs::try_exists(&account_blobs).await? {
+            vfs::remove_dir_all(&account_blobs).await?;
+        }
+
         Ok(Event::DeleteAccount(self.account_id))
     }
 

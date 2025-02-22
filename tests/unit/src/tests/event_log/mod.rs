@@ -32,7 +32,7 @@ pub mod mock {
     ) -> Result<(AccountId, AccountEventLog)> {
         let (account_id, _) = mock::insert_database_account(client).await?;
         let event_log =
-            AccountEventLog::new_db_account(client.clone(), account_id)
+            AccountEventLog::new_db_account(account_id, client.clone())
                 .await?;
         Ok((account_id, event_log))
     }

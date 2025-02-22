@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{BackendTarget, Error};
 use async_trait::async_trait;
 use binary_stream::futures::{Decodable, Encodable};
 use futures::stream::BoxStream;
@@ -40,7 +40,23 @@ where
 }
 
 impl BackendEventLog<AccountEvent> {
+    /// Create a new account event log.
+    pub async fn new_account(
+        account_id: AccountId,
+        target: BackendTarget,
+    ) -> Result<Self, Error> {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                Self::new_fs_account(paths.account_events()).await
+            }
+            BackendTarget::Database(_, client) => {
+                Self::new_db_account(account_id, client).await
+            }
+        }
+    }
+
     /// Create a file system account event log.
+    // TODO: make this private
     pub async fn new_fs_account<P: AsRef<Path>>(
         path: P,
     ) -> Result<Self, Error> {
@@ -51,9 +67,10 @@ impl BackendEventLog<AccountEvent> {
     }
 
     /// Create a database account event log.
+    // TODO: make this private
     pub async fn new_db_account(
-        client: Client,
         account_id: AccountId,
+        client: Client,
     ) -> Result<Self, Error> {
         Ok(BackendEventLog::Database(
             DatabaseEventLog::<AccountEvent, Error>::new_account(

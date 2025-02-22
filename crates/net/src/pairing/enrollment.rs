@@ -181,8 +181,11 @@ impl DeviceEnrollment {
     }
 
     async fn create_account(&mut self, patch: AccountPatch) -> Result<()> {
-        let file = self.paths.account_events();
-        let mut event_log = AccountEventLog::new_fs_account(file).await?;
+        let mut event_log = AccountEventLog::new_account(
+            self.account_id,
+            self.target.clone(),
+        )
+        .await?;
         event_log.clear().await?;
 
         // let events: Vec<AccountEvent> = patch.into();
