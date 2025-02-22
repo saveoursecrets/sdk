@@ -126,7 +126,11 @@ impl ExternalFileManager {
                 ));
             }
         }
-        let folder_files = self.paths.file_folder_location(folder_id);
+        let folder_files = if self.paths.is_using_db() {
+            self.paths.blob_folder_location(folder_id)
+        } else {
+            self.paths.file_folder_location(folder_id)
+        };
         if vfs::try_exists(&folder_files).await? {
             vfs::remove_dir_all(&folder_files).await?;
         }
