@@ -46,6 +46,7 @@ pub enum ExtractFilesLocation {
 
 /// Options for a restore operation.
 #[derive(Default)]
+#[deprecated]
 pub struct RestoreOptions {
     /// Vaults that the user selected to be imported.
     pub selected: Vec<Summary>,
@@ -581,6 +582,7 @@ impl AccountBackup {
             remotes,
         ) = reader.finish().await?;
 
+        /*
         // Filter extracted vaults to those selected by the user
         let vaults = vaults
             .into_iter()
@@ -588,6 +590,7 @@ impl AccountBackup {
                 options.selected.iter().any(|s| s.id() == item.0.id())
             })
             .collect::<Vec<_>>();
+        */
 
         // Check each target vault can be decoded
         let mut decoded: Vec<(Vec<u8>, Vault)> = Vec::new();
