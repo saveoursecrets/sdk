@@ -361,16 +361,16 @@ pub(crate) async fn import_account(
     let db_storage = if paths.is_server() {
         AccountStorage::Server(
             ServerStorage::new(
-                account.account_id(),
                 BackendTarget::Database(paths.clone(), client.clone()),
+                account.account_id(),
             )
             .await?,
         )
     } else {
         AccountStorage::Client(
             ClientStorage::new_unauthenticated(
-                account.account_id(),
                 BackendTarget::Database(paths.clone(), client.clone()),
+                account.account_id(),
             )
             .await?,
         )

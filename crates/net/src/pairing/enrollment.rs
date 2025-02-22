@@ -201,7 +201,9 @@ impl DeviceEnrollment {
 
     async fn create_device(&self, patch: DevicePatch) -> Result<()> {
         let file = self.paths.device_events();
-        let mut event_log = DeviceEventLog::new_fs_device(file).await?;
+        let mut event_log =
+            DeviceEventLog::new_device(self.target.clone(), &self.account_id)
+                .await?;
         event_log.clear().await?;
 
         // let events: Vec<DeviceEvent> = patch.into();

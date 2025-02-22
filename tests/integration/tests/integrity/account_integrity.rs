@@ -14,7 +14,6 @@ use sos_test_utils::{flip_bits_on_byte, make_client_backend};
 #[tokio::test]
 async fn account_integrity_ok() -> Result<()> {
     const TEST_ID: &str = "account_integrity_ok";
-
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
@@ -189,7 +188,6 @@ async fn account_integrity_corrupted_vault() -> Result<()> {
 #[tokio::test]
 async fn account_integrity_corrupted_event() -> Result<()> {
     const TEST_ID: &str = "account_integrity_corrupted_event";
-
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;

@@ -61,15 +61,23 @@ pub async fn run(cmd: Command) -> Result<()> {
             if !vfs::metadata(&file).await?.is_file() {
                 return Err(Error::NotFile(file));
             }
+
+            /*
             let event_log = AccountEventLog::new_fs_account(&file).await?;
             print_events::<AccountEvent>(event_log, until_commit).await?;
+            */
+
+            todo!("restore CLI account events");
         }
         Command::Device { file, until_commit } => {
+            /*
             if !vfs::metadata(&file).await?.is_file() {
                 return Err(Error::NotFile(file));
             }
             let event_log = DeviceEventLog::new_fs_device(&file).await?;
             print_events::<DeviceEvent>(event_log, until_commit).await?;
+            */
+            todo!("restore CLI device events");
         }
         Command::Folder { file, until_commit } => {
             if !vfs::metadata(&file).await?.is_file() {
@@ -79,11 +87,14 @@ pub async fn run(cmd: Command) -> Result<()> {
             print_events::<WriteEvent>(event_log, until_commit).await?;
         }
         Command::File { file, until_commit } => {
+            /*
             if !vfs::metadata(&file).await?.is_file() {
                 return Err(Error::NotFile(file));
             }
             let event_log = FileEventLog::new_fs_file(&file).await?;
             print_events::<FileEvent>(event_log, until_commit).await?;
+            */
+            todo!("restore CLI file events");
         }
     }
 

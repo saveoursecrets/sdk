@@ -8,7 +8,8 @@ use async_trait::async_trait;
 use indexmap::IndexSet;
 use parking_lot::Mutex;
 use sos_backend::{
-    AccountEventLog, DeviceEventLog, Folder, FolderEventLog, StorageError,
+    AccountEventLog, BackendTarget, DeviceEventLog, Folder, FolderEventLog,
+    StorageError,
 };
 use sos_core::{
     device::TrustedDevice,
@@ -99,11 +100,16 @@ impl ClientDatabaseStorage {
     ///
     /// Events are loaded into memory.
     pub async fn new_unauthenticated(
-        paths: Paths,
+        target: BackendTarget,
         account_id: &AccountId,
-        client: Client,
     ) -> Result<Self> {
+        debug_assert!(matches!(target, BackendTarget::Database(_, _)));
+        let BackendTarget::Database(paths, client) = target else {
+            panic!("database backend expected");
+        };
         debug_assert!(!paths.is_global());
+
+        let target = BackendTarget::Database(paths.clone(), client.clone());
 
         let (account_record, login_folder) =
             AccountEntity::find_account_with_login(&client, account_id)
@@ -118,20 +124,17 @@ impl ClientDatabaseStorage {
         identity_log.load_tree().await?;
 
         let mut account_log =
-            AccountEventLog::new_db_account(client.clone(), *account_id)
-                .await?;
+            AccountEventLog::new_account(target.clone(), account_id).await?;
         account_log.load_tree().await?;
 
         let mut device_log =
-            DeviceEventLog::new_db_device(client.clone(), *account_id)
-                .await?;
+            DeviceEventLog::new_device(target.clone(), account_id).await?;
         device_log.load_tree().await?;
 
         #[cfg(feature = "files")]
         let file_log = {
             let mut file_log =
-                FileEventLog::new_db_file(client.clone(), *account_id)
-                    .await?;
+                FileEventLog::new_file(target.clone(), account_id).await?;
             file_log.load_tree().await?;
 
             Arc::new(RwLock::new(file_log))
@@ -425,9 +428,12 @@ impl ClientEventLogStorage for ClientDatabaseStorage {
         device: TrustedDevice,
         _: Internal,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
-        let mut event_log = DeviceEventLog::new_db_device(
-            self.client.clone(),
-            self.account_id,
+        let mut event_log = DeviceEventLog::new_device(
+            BackendTarget::Database(
+                (&*self.paths).clone(),
+                self.client.clone(),
+            ),
+            &self.account_id,
         )
         .await?;
         event_log.load_tree().await?;
@@ -453,9 +459,14 @@ impl ClientEventLogStorage for ClientDatabaseStorage {
 
     #[cfg(feature = "files")]
     async fn initialize_file_log(&self, _: Internal) -> Result<FileEventLog> {
-        let mut file_log =
-            FileEventLog::new_db_file(self.client.clone(), self.account_id)
-                .await?;
+        let mut file_log = FileEventLog::new_file(
+            BackendTarget::Database(
+                (&*self.paths).clone(),
+                self.client.clone(),
+            ),
+            &self.account_id,
+        )
+        .await?;
         file_log.load_tree().await?;
         Ok(file_log)
     }

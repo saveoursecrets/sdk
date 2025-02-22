@@ -33,6 +33,7 @@ async fn event_log_init_file_log() -> Result<()> {
     )
     .await?;
 
+    let paths = account.paths();
     let key: AccessKey = password.into();
     account.sign_in(&key).await?;
 

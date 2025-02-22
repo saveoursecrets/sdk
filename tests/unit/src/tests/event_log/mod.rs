@@ -8,6 +8,7 @@ mod stream;
 pub mod mock {
     use anyhow::Result;
     use futures::{pin_mut, StreamExt};
+    use sos_backend::BackendTarget;
     use sos_backend::{AccountEventLog, FolderEventLog};
     use sos_core::commit::{CommitHash, CommitTree};
     use sos_core::{events::EventLog, AccountId};
@@ -17,24 +18,37 @@ pub mod mock {
     use sos_test_utils::mock;
     use sos_vault::Vault;
     use std::path::Path;
-    use tempfile::NamedTempFile;
+    use tempfile::{tempdir_in, NamedTempFile, TempDir};
     use uuid::Uuid;
 
-    pub async fn fs_account_event_log(
-    ) -> Result<(NamedTempFile, AccountEventLog)> {
-        let temp = NamedTempFile::new()?;
-        let event_log = AccountEventLog::new_fs_account(temp.path()).await?;
+    pub async fn fs_account_event_log() -> Result<(TempDir, AccountEventLog)>
+    {
+        let temp = tempdir_in("target")?;
+        let account_id = AccountId::random();
+        let paths =
+            Paths::new_global(temp.path()).with_account_id(&account_id);
+        paths.ensure().await?;
+        let event_log = AccountEventLog::new_account(
+            BackendTarget::FileSystem(paths),
+            &account_id,
+        )
+        .await?;
         Ok((temp, event_log))
     }
 
     pub async fn db_account_event_log(
         client: &mut Client,
-    ) -> Result<(AccountId, AccountEventLog)> {
+    ) -> Result<(AccountId, AccountEventLog, TempDir)> {
+        let temp = tempdir_in("target")?;
         let (account_id, _) = mock::insert_database_account(client).await?;
-        let event_log =
-            AccountEventLog::new_db_account(client.clone(), account_id)
-                .await?;
-        Ok((account_id, event_log))
+        let paths =
+            Paths::new_global(temp.path()).with_account_id(&account_id);
+        let event_log = AccountEventLog::new_account(
+            BackendTarget::Database(paths, client.clone()),
+            &account_id,
+        )
+        .await?;
+        Ok((account_id, event_log, temp))
     }
 
     pub async fn fs_folder_event_log(

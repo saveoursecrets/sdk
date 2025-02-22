@@ -20,7 +20,6 @@ use sos_core::{
     },
     AccountId, AuthenticationError, Paths, VaultId,
 };
-use sos_database::async_sqlite::Client;
 use sos_login::Identity;
 use sos_sync::{
     ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
@@ -54,47 +53,29 @@ pub enum ClientStorage {
 impl ClientStorage {
     /// Create new client storage.
     pub async fn new_unauthenticated(
-        account_id: &AccountId,
         target: BackendTarget,
+        account_id: &AccountId,
     ) -> Result<Self> {
-        match target {
+        Ok(match &target {
             BackendTarget::FileSystem(paths) => {
-                Ok(Self::new_unauthenticated_fs(paths, account_id).await?)
+                debug_assert!(!paths.is_server());
+                Self::FileSystem(SyncImpl::new(
+                    ClientFileSystemStorage::new_unauthenticated(
+                        target, account_id,
+                    )
+                    .await?,
+                ))
             }
-            BackendTarget::Database(paths, client) => {
-                Ok(Self::new_unauthenticated_db(paths, account_id, client)
-                    .await?)
+            BackendTarget::Database(paths, _) => {
+                debug_assert!(!paths.is_server());
+                Self::Database(SyncImpl::new(
+                    ClientDatabaseStorage::new_unauthenticated(
+                        target, account_id,
+                    )
+                    .await?,
+                ))
             }
-        }
-    }
-
-    /// Create new file system storage.
-    async fn new_unauthenticated_fs(
-        paths: Paths,
-        account_id: &AccountId,
-    ) -> Result<Self> {
-        debug_assert!(!paths.is_server());
-
-        Ok(Self::FileSystem(SyncImpl::new(
-            ClientFileSystemStorage::new_unauthenticated(paths, account_id)
-                .await?,
-        )))
-    }
-
-    /// Create new database storage.
-    async fn new_unauthenticated_db(
-        paths: Paths,
-        account_id: &AccountId,
-        client: Client,
-    ) -> Result<Self> {
-        debug_assert!(!paths.is_server());
-
-        Ok(Self::Database(SyncImpl::new(
-            ClientDatabaseStorage::new_unauthenticated(
-                paths, account_id, client,
-            )
-            .await?,
-        )))
+        })
     }
 }
 

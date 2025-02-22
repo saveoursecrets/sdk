@@ -18,7 +18,8 @@ async fn fs_event_log_diff_events() -> Result<()> {
 #[tokio::test]
 async fn db_event_log_diff_events() -> Result<()> {
     let mut client = memory_database().await?;
-    let (_, event_log) = mock::db_account_event_log(&mut client).await?;
+    let (_, event_log, _temp) =
+        mock::db_account_event_log(&mut client).await?;
     assert_diff_events(event_log).await?;
     Ok(())
 }

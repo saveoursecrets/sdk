@@ -8,8 +8,8 @@ use async_trait::async_trait;
 use indexmap::IndexSet;
 use parking_lot::Mutex;
 use sos_backend::{
-    write_exclusive, AccountEventLog, DeviceEventLog, Folder, FolderEventLog,
-    StorageError,
+    write_exclusive, AccountEventLog, BackendTarget, DeviceEventLog, Folder,
+    FolderEventLog, StorageError,
 };
 use sos_core::{
     constants::VAULT_EXT,
@@ -94,9 +94,13 @@ impl ClientFileSystemStorage {
     ///
     /// Events are loaded into memory.
     pub async fn new_unauthenticated(
-        paths: Paths,
+        target: BackendTarget,
         account_id: &AccountId,
     ) -> Result<Self> {
+        debug_assert!(matches!(target, BackendTarget::FileSystem(_)));
+        let BackendTarget::FileSystem(paths) = &target else {
+            panic!("filesystem backend expected");
+        };
         debug_assert!(!paths.is_global());
 
         paths.ensure().await?;
@@ -106,23 +110,22 @@ impl ClientFileSystemStorage {
         identity_log.load_tree().await?;
 
         let mut account_log =
-            AccountEventLog::new_fs_account(paths.account_events()).await?;
+            AccountEventLog::new_account(target.clone(), account_id).await?;
         account_log.load_tree().await?;
 
         let mut device_log =
-            DeviceEventLog::new_fs_device(paths.device_events()).await?;
+            DeviceEventLog::new_device(target.clone(), account_id).await?;
         device_log.load_tree().await?;
 
         #[cfg(feature = "files")]
         let file_log = {
             let mut file_log =
-                FileEventLog::new_fs_file(paths.file_events()).await?;
+                FileEventLog::new_file(target.clone(), account_id).await?;
             file_log.load_tree().await?;
             Arc::new(RwLock::new(file_log))
         };
 
-        let paths = Arc::new(paths);
-
+        let paths = Arc::new(paths.clone());
         let mut storage = Self {
             account_id: *account_id,
             summaries: Vec::new(),
@@ -370,9 +373,11 @@ impl ClientEventLogStorage for ClientFileSystemStorage {
         device: TrustedDevice,
         _: Internal,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
-        let log_file = self.paths.device_events();
-
-        let mut event_log = DeviceEventLog::new_fs_device(log_file).await?;
+        let mut event_log = DeviceEventLog::new_device(
+            BackendTarget::FileSystem((&*self.paths).clone()),
+            &self.account_id,
+        )
+        .await?;
         event_log.load_tree().await?;
         let needs_init = event_log.tree().root().is_none();
 
@@ -398,7 +403,11 @@ impl ClientEventLogStorage for ClientFileSystemStorage {
     async fn initialize_file_log(&self, _: Internal) -> Result<FileEventLog> {
         let log_file = self.paths.file_events();
         let needs_init = !vfs::try_exists(&log_file).await?;
-        let mut event_log = FileEventLog::new_fs_file(log_file).await?;
+        let mut event_log = FileEventLog::new_file(
+            BackendTarget::FileSystem((&*self.paths).clone()),
+            &self.account_id,
+        )
+        .await?;
         event_log.load_tree().await?;
 
         tracing::debug!(needs_init = %needs_init, "file_log");

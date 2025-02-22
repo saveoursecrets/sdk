@@ -3,7 +3,8 @@ use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::{
-    AccountEventLog, DeviceEventLog, FolderEventLog, VaultWriter,
+    AccountEventLog, BackendTarget, DeviceEventLog, FolderEventLog,
+    VaultWriter,
 };
 use sos_core::{
     constants::VAULT_EXT,
@@ -65,10 +66,14 @@ impl ServerFileStorage {
     ///
     /// Events are loaded into memory.
     pub async fn new(
-        paths: Paths,
-        account_id: AccountId,
+        target: BackendTarget,
+        account_id: &AccountId,
         identity_log: Arc<RwLock<FolderEventLog>>,
     ) -> Result<Self> {
+        debug_assert!(matches!(target, BackendTarget::FileSystem(_)));
+        let BackendTarget::FileSystem(paths) = &target else {
+            panic!("filesystem backend expected");
+        };
         debug_assert!(!paths.is_global());
 
         if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
@@ -80,24 +85,24 @@ impl ServerFileStorage {
 
         paths.ensure().await?;
 
-        let mut event_log =
-            AccountEventLog::new_fs_account(paths.account_events()).await?;
-        event_log.load_tree().await?;
-
         let (device_log, devices) =
-            Self::initialize_device_log(&paths).await?;
+            Self::initialize_device_log(&target, account_id).await?;
+
+        let mut event_log =
+            AccountEventLog::new_account(target.clone(), account_id).await?;
+        event_log.load_tree().await?;
 
         #[cfg(feature = "files")]
         let file_log = {
             let mut file_log =
-                FileEventLog::new_fs_file(paths.file_events()).await?;
+                FileEventLog::new_file(target.clone(), account_id).await?;
             file_log.load_tree().await?;
             file_log
         };
 
         let mut storage = Self {
-            account_id,
-            paths: Arc::new(paths),
+            account_id: *account_id,
+            paths: Arc::new(paths.clone()),
             identity_log,
             account_log: Arc::new(RwLock::new(event_log)),
             device_log: Arc::new(RwLock::new(device_log)),
@@ -113,10 +118,11 @@ impl ServerFileStorage {
     }
 
     async fn initialize_device_log(
-        paths: &Paths,
+        target: &BackendTarget,
+        account_id: &AccountId,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
-        let log_file = paths.device_events();
-        let mut event_log = DeviceEventLog::new_fs_device(log_file).await?;
+        let mut event_log =
+            DeviceEventLog::new_device(target.clone(), account_id).await?;
         event_log.load_tree().await?;
 
         let reducer = DeviceReducer::new(&event_log);

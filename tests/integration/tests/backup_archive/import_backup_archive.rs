@@ -1,6 +1,7 @@
 use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use maplit2::hashmap;
+use serde_json::de;
 use sos_account::{Account, LocalAccount};
 use sos_backend::BackendTarget;
 use sos_database::open_file;
@@ -19,6 +20,7 @@ async fn backup_export_import() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     let paths = Paths::new_global(&data_dir);
+    let target = make_client_backend(&paths).await?;
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -26,7 +28,7 @@ async fn backup_export_import() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths).await?,
+        target.clone(),
     )
     .await?;
     let account_id = account.account_id().clone();
@@ -81,13 +83,6 @@ async fn backup_export_import() -> Result<()> {
         ..Default::default()
     };
 
-    let target = if paths.is_using_db() {
-        let client = open_file(paths.database_file()).await?;
-        BackendTarget::Database(paths.clone(), client)
-    } else {
-        BackendTarget::FileSystem(paths.clone())
-    };
-
     LocalAccount::import_backup_archive(
         &archive,
         options,
@@ -97,13 +92,11 @@ async fn backup_export_import() -> Result<()> {
     .await?;
 
     // Sign in after restoring the account
-    let mut account = LocalAccount::new_unauthenticated(
-        account_id,
-        make_client_backend(&paths).await?,
-    )
-    .await?;
+    let mut account =
+        LocalAccount::new_unauthenticated(account_id, target.clone()).await?;
 
     account.sign_in(&key).await?;
+
     account.open_folder(default_folder.id()).await?;
 
     for id in ids {

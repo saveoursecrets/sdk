@@ -91,8 +91,8 @@ impl Backend {
                         );
 
                         let account = ServerStorage::new(
-                            &account_id,
                             self.target.clone(),
+                            &account_id,
                         )
                         .await?;
 
@@ -122,8 +122,8 @@ impl Backend {
         for account in accounts {
             let account_id = *account.identity.account_id();
             let account = ServerStorage::new(
-                &account_id,
                 self.target.clone(),
+                &account_id,
             )
             .await?;
 
@@ -156,8 +156,8 @@ impl Backend {
         let target = self.target.clone().with_account_id(account_id);
 
         let account = ServerStorage::create_account(
-            account_id,
             target,
+            account_id,
             &account_data,
         )
         .await?;

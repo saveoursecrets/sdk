@@ -28,7 +28,7 @@ pub async fn run(cmd: Command) -> Result<()> {
                 BackendTarget::FileSystem(paths)
             };
             let storage =
-                ClientStorage::new_unauthenticated(&account_id, target)
+                ClientStorage::new_unauthenticated(target, &account_id)
                     .await?;
 
             let debug_tree = storage.debug_account_tree(account_id).await?;

@@ -3,8 +3,8 @@ use crate::{Error, Result, ServerAccountStorage};
 use async_trait::async_trait;
 use indexmap::IndexSet;
 use sos_backend::{
-    extract_vault, AccountEventLog, DeviceEventLog, FolderEventLog,
-    VaultWriter,
+    extract_vault, AccountEventLog, BackendTarget, DeviceEventLog,
+    FolderEventLog, VaultWriter,
 };
 use sos_core::{
     decode,
@@ -75,45 +75,52 @@ impl ServerDatabaseStorage {
     ///
     /// Events are loaded into memory.
     pub async fn new(
-        mut client: Client,
-        account_id: AccountId,
+        mut target: BackendTarget,
+        account_id: &AccountId,
         identity_log: Arc<RwLock<FolderEventLog>>,
-        paths: Paths,
     ) -> Result<Self> {
-        debug_assert!(!paths.is_global());
+        let (paths, client, account_row) = {
+            let BackendTarget::Database(paths, client) = &mut target else {
+                panic!("database backend expected");
+            };
+            debug_assert!(!paths.is_global());
 
-        if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
-            return Err(Error::NotDirectory(
-                paths.documents_dir().to_path_buf(),
-            )
-            .into());
-        }
+            if !vfs::metadata(paths.documents_dir()).await?.is_dir() {
+                return Err(Error::NotDirectory(
+                    paths.documents_dir().to_path_buf(),
+                )
+                .into());
+            }
 
-        paths.ensure_db().await?;
+            paths.ensure_db().await?;
 
-        let account_row =
-            Self::lookup_account(&mut client, &account_id).await?;
+            let account_row =
+                Self::lookup_account(client, account_id).await?;
+            (paths, client, account_row)
+        };
 
-        let mut event_log =
-            AccountEventLog::new_db_account(client.clone(), account_id)
-                .await?;
-        event_log.load_tree().await?;
+        let paths = Arc::new(paths.clone());
+        let client = client.clone();
 
         let (device_log, devices) =
-            Self::initialize_device_log(&client, &account_id).await?;
+            Self::initialize_device_log(&target, account_id).await?;
+
+        let mut event_log =
+            AccountEventLog::new_account(target.clone(), account_id).await?;
+        event_log.load_tree().await?;
 
         #[cfg(feature = "files")]
         let file_log = {
             let mut file_log =
-                FileEventLog::new_db_file(client.clone(), account_id).await?;
+                FileEventLog::new_file(target.clone(), account_id).await?;
             file_log.load_tree().await?;
             file_log
         };
 
         let mut storage = Self {
-            account_id,
+            account_id: *account_id,
             account_row_id: account_row.row_id,
-            paths: Arc::new(paths),
+            paths,
             client,
             identity_log,
             account_log: Arc::new(RwLock::new(event_log)),
@@ -130,12 +137,11 @@ impl ServerDatabaseStorage {
     }
 
     async fn initialize_device_log(
-        client: &Client,
+        target: &BackendTarget,
         account_id: &AccountId,
     ) -> Result<(DeviceEventLog, IndexSet<TrustedDevice>)> {
         let mut event_log =
-            DeviceEventLog::new_db_device(client.clone(), *account_id)
-                .await?;
+            DeviceEventLog::new_device(target.clone(), account_id).await?;
         event_log.load_tree().await?;
 
         let reducer = DeviceReducer::new(&event_log);

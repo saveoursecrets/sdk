@@ -125,7 +125,7 @@ impl LocalAccount {
         target = target.with_account_id(&account_id);
 
         let storage =
-            ClientStorage::new_unauthenticated(&account_id, target.clone())
+            ClientStorage::new_unauthenticated(target.clone(), &account_id)
                 .await?;
 
         Ok(Self {
@@ -189,7 +189,7 @@ impl LocalAccount {
         let (authenticated_user, public_account) = new_account.into();
 
         let mut storage =
-            ClientStorage::new_unauthenticated(&account_id, target.clone())
+            ClientStorage::new_unauthenticated(target.clone(), &account_id)
                 .await?;
         storage.authenticate(authenticated_user).await?;
 
@@ -735,8 +735,8 @@ impl Account for LocalAccount {
     ) -> Result<()> {
         let account_id = *self.account_id();
         let mut storage = ClientStorage::new_unauthenticated(
-            &account_id,
             self.target.clone(),
+            &account_id,
         )
         .await?;
 
