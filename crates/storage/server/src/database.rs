@@ -95,7 +95,7 @@ impl ServerDatabaseStorage {
             Self::lookup_account(&mut client, &account_id).await?;
 
         let mut event_log =
-            AccountEventLog::new_db_account(account_id, client.clone())
+            AccountEventLog::new_db_account(client.clone(), account_id)
                 .await?;
         event_log.load_tree().await?;
 

@@ -14,7 +14,7 @@ use sos_core::{
     constants::{IDENTITY_DIR, LOCAL_DIR, REMOTE_DIR},
     Paths,
 };
-use sos_database::{archive, async_sqlite::rusqlite::Connection};
+use sos_database::archive;
 use sos_external_files::list_external_blobs;
 use std::path::PathBuf;
 use test_utils::{copy_dir, TestDirs};

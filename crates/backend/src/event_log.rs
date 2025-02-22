@@ -42,15 +42,15 @@ where
 impl BackendEventLog<AccountEvent> {
     /// Create a new account event log.
     pub async fn new_account(
-        account_id: AccountId,
         target: BackendTarget,
+        account_id: &AccountId,
     ) -> Result<Self, Error> {
         match target {
             BackendTarget::FileSystem(paths) => {
                 Self::new_fs_account(paths.account_events()).await
             }
             BackendTarget::Database(_, client) => {
-                Self::new_db_account(account_id, client).await
+                Self::new_db_account(client, *account_id).await
             }
         }
     }
@@ -69,8 +69,8 @@ impl BackendEventLog<AccountEvent> {
     /// Create a database account event log.
     // TODO: make this private
     pub async fn new_db_account(
-        account_id: AccountId,
         client: Client,
+        account_id: AccountId,
     ) -> Result<Self, Error> {
         Ok(BackendEventLog::Database(
             DatabaseEventLog::<AccountEvent, Error>::new_account(
@@ -82,7 +82,24 @@ impl BackendEventLog<AccountEvent> {
 }
 
 impl BackendEventLog<WriteEvent> {
+    /// Create a new folder event log.
+    pub async fn new_folder(
+        target: BackendTarget,
+        account_id: &AccountId,
+        folder_id: &VaultId,
+    ) -> Result<Self, Error> {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                Self::new_fs_folder(paths.event_log_path(folder_id)).await
+            }
+            BackendTarget::Database(_, client) => {
+                Self::new_db_folder(client, *account_id, *folder_id).await
+            }
+        }
+    }
+
     /// Create a file system folder event log.
+    // TODO: make this private
     pub async fn new_fs_folder<P: AsRef<Path>>(
         path: P,
     ) -> Result<Self, Error> {
@@ -92,6 +109,7 @@ impl BackendEventLog<WriteEvent> {
     }
 
     /// Create a database folder event log.
+    // TODO: make this private
     pub async fn new_db_folder(
         client: Client,
         account_id: AccountId,
@@ -107,7 +125,23 @@ impl BackendEventLog<WriteEvent> {
 }
 
 impl BackendEventLog<DeviceEvent> {
+    /// Create a new device event log.
+    pub async fn new_device(
+        target: BackendTarget,
+        account_id: &AccountId,
+    ) -> Result<Self, Error> {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                Self::new_fs_device(paths.device_events()).await
+            }
+            BackendTarget::Database(_, client) => {
+                Self::new_db_device(client, *account_id).await
+            }
+        }
+    }
+
     /// Create a file system device event log.
+    // TODO: make this private
     pub async fn new_fs_device<P: AsRef<Path>>(
         path: P,
     ) -> Result<Self, Error> {
@@ -118,6 +152,7 @@ impl BackendEventLog<DeviceEvent> {
     }
 
     /// Create a database device event log.
+    // TODO: make this private
     pub async fn new_db_device(
         client: Client,
         account_id: AccountId,
@@ -133,6 +168,21 @@ impl BackendEventLog<DeviceEvent> {
 
 #[cfg(feature = "files")]
 impl BackendEventLog<FileEvent> {
+    /// Create a new file event log.
+    pub async fn new_file(
+        target: BackendTarget,
+        account_id: &AccountId,
+    ) -> Result<Self, Error> {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                Self::new_fs_file(paths.file_events()).await
+            }
+            BackendTarget::Database(_, client) => {
+                Self::new_db_file(client, *account_id).await
+            }
+        }
+    }
+
     /// Create a file system file event log.
     pub async fn new_fs_file<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         Ok(BackendEventLog::FileSystem(

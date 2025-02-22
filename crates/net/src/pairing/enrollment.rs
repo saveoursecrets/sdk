@@ -182,8 +182,8 @@ impl DeviceEnrollment {
 
     async fn create_account(&mut self, patch: AccountPatch) -> Result<()> {
         let mut event_log = AccountEventLog::new_account(
-            self.account_id,
             self.target.clone(),
+            &self.account_id,
         )
         .await?;
         event_log.clear().await?;

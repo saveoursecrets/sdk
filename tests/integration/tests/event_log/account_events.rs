@@ -37,7 +37,7 @@ async fn event_log_account() -> Result<()> {
     account.sign_in(&key).await?;
 
     let mut event_log =
-        AccountEventLog::new_account(*account.account_id(), target).await?;
+        AccountEventLog::new_account(target, account.account_id()).await?;
     let patch = event_log.diff_events(None).await?;
     assert_eq!(1, patch.len());
 

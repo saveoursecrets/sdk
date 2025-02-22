@@ -22,6 +22,7 @@ async fn event_log_move_folder() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     let paths = Paths::new_global(&data_dir);
+    let target = make_client_backend(&paths).await?;
 
     let account_name = TEST_ID.to_string();
     let (password1, _) = generate_passphrase()?;
@@ -30,14 +31,14 @@ async fn event_log_move_folder() -> Result<()> {
     let mut account1 = LocalAccount::new_account(
         account_name.clone(),
         password1.clone(),
-        make_client_backend(&paths).await?,
+        target.clone(),
     )
     .await?;
 
     let mut account2 = LocalAccount::new_account(
         account_name.clone(),
         password2.clone(),
-        make_client_backend(&paths).await?,
+        target.clone(),
     )
     .await?;
 
@@ -84,9 +85,9 @@ async fn event_log_move_folder() -> Result<()> {
         .import_folder_buffer(&buffer, vault_key.clone(), false)
         .await?;
 
-    let account_events = account2.paths().account_events();
     let mut event_log =
-        AccountEventLog::new_fs_account(&account_events).await?;
+        AccountEventLog::new_account(target.clone(), account2.account_id())
+            .await?;
     let events = all_events(&mut event_log).await?;
     // The account should have two create folder events now,
     // one for the default folder and one for the imported folder
@@ -105,8 +106,9 @@ async fn event_log_move_folder() -> Result<()> {
     assert_eq!("moved_folder", folder.name());
 
     // Check the folder event log
-    let folder_events = account2.paths().event_log_path(&folder_id);
-    let mut event_log = FolderEventLog::new_fs_folder(&folder_events).await?;
+    let mut event_log =
+        FolderEventLog::new_folder(target, account2.account_id(), &folder_id)
+            .await?;
     let events = all_events(&mut event_log).await?;
     // Should have the create vault and 3 create secret events
     assert_eq!(4, events.len());

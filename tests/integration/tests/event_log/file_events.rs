@@ -23,6 +23,7 @@ async fn event_log_file() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     let paths = Paths::new_global(&data_dir);
+    let target = make_client_backend(&paths).await?;
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -30,7 +31,7 @@ async fn event_log_file() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths).await?,
+        target.clone(),
     )
     .await?;
 
@@ -90,9 +91,8 @@ async fn event_log_file() -> Result<()> {
         .await?;
 
     // Store the file events log so we can delete and re-create
-    let file_events = account.paths().file_events();
-
-    let event_log = FileEventLog::new_fs_file(&file_events).await?;
+    let event_log =
+        FileEventLog::new_file(target, account.account_id()).await?;
     let patch = event_log.diff_events(None).await?;
     let events: Vec<FileEvent> = patch.into_events().await?;
     assert_eq!(5, events.len());
@@ -126,6 +126,7 @@ async fn event_log_file_folder_delete() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     let paths = Paths::new_global(&data_dir);
+    let target = make_client_backend(&paths).await?;
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -133,7 +134,7 @@ async fn event_log_file_folder_delete() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths).await?,
+        target.clone(),
     )
     .await?;
 
@@ -154,10 +155,8 @@ async fn event_log_file_folder_delete() -> Result<()> {
     // Delete the folder
     account.delete_folder(default_folder.id()).await?;
 
-    // Store the file events log so we can delete and re-create
-    let file_events = account.paths().file_events();
-
-    let mut event_log = FileEventLog::new_fs_file(&file_events).await?;
+    let mut event_log =
+        FileEventLog::new_file(target, account.account_id()).await?;
     let events = all_events(&mut event_log).await?;
     assert_eq!(4, events.len());
     assert!(matches!(events.get(0), Some(FileEvent::CreateFile(_, _))));

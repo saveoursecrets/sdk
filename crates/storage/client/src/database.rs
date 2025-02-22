@@ -118,7 +118,7 @@ impl ClientDatabaseStorage {
         identity_log.load_tree().await?;
 
         let mut account_log =
-            AccountEventLog::new_db_account(*account_id, client.clone())
+            AccountEventLog::new_db_account(client.clone(), *account_id)
                 .await?;
         account_log.load_tree().await?;
 

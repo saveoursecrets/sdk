@@ -21,6 +21,7 @@ async fn event_log_import_folder() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     let paths = Paths::new_global(&data_dir);
+    let target = make_client_backend(&paths).await?;
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -28,7 +29,7 @@ async fn event_log_import_folder() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths).await?,
+        target.clone(),
     )
     .await?;
 
@@ -51,9 +52,8 @@ async fn event_log_import_folder() -> Result<()> {
         .export_folder_buffer(default_folder.id(), vault_key.clone(), false)
         .await?;
 
-    let account_events = account.paths().account_events();
     let mut event_log =
-        AccountEventLog::new_fs_account(&account_events).await?;
+        AccountEventLog::new_account(target, account.account_id()).await?;
 
     // Import overwriting the existing data
     let commit = event_log.tree().last_commit();

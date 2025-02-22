@@ -22,6 +22,7 @@ async fn event_log_folder() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     let paths = Paths::new_global(&data_dir);
+    let target = make_client_backend(&paths).await?;
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -29,7 +30,7 @@ async fn event_log_folder() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths).await?,
+        target.clone(),
     )
     .await?;
 
@@ -37,10 +38,13 @@ async fn event_log_folder() -> Result<()> {
     account.sign_in(&key).await?;
     let default_folder = account.default_folder().await.unwrap();
 
-    let folder_events = account.paths().event_log_path(default_folder.id());
-
     // Just has the create vault event to begin with
-    let mut event_log = FolderEventLog::new_fs_folder(&folder_events).await?;
+    let mut event_log = FolderEventLog::new_folder(
+        target,
+        account.account_id(),
+        default_folder.id(),
+    )
+    .await?;
     let event = last_log_event(&mut event_log, None).await?;
     assert!(matches!(event, Some(WriteEvent::CreateVault(_))));
 
