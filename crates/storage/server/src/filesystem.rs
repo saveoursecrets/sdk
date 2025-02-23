@@ -41,6 +41,9 @@ pub struct ServerFileStorage {
     /// Directories for file storage.
     pub(super) paths: Arc<Paths>,
 
+    /// Backend target.
+    pub(super) target: BackendTarget,
+
     /// Identity folder event log.
     pub(super) identity_log: Arc<RwLock<FolderEventLog>>,
 
@@ -103,6 +106,7 @@ impl ServerFileStorage {
         let mut storage = Self {
             account_id: *account_id,
             paths: Arc::new(paths.clone()),
+            target,
             identity_log,
             account_log: Arc::new(RwLock::new(event_log)),
             device_log: Arc::new(RwLock::new(device_log)),
@@ -133,9 +137,12 @@ impl ServerFileStorage {
 
     /// Create new event log cache entries.
     async fn create_folder_entry(&mut self, id: &VaultId) -> Result<()> {
-        let event_log_path = self.paths.event_log_path(id);
-        let mut event_log =
-            FolderEventLog::new_fs_folder(&event_log_path).await?;
+        let mut event_log = FolderEventLog::new_folder(
+            self.target.clone(),
+            &self.account_id,
+            id,
+        )
+        .await?;
         event_log.load_tree().await?;
         self.folders.insert(*id, Arc::new(RwLock::new(event_log)));
         Ok(())

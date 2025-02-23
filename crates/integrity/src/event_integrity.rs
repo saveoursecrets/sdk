@@ -4,14 +4,21 @@ use async_stream::try_stream;
 use binary_stream::futures::BinaryReader;
 use futures::stream::Stream;
 use hex;
-use sos_core::commit::CommitTree;
-use sos_core::encoding::encoding_options;
+use sos_backend::BackendTarget;
+use sos_core::{commit::CommitTree, encoding::encoding_options, AccountId};
 use sos_filesystem::{
     formats::{EventLogRecord, FileItem},
     FolderEventLog,
 };
 use sos_vfs as vfs;
 use std::{io::SeekFrom, path::Path};
+
+pub fn event_integrity2(
+    target: &BackendTarget,
+    account_id: &AccountId,
+) -> Result<()> {
+    todo!("new event integrity");
+}
 
 /// Integrity check for an event log comparing the precomputed
 /// checksums with the encrypted content of each row.

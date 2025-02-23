@@ -50,6 +50,9 @@ pub struct ServerDatabaseStorage {
     /// Database client.
     pub(super) client: Client,
 
+    /// Backend target.
+    pub(super) target: BackendTarget,
+
     /// Identity folder event log.
     pub(super) identity_log: Arc<RwLock<FolderEventLog>>,
 
@@ -122,6 +125,7 @@ impl ServerDatabaseStorage {
             account_row_id: account_row.row_id,
             paths,
             client,
+            target,
             identity_log,
             account_log: Arc::new(RwLock::new(event_log)),
             device_log: Arc::new(RwLock::new(device_log)),
@@ -153,10 +157,7 @@ impl ServerDatabaseStorage {
     /// Create new event log cache entries.
     async fn create_folder_entry(&mut self, id: &VaultId) -> Result<()> {
         let mut event_log = FolderEventLog::new_folder(
-            BackendTarget::Database(
-                (&*self.paths).clone(),
-                self.client.clone(),
-            ),
+            self.target.clone(),
             &self.account_id,
             id,
         )

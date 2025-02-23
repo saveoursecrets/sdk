@@ -5245,6 +5245,8 @@ dependencies = [
  "indexmap 2.7.1",
  "rustc_version",
  "sha2",
+ "sos-backend",
+ "sos-client-storage",
  "sos-core",
  "sos-filesystem",
  "sos-vault",

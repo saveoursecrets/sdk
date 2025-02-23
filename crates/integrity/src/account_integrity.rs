@@ -2,7 +2,8 @@
 use crate::{Error, IntegrityFailure, Result};
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
-use sos_core::Paths;
+use sos_backend::BackendTarget;
+use sos_core::{AccountId, Paths};
 use sos_filesystem::formats::{EventLogRecord, VaultRecord};
 use sos_vault::{Summary, VaultId};
 use sos_vfs as vfs;
@@ -36,6 +37,14 @@ pub enum FolderIntegrityEvent {
     CloseFolder(VaultId),
     /// Folder integrity check completed.
     Complete,
+}
+
+pub fn account_integrity2(
+    target: &BackendTarget,
+    account_id: &AccountId,
+    concurrency: usize,
+) -> Result<()> {
+    todo!("new account integrity");
 }
 
 /// Generate an integrity report for the folders in an account.

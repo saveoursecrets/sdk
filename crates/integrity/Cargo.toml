@@ -17,6 +17,8 @@ files = []
 
 [dependencies]
 sos-core.workspace = true
+sos-backend.workspace = true
+sos-client-storage.workspace = true
 sos-filesystem.workspace = true
 sos-vault.workspace = true
 sos-vfs.workspace = true
