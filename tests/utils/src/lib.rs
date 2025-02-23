@@ -255,7 +255,7 @@ pub async fn spawn_with_config(
     let url = socket_addr_url(&addr);
     Ok(TestServer {
         test_id: test_id.to_owned(),
-        paths: Paths::new_global_server(path),
+        paths: Paths::new_server(path),
         // path,
         origin: url.into(),
         addr,

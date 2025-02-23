@@ -17,7 +17,7 @@ async fn database_import_archive_server() -> Result<()> {
     let dirs = setup(TEST_ID, 0).await?;
     prepare_server_for_upgrade(&dirs)?;
 
-    let paths = Paths::new_global_server(&dirs.test_dir);
+    let paths = Paths::new_server(&dirs.test_dir);
 
     // Upgrade the file system accounts into the db
     let options = UpgradeOptions {
@@ -30,7 +30,7 @@ async fn database_import_archive_server() -> Result<()> {
 
     // Create a backup archive.
     let zip = dirs.test_dir.join("backup.zip");
-    let paths = Paths::new_global_server(dirs.test_dir.clone());
+    let paths = Paths::new_server(dirs.test_dir.clone());
     archive::create_backup_archive(&result.database_file, &paths, &zip)
         .await?;
 

@@ -50,7 +50,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             }
 
             let paths = if server {
-                Paths::new_global_server(&directory)
+                Paths::new_server(&directory)
             } else {
                 Paths::new_global(&directory)
             };
@@ -74,7 +74,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             }
 
             let paths = if server {
-                Paths::new_global_server(&directory)
+                Paths::new_server(&directory)
             } else {
                 Paths::new_global(&directory)
             };

@@ -90,7 +90,7 @@ impl Paths {
     ///
     /// Used to get application level paths when a user identifier
     /// is not available.
-    pub fn new_global_server(documents_dir: impl AsRef<Path>) -> Self {
+    pub fn new_server(documents_dir: impl AsRef<Path>) -> Self {
         Self::new_with_prefix(true, documents_dir, "", REMOTE_DIR)
     }
 

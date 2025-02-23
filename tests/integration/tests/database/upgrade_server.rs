@@ -17,7 +17,7 @@ async fn database_upgrade_server() -> Result<()> {
 
     // Upgrade the file system accounts into the db
     let options = UpgradeOptions {
-        paths: Paths::new_global_server(&dirs.test_dir),
+        paths: Paths::new_server(&dirs.test_dir),
         dry_run: false,
         backup_directory: Some(backup_dir),
         ..Default::default()

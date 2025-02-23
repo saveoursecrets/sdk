@@ -321,7 +321,7 @@ impl ServerConfig {
         };
         let path = path.canonicalize()?;
 
-        let paths = Paths::new_global_server(&path);
+        let paths = Paths::new_server(&path);
 
         let target = if let Some(uri) = &self.storage.database_uri {
             tracing::debug!(

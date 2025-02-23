@@ -26,7 +26,7 @@ async fn fs_server_storage() -> Result<()> {
 
     let account_id = AccountId::random();
     let mut storage = ServerStorage::new(
-        BackendTarget::FileSystem(Paths::new_global_server(temp.path())),
+        BackendTarget::FileSystem(Paths::new_server(temp.path())),
         &account_id,
     )
     .await?;
@@ -44,7 +44,7 @@ async fn db_server_storage() -> Result<()> {
     *vault.flags_mut() = VaultFlags::IDENTITY;
     let (account_id, _, _) =
         insert_database_vault(&mut client, &vault, true).await?;
-    let paths = Paths::new_global_server(temp.path());
+    let paths = Paths::new_server(temp.path());
 
     let mut storage = ServerStorage::new(
         BackendTarget::Database(paths, client),
