@@ -63,13 +63,7 @@ impl IdentityFolder {
     ) -> Result<Self> {
         match target {
             BackendTarget::FileSystem(paths) => {
-                Self::new_fs(
-                    name,
-                    password,
-                    Some(paths.documents_dir().clone()),
-                    account_id,
-                )
-                .await
+                Self::new_fs(name, password, paths, account_id).await
             }
             BackendTarget::Database(paths, client) => {
                 Self::new_db(name, password, &paths, &client, account_id)
@@ -83,20 +77,14 @@ impl IdentityFolder {
     async fn new_fs(
         name: String,
         password: SecretString,
-        data_dir: Option<PathBuf>,
+        paths: Paths,
         account_id: Option<AccountId>,
     ) -> Result<Self> {
         let account_id = account_id.unwrap_or_else(AccountId::random);
+        let paths = paths.with_account_id(&account_id);
         tracing::debug!(
             account_id = %account_id,
             "new_identity_folder::filesystem");
-
-        let data_dir = if let Some(data_dir) = &data_dir {
-            data_dir.clone()
-        } else {
-            Paths::data_dir()?
-        };
-        let paths = Paths::new(data_dir, account_id.to_string());
 
         let vault = Self::create_identity_vault(name, &password).await?;
 

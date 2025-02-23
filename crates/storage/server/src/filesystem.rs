@@ -173,11 +173,14 @@ impl ServerFileStorage {
     /// Intended to be used by a server to create the identity
     /// vault and event log when a new account is created.
     pub async fn initialize_account(
+        target: &BackendTarget,
+        account_id: &AccountId,
         paths: &Paths,
         identity_patch: &FolderPatch,
     ) -> Result<FolderEventLog> {
         let mut event_log =
-            FolderEventLog::new_fs_folder(paths.identity_events()).await?;
+            FolderEventLog::new_login_folder(target.clone(), account_id)
+                .await?;
         event_log.clear().await?;
         event_log.patch_unchecked(identity_patch).await?;
 

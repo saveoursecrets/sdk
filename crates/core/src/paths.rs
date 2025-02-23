@@ -1,30 +1,26 @@
 //! File system paths for application level folders
 //! and user-specific account folders.
-use crate::{constants::PREFERENCES_FILE, AccountId, Result};
-
-#[cfg(not(target_arch = "wasm32"))]
-use etcetera::{
-    app_strategy::choose_native_strategy, AppStrategy, AppStrategyArgs,
-};
-
 use crate::{
     constants::{
         ACCOUNT_EVENTS, APP_AUTHOR, APP_NAME, AUDIT_FILE_NAME, BLOBS_DIR,
         DATABASE_FILE, DEVICE_EVENTS, DEVICE_FILE, EVENT_LOG_EXT, FILES_DIR,
         FILE_EVENTS, IDENTITY_DIR, JSON_EXT, LOCAL_DIR, LOGS_DIR,
-        REMOTES_FILE, REMOTE_DIR, SYSTEM_MESSAGES_FILE, VAULTS_DIR,
-        VAULT_EXT,
+        PREFERENCES_FILE, REMOTES_FILE, REMOTE_DIR, SYSTEM_MESSAGES_FILE,
+        VAULTS_DIR, VAULT_EXT,
     },
-    SecretId, VaultId,
+    AccountId, Result, SecretId, VaultId,
+};
+#[cfg(not(target_arch = "wasm32"))]
+use etcetera::{
+    app_strategy::choose_native_strategy, AppStrategy, AppStrategyArgs,
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use sos_vfs as vfs;
 use std::{
     path::{Path, PathBuf},
     sync::RwLock,
 };
-
-use sos_vfs as vfs;
 
 static DATA_DIR: Lazy<RwLock<Option<PathBuf>>> =
     Lazy::new(|| RwLock::new(None));
@@ -45,12 +41,11 @@ static DATA_DIR: Lazy<RwLock<Option<PathBuf>>> =
 pub struct Paths {
     /// Whether these paths are for server storage.
     server: bool,
-
     /// User identifier.
     user_id: String,
+
     /// Top-level documents folder.
     documents_dir: PathBuf,
-
     /// Directory for identity vaults.
     identity_dir: PathBuf,
     /// Directory for local storage.
@@ -75,6 +70,7 @@ pub struct Paths {
 
 impl Paths {
     /// Create new paths for a client.
+    #[deprecated(note = "use with_account_id")]
     pub fn new(
         documents_dir: impl AsRef<Path>,
         user_id: impl AsRef<str>,
@@ -82,20 +78,12 @@ impl Paths {
         Self::new_with_prefix(false, documents_dir, user_id, LOCAL_DIR)
     }
 
-    /// Create new paths for a server.
-    pub fn new_server(
-        documents_dir: impl AsRef<Path>,
-        user_id: impl AsRef<str>,
-    ) -> Self {
-        Self::new_with_prefix(true, documents_dir, user_id, REMOTE_DIR)
-    }
-
     /// Create new paths for a client with an empty user identifier.
     ///
     /// Used to get application level paths when a user identifier
     /// is not available.
     pub fn new_global(documents_dir: impl AsRef<Path>) -> Self {
-        Self::new(documents_dir, "")
+        Self::new_with_prefix(false, documents_dir, "", LOCAL_DIR)
     }
 
     /// Create new paths for a client with an empty user identifier.
@@ -103,7 +91,7 @@ impl Paths {
     /// Used to get application level paths when a user identifier
     /// is not available.
     pub fn new_global_server(documents_dir: impl AsRef<Path>) -> Self {
-        Self::new_server(documents_dir, "")
+        Self::new_with_prefix(true, documents_dir, "", REMOTE_DIR)
     }
 
     fn new_with_prefix(
@@ -154,7 +142,12 @@ impl Paths {
     /// Clone of paths with an account identifier.
     pub fn with_account_id(&self, account_id: &AccountId) -> Self {
         if self.server {
-            Self::new_server(&self.documents_dir, account_id.to_string())
+            Self::new_with_prefix(
+                true,
+                self.documents_dir.clone(),
+                account_id.to_string(),
+                REMOTE_DIR,
+            )
         } else {
             Self::new(&self.documents_dir, account_id.to_string())
         }
@@ -168,17 +161,11 @@ impl Paths {
         // Version 1 needs to local/remote directory
         vfs::create_dir_all(&self.local_dir).await?;
 
-        // Version 2 just needs the blobs directory
-        vfs::create_dir_all(&self.blobs_dir).await?;
-
         if !self.is_global() {
             // Version 1 file system - needs to be removed eventually
             vfs::create_dir_all(&self.user_dir).await?;
             vfs::create_dir_all(&self.files_dir).await?;
             vfs::create_dir_all(&self.vaults_dir).await?;
-
-            // Version 2 database backend needs a blobs folder
-            vfs::create_dir_all(self.blobs_dir.join(self.user_id())).await?;
         }
         Ok(())
     }

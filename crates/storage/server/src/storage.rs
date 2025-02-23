@@ -135,6 +135,8 @@ impl ServerStorage {
         paths.ensure().await?;
 
         let identity_log = ServerFileStorage::initialize_account(
+            &target,
+            account_id,
             &paths,
             &account_data.identity,
         )

@@ -10,7 +10,11 @@ use sos_core::{
     },
     AccountId, VaultId,
 };
-use sos_database::{async_sqlite::Client, DatabaseEventLog};
+use sos_database::{
+    async_sqlite::Client,
+    entity::{AccountEntity, FolderEntity, FolderRecord},
+    DatabaseEventLog,
+};
 use sos_filesystem::FileSystemEventLog;
 use std::path::Path;
 
@@ -87,6 +91,43 @@ impl BackendEventLog<WriteEvent> {
                 )
                 .await?,
             ),
+        })
+    }
+
+    /// Create a new login folder.
+    pub async fn new_login_folder(
+        target: BackendTarget,
+        account_id: &AccountId,
+    ) -> Result<Self, Error> {
+        Ok(match target {
+            BackendTarget::FileSystem(paths) => BackendEventLog::FileSystem(
+                FileSystemEventLog::<WriteEvent, Error>::new_folder(
+                    paths.with_account_id(account_id).identity_events(),
+                )
+                .await?,
+            ),
+            BackendTarget::Database(_, client) => {
+                let account_id = *account_id;
+                let folder_row = client
+                    .conn_and_then(move |conn| {
+                        let account_entity = AccountEntity::new(&conn);
+                        let account_row =
+                            account_entity.find_one(&account_id)?;
+                        let folder_entity = FolderEntity::new(&conn);
+                        folder_entity.find_login_folder(account_row.row_id)
+                    })
+                    .await?;
+                let folder_record =
+                    FolderRecord::from_row(folder_row).await?;
+                BackendEventLog::Database(
+                    DatabaseEventLog::<WriteEvent, Error>::new_folder(
+                        client,
+                        account_id,
+                        *folder_record.summary.id(),
+                    )
+                    .await?,
+                )
+            }
         })
     }
 
