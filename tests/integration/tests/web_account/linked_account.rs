@@ -41,7 +41,7 @@ async fn integration_ipc_linked_account() -> Result<()> {
 
     Paths::scaffold(Some(data_dir.clone())).await?;
     Paths::scaffold(Some(linked_data_dir.clone())).await?;
-    let paths = Paths::new_global(data_dir.clone());
+    let paths = Paths::new_client(data_dir.clone());
 
     // For the test just re-use the account client
     let client = device.owner.remote_client(&origin).await.unwrap();

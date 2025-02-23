@@ -15,7 +15,7 @@ async fn account_builder_fs() -> Result<()> {
     // crate::test_utils::init_tracing();
 
     let dirs = setup(TEST_ID, 1).await?;
-    let paths = Paths::new_global(&dirs.test_dir);
+    let paths = Paths::new_client(&dirs.test_dir);
 
     let account_name = "fs-account".to_owned();
     let password = memorable();
@@ -58,7 +58,7 @@ async fn account_builder_db() -> Result<()> {
     // crate::test_utils::init_tracing();
 
     let dirs = setup(TEST_ID, 1).await?;
-    let paths = Paths::new_global(&dirs.test_dir);
+    let paths = Paths::new_client(&dirs.test_dir);
 
     let mut client = open_file(paths.database_file()).await?;
     migrate_client(&mut client).await?;

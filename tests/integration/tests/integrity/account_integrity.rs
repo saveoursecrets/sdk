@@ -18,7 +18,7 @@ async fn account_integrity_ok() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
-    let paths = Paths::new_global(&data_dir);
+    let paths = Paths::new_client(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -77,7 +77,7 @@ async fn account_integrity_missing_file() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
-    let paths = Paths::new_global(&data_dir);
+    let paths = Paths::new_client(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -133,7 +133,7 @@ async fn account_integrity_corrupted_vault() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
-    let paths = Paths::new_global(&data_dir);
+    let paths = Paths::new_client(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -192,7 +192,7 @@ async fn account_integrity_corrupted_event() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
-    let paths = Paths::new_global(&data_dir);
+    let paths = Paths::new_client(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -252,7 +252,7 @@ async fn account_integrity_cancel() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
-    let paths = Paths::new_global(&data_dir);
+    let paths = Paths::new_client(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;

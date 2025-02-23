@@ -13,7 +13,7 @@ async fn local_search_view_query_websites() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
-    let paths = Paths::new_global(&data_dir);
+    let paths = Paths::new_client(&data_dir);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;

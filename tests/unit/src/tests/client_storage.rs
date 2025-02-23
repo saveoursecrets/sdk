@@ -37,7 +37,7 @@ async fn fs_client_storage() -> Result<()> {
 
     let account_id = AccountId::random();
 
-    let paths = Paths::new_global(temp.path()).with_account_id(&account_id);
+    let paths = Paths::new_client(temp.path()).with_account_id(&account_id);
     paths.ensure().await?;
 
     let target = BackendTarget::FileSystem(paths);
@@ -56,7 +56,7 @@ async fn db_client_storage() -> Result<()> {
     let account_id = AccountId::random();
 
     let client = memory_database().await?;
-    let paths = Paths::new_global(temp.path()).with_account_id(&account_id);
+    let paths = Paths::new_client(temp.path()).with_account_id(&account_id);
     paths.ensure_db().await?;
 
     let target = BackendTarget::Database(paths, client);

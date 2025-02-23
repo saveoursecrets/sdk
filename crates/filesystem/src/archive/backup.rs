@@ -418,7 +418,7 @@ impl AccountBackup {
 
         // The app should check the identity does not already exist
         // but we will double check here to be safe
-        let paths = Paths::new_global(data_dir.clone());
+        let paths = Paths::new_client(data_dir.clone());
         let keys = list_accounts(Some(&paths)).await?;
         let existing_account = keys
             .iter()

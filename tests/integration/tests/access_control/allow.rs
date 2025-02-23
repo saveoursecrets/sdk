@@ -23,7 +23,7 @@ async fn access_control_allow() -> Result<()> {
 
     // Create an account with a different account_id
     let data_dir = allowed.dirs.clients.get(1).unwrap().clone();
-    let paths = Paths::new_global(&data_dir);
+    let paths = Paths::new_client(&data_dir);
     let (password, _) = generate_passphrase()?;
     let mut denied = NetworkAccount::new_account(
         TEST_ID.to_owned(),

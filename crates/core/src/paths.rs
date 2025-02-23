@@ -78,18 +78,12 @@ impl Paths {
         Self::new_with_prefix(false, documents_dir, user_id, LOCAL_DIR)
     }
 
-    /// Create new paths for a client with an empty user identifier.
-    ///
-    /// Used to get application level paths when a user identifier
-    /// is not available.
-    pub fn new_global(documents_dir: impl AsRef<Path>) -> Self {
+    /// Create new paths for a client without an account identifier.
+    pub fn new_client(documents_dir: impl AsRef<Path>) -> Self {
         Self::new_with_prefix(false, documents_dir, "", LOCAL_DIR)
     }
 
-    /// Create new paths for a client with an empty user identifier.
-    ///
-    /// Used to get application level paths when a user identifier
-    /// is not available.
+    /// Create new paths for a server without an account identifier.
     pub fn new_server(documents_dir: impl AsRef<Path>) -> Self {
         Self::new_with_prefix(true, documents_dir, "", REMOTE_DIR)
     }
@@ -514,7 +508,7 @@ impl Paths {
         } else {
             Paths::data_dir()?
         };
-        let paths = Self::new_global(data_dir);
+        let paths = Self::new_client(data_dir);
         vfs::create_dir_all(paths.documents_dir()).await?;
         vfs::create_dir_all(paths.identity_dir()).await?;
         vfs::create_dir_all(paths.logs_dir()).await?;
@@ -528,7 +522,7 @@ impl Paths {
         } else {
             Paths::data_dir()?
         };
-        let paths = Self::new_global(data_dir);
+        let paths = Self::new_client(data_dir);
         vfs::create_dir_all(paths.documents_dir()).await?;
         vfs::create_dir_all(paths.logs_dir()).await?;
         Ok(())

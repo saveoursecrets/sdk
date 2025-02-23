@@ -50,7 +50,7 @@ impl Logger {
     ///
     /// If the default data directory could not be determined.
     pub fn new(name: Option<String>) -> Self {
-        Self::new_paths(Paths::new_global(Paths::data_dir().unwrap()), name)
+        Self::new_paths(Paths::new_client(Paths::data_dir().unwrap()), name)
     }
 
     /// Create a new logger with the given paths.

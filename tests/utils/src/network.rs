@@ -77,7 +77,7 @@ impl SimulatedDevice {
         origin: Option<Origin>,
     ) -> Result<SimulatedDevice> {
         let data_dir = self.dirs.clients.get(index).unwrap();
-        let paths = Paths::new_global(&data_dir)
+        let paths = Paths::new_client(&data_dir)
             .with_account_id(self.owner.account_id());
         let mut owner = NetworkAccount::new_unauthenticated(
             *self.owner.account_id(),
@@ -132,7 +132,7 @@ pub async fn simulate_device_with_builder(
 ) -> Result<SimulatedDevice> {
     let dirs = setup(test_id, num_clients).await?;
     let data_dir = dirs.clients.get(0).unwrap().clone();
-    let paths = Paths::new_global(&data_dir);
+    let paths = Paths::new_client(&data_dir);
 
     let (password, _) = generate_passphrase()?;
     let mut owner = NetworkAccount::new_account_with_builder(

@@ -22,7 +22,7 @@ async fn db_event_log_load_tree() -> Result<()> {
     let (event_log, account_id, _, _, vault, _temp) =
         mock::db_event_log_standalone(&mut client).await?;
     let expected_root = event_log.tree().root().unwrap();
-    let paths = Paths::new_global(temp.path()).with_account_id(&account_id);
+    let paths = Paths::new_client(temp.path()).with_account_id(&account_id);
     let target = BackendTarget::Database(paths, client.clone());
     let event_log =
         FolderEventLog::new_folder(target, &account_id, vault.id()).await?;

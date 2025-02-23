@@ -141,7 +141,7 @@ pub async fn run() -> Result<()> {
     }
 
     Paths::scaffold(args.storage).await?;
-    let paths = Paths::new_global(Paths::data_dir()?);
+    let paths = Paths::new_client(Paths::data_dir()?);
     let provider =
         sos_backend::audit::new_fs_provider(paths.audit_file().to_owned());
     sos_backend::audit::init_providers(vec![provider]);

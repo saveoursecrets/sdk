@@ -26,7 +26,7 @@ pub mod mock {
         let temp = tempdir_in("target")?;
         let account_id = AccountId::random();
         let paths =
-            Paths::new_global(temp.path()).with_account_id(&account_id);
+            Paths::new_client(temp.path()).with_account_id(&account_id);
         paths.ensure().await?;
         let event_log = AccountEventLog::new_account(
             BackendTarget::FileSystem(paths),
@@ -42,7 +42,7 @@ pub mod mock {
         let temp = tempdir_in("target")?;
         let (account_id, _) = mock::insert_database_account(client).await?;
         let paths =
-            Paths::new_global(temp.path()).with_account_id(&account_id);
+            Paths::new_client(temp.path()).with_account_id(&account_id);
         let event_log = AccountEventLog::new_account(
             BackendTarget::Database(paths, client.clone()),
             &account_id,
@@ -55,7 +55,7 @@ pub mod mock {
         let temp = tempdir_in("target")?;
         let account_id = AccountId::random();
         let paths =
-            Paths::new_global(temp.path()).with_account_id(&account_id);
+            Paths::new_client(temp.path()).with_account_id(&account_id);
         paths.ensure().await?;
         let folder_id = VaultId::new_v4();
         let event_log = FolderEventLog::new_folder(
@@ -75,7 +75,7 @@ pub mod mock {
         let (account_id, _, _) =
             mock::insert_database_vault(client, vault, false).await?;
         let paths =
-            Paths::new_global(temp.path()).with_account_id(&account_id);
+            Paths::new_client(temp.path()).with_account_id(&account_id);
         let event_log = FolderEventLog::new_folder(
             BackendTarget::Database(paths, client.clone()),
             &account_id,
@@ -235,7 +235,7 @@ pub mod mock {
             mock::insert_database_vault(client, &vault, false).await?;
 
         let paths =
-            Paths::new_global(temp.path()).with_account_id(&account_id);
+            Paths::new_client(temp.path()).with_account_id(&account_id);
         let target = BackendTarget::Database(paths, client.clone());
 
         // Create a simple event log
@@ -263,7 +263,7 @@ pub mod mock {
         let (account_id, _, _) =
             mock::insert_database_vault(client, &vault, false).await?;
         let paths =
-            Paths::new_global(temp.path()).with_account_id(&account_id);
+            Paths::new_client(temp.path()).with_account_id(&account_id);
         let target = BackendTarget::Database(paths, client.clone());
 
         // Create a simple event log

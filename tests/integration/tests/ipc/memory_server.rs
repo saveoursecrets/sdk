@@ -26,7 +26,7 @@ async fn integration_ipc_memory_server() -> Result<()> {
     let data_dir = dirs.clients.remove(0);
 
     Paths::scaffold(Some(data_dir.clone())).await?;
-    let paths = Paths::new_global(data_dir.clone());
+    let paths = Paths::new_client(data_dir.clone());
 
     // Setup empty accounts
     let accounts = LocalAccountSwitcher::from(paths);

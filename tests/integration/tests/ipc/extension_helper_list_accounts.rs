@@ -52,7 +52,7 @@ async fn integration_ipc_extension_helper_list_accounts() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     Paths::scaffold(Some(data_dir.clone())).await?;
-    let paths = Paths::new_global(&data_dir);
+    let paths = Paths::new_client(&data_dir);
 
     let (password, _) = generate_passphrase()?;
     let _account = LocalAccount::new_account(

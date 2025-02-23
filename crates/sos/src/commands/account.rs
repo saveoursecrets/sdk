@@ -414,7 +414,7 @@ async fn account_restore(
         return Ok(None);
     }
 
-    let paths = Paths::new_global(Paths::data_dir()?);
+    let paths = Paths::new_client(Paths::data_dir()?);
     let target = if paths.is_using_db() {
         let client = open_file(paths.database_file()).await?;
         BackendTarget::Database(paths.clone(), client)

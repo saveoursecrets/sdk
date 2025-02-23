@@ -19,7 +19,7 @@ pub async fn run(cmd: Command) -> Result<()> {
     match cmd {
         Command::Tree { account } => {
             let account_id = resolve_account_address(Some(&account)).await?;
-            let paths = Paths::new_global(Paths::data_dir()?)
+            let paths = Paths::new_client(Paths::data_dir()?)
                 .with_account_id(&account_id);
             let target = if paths.is_using_db() {
                 let client = open_file(paths.database_file()).await?;

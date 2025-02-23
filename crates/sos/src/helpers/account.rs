@@ -284,7 +284,7 @@ pub async fn sign_in(account: &AccountRef) -> Result<SecretString> {
         }
     };
 
-    let paths = Paths::new_global(Paths::data_dir()?)
+    let paths = Paths::new_client(Paths::data_dir()?)
         .with_account_id(account.account_id());
 
     let passphrase = if !is_authenticated {
@@ -426,7 +426,7 @@ pub async fn new_account(
             );
         }
 
-        let paths = Paths::new_global(Paths::data_dir()?);
+        let paths = Paths::new_client(Paths::data_dir()?);
 
         let mut owner = NetworkAccount::new_account_with_builder(
             account_name.clone(),

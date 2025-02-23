@@ -23,7 +23,7 @@ async fn audit_trail_client() -> Result<()> {
     let data_dir = dirs.clients.remove(0);
 
     // Configure the audit provider
-    let paths = Paths::new_global(&data_dir);
+    let paths = Paths::new_client(&data_dir);
     paths.ensure().await?;
     let provider =
         sos_backend::audit::new_fs_provider(paths.audit_file().to_owned());

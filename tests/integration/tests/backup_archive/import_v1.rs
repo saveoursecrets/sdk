@@ -26,7 +26,7 @@ async fn backup_import_v1() -> Result<()> {
         AccountBackup::restore_archive_inventory(BufReader::new(reader))
             .await?;
 
-    let paths = Paths::new_global(&data_dir)
+    let paths = Paths::new_client(&data_dir)
         .with_account_id(&inventory.manifest.account_id);
     paths.ensure().await?;
 

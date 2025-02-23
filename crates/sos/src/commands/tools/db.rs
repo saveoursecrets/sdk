@@ -52,7 +52,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let paths = if server {
                 Paths::new_server(&directory)
             } else {
-                Paths::new_global(&directory)
+                Paths::new_client(&directory)
             };
 
             if !paths.identity_dir().is_dir() {
@@ -76,7 +76,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let paths = if server {
                 Paths::new_server(&directory)
             } else {
-                Paths::new_global(&directory)
+                Paths::new_client(&directory)
             };
 
             let options = UpgradeOptions {

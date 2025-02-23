@@ -34,7 +34,7 @@ pub async fn main() -> anyhow::Result<()> {
     let extension_id = args.pop().unwrap_or_else(String::new).to_string();
 
     // Load any accounts on disc
-    let paths = Paths::new_global(data_dir.as_ref().unwrap());
+    let paths = Paths::new_client(data_dir.as_ref().unwrap());
     let options = AccountSwitcherOptions {
         paths: Some(paths),
         ..Default::default()
@@ -45,7 +45,7 @@ pub async fn main() -> anyhow::Result<()> {
             |identity| {
                 let app_dir = data_dir.clone();
                 Box::pin(async move {
-                    let paths = Paths::new_global(app_dir.as_ref().unwrap())
+                    let paths = Paths::new_client(app_dir.as_ref().unwrap())
                         .with_account_id(identity.account_id());
                     let target = make_client_backend(&paths).await.unwrap();
                     Ok(LocalAccount::new_unauthenticated(

@@ -15,7 +15,7 @@ async fn database_upgrade_client() -> Result<()> {
 
     // Upgrade the file system accounts into the db
     let options = UpgradeOptions {
-        paths: Paths::new_global(&dirs.test_dir),
+        paths: Paths::new_client(&dirs.test_dir),
         dry_run: false,
         ..Default::default()
     };

@@ -38,7 +38,7 @@ async fn db_event_log_rewind() -> Result<()> {
     let (account_id, event_log, temp) =
         mock::db_folder_event_log(&mut client, &vault).await?;
     let rewind_root = assert_event_log_rewind(event_log, vault).await?;
-    let paths = Paths::new_global(temp.path()).with_account_id(&account_id);
+    let paths = Paths::new_client(temp.path()).with_account_id(&account_id);
     let target = BackendTarget::Database(paths, client);
 
     // Create new event log to load the commits and verify the root

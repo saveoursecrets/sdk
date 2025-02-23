@@ -47,7 +47,7 @@ where
         let paths = if let Some(account_id) = account_id {
             Paths::new(base, account_id.to_string())
         } else {
-            Paths::new_global(base)
+            Paths::new_client(base)
         };
         paths.preferences_file().to_owned()
     }

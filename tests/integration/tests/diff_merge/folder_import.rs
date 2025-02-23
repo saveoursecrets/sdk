@@ -19,11 +19,11 @@ async fn diff_merge_folder_import() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 3).await?;
     let data_dir = dirs.clients.remove(0);
-    let paths = Paths::new_global(&data_dir);
+    let paths = Paths::new_client(&data_dir);
     let data_dir_export = dirs.clients.remove(0);
-    let export_paths = Paths::new_global(&data_dir_export);
+    let export_paths = Paths::new_client(&data_dir_export);
     let data_dir_merge = dirs.clients.remove(0);
-    let merge_paths = Paths::new_global(&data_dir_merge);
+    let merge_paths = Paths::new_client(&data_dir_merge);
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;

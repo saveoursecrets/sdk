@@ -39,7 +39,7 @@ async fn db_folder_lifecycle() -> Result<()> {
 
     let buffer = encode(&vault).await?;
     vfs::write(temp.path(), &buffer).await?;
-    let paths = Paths::new_global(dir.path());
+    let paths = Paths::new_client(dir.path());
 
     let mut folder =
         Folder::new_db(paths, client.clone(), account_id, *vault.id())

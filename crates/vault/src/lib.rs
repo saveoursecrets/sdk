@@ -36,7 +36,7 @@ pub async fn list_accounts(
     let paths = if let Some(paths) = paths {
         paths.clone()
     } else {
-        Paths::new_global(Paths::data_dir()?)
+        Paths::new_client(Paths::data_dir()?)
     };
 
     let mut dir = vfs::read_dir(paths.identity_dir()).await?;

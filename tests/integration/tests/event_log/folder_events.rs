@@ -21,7 +21,7 @@ async fn event_log_folder() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
-    let paths = Paths::new_global(&data_dir);
+    let paths = Paths::new_client(&data_dir);
     let target = make_client_backend(&paths).await?;
 
     let account_name = TEST_ID.to_string();

@@ -22,7 +22,7 @@ pub async fn run_pairing_protocol(
 
     // Get the data dir for the second client
     let data_dir = primary_device.dirs.clients.get(1).cloned().unwrap();
-    let paths = Paths::new_global(&data_dir);
+    let paths = Paths::new_client(&data_dir);
     let target = make_client_backend(&paths).await?;
 
     // Need to clear the data directory for the second client
@@ -95,7 +95,7 @@ pub async fn run_inverted_pairing_protocol(
 
     // Get the data dir for the second client
     let data_dir = primary_device.dirs.clients.get(1).cloned().unwrap();
-    let paths = Paths::new_global(&data_dir);
+    let paths = Paths::new_client(&data_dir);
     let target = make_client_backend(&paths).await?;
 
     // Need to clear the data directory for the second client

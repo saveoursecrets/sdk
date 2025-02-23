@@ -112,9 +112,9 @@ where
         Paths::scaffold(data_dir.clone()).await?;
 
         let paths = if let Some(data_dir) = data_dir {
-            Paths::new_global(data_dir)
+            Paths::new_client(data_dir)
         } else {
-            Paths::new_global(Paths::data_dir()?)
+            Paths::new_client(Paths::data_dir()?)
         };
 
         let identities = list_accounts(Some(&paths)).await?;
