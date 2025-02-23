@@ -19,7 +19,7 @@ async fn preferences_no_account() -> Result<()> {
 
     // Ensure paths exist
     Paths::scaffold(Some(data_dir.clone())).await?;
-    let paths = Paths::new(data_dir.clone(), account_id.to_string());
+    let paths = Paths::new_client(&data_dir).with_account_id(&account_id);
     paths.ensure().await?;
 
     // Prepare the preferences

@@ -148,8 +148,10 @@ pub async fn run(cmd: Command) -> Result<()> {
             }
         }
         Command::Paths { account, filter } => {
-            let address = resolve_account_address(account.as_ref()).await?;
-            let paths = Paths::new(Paths::data_dir()?, address.to_string());
+            let account_id =
+                resolve_account_address(account.as_ref()).await?;
+            let paths = Paths::new_client(Paths::data_dir()?)
+                .with_account_id(&account_id);
             if filter.is_empty() {
                 let value = toml::to_string_pretty(&paths)?;
                 print!("{}", value);

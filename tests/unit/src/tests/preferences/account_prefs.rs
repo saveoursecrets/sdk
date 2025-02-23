@@ -14,7 +14,7 @@ async fn fs_account_preferences() -> Result<()> {
     let temp = tempdir_in("target")?;
     let account_id = AccountId::random();
 
-    let paths = Paths::new(temp.path(), account_id.to_string());
+    let paths = Paths::new_client(temp.path()).with_account_id(&account_id);
     paths.ensure().await?;
     let prefs = Preferences::new_fs(Arc::new(paths));
     prefs.new_account(&account_id).await?;

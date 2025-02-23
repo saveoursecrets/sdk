@@ -12,7 +12,7 @@ use tempfile::tempdir_in;
 async fn fs_system_messages() -> Result<()> {
     let temp = tempdir_in("target")?;
     let account_id = AccountId::random();
-    let paths = Paths::new(temp.path(), account_id.to_string());
+    let paths = Paths::new_client(temp.path()).with_account_id(&account_id);
     paths.ensure().await?;
     let mut messages = SystemMessages::new_fs(Arc::new(paths));
     assert_system_messages(&mut messages).await?;

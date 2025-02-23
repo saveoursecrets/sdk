@@ -27,7 +27,8 @@ use walkdir::WalkDir;
 
 /// Get the path to the file storage directory for the given
 /// account address.
-type ExtractFilesBuilder = Box<dyn Fn(&str) -> Option<PathBuf> + Send + Sync>;
+type ExtractFilesBuilder =
+    Box<dyn Fn(&AccountId) -> Option<PathBuf> + Send + Sync>;
 
 /// Known path or builder for a files directory.
 ///
@@ -430,7 +431,7 @@ impl AccountBackup {
             ));
         }
 
-        let address_path = restore_targets.manifest.account_id.to_string();
+        let address_path = restore_targets.manifest.account_id;
         let paths = Paths::new(data_dir, &address_path);
 
         // Write out the identity vault
@@ -557,7 +558,7 @@ impl AccountBackup {
                 }
                 ExtractFilesLocation::Builder(builder) => {
                     if let Some(manifest) = reader.manifest() {
-                        let account_id = manifest.account_id.to_string();
+                        let account_id = manifest.account_id;
                         if let Some(files_dir) = builder(&account_id) {
                             reader
                                 .extract_files(

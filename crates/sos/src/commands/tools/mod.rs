@@ -185,9 +185,9 @@ pub async fn run(cmd: Command) -> Result<()> {
                 .ok_or(Error::NoAccount(account.to_string()))?;
 
             match account {
-                AccountRef::Id(address) => {
-                    let paths =
-                        Paths::new(Paths::data_dir()?, address.to_string());
+                AccountRef::Id(account_id) => {
+                    let paths = Paths::new_client(Paths::data_dir()?)
+                        .with_account_id(&account_id);
                     let events_file = paths.event_log_path(&folder);
                     let vault_file = paths.vault_path(&folder);
 

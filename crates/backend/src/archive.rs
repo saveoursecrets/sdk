@@ -47,9 +47,10 @@ pub async fn import_backup_archive(
             let mut options: RestoreOptions = Default::default();
             if options.files_dir.is_none() {
                 let files_dir =
-                    ExtractFilesLocation::Builder(Box::new(|address| {
+                    ExtractFilesLocation::Builder(Box::new(|account_id| {
                         let data_dir = Paths::data_dir().unwrap();
-                        let paths = Paths::new(data_dir, address);
+                        let paths = Paths::new_client(data_dir)
+                            .with_account_id(account_id);
                         Some(paths.files_dir().to_owned())
                     }));
                 options.files_dir = Some(files_dir);

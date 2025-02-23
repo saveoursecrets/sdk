@@ -87,10 +87,8 @@ async fn find_blobs(
 
     for account in accounts {
         let record: AccountRecord = account.try_into()?;
-        let account_paths = Paths::new(
-            paths.documents_dir(),
-            record.identity.account_id().to_string(),
-        );
+        let account_paths =
+            Paths::new(paths.documents_dir(), record.identity.account_id());
         let blobs = list_external_blobs(&account_paths).await?;
         let paths = blobs
             .into_iter()

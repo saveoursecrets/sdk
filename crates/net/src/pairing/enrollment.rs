@@ -68,9 +68,9 @@ impl DeviceEnrollment {
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let paths = if let Some(data_dir) = &data_dir {
-            Paths::new(data_dir.clone(), account_id.to_string())
+            Paths::new_client(data_dir.clone()).with_account_id(&account_id)
         } else {
-            Paths::new(Paths::data_dir()?, account_id.to_string())
+            Paths::new_client(Paths::data_dir()?).with_account_id(&account_id)
         };
 
         let device_signing_key = device_signer.clone();
@@ -109,7 +109,7 @@ impl DeviceEnrollment {
         let identity_vault = self.paths.identity_vault();
         if vfs::try_exists(&identity_vault).await? {
             return Err(Error::EnrollAccountExists(
-                self.paths.user_id().to_owned(),
+                self.paths.user_id().cloned().unwrap(),
             ));
         }
 
