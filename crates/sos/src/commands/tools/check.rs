@@ -95,7 +95,7 @@ pub(crate) async fn verify_events(
     while let Some(event) = stream.next().await {
         let record = event?;
         if verbose {
-            println!("hash: {}", hex::encode(record?.commit()));
+            println!("hash: {}", record?.commit());
         }
         commits += 1;
     }

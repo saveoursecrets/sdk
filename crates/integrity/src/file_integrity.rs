@@ -4,7 +4,7 @@ use crate::Result;
 use futures::StreamExt;
 use indexmap::IndexSet;
 use sha2::{Digest, Sha256};
-use sos_core::{ExternalFile, Paths};
+use sos_core::{commit::CommitHash, ExternalFile, Paths};
 use sos_vfs as vfs;
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::{
@@ -213,8 +213,8 @@ async fn compare_file(
         let slice: [u8; 32] = digest.as_slice().try_into()?;
         Ok(Some(IntegrityFailure::Corrupted {
             path,
-            expected: external_file.file_name().to_string(),
-            actual: hex::encode(&slice),
+            expected: external_file.file_name().into(),
+            actual: CommitHash(slice),
         }))
     } else {
         Ok(None)

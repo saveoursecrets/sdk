@@ -1,4 +1,6 @@
-use crate::{Error, Result, SecretId, SecretPath, VaultId};
+use crate::{
+    commit::CommitHash, Error, Result, SecretId, SecretPath, VaultId,
+};
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 
@@ -32,6 +34,12 @@ impl AsRef<[u8]> for ExternalFileName {
 impl From<[u8; 32]> for ExternalFileName {
     fn from(value: [u8; 32]) -> Self {
         Self(value)
+    }
+}
+
+impl From<&ExternalFileName> for CommitHash {
+    fn from(value: &ExternalFileName) -> Self {
+        CommitHash(value.0)
     }
 }
 

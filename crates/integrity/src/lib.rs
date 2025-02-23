@@ -10,7 +10,7 @@ mod file_integrity;
 mod vault_integrity;
 
 pub use account_integrity::{account_integrity, FolderIntegrityEvent};
-pub use event_integrity::event_integrity;
+pub use event_integrity::{event_integrity, event_integrity2};
 pub use vault_integrity::vault_integrity;
 
 #[cfg(feature = "files")]
@@ -21,6 +21,7 @@ pub use error::Error;
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
+use sos_core::commit::CommitHash;
 use std::path::PathBuf;
 
 /// Reasons why an integrity check can fail.
@@ -33,9 +34,9 @@ pub enum IntegrityFailure {
         /// File path.
         path: PathBuf,
         /// Expected file name checksum.
-        expected: String,
+        expected: CommitHash,
         /// Actual file name checksum.
-        actual: String,
+        actual: CommitHash,
     },
     /// Other error encountered.
     Error(Error),

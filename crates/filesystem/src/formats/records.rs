@@ -128,7 +128,9 @@ impl EventLogRecord {
         }
     }
 
-    pub(crate) fn into_event_record(self, buffer: Vec<u8>) -> EventRecord {
+    /// Convert into an event record.
+    #[doc(hidden)]
+    pub fn into_event_record(self, buffer: Vec<u8>) -> EventRecord {
         EventRecord::new(
             self.time,
             CommitHash(self.last_commit),

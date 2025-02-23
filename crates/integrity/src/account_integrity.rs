@@ -3,8 +3,8 @@ use crate::{Error, IntegrityFailure, Result};
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use sos_backend::BackendTarget;
-use sos_core::{AccountId, Paths};
-use sos_filesystem::formats::{EventLogRecord, VaultRecord};
+use sos_core::{events::EventRecord, AccountId, Paths};
+use sos_filesystem::formats::VaultRecord;
 use sos_vault::{Summary, VaultId};
 use sos_vfs as vfs;
 use std::{path::PathBuf, sync::Arc};
@@ -27,7 +27,7 @@ pub enum FolderIntegrityEvent {
     /// Read a record in a vault.
     VaultRecord(VaultId, VaultRecord),
     /// Read a record in an event log.
-    EventRecord(VaultId, EventLogRecord),
+    EventRecord(VaultId, EventRecord),
     /// Finished integrity check on a folder.
     ///
     /// This event is only sent when a folder integrity
@@ -48,6 +48,7 @@ pub fn account_integrity2(
 }
 
 /// Generate an integrity report for the folders in an account.
+#[deprecated]
 pub async fn account_integrity(
     paths: Arc<Paths>,
     folders: IndexSet<Summary>,

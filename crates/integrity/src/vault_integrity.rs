@@ -4,8 +4,11 @@ use async_stream::try_stream;
 use binary_stream::futures::BinaryReader;
 use futures::stream::Stream;
 use sos_backend::BackendTarget;
-use sos_core::commit::CommitTree;
-use sos_core::{constants::VAULT_IDENTITY, encoding::encoding_options};
+use sos_core::{
+    commit::{CommitHash, CommitTree},
+    constants::VAULT_IDENTITY,
+    encoding::encoding_options,
+};
 use sos_filesystem::formats::{
     read_file_identity_bytes, FileItem, FormatStream, FormatStreamIterator,
     VaultRecord,
@@ -20,6 +23,7 @@ pub fn vault_integrity2(target: &BackendTarget) -> Result<()> {
 
 /// Integrity check for a vault file comparing the precomputed
 /// checksums with the encrypted content of each row.
+#[deprecated]
 pub fn vault_integrity(
     path: impl AsRef<Path>,
 ) -> impl Stream<Item = Result<Result<VaultRecord>>> {
@@ -51,8 +55,8 @@ pub fn vault_integrity(
           let checksum = CommitTree::hash(&buffer);
           if checksum != commit {
               yield Err(Error::VaultHashMismatch {
-                  commit: hex::encode(commit),
-                  value: hex::encode(checksum),
+                  commit: CommitHash(commit),
+                  value: CommitHash(checksum),
                   id: uuid::Uuid::from_slice(record.id().as_slice())?,
               });
           }
