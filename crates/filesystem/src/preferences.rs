@@ -45,7 +45,7 @@ where
     fn file_path(&self, account_id: Option<&AccountId>) -> PathBuf {
         let base = self.paths.documents_dir();
         let paths = if let Some(account_id) = account_id {
-            Paths::new(base, account_id)
+            Paths::new_client(base).with_account_id(account_id)
         } else {
             Paths::new_client(base)
         };

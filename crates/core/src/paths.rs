@@ -45,49 +45,43 @@ pub struct Paths {
     account_id: Option<AccountId>,
     /// Top-level documents folder.
     documents_dir: PathBuf,
+    /// Directory for application logs.
+    logs_dir: PathBuf,
+
+    /*
+     * v1 paths (filesystem)
+     */
     /// Directory for identity vaults.
     identity_dir: PathBuf,
     /// Directory for local storage.
     local_dir: PathBuf,
-    /// Database file.
-    database_file: PathBuf,
-    /// Directory for application logs.
-    logs_dir: PathBuf,
     /// File for local audit logs.
     audit_file: PathBuf,
     /// User segregated storage.
     user_dir: PathBuf,
-    /// External file blob storage.
-    blobs_dir: PathBuf,
     /// User file storage.
     files_dir: PathBuf,
     /// User vault storage.
     vaults_dir: PathBuf,
     /// User devices storage.
     device_file: PathBuf,
+
+    /*
+     * v2 paths (database)
+     */
+    /// Database file.
+    database_file: PathBuf,
+    /// External file blob storage.
+    blobs_dir: PathBuf,
 }
 
 impl Paths {
-    /// Create new paths for a client.
-    #[deprecated(note = "use with_account_id")]
-    pub fn new(
-        documents_dir: impl AsRef<Path>,
-        account_id: &AccountId,
-    ) -> Self {
-        Self::new_with_prefix(
-            false,
-            documents_dir,
-            Some(account_id),
-            LOCAL_DIR,
-        )
-    }
-
-    /// Create new paths for a client without an account identifier.
+    /// Create paths for a client without an account identifier.
     pub fn new_client(documents_dir: impl AsRef<Path>) -> Self {
         Self::new_with_prefix(false, documents_dir, None, LOCAL_DIR)
     }
 
-    /// Create new paths for a server without an account identifier.
+    /// Create paths for a server without an account identifier.
     pub fn new_server(documents_dir: impl AsRef<Path>) -> Self {
         Self::new_with_prefix(true, documents_dir, None, REMOTE_DIR)
     }
@@ -140,16 +134,12 @@ impl Paths {
 
     /// Clone of paths with an account identifier.
     pub fn with_account_id(&self, account_id: &AccountId) -> Self {
-        if self.server {
-            Self::new_with_prefix(
-                true,
-                self.documents_dir.clone(),
-                Some(account_id),
-                REMOTE_DIR,
-            )
-        } else {
-            Self::new(&self.documents_dir, account_id)
-        }
+        Self::new_with_prefix(
+            self.server,
+            &self.documents_dir,
+            Some(account_id),
+            if self.server { REMOTE_DIR } else { LOCAL_DIR },
+        )
     }
 
     /// Ensure the local storage directory exists.

@@ -387,7 +387,8 @@ async fn account_backup(
         .await?
         .ok_or(Error::NoAccount(account.to_string()))?;
     let address = account.account_id();
-    let paths = Paths::new(Paths::data_dir()?, address);
+    let paths =
+        Paths::new_client(Paths::data_dir()?).with_account_id(address);
 
     AccountBackup::export_archive_file(&output, address, &paths).await?;
     Ok(())

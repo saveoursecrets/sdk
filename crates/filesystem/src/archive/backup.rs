@@ -432,7 +432,8 @@ impl AccountBackup {
         }
 
         let address_path = restore_targets.manifest.account_id;
-        let paths = Paths::new(data_dir, &address_path);
+        let paths =
+            Paths::new_client(data_dir).with_account_id(&address_path);
 
         // Write out the identity vault
         let identity_vault_file = paths.identity_vault();
