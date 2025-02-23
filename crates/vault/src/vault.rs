@@ -898,16 +898,6 @@ impl Vault {
             .collect::<HashMap<_, _>>()
     }
 
-    /// Write this vault to a file.
-    pub async fn write_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        use tokio::io::AsyncWriteExt;
-        let mut stream = File::create(path).await?;
-        let buffer = encode(self).await?;
-        stream.write_all(&buffer).await?;
-        stream.flush().await?;
-        Ok(())
-    }
-
     /// Compute the hash of the encoded encrypted buffer
     /// for the meta and secret data.
     #[doc(hidden)]
