@@ -79,8 +79,7 @@ async fn assert_encrypted_entry(
 
     let updated_meta = vault.encrypt(encryption_key, &meta_bytes).await?;
     let updated_secret = vault.encrypt(encryption_key, &secret_bytes).await?;
-    let (commit, _) =
-        Vault::commit_hash(&updated_meta, &updated_secret).await?;
+    let commit = Vault::commit_hash(&meta_bytes, &secret_bytes)?;
     let _ = vault_access
         .update_secret(
             &secret_id,

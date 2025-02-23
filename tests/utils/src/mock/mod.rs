@@ -100,8 +100,7 @@ pub async fn vault_note(
 
     let meta_aead = vault.encrypt(encryption_key, &meta_bytes).await?;
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes).await?;
-
-    let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead).await?;
+    let commit = Vault::commit_hash(&meta_bytes, &secret_bytes)?;
     let event = vault
         .create_secret(commit, VaultEntry(meta_aead, secret_aead))
         .await?;
@@ -126,8 +125,7 @@ pub async fn vault_note_update(
 
     let meta_aead = vault.encrypt(encryption_key, &meta_bytes).await?;
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes).await?;
-
-    let (commit, _) = Vault::commit_hash(&meta_aead, &secret_aead).await?;
+    let commit = Vault::commit_hash(&meta_bytes, &secret_bytes)?;
     let event = vault
         .update_secret(id, commit, VaultEntry(meta_aead, secret_aead))
         .await?;

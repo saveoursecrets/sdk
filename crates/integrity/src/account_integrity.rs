@@ -39,11 +39,13 @@ pub enum FolderIntegrityEvent {
     Complete,
 }
 
-pub fn account_integrity2(
+pub async fn account_integrity2(
     target: &BackendTarget,
     account_id: &AccountId,
     concurrency: usize,
 ) -> Result<()> {
+    let folders = target.list_folders(account_id).await?;
+
     todo!("new account integrity");
 }
 

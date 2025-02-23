@@ -14,6 +14,24 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::result::Result as StdResult;
 
+fn folder_select_columns(sql: sql::Select) -> sql::Select {
+    sql.select(
+        r#"
+            folders.folder_id,
+            folders.created_at,
+            folders.modified_at,
+            folders.identifier,
+            folders.name,
+            folders.salt,
+            folders.meta,
+            folders.version,
+            folders.cipher,
+            folders.kdf,
+            folders.flags
+        "#,
+    )
+}
+
 /// Folder row from the database.
 #[doc(hidden)]
 #[derive(Debug, Default)]
@@ -263,6 +281,13 @@ where
 }
 
 impl<'conn> FolderEntity<'conn, Box<Connection>> {
+    /// Query to find all secrets in a folder.
+    pub fn find_all_secrets_query() -> sql::Select {
+        folder_select_columns(sql::Select::new())
+            .from("folder_secrets")
+            .where_clause("folder_id=?1")
+    }
+
     /// Compute the vault for a folder in the database.
     pub async fn compute_folder_vault(
         client: &Client,
@@ -390,31 +415,11 @@ where
         Self { conn }
     }
 
-    fn folder_select_columns(&self, sql: sql::Select) -> sql::Select {
-        sql.select(
-            r#"
-                folders.folder_id,
-                folders.created_at,
-                folders.modified_at,
-                folders.identifier,
-                folders.name,
-                folders.salt,
-                folders.meta,
-                folders.version,
-                folders.cipher,
-                folders.kdf,
-                folders.flags
-            "#,
-        )
-    }
-
     fn select_folder(
         &self,
         use_identifier: bool,
     ) -> StdResult<CachedStatement, SqlError> {
-        let query = self
-            .folder_select_columns(sql::Select::new())
-            .from("folders");
+        let query = folder_select_columns(sql::Select::new()).from("folders");
 
         let query = if use_identifier {
             query.where_clause("identifier = ?1")
@@ -471,8 +476,7 @@ where
         &self,
         account_id: i64,
     ) -> StdResult<Option<FolderRow>, SqlError> {
-        let query = self
-            .folder_select_columns(sql::Select::new())
+        let query = folder_select_columns(sql::Select::new())
             .from("folders")
             .left_join(
                 "account_login_folder login ON folders.folder_id = login.folder_id",
@@ -491,8 +495,7 @@ where
         &self,
         account_id: i64,
     ) -> StdResult<Option<FolderRow>, SqlError> {
-        let query = self
-            .folder_select_columns(sql::Select::new())
+        let query = folder_select_columns(sql::Select::new())
             .from("folders")
             .left_join(
                 "account_device_folder device ON folders.folder_id = device.folder_id",
@@ -513,8 +516,7 @@ where
         &self,
         account_id: i64,
     ) -> Result<Vec<FolderRow>> {
-        let query = self
-            .folder_select_columns(sql::Select::new())
+        let query = folder_select_columns(sql::Select::new())
             .from("folders")
             .left_join(
                 "account_login_folder login ON folders.folder_id = login.folder_id",
