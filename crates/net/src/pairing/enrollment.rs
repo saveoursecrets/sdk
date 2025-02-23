@@ -109,7 +109,7 @@ impl DeviceEnrollment {
         let identity_vault = self.paths.identity_vault();
         if vfs::try_exists(&identity_vault).await? {
             return Err(Error::EnrollAccountExists(
-                self.paths.user_id().cloned().unwrap(),
+                self.paths.account_id().cloned().unwrap(),
             ));
         }
 

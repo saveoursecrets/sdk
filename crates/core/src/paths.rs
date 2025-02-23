@@ -42,8 +42,7 @@ pub struct Paths {
     /// Whether these paths are for server storage.
     server: bool,
     /// User identifier.
-    user_id: Option<AccountId>,
-
+    account_id: Option<AccountId>,
     /// Top-level documents folder.
     documents_dir: PathBuf,
     /// Directory for identity vaults.
@@ -71,8 +70,16 @@ pub struct Paths {
 impl Paths {
     /// Create new paths for a client.
     #[deprecated(note = "use with_account_id")]
-    pub fn new(documents_dir: impl AsRef<Path>, user_id: &AccountId) -> Self {
-        Self::new_with_prefix(false, documents_dir, Some(user_id), LOCAL_DIR)
+    pub fn new(
+        documents_dir: impl AsRef<Path>,
+        account_id: &AccountId,
+    ) -> Self {
+        Self::new_with_prefix(
+            false,
+            documents_dir,
+            Some(account_id),
+            LOCAL_DIR,
+        )
     }
 
     /// Create new paths for a client without an account identifier.
@@ -88,7 +95,7 @@ impl Paths {
     fn new_with_prefix(
         server: bool,
         documents_dir: impl AsRef<Path>,
-        user_id: Option<&AccountId>,
+        account_id: Option<&AccountId>,
         prefix: impl AsRef<Path>,
     ) -> Self {
         let documents_dir = documents_dir.as_ref().to_path_buf();
@@ -97,7 +104,7 @@ impl Paths {
         let identity_dir = documents_dir.join(IDENTITY_DIR);
         let audit_file = local_dir.join(AUDIT_FILE_NAME);
         let user_dir = local_dir
-            .join(user_id.map(|id| id.to_string()).unwrap_or_default());
+            .join(account_id.map(|id| id.to_string()).unwrap_or_default());
 
         let files_dir = user_dir.join(FILES_DIR);
         let vaults_dir = user_dir.join(VAULTS_DIR);
@@ -110,7 +117,7 @@ impl Paths {
 
         Self {
             server,
-            user_id: user_id.cloned(),
+            account_id: account_id.cloned(),
             documents_dir,
             database_file,
             blobs_dir,
@@ -220,7 +227,7 @@ impl Paths {
             );
         }
         self.blobs_dir()
-            .join(self.user_id.as_ref().map(|id| id.to_string()).unwrap())
+            .join(self.account_id.as_ref().map(|id| id.to_string()).unwrap())
     }
 
     /// Expected location for the directory containing
@@ -250,8 +257,8 @@ impl Paths {
     }
 
     /// User identifier.
-    pub fn user_id(&self) -> Option<&AccountId> {
-        self.user_id.as_ref()
+    pub fn account_id(&self) -> Option<&AccountId> {
+        self.account_id.as_ref()
     }
 
     /// Top-level storage directory.
@@ -264,7 +271,7 @@ impl Paths {
     /// Paths are global when a user identifier
     /// is not available.
     pub fn is_global(&self) -> bool {
-        self.user_id.is_none()
+        self.account_id.is_none()
     }
 
     /// Path to the identity vault directory.
@@ -398,7 +405,7 @@ impl Paths {
         }
         let mut identity_vault_file = self
             .identity_dir
-            .join(self.user_id.as_ref().map(|id| id.to_string()).unwrap());
+            .join(self.account_id.as_ref().map(|id| id.to_string()).unwrap());
         identity_vault_file.set_extension(VAULT_EXT);
         identity_vault_file
     }

@@ -11,7 +11,6 @@ use sos_core::{
     AccountId, VaultId,
 };
 use sos_database::{
-    async_sqlite::Client,
     entity::{AccountEntity, FolderEntity, FolderRecord},
     DatabaseEventLog,
 };
