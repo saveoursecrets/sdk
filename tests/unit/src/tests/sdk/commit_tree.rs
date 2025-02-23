@@ -30,7 +30,7 @@ async fn mock_commit_tree() -> Result<CommitTree> {
         let meta_aead = vault.encrypt(&encryption_key, &meta_bytes).await?;
         let secret_aead =
             vault.encrypt(&encryption_key, &secret_bytes).await?;
-        let commit = Vault::commit_hash(&meta_bytes, &secret_bytes)?;
+        let commit = Vault::commit_hash(&meta_aead, &secret_aead).await?;
         let _secret_id = match vault
             .create_secret(commit, VaultEntry(meta_aead, secret_aead))
             .await?

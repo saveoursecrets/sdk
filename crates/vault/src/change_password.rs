@@ -151,7 +151,7 @@ impl<'a> ChangePassword<'a> {
                 new_vault.encrypt(&new_private_key, &secret_blob).await?;
 
             // Need a new commit hash as the contents have changed
-            let commit = Vault::commit_hash(&meta_blob, &secret_blob)?;
+            let commit = Vault::commit_hash(&meta_aead, &secret_aead).await?;
 
             // Insert into the new vault preserving the secret identifiers
             let sync_event = new_vault

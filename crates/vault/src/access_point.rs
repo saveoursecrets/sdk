@@ -393,7 +393,7 @@ where
         let secret_blob = encode(secret_data.secret()).await?;
         let secret_aead =
             self.vault.encrypt(private_key, &secret_blob).await?;
-        let commit = Vault::commit_hash(&meta_blob, &secret_blob)?;
+        let commit = Vault::commit_hash(&meta_aead, &secret_aead).await?;
 
         if let Some(mirror) = self.mirror.as_mut() {
             mirror
@@ -459,7 +459,7 @@ where
         let secret_blob = encode(&secret).await?;
         let secret_aead =
             self.vault.encrypt(private_key, &secret_blob).await?;
-        let commit = Vault::commit_hash(&meta_blob, &secret_blob)?;
+        let commit = Vault::commit_hash(&meta_aead, &secret_aead).await?;
 
         if let Some(mirror) = self.mirror.as_mut() {
             mirror

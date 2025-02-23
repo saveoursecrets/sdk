@@ -18,7 +18,7 @@ pub(crate) async fn get_vault_entry(
         mock::secret_note(secret_label, secret_note).await?;
     let meta_aead = vault.encrypt(encryption_key, &meta_bytes).await?;
     let secret_aead = vault.encrypt(encryption_key, &secret_bytes).await?;
-    let commit = Vault::commit_hash(&meta_bytes, &secret_bytes)?;
+    let commit = Vault::commit_hash(&meta_aead, &secret_aead).await?;
     let entry = VaultEntry(meta_aead, secret_aead);
     Ok((commit, entry))
 }

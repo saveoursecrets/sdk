@@ -16,8 +16,9 @@ use sos_backend::{
 use sos_core::{
     commit::{CommitHash, CommitTree},
     constants::VAULT_IDENTITY,
+    decode,
     encoding::encoding_options,
-    AccountId, VaultId,
+    AccountId, VaultCommit, VaultId,
 };
 use sos_filesystem::formats::{
     read_file_identity_bytes, FileItem, FormatStream, FormatStreamIterator,
@@ -27,6 +28,7 @@ use sos_vault::Header;
 use sos_vfs as vfs;
 use std::{io::SeekFrom, path::Path};
 use tokio_stream::wrappers::ReceiverStream;
+use uuid::Uuid;
 
 /// Stream of vault commits.
 async fn vault_stream(

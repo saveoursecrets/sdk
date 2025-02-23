@@ -911,13 +911,17 @@ impl Vault {
     /// Compute the hash of the encoded encrypted buffer
     /// for the meta and secret data.
     #[doc(hidden)]
-    pub fn commit_hash(
-        meta: impl AsRef<[u8]>,
-        secret: impl AsRef<[u8]>,
+    pub async fn commit_hash(
+        meta_aead: &AeadPack,
+        secret_aead: &AeadPack,
     ) -> Result<CommitHash> {
+        // Compute the hash of the encrypted and encoded bytes
+        let encoded_meta = encode(meta_aead).await?;
+        let encoded_data = encode(secret_aead).await?;
+
         let mut hasher = Sha256::new();
-        hasher.update(meta.as_ref());
-        hasher.update(secret.as_ref());
+        hasher.update(&encoded_meta);
+        hasher.update(&encoded_data);
         let digest = hasher.finalize();
         Ok(CommitHash(digest.as_slice().try_into()?))
     }

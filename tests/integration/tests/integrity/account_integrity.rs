@@ -230,8 +230,6 @@ async fn account_integrity_corrupted_event() -> Result<()> {
         }
     }
 
-    println!("{failures:?}");
-
     assert_eq!(1, failures.len());
     assert!(matches!(
         failures.remove(0),
