@@ -24,7 +24,6 @@ sos-vault.workspace = true
 sos-vfs.workspace = true
 
 thiserror.workspace = true
-async-stream.workspace = true
 binary-stream.workspace = true
 futures.workspace = true
 indexmap.workspace = true

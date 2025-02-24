@@ -5238,7 +5238,6 @@ dependencies = [
 name = "sos-integrity"
 version = "0.16.1"
 dependencies = [
- "async-stream",
  "binary-stream",
  "futures",
  "hex",
