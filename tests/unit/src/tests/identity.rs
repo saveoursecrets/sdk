@@ -1,29 +1,34 @@
 use anyhow::Result;
-use sos_backend::AccessPoint;
+use sos_backend::{AccessPoint, BackendTarget};
 use sos_core::AccountId;
 use sos_core::{crypto::AccessKey, encode};
 use sos_login::IdentityFolder;
 use sos_password::diceware::generate_passphrase;
+use sos_sdk::Paths;
 use sos_vault::{
     BuilderCredentials, SecretAccess, Vault, VaultBuilder, VaultFlags,
 };
 use sos_vfs as vfs;
-use tempfile::NamedTempFile;
+use tempfile::tempdir_in;
 
 #[tokio::test]
-async fn identity_not_identity_vault() -> Result<()> {
+async fn identity_not_vault() -> Result<()> {
+    let temp_dir = tempdir_in("target")?;
     let account_id = AccountId::random();
     let (password, _) = generate_passphrase()?;
     let vault = VaultBuilder::new()
         .build(BuilderCredentials::Password(password.clone(), None))
         .await?;
     let buffer = encode(&vault).await?;
-    let file = NamedTempFile::new()?;
-    vfs::write(file.path(), &buffer).await?;
+
+    Paths::scaffold(Some(temp_dir.path().to_owned())).await?;
+    let paths =
+        Paths::new_client(temp_dir.path()).with_account_id(&account_id);
+    vfs::write(paths.identity_vault(), &buffer).await?;
+    let target = BackendTarget::from_paths(&paths).await?;
 
     let key: AccessKey = password.into();
-    let result =
-        IdentityFolder::login_fs(&account_id, &key, file.path()).await;
+    let result = IdentityFolder::login(&target, &account_id, &key).await;
 
     if let Err(sos_login::Error::NotIdentityFolder) = result {
         Ok(())
@@ -33,7 +38,8 @@ async fn identity_not_identity_vault() -> Result<()> {
 }
 
 #[tokio::test]
-async fn no_identity_key() -> Result<()> {
+async fn identity_no_key() -> Result<()> {
+    let temp_dir = tempdir_in("target")?;
     let account_id = AccountId::random();
     let (password, _) = generate_passphrase()?;
 
@@ -48,12 +54,15 @@ async fn no_identity_key() -> Result<()> {
 
     let vault: Vault = keeper.into();
     let buffer = encode(&vault).await?;
-    let file = NamedTempFile::new()?;
-    vfs::write(file.path(), &buffer).await?;
+
+    Paths::scaffold(Some(temp_dir.path().to_owned())).await?;
+    let paths =
+        Paths::new_client(temp_dir.path()).with_account_id(&account_id);
+    vfs::write(paths.identity_vault(), &buffer).await?;
+    let target = BackendTarget::from_paths(&paths).await?;
 
     let key: AccessKey = password.into();
-    let result =
-        IdentityFolder::login_fs(&account_id, &key, file.path()).await;
+    let result = IdentityFolder::login(&target, &account_id, &key).await;
 
     if let Err(sos_login::Error::NoIdentityKey) = result {
         Ok(())

@@ -682,7 +682,7 @@ impl IdentityFolder {
     }
 
     /// Login to an identity folder.
-    pub async fn login_fs(
+    async fn login_fs(
         account_id: &AccountId,
         key: &AccessKey,
         path: impl AsRef<Path>,
@@ -713,7 +713,7 @@ impl IdentityFolder {
     }
 
     /// Login to an identity folder.
-    pub async fn login_db(
+    async fn login_db(
         account_id: &AccountId,
         key: &AccessKey,
         paths: &Paths,
