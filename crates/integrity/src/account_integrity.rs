@@ -7,6 +7,7 @@ use sos_backend::BackendTarget;
 use sos_core::{
     commit::CommitHash, events::EventRecord, AccountId, SecretId,
 };
+use sos_database::entity::FolderEntity;
 use sos_vault::{Summary, VaultId};
 use sos_vfs as vfs;
 use std::sync::Arc;
@@ -404,8 +405,8 @@ async fn check_folder(
                 notify_listeners(
                     &mut vault_tx,
                     FolderIntegrityEvent::Failure(
-                        vault_id,
-                        IntegrityFailure::MissingVault,
+                        folder_id,
+                        IntegrityFailure::MissingFolder,
                     ),
                 )
                 .await;
@@ -418,8 +419,8 @@ async fn check_folder(
                 notify_listeners(
                     &mut vault_tx,
                     FolderIntegrityEvent::Failure(
-                        vault_id,
-                        IntegrityFailure::MissingEvents,
+                        folder_id,
+                        IntegrityFailure::MissingFolder,
                     ),
                 )
                 .await;
@@ -427,8 +428,26 @@ async fn check_folder(
                 return Ok(());
             }
         }
-        BackendTarget::Database(paths, client) => {
-            todo!("check if folder exists for db context");
+        BackendTarget::Database(_, client) => {
+            let db_folder_id = folder_id;
+            let folder_row = client
+                .conn(move |conn| {
+                    let folder_entity = FolderEntity::new(&conn);
+                    folder_entity.find_optional(&db_folder_id)
+                })
+                .await?;
+
+            if folder_row.is_none() {
+                notify_listeners(
+                    &mut vault_tx,
+                    FolderIntegrityEvent::Failure(
+                        folder_id,
+                        IntegrityFailure::MissingFolder,
+                    ),
+                )
+                .await;
+                return Ok(());
+            }
         }
     }
 
@@ -444,7 +463,6 @@ async fn check_folder(
               }
               event = vault_stream.next() => {
                 if let Some(record) = event {
-                  // let record = event?;
                   match record {
                     Ok(record) => {
                       notify_listeners(
@@ -485,20 +503,6 @@ async fn check_folder(
               }
             }
         }
-
-        /*
-        if vfs::try_exists(&vault_path).await? {
-        } else {
-            notify_listeners(
-                &mut vault_tx,
-                FolderIntegrityEvent::Failure(
-                    vault_id,
-                    IntegrityFailure::Missing(vault_path),
-                ),
-            )
-            .await;
-        }
-        */
 
         Ok::<_, Error>(())
     });
@@ -555,20 +559,6 @@ async fn check_folder(
               }
             }
         }
-
-        /*
-        if vfs::try_exists(&event_path).await? {
-        } else {
-            notify_listeners(
-                &mut event_tx,
-                FolderIntegrityEvent::Failure(
-                    event_id,
-                    IntegrityFailure::Missing(event_path),
-                ),
-            )
-            .await;
-        }
-        */
 
         Ok::<_, Error>(())
     });

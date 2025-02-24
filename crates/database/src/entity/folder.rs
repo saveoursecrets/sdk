@@ -32,6 +32,20 @@ fn folder_select_columns(sql: sql::Select) -> sql::Select {
     )
 }
 
+fn secret_select_columns(sql: sql::Select) -> sql::Select {
+    sql.select(
+        r#"
+            secret_id,
+            created_at,
+            modified_at,
+            identifier,
+            commit_hash,
+            meta,
+            secret 
+        "#,
+    )
+}
+
 /// Folder row from the database.
 #[doc(hidden)]
 #[derive(Debug, Default)]
@@ -303,7 +317,7 @@ where
 impl<'conn> FolderEntity<'conn, Box<Connection>> {
     /// Query to find all secrets in a folder.
     pub fn find_all_secrets_query() -> sql::Select {
-        folder_select_columns(sql::Select::new())
+        secret_select_columns(sql::Select::new())
             .from("folder_secrets")
             .where_clause("folder_id=?1")
     }
@@ -741,20 +755,6 @@ where
         Ok(self.conn.last_insert_rowid())
     }
 
-    fn secret_select_columns(&self, sql: sql::Select) -> sql::Select {
-        sql.select(
-            r#"
-                secret_id,
-                created_at,
-                modified_at,
-                identifier,
-                commit_hash,
-                meta,
-                secret 
-            "#,
-        )
-    }
-
     /// Find a folder secret.
     pub fn find_secret(
         &self,
@@ -762,8 +762,7 @@ where
         secret_id: &SecretId,
     ) -> StdResult<Option<SecretRow>, SqlError> {
         let row = self.find_one(folder_id)?;
-        let query = self
-            .secret_select_columns(sql::Select::new())
+        let query = secret_select_columns(sql::Select::new())
             .from("folder_secrets")
             .where_clause("folder_id=?1")
             .where_and("identifier=?2");
@@ -813,8 +812,7 @@ where
 
     /// Load secret rows.
     pub fn load_secrets(&self, folder_row_id: i64) -> Result<Vec<SecretRow>> {
-        let query = self
-            .secret_select_columns(sql::Select::new())
+        let query = secret_select_columns(sql::Select::new())
             .from("folder_secrets")
             .where_clause("folder_id=?1");
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;

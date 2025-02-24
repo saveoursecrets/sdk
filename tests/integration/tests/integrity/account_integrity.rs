@@ -1,6 +1,7 @@
 //! Test for running an account integrity report.
 use anyhow::Result;
 use sos_backend::BackendTarget;
+use sos_database::entity::FolderEntity;
 
 use crate::test_utils::{mock::files::create_file_secret, setup, teardown};
 use sos_account::{Account, LocalAccount};
@@ -14,7 +15,7 @@ use sos_test_utils::make_client_backend;
 #[tokio::test]
 async fn account_integrity_ok() -> Result<()> {
     const TEST_ID: &str = "account_integrity_ok";
-    //crate::test_utils::init_tracing();
+    // crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
@@ -115,7 +116,10 @@ async fn account_integrity_missing_file() -> Result<()> {
         }
     }
     assert_eq!(1, failures.len());
-    assert!(matches!(failures.remove(0), IntegrityFailure::MissingVault));
+    assert!(matches!(
+        failures.remove(0),
+        IntegrityFailure::MissingFolder
+    ));
 
     account.sign_out().await?;
     teardown(TEST_ID).await;
@@ -156,7 +160,7 @@ async fn account_integrity_corrupted_vault() -> Result<()> {
     let target = target.with_account_id(account.account_id());
 
     // Flip some bits to trigger the checksum mismatch
-    flip_bits_on_byte(&target, default_folder.id(), true, -8)?;
+    flip_bits_on_byte(&target, default_folder.id(), true, -8).await?;
 
     let (mut receiver, _) =
         account_integrity(&target, account.account_id(), folders, 1).await?;
@@ -214,7 +218,7 @@ async fn account_integrity_corrupted_event() -> Result<()> {
     let folders = account.list_folders().await?;
     let target = target.with_account_id(account.account_id());
     // Flip some bits to trigger the checksum mismatch
-    flip_bits_on_byte(&target, default_folder.id(), false, -8)?;
+    flip_bits_on_byte(&target, default_folder.id(), false, -8).await?;
 
     let (mut receiver, _) =
         account_integrity(&target, account.account_id(), folders, 1).await?;
@@ -308,7 +312,17 @@ async fn remove_folder_vault_externally(
             // Delete the file to trigger the report failure
             std::fs::remove_file(&file_location)?;
         }
-        _ => todo!(),
+        BackendTarget::Database(_, client) => {
+            let folder_id = *folder_id;
+            client
+                .conn(move |conn| {
+                    // Deletions cascade so this will remove the
+                    // vault secrets and event logs
+                    let sql = "DELETE FROM folders WHERE identifier=?1";
+                    conn.execute(sql, [folder_id.to_string()])
+                })
+                .await?;
+        }
     }
     Ok(())
 }
@@ -317,14 +331,14 @@ async fn remove_folder_vault_externally(
 /// given offset from the end of the file.
 ///
 /// Used to test for corrupted data.
-fn flip_bits_on_byte(
-    // file_path: impl AsRef<Path>,
+async fn flip_bits_on_byte(
     target: &BackendTarget,
     folder_id: &VaultId,
     vault: bool,
     offset: i64,
 ) -> Result<()> {
     match target {
+        // For filesystem backend flip some bits
         BackendTarget::FileSystem(paths) => {
             let file_path = if vault {
                 paths.vault_path(folder_id)
@@ -352,7 +366,36 @@ fn flip_bits_on_byte(
             file.seek(SeekFrom::End(offset))?;
             file.write_all(&buffer)?;
         }
-        _ => todo!("flip_bits for db client backend"),
+        // For database backend we just clear the buffers to make
+        // the checksum match fail
+        BackendTarget::Database(_, client) => {
+            let folder_id = *folder_id;
+            if vault {
+                client
+                    .conn(move |conn| {
+                        let folder_entity = FolderEntity::new(&conn);
+                        let folder_row =
+                            folder_entity.find_one(&folder_id)?;
+                        let sql = "UPDATE folder_secrets SET meta=?1  WHERE folder_id=?2";
+                        conn.execute(sql, (vec![], folder_row.row_id))
+                    })
+                    .await?;
+            } else {
+                client
+                    .conn(move |conn| {
+                        let folder_entity = FolderEntity::new(&conn);
+                        let folder_row =
+                            folder_entity.find_one(&folder_id)?;
+                        let sql = r#"
+                            UPDATE folder_events
+                            SET event=?1
+                            WHERE folder_id=?2
+                            AND event_id=1"#;
+                        conn.execute(sql, (vec![], folder_row.row_id))
+                    })
+                    .await?;
+            }
+        }
     }
 
     Ok(())

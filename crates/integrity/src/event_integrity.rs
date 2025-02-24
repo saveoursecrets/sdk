@@ -34,14 +34,19 @@ pub fn event_integrity(
             let commit = record.commit();
             let checksum = CommitHash(CommitTree::hash(record.event_bytes()));
             if &checksum == commit {
-                tx.send(Ok(record)).await.unwrap();
+                if let Err(err) = tx.send(Ok(record)).await {
+                    tracing::error!(error = %err);
+                }
             } else {
-                tx.send(Err(Error::HashMismatch {
-                    commit: *commit,
-                    value: checksum,
-                }))
-                .await
-                .unwrap();
+                if let Err(err) = tx
+                    .send(Err(Error::HashMismatch {
+                        commit: *commit,
+                        value: checksum,
+                    }))
+                    .await
+                {
+                    tracing::error!(error = %err);
+                }
             }
         }
 

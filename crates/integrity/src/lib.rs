@@ -26,10 +26,8 @@ use sos_core::{commit::CommitHash, ExternalFile, VaultId};
 /// Reasons why an integrity check can fail.
 #[derive(Debug)]
 pub enum IntegrityFailure {
-    /// Vault file or data is missing.
-    MissingVault,
-    /// Event log file or data is missing.
-    MissingEvents,
+    /// Vault or event log file or data is missing.
+    MissingFolder,
     /// External file is missing.
     MissingFile,
     /// Checksum mismatch for a folder vault or event log.
