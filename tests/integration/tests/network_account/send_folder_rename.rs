@@ -37,7 +37,6 @@ async fn network_sync_folder_rename() -> Result<()> {
         folders.clone(),
         &*server_account_paths,
         &mut device.owner,
-        &mut bridge,
     )
     .await?;
 

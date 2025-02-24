@@ -76,7 +76,6 @@ async fn network_sync_folder_import() -> Result<()> {
         folders.clone(),
         &server_account_paths,
         &mut device.owner,
-        &mut bridge,
     )
     .await?;
 

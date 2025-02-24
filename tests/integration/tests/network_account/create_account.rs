@@ -35,7 +35,6 @@ async fn network_sync_create_account() -> Result<()> {
         folders.clone(),
         &server_account_paths,
         &mut device.owner,
-        &mut bridge,
     )
     .await?;
 

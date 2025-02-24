@@ -5764,6 +5764,7 @@ dependencies = [
  "sos-protocol",
  "sos-remote-sync",
  "sos-server",
+ "sos-server-storage",
  "sos-sync",
  "sos-system-messages",
  "sos-vault",

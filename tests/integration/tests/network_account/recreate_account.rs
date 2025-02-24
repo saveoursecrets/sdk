@@ -40,7 +40,6 @@ async fn network_sync_recreate_account() -> Result<()> {
         folders.clone(),
         &server_account_paths,
         &mut device.owner,
-        &mut bridge,
     )
     .await?;
     assert_local_remote_events_eq(folders, &mut device.owner, &mut bridge)

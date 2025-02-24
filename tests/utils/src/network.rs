@@ -5,9 +5,8 @@ use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use sos_account::{Account, AccountBuilder};
 use sos_backend::BackendTarget;
-use sos_core::{
-    constants::VAULT_EXT, crypto::AccessKey, events::EventLog, Paths,
-};
+use sos_client_storage::{ClientFolderStorage, ClientStorage};
+use sos_core::{crypto::AccessKey, events::EventLog, Paths};
 use sos_core::{ExternalFile, Origin};
 use sos_net::{
     InflightNotification, InflightTransfers, NetworkAccount, RemoteBridge,
@@ -18,6 +17,7 @@ use sos_protocol::{
     AccountSync, SyncClient,
 };
 use sos_remote_sync::RemoteSyncHandler;
+use sos_server_storage::{ServerAccountStorage, ServerStorage};
 use sos_sync::SyncStorage;
 use sos_vault::{Summary, VaultId};
 use sos_vfs as vfs;
@@ -227,28 +227,24 @@ pub async fn assert_local_remote_vaults_eq(
     expected_summaries: Vec<Summary>,
     server_paths: &Paths,
     owner: &mut NetworkAccount,
-    _provider: &mut RemoteBridge,
 ) -> Result<()> {
-    // Compare vault buffers
+    let account_id = *owner.account_id();
+    let client_target = owner.backend_target().await;
+    let server_target = BackendTarget::from_paths(server_paths).await?;
+    let client =
+        ClientStorage::new_unauthenticated(client_target, &account_id)
+            .await?;
+    let server = ServerStorage::new(server_target, &account_id).await?;
+
+    // Compare vaults
     for summary in expected_summaries {
-        tracing::debug!(id = %summary.id(), "assert_local_remote_vaults_eq");
-
-        if server_paths.is_using_db() {
-            tracing::warn!(
-                "skipping vault equality assertions for db (todo!)"
-            );
-        } else {
-            let local_folder = owner.paths().vault_path(summary.id());
-            let remote_folder = server_paths.vaults_dir().join(format!(
-                "{}.{}",
-                summary.id(),
-                VAULT_EXT
-            ));
-
-            let local_buffer = vfs::read(&local_folder).await?;
-            let remote_buffer = vfs::read(&remote_folder).await?;
-            assert_eq!(local_buffer, remote_buffer);
-        }
+        tracing::debug!(
+            folder_id = %summary.id(),
+            "assert_local_remote_vaults_eq",
+        );
+        let client_vault = client.read_vault(summary.id()).await?;
+        let server_vault = server.read_vault(summary.id()).await?;
+        assert_eq!(client_vault, server_vault);
     }
 
     Ok(())

@@ -46,7 +46,6 @@ async fn network_sync_listen_folder_rename() -> Result<()> {
         folders.clone(),
         &server_account1_paths,
         &mut device1.owner,
-        &mut bridge,
     )
     .await?;
     assert_local_remote_events_eq(
@@ -62,7 +61,6 @@ async fn network_sync_listen_folder_rename() -> Result<()> {
         folders.clone(),
         &server_account2_paths,
         &mut device2.owner,
-        &mut bridge,
     )
     .await?;
     assert_local_remote_events_eq(folders, &mut device2.owner, &mut bridge)

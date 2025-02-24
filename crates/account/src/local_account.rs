@@ -657,6 +657,10 @@ impl Account for LocalAccount {
         Arc::clone(&self.paths)
     }
 
+    async fn backend_target(&self) -> BackendTarget {
+        self.target.clone()
+    }
+
     async fn folder(&self, folder_id: &VaultId) -> Result<Folder> {
         Ok(self
             .storage

@@ -304,6 +304,11 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         Ok(())
     }
 
+    async fn read_vault(&self, folder_id: &VaultId) -> Result<Vault> {
+        Ok(FolderEntity::compute_folder_vault(&self.client, folder_id)
+            .await?)
+    }
+
     async fn write_vault(&self, vault: &Vault) -> Result<()> {
         let identity_id = *vault.id();
         let identity_row = FolderRow::new_update(vault).await?;
@@ -313,6 +318,16 @@ impl ServerAccountStorage for ServerDatabaseStorage {
                 Ok(folder.update_folder(&identity_id, &identity_row)?)
             })
             .await?;
+        Ok(())
+    }
+
+    async fn write_login_vault(&self, vault: &Vault) -> Result<()> {
+        AccountEntity::upsert_login_folder(
+            &self.client,
+            &self.account_id,
+            &vault,
+        )
+        .await?;
         Ok(())
     }
 

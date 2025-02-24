@@ -673,6 +673,11 @@ impl Account for NetworkAccount {
         Arc::clone(&self.paths)
     }
 
+    async fn backend_target(&self) -> BackendTarget {
+        let account = self.account.lock().await;
+        account.backend_target().await
+    }
+
     async fn folder(&self, folder_id: &VaultId) -> Result<Folder> {
         let account = self.account.lock().await;
         Ok(account.folder(folder_id).await?)

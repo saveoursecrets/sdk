@@ -141,7 +141,7 @@ where
             .build(false)
             .await?;
 
-        self.write_vault(&vault).await?;
+        self.write_login_vault(&vault).await?;
 
         outcome.changes += len;
         outcome.tracked.identity =

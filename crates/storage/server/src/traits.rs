@@ -40,8 +40,14 @@ pub trait ServerAccountStorage {
     /// Rename the account.
     async fn rename_account(&self, name: &str) -> Result<()>;
 
+    /// Read a vault from storage.
+    async fn read_vault(&self, folder_id: &VaultId) -> Result<Vault>;
+
     /// Write a vault to storage.
     async fn write_vault(&self, vault: &Vault) -> Result<()>;
+
+    /// Write a login vault to storage.
+    async fn write_login_vault(&self, vault: &Vault) -> Result<()>;
 
     /// Replace all the events for a folder.
     async fn replace_folder(

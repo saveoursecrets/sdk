@@ -67,6 +67,9 @@ pub trait Account {
     /// User storage paths.
     fn paths(&self) -> Arc<Paths>;
 
+    /// Account backend target.
+    async fn backend_target(&self) -> BackendTarget;
+
     /// Lookup a folder in the storage.
     async fn folder(
         &self,

@@ -231,7 +231,18 @@ impl ServerAccountStorage for ServerFileStorage {
         Ok(())
     }
 
+    async fn read_vault(&self, folder_id: &VaultId) -> Result<Vault> {
+        let buffer = vfs::read(self.paths.vault_path(folder_id)).await?;
+        Ok(decode(&buffer).await?)
+    }
+
     async fn write_vault(&self, vault: &Vault) -> Result<()> {
+        let buffer = encode(vault).await?;
+        vfs::write(self.paths.vault_path(vault.id()), buffer).await?;
+        Ok(())
+    }
+
+    async fn write_login_vault(&self, vault: &Vault) -> Result<()> {
         let buffer = encode(vault).await?;
         vfs::write(self.paths.identity_vault(), buffer).await?;
         Ok(())
