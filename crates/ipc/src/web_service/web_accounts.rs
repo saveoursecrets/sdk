@@ -5,6 +5,7 @@ use notify::{
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use sos_account::{Account, AccountSwitcher};
+use sos_backend::BackendTarget;
 use sos_core::{
     events::{AccountEvent, EventLog, WriteEvent},
     AccountId, ErrorExt, Paths, VaultId,
@@ -124,6 +125,17 @@ where
             watchers: Arc::new(Mutex::new(HashMap::new())),
             channel: tx,
         }
+    }
+
+    /// Create a backend target for the accounts.
+    pub async fn backend_target(&self) -> Result<BackendTarget> {
+        let accounts = self.accounts.read().await;
+        let paths = if let Some(paths) = accounts.paths() {
+            paths.clone()
+        } else {
+            Paths::new_client(Paths::data_dir().unwrap())
+        };
+        Ok(BackendTarget::from_paths(&paths).await?)
     }
 
     /// Subscribe to change events.

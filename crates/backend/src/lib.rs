@@ -47,6 +47,7 @@ use sos_core::{AccountId, Paths, PublicIdentity};
 use sos_database::{
     async_sqlite::Client,
     entity::{AccountEntity, AccountRecord, FolderEntity, FolderRecord},
+    open_file,
 };
 
 /// Target backend.
@@ -59,6 +60,16 @@ pub enum BackendTarget {
 }
 
 impl BackendTarget {
+    /// Create a backend target from paths.
+    pub async fn from_paths(paths: &Paths) -> Result<BackendTarget> {
+        Ok(if paths.is_using_db() {
+            let client = open_file(paths.database_file()).await?;
+            BackendTarget::Database(paths.clone(), client)
+        } else {
+            BackendTarget::FileSystem(paths.clone())
+        })
+    }
+
     /// Paths for the backend target.
     pub fn paths(&self) -> &Paths {
         match self {

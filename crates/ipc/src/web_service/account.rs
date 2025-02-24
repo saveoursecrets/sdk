@@ -28,7 +28,9 @@ pub async fn list_accounts<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + SyncStorage,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
@@ -44,9 +46,11 @@ where
         + Sync
         + 'static,
 {
-    let accounts = accounts.as_ref().read().await;
-    match sos_vault::list_accounts(accounts.paths()).await {
-        Ok(list) => json(StatusCode::OK, &list),
+    match accounts.backend_target().await {
+        Ok(target) => match target.list_accounts().await {
+            Ok(list) => json(StatusCode::OK, &list),
+            Err(e) => internal_server_error(e),
+        },
         Err(e) => internal_server_error(e),
     }
 }
@@ -57,7 +61,9 @@ pub async fn list_folders<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + SyncStorage,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
@@ -97,7 +103,9 @@ pub async fn authenticated_accounts<A, R, E>(
     accounts: WebAccounts<A, R, E>,
 ) -> hyper::Result<Response<Body>>
 where
-    A: Account<Error = E, NetworkResult = R> + SyncStorage,
+    A: Account<Error = E, NetworkResult = R>
+        + SyncStorage
+        + DelegatedAccess<Error = E>,
     R: 'static,
     E: std::fmt::Debug
         + ErrorExt
