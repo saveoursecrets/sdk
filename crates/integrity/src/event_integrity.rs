@@ -1,27 +1,17 @@
 //! Run integrity checks on event logs.
 use crate::{Error, Result};
-use async_stream::try_stream;
-use binary_stream::futures::BinaryReader;
-use futures::{
-    pin_mut,
-    stream::{BoxStream, Stream},
-    StreamExt,
-};
+use futures::{pin_mut, stream::BoxStream, StreamExt};
 use sos_backend::{BackendTarget, FolderEventLog};
 use sos_core::{
     commit::{CommitHash, CommitTree},
-    encoding::encoding_options,
     events::{EventLog, EventRecord},
     AccountId, VaultId,
 };
-use sos_filesystem::formats::FileItem;
-use sos_vfs as vfs;
-use std::{io::SeekFrom, path::Path};
 use tokio_stream::wrappers::ReceiverStream;
 
 /// Integrity check for an event log comparing the precomputed
 /// checksums with the encrypted content of each row.
-pub fn event_integrity2(
+pub fn event_integrity(
     target: &BackendTarget,
     account_id: &AccountId,
     folder_id: &VaultId,
@@ -61,6 +51,7 @@ pub fn event_integrity2(
     ReceiverStream::new(rx).boxed()
 }
 
+/*
 /// Integrity check for an event log comparing the precomputed
 /// checksums with the encrypted content of each row.
 #[deprecated]
@@ -111,3 +102,4 @@ pub fn event_integrity(
 
     }
 }
+*/

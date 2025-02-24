@@ -9,11 +9,9 @@ mod event_integrity;
 mod file_integrity;
 mod vault_integrity;
 
-pub use account_integrity::{
-    account_integrity, account_integrity2, FolderIntegrityEvent,
-};
-pub use event_integrity::{event_integrity, event_integrity2};
-pub use vault_integrity::{vault_integrity, vault_integrity2};
+pub use account_integrity::{account_integrity, FolderIntegrityEvent};
+pub use event_integrity::event_integrity;
+pub use vault_integrity::vault_integrity;
 
 #[cfg(feature = "files")]
 pub use file_integrity::{file_integrity, FileIntegrityEvent};
@@ -24,13 +22,16 @@ pub use error::Error;
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 use sos_core::{commit::CommitHash, ExternalFile, VaultId};
-use std::path::PathBuf;
 
 /// Reasons why an integrity check can fail.
 #[derive(Debug)]
 pub enum IntegrityFailure {
-    /// File is missing.
-    Missing(PathBuf),
+    /// Vault file or data is missing.
+    MissingVault,
+    /// Event log file or data is missing.
+    MissingEvents,
+    /// External file is missing.
+    MissingFile,
     /// Checksum mismatch for a folder vault or event log.
     Corrupted {
         /// Folder identifier.

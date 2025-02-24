@@ -5,7 +5,7 @@
 use anyhow::Result;
 use axum_server::Handle;
 use sos_backend::BackendTarget;
-use sos_core::{constants::DATABASE_FILE, AccountId, Origin, Paths, VaultId};
+use sos_core::{constants::DATABASE_FILE, AccountId, Origin, Paths};
 use sos_database::open_file;
 use sos_server::{Server, ServerConfig, State, UriOrPath};
 use sos_vfs as vfs;

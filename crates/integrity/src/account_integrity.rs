@@ -1,20 +1,19 @@
 //! Check integrity of the folders in an account.
-use crate::{Error, IntegrityFailure, Result};
+use crate::{
+    event_integrity, vault_integrity, Error, IntegrityFailure, Result,
+};
 use futures::{pin_mut, StreamExt};
-use indexmap::IndexSet;
 use sos_backend::BackendTarget;
 use sos_core::{
-    commit::CommitHash, events::EventRecord, AccountId, Paths, SecretId,
+    commit::CommitHash, events::EventRecord, AccountId, SecretId,
 };
 use sos_vault::{Summary, VaultId};
 use sos_vfs as vfs;
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::{
     mpsc::{self, Receiver, Sender},
     watch, Mutex, Semaphore,
 };
-
-use super::{event_integrity, vault_integrity};
 
 /// Event dispatched whilst generating an integrity report.
 #[derive(Debug)]
@@ -41,7 +40,7 @@ pub enum FolderIntegrityEvent {
 }
 
 /// Generate an integrity report for the folders in an account.
-pub async fn account_integrity2(
+pub async fn account_integrity(
     target: &BackendTarget,
     account_id: &AccountId,
     folders: Vec<Summary>,
@@ -57,19 +56,6 @@ pub async fn account_integrity2(
     .await;
 
     let num_folders = folders.len();
-    /*
-    let paths: Vec<_> = folders
-        .into_iter()
-        .map(|folder| {
-            (
-                *folder.id(),
-                paths.vault_path(folder.id()),
-                paths.event_log_path(folder.id()),
-            )
-        })
-        .collect();
-    */
-
     let semaphore = Arc::new(Semaphore::new(concurrency));
     let cancel = cancel_tx.clone();
     let account_id = *account_id;
@@ -93,7 +79,7 @@ pub async fn account_integrity2(
                 tokio::task::spawn(async move {
                   let _permit = semaphore.acquire().await;
 
-                  check_folder2(
+                  check_folder(
                     target,
                     &account_id,
                     folder.id(),
@@ -124,6 +110,7 @@ pub async fn account_integrity2(
     Ok((event_rx, cancel_tx))
 }
 
+/*
 /// Generate an integrity report for the folders in an account.
 #[deprecated]
 pub async fn account_integrity(
@@ -280,7 +267,7 @@ async fn check_folder(
                 &mut vault_tx,
                 FolderIntegrityEvent::Failure(
                     vault_id,
-                    IntegrityFailure::Missing(vault_path),
+                    IntegrityFailure::MissingVault,
                 ),
             )
             .await;
@@ -348,7 +335,7 @@ async fn check_folder(
                 &mut event_tx,
                 FolderIntegrityEvent::Failure(
                     event_id,
-                    IntegrityFailure::Missing(event_path),
+                    IntegrityFailure::MissingEvents,
                 ),
             )
             .await;
@@ -382,16 +369,15 @@ async fn check_folder(
 
     Ok(())
 }
+*/
 
-async fn check_folder2(
+async fn check_folder(
     target: BackendTarget,
     account_id: &AccountId,
     folder_id: &VaultId,
     mut integrity_tx: Sender<FolderIntegrityEvent>,
     mut cancel_rx: watch::Receiver<()>,
 ) -> Result<()> {
-    use crate::{event_integrity2, vault_integrity2};
-
     notify_listeners(
         &mut integrity_tx,
         FolderIntegrityEvent::OpenFolder(*folder_id),
@@ -419,10 +405,12 @@ async fn check_folder2(
                     &mut vault_tx,
                     FolderIntegrityEvent::Failure(
                         vault_id,
-                        IntegrityFailure::Missing(vault_path),
+                        IntegrityFailure::MissingVault,
                     ),
                 )
                 .await;
+
+                return Ok(());
             }
 
             let events_path = paths.event_log_path(&folder_id);
@@ -431,18 +419,22 @@ async fn check_folder2(
                     &mut vault_tx,
                     FolderIntegrityEvent::Failure(
                         vault_id,
-                        IntegrityFailure::Missing(events_path),
+                        IntegrityFailure::MissingEvents,
                     ),
                 )
                 .await;
+
+                return Ok(());
             }
         }
-        _ => todo!(),
+        BackendTarget::Database(paths, client) => {
+            todo!("check if folder exists for db context");
+        }
     }
 
     let v_jh = tokio::task::spawn(async move {
         let vault_stream =
-            vault_integrity2(&vault_target, &account_id, &folder_id);
+            vault_integrity(&vault_target, &account_id, &folder_id);
         pin_mut!(vault_stream);
         loop {
             tokio::select! {
@@ -513,7 +505,7 @@ async fn check_folder2(
 
     let e_jh = tokio::task::spawn(async move {
         let event_stream =
-            event_integrity2(&event_target, &account_id, &folder_id);
+            event_integrity(&event_target, &account_id, &folder_id);
         pin_mut!(event_stream);
 
         loop {

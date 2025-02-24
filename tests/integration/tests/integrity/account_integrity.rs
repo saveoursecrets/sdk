@@ -5,7 +5,7 @@ use sos_backend::BackendTarget;
 use crate::test_utils::{mock::files::create_file_secret, setup, teardown};
 use sos_account::{Account, LocalAccount};
 use sos_integrity::{
-    account_integrity2, FolderIntegrityEvent, IntegrityFailure,
+    account_integrity, FolderIntegrityEvent, IntegrityFailure,
 };
 use sos_sdk::prelude::*;
 use sos_test_utils::make_client_backend;
@@ -41,7 +41,7 @@ async fn account_integrity_ok() -> Result<()> {
     let folders = account.list_folders().await?;
     let total_folders = folders.len();
     let (mut receiver, _) =
-        account_integrity2(&target, account.account_id(), folders, 1).await?;
+        account_integrity(&target, account.account_id(), folders, 1).await?;
     let mut seen_folders = 0;
 
     while let Some(event) = receiver.recv().await {
@@ -103,7 +103,7 @@ async fn account_integrity_missing_file() -> Result<()> {
     remove_folder_vault_externally(&target, default_folder.id()).await?;
 
     let (mut receiver, _) =
-        account_integrity2(&target, account.account_id(), folders, 1).await?;
+        account_integrity(&target, account.account_id(), folders, 1).await?;
     let mut failures = Vec::new();
 
     while let Some(event) = receiver.recv().await {
@@ -115,7 +115,7 @@ async fn account_integrity_missing_file() -> Result<()> {
         }
     }
     assert_eq!(1, failures.len());
-    assert!(matches!(failures.remove(0), IntegrityFailure::Missing(_)));
+    assert!(matches!(failures.remove(0), IntegrityFailure::MissingVault));
 
     account.sign_out().await?;
     teardown(TEST_ID).await;
@@ -159,7 +159,7 @@ async fn account_integrity_corrupted_vault() -> Result<()> {
     flip_bits_on_byte(&target, default_folder.id(), true, -8)?;
 
     let (mut receiver, _) =
-        account_integrity2(&target, account.account_id(), folders, 1).await?;
+        account_integrity(&target, account.account_id(), folders, 1).await?;
     let mut failures = Vec::new();
 
     while let Some(event) = receiver.recv().await {
@@ -217,7 +217,7 @@ async fn account_integrity_corrupted_event() -> Result<()> {
     flip_bits_on_byte(&target, default_folder.id(), false, -8)?;
 
     let (mut receiver, _) =
-        account_integrity2(&target, account.account_id(), folders, 1).await?;
+        account_integrity(&target, account.account_id(), folders, 1).await?;
     let mut failures = Vec::new();
 
     while let Some(event) = receiver.recv().await {
@@ -272,7 +272,7 @@ async fn account_integrity_cancel() -> Result<()> {
 
     let folders = account.list_folders().await?;
     let (mut receiver, cancel_tx) =
-        account_integrity2(&target, account.account_id(), folders, 1).await?;
+        account_integrity(&target, account.account_id(), folders, 1).await?;
     let mut canceled = false;
 
     while let Some(event) = receiver.recv().await {

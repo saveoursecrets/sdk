@@ -12,12 +12,12 @@ use sos_sync::StorageEventLogs;
 #[tokio::test]
 async fn file_integrity_ok() -> Result<()> {
     const TEST_ID: &str = "file_integrity_ok";
-
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     let paths = Paths::new_client(&data_dir);
+    let target = make_client_backend(&paths).await?;
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -25,7 +25,7 @@ async fn file_integrity_ok() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths).await?,
+        target.clone(),
     )
     .await?;
     let key: AccessKey = password.into();
@@ -35,10 +35,10 @@ async fn file_integrity_ok() -> Result<()> {
 
     create_file_secret(&mut account, &default_folder, None).await?;
 
-    let paths = account.paths();
     let files = account.canonical_files().await?;
     let total_files = files.len();
-    let (mut receiver, _) = file_integrity(paths, files, 1).await?;
+    let target = target.with_account_id(account.account_id());
+    let (mut receiver, _) = file_integrity(&target, files, 1).await?;
     let mut seen_files = 0;
 
     while let Some(event) = receiver.recv().await {
@@ -69,12 +69,12 @@ async fn file_integrity_ok() -> Result<()> {
 #[tokio::test]
 async fn file_integrity_missing_file() -> Result<()> {
     const TEST_ID: &str = "file_integrity_missing_file";
-
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     let paths = Paths::new_client(&data_dir);
+    let target = make_client_backend(&paths).await?;
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -82,7 +82,7 @@ async fn file_integrity_missing_file() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths).await?,
+        target.clone(),
     )
     .await?;
     let key: AccessKey = password.into();
@@ -112,7 +112,8 @@ async fn file_integrity_missing_file() -> Result<()> {
     std::fs::remove_file(&file_location)?;
 
     let files = account.canonical_files().await?;
-    let (mut receiver, _) = file_integrity(paths, files, 1).await?;
+    let target = target.with_account_id(account.account_id());
+    let (mut receiver, _) = file_integrity(&target, files, 1).await?;
     let mut failures = Vec::new();
 
     while let Some(event) = receiver.recv().await {
@@ -124,7 +125,7 @@ async fn file_integrity_missing_file() -> Result<()> {
         }
     }
     assert_eq!(1, failures.len());
-    assert!(matches!(failures.remove(0), IntegrityFailure::Missing(_)));
+    assert!(matches!(failures.remove(0), IntegrityFailure::MissingFile));
 
     account.sign_out().await?;
     teardown(TEST_ID).await;
@@ -136,12 +137,12 @@ async fn file_integrity_missing_file() -> Result<()> {
 #[tokio::test]
 async fn file_integrity_corrupted() -> Result<()> {
     const TEST_ID: &str = "file_integrity_corrupted";
-
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     let paths = Paths::new_client(&data_dir);
+    let target = make_client_backend(&paths).await?;
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -149,7 +150,7 @@ async fn file_integrity_corrupted() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths).await?,
+        target.clone(),
     )
     .await?;
     let key: AccessKey = password.into();
@@ -161,7 +162,7 @@ async fn file_integrity_corrupted() -> Result<()> {
         create_file_secret(&mut account, &default_folder, None).await?;
 
     let paths = account.paths();
-    let file_location = if paths.is_using_db() {
+    let file_location = if target.paths().is_using_db() {
         paths.blob_location(
             default_folder.id(),
             &secret_id,
@@ -179,7 +180,8 @@ async fn file_integrity_corrupted() -> Result<()> {
     std::fs::write(&file_location, "corrupted-file-contents".as_bytes())?;
 
     let files = account.canonical_files().await?;
-    let (mut receiver, _) = file_integrity(paths, files, 1).await?;
+    let target = target.with_account_id(account.account_id());
+    let (mut receiver, _) = file_integrity(&target, files, 1).await?;
     let mut failures = Vec::new();
 
     while let Some(event) = receiver.recv().await {
@@ -193,7 +195,7 @@ async fn file_integrity_corrupted() -> Result<()> {
     assert_eq!(1, failures.len());
     assert!(matches!(
         failures.remove(0),
-        IntegrityFailure::Corrupted { .. }
+        IntegrityFailure::CorruptedFile { .. }
     ));
 
     account.sign_out().await?;
@@ -207,12 +209,12 @@ async fn file_integrity_corrupted() -> Result<()> {
 #[cfg_attr(windows, ignore = "fails with SendError in CI")]
 async fn file_integrity_cancel() -> Result<()> {
     const TEST_ID: &str = "file_integrity_cancel";
-
     //crate::test_utils::init_tracing();
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     let paths = Paths::new_client(&data_dir);
+    let target = make_client_backend(&paths).await?;
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -220,7 +222,7 @@ async fn file_integrity_cancel() -> Result<()> {
     let mut account = LocalAccount::new_account(
         account_name.clone(),
         password.clone(),
-        make_client_backend(&paths).await?,
+        target.clone(),
     )
     .await?;
     let key: AccessKey = password.into();
@@ -230,9 +232,9 @@ async fn file_integrity_cancel() -> Result<()> {
 
     create_file_secret(&mut account, &default_folder, None).await?;
 
-    let paths = account.paths();
     let files = account.canonical_files().await?;
-    let (mut receiver, cancel_tx) = file_integrity(paths, files, 1).await?;
+    let target = target.with_account_id(account.account_id());
+    let (mut receiver, cancel_tx) = file_integrity(&target, files, 1).await?;
     let mut canceled = false;
 
     while let Some(event) = receiver.recv().await {

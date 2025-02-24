@@ -65,6 +65,9 @@ async fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
         return Err(Error::NotFile(file));
     }
 
+    todo!("restore verify vault (CLI)");
+
+    /*
     let stream = vault_integrity(&file);
     pin_mut!(stream);
 
@@ -77,6 +80,7 @@ async fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
 
     success("Verified");
     Ok(())
+    */
 }
 
 /// Verify the integrity of an events log file.
@@ -88,6 +92,9 @@ pub(crate) async fn verify_events(
         return Err(Error::NotFile(file));
     }
 
+    todo!("restore verify events (CLI)");
+
+    /*
     let mut commits = 0;
     let stream = event_integrity(&file);
     pin_mut!(stream);
@@ -102,6 +109,7 @@ pub(crate) async fn verify_events(
 
     success(format!("Verified {} commit(s)", commits));
     Ok(())
+    */
 }
 
 /// Print a vault header.

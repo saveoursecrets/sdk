@@ -1,11 +1,7 @@
 //! Run integrity checks on vault files.
 use crate::{Error, Result};
-use async_stream::try_stream;
 use binary_stream::futures::BinaryReader;
-use futures::{
-    stream::{BoxStream, Stream},
-    StreamExt, TryStreamExt,
-};
+use futures::{stream::BoxStream, StreamExt, TryStreamExt};
 use sos_backend::{
     database::{
         async_sqlite::rusqlite::Row,
@@ -16,9 +12,8 @@ use sos_backend::{
 use sos_core::{
     commit::{CommitHash, CommitTree},
     constants::VAULT_IDENTITY,
-    decode,
     encoding::encoding_options,
-    AccountId, SecretId, VaultCommit, VaultId,
+    AccountId, SecretId, VaultId,
 };
 use sos_filesystem::formats::{
     read_file_identity_bytes, FileItem, FormatStream, FormatStreamIterator,
@@ -26,9 +21,8 @@ use sos_filesystem::formats::{
 };
 use sos_vault::Header;
 use sos_vfs as vfs;
-use std::{io::SeekFrom, path::Path};
+use std::io::SeekFrom;
 use tokio_stream::wrappers::ReceiverStream;
-use uuid::Uuid;
 
 /// Stream of vault commits.
 fn vault_stream(
@@ -139,7 +133,7 @@ fn vault_stream(
 
 /// Integrity check for a vault file comparing the precomputed
 /// checksums with the encrypted content of each row.
-pub fn vault_integrity2(
+pub fn vault_integrity(
     target: &BackendTarget,
     account_id: &AccountId,
     folder_id: &VaultId,
@@ -161,6 +155,7 @@ pub fn vault_integrity2(
         .boxed()
 }
 
+/*
 /// Integrity check for a vault file comparing the precomputed
 /// checksums with the encrypted content of each row.
 #[deprecated]
@@ -206,3 +201,4 @@ pub fn vault_integrity(
       }
     }
 }
+*/

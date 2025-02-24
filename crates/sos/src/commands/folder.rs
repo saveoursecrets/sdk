@@ -408,6 +408,10 @@ async fn verify_event_log(
 ) -> Result<()> {
     use futures::StreamExt;
     use sos_integrity::event_integrity;
+
+    todo!("restore verify event log (CLI)");
+
+    /*
     let path = paths.event_log_path(summary.id());
     let stream = event_integrity(&path);
     futures::pin_mut!(stream);
@@ -415,4 +419,5 @@ async fn verify_event_log(
         event??;
     }
     Ok(())
+    */
 }
