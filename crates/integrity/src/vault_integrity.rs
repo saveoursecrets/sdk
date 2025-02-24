@@ -4,7 +4,7 @@ use async_stream::try_stream;
 use binary_stream::futures::BinaryReader;
 use futures::{
     stream::{BoxStream, Stream},
-    StreamExt,
+    StreamExt, TryStreamExt,
 };
 use sos_backend::{
     database::{
@@ -18,7 +18,7 @@ use sos_core::{
     constants::VAULT_IDENTITY,
     decode,
     encoding::encoding_options,
-    AccountId, VaultCommit, VaultId,
+    AccountId, SecretId, VaultCommit, VaultId,
 };
 use sos_filesystem::formats::{
     read_file_identity_bytes, FileItem, FormatStream, FormatStreamIterator,
@@ -31,11 +31,11 @@ use tokio_stream::wrappers::ReceiverStream;
 use uuid::Uuid;
 
 /// Stream of vault commits.
-async fn vault_stream(
+fn vault_stream(
     target: &BackendTarget,
     _account_id: &AccountId,
     folder_id: &VaultId,
-) -> BoxStream<'static, Result<CommitHash>> {
+) -> BoxStream<'static, Result<(SecretId, CommitHash, Vec<u8>)>> {
     // let account_id = *account_id;
     let folder_id = *folder_id;
     let (tx, rx) = tokio::sync::mpsc::channel(8);
@@ -70,27 +70,16 @@ async fn vault_stream(
                     let length = value.end - value.start;
                     reader.seek(SeekFrom::Start(value.start)).await?;
                     let buffer = reader.read_bytes(length as usize).await?;
-
-                    let checksum = CommitTree::hash(&buffer);
-                    if checksum == commit {
-                        tx.send(Ok(CommitHash(commit))).await.unwrap();
-                    } else {
-                        tx.send(Err(Error::VaultHashMismatch {
-                            commit: CommitHash(commit),
-                            value: CommitHash(checksum),
-                            id: uuid::Uuid::from_slice(
-                                record.id().as_slice(),
-                            )?,
-                        }))
+                    let id = SecretId::from_slice(record.id().as_slice())?;
+                    tx.send(Ok((id, CommitHash(commit), buffer)))
                         .await
                         .unwrap();
-                    }
                 }
 
                 Ok::<_, Error>(())
             });
         }
-        BackendTarget::Database(paths, client) => {
+        BackendTarget::Database(_, client) => {
             let client = client.clone();
             tokio::task::spawn(async move {
                 client
@@ -100,7 +89,6 @@ async fn vault_stream(
                             folder_entity.find_one(&folder_id)?;
 
                         let query = FolderEntity::find_all_secrets_query();
-
                         let mut stmt =
                             conn.prepare_cached(&query.as_string())?;
 
@@ -113,19 +101,29 @@ async fn vault_stream(
                                 Ok::<_, Error>(convert_row(row)?)
                             })?;
 
-                        /*
                         for row in rows {
                             let row = row?;
+
+                            let id: SecretId = row.identifier().parse()?;
+                            let commit = CommitHash(row.commit().try_into()?);
+                            let meta_bytes = row.meta_bytes();
+                            let secret_bytes = row.meta_bytes();
+                            let mut buffer = Vec::with_capacity(
+                                meta_bytes.len() + secret_bytes.len(),
+                            );
+                            buffer.extend_from_slice(meta_bytes);
+                            buffer.extend_from_slice(secret_bytes);
+
                             let sender = tx.clone();
                             futures::executor::block_on(async move {
-                                if let Err(err) =
-                                    sender.send(Ok(row.commit)).await
+                                if let Err(err) = sender
+                                    .send(Ok((id, commit, buffer)))
+                                    .await
                                 {
                                     tracing::error!(error = %err);
                                 }
                             });
                         }
-                        */
 
                         Ok::<_, Error>(())
                     })
@@ -143,8 +141,22 @@ pub fn vault_integrity2(
     target: &BackendTarget,
     account_id: &AccountId,
     folder_id: &VaultId,
-) -> Result<()> {
-    todo!("new vault integrity");
+) -> BoxStream<'static, Result<CommitHash>> {
+    let stream = vault_stream(target, account_id, folder_id);
+    stream
+        .try_filter_map(|(id, expected_checksum, buffer)| async move {
+            let checksum = CommitTree::hash(&buffer);
+            if &checksum == expected_checksum.as_ref() {
+                Ok(Some(expected_checksum))
+            } else {
+                Err(Error::VaultHashMismatch {
+                    commit: expected_checksum,
+                    value: CommitHash(checksum),
+                    id,
+                })
+            }
+        })
+        .boxed()
 }
 
 /// Integrity check for a vault file comparing the precomputed

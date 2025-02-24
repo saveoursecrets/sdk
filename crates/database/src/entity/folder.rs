@@ -223,6 +223,26 @@ impl SecretRow {
             ..Default::default()
         })
     }
+
+    /// Secret identifier.
+    pub fn identifier(&self) -> &str {
+        &self.identifier
+    }
+
+    /// Commit hash.
+    pub fn commit(&self) -> &[u8] {
+        &self.commit
+    }
+
+    /// Meta data bytes.
+    pub fn meta_bytes(&self) -> &[u8] {
+        &self.meta
+    }
+
+    /// Secret data bytes.
+    pub fn secret_bytes(&self) -> &[u8] {
+        &self.secret
+    }
 }
 
 impl<'a> TryFrom<&Row<'a>> for SecretRow {
