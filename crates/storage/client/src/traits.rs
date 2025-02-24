@@ -1240,6 +1240,17 @@ pub trait ClientAccountStorage:
         Ok((exists, event, summary))
     }
 
+    /// Write the vault for a folder without any side effects.
+    ///
+    /// Can be used when repairing a vault from a collection of
+    /// event logs.
+    async fn overwrite_folder_vault(
+        &mut self,
+        vault: &Vault,
+    ) -> Result<Vec<u8>> {
+        self.write_vault(vault, Internal).await
+    }
+
     /// Import a folder into an existing account.
     ///
     /// If a folder with the same identifier already exists

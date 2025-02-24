@@ -26,13 +26,13 @@ use tokio_stream::wrappers::ReceiverStream;
 
 /// Stream of vault commits.
 fn vault_stream(
-    target: &BackendTarget,
-    _account_id: &AccountId,
+    target: BackendTarget,
+    account_id: &AccountId,
     folder_id: &VaultId,
 ) -> BoxStream<'static, Result<(SecretId, CommitHash, Vec<u8>)>> {
-    // let account_id = *account_id;
     let folder_id = *folder_id;
     let (tx, rx) = tokio::sync::mpsc::channel(8);
+    let target = target.with_account_id(account_id);
     match target {
         BackendTarget::FileSystem(paths) => {
             let paths = paths.clone();
@@ -138,7 +138,7 @@ pub fn vault_integrity(
     account_id: &AccountId,
     folder_id: &VaultId,
 ) -> BoxStream<'static, Result<(SecretId, CommitHash)>> {
-    let stream = vault_stream(target, account_id, folder_id);
+    let stream = vault_stream(target.clone(), account_id, folder_id);
     stream
         .try_filter_map(|(id, expected_checksum, buffer)| async move {
             let checksum = CommitTree::hash(&buffer);

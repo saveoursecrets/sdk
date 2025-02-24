@@ -37,6 +37,7 @@ pub enum Command {
         json: bool,
 
         /// Account name or identifier.
+        #[clap(short, long)]
         account: AccountRef,
     },
     /// Print login folder event log records.
@@ -50,6 +51,7 @@ pub enum Command {
         json: bool,
 
         /// Account name or identifier.
+        #[clap(short, long)]
         account: AccountRef,
     },
     /// Print device event log records.
@@ -63,6 +65,7 @@ pub enum Command {
         json: bool,
 
         /// Account name or identifier.
+        #[clap(short, long)]
         account: AccountRef,
     },
     /// Print folder event log records.
@@ -76,9 +79,11 @@ pub enum Command {
         json: bool,
 
         /// Account name or identifier.
+        #[clap(short, long)]
         account: AccountRef,
 
         /// Folder name or identifier.
+        #[clap(short, long)]
         folder: FolderRef,
     },
     /// Print file event log records.
@@ -92,6 +97,7 @@ pub enum Command {
         json: bool,
 
         /// Account name or identifier.
+        #[clap(short, long)]
         account: AccountRef,
     },
 }

@@ -1,7 +1,6 @@
 use crate::{
     helpers::{
-        account::resolve_account,
-        account::resolve_user_with_password,
+        account::{resolve_account_address, resolve_user_with_password},
         messages::{fail, info, success},
         readline::read_flag,
     },
@@ -9,15 +8,17 @@ use crate::{
 };
 use clap::Subcommand;
 use sos_account::Account;
-use sos_backend::FolderEventLog;
-use sos_core::VaultId;
+use sos_backend::{BackendTarget, FolderEventLog};
+use sos_client_storage::{
+    ClientAccountStorage, ClientFolderStorage, ClientStorage,
+};
+use sos_core::FolderRef;
 use sos_core::{
     constants::EVENT_LOG_EXT,
     crypto::{AccessKey, Cipher, KeyDerivation},
-    encode, AccountRef, Paths,
+    AccountRef, Paths,
 };
 use sos_reducers::FolderReducer;
-use sos_vfs as vfs;
 use std::path::PathBuf;
 use terminal_banner::{Banner, Padding};
 
@@ -85,7 +86,7 @@ pub enum Command {
         account: AccountRef,
 
         /// Folder identifier.
-        folder: VaultId,
+        folder: FolderRef,
     },
     /// Generate a security report.
     ///
@@ -180,49 +181,45 @@ pub async fn run(cmd: Command) -> Result<()> {
         Command::Events { cmd } => events::run(cmd).await?,
         // Command::Ipc { cmd } => ipc::run(cmd).await?,
         Command::RepairVault { account, folder } => {
-            let account = resolve_account(Some(&account))
-                .await
-                .ok_or(Error::NoAccount(account.to_string()))?;
+            let account_id = resolve_account_address(Some(&account)).await?;
+            let paths = Paths::new_client(Paths::data_dir()?)
+                .with_account_id(&account_id);
+            let target = BackendTarget::from_paths(&paths).await?;
+            let folders = target.list_folders(&account_id).await?;
+            let target_folder = folders
+                .iter()
+                .find(|f| match &folder {
+                    FolderRef::Id(id) => f.id() == id,
+                    FolderRef::Name(name) => f.name() == name,
+                })
+                .ok_or_else(|| Error::FolderNotFound(folder.to_string()))?;
 
-            match account {
-                AccountRef::Id(account_id) => {
-                    let paths = Paths::new_client(Paths::data_dir()?)
-                        .with_account_id(&account_id);
-                    let events_file = paths.event_log_path(&folder);
-                    let vault_file = paths.vault_path(&folder);
+            let prompt = format!(
+                "Overwrite vault file with events from {}.{} (y/n)? ",
+                folder, EVENT_LOG_EXT,
+            );
+            if read_flag(Some(&prompt))? {
+                verify_events(account, folder.clone(), false).await?;
 
-                    if !vfs::try_exists(&events_file).await? {
-                        return Err(Error::NotFile(events_file));
-                    }
+                let event_log = FolderEventLog::new_folder(
+                    target.clone(),
+                    &account_id,
+                    target_folder.id(),
+                )
+                .await?;
 
-                    if !vfs::try_exists(&vault_file).await? {
-                        return Err(Error::NotFile(vault_file));
-                    }
+                let vault = FolderReducer::new()
+                    .reduce(&event_log)
+                    .await?
+                    .build(true)
+                    .await?;
 
-                    let prompt = format!(
-                        "Overwrite vault file with events from {}.{} (y/n)? ",
-                        folder, EVENT_LOG_EXT,
-                    );
-                    if read_flag(Some(&prompt))? {
-                        verify_events(events_file.clone(), false).await?;
+                let mut storage =
+                    ClientStorage::new_unauthenticated(target, &account_id)
+                        .await?;
+                storage.overwrite_folder_vault(&vault).await?;
 
-                        let event_log =
-                            FolderEventLog::new_fs_folder(&events_file)
-                                .await?;
-
-                        let vault = FolderReducer::new()
-                            .reduce(&event_log)
-                            .await?
-                            .build(true)
-                            .await?;
-
-                        let buffer = encode(&vault).await?;
-                        vfs::write(vault_file, buffer).await?;
-
-                        success(format!("Repaired {}", folder));
-                    }
-                }
-                _ => fail("unable to locate account"),
+                success(format!("Repaired {}", folder));
             }
         }
         Command::SecurityReport {

@@ -9,10 +9,11 @@ use crate::{
 use clap::Subcommand;
 use hex;
 use sos_account::{Account, FolderCreate};
+use sos_backend::BackendTarget;
 use sos_client_storage::NewFolderOptions;
 use sos_core::{
     events::{EventLog, LogEvent},
-    AccountRef, FolderRef,
+    AccountId, AccountRef, FolderRef,
 };
 use sos_sync::StorageEventLogs;
 
@@ -367,12 +368,16 @@ pub async fn run(cmd: Command) -> Result<()> {
                     let owner = owner
                         .selected_account()
                         .ok_or(Error::NoSelectedAccount)?;
-                    let paths = owner.paths();
                     let summary = owner
                         .current_folder()
                         .await?
                         .ok_or(Error::NoVaultSelected)?;
-                    verify_event_log(&*paths, &summary).await?;
+                    verify_event_log(
+                        owner.backend_target().await,
+                        owner.account_id(),
+                        &summary,
+                    )
+                    .await?;
                     success("Verified");
                 }
                 History::List { verbose, .. } => {
@@ -403,21 +408,16 @@ pub async fn run(cmd: Command) -> Result<()> {
 
 /// Verify an event log.
 async fn verify_event_log(
-    paths: &sos_core::Paths,
-    summary: &sos_vault::Summary,
+    target: BackendTarget,
+    account_id: &AccountId,
+    folder: &sos_vault::Summary,
 ) -> Result<()> {
     use futures::StreamExt;
     use sos_integrity::event_integrity;
-
-    todo!("restore verify event log (CLI)");
-
-    /*
-    let path = paths.event_log_path(summary.id());
-    let stream = event_integrity(&path);
+    let stream = event_integrity(&target, account_id, folder.id());
     futures::pin_mut!(stream);
     while let Some(event) = stream.next().await {
-        event??;
+        event?;
     }
     Ok(())
-    */
 }
