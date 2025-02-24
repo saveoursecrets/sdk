@@ -5,7 +5,7 @@
 use anyhow::Result;
 use axum_server::Handle;
 use sos_backend::BackendTarget;
-use sos_core::{constants::DATABASE_FILE, AccountId, Origin, Paths};
+use sos_core::{constants::DATABASE_FILE, AccountId, Origin, Paths, VaultId};
 use sos_database::open_file;
 use sos_server::{Server, ServerConfig, State, UriOrPath};
 use sos_vfs as vfs;
@@ -329,37 +329,4 @@ pub async fn teardown(test_id: &str) {
         tracing::subscriber::NoSubscriber::new(),
     );
     */
-}
-
-/// Flip bits on a byte in a file seeking to the
-/// given offset from the end of the file.
-///
-/// Used to test for corrupted data.
-pub fn flip_bits_on_byte(
-    file_path: impl AsRef<Path>,
-    offset: i64,
-) -> Result<()> {
-    use std::fs::OpenOptions;
-    use std::io::{Read, Seek, SeekFrom, Write};
-
-    // Open the file in read-write mode
-    let mut file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(file_path.as_ref())?;
-
-    file.seek(SeekFrom::End(offset))?;
-
-    // Read the byte
-    let mut buffer = [0; 1];
-    file.read_exact(&mut buffer)?;
-
-    // Flip all the bits
-    buffer[0] ^= 0xFF;
-
-    // Seek back to the byte and write the modified buffer
-    file.seek(SeekFrom::End(offset))?;
-    file.write_all(&buffer)?;
-
-    Ok(())
 }

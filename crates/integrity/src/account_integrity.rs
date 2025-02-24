@@ -44,10 +44,9 @@ pub enum FolderIntegrityEvent {
 pub async fn account_integrity2(
     target: &BackendTarget,
     account_id: &AccountId,
+    folders: Vec<Summary>,
     concurrency: usize,
 ) -> Result<(Receiver<FolderIntegrityEvent>, watch::Sender<()>)> {
-    let folders = target.list_folders(account_id).await?;
-
     let (mut event_tx, event_rx) = mpsc::channel::<FolderIntegrityEvent>(64);
     let (cancel_tx, mut cancel_rx) = watch::channel(());
 
@@ -410,6 +409,36 @@ async fn check_folder2(
 
     let account_id = *account_id;
     let folder_id = *folder_id;
+
+    // Check folders exist
+    match &target {
+        BackendTarget::FileSystem(paths) => {
+            let vault_path = paths.vault_path(&folder_id);
+            if !vfs::try_exists(&vault_path).await? {
+                notify_listeners(
+                    &mut vault_tx,
+                    FolderIntegrityEvent::Failure(
+                        vault_id,
+                        IntegrityFailure::Missing(vault_path),
+                    ),
+                )
+                .await;
+            }
+
+            let events_path = paths.event_log_path(&folder_id);
+            if !vfs::try_exists(&events_path).await? {
+                notify_listeners(
+                    &mut vault_tx,
+                    FolderIntegrityEvent::Failure(
+                        vault_id,
+                        IntegrityFailure::Missing(events_path),
+                    ),
+                )
+                .await;
+            }
+        }
+        _ => todo!(),
+    }
 
     let v_jh = tokio::task::spawn(async move {
         let vault_stream =
