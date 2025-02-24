@@ -3,8 +3,9 @@ use crate::{Error, IntegrityFailure, Result};
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use sos_backend::BackendTarget;
-use sos_core::{events::EventRecord, AccountId, Paths};
-use sos_filesystem::formats::VaultRecord;
+use sos_core::{
+    commit::CommitHash, events::EventRecord, AccountId, Paths, SecretId,
+};
 use sos_vault::{Summary, VaultId};
 use sos_vfs as vfs;
 use std::{path::PathBuf, sync::Arc};
@@ -25,7 +26,7 @@ pub enum FolderIntegrityEvent {
     /// Started integrity check on a folder.
     OpenFolder(VaultId),
     /// Read a record in a vault.
-    VaultRecord(VaultId, VaultRecord),
+    VaultRecord(VaultId, (SecretId, CommitHash)),
     /// Read a record in an event log.
     EventRecord(VaultId, EventRecord),
     /// Finished integrity check on a folder.
@@ -39,14 +40,89 @@ pub enum FolderIntegrityEvent {
     Complete,
 }
 
+/// Generate an integrity report for the folders in an account.
 pub async fn account_integrity2(
     target: &BackendTarget,
     account_id: &AccountId,
     concurrency: usize,
-) -> Result<()> {
+) -> Result<(Receiver<FolderIntegrityEvent>, watch::Sender<()>)> {
     let folders = target.list_folders(account_id).await?;
 
-    todo!("new account integrity");
+    let (mut event_tx, event_rx) = mpsc::channel::<FolderIntegrityEvent>(64);
+    let (cancel_tx, mut cancel_rx) = watch::channel(());
+
+    notify_listeners(
+        &mut event_tx,
+        FolderIntegrityEvent::Begin(folders.len()),
+    )
+    .await;
+
+    let num_folders = folders.len();
+    /*
+    let paths: Vec<_> = folders
+        .into_iter()
+        .map(|folder| {
+            (
+                *folder.id(),
+                paths.vault_path(folder.id()),
+                paths.event_log_path(folder.id()),
+            )
+        })
+        .collect();
+    */
+
+    let semaphore = Arc::new(Semaphore::new(concurrency));
+    let cancel = cancel_tx.clone();
+    let account_id = *account_id;
+    let target = target.clone();
+    tokio::task::spawn(async move {
+        let mut stream = futures::stream::iter(folders);
+        let completed = Arc::new(Mutex::new(0));
+        loop {
+            tokio::select! {
+              biased;
+              _ = cancel_rx.changed() => {
+                break;
+              }
+              Some(folder) = stream.next() => {
+                let semaphore = semaphore.clone();
+                let cancel_tx = cancel.clone();
+                let cancel_rx = cancel_rx.clone();
+                let event_tx = event_tx.clone();
+                let completed = completed.clone();
+                let target = target.clone();
+                tokio::task::spawn(async move {
+                  let _permit = semaphore.acquire().await;
+
+                  check_folder2(
+                    target,
+                    &account_id,
+                    folder.id(),
+                    event_tx.clone(),
+                    cancel_rx).await?;
+
+                  let mut writer = completed.lock().await;
+                  *writer += 1;
+                  if *writer == num_folders {
+                    // Signal the shutdown event on the cancel channel
+                    // to break out of this loop and cancel any existing
+                    // file reader streams
+                    if let Err(error) = cancel_tx.send(()) {
+                      tracing::error!(error = ?error);
+                    }
+                  }
+                  Ok::<_, crate::Error>(())
+                });
+              }
+            }
+        }
+
+        notify_listeners(&mut event_tx, FolderIntegrityEvent::Complete).await;
+
+        Ok::<_, crate::Error>(())
+    });
+
+    Ok((event_rx, cancel_tx))
 }
 
 /// Generate an integrity report for the folders in an account.
@@ -176,7 +252,7 @@ async fn check_folder(
                                   &mut vault_tx,
                                   FolderIntegrityEvent::Failure(
                                     vault_id, IntegrityFailure::Corrupted {
-                                      path: vault_path.clone(),
+                                      folder_id: vault_id,
                                       expected: commit,
                                       actual: value,
                                     }),
@@ -244,7 +320,7 @@ async fn check_folder(
                                   &mut event_tx,
                                   FolderIntegrityEvent::Failure(
                                     vault_id, IntegrityFailure::Corrupted {
-                                      path: event_path.clone(),
+                                      folder_id: vault_id,
                                       expected: commit,
                                       actual: value,
                                     }),
@@ -301,6 +377,200 @@ async fn check_folder(
         notify_listeners(
             &mut integrity_tx,
             FolderIntegrityEvent::CloseFolder(*folder_id),
+        )
+        .await;
+    }
+
+    Ok(())
+}
+
+async fn check_folder2(
+    target: BackendTarget,
+    account_id: &AccountId,
+    folder_id: &VaultId,
+    mut integrity_tx: Sender<FolderIntegrityEvent>,
+    mut cancel_rx: watch::Receiver<()>,
+) -> Result<()> {
+    use crate::{event_integrity2, vault_integrity2};
+
+    notify_listeners(
+        &mut integrity_tx,
+        FolderIntegrityEvent::OpenFolder(*folder_id),
+    )
+    .await;
+
+    let vault_id = *folder_id;
+    let event_id = *folder_id;
+    let mut vault_tx = integrity_tx.clone();
+    let mut event_tx = integrity_tx.clone();
+    let mut vault_cancel_rx = cancel_rx.clone();
+
+    let vault_target = target.clone();
+    let event_target = target.clone();
+
+    let account_id = *account_id;
+    let folder_id = *folder_id;
+
+    let v_jh = tokio::task::spawn(async move {
+        let vault_stream =
+            vault_integrity2(&vault_target, &account_id, &folder_id);
+        pin_mut!(vault_stream);
+        loop {
+            tokio::select! {
+              biased;
+              _ = vault_cancel_rx.changed() => {
+                break;
+              }
+              event = vault_stream.next() => {
+                if let Some(record) = event {
+                  // let record = event?;
+                  match record {
+                    Ok(record) => {
+                      notify_listeners(
+                          &mut vault_tx,
+                          FolderIntegrityEvent::VaultRecord(
+                            vault_id, record),
+                      )
+                      .await;
+                    }
+                    Err(e) => {
+                      match e {
+                        Error::VaultHashMismatch { commit, value, .. } => {
+                          notify_listeners(
+                              &mut vault_tx,
+                              FolderIntegrityEvent::Failure(
+                                vault_id, IntegrityFailure::Corrupted {
+                                  folder_id: vault_id,
+                                  expected: commit,
+                                  actual: value,
+                                }),
+                          )
+                          .await;
+                        }
+                        _ => {
+                          notify_listeners(
+                              &mut vault_tx,
+                              FolderIntegrityEvent::Failure(
+                                vault_id, IntegrityFailure::Error(e)),
+                          )
+                          .await;
+                        }
+                      }
+                    }
+                  }
+                } else {
+                  break;
+                }
+              }
+            }
+        }
+
+        /*
+        if vfs::try_exists(&vault_path).await? {
+        } else {
+            notify_listeners(
+                &mut vault_tx,
+                FolderIntegrityEvent::Failure(
+                    vault_id,
+                    IntegrityFailure::Missing(vault_path),
+                ),
+            )
+            .await;
+        }
+        */
+
+        Ok::<_, Error>(())
+    });
+
+    let e_jh = tokio::task::spawn(async move {
+        let event_stream =
+            event_integrity2(&event_target, &account_id, &folder_id);
+        pin_mut!(event_stream);
+
+        loop {
+            tokio::select! {
+              biased;
+              _ = cancel_rx.changed() => {
+                break;
+              }
+              event = event_stream.next() => {
+                if let Some(record) = event {
+                  match record {
+                    Ok(record) => {
+                      notify_listeners(
+                          &mut event_tx,
+                          FolderIntegrityEvent::EventRecord(event_id, record),
+                      )
+                      .await;
+                    }
+                    Err(e) => {
+                      match e {
+                        Error::HashMismatch { commit, value, .. } => {
+                          notify_listeners(
+                              &mut event_tx,
+                              FolderIntegrityEvent::Failure(
+                                vault_id, IntegrityFailure::Corrupted {
+                                  folder_id: vault_id,
+                                  expected: commit,
+                                  actual: value,
+                                }),
+                          )
+                          .await;
+                        }
+                        _ => {
+                          notify_listeners(
+                              &mut event_tx,
+                              FolderIntegrityEvent::Failure(
+                                vault_id, IntegrityFailure::Error(e)),
+                          )
+                          .await;
+                        }
+                      }
+                    }
+                  }
+                } else {
+                  break;
+                }
+              }
+            }
+        }
+
+        /*
+        if vfs::try_exists(&event_path).await? {
+        } else {
+            notify_listeners(
+                &mut event_tx,
+                FolderIntegrityEvent::Failure(
+                    event_id,
+                    IntegrityFailure::Missing(event_path),
+                ),
+            )
+            .await;
+        }
+        */
+
+        Ok::<_, Error>(())
+    });
+
+    let results = futures::future::try_join_all(vec![v_jh, e_jh]).await?;
+    let is_ok = results.iter().all(|r| r.is_ok());
+    for result in results {
+        if let Err(e) = result {
+            notify_listeners(
+                &mut integrity_tx,
+                FolderIntegrityEvent::Failure(
+                    folder_id,
+                    IntegrityFailure::Error(e),
+                ),
+            )
+            .await;
+        }
+    }
+
+    if is_ok {
+        notify_listeners(
+            &mut integrity_tx,
+            FolderIntegrityEvent::CloseFolder(folder_id),
         )
         .await;
     }

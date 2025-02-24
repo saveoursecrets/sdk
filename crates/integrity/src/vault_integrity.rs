@@ -137,17 +137,19 @@ fn vault_stream(
     ReceiverStream::new(rx).boxed()
 }
 
+/// Integrity check for a vault file comparing the precomputed
+/// checksums with the encrypted content of each row.
 pub fn vault_integrity2(
     target: &BackendTarget,
     account_id: &AccountId,
     folder_id: &VaultId,
-) -> BoxStream<'static, Result<CommitHash>> {
+) -> BoxStream<'static, Result<(SecretId, CommitHash)>> {
     let stream = vault_stream(target, account_id, folder_id);
     stream
         .try_filter_map(|(id, expected_checksum, buffer)| async move {
             let checksum = CommitTree::hash(&buffer);
             if &checksum == expected_checksum.as_ref() {
-                Ok(Some(expected_checksum))
+                Ok(Some((id, expected_checksum)))
             } else {
                 Err(Error::VaultHashMismatch {
                     commit: expected_checksum,
@@ -164,7 +166,7 @@ pub fn vault_integrity2(
 #[deprecated]
 pub fn vault_integrity(
     path: impl AsRef<Path>,
-) -> impl Stream<Item = Result<Result<VaultRecord>>> {
+) -> impl Stream<Item = Result<Result<(SecretId, CommitHash)>>> {
     try_stream! {
       read_file_identity_bytes(path.as_ref(), &VAULT_IDENTITY).await?;
 
@@ -189,16 +191,18 @@ pub fn vault_integrity(
           let length = value.end - value.start;
           reader.seek(SeekFrom::Start(value.start)).await?;
           let buffer = reader.read_bytes(length as usize).await?;
+          let id = SecretId::from_slice(record.id().as_slice())?;
 
           let checksum = CommitTree::hash(&buffer);
-          if checksum != commit {
+          if checksum == commit {
+            yield Ok((id, CommitHash(checksum)))
+          } else {
               yield Err(Error::VaultHashMismatch {
                   commit: CommitHash(commit),
                   value: CommitHash(checksum),
                   id: uuid::Uuid::from_slice(record.id().as_slice())?,
               });
           }
-          yield Ok(record)
       }
     }
 }

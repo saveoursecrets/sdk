@@ -21,7 +21,7 @@ use tokio_stream::wrappers::ReceiverStream;
 
 /// Integrity check for an event log comparing the precomputed
 /// checksums with the encrypted content of each row.
-pub async fn event_integrity2(
+pub fn event_integrity2(
     target: &BackendTarget,
     account_id: &AccountId,
     folder_id: &VaultId,

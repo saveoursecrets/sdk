@@ -211,8 +211,8 @@ async fn compare_file(
     if is_completed && digest.as_slice() != external_file.file_name().as_ref()
     {
         let slice: [u8; 32] = digest.as_slice().try_into()?;
-        Ok(Some(IntegrityFailure::Corrupted {
-            path,
+        Ok(Some(IntegrityFailure::CorruptedFile {
+            external_file: *external_file,
             expected: external_file.file_name().into(),
             actual: CommitHash(slice),
         }))

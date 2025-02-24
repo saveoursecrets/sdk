@@ -68,10 +68,10 @@ async fn verify_vault(file: PathBuf, verbose: bool) -> Result<()> {
     let stream = vault_integrity(&file);
     pin_mut!(stream);
 
-    while let Some(event) = stream.next().await {
-        let record = event?;
+    while let Some(record) = stream.next().await {
+        let (_, commit) = record??;
         if verbose {
-            println!("{}", hex::encode(record?.commit()));
+            println!("{}", commit);
         }
     }
 

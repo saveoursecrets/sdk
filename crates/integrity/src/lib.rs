@@ -9,9 +9,11 @@ mod event_integrity;
 mod file_integrity;
 mod vault_integrity;
 
-pub use account_integrity::{account_integrity, FolderIntegrityEvent};
+pub use account_integrity::{
+    account_integrity, account_integrity2, FolderIntegrityEvent,
+};
 pub use event_integrity::{event_integrity, event_integrity2};
-pub use vault_integrity::vault_integrity;
+pub use vault_integrity::{vault_integrity, vault_integrity2};
 
 #[cfg(feature = "files")]
 pub use file_integrity::{file_integrity, FileIntegrityEvent};
@@ -21,7 +23,7 @@ pub use error::Error;
 /// Result type for the library.
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
-use sos_core::commit::CommitHash;
+use sos_core::{commit::CommitHash, ExternalFile, VaultId};
 use std::path::PathBuf;
 
 /// Reasons why an integrity check can fail.
@@ -29,10 +31,19 @@ use std::path::PathBuf;
 pub enum IntegrityFailure {
     /// File is missing.
     Missing(PathBuf),
-    /// Checksum mismatch, file is corrupted.
+    /// Checksum mismatch for a folder vault or event log.
     Corrupted {
-        /// File path.
-        path: PathBuf,
+        /// Folder identifier.
+        folder_id: VaultId,
+        /// Expected file name checksum.
+        expected: CommitHash,
+        /// Actual file name checksum.
+        actual: CommitHash,
+    },
+    /// Checksum mismatch for an external file.
+    CorruptedFile {
+        /// External file reference.
+        external_file: ExternalFile,
         /// Expected file name checksum.
         expected: CommitHash,
         /// Actual file name checksum.
