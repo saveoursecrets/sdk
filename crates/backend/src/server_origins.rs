@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{BackendTarget, Error};
 use async_trait::async_trait;
 use sos_core::{AccountId, Origin, Paths, RemoteOrigins};
 use sos_database::{async_sqlite::Client, ServerOrigins as DbServerOrigins};
@@ -12,12 +12,26 @@ type BoxedServerOrigins =
 pub struct ServerOrigins(BoxedServerOrigins);
 
 impl ServerOrigins {
+    /// Create new server origins.
+    pub fn new(target: BackendTarget, account_id: &AccountId) -> Self {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                Self(Box::new(FsServerOrigins::new(Arc::new(paths))))
+            }
+            BackendTarget::Database(_, client) => {
+                Self(Box::new(DbServerOrigins::new(*account_id, client)))
+            }
+        }
+    }
+
     /// Create file system server origins.
+    #[deprecated]
     pub fn new_fs(paths: Arc<Paths>) -> Self {
         Self(Box::new(FsServerOrigins::new(paths)))
     }
 
     /// Create database server origins.
+    #[deprecated]
     pub fn new_db(account_id: AccountId, client: Client) -> Self {
         Self(Box::new(DbServerOrigins::new(account_id, client)))
     }

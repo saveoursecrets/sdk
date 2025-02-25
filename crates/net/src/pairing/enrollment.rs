@@ -4,33 +4,18 @@ use crate::{
     NetworkAccount,
 };
 use sos_account::Account;
-use sos_backend::{
-    write_exclusive, AccountEventLog, BackendTarget, DeviceEventLog,
-    FolderEventLog, VaultWriter,
-};
+use sos_backend::{BackendTarget, ServerOrigins};
 use sos_client_storage::{
     ClientAccountStorage, ClientFolderStorage, ClientStorage,
 };
 use sos_core::{
-    crypto::AccessKey,
-    encode,
-    events::AccountEvent,
-    events::{
-        patch::{AccountPatch, DevicePatch, FolderPatch},
-        EventLog,
-    },
-    AccountId, Origin, Paths, PublicIdentity, VaultId,
+    crypto::AccessKey, events::AccountEvent, AccountId, Origin,
+    PublicIdentity, RemoteOrigins,
 };
-use sos_login::{device::DeviceSigner, Identity};
+use sos_login::device::DeviceSigner;
 use sos_protocol::{network_client::HttpClient, SyncClient};
-use sos_reducers::FolderReducer;
 use sos_signer::ed25519::BoxedEd25519Signer;
-use sos_vault::EncryptedEntry;
-use sos_vfs as vfs;
-use std::{
-    collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
-};
+use std::collections::HashSet;
 
 /// Enroll a device.
 ///
@@ -40,16 +25,8 @@ use std::{
 pub struct DeviceEnrollment {
     /// Account identifier.
     account_id: AccountId,
-    /// Account paths.
-    paths: Paths,
-    /*
-    /// Backend target.
-    target: BackendTarget,
-    */
     /// Client account storage.
     storage: ClientStorage,
-    /// Data directory.
-    data_dir: Option<PathBuf>,
     /// Client used to fetch the account data.
     client: HttpClient,
     /// Public identity.
@@ -68,16 +45,22 @@ pub struct DeviceEnrollment {
 impl DeviceEnrollment {
     /// Create a new device enrollment.
     pub(crate) async fn new(
+        target: BackendTarget,
         account_id: AccountId,
         origin: Origin,
-        target: BackendTarget,
         device_signer: DeviceSigner,
         device_vault: Vec<u8>,
         servers: HashSet<Origin>,
-        data_dir: Option<PathBuf>,
     ) -> Result<Self> {
         let target = target.with_account_id(&account_id);
-        let paths = target.paths().clone();
+        let accounts = target.list_accounts().await?;
+        if accounts
+            .iter()
+            .find(|a| a.account_id() == &account_id)
+            .is_some()
+        {
+            return Err(Error::EnrollAccountExists(account_id));
+        }
 
         let storage =
             ClientStorage::new_unauthenticated(target, &account_id).await?;
@@ -88,10 +71,7 @@ impl DeviceEnrollment {
             HttpClient::new(account_id, origin, device, String::new())?;
         Ok(Self {
             account_id,
-            paths,
             storage,
-            // target,
-            data_dir,
             client,
             public_identity: None,
             device_vault,
@@ -115,20 +95,9 @@ impl DeviceEnrollment {
 
     /// Fetch the account data for this enrollment.
     pub async fn fetch_account(&mut self) -> Result<()> {
-        /*
-        let identity_vault = self.paths.identity_vault();
-        if vfs::try_exists(&identity_vault).await? {
-            return Err(Error::EnrollAccountExists(
-                self.paths.account_id().cloned().unwrap(),
-            ));
-        }
-        */
-
-        // Paths::scaffold(self.data_dir.clone()).await?;
-        // self.paths.ensure().await?;
-
         let change_set = self.client.fetch_account().await?;
 
+        // Find out if the account has been renamed
         for record in change_set.account.iter() {
             let event = record.decode_event::<AccountEvent>().await?;
             if let AccountEvent::RenameAccount(account_name) = event {
@@ -207,9 +176,13 @@ impl DeviceEnrollment {
 
     /// Add the server origins to the enrolled account paths.
     async fn add_origin_servers(&self) -> Result<()> {
-        let remotes_file = self.paths.remote_origins();
-        let data = serde_json::to_vec_pretty(&self.servers)?;
-        write_exclusive(remotes_file, data).await?;
+        let mut origins = ServerOrigins::new(
+            self.storage.backend_target().clone(),
+            &self.account_id,
+        );
+        for server in &self.servers {
+            origins.add_server(server.clone()).await?;
+        }
         Ok(())
     }
 
@@ -227,6 +200,7 @@ impl DeviceEnrollment {
     }
     */
 
+    /*
     async fn create_account(&mut self, patch: AccountPatch) -> Result<()> {
         let mut event_log = AccountEventLog::new_account(
             self.storage.backend_target().clone(),
@@ -245,6 +219,7 @@ impl DeviceEnrollment {
         event_log.patch_unchecked(&patch).await?;
         Ok(())
     }
+    */
 
     /*
     async fn create_device(&self, patch: DevicePatch) -> Result<()> {
@@ -275,8 +250,6 @@ impl DeviceEnrollment {
         vault_path: impl AsRef<Path>,
         patch: FolderPatch,
     ) -> Result<()> {
-        // TODO: use ClientStorage here!
-
         let mut event_log =
             FolderEventLog::new_fs_folder(events_path.as_ref()).await?;
         event_log.clear().await?;

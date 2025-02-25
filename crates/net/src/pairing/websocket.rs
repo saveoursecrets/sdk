@@ -853,16 +853,15 @@ impl<'a> AcceptPairing<'a> {
 
         let server = self.share_url.server().clone();
         let origin: Origin = server.into();
-        let data_dir = self.data_dir.clone();
+        // let data_dir = self.data_dir.clone();
 
         let enrollment = DeviceEnrollment::new(
+            self.target.clone(),
             account_id,
             origin,
-            self.target.clone(),
             device_signing_key.try_into()?,
             device_vault,
             servers,
-            data_dir,
         )
         .await?;
         self.enrollment = Some(enrollment);
