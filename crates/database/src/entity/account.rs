@@ -1,5 +1,5 @@
 use crate::{
-    entity::{FolderEntity, FolderRecord},
+    entity::{FolderEntity, FolderRecord, SecretRow},
     Error, Result,
 };
 use async_sqlite::{
@@ -8,10 +8,12 @@ use async_sqlite::{
     },
     Client,
 };
-use sos_core::{AccountId, PublicIdentity, UtcDateTime};
+use sos_core::{AccountId, PublicIdentity, UtcDateTime, VaultCommit};
 use sos_vault::Vault;
 use sql_query_builder as sql;
 use std::ops::Deref;
+
+use super::FolderRow;
 
 /// Account row from the database.
 #[doc(hidden)]
@@ -200,6 +202,57 @@ impl<'conn> AccountEntity<'conn, Transaction<'conn>> {
         }
 
         Ok((account, folder_row_id))
+    }
+
+    /// Replace the login folder.
+    pub async fn replace_login_folder(
+        client: &mut Client,
+        account_id: &AccountId,
+        vault: &Vault,
+    ) -> Result<()> {
+        // Check if we already have a login folder
+        let (account, login_folder) =
+            AccountEntity::find_account_with_login(client, account_id)
+                .await?;
+
+        let login_folder_id = *login_folder.summary.id();
+        let new_login_folder = FolderRow::new_insert(vault).await?;
+
+        let mut secret_rows = Vec::new();
+        for (secret_id, commit) in vault.iter() {
+            let VaultCommit(commit, entry) = commit;
+            secret_rows.push(SecretRow::new(secret_id, commit, entry).await?);
+        }
+
+        client
+            .conn_mut_and_then(move |conn| {
+                let tx = conn.transaction()?;
+                let account_entity = AccountEntity::new(&tx);
+                let folder_entity = FolderEntity::new(&tx);
+
+                // Delete the old folder
+                folder_entity.delete_folder(&login_folder_id)?;
+
+                // Create the new folder
+                let folder_row_id = folder_entity
+                    .insert_folder(account.row_id, &new_login_folder)?;
+
+                // Insert the secrets
+                folder_entity.insert_folder_secrets(
+                    folder_row_id,
+                    secret_rows.as_slice(),
+                )?;
+
+                // Update the join
+                account_entity
+                    .update_login_folder(account.row_id, folder_row_id)?;
+
+                tx.commit()?;
+                Ok::<_, Error>(())
+            })
+            .await?;
+
+        Ok(())
     }
 }
 

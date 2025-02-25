@@ -52,7 +52,6 @@ impl DeviceEnrollment {
         servers: HashSet<Origin>,
     ) -> Result<Self> {
         let target = target.with_account_id(&account_id);
-
         match &target {
             BackendTarget::FileSystem(paths) => {
                 #[cfg(debug_assertions)]

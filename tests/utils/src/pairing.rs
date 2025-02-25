@@ -99,7 +99,6 @@ pub async fn run_inverted_pairing_protocol(
     // Get the data dir for the second client
     let data_dir = primary_device.dirs.clients.get(1).cloned().unwrap();
     let paths = Paths::new_client(&data_dir);
-    let target = make_client_backend(&paths).await?;
 
     // Need to clear the data directory for the second client
     // as simulate_device() copies all the account data and
@@ -107,7 +106,11 @@ pub async fn run_inverted_pairing_protocol(
     std::fs::remove_dir_all(&data_dir)?;
     std::fs::create_dir(&data_dir)?;
 
-    let device_meta: DeviceMetaData = Default::default();
+    // Must prepare the target after clearing the directory
+    // so that we get a fresh database
+    let target = make_client_backend(&paths).await?;
+
+    let device_meta = DeviceMetaData::default();
 
     let mut enrollment = {
         // Accepting side creates the pairing URL passing

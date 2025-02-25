@@ -117,6 +117,15 @@ impl ClientDatabaseStorage {
             (paths, client)
         };
 
+        // We have chosen to always have a FolderEventLog
+        // for the identity folder so we don't need to keep
+        // calling unwrap() on Option<FolderEventLog> so this
+        // dance ensures we have a login folder ready before
+        // we initialize the identity folder event log
+        //
+        // When import_account() is called (during device pairing)
+        // this temporary identity log must be overwritten with the
+        // correct folder information.
         let mut login_vault = Vault::default();
         login_vault.set_name(account_name.to_owned());
         *login_vault.flags_mut() = VaultFlags::IDENTITY;
@@ -463,14 +472,39 @@ impl ClientAccountStorage for ClientDatabaseStorage {
             event_log.patch_unchecked(&account_data.account).await?;
         }
 
+        if let Some(vault) =
+            extract_vault(account_data.identity.records()).await?
         {
             let mut event_log = self.identity_log.write().await;
+
+            // Folder must be prepared before re-initializing
+            // the event log
+            AccountEntity::replace_login_folder(
+                &mut self.client,
+                &self.account_id,
+                &vault,
+            )
+            .await?;
+
+            // Re-initialize the event log ensuring we are using
+            // the correct folder id for the new event log
+            *event_log = FolderEventLog::new_folder(
+                self.target.clone(),
+                &self.account_id,
+                vault.id(),
+            )
+            .await?;
+
+            // Apply events to the log
             event_log.patch_unchecked(&account_data.identity).await?;
+
+            // Ensure secrets reflect the log events
             let vault = FolderReducer::new()
                 .reduce(&*event_log)
                 .await?
                 .build(true)
                 .await?;
+
             self.write_login_vault(&vault, Internal).await?;
         }
 
