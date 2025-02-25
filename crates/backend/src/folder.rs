@@ -51,6 +51,29 @@ impl Folder {
         }
     }
 
+    /// Create a new folder using a vault and events.
+    pub async fn from_vault_event_log(
+        target: &BackendTarget,
+        vault: Vault,
+        event_log: FolderEventLog,
+    ) -> Result<Self> {
+        let access_point = match target {
+            BackendTarget::FileSystem(paths) => {
+                let path = paths.vault_path(vault.id());
+                let mirror = VaultFileWriter::<Error>::new(path);
+                VaultAccessPoint::<Error>::new_mirror(vault, Box::new(mirror))
+            }
+            BackendTarget::Database(_, client) => {
+                let mirror = VaultDatabaseWriter::<Error>::new(
+                    client.clone(),
+                    *vault.id(),
+                );
+                VaultAccessPoint::<Error>::new_mirror(vault, Box::new(mirror))
+            }
+        };
+        Ok(Self::init(AccessPoint::new(access_point), event_log))
+    }
+
     /// Create a new folder from a vault file on disc.
     ///
     /// Changes to the in-memory vault are mirrored to disc and

@@ -4,8 +4,13 @@ use crate::{
     NetworkAccount,
 };
 use sos_account::Account;
-use sos_backend::{write_exclusive, BackendTarget, VaultWriter};
-use sos_backend::{AccountEventLog, DeviceEventLog, FolderEventLog};
+use sos_backend::{
+    write_exclusive, AccountEventLog, BackendTarget, DeviceEventLog,
+    FolderEventLog, VaultWriter,
+};
+use sos_client_storage::{
+    ClientAccountStorage, ClientFolderStorage, ClientStorage,
+};
 use sos_core::{
     crypto::AccessKey,
     encode,
@@ -37,8 +42,12 @@ pub struct DeviceEnrollment {
     account_id: AccountId,
     /// Account paths.
     paths: Paths,
+    /*
     /// Backend target.
     target: BackendTarget,
+    */
+    /// Client account storage.
+    storage: ClientStorage,
     /// Data directory.
     data_dir: Option<PathBuf>,
     /// Client used to fetch the account data.
@@ -67,21 +76,21 @@ impl DeviceEnrollment {
         servers: HashSet<Origin>,
         data_dir: Option<PathBuf>,
     ) -> Result<Self> {
-        let paths = if let Some(data_dir) = &data_dir {
-            Paths::new_client(data_dir.clone()).with_account_id(&account_id)
-        } else {
-            Paths::new_client(Paths::data_dir()?).with_account_id(&account_id)
-        };
+        let target = target.with_account_id(&account_id);
+        let paths = target.paths().clone();
+
+        let storage =
+            ClientStorage::new_unauthenticated(target, &account_id).await?;
 
         let device_signing_key = device_signer.clone();
         let device: BoxedEd25519Signer = device_signing_key.into();
         let client =
             HttpClient::new(account_id, origin, device, String::new())?;
-
         Ok(Self {
             account_id,
             paths,
-            target,
+            storage,
+            // target,
             data_dir,
             client,
             public_identity: None,
@@ -106,17 +115,48 @@ impl DeviceEnrollment {
 
     /// Fetch the account data for this enrollment.
     pub async fn fetch_account(&mut self) -> Result<()> {
+        /*
         let identity_vault = self.paths.identity_vault();
         if vfs::try_exists(&identity_vault).await? {
             return Err(Error::EnrollAccountExists(
                 self.paths.account_id().cloned().unwrap(),
             ));
         }
+        */
 
-        Paths::scaffold(self.data_dir.clone()).await?;
-        self.paths.ensure().await?;
+        // Paths::scaffold(self.data_dir.clone()).await?;
+        // self.paths.ensure().await?;
 
         let change_set = self.client.fetch_account().await?;
+
+        for record in change_set.account.iter() {
+            let event = record.decode_event::<AccountEvent>().await?;
+            if let AccountEvent::RenameAccount(account_name) = event {
+                self.account_name = Some(account_name.to_string());
+            }
+        }
+
+        // Create the account data in storage
+        self.storage.import_account(&change_set).await?;
+
+        /*
+        // Got an account name change event so update the name
+        // of the identity vault
+        if let Some(account_name) = self.account_name.take() {
+            let path = self.paths.identity_vault();
+            let mut file = VaultWriter::new_fs(&path);
+            file.set_vault_name(account_name).await?;
+        }
+        */
+
+        // Read the login vault to extract public identity
+        let login_vault = self.storage.read_login_vault().await?;
+        self.public_identity = Some(PublicIdentity::new(
+            self.account_id,
+            login_vault.name().to_owned(),
+        ));
+
+        /*
         self.create_folders(change_set.folders).await?;
         self.create_account(change_set.account).await?;
         self.create_device(change_set.device).await?;
@@ -129,9 +169,14 @@ impl DeviceEnrollment {
             let mut file = VaultWriter::new_fs(&path);
             file.set_vault_name(account_name).await?;
         }
+        */
 
+        // TODO: must write out the device vault to storage!!!
+
+        /*
         // Write the vault containing the device signing key
         write_exclusive(self.paths.device_file(), &self.device_vault).await?;
+        */
 
         // Add origin servers early so that they will be registered
         // as remotes when the enrollment is finished and the account
@@ -149,7 +194,7 @@ impl DeviceEnrollment {
 
         let mut account = NetworkAccount::new_unauthenticated(
             self.account_id,
-            self.target.clone(),
+            self.storage.backend_target().clone(),
             Default::default(),
         )
         .await?;
@@ -168,6 +213,7 @@ impl DeviceEnrollment {
         Ok(())
     }
 
+    /*
     async fn create_folders(
         &self,
         folders: HashMap<VaultId, FolderPatch>,
@@ -179,10 +225,11 @@ impl DeviceEnrollment {
         }
         Ok(())
     }
+    */
 
     async fn create_account(&mut self, patch: AccountPatch) -> Result<()> {
         let mut event_log = AccountEventLog::new_account(
-            self.target.clone(),
+            self.storage.backend_target().clone(),
             &self.account_id,
         )
         .await?;
@@ -199,11 +246,13 @@ impl DeviceEnrollment {
         Ok(())
     }
 
+    /*
     async fn create_device(&self, patch: DevicePatch) -> Result<()> {
-        let file = self.paths.device_events();
-        let mut event_log =
-            DeviceEventLog::new_device(self.target.clone(), &self.account_id)
-                .await?;
+        let mut event_log = DeviceEventLog::new_device(
+            self.storage.backend_target().clone(),
+            &self.account_id,
+        )
+        .await?;
         event_log.clear().await?;
 
         // let events: Vec<DeviceEvent> = patch.into();
@@ -226,6 +275,8 @@ impl DeviceEnrollment {
         vault_path: impl AsRef<Path>,
         patch: FolderPatch,
     ) -> Result<()> {
+        // TODO: use ClientStorage here!
+
         let mut event_log =
             FolderEventLog::new_fs_folder(events_path.as_ref()).await?;
         event_log.clear().await?;
@@ -244,4 +295,5 @@ impl DeviceEnrollment {
 
         Ok(())
     }
+    */
 }

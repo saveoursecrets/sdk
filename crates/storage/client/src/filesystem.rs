@@ -20,8 +20,8 @@ use sos_core::{
     AccountId, Paths, VaultId,
 };
 use sos_login::Identity;
-use sos_reducers::DeviceReducer;
-use sos_sync::StorageEventLogs;
+use sos_reducers::{DeviceReducer, FolderReducer};
+use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{Header, Summary, Vault};
 use sos_vfs as vfs;
 use std::{collections::HashMap, sync::Arc};
@@ -46,6 +46,9 @@ pub struct ClientFileSystemStorage {
 
     /// Directories for file storage.
     paths: Arc<Paths>,
+
+    /// Backend target.
+    target: BackendTarget,
 
     // Use interior mutability so all the account functions
     // that accept an optional folder when reading do not need
@@ -132,6 +135,7 @@ impl ClientFileSystemStorage {
             current: Arc::new(Mutex::new(None)),
             folders: Default::default(),
             paths: paths.clone(),
+            target,
             identity_log: Arc::new(RwLock::new(identity_log)),
             account_log: Arc::new(RwLock::new(account_log)),
             #[cfg(feature = "search")]
@@ -315,6 +319,55 @@ impl ClientAccountStorage for ClientFileSystemStorage {
 
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
+    }
+
+    fn backend_target(&self) -> &BackendTarget {
+        &self.target
+    }
+
+    async fn import_account(
+        &mut self,
+        account_data: &CreateSet,
+    ) -> Result<()> {
+        {
+            let mut writer = self.account_log.write().await;
+            writer.patch_unchecked(&account_data.account).await?;
+        }
+
+        {
+            let mut writer = self.device_log.write().await;
+            writer.patch_unchecked(&account_data.device).await?;
+            let reducer = DeviceReducer::new(&*writer);
+            self.devices = reducer.reduce().await?;
+        }
+
+        #[cfg(feature = "files")]
+        {
+            let mut writer = self.file_log.write().await;
+            writer.patch_unchecked(&account_data.files).await?;
+        }
+
+        for (id, folder) in &account_data.folders {
+            let events_path = self.paths.event_log_path(id);
+
+            let mut event_log =
+                FolderEventLog::new_fs_folder(events_path).await?;
+            event_log.patch_unchecked(folder).await?;
+
+            let vault = FolderReducer::new()
+                .reduce(&event_log)
+                .await?
+                .build(true)
+                .await?;
+            let summary = vault.summary().clone();
+            let folder =
+                Folder::from_vault_event_log(&self.target, vault, event_log)
+                    .await?;
+            self.folders.insert(*id, folder);
+            self.add_summary(summary, Internal);
+        }
+
+        Ok(())
     }
 
     async fn delete_account(&self) -> Result<Event> {

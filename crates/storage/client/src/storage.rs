@@ -22,7 +22,7 @@ use sos_core::{
 };
 use sos_login::Identity;
 use sos_sync::{
-    ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
+    CreateSet, ForceMerge, Merge, MergeOutcome, StorageEventLogs, SyncStorage,
 };
 use sos_vault::{Summary, Vault};
 use std::{
@@ -290,6 +290,27 @@ impl ClientAccountStorage for ClientStorage {
         match self {
             ClientStorage::FileSystem(fs) => fs.paths(),
             ClientStorage::Database(db) => db.paths(),
+        }
+    }
+
+    fn backend_target(&self) -> &BackendTarget {
+        match self {
+            ClientStorage::FileSystem(fs) => fs.backend_target(),
+            ClientStorage::Database(db) => db.backend_target(),
+        }
+    }
+
+    async fn import_account(
+        &mut self,
+        account_data: &CreateSet,
+    ) -> Result<()> {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.import_account(account_data).await
+            }
+            ClientStorage::Database(db) => {
+                db.import_account(account_data).await
+            }
         }
     }
 

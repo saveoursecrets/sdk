@@ -78,13 +78,6 @@ pub struct Identity {
 }
 
 impl Identity {
-    /// Read the public identity from an identity vault file.
-    pub async fn read_public_identity(
-        path: impl AsRef<Path>,
-    ) -> Result<Option<PublicIdentity>> {
-        Ok(read_public_identity(path).await?)
-    }
-
     /// Create a new unauthenticated login identity.
     pub fn new(target: BackendTarget) -> Self {
         Self {

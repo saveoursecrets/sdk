@@ -7,8 +7,8 @@ use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
 use indexmap::IndexSet;
 use sos_backend::{
-    compact::compact_folder, extract_vault, DeviceEventLog, Folder,
-    FolderEventLog,
+    compact::compact_folder, extract_vault, BackendTarget, DeviceEventLog,
+    Folder, FolderEventLog,
 };
 use sos_core::{
     commit::{CommitHash, CommitState},
@@ -26,7 +26,7 @@ use sos_core::{
 use sos_login::{FolderKeys, Identity};
 use sos_password::diceware::generate_passphrase;
 use sos_reducers::{DeviceReducer, FolderReducer};
-use sos_sync::StorageEventLogs;
+use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{
     secret::{Secret, SecretMeta, SecretRow},
     BuilderCredentials, ChangePassword, SecretAccess, Summary, Vault,
@@ -821,6 +821,23 @@ pub trait ClientAccountStorage:
 
     /// Computed storage paths.
     fn paths(&self) -> Arc<Paths>;
+
+    /// Backend target.
+    fn backend_target(&self) -> &BackendTarget;
+
+    /*
+    /// Rename the account.
+    async fn rename_account(&self, name: &str) -> Result<()>;
+    */
+
+    /// Import an account from a change set of event logs.
+    ///
+    /// Intended to be used during pairing to create a new
+    /// account from a collection of patches.
+    async fn import_account(
+        &mut self,
+        account_data: &CreateSet,
+    ) -> Result<()>;
 
     /// Delete the account for this user.
     async fn delete_account(&self) -> Result<Event>;

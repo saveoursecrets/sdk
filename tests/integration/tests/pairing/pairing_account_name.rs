@@ -11,7 +11,7 @@ use sos_protocol::AccountSync;
 #[tokio::test]
 async fn pairing_account_name() -> Result<()> {
     const TEST_ID: &str = "pairing_account_name";
-    //crate::test_utils::init_tracing();
+    crate::test_utils::init_tracing();
 
     // Spawn a backend server and wait for it to be listening
     let server = spawn(TEST_ID, None, None).await?;

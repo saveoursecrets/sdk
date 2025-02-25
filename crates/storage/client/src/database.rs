@@ -8,8 +8,8 @@ use async_trait::async_trait;
 use indexmap::IndexSet;
 use parking_lot::Mutex;
 use sos_backend::{
-    AccountEventLog, BackendTarget, DeviceEventLog, Folder, FolderEventLog,
-    StorageError,
+    extract_vault, AccountEventLog, BackendTarget, DeviceEventLog, Folder,
+    FolderEventLog, StorageError,
 };
 use sos_core::{
     device::TrustedDevice,
@@ -19,11 +19,11 @@ use sos_core::{
 };
 use sos_database::{
     async_sqlite::Client,
-    entity::{AccountEntity, FolderEntity, FolderRecord},
+    entity::{AccountEntity, FolderEntity, FolderRecord, FolderRow},
 };
 use sos_login::Identity;
 use sos_reducers::DeviceReducer;
-use sos_sync::StorageEventLogs;
+use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{Summary, Vault};
 use sos_vfs as vfs;
 use std::{collections::HashMap, sync::Arc};
@@ -49,6 +49,9 @@ pub struct ClientDatabaseStorage {
 
     /// Database client.
     client: Client,
+
+    /// Backend target.
+    target: BackendTarget,
 
     /// Account row identifier.
     account_row_id: i64,
@@ -149,6 +152,7 @@ impl ClientDatabaseStorage {
             summaries: Vec::new(),
             current: Arc::new(Mutex::new(None)),
             folders: Default::default(),
+            target,
             paths: paths.clone(),
             identity_log: Arc::new(RwLock::new(identity_log)),
             account_log: Arc::new(RwLock::new(account_log)),
@@ -361,6 +365,69 @@ impl ClientAccountStorage for ClientDatabaseStorage {
 
     fn paths(&self) -> Arc<Paths> {
         self.paths.clone()
+    }
+
+    fn backend_target(&self) -> &BackendTarget {
+        &self.target
+    }
+
+    async fn import_account(
+        &mut self,
+        account_data: &CreateSet,
+    ) -> Result<()> {
+        let account_id = self.account_row_id;
+
+        {
+            let mut writer = self.account_log.write().await;
+            writer.patch_unchecked(&account_data.account).await?;
+        }
+
+        {
+            let mut writer = self.device_log.write().await;
+            writer.patch_unchecked(&account_data.device).await?;
+            let reducer = DeviceReducer::new(&*writer);
+            self.devices = reducer.reduce().await?;
+        }
+
+        #[cfg(feature = "files")]
+        {
+            let mut writer = self.file_log.write().await;
+            writer.patch_unchecked(&account_data.files).await?;
+        }
+
+        for (id, folder) in &account_data.folders {
+            if let Some(vault) = extract_vault(folder.records()).await? {
+                let folder_row = FolderRow::new_insert(&vault).await?;
+
+                self.client
+                    .conn(move |conn| {
+                        let folder = FolderEntity::new(&conn);
+                        folder.insert_folder(account_id, &folder_row)
+                    })
+                    .await
+                    .map_err(sos_database::Error::from)?;
+
+                let mut event_log = FolderEventLog::new_folder(
+                    self.target.clone(),
+                    &self.account_id,
+                    id,
+                )
+                .await?;
+                event_log.patch_unchecked(folder).await?;
+
+                let summary = vault.summary().clone();
+                let folder = Folder::from_vault_event_log(
+                    &self.target,
+                    vault,
+                    event_log,
+                )
+                .await?;
+                self.folders.insert(*id, folder);
+                self.add_summary(summary, Internal);
+            }
+        }
+
+        Ok(())
     }
 
     async fn delete_account(&self) -> Result<Event> {
