@@ -23,13 +23,16 @@ pub async fn run_pairing_protocol(
     // Get the data dir for the second client
     let data_dir = primary_device.dirs.clients.get(1).cloned().unwrap();
     let paths = Paths::new_client(&data_dir);
-    let target = make_client_backend(&paths).await?;
 
     // Need to clear the data directory for the second client
     // as simulate_device() copies all the account data and
     // the identity folder must not exist to enroll a new device
     std::fs::remove_dir_all(&data_dir)?;
     std::fs::create_dir(&data_dir)?;
+
+    // Must prepare the target after clearing the directory
+    // so that we get a fresh database
+    let target = make_client_backend(&paths).await?;
 
     let mut enrollment = {
         // Create the offer of device pairing
