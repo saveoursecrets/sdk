@@ -1,19 +1,19 @@
-//! Login identity vault management.
+//! Login identity folder management.
 //!
-//! Provides access to an identity vault containing
-//! the delegated passwords used by folders managed by an account.
-//!
-//! This enables user interfaces to protect folder passwords
+//! Enables user interfaces to protect folder passwords
 //! using a single primary password.
+//!
+//! Provides access to an identity folder containing
+//! the delegated passwords used by an account to decrypt
+//! the folders for the account.
 use crate::{
     device::DeviceManager, DelegatedAccess, Error, IdentityFolder,
     PublicIdentity, Result,
 };
 use async_trait::async_trait;
-use sos_backend::{database::async_sqlite::Client, BackendTarget};
+use sos_backend::BackendTarget;
 use sos_core::{
-    crypto::AccessKey, AccountId, AuthenticationError, Paths, SecretId,
-    VaultId,
+    crypto::AccessKey, AccountId, AuthenticationError, SecretId, VaultId,
 };
 use sos_vault::read_public_identity;
 use std::{collections::HashMap, path::Path};
@@ -177,24 +177,13 @@ impl Identity {
         account_id: &AccountId,
         key: &AccessKey,
     ) -> Result<()> {
-        self.identity =
-            Some(IdentityFolder::login(&self.target, account_id, key).await?);
-
-        let backend = self.target.clone();
-        match &backend {
-            BackendTarget::FileSystem(paths) => {
-                let paths = paths.with_account_id(account_id);
-
-                // Lazily create or retrieve a device specific signing key
-                let identity = self.identity.as_mut().unwrap();
-                identity.ensure_device_vault_fs(&paths).await
-            }
-            BackendTarget::Database(_, client) => {
-                // Lazily create or retrieve a device specific signing key
-                let identity = self.identity.as_mut().unwrap();
-                identity.ensure_device_vault_db(client).await
-            }
-        }
+        let mut identity =
+            IdentityFolder::login(&self.target, account_id, key).await?;
+        identity
+            .ensure_device_vault(&self.target, account_id)
+            .await?;
+        self.identity = Some(identity);
+        Ok(())
     }
 
     /// Sign in to a user account.

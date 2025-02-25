@@ -31,10 +31,7 @@ use sos_vault::{
     VaultId,
 };
 use sos_vfs as vfs;
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{path::Path, sync::Arc};
 use tokio::sync::RwLock;
 use urn::Urn;
 
@@ -230,10 +227,25 @@ impl IdentityFolder {
 
     /// Ensure that the account has a vault for storing device specific
     /// information such as the private key used to identify a machine.
-    pub(super) async fn ensure_device_vault_fs(
+    pub(super) async fn ensure_device_vault(
         &mut self,
-        paths: &Paths,
+        target: &BackendTarget,
+        account_id: &AccountId,
     ) -> Result<()> {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                let paths = paths.clone().with_account_id(account_id);
+                self.ensure_device_vault_fs(&paths).await
+            }
+            BackendTarget::Database(_, client) => {
+                self.ensure_device_vault_db(client).await
+            }
+        }
+    }
+
+    /// Ensure that the account has a vault for storing device specific
+    /// information such as the private key used to identify a machine.
+    async fn ensure_device_vault_fs(&mut self, paths: &Paths) -> Result<()> {
         let device_vault = if vfs::try_exists(paths.device_file()).await? {
             let buffer = vfs::read(paths.device_file()).await?;
             let vault: Vault = decode(&buffer).await?;
@@ -255,7 +267,7 @@ impl IdentityFolder {
         Ok(())
     }
 
-    pub(super) async fn ensure_device_vault_db(
+    async fn ensure_device_vault_db(
         &mut self,
         client: &Client,
     ) -> Result<()> {
