@@ -83,7 +83,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring"] }
 keyring = { version = "3.5", features = ["apple-native", "windows-native", "sync-secret-service"] }
 
 [workspace.dependencies.rs_merkle]
-version = "1.4.2"
+version = "1.5.0"
 
 [workspace.dependencies.binary-stream]
 version = "9.1.0"
