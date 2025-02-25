@@ -502,6 +502,7 @@ impl Paths {
         } else {
             Paths::data_dir()?
         };
+
         let paths = Self::new_client(data_dir);
         vfs::create_dir_all(paths.documents_dir()).await?;
         vfs::create_dir_all(paths.identity_dir()).await?;

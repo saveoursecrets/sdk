@@ -17,7 +17,7 @@ use sos_core::{
     device::TrustedDevice,
     encode,
     events::{DeviceEvent, Event, EventLog, ReadEvent},
-    AccountId, Paths, VaultId,
+    AccountId, Paths, VaultFlags, VaultId,
 };
 use sos_login::Identity;
 use sos_reducers::{DeviceReducer, FolderReducer};
@@ -93,6 +93,62 @@ pub struct ClientFileSystemStorage {
 }
 
 impl ClientFileSystemStorage {
+    /// Create a new file system account.
+    pub async fn new_account(
+        target: BackendTarget,
+        account_id: &AccountId,
+        account_name: String,
+    ) -> Result<Self> {
+        debug_assert!(matches!(target, BackendTarget::FileSystem(_)));
+        let BackendTarget::FileSystem(paths) = &target else {
+            panic!("filesystem backend expected");
+        };
+        debug_assert!(!paths.is_global());
+
+        paths.ensure().await?;
+
+        let mut login_vault = Vault::default();
+        login_vault.set_name(account_name);
+        *login_vault.flags_mut() = VaultFlags::IDENTITY;
+
+        let buffer = encode(&login_vault).await?;
+        write_exclusive(paths.identity_vault(), &buffer).await?;
+
+        let identity_log =
+            FolderEventLog::new_login_folder(target.clone(), account_id)
+                .await?;
+
+        let account_log =
+            AccountEventLog::new_account(target.clone(), account_id).await?;
+
+        let device_log =
+            DeviceEventLog::new_device(target.clone(), account_id).await?;
+
+        #[cfg(feature = "files")]
+        let file_log =
+            FileEventLog::new_file(target.clone(), account_id).await?;
+
+        Ok(Self {
+            account_id: *account_id,
+            summaries: Vec::new(),
+            current: Arc::new(Mutex::new(None)),
+            folders: Default::default(),
+            paths: Arc::new(paths.clone()),
+            target,
+            identity_log: Arc::new(RwLock::new(identity_log)),
+            account_log: Arc::new(RwLock::new(account_log)),
+            #[cfg(feature = "search")]
+            index: None,
+            device_log: Arc::new(RwLock::new(device_log)),
+            devices: Default::default(),
+            #[cfg(feature = "files")]
+            file_log: Arc::new(RwLock::new(file_log)),
+            #[cfg(feature = "files")]
+            external_file_manager: None,
+            authenticated: None,
+        })
+    }
+
     /// Create unauthenticated folder storage for client-side access.
     ///
     /// Events are loaded into memory.
@@ -109,7 +165,8 @@ impl ClientFileSystemStorage {
         paths.ensure().await?;
 
         let mut identity_log =
-            FolderEventLog::new_fs_folder(paths.identity_events()).await?;
+            FolderEventLog::new_login_folder(target.clone(), account_id)
+                .await?;
         identity_log.load_tree().await?;
 
         let mut account_log =
@@ -330,21 +387,32 @@ impl ClientAccountStorage for ClientFileSystemStorage {
         account_data: &CreateSet,
     ) -> Result<()> {
         {
-            let mut writer = self.account_log.write().await;
-            writer.patch_unchecked(&account_data.account).await?;
+            let mut event_log = self.account_log.write().await;
+            event_log.patch_unchecked(&account_data.account).await?;
         }
 
         {
-            let mut writer = self.device_log.write().await;
-            writer.patch_unchecked(&account_data.device).await?;
-            let reducer = DeviceReducer::new(&*writer);
+            let mut event_log = self.identity_log.write().await;
+            event_log.patch_unchecked(&account_data.identity).await?;
+            let vault = FolderReducer::new()
+                .reduce(&*event_log)
+                .await?
+                .build(true)
+                .await?;
+            self.write_login_vault(&vault, Internal).await?;
+        }
+
+        {
+            let mut event_log = self.device_log.write().await;
+            event_log.patch_unchecked(&account_data.device).await?;
+            let reducer = DeviceReducer::new(&*event_log);
             self.devices = reducer.reduce().await?;
         }
 
         #[cfg(feature = "files")]
         {
-            let mut writer = self.file_log.write().await;
-            writer.patch_unchecked(&account_data.files).await?;
+            let mut event_log = self.file_log.write().await;
+            event_log.patch_unchecked(&account_data.files).await?;
         }
 
         for (id, folder) in &account_data.folders {
@@ -359,6 +427,9 @@ impl ClientAccountStorage for ClientFileSystemStorage {
                 .await?
                 .build(true)
                 .await?;
+
+            self.write_vault(&vault, Internal).await?;
+
             let summary = vault.summary().clone();
             let folder =
                 Folder::from_vault_event_log(&self.target, vault, event_log)
@@ -367,6 +438,14 @@ impl ClientAccountStorage for ClientFileSystemStorage {
             self.add_summary(summary, Internal);
         }
 
+        Ok(())
+    }
+
+    async fn create_device_vault(
+        &mut self,
+        device_vault: &[u8],
+    ) -> Result<()> {
+        write_exclusive(self.paths.device_file(), device_vault).await?;
         Ok(())
     }
 

@@ -257,6 +257,16 @@ pub trait Account {
         account_name: String,
     ) -> std::result::Result<AccountChange<Self::NetworkResult>, Self::Error>;
 
+    /// Set the account name but do not generate a rename event.
+    ///
+    /// Used internally during pairing to ensure the account name
+    /// is correct.
+    #[doc(hidden)]
+    async fn set_account_name(
+        &mut self,
+        account_name: String,
+    ) -> std::result::Result<(), Self::Error>;
+
     /// Delete the account for this user and sign out.
     async fn delete_account(
         &mut self,

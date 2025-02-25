@@ -12,17 +12,20 @@ use sos_backend::{
     FolderEventLog, StorageError,
 };
 use sos_core::{
+    decode,
     device::TrustedDevice,
     encode,
     events::{DeviceEvent, Event, EventLog, ReadEvent},
-    AccountId, Paths, VaultId,
+    AccountId, Paths, VaultFlags, VaultId,
 };
 use sos_database::{
     async_sqlite::Client,
-    entity::{AccountEntity, FolderEntity, FolderRecord, FolderRow},
+    entity::{
+        AccountEntity, AccountRow, FolderEntity, FolderRecord, FolderRow,
+    },
 };
 use sos_login::Identity;
-use sos_reducers::DeviceReducer;
+use sos_reducers::{DeviceReducer, FolderReducer};
 use sos_sync::{CreateSet, StorageEventLogs};
 use sos_vault::{Summary, Vault};
 use sos_vfs as vfs;
@@ -99,6 +102,84 @@ pub struct ClientDatabaseStorage {
 }
 
 impl ClientDatabaseStorage {
+    /// Create a new database account.
+    pub async fn new_account(
+        target: BackendTarget,
+        account_id: &AccountId,
+        account_name: String,
+    ) -> Result<Self> {
+        let (paths, client) = {
+            debug_assert!(matches!(target, BackendTarget::Database(_, _)));
+            let BackendTarget::Database(paths, client) = &target else {
+                panic!("database backend expected");
+            };
+            debug_assert!(!paths.is_global());
+            (paths, client)
+        };
+
+        let mut login_vault = Vault::default();
+        login_vault.set_name(account_name.to_owned());
+        *login_vault.flags_mut() = VaultFlags::IDENTITY;
+
+        let account_row = AccountRow::new_insert(&account_id, account_name)?;
+        let folder_row = FolderRow::new_insert(&login_vault).await?;
+        let account_row_id = client
+            .conn_mut(move |conn| {
+                let tx = conn.transaction()?;
+                let account = AccountEntity::new(&tx);
+                let folder = FolderEntity::new(&tx);
+
+                let account_id = account.insert(&account_row)?;
+                let folder_id =
+                    folder.insert_folder(account_id, &folder_row)?;
+                account.insert_login_folder(account_id, folder_id)?;
+
+                tx.commit()?;
+                Ok(account_id)
+            })
+            .await
+            .map_err(sos_backend::database::Error::from)?;
+
+        let identity_log = FolderEventLog::new_folder(
+            target.clone(),
+            account_id,
+            login_vault.id(),
+        )
+        .await?;
+
+        let account_log =
+            AccountEventLog::new_account(target.clone(), account_id).await?;
+
+        let device_log =
+            DeviceEventLog::new_device(target.clone(), account_id).await?;
+
+        #[cfg(feature = "files")]
+        let file_log =
+            FileEventLog::new_file(target.clone(), account_id).await?;
+
+        Ok(Self {
+            account_id: *account_id,
+            client: client.clone(),
+            account_row_id,
+            summaries: Vec::new(),
+            current: Arc::new(Mutex::new(None)),
+            folders: Default::default(),
+            paths: Arc::new(paths.clone()),
+            target,
+            identity_log: Arc::new(RwLock::new(identity_log)),
+            account_log: Arc::new(RwLock::new(account_log)),
+            #[cfg(feature = "search")]
+            index: None,
+            device_log: Arc::new(RwLock::new(device_log)),
+            devices: Default::default(),
+            #[cfg(feature = "files")]
+            file_log: Arc::new(RwLock::new(file_log)),
+            #[cfg(feature = "files")]
+            external_file_manager: None,
+            authenticated: None,
+        })
+    }
+
     /// Create unauthenticated folder storage for client-side access.
     ///
     /// Events are loaded into memory.
@@ -378,27 +459,38 @@ impl ClientAccountStorage for ClientDatabaseStorage {
         let account_id = self.account_row_id;
 
         {
-            let mut writer = self.account_log.write().await;
-            writer.patch_unchecked(&account_data.account).await?;
+            let mut event_log = self.account_log.write().await;
+            event_log.patch_unchecked(&account_data.account).await?;
         }
 
         {
-            let mut writer = self.device_log.write().await;
-            writer.patch_unchecked(&account_data.device).await?;
-            let reducer = DeviceReducer::new(&*writer);
+            let mut event_log = self.identity_log.write().await;
+            event_log.patch_unchecked(&account_data.identity).await?;
+            let vault = FolderReducer::new()
+                .reduce(&*event_log)
+                .await?
+                .build(true)
+                .await?;
+            self.write_login_vault(&vault, Internal).await?;
+        }
+
+        {
+            let mut event_log = self.device_log.write().await;
+            event_log.patch_unchecked(&account_data.device).await?;
+            let reducer = DeviceReducer::new(&*event_log);
             self.devices = reducer.reduce().await?;
         }
 
         #[cfg(feature = "files")]
         {
-            let mut writer = self.file_log.write().await;
-            writer.patch_unchecked(&account_data.files).await?;
+            let mut event_log = self.file_log.write().await;
+            event_log.patch_unchecked(&account_data.files).await?;
         }
 
         for (id, folder) in &account_data.folders {
             if let Some(vault) = extract_vault(folder.records()).await? {
+                // Prepare the folder relationship for the event log
                 let folder_row = FolderRow::new_insert(&vault).await?;
-
                 self.client
                     .conn(move |conn| {
                         let folder = FolderEntity::new(&conn);
@@ -415,6 +507,19 @@ impl ClientAccountStorage for ClientDatabaseStorage {
                 .await?;
                 event_log.patch_unchecked(folder).await?;
 
+                let vault = FolderReducer::new()
+                    .reduce(&event_log)
+                    .await?
+                    .build(true)
+                    .await?;
+
+                FolderEntity::upsert_folder_and_secrets(
+                    &self.client,
+                    self.account_row_id,
+                    &vault,
+                )
+                .await?;
+
                 let summary = vault.summary().clone();
                 let folder = Folder::from_vault_event_log(
                     &self.target,
@@ -426,6 +531,32 @@ impl ClientAccountStorage for ClientDatabaseStorage {
                 self.add_summary(summary, Internal);
             }
         }
+
+        Ok(())
+    }
+
+    async fn create_device_vault(
+        &mut self,
+        device_vault: &[u8],
+    ) -> Result<()> {
+        // Upsert the folder
+        let vault: Vault = decode(device_vault).await?;
+        let (folder_id, _) = FolderEntity::upsert_folder_and_secrets(
+            &self.client,
+            self.account_row_id,
+            &vault,
+        )
+        .await?;
+
+        // Create the join for the new device folder
+        let account_row_id = self.account_row_id;
+        self.client
+            .conn(move |conn| {
+                let account_entity = AccountEntity::new(&conn);
+                account_entity.insert_device_folder(account_row_id, folder_id)
+            })
+            .await
+            .map_err(sos_database::Error::from)?;
 
         Ok(())
     }

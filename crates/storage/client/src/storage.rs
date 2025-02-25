@@ -77,6 +77,38 @@ impl ClientStorage {
             }
         })
     }
+
+    /// Create new account in client storage.
+    pub async fn new_account(
+        target: BackendTarget,
+        account_id: &AccountId,
+        account_name: String,
+    ) -> Result<Self> {
+        Ok(match &target {
+            BackendTarget::FileSystem(paths) => {
+                debug_assert!(!paths.is_server());
+                Self::FileSystem(SyncImpl::new(
+                    ClientFileSystemStorage::new_account(
+                        target,
+                        account_id,
+                        account_name,
+                    )
+                    .await?,
+                ))
+            }
+            BackendTarget::Database(paths, _) => {
+                debug_assert!(!paths.is_server());
+                Self::Database(SyncImpl::new(
+                    ClientDatabaseStorage::new_account(
+                        target,
+                        account_id,
+                        account_name,
+                    )
+                    .await?,
+                ))
+            }
+        })
+    }
 }
 
 impl ClientBaseStorage for ClientStorage {
@@ -310,6 +342,20 @@ impl ClientAccountStorage for ClientStorage {
             }
             ClientStorage::Database(db) => {
                 db.import_account(account_data).await
+            }
+        }
+    }
+
+    async fn create_device_vault(
+        &mut self,
+        device_vault: &[u8],
+    ) -> Result<()> {
+        match self {
+            ClientStorage::FileSystem(fs) => {
+                fs.create_device_vault(device_vault).await
+            }
+            ClientStorage::Database(db) => {
+                db.create_device_vault(device_vault).await
             }
         }
     }

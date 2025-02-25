@@ -348,6 +348,14 @@ impl Account for LinkedAccount {
         Ok(result)
     }
 
+    async fn set_account_name(
+        &mut self,
+        account_name: String,
+    ) -> std::result::Result<(), Self::Error> {
+        let mut account = self.account.lock().await;
+        Ok(account.set_account_name(account_name).await?)
+    }
+
     async fn delete_account(&mut self) -> Result<()> {
         let mut account = self.account.lock().await;
         Ok(account.delete_account().await?)

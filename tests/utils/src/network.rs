@@ -1,4 +1,4 @@
-use crate::{setup, TestDirs, TestServer};
+use crate::{make_client_backend, setup, TestDirs, TestServer};
 use anyhow::Result;
 use copy_dir::copy_dir;
 use secrecy::SecretString;
@@ -79,9 +79,10 @@ impl SimulatedDevice {
         let data_dir = self.dirs.clients.get(index).unwrap();
         let paths = Paths::new_client(&data_dir)
             .with_account_id(self.owner.account_id());
+        let target = make_client_backend(&paths).await?;
         let mut owner = NetworkAccount::new_unauthenticated(
             *self.owner.account_id(),
-            BackendTarget::FileSystem(paths),
+            target,
             Default::default(),
         )
         .await?;
@@ -133,12 +134,13 @@ pub async fn simulate_device_with_builder(
     let dirs = setup(test_id, num_clients).await?;
     let data_dir = dirs.clients.get(0).unwrap().clone();
     let paths = Paths::new_client(&data_dir);
+    let target = make_client_backend(&paths).await?;
 
     let (password, _) = generate_passphrase()?;
     let mut owner = NetworkAccount::new_account_with_builder(
         test_id.to_owned(),
         password.clone(),
-        BackendTarget::FileSystem(paths),
+        target,
         Default::default(),
         builder,
     )

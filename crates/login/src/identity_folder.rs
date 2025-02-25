@@ -260,7 +260,7 @@ impl IdentityFolder {
                 AccessPoint::new_fs(vault, paths.device_file());
             self.read_device_manager(&folder_id, device_keeper).await?
         } else {
-            self.new_device_manager_fs(DeviceSigner::new_random(), paths)
+            self.new_device_manager_fs(paths, DeviceSigner::new_random())
                 .await?
         };
         self.devices = Some(device_manager);
@@ -308,18 +308,34 @@ impl IdentityFolder {
                 AccessPoint::new_db(vault, client.clone(), folder_id).await;
             self.read_device_manager(&folder_id, device_keeper).await?
         } else {
-            self.new_device_manager_db(DeviceSigner::new_random(), client)
+            self.new_device_manager_db(client, DeviceSigner::new_random())
                 .await?
         };
         self.devices = Some(device_manager);
         Ok(())
     }
 
-    /// Create a new file system device manager.
-    pub async fn new_device_manager_fs(
+    /// Create a device manager from a signer.
+    pub async fn new_device_manager(
         &mut self,
+        target: &BackendTarget,
         signer: DeviceSigner,
+    ) -> Result<DeviceManager> {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                self.new_device_manager_fs(paths, signer).await
+            }
+            BackendTarget::Database(_, client) => {
+                self.new_device_manager_db(client, signer).await
+            }
+        }
+    }
+
+    /// Create a new file system device manager.
+    async fn new_device_manager_fs(
+        &mut self,
         paths: &Paths,
+        signer: DeviceSigner,
     ) -> Result<DeviceManager> {
         let (device_password, device_vault) =
             self.create_device_vault().await?;
@@ -340,10 +356,10 @@ impl IdentityFolder {
     }
 
     /// Create a new database device manager.
-    pub async fn new_device_manager_db(
+    async fn new_device_manager_db(
         &mut self,
-        signer: DeviceSigner,
         client: &Client,
+        signer: DeviceSigner,
     ) -> Result<DeviceManager> {
         let (device_password, device_vault) =
             self.create_device_vault().await?;

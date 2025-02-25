@@ -68,6 +68,8 @@ message PairingConfirm {
   repeated sync.WireOrigin servers = 4;
   // Account identifier.
   string account_id = 5;
+  // Account name.
+  string account_name = 6;
 }
 
 // Message for the pairing protocol.

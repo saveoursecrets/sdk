@@ -5,12 +5,10 @@ use crate::{
 };
 use sos_account::Account;
 use sos_backend::{BackendTarget, ServerOrigins};
-use sos_client_storage::{
-    ClientAccountStorage, ClientFolderStorage, ClientStorage,
-};
+use sos_client_storage::{ClientAccountStorage, ClientStorage};
 use sos_core::{
-    crypto::AccessKey, events::AccountEvent, AccountId, Origin,
-    PublicIdentity, RemoteOrigins,
+    crypto::AccessKey, AccountId, Origin, Paths, PublicIdentity,
+    RemoteOrigins,
 };
 use sos_login::device::DeviceSigner;
 use sos_protocol::{network_client::HttpClient, SyncClient};
@@ -36,8 +34,8 @@ pub struct DeviceEnrollment {
     public_identity: Option<PublicIdentity>,
     /// Device vault.
     device_vault: Vec<u8>,
-    /// Account name extracted from the account event logs.
-    account_name: Option<String>,
+    /// Account name supplied by the other device.
+    account_name: String,
     /// Collection of server origins.
     servers: HashSet<Origin>,
 }
@@ -47,12 +45,26 @@ impl DeviceEnrollment {
     pub(crate) async fn new(
         target: BackendTarget,
         account_id: AccountId,
+        account_name: String,
         origin: Origin,
         device_signer: DeviceSigner,
         device_vault: Vec<u8>,
         servers: HashSet<Origin>,
     ) -> Result<Self> {
         let target = target.with_account_id(&account_id);
+
+        match &target {
+            BackendTarget::FileSystem(paths) => {
+                #[cfg(debug_assertions)]
+                Paths::scaffold(Some(paths.documents_dir().to_owned()))
+                    .await?;
+                paths.ensure().await?;
+            }
+            BackendTarget::Database(paths, _) => {
+                paths.ensure_db().await?;
+            }
+        }
+
         let accounts = target.list_accounts().await?;
         if accounts
             .iter()
@@ -62,9 +74,12 @@ impl DeviceEnrollment {
             return Err(Error::EnrollAccountExists(account_id));
         }
 
-        let storage =
-            ClientStorage::new_unauthenticated(target, &account_id).await?;
-
+        let storage = ClientStorage::new_account(
+            target,
+            &account_id,
+            account_name.clone(),
+        )
+        .await?;
         let device_signing_key = device_signer.clone();
         let device: BoxedEd25519Signer = device_signing_key.into();
         let client =
@@ -75,7 +90,7 @@ impl DeviceEnrollment {
             client,
             public_identity: None,
             device_vault,
-            account_name: None,
+            account_name,
             servers,
         })
     }
@@ -95,62 +110,27 @@ impl DeviceEnrollment {
 
     /// Fetch the account data for this enrollment.
     pub async fn fetch_account(&mut self) -> Result<()> {
+        // Fetch the account from the server
         let change_set = self.client.fetch_account().await?;
-
-        // Find out if the account has been renamed
-        for record in change_set.account.iter() {
-            let event = record.decode_event::<AccountEvent>().await?;
-            if let AccountEvent::RenameAccount(account_name) = event {
-                self.account_name = Some(account_name.to_string());
-            }
-        }
 
         // Create the account data in storage
         self.storage.import_account(&change_set).await?;
 
-        /*
-        // Got an account name change event so update the name
-        // of the identity vault
-        if let Some(account_name) = self.account_name.take() {
-            let path = self.paths.identity_vault();
-            let mut file = VaultWriter::new_fs(&path);
-            file.set_vault_name(account_name).await?;
-        }
-        */
-
-        // Read the login vault to extract public identity
-        let login_vault = self.storage.read_login_vault().await?;
-        self.public_identity = Some(PublicIdentity::new(
-            self.account_id,
-            login_vault.name().to_owned(),
-        ));
-
-        /*
-        self.create_folders(change_set.folders).await?;
-        self.create_account(change_set.account).await?;
-        self.create_device(change_set.device).await?;
-        self.create_identity(change_set.identity).await?;
-
-        // Got an account name change event so update the name
-        // of the identity vault
-        if let Some(account_name) = self.account_name.take() {
-            let path = self.paths.identity_vault();
-            let mut file = VaultWriter::new_fs(&path);
-            file.set_vault_name(account_name).await?;
-        }
-        */
-
-        // TODO: must write out the device vault to storage!!!
-
-        /*
-        // Write the vault containing the device signing key
-        write_exclusive(self.paths.device_file(), &self.device_vault).await?;
-        */
+        // Create the device vault containing the private
+        // key for this new device
+        self.storage.create_device_vault(&self.device_vault).await?;
 
         // Add origin servers early so that they will be registered
         // as remotes when the enrollment is finished and the account
         // is authenticated
         self.add_origin_servers().await?;
+
+        // Set up the public identity which can be shown
+        // to the user before they authenticate by calling finish()
+        self.public_identity = Some(PublicIdentity::new(
+            self.account_id,
+            self.account_name.clone(),
+        ));
 
         Ok(())
     }
@@ -170,6 +150,9 @@ impl DeviceEnrollment {
 
         // Sign in to the new account
         account.sign_in(key).await?;
+
+        // Ensure the account name is correct
+        account.set_account_name(self.account_name.clone()).await?;
 
         Ok(account)
     }

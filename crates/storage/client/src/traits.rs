@@ -839,6 +839,15 @@ pub trait ClientAccountStorage:
         account_data: &CreateSet,
     ) -> Result<()>;
 
+    /// Create a device vault from a buffer.
+    ///
+    /// Used during pairing enrollment to initialize
+    /// a device vault received from the authorizing device.
+    async fn create_device_vault(
+        &mut self,
+        device_vault: &[u8],
+    ) -> Result<()>;
+
     /// Delete the account for this user.
     async fn delete_account(&self) -> Result<Event>;
 

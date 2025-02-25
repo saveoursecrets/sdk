@@ -45,6 +45,10 @@ use std::path::Path;
 
 /// Open a database file from a path with WAL journal mode enabled.
 pub async fn open_file(path: impl AsRef<Path>) -> Result<Client> {
+    tracing::debug!(
+        path = %path.as_ref().display(),
+        "database::open_file",
+    );
     Ok(ClientBuilder::new()
         .path(path.as_ref())
         .journal_mode(JournalMode::Wal)

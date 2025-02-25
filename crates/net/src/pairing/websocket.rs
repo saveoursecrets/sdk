@@ -378,12 +378,14 @@ impl<'a> OfferPairing<'a> {
                         self.account.new_device_vault().await?;
                     let device_vault = manager.into_vault_buffer().await?;
                     let servers = self.account.servers().await;
+                    let account_name = self.account.account_label().await?;
 
                     self.register_device(device_signer.public_key(), device)
                         .await?;
 
                     let private_message = PairingConfirm {
                         account_id: message.account_id,
+                        account_name,
                         device_signing_key: device_signer.to_bytes().to_vec(),
                         device_vault,
                         servers: servers
@@ -858,6 +860,7 @@ impl<'a> AcceptPairing<'a> {
         let enrollment = DeviceEnrollment::new(
             self.target.clone(),
             account_id,
+            confirmation.account_name,
             origin,
             device_signing_key.try_into()?,
             device_vault,

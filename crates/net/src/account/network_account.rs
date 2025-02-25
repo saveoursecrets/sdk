@@ -172,7 +172,8 @@ impl NetworkAccount {
             self.connection_id = self.client_connection_id().await.ok();
         }
 
-        let server_origins = ServerOrigins::new_fs(self.paths());
+        let server_origins =
+            ServerOrigins::new(self.backend_target().await, &self.account_id);
         let servers = server_origins.list_servers().await?;
 
         // Initialize remote bridges for each server origin
@@ -973,6 +974,14 @@ impl Account for NetworkAccount {
         };
 
         Ok(result)
+    }
+
+    async fn set_account_name(
+        &mut self,
+        account_name: String,
+    ) -> std::result::Result<(), Self::Error> {
+        let mut account = self.account.lock().await;
+        Ok(account.set_account_name(account_name).await?)
     }
 
     async fn delete_account(&mut self) -> Result<()> {

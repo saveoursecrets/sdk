@@ -15,8 +15,7 @@ use sos_backend::BackendTarget;
 use sos_core::{
     crypto::AccessKey, AccountId, AuthenticationError, SecretId, VaultId,
 };
-use sos_vault::read_public_identity;
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
 use urn::Urn;
 
 #[cfg(feature = "files")]

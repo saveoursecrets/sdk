@@ -753,21 +753,17 @@ impl Account for LocalAccount {
     async fn new_device_vault(
         &mut self,
     ) -> Result<(DeviceSigner, DeviceManager)> {
-        let paths = self.paths();
         let signer = DeviceSigner::new_random();
 
-        let manager = if paths.is_using_db() {
-            todo!("handle new_device_vault when db");
-        } else {
-            let authenticated_user = self
-                .storage
-                .authenticated_user_mut()
-                .ok_or(AuthenticationError::NotAuthenticated)?;
-            authenticated_user
-                .identity_mut()?
-                .new_device_manager_fs(signer.clone(), &*paths)
-                .await?
-        };
+        let target = self.target.clone();
+        let authenticated_user = self
+            .storage
+            .authenticated_user_mut()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+        let manager = authenticated_user
+            .identity_mut()?
+            .new_device_manager(&target, signer.clone())
+            .await?;
 
         Ok((signer, manager))
     }
@@ -1054,15 +1050,7 @@ impl Account for LocalAccount {
         account_name: String,
     ) -> Result<AccountChange<Self::NetworkResult>> {
         // Rename the local identity folder
-        {
-            let authenticated_user = self
-                .storage
-                .authenticated_user_mut()
-                .ok_or(AuthenticationError::NotAuthenticated)?;
-            authenticated_user
-                .rename_account(account_name.clone())
-                .await?;
-        }
+        self.set_account_name(account_name.clone()).await?;
 
         // Generate and append the rename event
         let event = {
@@ -1077,6 +1065,17 @@ impl Account for LocalAccount {
             event: Event::Account(event),
             sync_result: (),
         })
+    }
+
+    async fn set_account_name(&mut self, account_name: String) -> Result<()> {
+        let authenticated_user = self
+            .storage
+            .authenticated_user_mut()
+            .ok_or(AuthenticationError::NotAuthenticated)?;
+        authenticated_user
+            .rename_account(account_name.clone())
+            .await?;
+        Ok(())
     }
 
     async fn delete_account(&mut self) -> Result<()> {

@@ -20,6 +20,8 @@ async fn pairing_account_name() -> Result<()> {
     let mut primary_device =
         simulate_device(TEST_ID, 2, Some(&server)).await?;
     let origin = primary_device.origin.clone();
+    let default_folder =
+        primary_device.owner.default_folder().await.unwrap().clone();
     let folders = primary_device.folders.clone();
 
     // Create a secret in the primary owner which won't exist
@@ -47,8 +49,9 @@ async fn pairing_account_name() -> Result<()> {
     assert!(primary_device.owner.sync().await.first_error().is_none());
 
     // Read the secret on the newly enrolled account
-    let (secret_data, _) =
-        enrolled_account.read_secret(&result.id, None).await?;
+    let (secret_data, _) = enrolled_account
+        .read_secret(&result.id, default_folder.id().into())
+        .await?;
     assert_eq!(TEST_ID, secret_data.meta().label());
 
     // Primary device has two trusted devices
