@@ -739,9 +739,22 @@ where
         folder_id: i64,
         secret_row: &SecretRow,
     ) -> StdResult<i64, SqlError> {
+        // NOTE: we have to use an upsert here as auto merge
+        // NOTE: can try to create secrets that already exist
+        // NOTE: so we handle the conflict situation
         let query = sql::Insert::new()
             .insert_into("folder_secrets (folder_id, identifier, commit_hash, meta, secret, created_at, modified_at)")
-            .values("(?1, ?2, ?3, ?4, ?5, ?6, ?7)");
+            .values("(?1, ?2, ?3, ?4, ?5, ?6, ?7)")
+            .on_conflict(
+            r#"
+                (identifier)
+                DO UPDATE SET
+                    folder_id=excluded.folder_id,
+                    commit_hash=excluded.commit_hash,
+                    meta=excluded.meta,
+                    secret=excluded.secret,
+                    modified_at=excluded.modified_at
+            "#);
         let mut stmt = self.conn.prepare_cached(&query.as_string())?;
         stmt.execute((
             &folder_id,

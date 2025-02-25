@@ -510,7 +510,10 @@ pub trait AutoMerge: RemoteSyncHandler {
     where
         T: Default + Send + Sync,
     {
-        tracing::debug!(commit = %commit, "auto_merge::try_merge_from_ancestor");
+        tracing::debug!(
+            commit = %commit,
+            "auto_merge::try_merge_from_ancestor",
+        );
 
         // Get the patch from local
         let local_patch = {
@@ -694,6 +697,7 @@ pub trait AutoMerge: RemoteSyncHandler {
                         checkpoint: proof,
                         patch,
                     };
+
                     account.merge_folder(id, diff, &mut outcome).await?.0
                 }
             }
