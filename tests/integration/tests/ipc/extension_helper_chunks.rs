@@ -16,7 +16,7 @@ async fn integration_ipc_extension_helper_chunks() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
-    Paths::scaffold(Some(data_dir.clone())).await?;
+    Paths::scaffold(&data_dir).await?;
     let data_dir = data_dir.display().to_string();
 
     let request = LocalRequest::get("/large-file".parse().unwrap());

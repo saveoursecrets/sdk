@@ -21,7 +21,7 @@ async fn identity_not_vault() -> Result<()> {
         .await?;
     let buffer = encode(&vault).await?;
 
-    Paths::scaffold(Some(temp_dir.path().to_owned())).await?;
+    Paths::scaffold(&temp_dir.path().to_owned()).await?;
     let paths =
         Paths::new_client(temp_dir.path()).with_account_id(&account_id);
     vfs::write(paths.identity_vault(), &buffer).await?;
@@ -55,7 +55,7 @@ async fn identity_no_key() -> Result<()> {
     let vault: Vault = keeper.into();
     let buffer = encode(&vault).await?;
 
-    Paths::scaffold(Some(temp_dir.path().to_owned())).await?;
+    Paths::scaffold(&temp_dir.path().to_owned()).await?;
     let paths =
         Paths::new_client(temp_dir.path()).with_account_id(&account_id);
     vfs::write(paths.identity_vault(), &buffer).await?;

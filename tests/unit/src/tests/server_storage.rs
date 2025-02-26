@@ -22,7 +22,7 @@ use tempfile::tempdir_in;
 #[tokio::test]
 async fn fs_server_storage() -> Result<()> {
     let temp = tempdir_in("target")?;
-    Paths::scaffold(Some(temp.path().to_owned())).await?;
+    Paths::scaffold(&temp.path().to_owned()).await?;
 
     let account_id = AccountId::random();
     let mut storage = ServerStorage::new(
@@ -37,7 +37,7 @@ async fn fs_server_storage() -> Result<()> {
 #[tokio::test]
 async fn db_server_storage() -> Result<()> {
     let temp = tempdir_in("target")?;
-    Paths::scaffold(Some(temp.path().to_owned())).await?;
+    Paths::scaffold(&temp.path().to_owned()).await?;
 
     let mut client = memory_database().await?;
     let mut vault: Vault = Default::default();

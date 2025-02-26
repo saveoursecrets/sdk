@@ -18,7 +18,7 @@ async fn sign_in_identity_login() -> Result<()> {
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
 
-    Paths::scaffold(Some(data_dir.clone())).await?;
+    Paths::scaffold(&data_dir).await?;
     let paths = Paths::new_client(data_dir.clone());
     let target = make_client_backend(&paths).await?;
 

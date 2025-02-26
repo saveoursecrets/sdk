@@ -12,7 +12,7 @@ async fn vault_writer_flags_filesystem() -> Result<()> {
     let account_id = AccountId::random();
 
     let (vault, _password) = mock::vault_memory().await?;
-    Paths::scaffold(Some(temp.path().to_owned())).await?;
+    Paths::scaffold(&temp.path().to_owned()).await?;
 
     let paths = Paths::new_client(temp.path()).with_account_id(&account_id);
     paths.ensure().await?;

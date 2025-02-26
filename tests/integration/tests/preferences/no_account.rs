@@ -19,7 +19,7 @@ async fn preferences_no_account() -> Result<()> {
     let identity = PublicIdentity::new(account_id, "mock-user".to_owned());
 
     // Ensure paths exist
-    Paths::scaffold(Some(data_dir.clone())).await?;
+    Paths::scaffold(&data_dir).await?;
     let paths = Paths::new_client(&data_dir).with_account_id(&account_id);
     paths.ensure().await?;
 

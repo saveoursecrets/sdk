@@ -14,7 +14,7 @@ async fn local_account_lifecycle() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
-    Paths::scaffold(Some(data_dir.clone())).await?;
+    Paths::scaffold(&data_dir).await?;
     let paths = Paths::new_client(&data_dir);
     let target = make_client_backend(&paths).await?;
 

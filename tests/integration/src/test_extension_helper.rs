@@ -55,7 +55,7 @@ pub async fn main() -> anyhow::Result<()> {
                     .await?)
                 })
             },
-            data_dir.clone(),
+            data_dir.as_ref(),
         )
         .await?;
 

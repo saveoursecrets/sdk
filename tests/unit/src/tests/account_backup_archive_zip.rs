@@ -10,7 +10,7 @@ async fn archive_buffer_async() -> Result<()> {
     let writer = Writer::new(Cursor::new(&mut archive));
     let dir = tempfile::tempdir()?;
 
-    Paths::scaffold(Some(dir.path().to_owned())).await?;
+    Paths::scaffold(&dir.path().to_owned()).await?;
     let paths = Paths::new_client(&dir);
     let target = make_client_backend(&paths).await?;
 

@@ -140,7 +140,7 @@ pub async fn run() -> Result<()> {
         Paths::set_data_dir(storage.clone());
     }
 
-    Paths::scaffold(args.storage).await?;
+    Paths::scaffold(args.storage.as_ref()).await?;
     let paths = Paths::new_client(Paths::data_dir()?);
     let provider =
         sos_backend::audit::new_fs_provider(paths.audit_file().to_owned());

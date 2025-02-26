@@ -67,7 +67,7 @@ impl Backend {
     }
 
     pub(crate) async fn load_fs_accounts(&mut self) -> Result<()> {
-        Paths::scaffold(Some(self.paths.documents_dir().to_owned())).await?;
+        Paths::scaffold(self.paths.documents_dir()).await?;
 
         tracing::debug!(
             directory = %self.paths.documents_dir().display(),

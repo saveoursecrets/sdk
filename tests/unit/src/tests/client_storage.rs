@@ -33,7 +33,7 @@ const RENAME: &str = "renamed-folder";
 #[tokio::test]
 async fn fs_client_storage() -> Result<()> {
     let temp = tempdir_in("target")?;
-    Paths::scaffold(Some(temp.path().to_owned())).await?;
+    Paths::scaffold(&temp.path().to_owned()).await?;
 
     let account_id = AccountId::random();
 
@@ -51,7 +51,7 @@ async fn fs_client_storage() -> Result<()> {
 #[tokio::test]
 async fn db_client_storage() -> Result<()> {
     let temp = tempdir_in("target")?;
-    Paths::scaffold(Some(temp.path().to_owned())).await?;
+    Paths::scaffold(&temp.path().to_owned()).await?;
 
     let account_id = AccountId::random();
 

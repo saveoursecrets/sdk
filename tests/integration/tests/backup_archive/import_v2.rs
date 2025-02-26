@@ -17,7 +17,7 @@ async fn backup_import_v2() -> Result<()> {
 
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
-    Paths::scaffold(Some(data_dir.clone())).await?;
+    Paths::scaffold(&data_dir).await?;
 
     let archive =
         "../fixtures/backups/v2/0xba0faea9bbc182e3f4fdb3eea7636b5bb31ea9ac.zip";

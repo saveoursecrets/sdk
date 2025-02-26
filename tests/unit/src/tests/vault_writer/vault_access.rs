@@ -19,7 +19,7 @@ async fn vault_writer_access_filesystem() -> Result<()> {
     let (encryption_key, _, _) = mock::encryption_key()?;
 
     let (vault, _password) = mock::vault_memory().await?;
-    Paths::scaffold(Some(temp.path().to_owned())).await?;
+    Paths::scaffold(&temp.path().to_owned()).await?;
 
     let paths = Paths::new_client(temp.path()).with_account_id(&account_id);
     paths.ensure().await?;

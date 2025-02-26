@@ -55,8 +55,7 @@ impl DeviceEnrollment {
         match &target {
             BackendTarget::FileSystem(paths) => {
                 #[cfg(debug_assertions)]
-                Paths::scaffold(Some(paths.documents_dir().to_owned()))
-                    .await?;
+                Paths::scaffold(paths.documents_dir()).await?;
                 paths.ensure().await?;
             }
             BackendTarget::Database(paths, _) => {

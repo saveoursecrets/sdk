@@ -101,7 +101,7 @@ where
     pub async fn load_accounts<B>(
         &mut self,
         builder: B,
-        data_dir: Option<PathBuf>,
+        data_dir: Option<&PathBuf>,
     ) -> Result<()>
     where
         B: Fn(
@@ -109,7 +109,7 @@ where
         )
             -> Pin<Box<dyn Future<Output = std::result::Result<A, E>>>>,
     {
-        Paths::scaffold(data_dir.clone()).await?;
+        Paths::scaffold(data_dir).await?;
 
         let paths = if let Some(data_dir) = data_dir {
             Paths::new_client(data_dir)

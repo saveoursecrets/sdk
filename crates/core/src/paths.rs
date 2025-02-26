@@ -523,17 +523,21 @@ impl Paths {
         vault_path
     }
 
-    /// Ensure the root directories exist for file system storage.
-    pub async fn scaffold(data_dir: Option<PathBuf>) -> Result<()> {
-        let data_dir = if let Some(data_dir) = data_dir {
-            data_dir
+    /// Ensure the root directories exist for storage.
+    pub async fn scaffold(
+        data_dir: impl Into<Option<&PathBuf>>,
+    ) -> Result<()> {
+        let data_dir = if let Some(data_dir) = data_dir.into() {
+            data_dir.to_owned()
         } else {
             Paths::data_dir()?
         };
 
         let paths = Self::new_client(data_dir);
         vfs::create_dir_all(paths.documents_dir()).await?;
-        vfs::create_dir_all(paths.identity_dir()).await?;
+        if !paths.is_using_db() {
+            vfs::create_dir_all(paths.identity_dir()).await?;
+        }
         vfs::create_dir_all(paths.logs_dir()).await?;
         Ok(())
     }
@@ -625,6 +629,7 @@ fn default_storage_dir() -> Result<PathBuf> {
     #[cfg(windows)]
     {
         let mut path = strategy.cache_dir();
+        // Backwards compatible when we moved from app_dirs2
         path.pop();
         Ok(path)
     }

@@ -303,7 +303,7 @@ impl AccountBuilder {
         // TODO: remove this and always scaffold in test specs
         #[cfg(debug_assertions)]
         if let BackendTarget::FileSystem(paths) = &self.target {
-            Paths::scaffold(Some(paths.documents_dir().to_owned())).await?;
+            Paths::scaffold(paths.documents_dir()).await?;
         }
 
         // Prepare the identity folder
