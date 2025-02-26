@@ -1416,7 +1416,7 @@ impl Account for LocalAccount {
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
-        file_name: &str,
+        file_name: &sos_core::ExternalFileName,
     ) -> Result<Vec<u8>> {
         let buffer = self
             .storage

@@ -1278,7 +1278,7 @@ impl Account for NetworkAccount {
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
-        file_name: &str,
+        file_name: &sos_core::ExternalFileName,
     ) -> Result<Vec<u8>> {
         let account = self.account.lock().await;
         Ok(account

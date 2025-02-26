@@ -22,7 +22,7 @@ type Result<T> = std::result::Result<T, sos_core::Error>;
 pub async fn list_external_files(
     paths: &Paths,
 ) -> Result<IndexSet<ExternalFile>> {
-    list_account(paths.files_dir(), |folder_id| {
+    list_account(paths.into_files_dir(), |folder_id| {
         paths.into_file_folder_path(&folder_id)
     })
     .await
@@ -32,7 +32,7 @@ pub async fn list_external_files(
 pub async fn list_external_blobs(
     paths: &Paths,
 ) -> Result<IndexSet<ExternalFile>> {
-    list_account(paths.blobs_account_dir(), |folder_id| {
+    list_account(paths.into_files_dir(), |folder_id| {
         paths.into_file_folder_path(&folder_id)
     })
     .await

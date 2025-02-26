@@ -89,7 +89,7 @@ impl ExternalFileManager {
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
-        file_name: &str,
+        file_name: &ExternalFileName,
     ) -> Result<Vec<u8>> {
         Ok(FileStorage::decrypt_file_storage(
             &self.file_password,
@@ -106,7 +106,7 @@ impl ExternalFileManager {
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
-        file_name: &str,
+        file_name: &ExternalFileName,
     ) -> Result<Vec<u8>> {
         self.decrypt_file_storage(vault_id, secret_id, file_name)
             .await

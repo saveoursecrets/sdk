@@ -2,6 +2,7 @@ use crate::test_utils::{mock, setup, teardown};
 use anyhow::Result;
 use hex;
 use sos_account::{Account, LocalAccount, SecretChange};
+use sos_core::ExternalFileName;
 use sos_sdk::{prelude::*, vfs};
 use sos_test_utils::make_client_backend;
 
@@ -47,7 +48,7 @@ async fn local_update_file() -> Result<()> {
         ..
     } = secret_data.secret()
     {
-        let file_name = hex::encode(checksum);
+        let file_name = ExternalFileName::from(checksum);
         let file_content = account
             .download_file(default_folder.id(), &id, &file_name)
             .await?;

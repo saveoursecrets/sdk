@@ -17,7 +17,7 @@ use hex;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use sos_backend::write_exclusive;
-use sos_core::Paths;
+use sos_core::{ExternalFileName, Paths};
 use sos_external_files::EncryptedFile;
 use sos_vault::{secret::SecretId, VaultId};
 use sos_vfs::{self as vfs, File};
@@ -88,18 +88,7 @@ impl FileStorage {
         vault_id: &VaultId,
         secret_id: &SecretId,
     ) -> Result<EncryptedFile> {
-        let target = if paths.is_using_db() {
-            paths
-                .blobs_account_dir()
-                .join(vault_id.to_string())
-                .join(secret_id.to_string())
-        } else {
-            paths
-                .files_dir()
-                .join(vault_id.to_string())
-                .join(secret_id.to_string())
-        };
-
+        let target = paths.into_file_secret_path(vault_id, secret_id);
         if !vfs::try_exists(&target).await? {
             vfs::create_dir_all(&target).await?;
         }
@@ -116,13 +105,9 @@ impl FileStorage {
         paths: &Paths,
         vault_id: &VaultId,
         secret_id: &SecretId,
-        file_name: impl AsRef<str>,
+        file_name: &ExternalFileName,
     ) -> Result<Vec<u8>> {
-        let path = if paths.is_using_db() {
-            paths.blob_location(vault_id, secret_id, file_name)
-        } else {
-            paths.file_location(vault_id, secret_id, file_name)
-        };
+        let path = paths.into_file_path_parts(vault_id, secret_id, file_name);
         Self::decrypt_file_passphrase(path, password).await
     }
 }

@@ -159,13 +159,15 @@ impl Paths {
         Ok(())
     }
 
-    /// Ensure the local storage directory exists for version 2
-    /// database storage.
+    /// Ensure the local storage directories exist
+    /// for version 2 database storage.
     pub async fn ensure_db(&self) -> Result<()> {
         // Version 2 just needs the blobs directory
         vfs::create_dir_all(&self.blobs_dir).await?;
+
         if !self.is_global() {
             // Version 2 database backend needs a blobs folder
+            // for the account
             vfs::create_dir_all(self.blobs_account_dir()).await?;
         }
         Ok(())
@@ -179,19 +181,30 @@ impl Paths {
     /// Try to determine if the account is ready to be used
     /// by checking for the presence of required files on disc.
     pub async fn is_usable(&self) -> Result<bool> {
-        if self.is_global() {
-            panic!("is_usable is not accessible for global paths");
+        assert!(!self.is_global(), "not accessible for global paths");
+        if self.is_using_db() {
+            Ok(vfs::try_exists(self.database_file()).await?)
+        } else {
+            Ok(vfs::try_exists(self.identity_vault()).await?
+                && vfs::try_exists(self.identity_events()).await?
+                && vfs::try_exists(self.account_events()).await?
+                && vfs::try_exists(self.device_events()).await?)
         }
+    }
 
-        let identity_vault = self.identity_vault();
-        let identity_events = self.identity_events();
-        let account_events = self.account_events();
-        let device_events = self.device_events();
-
-        Ok(vfs::try_exists(identity_vault).await?
-            && vfs::try_exists(identity_events).await?
-            && vfs::try_exists(account_events).await?
-            && vfs::try_exists(device_events).await?)
+    /// Expected directory for external file blobs
+    /// for an account.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    pub fn into_files_dir(&self) -> PathBuf {
+        assert!(!self.is_global(), "not accessible for global paths");
+        if self.is_using_db() {
+            self.blobs_account_dir()
+        } else {
+            self.files_dir().to_owned()
+        }
     }
 
     /// Expected location for the directory containing
@@ -201,11 +214,7 @@ impl Paths {
     ///
     /// If this set of paths are global (no user identifier).
     pub fn into_file_folder_path(&self, folder_id: &VaultId) -> PathBuf {
-        if self.is_using_db() {
-            self.blobs_account_dir().join(folder_id.to_string())
-        } else {
-            self.files_dir().join(folder_id.to_string())
-        }
+        self.into_files_dir().join(folder_id.to_string())
     }
 
     /// Expected location for the directory containing
@@ -247,11 +256,8 @@ impl Paths {
         secret_id: &SecretId,
         file_name: &ExternalFileName,
     ) -> PathBuf {
-        if self.is_using_db() {
-            self.blob_location(folder_id, secret_id, file_name.to_string())
-        } else {
-            self.file_location(folder_id, secret_id, file_name.to_string())
-        }
+        self.into_file_secret_path(folder_id, secret_id)
+            .join(file_name.to_string())
     }
 
     /// Path to the database file for an account.
@@ -260,6 +266,8 @@ impl Paths {
     }
 
     /// External file blobs directory.
+    #[doc(hidden)]
+    #[cfg(debug_assertions)]
     pub fn blobs_dir(&self) -> &PathBuf {
         &self.blobs_dir
     }
@@ -270,25 +278,14 @@ impl Paths {
     /// # Panics
     ///
     /// If this set of paths are global (no user identifier).
-    pub fn blobs_account_dir(&self) -> PathBuf {
+    fn blobs_account_dir(&self) -> PathBuf {
         if self.is_global() {
             panic!(
                 "blobs account directory is not accessible for global paths"
             );
         }
-        self.blobs_dir()
+        self.blobs_dir
             .join(self.account_id.as_ref().map(|id| id.to_string()).unwrap())
-    }
-
-    /// Expected location for the directory containing
-    /// all the external files for a folder.
-    ///
-    /// # Panics
-    ///
-    /// If this set of paths are global (no user identifier).
-    #[deprecated]
-    fn blob_folder_location(&self, vault_id: &VaultId) -> PathBuf {
-        self.blobs_account_dir().join(vault_id.to_string())
     }
 
     /// Expected location for an external file blob.
@@ -303,7 +300,8 @@ impl Paths {
         secret_id: &SecretId,
         file_name: impl AsRef<str>,
     ) -> PathBuf {
-        self.blob_folder_location(vault_id)
+        self.blobs_account_dir()
+            .join(vault_id.to_string())
             .join(secret_id.to_string())
             .join(file_name.as_ref())
     }
@@ -364,9 +362,7 @@ impl Paths {
     ///
     /// If this set of paths are global (no user identifier).
     pub fn system_messages_file(&self) -> PathBuf {
-        if self.is_global() {
-            panic!("system messages are not accessible for global paths");
-        }
+        assert!(!self.is_global(), "not accessible for global paths");
         let mut path = self.user_dir().join(SYSTEM_MESSAGES_FILE);
         path.set_extension(JSON_EXT);
         path
@@ -378,9 +374,7 @@ impl Paths {
     ///
     /// If this set of paths are global (no user identifier).
     pub fn user_dir(&self) -> &PathBuf {
-        if self.is_global() {
-            panic!("user directory is not accessible for global paths");
-        }
+        assert!(!self.is_global(), "not accessible for global paths");
         &self.user_dir
     }
 
@@ -390,21 +384,8 @@ impl Paths {
     ///
     /// If this set of paths are global (no user identifier).
     pub fn files_dir(&self) -> &PathBuf {
-        if self.is_global() {
-            panic!("files directory is not accessible for global paths");
-        }
+        assert!(!self.is_global(), "not accessible for global paths");
         &self.files_dir
-    }
-
-    /// Expected location for the directory containing
-    /// all the external files for a folder.
-    ///
-    /// # Panics
-    ///
-    /// If this set of paths are global (no user identifier).
-    #[deprecated]
-    fn file_folder_location(&self, vault_id: &VaultId) -> PathBuf {
-        self.files_dir().join(vault_id.to_string())
     }
 
     /// Expected location for a file.
@@ -419,7 +400,8 @@ impl Paths {
         secret_id: &SecretId,
         file_name: impl AsRef<str>,
     ) -> PathBuf {
-        self.file_folder_location(vault_id)
+        self.files_dir()
+            .join(vault_id.to_string())
             .join(secret_id.to_string())
             .join(file_name.as_ref())
     }
@@ -430,9 +412,7 @@ impl Paths {
     ///
     /// If this set of paths are global (no user identifier).
     pub fn vaults_dir(&self) -> &PathBuf {
-        if self.is_global() {
-            panic!("vaults directory is not accessible for global paths");
-        }
+        assert!(!self.is_global(), "not accessible for global paths");
         &self.vaults_dir
     }
 
@@ -442,9 +422,7 @@ impl Paths {
     ///
     /// If this set of paths are global (no user identifier).
     pub fn device_file(&self) -> &PathBuf {
-        if self.is_global() {
-            panic!("devices file is not accessible for global paths");
-        }
+        assert!(!self.is_global(), "not accessible for global paths");
         &self.device_file
     }
 
@@ -454,9 +432,7 @@ impl Paths {
     ///
     /// If this set of paths are global (no user identifier).
     pub fn identity_vault(&self) -> PathBuf {
-        if self.is_global() {
-            panic!("identity vault is not accessible for global paths");
-        }
+        assert!(!self.is_global(), "not accessible for global paths");
         let mut identity_vault_file = self
             .identity_dir
             .join(self.account_id.as_ref().map(|id| id.to_string()).unwrap());
@@ -481,9 +457,7 @@ impl Paths {
     ///
     /// If this set of paths are global (no user identifier).
     pub fn vault_path(&self, id: &VaultId) -> PathBuf {
-        if self.is_global() {
-            panic!("vault path is not accessible for global paths");
-        }
+        assert!(!self.is_global(), "not accessible for global paths");
         let mut vault_path = self.vaults_dir.join(id.to_string());
         vault_path.set_extension(VAULT_EXT);
         vault_path
@@ -495,9 +469,7 @@ impl Paths {
     ///
     /// If this set of paths are global (no user identifier).
     pub fn event_log_path(&self, id: &VaultId) -> PathBuf {
-        if self.is_global() {
-            panic!("event log path is not accessible for global paths");
-        }
+        assert!(!self.is_global(), "not accessible for global paths");
         let mut vault_path = self.vaults_dir.join(id.to_string());
         vault_path.set_extension(EVENT_LOG_EXT);
         vault_path
@@ -509,9 +481,7 @@ impl Paths {
     ///
     /// If this set of paths are global (no user identifier).
     pub fn account_events(&self) -> PathBuf {
-        if self.is_global() {
-            panic!("account events are not accessible for global paths");
-        }
+        assert!(!self.is_global(), "not accessible for global paths");
         let mut vault_path = self.user_dir.join(ACCOUNT_EVENTS);
         vault_path.set_extension(EVENT_LOG_EXT);
         vault_path
@@ -523,9 +493,7 @@ impl Paths {
     ///
     /// If this set of paths are global (no user identifier).
     pub fn device_events(&self) -> PathBuf {
-        if self.is_global() {
-            panic!("device events are not accessible for global paths");
-        }
+        assert!(!self.is_global(), "not accessible for global paths");
         let mut vault_path = self.user_dir.join(DEVICE_EVENTS);
         vault_path.set_extension(EVENT_LOG_EXT);
         vault_path
@@ -537,9 +505,7 @@ impl Paths {
     ///
     /// If this set of paths are global (no user identifier).
     pub fn file_events(&self) -> PathBuf {
-        if self.is_global() {
-            panic!("file events are not accessible for global paths");
-        }
+        assert!(!self.is_global(), "not accessible for global paths");
         let mut vault_path = self.user_dir.join(FILE_EVENTS);
         vault_path.set_extension(EVENT_LOG_EXT);
         vault_path
@@ -551,9 +517,7 @@ impl Paths {
     ///
     /// If this set of paths are global (no user identifier).
     pub fn remote_origins(&self) -> PathBuf {
-        if self.is_global() {
-            panic!("remote origins are not accessible for global paths");
-        }
+        assert!(!self.is_global(), "not accessible for global paths");
         let mut vault_path = self.user_dir.join(REMOTES_FILE);
         vault_path.set_extension(JSON_EXT);
         vault_path
@@ -573,21 +537,6 @@ impl Paths {
         vfs::create_dir_all(paths.logs_dir()).await?;
         Ok(())
     }
-
-    /*
-    /// Ensure the root directories exist for database storage.
-    pub async fn scaffold_db(data_dir: Option<PathBuf>) -> Result<()> {
-        let data_dir = if let Some(data_dir) = data_dir {
-            data_dir
-        } else {
-            Paths::data_dir()?
-        };
-        let paths = Self::new_client(data_dir);
-        vfs::create_dir_all(paths.documents_dir()).await?;
-        vfs::create_dir_all(paths.logs_dir()).await?;
-        Ok(())
-    }
-    */
 
     /// Set an explicit data directory used to store all
     /// application files.

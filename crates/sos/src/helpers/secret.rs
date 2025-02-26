@@ -12,6 +12,7 @@ use crate::{
 use human_bytes::human_bytes;
 use secrecy::{ExposeSecret, SecretString};
 use sos_account::Account;
+use sos_core::ExternalFileName;
 use sos_search::Document;
 use sos_vault::{
     secret::{FileContent, Secret, SecretId, SecretMeta, SecretRef},
@@ -445,7 +446,7 @@ pub(crate) async fn download_file_secret(
     if let Secret::File { content, .. } = secret {
         match content {
             FileContent::External { checksum, .. } => {
-                let file_name = hex::encode(checksum);
+                let file_name = ExternalFileName::from(checksum);
                 let buffer = owner
                     .download_file(
                         resolved.summary.id(),

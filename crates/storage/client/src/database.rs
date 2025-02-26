@@ -605,7 +605,7 @@ impl ClientAccountStorage for ClientDatabaseStorage {
             .map_err(sos_database::Error::from)?;
 
         // Delete external file blobs for the account
-        let account_blobs = self.paths.blobs_account_dir();
+        let account_blobs = self.paths.into_files_dir();
         if vfs::try_exists(&account_blobs).await? {
             vfs::remove_dir_all(&account_blobs).await?;
         }

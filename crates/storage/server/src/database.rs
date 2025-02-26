@@ -582,7 +582,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
             .map_err(sos_database::Error::from)?;
 
         // Delete all file blobs for the account
-        let blobs_dir = self.paths.blobs_account_dir();
+        let blobs_dir = self.paths.into_files_dir();
         if vfs::try_exists(&blobs_dir).await? {
             vfs::remove_dir_all(&blobs_dir).await?;
         }

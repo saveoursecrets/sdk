@@ -418,7 +418,7 @@ pub trait Account {
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
-        file_name: &str,
+        file_name: &sos_core::ExternalFileName,
     ) -> std::result::Result<Vec<u8>, Self::Error>;
 
     /// Create a secret in the current open folder or a specific folder.
