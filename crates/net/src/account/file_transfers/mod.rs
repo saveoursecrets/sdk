@@ -635,11 +635,19 @@ where
                 for outcome in moved_missing {
                     if let TransferOperation::Move(dest) = &outcome.operation
                     {
-                        let path = request_paths.file_location(
-                            dest.vault_id(),
-                            dest.secret_id(),
-                            dest.file_name().to_string(),
-                        );
+                        let path = if paths.is_using_db() {
+                            request_paths.blob_location(
+                                dest.vault_id(),
+                                dest.secret_id(),
+                                dest.file_name().to_string(),
+                            )
+                        } else {
+                            request_paths.file_location(
+                                dest.vault_id(),
+                                dest.secret_id(),
+                                dest.file_name().to_string(),
+                            )
+                        };
 
                         if vfs::try_exists(path).await? {
                             let item = FileOperation(

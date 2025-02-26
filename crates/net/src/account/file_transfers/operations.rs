@@ -75,11 +75,19 @@ where
         progress_tx: ProgressChannel,
         cancel_rx: watch::Receiver<CancelReason>,
     ) -> Result<TransferResult> {
-        let path = self.paths.file_location(
-            file.vault_id(),
-            file.secret_id(),
-            file.file_name().to_string(),
-        );
+        let path = if self.paths.is_using_db() {
+            self.paths.blob_location(
+                file.vault_id(),
+                file.secret_id(),
+                file.file_name().to_string(),
+            )
+        } else {
+            self.paths.file_location(
+                file.vault_id(),
+                file.secret_id(),
+                file.file_name().to_string(),
+            )
+        };
 
         let result = match self
             .client
@@ -217,21 +225,34 @@ where
         cancel_rx: watch::Receiver<CancelReason>,
     ) -> Result<TransferResult> {
         // Ensure the parent directory for the download exists
-        let parent_path = self
-            .paths
-            .file_folder_location(file.vault_id())
-            .join(file.secret_id().to_string());
+        let parent_path = if self.paths.is_using_db() {
+            self.paths
+                .blob_folder_location(file.vault_id())
+                .join(file.secret_id().to_string())
+        } else {
+            self.paths
+                .file_folder_location(file.vault_id())
+                .join(file.secret_id().to_string())
+        };
 
         if !vfs::try_exists(&parent_path).await? {
             vfs::create_dir_all(&parent_path).await?;
         }
 
         // Fetch the file
-        let path = self.paths.file_location(
-            file.vault_id(),
-            file.secret_id(),
-            file.file_name().to_string(),
-        );
+        let path = if self.paths.is_using_db() {
+            self.paths.blob_location(
+                file.vault_id(),
+                file.secret_id(),
+                file.file_name().to_string(),
+            )
+        } else {
+            self.paths.file_location(
+                file.vault_id(),
+                file.secret_id(),
+                file.file_name().to_string(),
+            )
+        };
 
         let result = match self
             .client

@@ -17,7 +17,6 @@ use sos_sdk::prelude::*;
 #[tokio::test]
 async fn file_transfers_multi_upload() -> Result<()> {
     const TEST_ID: &str = "file_transfers_multi_upload";
-
     //crate::test_utils::init_tracing();
 
     // Spawn some backend servers
@@ -33,6 +32,7 @@ async fn file_transfers_multi_upload() -> Result<()> {
     // Create an external file secret
     let (secret_id, _, _, file_name) =
         create_file_secret(&mut device.owner, &default_folder, None).await?;
+
     wait_for_num_transfers(&device.owner, 2).await?;
     let file = ExternalFile::new(
         SecretPath(*default_folder.id(), secret_id),

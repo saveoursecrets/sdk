@@ -1146,8 +1146,6 @@ pub trait ClientAccountStorage:
                 .delete_folder_files(folder_id)
                 .await?;
 
-            println!("File events on delete folder {file_events:?}");
-
             let file_log = self.file_log().await?;
             let mut writer = file_log.write().await;
             writer.apply(file_events.as_slice()).await?;

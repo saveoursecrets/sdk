@@ -279,11 +279,19 @@ pub async fn assert_local_remote_file_eq(
     server_account_paths: &Paths,
     file: &ExternalFile,
 ) -> Result<()> {
-    let expected_client_file = local_paths.as_ref().file_location(
-        file.vault_id(),
-        file.secret_id(),
-        file.file_name().to_string(),
-    );
+    let expected_client_file = if local_paths.as_ref().is_using_db() {
+        local_paths.as_ref().blob_location(
+            file.vault_id(),
+            file.secret_id(),
+            file.file_name().to_string(),
+        )
+    } else {
+        local_paths.as_ref().file_location(
+            file.vault_id(),
+            file.secret_id(),
+            file.file_name().to_string(),
+        )
+    };
 
     let expected_server_file = if server_account_paths.is_using_db() {
         server_account_paths.blob_location(
@@ -378,16 +386,20 @@ pub async fn wait_for_inflight(
     loop {
         tokio::select! {
           event = inflight_rx.recv() => {
-            if let Ok(event) = event {
-                // println!("event: {:#?}", event);
-                if increment(event) {
-                    let mut num = num_events.lock().await;
-                    *num += 1;
+            match event {
+                Ok(event) => {
+                    // println!("event: {:#?}", event);
+                    if increment(event) {
+                        let mut num = num_events.lock().await;
+                        *num += 1;
+                    }
+                    let num = num_events.lock().await;
+                    if is_complete(*num) {
+                      break;
+                    }
                 }
-                let num = num_events.lock().await;
-                if is_complete(*num) {
-                  println!("wait_for_inflight::finished");
-                  break;
+                Err(e) => {
+                    eprintln!("{e:#?}");
                 }
             }
           }
