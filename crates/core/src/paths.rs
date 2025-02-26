@@ -8,7 +8,7 @@ use crate::{
         PREFERENCES_FILE, REMOTES_FILE, REMOTE_DIR, SYSTEM_MESSAGES_FILE,
         VAULTS_DIR, VAULT_EXT,
     },
-    AccountId, Result, SecretId, VaultId,
+    AccountId, ExternalFile, ExternalFileName, Result, SecretId, VaultId,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use etcetera::{
@@ -194,6 +194,66 @@ impl Paths {
             && vfs::try_exists(device_events).await?)
     }
 
+    /// Expected location for the directory containing
+    /// all the external files for a folder.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    pub fn into_file_folder_path(&self, folder_id: &VaultId) -> PathBuf {
+        if self.is_using_db() {
+            self.blobs_account_dir().join(folder_id.to_string())
+        } else {
+            self.files_dir().join(folder_id.to_string())
+        }
+    }
+
+    /// Expected location for the directory containing
+    /// all the external files for a secret.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    pub fn into_file_secret_path(
+        &self,
+        folder_id: &VaultId,
+        secret_id: &SecretId,
+    ) -> PathBuf {
+        self.into_file_folder_path(folder_id)
+            .join(secret_id.to_string())
+    }
+
+    /// External file path.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    pub fn into_file_path(&self, file: &ExternalFile) -> PathBuf {
+        self.into_file_path_parts(
+            file.vault_id(),
+            file.secret_id(),
+            file.file_name(),
+        )
+    }
+
+    /// External file path from parts.
+    ///
+    /// # Panics
+    ///
+    /// If this set of paths are global (no user identifier).
+    pub fn into_file_path_parts(
+        &self,
+        folder_id: &VaultId,
+        secret_id: &SecretId,
+        file_name: &ExternalFileName,
+    ) -> PathBuf {
+        if self.is_using_db() {
+            self.blob_location(folder_id, secret_id, file_name.to_string())
+        } else {
+            self.file_location(folder_id, secret_id, file_name.to_string())
+        }
+    }
+
     /// Path to the database file for an account.
     pub fn database_file(&self) -> &PathBuf {
         &self.database_file
@@ -226,7 +286,8 @@ impl Paths {
     /// # Panics
     ///
     /// If this set of paths are global (no user identifier).
-    pub fn blob_folder_location(&self, vault_id: &VaultId) -> PathBuf {
+    #[deprecated]
+    fn blob_folder_location(&self, vault_id: &VaultId) -> PathBuf {
         self.blobs_account_dir().join(vault_id.to_string())
     }
 
@@ -235,6 +296,7 @@ impl Paths {
     /// # Panics
     ///
     /// If this set of paths are global (no user identifier).
+    #[deprecated(note = "use into_file_path")]
     pub fn blob_location(
         &self,
         vault_id: &VaultId,
@@ -340,7 +402,8 @@ impl Paths {
     /// # Panics
     ///
     /// If this set of paths are global (no user identifier).
-    pub fn file_folder_location(&self, vault_id: &VaultId) -> PathBuf {
+    #[deprecated]
+    fn file_folder_location(&self, vault_id: &VaultId) -> PathBuf {
         self.files_dir().join(vault_id.to_string())
     }
 
@@ -349,6 +412,7 @@ impl Paths {
     /// # Panics
     ///
     /// If this set of paths are global (no user identifier).
+    #[deprecated(note = "use into_file_path")]
     pub fn file_location(
         &self,
         vault_id: &VaultId,

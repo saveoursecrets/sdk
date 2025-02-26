@@ -7,7 +7,6 @@ use sos_system_messages::{
     SysMessage, SysMessageCount, SystemMessageManager, SystemMessageMap,
     SystemMessageStorage, SystemMessages as SystemMessagesImpl,
 };
-use std::sync::Arc;
 use tokio::sync::broadcast;
 use urn::Urn;
 

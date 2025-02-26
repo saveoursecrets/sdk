@@ -279,33 +279,8 @@ pub async fn assert_local_remote_file_eq(
     server_account_paths: &Paths,
     file: &ExternalFile,
 ) -> Result<()> {
-    let expected_client_file = if local_paths.as_ref().is_using_db() {
-        local_paths.as_ref().blob_location(
-            file.vault_id(),
-            file.secret_id(),
-            file.file_name().to_string(),
-        )
-    } else {
-        local_paths.as_ref().file_location(
-            file.vault_id(),
-            file.secret_id(),
-            file.file_name().to_string(),
-        )
-    };
-
-    let expected_server_file = if server_account_paths.is_using_db() {
-        server_account_paths.blob_location(
-            file.vault_id(),
-            file.secret_id(),
-            file.file_name().to_string(),
-        )
-    } else {
-        server_account_paths.file_location(
-            file.vault_id(),
-            file.secret_id(),
-            file.file_name().to_string(),
-        )
-    };
+    let expected_client_file = local_paths.as_ref().into_file_path(file);
+    let expected_server_file = server_account_paths.into_file_path(file);
 
     //println!("client {:#?}", expected_client_file);
     //println!("server {:#?}", expected_server_file);
@@ -333,25 +308,8 @@ pub async fn assert_local_remote_file_not_exist(
     server_account_paths: &Paths,
     file: &ExternalFile,
 ) -> Result<()> {
-    let expected_client_file = local_paths.as_ref().file_location(
-        file.vault_id(),
-        file.secret_id(),
-        file.file_name().to_string(),
-    );
-
-    let expected_server_file = if server_account_paths.is_using_db() {
-        server_account_paths.blob_location(
-            file.vault_id(),
-            file.secret_id(),
-            file.file_name().to_string(),
-        )
-    } else {
-        server_account_paths.file_location(
-            file.vault_id(),
-            file.secret_id(),
-            file.file_name().to_string(),
-        )
-    };
+    let expected_client_file = local_paths.as_ref().into_file_path(file);
+    let expected_server_file = server_account_paths.into_file_path(file);
 
     assert!(!vfs::try_exists(expected_client_file).await?);
     assert!(!vfs::try_exists(expected_server_file).await?);
@@ -413,19 +371,7 @@ pub async fn wait_for_file(
     paths: impl AsRef<Paths>,
     file: &ExternalFile,
 ) -> Result<()> {
-    let path = if paths.as_ref().is_using_db() {
-        paths.as_ref().blob_location(
-            file.vault_id(),
-            file.secret_id(),
-            file.file_name().to_string(),
-        )
-    } else {
-        paths.as_ref().file_location(
-            file.vault_id(),
-            file.secret_id(),
-            file.file_name().to_string(),
-        )
-    };
+    let path = paths.as_ref().into_file_path(file);
 
     wait_for_cond(move || {
         if path.exists() {
@@ -450,21 +396,7 @@ pub async fn wait_for_file_not_exist(
     file: &ExternalFile,
 ) -> Result<()> {
     wait_for_cond(move || {
-        let path = if paths.as_ref().is_server()
-            && std::env::var("SOS_TEST_SERVER_DB").ok().is_some()
-        {
-            paths.as_ref().blob_location(
-                file.vault_id(),
-                file.secret_id(),
-                file.file_name().to_string(),
-            )
-        } else {
-            paths.as_ref().file_location(
-                file.vault_id(),
-                file.secret_id(),
-                file.file_name().to_string(),
-            )
-        };
+        let path = paths.as_ref().into_file_path(file);
         !path.exists()
     })
     .await;

@@ -425,25 +425,13 @@ mod handlers {
         let (parent_path, file_path) = {
             let reader = account.read().await;
             let paths = reader.paths();
-            let name = file_name.to_string();
+            let parent_path =
+                paths.into_file_secret_path(&vault_id, &secret_id);
 
-            if paths.is_using_db() {
-                let parent_path = paths
-                    .blob_folder_location(&vault_id)
-                    .join(secret_id.to_string());
-                (
-                    parent_path,
-                    paths.blob_location(&vault_id, &secret_id, &name),
-                )
-            } else {
-                let parent_path = paths
-                    .file_folder_location(&vault_id)
-                    .join(secret_id.to_string());
-                (
-                    parent_path,
-                    paths.file_location(&vault_id, &secret_id, &name),
-                )
-            }
+            (
+                parent_path,
+                paths.into_file_path_parts(&vault_id, &secret_id, &file_name),
+            )
         };
 
         if tokio::fs::try_exists(&file_path).await? {
@@ -507,12 +495,7 @@ mod handlers {
         let file_path = {
             let reader = account.read().await;
             let paths = reader.paths();
-            let name = file_name.to_string();
-            if paths.is_using_db() {
-                paths.blob_location(&vault_id, &secret_id, &name)
-            } else {
-                paths.file_location(&vault_id, &secret_id, &name)
-            }
+            paths.into_file_path_parts(&vault_id, &secret_id, &file_name)
         };
 
         if !tokio::fs::try_exists(&file_path).await? {
@@ -545,12 +528,7 @@ mod handlers {
         let file_path = {
             let reader = account.read().await;
             let paths = reader.paths();
-            let name = file_name.to_string();
-            if paths.is_using_db() {
-                paths.blob_location(&vault_id, &secret_id, &name)
-            } else {
-                paths.file_location(&vault_id, &secret_id, &name)
-            }
+            paths.into_file_path_parts(&vault_id, &secret_id, &file_name)
         };
 
         if !tokio::fs::try_exists(&file_path).await? {
@@ -590,35 +568,17 @@ mod handlers {
         let (source_path, target_path, parent_path) = {
             let reader = account.read().await;
             let paths = reader.paths();
-            let name = file_name.to_string();
+            let source =
+                paths.into_file_path_parts(&vault_id, &secret_id, &file_name);
+            let target = paths.into_file_path_parts(
+                &query.vault_id,
+                &query.secret_id,
+                &query.name,
+            );
+            let parent_path = paths
+                .into_file_secret_path(&query.vault_id, &query.secret_id);
 
-            if paths.is_using_db() {
-                let source =
-                    paths.blob_location(&vault_id, &secret_id, &name);
-                let target = paths.blob_location(
-                    &query.vault_id,
-                    &query.secret_id,
-                    &query.name.to_string(),
-                );
-                let parent_path = paths
-                    .blob_folder_location(&query.vault_id)
-                    .join(query.secret_id.to_string());
-
-                (source, target, parent_path)
-            } else {
-                let source =
-                    paths.file_location(&vault_id, &secret_id, &name);
-                let target = paths.file_location(
-                    &query.vault_id,
-                    &query.secret_id,
-                    &query.name.to_string(),
-                );
-                let parent_path = paths
-                    .file_folder_location(&query.vault_id)
-                    .join(query.secret_id.to_string());
-
-                (source, target, parent_path)
-            }
+            (source, target, parent_path)
         };
 
         if !tokio::fs::try_exists(&source_path).await? {

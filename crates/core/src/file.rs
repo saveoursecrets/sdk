@@ -37,6 +37,12 @@ impl From<[u8; 32]> for ExternalFileName {
     }
 }
 
+impl From<&[u8; 32]> for ExternalFileName {
+    fn from(value: &[u8; 32]) -> Self {
+        Self(*value)
+    }
+}
+
 impl From<&ExternalFileName> for CommitHash {
     fn from(value: &ExternalFileName) -> Self {
         CommitHash(value.0)

@@ -23,7 +23,7 @@ pub async fn list_external_files(
     paths: &Paths,
 ) -> Result<IndexSet<ExternalFile>> {
     list_account(paths.files_dir(), |folder_id| {
-        paths.file_folder_location(&folder_id)
+        paths.into_file_folder_path(&folder_id)
     })
     .await
 }
@@ -33,7 +33,7 @@ pub async fn list_external_blobs(
     paths: &Paths,
 ) -> Result<IndexSet<ExternalFile>> {
     list_account(paths.blobs_account_dir(), |folder_id| {
-        paths.blob_folder_location(&folder_id)
+        paths.into_file_folder_path(&folder_id)
     })
     .await
 }
@@ -43,7 +43,7 @@ pub async fn list_folder_blobs(
     paths: &Paths,
     folder_id: &VaultId,
 ) -> Result<Vec<(SecretId, IndexSet<ExternalFileName>)>> {
-    list_folder(paths.blob_folder_location(folder_id)).await
+    list_folder(paths.into_file_folder_path(folder_id)).await
 }
 
 /// List all the external files in a folder.
@@ -59,7 +59,7 @@ pub async fn list_folder_files(
     paths: &Paths,
     folder_id: &VaultId,
 ) -> Result<Vec<(SecretId, IndexSet<ExternalFileName>)>> {
-    list_folder(paths.file_folder_location(folder_id)).await
+    list_folder(paths.into_file_folder_path(folder_id)).await
 }
 
 async fn list_account<F>(

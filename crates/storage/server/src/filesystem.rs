@@ -433,7 +433,7 @@ impl ServerAccountStorage for ServerFileStorage {
 
         #[cfg(feature = "files")]
         {
-            let files_folder = self.paths.file_folder_location(id);
+            let files_folder = self.paths.into_file_folder_path(id);
             if vfs::try_exists(&files_folder).await? {
                 vfs::remove_dir_all(&files_folder).await?;
             }

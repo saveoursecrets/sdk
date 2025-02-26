@@ -4,7 +4,9 @@ use crate::{files::FileStorage, Error, Result};
 use hex;
 use sos_backend::FileEventLog;
 use sos_core::events::{EventLog, FileEvent};
-use sos_core::{basename, Paths, SecretId, SecretPath, VaultId};
+use sos_core::{
+    basename, ExternalFileName, Paths, SecretId, SecretPath, VaultId,
+};
 use sos_external_files::{
     EncryptedFile, FileMutationEvent, FileProgress, FileSource,
     FileStorageDiff, FileStorageResult,
@@ -126,19 +128,9 @@ impl ExternalFileManager {
             for file_name in external_files.drain(..) {
                 // Remove each file as we go and create
                 // a file deletion event
-                let file = if self.paths.is_using_db() {
-                    self.paths.blob_location(
-                        folder_id,
-                        &secret_id,
-                        file_name.to_string(),
-                    )
-                } else {
-                    self.paths.file_location(
-                        folder_id,
-                        &secret_id,
-                        file_name.to_string(),
-                    )
-                };
+                let file = self
+                    .paths
+                    .into_file_path_parts(folder_id, &secret_id, &file_name);
                 vfs::remove_file(&file).await?;
 
                 events.push(FileEvent::DeleteFile(
@@ -149,11 +141,7 @@ impl ExternalFileManager {
         }
 
         // Remove the folder finally
-        let folder_files = if self.paths.is_using_db() {
-            self.paths.blob_folder_location(folder_id)
-        } else {
-            self.paths.file_folder_location(folder_id)
-        };
+        let folder_files = self.paths.into_file_folder_path(folder_id);
         if vfs::try_exists(&folder_files).await? {
             vfs::remove_dir_all(&folder_files).await?;
         }
@@ -283,7 +271,7 @@ impl ExternalFileManager {
                     file_progress.send(FileProgress::Delete { name }).await;
             }
 
-            let file_name = hex::encode(checksum);
+            let file_name = ExternalFileName::from(checksum);
             events
                 .push(self.delete_file(summary.id(), id, &file_name).await?);
         }
@@ -295,29 +283,14 @@ impl ExternalFileManager {
         &self,
         vault_id: &VaultId,
         secret_id: &SecretId,
-        file_name: &str,
+        file_name: &ExternalFileName,
     ) -> Result<FileEvent> {
-        let (vault_path, secret_path, path) = if self.paths.is_using_db() {
-            let vault_path =
-                self.paths.blobs_account_dir().join(vault_id.to_string());
-            let secret_path = vault_path.join(secret_id.to_string());
-            let path = self.paths.blob_location(
-                vault_id,
-                secret_id,
-                file_name.to_string(),
-            );
-            (vault_path, secret_path, path)
-        } else {
-            let vault_path =
-                self.paths.files_dir().join(vault_id.to_string());
-            let secret_path = vault_path.join(secret_id.to_string());
-            let path = self.paths.file_location(
-                vault_id,
-                secret_id,
-                file_name.to_string(),
-            );
-            (vault_path, secret_path, path)
-        };
+        let vault_path = self.paths.into_file_folder_path(vault_id);
+        let secret_path =
+            self.paths.into_file_secret_path(vault_id, secret_id);
+        let path = self
+            .paths
+            .into_file_path_parts(vault_id, secret_id, file_name);
 
         vfs::remove_file(path).await?;
 
@@ -331,7 +304,7 @@ impl ExternalFileManager {
 
         Ok(FileEvent::DeleteFile(
             SecretPath(*vault_id, *secret_id),
-            file_name.parse()?,
+            *file_name,
         ))
     }
 
@@ -366,8 +339,7 @@ impl ExternalFileManager {
                         .await;
                 }
 
-                let file_name = hex::encode(checksum);
-
+                let file_name = ExternalFileName::from(checksum);
                 events.push(
                     self.move_file(
                         old_vault_id,
@@ -390,31 +362,23 @@ impl ExternalFileManager {
         new_vault_id: &VaultId,
         old_secret_id: &SecretId,
         new_secret_id: &SecretId,
-        file_name: &str,
+        file_name: &ExternalFileName,
     ) -> Result<FileMutationEvent> {
-        let old_vault_path = if self.paths.is_using_db() {
-            self.paths
-                .blobs_account_dir()
-                .join(old_vault_id.to_string())
-        } else {
-            self.paths.files_dir().join(old_vault_id.to_string())
-        };
-        let old_secret_path = old_vault_path.join(old_secret_id.to_string());
-        let old_path = old_secret_path.join(file_name);
+        let old_vault_path = self.paths.into_file_folder_path(old_vault_id);
+        let old_secret_path = self
+            .paths
+            .into_file_secret_path(old_vault_id, old_secret_id);
+        let old_path = self.paths.into_file_path_parts(
+            old_vault_id,
+            old_secret_id,
+            file_name,
+        );
 
-        let new_path = if self.paths.is_using_db() {
-            self.paths.blob_location(
-                new_vault_id,
-                new_secret_id,
-                file_name.to_string(),
-            )
-        } else {
-            self.paths.file_location(
-                new_vault_id,
-                new_secret_id,
-                file_name.to_string(),
-            )
-        };
+        let new_path = self.paths.into_file_path_parts(
+            new_vault_id,
+            new_secret_id,
+            file_name,
+        );
 
         if let Some(parent) = new_path.parent() {
             if !vfs::try_exists(parent).await? {
@@ -436,7 +400,7 @@ impl ExternalFileManager {
         }
 
         let event = FileEvent::MoveFile {
-            name: file_name.parse()?,
+            name: *file_name,
             from: SecretPath(*old_vault_id, *old_secret_id),
             dest: SecretPath(*new_vault_id, *new_secret_id),
         };

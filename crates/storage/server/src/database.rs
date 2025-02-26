@@ -533,7 +533,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
 
         #[cfg(feature = "files")]
         {
-            let blob_folder = self.paths.blob_folder_location(&id);
+            let blob_folder = self.paths.into_file_folder_path(&id);
             if vfs::try_exists(&blob_folder).await? {
                 vfs::remove_dir_all(&blob_folder).await?;
             }

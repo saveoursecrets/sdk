@@ -210,13 +210,10 @@ async fn assert_create_file_secret(
         assert_ne!(&ZERO, checksum);
         assert_eq!("image/heic", mime);
 
-        let file_name = hex::encode(checksum);
+        let file_name = ExternalFileName::from(checksum);
         let paths = account.paths();
-        let expected_file_path = if paths.is_using_db() {
-            paths.blob_location(default_folder.id(), &id, &file_name)
-        } else {
-            paths.file_location(default_folder.id(), &id, &file_name)
-        };
+        let expected_file_path =
+            paths.into_file_path_parts(default_folder.id(), &id, &file_name);
 
         assert!(vfs::try_exists(&expected_file_path).await?);
 
@@ -267,22 +264,19 @@ async fn assert_update_file_secret(
         assert_ne!(&ZERO, checksum);
         assert_eq!("text/plain", mime);
 
-        let file_name = hex::encode(checksum);
+        let file_name = ExternalFileName::from(checksum);
         let paths = account.paths();
-        let expected_file_path = if paths.is_using_db() {
-            paths.blob_location(default_folder.id(), id, &file_name)
-        } else {
-            paths.file_location(default_folder.id(), id, &file_name)
-        };
+        let expected_file_path =
+            paths.into_file_path_parts(default_folder.id(), id, &file_name);
 
         assert!(vfs::try_exists(&expected_file_path).await?);
 
-        let old_file_name = hex::encode(original_checksum);
-        let old_file_path = if paths.is_using_db() {
-            paths.blob_location(default_folder.id(), id, &old_file_name)
-        } else {
-            paths.file_location(default_folder.id(), id, &old_file_name)
-        };
+        let old_file_name = ExternalFileName::from(original_checksum);
+        let old_file_path = paths.into_file_path_parts(
+            default_folder.id(),
+            id,
+            &old_file_name,
+        );
 
         assert!(!vfs::try_exists(&old_file_path).await?);
 
@@ -344,21 +338,16 @@ async fn assert_move_file_secret(
 
         assert_eq!(&updated_checksum, &checksum);
 
-        let file_name = hex::encode(checksum);
+        let file_name = ExternalFileName::from(checksum);
         let paths = account.paths();
-        let expected_file_path = if paths.is_using_db() {
-            paths.blob_location(destination.id(), &new_id, &file_name)
-        } else {
-            paths.file_location(destination.id(), &new_id, &file_name)
-        };
+
+        let expected_file_path =
+            paths.into_file_path_parts(destination.id(), &new_id, &file_name);
 
         assert!(vfs::try_exists(&expected_file_path).await?);
 
-        let old_file_path = account.paths().file_location(
-            default_folder.id(),
-            id,
-            &file_name,
-        );
+        let old_file_path =
+            paths.into_file_path_parts(default_folder.id(), id, &file_name);
         assert!(!vfs::try_exists(&old_file_path).await?);
 
         *checksum
@@ -384,13 +373,10 @@ async fn assert_delete_file_secret(
     account.delete_secret(id, options).await?;
 
     // Check deleting the secret also removed the external file
-    let file_name = hex::encode(checksum);
+    let file_name = ExternalFileName::from(checksum);
     let paths = account.paths();
-    let deleted_file_path = if paths.is_using_db() {
-        paths.blob_location(folder.id(), id, &file_name)
-    } else {
-        paths.file_location(folder.id(), id, &file_name)
-    };
+    let deleted_file_path =
+        paths.into_file_path_parts(folder.id(), id, &file_name);
     assert!(!vfs::try_exists(&deleted_file_path).await?);
 
     Ok(())
@@ -453,19 +439,16 @@ async fn assert_create_update_move_file_secret(
         assert_ne!(&ZERO, checksum);
         assert_eq!("text/plain", mime);
 
-        let file_name = hex::encode(checksum);
+        let file_name = ExternalFileName::from(checksum);
 
         let paths = account.paths();
-        let expected_file_path = if paths.is_using_db() {
-            paths.blob_location(destination.id(), &new_id, &file_name)
-        } else {
-            paths.file_location(destination.id(), &new_id, &file_name)
-        };
+        let expected_file_path =
+            paths.into_file_path_parts(destination.id(), &new_id, &file_name);
 
         assert!(vfs::try_exists(&expected_file_path).await?);
 
-        let old_file_name = hex::encode(original_checksum);
-        let old_file_path = account.paths().file_location(
+        let old_file_name = ExternalFileName::from(original_checksum);
+        let old_file_path = paths.into_file_path_parts(
             default_folder.id(),
             &id,
             &old_file_name,
@@ -488,13 +471,9 @@ async fn assert_delete_folder_file_secrets(
 ) -> Result<()> {
     account.delete_folder(folder.id()).await?;
 
-    let file_name = hex::encode(checksum);
+    let file_name = ExternalFileName::from(checksum);
     let paths = account.paths();
-    let file_path = if paths.is_using_db() {
-        paths.blob_location(folder.id(), id, &file_name)
-    } else {
-        paths.file_location(folder.id(), id, &file_name)
-    };
+    let file_path = paths.into_file_path_parts(folder.id(), id, &file_name);
 
     assert!(!vfs::try_exists(&file_path).await?);
 
@@ -539,13 +518,10 @@ async fn assert_attach_file_secret(
             assert_ne!(&ZERO, checksum);
             assert_eq!("image/heic", mime);
 
-            let file_name = hex::encode(checksum);
+            let file_name = ExternalFileName::from(checksum);
             let paths = account.paths();
-            let file_path = if paths.is_using_db() {
-                paths.blob_location(folder.id(), id, &file_name)
-            } else {
-                paths.file_location(folder.id(), id, &file_name)
-            };
+            let file_path =
+                paths.into_file_path_parts(folder.id(), id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
         } else {
             panic!("expecting file secret variant");
@@ -585,13 +561,10 @@ async fn assert_attach_file_secret(
             assert_ne!(&ZERO, checksum);
             assert_eq!("text/plain", mime);
 
-            let file_name = hex::encode(checksum);
+            let file_name = ExternalFileName::from(checksum);
             let paths = account.paths();
-            let file_path = if paths.is_using_db() {
-                paths.blob_location(folder.id(), &id, &file_name)
-            } else {
-                paths.file_location(folder.id(), &id, &file_name)
-            };
+            let file_path =
+                paths.into_file_path_parts(folder.id(), &id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
 
             *checksum
@@ -628,21 +601,15 @@ async fn assert_attach_file_secret(
             assert_ne!(ZERO, *checksum);
             assert_eq!("image/heic", mime);
 
-            let file_name = hex::encode(checksum);
+            let file_name = ExternalFileName::from(checksum);
             let paths = account.paths();
-            let file_path = if paths.is_using_db() {
-                paths.blob_location(folder.id(), &id, &file_name)
-            } else {
-                paths.file_location(folder.id(), &id, &file_name)
-            };
+            let file_path =
+                paths.into_file_path_parts(folder.id(), &id, &file_name);
             assert!(vfs::try_exists(&file_path).await?);
 
-            let old_file_name = hex::encode(attachment_checksum);
-            let old_file_path = account.paths().file_location(
-                folder.id(),
-                &id,
-                &old_file_name,
-            );
+            let old_file_name = ExternalFileName::from(attachment_checksum);
+            let old_file_path =
+                paths.into_file_path_parts(folder.id(), &id, &old_file_name);
             assert!(!vfs::try_exists(&old_file_path).await?);
 
             checksum
@@ -697,14 +664,11 @@ async fn assert_attach_file_secret(
             } = inserted_attachment.secret()
             {
                 assert_ne!(ZERO, *checksum);
-                let file_name = hex::encode(checksum);
+                let file_name = ExternalFileName::from(checksum);
 
                 let paths = account.paths();
-                let file_path = if paths.is_using_db() {
-                    paths.blob_location(folder.id(), &id, &file_name)
-                } else {
-                    paths.file_location(folder.id(), &id, &file_name)
-                };
+                let file_path =
+                    paths.into_file_path_parts(folder.id(), &id, &file_name);
 
                 assert!(vfs::try_exists(&file_path).await?);
 
@@ -719,13 +683,10 @@ async fn assert_attach_file_secret(
         } = original_attachment.secret()
         {
             assert_eq!(updated_attachment_checksum, checksum);
-            let file_name = hex::encode(checksum);
+            let file_name = ExternalFileName::from(checksum);
             let paths = account.paths();
-            let file_path = if paths.is_using_db() {
-                paths.blob_location(folder.id(), &id, &file_name)
-            } else {
-                paths.file_location(folder.id(), &id, &file_name)
-            };
+            let file_path =
+                paths.into_file_path_parts(folder.id(), &id, &file_name);
 
             assert!(vfs::try_exists(&file_path).await?);
         } else {
@@ -763,14 +724,11 @@ async fn assert_attach_file_secret(
         } = updated_inserted_attachment.secret()
         {
             assert_ne!(&file_checksum, checksum);
-            let file_name = hex::encode(checksum);
+            let file_name = ExternalFileName::from(checksum);
 
             let paths = account.paths();
-            let file_path = if paths.is_using_db() {
-                paths.blob_location(folder.id(), &id, &file_name)
-            } else {
-                paths.file_location(folder.id(), &id, &file_name)
-            };
+            let file_path =
+                paths.into_file_path_parts(folder.id(), &id, &file_name);
 
             assert!(vfs::try_exists(&file_path).await?);
         } else {
@@ -796,12 +754,8 @@ async fn assert_attach_file_secret(
 
     let paths = account.paths();
     for file_name in file_names {
-        let file_path = if paths.is_using_db() {
-            paths.blob_location(folder.id(), &id, file_name.to_string())
-        } else {
-            paths.file_location(folder.id(), &id, file_name.to_string())
-        };
-
+        let file_path =
+            paths.into_file_path_parts(folder.id(), &id, &file_name);
         assert!(!vfs::try_exists(&file_path).await?);
     }
 

@@ -93,11 +93,7 @@ async fn find_blobs(
         let paths = blobs
             .into_iter()
             .map(|file| {
-                let path = account_paths.blob_location(
-                    file.vault_id(),
-                    file.secret_id(),
-                    file.file_name().to_string(),
-                );
+                let path = account_paths.into_file_path(&file);
                 let name =
                     format!("{}/{}", record.identity.account_id(), file);
                 (name, path)
