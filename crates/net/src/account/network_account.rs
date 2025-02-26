@@ -428,17 +428,6 @@ impl NetworkAccount {
             return Err(Error::FolderExists(*folder_id));
         }
 
-        let vault_path = self.paths.vault_path(folder_id);
-        let event_path = self.paths.event_log_path(folder_id);
-
-        if vfs::try_exists(&vault_path).await? {
-            return Err(Error::FileExists(vault_path));
-        }
-
-        if vfs::try_exists(&event_path).await? {
-            return Err(Error::FileExists(event_path));
-        }
-
         self.recover_remote_folder_unchecked(origin, folder_id)
             .await
     }

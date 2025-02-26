@@ -497,11 +497,13 @@ where
                 Ok::<_, Error>(commits)
             })
             .await?;
+        let mut tree = CommitTree::new();
         for commit in commits {
             let record: CommitRecord = commit.try_into()?;
-            self.tree.insert(*record.commit_hash.as_ref());
+            tree.insert(*record.commit_hash.as_ref());
         }
-        self.tree.commit();
+        tree.commit();
+        self.tree = tree;
         Ok(())
     }
 

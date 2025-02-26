@@ -3,6 +3,7 @@ use crate::test_utils::{
 };
 use anyhow::Result;
 use sos_account::{Account, FolderCreate, SecretChange};
+use sos_backend::BackendTarget;
 use sos_client_storage::NewFolderOptions;
 use sos_sdk::prelude::*;
 
@@ -18,6 +19,7 @@ async fn network_sync_recover_remote_folder() -> Result<()> {
 
     // Prepare mock devices
     let mut device = simulate_device(TEST_ID, 1, Some(&server)).await?;
+    let key: AccessKey = device.password.clone().into();
     let origin = device.origin.clone();
 
     // Create a folder
@@ -41,15 +43,29 @@ async fn network_sync_recover_remote_folder() -> Result<()> {
         .await?;
     assert!(sync_result.first_error().is_none());
 
-    // Remove the folder files from the local account
-    let paths = device.owner.paths();
-    let vault_path = paths.vault_path(new_folder.id());
-    let event_path = paths.event_log_path(new_folder.id());
-    vfs::remove_file(&vault_path).await?;
-    vfs::remove_file(&event_path).await?;
+    // Remove the folder from the local storage
+    {
+        let target = device.owner.backend_target().await;
+        let folder_id = *new_folder.id();
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                let vault_path = paths.vault_path(new_folder.id());
+                let event_path = paths.event_log_path(new_folder.id());
+                vfs::remove_file(&vault_path).await?;
+                vfs::remove_file(&event_path).await?;
+            }
+            BackendTarget::Database(_, client) => {
+                client
+                    .conn(move |conn| {
+                        let sql = "DELETE FROM folders WHERE identifier=?1";
+                        conn.execute(sql, [folder_id.to_string()])
+                    })
+                    .await?;
+            }
+        }
+    }
 
     device.owner.sign_out().await?;
-    let key: AccessKey = device.password.clone().into();
     device.owner.sign_in(&key).await?;
 
     // Recover the folder from the remote origin
