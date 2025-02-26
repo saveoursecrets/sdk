@@ -138,7 +138,7 @@ args = ["build", "-p", "sos-integration-tests"]
 
 [tasks.clean-tests]
 script = '''
-rm -rf target/integration-test tests/integration/target/integration-test
+rm -rf target/integration-test
 '''
 
 [tasks.test]
@@ -150,14 +150,18 @@ dependencies = ["clean-tests", "build-test"]
 [tasks.test-all]
 script = '''
 cargo nextest run
+SOS_TEST_CLIENT_DB=1 cargo nextest run
 SOS_TEST_SERVER_DB=1 cargo nextest run
+SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo nextest run
 '''
 dependencies = ["clean-tests", "build-test"]
 
 [tasks.ci]
 script = '''
 cargo nextest run --profile ci
+SOS_TEST_CLIENT_DB=1 cargo nextest run --profile ci
 SOS_TEST_SERVER_DB=1 cargo nextest run --profile ci
+SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo nextest run --profile ci
 '''
 dependencies = ["clean-tests", "build-test"]
 
@@ -165,7 +169,9 @@ dependencies = ["clean-tests", "build-test"]
 script = '''
 cargo llvm-cov clean --workspace
 cargo llvm-cov nextest --no-report
+SOS_TEST_CLIENT_DB=1 cargo llvm-cov nextest --no-report
 SOS_TEST_SERVER_DB=1 cargo llvm-cov nextest --no-report
+SOS_TEST_CLIENT_DB=1 SOS_TEST_SERVER_DB=1 cargo llvm-cov nextest --no-report
 cargo llvm-cov report --html
 '''
 dependencies = ["clean-tests"]
