@@ -6,6 +6,7 @@ use anyhow::Result;
 use sos_backend::Preferences;
 use sos_preferences::*;
 use sos_sdk::prelude::Paths;
+use sos_test_utils::make_client_backend;
 use tokio::process::Command;
 
 /// Tests concurrent writes to the global preferences.
@@ -18,6 +19,8 @@ async fn preferences_concurrent_write() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     Paths::scaffold(Some(data_dir.clone())).await?;
+    let paths = Paths::new_client(&data_dir);
+    let target = make_client_backend(&paths).await?;
 
     // Spawn processes to modify the global preferences
     let mut futures = Vec::new();
@@ -38,8 +41,7 @@ async fn preferences_concurrent_write() -> Result<()> {
     }
     futures::future::try_join_all(futures).await?;
 
-    let mut preferences =
-        Preferences::new_fs_directory(Some(data_dir.clone()))?;
+    let mut preferences = Preferences::new(target);
     preferences.load_global_preferences().await?;
     let prefs = preferences.global_preferences();
     let prefs = prefs.lock().await;

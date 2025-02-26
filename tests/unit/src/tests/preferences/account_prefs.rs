@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sos_backend::Preferences;
+use sos_backend::{BackendTarget, Preferences};
 use sos_core::{AccountId, Paths};
 use sos_preferences::PreferenceManager;
 use sos_test_utils::{
@@ -15,7 +15,8 @@ async fn fs_account_preferences() -> Result<()> {
 
     let paths = Paths::new_client(temp.path()).with_account_id(&account_id);
     paths.ensure().await?;
-    let prefs = Preferences::new_fs(paths);
+
+    let prefs = Preferences::new(BackendTarget::FileSystem(paths));
     prefs.new_account(&account_id).await?;
 
     let prefs = prefs.account_preferences(&account_id).await.unwrap();
@@ -26,9 +27,11 @@ async fn fs_account_preferences() -> Result<()> {
 
 #[tokio::test]
 async fn db_account_preferences() -> Result<()> {
+    let temp = tempdir_in("target")?;
     let mut client = memory_database().await?;
     let (account_id, _) = insert_database_account(&mut client).await?;
-    let prefs = Preferences::new_db(client);
+    let paths = Paths::new_client(temp.path()).with_account_id(&account_id);
+    let prefs = Preferences::new(BackendTarget::Database(paths, client));
     prefs.new_account(&account_id).await?;
     let prefs = prefs.account_preferences(&account_id).await.unwrap();
     let mut prefs = prefs.lock().await;

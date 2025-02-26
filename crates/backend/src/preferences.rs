@@ -1,46 +1,33 @@
-use crate::Error;
+use crate::{BackendTarget, Error};
 use async_trait::async_trait;
-use sos_core::{AccountId, Paths, PublicIdentity};
-use sos_database::{
-    async_sqlite::Client, PreferenceProvider as DbPreferenceProvider,
-};
+use sos_core::{AccountId, PublicIdentity};
+use sos_database::PreferenceProvider as DbPreferenceProvider;
 use sos_filesystem::PreferenceProvider as FsPreferenceProvider;
 use sos_preferences::{
     CachedPreferences, PreferenceManager, PreferenceStorageProvider,
     Preferences,
 };
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// Backend preferences.
 pub struct BackendPreferences(CachedPreferences<Error>);
 
 impl BackendPreferences {
-    /// Create file system preferences from a data directory.
-    pub fn new_fs_directory(
-        data_dir: Option<PathBuf>,
-    ) -> Result<Self, Error> {
-        let data_dir = if let Some(data_dir) = data_dir {
-            data_dir
-        } else {
-            Paths::data_dir()?
-        };
-        let paths = Paths::new_client(data_dir);
-        Ok(Self::new_fs(paths))
-    }
-
-    /// Create preferences using JSON files on disc.
-    pub fn new_fs(paths: Arc<Paths>) -> Self {
-        let provider: PreferenceStorageProvider<Error> =
-            Box::new(FsPreferenceProvider::new(paths));
-        Self(CachedPreferences::new(Arc::new(provider)))
-    }
-
-    /// Create preferences using a database table.
-    pub fn new_db(client: Client) -> Self {
-        let provider: PreferenceStorageProvider<Error> =
-            Box::new(DbPreferenceProvider::new(client));
-        Self(CachedPreferences::new(Arc::new(provider)))
+    /// Create new preferences.
+    pub fn new(target: BackendTarget) -> Self {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                let provider: PreferenceStorageProvider<Error> =
+                    Box::new(FsPreferenceProvider::new(paths));
+                Self(CachedPreferences::new(Arc::new(provider)))
+            }
+            BackendTarget::Database(_, client) => {
+                let provider: PreferenceStorageProvider<Error> =
+                    Box::new(DbPreferenceProvider::new(client));
+                Self(CachedPreferences::new(Arc::new(provider)))
+            }
+        }
     }
 }
 

@@ -106,8 +106,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = user.read().await;
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-            let paths = owner.paths();
-            let prefs = Preferences::new_fs(paths.clone());
+            let prefs = Preferences::new(owner.backend_target().await);
             prefs.new_account(owner.account_id()).await?;
             let prefs =
                 prefs.account_preferences(owner.account_id()).await.unwrap();
@@ -126,8 +125,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = user.read().await;
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-            let paths = owner.paths();
-            let prefs = Preferences::new_fs(paths.clone());
+            let prefs = Preferences::new(owner.backend_target().await);
             prefs.new_account(owner.account_id()).await?;
             let prefs =
                 prefs.account_preferences(owner.account_id()).await.unwrap();
@@ -144,8 +142,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = user.read().await;
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-            let paths = owner.paths();
-            let prefs = Preferences::new_fs(paths.clone());
+            let prefs = Preferences::new(owner.backend_target().await);
             prefs.new_account(owner.account_id()).await?;
             let prefs =
                 prefs.account_preferences(owner.account_id()).await.unwrap();
@@ -192,8 +189,7 @@ pub async fn run(cmd: Command) -> Result<()> {
             let owner = user.read().await;
             let owner =
                 owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-            let paths = owner.paths();
-            let prefs = Preferences::new_fs(paths.clone());
+            let prefs = Preferences::new(owner.backend_target().await);
             prefs.new_account(owner.account_id()).await?;
             let prefs =
                 prefs.account_preferences(owner.account_id()).await.unwrap();
@@ -213,8 +209,7 @@ async fn set_pref(
     let user = resolve_user(account.as_ref(), false).await?;
     let owner = user.read().await;
     let owner = owner.selected_account().ok_or(Error::NoSelectedAccount)?;
-    let paths = owner.paths();
-    let prefs = Preferences::new_fs(paths.clone());
+    let prefs = Preferences::new(owner.backend_target().await);
     prefs.new_account(owner.account_id()).await?;
     let prefs = prefs.account_preferences(owner.account_id()).await.unwrap();
     let mut prefs = prefs.lock().await;

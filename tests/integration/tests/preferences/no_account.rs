@@ -4,6 +4,7 @@ use sos_backend::Preferences;
 use sos_core::AccountId;
 use sos_preferences::{Preference, PreferenceManager};
 use sos_sdk::prelude::*;
+use sos_test_utils::make_client_backend;
 
 /// Tests the cached preferences without any accounts or authentication.
 #[tokio::test]
@@ -22,9 +23,11 @@ async fn preferences_no_account() -> Result<()> {
     let paths = Paths::new_client(&data_dir).with_account_id(&account_id);
     paths.ensure().await?;
 
+    let target = make_client_backend(&paths).await?;
+
     // Prepare the preferences
     let accounts = vec![identity];
-    let preferences = Preferences::new_fs_directory(Some(data_dir.clone()))?;
+    let preferences = Preferences::new(target);
     preferences
         .load_account_preferences(accounts.as_slice())
         .await?;

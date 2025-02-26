@@ -18,6 +18,7 @@ async fn preferences_local_account() -> Result<()> {
     let mut dirs = setup(TEST_ID, 1).await?;
     let data_dir = dirs.clients.remove(0);
     let paths = Paths::new_client(&data_dir);
+    let target = make_client_backend(&paths).await?;
 
     let account_name = TEST_ID.to_string();
     let (password, _) = generate_passphrase()?;
@@ -35,7 +36,7 @@ async fn preferences_local_account() -> Result<()> {
     let identity = account.public_identity().await?.clone();
     let identities = vec![identity];
 
-    let preferences = Preferences::new_fs_directory(Some(data_dir.clone()))?;
+    let preferences = Preferences::new(target);
     preferences.load_account_preferences(&identities).await?;
 
     let prefs = preferences.account_preferences(account.account_id()).await;
