@@ -1,3 +1,6 @@
+-- TODO: replace 'DEFAULT CURRENT_TIMESTAMP' for 'NOT NULL'
+-- TODO: and document the requirement for RFC3339 date/times
+
 -- Audit log
 CREATE TABLE IF NOT EXISTS audit_logs
 (
@@ -62,22 +65,25 @@ CREATE TABLE IF NOT EXISTS folders
     -- UUID
     identifier            TEXT                NOT NULL UNIQUE,
 
-    -- name
+    -- Name
     name                  TEXT                NOT NULL,
 
     -- Salt for key derivation
     salt                  TEXT,
 
-    -- AEAD encrypted meta data
+    -- Encoded AEAD encrypted folder meta data
     meta                  BLOB,
 
-    -- encoding version
+    -- Encoding version
     version               INTEGER             NOT NULL,
-    -- encryption cipher
+
+    -- Encryption cipher
     cipher                TEXT                NOT NULL,
-    -- key derivation function
+
+    -- Key derivation function
     kdf                   TEXT                NOT NULL,
-    -- bit flags u64 (little endian)
+
+    -- Bit flags u64 (little endian)
     flags                 BLOB(8)             NOT NULL,
 
     FOREIGN KEY (account_id) REFERENCES accounts (account_id)
@@ -92,13 +98,17 @@ CREATE TABLE IF NOT EXISTS folder_secrets
     folder_id             INTEGER             NOT NULL,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
     modified_at           DATETIME            DEFAULT CURRENT_TIMESTAMP,
+
     -- UUID
     identifier            TEXT                NOT NULL UNIQUE,
+
     -- SHA256 hash of the encoded data
     commit_hash           BLOB(32)            NOT NULL,
-    -- AEAD encrypted meta data
+
+    -- Encoded AEAD encrypted secret meta data
     meta                  BLOB                NOT NULL,
-    -- AEAD encrypted secret data
+
+    -- Encoded AEAD encrypted secret data
     secret                BLOB                NOT NULL,
 
     FOREIGN KEY (folder_id) REFERENCES folders (folder_id)
@@ -113,8 +123,10 @@ CREATE TABLE IF NOT EXISTS folder_events
     event_id              INTEGER             PRIMARY KEY NOT NULL,
     folder_id             INTEGER             NOT NULL,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
+
     -- SHA256 hash of the encoded data
     commit_hash           BLOB(32)            NOT NULL,
+
     -- Encoded event data (WriteEvent)
     event                 BLOB                NOT NULL,
 
@@ -130,8 +142,10 @@ CREATE TABLE IF NOT EXISTS account_events
     event_id              INTEGER             PRIMARY KEY NOT NULL,
     account_id            INTEGER             NOT NULL,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
+
     -- SHA256 hash of the encoded data
     commit_hash           BLOB(32)            NOT NULL,
+
     -- Encoded event data (AccountEvent)
     event                 BLOB                NOT NULL,
 
@@ -147,8 +161,10 @@ CREATE TABLE IF NOT EXISTS device_events
     event_id              INTEGER             PRIMARY KEY NOT NULL,
     account_id            INTEGER             NOT NULL,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
+
     -- SHA256 hash of the encoded data
     commit_hash           BLOB(32)            NOT NULL,
+
     -- Encoded event data (DeviceEvent)
     event                 BLOB                NOT NULL,
 
@@ -164,8 +180,10 @@ CREATE TABLE IF NOT EXISTS file_events
     event_id              INTEGER             PRIMARY KEY NOT NULL,
     account_id            INTEGER             NOT NULL,
     created_at            DATETIME            DEFAULT CURRENT_TIMESTAMP,
+
     -- SHA256 hash of the encoded data
     commit_hash           BLOB(32)            NOT NULL,
+
     -- Encoded event data (FileEvent)
     event                 BLOB                NOT NULL,
 

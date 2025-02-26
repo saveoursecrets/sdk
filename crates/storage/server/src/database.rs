@@ -285,10 +285,8 @@ impl ServerAccountStorage for ServerDatabaseStorage {
             .await?;
         let login_folder = FolderRecord::from_row(login_folder).await?;
 
-        let mut file = VaultWriter::new_db(
-            self.client.clone(),
-            *login_folder.summary.id(),
-        );
+        let mut file =
+            VaultWriter::new(self.target.clone(), login_folder.summary.id());
         file.set_vault_name(name.to_owned()).await?;
 
         // Update the accounts table (v2 logic)
@@ -320,6 +318,25 @@ impl ServerAccountStorage for ServerDatabaseStorage {
             .await?;
         Ok(())
     }
+
+    /*
+    async fn read_login_vault(&self) -> Result<Vault> {
+        let account_row_id = self.account_row_id;
+        let folder_row = self
+            .client
+            .conn_and_then(move |conn| {
+                let folder_entity = FolderEntity::new(&conn);
+                folder_entity.find_login_folder(account_row_id)
+            })
+            .await?;
+        let record = FolderRecord::from_row(folder_row).await?;
+        Ok(FolderEntity::compute_folder_vault(
+            &self.client,
+            record.summary.id(),
+        )
+        .await?)
+    }
+    */
 
     async fn write_login_vault(&self, vault: &Vault) -> Result<()> {
         AccountEntity::upsert_login_folder(
@@ -368,7 +385,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         folder_id: &VaultId,
         flags: VaultFlags,
     ) -> Result<()> {
-        let mut writer = VaultWriter::new_db(self.client.clone(), *folder_id);
+        let mut writer = VaultWriter::new(self.target.clone(), folder_id);
         writer.set_vault_flags(flags).await?;
         Ok(())
     }
@@ -541,7 +558,7 @@ impl ServerAccountStorage for ServerDatabaseStorage {
         id: &VaultId,
         name: &str,
     ) -> Result<()> {
-        let mut access = VaultWriter::new_db(self.client.clone(), *id);
+        let mut access = VaultWriter::new(self.target.clone(), id);
         access.set_vault_name(name.to_owned()).await?;
 
         #[cfg(feature = "audit")]

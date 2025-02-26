@@ -226,7 +226,9 @@ impl ServerAccountStorage for ServerFileStorage {
     }
 
     async fn rename_account(&self, name: &str) -> Result<()> {
-        let mut file = VaultWriter::new_fs(self.paths.identity_vault());
+        let mut file = sos_filesystem::VaultFileWriter::<Error>::new(
+            self.paths.identity_vault(),
+        );
         file.set_vault_name(name.to_owned()).await?;
         Ok(())
     }
@@ -241,6 +243,13 @@ impl ServerAccountStorage for ServerFileStorage {
         vfs::write(self.paths.vault_path(vault.id()), buffer).await?;
         Ok(())
     }
+
+    /*
+    async fn read_login_vault(&self) -> Result<Vault> {
+        let buffer = vfs::read(self.paths.identity_vault()).await?;
+        Ok(decode(&buffer).await?)
+    }
+    */
 
     async fn write_login_vault(&self, vault: &Vault) -> Result<()> {
         let buffer = encode(vault).await?;
@@ -270,8 +279,7 @@ impl ServerAccountStorage for ServerFileStorage {
         folder_id: &VaultId,
         flags: VaultFlags,
     ) -> Result<()> {
-        let mut writer =
-            VaultWriter::new_fs(self.paths.vault_path(folder_id));
+        let mut writer = VaultWriter::new(self.target.clone(), folder_id);
         writer.set_vault_flags(flags).await?;
         Ok(())
     }
@@ -401,8 +409,7 @@ impl ServerAccountStorage for ServerFileStorage {
         id: &VaultId,
         name: &str,
     ) -> Result<()> {
-        let vault_path = self.paths.vault_path(id);
-        let mut access = VaultWriter::new_fs(vault_path);
+        let mut access = VaultWriter::new(self.target.clone(), id);
         access.set_vault_name(name.to_owned()).await?;
 
         #[cfg(feature = "audit")]

@@ -286,6 +286,15 @@ impl ServerAccountStorage for ServerStorage {
         }
     }
 
+    /*
+    async fn read_login_vault(&self) -> Result<Vault> {
+        match self {
+            ServerStorage::FileSystem(fs) => fs.read_login_vault().await,
+            ServerStorage::Database(db) => db.read_login_vault().await,
+        }
+    }
+    */
+
     async fn write_login_vault(&self, vault: &Vault) -> Result<()> {
         match self {
             ServerStorage::FileSystem(fs) => {

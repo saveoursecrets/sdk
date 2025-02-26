@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::{BackendTarget, Error, Result};
 use async_trait::async_trait;
 use sos_core::{
     commit::CommitHash,
@@ -6,10 +6,10 @@ use sos_core::{
     events::{ReadEvent, WriteEvent},
     SecretId, VaultCommit, VaultEntry, VaultFlags, VaultId,
 };
-use sos_database::{async_sqlite::Client, VaultDatabaseWriter};
+use sos_database::VaultDatabaseWriter;
 use sos_filesystem::VaultFileWriter;
 use sos_vault::{EncryptedEntry, Summary, Vault};
-use std::{borrow::Cow, path::Path};
+use std::borrow::Cow;
 
 /// Backend vault writer.
 pub enum VaultWriter {
@@ -20,14 +20,17 @@ pub enum VaultWriter {
 }
 
 impl VaultWriter {
-    /// Create a new database vault writer.
-    pub fn new_db(client: Client, folder_id: VaultId) -> Self {
-        Self::Database(VaultDatabaseWriter::<Error>::new(client, folder_id))
-    }
-
-    /// Create a new file system vault writer.
-    pub fn new_fs<P: AsRef<Path>>(path: P) -> Self {
-        Self::FileSystem(VaultFileWriter::<Error>::new(path))
+    /// Create a new vault writer.
+    pub fn new(target: BackendTarget, folder_id: &VaultId) -> Self {
+        match target {
+            BackendTarget::FileSystem(paths) => {
+                let path = paths.vault_path(folder_id);
+                Self::FileSystem(VaultFileWriter::<Error>::new(path))
+            }
+            BackendTarget::Database(_, client) => Self::Database(
+                VaultDatabaseWriter::<Error>::new(client, *folder_id),
+            ),
+        }
     }
 }
 

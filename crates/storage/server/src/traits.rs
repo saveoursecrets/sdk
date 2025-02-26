@@ -46,6 +46,11 @@ pub trait ServerAccountStorage {
     /// Write a vault to storage.
     async fn write_vault(&self, vault: &Vault) -> Result<()>;
 
+    /*
+    /// Read the login vault from the storage.
+    async fn read_login_vault(&self) -> Result<Vault>;
+    */
+
     /// Write a login vault to storage.
     async fn write_login_vault(&self, vault: &Vault) -> Result<()>;
 
