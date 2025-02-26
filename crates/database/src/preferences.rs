@@ -59,23 +59,24 @@ where
         account_id: Option<&AccountId>,
     ) -> Result<PreferenceMap, Self::Error> {
         let account_id = account_id.cloned();
-        let rows = self
-            .client
-            .conn_and_then(move |conn| match account_id {
-                Some(account_id) => {
-                    let account = AccountEntity::new(&conn);
-                    let account_row = account.find_one(&account_id)?;
-                    let prefs = PreferenceEntity::new(&conn);
-                    Ok::<_, Error>(
-                        prefs.load_preferences(Some(account_row.row_id))?,
-                    )
-                }
-                None => {
-                    let prefs = PreferenceEntity::new(&conn);
-                    Ok::<_, Error>(prefs.load_preferences(None)?)
-                }
-            })
-            .await?;
+        let rows =
+            self.client
+                .conn_and_then(move |conn| match account_id {
+                    Some(account_id) => {
+                        let account = AccountEntity::new(&conn);
+                        let account_row =
+                            account.find_optional(&account_id)?;
+                        let prefs = PreferenceEntity::new(&conn);
+                        Ok::<_, Error>(prefs.load_preferences(
+                            account_row.map(|r| r.row_id),
+                        )?)
+                    }
+                    None => {
+                        let prefs = PreferenceEntity::new(&conn);
+                        Ok::<_, Error>(prefs.load_preferences(None)?)
+                    }
+                })
+                .await?;
 
         let mut map: PreferenceMap = Default::default();
         for row in rows {
@@ -98,10 +99,12 @@ where
             .conn(move |conn| match account_id {
                 Some(account_id) => {
                     let account = AccountEntity::new(&conn);
-                    let account_row = account.find_one(&account_id)?;
+                    let account_row = account.find_optional(&account_id)?;
                     let prefs = PreferenceEntity::new(&conn);
-                    Ok(prefs
-                        .upsert_preference(Some(account_row.row_id), &row)?)
+                    Ok(prefs.upsert_preference(
+                        account_row.map(|r| r.row_id),
+                        &row,
+                    )?)
                 }
                 None => {
                     let prefs = PreferenceEntity::new(&conn);
@@ -124,10 +127,12 @@ where
             .conn(move |conn| match account_id {
                 Some(account_id) => {
                     let account = AccountEntity::new(&conn);
-                    let account_row = account.find_one(&account_id)?;
+                    let account_row = account.find_optional(&account_id)?;
                     let prefs = PreferenceEntity::new(&conn);
-                    Ok(prefs
-                        .delete_preference(Some(account_row.row_id), &key)?)
+                    Ok(prefs.delete_preference(
+                        account_row.map(|r| r.row_id),
+                        &key,
+                    )?)
                 }
                 None => {
                     let prefs = PreferenceEntity::new(&conn);
@@ -148,10 +153,11 @@ where
             .conn(move |conn| match account_id {
                 Some(account_id) => {
                     let account = AccountEntity::new(&conn);
-                    let account_row = account.find_one(&account_id)?;
+                    let account_row = account.find_optional(&account_id)?;
                     let prefs = PreferenceEntity::new(&conn);
-                    Ok(prefs
-                        .delete_all_preferences(Some(account_row.row_id))?)
+                    Ok(prefs.delete_all_preferences(
+                        account_row.map(|r| r.row_id),
+                    )?)
                 }
                 None => {
                     let prefs = PreferenceEntity::new(&conn);
